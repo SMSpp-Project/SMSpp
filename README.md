@@ -8,7 +8,7 @@ Introduction {#intro}
 
 This is a the Main page of SMS++, a set of C++ classes intended to provide
 a system for modeling complex, block-structured mathematical models (in
-praticular, but not exclusively, single-real-objective optimization
+particular, but not exclusively, single-real-objective optimization
 problems), and solving them via sophisticated, structure-exploiting
 algorithms (in praticular, but not exclusively, decomposition approaches and
 structured Interior-Point methods).
