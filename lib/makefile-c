@@ -1,0 +1,58 @@
+##############################################################################
+################################ makefile-c ##################################
+##############################################################################
+#									     #
+#   complete makefile of the core SMS++                                      #
+#									     #
+#   The makefile defines internally all external libraries required by       #
+#   the core SMS++ library. Accordingly, all necessary OBJ, H, -I            #
+#   directives, and external libraries + -L<libdirs> are added to the        #
+#   corresponding SMS++* macros.                                             #
+#                                                                            #
+#   Input:  $(CC)       = compiler command                                   #
+#           $(SW)       = compiler options                                   #
+#           $(SMS++SDR) = the directory where the core SMS++ source is       #
+#                                                                            #
+#   Output: $(SMS++OBJ) = the final objects                                  #
+#           $(SMS++H)   = the .h files to include for the core SMS++         #
+#           $(SMS++INC) = all the -I$( include dirs ) of the core SMS++      #
+#           $(SMS++LIB) = the external libraries + -L<libdirs>               #
+#                                                                            #
+#                                VERSION 2.00                                #
+#                               25 - 06 - 2018                               #
+#                                                                            #
+#                              Antonio Frangioni                             #
+#                          Operations Research Group                         #
+#                         Dipartimento di Informatica                        #
+#                             Universita' di Pisa                            #
+#									     #
+##############################################################################
+
+# define & include the necessary modules- - - - - - - - - - - - - - - - - - -
+# if a module is not used in the current configuration, just comment out the
+# corresponding include line
+# each module outputs some macros to be used here:
+# *INC are the -I<include directories>
+# *LIB are the external libreries + -L<libdirs>
+
+# the Boost library
+include $(SMS++SDR)extlib/makefile-libBoost
+
+# the Eigen library
+include $(SMS++SDR)extlib/makefile-libEigen
+
+# the NetCDF library
+include $(SMS++SDR)extlib/makefile-libNetCDF
+
+# external -I directives for the core SMS++
+SMS++INC = $(libBoostINC) $(libEigenINC) $(libNtCDFINC)
+
+# include the SMS++ makefile requiring all external modules in input
+include $(SMS++SDR)lib/makefile
+
+# macroes to be exported- - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+# external libraries for the core SMS++
+SMS++LIB = $(libBoostLIB) $(libEigenLIB) $(libNtCDFLIB)
+
+########################### End of makefile-c ################################

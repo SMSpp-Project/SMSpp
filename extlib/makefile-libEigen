@@ -1,0 +1,34 @@
+##############################################################################
+############################ makefile-libEigen ###############################
+##############################################################################
+#									     #
+#   makefile of libEigen						     #
+#									     #
+#   Input:  none, this is a pre-built library				     #
+#									     #
+#   Output: accordingly, there is no *H and *OBJ in output, since there is   #
+#           no need to check for changes in the .h and rebuild the .o / .a   #
+#           $(libEigenINC) = the -I$(include directories) for Eigen          #
+#           $(libEigenLIB) = external libreries + -L<libdirs> for Eigen      #
+#									     #
+#                                VERSION 1.00				     #
+#                	        12 - 11 - 2018				     #
+#									     #
+#			      Antonio Frangioni				     #
+#   			   Operations Research Group			     #
+#			  Dipartimento di Informatica			     #
+#   			     Universita' di Pisa			     #
+#									     #
+##############################################################################
+
+
+# possibly demand the definition to the "upper" extlib- - - - - - - - - - - -
+
+# include ../../extlib/makefile-libEigen
+
+# otherwise, define the macroes to be exported- - - - - - - - - - - - - - - -
+
+libEigenINC = -I/Users/frangio/Codes/others/eigen/ -I/usr/local/include/eigen3
+libEigenLIB = 
+
+############################# End of makefile ################################

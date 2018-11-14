@@ -1,0 +1,142 @@
+Block.h
+- SMSTypedefs.h
+- Configuration.h
+- Observer.h
+- Solver.h
+
+Block.cpp
+- Block.h
+- Constraint.h
+- Objective.h
+- Variable.h
+
+C05Function.h
+- Function.h
+
+C15Function.h
+- C05Function.h
+
+CDASolver.h
+- Solver.h
+
+ColVariable.h
+- Variable.h
+
+ColVariable.cpp
+- Block.h
+- ColVariable.h
+
+ColVariableSolution.h
+- Solution.h
+
+ColVariableSolution.cpp
+- SMSTypedefs.h
+- ColVariable.h
+- ColVariableSolution.h
+
+Configuration.h
+- SMSTypedefs.h
+
+Configuration.cpp
+- Configuration.h
+
+Constraint.h
+- Modification.h
+- ThinComputeInterface.h
+- ThinVarDepInterface.h
+
+Constraint.cpp
+- Block.h
+- Constraint.h
+
+FRealObjective.h
+- Function.h
+- Objective.h
+
+FRealObjective.cpp
+- Block.h
+- Variable.h
+- FRealObjective.h
+
+FRowConstraint.h
+- Function.h
+- RowConstraint.h
+
+FRowConstraint.cpp
+- Block.h
+- Variable.h
+- FRowConstraint.h
+
+Function.h
+- Modification.h
+- ThinComputeInterface.h
+- ThinVarDepInterface.h
+
+LinearFunction.h
+- C15Function.h
+- ColVariable.h
+
+LinearFunction.cpp
+- Observer.h
+- LinearFunction.h
+- SMSTypedefs.h
+
+Modification.h
+- nil
+
+Objective.h
+- ThinComputeInterface.h
+- ThinVarDepInterface.h
+
+Objective.cpp
+- Block.h
+- Objective.h
+
+Observer.h
+- Modification.h
+
+RowConstraint.h
+- Constraint.h
+
+RowConstraint.cpp
+- Block.h
+- RowConstraint.h
+
+SMSTypedefs.h
+- nil
+
+Solution.h
+- nil
+
+Solver.h
+- Modification.h
+- ThinComputeInterface.h
+
+Solver.cpp
+- Block.h
+- Solver.h
+- FakeSolver.h
+
+ThinComputeInterface.h
+- Configuration.h
+
+ThinComputeInterface.cpp
+- SMSTypedefs.h
+- ThinComputeInterface.h
+
+ThinVarDepInterface
+- nil
+
+Variable.h
+- Modification.h
+
+Variable.cpp
+- ThinVarDepInterface
+- Block.h
+- Variable.h
+
+
+
+
+
+
