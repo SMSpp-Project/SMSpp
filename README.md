@@ -1,18 +1,18 @@
-Main Page {#mainpage}
-=========
+The "core" SMS++ {#mainpage}
+================
 
-![To boldly model (and solve) what no one has modeled (and solved) before](./doxygen/SMSpp_logo_mid_noback.png)
+![To boldly model (and solve) what no one has modeled (and solved)
+before](./doxygen/SMSpp_logo_mid_noback.png)
 
-Introduction {#intro}
-=====================
+Introduction
+------------
 
-This is a the Main page of SMS++, a set of C++ classes intended to provide
-a system for modeling complex, block-structured mathematical models (in
-particular, but not exclusively, single-real-objective optimization
-problems), and solving them via sophisticated, structure-exploiting
-algorithms (in praticular, but not exclusively, decomposition approaches and
-structured Interior-Point methods).
-
+This is a the splash page of the documentation of the "core" SMS++, a set of
+C++ classes intended to provide a system for modeling complex,
+block-structured mathematical models (in particular, but not exclusively,
+single-real-objective optimization problems), and solving them via
+sophisticated, structure-exploiting algorithms (in praticular, but not
+exclusively, decomposition approaches and structured Interior-Point methods).
 
 A General Description of SMS++
 ------------------------------
@@ -248,4 +248,7 @@ Previous Lead Authors and Contributors
 	Operations Research Group
 	Dipartimento di Informatica
 	Universita' di Pisa
+
+	Utz-Uwe Haus
+	Cray EMEA Research Lab
 

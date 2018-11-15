@@ -1,5 +1,6 @@
 **/*~
 **/*.o
+**/*.a
 **/.DS_Store
 **/*.dSYM
 .DS_Store
