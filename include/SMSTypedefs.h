@@ -170,12 +170,12 @@ namespace SMSpp_di_unipi_it
  * f_factory of the appropriate base class.
  *
  * It also defines the private_name() method. */
- 
+
 #define SMSpp_insert_in_factory_h \
  static class _init { \
- public: \
+  public: \
   _init( void ); \
- } _initializer; \
+  } _initializer; \
   \
  virtual const std::string & private_name( void ) const override
 
@@ -199,7 +199,26 @@ namespace SMSpp_di_unipi_it
  * The alert reader may wonder why the ugly two-step mechanism to define the
  * object inserted in the factory in the "_1" version. This is due to the
  * fact that boost (up to and incl. 1.67) does not do 'perfect forwarding':
- * factory<>() requires lvalue arguments, but bind provides rvalues. */
+ * factory<>() requires lvalue arguments, but bind provides rvalues.
+ *
+ * The alert reader may similarly wonder why the funny "{}" after
+ * "_initializer" in the _t versions, but not in the standard ones. This is
+ * because for a template class (say, A, say template over the int) with a
+ * static mamber (say, int a), something like
+ *
+ *   template<>
+ *   int A<5>::a;
+ *
+ * is *not* a definition of the object for the specialization A<5>, as it
+ * would be for a normal int, but rather a "specialization declaration" that
+ * says "don't instantiate a from the primary template, because there is a
+ * specialized definition somewhere else". In order to force it to be a
+ * definition the object has to be explicitly initialized, as in
+ *
+ *   template<>
+ *   int A<5>::a{};
+ *
+ * cue the funny "{}". */
 
 #define SMSpp_insert_in_factory_cpp_0( ClassName ) \
  const std::string & ClassName::private_name( void ) const { \
@@ -238,7 +257,7 @@ namespace SMSpp_di_unipi_it
   f_factory()[ #ClassName ] = boost::factory<ClassName*>();	\
   } \
     \
- template<> ClassName::_init ClassName::_initializer
+ template<> ClassName::_init ClassName::_initializer{}
 
 #define SMSpp_insert_in_factory_cpp_1_t( ClassName ) \
  template<> \
@@ -253,7 +272,7 @@ namespace SMSpp_di_unipi_it
   f_factory()[ #ClassName ] = boost::bind<ClassName*>(f2,_1);	\
   } \
     \
- template<> ClassName::_init ClassName::_initializer
+ template<> ClassName::_init ClassName::_initializer{}
 
 /*@} -----------------------------------------------------------------------*/
 /*------------------- HANDLE boost::any SPECIALIZATIONS --------------------*/
