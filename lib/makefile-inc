@@ -35,9 +35,11 @@ include $(SMS++SDR)lib/makefile-c
 SMS++OBJ = $(SMS++SDR)lib/libSMS++.a
 
 # ensure that the library is properly constructed - - - - - - - - - - - - - -
+# force the make to be always executed
 
-$(SMS++OBJ):
+$(SMS++OBJ): FORCE
 	make -f $(SMS++SDR)lib/makefile-lib SMS++SDR=$(SMS++SDR)
+FORCE:
 
 # clean-up unrequired things- - - - - - - - - - - - - - - - - - - - - - - - -
 
