@@ -731,7 +731,7 @@ void BlockConfig::print( std::ostream &output ) const
   output << *f_solution_Configuration;
  if( f_extra_Configuration )
   output << *f_extra_Configuration;
- for( auto cfg : v_sub_BlockConfig )
+ for( const auto cfg : v_sub_BlockConfig )
   if( cfg )
    output << *cfg;
  output << std::endl;
@@ -1057,7 +1057,7 @@ void BlockSolverConfig::print( std::ostream &output ) const
  output << ": " << std::endl;
  for( int i = 0 ; i < v_SolverNames.size() ; ++i )
   output << v_SolverNames[ i ] << ": " << v_SolverConfigs[ i ];
- for( auto cfg : v_BlockSolverConfigs )
+ for( const auto cfg : v_BlockSolverConfigs )
   if( cfg )
    output << *cfg;
  output << std::endl;
