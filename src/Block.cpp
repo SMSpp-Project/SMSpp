@@ -425,9 +425,12 @@ void Block::set_SolverConfig( BlockSolverConfig * svcc )
 {
  if( ! svcc ) {  // complete reset
   // unregister Solver in reverse order
-  for( auto it = v_Solver.rbegin() ; it != v_Solver.rend() ; ++it )
+  for( auto it = v_Solver.rbegin() ; it != v_Solver.rend() ; ++it ) {
+   Solver *oldS = *it;
    unregister_Solver( --(it.base()) );  // convert backward into forward
-
+   delete oldS;
+   }
+ 
   // reset all Solver in all sub-Block
   for( auto it = v_Block.begin() ; it != v_Block.end() ; ++it )
    (*it)->set_SolverConfig();
