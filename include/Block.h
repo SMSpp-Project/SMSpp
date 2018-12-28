@@ -552,7 +552,7 @@ class Block : public Observer {
 
  Block( Block *father = nullptr ) : Observer() ,
   f_at( false ) , verbosity_lvl( low ) , f_BlockConfig( nullptr ) ,
-  f_channel( 0 ) , f_Block( father ) , f_Objective( nullptr ) {}
+  f_channel( 0 ) , f_Block( father ) , f_Objective() {}
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: it is deleted
