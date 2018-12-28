@@ -95,19 +95,17 @@ const std::vector<double> Solver::dflt_dbl_par =
 
 void Solver::set_Block( Block *block )
 {
- if( f_Block == block )                 // registering to the same Block
-  return;                               // nothing to do
+ if( f_Block == block )  // registering to the same Block
+  return;                // cowardly and silently return
 
- if( f_Block ) {                        // was attached to some Block
-  f_Block->unregister_Solver( this );   // it is no more so
-  v_mod.clear();                        // any existing Modification was
-                                        // about the old Block, so it is now
-                                        // irrelevant
-  }
+ if( f_Block )           // was attached to some Block
+  v_mod.clear();         // any pending Modification was about the old
+                         // Block, so it is now irrelevant
 
- f_Block = block;                        // this is the new Block now
- if( block )                             // if it really is a Block
-  f_Block->register_Solver( this );      // register to it
+ f_Block = block;        // this is the new Block now
+
+ if( block )             // if it really is a Block (i.e., not nullptr)
+  f_Block->register_Solver( this );  // register to it
  }
 
 /*--------------------------------------------------------------------------*/

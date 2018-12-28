@@ -563,7 +563,20 @@ public:
   *
   * Passing block == nullptr signals to the Solver to discard every
   * information related to the solution process of the previous Block (if
-  * any), and sit down quietly in a corner waiting for new orders. */
+  * any), and sit down quietly in a corner waiting for new orders. 
+  *
+  * Important note: set_Block( nullptr ) does *not* call
+  *
+  *      f_Block->unregister_Solver( this )
+  *
+  * to undegister the Solver from the Block. This is because this method is
+  * called precisely in this way in Block::unregister_Solver(), and therefore
+  * an infinite loop would ensue. Hence, the preferred way to rescind the ties
+  * between a Block and a Solver is to call Block::unregister_Solver(), which
+  * will do everything. If set_Block( nullptr ) is called before that,
+  * Block::unregister_Solver() will still have to be called to make the Block
+  * aware of the "departure" of the Solver, even though the latter already
+  * knows. */
 
  virtual void set_Block( Block *block );
 
