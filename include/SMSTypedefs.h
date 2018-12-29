@@ -119,7 +119,7 @@ namespace SMSpp_di_unipi_it
  class Inf {
  public:
   Inf() {}
-  operator T() { return( std::numeric_limits<T>::infinity() ); }
+  operator T() { return( std::numeric_limits<T>::max() ); }
   };
 
 /*--------------------------------------------------------------------------*/
