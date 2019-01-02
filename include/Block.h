@@ -3346,6 +3346,13 @@ class Block : public Observer {
   v_d_Variable_names.clear();
   }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ /// removes any existing objective; to be used with care
+ void reset_objective( void ) {
+  f_Objective = boost::any();
+  }
+
 /*--------------------------------------------------------------------------*/
  /// single object of class (derived from) Constraint
 
