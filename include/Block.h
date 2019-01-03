@@ -964,9 +964,9 @@ class Block : public Observer {
  /** This method serves is to ensure that the "abstract representation" of
   * the Variable, be they static or dynamic, of the Block is initialized,
   * so that it can be read with get_static_variables() and
-  * get_dynamic_variables() [see below]. For the dynamic ones this may (or
-  * may not) imply that the lists are empty, with the dynamic generation being
-  * done into generate_dynamic_variables() [see below].
+  * get_dynamic_variables(). For the dynamic ones this may (or may not)
+  * imply that the lists are empty, with the dynamic generation being done
+  * into generate_dynamic_variables().
   *
   * This method has to be used (rather, *not* used) with caution, because the
   * Variable of a Block are in general "thought to be always there". Indeed,
@@ -986,22 +986,43 @@ class Block : public Observer {
   * (much larger) set of "auxiliary" Variable. If the latter are not needed by
   * any of the Solver/users interacting with the Block, it is possible to
   * avoid to construct them at all. This is somehow related to, albeit
-  *  different from, the fact that certain "types" of Variable may be "many",
-  * and therefore necessarily have to be generated dynamicallt, see
-  * generate_dynamic_variables() below.
+  * different from, the fact that certain "types" of Variable may be "many",
+  * and therefore necessarily have to be generated dynamically, see
+  * generate_dynamic_variables(). Note, however, that "the shape" of the set
+  * of abstract Variable of the Block, i.e., the number of elements in the
+  * vectors returned by get_static_variables() and get_dynamic_variables()
+  * must always be the same: it can only change with the *first* call to this
+  * method (i.e., when the vectors are initialized) and never afterwards.
+  * Besides, the subset of "groups" of static Variable that are constructed
+  *
+  *    IS NOT SUPPOSED TO CHANGE OVER THE LIFETIME OF THE Block
+  *
+  * That is, a Block may be initialized to have less ("abstract") Variable
+  * than all the ones it might; if this is the case, all the other ones will
+  * *never* be available. This means that calling this method multiple times
+  * with different configuration parameters [see below] implying different
+  * "groups" of static Variable is not allowed: any such call should either
+  * be ignored (once the set of static Variable of the Block is initialized,
+  * it is so for good) or throw exception. As a result,
+  *
+  *    NONE OF THE OPERATIONS IN THIS METHOD SHOULD ISSUE A Modification
+  *
+  * The idea, again, is that this operation is made once and for all in the
+  * lifetime of the object, and never repeated.
   *
   * Note, however, that all Variable appearing in any ("abstract
   * representation" of a) Constraint that is explicitly constructed [see
-  * generate_static_constraints() above] must obviously be constructed, and
-  * this *before* the Constraint is. Of course, a derived class can ignore
-  * all this and just construct them all right away, but this may be work and
+  * generate_abstract_constraints()] must obviously be constructed, and this
+  * *before* the Constraint is. Of course, a derived class can ignore all
+  * this and just construct them all right away, but this may be work and
   * memory wasted if no Solver actually uses them. Any Solver should ensure
   * that this method has been called at least once before making any attempt
   * at using the Variable, unless it knows for sure that the Block it is
   * working with has done that already. Note that it is easy to check whether
-  * or not generate_static_variables() still has to be called by just testing
+  * or not generate_abstract_variables() still has to be called by just testing
   * if get_static_variables().size() == 0, although this is a necessary but
-  * not sufficient condition, as a Block may not have any Variable at all.
+  * not sufficient condition, as a Block may not have any static Variable at
+  * all.
   *
   * Most expected uses of this method rely on the fact that a Block can have
   * several different types (groups) of static Variable. This is why the
@@ -1036,9 +1057,9 @@ class Block : public Observer {
   * Configuration contains a sub-Configuration for each specific sub-Block of
   * a Block. */
 
- virtual void generate_static_variables( Configuration *stvv = nullptr ) {
+ virtual void generate_abstract_variables( Configuration *stvv = nullptr ) {
   for( auto blck : v_Block )
-   blck->generate_static_variables();
+   blck->generate_abstract_variables();
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -1047,7 +1068,7 @@ class Block : public Observer {
   * The idea is that the information available to the Block (e.g. stored in
   * dual variables of its Constraint, if they are defined) may allow the
   * Block to generate more Variable that can be used to get better solutions.
-  * This is necessary for Blocks that have in principle a "very large" number
+  * This is necessary for Block that have in principle a "very large" number
   * of Variable (say, exponentially many) which therefore can only be
   * generated dynamically.
   *
@@ -1066,23 +1087,23 @@ class Block : public Observer {
   * Block to produce a correct return value.
   *
   * When this method is called, the Block should attempt at generating new
-  * Variables. If the "abstract representation" of Variable has been
-  * constructed [see generate_static_variables()], then any newly found
+  * Variable. If the "abstract representation" of these Variable has been
+  * constructed [see generate_abstract_variables()], then any newly found
   * Variable will be added to the corresponding list via a call to
   * add_dynamic_variable(), thereby triggering the appropriate (abstract)
   * Modification. This may not be necessary, since a specialized Solver may
   * be able to work with a specialized version of the dynamic variables (say,
-  * paths in an appropriate graph). In this case, a specific (physical)
+  * paths in an appropriate graph). In this case, a specific physical
   * Modification has to be issued that the specialized Solver has to be
   * capable to recognize, thereby ignoring the corresponding abstract
-  * modification. Note that if the "abstract representation" has been also
+  * Modification. Note that if the "abstract representation" has been also
   * constructed, both types of Modification will have to be issued, with each
   * type of Solver having to figure out which one to react to.
   *
   * Note that any new Variable in the Block typically allows more feasible
-  * solutions to exist; hence, in general if dynamic Variables exist, they
+  * solutions to exist; hence, in general if dynamic Variable exist, they
   * have necessarily to be generated (priced in) before a solution is
-  * certified to be optimal. There can be exceptions for Variables that only
+  * certified to be optimal. There can be exceptions for Variable that only
   * reformulate the set of feasible solutions without actually adding it any
   * new element, such as those corresponding to dual-optimal inequalities;
   * this is analogous to the distinction between lazy constraints and valid
@@ -1090,11 +1111,11 @@ class Block : public Observer {
   *
   * In principle, one Block can have several different types of dynamic
   * Variable; not all of them must necessarily be generated all the time.
-  * For instance, some families of dynamic Variables may be cheaper to
+  * For instance, some families of dynamic Variable may be cheaper to
   * generate (priced in) than others, and it may make algorithmic sense to
   * give different priorities at different stages of the solution process.
-  * Furthermore, even for the same family of dynamic Variables there could
-  * be different generation (pricing) procedures (say, heuristic and exact),
+  * Furthermore, even for the same family of dynamic Variable there could be
+  * different generation (pricing) procedures (say, heuristic and exact),
   * each with different algorithmic parameters, among which possibly the
   * time that can be spent in the process. Finally, a Block can have several
   * (different) sub-Block, recursively, and dynamic variables for all
@@ -1113,6 +1134,12 @@ class Block : public Observer {
   * has sub-Block, some of which have dynamic variables, then the
   * :Configuration object should contain an appropriate :Configuration
   * object for each of these.
+  *
+  * Note that not all "groups" (families) of "abstract" dynamic Variable may
+  * have been constructed [see generate_abstract_variables()]. This does *not*
+  * mean that those that have not been constructed may not be generated: if
+  * this is done, only the "physical representation" of these is generated,
+  * and the "abstract" one is not.
   *
   * Note that the dyvv parameter is meant as an *override* of the default
   * Configuration for this task set by means of set_BlockConfig(), which
@@ -1155,20 +1182,51 @@ class Block : public Observer {
   * into generate_dynamic_constraints(). Of course, in order to be able to
   * construct the "abstract representation" of the Constraint one must have
   * already constructed the "abstract representation" of the Variable first,
-  * see generate_static_variables().
+  * see generate_abstract_variables().
   *
   * Because a (specialized) Solver may not need the description of the Block
   * in terms of its "abstract" Constraint, these may not actually be
-  * constructed until this method is called for the first time. A derived
-  * class can ignore all this and just construct them right away, but this
-  * may be work and memory wasted if no Solver actually uses them. Any Solver
-  * should ensure that this method has been called at least once before making
-  * any attempt at using the Constraint, unless it knows for sure that the
-  * Block it is working with has done that already. Note that it is easy to
-  * check whether or not generate_static_constraints() still has to be called
-  * by just testing if get_static_constraints().size() == 0, although this is
-  * a necessary but not sufficient condition, as a Block may not have any
-  * Constraint at all.
+  * constructed until this method is called for the first time. Furthermore,
+  * not all Constraint of a Block may be "equally important". For instance,
+  * only a (maybe, quite small) subset of the Constraint may be required for
+  * certain uses of the Block, which however logically also has a (much
+  * larger) set of "auxiliary" Constraint. If the latter are not needed by
+  * any of the Solver/users interacting with the Block, it is possible to
+  * avoid to construct them at all. This is somehow related to, albeit
+  * different from, the fact that certain "types" of Constraint may be
+  * "many", and therefore necessarily have to be generated dynamically, see
+  * generate_dynamic_constraint(). Note, however, that "the shape" of the set
+  * of abstract Constraint of the Block, i.e., the number of elements in the
+  * vectors returned by get_static_constraints() and get_dynamic_constraints()
+  * must always be the same: it can only change with the *first* call to this
+  * method (i.e., when the vectors are initialized) and never afterwards.
+  * Besides, the subset of "groups" of static Constraint that are constructed
+  *
+  *    IS NOT SUPPOSED TO CHANGE OVER THE LIFETIME OF THE Block
+  *
+  * That is, a Block may be initialized to have less ("abstract") Constraint
+  * than all the ones it might; if this is the case, all the other ones will
+  * *never* be available. This means that calling this method multiple times
+  * with different configuration parameters [see below] implying different
+  * "groups" of static Constraint is not allowed: any such call should either
+  * be ignored (once the set of static Constraint of the Block is initialized,
+  * it is so for good) or throw exception. As a result,
+  *
+  *    NONE OF THE OPERATIONS IN THIS METHOD SHOULD ISSUE A Modification
+  *
+  * The idea, again, is that this operation is made once and for all in the
+  * lifetime of the object, and never repeated.
+  *
+  * Note that a derived class can ignore all this and just construct all the
+  * Constraint right away, but this may be work and memory wasted if no
+  * Solver actually uses them. Any Solver should ensure that this method has
+  * been called at least once before making any attempt at using the
+  * Constraint, unless it knows for sure that the Block it is working with
+  * has done that already. Note that it is easy to check whether or not
+  * generate_abstract_constraints() still has to be called by just testing if
+  * get_static_constraints().size() == 0, although this is a necessary but
+  * not sufficient condition, as a Block may not have any static Constraint
+  * at all.
   *
   * In general, a Block can have several different types (groups) of static
   * Constraint; not all the Solver may require all of them, be them directly
@@ -1204,9 +1262,9 @@ class Block : public Observer {
   * that a Configuration contains a sub-Configuration for each specific
   * sub-Block of a Block. */
  
- virtual void generate_static_constraints( Configuration *stcc = nullptr ) {
+ virtual void generate_abstract_constraints( Configuration *stcc = nullptr ) {
   for( auto blck : v_Block )
-   blck->generate_static_constraints();
+   blck->generate_abstract_constraints();
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -1227,23 +1285,23 @@ class Block : public Observer {
   * it is better not to explicitly construct all of them, but only "the
   * subset that is useful for algorithmic reasons". This in particular means
   * that if the Block has dynamic Constraint, any call to is_feasible()
-  * [see below] cannot rely only on the abstract representation of the Block
-  * to produce a correct return value. Also, it is important to remark that
-  * there are two different classes of dynamic Constraint, "valid
-  * inequalities" and "lazy constraints", with a different semantic meaning.
-  * Valid inequalities potentially strengthen the formulation of the problem
-  * but do not change the set of feasible solutions; therefore, how many of
-  * them are generated (comprised none) does not change the optimal solutions
-  * of the Block. Conversely, lazy constraints change the set of feasible
-  * solutions; therefore, lazy constraints *must* be generated (separated)
-  * before a solution is confirmed as feasible. This is, of course, true for
+  * cannot rely only on the abstract representation of the Block to produce a
+  * correct return value. Also, it is important to remark that there are two
+  * different classes of dynamic Constraint, "valid inequalities" and "lazy
+  * constraints", with a different semantic meaning. Valid inequalities
+  * potentially strengthen the formulation of the problem but do not change
+  * the set of feasible solutions; therefore, how many of them are generated
+  * (comprised none) does not change the optimal solutions of the Block.
+  * Conversely, lazy constraints change the set of feasible solutions;
+  * therefore, lazy constraints *must* be generated (separated) before a
+  * solution is confirmed as feasible. This is, of course, true for
   * general-purpose Solver relying on the abstract representation of the
   * Block; specialized Solver may know the feasible set without any need
   * for dynamic lazy constraints to be ever generated.
   *
   * When this method is called, the Block should attempt at generating new
-  * Constraint. If the "abstract representation" of Constraint has been
-  * constructed [see generate_static_constraints()], then any newly found
+  * Constraint. If the "abstract representation" of these Constraint has been
+  * constructed [see generate_abstract_constraints()], then any newly found
   * Constraint will be added to the corresponding list via a call to
   * add_dynamic_constraint(), thereby triggering the appropriate (abstract)
   * Modification. This may not be necessary, since a specialized Solver may
@@ -1257,8 +1315,8 @@ class Block : public Observer {
   * order to be able to construct the "abstract representation" of a dynamic
   * Constraint one must have already constructed the "abstract representation"
   * of the corresponding Variable first, but this is almost free because
-  * generate_static_variables() has to be called (with appropriate
-  * parameters) before generate_static_constraints() is.
+  * generate_abstract_variables() has to be called (with appropriate
+  * parameters) before generate_abstract_constraints() is.
   *
   * In general, a Block can have several different types (groups) of dynamic
   * Constraint (be them valid inequalities or lazy constraints); not all of
@@ -1280,14 +1338,20 @@ class Block : public Observer {
   * pointer to an arbitrarily complex Configuration object. The actual
   * parameter may be of any specific derived class from Configuration, and
   * contain all the information that is relevant, such as which families of
-  * dynamic constraints to be separated, and which which algorithm. Possibly
+  * dynamic Constraint to be separated, and which which algorithm. Possibly
   * the :Configuration object may even contain one or more Block with
   * attached Solver to represent and solve the separation problem, so that
   * the algorithmic parameters of the Solver (say, maximum time and required
   * accuracy) can be used to control the separation process. Also, if the
-  * Block has sub-Block, some of which have dynamic constraints, then the
+  * Block has sub-Block, some of which have dynamic Constraint, then the
   * :Configuration object should contain an appropriate :Configuration
   * object for each of these.
+  *
+  * Note that not all "groups" (families) of "abstract" dynamic Constraint may
+  * have been constructed [see generate_abstract_constraints()]. This does *not*
+  * mean that those that have not been constructed may not be generated: if
+  * this is done, only the "physical representation" of these is generated,
+  * and the "abstract" one is not.
   *
   * Note that the dycc parameter is meant as an *override* of the default
   * Configuration for this task set by means of set_BlockConfig(), which
@@ -1326,7 +1390,7 @@ class Block : public Observer {
   * get_objective(). Of course, in order to be able to construct the "abstract
   * representation" of the Objective one must have already constructed the
   * "abstract representation" of the Variable first,
-  * see generate_static_variables().
+  * see generate_abstract_variables().
   *
   * Because a (specialized) Solver may not need the description of the Block
   * in terms of its "abstract" Objective, that may not actually be constructed
@@ -1456,10 +1520,14 @@ class Block : public Observer {
  c_Vec_any & get_static_constraints( void ) const {
   return( v_s_Constraint );
   }
- ///< reading the *static* Constraints of the Block
- /**< Method for reading the *static* Constraints of the Block. It returns a
+ ///< reading the *static* Constraint of the Block
+ /**< Method for reading the *static* Constraint of the Block. It returns a
   * vector of boost::any, each element of which is supposed to contain only
   * one among:
+  *
+  * - nothing (empty() returns true), which means that the corresponding
+  *   "group" of static Constraint has not been constructed [see
+  *   generate_abstract_constraints()];
   *
   * - a pointer to a single Constraint (p_Const in Constraint.h) or to any
   *   class derived from Constraint;
@@ -1492,7 +1560,7 @@ class Block : public Observer {
   * Block may, or may not, coincide: however, Variables and Constraints MUST
   * *NEVER* BE COPIED BY VALUE, BECAUSE THEIR MEMORY ADDRESS IS THEIR NAME.
   * Hence, should a derived class choose to implement its "physical
-  * representation" as (...) vectors of Constraints, as opposed to (...)
+  * representation" as (...) vectors of Constraint, as opposed to (...)
   * vectors of pointers, it has to be *very* careful to *NEVER* MODIFY THESE
   * VECTORS (in particular, increase their size) during  the lifetime of the
   * Block in order to avoid the risk that some Constraints may change their
@@ -1508,35 +1576,35 @@ class Block : public Observer {
   * resizing a vector of pointers do not change the address of the original
   * objects (although hell may break loose for many other reasons).
   *
-  * Similarly, the size of the vector of static Constraints is *not* supposed
+  * Similarly, the size of the vector of static Constraint is *not* supposed
   * to change along the life of the Block: which *groups* of Constraint are
   * there is "the structure of the Block", and this is assumed to be given.
-  * Individual Constraints can indeed appear and disappear, which is what
-  * dynamic Constraints are for, but "the set of indices of Constraints" is
+  * Individual Constraint can indeed appear and disappear, which is what
+  * dynamic Constraint are for, but "the set of indices of Constraint" is
   * assumed to be given once and for all. That is, add_static_constraint()
-  * [see below] should only be called (by derived classes) during the
-  * initialization of the Block, and never thereafter. More precisely,
-  * because some Solver may not need to access the Constraints at all, the
-  * idea is that Constraints (be them static or dynamic) are only generated
-  * if and when they are actually required. This is what the methods
-  * generate_static_constraints() and generate_abstract_constraints() are
-  * about. In particular, this method can only be called if
-  * generate_abstract_constraints() has been called, and the latter call
-  * may trigger a call to generate_static_constraints(). However, once the
-  * sets of static and dynamic Constraints have been constructed, they are
-  * not supposed to change (except for addition/deletion of dynamic
-  * Constraints and changes in the Constraints that are handled by the
-  * appropriate Modifications). */
+  * should only be called (by derived classes) during the initialization of
+  * the Block, and never thereafter. More precisely, because some Solver may
+  * not need to access the Constraint at all, the idea is that Constraint
+  * (be them static or dynamic) are only generated if and when they are
+  * actually required by calling generate_abstract_constraints(): this method
+  * can only be called if the latter has. However, once the set of static
+  * and dynamic Constraints have been constructed, they are not supposed to
+  * change (except for addition/deletion of dynamic Constraint and changes in
+  * the Constraint that are handled by the appropriate Modification). */
 
 /*--------------------------------------------------------------------------*/
 
  c_Vec_any & get_static_variables( void ) const {
   return ( v_s_Variable );
   }
- ///< reading the *static* Variables of the Block
- /**< Method for reading the *static* Variables of the Block. It returns a
+ ///< reading the *static* Variable of the Block
+ /**< Method for reading the *static* Variable of the Block. It returns a
   * vector of boost::any, each element of which is supposed to contain only
   * one among:
+  *
+  * - nothing (empty() returns true), which means that the corresponding
+  *   "group" of static Variable has not been constructed [see
+  *   generate_abstract_variables()];
   *
   * - a pointer to a single Variable (p_Var in Variable.h) or to any
   *   class derived from Variable;
@@ -1566,7 +1634,7 @@ class Block : public Observer {
   * specific data that characterizes the derived class, which is responsible
   * of the allocation and deallocation of the corresponding memory (the
   * "physical representation" of the Block). The two representations of the
-  * Block may, or may not, coincide: however, Variables and Constraints MUST
+  * Block may, or may not, coincide: however, Variable and Constraint MUST
   * *NEVER* BE COPIED BY VALUE, BECAUSE THEIR MEMORY ADDRESS IS THEIR NAME.
   * Hence, should a derived class choose to implement its "physical
   * representation" as (...) vectors of Variable, as opposed to (...) vectors
@@ -1577,7 +1645,7 @@ class Block : public Observer {
   *
   * A FORTIORI, SIZE OF THE [...] ARRAYS WHOSE POINTERS ARE PROVIDED BY THIS
   * METHOD MUST *NEVER* BE CHANGED BY WHOMEVER READS THEM. Since it must,
-  * conversely, be possible to change the individual Variables, the arrays
+  * conversely, be possible to change the individual Variable, the arrays
   * cannot be const (a size-cons, contents-mutable array should be used,
   * which is possible but just too complicated at this point). It would be
   * possible to enforce this for [...] arrays of *pointers*, but since it is
@@ -1585,32 +1653,36 @@ class Block : public Observer {
   * resizing a vector of pointers do not change the address of the original
   * objects (although hell may break loose for many other reasons).
   *
-  * Similarly, the size of the vector of static Variables is *not* supposed
+  * Similarly, the size of the vector of static Variable is *not* supposed
   * to change along the life of the Block: which *groups* of Variable are
   * there is "the structure of the Block", and this is assumed to be given.
-  * Individual Variables can indeed appear and disappear, which is what
-  * dynamic Variables are for, but "the set of indices of Variable" is
+  * Individual Variable can indeed appear and disappear, which is what
+  * dynamic Variable are for, but "the set of indices of Variable" is
   * assumed to be given once and for all. That is, add_static_variable()
-  * [see below] should only be called (by derived classes) during the
-  * initialization of the Block, and never thereafter. More precisely,
-  * as opposed to Constraints, Variables necessarily need to be initialized
-  * immediately when the Block is constructed. However, this does not mean
-  * that their "abstract representation" is necessarily available: this
-  * method can only be called if generate_abstract_variables() has been
-  * called. However, once the "abstract representation" of the sets of static
-  * and dynamic Variables have been constructed, they are not supposed to
-  * change (except for addition/deletion of dynamic Variables and changes
-  * in the Variables that are handled by the appropriate Modifications). */
+  * should only be called (by derived classes) during the initialization of
+  * the Block, and never thereafter. More precisely, as opposed to
+  * Constraint, Variable necessarily need to be initialized immediately when
+  * the Block is constructed. However, this does not mean that their
+  * "abstract representation" is necessarily available: this method can only
+  * be called if generate_abstract_variables() has been called. However,
+  * once the "abstract representation" of the sets of static and dynamic
+  * Variable have been constructed, they are not supposed to change (except
+  * for addition/deletion of dynamic Variable and changes in the Variable
+  * that are handled by the appropriate Modification). */
 
 /*--------------------------------------------------------------------------*/
 
  c_Vec_any & get_dynamic_constraints( void ) const {
   return( v_d_Constraint );
   }
- ///< reading the *dynamic* Constraints of the Block
- /**< Method for reading the *dynamic* Constraints of the Block. It returns a
+ ///< reading the *dynamic* Constraint of the Block
+ /**< Method for reading the *dynamic* Constraint of the Block. It returns a
   * vector of boost::any, each element of which is supposed to contain only
   * one among:
+  *
+  * - nothing (empty() returns true), which means that the corresponding
+  *   "group" of dynamic Constraint has not been constructed [see
+  *   generate_dynamic_constraints()];
   *
   * - a pointer to a single std::list<C>, where class C is derived from
   *   Constraint (obviously you can't make a std::list of the base Constraint
@@ -1689,34 +1761,37 @@ class Block : public Observer {
   * Individual Constraints can indeed appear and disappear, which is what
   * precisely dynamic Constraints are for, but "the set of indices of
   * Constraints" is assumed to be given once and for all. That is,
-  * add_dynamic_constraint() [see below] should only be called (by derived
-  * classes) during the initialization of the Block, and never thereafter.
-  * More precisely, because some Solver may not need to access the Constraints
-  * at all, the  idea is that Constraints (be them static or dynamic) are only
-  * generated if and when they are actually required. This is what the methods
-  * generate_dynamic_constraints() and generate_abstract_constraints() are
-  * about. In particular, this method can only be called if
-  * generate_abstract_constraints() has been called, and the latter call
-  * may trigger a call to generate_dynamic_constraints(). Note that, once the
-  * sets of static and dynamic Constraints have been constructed, new dynamic
-  * constraints can be repeatedly generated by calling
-  * generate_dynamic_constraints() [see above]. However, because while the
-  * "shape" of the set of dynamic Constraints is constant, it still makes
-  * no sense to call this method more than once. If
-  * generate_abstract_constraints() had already been called at the time when
-  * generate_dynamic_constraints() is called, then each newly inserted
-  * Constraint triggers an appropriate Modification that makes any registered
-  * Solver aware of the fact that it has been added. */
+  * add_dynamic_constraint() should only be called (by derived classes)
+  * during the initialization of the Block, and never thereafter. More
+  * precisely, because some Solver may not need to access the Constraints at
+  * all, the  idea is that Constraints (be them static or dynamic) are only
+  * generated if and when they are actually required. This is what the method
+  * generate_dynamic_constraints() is about: this method can only be called if
+  * the latter has. Note that, once the sets of static and dynamic Constraint
+  * have been constructed, new dynamic Constraint can be repeatedly generated
+  * by calling generate_dynamic_constraints(): while the "shape" of the set
+  * of dynamic Constraint is constant, it still makes sense to call that
+  * method more than once, as the "separators" doing the actual generation
+  * may use different information (typically, the current value of the
+  * Variable) and/or have resource constraints that can be reset by calling
+  * the method again. Yet, new Constraint generated by 
+  * generate_dynamic_constraints() will trigger an appropriate Modification,
+  * which means that there should be no need to call this method again in
+  * order to "incorporate" this new information. */
 
 /*--------------------------------------------------------------------------*/
 
  c_Vec_any & get_dynamic_variables( void ) const {
   return( v_d_Variable );
   }
- ///< reading the *dynamic* Variables of the Block
- /**< Method for reading the *dynamic* Variables of the Block. It returns a
+ ///< reading the *dynamic* Variable of the Block
+ /**< Method for reading the *dynamic* Variable of the Block. It returns a
   * vector of boost::any, each element of which is supposed to contain only
   * one among:
+  *
+  * - nothing (empty() returns true), which means that the corresponding
+  *   "group" of dynamic Variable has not been constructed [see
+  *   generate_dynamic_variables()];
   *
   * - a pointer to a single std::list<V>, where class V is derived from
   *   Variable (obviously you can't make a std::list of the base Variable
@@ -1794,24 +1869,24 @@ class Block : public Observer {
   * Individual Variables can indeed appear and disappear, which is what
   * precisely dynamic Variables are for, but "the set of indices of
   * Variables" is assumed to be given once and for all. That is,
-  * add_dynamic_variable() [see below] should only be called (by derived
-  * classes) during the initialization of the Block, and never thereafter.
+  * add_dynamic_variable() should only be called (by derived classes) during
+  * the initialization of the Block, and never thereafter.
   *
-  * As opposed to Constraints, Variables necessarily need to be initialized
+  * As opposed to Constraint, Variable necessarily need to be initialized
   * immediately when the Block is constructed. However, this does not mean
   * that their "abstract representation" is necessarily available: this
-  * method can only be called if generate_abstract_variables() has been
-  * called. However, once the "abstract representation" of the sets of
-  * dynamic Variables have been constructed, new dynamic variables can be
-  * repeatedly generated by calling generate_dynamic_variables() [see above].
-. * Note that new dynamic constraints can be repeatedly generated by calling
-  * generate_dynamic_variables() [see above]. However, because while the
-  * "shape" of the set of dynamic Variables is constant, it still makes
-  * no sense to call this method more than once. If
-  * generate_abstract_variables() had already been called at the time when
-  * generate_dynamic_variables() is called, then each newly inserted
-  * Variable triggers an appropriate Modification that makes any registered
-  * Solver aware of the fact that it has been added. */
+  * method can only be called if generate_dynamic_variables() has. Note that,
+  * once the sets of static and dynamic Variable have been constructed, new
+  * dynamic Variable can be repeatedly generated by calling
+  * generate_dynamic_variables(): while the "shape" of the set of dynamic
+  * Variable is constant, it still makes sense to call that method more than
+  * once, as the "pricers" doing the actual generation may use different
+  * information (typically, the current value of dual information of the
+  * Constraint) and/or have resource constraints that can be reset by calling
+  * the method again. Yet, new Variable generated by
+  * generate_dynamic_variables() will trigger an appropriate Modification,
+  * which means that there should be no need to call this method again in
+  * order to "incorporate" this new information. */
 
 /*--------------------------------------------------------------------------*/
 
@@ -2390,7 +2465,7 @@ class Block : public Observer {
  *   space of Variables, provided that some appropriate mapping can be
  *   defined between the original and reformulated space. The mapping need
  *   not be algebraic, but must obviously be algorithmic [see
- *   map_back_solution() and map_forward_solution() below].
+ *   map_back_solution() and map_forward_solution()].
  *
  * - A Relaxation, i.e., a different Block whose optimal value provides a
  *   valid global lower bound (for a minimization problem, upper bound for a
@@ -2426,9 +2501,9 @@ class Block : public Observer {
  * class does not make any assumption on how the map is done, except that:
  *
  * - The original Block can map the current solution from an R3 Block to a
- *   solution of itself [see map_back_solution() below] and vice-versa [see
- *   and map_forward_solution() below]. There is no guarantee that the mapped
- *   back solution be feasible, say if the R3 Block is a relaxation, nor that
+ *   solution of itself [see map_back_solution()] and vice-versa [see
+ *   and map_forward_solution()]. There is no guarantee that the mapped back
+ *   solution be feasible, say if the R3 Block is a relaxation, nor that
  *   the mapped forward solution is, say if the R3 Block is a restriction.
  *
  * - The original Block can in principle "translate" a Modification occurring
@@ -2482,9 +2557,9 @@ class Block : public Observer {
   * requires being able to map the new Variable into the old ones, or
   * vice-versa. This is something that specific derived classes, having
   * implemented the R3 transformation, can efficiently do, and therefore it
-  * is demanded to them [see map_back_solution() and map_forward_solution()
-  * below]; the base class provides no general mechanism for this, besides
-  * the interface.
+  * is demanded to them [see map_back_solution() and map_forward_solution()];
+  * the base class provides no general mechanism for this, besides the
+  * interface.
   *
   * Each derived class can produce, in principle, any number of different R3
   * Blocks; the parameter r3bc is a pointer to an arbitrarily complex
@@ -2540,8 +2615,8 @@ class Block : public Observer {
 
 /*--------------------------------------------------------------------------*/
  /// maps back solution information from an R3 Block to the original Block
- /** Once a R3 Block has been produced [see get_R3_Block() above], it will
-  * be typically necessary to map solution information back from the R3 Block
+ /** Once a R3 Block has been produced [see get_R3_Block()], it will be
+  * typically necessary to map solution information back from the R3 Block
   * to the original one. This method is assumed to be exactly this: R3B is
   * assumed to be a R3 Block produced by the current one of "type" r3bc (the
   * same, or identical, Configuration object used in get_R3_Block() to produce
@@ -2581,7 +2656,7 @@ class Block : public Observer {
   *
   * A specific twist of mapping back solutions is that the R3B may have,
   * after having been constructed, independently generated dynamic Variable
-  * and/or Constraint [see get_R3_Block() above]. If it has generated dynamic
+  * and/or Constraint [see get_R3_Block()]. If it has generated dynamic
   * Variable that are not present in the original Block, then it may not be
   * possible for the original Block to fully map back the solution in the R3B
   * (although it may also be possible, depending on exactly how the map is
@@ -2593,14 +2668,13 @@ class Block : public Observer {
   * they exist. However, it should always be possible to ensure that a full
   * map exists by ensuring that the dynamic Variable/Constraint of the R3B and
   * of the original Block are "in sync" *before* calling map_back_solution().
-  * This should always be possible by using map_[back/forward]_modification()
-  * [see below], of course assuming that the original Block supports the
-  * corresponding Modification. Alternatively, the Block may in principle be
-  * capable of doing the adding of Variable/Constraint on-the-fly during the
-  * call to this method, i.e., generate in itself all the Variable/Constraint
-  * that are present in the R3B and that are necessary for the mapping to
-  * work; of course, in this case the appropriate Modification should be
-  * issued.
+  * This should always be possible by using map_[back/forward]_modification(),
+  * of course assuming that the original Block supports the corresponding
+  * Modification. Alternatively, the Block may in principle be capable of
+  * doing the adding of Variable/Constraint on-the-fly during the call to
+  * this method, i.e., generate in itself all the Variable/Constraint that
+  * are present in the R3B and that are necessary for the mapping to work;
+  * of course, in this case the appropriate Modification should be issued.
   *
   * Note that the original Block will have to be able to access the Variable
   * of the R3 Block (and to its Constraint if dual information also has to
@@ -2622,14 +2696,14 @@ class Block : public Observer {
 
 /*--------------------------------------------------------------------------*/
  /// maps forward solution information from the original Blocka to n R3 Block
- /** Once a R3 Block has been produced [see get_R3_Block() above], it might
-  * be useful to map solution information from the original Block to the R3
-  * Block, the reverse of what map_back_solution() [see above] does. This
-  * method is assumed to be exactly this: R3B is assumed to be a R3 Block
-  * produced by the current one of "type" r3bc (the same, or identical,
-  * Configuration object used in get_R3_Block() to produce R3B in the first
-  * place), and the Block should map the solution information contained into
-  * its own Variable into these of the R3B. Similar observations apply as in
+ /** Once a R3 Block has been produced [see get_R3_Block()], it might be
+  * useful to map solution information from the original Block to the R3
+  * Block, the reverse of what map_back_solution() does. This method is
+  * assumed to be exactly this: R3B is assumed to be a R3 Block produced by
+  * the current one of "type" r3bc (the same, or identical, Configuration
+  * object used in get_R3_Block() to produce R3B in the first place), and the
+  * Block should map the solution information contained into its own Variable
+  * into these of the R3B. Similar observations apply as in
   * map_back_solution():
   *
   * - In general the mapping can be highly nontrivial to write algebraically,
@@ -2664,9 +2738,9 @@ class Block : public Observer {
   *   map exists by ensuring that the dynamic Variable/Constraint of the R3B
   *   and of the original Block are "in sync" *before* calling
   *   map_forward_solution(), which should always be possible by using
-  *   map_[back/forward]_modification() [see below]. Alternatively, the Block
-  *   may in principle be capable of adding to the R3B the Variable/Constraint
-  *   that are necessary for the mapping to work on-the-fly during the call to
+  *   map_[back/forward]_modification(). Alternatively, the Block may in
+  *   principle be capable of adding to the R3B the Variable/Constraint that
+  *   are necessary for the mapping to work on-the-fly during the call to
   *   this method, in which case the appropriate Modification should be
   *   issued.
   *
@@ -2692,7 +2766,7 @@ class Block : public Observer {
 
 /*--------------------------------------------------------------------------*/
  /// maps forward a Modification from the original Block to an R3 Block
- /** Once a R3 Block has been produced [see get_R3_Block() above], it is a
+ /** Once a R3 Block has been produced [see get_R3_Block()], it is a
   * completely independent object from the original Block that created it.
   * Hence, any modification to the original Block does not affect the R3
   * Block. Also, because the R3 Block may be "very different" from the
@@ -2721,7 +2795,7 @@ class Block : public Observer {
   * Variable/Constraint by the R3B as follows:
   *
   * - copy the solution (primal and/or dual as it need be) from the R3B
-  *   into the original Block [see map_back_solution() above];
+  *   into the original Block [see map_back_solution()];
   *
   * - have the original Block generate whatever new dynamic
   *   Variable/Constraint as dictated by the imported solution;
@@ -2765,7 +2839,7 @@ class Block : public Observer {
 
 /*--------------------------------------------------------------------------*/
  /// maps back a Modification from an R3 Block to the original Block
- /** Once a R3 Block has been produced [see get_R3_Block() above], it is a
+ /** Once a R3 Block has been produced [see get_R3_Block()], it is a
   * completely independent object from the original Block that created it.
   * Hence, any modification to the R3 Block does not affect the original Block.
   * Also, because the R3 Block may be "very different" from the original one,
@@ -2993,14 +3067,14 @@ class Block : public Observer {
  /// removing the solver in position it of the set of the registered ones
  /** Method for removing a Solver from the set of those currently registered
   * with the Block. The parameter it is supposed to be the position into
-  * the list returned by get_regisgtered_solvers() [see above] where the
-  * Solver currently is; the vector of registered Solver is therefore
-  * shortened by one, and the remaining solvers (if any) are shifted in the
-  * obvious way. Note that the iterator parameter is const because the only
-  * place where it might have been taken from (except if the method is
-  * called from another Block method) is get_registered_solvers();
-  * however, we "cast away const-ness" inside. Also, note that the
-  * method is virtual because derived classes may have to do more.
+  * the list returned by get_regisgtered_solvers() where the Solver currently
+  * is; the vector of registered Solver is therefore shortened by one, and
+  * the remaining solvers (if any) are shifted in the obvious way. Note that
+  * the iterator parameter is const because the only place where it might
+  * have been taken from (except if the method is called from another Block
+  * method) is get_registered_solvers(); however, we "cast away const-ness"
+  * inside. Also, note that the method is virtual because derived classes may
+  * have to do more.
   *
   * Warning: checking if an iterator really belongs to a list is complicated,
   * hence the method does not try to do that; clearly, calling the method
@@ -3016,12 +3090,12 @@ class Block : public Observer {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// replace an old Solver with a new Solver
  /** Method for substituting the Solver at the position "it" into the vector
-  * returned by get_registered_solvers() [see above] with the given new
-  * Solver. Note that the iterator parameter is const because the only place
-  * where it might have been taken from (except if the method is called from
-  * another Block method) is get_registered_solvers(); however, we "cast away
-  * const-ness" inside. Note that the method is virtual because derived
-  * classes may have to do more.
+  * returned by get_registered_solvers() with the given new Solver. Note that
+  * the iterator parameter is const because the only place where it might
+  * have been taken from (except if the method is called from another Block
+  * method) is get_registered_solvers(); however, we "cast away const-ness"
+  * inside. Note that the method is virtual because derived classes may have
+  * to do more.
   *
   * Warning: checking if an iterator really belongs to a list is complicated,
   * hence the method does not try to do that; clearly, calling the method
@@ -3108,10 +3182,10 @@ class Block : public Observer {
   * Solver attached to this Block and to each of its sub-Block.
   *
   * Note an important difference between this method and register_Solver(),
-  * unregister_Solver() and replace_Solver() [see above]: in the latter the
-  * new solver have to be already constructed outside of Block, and the ones
-  * that get un-registered are *not* deleted, which therefore has to be done
-  * by whomever created them in the first place outside the Block. In this
+  * unregister_Solver() and replace_Solver(): in the latter the new solver
+  * have to be already constructed outside of Block, and the ones that get
+  * un-registered are *not* deleted, which therefore has to be done by
+  * whomever created them in the first place outside the Block. In this
   * method, instead, the Solver are directly constructed (using the Solver
   * factory) inside the Block, and correspondingly each Solver that gets
   * un-registered is also immediately deleted. Mixing the two styles of
@@ -3354,6 +3428,14 @@ class Block : public Observer {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// empty slot
+
+ void add_static_constraint( void ) {
+  v_s_Constraint.push_back( boost::any() );
+  v_s_Constraint_names.emplace_back();
+  }
+
+/*--------------------------------------------------------------------------*/
  /// single object of class (derived from) Constraint
 
  template<class Const>
@@ -3420,6 +3502,14 @@ class Block : public Observer {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// empty slot
+
+ void add_static_variable( void ) {
+  v_s_Variable.push_back( boost::any() );
+  v_s_Variable_names.emplace_back();
+  }
+
+/*--------------------------------------------------------------------------*/
  /// single object of class (derived from) Variable
 
  template<class Var>
@@ -3483,6 +3573,14 @@ class Block : public Observer {
   boost::multi_array<Var * , K> *cnewv = & newv;
   v_s_Variable.push_back( cnewv );
   v_s_Variable_names.emplace_back();
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// empty slot
+
+ void add_dynamic_constraint( void ) {
+  v_d_Constraint.push_back( boost::any() );
+  v_d_Constraint_names.emplace_back();
   }
 
 /*--------------------------------------------------------------------------*/
@@ -3565,6 +3663,14 @@ class Block : public Observer {
   boost::multi_array<std::list<Const *> , K> *cnewc = & newc;
   v_d_Constraint.push_back( cnewc );
   v_d_Constraint_names.emplace_back();
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// empty slot
+
+ void add_dynamic_variable( void ) {
+  v_d_Variable.push_back( boost::any() );
+  v_d_Variable_names.emplace_back();
   }
 
 /*--------------------------------------------------------------------------*/
@@ -3797,7 +3903,7 @@ class Block : public Observer {
  * in which it is active. Since the removal of a Variable from a Constraint or
  * Objective may result in a Modification being thrown, this Modification can
  * be avoided by setting the parameter throw_individual_modifications to
- * false [see remove_dynamic_variables() above]. */
+ * false [see remove_dynamic_variables()]. */
 
  void remove_variable_from_stuff( Variable * const variable ,
 				  const int issueindMod  );
@@ -4095,11 +4201,11 @@ class BlockConfig : public Configuration
 
  std::string f_name;  /// the name of the Block
 
- /// the Configuration for generate_static_constraints()
+ /// the Configuration for generate_abstract_constraints()
  Configuration *f_static_constraints_Configuration;
  /// the Configuration for generate_dynamic_constraints()
  Configuration *f_dynamic_constraints_Configuration;
- /// the Configuration for generate_static_variables()
+ /// the Configuration for generate_abstract_variables()
  Configuration *f_static_variables_Configuration;
  /// the Configuration for generate_dynamic_variables()
  Configuration *f_dynamic_variables_Configuration;
