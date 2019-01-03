@@ -1483,8 +1483,19 @@ class OneVarConstraintMod : public RowConstraintMod
  /// print the OneVarConstraintMod
 
  virtual inline void print( std::ostream &output ) const {
-  output << "OneVarConstraintMod on OneVarConstraint["
-	 << f_constraint << "]: changing the Variable" << std::endl;
+  output << "OneVarConstraintMod[";
+  if( concerns_Block() )
+   output << "t";
+  else
+   output << "f";  
+  output << "] on OneVarConstraint[" << f_constraint << "]: changing ";
+  switch( f_type ) {
+   case( eChgLHS ): output << "LHS";  break;
+   case( eChgRHS ): output << "RHS";  break;
+   case( eChgBTS ): output << "both"; break;
+   default:         output << "Var";
+   }
+  output << std::endl;
   }
 
 /*--------------------------------------------------------------------------*/

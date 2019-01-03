@@ -123,7 +123,7 @@ void Block::add_Modification( sp_Mod mod , ChnlName chnl )
  if( ! chnl )                           // the default channel
   chnl = f_channel;                     // possibly silently hijack it
 
- if( ! chnl ) {                         // not the default channel
+ if( ! chnl ) {                         // (still) the default channel
   if( f_Block )                         // if there is a father
    f_Block->add_Modification( mod );    // pass it above
 
@@ -208,7 +208,7 @@ void Block::close_channel( c_ChnlName chnl )
      ( v_current_GroupMod[ chnl - 1 ] == nullptr ) )
   throw( std::invalid_argument( "wrong channel name" ) );
 
- add_Modification( std::shared_ptr<GroupModification>(
+ Block::add_Modification( std::shared_ptr<GroupModification>(
 				          v_current_GroupMod[ chnl - 1 ] ) );
  // there is no longer an "open" chnl GroupModification
  v_current_GroupMod[ chnl - 1 ] = nullptr;
