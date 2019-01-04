@@ -88,28 +88,6 @@ public:
 /** @name Other initializations
  *  @{ */
 
- /// set the (pointer to the) Block that the FakeSolver has to solve
- /** Method to set the (pointer to the) Block that the FakeSolver has to solve.
-  * If there were any other block attached to Block this FakeSolver, any
-  * information about solutions to the previous Block the FakeSolver had
-  * computed is lost for good. This is why the method is virtual: derived
-  * classes may need to do more to reach to such an abrupt change.
-  *
-  * Passing block == nullptr signals to the FakeSolver to discard every
-  * information related to the solution process of the previous Block (if
-  * any), and sit down quietly in a corner waiting for new orders. */
-
- virtual void set_Block( Block *block ) override
- {
-  if( f_Block ) {  // there was another Block attached before
-   f_Block->unregister_Solver( this );  // this Solver looks elsewhere now
-   v_mod.clear();  /* any outstanding Modification was for the old Block,
-		    * hence it is irrelevant now. */
-   }
-
-  Solver::set_Block( block );  // attach to the new Block
-  }
-
 /*@} -----------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SOLVING THE MODEL ----------------------*/
 /*--------------------------------------------------------------------------*/
