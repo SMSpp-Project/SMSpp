@@ -103,9 +103,6 @@ void Solver::set_Block( Block *block )
                          // Block, so it is now irrelevant
 
  f_Block = block;        // this is the new Block now
-
- if( block )             // if it really is a Block (i.e., not nullptr)
-  f_Block->register_Solver( this );  // register to it
  }
 
 /*--------------------------------------------------------------------------*/

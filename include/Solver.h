@@ -565,18 +565,25 @@ public:
   * information related to the solution process of the previous Block (if
   * any), and sit down quietly in a corner waiting for new orders. 
   *
-  * Important note: set_Block( nullptr ) does *not* call
+  * Important note: set_Block( < some Block > ) does *not* call
+  *
+  *      < some Block >->register_Solver( this )
+  *
+  * to register the Solver to the Block, and likewise set_Block( nullptr )
+  * does *not* call
   *
   *      f_Block->unregister_Solver( this )
   *
-  * to undegister the Solver from the Block. This is because this method is
-  * called precisely in this way in Block::unregister_Solver(), and therefore
-  * an infinite loop would ensue. Hence, the preferred way to rescind the ties
-  * between a Block and a Solver is to call Block::unregister_Solver(), which
-  * will do everything. If set_Block( nullptr ) is called before that,
-  * Block::unregister_Solver() will still have to be called to make the Block
-  * aware of the "departure" of the Solver, even though the latter already
-  * knows. */
+  * to unregister the Solver from the Block. This is because this method is
+  * called when the Solver is [un/registered to the Block (see
+  * Block::register_Solver(), Block::unregister_Solver() and
+  * Block::replace_Solver()). Hence, the preferred way to set/rescind the ties
+  * between a Block and a Solver is to do that via the Block; if set_Block()
+  * is called before that, the methods of the Block will still have to be
+  * called to make the Block aware of the changes.
+  *
+  * The method is virtual because :Solver may have to be more to react to
+  * the changes. */
 
  virtual void set_Block( Block *block );
 

@@ -3021,17 +3021,22 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
  /// adding a Solver to the set of those currently registered
  /** Method for adding a Solver to the set of those currently registered
-  * with the Block. Note that the Block does *not* set itself to the
-  * Solver (we assume the converse is done, see Solver.h). Note that the
-  * method is virtual because derived classes may have to do more. */
+  * with the Block. Note that the Block does sets itself to the Solver by
+  * calling Solver::set_Block(), which is why the converse is not done (see
+  * Solver.h). Note that the method is virtual because derived classes may
+  * have to do more. */
 
  virtual void register_Solver( Solver *newSolver ) {
-  if( v_Solver.empty() && ( ! f_at ) ) {
-   // this is the first solver listening to me, and no one was listening
-   // from above already
-
-   for( auto el : v_Block )    // now someone is listening to all my sons
-    el->anyone_there( true );
+  if( v_Solver.empty() ) {    // this is the first Solver listening to me
+   if( ! f_at ) {             // and no one was listening from above already
+    for( auto el : v_Block )  // now someone is listening to all my sons
+     el->anyone_there( true );
+    }
+   }
+  else {                      // there are other Solver listening to me
+   auto it = find( v_Solver.begin() , v_Solver.end() , newSolver );
+   if( it != v_Solver.end() )  // the Solver is already there
+    return;                    // silently return
    }
 
   newSolver->set_Block( this );
@@ -3044,8 +3049,10 @@ class Block : public Observer {
   * with the Block. If oldSolver is not among the registered solvers, then
   * nothing is done (and no warning is issued); otherwise the vector of
   * registered Solver is shortened by one, and the remaining solvers (if any)
-  * are shifted in the obvious way. Note that the method is virtual because
-  * derived classes may have to do more. */
+  * are shifted in the obvious way. Note that the Block calls 
+  * Solver::set_Block( nullptr ) to the Solver that is un-registered, which is
+  * why the converse is not done (see Solver.h). Note that the method is
+  * virtual because derived classes may have to do more. */
 
  virtual void unregister_Solver( Solver *oldSolver ) {
   auto it = find( v_Solver.begin() , v_Solver.end() , oldSolver );
@@ -3073,8 +3080,10 @@ class Block : public Observer {
   * the iterator parameter is const because the only place where it might
   * have been taken from (except if the method is called from another Block
   * method) is get_registered_solvers(); however, we "cast away const-ness"
-  * inside. Also, note that the method is virtual because derived classes may
-  * have to do more.
+  * inside. Note that the Block calls Solver::set_Block( nullptr ) to the
+  * Solver that is un-registered, which is why the converse is not done (see
+  * Solver.h). Also, note that the method is virtual because derived classes
+  * may have to do more.
   *
   * Warning: checking if an iterator really belongs to a list is complicated,
   * hence the method does not try to do that; clearly, calling the method
@@ -3094,8 +3103,10 @@ class Block : public Observer {
   * the iterator parameter is const because the only place where it might
   * have been taken from (except if the method is called from another Block
   * method) is get_registered_solvers(); however, we "cast away const-ness"
-  * inside. Note that the method is virtual because derived classes may have
-  * to do more.
+  * inside. Note that the Block calls Solver::set_Block( nullptr ) to the
+  * Solver that is replaced, which is why the converse is not done (see
+  * Solver.h). Note that the method is virtual because derived classes may
+  * have to do more.
   *
   * Warning: checking if an iterator really belongs to a list is complicated,
   * hence the method does not try to do that; clearly, calling the method
