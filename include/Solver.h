@@ -1238,12 +1238,8 @@ public:
 /** @name Changing the data of the model
  *  @{ */
 
- virtual void add_Modification( sp_Mod &mod ) {
-  v_mod.push_back( mod );
-  }
-
- ///< add a new Modification to the list
- /**< This method must be used by the Block (or any of its components:
+ /// add a new Modification to the list
+ /** This method must be used by the Block (or any of its components:
   * Variables, Constraints, Objective Function) to pass the (shared) pointer
   * to an (object of class derived from) Modifications corresponding to
   * any change that occurred in the data. Note that the method gets a
@@ -1259,7 +1255,53 @@ public:
   * finished processing it. Modification objects can have some nontrivial
   * amount of information attached to them [see, e.g.,
   * remove_dynamic_variables() in Block.h], that only gets deleted then.
-  * Hence, it is crucial that Solvers do actually delete the Modifications. */
+  * Hence, it is crucial that Solvers do actually clear the (smart pointers to
+  * the) Modification.
+  *
+  * In general, Modification should be treated in a rigidly sequential order
+  * to ensure that the state of the Solver is consistent with what was the 
+  * state of the Block at the moment in which they were issued (which is, in
+  * general, different from the current state of the Block). However, the
+  * NBModification, which must be issued by Block::load(), is an exception:
+  * when it is issued,
+  *
+  *    ALL EXISTING Modification RELATED TO THIS Block SHOULD BE
+  *    IMMEDIATELY DELETED WITHOUT BEING ACTED UPON FIRST
+  *
+  * This is due to the fact that the, despite being the same physical object
+  * with the same memory address, the Block is now in fact a "completely
+  * different Block". In particular, handling of Modification can usually rely
+  * on the fact that "some aspects" of the Block cannot change, such as the
+  * number and type of static Variable and Constraint. However, after a
+  * NBModification, this is no longer true: a(n abstract) Modification
+  * (pointing to some static Variable / Constraint) may contain invalid
+  * pointers to objects that have meanwhile ceased to exist. Therefore, the
+  * only safe recourse is to immediately delete them all. This is, anyway,
+  * also the cheapest thing to do: there is no point in wasting time on these
+  * Modification, since they refer to the status of a Block that is fact no
+  * longer exist.
+  *
+  * Doing all this is also quite simple for Solver of "leaf" Block that have
+  * no sub-block: if that Modification is received the current queue of
+  * outstanding Modification (received, but not acted upon, by the Solver) is
+  * just cleared right away before inserting the new one. This may not be
+  * appropriate for Solver of "complex" Block where the re-loading of a
+  * sub-Block can be faced without a complete reset of all the state of the
+  * Solver, but this is still relatively easy to manage: each time a
+  * Modification is received it should be checked for being one of these, and
+  * an appropriate flag should be set so that the Solver knows that it has to
+  * react in a "nonstandard" way. This is, however, left to specific :Solver,
+  * while the simple reaction is directly implemented in the method of the
+  * base Solver class. */
+
+ virtual void add_Modification( sp_Mod &mod ) {
+  const auto tmod = std::dynamic_pointer_cast<NBModification>( mod );
+  if( tmod )
+   v_mod.clear();
+
+  v_mod.push_back( mod );
+  }
+
 
 /*@} -----------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/

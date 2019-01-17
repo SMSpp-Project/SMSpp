@@ -72,6 +72,7 @@
 ///< namespace for the Structured Modeling System++ (SMS++)
 namespace SMSpp_di_unipi_it
 {
+ class Block;            // forward definition of Block
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
@@ -454,6 +455,102 @@ class AModification : public Modification {
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( AModification ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------------------ CLASS NModification -----------------------------*/
+/*--------------------------------------------------------------------------*/
+/*--------------------------- GENERAL NOTES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+/// a "Nuclear" Modification indicating that everything changes
+/** The class NModification derives from Modification and basically does
+ * nothing to extend it. However, the different class is used to indicate that
+ * the Modification of this type are "high priority" ones. While in general
+ * Modification should be treated in a rigidly sequential order, a
+ * NModification should be given priority to all other ones. This is because
+ * it typically indicates that "too much has changed" in some object, so that
+ * it is either not convenient, or not even possible, to process the
+ * corresponding Modification prior to this one. */
+
+class NModification : public Modification {
+
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+ /// constructor: does nothing
+ 
+ NModification( void ) : Modification() { }
+
+ virtual ~NModification() { }  ///< destructor: does nothing
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( NModification ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------------------- CLASS NBModification ---------------------------*/
+/*--------------------------------------------------------------------------*/
+/// derived class from NModification for "nuclear Block Modification"
+/** Derived class from NModification to describe the "nuclear" Modification
+ * to a Block, i.e., everything is changed (say, load() is called). This
+ * implies that
+  *
+  *    ALL EXISTING Modification RELATED TO THIS Block SHOULD BE
+  *    IMMEDIATELY DELETED WITHOUT BEING ACTED UPON FIRST
+  *
+  * This is due to the fact that the, despite being the same physical object
+  * with the same memory address, the Block is now in fact a "completely
+  * different Block". In particular, handling of Modification can usually rely
+  * on the fact that "some aspects" of the Block cannot change, such as the
+  * number and type of static Variable and Constraint. However, after a
+  * NBModification, this is no longer true: a(n abstract) Modification
+  * (pointing to some static Variable / Constraint) may contain invalid
+  * pointers to objects that have meanwhile ceased to exist. Therefore, the
+  * only safe recourse is to immediately delete them all. This is, anyway,
+  * also the cheapest thing to do: there is no point in wasting time on these
+  * Modification, since they refer to the status of a Block that is fact no
+  * longer exist.
+  * Doing all this may be an issue for Solver of "complex" Block where the
+  * re-loading of a sub-Block can be faced without a complete reset of all
+  * the state of the Solver, but it is in fact quite simple at least for
+  * Solver of "leaf" Block that have no sub-block: see the comments to
+  * Solver::add_Modification. 
+  *
+  * Note that NBModification is a "physical" Modification, since it is
+  * assumed that the whole of the Block (hence, both the "phyisical" and the
+  * "abstract" representation) change at once. */
+
+class NBModification : public NModification
+{
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+
+ /// constructor: takes the Block
+ NBModification( Block *fblock ) : NModification() , f_Block( fblock ) { }
+
+ virtual ~NBModification() { }   ///< destructor, does nothing
+
+/*--------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
+
+ Block *f_Block;  ///< reference to the block to which the Modification refers
+
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+ /// print the NBModification
+ virtual inline void print( std::ostream &output ) const override {
+  output << "NBModification on Block [" << &f_Block << "]" << std::endl;
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( NBModification ) )
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- CLASS GroupModification ---------------------------*/

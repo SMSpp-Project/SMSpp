@@ -279,7 +279,7 @@ class C05Function : public Function {
   * Function can only produce a single Linearization at a time (for it is,
   * say, smooth). */
 
- intGPMaxSz ,  ///< maximum size of the "local pool"
+ intGPMaxSz ,  ///< maximum size of the "global pool"
                /**< The algorithmic parameter for setting the size of the 
 		* "global pool", that is, the maximum number of
  * linearizations that should be stored in the local pool. The default is

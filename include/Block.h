@@ -3834,15 +3834,23 @@ class Block : public Observer {
   * *abstract* base class: the actual content of the Block depends on the
   * specific derived class, which is why this method cannot be implemented.
   *
-  * If there is any Solver attached to this Block, then a BlockMod should
-  * be issued with eReSetAll parameter to "inform" the Solver that anything
-  * it knew about the Block is now completely outdated. This is why the
-  * issueMod param is provided, to control if and how the Modification is
-  * issued, as described in Observer::make_par(). Note, however, that the
-  * default value for issueMod is eNoBlck, as it is assumed that the :Block
-  * "already knows that it has been re-loaded" (it must be, since the method
-  * must necessarily be implemented) and therefore its physical
-  * implementation, if any, is updated already. */
+  * If there is any Solver "interested" to this Block, then a NBModification
+  * should be issued to "inform" them that anything it knew about the Block is
+  * now completely outdated. This is why the issueMod param is provided, to
+  * control if and how the Modification is issued, as described in
+  * Observer::make_par(). Note, however, that the default value for issueMod
+  * is eNoBlck, as it is assumed that the :Block "already knows that it has
+  * been re-loaded" (it must be, since the method must necessarily be
+  * implemented) and therefore its physical implementation, if any, is updated
+  * already. Indeed, NBModification is  a "physical" Modification.
+  *
+  * The reaction of a Solver to an NBModification should be akin to clearing
+  * the list of all previous Modification, since these are no longer relevant
+  * and, worse, they may refer to elements of the Block that simply no longer
+  * exist. This is unless the Block is only a sub-Block of the Block that the
+  * Solver is solving, in which case Modification pertaining to other parts
+  * of the Block still are relevant; see the comments to
+  * Solver::add_Modification. */
 
  virtual void load( std::istream &input , c_ModParam issueMod = eNoBlck ) = 0;
 
@@ -3965,10 +3973,7 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
 /// derived class from Modification for "simple" modifications to a Block
 /** Derived class from Modification to describe "simple" modifications to a
- *  Block:
- *
- *   - the "nuclear" option, everything is changed (e.g., load() is called);
- *   - the Objective has changed.
+ *  Block, i.e., the Objective has changed.
  */
 
 class BlockMod : public AModification
@@ -3977,22 +3982,11 @@ class BlockMod : public AModification
 
  public:
 
-/*---------------------------- PUBLIC TYPES --------------------------------*/
-
- /// Definition of the possible type of Modification
- enum block_mod_type{
-  eReSetAll  = 0 ,  ///< everything in the Block may have changed
-  eChgObjctv ,      ///< the Objective has changed
-  eBModLastParam    ///< first allowed parameter value for derived classes
-                    /**< convenience value for easily allow derived classes
-                     * to extend the set of types of modifications */
-  };
-
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
 
  /// constructor: takes the Block and the "concerns" value
- BlockMod( Block *fblock , int mod , const bool cB = false )
-  : AModification( cB ) , f_Block( fblock ) , f_type( mod ) { }
+ BlockMod( Block *fblock , const bool cB = false )
+  : AModification( cB ) , f_Block( fblock ) { }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
@@ -4001,8 +3995,6 @@ class BlockMod : public AModification
 /*--------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
 
  Block *f_Block;  ///< reference to the block to which the Modification refers
-
- int f_type;      ///< type of modification
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -4016,12 +4008,7 @@ class BlockMod : public AModification
    output << "t";
   else
    output << "f";
-  output << "] on Block [" << &f_Block;
-  if( f_type == eReSetAll )
-   output << "]: reset";
-  else
-   output << "]: obj changed";
-  output << std::endl;
+  output << "] on Block [" << &f_Block << "]: obj changed" << std::endl;
   }
 
 /*--------------------------------------------------------------------------*/
@@ -4994,8 +4981,8 @@ void Block::set_objective( ObjF & newOF , c_ModParam issueMod )
  f_Objective = & newOF;
 
  if( issue_mod( issueMod ) )
-  add_Modification( std::make_shared<BlockMod>( this , BlockMod::eReSetAll ,
-				       Observer::par2concern( issueMod ) ) );
+  add_Modification(
+     std::make_shared<BlockMod>( this , Observer::par2concern( issueMod ) ) );
  }
 
 /*--------------------------------------------------------------------------*/
