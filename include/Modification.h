@@ -657,15 +657,16 @@ class GroupModification : public AModification {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
  /// public enum for ways of issuing a Modification
- /** Public enum for describing if and how any method potentially issuing an
-  * AModification should actually issue it. The enum is defined "at global
+ /** Public enum for describing if and how any method potentially issuing a
+  * Modification should actually issue it. The enum is defined "at global
   * scope" so that all methods of all relevant classes can use a consistent
   * interface. */
 
  enum amododification_type {
-  eNoMod = 0 ,    ///< issue no Modification at all
-  eNoBlck = 1 ,   ///< issue the Modification, but concerns_Block() == false
-  eModBlck = 2    ///< issue the Modification, and concerns_Block() == true
+  eDryRun  = 0 ,  ///< dont't do the change, hence issue no Modification
+  eNoMod   = 1 ,  ///< du the change but issue no Modification at all
+  eNoBlck  = 2 ,  ///< issue the Modification, but concerns_Block() == false
+  eModBlck = 3    ///< issue the Modification, and concerns_Block() == true
   };
 
 /*--------------------------------------------------------------------------*/

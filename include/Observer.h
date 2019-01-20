@@ -349,6 +349,18 @@ class Observer {
   * be issued at all, and its concerns_Block() value, according to the format
   * set by the amododification_type enum [see Modification.h]:
   *
+  * - eDryRun   the change that the method is supposed to perform, which would
+  *             result in a Modification would be issued, must *not* be done;
+  *             as a consequence, no Modification should be issued. Allowing
+  *             to call a method and actually not doing the change that the
+  *             method should do is useful in particular for methods that
+  *             change both the "abstract" and the "physical" representation
+  *             (say, of a Block), but for which it may be useful to switch
+  *             off the changes in one of the two, say becaise one is sure
+  *             that the changes have already been done (for instance, because
+  *             one is reacting to one AModification implying that the
+  *             "abstract" one has changed already).
+  *
   * - eNoMod    the Modification is *not* issued: this should not be done
   *             unless for some reason it is guaranteed that neither the
   *             Block nor any Solver will ever need this information;
@@ -360,7 +372,7 @@ class Observer {
   *             change in the Block has already happened;
   *
   * - eModBlck  the Modification is issued whether or not there is "anyone
-  *             listening", and the concerns_Block() value is  set to true;
+  *             listening", and the concerns_Block() value is set to true;
   *             this is the default, "most conservative" setting.
   *
   * Furthemore, it is necessary to specify to which channel the Modification
@@ -401,8 +413,8 @@ class Observer {
   * reported by anyone_there(), which is why the method is not static. */
 
  inline bool issue_mod( c_ModParam issueMod ) {
-  return( ( issueMod & ~eModBlck ) ||
-	  ( ( issueMod & ~eNoBlck ) && anyone_there() ) );
+  return( ( ( issueMod & 3 ) == eModBlck ) ||
+	  ( ( ( issueMod & 3 ) == eNoBlck ) && anyone_there() ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -416,6 +428,23 @@ class Observer {
 
  inline bool issue_pmod( c_ModParam issueMod ) {
   return( ( issueMod & 3 ) && anyone_there() );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// method for checking if a the change has to be made
+ /** Given a "composite" parameter as produced by make_par(), this method
+  * returns true if the parameter implies that the actual change has to be
+  * made (if not, clearly no Modification must be issued). Allowing to call
+  * a method and actually not doing the change that the method should do is
+  * useful in particular for methods that change both the "abstract" and the
+  * "physical" representation (say, of a Block), but for which it may be
+  * useful to switch off the changes in one of the two, say becaise one is
+  * sure that the changes have already been done (for instance, because one
+  * is reacting to one AModification implying that the "abstract" one has
+  * changed already). */
+
+ inline bool not_dry_run( c_ModParam issueMod ) {
+  return( issueMod & 3 );
   }
 
 /*@} -----------------------------------------------------------------------*/
