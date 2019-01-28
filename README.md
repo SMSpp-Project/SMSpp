@@ -190,6 +190,41 @@ ThinComputeInterface). However, it is hopefully structured in such a way
 that these aspects can be added later with relatively minimal disruption
 of the current interface.
 
+
+Software Dependencies
+=====================
+
+SMS++ requires a modern (at least C++-14 compliant) C++ compiler. It relies
+on a few boost libraries
+
+    https://www.boost.org
+
+in particular:
+
+- boost::any for vectors and lists of "any" kind of Constraint and
+  Variable (although this may in the future be substituted with std::any)
+
+- boost::multi_array for multi-dimensional arrays of stuff
+
+- boost::bind, boost::function, boost::functional::factory, and
+  boost::functional::forward_adapter for a factory construct
+
+It also relies on Eigen
+
+    http://eigen.tuxfamily.org
+
+for sparse vectors and matrices, although the use is so sparse right now
+(pun intended) that it is not completely sure the dependency will be
+mantained.
+
+Finally, it relies on the C++ interface to NetCDF
+
+    https://www.unidata.ucar.edu/software/netcdf
+
+for efficient serialization and de-serialization of Block and Configuration
+objects on self-describing, machine-independent data files.
+
+
 Legal Stuff
 ===========
 
