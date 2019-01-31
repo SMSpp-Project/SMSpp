@@ -5,9 +5,9 @@
  * Small main() for testing the "core" SMS++. It defines a fake empty :Block,
  * creates and destroys one. Nothing more than a compilation test.
  *
- * \version 0.11
+ * \version 0.12
  *
- * \date 29 - 01 - 2019
+ * \date 31 - 01 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -37,8 +37,7 @@ class FakeBlock : public Block {
 
  FakeBlock( Block * father = nullptr ) : Block( father ) {}
 
- virtual void load( std::istream &input , c_ModParam issueMod = eNoBlck )
-  override {}
+ virtual void load( std::istream &input ) override final {}
 
  private:
 

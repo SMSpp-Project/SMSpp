@@ -88,9 +88,9 @@
  * specific for each Block and R3 Block of its, and the base class provides
  * no general mechanism for it (besides the interface).
  *
- * \version 0.20
+ * \version 0.21
  *
- * \date 29 - 04 - 2018
+ * \date 31 - 01 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -806,33 +806,35 @@ class Block : public Observer {
   * class, and exception should be thrown if anything goes wrong in the
   * process.
   *
-  * Two important notes need be done:
+  * If there is any Solver "interested" to this Block, then a NBModification
+  * *must* be issued to "inform" them that anything it knew about the Block is
+  * now completely outdated. This is *not* optional (and therefore no issueMod
+  * param is provided), because the reaction of a Solver to an NBModification
+  * should be akin to clearing the list of all previous Modification. Indeed,
+  * since these are no longer relevant and, worse, they may refer to elements
+  * of the Block that simply no longer exist; thus, they cannot possibly be
+  * processed in any meaningful way, which is why the NBModification cannot be
+  * avoided. This is unless the Block is only a sub-Block of the Block that the
+  * Solver is solving, in which case Modification pertaining to other parts
+  * of the Block still are relevant; see the comments to
+  * Solver::add_Modification. Note that the NBModification is sent to the
+  * "default channel", since it "must be seen immediately" rather then being
+  * "hidden" into any GroupModification.
   *
-  * -      deserialize() SHOULD ONLY BE CALLED ON AN EMPTY Block .
+  * It is also important to remark that
   *
-  *   A Block is not supposed to handle the transition between having been
-  *   previously loaded with some instance data, and then having to clean-up
-  *   everything in order to be re-filled with something entirely different.
-  *   If this need be done, it is cleaner to destroy the Block and construct
-  *   an entirely new one. A non-empty Block may well decide to throw
-  *   exception if this is done (although it may not). As a consequence,
+  *      AFTER deserialize() THE :Block IS UN-CONFIGURED
   *
-  *        deserialize() IS NOT EXPECTED TO ISSUE Modification ,
-  *
-  *   as it is not expected that any Solver is attached to an empty Block.
-  *
-  * -      AFTER deserialize() THE :Block IS UN-CONFIGURED
-  *
-  *   Although clearly not "empty", as opposed as :Block fresh out of the
-  *   factory (see new_Block( string )), a freshly de-serialized Block is
-  *   otherwise "in pristine state": the "abstract representation" is not
-  *   constructed (unless the :Block does this by its own volition), both the
-  *   BlockConfig and the BlockSolverConfig are not set, and (therefore)
-  *   there are no Solver attached. The eProbFile SMS++ necCDF file type is
-  *   precisely provided for allowing to save *all* the information required
-  *   to solve a Block (the Block itself, its BlockConfig and its
-  *   BlockSolverConfig), but de-serializing the Configuration and applying
-  *   them is still the user's responsibility.
+  * Although clearly not "empty", as opposed as :Block fresh out of the
+  * factory (see new_Block( string )), a freshly loaded Block is otherwise
+  * "in pristine state": the "abstract representation" is not constructed
+  *  (unless the :Block does this by its own volition), both the BlockConfig
+  * and the BlockSolverConfig are not set, and (therefore) there are no Solver
+  * attached, unless there were before. The eProbFile SMS++ necCDF file type
+  * is precisely provided for allowing to save *all* the information required
+  * to solve a Block (the Block itself, its BlockConfig and its
+  * BlockSolverConfig), but de-serializing the Configuration and applying
+  * them is still the user's responsibility.
   *
   * To tally with Block::serialize( netCDF::NcGroup ), the base class
   * implementation just (checks if type and name() match, and) scans all the
@@ -3834,25 +3836,33 @@ class Block : public Observer {
   * *abstract* base class: the actual content of the Block depends on the
   * specific derived class, which is why this method cannot be implemented.
   *
-  * If there is any Solver "interested" to this Block, then a NBModification
-  * should be issued to "inform" them that anything it knew about the Block is
-  * now completely outdated. This is why the issueMod param is provided, to
-  * control if and how the Modification is issued, as described in
-  * Observer::make_par(). Note, however, that the default value for issueMod
-  * is eNoBlck, as it is assumed that the :Block "already knows that it has
-  * been re-loaded" (it must be, since the method must necessarily be
-  * implemented) and therefore its physical implementation, if any, is updated
-  * already. Indeed, NBModification is  a "physical" Modification.
-  *
-  * The reaction of a Solver to an NBModification should be akin to clearing
-  * the list of all previous Modification, since these are no longer relevant
-  * and, worse, they may refer to elements of the Block that simply no longer
-  * exist. This is unless the Block is only a sub-Block of the Block that the
+ * If there is any Solver "interested" to this Block, then a NBModification
+  * *must* be issued to "inform" them that anything it knew about the Block is
+  * now completely outdated. This is *not* optional (and therefore no issueMod
+  * param is provided), because the reaction of a Solver to an NBModification
+  * should be akin to clearing the list of all previous Modification. Indeed,
+  * since these are no longer relevant and, worse, they may refer to elements
+  * of the Block that simply no longer exist; thus, they cannot possibly be
+  * processed in any meaningful way, which is why the NBModification cannot be
+  * avoided. This is unless the Block is only a sub-Block of the Block that the
   * Solver is solving, in which case Modification pertaining to other parts
   * of the Block still are relevant; see the comments to
-  * Solver::add_Modification. */
+  * Solver::add_Modification. Note that the NBModification is sent to the
+  * "default channel", since it "must be seen immediately" rather then being
+  * "hidden" into any GroupModification.
+  *
+  * It is also important to remark that
+  *
+  *      AFTER load() THE :Block IS UN-CONFIGURED
+  *
+   * Although clearly not "empty", as opposed as :Block fresh out of the
+  * factory (see new_Block( string )), a freshly loaded Block is otherwise
+  * "in pristine state": the "abstract representation" is not constructed
+  *  (unless the :Block does this by its own volition), both the BlockConfig
+  * and the BlockSolverConfig are not set, and (therefore) there are no Solver
+  * attached, unless there were before. */
 
- virtual void load( std::istream &input , c_ModParam issueMod = eNoBlck ) = 0;
+ virtual void load( std::istream &input ) = 0;
 
 /*@}------------------------------------------------------------------------*/
  /// method incapsulating the Block factory
