@@ -660,7 +660,7 @@ void LinearFunction::modify_coefficients( v_coeff_pair && vars ,
 /*--------------------------------------------------------------------------*/
 
 void LinearFunction::modify_coefficients( c_v_coeff_it NCoef ,
-					  c_Vec_Index nms ,
+					  c_Vec_Index &nms ,
 					  c_ModParam issueMod )
 {
  if( ! nms.size() )

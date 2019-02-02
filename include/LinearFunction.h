@@ -633,7 +633,7 @@ class LinearFunction : public C15Function {
   * knows the indices already, so that they need not be searched for. The
   * set of indices must be ordered in increasing sense. */
 
- virtual void modify_coefficients( c_v_coeff_it NCoef , c_Vec_Index nms ,
+ virtual void modify_coefficients( c_v_coeff_it NCoef , c_Vec_Index &nms ,
 				   c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/

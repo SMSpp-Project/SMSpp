@@ -2811,6 +2811,23 @@ class Block : public Observer {
   * it (but only exploit being attached to snoop on the Modification
   * occurring in the Block).
   *
+  *     IMPORTANT NOTE: A :Block SHOULD ONLY MAP EITHER ITS "PHYSICAL
+  *     Modification" OR ITS "ABSTRACT Modification", BUT NOT BOTH.
+  *
+  * The reasonable behaviour should be to map "physical Modification", and
+  * only map "abstract Modification" if there is no corresponding
+  * "physical" one (say, a certain part of the :Block has no "physical
+  * representation" distinct from the "abstract" one). Alternatively, a :Block
+  * may decide to only map "abstract" ones. However, when one of the two
+  * Modification is mapped, doing the same with the other is wasteful and a
+  * likely source of errors. In fact, when a "physical Modification" is
+  * mapped, it is intended that also the abstract representation of the Block
+  * is modified. Symmetrically, when the abstract representation of the Block
+  * is modified, this is supposed to be captured by add_Modification() so that
+  * the physical representation is also updated. All in all, when one of the
+  * two "equivalent" Modification corresponding to the same change has been
+  * mapped, there is no reason (and good reasons not) to map the other.
+  *
   * Mapping a Modification to another Block likely involves some new
   * Modification to be issued by that Block (and/or its Variable, Objective,
   * Constraint, Function, ...). The two parameters issuePMod and issueAMod
@@ -2826,17 +2843,28 @@ class Block : public Observer {
   *
   * As mapping a Modification may be a rather complex (if at all possible)
   * task, a Block may not support all possible mappings. If the required
-  * operation is not supported, and exception will be thrown. The default
-  * implementation of the method works for "extremely lazy" Block not
-  * being willing to implement any of the possible mapping, or extremely
-  * unlucky ones not having any workable one to implement. */
+  * operation is not supported, the method will do nothing; however, it
+  * will signal this by returning false, while it will return true if the
+  * Modification has been correctly mapped. The rationale is that one can
+  * therefore throw to this method all Modification without having to check
+  * first which ones are supported, which wolud be complex. This is
+  * especially important in view of the fact that for any change in the Block
+  * there will typically be (at least) *two* Modification in flight, a
+  * "physical" and an "abstract" one: rather than having to check which is
+  * which and avoid to call this method on the "wrong" one, it is simpler to
+  * just throw them all and have only the right one processed. Yet, if it is
+  * crucial that the Modification is actually processed, the return value
+  * allows to check that this has happened. The default implementation of
+  * the method works for "extremely lazy" Block not being willing to
+  * implement any of the possible mapping, or extremely unlucky ones not
+  * having any workable one to implement. */
 
- virtual void map_forward_Modification( Block *R3B , sp_Mod mod ,
+ virtual bool map_forward_Modification( Block *R3B , sp_Mod mod ,
 					Configuration *r3bc = nullptr ,
 					c_ModParam issuePMod = eNoBlck ,
 					c_ModParam issueAMod = eModBlck )
  {
-  throw( std::invalid_argument( "Modification not supported" ) );
+  return( false );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2863,6 +2891,10 @@ class Block : public Observer {
   * to produce R3B in the first place). mod is assumed to be a (smart)
   * pointer to a Modification object that applies to the R3 Block.
   *
+  * IMPORTANT NOTE: A :Block SHOULD ONLY MAP EITHER ITS "PHYSICAL
+  * Modification" OR ITS "ABSTRACT Modification", BUT NOT BOTH. See
+  * map_forward_Modification() for a discussion on this issue.
+  *
   * Mapping a Modification from another Block likely involves some new
   * Modification to be issued by the current Block (and/or its Variable,
   * Objective, Constraint, Function, ...). The two parameters issuePMod and
@@ -2878,17 +2910,28 @@ class Block : public Observer {
   *
   * As mapping a Modification may be a rather complex (if at all possible)
   * task, a Block may not support all possible mappings. If the required
-  * operation is not supported, and exception will be thrown. The default
-  * implementation of the method works for "extremely lazy" Block not
-  * being willing to implement any of the possible mapping, or extremely
-  * unlucky ones not having any workable one to implement. */
+  * operation is not supported, the method will do nothing; however, it
+  * will signal this by returning false, while it will return true if the
+  * Modification has been correctly mapped. The rationale is that one can
+  * therefore throw to this method all Modification without having to check
+  * first which ones are supported, which wolud be complex. This is
+  * especially important in view of the fact that for any change in the Block
+  * there will typically be (at least) *two* Modification in flight, a
+  * "physical" and an "abstract" one: rather than having to check which is
+  * which and avoid to call this method on the "wrong" one, it is simpler to
+  * just throw them all and have only the right one processed. Yet, if it is
+  * crucial that the Modification is actually processed, the return value
+  * allows to check that this has happened. The default implementation of
+  * the method works for "extremely lazy" Block not being willing to
+  * implement any of the possible mapping, or extremely unlucky ones not
+  * having any workable one to implement. */
 
- virtual void map_back_Modification( Block *R3B , sp_Mod mod ,
+ virtual bool map_back_Modification( Block *R3B , sp_Mod mod ,
 				     Configuration *r3bc = nullptr ,
 				     c_ModParam issuePMod = eNoBlck ,
 				     c_ModParam issueAMod = eModBlck )
  {
-  throw( std::invalid_argument( "Modification not supported" ) );
+  return( false );
   }
 
 

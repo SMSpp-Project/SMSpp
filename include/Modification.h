@@ -373,6 +373,18 @@ class Modification {
  virtual bool concerns_Block( void ) const { return( false ); }
 
 /*--------------------------------------------------------------------------*/
+ /// method to set the value returned by concerns_Block( void )
+ /** This method sets the value returned by concerns_Block( void ); in the
+  * base Modification class, thought to represent "physical" Modification,
+  * this cannot be done (i.e., it cannot be set to true). */
+
+ virtual void concerns_Block( const bool cB ) {
+  if( cB )
+   throw( std::invalid_argument( "physical Modification cannot concerns_Block"
+				 ) );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// friend operator<<(), dispatching to virtual protected print()
  /** Not really a method, but a friend operator<<() that just dispatches the
   * ostream to the protected *pure* virtual method print(). This way the
@@ -430,15 +442,16 @@ class AModification : public Modification {
  virtual ~AModification() { }  ///< destructor: does nothing
 
 /*--------------------------------------------------------------------------*/
+ /// returns the value stored in the f_concerns_Block field
 
  virtual bool concerns_Block( void ) const override {
   return( f_concerns_Block );
   }
  
 /*--------------------------------------------------------------------------*/
- /// method to set the value returned by concerns_Block()
+ /// method to set the value returned by concerns_Block( void )
 
- virtual void concerns_Block( const bool cB = false ) {
+ virtual void concerns_Block( const bool cB ) override {
   f_concerns_Block = cB;
   }
 

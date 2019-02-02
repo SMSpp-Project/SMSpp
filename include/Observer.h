@@ -5,9 +5,9 @@
  * Header file for the Observer class, an abstract base class implementing
  * the concept of an observer which can be notified about Modifications.
  *
- * \version 0.30
+ * \version 0.31
  *
- * \date 04 - 09 - 2018
+ * \date 02 - 02 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -258,8 +258,8 @@ class Observer {
   *             it on knowledge that the corresponding change in the Block has
   *             already happened;
   *
-  * - eModBlck   the concerns_Block() value is set to true; this is the
-  *              default, "most conservative" setting. */
+  * - eModBlck  the concerns_Block() value is set to true; this is the
+  *             default, "most conservative" setting. */
 
  virtual ChnlName open_channel( GroupModification * gmpmod = nullptr ,
 				c_ModParam issueMod = eModBlck ) = 0;
@@ -396,12 +396,21 @@ class Observer {
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /// method extracting the ModParam information
+ /** Given a "composite" parameter as produced by make_par(), this method
+  * returns the ModParam information alone. */
+
+ static inline ModParam par2mod( c_ModParam issueMod ) {
+  return( issueMod & 3 );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
  /// method extracting the concerns_Block information
  /** Given a "composite" parameter as produced by make_par(), this method
   * returns the boolean to become the concerns_Block. */
 
  static inline bool par2concern( c_ModParam issueMod ) {
-  return( ( ( issueMod & 3 ) == eModBlck ) );
+  return( ( par2mod( issueMod ) == eModBlck ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -413,8 +422,8 @@ class Observer {
   * reported by anyone_there(), which is why the method is not static. */
 
  inline bool issue_mod( c_ModParam issueMod ) {
-  return( ( ( issueMod & 3 ) == eModBlck ) ||
-	  ( ( ( issueMod & 3 ) == eNoBlck ) && anyone_there() ) );
+  return( ( par2mod( issueMod ) == eModBlck ) ||
+	  ( ( par2mod( issueMod ) == eNoBlck ) && anyone_there() ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -427,7 +436,7 @@ class Observer {
   * static. */
 
  inline bool issue_pmod( c_ModParam issueMod ) {
-  return( ( issueMod & 3 ) && anyone_there() );
+  return( par2mod( issueMod ) && anyone_there() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -444,7 +453,7 @@ class Observer {
   * changed already). */
 
  inline bool not_dry_run( c_ModParam issueMod ) {
-  return( issueMod & 3 );
+  return( par2mod( issueMod ) );
   }
 
 /*@} -----------------------------------------------------------------------*/
