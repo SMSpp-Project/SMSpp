@@ -356,7 +356,7 @@ public:
   * in turn would imply having kept a copy of the latter, which is typically
   * not done (see the general rule above).
   *
-  * The changedvars parameters is here to solve this issue. If it is true,
+  * The changedvars parameters is here to solve this issue. If it is false,
   * then the compute() method is allowed to assume that the value of the
   * relevant Variable (if any) has not changed since the last call. This
   * therefore allows the object to "resume the computation where it started",
@@ -370,7 +370,7 @@ public:
   * holds, as the object will typically not have the means for checking it
   * (and anyway are not required to).
   *
-  * If changedvars == false instead, the object has to assume that the
+  * If changedvars == true instead, the object has to assume that the
   * relevant variables have changed. If it is important for the object to
   * detect which ones have changed and which ones have not, it will have to
   * implement this check internally. This implies keeping a copy of the
