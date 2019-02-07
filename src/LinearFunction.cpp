@@ -118,7 +118,7 @@ void LinearFunction::get_linearization_coefficients( FunctionValue * g ,
  c_Index tend = std::min( end , get_num_active_var() );
  for( const auto & i : *indices )
   if( ( i >= start ) && ( i < tend ) )
-   g[ i - start ] = v_pairs[ i ].second;
+   *(g++) = v_pairs[ i ].second;
  }
 
 /*--------------------------------------------------------------------------*/
