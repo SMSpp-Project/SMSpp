@@ -384,7 +384,7 @@ class LinearFunction : public C15Function {
    const LinearizationName name =
                               std::numeric_limits<LinearizationName>::max() ,
    c_Vec_Index * const indices = nullptr , c_Index start = 0 ,
-   c_Index end = std::numeric_limits<Index>::max() ) const override final;
+   c_Index end = std::numeric_limits<Index>::max() ) override final;
 
 /*--------------------------------------------------------------------------*/
 

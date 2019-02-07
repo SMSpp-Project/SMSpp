@@ -690,7 +690,7 @@ class C05Function : public Function {
       const LinearizationName name =
 			     std::numeric_limits<LinearizationName>::max() ,
       c_Vec_Index * const indices = nullptr , c_Index start = 0 ,
-      c_Index end = std::numeric_limits<Index>::max() ) const = 0;
+      c_Index end = std::numeric_limits<Index>::max() ) = 0;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// retrieve the coefficients (g) of a linearization in a sparse vector

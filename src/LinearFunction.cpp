@@ -136,7 +136,7 @@ void LinearFunction::get_linearization_coefficients( FunctionValue * g ,
 void LinearFunction::get_linearization_coefficients( FunctionValue * g ,
 				 const LinearizationName name ,
                                  const std::vector<Index> * const indices ,
-                                 const Index start , const Index end ) const
+                                 const Index start , const Index end )
 {
  if( indices != nullptr )
   get_linearization_coefficients( g , indices , start , end );
