@@ -226,7 +226,7 @@ void LinearFunction::map_active( c_Vec_p_Var & vars , Vec_Index & map ,
   if( itvv >= itve )
    throw( std::invalid_argument( "some Variable is not active" ) );
 
-  *(itm++) = std::distance( itvv , v_pairs.begin() );
+  *(itm++) = std::distance( v_pairs.begin() , itvv );
   itvv = std::lower_bound( itvv , itve , std::make_pair( *(++itvb) , 0 ) ,
 			   []( const auto & p1, const auto & p2 ) {
 			    return( p1.first < p2.first );
