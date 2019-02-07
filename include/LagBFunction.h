@@ -36,6 +36,7 @@
 #include "C05Function.h"
 #include "Block.h"
 #include "ColVariable.h"
+#include "Solution.h"
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -256,12 +257,31 @@ class LagBFunction : public C05Function , public Block {
     @{ */
 
  typedef std::pair< ColVariable * , Function * > dual_pair;
+ ///< a constraint and its dual variable
 
  typedef std::vector< dual_pair > v_dual_pair;
  ///< a vector of dual_pair
 
  typedef std::list< dual_pair > l_dual_pair;
-///< a list of dual_pair
+ ///< a list of dual_pair
+
+ typedef std::pair< p_Solution , bool * > linearization_pair;
+ ///< a solution equipped with boolean which defines the type of linearization
+
+ typedef std::vector< linearization_pair > v_linearization_pair;
+ ///< a vector of linearization_pair
+
+ /*--------------------------------------------------------------------------*/
+ /** Very small class to simplify extracting the "+ infinity" value for a
+      basic type; just use Inf<type>(). */
+
+  template <typename T>
+   class Inf {
+    public:
+   Inf() {}
+   operator T() { return( std::numeric_limits<T>::max() ); }
+   };
+
 
 /*@}------------------------------------------------------------------------*/
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
@@ -285,26 +305,12 @@ class LagBFunction : public C05Function , public Block {
 
 
  LagBFunction( v_dual_pair && static_lagrangian_pairs = {} ,
-		 const bool static_is_ordered = false )
-  :  C05Function() , slp( std::move( static_lagrangian_pairs ) )
- {
-
-  if( ! static_is_ordered ) {
-   std::sort( slp.begin() , slp.end() ,
-		      []( const auto & p1, const auto & p2 ) {
-		       return( p1.first < p2.first );
-		       }
-	        );
-   }
-
-  dlp.clear();
-
-  } // end LagBFunction::LagBFunction( ) - - - - - - - - - - - - - - - - - - -
+ 		 const bool static_is_ordered = false );
 
 /*--------------------------------------------------------------------------*/
  /// destructor: it (apparently) does nothing
 
- virtual ~LagBFunction() { }
+ virtual ~LagBFunction();
 
 /*--------------------------------------------------------------------------*/
  
@@ -420,11 +426,20 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
- v_dual_pair slp;
+ v_dual_pair slag_p;
  ///< vector of static Lagrangian pairs
 
- l_dual_pair dlp;
+ l_dual_pair dlag_p;
  ///< list of dynamic Lagrangian pairs
+
+ v_linearization_pair g_pool;
+ ///< global pool
+
+ bool SlvHasSol;
+ ///< true if the solver has a new solution, false otherwise
+
+ bool SlvHasDir;
+ ///< true if the solver has a new direction, false otherwise
 
 /*@}------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
