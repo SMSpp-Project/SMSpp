@@ -5,9 +5,9 @@
  * Header file for the class LagBFunction, which
  * implements C05Function and Block with a Lagrangian function.
  *
- * \version 0.01
+ * \version 0.02
  *
- * \date 18 - 01 - 2019
+ * \date 07 - 02 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -333,10 +333,18 @@ class LagBFunction : public C05Function , public Block {
 
 
 /*@} -----------------------------------------------------------------------*/
-/*--------- METHODS DESCRIBING THE BEHAVIOR OF THE LagBFunction ----------*/
+/*--------- METHODS DESCRIBING THE BEHAVIOR OF THE LagBFunction ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of the LagBFunction
  *  @{ */
+
+ virtual bool has_linearization( const bool diagonal = true ) override final;
+
+ /*--------------------------------------------------------------------------*/
+
+ virtual bool compute_new_linearization( const bool diagonal = true ) override final;
+
+/*--------------------------------------------------------------------------*/
 
  virtual int compute( bool changedvars = true ) override;
 
@@ -356,7 +364,7 @@ class LagBFunction : public C05Function , public Block {
    const LinearizationName name =
                               std::numeric_limits<LinearizationName>::max() ,
    c_Vec_Index * const indices = nullptr , c_Index start = 0 ,
-   c_Index end = std::numeric_limits<Index>::max() ) const override final;
+   c_Index end = std::numeric_limits<Index>::max() ) override final;
 
 /*--------------------------------------------------------------------------*/
 
@@ -433,6 +441,9 @@ class LagBFunction : public C05Function , public Block {
  ///< list of dynamic Lagrangian pairs
 
  v_linearization_pair g_pool;
+ ///< global pool
+
+ LinearizationName LastSolution;
  ///< global pool
 
  bool SlvHasSol;

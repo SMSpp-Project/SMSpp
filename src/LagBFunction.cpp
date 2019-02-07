@@ -4,9 +4,9 @@
 /** @file
  * Implementation of the LagBFunction class.
  *
- * \version 0.01
+ * \version 0.02
  *
- * \date 18 - 01 - 2019
+ * \date 07 - 02 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -57,13 +57,14 @@ LagBFunction::LagBFunction( v_dual_pair && static_lagrangian_pairs ,
 	        );
   }
 
-
  // define global pool of intGPMaxSz size - - - - - - - - - - - - - - - - - -
-
  g_pool.resize( intGPMaxSz );
- SlvHasSol = SlvHasDir = false;
 
- } // end LagBFunction::LagBFunction( ) - - - - - - - - - - - - - - - - - - -
+ // so far, the current solution is unknown - - - - - - - - - - - - - - - - -
+ SlvHasSol = SlvHasDir = false;
+ LastSolution = Inf<LinearizationName>();
+
+ } // end LagBFunction::LagBFunction( )  - - - - - - - - - - - - - - - - - - -
 
 /*--------------------------------------------------------------------------*/
 
@@ -71,8 +72,7 @@ LagBFunction::~LagBFunction() {
 
  dlag_p.clear();
  g_pool.clear(); //
- }
-
+ } // end LagBFunction::~LagBFunction( ) - - - - - - - - - - - - - - - - - - -
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
@@ -82,11 +82,53 @@ LagBFunction::~LagBFunction() {
 
 
 /*--------------------------------------------------------------------------*/
-/*--------- METHODS DESCRIBING THE BEHAVIOR OF THE LagBFunction ----------*/
+/*--------- METHODS DESCRIBING THE BEHAVIOR OF THE LagBFunction ------------*/
+/*--------------------------------------------------------------------------*/
+
+bool LagBFunction::has_linearization( const bool diagonal )
+{
+ // get the Solver from inner Block - - - - - - - - - - - - - - - - - - - - -
+ Solver* slv = v_Block[0]->get_registered_solvers().back();
+
+ // true if a linearization of the related type exists  - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ if( diagonal )
+  return( slv->has_var_solution() );
+ else
+  return( slv->has_var_direction() );
+
+ }  // end LagBFunction::has_linearization( )
+
+/*--------------------------------------------------------------------------*/
+
+bool LagBFunction::compute_new_linearization( const bool diagonal )
+{
+ // get the Solver from inner Block - - - - - - - - - - - - - - - - - - - - -
+ Solver* slv = v_Block[0]->get_registered_solvers().back();
+
+ // true if a new linearization of the related type exists in the local pool
+ // which is kept in the Solver   - - - - - - - - - - - - - - - - - - - - - -
+ // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ if( diagonal )
+  return( slv->new_var_solution() );
+ else
+  return( slv->new_var_direction() );
+
+ } // end LagBFunction::compute_new_linearization( )
+
 /*--------------------------------------------------------------------------*/
 
 int LagBFunction::compute( bool changedvars )
 {
+ LastSolution = Inf<Index>();	// set LastSolution as the current solution, i.e.
+                                // that solution which has computed in compute();
+
+ // get the Solver from inner Block - - - - - - - - - - - - - - - - - - - - -
+ Solver* slv = v_Block[0]->get_registered_solvers().back();
+
+ return( slv->compute(changedvars) );
 
  } // end LagBFunction::compute( )
 
@@ -95,7 +137,7 @@ int LagBFunction::compute( bool changedvars )
 void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
 				 const LinearizationName name ,
                                  const std::vector<Index> * const indices ,
-                                 const Index start , const Index end ) const
+                                 const Index start , const Index end )
 
 {
 
@@ -121,7 +163,10 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
   // assign Solution to the inner Block from which the related linearization
   // <name> can be recovered
 
-  g_pool[ name ].first->write( v_Block[0] );
+  if( name != LastSolution )
+   g_pool[ name ].first->write( v_Block[0] );
+
+  LastSolution = name ;    // update last solution
 
   } // end else  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
