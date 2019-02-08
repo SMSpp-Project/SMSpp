@@ -265,7 +265,7 @@ class LagBFunction : public C05Function , public Block {
  typedef std::list< dual_pair > l_dual_pair;
  ///< a list of dual_pair
 
- typedef std::pair< p_Solution , bool * > linearization_pair;
+ typedef std::pair< p_Solution , bool > linearization_pair;
  ///< a solution equipped with boolean which defines the type of linearization
 
  typedef std::vector< linearization_pair > v_linearization_pair;
@@ -449,11 +449,9 @@ class LagBFunction : public C05Function , public Block {
  LinearizationName LastSolution;
  ///< global pool
 
- bool SlvHasSol;
- ///< true if the solver has a new solution, false otherwise
+ char VarType;
+ ///< the type of variable contained in the solver
 
- bool SlvHasDir;
- ///< true if the solver has a new direction, false otherwise
 
 /*@}------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
