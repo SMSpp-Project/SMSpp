@@ -7,7 +7,7 @@
  *
  * \version 0.02
  *
- * \date 07 - 02 - 2019
+ * \date 08 - 02 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -344,6 +344,9 @@ class LagBFunction : public C05Function , public Block {
 
  virtual bool compute_new_linearization( const bool diagonal = true ) override final;
 
+
+ virtual void store_linearization( const LinearizationName name ) override final;
+
 /*--------------------------------------------------------------------------*/
 
  virtual int compute( bool changedvars = true ) override;
@@ -372,7 +375,7 @@ class LagBFunction : public C05Function , public Block {
    const LinearizationName name =
                               std::numeric_limits<LinearizationName>::max() ,
    c_Vec_Index * const indices = nullptr , c_Index start = 0 ,
-   c_Index end = std::numeric_limits<Index>::max() ) const override final;
+   c_Index end = std::numeric_limits<Index>::max() ) override final;
 
 /*--------------------------------------------------------------------------*/
  /** There is only one linearization in a LagBFunction, its value being

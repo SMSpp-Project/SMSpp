@@ -7,9 +7,9 @@
  * the linearizations need not be a continuous function, which means that
  * the Function may be non-smooth.
  *
- * \version 0.20
+ * \version 0.21
  *
- * \date 10 - 08 - 2018
+ * \date 08 - 02 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -727,7 +727,7 @@ class C05Function : public Function {
       const LinearizationName name =
                                std::numeric_limits<LinearizationName>::max() ,
       c_Vec_Index * const indices = nullptr , c_Index start = 0 ,
-      c_Index end = std::numeric_limits<Index>::max() ) const = 0;
+      c_Index end = std::numeric_limits<Index>::max() ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// return the constant term of a linearization

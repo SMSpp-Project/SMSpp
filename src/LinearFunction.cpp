@@ -4,9 +4,9 @@
 /** @file
  * Implementation of the LinearFunction class.
  *
- * \version 0.10
+ * \version 0.11
  *
- * \date 05 - 04 - 2018
+ * \date 08 - 02 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -149,7 +149,7 @@ void LinearFunction::get_linearization_coefficients( FunctionValue * g ,
 void LinearFunction::get_linearization_coefficients( SparseVector & g ,
 				         const LinearizationName name ,
                                          c_Vec_Index * const indices ,
-                                         c_Index start , c_Index end ) const
+                                         c_Index start , c_Index end )
 {
  c_Index num_active_var = get_num_active_var();
  c_Index tend = std::min( end , num_active_var );

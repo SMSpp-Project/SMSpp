@@ -5,9 +5,9 @@
  * Header file for the *concrete* class LinearFunction, which
  * implements C15Function with a simple linear function.
  *
- * \version 0.10
+ * \version 0.11
  *
- * \date 05 - 04 - 2018
+ * \date 08 - 02 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -392,7 +392,7 @@ class LinearFunction : public C15Function {
    const LinearizationName name =
                               std::numeric_limits<LinearizationName>::max() ,
    c_Vec_Index * const indices = nullptr , c_Index start = 0 ,
-   c_Index end = std::numeric_limits<Index>::max() ) const override final;
+   c_Index end = std::numeric_limits<Index>::max() ) override final;
 
 /*--------------------------------------------------------------------------*/
  /** There is only one linearization in a LinearFunction, its value being
