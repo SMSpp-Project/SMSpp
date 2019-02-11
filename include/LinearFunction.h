@@ -120,8 +120,8 @@ class LinearFunction : public C15Function {
  typedef const coeff_pair c_coeff_pair;
  ///< a const coeff_pair
 
- typedef std::vector<coeff_pair> v_c_coeff_pair;
- ///< a vector of const coeff_pair
+ typedef const v_coeff_pair v_c_coeff_pair;
+ ///< a const vector of coeff_pair
 
 /*--------------------------------------------------------------------------*/
  /// virtualized concrete iterator
@@ -296,7 +296,7 @@ class LinearFunction : public C15Function {
 
  /// returns the vector of pairs (ColVariable *, Coefficient)
 
- const v_c_coeff_pair & get_v_var( void ) const { return( v_pairs ); }
+ v_c_coeff_pair & get_v_var( void ) const { return( v_pairs ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the Coefficient of the i-th Variable of this LinearFunction
