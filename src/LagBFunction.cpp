@@ -41,6 +41,14 @@
 using namespace SMSpp_di_unipi_it;
 
 /*--------------------------------------------------------------------------*/
+/*----------------------------- STATIC MEMBERS -----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+static const char VarIsDir = 0;  // Variable contain a direction
+static const char VarIsSol = 1;  // Variable contain a solution
+static const char NoVar = 2;  // No Variable is in the Solver
+
+/*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -61,7 +69,7 @@ LagBFunction::LagBFunction( v_dual_pair && static_lagrangian_pairs ,
  g_pool.resize( intGPMaxSz );
 
  // so far, the current solution is unknown - - - - - - - - - - - - - - - - -
- SlvHasSol = SlvHasDir = false;
+ VarType = NoVar;
  LastSolution = Inf<LinearizationName>();
 
  } // end LagBFunction::LagBFunction( )  - - - - - - - - - - - - - - - - - - -
@@ -93,16 +101,23 @@ bool LagBFunction::has_linearization( const bool diagonal )
  // true if a linearization of the related type exists  - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+ bool SlvHasNewLin;
+
  if( diagonal ) {
-  SlvHasSol	= true;
-  SlvHasDir = false;
-  return( slv->has_var_solution() );
+  SlvHasNewLin = slv->has_var_solution();
+  if( SlvHasNewLin )
+   VarType = VarIsSol;
   }
  else {
-  SlvHasDir	= true;
-  SlvHasSol = false;
-  return( slv->has_var_direction() );
+  SlvHasNewLin = slv->has_var_direction();
+  if( SlvHasNewLin )
+   VarType = VarIsDir;
   }
+
+ if( !SlvHasNewLin )
+  VarType = NoVar;
+
+ return( SlvHasNewLin );
 
  }  // end LagBFunction::has_linearization( )  - - - - - - - - - - - - - - - -
 
@@ -117,16 +132,23 @@ bool LagBFunction::compute_new_linearization( const bool diagonal )
  // which is kept in the Solver   - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+ bool SlvHasNewLin;
+
  if( diagonal ) {
-  SlvHasSol	= true;
-  SlvHasDir = false;
-  return( slv->new_var_solution() );
+  SlvHasNewLin = slv->new_var_solution();
+  if( SlvHasNewLin )
+   VarType = VarIsSol;
   }
  else {
-  SlvHasDir	= true;
-  SlvHasSol = false;
-  return( slv->new_var_direction() );
+  SlvHasNewLin = slv->new_var_direction();
+  if( SlvHasNewLin )
+   VarType = VarIsDir;
   }
+
+ if( !SlvHasNewLin )
+  VarType = NoVar;
+
+ return( SlvHasNewLin );
 
  } // end LagBFunction::compute_new_linearization( ) - - - - - - - - - - - - -
 
@@ -134,35 +156,22 @@ bool LagBFunction::compute_new_linearization( const bool diagonal )
 
 void LagBFunction::store_linearization( const LinearizationName name )
 {
- // if there is a solution at position name, delete it - - - - - - - - - - - -
+
+ if( VarType == NoVar )
+  throw( std::logic_error( "there is no solution in the solver" ) );
+
+ // get the current solution   - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- delete g_pool[ name ].first;
- delete g_pool[ name ].second;
+ if( g_pool[ name ].first == nullptr )
+  g_pool[ name ].first = v_Block[0]->get_Solution();
 
- // get the Solver from inner Block - - - - - - - - - - - - - - - - - - - - -
- Solver* slv = v_Block[0]->get_registered_solvers().back();
+ g_pool[ name ].first->read( v_Block[0] );
 
- // ?????????????
-
- bool SolTyPe;
-
- if( SlvHasSol )
-  SolTyPe = true;
+ if( VarType == VarIsSol )
+  g_pool[ name ].second = VarIsSol;
  else
-  SolTyPe = false;
-
- // add the current solution to the global pool  - - - - - - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- g_pool[ name ].first = v_Block[0]->get_Solution();
- g_pool[ name ].second = &SolTyPe; // ???????
-
- //?????
-
- // to get a new linearization one has to call compute_new_linearization
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- SlvHasDir = SlvHasSol = false;
+  g_pool[ name ].second = VarIsDir;
 
  } // end LagBFunction::store_linearization( ) - - - - - - - - - - - - - - - -
 
@@ -173,14 +182,14 @@ int LagBFunction::compute( bool changedvars )
  LastSolution = Inf<Index>();	// set LastSolution as the current solution, i.e.
                                 // that solution which has computed in compute();
 
- // get the Solver from inner Block - - - - - - - - - - - - - - - - - - - - -
+ // get the Solver from inner Block  - - - - - - - - - - - - - - - - - - - - -
  Solver* slv = v_Block[0]->get_registered_solvers().back();
 
- SlvHasDir = SlvHasSol	= false; // the local pool will be available after calling
-                                 // has_linearization() / compute_new_linearization()
+ // no solution/direction is available so far  - - - - - - - - - - - - - - - -
 
+ VarType = NoVar;
 
- return( slv->compute(changedvars) );
+ return( slv->compute( false ) );
 
  } // end LagBFunction::compute( ) - - - - - - - - - - - - - - - - - - - - - -
 
@@ -193,18 +202,22 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
 
 {
 
+ c_Index end_p = std::min( Index(slag_p.size()) , end );
+ if( end_p <= start )
+  return;
+
  // get the Solver from inner Block - - - - - - - - - - - - - - - - - - - - -
  Solver* slv = v_Block[0]->get_registered_solvers().back();
 
  if( name == Inf<LinearizationName>() ) { // asking for the last computed - -
 	                                      // linearization  - - - - - - - - -
 
-  if( !SlvHasSol && !SlvHasDir )
+  if( VarType == NoVar )
    throw( std::logic_error( "no addition linearization is the local pool" ) );
 
   // get solution/direction from the solver - - - - - - - - - - - - - - - - -
 
-  if( SlvHasSol )
+  if( VarType == VarIsSol )
    slv->get_var_solution();
   else
    slv->get_var_direction();
@@ -220,14 +233,12 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
 
   LastSolution = name ;    // update last solution
 
+  VarType = NoVar; // the current linearization is not available anymore
+
   } // end else  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  // for each Lagrangian multiplier, the value of the relaxed constraint
  // is the component of g  - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- c_Index end_p = std::min( Index(slag_p.size()) , end );
- if( end_p <= start )
-  return;
 
  if( indices != nullptr ) {
   for( const auto & i : *indices )
@@ -248,18 +259,22 @@ void LagBFunction::get_linearization_coefficients( SparseVector & g ,
                                          c_Index start , c_Index end )
 {
 
+ c_Index end_p = std::min( Index(slag_p.size()) , end );
+ if( end_p <= start )
+  return;
+
  // get the Solver from inner Block - - - - - - - - - - - - - - - - - - - - -
  Solver* slv = v_Block[0]->get_registered_solvers().back();
 
  if( name == Inf<LinearizationName>() ) { // asking for the last computed - -
 	                                      // linearization  - - - - - - - - -
 
-  if( !SlvHasSol && !SlvHasDir )
+  if( VarType == NoVar )
    throw( std::logic_error( "no addition linearization is the local pool" ) );
 
   // get solution/direction from the solver - - - - - - - - - - - - - - - - -
 
-  if( SlvHasSol )
+  if( VarType == VarIsSol )
    slv->get_var_solution();
   else
    slv->get_var_direction();
@@ -275,14 +290,12 @@ void LagBFunction::get_linearization_coefficients( SparseVector & g ,
 
   LastSolution = name ;    // update last solution
 
+  VarType = NoVar; // the current linearization is not available anymore
+
   } // end else  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  // for each Lagrangian multiplier, the value of the relaxed constraint
  // is the component of g  - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- c_Index end_p = std::min( Index(slag_p.size()) , end );
- if( end_p <= start )
-  return;
 
  if( g.nonZeros() == 0 ) {  // the given vector contains no non-zero element
 
