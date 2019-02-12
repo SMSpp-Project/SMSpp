@@ -282,9 +282,10 @@ class C05Function : public Function {
  intGPMaxSz ,  ///< maximum size of the "global pool"
                /**< The algorithmic parameter for setting the size of the 
 		* "global pool", that is, the maximum number of
- * linearizations that should be stored in the local pool. The default is
- * 1, which corresponds to the fact that the Function need not store any
- * more that a single Linearization at a time (for it is, say, smooth). */
+ * linearizations that should be stored in the local pool. The default is 0,
+ * which corresponds to the fact that the Function cannot store any
+ * Linearization (for it is, say, smooth and therefore there is no need to).
+ */
 
  intLastParC0F   ///< first allowed new int parameter for derived classes
                  /**< Convenience value for easily allow derived classes
@@ -371,9 +372,12 @@ class C05Function : public Function {
  {
   switch( par ) {
    case( intLPMaxSz ):
+    if( value != 1 )
+     throw( std::invalid_argument( "intLPMaxSz cannot be changed" ) );
+    break;
    case( intGPMaxSz ):
-    throw( std::invalid_argument( "parameter " + int_par_idx2str( par ) +
-				  " cannot be changed" ) );
+    if( value != 0 )
+     throw( std::invalid_argument( "intGPMaxSz cannot be changed" ) );
     break;
    default: Function::set_par( par , value );
    }
@@ -834,10 +838,13 @@ class C05Function : public Function {
  
  virtual int get_dflt_int_par( const idx_type par ) const override
  {
-  if( ( par == intLPMaxSz ) || ( par == intGPMaxSz ) )
+  if( par == intLPMaxSz )
    return( 1 );
   else
-   return( Function::get_dflt_int_par( par ) );
+   if( par == intGPMaxSz )
+    return( 0 );
+   else
+    return( Function::get_dflt_int_par( par ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
