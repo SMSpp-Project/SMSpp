@@ -400,7 +400,7 @@ class LinearFunction : public C15Function {
 
  virtual double get_linearization_constant( const LinearizationName name =
    std::numeric_limits<Index>::max() ) const override final {
- return( - f_constant_term );
+ return( f_constant_term );
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
