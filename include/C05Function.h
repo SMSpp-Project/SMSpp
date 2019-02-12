@@ -355,6 +355,50 @@ class C05Function : public Function {
  virtual ~C05Function() { }
 
 /*@} -----------------------------------------------------------------------*/
+/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Other initializations
+ *  @{ */
+
+ /// set a given integer (int) numerical parameter
+ /** Set a given integer (int) numerical parameter. Actually, the base class
+  * does not allow to change the default value to its parameters, which is
+  * good for smooth functions, so that while implementing a smooth function
+  * nothing needs to be done, not even checking that the parameters (which
+  * the base classe does not even store) are changed. */
+
+ virtual void set_par( const idx_type par , const int value ) override
+ {
+  switch( par ) {
+   case( intLPMaxSz ):
+   case( intGPMaxSz ):
+    throw( std::std::invalid_argument( "parameter " +
+				       int_par_idx2str( par ) +
+				       " cannot be changed" ) );
+    break;
+   default: Function::set_par( par , value );
+   }
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// set a given float (double) numerical parameter
+ /** Set a given float (double) numerical parameter. Actually, the base
+  * class just ignores the setting of these parameters, since the default
+  * value of 0 is good for smooth functions giving just the exact gradient;
+  * yet, setting any (non-negative) number allows these functions to just
+  * keep doing the same, so whatever number is set can just be ignored. */
+
+ virtual void set_par( const idx_type par , const double value ) override
+ {
+  switch( par ) {
+   case( dblRAccLin ):
+   case( dblAAccLin ):
+    break;
+   default: Function::set_par( par , value );
+   }
+  }
+
+/*@} -----------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A C05Function -------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a C05Function
