@@ -372,9 +372,8 @@ class C05Function : public Function {
   switch( par ) {
    case( intLPMaxSz ):
    case( intGPMaxSz ):
-    throw( std::std::invalid_argument( "parameter " +
-				       int_par_idx2str( par ) +
-				       " cannot be changed" ) );
+    throw( std::invalid_argument( "parameter " + int_par_idx2str( par ) +
+				  " cannot be changed" ) );
     break;
    default: Function::set_par( par , value );
    }
