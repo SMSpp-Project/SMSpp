@@ -102,9 +102,6 @@ class LinearFunction : public C15Function {
  typedef std::vector<Coefficient> v_coeff;
  ///< a vector of coeff_pair
 
- typedef const v_coeff c_v_coeff;
- ///< a const vector of coeff_pair
-
  typedef v_coeff::iterator v_coeff_it;
  ///< iterator in v_coeff
 
