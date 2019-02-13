@@ -117,6 +117,9 @@ class LinearFunction : public C15Function {
  typedef std::vector<coeff_pair> v_coeff_pair;
  ///< a vector of coeff_pair
 
+ typedef const coeff_pair c_coeff_pair;
+ ///< a const coeff_pair
+
  typedef const v_coeff_pair v_c_coeff_pair;
  ///< a const vector of coeff_pair
 
