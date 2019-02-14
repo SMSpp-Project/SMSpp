@@ -65,18 +65,23 @@ namespace SMSpp_di_unipi_it
  *
  * This Function issues the following modifications:
  *
- * - When Variables are added, a FunctionModVars of type AddVar is issued;
- *   pointers to the Variables that were added are provided in the
- *   Modification.
+ * - When Variables are added, a LinearFunctionModSbst
+ *   (C05FunctionModVarsSbst of type AddVar) is issued; pointers to
+ *   the Variables that were added are provided in the Modification.
  *
- * - When Variables are removed, a FunctionModVars of type RemoveVar is
- *   issued. Pointers to the Variables that were removed are provided in the
- *   Modification.
+ * - When Variables are removed, either a LinearFunctionModSbst
+ *   (C05FunctionModVarsSbst of type RemoveVar) or a
+ *   LinearFunctionModRngd (C05FunctionModVarsRngd of type RemoveVar)
+ *   is issued. Pointers to the Variables that were removed are
+ *   provided in the Modification.
  *
- * - When the coefficients of some Variables change, a C05FunctionModVars of
- *   type LinearizationEntriesChange is issued. The entries of a linearization
- *   affected by this modification are precisely the ones associated with the
- *   Variables whose coefficients have changed.
+ * - When the coefficients of some Variables change, either a
+ *   LinearFunctionModSbst (C05FunctionModVarsSbst of type
+ *   SomeEntriesChange) or a LinearFunctionModRngd
+ *   (C05FunctionModVarsRngd of type SomeEntriesChange) is issued. The
+ *   entries of a linearization affected by this modification are
+ *   precisely the ones associated with the Variables whose
+ *   coefficients have changed.
  *
  * - When the constant term changes, a FunctionMod is issued with the shift
  *   equals to the difference between the new and old constant term values.

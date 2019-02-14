@@ -73,14 +73,15 @@ namespace SMSpp_di_unipi_it
  *
  * This Function issues the following modifications:
  *
- * - When Variables are added, a DQuadFunctionModSbst (FunctionModVars
- *   of type AddVar) is issued; pointers to the Variables that were
- *   added are provided in the Modification.
+ * - When Variables are added, a DQuadFunctionModSbst
+ *   (C05FunctionModVarsSbst of type AddVar) is issued; pointers to
+ *   the Variables that were added are provided in the Modification.
  *
  * - When Variables are removed, a either a DQuadFunctionModSbst
- *   (FunctionModVars of type RemoveVar) or a DQuadFunctionModRngd
- *   (C05FunctionModVarsRngd of type RemoveVar) is issued. Pointers to
- *   the Variables that were removed are provided in the Modification.
+ *   (C05FunctionModVarsSbst of type RemoveVar) or a
+ *   DQuadFunctionModRngd (C05FunctionModVarsRngd of type RemoveVar)
+ *   is issued. Pointers to the Variables that were removed are
+ *   provided in the Modification.
  *
  * - When the coefficients of some Variables change, either a
  *   DQuadFunctionModSbst (C05FunctionModVarsSbst of type
