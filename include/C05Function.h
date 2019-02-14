@@ -176,7 +176,7 @@ namespace SMSpp_di_unipi_it
  * In particular, there is usually "one important convex combination" that
  * is very relevant for algorithmic purposes. This can be clearly seen in
  * the Lagrangian function example: for a point x^* to be \eps-optimal for
- * the mininization of f (the Lagrangian Dual), one must collect a set of
+ * the minimization of f (the Lagrangian Dual), one must collect a set of
  * \eps-subgradients g_i such that 0 \in conv( { g_i } ). It is immediate to
  * realize that this corresponds to a set of \eps-optimal solutions u_i to
  * P(x^*) such that u^* = \sum_i u_i \theta_i, for appropriate convex
@@ -214,7 +214,7 @@ namespace SMSpp_di_unipi_it
  * which is globally correct for the graph of f (actually, the epigraph).
  * The corresponding line in the ( x , v ) space either intersects the x axis
  * "diagonally" or is parallel to it (if g = 0), but it can never be
- * hortogonal to it. Thus, there is an entirely different form of lines in
+ * orthogonal to it. Thus, there is an entirely different form of lines in
  * the graphical space, those corresponding of linear constraints of the form
  *
  *       ( 0 , - g ) ( v , x ) >= \alpha       (**)
@@ -261,7 +261,7 @@ class C05Function : public Function {
 
  typedef std::vector< std::pair < LinearizationName , FunctionValue > >
  LinearCombination;
- ///< type used to define linear combinations of linarizations
+ ///< type used to define linear combinations of linearizations
 
 /*--------------------------------------------------------------------------*/
  /// public enum for the int algorithmic parameters of C05Function
@@ -319,7 +319,7 @@ class C05Function : public Function {
   * except that the value f(x) may not be known exactly, with only lower
   * and/or upper bounds on it available. The actual formula therefore depends
   * on what information is actually available: for instance, in the Lagrangian
-  * case one knows that f(x) >= \alpha, and therefore typically un upper
+  * case one knows that f(x) >= \alpha, and therefore typically an upper
   * estimate ub >= f(x) is used in the formula instead of f(x). The default is
   * 0, i.e., "only perfect linearizations are allowed". */
 
@@ -332,7 +332,7 @@ class C05Function : public Function {
   * except that the value f(x) may not be known exactly, with only lower
   * and/or upper bounds on it available. The actual formula therefore depends
   * on what information is actually available: for instance, in the Lagrangian
-  * case one knows that f(x) >= \alpha, and therefore typically un upper
+  * case one knows that f(x) >= \alpha, and therefore typically an upper
   * estimate ub >= f(x) is used in the formula instead of f(x). The default is
   * 0, i.e., "only perfect linearizations are allowed". */
 
@@ -366,7 +366,7 @@ class C05Function : public Function {
   * does not allow to change the default value to its parameters, which is
   * good for smooth functions, so that while implementing a smooth function
   * nothing needs to be done, not even checking that the parameters (which
-  * the base classe does not even store) are changed. */
+  * the base class does not even store) are changed. */
 
  virtual void set_par( const idx_type par , const int value ) override
  {
@@ -564,7 +564,7 @@ class C05Function : public Function {
   * linearization" is often a valid linearization as any one directly
   * produced by the function, and therefore can be saved in the global pool
   * as they are. This may allow, for instance, to reduce the maximum size of
-  * the global pool by replacing many linearizarizations by just one
+  * the global pool by replacing many linearizations by just one
   * "representing them all" (think conjugate subgradients).
   *
   * Note that the C05Function may freely decide to either store the
@@ -573,7 +573,7 @@ class C05Function : public Function {
   * corresponds to a point u_i in U. Hence, the convexified linearization
   * corresponds to a point in conv( U ); if U is convex then that point is
   * still in U, otherwise it is a point in its convex hull which can still
-  * have numerous algoroithmic uses.
+  * have numerous algorithmic uses.
   *
   * The method has a default empty implementation as some Function may
   * ignore this information because it can perform the other required
@@ -594,7 +594,7 @@ class C05Function : public Function {
   *
   * There is usually "one important convex combination" that is very relevant
   * for algorithmic purposes. This can be clearly seen in the Lagrangian
-  * function example: for a point x^* to be \eps-optimal for the mininization
+  * function example: for a point x^* to be \eps-optimal for the minimization
   * of f (the Lagrangian Dual), one must collect a set of \eps-subgradients
   * g_i such that 0 \in conv( { g_i } ). It is immediate to realize that this
   * corresponds to a set of \eps-optimal solutions u_i to P(x^*) such that
@@ -656,7 +656,7 @@ class C05Function : public Function {
   * The method can be useful, e.g., to move linearizations in the initial
   * part of the global pool, that with "small" names", before shrinking it.
   *
-  * The method has a default emptyimplementation as some Functions may not
+  * The method has a default empty implementation as some Functions may not
   * store anything. */
 
  virtual void rename_linearization( const LinearizationName current_name ,
@@ -723,8 +723,8 @@ class C05Function : public Function {
   * 
   *   std::vector < std::vector< FunctionValue > > G;
   *
-  * wherethe inner vectors G[ i ] are dimensioned to the *maximum* number of
-  * Variable that the C05Functio may have, and that a FunctionModVars occurs
+  * where the inner vectors G[ i ] are dimensioned to the *maximum* number of
+  * Variable that the C05Function may have, and that a FunctionModVars occurs
   * which adds k more variables, say [ n , ... , n + k - 1 ). Then, the new
   * entries of all the linearizations corresponding to these new Variable
   * can be written in place in the existing vectors by just calling
@@ -780,7 +780,7 @@ class C05Function : public Function {
  /// return the constant term of a linearization
  /** This method returns the constant term (alpha) of a linearization. If the
   * name of the linearization is the default value Inf<LinearizationName>(),
-  * then it refers to the last computed linearization, which many "not yet
+  * then it refers to the last computed linearization, which may "not yet
   * have a name" because store_linearization() may not have been called yet
   * (and it may never be, if this linearization is not deemed "important
   * enough" to be kept in the global pool). Otherwise, it (obviously) refers
@@ -795,7 +795,7 @@ class C05Function : public Function {
   * of \alpha for each of the linearizations stored in the global pool, which
   * may allow reoptimization to be performed. In this case, a linearization
   * may have become invalid: this is signaled by returning
-  * Inf<FunctionValue>() as the correspondong \alpha, which might prompt the
+  * Inf<FunctionValue>() as the corresponding \alpha, which might prompt the
   * linearization to be removed from the global pool (but at least is should
   * warn whatever algorithm is using the Function not to use it any longer). 
   */
@@ -965,7 +965,7 @@ class C05Function : public Function {
  *
  * In the first case, having stored u_i in the global pool it is immediate to
  * compute the new value of \alpha. In the second case, each u_i is either
- * feasuble (u_i \in U') or not (u_i \notin U'). In the first case \alpha
+ * feasible (u_i \in U') or not (u_i \notin U'). In the first case \alpha
  * does not change, but in the second the original linearization (even the g
  * part) can no longer be used, as it is no longer valid. This can be handled
  * by having get_linearization_constant() returning Inf<FunctionValue>() for
@@ -1320,7 +1320,7 @@ class C05FunctionModShift : public FunctionMod {
 /*---------------------------- PUBLIC TYPES --------------------------------*/
 
  typedef std::pair< Variable * , Function::FunctionValue > SingleShift;
- ///< type for describing a shift: a pair < Variiable * , real >
+ ///< type for describing a shift: a pair < Variable * , real >
 
  typedef std::vector<SingleShift> ShiftSet;  ///< a set of SingleShift
 
