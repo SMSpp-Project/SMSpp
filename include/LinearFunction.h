@@ -7,7 +7,7 @@
  *
  * \version 0.11
  *
- * \date 08 - 02 - 2019
+ * \date 14 - 02 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -65,18 +65,23 @@ namespace SMSpp_di_unipi_it
  *
  * This Function issues the following modifications:
  *
- * - When Variables are added, a FunctionModVars of type AddVar is issued;
- *   pointers to the Variables that were added are provided in the
- *   Modification.
+ * - When Variables are added, a LinearFunctionModSbst
+ *   (C05FunctionModVarsSbst of type AddVar) is issued; pointers to
+ *   the Variables that were added are provided in the Modification.
  *
- * - When Variables are removed, a FunctionModVars of type RemoveVar is
- *   issued. Pointers to the Variables that were removed are provided in the
- *   Modification.
+ * - When Variables are removed, either a LinearFunctionModSbst
+ *   (C05FunctionModVarsSbst of type RemoveVar) or a
+ *   LinearFunctionModRngd (C05FunctionModVarsRngd of type RemoveVar)
+ *   is issued. Pointers to the Variables that were removed are
+ *   provided in the Modification.
  *
- * - When the coefficients of some Variables change, a C05FunctionModVars of
- *   type LinearizationEntriesChange isissued. The entries of a linearization
- *   affected by this modification are precisely the ones associated with the
- *   Variables whose coefficients have changed.
+ * - When the coefficients of some Variables change, either a
+ *   LinearFunctionModSbst (C05FunctionModVarsSbst of type
+ *   SomeEntriesChange) or a LinearFunctionModRngd
+ *   (C05FunctionModVarsRngd of type SomeEntriesChange) is issued. The
+ *   entries of a linearization affected by this modification are
+ *   precisely the ones associated with the Variables whose
+ *   coefficients have changed.
  *
  * - When the constant term changes, a FunctionMod is issued with the shift
  *   equals to the difference between the new and old constant term values.
@@ -100,10 +105,7 @@ class LinearFunction : public C15Function {
  ///< type of the coefficients of the linear function
 
  typedef std::vector<Coefficient> v_coeff;
- ///< a vector of coeff_pair
-
- typedef const v_coeff c_v_coeff;
- ///< a const vector of coeff_pair
+ ///< a vector of Coefficients
 
  typedef v_coeff::iterator v_coeff_it;
  ///< iterator in v_coeff
@@ -116,9 +118,6 @@ class LinearFunction : public C15Function {
 
  typedef std::vector<coeff_pair> v_coeff_pair;
  ///< a vector of coeff_pair
-
- typedef const coeff_pair c_coeff_pair;
- ///< a const coeff_pair
 
  typedef const v_coeff_pair v_c_coeff_pair;
  ///< a const vector of coeff_pair
@@ -395,8 +394,10 @@ class LinearFunction : public C15Function {
    c_Index end = std::numeric_limits<Index>::max() ) override final;
 
 /*--------------------------------------------------------------------------*/
- /** There is only one linearization in a LinearFunction, its value being
-  * the opposite of its constant term. */
+
+/** There is only one linearization in a LinearFunction. The
+ * linearization constant is equal to the constant term of the
+ * LinearFunction. */
 
  virtual double get_linearization_constant( const LinearizationName name =
    std::numeric_limits<Index>::max() ) const override final {
@@ -491,76 +492,6 @@ class LinearFunction : public C15Function {
  {
   return( new LinearFunction::v_const_iterator( v_pairs.end() ) );
   }
-
-/*--------------------------------------------------------------------------*/
- /// remove the given Variable from the LinearFunction
- /** Remove the given Variable from the LinearFunction. This is equivalent to
-  * setting the corresponding coefficient to zero. */
-
- virtual void remove_variable( Variable * var ,
-			       c_ModParam issueMod = eModBlck )
-  override final;
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// remove the i-th Variable
- /** Like remove_variable( Variable * ), but takes in input the index of
-  * the Variable to be removed rather than its pointer. Useful if one knows
-  * the index already, so that it need not be searched for. */
-
- void remove_variable( c_Index i , c_ModParam issueMod = eModBlck );
-
-/*--------------------------------------------------------------------------*/
- /// remove a range of Variable
- /** Remove all the Variable that are in position from start (included) to
-  * min( stop , get_num_active_var() ) (excluded) in this LinearFunction. */
-
- void remove_variables( c_Index strt = 0 , Index stop = Inf<Index>() ,
-			c_ModParam issueMod = eModBlck );
-
-/*--------------------------------------------------------------------------*/
- /// remove a range of Variable
- /** Remove all the Variable comprised between strt (included) and stop
-  * (excluded). Setting strt == nullptr means "the first Variable", and
-  * setting stop == nullptr means "(one after) the last Variable". If
-  * no-nullptr arguments are provided, they *must* be "names" of Variable
-  * currently active in this LinearFunction. */
-
- void remove_variables( const Variable * const strt = nullptr ,
-			const Variable * const stop = nullptr ,
-			c_ModParam issueMod = eModBlck )
- {
-  c_Index istrt = strt ? is_active( strt ) : 0;
-  if( istrt >= get_num_active_var() )
-   throw( std::invalid_argument( "strt is not an active Variable" ) );
-
-  Index istop;
-  if( stop ) {
-   istop = is_active( stop );
-   if( istrt >= get_num_active_var() )
-    throw( std::invalid_argument( "stop is not an active Variable" ) );
-   }
-  else
-   istop = get_num_active_var();
-
-  remove_variables( istrt , istop , issueMod );
-  }
-
-/*--------------------------------------------------------------------------*/
-
- virtual void remove_variables( Vec_p_Var && vars ,
-				const bool ordered = false ,
-				c_ModParam issueMod = eModBlck )
-  override final;
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// remove a set of Variable by index
- /** Like remove_variables( Vec_p_Var * ), but takes in input a set of index
-  * of the Variable to be removed rather than their pointers. Useful if one
-  * knows the indices already, so that they need not be searched for. The set
-  * of indices must be ordered in increasing sense. */
-
- virtual void remove_variables( c_Vec_Index & nms ,
-				c_ModParam issueMod = eModBlck );
 
 /*@} -----------------------------------------------------------------------*/
 /*-------------- METHODS FOR MODIFYING THE LinearFunction ------------------*/
@@ -682,6 +613,77 @@ class LinearFunction : public C15Function {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// remove the given Variable from the LinearFunction
+ /** Remove the given Variable from the LinearFunction. This is
+  * *mathematically* equivalent to setting the corresponding
+  * coefficient to zero. */
+
+ virtual void remove_variable( Variable * var ,
+			       c_ModParam issueMod = eModBlck )
+  override final;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// remove the i-th Variable
+ /** Like remove_variable( Variable * ), but takes in input the index of
+  * the Variable to be removed rather than its pointer. Useful if one knows
+  * the index already, so that it need not be searched for. */
+
+ void remove_variable( c_Index i , c_ModParam issueMod = eModBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// remove a range of Variable
+ /** Remove all the Variable that are in position from start (included) to
+  * min( stop , get_num_active_var() ) (excluded) in this LinearFunction. */
+
+ void remove_variables( c_Index strt = 0 , Index stop = Inf<Index>() ,
+			c_ModParam issueMod = eModBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// remove a range of Variable
+ /** Remove all the Variable comprised between strt (included) and stop
+  * (excluded). Setting strt == nullptr means "the first Variable", and
+  * setting stop == nullptr means "(one after) the last Variable". If
+  * no-nullptr arguments are provided, they *must* be "names" of Variable
+  * currently active in this LinearFunction. */
+
+ void remove_variables( const Variable * const strt = nullptr ,
+			const Variable * const stop = nullptr ,
+			c_ModParam issueMod = eModBlck )
+ {
+  c_Index istrt = strt ? is_active( strt ) : 0;
+  if( istrt >= get_num_active_var() )
+   throw( std::invalid_argument( "strt is not an active Variable" ) );
+
+  Index istop;
+  if( stop ) {
+   istop = is_active( stop );
+   if( istrt >= get_num_active_var() )
+    throw( std::invalid_argument( "stop is not an active Variable" ) );
+   }
+  else
+   istop = get_num_active_var();
+
+  remove_variables( istrt , istop , issueMod );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ virtual void remove_variables( Vec_p_Var && vars ,
+				const bool ordered = false ,
+				c_ModParam issueMod = eModBlck )
+  override final;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// remove a set of Variable by index
+ /** Like remove_variables( Vec_p_Var * ), but takes in input a set of index
+  * of the Variable to be removed rather than their pointers. Useful if one
+  * knows the indices already, so that they need not be searched for. The set
+  * of indices must be ordered in increasing sense. */
+
+ virtual void remove_variables( c_Vec_Index & nms ,
+				c_ModParam issueMod = eModBlck );
+
+/*--------------------------------------------------------------------------*/
  ///< sets the value of the constant term of this function.
  /** Method that sets the new value to the constant term of this linear
   * (actually, affine) Function to constant_term.
@@ -748,9 +750,9 @@ class LinearFunction : public C15Function {
  * a LinearFunction, i.e., those of a range of coefficients.
  *
  * The change of some of the coefficients in a linear function perfectly
- * coincides with what the type of modification of LinearFunctionModRngd
+ * coincides with what the type of modification of C05FunctionModVarsRngd
  * "SomeEntriesChange" postulates. Indeed, there is no real reason for
- * defining this class, as it is identical to LinearFunctionModRngd, save
+ * defining this class, as it is identical to C05FunctionModVarsRngd, save
  * for the fact that some Block / Solver may want to be sure that the
  * Modification is actually coming out of a LinearFunction. */
 

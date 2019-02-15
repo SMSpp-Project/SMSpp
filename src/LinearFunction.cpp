@@ -6,7 +6,7 @@
  *
  * \version 0.11
  *
- * \date 08 - 02 - 2019
+ * \date 14 - 02 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -178,7 +178,7 @@ void LinearFunction::get_linearization_coefficients( SparseVector & g ,
 	    "LinearFunction::get_linearization_coefficients: "
 	    "the size of the sparse vector must be equal to the number "
 	    "of active Variables of the Function" ) );
-  
+
   if( indices ) {
    for( const auto & i : *indices )
     if( ( i >= start ) && ( i < tend ) )
@@ -204,7 +204,7 @@ void LinearFunction::map_active( c_Vec_p_Var & vars , Vec_Index & map ,
   ThinVarDepInterface::map_active( vars , map );
   return;
   }
-   
+
  if( map.size() < vars.size() )
   map.resize( vars.size() );
 
@@ -234,248 +234,6 @@ void LinearFunction::map_active( c_Vec_p_Var & vars , Vec_Index & map ,
 			   );
   }
  }  // end( LinearFunction::map_active )
-
-/*--------------------------------------------------------------------------*/
-
-void LinearFunction::remove_variable( Variable * var , c_ModParam issueMod )
-{
- if( ! var )  // actually nothing to remove
-  return;     // cowardly (and silently) return
-
- if( v_pairs.empty() )  // deleting from nothing
-  throw( std::logic_error( "deleting from an empty set" ) );
-
- // search where the variable lives
- auto itv = std::find_if( v_pairs.begin() , v_pairs.end() ,
-			  [ var ]( const coeff_pair & p ) {
-			   return( p.first == var );
-			   }
-			  );
-
- if( itv == v_pairs.end() )  // if the variable is not there
-  throw( std::invalid_argument( "Variable is not active" ) );
-
- v_pairs.erase( itv );       // erase it
-
- if( ! f_Observer )
-  return;
-
- // if the Observer is a ThinVarDepInterface, un-register it from var
- auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
-
- if( TVDIO )
-  var->remove_active( TVDIO );
-
- if( ! f_Observer->issue_mod( issueMod ) )
-  return;
-
- f_Observer->add_Modification( std::make_shared<LinearFunctionModSbst>( this ,
-                                       FunctionModVars::RemoveVar ,
-				       Vec_p_Var( { var } ) , 0 ,
-				       Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
-
- }  // end( LinearFunction::remove_variable( pointer ) )
-
-/*--------------------------------------------------------------------------*/
-
-void LinearFunction::remove_variable( c_Index i , c_ModParam issueMod )
-{
- if( v_pairs.size() >= i )
-  throw( std::logic_error( "less than i Variable are active" ) );
-
- auto itv = v_pairs.begin() + i;
- auto var = (*itv).first;
- v_pairs.erase( itv );       // erase it
-
- if( ! f_Observer )
-  return;
-
- // if the Observer is a ThinVarDepInterface, un-register it from var
- auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
-
- if( TVDIO )
-  var->remove_active( TVDIO );
-
- if( ! f_Observer->issue_mod( issueMod ) )
-  return;
-
- f_Observer->add_Modification( std::make_shared<LinearFunctionModSbst>( this ,
-                                       FunctionModVars::RemoveVar ,
-				       Vec_p_Var( { var } ) , 0 ,
-				       Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
-
- }  // end( LinearFunction::remove_variable( index ) )
-
-/*--------------------------------------------------------------------------*/
-
-void LinearFunction::remove_variables( c_Index strt , Index stop ,
-				       c_ModParam issueMod )
-{
- stop = std::min( stop , c_Index( v_pairs.size() ) );
- if( stop <= strt )
-  return;
-
- const auto strtit = v_pairs.begin() + strt;
- const auto stopit = v_pairs.begin() + stop;
-
- // if the Observer is a ThinVarDepInterface, un-register it from the vars
- auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
-
- if( TVDIO )
-  for( auto it = strtit ; it < stopit ; )
-   (*(it++)).first->remove_active( TVDIO );
- 
- if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
-  Variable * const vstrt = strt ? v_pairs[ strt ].first : nullptr;
-  Variable * const vstop = stop < v_pairs.size() ?
-                                  v_pairs[ stop ].first : nullptr;
-
-  v_pairs.erase( strtit , stopit );
-
-  f_Observer->add_Modification( std::make_shared<LinearFunctionModRngd>(
-			    this , FunctionModVars::RemoveVar , vstrt ,
-			    vstop , 0 , Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
-  }
- else
-  v_pairs.erase( strtit , stopit );
-
- }  // end( LinearFunction::remove_variables( range ) )
-
-/*--------------------------------------------------------------------------*/
-
-void LinearFunction::remove_variables( Vec_p_Var && vars ,
-				       const bool ordered ,
-				       c_ModParam issueMod )
-{
- if( vars.empty() )  // actually nothing to remove
-  return;            // cowardly (and silently) return
-
- if( v_pairs.empty() )  // deleting from nothing
-  throw( std::logic_error( "deleting from an empty set" ) );
-
- if( ! ordered )
-  std::sort( vars.begin() , vars.end() );
-
- auto it = vars.begin();
- auto itv = v_pairs.begin();
-
- // search the first variable to be eliminated
- itv = std::find_if( itv , v_pairs.end() ,
-                     [ &it ]( const coeff_pair &p )
-                            { return( p.first == *it ); } );
-
- if( itv >= v_pairs.end() )  // if the variable is not there
-  throw( std::invalid_argument( "a Variable is not active" ) );
-
- auto curr = itv;  // position where to move stuff
- ++it;             // skip the first elements
- ++itv;            // as they have been processed already
- for( ; it < vars.end() ; ++itv ) {
-  if( *it < itv->first )
-   throw( std::invalid_argument( "a Variable is not active" ) );
-
-  if( *it == itv->first )  // one element to be eliminated
-   ++it;                   // skip it
-  else
-   *(curr++) = *itv;       // move in the current position
-  }
-
- for( ; itv < v_pairs.end() ; )  // copy the last part
-  *(curr++) = *(itv++);              // after the last of v_var
-
- v_pairs.erase( curr , itv );    // erase the last part
-
- if( ! f_Observer )
-  return;
-
- // if the Observer is a ThinVarDepInterface, un-register it from the vars
- auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
-
- if( TVDIO )
-  for( auto var :  vars )
-   var->remove_active( TVDIO );
-
- if( ! f_Observer->issue_mod( issueMod ) )
-  return;
-
- f_Observer->add_Modification( std::make_shared<LinearFunctionModSbst>(
-					 this , FunctionModVars::RemoveVar ,
-					 std::move( vars ) , 0 ,
-					 Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
-
- }  // end( LinearFunction::remove_variables( pointers ) )
-
-/*--------------------------------------------------------------------------*/
-
-void LinearFunction::remove_variables( c_Vec_Index & nms ,
-				       c_ModParam issueMod )
-{
- if( nms.empty() )  // actually nothing to remove
-  return;           // cowardly (and silently) return
-
- if( v_pairs.empty() )  // deleting from nothing
-  throw( std::logic_error( "deleting from an empty set" ) );
-
- auto it = nms.begin();
- if( *it >= v_pairs.size() )  // if the first name is wrong
-  throw( std::invalid_argument( "wrong index in LinearFunction" ) );
-
- if( nms.back() >= v_pairs.size() )  // if the last name is wrong
-  throw( std::invalid_argument( "wrong index in LinearFunction" ) );
-
- auto vi = *it;    // first element to be eliminated
- auto curr = v_pairs.begin() + vi;   // position where to move stuff
-
- // if the Observer is a ThinVarDepInterface, un-register it from the vars
- auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
-
- if( TVDIO )
-  v_pairs[ *(it++) ].first->remove_active( TVDIO );
- else
-  ++it;             // skip the first elements
- ++vi;              // as they have been processed already
-
- if( TVDIO )
-  for( ; it < nms.end() ; ++vi ) {
-   if( *it == vi )                    // one element to be eliminated
-    v_pairs[ *(it++) ].first->remove_active( TVDIO );  // skip it
-                                      // and meanwhile un-register it
-   else
-    *(curr++) = v_pairs[ vi ];    // move in the current position
-   }
- else
-  for( ; it < nms.end() ; ++vi ) {
-   if( *it == vi )                    // one element to be eliminated
-    ++it;                             // skip it
-   else
-    *(curr++) = v_pairs[ vi ];    // move in the current position
-   }
-
- auto itv = v_pairs.begin() + vi;
- for( ; itv < v_pairs.end() ; )   // copy the last part
-  *(curr++) = *(itv++);               // after the last of v_var
-
- v_pairs.erase( curr , itv );     // erase the last part
-
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
-  return;
-
- Vec_p_Var vars( nms.size() );
- auto its = vars.begin();
- for( auto nm : nms )
-  *(its++) = v_pairs[ nm ].first;
-
- f_Observer->add_Modification( std::make_shared<LinearFunctionModSbst>( this ,
-				       FunctionModVars::RemoveVar ,
-				       std::move( vars ) , 0 ,
-				       Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
-
- }  // end( LinearFunction::remove_variables( indices ) )
 
 /*--------------------------------------------------------------------------*/
 /*-------------- METHODS FOR MODIFYING THE LinearFunction ------------------*/
@@ -666,7 +424,7 @@ void LinearFunction::modify_coefficients( c_v_coeff_it NCoef ,
  if( ! nms.size() )
   return;
 
- if( v_pairs.empty() )  // deleting from nothing
+ if( v_pairs.empty() )  // modifying from nothing
   throw( std::logic_error( "modifying an empty set" ) );
 
  auto it = nms.begin();
@@ -709,7 +467,7 @@ void LinearFunction::modify_coefficients( c_v_coeff_it NCoef , c_Index strt ,
 
  auto strtit = v_pairs.begin() + strt;
  const auto stopit = v_pairs.begin() + stop;
- 
+
  if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
   Variable * const vstrt = strt ? v_pairs[ strt ].first : nullptr;
   Variable * const vstop = stop < v_pairs.size() ?
@@ -729,6 +487,248 @@ void LinearFunction::modify_coefficients( c_v_coeff_it NCoef , c_Index strt ,
    (*(strtit++)).second = *(NCoef++);
 
  }  // end( LinearFunction::modify_coefficients( range ) )
+
+/*--------------------------------------------------------------------------*/
+
+void LinearFunction::remove_variable( Variable * var , c_ModParam issueMod )
+{
+ if( ! var )  // actually nothing to remove
+  return;     // cowardly (and silently) return
+
+ if( v_pairs.empty() )  // deleting from nothing
+  throw( std::logic_error( "deleting from an empty set" ) );
+
+ // search where the variable lives
+ auto itv = std::find_if( v_pairs.begin() , v_pairs.end() ,
+			  [ var ]( const coeff_pair & p ) {
+			   return( p.first == var );
+			   }
+			  );
+
+ if( itv == v_pairs.end() )  // if the variable is not there
+  throw( std::invalid_argument( "Variable is not active" ) );
+
+ v_pairs.erase( itv );       // erase it
+
+ if( ! f_Observer )
+  return;
+
+ // if the Observer is a ThinVarDepInterface, un-register it from var
+ auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
+
+ if( TVDIO )
+  var->remove_active( TVDIO );
+
+ if( ! f_Observer->issue_mod( issueMod ) )
+  return;
+
+ f_Observer->add_Modification( std::make_shared<LinearFunctionModSbst>( this ,
+                                       FunctionModVars::RemoveVar ,
+				       Vec_p_Var( { var } ) , 0 ,
+				       Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
+
+ }  // end( LinearFunction::remove_variable( pointer ) )
+
+/*--------------------------------------------------------------------------*/
+
+void LinearFunction::remove_variable( c_Index i , c_ModParam issueMod )
+{
+ if( v_pairs.size() >= i )
+  throw( std::logic_error( "less than i Variable are active" ) );
+
+ auto itv = v_pairs.begin() + i;
+ auto var = (*itv).first;
+ v_pairs.erase( itv );       // erase it
+
+ if( ! f_Observer )
+  return;
+
+ // if the Observer is a ThinVarDepInterface, un-register it from var
+ auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
+
+ if( TVDIO )
+  var->remove_active( TVDIO );
+
+ if( ! f_Observer->issue_mod( issueMod ) )
+  return;
+
+ f_Observer->add_Modification( std::make_shared<LinearFunctionModSbst>( this ,
+                                       FunctionModVars::RemoveVar ,
+				       Vec_p_Var( { var } ) , 0 ,
+				       Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
+
+ }  // end( LinearFunction::remove_variable( index ) )
+
+/*--------------------------------------------------------------------------*/
+
+void LinearFunction::remove_variables( c_Index strt , Index stop ,
+				       c_ModParam issueMod )
+{
+ stop = std::min( stop , c_Index( v_pairs.size() ) );
+ if( stop <= strt )
+  return;
+
+ const auto strtit = v_pairs.begin() + strt;
+ const auto stopit = v_pairs.begin() + stop;
+
+ // if the Observer is a ThinVarDepInterface, un-register it from the vars
+ auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
+
+ if( TVDIO )
+  for( auto it = strtit ; it < stopit ; )
+   (*(it++)).first->remove_active( TVDIO );
+
+ if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+  Variable * const vstrt = strt ? v_pairs[ strt ].first : nullptr;
+  Variable * const vstop = stop < v_pairs.size() ?
+                                  v_pairs[ stop ].first : nullptr;
+
+  v_pairs.erase( strtit , stopit );
+
+  f_Observer->add_Modification( std::make_shared<LinearFunctionModRngd>(
+			    this , FunctionModVars::RemoveVar , vstrt ,
+			    vstop , 0 , Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
+  }
+ else
+  v_pairs.erase( strtit , stopit );
+
+ }  // end( LinearFunction::remove_variables( range ) )
+
+/*--------------------------------------------------------------------------*/
+
+void LinearFunction::remove_variables( Vec_p_Var && vars ,
+				       const bool ordered ,
+				       c_ModParam issueMod )
+{
+ if( vars.empty() )  // actually nothing to remove
+  return;            // cowardly (and silently) return
+
+ if( v_pairs.empty() )  // deleting from nothing
+  throw( std::logic_error( "deleting from an empty set" ) );
+
+ if( ! ordered )
+  std::sort( vars.begin() , vars.end() );
+
+ auto it = vars.begin();
+ auto itv = v_pairs.begin();
+
+ // search the first variable to be eliminated
+ itv = std::find_if( itv , v_pairs.end() ,
+                     [ &it ]( const coeff_pair &p )
+                            { return( p.first == *it ); } );
+
+ if( itv >= v_pairs.end() )  // if the variable is not there
+  throw( std::invalid_argument( "a Variable is not active" ) );
+
+ auto curr = itv;  // position where to move stuff
+ ++it;             // skip the first elements
+ ++itv;            // as they have been processed already
+ for( ; it < vars.end() ; ++itv ) {
+  if( *it < itv->first )
+   throw( std::invalid_argument( "a Variable is not active" ) );
+
+  if( *it == itv->first )  // one element to be eliminated
+   ++it;                   // skip it
+  else
+   *(curr++) = *itv;       // move in the current position
+  }
+
+ for( ; itv < v_pairs.end() ; )  // copy the last part
+  *(curr++) = *(itv++);              // after the last of v_var
+
+ v_pairs.erase( curr , itv );    // erase the last part
+
+ if( ! f_Observer )
+  return;
+
+ // if the Observer is a ThinVarDepInterface, un-register it from the vars
+ auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
+
+ if( TVDIO )
+  for( auto var :  vars )
+   var->remove_active( TVDIO );
+
+ if( ! f_Observer->issue_mod( issueMod ) )
+  return;
+
+ f_Observer->add_Modification( std::make_shared<LinearFunctionModSbst>(
+					 this , FunctionModVars::RemoveVar ,
+					 std::move( vars ) , 0 ,
+					 Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
+
+ }  // end( LinearFunction::remove_variables( pointers ) )
+
+/*--------------------------------------------------------------------------*/
+
+void LinearFunction::remove_variables( c_Vec_Index & nms ,
+				       c_ModParam issueMod )
+{
+ if( nms.empty() )  // actually nothing to remove
+  return;           // cowardly (and silently) return
+
+ if( v_pairs.empty() )  // deleting from nothing
+  throw( std::logic_error( "deleting from an empty set" ) );
+
+ auto it = nms.begin();
+ if( *it >= v_pairs.size() )  // if the first name is wrong
+  throw( std::invalid_argument( "wrong index in LinearFunction" ) );
+
+ if( nms.back() >= v_pairs.size() )  // if the last name is wrong
+  throw( std::invalid_argument( "wrong index in LinearFunction" ) );
+
+ auto vi = *it;    // first element to be eliminated
+ auto curr = v_pairs.begin() + vi;   // position where to move stuff
+
+ // if the Observer is a ThinVarDepInterface, un-register it from the vars
+ auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
+
+ if( TVDIO )
+  v_pairs[ *(it++) ].first->remove_active( TVDIO );
+ else
+  ++it;             // skip the first elements
+ ++vi;              // as they have been processed already
+
+ if( TVDIO )
+  for( ; it < nms.end() ; ++vi ) {
+   if( *it == vi )                    // one element to be eliminated
+    v_pairs[ *(it++) ].first->remove_active( TVDIO );  // skip it
+                                      // and meanwhile un-register it
+   else
+    *(curr++) = v_pairs[ vi ];    // move in the current position
+   }
+ else
+  for( ; it < nms.end() ; ++vi ) {
+   if( *it == vi )                    // one element to be eliminated
+    ++it;                             // skip it
+   else
+    *(curr++) = v_pairs[ vi ];    // move in the current position
+   }
+
+ auto itv = v_pairs.begin() + vi;
+ for( ; itv < v_pairs.end() ; )   // copy the last part
+  *(curr++) = *(itv++);               // after the last of v_var
+
+ v_pairs.erase( curr , itv );     // erase the last part
+
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+  return;
+
+ Vec_p_Var vars( nms.size() );
+ auto its = vars.begin();
+ for( auto nm : nms )
+  *(its++) = v_pairs[ nm ].first;
+
+ f_Observer->add_Modification( std::make_shared<LinearFunctionModSbst>( this ,
+				       FunctionModVars::RemoveVar ,
+				       std::move( vars ) , 0 ,
+				       Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
+
+ }  // end( LinearFunction::remove_variables( indices ) )
 
 /*--------------------------------------------------------------------------*/
 

@@ -281,7 +281,6 @@ void SimpleConfiguration< std::list<int> >::deserialize(
  Configuration::deserialize( std::move( group ) );
  size_t size = ( group.getDim( "size" ) ).getSize();
  f_value.clear();
- auto it = f_value.begin();
  netCDF::NcVar var = group.getVar( "value" );
  for( size_t i = 0 ; i < size ; ) {
   int val;
@@ -313,7 +312,6 @@ void SimpleConfiguration< std::list<double> >::deserialize(
  Configuration::deserialize( std::move( group ) );
  size_t size = ( group.getDim( "size" ) ).getSize();
  f_value.clear();
- auto it = f_value.begin();
  netCDF::NcVar var = group.getVar( "value" );
  for( size_t i = 0 ; i < size ; ) {
   double val;
