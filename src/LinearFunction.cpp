@@ -315,8 +315,7 @@ void LinearFunction::add_variable( ColVariable * const var ,
   v_pairs.push_back( pair );
  else {                     // adding to a nonempty set
   // search where the variable lives
-  auto itv = std::upper_bound( v_pairs.begin() , v_pairs.end() ,
-			       pair ,
+  auto itv = std::lower_bound( v_pairs.begin() , v_pairs.end() , pair ,
 			       []( const coeff_pair &a , const coeff_pair &b )
 			         { return( a.first < b.first ); } );
   if( itv->first == var )
