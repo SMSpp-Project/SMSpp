@@ -309,6 +309,24 @@ class LinearFunction : public C15Function {
   return( ( v_pairs.begin() + i )->second );
   }
 
+ /*--------------------------------------------------------------------------*/
+  /// returns the Coefficient of the Variable var of this LinearFunction
+  /** Like add_variables( int ), but works directly with the Variable
+   * instead of its index. */
+
+ inline Coefficient get_coefficient( const ColVariable * const var ) const {
+
+   auto idx = std::lower_bound( v_pairs.begin() , v_pairs.end() ,
+	                             std::make_pair( var , 0 ) ,
+	                             []( const auto & p1, const auto & p2 )
+	                              { return p1.first < p2.first; } );
+
+   if( idx->first != var )
+    throw( std::invalid_argument( "stop is not an active Variable" ) );
+
+   return( idx->second );
+   }
+
 /*@} -----------------------------------------------------------------------*/
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF THE LinearFunction ----------*/
 /*--------------------------------------------------------------------------*/
