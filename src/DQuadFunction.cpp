@@ -372,11 +372,12 @@ void DQuadFunction::add_variable( ColVariable * const var ,
   v_triples.push_back( triple );
  else {                     // adding to a nonempty set
   // search where the variable lives
-  auto itv = std::upper_bound( v_triples.begin() , v_triples.end() ,
-			       triple ,
+  auto itv = std::lower_bound( v_triples.begin() , v_triples.end() , triple ,
 			       []( const var_coeff_coeff_triple &a ,
 				   const var_coeff_coeff_triple &b )
-			       { return( std::get<0>( a ) < std::get<0>( b ) ); } );
+			       { return( std::get<0>( a ) < std::get<0>( b ) );
+			       } );
+
   if( std::get<0>( *itv ) == var )
    throw( std::invalid_argument(
                     "add_variables: Variable is already in the Function" ) );
