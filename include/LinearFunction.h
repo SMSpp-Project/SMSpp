@@ -5,9 +5,9 @@
  * Header file for the *concrete* class LinearFunction, which
  * implements C15Function with a simple linear function.
  *
- * \version 0.11
+ * \version 0.12
  *
- * \date 14 - 02 - 2019
+ * \date 18 - 02 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
