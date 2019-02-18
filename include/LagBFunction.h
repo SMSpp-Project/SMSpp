@@ -7,7 +7,7 @@
  *
  * \version 0.02
  *
- * \date 08 - 02 - 2019
+ * \date 18 - 02 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -36,6 +36,8 @@
 #include "C05Function.h"
 #include "Block.h"
 #include "ColVariable.h"
+#include "FRealObjective.h"
+#include "LinearFunction.h"
 #include "Solution.h"
 
 /*--------------------------------------------------------------------------*/
@@ -271,6 +273,15 @@ class LagBFunction : public C05Function , public Block {
  typedef std::vector< linearization_pair > v_linearization_pair;
  ///< a vector of linearization_pair
 
+/*--------------------------------------------------------------------------*/
+
+
+ typedef std::pair< LinearFunction::Coefficient , LinearFunction::v_coeff_pair > col_pair;
+ ///< a pair to represent c_i and < y_i , A_i >
+
+ typedef std::map< ColVariable * , col_pair > m_column;
+ ///< a map of col_pair
+
  /*--------------------------------------------------------------------------*/
  /** Very small class to simplify extracting the "+ infinity" value for a
       basic type; just use Inf<type>(). */
@@ -303,6 +314,11 @@ class LagBFunction : public C05Function , public Block {
   * All inputs have a default ({}, and true, respectively) so that this
   * can be used as the void constructor. */
 
+/*--------------------------------------------------------------------------*/
+
+ LagBFunction( void );
+
+/*--------------------------------------------------------------------------*/
 
  LagBFunction( v_dual_pair && static_lagrangian_pairs = {} ,
  		 const bool static_is_ordered = false );
@@ -325,12 +341,24 @@ class LagBFunction : public C05Function , public Block {
 /** @name Other initializations
  *  @{ */
 
+ /// set the sub-block pointer.
+ /**
+  * The inner block is assumed to be only one.
+  *
+  *  */
+
+ void setInnerBlock( Block* innerblock );
+
+/*--------------------------------------------------------------------------*/
+
+ void addStaticLagrangianPairs( v_dual_pair && static_lagrangian_pairs = {} ,
+ 		 const bool static_is_ordered = false );
+
 /*@} -----------------------------------------------------------------------*/
-/*---------- METHODS FOR READING THE DATA OF THE LagBFunction ------------*/
+/*---------- METHODS FOR READING THE DATA OF THE LagBFunction --------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the LagBFunction
     @{ */
-
 
 /*@} -----------------------------------------------------------------------*/
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF THE LagBFunction ------------*/
@@ -340,10 +368,11 @@ class LagBFunction : public C05Function , public Block {
 
  virtual bool has_linearization( const bool diagonal = true ) override final;
 
- /*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 
  virtual bool compute_new_linearization( const bool diagonal = true ) override final;
 
+/*--------------------------------------------------------------------------*/
 
  virtual void store_linearization( const LinearizationName name ) override final;
 
@@ -362,6 +391,13 @@ class LagBFunction : public C05Function , public Block {
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// retrieve the coefficients (g vector) of a linearization in a vector
+/** This method retrieves the vector of coefficients g that is the (largest)
+  * part of the linearization with the given name.
+  *
+  * This implements the virtual function of class C05Function. If name
+  * INF<LinearizationName>, the current linearization of the local pool
+  * will be unavailable. */
 
  virtual void get_linearization_coefficients( FunctionValue * g ,
    const LinearizationName name =
@@ -370,6 +406,13 @@ class LagBFunction : public C05Function , public Block {
    c_Index end = std::numeric_limits<Index>::max() ) override final;
 
 /*--------------------------------------------------------------------------*/
+/// retrieve the coefficients (g) of a linearization in a sparse vector
+/** This method retrieves the sparse vector of coefficients g that is part
+  * of a linearization.
+  *
+  * This implements the virtual function of class C05Function. If name
+  * INF<LinearizationName>, the current linearization of the local pool
+  * will be unavailable.  */
 
  virtual void get_linearization_coefficients( SparseVector &g ,
    const LinearizationName name =
@@ -447,17 +490,38 @@ class LagBFunction : public C05Function , public Block {
  ///< global pool
 
  LinearizationName LastSolution;
- ///< global pool
+ ///< the last solution read by get_linearization
 
  char VarType;
  ///< the type of variable contained in the solver
 
+ FRealObjective obj;
+ ///< the (linear) objective function
+
+ m_column LagMatrix;
+ ///< the matrix yA in the Lagrangian function
+
+ bool FuncIsIntlzd;
 
 /*@}------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
 /*--------------------------------------------------------------------------*/
 
  private:
+
+/*--------------------------------------------------------------------------*/
+/*-------------------------- PRIVATE METHODS -------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+   void InitStaticDataStructure( void );
+
+/*--------------------------------------------------------------------------*/
+
+   void InitStaticPartOfFunction( void );
+
+/*--------------------------------------------------------------------------*/
+
+   void UpdateFunction( void );
 
 /*--------------------------------------------------------------------------*/
 
