@@ -7,9 +7,9 @@
  * assumptions are made about what form the variable actually has, this
  * being demanded to derived classes.
  *
- * \version 0.10
+ * \version 0.20
  *
- * \date 03 - 09 - 2018
+ * \date 19 - 02 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -156,25 +156,14 @@ class Variable {
 
 /*--------------------------------------------------------------------------*/
  /// type for the "type" of the Variable
+ /** The base class has a protected field f_state of type var_type, which is
+  * only menat to store one but of information, i.e., if the Variable is fixed
+  * or not. Since there is no way to store a single bit, this leaves "a lot of
+  * free space" available to derived classes to store other information about
+  * their soecific :Variable, provided they don't mess up with the LSB of that
+  * field. */
+
  typedef unsigned char var_type;
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// enum for the different "states" in which the Variable can be
- /** The enum var_state is used to store information about the "state" of
-  * a Variable. The base Variable class only supports the notion that a
-  * Variable can either be fixed to its current value (i.e., actually a
-  * constant), whatever that means for the specific concrete :Variable class,
-  * or free to take whatever value (i.e., actually a variable). However,
-  * there is still "quite some free space" in this field, so derived classes
-  * can extend the set of possible states, for instance to indicate that the
-  * Variable can vary, but with some limitations (say, only the integer, or
-  * binary, value, ...). */
-
- enum var_state {
-  kFixed = 0 ,   ///< the Variable is fixed to its current value
-
-  kFree = 1      ///< the Variable is free to change its current value
-  };
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
@@ -220,18 +209,15 @@ class Variable {
  * individual "stuff" does not do it, saving pointless work.
  *  @{ */
 
-///< constructor of Variable: takes a pointer to the Block and the state
+///< constructor of Variable: takes a pointer to the Block
 /**< Constructor of Variable. It accepts a pointer to the Block to which the
- * Variable belongs, and the state of the variable. Everything has a default
- * (nullptr and kFree, respectively) so that this can be used as the void
- * constructor. If nullptr is passed, then set_Block() [see below] will have
- * to be used later to initialize it. Note that while the enum var_type is
- * provided to encode the possible states of the Variable (kFixed or kFree),
- * the parameter of the constructor is a generic var_type in order to allow
- * derived classes to further "extend" the set of possible types. */
+ * Variable belongs, defaulting to nullptr so that this can be used as the
+ * void constructor. If nullptr is passed, then set_Block() [see below] will
+ * have to be used later to initialize it. Variable are "born free", but they
+ * can be fixed (see is_fixed()). */
 
- Variable( Block * my_block = nullptr , const var_type state = kFree )
-  : f_Block( my_block ) , f_state( state ) { }
+ Variable( Block * my_block = nullptr )
+  : f_Block( my_block ) , f_state( var_type( 0 ) ) {}
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor
@@ -271,7 +257,7 @@ class Variable {
   * to be destroyed without having to pointlessly update the data structures
   * linking them just before destruction. */
 
- virtual ~Variable() { }
+ virtual ~Variable() {}
 
 /*@} -----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -297,17 +283,17 @@ class Variable {
  virtual void set_to_default_value( void ) = 0;
 
 /*--------------------------------------------------------------------------*/
- /// change the state of the Variable
- /** Method to change the state of the Variable to a new value. For the base
-  * Variable class this means either "fix" it (state = kFixed) or "un-fix" it
-  * (state = kFree), but derived classes can add other meanings to the value
-  * of this field.
+ /// fox or un-fix the Variable
+ /** Method to change the state of the Variable from "free" to "fixed" (if
+  * fixed == true) or vice-versa (if fixed == false). This is recorded in
+  * the LSB of the f_state protected field, taking great care in not touching
+  * the others, so as to leave them free to be used by derived classes to
+  * store any other information about the "state" of the :Variable.
   *
   * The parameter issueMod decides if and how the VariableMod is issued, as
   * described in Observer::make_par(). */
 
- virtual void set_state( const var_type state ,
-			 c_ModParam issueMod = eModBlck );
+ virtual void is_fixed( const bool fixed , c_ModParam issueMod = eModBlck );
 
 /*@} -----------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE DATA OF THE Variable ---------------*/
@@ -324,13 +310,13 @@ class Variable {
 /** @name Methods describing the behavior of a Variable
  *  @{ */
 
- /// returns the state of the Variable
- /** Method to get the current state of the Variable. For the base Variable
-  * class this means either "fix" it (state = kFixed) or "un-fix" it (state =
-  * kFree), but derived classes can add other meanings to the value of this
-  * field. */
+ /// tells whether the Variable is fixed
+ /** Method to get the current state of the Variable, i.e., whether or not it
+  * is fixed. This is plainly encoded into the LSB of the f_state protected
+  * field, so as to leave the other bits free to be used by derived classes
+  * to store any other information about the "state" of the :Variable. */
 
- var_type get_state( void ) const { return( f_state ); }
+ bool is_fixed( void ) const { return( f_state & var_type( 1 ) ); }
 
 /*@} -----------------------------------------------------------------------*/
 /*--------- METHODS FOR HANDLING "STUFF" THE Variable IS ACTIVE IN ---------*/
@@ -470,20 +456,16 @@ class VariableMod : public AModification {
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: takes the new state of the Variable and a pointer to it
 
- VariableMod( Variable::var_type state , Variable *var ,
-	      const bool cB = true )
-  : AModification( cB ) , f_state( state ) , f_variable( var ) { }
-
+ VariableMod( Variable *var , const bool cB = true )
+  : AModification( cB ) , f_variable( var ) {}
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
- virtual ~VariableMod() { }  ///< destructor: does nothing
+ virtual ~VariableMod() {}  ///< destructor: does nothing
 
 /*--------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
 
- Variable::var_type f_state;  ///< new state of the Variable
-
- Variable *f_variable;        ///< Variable where the modification occurs
+ Variable *f_variable;      ///< Variable where the modification occurs
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -495,20 +477,18 @@ class VariableMod : public AModification {
  virtual inline void print( std::ostream &output ) const {
   output << "VariableMod[";
   if( concerns_Block() )
-   output << "t]:";
+   output << "t";
   else
-   output << "f]:";  
-  if( f_state == Variable::kFixed )
-   output << "fixing";
-  else
-   output << "un-fixing";
-
-  output << " Variable [" << f_variable << "]" << std::endl;
+   output << "f";
+  output << "]: changing state of :Variable [" << f_variable << "]"
+	 << std::endl;
   }
+
+/*--------------------------------------------------------------------------*/
 
  };  // end( class( VariableMod ) )
 
-/*@}  end( group( Variable_CLASSES ) ) */
+/*@}  end( group( Variable_CLASSES ) ) -------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 }  // end( namespace SMSpp_di_unipi_it )

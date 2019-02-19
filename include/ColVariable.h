@@ -98,12 +98,12 @@ class ColVariable : public Variable {
 
  /// Definition of the possible type of ColVariable
  enum col_var_type {
-  kBinary = kFree ,  ///< can only have values 0 and 1 (but can have both)
-  kInteger ,         ///< can only have integer values
-  kContinuous ,      ///< can have any real value
-  ColVarLastType     ///< first allowed parameter value for derived classes
-                     /**< Convenience value for easily allow derived classes
-		      * to extend the set of types of real subsets */
+  kBinary = 0 ,   ///< can only have values 0 and 1 (but can have both)
+  kInteger    ,   ///< can only have integer values
+  kContinuous ,   ///< can have any real value
+  ColVarLastType  ///< first allowed parameter value for derived classes
+                  /**< Convenience value for easily allow derived classes
+		   * to extend the set of types of real subsets */
   };
 
 /*--------------------------------------------------------------------------*/
@@ -123,18 +123,18 @@ class ColVariable : public Variable {
 
  /// constructor of ColVariable, taking the Block and the type
  /** Constructor of ColVariable. It takes the pointer to the Block to which
-  * the ColVariable belongs and the type of variable, to be passed to the
-  * constructor of Variable. Everything has a default (nullptr and
-  * kContinuous, respectively), so that this can be used as the void
-  * constructor. Note that while the enum col_var_type is provided to encode
-  * the possible types of variable ("extending" Variable::var_type), the
+  * the ColVariable belongs and the "type" of the ColVariable. Everything
+  * has a default (nullptr and kContinuous, respectively), so that this can
+  * be used as the void constructor. Note that while the enum col_var_type is
+  * provided to encode the possible "types" of the ColVariable, the
   * parameter of the constructor is a generic var_type in order to allow
   * further derived classes to further "extend" the set of possible types.
   *
   * The constructor sets the value of the ColVariable to its default. */
 
- ColVariable( Block *my_block = nullptr , const var_type state = kContinuous )
-  : Variable( my_block , state ) {
+ ColVariable( Block *my_block = nullptr , const var_type type = kContinuous )
+  : Variable( my_block ) {
+  f_state |= type * 2;
   set_to_default_value();
   }
 
@@ -161,7 +161,7 @@ class ColVariable : public Variable {
   * to be destroyed without having to pointlessly update the data structures
   * linking them just before destruction. */
 
- virtual ~ColVariable() { }
+ virtual ~ColVariable() {}
 
 /*@} -----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -185,14 +185,36 @@ class ColVariable : public Variable {
 
  virtual void set_value( c_VarValue new_value ) { f_value = new_value; }
 
+/*--------------------------------------------------------------------------*/
+ /// sets the "type" of the ColVariable
+ /** Sets the "type" of the ColVariable. This is encoded in the protected
+  * field f_state that the base Variable classe uses to store the "state",
+  * i.e., whether or not the [Col]Variable is fixed, so this mathod takes
+  * great care to not mess up with the LSB of the field where that information
+  * is stored.
+  *
+  * The parameter issueMod decides if and how the VariableMod is issued, as
+  * described in Observer::make_par(). */
+
+ virtual void set_type( const var_type type ,
+			c_ModParam issueMod = eModBlck );
+
 /*@} -----------------------------------------------------------------------*/
 /*------------ METHODS DESCRIBING THE BEHAVIOR OF A ColVariable ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a ColVariable
  *  @{ */
 
- /// method to get the value of the Variable (a real, i.e., a VarValue)
+ /// method to get the value of the ColVariable (a real, i.e., a VarValue)
  VarValue get_value( void ) const { return( f_value ); }
+
+/*--------------------------------------------------------------------------*/
+
+ /// method to get the type of the ColVariable
+ /** Returns the "type" of the ColVariable, encoded accordingly to the enum
+  * col_var_type. */
+
+ var_type get_type( void ) const { return( f_state / 2 ); }
 
 /*@} -----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING ACTIVE "STUFF" ------------------*/

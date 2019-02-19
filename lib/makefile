@@ -36,6 +36,7 @@
 # macroes to be exported- - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 SMS++OBJ = $(SMS++SDR)obj/Block.o \
+	$(SMS++SDR)obj/ColVariable.o \
 	$(SMS++SDR)obj/ColVariableSolution.o \
 	$(SMS++SDR)obj/Constraint.o \
 	$(SMS++SDR)obj/Configuration.o \
@@ -48,7 +49,6 @@ SMS++OBJ = $(SMS++SDR)obj/Block.o \
 	$(SMS++SDR)obj/Solver.o \
 	$(SMS++SDR)obj/ThinComputeInterface.o \
 	$(SMS++SDR)obj/Variable.o
-#	$(SMS++SDR)obj/ColVariable.o
 #	$(SMS++SDR)obj/DQuadFunction.o
 #	$(SMS++SDR)obj/RowConstraint.o
 
@@ -102,10 +102,10 @@ $(SMS++SDR)obj/Configuration.o: $(SMS++SDR)src/Configuration.cpp \
 	$(SMS++SDR)include/Configuration.h $(SMS++SDR)include/SMSTypedefs.h
 	$(CC) -c $(SMS++SDR)src/Configuration.cpp -o $@ $(SMS++INC) $(SW)
 
-#$(SMS++SDR)obj/ColVariable.o: $(SMS++SDR)src/ColVariable.cpp \
-#	$(SMS++SDR)include/ColVariable.h $(SMS++SDR)include/Variable.h \
-#	$(intBlockINC)
-#	$(CC) -c $(SMS++SDR)src/ColVariable.cpp -o $@ $(SMS++INC) $(SW)
+$(SMS++SDR)obj/ColVariable.o: $(SMS++SDR)src/ColVariable.cpp \
+	$(SMS++SDR)include/ColVariable.h $(SMS++SDR)include/Variable.h \
+	$(intBlockINC)
+	$(CC) -c $(SMS++SDR)src/ColVariable.cpp -o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)obj/ColVariableSolution.o: $(SMS++SDR)src/ColVariableSolution.cpp \
 	$(SMS++SDR)include/ColVariableSolution.h $(SMS++SDR)include/Solution.h \
