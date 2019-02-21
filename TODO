@@ -1,4 +1,4 @@
-2018-03-22 [high] LagrangianBlock, LagrangianFunction, and Solution
+2018-03-22 [high] LagrangianBlock, LagrangianFunction
 
 	SMS++ is motivated by decomposition: we should verify that it
 	is indeed possible to simplify the development of decomposition
@@ -6,10 +6,7 @@
 	have a C05Function::LagrangianFunction that has a Block with a
 	Solver attached and a bunch of free-floating functions (cf.
 	Observers) and implements the C05Function with all its methods and
-	modifications. Doing this in an abstract way (independent of Block)
-	surely requires the definition of a Solution object, which anyway
-	makes sense in itself, which has at least the operation "linear
-	combination".
+	modifications.
 
 	Then, it seems it would make sense to have LagrangianBlock
 	defining the Lagrangian multipliers (with the corresponding
@@ -21,6 +18,7 @@
 	back and forth between the original Block and its Lagrangian
 	Function/Dual.
 
+
 2018-03-22 [medium, pre-requisite LagrangianBlock] LagrangianUCBlock
 
 	Simply, the concrete implementation of get_r3_Block() in
@@ -28,10 +26,12 @@
 	constraints, with all the methods to pass information back and
 	forth between this and the original one.
 
+
 2018-08-17 [medium] UnitTest
 
 	We should definitely start putting down the UnitTest of the core SMS++.
 	SimpleMILPBlock/test could be a nice starting point.
+
 
 2018-09-08 [low] DenseLinear function
 
@@ -46,6 +46,49 @@
 	are a *pointer* to a std::vector<Variable>, and an
 	E[xternalD[oubly]D[ense]LinearFunction which is as the above except
 	that coefficients are a *pointer* to a std::vector<double>
+
+
+2018-08-17 [low] MultiVarConstraint
+
+	We chould implement a template class MultiVarConstraint, inspired from
+	OneVarConstraint, that defines "group constraints" on arbitrary
+	containers of ColVariable. For instance, one could do a MultiBoxConstraint
+	that has a container of ColVariable and two parallel containers of double
+	(or a container of pairs) for the LHS and RHS of the boxes. This would be
+	fractionally less expensive that a corresponding container of BoxConstraint,
+	since for instance it would be all-or-noting in terms of relaxing it.
+	Also, it might perhape lead to more efficient implementation of, say,
+	LinearConstraint if all the ColVariable you make a linear combination of
+	belong to the same (multi-)array; but I'm not really sure of it. Since the
+	advantage is not likely to be large, this is left for the future (if ever).
+
+
+2019-02-21 [low] MultiVariable, MultiConstraint, MultiObjective, MultiFunction
+
+	We could implement a template class MultiColVariable<T> : ColVariable that
+	corresponds to "a T of ColVariable". Its value would be a T<double>. This
+	may fit in very well with DenseLinear and MultiVarConstraint. The advantage
+	is to avoid replication of the Block pointer and of the f_state field,
+	as well as decreasing a lot the total number of Variable in a Block. The
+	serious disadvantage is that the thing can only be fixed or unfixed whole
+	(which may sometimes be an advantage), and that the MultiColVariable<T>
+	could be active in many Constraint ... unless we have things like
+	MultiVarConstraint that may represent a bunch of constraints in a compact
+	way, doubling down on the advantages.
+
+	Note that it could be left to the Configuration in
+	generate_abstract_variables() and generate_abstract_constraints() [...]
+	if one uses a MultiColVariable<T> or a T<ColVariable>, which may allow to
+	reap the advantages if there is, say, no need to fixing variables
+	individually, while having the standard fallback if this is necessary.
+
+	Similar MultiConstraint<T>, MultiObjective<T> and MultiFunction<T> may make
+	sense, but details should be examined.
+
+	IMPORTANT: THIS DOES NOT CHANGE THE TOP STRUCTURE. These are just new types
+	of Variable, and one can still do a
+	boost::multi_array< MultiColVariable< std::vector > >.
+
 
 2018-04-06 [low at best] Separate the abstract and physical parts of a Block
 
@@ -78,20 +121,6 @@
            of the map_forward_modifications() and
            map_back_modifications() methods.
 
-2018-08-17 [low] MultiVarConstraint
-
-	We chould implement a template class MultiVarConstraint, inspired from
-	OneVarConstraint, that defines "group constraints" on arbitrary
-	containers of ColVariable. For instance, one could do a MultiBoxConstraint
-	that has a container of ColVariable and two parallel containers of double
-	(or a container of pairs) for the LHS and RHS of the boxes. This would be
-	fractionally less expensive that a corresponding container of BoxConstraint,
-	since for instance it would be all-or-noting in terms of relaxing it.
-	Also, it might perhape lead to more efficient implementation of, say,
-	LinearConstraint if all the ColVariable you make a linear combination of
-	belong to the same (multi-)array; but I'm not really sure of it. Since the
-	advantage is not likely to be large, this is left for the future (if ever).
-
 
 2018-07-20 [low] Solver specifies which kinds of Modifications it cares about
 
@@ -117,6 +146,7 @@
 	of the Block, but not necessarily trigger a physical Modification if there
 	is no interested Solver in such a thing.
 
+
 2018-09-07 [low] Solver specifies which kinds of Modifications it cares about
 
         An even more detailed version of the previous one: both Solver and Block
@@ -131,6 +161,14 @@
 #---------------------------------- DONE --------------------------------------#
 ################################################################################
 ################################################################################
+
+2018-03-22 [high] [LagrangianBlock, LagrangianFunction] and Solution
+
+	[...] Doing this in an abstract way (independent of Block)
+	surely requires the definition of a Solution object, which anyway
+	makes sense in itself, which has at least the operation "linear
+	combination".
+
 
 2018-03-22 2018-04-05 [high] Observers (and "Variable blob")
 
@@ -162,16 +200,19 @@
         to a Constraint or Objective and the case where the Function
         is "free-floating" (it is not attached to anyone)?
 
+
 2018-04-08 [medium] better comments to C05Function and Observer
 
 	The rationale of methods like set_important_linearization() must be
 	better explained. Some comments about Modification in Block are better
 	moved to Observer. The rationale of Observer should be better commented.
 
+
 2018-07-07 [low] Is RowConstraint::f_value necessary?
 
 	Since FRowConstraint now uses upper and lower estimates, it may be that the
 	f_value field and all the rest in RowConstraint could better be removed. 
+
 
 2018-04-06 [low] "Variable blob"
 
@@ -192,6 +233,7 @@
         where a Function is attached to a Constraint or Objective and
         the case where the Function is "free-floating" (it is not
         attached to anyone)?
+
 
 2018-03-22 Abstract and physical modifications
 
@@ -256,6 +298,7 @@
         It might be the case that VariableModification would need to
         inherit from both AbstractModification and
         PhysicalModification.
+
 
 2018-03-22 [low] Replacing individual modifications with a group modification
 
