@@ -378,7 +378,7 @@ class Variable {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get the i-th ThinVarDepInterface in which this Variable is "active"
  /** Pure virtual method to get the i-th ThinVarDepInterface in which this
-  * Variable is "active", where i is between 0 and get_num_active_const() - 1.
+  * Variable is "active", where i is between 0 and get_num_active() - 1.
   * It is pure virtual to allow derived classes complete freedom in the way
   * they implement the list of "active" stuff. */
 

@@ -13,7 +13,7 @@
  *
  * \version 0.30
  *
- * \date 15 - 08 - 2018
+ * \date 21 - 02 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -635,10 +635,10 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
  * This base class defines the simplest type of modification, which is
  * associated to the value of the function. This modification can represent a
  * constant shift in the value of the function. A function is said to be
- * shifted by a constant if there is a finite scalar shift so that if the
+ * shifted by a constant if there is a finite scalar f_shift so that if the
  * value of the function at a given point before the modification was f_v,
  * then the function value at that point after the modification is
- * f_v + shift.
+ * f_v + f_shift.
  *
  * In the worst case, the function may have been modified in such a way that
  * everything that was known about the Function before the Modification may no
@@ -670,7 +670,7 @@ public:
 
   FunctionMod( Function * const f , const FunctionValue shift = 0 ,
 	       const bool cB = true )
-    : AModification( cB ) , f_function( f ) , shift( shift ) { }
+    : AModification( cB ) , f_function( f ) , f_shift( shift ) { }
 
   ///< constructor: takes a Function pointer and a shift
   /**< Constructor: takes a pointer to the affected Function and the value of
@@ -690,15 +690,15 @@ public:
   Function *f_function;
   ///< pointer to the Function where the modification occurs
 
-  FunctionValue shift;
+  FunctionValue f_shift;
   ///< Amount the value of the function has been shifted
   /**< This field encloses two types of modifications. If the value of
-   * shift is finite, then it represents a shift in the value of the
+   * f_shift is finite, then it represents a shift in the value of the
    * function. This means that if the function value at a given point
    * was f_v before the modification, then the correct function value
-   * after the modification is f_v + shift.
+   * after the modification is f_v + f_shift.
    *
-   * If the value of shift is infinity, then it indicates that the
+   * If the value of f_shift is infinity, then it indicates that the
    * Function was modified in such a way that everything that was
    * known about the Function before the modification may no longer be
    * valid. In particular, function values computed before the
@@ -741,7 +741,7 @@ public:
  * two different ways, and "remove all Variable" is easily implemented in the
  * former.
  *
- * When Variable are added to or removed from a Function, the
+ * When Variables are added to or removed from a Function, the
  * "quasi-additivity" property (see definition below) may or may not be
  * satisfied. When it is satisfied, the value of shift is finite. If this
  * property is not satisfied, then the value of shift is infinity.
