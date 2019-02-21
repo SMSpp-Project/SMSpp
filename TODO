@@ -156,6 +156,19 @@
 	itself is added, then the set of the father is added, and then all this is
 	sent to the sons.
 
+
+2019-02-21 [very low] boost::stable_vector
+
+	The reason why in SMS++ we use std::list for dynamic stuff is that they
+        are stable. However, there are alternative stable containers, such as
+	
+	https://www.boost.org/doc/libs/1_57_0/doc/html/container/non_standard_containers.html#container.non_standard_containers.stable_vector
+
+	It would indeed be possible to replace std::list with boost::stable_vector
+	in all parts dealing with dynamic stuff. Not clear under which conditions,
+	if any, this would be advantageous.
+
+
 ################################################################################
 ################################################################################
 #---------------------------------- DONE --------------------------------------#
