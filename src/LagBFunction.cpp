@@ -46,124 +46,193 @@ using namespace SMSpp_di_unipi_it;
 
 static const char VarIsDir = 0;  // Variable contain a direction
 static const char VarIsSol = 1;  // Variable contain a solution
-static const char NoVar = 2;  // No Variable is in the Solver
+static const char NoVar = 2;     // No Variable is in the Solver
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-LagBFunction::LagBFunction( void ) :  C05Function()
+LagBFunction::LagBFunction( v_dual_pair && slp , const bool static_is_ordered )
+ :  C05Function() ,  Block() , slag_p( std::move( slp ) )
 {
+
+ // define global pool of intGPMaxSz size - - - - - - - - - - - - - - - - - -
+
+
+ // so far, the current solution is unknown - - - - - - - - - - - - - - - - -
+ VarType = NoVar;
+ LastSolution = Inf<LinearizationName>();
+
+ set_dual_pairs( std::move( slp ) , static_is_ordered );
+
+
+ } // end ( LagBFunction::LagBFunction( ) )  - - - - - - - - - - - - - - - - -
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::clear( ) {
+
+ // remove the pointers to the static and dynamic Lagrangian dual variables
+ // and the relaxed constraints thereof  - - - - - - - - - - - - - - - - - -
 
  slag_p.clear();
- v_Block[0] = nullptr;
-
- // define global pool of intGPMaxSz size - - - - - - - - - - - - - - - - - -
- g_pool.resize( intGPMaxSz );
-
- // so far, the current solution is unknown - - - - - - - - - - - - - - - - -
- VarType = NoVar;
- LastSolution = Inf<LinearizationName>();
-
- FuncIsIntlzd = false;
-
- } // end LagBFunction::LagBFunction( )  - - - - - - - - - - - - - - - - - - -
-
-/*--------------------------------------------------------------------------*/
-
-LagBFunction::LagBFunction( v_dual_pair && static_lagrangian_pairs ,
-		 const bool static_is_ordered )
- :  C05Function() , slag_p( std::move( static_lagrangian_pairs ) )
-{
-
- v_Block[0] = nullptr;
-
- // define global pool of intGPMaxSz size - - - - - - - - - - - - - - - - - -
- g_pool.resize( intGPMaxSz );
-
- // so far, the current solution is unknown - - - - - - - - - - - - - - - - -
- VarType = NoVar;
- LastSolution = Inf<LinearizationName>();
-
- FuncIsIntlzd = false;
-
- addStaticLagrangianPairs( std::move( static_lagrangian_pairs ) ,
-		 static_is_ordered );
-
-
- } // end LagBFunction::LagBFunction( )  - - - - - - - - - - - - - - - - - - -
-
-/*--------------------------------------------------------------------------*/
-
-LagBFunction::~LagBFunction() {
-
  dlag_p.clear();
- g_pool.clear(); //
- } // end LagBFunction::~LagBFunction( ) - - - - - - - - - - - - - - - - - - -
+
+ } //end ( LagBFunction::clear( ) )  - - - - - - - - - - - - - - - - - - - - -
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::setInnerBlock( Block* innerblock ) {
+void LagBFunction::set_inner_block( Block* innerblock ) {
 
  // set the inner block  - - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+ if( v_Block.size() )
+  v_Block.clear();
+
  v_Block[0] = innerblock;
 
- // get the objective function pointer of the inner block  - - - - - - - - - -
+ // if the static relaxed constraints <y, g(x)> have been written,
+ // do the following:
+ // (i) copy the coefficients c of the inner block (B) in order to allow
+ // the changes of the Lagrangian cost vector c^y = c + yA
+ // (ii) add to that linear function of (B) the variables which
+ // are involved in the definition of g(x) with coefficient zero
+
+ if( slag_p.size() )
+  store_function();
+
+ assert( ! ( v_Block[0]->get_objective() ).empty() );  // ... which must exist
+
+ // the objective function of the inner block must be linear - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  auto obj = boost::any_cast<FRealObjective *>( & v_Block[0]->get_objective() );
-   if( obj == nullptr )
-    throw( std::logic_error( "the objective is not a real function" ) );
-  auto LFInnBlck = dynamic_cast<LinearFunction *>( (*obj)->get_function() );
-  if( LFInnBlck == nullptr )
-   throw( std::logic_error( "the objective is not a linear function" ) );
+ if( obj == nullptr )
+  throw( std::logic_error( "the objective is not a real function" ) );
 
- if( !FuncIsIntlzd && !slag_p.empty() ) {
-  FuncIsIntlzd = true;
-  InitStaticPartOfFunction();
-  }
+ auto LFInnBlck = dynamic_cast<LinearFunction *>( (*obj)->get_function() );
+ if( LFInnBlck == nullptr )
+  throw( std::logic_error( "the objective is not a linear function" ) );
 
- } // end LagBFunction::generate_objective( )  - - - - - - - - - - - - - - - -
+ } // end ( LagBFunction::set_inner_block( Block* )  ) - - - - - - - - - - - -
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::addStaticLagrangianPairs( v_dual_pair &&
-   static_lagrangian_pairs ,  const bool static_is_ordered  ) {
+void LagBFunction::set_dual_pairs( v_dual_pair && v_lag_pairs ,
+		 const bool static_is_ordered  ) {
 
- slag_p = std::move( static_lagrangian_pairs ); //?????
+ // if not already ordered by ColVariable "name = pointer", sort the vector
+ // of dual Lagrangian pairs - - - - - - - - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( ! static_is_ordered ) {
-  std::sort( slag_p.begin() , slag_p.end() ,
-		      []( const auto & p1, const auto & p2 ) {
-		       return( p1.first < p2.first );
-		       }
-	        );
-  }
+ if( ! static_is_ordered )
+  std::sort( v_lag_pairs.begin() , v_lag_pairs.end() ,
+	[]( const auto & p1, const auto & p2 ) { return( p1.first < p2.first ); } );
 
- // check for the relaxed constraints  - - - - - - - - - - - - - - - - - - - -
+ // the objective functions of the relaxed constraints must be linear
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- for( const auto irelax : slag_p ) { // for each relaxed constraints
-
-  // get the relaxed constraint  - - - - - - - - - - - - - - - - - - - - - - -
-
-  auto LinFunc = dynamic_cast<const LinearFunction *>( irelax.second );
+ for( const auto lagdual : v_lag_pairs ) { // for each relaxed constraints
+  auto LinFunc = dynamic_cast<const LinearFunction *>( lagdual.second );
   if( LinFunc == nullptr )
    throw( std::logic_error( "the objective is not a linear function" ) );
-
   }
 
- InitStaticDataStructure( );
+ // construct the structure LagMatrix for updating the Lagrangian cost vector
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( !FuncIsIntlzd && v_Block[0] ) {
-  FuncIsIntlzd = true;
-  InitStaticPartOfFunction();
+ set_static_structure( v_lag_pairs );
+
+ // set the vector of dual Lagrangian pairs  - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ if( slag_p.size() )
+  slag_p.clear();
+
+ slag_p = std::move( v_lag_pairs );
+
+ // if the sub-block (B) has been set, do the following:
+ // (i) copy the coefficients c_i of the inner block (B) in order to allow
+ // the changes of the Lagrangian cost vector c^y = c + yA
+ // (ii) add to the linear function of (B) the variables which
+ // are involved in the definition of g(x) with coefficient zero
+
+ if( v_Block.size() )
+  store_function();
+
+ } // end ( LagBFunction::set_dual_pairs( ) )  - - - - - - - - - - - - - - - -
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::set_par( const idx_type par , const int value )
+{
+ switch( par ) {
+  case( intLPMaxSz ):
+   LPMaxSz = value;
+   break;
+  case( intGPMaxSz ):
+   GPMaxSz = value;
+   g_pool.resize( GPMaxSz );
+   break;
+  default: Function::set_par( par , value );
+  }
+ }  // end ( LagBFunction::set_par( int ) )  - - - - - - - - - - - - - - - - -
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::set_par( const idx_type par , const double value )
+{
+ switch( par ) {
+  case( dblRAccLin ):
+   RAccLin = value;
+   break;
+  case( dblAAccLin ):
+   AAccLin = value;
+   break;
+  default: Function::set_par( par , value );
+  }
+ } // end ( LagBFunction::set_par( double ) )  - - - - - - - - - - - - - - - -
+
+/*--------------------------------------------------------------------------*/
+/*-------------------- Methods for handling Modification -------------------*/
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::add_dual_pairs( l_dual_pair && l_lag_pairs ,
+		 const bool static_is_ordered ) {
+
+ // the objective functions of the relaxed constraints must be linear
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ for( const auto lagdual : l_lag_pairs ) { // for each relaxed constraints
+  auto LinFunc = dynamic_cast<const LinearFunction *>( lagdual.second );
+  if( LinFunc == nullptr )
+   throw( std::logic_error( "the objective is not a linear function" ) );
   }
 
- } // end LagBFunction::addStaticLagrangianPairs( )  - - - - - - - - - - - - - - - -
+ // if not already ordered by ColVariable "name = pointer", sort the vector
+ // of dual Lagrangian pairs - - - - - - - - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ if( ! static_is_ordered )
+  l_lag_pairs.sort( []( const auto & p1, const auto & p2 )
+		     { return( p1.first < p2.first ); } );
+
+ // merge the list of dynamic dual Lagrangian pairs, both containers shall
+ // already be ordered - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ dlag_p.merge( std::move( l_lag_pairs ) );
+
+ // update the structure LagMatrix for changing the Lagrangian cost vector
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ set_dynamic_structure( l_lag_pairs );
+
+ } // end ( LagBFunction::add_dual_pairs( ) )  - - - - - - - - - - - - - - - -
 
 /*--------------------------------------------------------------------------*/
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF THE LagBFunction ------------*/
@@ -275,7 +344,7 @@ int LagBFunction::compute( bool changedvars )
  // get the Solver from inner Block  - - - - - - - - - - - - - - - - - - - - -
  Solver* slv = v_Block[0]->get_registered_solvers().back();
 
- UpdateFunction();
+ update_function();
 
  return( slv->compute( false ) );
 
@@ -433,19 +502,59 @@ void LagBFunction::get_linearization_coefficients( SparseVector & g ,
 /*--------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------*/
+/*--------------------------- PROTECTED METHODS ----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+
+/*--------------------------------------------------------------------------*/
+/*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
+/*--------------------------------------------------------------------------*/
+
+int LagBFunction::get_dflt_int_par( const idx_type par ) const
+{
+ switch( par ) {
+  case( intLPMaxSz ):
+   return( RAccLin );
+	break;
+  case( intGPMaxSz ):
+   return( RAccLin );
+   break;
+  default:
+   return( C05Function::get_dflt_dbl_par( par ) ) ;
+  }
+
+}
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+double LagBFunction::get_dflt_dbl_par( const idx_type par ) const
+{
+ switch( par ) {
+  case( dblRAccLin ):
+   return( RAccLin );
+   break;
+  case( intGPMaxSz ):
+   return( RAccLin );
+	break;
+  default:
+	return( C05Function::get_dflt_dbl_par( par ) ) ;
+  }
+}
+
+/*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::InitStaticDataStructure( void )
+void LagBFunction::set_static_structure( v_dual_pair & vdp )
 {
 
  // construct the vector of the Lagrangian costs - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- for( const auto & relaxed : slag_p ) { // read the dual vector slag_p, getting
-              // the relaxed constraint <a,x> and the dual variable y thereof
+ for( const auto & lagdual : vdp ) { // read the dual vector slag_p,
+	          // getting the relaxed constraint <a,x> and the dual variable y thereof
 
-  auto LinFunc = static_cast<const LinearFunction *>( relaxed.second );
+  auto LinFunc = static_cast<const LinearFunction *>( lagdual.second );
   LinearFunction::v_c_coeff_pair & LinFunCoeffs = LinFunc->get_v_var();
 
   for( const auto & monomial : LinFunCoeffs ) { // for each Variable x_j
@@ -455,7 +564,77 @@ void LagBFunction::InitStaticDataStructure( void )
    // construct the pair of the form < y_i , a_{ij} > to be added to
    // the related column of x_j  - - - - - - - - - - - - - - - - - - - - - - - -
 
-   const auto pairC = std::make_pair( relaxed.first , monomial.second );
+   const auto pairC = std::make_pair( lagdual.first , monomial.second );
+
+   auto itA = LagMatrix.insert( std::pair<ColVariable * , col_pair>
+                         ( monomial.first , col_pair() ) );
+
+   // itA.first is an iterator pointing to either the newly
+   // inserted jth column or to the jth column already in the map,
+   // in particular (itA.first->first) is the variable xj and
+   // (itA.first->second) the pair <col_pair> thereof. This means
+   // that (itA.first->second).first is c_j and (itA.first->second).second
+   // is the array < y_i , a_{ij}j > for all i in the active index set
+   // of the Lagrangian multipliers
+
+   auto &curr_column = (itA.first->second).second;
+
+   if( itA.second ) { // a new variable x_j was inserted - - - - - - - - - - - -
+
+	// set the c_i to 0
+	(itA.first->second).first = LinearFunction::Coefficient(0);
+	curr_column.insert( curr_column.begin() , pairC );
+
+    }
+   else {  // variable x_j already existed - - - - - - - - - - - - - - - - - - -
+
+	auto itB = std::upper_bound( curr_column.begin() ,
+			              curr_column.end() , pairC ,
+		 	     		  []( const LinearFunction::coeff_pair &a ,
+		 	     			  const LinearFunction::coeff_pair &b )
+		 	     		  { return( a.first < b.first ); } );
+
+	curr_column.insert( itB , pairC );
+
+    }
+
+   } // end linear function examination  - - - - - - - - - - - - - - - - - - -
+  } // end for each relaxed constraints  - - - - - - - - - - - - - - - - - - -
+
+ } // end ( LagBFunction::set_static_structure() )
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::set_dynamic_structure( l_dual_pair & ldp )
+{
+
+ // get the objective function pointer of the inner block   - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ auto obj = boost::any_cast<FRealObjective *>( & v_Block[0]->get_objective() );
+ auto LFInnBlck = static_cast<LinearFunction *>( (*obj)->get_function() );
+
+ LinearFunction::v_c_coeff_pair & LFInnBCoeff = LFInnBlck->get_v_var();
+ LinearFunction::v_coeff_pair PairsToAdd;  // this array is created to add
+	                         // the pairs which are not active in LFInnBlck
+
+ // uopdate the vector of the Lagrangian costs   - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ for( const auto & lagdual : ldp ) { // read the dual vector slag_p,
+	          // getting the relaxed constraint <a,x> and the dual variable y thereof
+
+  auto LinFunc = static_cast<const LinearFunction *>( lagdual.second );
+  LinearFunction::v_c_coeff_pair & LinFunCoeffs = LinFunc->get_v_var();
+
+  for( const auto & monomial : LinFunCoeffs ) { // for each Variable x_j
+                        // of the relaxed constraint, add to LagMatrix
+	                    // the pair < y_i , a_{ij} >
+
+   // construct the pair of the form < y_i , a_{ij} > to be added to
+   // the related column of x_j  - - - - - - - - - - - - - - - - - - - - - - - -
+
+   const auto pairC = std::make_pair( lagdual.first , monomial.second );
 
    auto itA = LagMatrix.insert( std::pair<ColVariable * , col_pair>
                          ( monomial.first , col_pair() ) );
@@ -492,11 +671,34 @@ void LagBFunction::InitStaticDataStructure( void )
    } // end linear function examination  - - - - - - - - - - - - - - - - - - -
   } // end for each relaxed constraints  - - - - - - - - - - - - - - - - - - -
 
- } // end LagBFunction::InitLagrangianDataStructure()
+ // copy the unknown coefficients c_i of the inner block (B) in order to allow
+ // the changes of the Lagrangian cost vector c^y = c + yA and add to the
+ // linear function of (B) the variables which are involved in the definition
+ // of g(x) with coefficient zero
+
+ auto itv = LFInnBCoeff.begin();
+ for( auto it = LagMatrix.begin() ;
+		 it != LagMatrix.end() ;  ++it ) {
+
+  if( it->first == itv->first ) {
+   if( (it->second).first < Inf<LinearFunction::Coefficient>() )
+    (it->second).first = LFInnBlck->get_coefficient( it->first );
+   itv++;
+   }
+  else {
+   const auto pair = std::make_pair( it->first , LinearFunction::Coefficient(0) );
+   PairsToAdd.push_back( pair );
+   }
+
+  LFInnBlck->add_variables( std::move(PairsToAdd) , true );
+
+  } // end for - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ } // end ( LagBFunction::set_dynamic_structure() )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::InitStaticPartOfFunction( void )
+void LagBFunction::store_function( void )
 {
 
  // get the objective function pointer of the inner block   - - - - - - - - -
@@ -517,7 +719,6 @@ void LagBFunction::InitStaticPartOfFunction( void )
    itv++;
    }
   else {
-   (it->second).first = LinearFunction::Coefficient(0);
    const auto pair = std::make_pair( it->first , LinearFunction::Coefficient(0) );
    PairsToAdd.push_back( pair );
    }
@@ -526,11 +727,11 @@ void LagBFunction::InitStaticPartOfFunction( void )
 
   } // end for - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- } // end LagBFunction::InitStaticPartOfFunction()
+ } // end ( LagBFunction::save_function() )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::UpdateFunction( void )
+void LagBFunction::update_function( )
 {
  // get the objective function pointer of the inner block   - - - - - - - - -
 
@@ -553,7 +754,27 @@ void LagBFunction::UpdateFunction( void )
 
   } // end for - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- } // end LagBFunction::UpdateFunction()
+ } // end ( LagBFunction::update_function() )
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::guts_of_destructor( )
+{
+ // remove the pointers to the static and dynamic Lagrangian dual variables
+ // and the relaxed constraints thereof  - - - - - - - - - - - - - - - - - -
+
+ if( slag_p.size() )
+  slag_p.clear();
+
+ if( dlag_p.size() )
+  dlag_p.clear();
+
+ // in the global pool remove all the pointers to Solution objects - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ g_pool.clear();
+
+ } // end ( LagBFunction::guts_of_destructor() )
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- End File LagBFunction.cpp -------------------------*/
