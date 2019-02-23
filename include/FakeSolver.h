@@ -7,9 +7,9 @@
  * that of syphoning off and storing away all the Modification that the Block
  * produces.
  *
- * \version 0.10
+ * \version 0.11
  *
- * \date 01 - 10 - 2018
+ * \date 23 - 02 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -111,7 +111,7 @@ public:
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual void get_var_solution( void ) override { }
+ virtual void get_var_solution( Configuration *solc = nullptr ) override {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 

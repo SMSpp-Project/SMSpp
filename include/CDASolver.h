@@ -8,9 +8,9 @@
  * the optimal value of the problem are obtained by means of Convex Duality
  * arguments.
  *
- * \version 0.10
+ * \version 0.11
  *
- * \date 18 - 08 - 2016
+ * \date 23 - 02 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -406,9 +406,58 @@ class CDASolver : public Solver {
   * Note that, while the largest burden of producing a dual solution is
   * typically bore by compute() and/or new_dual_solution(), it is still
   * possible that "decoding" the internal information of the CDASolver in
-  * order to produce one in the required format may be somewhat costly. */
+  * order to produce one in the required format may be somewhat costly. This
+  * is in particular true because a dual solution may involve a rather large
+  * amount of data. In some cases, not all that data is actually necessary,
+  * as only "a part" of the dual solution migt be enough (say, that which is
+  * required to price one given family of variables). This is why support is
+  * offered in the method to only retrieve "a part" of the current dual
+  * solution by means of a (pointer to a) Configuration object. The full
+  * generality of a Configuration is required because the dual solution of a
+  * Block comprises that of all its sub-Block (recursively), so an
+  * arbitrarily large tree-shaped data structure may be required to pin down
+  * the relevant parts in all this. The default is nullptr, which has to be
+  * intended as "the whole dual solution".
+  *
+  * Not coincidentally, all methods in Block that concern solutions, i.e.,
+  * get_Solution() and map_[back/forward]_solution(), also take a(n optional)
+  * Configuration parameter. Indeed, it should be expected that, for Solver
+  * accessing to the "physical representation" of the Block (and, therefore,
+  * knowing exactly which :Block it exactly is), the "format" of the
+  * Configuration objects should be the same, although this is not a strict
+  * requirement (as there may be some reasons not to do that). Note that it
+  * can as well be expected that some of these Configuration refer the
+  * "primal" part of the solution rather then to the dual one, and some to
+  * both parts at once. Hence, it would be nice if the Configuration of the
+  * :Block were arranged so that the "primal and dual parts" be neatly
+  * separated, so that the same Configuration object can be passed to
+  * get_var_solution() and get_dual_solution() to do the right job; yet, this
+  * is necessarily left to the specific :Block and :Solver. General-purpose
+  * Solver using the "abstract representation" cannot possibly follow this
+  * rule; yet, these Solver can still be instructed to only read "a part" of
+  * the dual solution, for instance specified in terms of which of the
+  * "groups" of Constraint of the Block, as returned by
+  * get_static_constraints() and get_dynamic_constraints(), need have their
+  * corresponding dual information changed.
+  *
+  * As a consequence to the fact that get_dual_solution() can retrieve only
+  * "a part" of the solution information, it may make sense to call it more
+  * than once for each call to has_dual_solution() or new_dual_solution()
+  * that returns true, if each call specifies for "a different part" via a
+  * different Configuration. Note that, if a different "part" of a dual
+  * solution is read after that another one has been previously read, it is
+  * intended that the previous part remains in place. This means that the
+  * "full" dual solution can eventually be retrieved piecemeal with a finite
+  * number of calls to get_dual_solution() with appropriate Configuration(s),
+  * although in this case a unique call with nullptr will probably be more
+  * efficient. Also, note that the "parts" that two different Configuration
+  * specify for may in principle have nonempty intersection. This, however,
+  * means that the common part may be written identically twice, with an
+  * unjustified performance hit, since the Solver is not required to (although
+  * it might, if it so chooses) keep track of which "parts" of the dual
+  * solution have been retrieved already; hence, this is better avoided. */
 
- virtual void get_dual_solution( void ) = 0;
+ virtual void get_dual_solution( Configuration *solc = nullptr ) = 0;
 
 /*--------------------------------------------------------------------------*/
  ///< returns true if it is possible to generate a new dual solution
@@ -537,13 +586,67 @@ class CDASolver : public Solver {
   * typically bore by compute() and/or new_dual_directon(), it is still
   * possible that "decoding" the internal information of the CDASolver in
   * order to produce one in the proper format that the Block requires may be
-  * somewhat costly.
+  * somewhat costly. This is why, as in get_dual_solution(), a (pointer to a)
+  * Configuration object can be passed to specify that only "a part" of the
+  * direction need to be retrieved. See get_dual_solution() for more comments
+  * about this parameter; here we just mention that the format of the
+  * Configuration for that method need not necessarily be the same as the
+  * format of the Configuration for this one, although of course it is
+  * somehow nice if this is true. Note, however, that the original :Block
+  * may already have specific Configuration for dual directions, to be used in
+  * its solution-related methods get_Solution() and
+  * map[forward/back]_solution(). Hence, for Solver using the "physical
+  * representation" of the Block, the set of Configuration of the Block may
+  * be "neatly partitioned" between this method, get_dual_solution(), and
+  * their primal counterparts get_var_direction() and get_var_solution(). Yet,
+  * likely the Block will have configurations that specify for both primal and
+  * dual information together; hence, it would be nice if the Configuration of
+  * the :Block were arranged so that the "primal and dual parts" be neatly
+  * separated, so that the same Configuration object can be passed to the
+  * separate [CDA]Solver methods dealing with the two parts. Yet, note that
+  * this likely applies only to get_var_solution() and get_dual_solution() 
+  * and not to get_*_direction(), as the existence of an unbounded direction
+  * in a problem means that the dual one is empty, and therefore it does not
+  * make sense to retrieve dual solution information for that. However, both
+  * problems may be empty, so it might be in principle possible that
+  * unbounded rays exist for both which do not imply that they are both
+  * unbounded because "the ray has nowhere to start from". To see that,
+  * consider the pair of dual Linear Programs
+  *
+  *  (P)  max  -1 * x_1 + 0 * x_2
+  *                 x_1 +     x_2 <= -1
+  *               - x_1 -     x_2 <=  0
+  *
+  *  (D)  min  -1 * y_1 + 0 * y_2
+  *                 y_1 -     y_2 = -1
+  *                 y_1 -     y_2 =  0
+  *                 y_1   ,   y_2 >= 0
+  *
+  * Clearly, both problems are empty. Yet, the coefficient matrix of the
+  * primal
+  *
+  *    A =  |  1   1 |
+  *         | -1  -1 |
+  *
+  * has a the lineality direction d = [ -1 , 1 ]. This means that A * d = 0;
+  * hence, if there were any feasible solution x for (P) (which there is
+  * not), then x + \alpha * d would be feasible for all \alpha >= 0. Also,
+  * c * d > 0 (for c = [ -1 , 0 ] the objective function vector of (P) =
+  * right-hand side of (D)), hence (P) would be unbounded above, were it not
+  * empty. Symmetrically, the direction v = [ 1 , 1 ] has the property that
+  * v * A = 0 and v >= 0, which means that if there were any feasible
+  * solution y for (D) (which there is not), then y + \alpha * v wolud be
+  * feasible for all \alpha >= 0. Also, b * v < 0 (for b = [ -1 , 0 ] the
+  * objective function vector of (D) = right-hand side of (P)), which means
+  * that (D) would be unbounded below were it not empty. Thus, getting both
+  * primal and dual directions would be possible, although this is a rather
+  * "exotic" case.
   *
   * The method is given a default implementation in the base CADSolver class
   * doing nothing, for solvers that cannot produce any unbounded dual
   * direction. */
 
- virtual void get_dual_direction( void ) { }
+ virtual void get_dual_direction( Configuration *dirc = nullptr ) {}
 
 /*--------------------------------------------------------------------------*/
  /// returns true if is possible to generate a new dual unbounded direction

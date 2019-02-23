@@ -10,9 +10,9 @@
  * optimal ones, or proving that there is none. Since doing this has to be
  * expected to costly, the class implements the ThinComputeInterface paradigm.
  *
- * \version 0.20
+ * \version 0.21
  *
- * \date 12 - 08 - 2018
+ * \date 23 - 02 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -902,7 +902,7 @@ public:
   * makes no assumption about how the solution is stored, this being
   * dependent on what the Variable actually are.
   *
-  * It is an error to call this method if has_var_solution() and/or
+  * It is an error to call this method if has_var_solution() or
   * new_var_solution() have not been called and returned true (which means,
   * in particular, if no Block is attached to this Solver). 
   *
@@ -910,9 +910,49 @@ public:
   * bore by compute() and/or new_var_solution(), it is still possible that
   * "decoding" the internal information of the Solver in order to produce one
   * in the format that the Variable of the Block require may be somewhat
-  * costly. */
+  * costly. This is in particular true because a solution may involve a rather
+  * large amount of data. In some cases, not all that data is actually
+  * necessary, as only "a part" of the solution migt be enough (say, that
+  * which is required to separate one given family of valid inequalities).
+  * This is why support is offered in the method to only retrieve "a part" of
+  * the current solution by means of a (pointer to a) Configuration object.
+  * The full generality of a Configuration is required because the solution of
+  * a Block comprises that of all its sub-Block (recursively), so an
+  * arbitrarily large tree-shaped data structure may be required to pin down
+  * the relevant parts in all this. The default is nullptr, which has to be
+  * intended as "the whole solution".
+  *
+  * Not coincidentally, all methods in Block that concern solutions, i.e.,
+  * get_Solution() and map_[back/forward]_solution(), also take a(n optional)
+  * Configuration parameter. Indeed, it should be expected that, for Solver
+  * accessing to the "physical representation" of the Block (and, therefore,
+  * knowing exactly which :Block it exactly is), the "format" of the
+  * Configuration objects should be the same, although this is not a strict
+  * requirement (as there may be some reasons not to do that). However, for
+  * general-purpose Solver using the "abstract representation", this is
+  * clearly not possible. Yet, these Solver can still be instructed to only
+  * read "a part" of the solution, for instance specified in terms of which
+  * of the "groups" of Variable of the Block, as returned by
+  * get_static_variables() and get_dynamic_variables(), need be changed.
+  *
+  * As a consequence to the fact that get_var_solution() can retrieve only "a
+  * part" of the solution information, it may make sense to call it more than
+  * once for each call to has_var_solution() or new_var_solution() that
+  * returns true, if each call specifies for "a different part" via a
+  * different Configuration. Note that, if a different "part" of a solution
+  * is read after that another one has been previously read, it is intended
+  * that the previous part remains in place. This means that the "full"
+  * solution can eventually be retrieved piecemeal with a finite number of
+  * calls to get_var_solution() with appropriate Configuration(s), although
+  * in this case a unique call with nullptr will probably be more efficient.
+  * Also, note that the "parts" that two different Configuration specify for
+  * may in principle have nonempty intersection. This, however, means that the
+  * common part may be written identically twice, with an unjustified
+  * performance hit, since the Solver is not required to (although it might,
+  * if it so chooses) keep track of which "parts" of the solution have been
+  * retrieved already; hence, this is better avoided. */
 
- virtual void get_var_solution( void ) = 0;
+ virtual void get_var_solution( Configuration *solc = nullptr ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// returns true if it is possible to generate a new solution
@@ -1076,12 +1116,25 @@ public:
   * bore by compute() and/or new_var_directon(), it is still possible that
   * "decoding" the internal information of the CDASolver in order to produce
   * one in the proper format that the Variables of the Block require may be
-  * somewhat costly.
+  * somewhat costly. This is why, as in get_var_solution(), a (pointer to a)
+  * Configuration object can be passed to specify that only "a part" of the
+  * direction need to be retrieved. See get_var_solution() for more comments
+  * about this parameter; here we just mention that the format of the
+  * Configuration for that method need not necessarily be the same as the
+  * format of the Configuration for this one, although of course it is
+  * somehow nice if this is true. Note, however, that the original :Block
+  * may already have specific Configuration for directions, to be used in
+  * its solution-related methods get_Solution() and
+  * map[forward/back]_solution(). Hence, for Solver using the "physical
+  * representation" of the Block, the set of Configuration of the Block (at
+  * least those concerning only the "primal" solution, since a "dual" one
+  * may also be there) can be "partitioned" between this method and
+  * get_var_solution().
   *
   * The method is given a default implementation in the base Solver class
   * doing nothing, for solvers that cannot produce any unbounded direction. */
 
- virtual void get_var_direction( void ) {}
+ virtual void get_var_direction( Configuration *dirc = nullptr ) {}
 
 /*--------------------------------------------------------------------------*/
  ///< returns true if it is possible to generate a new unbounded direction
