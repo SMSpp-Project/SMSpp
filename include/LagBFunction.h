@@ -273,26 +273,13 @@ class LagBFunction : public C05Function , public Block {
  typedef std::vector< linearization_pair > v_linearization_pair;
  ///< a vector of linearization_pair
 
-/*--------------------------------------------------------------------------*/
-
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
  typedef std::pair< LinearFunction::Coefficient , LinearFunction::v_coeff_pair > col_pair;
  ///< a pair to represent c_i and < y_i , A_i >
 
  typedef std::map< ColVariable * , col_pair > m_column;
  ///< a map of col_pair
-
- /*--------------------------------------------------------------------------*/
- /** Very small class to simplify extracting the "+ infinity" value for a
-      basic type; just use Inf<type>(). */
-
-  template <typename T>
-   class Inf {
-    public:
-   Inf() {}
-   operator T() { return( std::numeric_limits<T>::max() ); }
-   };
-
 
 /*@}------------------------------------------------------------------------*/
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
@@ -302,38 +289,32 @@ class LagBFunction : public C05Function , public Block {
 /** @name Constructor and Destructor
  *  @{ */
 
+/*--------------------------------------------------------------------------*/
+  /// constructor of LagBFunction: does nothing
+
  /// constructor of LagBFunction, taking the static Lagrangian pairs.
- /** Constructor of LagBFunction. It accepts a vector of pairs
-  * < pointer to ColVariable , pointer to Function > representing the
-  * relaxed constraints and the Lagrangian multipliers thereof, and a bool
-  * telling if the given vector is already ordered by
-  * ColVariable "name = pointer" or not, in which case it is ordered. As the
-  * the && tells, static_lagrangian_pairs is "consumed" by the constructor
-  * and its resources become property of the LagBFunction object.
+ /** Constructor of LagBFunction. It accepts a vector of dual pairs <y, g(x)>
+  * of the form < pointer to ColVariable , pointer to Function >, and a bool
+  * telling if the given vector is already ordered by ColVariable
+  * "name = pointer" or not, in which case it is ordered. As the the && tells,
+  * the dual pairs are "consumed" by the constructor
+  * and its resource become property of the LagBFunction object.
   *
-  * All inputs have a default ({}, and true, respectively) so that this
-  * can be used as the void constructor. */
+  * By default the vector of dual pairs is assumed to *not* be ordered. */
 
-/*--------------------------------------------------------------------------*/
+ LagBFunction( v_dual_pair && slp = {} , const bool static_is_ordered = false );
 
- LagBFunction( void );
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
-/*--------------------------------------------------------------------------*/
+ /// destructor of LagBFunction: delete the static and dynamic dual Lagrangian
+ /** destructor of LagBFunction. It deletes the static and dynamic dual
+   * pairs and the global pool, if exists */
 
- LagBFunction( v_dual_pair && static_lagrangian_pairs = {} ,
- 		 const bool static_is_ordered = false );
-
-/*--------------------------------------------------------------------------*/
- /// destructor: it (apparently) does nothing
-
- virtual ~LagBFunction();
+ virtual ~LagBFunction( ) { guts_of_destructor(); };
 
 /*--------------------------------------------------------------------------*/
  
- virtual void clear( void ) override {
-
-
-  }
+ virtual void clear( ) override;
 
 /*@} -----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -342,17 +323,71 @@ class LagBFunction : public C05Function , public Block {
  *  @{ */
 
  /// set the sub-block pointer.
- /**
-  * The inner block is assumed to be only one.
+ /** Method to set the pointer to the sub-Block, which is assumed to be
+  *  only one. lineare vincoli e funzione obiettivo
   *
-  *  */
+  * If a set of static dual pairs <y, g(x)> have been already accommodated
+  * [ see set_static_pairs(), LagBFunction(v_dual_pair &&, bool) ],
+  * the cost vector c of (B) will be saved. This because the evaluation of
+  * Lagrangian function l(y) requires the vector c -stored in (B)- to be
+  * replaced by c^y = c + yA, and consequently the original vector c
+  * would be unavailable.
+  *
+  * In addition, since c(x) of (B) is stored in a *sparse* format,
+  * the LagBFunction has to add -to the *active* variable set of the
+  * LinearFunction of (B)- those Variable with coefficient zero
+  * which are involved in the definition of g(x)  */
 
- void setInnerBlock( Block* innerblock );
+ void set_inner_block( Block* innerblock );
+
+/*--------------------------------------------------------------------------*/
+ /// set a bunch of *static* dual pairs <y, g(x)>
+
+ /** This method must be called after the construction of the
+  * class and only if an empty constructor has been used. By calling
+  * this method a bunch of dual pairs <y, g(x)> is stored.
+  *
+  * If the a pointer to (B) has been passed, [ see set_inner_block(Block*),
+  * LagBFunction(v_dual_pair &&, bool) ], the cost vector c of (B)
+  * will be saved. This because the evaluation of Lagrangian function l(y)
+  * requires the vector c -stored in (B)- to be replaced by c^y = c + yA,
+  * and consequently the original vector c would be unavailable.
+  *
+  * In addition, since c(x) of (B) is stored in a *sparse* format,
+  * the LagBFunction has to add -to the *active* variable set of the
+  * LinearFunction of (B)- those Variable with coefficient zero
+  * which are involved in the definition of g(x)  */
+
+ void set_dual_pairs( v_dual_pair && v_lag_pairs = {} ,
+ 		 const bool static_is_ordered = false );
 
 /*--------------------------------------------------------------------------*/
 
- void addStaticLagrangianPairs( v_dual_pair && static_lagrangian_pairs = {} ,
+ /// set a given integer (int) numerical parameter
+ /** Set a given integer (int) numerical parameter. The method sets the maximum
+  *  size of both the local and the global pool  */
+
+ virtual void set_par( const idx_type par , const int value ) override;
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+
+ /// set a given float (double) numerical parameter
+ /** Set a given float (double) numerical parameter. The method sets both the
+  *  relative and absolute accuracy in any linearization.  */
+
+ virtual void set_par( const idx_type par , const double value ) override;
+
+/*@} -----------------------------------------------------------------------*/
+/*-------------------- Methods for handling Modification -------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for handling Modification
+ *  @{ */
+
+ /// add a bunch of dual pairs <y, g(x)>
+
+ void add_dual_pairs( l_dual_pair && l_lag_pairs ,
  		 const bool static_is_ordered = false );
+
 
 /*@} -----------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE DATA OF THE LagBFunction --------------*/
@@ -390,7 +425,7 @@ class LagBFunction : public C05Function , public Block {
   return( true );
   }
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*--------------------------------------------------------------------------*/
 /// retrieve the coefficients (g vector) of a linearization in a vector
 /** This method retrieves the vector of coefficients g that is the (largest)
   * part of the linearization with the given name.
@@ -405,7 +440,7 @@ class LagBFunction : public C05Function , public Block {
    c_Vec_Index * const indices = nullptr , c_Index start = 0 ,
    c_Index end = std::numeric_limits<Index>::max() ) override final;
 
-/*--------------------------------------------------------------------------*/
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 /// retrieve the coefficients (g) of a linearization in a sparse vector
 /** This method retrieves the sparse vector of coefficients g that is part
   * of a linearization.
@@ -446,6 +481,14 @@ class LagBFunction : public C05Function , public Block {
   return( nullptr );
   }
 
+/*--------------------------------------------------------------------------*/
+
+ virtual int get_dflt_int_par( const idx_type par ) const override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ virtual double get_dflt_dbl_par( const idx_type par ) const override;
+
 /*@} -----------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE LagBFunction -------*/
 /*--------------------------------------------------------------------------*/
@@ -470,15 +513,18 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 /*--------------------------- PROTECTED METHODS ----------------------------*/
 /*--------------------------------------------------------------------------*/
+/** @name Protected methods for inserting and extracting
+    @{ */
 
  /// printing the LagBFunction
- void print( std::ostream &output ) const override {
+ virtual void print( std::ostream &output ) const override {
 
   } // end LagBFunction::print( )
 
-/*--------------------------------------------------------------------------*/
+/*@} -----------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
+
 
  v_dual_pair slag_p;
  ///< vector of static Lagrangian pairs
@@ -501,7 +547,17 @@ class LagBFunction : public C05Function , public Block {
  m_column LagMatrix;
  ///< the matrix yA in the Lagrangian function
 
- bool FuncIsIntlzd;
+ int GPMaxSz;
+ ///< maximum size of the "global pool"
+
+ int LPMaxSz;
+ ///< maximum size of the "local pool"
+
+ double RAccLin;
+ ///< maximum relative error in any linearization
+
+ double AAccLin;
+ ///< maximum absolute error in any reported solution
 
 /*@}------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -513,22 +569,23 @@ class LagBFunction : public C05Function , public Block {
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-   void InitStaticDataStructure( void );
+   void set_static_structure( v_dual_pair & vdp );
+   void set_dynamic_structure( l_dual_pair & ldp );
 
-/*--------------------------------------------------------------------------*/
+   void store_function( );
 
-   void InitStaticPartOfFunction( void );
+   void update_function( );
 
-/*--------------------------------------------------------------------------*/
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
-   void UpdateFunction( void );
+   void guts_of_destructor( );
 
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( LagBFunction ) )
 
 /*--------------------------------------------------------------------------*/
-/*-------------------- CLASS LagBFunctionModRngd -------------------------*/
+/*-------------------- CLASS LagBFunctionModRngd ---------------------------*/
 /*--------------------------------------------------------------------------*/
 /// derived from C05FunctionModVarsRngd for changes in a range of coefficients
 /** Derived class from C05FunctionModVarsRngd to describe changes specific to
