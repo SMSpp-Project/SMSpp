@@ -302,7 +302,8 @@ class LagBFunction : public C05Function , public Block {
   *
   * By default the vector of dual pairs is assumed to *not* be ordered. */
 
- LagBFunction( v_dual_pair && slp = {} , const bool static_is_ordered = false );
+ LagBFunction( v_dual_pair && v_lag_pairs = {} , const bool static_is_ordered = false ,
+		 Block* innerblock = nullptr );
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
@@ -341,8 +342,8 @@ class LagBFunction : public C05Function , public Block {
  void set_inner_block( Block* innerblock );
 
 /*--------------------------------------------------------------------------*/
- /// set a bunch of *static* dual pairs <y, g(x)>
 
+ /// set a bunch of *static* dual pairs <y, g(x)>
  /** This method must be called after the construction of the
   * class and only if an empty constructor has been used. By calling
   * this method a bunch of dual pairs <y, g(x)> is stored.
@@ -358,7 +359,7 @@ class LagBFunction : public C05Function , public Block {
   * LinearFunction of (B)- those Variable with coefficient zero
   * which are involved in the definition of g(x)  */
 
- void set_dual_pairs( v_dual_pair && v_lag_pairs = {} ,
+ void set_dual_pairs( v_dual_pair && v_lag_pairs ,
  		 const bool static_is_ordered = false );
 
 /*--------------------------------------------------------------------------*/
@@ -412,17 +413,32 @@ class LagBFunction : public C05Function , public Block {
  virtual void store_linearization( const LinearizationName name ) override final;
 
 /*--------------------------------------------------------------------------*/
+ /// compute the Function
+ /** It has to compute the Function. The parameter changedvars is ignored.
+  *
+  *  It is assumed that the sub-Block (B) has its own Variable only. The
+  *  re-optimization of (B) shall be performed starting from the old
+  *  solution and any problem shouldn't occur. No relevant Variable are
+  *  defined in (B). */
 
  virtual int compute( bool changedvars = true ) override;
 
 /*--------------------------------------------------------------------------*/
 
- virtual FunctionValue get_value( void ) const override { return( 0 ); }
+ virtual FunctionValue get_value( void ) const override;
 
-/*--------------------------------------------------------------------------*/
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
- virtual bool is_continuously_differentiable( void ) const override final {
-  return( true );
+ virtual FunctionValue get_lower_estimate( void ) const override{
+  Solver* slv = v_Block[0]->get_registered_solvers().back();
+  return( slv->get_lb() );
+  }
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+
+ virtual FunctionValue get_upper_estimate( void ) const override {
+  Solver* slv = v_Block[0]->get_registered_solvers().back();
+  return( slv->get_ub() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -441,6 +457,7 @@ class LagBFunction : public C05Function , public Block {
    c_Index end = std::numeric_limits<Index>::max() ) override final;
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+
 /// retrieve the coefficients (g) of a linearization in a sparse vector
 /** This method retrieves the sparse vector of coefficients g that is part
   * of a linearization.
@@ -543,6 +560,12 @@ class LagBFunction : public C05Function , public Block {
 
  FRealObjective obj;
  ///< the (linear) objective function
+
+ // FunctionValue lb_value;
+ ///< the lower bound to the value of (B)
+
+ // FunctionValue ub_value;
+ ///< the upper bound to the value of (B)
 
  m_column LagMatrix;
  ///< the matrix yA in the Lagrangian function

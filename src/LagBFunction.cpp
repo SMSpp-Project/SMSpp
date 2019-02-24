@@ -44,27 +44,36 @@ using namespace SMSpp_di_unipi_it;
 /*----------------------------- STATIC MEMBERS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-static const char VarIsDir = 0;  // Variable contain a direction
-static const char VarIsSol = 1;  // Variable contain a solution
-static const char NoVar = 2;     // No Variable is in the Solver
+static const char VarIsDir = 0;   // a direction is stored
+static const char VarIsSol = 1;   // a solution is stored
+static const char UnknownVar = 2; // variables contain unknown values
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-LagBFunction::LagBFunction( v_dual_pair && slp , const bool static_is_ordered )
- :  C05Function() ,  Block() , slag_p( std::move( slp ) )
+LagBFunction::LagBFunction( v_dual_pair && v_lag_pairs , const bool static_is_ordered ,
+		Block* innerblock  )
+ :  C05Function() ,  Block() , slag_p( std::move( v_lag_pairs ) )
 {
 
- // define global pool of intGPMaxSz size - - - - - - - - - - - - - - - - - -
+ // LastSolution is the current solution but, so far, it is unknown
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-
- // so far, the current solution is unknown - - - - - - - - - - - - - - - - -
- VarType = NoVar;
  LastSolution = Inf<LinearizationName>();
+ VarType = UnknownVar;
 
- set_dual_pairs( std::move( slp ) , static_is_ordered );
+ // set the sub-Block pointer - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+ if( innerblock )
+  set_inner_block( innerblock );
+
+ // set a bunch of *static* dual pairs <y, g(x)>   - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ if( v_lag_pairs.size() )
+  set_dual_pairs( std::move( v_lag_pairs ) , static_is_ordered );
 
  } // end ( LagBFunction::LagBFunction( ) )  - - - - - - - - - - - - - - - - -
 
@@ -240,13 +249,15 @@ void LagBFunction::add_dual_pairs( l_dual_pair && l_lag_pairs ,
 
 bool LagBFunction::has_linearization( const bool diagonal )
 {
- // get the Solver from inner Block  - - - - - - - - - - - - - - - - - - - - -
- Solver* slv = v_Block[0]->get_registered_solvers().back();
-
- // true if a linearization of the related type exists   - - - - - - - - - - -
+ // get the Solver of the  sub-Block - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- bool SlvHasNewLin;
+ Solver* slv = v_Block[0]->get_registered_solvers().back();
+
+ // check for a new linearization and set its type   - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ bool SlvHasNewLin;  // true if a linearization of the related type exists
 
  if( diagonal ) {
   SlvHasNewLin = slv->has_var_solution();
@@ -259,14 +270,13 @@ bool LagBFunction::has_linearization( const bool diagonal )
    VarType = VarIsDir;
   }
 
- if( !SlvHasNewLin )
-  VarType = NoVar; // set the current solution as unknown
+ if( !SlvHasNewLin )     // if no linearization has been found,
+  VarType = UnknownVar;  // the solution is unknown
 
- // last solution is the current solution  - - - - - - - - - - - - - - - - - -
+ // LastSolution is the current solution   - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  LastSolution = Inf<Index>();
-
  return( SlvHasNewLin );
 
  }  // end LagBFunction::has_linearization( )  - - - - - - - - - - - - - - - -
@@ -275,7 +285,9 @@ bool LagBFunction::has_linearization( const bool diagonal )
 
 bool LagBFunction::compute_new_linearization( const bool diagonal )
 {
- // get the Solver from inner Block - - - - - - - - - - - - - - - - - - - - -
+ // get the Solver of the  sub-Block - - - - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
  Solver* slv = v_Block[0]->get_registered_solvers().back();
 
  // true if a new linearization of the related type exists in the local pool
@@ -295,14 +307,14 @@ bool LagBFunction::compute_new_linearization( const bool diagonal )
    VarType = VarIsDir;
   }
 
- if( !SlvHasNewLin )
-  VarType = NoVar; // set the current solution as unknown
+ if( !SlvHasNewLin )    // if no linearization has been found,
+  VarType = UnknownVar; // the solution is unknown
 
- // last solution is the current solution  - - - - - - - - - - - - - - - - - -
+ // the previous LastSolution is lost unless it has been stored, LastSolution
+ // is the current solution  - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  LastSolution = Inf<Index>();
-
  return( SlvHasNewLin );
 
  } // end LagBFunction::compute_new_linearization( ) - - - - - - - - - - - - -
@@ -311,10 +323,10 @@ bool LagBFunction::compute_new_linearization( const bool diagonal )
 
 void LagBFunction::store_linearization( const LinearizationName name )
 {
- if( LastSolution < Inf<Index>() ) // the solution to be solved is not a new one
+ if( LastSolution < Inf<Index>() ) // the solution has been already stored
   throw( std::logic_error( "the linearization is not available anymore" ) );
 
- if( VarType == NoVar )            // if the current solution is unknown ...
+ if( VarType == UnknownVar )       // the solution to be stored is unknown
   throw( std::logic_error( "there is no solution to save" ) );
 
  // get the current solution   - - - - - - - - - - - - - - - - - - - - - - - -
@@ -324,6 +336,9 @@ void LagBFunction::store_linearization( const LinearizationName name )
   g_pool[ name ].first = v_Block[0]->get_Solution();
 
  g_pool[ name ].first->read( v_Block[0] );
+
+ // gset the solution type   - - - - - - - - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  if( VarType == VarIsSol )
   g_pool[ name ].second = VarIsSol;
@@ -337,18 +352,35 @@ void LagBFunction::store_linearization( const LinearizationName name )
 int LagBFunction::compute( bool changedvars )
 {
  LastSolution = Inf<Index>();	// set LastSolution as the current solution, i.e.
-                                // that solution which has computed in compute();
+                                // that solution which is going to be computed
 
- VarType = NoVar;               // the solution is unknown so far
+ VarType = UnknownVar;          //so far, the current solution is unknown
 
  // get the Solver from inner Block  - - - - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
  Solver* slv = v_Block[0]->get_registered_solvers().back();
+ assert( ! slv );
+
+ // update the Lagrangian cost vector  - - - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  update_function();
 
+ // return the status of the optimization process  - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
  return( slv->compute( false ) );
 
- } // end LagBFunction::compute( ) - - - - - - - - - - - - - - - - - - - - - -
+ } // end ( LagBFunction::compute( ) ) - - - - - - - - - - - - - - - - - - - -
+
+/*--------------------------------------------------------------------------*/
+
+Function::FunctionValue LagBFunction::get_value( void ) const
+{
+ Solver* slv = v_Block[0]->get_registered_solvers().back();
+ return( slv->get_ub() );
+ } // end ( LagBFunction::get_value( ) ) - - - - - - - - - - - - - - - - - - -
 
 /*--------------------------------------------------------------------------*/
 
@@ -374,7 +406,7 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
 
   // get solution/direction from the solver - - - - - - - - - - - - - - - - -
 
-  if( VarType == NoVar )            // if the current solution is unknown ...
+  if( VarType == UnknownVar )            // if the current solution is unknown ...
    throw( std::logic_error( "there is no solution to save" ) );
   else
    if( VarType == VarIsSol )
@@ -432,7 +464,7 @@ void LagBFunction::get_linearization_coefficients( SparseVector & g ,
 
   // get solution/direction from the solver - - - - - - - - - - - - - - - - -
 
-  if( VarType == NoVar )            // if the current solution is unknown ...
+  if( VarType == UnknownVar )            // if the current solution is unknown ...
    throw( std::logic_error( "there is no solution to save" ) );
   else
    if( VarType == VarIsSol )
@@ -523,7 +555,7 @@ int LagBFunction::get_dflt_int_par( const idx_type par ) const
    return( C05Function::get_dflt_dbl_par( par ) ) ;
   }
 
-}
+} // end( LagBFunction::get_dflt_int_par( idx_type ) )  - - - - - - - - - - -
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -539,7 +571,7 @@ double LagBFunction::get_dflt_dbl_par( const idx_type par ) const
   default:
 	return( C05Function::get_dflt_dbl_par( par ) ) ;
   }
-}
+} // end( LagBFunction::get_dflt_dbl_par( idx_type ) ) - - - - - - - - - - - -
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
