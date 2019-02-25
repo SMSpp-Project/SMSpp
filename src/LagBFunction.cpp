@@ -381,7 +381,12 @@ int LagBFunction::compute( bool changedvars )
 Function::FunctionValue LagBFunction::get_value( void ) const
 {
  Solver* slv = v_Block[0]->get_registered_solvers().back();
- return( slv->get_ub() );
+
+ auto obj = boost::any_cast<FRealObjective *>( & v_Block[0]->get_objective() );
+ if( (*obj)->get_sense() == Objective::eMax )
+  return( slv->get_ub() );
+ else
+  return( slv->get_lb() );
  } // end ( LagBFunction::get_value( ) ) - - - - - - - - - - - - - - - - - - -
 
 /*--------------------------------------------------------------------------*/

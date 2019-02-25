@@ -424,19 +424,27 @@ class LagBFunction : public C05Function , public Block {
  virtual int compute( bool changedvars = true ) override;
 
 /*--------------------------------------------------------------------------*/
+ /// returns the value of the Function
+ /** It returns the value of the Function that was computed in the most recent
+  * call to compute(); if the latter has never been invoked, then the value returned
+  * by this method is meaningless.
+  *
+  * If (B) is computed with a low accuracy and the function value lays in an
+  * interval, the upper bound shall be returned (the lower bound if (B) is a
+  * minimization problem). */
 
  virtual FunctionValue get_value( void ) const override;
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
- virtual FunctionValue get_lower_estimate( void ) const override{
+ virtual FunctionValue get_lower_estimate( void ) const override final{
   Solver* slv = v_Block[0]->get_registered_solvers().back();
   return( slv->get_lb() );
   }
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
- virtual FunctionValue get_upper_estimate( void ) const override {
+ virtual FunctionValue get_upper_estimate( void ) const override final{
   Solver* slv = v_Block[0]->get_registered_solvers().back();
   return( slv->get_ub() );
   }
