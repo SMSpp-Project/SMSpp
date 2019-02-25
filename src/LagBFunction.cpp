@@ -185,7 +185,8 @@ void LagBFunction::set_par( const idx_type par , const int value )
    break;
   case( intGPMaxSz ):
    GPMaxSz = value;
-   g_pool.resize( GPMaxSz );
+   g_pool_var.resize( GPMaxSz );
+   g_pool_cns.resize( GPMaxSz );
    break;
   default: Function::set_par( par , value );
   }
@@ -332,18 +333,19 @@ void LagBFunction::store_linearization( const LinearizationName name )
  // get the current solution   - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( g_pool[ name ].first == nullptr )
-  g_pool[ name ].first = v_Block[0]->get_Solution();
+ if( g_pool_var[ name ].first == nullptr )
+  g_pool_var[ name ].first = v_Block[0]->get_Solution();
 
- g_pool[ name ].first->read( v_Block[0] );
+ g_pool_var[ name ].first->read( v_Block[0] );
+ g_pool_cns[ name ] = 0;
 
  // gset the solution type   - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  if( VarType == VarIsSol )
-  g_pool[ name ].second = VarIsSol;
+  g_pool_var[ name ].second = VarIsSol;
  else
-  g_pool[ name ].second = VarIsDir;
+  g_pool_var[ name ].second = VarIsDir;
 
  } // end LagBFunction::store_linearization( ) - - - - - - - - - - - - - - - -
 
@@ -396,12 +398,14 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
   return;
 
  // get the Solver from inner Block - - - - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
  Solver* slv = v_Block[0]->get_registered_solvers().back();
 
- if( name == Inf<LinearizationName>() ) { // asking for the last computed - -
+ if( name == Inf<LinearizationName>() ) { // asking for the last computed
 	                                      // linearization  - - - - - - - - -
 
-  if( LastSolution < Inf<Index>() ) // the saved solution is not in the local pool
+  if( LastSolution < Inf<Index>() ) // LastSolution is not in the local pool
    throw( std::logic_error( "the linearization is not available anymore" ) );
 
   // get solution/direction from the solver - - - - - - - - - - - - - - - - -
@@ -417,13 +421,13 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
   }
  else {  // asking for a linearization of the global pool  - - - - - - - - - -
 
-  // assign Solution to the inner Block from which the related linearization
+  // assign Solution to the sub-Block from which the related linearization
   // <name> can be recovered
 
   if( name != LastSolution )
-   g_pool[ name ].first->write( v_Block[0] );
+   g_pool_var[ name ].first->write( v_Block[0] );
 
-  LastSolution = name ;    // update last solution
+  LastSolution = name ;    // update LastSolution
 
   } // end else  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -456,7 +460,7 @@ void LagBFunction::get_linearization_coefficients( SparseVector & g ,
  // get the Solver from inner Block - - - - - - - - - - - - - - - - - - - - -
  Solver* slv = v_Block[0]->get_registered_solvers().back();
 
- if( name == Inf<LinearizationName>() ) { // asking for the last computed - -
+ if( name == Inf<LinearizationName>() ) { // asking for the last computed
 	                                      // linearization  - - - - - - - - -
 
   if( LastSolution < Inf<Index>() ) // the saved solution is not in the local pool
@@ -475,13 +479,13 @@ void LagBFunction::get_linearization_coefficients( SparseVector & g ,
   }
  else {  // asking for a linearization of the global pool  - - - - - - - - - -
 
-  // assign Solution to the inner Block from which the related linearization
+  // assign Solution to the sub-Block from which the related linearization
   // <name> can be recovered
 
   if( name != LastSolution )
-   g_pool[ name ].first->write( v_Block[0] );
+   g_pool_var[ name ].first->write( v_Block[0] );
 
-  LastSolution = name ;    // update last solution
+  LastSolution = name ;    // update LastSolution
 
   } // end else  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -525,18 +529,20 @@ void LagBFunction::get_linearization_coefficients( SparseVector & g ,
  }  // end( LagBFunction::get_linearization_coefficients( SparseVector ) )
 
 /*--------------------------------------------------------------------------*/
-/*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE LagBFunction ---------*/
-/*--------------------------------------------------------------------------*/
 
+double LagBFunction::get_linearization_constant( const LinearizationName name ) const
+{
+ // get the Solver from inner Block - - - - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-/*--------------------------------------------------------------------------*/
-/*-------------- METHODS FOR MODIFYING THE LagBFunction --------------------*/
-/*--------------------------------------------------------------------------*/
+ Solver* slv = v_Block[0]->get_registered_solvers().back();
 
-/*--------------------------------------------------------------------------*/
-/*--------------------------- PROTECTED METHODS ----------------------------*/
-/*--------------------------------------------------------------------------*/
+ if( name == Inf<LinearizationName>() )
+  return( 0 );
+ else
+  return( g_pool_cns[name] );
 
+ } // end( LagBFunction::get_linearization_constant() )  - - - - - - - - - - -
 
 /*--------------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
@@ -572,6 +578,20 @@ double LagBFunction::get_dflt_dbl_par( const idx_type par ) const
 	return( C05Function::get_dflt_dbl_par( par ) ) ;
   }
 } // end( LagBFunction::get_dflt_dbl_par( idx_type ) ) - - - - - - - - - - - -
+
+/*--------------------------------------------------------------------------*/
+/*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE LagBFunction ---------*/
+/*--------------------------------------------------------------------------*/
+
+
+/*--------------------------------------------------------------------------*/
+/*-------------- METHODS FOR MODIFYING THE LagBFunction --------------------*/
+/*--------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------*/
+/*--------------------------- PROTECTED METHODS ----------------------------*/
+/*--------------------------------------------------------------------------*/
+
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
@@ -804,7 +824,8 @@ void LagBFunction::guts_of_destructor( )
  // in the global pool remove all the pointers to Solution objects - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- g_pool.clear();
+ g_pool_var.clear();
+ g_pool_cns.clear();
 
  } // end ( LagBFunction::guts_of_destructor() )
 

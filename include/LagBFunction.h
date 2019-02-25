@@ -446,7 +446,7 @@ class LagBFunction : public C05Function , public Block {
 /** This method retrieves the vector of coefficients g that is the (largest)
   * part of the linearization with the given name.
   *
-  * This implements the virtual function of class C05Function. If name
+  * This implements the virtual function of class C05Function. If name is
   * INF<LinearizationName>, the current linearization of the local pool
   * will be unavailable. */
 
@@ -462,7 +462,7 @@ class LagBFunction : public C05Function , public Block {
 /** This method retrieves the sparse vector of coefficients g that is part
   * of a linearization.
   *
-  * This implements the virtual function of class C05Function. If name
+  * This implements the virtual function of class C05Function. If name is
   * INF<LinearizationName>, the current linearization of the local pool
   * will be unavailable.  */
 
@@ -473,13 +473,12 @@ class LagBFunction : public C05Function , public Block {
    c_Index end = std::numeric_limits<Index>::max() ) override final;
 
 /*--------------------------------------------------------------------------*/
+
  /** There is only one linearization in a LagBFunction, its value being
   * the opposite of its constant term. */
 
  virtual double get_linearization_constant( const LinearizationName name =
-   std::numeric_limits<Index>::max() ) const override final {
- return( 0 );
- }
+   std::numeric_limits<Index>::max() ) const override final;
 
 /*@} -----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
@@ -507,7 +506,7 @@ class LagBFunction : public C05Function , public Block {
  virtual double get_dflt_dbl_par( const idx_type par ) const override;
 
 /*@} -----------------------------------------------------------------------*/
-/*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE LagBFunction -------*/
+/*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE LagBFunction ---------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling the set of "active" Variable in the
  * LagBFunction; this is the actual concrete implementation exploiting the
@@ -516,7 +515,7 @@ class LagBFunction : public C05Function , public Block {
 
 
 /*@} -----------------------------------------------------------------------*/
-/*-------------- METHODS FOR MODIFYING THE LagBFunction ------------------*/
+/*-------------- METHODS FOR MODIFYING THE LagBFunction --------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for modifying the LagBFunction
  *  @{ */
@@ -549,8 +548,11 @@ class LagBFunction : public C05Function , public Block {
  l_dual_pair dlag_p;
  ///< list of dynamic Lagrangian pairs
 
- v_linearization_pair g_pool;
- ///< global pool
+ v_linearization_pair g_pool_var;
+ ///< global pool of variables
+
+ std::vector<double> g_pool_cns;
+ ///< global pool of constants
 
  LinearizationName LastSolution;
  ///< the last solution read by get_linearization
