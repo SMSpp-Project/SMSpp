@@ -398,18 +398,16 @@ class LinearFunction : public C15Function {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  virtual void get_linearization_coefficients( FunctionValue * g ,
-   const LinearizationName name =
-                              std::numeric_limits<LinearizationName>::max() ,
+   const LinearizationName name = Inf<LinearizationName>() ,
    c_Vec_Index * const indices = nullptr , c_Index start = 0 ,
-   c_Index end = std::numeric_limits<Index>::max() ) override final;
+   c_Index end = Inf<Index>() ) override final;
 
 /*--------------------------------------------------------------------------*/
 
  virtual void get_linearization_coefficients( SparseVector &g ,
-   const LinearizationName name =
-                              std::numeric_limits<LinearizationName>::max() ,
+   const LinearizationName name = Inf<LinearizationName>() ,
    c_Vec_Index * const indices = nullptr , c_Index start = 0 ,
-   c_Index end = std::numeric_limits<Index>::max() ) override final;
+   c_Index end = Inf<Index>() ) override final;
 
 /*--------------------------------------------------------------------------*/
 
@@ -418,7 +416,7 @@ class LinearFunction : public C15Function {
  * LinearFunction. */
 
  virtual double get_linearization_constant( const LinearizationName name =
-   std::numeric_limits<Index>::max() ) const override final {
+		 Inf<LinearizationName>() ) const override final {
  return( f_constant_term );
  }
 
@@ -467,7 +465,7 @@ class LinearFunction : public C15Function {
   if( idx < v_pairs.end() )
    return( std::distance( v_pairs.begin() , idx ) );
   else
-   return( std::numeric_limits<Index>::infinity() );
+   return( Inf<Index>() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
