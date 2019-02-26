@@ -465,7 +465,7 @@ class LinearFunction : public C15Function {
                                []( const auto & p1, const auto & p2 )
                                  { return p1.first < p2.first; } );
   if( idx < v_pairs.end() )
-   return( std::distance( idx , v_pairs.begin() ) );
+   return( std::distance( v_pairs.begin() , idx ) );
   else
    return( std::numeric_limits<Index>::infinity() );
   }
