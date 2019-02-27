@@ -53,7 +53,7 @@ static const char UnknownVar = 2; // variables contain unknown values
 /*--------------------------------------------------------------------------*/
 
 LagBFunction::LagBFunction( v_dual_pair && v_lag_pair , const bool static_is_ordered ,
-		Block* innerblock  )
+		Block* innerblock , Observer * const observer )
  :  C05Function() , lag_p( std::move( v_lag_pair ) )
 {
 
@@ -74,6 +74,12 @@ LagBFunction::LagBFunction( v_dual_pair && v_lag_pair , const bool static_is_ord
 
  if( v_lag_pair.size() )
   set_dual_pairs( std::move( v_lag_pair ) , static_is_ordered );
+
+ // set the observer pointer - - - - - - - - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ if( observer )
+  register_Observer( observer );
 
  } // end ( LagBFunction::LagBFunction( ) )  - - - - - - - - - - - - - - - - -
 
@@ -151,6 +157,44 @@ void LagBFunction::set_dual_pairs( v_dual_pair && v_lag_pair ,
 
 /*--------------------------------------------------------------------------*/
 
+void  LagBFunction::register_Observer( Observer * const observer )
+{
+ if( f_Observer == observer )  // actually changing nothing
+  return;                      // cowardly (and silently) return
+
+ // if there was a previous Observer and it was a ThinVarDepInterface, then
+ // unregister it from all the Variable of the LagBFunction
+
+ ThinVarDepInterface *TVDIO;
+
+ if( f_Observer ) {
+  TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
+  if( TVDIO == nullptr )
+   throw( std::logic_error( "the observer is not properly set" ) );
+
+  for( auto pair : lag_p )
+   pair.first->remove_active( TVDIO );
+  }
+
+ // set the observer pointer - - - - - - - - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ f_Observer = observer;
+
+ // if the new Observer is a ThinVarDepInterface, then register it to all
+ // the Variable of the LagBFunction
+
+ TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
+ if( TVDIO == nullptr )
+  throw( std::logic_error( "the observer is not properly set" ) );
+
+ for( auto pair : lag_p )
+  pair.first->add_active( TVDIO );
+
+ }  // end ( LagBFunction::register_Observer( ) )  - - - - - - - - - - - - - -
+
+/*--------------------------------------------------------------------------*/
+
 void LagBFunction::set_par( const idx_type par , const int value )
 {
  switch( par ) {
@@ -185,13 +229,27 @@ void LagBFunction::set_par( const idx_type par , const double value )
 /*--------------------------------------------------------------------------*/
 
 void LagBFunction::add_dual_pairs( v_dual_pair && v_lag_pair ,
-		 const bool static_is_ordered ) {
+		 const bool static_is_ordered ,
+		 c_ModParam issueMod , c_ModParam issueAMod ) {
 
  // update the structure LagMatrix for changing the Lagrangian cost vector
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  std::move( v_lag_pair );
  set_structure( v_lag_pair , static_is_ordered );
+
+ // add modification - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ Vec_p_Var vars( v_lag_pair.size() );
+ for( Index i = 0 ; i < v_lag_pair.size() ; ++i )
+  vars[ i ] = v_lag_pair[ i ].first;
+
+ if( f_Observer && ( f_Observer->issue_mod( issueMod ) ) )
+  f_Observer->add_Modification( std::make_shared<LagBFunctionModSbst>( this ,
+           FunctionModVars::AddVar , std::move( vars ) , 0 ,
+		   Observer::par2concern( issueMod ) ) ,
+		   Observer::par2chnl( issueMod ) );
 
  // copy the coefficients c_i of the inner block (B) in order to allow
  // the changes of the Lagrangian cost vector c^y = c + yA and add to
@@ -207,6 +265,7 @@ void LagBFunction::add_dual_pairs( v_dual_pair && v_lag_pair ,
  std::merge( lag_p.begin() , lag_p.end() , v_lag_pair.begin() , v_lag_pair.end() ,
 		 lag_p.begin() ,
 		 []( const auto & p1, const auto & p2 ) { return( p1.first < p2.first ); }  );
+
 
  } // end ( LagBFunction::add_dual_pairs( ) )  - - - - - - - - - - - - - - - -
 
