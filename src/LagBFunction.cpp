@@ -4,9 +4,9 @@
 /** @file
  * Implementation of the LagBFunction class.
  *
- * \version 0.02
+ * \version 0.03
  *
- * \date 18 - 02 - 2019
+ * \date 27 - 02 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -89,8 +89,6 @@ void LagBFunction::clear( ) {
  for( const auto & lagdual : lag_p )
   delete[] lagdual.second;
  lag_p.clear();
-
- f_Observer = nullptr;
 
  } //end ( LagBFunction::clear( ) )  - - - - - - - - - - - - - - - - - - - - -
 

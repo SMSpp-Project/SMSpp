@@ -5,9 +5,9 @@
  * Header file for the class LagBFunction, which
  * implements C05Function and Block with a Lagrangian function.
  *
- * \version 0.02
+ * \version 0.03
  *
- * \date 18 - 02 - 2019
+ * \date 27 - 02 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
