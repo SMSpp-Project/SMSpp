@@ -5,7 +5,7 @@
  * Header file for the *concrete* class LinearFunction, which
  * implements C15Function with a simple linear function.
  *
- * \version 0.13
+ * \version 0.14
  *
  * \date 27 - 02 - 2019
  *
@@ -248,16 +248,26 @@ class LinearFunction : public C15Function {
   }
 
 /*--------------------------------------------------------------------------*/
- /// destructor: it (apparently) does nothing
+ /// destructor: it unregisters the from its active Variable
+ /** The destructor of LinearFunction unregisters its Observer, it if is a
+  * ThinVarDepInterface, from the active Variable of the LinearFunction. This
+  * is unless clear() has been called, so that the vector v_pairs contains
+  * nothing and no un-registering is made. */
 
- virtual ~LinearFunction() { }
+ virtual ~LinearFunction() {
+  auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
+
+  if( TVDIO )
+   for( auto pair : v_pairs )
+    pair.first->remove_active( TVDIO );
+ }
 
 /*--------------------------------------------------------------------------*/
- 
- virtual void clear( void ) override {
-  v_pairs.clear();
-  f_Observer = nullptr;
-  }
+ /// clear method: clears the v_pairs field
+ /** Method to "clear" the LinearFunction: it clear() the vector v_pairs, so
+  * that in the destructor no un-registering is made. */
+
+ virtual void clear( void ) override { v_pairs.clear(); }
 
 /*@} -----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/

@@ -13,7 +13,7 @@
  *
  * \version 0.30
  *
- * \date 21 - 02 - 2019
+ * \date 15 - 08 - 2018
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -635,10 +635,10 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
  * This base class defines the simplest type of modification, which is
  * associated to the value of the function. This modification can represent a
  * constant shift in the value of the function. A function is said to be
- * shifted by a constant if there is a finite scalar f_shift so that if the
+ * shifted by a constant if there is a finite scalar shift so that if the
  * value of the function at a given point before the modification was f_v,
  * then the function value at that point after the modification is
- * f_v + f_shift.
+ * f_v + shift.
  *
  * In the worst case, the function may have been modified in such a way that
  * everything that was known about the Function before the Modification may no
@@ -693,12 +693,12 @@ public:
   FunctionValue f_shift;
   ///< Amount the value of the function has been shifted
   /**< This field encloses two types of modifications. If the value of
-   * f_shift is finite, then it represents a shift in the value of the
+   * shift is finite, then it represents a shift in the value of the
    * function. This means that if the function value at a given point
    * was f_v before the modification, then the correct function value
    * after the modification is f_v + f_shift.
    *
-   * If the value of f_shift is infinity, then it indicates that the
+   * If the value of shift is infinity, then it indicates that the
    * Function was modified in such a way that everything that was
    * known about the Function before the modification may no longer be
    * valid. In particular, function values computed before the
@@ -741,10 +741,10 @@ public:
  * two different ways, and "remove all Variable" is easily implemented in the
  * former.
  *
- * When Variables are added to or removed from a Function, the
+ * When Variable are added to or removed from a Function, the
  * "quasi-additivity" property (see definition below) may or may not be
- * satisfied. When it is satisfied, the value of shift is finite. If this
- * property is not satisfied, then the value of shift is infinity.
+ * satisfied. When it is satisfied, the value of f_shift is finite. If this
+ * property is not satisfied, then the value of f_shift is infinity.
  *
  * The quasi-additivity property is defined as follows.
  *
@@ -753,14 +753,14 @@ public:
  * variables before the modification. Let y be the vector of variables
  * that were added and f be the function after the modification. We
  * say that the variables y are quasi-additively added to the function
- * if and only if f(x, y) = f_old(x) + shift for all x and for y = 0.
+ * if and only if f(x, y) = f_old(x) + f_shift for all x and for y = 0.
  *
  * Suppose that Variables are removed from the Function. Let f_old be
  * the function before the modification and z = (x,y) be the vector of
  * variables before the modification. Let y be the vector of variables
  * that were removed and f be the function after the modification. We
  * say that the variables y are quasi-additively removed from the
- * function if and only if f(x) = f_old(x, y) + shift for all x and
+ * function if and only if f(x) = f_old(x, y) + f_shift for all x and
  * for y = 0. */
 
 class FunctionModVars : public FunctionMod {
