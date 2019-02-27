@@ -1,57 +1,3 @@
-2019-02-22 [very high] State and constraints inside (Col)Variable
-
-	The f_state data member of Variable informs whether the
-	Variable is fixed or not. This is a constraint that could be
-	represented, for example, as a OneVarConstraint (by setting
-	the lower and upper bounds equal to the value of the Variable)
-	or some variation of it. In ColVariable, the f_state is used
-	to indicate whether a Variable is binary, integer, or
-	continuous. These are constraints that could be also
-	represented as a variation of a OneVarConstraint.
-
-	Many other simple constraints on ColVariables are currently
-	being considered that makes use of f_state, such as,
-	non-positive and non-negative variables, but they could also
-	be represented as a variation of OneVarConstraint.
-
-	We must decide whether to keep the f_state member of Variable
-	or remove it. By removing it, we save memory and we should
-	create new constraints to represent the aforementioned
-	constraints on (Col)Variables.
-
-
-2019-02-22 [low] A Function with Col and MultiColVariable
-
-	We could implement a Function that has among its active
-	Variables, for example, both ColVariable and
-	MultiColVariable. Actually, the idea is that a concrete
-	implementation of Function could have a more general type of
-	Variable than ColVariable.
-
-	Let us consider, for instance, the LinearFunction. Currently,
-	LinearFunction is a function of ColVariables. We could create
-	another linear function, say GeneralLinearFunction, that would
-	have, say, GeneralRealVariables as active Variables. (The
-	names are not important now.) ColVariable and MultiColVariable
-	would both inherit from GeneralRealVariable. So, instead of
-	having pairs (ColVariable *, double coefficient) to represent
-	the linear function, as it is done in LinearFunction, we would
-	have pairs (GeneralRealVariable *, Coefficient [*]). For
-	ColVariable, the Coefficient could be a double. For
-	MultiColVariable, the Coefficient would be a more complicated
-	structure (or simply a list of pairs (iterator, double
-	coefficient) depending on how MultiColVariable is implemented
-	and the type of coefficient that is desired).
-
-
-2019-02-22 [low] Name of OneVarConstraint
-
-	OneVarConstraint could be called OneVarBoundConstraint, for
-	example. This would make its meaning clearer and
-	OneVarConstraint could be a more general constraint that
-	involves a single Variable.
-
-
 2018-03-22 [high] LagrangianBlock, LagrangianFunction
 
 	SMS++ is motivated by decomposition: we should verify that it
@@ -144,6 +90,38 @@
 	boost::multi_array< MultiColVariable< std::vector > >.
 
 
+2019-02-22 [low] A Function with Col and MultiColVariable
+
+	We could implement a Function that has among its active
+	Variables, for example, both ColVariable and
+	MultiColVariable. Actually, the idea is that a concrete
+	implementation of Function could have a more general type of
+	Variable than ColVariable.
+
+	Let us consider, for instance, the LinearFunction. Currently,
+	LinearFunction is a function of ColVariables. We could create
+	another linear function, say GeneralLinearFunction, that would
+	have, say, GeneralRealVariables as active Variables. (The
+	names are not important now.) ColVariable and MultiColVariable
+	would both inherit from GeneralRealVariable. So, instead of
+	having pairs (ColVariable *, double coefficient) to represent
+	the linear function, as it is done in LinearFunction, we would
+	have pairs (GeneralRealVariable *, Coefficient [*]). For
+	ColVariable, the Coefficient could be a double. For
+	MultiColVariable, the Coefficient would be a more complicated
+	structure (or simply a list of pairs (iterator, double
+	coefficient) depending on how MultiColVariable is implemented
+	and the type of coefficient that is desired).
+
+
+2019-02-22 [low] Name of OneVarConstraint
+
+	OneVarConstraint could be called OneVarBoundConstraint, for
+	example. This would make its meaning clearer and
+	OneVarConstraint could be a more general constraint that
+	involves a single Variable.
+
+
 2018-04-06 [low at best] Separate the abstract and physical parts of a Block
 
         It could be useful to have the abstract and physical
@@ -229,6 +207,28 @@
 #---------------------------------- DONE --------------------------------------#
 ################################################################################
 ################################################################################
+
+2019-02-22 2019-02-27 [very high] State and constraints inside (Col)Variable
+
+	The f_state data member of Variable informs whether the
+	Variable is fixed or not. This is a constraint that could be
+	represented, for example, as a OneVarConstraint (by setting
+	the lower and upper bounds equal to the value of the Variable)
+	or some variation of it. In ColVariable, the f_state is used
+	to indicate whether a Variable is binary, integer, or
+	continuous. These are constraints that could be also
+	represented as a variation of a OneVarConstraint.
+
+	Many other simple constraints on ColVariables are currently
+	being considered that makes use of f_state, such as,
+	non-positive and non-negative variables, but they could also
+	be represented as a variation of OneVarConstraint.
+
+	We must decide whether to keep the f_state member of Variable
+	or remove it. By removing it, we save memory and we should
+	create new constraints to represent the aforementioned
+	constraints on (Col)Variables.
+
 
 2018-03-22 [high] [LagrangianBlock, LagrangianFunction] and Solution
 

@@ -251,8 +251,8 @@ namespace SMSpp_di_unipi_it
  * interface between the user of the Block and the Solver: the latter write
  * their solutions into the Variable of the Block, so that the user of the
  * Block can read them. However, any specialized :Block can also have a
- * specialied way to represent its solution, and a user of that particular
- * :Block can conceptually only use that. Indees, the status at any point in
+ * specialized way to represent its solution, and a user of that particular
+ * :Block can conceptually only use that. Indeed, the status at any point in
  * time of the solution of a Block can be saved into a Solution object [see
  * Solution.h], and read it back from a Solution object; this need not
  * necessarily be expressed in terms of Variable (although of course it has
@@ -284,11 +284,11 @@ namespace SMSpp_di_unipi_it
  * Block they know which changes have occurred since the last time they have
  * solved it, and therefore are able to react accordingly (hopefully
  * re-optimizing to improve the efficiency of the solution process). A Solver
- * is "interested" in a Modification only if the latter occurs aither in the
+ * is "interested" in a Modification only if the latter occurs either in the
  * Block to which it is attached or in one of its sub-Block (recursively), and
  * only if is has occurred after it was attached to the Block and since the
  * last time it solved the Block. A Solver has the responsibility of always
- * cleaning up its list of Modification, because it is passed *smart poimters*
+ * cleaning up its list of Modification, because it is passed *smart pointers*
  * and therefore a Modification is only deleted when the last "interested"
  * Solver it has been passed to deletes its smart pointer. A Modification can
  * refer to either the "physical representation" or the "abstract
@@ -488,7 +488,7 @@ namespace SMSpp_di_unipi_it
  * - saving current solution information, comprised dual information if
  *   available, to a Solution object [see Solution.h] and reading it back;
  *
- * - changing all the relevant parameters governing the Block behavious in
+ * - changing all the relevant parameters governing the Block behaviour in
  *   one blow by means of a single BlockConfig object;
  *
  * - changing all the attached Solver and their algorithmic configurations in
@@ -652,7 +652,7 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Block out of an open netCDF SMS++ file
  /** Second-level de-serialization method: takes an open netCDF file and the
-  * index of a Block into the file, and returns the correspinding complete
+  * index of a Block into the file, and returns the corresponding complete
   * :Block object.
   *
   * There are three types of SMS++ netCDF files, corresponding to three values
@@ -669,8 +669,8 @@ class Block : public Observer {
   *   :BlockConfig of the same :Block, and the third the serialization of a
   *   :BlockSolverConfig of the same :Block, although any of the three can
   *   in principle be empty. If any of the child is not empty, it must
-  *   necessarily contain a string attribute "type" contaiming the name() of
-  *   the corresponding :Block / :Configuration class, plus od course all the
+  *   necessarily contain a string attribute "type" containing the name() of
+  *   the corresponding :Block / :Configuration class, plus of course all the
   *   information necessary to reconstruct the specific instance. Note that
   *   inner Block of the Block and inner Configuration of the Configuration
   *   (if any) are assumed each to be contained into a child of the group
@@ -830,7 +830,7 @@ class Block : public Observer {
   * "in pristine state": the "abstract representation" is not constructed
   *  (unless the :Block does this by its own volition), both the BlockConfig
   * and the BlockSolverConfig are not set, and (therefore) there are no Solver
-  * attached, unless there were before. The eProbFile SMS++ necCDF file type
+  * attached, unless there were before. The eProbFile SMS++ netCDF file type
   * is precisely provided for allowing to save *all* the information required
   * to solve a Block (the Block itself, its BlockConfig and its
   * BlockSolverConfig), but de-serializing the Configuration and applying
@@ -2030,7 +2030,7 @@ class Block : public Observer {
   * memory address cannot be used for new Constraint (or anything), which
   * also avoids potential problems. As soon as the BlockModAD is eventually
   * destroyed, the Constraints are destroyed as well. If, instead, the
-  * BlockModAD is not issed, the Constraint are destroyed immediately.
+  * BlockModAD is not issued, the Constraint are destroyed immediately.
   *
   * Important note: each Constraint knows which are the Variable that are
   * active in it. Likewise, each Variable knows which Constraint (among other
@@ -2094,7 +2094,7 @@ class Block : public Observer {
   * :Block, which therefore has to ensure that they will not be deleted too
   * early (or too late).
   *
-  * However, clearly having dynamic Constraint as lista of Constraint,
+  * However, clearly having dynamic Constraint as list of Constraint,
   * rather than lists of Constraint *, looks better. There is one level less
   * of indirection, and the destruction of the object is automatically
   * managed as opposed to requiring specific care. */
@@ -2136,7 +2136,7 @@ class Block : public Observer {
   * address cannot be used for new Variable (or anything), which also avoids
   * potential problems. As soon as the BlockModAD is eventually destroyed,
   * the Variable are destroyed as well. If, instead, the BlockModAD is not
-  * issed, the Variable are destroyed immediately.
+  * issued, the Variable are destroyed immediately.
   *
   * Important note: each Constraint knows which are the Variable that are
   * active in it. Likewise, each Variable knows which "stuff" (Constraint,
@@ -2220,7 +2220,7 @@ class Block : public Observer {
   * in the :Block, which therefore has to ensure that they will not be
   * deleted too early (or too late).
   *
-  * However, clearly having dynamic Variable as lista of Variable, rather
+  * However, clearly having dynamic Variable as list of Variable, rather
   * than lists of Variable *, looks better. There is one level less of
   * indirection, and the destruction of the object is automatically managed
   * as opposed to requiring specific care. */
@@ -2697,7 +2697,7 @@ class Block : public Observer {
   }
 
 /*--------------------------------------------------------------------------*/
- /// maps forward solution information from the original Blocka to n R3 Block
+ /// maps forward solution information from the original Block to n R3 Block
  /** Once a R3 Block has been produced [see get_R3_Block()], it might be
   * useful to map solution information from the original Block to the R3
   * Block, the reverse of what map_back_solution() does. This method is
@@ -2847,7 +2847,7 @@ class Block : public Observer {
   * will signal this by returning false, while it will return true if the
   * Modification has been correctly mapped. The rationale is that one can
   * therefore throw to this method all Modification without having to check
-  * first which ones are supported, which wolud be complex. This is
+  * first which ones are supported, which would be complex. This is
   * especially important in view of the fact that for any change in the Block
   * there will typically be (at least) *two* Modification in flight, a
   * "physical" and an "abstract" one: rather than having to check which is
@@ -2879,7 +2879,7 @@ class Block : public Observer {
   *
   * Because this may nonetheless be desirable in many scenarios, the base
   * Block class provides this method to support the case in which specific
-  * Modificatios to the R3 Block should be applied "verbatim" to its original
+  * Modifications to the R3 Block should be applied "verbatim" to its original
   * Block. This actually means that the original Block will be subject to some
   * changes that "have the same effect of the original Modification",
   * whatever this exactly means for this original Block (and assuming this is
@@ -2914,7 +2914,7 @@ class Block : public Observer {
   * will signal this by returning false, while it will return true if the
   * Modification has been correctly mapped. The rationale is that one can
   * therefore throw to this method all Modification without having to check
-  * first which ones are supported, which wolud be complex. This is
+  * first which ones are supported, which would be complex. This is
   * especially important in view of the fact that for any change in the Block
   * there will typically be (at least) *two* Modification in flight, a
   * "physical" and an "abstract" one: rather than having to check which is
@@ -3119,7 +3119,7 @@ class Block : public Observer {
  /// removing the solver in position it of the set of the registered ones
  /** Method for removing a Solver from the set of those currently registered
   * with the Block. The parameter it is supposed to be the position into
-  * the list returned by get_regisgtered_solvers() where the Solver currently
+  * the list returned by get_registered_solvers() where the Solver currently
   * is; the vector of registered Solver is therefore shortened by one, and
   * the remaining solvers (if any) are shifted in the obvious way. Note that
   * the iterator parameter is const because the only place where it might
@@ -3197,13 +3197,13 @@ class Block : public Observer {
   *     * if the corresponding SolverConfig * is null then nothing is done,
   *       otherwise the SolverConfig * is passed to the Solver
   *   = If f_diff == false
-  *     the esisting solver is un-registered and deleted, then
+  *     the existing solver is un-registered and deleted, then
   *     * if the name of the Solver is empty then the vector of registered
   *       Solver is shortened by one (any SolverConfig is ignored)
   *     * otherwise a new solver is created and registered in that position,
   *       and the corresponding SolverConfig is passed to it.
   *   Note that this would seem to not allow completely resetting the
-  *   configuration of some existing Solver withouth changing it, but this is
+  *   configuration of some existing Solver without changing it, but this is
   *   not true: it is sufficient to pass it a SolverConfig object (hence, not
   *   nullptr) which is "empty" (no parameter set) but with its f_diff field
   *   == false [see SolverConfig].
@@ -3816,7 +3816,7 @@ class Block : public Observer {
  * These are the protected versions of the same-named public methods, which
  * take non-const iterators: they do the brunt of the job avoiding to
  * cast away the const-ness. Of course they can only be called by someone
- * having access to the protected v_Solver fiels, i.e., Block or a :Block.
+ * having access to the protected v_Solver fields, i.e., Block or a :Block.
  *
  * @{ */
 
@@ -3879,7 +3879,7 @@ class Block : public Observer {
   * *abstract* base class: the actual content of the Block depends on the
   * specific derived class, which is why this method cannot be implemented.
   *
- * If there is any Solver "interested" to this Block, then a NBModification
+  * If there is any Solver "interested" to this Block, then a NBModification
   * *must* be issued to "inform" them that anything it knew about the Block is
   * now completely outdated. This is *not* optional (and therefore no issueMod
   * param is provided), because the reaction of a Solver to an NBModification
@@ -3898,7 +3898,7 @@ class Block : public Observer {
   *
   *      AFTER load() THE :Block IS UN-CONFIGURED
   *
-   * Although clearly not "empty", as opposed as :Block fresh out of the
+  * Although clearly not "empty", as opposed as :Block fresh out of the
   * factory (see new_Block( string )), a freshly loaded Block is otherwise
   * "in pristine state": the "abstract representation" is not constructed
   *  (unless the :Block does this by its own volition), both the BlockConfig
@@ -3908,7 +3908,7 @@ class Block : public Observer {
  virtual void load( std::istream &input ) = 0;
 
 /*@}------------------------------------------------------------------------*/
- /// method incapsulating the Block factory
+ /// method encapsulating the Block factory
  /** This method returns the Block factory, which is a static object. The
   * rationale for using a method is that this is the "Construct On First Use
   * Idiom" that solves the "static initialization order problem". */
@@ -4103,7 +4103,7 @@ class BlockModAD : public AModification
  /** Constructor: takes the type of the Modification and the "concerns" value.
   * Note that a pointer to the affected Block can always be inferred from the
   * other information that the Modification contains, and therefore is not
-  * needd. Also, note that while the enum block_mod_type is provided to
+  * needed. Also, note that while the enum block_mod_type is provided to
   * encode the possible values of modification, the field f_type is of type
   * int, and therefore so is the parameter of the constructor, in order to
   * allow derived classes to "extend" the set of possible types of
@@ -4316,7 +4316,7 @@ class BlockConfig : public Configuration
 
 /*--------------------------------------------------------------------------*/
  /// load this BlockConfig out of an istream
- /** Load this BlockConfig out of an istream, wkth the following format:
+ /** Load this BlockConfig out of an istream, with the following format:
   *
   * name of the Block: a string, '*' means empty
   *
