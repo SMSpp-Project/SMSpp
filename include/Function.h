@@ -11,9 +11,9 @@
  * paradigm. Also, since a Function depends on a set of "active" Variable, it
  * implements the ThinVarDepInterface paradigm.
  *
- * \version 0.30
+ * \version 0.31
  *
- * \date 15 - 08 - 2018
+ * \date 27 - 02 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -300,7 +300,11 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
   * is "unregistered" from the current observe by calling the method with
   * nullptr (default), then the Function is left "free floating", which means
   * that no Modification is ever produced and no Block/Solver ever gets
-  * informed of any change occurring in the Function. */
+  * informed of any change occurring in the Function.
+  *
+  * Note that if a non-nullptr Observer is set then the Observer -rather than
+  * the Function itself- will be registered in the Variable of the Function.
+  * */
 
  virtual void register_Observer( Observer * const observer = nullptr ) {
   f_Observer = observer;

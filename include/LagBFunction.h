@@ -453,15 +453,6 @@ class LagBFunction : public C05Function , public Block {
  		 const bool static_is_ordered = false );
 
 /*--------------------------------------------------------------------------*/
- /// set the pointer to the Observer of this Function
- /** If a non-nullptr Observer is set that also is a ThinVarDepInterface, then
-  * the Observer (rather than the LagBFunction itself) will be registered
-  * in the Variable of the LagBFunction. If a null Observer is set
-  * pointer is provided (either in the constructor or here), or the Function
-  * is "unregistered" from the current observe by calling the method with
-  * nullptr (default), then the Function is left "free floating", which means
-  * that no Modification is ever produced and no Block/Solver ever gets
-  * informed of any change occurring in the Function. */
 
  virtual void register_Observer( Observer * const observer = nullptr )
   override;
@@ -503,7 +494,6 @@ class LagBFunction : public C05Function , public Block {
  void add_dual_pairs( v_dual_pair && v_lag_pair ,
  		 const bool static_is_ordered = false , c_ModParam issueMod = eNoBlck ,
 		 c_ModParam issueAMod = eNoBlck  );
-
 
 /*@} -----------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE DATA OF THE LagBFunction --------------*/

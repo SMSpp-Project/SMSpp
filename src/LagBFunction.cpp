@@ -90,6 +90,8 @@ void LagBFunction::clear( ) {
   delete[] lagdual.second;
  lag_p.clear();
 
+ f_Observer = nullptr;
+
  } //end ( LagBFunction::clear( ) )  - - - - - - - - - - - - - - - - - - - - -
 
 /*--------------------------------------------------------------------------*/
@@ -187,12 +189,14 @@ void  LagBFunction::register_Observer( Observer * const observer )
  // if the new Observer is a ThinVarDepInterface, then register it to all
  // the Variable of the LagBFunction
 
- TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
- if( TVDIO == nullptr )
-  throw( std::logic_error( "the observer is not properly set" ) );
+ if( f_Observer ) {
+  TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
+  if( TVDIO == nullptr )
+   throw( std::logic_error( "the observer is not properly set" ) );
 
- for( auto pair : lag_p )
-  pair.first->add_active( TVDIO );
+  for( auto pair : lag_p )
+   pair.first->add_active( TVDIO );
+  }
 
  }  // end ( LagBFunction::register_Observer( ) )  - - - - - - - - - - - - - -
 
@@ -260,10 +264,8 @@ void LagBFunction::add_dual_pairs( v_dual_pair && v_lag_pair ,
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  Vec_p_Var vars( v_lag_pair.size() );
- for( Index i = 0 ; i < v_lag_pair.size() ; ++i ) {
+ for( Index i = 0 ; i < v_lag_pair.size() ; ++i )
   vars[ i ] = v_lag_pair[ i ].first;
-  vars[ i ]->add_active( this );
-  }
 
  if( f_Observer && ( f_Observer->issue_mod( issueMod ) ) )
   f_Observer->add_Modification( std::make_shared<FunctionModVarsSbst>( this ,
@@ -864,11 +866,10 @@ void LagBFunction::update_function( )
 
 void LagBFunction::guts_of_destructor( )
 {
- // remove the pointer to LagBFunction from the variables  - - - - - - - - - -
+ // remove the pointer to Observer from the variables  - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- for( auto & el : lag_p )
-  el.first->remove_active( this );
+ register_Observer( );
 
  // delete the Function objects  - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

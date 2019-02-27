@@ -5,7 +5,7 @@
  * Header file for the *concrete* class LinearFunction, which
  * implements C15Function with a simple linear function.
  *
- * \version 0.14
+ * \version 0.13
  *
  * \date 27 - 02 - 2019
  *
@@ -274,16 +274,6 @@ class LinearFunction : public C15Function {
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
  *  @{ */
-
- /// set the pointer to the Observer of this Function
- /** If a non-nullptr Observer is set that also is a ThinVarDepInterface, then
-  * the Observer (rather than the LinearFunction itself) will be registered
-  * in the Variable of the LinearFunction. If a null Observer is set
-  * pointer is provided (either in the constructor or here), or the Function
-  * is "unregistered" from the current observe by calling the method with
-  * nullptr (default), then the Function is left "free floating", which means
-  * that no Modification is ever produced and no Block/Solver ever gets
-  * informed of any change occurring in the Function. */
 
  virtual void register_Observer( Observer * const observer = nullptr )
   override;
