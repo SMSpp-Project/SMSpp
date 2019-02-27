@@ -723,7 +723,7 @@ class Block : public Observer {
    netCDF::NcGroup bg;
  
    if( type == eProbFile ) {
-    netCDF::NcGroup dg = f.getGroup( "Desc_" + std::to_string( idx ) );
+    netCDF::NcGroup dg = f.getGroup( "Prob_" + std::to_string( idx ) );
     if( dg.isNull() )
      return( nullptr );
 
