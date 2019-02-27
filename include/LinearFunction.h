@@ -5,9 +5,9 @@
  * Header file for the *concrete* class LinearFunction, which
  * implements C15Function with a simple linear function.
  *
- * \version 0.12
+ * \version 0.13
  *
- * \date 18 - 02 - 2019
+ * \date 27 - 02 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -416,7 +416,7 @@ class LinearFunction : public C15Function {
  * LinearFunction. */
 
  virtual double get_linearization_constant( const LinearizationName name =
-		 Inf<LinearizationName>() ) const override final {
+		 Inf<LinearizationName>() ) override final {
  return( f_constant_term );
  }
 

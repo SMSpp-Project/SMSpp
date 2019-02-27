@@ -7,9 +7,9 @@
  * the linearizations need not be a continuous function, which means that
  * the Function may be non-smooth.
  *
- * \version 0.21
+ * \version 0.22
  *
- * \date 08 - 02 - 2019
+ * \date 27 - 02 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -801,7 +801,7 @@ class C05Function : public Function {
   */
 
  virtual double get_linearization_constant( const LinearizationName name =
-	    std::numeric_limits<unsigned int>::max() ) const = 0;
+	    std::numeric_limits<unsigned int>::max() ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// returns true if and only if this Function is continuously differentiable

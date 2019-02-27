@@ -520,6 +520,12 @@ class LagBFunction : public C05Function , public Block {
  virtual bool has_linearization( const bool diagonal = true ) override final;
 
 /*--------------------------------------------------------------------------*/
+ /// compute a new linearization for this Function
+  /** This method has to compute a *new* linearization for this Function ( see
+   * C05Function ].
+   *
+   * If the methods returns false, one can still access to the previous solution
+   * of the local pool. */
 
  virtual bool compute_new_linearization( const bool diagonal = true ) override final;
 
@@ -594,7 +600,7 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  virtual double get_linearization_constant( const LinearizationName name =
-   std::numeric_limits<Index>::max() ) const override final;
+   std::numeric_limits<Index>::max() ) override final;
 
 /*@} -----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
@@ -720,8 +726,10 @@ virtual Index is_active( const Variable * const var ) const override final;
  LinearizationName LastSolution;
  ///< the last solution read by get_linearization
 
- char VarType;
+ bool VarType;
  ///< the type of variable contained in the solver
+
+ bool VarIsSet;
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 

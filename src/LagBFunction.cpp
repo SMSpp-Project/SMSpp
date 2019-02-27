@@ -46,7 +46,6 @@ using namespace SMSpp_di_unipi_it;
 
 static const char VarIsDir = 0;   // a direction is stored
 static const char VarIsSol = 1;   // a solution is stored
-static const char UnknownVar = 2; // variables contain unknown values
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -61,7 +60,7 @@ LagBFunction::LagBFunction( v_dual_pair && v_lag_pair , const bool static_is_ord
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  LastSolution = Inf<LinearizationName>();
- VarType = UnknownVar;
+ VarIsSet = false;
 
  // set the sub-Block pointer - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -153,6 +152,10 @@ void LagBFunction::set_dual_pairs( v_dual_pair && v_lag_pair ,
 
  lag_p = std::move( v_lag_pair );
 
+
+ for( auto & el : lag_p )
+  el.first->add_active( this );
+
  } // end ( LagBFunction::set_dual_pairs( ) )  - - - - - - - - - - - - - - - -
 
 /*--------------------------------------------------------------------------*/
@@ -238,19 +241,6 @@ void LagBFunction::add_dual_pairs( v_dual_pair && v_lag_pair ,
  std::move( v_lag_pair );
  set_structure( v_lag_pair , static_is_ordered );
 
- // add modification - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- Vec_p_Var vars( v_lag_pair.size() );
- for( Index i = 0 ; i < v_lag_pair.size() ; ++i )
-  vars[ i ] = v_lag_pair[ i ].first;
-
- if( f_Observer && ( f_Observer->issue_mod( issueMod ) ) )
-  f_Observer->add_Modification( std::make_shared<LagBFunctionModSbst>( this ,
-           FunctionModVars::AddVar , std::move( vars ) , 0 ,
-		   Observer::par2concern( issueMod ) ) ,
-		   Observer::par2chnl( issueMod ) );
-
  // copy the coefficients c_i of the inner block (B) in order to allow
  // the changes of the Lagrangian cost vector c^y = c + yA and add to
  // the linear function of (B) the variables which are involved in the
@@ -266,6 +256,25 @@ void LagBFunction::add_dual_pairs( v_dual_pair && v_lag_pair ,
 		 lag_p.begin() ,
 		 []( const auto & p1, const auto & p2 ) { return( p1.first < p2.first ); }  );
 
+ // add modification - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ Vec_p_Var vars( v_lag_pair.size() );
+ for( Index i = 0 ; i < v_lag_pair.size() ; ++i ) {
+  vars[ i ] = v_lag_pair[ i ].first;
+  vars[ i ]->add_active( this );
+  }
+
+ if( f_Observer && ( f_Observer->issue_mod( issueMod ) ) )
+  f_Observer->add_Modification( std::make_shared<FunctionModVarsSbst>( this ,
+           FunctionModVars::AddVar , std::move( vars ) , 0 ,
+		   Observer::par2concern( issueMod ) ) ,
+		   Observer::par2chnl( issueMod ) );
+
+ // clear v_lag_pair, because already merged with lag_p  - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ v_lag_pair.clear();
 
  } // end ( LagBFunction::add_dual_pairs( ) )  - - - - - - - - - - - - - - - -
 
@@ -291,13 +300,6 @@ bool LagBFunction::has_linearization( const bool diagonal )
    VarType = VarIsDir;
   }
 
- if( !SlvHasNewLin )     // if no linearization has been found, the solution
-  VarType = UnknownVar;  // is unavailable
-
- // LastSolution is the current solution   - - - - - - - - - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- LastSolution = Inf<Index>();
  return( SlvHasNewLin );
 
  }  // end LagBFunction::has_linearization( )  - - - - - - - - - - - - - - - -
@@ -323,14 +325,15 @@ bool LagBFunction::compute_new_linearization( const bool diagonal )
    VarType = VarIsDir;
   }
 
- if( !SlvHasNewLin )    // if no linearization has been found, the solution
-  VarType = UnknownVar; // is unavailable
-
- // the previous LastSolution is lost unless it has been stored, LastSolution
- // is the current solution  - - - - - - - - - - - - - - - - - - - - - - - - -
+ // one cannot access to the previous solution of the local pool unless
+ // no additional solution was produced  - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- LastSolution = Inf<Index>();
+ if( SlvHasNewLin ) {
+  VarIsSet = false;
+  LastSolution = Inf<Index>();
+  }
+
  return( SlvHasNewLin );
 
  } // end LagBFunction::compute_new_linearization( ) - - - - - - - - - - - - -
@@ -342,7 +345,7 @@ void LagBFunction::store_linearization( const LinearizationName name )
  if( LastSolution < Inf<Index>() ) // the solution has been already stored
   throw( std::logic_error( "the linearization is not available anymore" ) );
 
- if( VarType == UnknownVar )       // the solution to be stored is unavailable
+ if( VarIsSet == false )          // the solution to be stored is unavailable
   throw( std::logic_error( "there is no solution to save" ) );
 
  // get the current solution   - - - - - - - - - - - - - - - - - - - - - - - -
@@ -360,7 +363,7 @@ void LagBFunction::store_linearization( const LinearizationName name )
  else
   g_pool[ name ].second = VarIsDir;
 
- } // end LagBFunction::store_linearization( ) - - - - - - - - - - - - - - - -
+ } // end LagBFunction::store_linearization( LinearizationName ) - - - - - - -
 
 /*--------------------------------------------------------------------------*/
 
@@ -369,12 +372,13 @@ int LagBFunction::compute( bool changedvars )
  LastSolution = Inf<Index>();	// set LastSolution as the current solution, i.e.
                                 // that solution which is going to be computed
 
- VarType = UnknownVar;          //so far, the current solution is unavailable
+ VarIsSet = false;              //so far, the current solution is unknown
 
  // update the Lagrangian cost vector  - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- update_function();
+ if( changedvars )
+  update_function();
 
  // return the status of the optimization process  - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -409,20 +413,21 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  if( name == Inf<LinearizationName>() ) { // asking for the last computed
-	                                      // linearization  - - - - - - - - -
+	                                      // linearization   - - - - - - - - -
 
   if( LastSolution < Inf<Index>() ) // LastSolution is not in the local pool
-   throw( std::logic_error( "the linearization is not available anymore" ) );
+   throw( std::logic_error( "the linearization is not available" ) );
 
-  // get solution/direction from the solver - - - - - - - - - - - - - - - - -
+  // get solution/direction from the solver  - - - - - - - - - - - - - - - - -
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-  if( VarType == UnknownVar )            // if the current solution is unavailable
-   throw( std::logic_error( "there is no solution to save" ) );
-  else
+  if( VarIsSet == false ) {
    if( VarType == VarIsSol )
     slv->get_var_solution();
    else
     slv->get_var_direction();
+   VarIsSet = true;
+   }
 
   }
  else {  // asking for a linearization of the global pool  - - - - - - - - - -
@@ -430,10 +435,10 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
   // assign Solution to the sub-Block in such a way the related linearization
   // < name > will be recovered
 
-  if( name != LastSolution )
+  if( name != LastSolution ) {
    g_pool[ name ].first->write( v_Block[0] );
-
-  LastSolution = name ;    // update LastSolution
+   LastSolution = name ;
+   }
 
   } // end else  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -469,17 +474,18 @@ void LagBFunction::get_linearization_coefficients( SparseVector & g ,
 	                                      // linearization  - - - - - - - - -
 
   if( LastSolution < Inf<Index>() ) // the saved solution is not in the local pool
-   throw( std::logic_error( "the linearization is not available anymore" ) );
+   throw( std::logic_error( "the linearization is not available" ) );
 
-  // get solution/direction from the solver - - - - - - - - - - - - - - - - -
+  // get solution/direction from the solver  - - - - - - - - - - - - - - - - -
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-  if( VarType == UnknownVar )            // if the current solution is unavailable
-   throw( std::logic_error( "there is no solution to save" ) );
-  else
+  if( VarIsSet == false ) {
    if( VarType == VarIsSol )
     slv->get_var_solution();
    else
     slv->get_var_direction();
+   VarIsSet = true;
+   }
 
   }
  else {  // asking for a linearization of the global pool  - - - - - - - - - -
@@ -487,10 +493,10 @@ void LagBFunction::get_linearization_coefficients( SparseVector & g ,
   // assign Solution to the sub-Block in such a way the related linearization
   // < name > will be recovered
 
-  if( name != LastSolution )
+  if( name != LastSolution ) {
    g_pool[ name ].first->write( v_Block[0] );
-
-  LastSolution = name ;    // update LastSolution
+   LastSolution = name ;
+   }
 
   } // end else  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -536,21 +542,40 @@ void LagBFunction::get_linearization_coefficients( SparseVector & g ,
 
 /*--------------------------------------------------------------------------*/
 
-double LagBFunction::get_linearization_constant( const LinearizationName name ) const
+double LagBFunction::get_linearization_constant( const LinearizationName name )
 {
  double alpha = 0;
  if( name == Inf<LinearizationName>() ) {
 
   if( LastSolution < Inf<Index>() ) // the saved solution is not in the local pool
-   throw( std::logic_error( "the linearization is not available anymore" ) );
+   throw( std::logic_error( "the linearization is not available" ) );
 
-  if( VarType == UnknownVar )       // if the current solution is unavailable
-   throw( std::logic_error( "there is no solution to save" ) );
+  // get solution/direction from the solver  - - - - - - - - - - - - - - - - -
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+  if( VarIsSet == false ) {
+   if( VarType == VarIsSol )
+    slv->get_var_solution();
+   else
+    slv->get_var_direction();
+   VarIsSet = true;
+   }
 
   }
- else
-  if( name != LastSolution )
-   throw( std::logic_error( "he linearization is not available anymore" ) );
+ else {  // asking for a linearization of the global pool  - - - - - - - - - -
+
+  // assign Solution to the sub-Block in such a way the related linearization
+  // < name > will be recovered
+
+  if( name != LastSolution ) {
+   g_pool[ name ].first->write( v_Block[0] );
+   LastSolution = name ;
+   }
+
+  } // end else  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ // compute the constant - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  for( auto it = LagMatrix.begin() ; it != LagMatrix.end() ; ++it )
   alpha += (it->first)->get_value() * (it->second).first;
@@ -839,9 +864,25 @@ void LagBFunction::update_function( )
 
 void LagBFunction::guts_of_destructor( )
 {
+ // remove the pointer to LagBFunction from the variables  - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ for( auto & el : lag_p )
+  el.first->remove_active( this );
+
+ // delete the Function objects  - - - - - - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
  clear();
 
+ // clear the map handling the data structure to compute linearizations and
+ // updating the Lagrangian cost vector  - - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
  LagMatrix.clear();
+
+ // delete the global pool - - - - - - - - - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  for( int i = 0 ; i < g_pool.size() ; ++i )
   delete[] g_pool[ i ].first;
