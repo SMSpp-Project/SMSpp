@@ -60,9 +60,9 @@ namespace SMSpp_di_unipi_it
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /// a Variable that holds a single real value, possibly restricted to a subset
-/** The ColVariable class, derived from Variable, is intended as the base
- * class for all the Variable that are single real values, possibly
- * restricted to some subset (e.g., the integers). In a linear program this
+/** The ColVariable class, derived from Variable, is intended as the simple
+ * version of "Variable whose value is a single real, possibly restricted to
+ * some "interesting" subset (e.g., the integers)". In a Linear Program this
  * would correspond to a column in the coefficient matrix, whence the name.
  *
  * This class extends Variable to support the following further facts:
@@ -70,17 +70,37 @@ namespace SMSpp_di_unipi_it
  *  - A ColVariable has a value, which is a real number. More specifically, a
  *    type "VarValue" is defined, which is bound by default to doubles, to
  *    hold the type of the variable. Changing this type here is possible, but
- *    this changes it to the whole SMS++ hierarchy, so this does not look too
- *    reasonable; if one really needs a different return value than double
- *    can rather re-define a similar class to this.
+ *    this changes it to the whole of SMS++ that uses ColVariable; if
+ *    real-valued :Variable with different precisions than double are
+ *    required, one should rather re-define a specific similar class to this.
  *
  *  - Other than being fiked, a ColVariable can be restricted to live into
- *    some "interesting" subsets of the reals, such as integers and binary
- *    values.
+ *    some "interesting subsets of the reals". This is mainly used to impose
+ *    integrality restrictions: each subset has both an "integral" and a
+ *    "continuous" variant. However, also sign constraints and "unitary"
+ *    constraints (the absolute value of the value of the ColVariable must
+ *    be not larger than 1) can be imposed, yielding 13 different subsets
+ *    (formally 16, but 4 only allow the value 0) which comprise many of
+ *    the bound/sign/integrality constraints found in practical models, most
+ *    notably that of binary values (the value being either 0 or 1).
  *
  * - A trivial implementation of the set of "active stuff" for this
  *   ColVariable as an ordered set of pointers to ThinVarDepInterface.
- */
+ *
+ * Important note: the "type" of the ColVariable is in fact a constraint on
+ * its possible values; as such, it being a part of the ColVariable, rather
+ * being specified by something that derives from Constraint, is a bit on the
+ * slippery side. In particular, several (but not all) types imply finite
+ * upper and/or lower bounds on the value. In some cases, such as in Linear
+ * (Convex) Programs, these bounds may be active at an optimal solution and
+ * have non-zero dual variables (often called the "reduced cost" of the
+ * variable). However, there is no place in the ColVariable to store this
+ * information. Yet, it is usually possible to reconstruct this the reduced
+ * cost out of the rest of the dual solution if necessary. Also, very many
+ * variables in practical models only have these very special (bound)
+ * constraints imposed on them, which means that it is possible to save a
+ * significant amount of memory by not having to implement them through an
+ * explicit :Constraint object. */
 
 class ColVariable : public Variable {
 
@@ -94,24 +114,57 @@ class ColVariable : public Variable {
 /*---------------------------- PUBLIC TYPES --------------------------------*/
 /*--------------------------------------------------------------------------*/
  /** @name Public Types
-     @{ */
+  *  @{ */
 
  /// Definition of the possible type of ColVariable
+ /** The enum col_var_type defines all possible "types" that the ColVariable
+  * can have, i.e., which subset of the reals (possibly, the whole set) its
+  * value is restricted to belong to. There are 16 possible types of
+  * ColVariable, according to all possible combinations of 4 independent
+  * conditions:
+  *
+  * - the ColVariable must be integer-valued;
+  *
+  * - the ColVariable must be non-negative;
+  *
+  * - the ColVariable must be non-positive;
+  *
+  * - the maximum absolute value ColVariable must be 1.
+  *
+  * These give the possibility to specify many "interesting subsets of the
+  * reals", such as binary variables (those that can only attain either value
+  * 0 or value 1). Very many variables in practical models fit in one of
+  * these cases. In order to allow all possible combinations some "weird"
+  * cases are also comprised, but likely the "type" of the ColVariable is
+  * read/manipulated with the methods allowing to check/set the individual
+  * properties rather than looking at these enums, so it does not matter
+  * much. */
+
  enum col_var_type {
-  kBinary = 0 ,   ///< can only have values 0 and 1 (but can have both)
-  kInteger    ,   ///< can only have integer values
-  kContinuous ,   ///< can have any real value
-  ColVarLastType  ///< first allowed parameter value for derived classes
-                  /**< Convenience value for easily allow derived classes
-		   * to extend the set of types of real subsets */
+  kContinuous  =  0 ,  ///< any real value
+  kInteger     =  1 ,  ///< any integer value
+  kNonNegative =  2 ,  ///< any non-negative real value
+  kNatural     =  3 ,  ///< any non-negative integer (natural)
+  kNonPositive =  4 ,  ///< any non-positive real value
+  kNegative    =  5 ,  ///< any non-positive integer value
+  kZeroReal    =  6 ,  ///< any real value provided it is 0
+  kZeroInteger =  7 ,  ///< any integer value provided it is 0
+  kUnitary     =  8 ,  ///< any real value between -1 and 1
+  kTernary     =  9 ,  ///< either -1, or 0, or 1
+  kPosUnitary  = 10 ,  ///< any real value between 0 and 1
+  kBinary      = 11 ,  ///< either 0 or 1
+  kNegUnitary  = 12 ,  ///< any real value between -1 and 0
+  kNegBinary   = 13 ,  ///< either -1 or 0
+  kZeroRealU   = 14 ,  ///< any real value between -1 and 1 provided it is 0
+  kZeroIntU    = 15 ,  ///< any int value between -1 and 1 provided it is 0
+  ColVarLastType       ///< first allowed parameter value for derived classes
+                       /**< Convenience value for easily allow derived classes
+			* to extend the set of types of real subsets. */
   };
 
 /*--------------------------------------------------------------------------*/
 
- typedef double VarValue;  ///< type of the value of the ColVariable
-                           /**< type of the value of the ColVariable,
-			    * and therefore also of the attached dual
-			    * information (reduced cost). */
+ typedef double VarValue;            ///< type of the value of the ColVariable
 
  typedef const VarValue c_VarValue;  ///< a const VarValue
 
@@ -134,6 +187,7 @@ class ColVariable : public Variable {
 
  ColVariable( Block *my_block = nullptr , const var_type type = kContinuous )
   : Variable( my_block ) {
+  f_state &= var_type( 1 );
   f_state |= type * 2;
   set_to_default_value();
   }
@@ -199,6 +253,26 @@ class ColVariable : public Variable {
  virtual void set_type( const var_type type ,
 			c_ModParam issueMod = eModBlck );
 
+/*--------------------------------------------------------------------------*/
+ /// method to set whether the ColVariable is integer-valued
+
+ virtual void is_integer( const bool yn , c_ModParam issueMod = eModBlck );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method to set whether the ColVariable is non-negative
+
+ virtual void is_positive( const bool yn , c_ModParam issueMod = eModBlck );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method to set whether the ColVariable is non-positive
+
+ virtual void is_negative( const bool yn , c_ModParam issueMod = eModBlck );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method to set whether the max absolute value of the ColVariable is 1
+
+ virtual void is_unitary( const bool yn , c_ModParam issueMod = eModBlck );
+
 /*@} -----------------------------------------------------------------------*/
 /*------------ METHODS DESCRIBING THE BEHAVIOR OF A ColVariable ------------*/
 /*--------------------------------------------------------------------------*/
@@ -209,12 +283,51 @@ class ColVariable : public Variable {
  VarValue get_value( void ) const { return( f_value ); }
 
 /*--------------------------------------------------------------------------*/
-
  /// method to get the type of the ColVariable
  /** Returns the "type" of the ColVariable, encoded accordingly to the enum
   * col_var_type. */
 
  var_type get_type( void ) const { return( f_state / 2 ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method to tell whether the ColVariable is integer-valued
+
+ bool is_integer( void ) const { return( f_state & var_type( 2 ) ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method to tell whether the ColVariable is non-negative
+
+ bool is_positive( void ) const { return( f_state & var_type( 4 ) ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method to tell whether the ColVariable is non-positive
+
+ bool is_negative( void ) const { return( f_state & var_type( 8 ) ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method to tell whether the max absolute value of the ColVariable is 1
+
+ bool is_unitary( void ) const { return( f_state & var_type( 16 ) ); }
+
+/*--------------------------------------------------------------------------*/
+ /// method to return the lower bound on the ColVariable implied by its type
+
+ VarValue get_lb( void ) const
+ {
+  return( is_positive() ? VarValue( 0 ) :
+	                  ( is_unitary() ? VarValue( -1 ) :
+			      -std::numeric_limits<VarValue>::infinity() ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method to return the upper bound on the ColVariable implied by its type
+
+ VarValue get_ub( void ) const
+ {
+  return( is_negative() ? VarValue( 0 ) :
+	                  ( is_unitary() ? VarValue( 1 ) :
+			        std::numeric_limits<VarValue>::infinity() ) );
+  }
 
 /*@} -----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING ACTIVE "STUFF" ------------------*/

@@ -53,5 +53,85 @@ void ColVariable::set_type( const var_type type , c_ModParam issueMod )
  }
 
 /*--------------------------------------------------------------------------*/
+
+void ColVariable::is_integer( const bool yn , c_ModParam issueMod )
+{
+ if( yn == is_integer() )  // actually doing nothing
+  return;                  // cowardly (and silently) return
+
+ if( yn )
+  f_state |= var_type( 2 );
+ else
+  f_state &= ~var_type( 2 );
+   
+ if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
+  return;
+
+ f_Block->add_Modification( std::make_shared<VariableMod>( this ,
+					Observer::par2concern( issueMod ) ) ,
+			    Observer::par2chnl( issueMod ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void ColVariable::is_positive( const bool yn , c_ModParam issueMod )
+{
+ if( yn == is_positive() )  // actually doing nothing
+  return;                   // cowardly (and silently) return
+
+ if( yn )
+  f_state |= var_type( 4 );
+ else
+  f_state &= ~var_type( 4 );
+   
+ if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
+  return;
+
+ f_Block->add_Modification( std::make_shared<VariableMod>( this ,
+					Observer::par2concern( issueMod ) ) ,
+			    Observer::par2chnl( issueMod ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void ColVariable::is_negative( const bool yn , c_ModParam issueMod )
+{
+ if( yn == is_negative() )  // actually doing nothing
+  return;                   // cowardly (and silently) return
+
+ if( yn )
+  f_state |= var_type( 8 );
+ else
+  f_state &= ~var_type( 8 );
+   
+ if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
+  return;
+
+ f_Block->add_Modification( std::make_shared<VariableMod>( this ,
+					Observer::par2concern( issueMod ) ) ,
+			    Observer::par2chnl( issueMod ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void ColVariable::is_unitary( const bool yn , c_ModParam issueMod )
+{
+ if( yn == is_unitary() )  // actually doing nothing
+  return;                  // cowardly (and silently) return
+
+ if( yn )
+  f_state |= var_type( 16 );
+ else
+  f_state &= ~var_type( 16 );
+   
+ if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
+  return;
+
+ f_Block->add_Modification( std::make_shared<VariableMod>( this ,
+					Observer::par2concern( issueMod ) ) ,
+			    Observer::par2chnl( issueMod ) );
+ }
+
+/*--------------------------------------------------------------------------*/
 /*---------------------- End File Variable.cpp -----------------------------*/
 /*--------------------------------------------------------------------------*/
