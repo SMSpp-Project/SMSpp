@@ -264,8 +264,7 @@ class LagBFunction : public C05Function , public Block {
  typedef std::vector< dual_pair > v_dual_pair;
  ///< a vector of dual_pair
 
- typedef std::list< dual_pair > l_dual_pair;
- ///< a list of dual_pair
+ /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
  typedef std::pair< p_Solution , bool > linearization_pair;
  ///< a solution equipped with boolean which defines the type of linearization
@@ -280,6 +279,97 @@ class LagBFunction : public C05Function , public Block {
 
  typedef std::map< ColVariable * , col_pair > m_column;
  ///< a map of col_pair
+
+ /*--------------------------------------------------------------------------*/
+  /// virtualized concrete iterator
+  /** A concrete class deriving from ThinVarDepInterface::v_iterator and
+   * implementing the concrete iterator for "sifting through" the "active"
+   * Variable of a LagBFunction. */
+
+  class v_iterator : public ThinVarDepInterface::v_iterator
+  {
+   public:
+
+   v_iterator( v_dual_pair::iterator itr ) : itr_( itr ) { }
+
+   virtual void operator++( void ) override final { (itr_)++; }
+   virtual reference operator*( void ) const override final {
+    return( *((*itr_).first) );
+    }
+   virtual pointer operator->( void ) const override final {
+    return( (*itr_).first );
+    }
+   virtual bool operator==( const ThinVarDepInterface::v_iterator & rhs )
+    const override final {
+    #ifdef NDEBUG
+     auto tmp = static_cast<const LagBFunction::v_iterator *>( & rhs );
+     return( itr_ == tmp->itr_ );
+    #else
+     auto tmp = dynamic_cast<const LagBFunction::v_iterator *>( & rhs );
+     return( tmp ? itr_ == tmp->itr_ : false );
+    #endif
+    }
+   virtual bool operator!=( const ThinVarDepInterface::v_iterator & rhs )
+    const override final {
+    #ifdef NDEBUG
+     auto tmp = static_cast<const LagBFunction::v_iterator *>( & rhs );
+     return( itr_ != tmp->itr_ );
+    #else
+     auto tmp = dynamic_cast<const LagBFunction::v_iterator *>( & rhs );
+     return( tmp ? itr_ != tmp->itr_ : false );
+    #endif
+    }
+
+   private:
+
+   v_dual_pair::iterator itr_;
+   };
+
+ /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+  /// virtualized concrete const_iterator
+  /** A concrete class deriving from ThinVarDepInterface::v_const_iterator and
+    * implementing the concrete iterator for sifting through the "active"
+    * Variable of a LinearFunction. */
+
+  class v_const_iterator : public ThinVarDepInterface::v_const_iterator
+  {
+   public:
+
+   v_const_iterator( v_dual_pair::const_iterator itr ) : itr_( itr ) { }
+
+   virtual void operator++( void ) override final { (itr_)++; }
+   virtual reference operator*( void ) const override final {
+    return( *((*itr_).first) );
+    }
+   virtual pointer operator->( void ) const override final {
+    return( (*itr_).first );
+    }
+   virtual bool operator==( const ThinVarDepInterface::v_const_iterator & rhs )
+    const override final {
+    #ifdef NDEBUG
+     auto tmp = static_cast<const LagBFunction::v_const_iterator *>( & rhs );
+     return( itr_ == tmp->itr_ );
+    #else
+     auto tmp = dynamic_cast<const LagBFunction::v_const_iterator *>( & rhs
+  								       );
+     return( tmp ? itr_ == tmp->itr_ : false );
+    #endif
+    }
+   virtual bool operator!=( const ThinVarDepInterface::v_const_iterator & rhs )
+    const override final {
+    #ifdef NDEBUG
+     auto tmp = static_cast<const LagBFunction::v_const_iterator *>( & rhs );
+     return( itr_ != tmp->itr_ );
+    #else
+     auto tmp = dynamic_cast<const LagBFunction::v_const_iterator *>( & rhs );
+     return( tmp ? itr_ != tmp->itr_ : false );
+    #endif
+    }
+
+   private:
+
+   v_dual_pair::const_iterator itr_;
+   };
 
 /*@}------------------------------------------------------------------------*/
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
@@ -302,7 +392,7 @@ class LagBFunction : public C05Function , public Block {
   *
   * By default the vector of dual pairs is assumed to *not* be ordered. */
 
- LagBFunction( v_dual_pair && v_lag_pairs = {} , const bool static_is_ordered = false ,
+ LagBFunction( v_dual_pair && v_lag_pair = {} , const bool static_is_ordered = false ,
 		 Block* innerblock = nullptr );
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
@@ -327,7 +417,7 @@ class LagBFunction : public C05Function , public Block {
  /** Method to set the pointer to the sub-Block, which is assumed to be
   *  only one. lineare vincoli e funzione obiettivo
   *
-  * If a set of static dual pairs <y, g(x)> have been already accommodated
+  * If a set of "static" dual pairs <y, g(x)> have been already accommodated
   * [ see set_static_pairs(), LagBFunction(v_dual_pair &&, bool) ],
   * the cost vector c of (B) will be saved. This because the evaluation of
   * Lagrangian function l(y) requires the vector c -stored in (B)- to be
@@ -336,7 +426,7 @@ class LagBFunction : public C05Function , public Block {
   *
   * In addition, since c(x) of (B) is stored in a *sparse* format,
   * the LagBFunction has to add -to the *active* variable set of the
-  * LinearFunction of (B)- those Variable with coefficient zero
+  * LinearFunction of (B)- the Variable with coefficient zero
   * which are involved in the definition of g(x)  */
 
  void set_inner_block( Block* innerblock );
@@ -356,7 +446,7 @@ class LagBFunction : public C05Function , public Block {
   *
   * In addition, since c(x) of (B) is stored in a *sparse* format,
   * the LagBFunction has to add -to the *active* variable set of the
-  * LinearFunction of (B)- those Variable with coefficient zero
+  * LinearFunction of (B)- the Variable with coefficient zero
   * which are involved in the definition of g(x)  */
 
  void set_dual_pairs( v_dual_pair && v_lag_pairs ,
@@ -384,9 +474,19 @@ class LagBFunction : public C05Function , public Block {
 /** @name Methods for handling Modification
  *  @{ */
 
- /// add a bunch of dual pairs <y, g(x)>
+ /// add a bunch of dual pairs <y, g(x)>,
+ /** This method adds a bunch of new Lagrangian pairs. The part of cost vector
+   * c of (B) -not already saved- will be stored. The evaluation of the
+   * Lagrangian function l(y) requires the vector c -stored in (B)- to be
+   * replaced by c^y = c + yA, and consequently the original vector c would be
+   * unavailable.
+   *
+   * In addition, since c(x) of (B) is stored in a *sparse* format,
+   * the LagBFunction has to add -to the *active* variable set of the
+   * LinearFunction of (B)- the Variable with coefficient zero
+   * which are involved in the definition of g(x)  */
 
- void add_dual_pairs( l_dual_pair && l_lag_pairs ,
+ void add_dual_pairs( v_dual_pair && v_lag_pair ,
  		 const bool static_is_ordered = false );
 
 
@@ -416,10 +516,10 @@ class LagBFunction : public C05Function , public Block {
  /// compute the Function
  /** It has to compute the Function. The parameter changedvars is ignored.
   *
-  *  It is assumed that the sub-Block (B) has its own Variable only. The
-  *  re-optimization of (B) shall be performed starting from the old
-  *  solution and any problem shouldn't occur. No relevant Variable are
-  *  defined in (B). */
+  *  It is assumed that the sub-Block (B) does not have Variable defined
+  *  in other Blocks. Then, the re-optimization of (B) can be performed starting
+  *  from the warm-start (the old solution) and any problem shouldn't occur.
+  *  No relevant Variable are defined in (B). */
 
  virtual int compute( bool changedvars = true ) override;
 
@@ -455,12 +555,10 @@ class LagBFunction : public C05Function , public Block {
   * part of the linearization with the given name.
   *
   * This implements the virtual function of class C05Function. If name is
-  * INF<LinearizationName>, the current linearization of the local pool
-  * will be unavailable. */
+  * INF , the current linearization of the local pool shall be unavailable. */
 
  virtual void get_linearization_coefficients( FunctionValue * g ,
-   const LinearizationName name =
-                              std::numeric_limits<LinearizationName>::max() ,
+   const LinearizationName name = Inf<LinearizationName>() ,
    c_Vec_Index * const indices = nullptr , c_Index start = 0 ,
    c_Index end = std::numeric_limits<Index>::max() ) override final;
 
@@ -471,19 +569,14 @@ class LagBFunction : public C05Function , public Block {
   * of a linearization.
   *
   * This implements the virtual function of class C05Function. If name is
-  * INF<LinearizationName>, the current linearization of the local pool
-  * will be unavailable.  */
+  * INF , the current linearization of the local pool shall be unavailable. */
 
  virtual void get_linearization_coefficients( SparseVector &g ,
-   const LinearizationName name =
-                              std::numeric_limits<LinearizationName>::max() ,
+   const LinearizationName name = Inf<LinearizationName>() ,
    c_Vec_Index * const indices = nullptr , c_Index start = 0 ,
    c_Index end = std::numeric_limits<Index>::max() ) override final;
 
 /*--------------------------------------------------------------------------*/
-
- /** There is only one linearization in a LagBFunction, its value being
-  * the opposite of its constant term. */
 
  virtual double get_linearization_constant( const LinearizationName name =
    std::numeric_limits<Index>::max() ) const override final;
@@ -509,7 +602,7 @@ class LagBFunction : public C05Function , public Block {
 
  virtual int get_dflt_int_par( const idx_type par ) const override;
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
  virtual double get_dflt_dbl_par( const idx_type par ) const override;
 
@@ -521,6 +614,47 @@ class LagBFunction : public C05Function , public Block {
  * vector v_pairs of pairs.
  * @{ */
 
+ virtual Index get_num_active_var( void ) const override final {
+  return( lag_p.size() );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+virtual Index is_active( const Variable * const var ) const override final;
+
+/*--------------------------------------------------------------------------*/
+
+ virtual void map_active( c_Vec_p_Var & vars , Vec_Index & map ,
+			  const bool ordered = false ) const override final;
+
+/*--------------------------------------------------------------------------*/
+
+ virtual Variable *get_active_var( const Index i ) const override final {
+  return( ( lag_p.begin() + i )->first );
+  }
+/*--------------------------------------------------------------------------*/
+
+ virtual v_iterator * v_begin( void ) override final {
+  return( new LagBFunction::v_iterator( lag_p.begin() ) );
+  }
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+
+ virtual v_const_iterator * v_begin( void ) const override final {
+  return( new LagBFunction::v_const_iterator( lag_p.begin() ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ virtual v_iterator * v_end( void ) override final {
+  return( new LagBFunction::v_iterator( lag_p.end() ) );
+  }
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+
+ virtual v_const_iterator * v_end( void ) const override final {
+  return( new LagBFunction::v_const_iterator( lag_p.end() ) );
+  }
 
 /*@} -----------------------------------------------------------------------*/
 /*-------------- METHODS FOR MODIFYING THE LagBFunction --------------------*/
@@ -549,18 +683,24 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
+ FRealObjective * obj;
+ ///< the (linear) objective function
 
- v_dual_pair slag_p;
- ///< vector of static Lagrangian pairs
+ Solver* slv;
+ ///< Solver of the sub-Block
 
- l_dual_pair dlag_p;
- ///< list of dynamic Lagrangian pairs
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
- v_linearization_pair g_pool_var;
+ v_dual_pair lag_p;
+ ///< list of Lagrangian dual pairs
+
+ v_linearization_pair g_pool;
  ///< global pool of variables
 
- std::vector<double> g_pool_cns;
- ///< global pool of constants
+ m_column LagMatrix;
+ ///< the matrix yA in the Lagrangian function
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
  LinearizationName LastSolution;
  ///< the last solution read by get_linearization
@@ -568,17 +708,7 @@ class LagBFunction : public C05Function , public Block {
  char VarType;
  ///< the type of variable contained in the solver
 
- FRealObjective obj;
- ///< the (linear) objective function
-
- // FunctionValue lb_value;
- ///< the lower bound to the value of (B)
-
- // FunctionValue ub_value;
- ///< the upper bound to the value of (B)
-
- m_column LagMatrix;
- ///< the matrix yA in the Lagrangian function
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
  int GPMaxSz;
  ///< maximum size of the "global pool"
@@ -602,8 +732,14 @@ class LagBFunction : public C05Function , public Block {
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-   void set_static_structure( v_dual_pair & vdp );
-   void set_dynamic_structure( l_dual_pair & ldp );
+   void set_structure( v_dual_pair & v_lag_pair ,
+		   const bool static_is_ordered = false );
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+
+   void set_objective_and_solver();
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
    void store_function( );
 
