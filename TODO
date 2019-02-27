@@ -1,3 +1,57 @@
+2019-02-22 [very high] State and constraints inside (Col)Variable
+
+	The f_state data member of Variable informs whether the
+	Variable is fixed or not. This is a constraint that could be
+	represented, for example, as a OneVarConstraint (by setting
+	the lower and upper bounds equal to the value of the Variable)
+	or some variation of it. In ColVariable, the f_state is used
+	to indicate whether a Variable is binary, integer, or
+	continuous. These are constraints that could be also
+	represented as a variation of a OneVarConstraint.
+
+	Many other simple constraints on ColVariables are currently
+	being considered that makes use of f_state, such as,
+	non-positive and non-negative variables, but they could also
+	be represented as a variation of OneVarConstraint.
+
+	We must decide whether to keep the f_state member of Variable
+	or remove it. By removing it, we save memory and we should
+	create new constraints to represent the aforementioned
+	constraints on (Col)Variables.
+
+
+2019-02-22 [low] A Function with Col and MultiColVariable
+
+	We could implement a Function that has among its active
+	Variables, for example, both ColVariable and
+	MultiColVariable. Actually, the idea is that a concrete
+	implementation of Function could have a more general type of
+	Variable than ColVariable.
+
+	Let us consider, for instance, the LinearFunction. Currently,
+	LinearFunction is a function of ColVariables. We could create
+	another linear function, say GeneralLinearFunction, that would
+	have, say, GeneralRealVariables as active Variables. (The
+	names are not important now.) ColVariable and MultiColVariable
+	would both inherit from GeneralRealVariable. So, instead of
+	having pairs (ColVariable *, double coefficient) to represent
+	the linear function, as it is done in LinearFunction, we would
+	have pairs (GeneralRealVariable *, Coefficient [*]). For
+	ColVariable, the Coefficient could be a double. For
+	MultiColVariable, the Coefficient would be a more complicated
+	structure (or simply a list of pairs (iterator, double
+	coefficient) depending on how MultiColVariable is implemented
+	and the type of coefficient that is desired).
+
+
+2019-02-22 [low] Name of OneVarConstraint
+
+	OneVarConstraint could be called OneVarBoundConstraint, for
+	example. This would make its meaning clearer and
+	OneVarConstraint could be a more general constraint that
+	involves a single Variable.
+
+
 2018-03-22 [high] LagrangianBlock, LagrangianFunction
 
 	SMS++ is motivated by decomposition: we should verify that it
@@ -41,7 +95,7 @@
 	where the coefficients are a std::vector<double> and the Variables
 	are a std::vector<Variable *> (with the idea that you don't care if
 	there are or not zeroes in the coefficient vector), a
-        D[oubly]D[ense]LinearFunction
+	D[oubly]D[ense]LinearFunction
 	where the coefficients are a std::vector<double> and the Variables
 	are a *pointer* to a std::vector<Variable>, and an
 	E[xternalD[oubly]D[ense]LinearFunction which is as the above except
@@ -50,14 +104,14 @@
 
 2018-08-17 [low] MultiVarConstraint
 
-	We chould implement a template class MultiVarConstraint, inspired from
+	We could implement a template class MultiVarConstraint, inspired from
 	OneVarConstraint, that defines "group constraints" on arbitrary
 	containers of ColVariable. For instance, one could do a MultiBoxConstraint
 	that has a container of ColVariable and two parallel containers of double
 	(or a container of pairs) for the LHS and RHS of the boxes. This would be
-	fractionally less expensive that a corresponding container of BoxConstraint,
-	since for instance it would be all-or-noting in terms of relaxing it.
-	Also, it might perhape lead to more efficient implementation of, say,
+	fractionally less expensive than a corresponding container of BoxConstraint,
+	since for instance it would be all-or-nothing in terms of relaxing it.
+	Also, it might perhaps lead to more efficient implementation of, say,
 	LinearConstraint if all the ColVariable you make a linear combination of
 	belong to the same (multi-)array; but I'm not really sure of it. Since the
 	advantage is not likely to be large, this is left for the future (if ever).
@@ -142,26 +196,27 @@
 	it the bits corresponding to the Modifications the Block itself wants to
 	see anyway*, i.e., those of abstract objects that possibly have to be
 	turned into physical modifications. Note that an abstract modification
-	reaching a Block may trigger changes in the corresponding physical fileds
+	reaching a Block may trigger changes in the corresponding physical fields
 	of the Block, but not necessarily trigger a physical Modification if there
 	is no interested Solver in such a thing.
 
 
 2018-09-07 [low] Solver specifies which kinds of Modifications it cares about
 
-        An even more detailed version of the previous one: both Solver and Block
-	expose a std::set (or std::unoredered_set) of std::type_info of
-	the Modification types they "follow". At the level of the single Block the
-	unkon of the sets of the Solver is computed, then the set of the Block
-	itself is added, then the set of the father is added, and then all this is
-	sent to the sons.
+	An even more detailed version of the previous one: both Solver
+	and Block expose a std::set (or std::unoredered_set) of
+	std::type_info of the Modification types they "follow". At the
+	level of the single Block the unkown of the sets of the Solver
+	is computed, then the set of the Block itself is added, then
+	the set of the father is added, and then all this is sent to
+	the sons.
 
 
 2019-02-21 [very low] boost::stable_vector
 
 	The reason why in SMS++ we use std::list for dynamic stuff is that they
-        are stable. However, there are alternative stable containers, such as
-	
+	are stable. However, there are alternative stable containers, such as
+
 	https://www.boost.org/doc/libs/1_57_0/doc/html/container/non_standard_containers.html#container.non_standard_containers.stable_vector
 
 	It would indeed be possible to replace std::list with boost::stable_vector
@@ -224,7 +279,7 @@
 2018-07-07 [low] Is RowConstraint::f_value necessary?
 
 	Since FRowConstraint now uses upper and lower estimates, it may be that the
-	f_value field and all the rest in RowConstraint could better be removed. 
+	f_value field and all the rest in RowConstraint could better be removed.
 
 
 2018-04-06 [low] "Variable blob"
