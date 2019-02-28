@@ -13,7 +13,7 @@
  *
  * \version 0.31
  *
- * \date 27 - 02 - 2019
+ * \date 28 - 02 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -285,8 +285,17 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// destructor: it is virtual, and empty
+ /** The destructor of the base Function class has nothing to do. However,
+  * the destructor of any derived class, besides deallocating all its data
+  * structures, will have to un-register the Observer of the :Function--rather
+  * than the :Function itsefl--from all its "active" Variable; this provided
+  * the Observer also is a ThinVarDepInterface. A simple and general way to
+  * do this is to call register_Observer() (with default = nullptr argument),
+  * see below. This provided that the clear() method has not been invoked
+  * before, in which case un-registering is not required. */
 
- virtual ~Function() { }  ///< destructor: it is virtual, and empty
+ virtual ~Function() { }
 
 /*@} -----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -302,9 +311,16 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
   * that no Modification is ever produced and no Block/Solver ever gets
   * informed of any change occurring in the Function.
   *
-  * Note that if a non-nullptr Observer is set then the Observer -rather than
-  * the Function itself- will be registered in the Variable of the Function.
-  * */
+  * Note that if a non-nullptr Observer which also is a ThinVarDepInterface
+  * is set, then that Observer--rather than the Function itself--will have to
+  * be registered in the active Variable of the Function. This has to be done
+  * in the :Function-specific implementation of the method, since the base
+  * Function class has no clue about how the active Variable are managed. If
+  * a previous Observer was set, all the Variable will have first to be
+  * un-registered to the old Observer before they are registered to the new
+  * one. If the method is called with nullptr, the old Observer (if any, and
+  * if it is a ThinVarDepInterface) will have to be un-registered from all
+  * the Variable and no new one is registered in its place. */
 
  virtual void register_Observer( Observer * const observer = nullptr ) {
   f_Observer = observer;
