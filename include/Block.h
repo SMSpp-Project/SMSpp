@@ -751,7 +751,7 @@ class Block : public Observer {
  /// de-serialize a :Block out of netCDF::NcGroup, returns it
  /** Third-level de-serialization method: takes a netCDF::NcGroup supposedly
   * containing a Block, extracts the string attribute "type" out of the
-  * netCDF::NcGroup, uses it in the factory to construct the "empty" :Bloc
+  * netCDF::NcGroup, uses it in the factory to construct the "empty" :Block
   * [see new_Block( string )], and then finally dispatches to
   * deserialize( netCDF::NcGroup , Block * ), which is where the
   * :Block-dependent de-serialization happens. Since the latter method
@@ -3347,7 +3347,7 @@ class Block : public Observer {
   netCDF::NcGroup bg;
  
   if( type == eProbFile ) {
-   netCDF::NcGroup dg = f.addGroup( "Desc_" + std::to_string( idx ) );
+   netCDF::NcGroup dg = f.addGroup( "Prob_" + std::to_string( idx ) );
    bg = dg.addGroup( "Block" );
    }
   else

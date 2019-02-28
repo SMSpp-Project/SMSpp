@@ -703,7 +703,7 @@ void BlockConfig::serialize( netCDF::NcFile && f , const int type ) const
   return;
   }
 
- serialize( ( f.addGroup( "Desc_" + std::to_string( f.getGroupCount() )
+ serialize( ( f.addGroup( "Config_" + std::to_string( f.getGroupCount() )
 			  ) ).addGroup( "BlockConfig" ) );
 
  }  // end( BlockConfig::serialize( file ) )
@@ -1046,7 +1046,7 @@ void BlockSolverConfig::serialize( netCDF::NcFile && f , const int type )
   return;
   }
 
- serialize( ( f.addGroup( "Desc_" + std::to_string( f.getGroupCount() )
+ serialize( ( f.addGroup( "Config_" + std::to_string( f.getGroupCount() )
 			  ) ).addGroup( "SolverConfig" ) );
 
  }  // end( BlockSolverConfig::serialize( file ) )
