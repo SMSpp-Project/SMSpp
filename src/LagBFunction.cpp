@@ -6,7 +6,7 @@
  *
  * \version 0.03
  *
- * \date 27 - 02 - 2019
+ * \date 01 - 03 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -336,7 +336,7 @@ void LagBFunction::remove_dual_pairs( v_dual_pair && v_lag_pair ,
 
  v_lag_pair.clear();
 
- } // end ( LagBFunction::add_dual_pairs( ) )  - - - - - - - - - - - - - - - -
+ } // end ( LagBFunction::remove_dual_pairs( ) ) - - - - - - - - - - - - - - -
 
 /*--------------------------------------------------------------------------*/
 
@@ -350,7 +350,7 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
   }
 
  Block::add_Modification( mod , chnl );
- }
+ } // end ( LagBFunction::add_Modification( ) )  - - - - - - - - - - - - - - -
 
 /*--------------------------------------------------------------------------*/
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF THE LagBFunction ------------*/
