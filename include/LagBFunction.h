@@ -266,10 +266,10 @@ class LagBFunction : public C05Function , public Block {
 
  /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
- typedef std::pair< p_Solution , bool > linearization_pair;
+ typedef std::tuple< p_Solution , bool , bool > linearization_tuple;
  ///< a solution equipped with boolean which defines the type of linearization
 
- typedef std::vector< linearization_pair > v_linearization_pair;
+ typedef std::vector< linearization_tuple > v_linearization_pair;
  ///< a vector of linearization_pair
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
@@ -494,6 +494,16 @@ class LagBFunction : public C05Function , public Block {
  void add_dual_pairs( v_dual_pair && v_lag_pair ,
  		 const bool static_is_ordered = false , c_ModParam issueMod = eNoBlck ,
 		 c_ModParam issueAMod = eNoBlck  );
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+
+ void remove_dual_pairs( v_dual_pair && v_lag_pair ,
+		 const bool static_is_ordered = false , c_ModParam issueMod = eNoBlck ,
+		 c_ModParam issueAMod = eNoBlck  );
+
+/*--------------------------------------------------------------------------*/
+
+ virtual void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
 
 /*@} -----------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE DATA OF THE LagBFunction --------------*/
@@ -745,8 +755,11 @@ virtual Index is_active( const Variable * const var ) const override final;
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-   void set_structure( v_dual_pair & v_lag_pair ,
+   void add_to_structure( v_dual_pair & v_lag_pair ,
 		   const bool static_is_ordered = false );
+
+   void remove_to_structure( v_dual_pair & v_lag_pair ,
+ 		   const bool static_is_ordered = false );
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
@@ -761,6 +774,10 @@ virtual Index is_active( const Variable * const var ) const override final;
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
    void guts_of_destructor( );
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+
+   void guts_of_add_Modification( sp_Mod mod );
 
 /*--------------------------------------------------------------------------*/
 
