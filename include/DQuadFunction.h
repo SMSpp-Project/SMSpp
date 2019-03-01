@@ -422,7 +422,7 @@ class DQuadFunction : public C15Function {
   */
 
  virtual double get_linearization_constant( const LinearizationName name =
-   std::numeric_limits<Index>::max() ) const override {
+   std::numeric_limits<Index>::max() ) override {
 
    double quadratic_term = 0.0;
 
