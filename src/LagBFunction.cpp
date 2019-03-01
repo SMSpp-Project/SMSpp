@@ -6,7 +6,7 @@
  *
  * \version 0.03
  *
- * \date 27 - 02 - 2019
+ * \date 01 - 03 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -44,8 +44,11 @@ using namespace SMSpp_di_unipi_it;
 /*----------------------------- STATIC MEMBERS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-static const char VarIsDir = 0;   // a direction is stored
-static const char VarIsSol = 1;   // a solution is stored
+static const char VarAreDir = 0;   // a direction is stored
+static const char VarAreSol = 1;   // a solution is stored
+
+static const char VarAreFeas = 0;   // Variable are feasible
+static const char VarAreUnf = 1;    // Variable are unfeasible
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -62,7 +65,7 @@ LagBFunction::LagBFunction( v_dual_pair && v_lag_pair , const bool static_is_ord
  LastSolution = Inf<LinearizationName>();
  VarIsSet = false;
 
- // set the sub-Block pointer - - - - - - - - - - - - - - - -
+ // set the sub-Block pointer  - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  if( innerblock )
@@ -136,7 +139,7 @@ void LagBFunction::set_dual_pairs( v_dual_pair && v_lag_pair ,
  //  updating the Lagrangian cost vector
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- set_structure( v_lag_pair , static_is_ordered );
+ add_to_structure( v_lag_pair , static_is_ordered );
 
  // if the sub-block (B) has been set, do the following:
  // (i) copy the coefficients c_i of the inner block (B) in order to allow
@@ -208,6 +211,9 @@ void LagBFunction::set_par( const idx_type par , const int value )
    break;
   case( intGPMaxSz ):
    GPMaxSz = value;
+   if( g_pool.size() )
+    for( auto tpl : g_pool )
+     delete[] std::get<0>(tpl);
    g_pool.resize( GPMaxSz );
    break;
   default: Function::set_par( par , value );
@@ -241,7 +247,7 @@ void LagBFunction::add_dual_pairs( v_dual_pair && v_lag_pair ,
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  std::move( v_lag_pair );
- set_structure( v_lag_pair , static_is_ordered );
+ add_to_structure( v_lag_pair , static_is_ordered );
 
  // copy the coefficients c_i of the inner block (B) in order to allow
  // the changes of the Lagrangian cost vector c^y = c + yA and add to
@@ -258,6 +264,15 @@ void LagBFunction::add_dual_pairs( v_dual_pair && v_lag_pair ,
 		 lag_p.begin() ,
 		 []( const auto & p1, const auto & p2 ) { return( p1.first < p2.first ); }  );
 
+ // the Observer is unregistered in the active Variable    - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
+ if( TVDIO == nullptr )
+  throw( std::logic_error( "the observer is not properly set" ) );
+ for( auto pair : v_lag_pair )
+  pair.first->add_active( TVDIO );
+
  // add modification - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -269,7 +284,7 @@ void LagBFunction::add_dual_pairs( v_dual_pair && v_lag_pair ,
   f_Observer->add_Modification( std::make_shared<FunctionModVarsSbst>( this ,
            FunctionModVars::AddVar , std::move( vars ) , 0 ,
 		   Observer::par2concern( issueMod ) ) ,
-		   Observer::par2chnl( issueMod ) );
+		   Observer::par2chnl( issueAMod ) );
 
  // clear v_lag_pair, because already merged with lag_p  - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -277,6 +292,65 @@ void LagBFunction::add_dual_pairs( v_dual_pair && v_lag_pair ,
  v_lag_pair.clear();
 
  } // end ( LagBFunction::add_dual_pairs( ) )  - - - - - - - - - - - - - - - -
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::remove_dual_pairs( v_dual_pair && v_lag_pair ,
+		 const bool static_is_ordered , c_ModParam issueMod ,
+		 c_ModParam issueAMod ) {
+
+ // update the structure LagMatrix;
+ // remove the pointer to Variable x_j of the
+ // inner block (B) if no longer the relaxed functions g(x) are active in x_j,
+ // in this case remove the pair < x_j , c_j > from the linear function
+ // of (B) but only if c_j is 0
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ std::move( v_lag_pair );
+ remove_to_structure( v_lag_pair , static_is_ordered );
+
+ // the Observer is unregistered in the active Variable    - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
+ if( TVDIO == nullptr )
+  throw( std::logic_error( "the observer is not properly set" ) );
+ for( auto pair : v_lag_pair )
+  pair.first->remove_active( TVDIO );
+
+ // add modification - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ Vec_p_Var vars( v_lag_pair.size() );
+ for( Index i = 0 ; i < v_lag_pair.size() ; ++i )
+  vars[ i ] = v_lag_pair[ i ].first;
+
+ if( f_Observer && ( f_Observer->issue_mod( issueMod ) ) )
+  f_Observer->add_Modification( std::make_shared<FunctionModVarsSbst>( this ,
+           FunctionModVars::RemoveVar , std::move( vars ) , 0 ,
+		   Observer::par2concern( issueMod ) ) ,
+		   Observer::par2chnl( issueAMod ) );
+
+ // clear v_lag_pair, because already removed from lag_p   - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ v_lag_pair.clear();
+
+ } // end ( LagBFunction::remove_dual_pairs( ) ) - - - - - - - - - - - - - - -
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
+{
+ //!! std::cout << *mod << std::endl;
+
+ if( mod->concerns_Block() ) {
+  mod->concerns_Block( false );
+  guts_of_add_Modification( mod );
+  }
+
+ Block::add_Modification( mod , chnl );
+ } // end ( LagBFunction::add_Modification( ) )  - - - - - - - - - - - - - - -
 
 /*--------------------------------------------------------------------------*/
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF THE LagBFunction ------------*/
@@ -292,12 +366,12 @@ bool LagBFunction::has_linearization( const bool diagonal )
  if( diagonal ) {
   SlvHasNewLin = slv->has_var_solution();
   if( SlvHasNewLin )
-   VarType = VarIsSol;
+   VarType = VarAreSol;
   }
  else {
   SlvHasNewLin = slv->has_var_direction();
   if( SlvHasNewLin )
-   VarType = VarIsDir;
+   VarType = VarAreDir;
   }
 
  return( SlvHasNewLin );
@@ -317,12 +391,12 @@ bool LagBFunction::compute_new_linearization( const bool diagonal )
  if( diagonal ) {
   SlvHasNewLin = slv->new_var_solution();
   if( SlvHasNewLin )
-   VarType = VarIsSol;
+   VarType = VarAreSol;
   }
  else {
   SlvHasNewLin = slv->new_var_direction();
   if( SlvHasNewLin )
-   VarType = VarIsDir;
+   VarType = VarAreDir;
   }
 
  // one cannot access to the previous solution of the local pool unless
@@ -351,17 +425,22 @@ void LagBFunction::store_linearization( const LinearizationName name )
  // get the current solution   - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( g_pool[ name ].first == nullptr )
-  g_pool[ name ].first = v_Block[0]->get_Solution();
- g_pool[ name ].first->read( v_Block[0] );
+ if( std::get<0>(g_pool[ name ]) == nullptr )
+  std::get<0>(g_pool[ name ]) = v_Block[0]->get_Solution();
+ std::get<0>(g_pool[ name ])->read( v_Block[0] );
 
  // set the solution type  - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( VarType == VarIsSol )
-  g_pool[ name ].second = VarIsSol;
+ if( VarType == VarAreSol )
+  std::get<1>(g_pool[ name ]) = VarAreSol;
  else
-  g_pool[ name ].second = VarIsDir;
+  std::get<1>(g_pool[ name ]) = VarAreDir;
+
+ // the the last computed solution is feasible   - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ std::get<2>(g_pool[ name ]) = VarAreFeas;
 
  } // end LagBFunction::store_linearization( LinearizationName ) - - - - - - -
 
@@ -422,7 +501,7 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   if( VarIsSet == false ) {
-   if( VarType == VarIsSol )
+   if( VarType == VarAreSol )
     slv->get_var_solution();
    else
     slv->get_var_direction();
@@ -432,11 +511,14 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
   }
  else {  // asking for a linearization of the global pool  - - - - - - - - - -
 
-  // assign Solution to the sub-Block in such a way the related linearization
-  // < name > will be recovered
+  // assign Solution to the sub-Block in such a way the linearization
+  // associated with the given name will be recovered from the global pool
+
+  if( std::get<0>(g_pool[ name ]) == nullptr )
+   throw( std::logic_error( "the linearization is not available" ) );
 
   if( name != LastSolution ) {
-   g_pool[ name ].first->write( v_Block[0] );
+   std::get<0>(g_pool[ name ])->write( v_Block[0] );
    LastSolution = name ;
    }
 
@@ -480,7 +562,7 @@ void LagBFunction::get_linearization_coefficients( SparseVector & g ,
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   if( VarIsSet == false ) {
-   if( VarType == VarIsSol )
+   if( VarType == VarAreSol )
     slv->get_var_solution();
    else
     slv->get_var_direction();
@@ -490,11 +572,15 @@ void LagBFunction::get_linearization_coefficients( SparseVector & g ,
   }
  else {  // asking for a linearization of the global pool  - - - - - - - - - -
 
-  // assign Solution to the sub-Block in such a way the related linearization
-  // < name > will be recovered
+  // assign Solution to the sub-Block in such a way the linearization
+  // associated with the given name will be recovered from the global pool
 
   if( name != LastSolution ) {
-   g_pool[ name ].first->write( v_Block[0] );
+
+   if( std::get<0>(g_pool[ name ]) == nullptr )
+    throw( std::logic_error( "the linearization is not available" ) );
+
+   std::get<0>(g_pool[ name ])->write( v_Block[0] );
    LastSolution = name ;
    }
 
@@ -544,7 +630,7 @@ void LagBFunction::get_linearization_coefficients( SparseVector & g ,
 
 double LagBFunction::get_linearization_constant( const LinearizationName name )
 {
- double alpha = 0;
+ Function::FunctionValue alpha = 0;
  if( name == Inf<LinearizationName>() ) {
 
   if( LastSolution < Inf<Index>() ) // the saved solution is not in the local pool
@@ -554,31 +640,44 @@ double LagBFunction::get_linearization_constant( const LinearizationName name )
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   if( VarIsSet == false ) {
-   if( VarType == VarIsSol )
+   if( VarType == VarAreSol )
     slv->get_var_solution();
    else
     slv->get_var_direction();
    VarIsSet = true;
    }
 
+  for( auto el : LagMatrix )
+   alpha += (el.first)->get_value() * (el.second).first;
+
   }
  else {  // asking for a linearization of the global pool  - - - - - - - - - -
 
-  // assign Solution to the sub-Block in such a way the related linearization
-  // < name > will be recovered
+  // assign Solution to the sub-Block in such a way the linearization
+  // associated with the given name will be recovered from the global pool
 
   if( name != LastSolution ) {
-   g_pool[ name ].first->write( v_Block[0] );
+
+   if( std::get<0>(g_pool[ name ]) == nullptr )
+    throw( std::logic_error( "the linearization is not available" ) );
+
+   std::get<0>(g_pool[ name ])->write( v_Block[0] );
    LastSolution = name ;
    }
+
+  // return the constant unless the solution is not feasible anymore - - - - -
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+  if( std::get<2>(g_pool[ name ]) == VarAreFeas )
+   for( auto el : LagMatrix )
+    alpha += (el.first)->get_value() * (el.second).first;
+  else
+   alpha = Inf< Function::FunctionValue>();
 
   } // end else  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  // compute the constant - - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- for( auto it = LagMatrix.begin() ; it != LagMatrix.end() ; ++it )
-  alpha += (it->first)->get_value() * (it->second).first;
 
  return( alpha );
 
@@ -693,7 +792,7 @@ void LagBFunction::map_active( c_Vec_p_Var & vars , Vec_Index & map ,
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::set_structure( v_dual_pair & v_lag_pair ,
+void LagBFunction::add_to_structure( v_dual_pair & v_lag_pair ,
 		const bool static_is_ordered )
 {
  // the objective functions of the relaxed constraints must be linear
@@ -717,7 +816,8 @@ void LagBFunction::set_structure( v_dual_pair & v_lag_pair ,
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  for( const auto & lagdual : v_lag_pair ) { // read the dual vector lag_p,
-	          // getting the relaxed constraint <a,x> and the dual variable y thereof
+	          // getting the relaxed constraint <a,x> and the dual variable
+	          // y thereof
 
   auto LinFunc = static_cast<const LinearFunction *>( lagdual.second );
   LinearFunction::v_c_coeff_pair & LinFunCoeffs = LinFunc->get_v_var();
@@ -769,7 +869,98 @@ void LagBFunction::set_structure( v_dual_pair & v_lag_pair ,
    }
   } // end for each relaxed constraints  - - - - - - - - - - - - - - - - - - -
 
- } // end ( LagBFunction::set_structure() )  - - - - - - - - - - - - - - - - -
+ } // end ( LagBFunction::add_to_structure() ) - - - - - - - - - - - - - - - -
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::remove_to_structure( v_dual_pair & v_lag_pair ,
+		const bool static_is_ordered )
+{
+ Vec_p_Var VarsToRmv( v_lag_pair.size() );  // this array is created to remove
+	                   // the Variable which no longer are active
+
+ // the objective functions of the relaxed constraints must be linear
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ for( const auto lagdual : v_lag_pair ) { // for each relaxed constraints
+  auto LinFunc = static_cast<const LinearFunction *>( lagdual.second );
+  if( LinFunc == nullptr )
+   throw( std::logic_error( "the objective is not a linear function" ) );
+  }
+
+ // if not already ordered by ColVariable "name = pointer", sort the vector
+ // of dual Lagrangian pairs - - - - - - - - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ if( ! static_is_ordered )
+  std::sort( v_lag_pair.begin() , v_lag_pair.end() ,
+	  []( const auto & p1, const auto & p2 ) { return( p1.first < p2.first ); } );
+
+ // construct the vector of the Lagrangian costs - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ auto itC = VarsToRmv.begin();
+ for( const auto & lagdual : v_lag_pair ) { // read the dual vector lag_p,
+	          // getting the relaxed constraint <a,x> and the dual variable
+	          // ythereof
+
+  auto LinFunc = static_cast<const LinearFunction *>( lagdual.second );
+  LinearFunction::v_c_coeff_pair & LinFunCoeffs = LinFunc->get_v_var();
+
+  for( const auto & monomial : LinFunCoeffs ) { // for each Variable x_j
+                        // of the relaxed constraint, remove to LagMatrix
+	                    // the pair < y_i , a_{ij} >
+
+   auto itA = LagMatrix.find( monomial.first );
+
+   if( itA != LagMatrix.end() ) {
+
+	// itA.first is an iterator pointing to the column "curr_column"
+    // associated with x_j. The column "curr_column" consists
+	// of a piar c_j and an array < y_i , a_{ij}j > for all i in the
+    // active index set of the Lagrangian multipliers
+
+	auto &curr_column = (itA->second).second;
+
+	auto itB = std::lower_bound( curr_column.begin() ,
+			        curr_column.end() , std::make_pair( lagdual.first , 0 ) ,
+		 	        []( const LinearFunction::coeff_pair &a ,
+		 	     	const LinearFunction::coeff_pair &b )
+		 	        { return( a.first < b.first ); } );
+
+	if( itB->first != lagdual.first )
+	 throw( std::logic_error
+			 (" the Lagrangian pair to be removed does not exist " ) );
+
+    curr_column.erase( itB );
+
+	// if no Function is active in x_j and c_j == 0, the remove x_j
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+    if( curr_column.empty() && ( (itA->second).first == 0 ) ) {
+     LagMatrix.erase( monomial.first );
+     *(itC++) = monomial.first;
+     }
+
+    }
+   }
+
+  } // end for each relaxed constraints  - - - - - - - - - - - - - - - - - - -
+
+ // get the objective function pointer of the sub-block and remove the Variable
+ // listed in VarsToRmv which no longer are active
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ auto LFInnBlck = static_cast<LinearFunction *>( obj->get_function() );
+ LFInnBlck->remove_variables( std::move(VarsToRmv) , true );
+
+ // remove v_lag_pair from the list of dual Lagrangian pairs
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ for( auto it = v_lag_pair.begin() ; it != v_lag_pair.end() ;  ++it )
+  std::remove( lag_p.begin() , lag_p.end() , *it  );
+
+ } // end ( LagBFunction::remove_to_structure() )  - - - - - - - - - - - - - - - - -
 
 /*--------------------------------------------------------------------------*/
 
@@ -864,7 +1055,7 @@ void LagBFunction::update_function( )
 
 void LagBFunction::guts_of_destructor( )
 {
- // remove the pointer to Observer from the variables  - - - - - - - - - - - -
+ // the Observer is unregistered in the active Variable    - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  register_Observer( );
@@ -883,11 +1074,34 @@ void LagBFunction::guts_of_destructor( )
  // delete the global pool - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- for( int i = 0 ; i < g_pool.size() ; ++i )
-  delete[] g_pool[ i ].first;
+ for( auto tpl : g_pool )
+  delete[] std::get<0>(tpl);
  g_pool.clear();
 
  } // end ( LagBFunction::guts_of_destructor() ) - - - - - - - - - - - - - - -
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::guts_of_add_Modification( sp_Mod mod )
+{
+ // process abstract Modification  - - - - - - - - - - - - - - - - - - - - - -
+ /* This requires to patiently sift through the possible Modification types
+	to find what this Modification exactly is and appropriately mirror the
+	changes to the "abstract representation" to the "physical one". */
+
+ // C05FunctionMod   - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ {
+  const auto tmod = std::dynamic_pointer_cast<C05FunctionMod>( mod );
+  if( tmod ) {
+
+   if( tmod->f_type == C05FunctionMod::AlphaChanged )
+    for( auto tpl : g_pool )
+     std::get<2>(tpl) = VarAreUnf;
+
+   }
+  }
+
+ }  // end ( LagBFunction::guts_of_add_Modification( sp_Mod ) )  - - - - - - -
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- End File LagBFunction.cpp -------------------------*/
