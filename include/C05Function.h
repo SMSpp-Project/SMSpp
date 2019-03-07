@@ -800,7 +800,7 @@ class C05Function : public Function {
   * warn whatever algorithm is using the Function not to use it any longer). 
   */
 
- virtual double get_linearization_constant( const LinearizationName name =
+ virtual FunctionValue get_linearization_constant( const LinearizationName name =
 	    std::numeric_limits<unsigned int>::max() ) = 0;
 
 /*--------------------------------------------------------------------------*/

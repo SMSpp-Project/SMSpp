@@ -415,7 +415,7 @@ class LinearFunction : public C15Function {
  * linearization constant is equal to the constant term of the
  * LinearFunction. */
 
- virtual double get_linearization_constant( const LinearizationName name =
+ virtual Function::FunctionValue get_linearization_constant( const LinearizationName name =
 		 Inf<LinearizationName>() ) override final {
  return( f_constant_term );
  }
