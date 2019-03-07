@@ -47,8 +47,7 @@ using namespace SMSpp_di_unipi_it;
 static const char VarAreDir = 0;   // a direction is stored
 static const char VarAreSol = 1;   // a solution is stored
 
-static const char VarAreFeas = 0;   // Variable are feasible
-static const char VarAreUnf = 1;    // Variable are unfeasible
+static const char VarToBeChckd = 1;  // Variable must be checked for feasibility
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -175,11 +174,9 @@ void  LagBFunction::register_Observer( Observer * const observer )
 
  if( f_Observer ) {
   TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
-  if( TVDIO == nullptr )
-   throw( std::logic_error( "the observer is not properly set" ) );
-
-  for( auto pair : lag_p )
-   pair.first->remove_active( TVDIO );
+  if( TVDIO )
+   for( auto pair : lag_p )
+    pair.first->remove_active( TVDIO );
   }
 
  // set the observer pointer - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -192,11 +189,9 @@ void  LagBFunction::register_Observer( Observer * const observer )
 
  if( f_Observer ) {
   TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
-  if( TVDIO == nullptr )
-   throw( std::logic_error( "the observer is not properly set" ) );
-
-  for( auto pair : lag_p )
-   pair.first->add_active( TVDIO );
+  if( TVDIO )
+   for( auto pair : lag_p )
+    pair.first->add_active( TVDIO );
   }
 
  }  // end ( LagBFunction::register_Observer( ) )  - - - - - - - - - - - - - -
@@ -211,9 +206,9 @@ void LagBFunction::set_par( const idx_type par , const int value )
    break;
   case( intGPMaxSz ):
    GPMaxSz = value;
-   if( g_pool.size() )
-    for( auto tpl : g_pool )
-     delete[] std::get<0>(tpl);
+   if( g_pool.size() > GPMaxSz )
+	for( auto it = g_pool.begin() + GPMaxSz ; it != g_pool.end() ;   )
+	 delete[] std::get<0>(*it);
    g_pool.resize( GPMaxSz );
    break;
   default: Function::set_par( par , value );
@@ -268,10 +263,9 @@ void LagBFunction::add_dual_pairs( v_dual_pair && v_lag_pair ,
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
- if( TVDIO == nullptr )
-  throw( std::logic_error( "the observer is not properly set" ) );
- for( auto pair : v_lag_pair )
-  pair.first->add_active( TVDIO );
+ if( TVDIO )
+  for( auto pair : v_lag_pair )
+   pair.first->add_active( TVDIO );
 
  // add modification - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -313,10 +307,9 @@ void LagBFunction::remove_dual_pairs( v_dual_pair && v_lag_pair ,
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
- if( TVDIO == nullptr )
-  throw( std::logic_error( "the observer is not properly set" ) );
- for( auto pair : v_lag_pair )
-  pair.first->remove_active( TVDIO );
+ if( TVDIO )
+  for( auto pair : v_lag_pair )
+   pair.first->remove_active( TVDIO );
 
  // add modification - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -346,7 +339,7 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
 
  if( mod->concerns_Block() ) {
   mod->concerns_Block( false );
-  guts_of_add_Modification( mod );
+  guts_of_add_Modification( mod , chnl );
   }
 
  Block::add_Modification( mod , chnl );
@@ -440,7 +433,7 @@ void LagBFunction::store_linearization( const LinearizationName name )
  // the the last computed solution is feasible   - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- std::get<2>(g_pool[ name ]) = VarAreFeas;
+ std::get<2>(g_pool[ name ]) = !VarToBeChckd;
 
  } // end LagBFunction::store_linearization( LinearizationName ) - - - - - - -
 
@@ -628,7 +621,7 @@ void LagBFunction::get_linearization_coefficients( SparseVector & g ,
 
 /*--------------------------------------------------------------------------*/
 
-double LagBFunction::get_linearization_constant( const LinearizationName name )
+Function::FunctionValue LagBFunction::get_linearization_constant( const LinearizationName name )
 {
  Function::FunctionValue alpha = 0;
  if( name == Inf<LinearizationName>() ) {
@@ -668,11 +661,12 @@ double LagBFunction::get_linearization_constant( const LinearizationName name )
   // return the constant unless the solution is not feasible anymore - - - - -
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-  if( std::get<2>(g_pool[ name ]) == VarAreFeas )
+  if( std::get<2>(g_pool[ name ]) != VarToBeChckd ||
+	( std::get<2>(g_pool[ name ]) == VarToBeChckd || v_Block[0]->is_feasible( ) ) )
    for( auto el : LagMatrix )
     alpha += (el.first)->get_value() * (el.second).first;
   else
-   alpha = Inf< Function::FunctionValue>();
+    alpha = Inf< Function::FunctionValue >();
 
   } // end else  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -849,7 +843,7 @@ void LagBFunction::add_to_structure( v_dual_pair & v_lag_pair ,
 
    if( itA.second ) { // a new variable x_j was inserted  - - - - - - - - - -
 
-    // so far. c_i is unknown
+    // to recognize the new insert element, set c_i to INf
 	(itA.first->second).first = Inf<LinearFunction::Coefficient>();
 	curr_column.insert( curr_column.begin() , pair );
 
@@ -876,8 +870,11 @@ void LagBFunction::add_to_structure( v_dual_pair & v_lag_pair ,
 void LagBFunction::remove_to_structure( v_dual_pair & v_lag_pair ,
 		const bool static_is_ordered )
 {
- Vec_p_Var VarsToRmv( v_lag_pair.size() );  // this array is created to remove
-	                   // the Variable which no longer are active
+
+ // this array is created to remove the Variable which no longer are active
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ LinearFunction::v_coeff_pair VarsToRmv( v_lag_pair.size() );
 
  // the objective functions of the relaxed constraints must be linear
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -934,12 +931,12 @@ void LagBFunction::remove_to_structure( v_dual_pair & v_lag_pair ,
 
     curr_column.erase( itB );
 
-	// if no Function is active in x_j and c_j == 0, the remove x_j
+	// if no Function is active in x_j, then remove x_j
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-    if( curr_column.empty() && ( (itA->second).first == 0 ) ) {
+    if( curr_column.empty() ) {
+     *(itC++) = monomial; // ?? e' giusto const auto monomial ??
      LagMatrix.erase( monomial.first );
-     *(itC++) = monomial.first;
      }
 
     }
@@ -952,13 +949,36 @@ void LagBFunction::remove_to_structure( v_dual_pair & v_lag_pair ,
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  auto LFInnBlck = static_cast<LinearFunction *>( obj->get_function() );
- LFInnBlck->remove_variables( std::move(VarsToRmv) , true );
+ LinearFunction::v_c_coeff_pair & LFInnBCoeff = LFInnBlck->get_v_var();
+
+
+ auto itv = LFInnBCoeff.begin();
+ auto ite = LFInnBCoeff.end();
+ for( auto it = VarsToRmv.begin() ; it != VarsToRmv.end() ;   ) {
+
+  if( itv != ite ) {
+   if( it->first < itv->first )
+    it++;
+   else
+    if( it->first == itv->first ) {
+     LFInnBlck->modify_coefficient( it->first , double(0) );
+     it++;
+     itv++;
+     }
+    else
+     itv++;
+   }
+  else
+   it++;
+
+
+  } // end for - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  // remove v_lag_pair from the list of dual Lagrangian pairs
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  for( auto it = v_lag_pair.begin() ; it != v_lag_pair.end() ;  ++it )
-  std::remove( lag_p.begin() , lag_p.end() , *it  );
+  lag_p.erase( it );
 
  } // end ( LagBFunction::remove_to_structure() )  - - - - - - - - - - - - - - - - -
 
@@ -1001,27 +1021,36 @@ void LagBFunction::store_function( )
                                            // pairs which are not active in LFInnBlck
 
  auto itv = LFInnBCoeff.begin();
- for( auto it = LagMatrix.begin() ;
-		 it != LagMatrix.end() ;  ++it ) {
+ auto ite = LFInnBCoeff.end();
+ for( auto it = LagMatrix.begin() ; it != LagMatrix.end() ;   ) {
 
-  if( it->first == itv->first ) {
-   // set c_i if it is unknown
-   if( (it->second).first < Inf<LinearFunction::Coefficient>() )
-	(it->second).first = LFInnBlck->get_coefficient( it->first );
-   itv++;
+  if( itv != ite ) {
+   if( it->first < itv->first ) {
+    const auto pair = std::make_pair( it->first , LinearFunction::Coefficient(0) );
+    PairsToAdd.push_back( pair );
+    (it->second).first = LinearFunction::Coefficient(0);  // if c_i does not exist in
+    it++;                                       // the sparse format of the objective
+    }                                           // function, then c_i is zero
+   else
+    if( it->first == itv->first ) {
+     if( (it->second).first == Inf<LinearFunction::Coefficient>() )  // if c_i is unknown
+      (it->second).first = LFInnBlck->get_coefficient( it->first );  // set its value
+     it++;
+     itv++;
+     }
+    else
+     itv++;
    }
   else {
-   // set c_i if it is unknown
-   if( (it->second).first < Inf<LinearFunction::Coefficient>() ) // this check should be
-	(it->second).first = LinearFunction::Coefficient(0);         // necessary if remotion is
-                                                                 // performed
    const auto pair = std::make_pair( it->first , LinearFunction::Coefficient(0) );
    PairsToAdd.push_back( pair );
-   }
-
-  LFInnBlck->add_variables( std::move(PairsToAdd) , true );
+   (it->second).first = LinearFunction::Coefficient(0);  // if c_i does not exist in
+   it++;                                       // the sparse format of the objective
+   }                                           // function, then c_i is zero
 
   } // end for - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ LFInnBlck->add_variables( std::move(PairsToAdd) , true );
 
  } // end ( LagBFunction::store_function( ) )  - - - - - - - - - - - - - - - -
 
@@ -1082,7 +1111,7 @@ void LagBFunction::guts_of_destructor( )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::guts_of_add_Modification( sp_Mod mod )
+void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
 {
  // process abstract Modification  - - - - - - - - - - - - - - - - - - - - - -
  /* This requires to patiently sift through the possible Modification types
@@ -1094,9 +1123,17 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod )
   const auto tmod = std::dynamic_pointer_cast<C05FunctionMod>( mod );
   if( tmod ) {
 
-   if( tmod->f_type == C05FunctionMod::AlphaChanged )
-    for( auto tpl : g_pool )
-     std::get<2>(tpl) = VarAreUnf;
+  //?????
+  for( auto tpl : g_pool )
+   std::get<2>(tpl) = VarToBeChckd;
+
+   // add modification - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+   //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+
+   if( f_Observer )
+    f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+    		C05FunctionMod::AlphaChanged , 0  ) , chnl );
 
    }
   }

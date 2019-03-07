@@ -599,7 +599,7 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- virtual double get_linearization_constant( const LinearizationName name =
+ virtual FunctionValue get_linearization_constant( const LinearizationName name =
    std::numeric_limits<Index>::max() ) override final;
 
 /*@} -----------------------------------------------------------------------*/
@@ -777,7 +777,7 @@ virtual Index is_active( const Variable * const var ) const override final;
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
-   void guts_of_add_Modification( sp_Mod mod );
+   void guts_of_add_Modification( sp_Mod mod , ChnlName chnl );
 
 /*--------------------------------------------------------------------------*/
 
