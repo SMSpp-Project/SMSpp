@@ -27,7 +27,6 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#include "Observer.h"
 #include "SMSTypedefs.h"
 #include "LinearFunction.h"
 #include <math.h>
