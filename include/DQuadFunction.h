@@ -40,6 +40,7 @@
 
 #include "C15Function.h"
 #include "ColVariable.h"
+#include "Observer.h"
 #include <math.h>
 
 /*--------------------------------------------------------------------------*/
@@ -265,9 +266,21 @@ class DQuadFunction : public C15Function {
   }
 
 /*--------------------------------------------------------------------------*/
- /// destructor: it (apparently) does nothing
 
- virtual ~DQuadFunction() { }
+ /// destructor: it unregisters its active Variable
+ /** The destructor of DQuadFunction unregisters its Observer, if it
+  * is a ThinVarDepInterface, from the active Variable of the
+  * DQuadFunction. This is unless clear() has been called, so that the
+  * vector v_triples contains nothing and no un-registering is
+  * made. */
+
+ virtual ~DQuadFunction() {
+  auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
+
+  if( TVDIO )
+   for( auto triple : v_triples )
+     std::get<0>(triple)->remove_active( TVDIO );
+ }
 
 /*--------------------------------------------------------------------------*/
 
