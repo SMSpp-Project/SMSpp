@@ -158,6 +158,13 @@ void LagBFunction::set_dual_pairs( v_dual_pair && v_lag_pair ,
  for( auto & el : lag_p )
   el.first->add_active( this );
 
+ // add modification - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ if( f_Observer )
+  f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+		  C05FunctionMod::AllEntriesChanged ,  0 ,   0 ) , 0 );
+
  } // end ( LagBFunction::set_dual_pairs( ) )  - - - - - - - - - - - - - - - -
 
 /*--------------------------------------------------------------------------*/
