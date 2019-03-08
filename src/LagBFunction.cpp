@@ -122,7 +122,7 @@ void LagBFunction::set_inner_block( Block* innerblock ) {
  // are involved in the definition of g(x) with coefficient zero
 
  if( lag_p.size() )
-  store_objective_function();
+  store_function();
 
  } // end ( LagBFunction::set_inner_block( Block* )  ) - - - - - - - - - - - -
 
@@ -147,7 +147,7 @@ void LagBFunction::set_dual_pairs( v_dual_pair && v_lag_pair ,
  // are involved in the definition of g(x) with coefficient zero
 
  if( v_Block.size() )
-  store_objective_function();
+  store_function();
 
  // assign the dual Lagrangian pairs to lag_p  - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -249,7 +249,7 @@ void LagBFunction::add_dual_pairs( v_dual_pair && v_lag_pair ,
  // the linear function of (B) the variables which are involved in the
  // definition of g(x) with coefficient zero
 
- store_objective_function();
+ store_function();
 
  // merge the list of dual Lagrangian pairs, both containers shall already be
  // ordered  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -463,23 +463,10 @@ int LagBFunction::compute( bool changedvars )
 
 Function::FunctionValue LagBFunction::get_value( void ) const
 {
- FunctionValue objvalue;
-
  if( obj->get_sense() == Objective::eMax )
-  objvalue = slv->get_ub();
+  return( slv->get_ub() );
  else
-  objvalue = slv->get_lb();
-
- // add zero-linearization - - - - - - - - - - - - - - - - - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- if( objvalue < Inf<FunctionValue>() &&  objvalue > -Inf<FunctionValue>() )
-  for( const auto & lagdual : lag_p ) {
-   auto LinFunc = static_cast<const LinearFunction *>( lagdual.second );
-   objvalue += LinFunc->get_constant_term() * (lagdual.first)->get_value();
-   }
-
- return( objvalue );
+  return( slv->get_lb() );
 
  } // end ( LagBFunction::get_value( ) ) - - - - - - - - - - - - - - - - - - -
 
@@ -671,47 +658,15 @@ Function::FunctionValue LagBFunction::get_linearization_constant( const Lineariz
    LastSolution = name ;
    }
 
-  // return the constant unless the solution is no longer not feasible
+  // return the constant unless the solution is not feasible anymore - - - - -
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   if( std::get<2>(g_pool[ name ]) != VarToBeChckd ||
-	( std::get<2>(g_pool[ name ]) == VarToBeChckd && v_Block[0]->is_feasible( ) ) ) {
-
-   auto LFInnBlck = static_cast<LinearFunction *>( obj->get_function() );
-   LinearFunction::v_c_coeff_pair & LFInnBCoeff = LFInnBlck->get_v_var();
-
-   auto it = LagMatrix.begin() ;
-   auto itv = LFInnBCoeff.begin();
-
-   while( it != LagMatrix.end() && itv != LFInnBCoeff.end() )
-   {
-    if( itv == LFInnBCoeff.end() )
-     it++;
-    else
-     if( it == LagMatrix.end() ) {
-      alpha += (itv->first)->get_value() * (itv->second);
-      itv++;
-      }
-     else {
-      if( it->first < itv->first )
-       it++;
-      else
-       if( it->first == itv->first ) {
-        alpha += (it->first)->get_value() * (it->second).first;
-        it++;
-        itv++;
-        }
-       else {
-        alpha += (itv->first)->get_value() * (itv->second);
-        itv++;
-        }
-      }
-
-    } // end while  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-   } // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	( std::get<2>(g_pool[ name ]) == VarToBeChckd || v_Block[0]->is_feasible( ) ) )
+   for( auto el : LagMatrix )
+    alpha += (el.first)->get_value() * (el.second).first;
   else
-   alpha = Inf< Function::FunctionValue >();
+    alpha = Inf< Function::FunctionValue >();
 
   } // end else  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -996,15 +951,17 @@ void LagBFunction::remove_to_structure( v_dual_pair & v_lag_pair ,
  auto LFInnBlck = static_cast<LinearFunction *>( obj->get_function() );
  LinearFunction::v_c_coeff_pair & LFInnBCoeff = LFInnBlck->get_v_var();
 
+
  auto itv = LFInnBCoeff.begin();
+ auto ite = LFInnBCoeff.end();
  for( auto it = VarsToRmv.begin() ; it != VarsToRmv.end() ;   ) {
 
-  if( itv != LFInnBCoeff.end() ) {
+  if( itv != ite ) {
    if( it->first < itv->first )
     it++;
    else
     if( it->first == itv->first ) {
-     LFInnBlck->modify_coefficient( it->first , it->second );
+     LFInnBlck->modify_coefficient( it->first , double(0) );
      it++;
      itv++;
      }
@@ -1013,6 +970,7 @@ void LagBFunction::remove_to_structure( v_dual_pair & v_lag_pair ,
    }
   else
    it++;
+
 
   } // end for - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -1051,7 +1009,7 @@ void LagBFunction::set_objective_and_solver( )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::store_objective_function( )
+void LagBFunction::store_function( )
 {
 
  // get the objective function pointer of the inner block   - - - - - - - - -
@@ -1063,9 +1021,10 @@ void LagBFunction::store_objective_function( )
                                            // pairs which are not active in LFInnBlck
 
  auto itv = LFInnBCoeff.begin();
+ auto ite = LFInnBCoeff.end();
  for( auto it = LagMatrix.begin() ; it != LagMatrix.end() ;   ) {
 
-  if( itv != LFInnBCoeff.end() ) {
+  if( itv != ite ) {
    if( it->first < itv->first ) {
     const auto pair = std::make_pair( it->first , LinearFunction::Coefficient(0) );
     PairsToAdd.push_back( pair );
@@ -1093,53 +1052,7 @@ void LagBFunction::store_objective_function( )
 
  LFInnBlck->add_variables( std::move(PairsToAdd) , true );
 
- } // end ( LagBFunction::store_objective_function( ) )  - - - - - - - - - - -
-
-/*--------------------------------------------------------------------------*/
-
-void LagBFunction::update_objective_function( )
-{
-
- // get the objective function pointer of the inner block   - - - - - - - - -
-
- auto LFInnBlck = static_cast<LinearFunction *>( obj->get_function() );
-
- LinearFunction::v_c_coeff_pair & LFInnBCoeff = LFInnBlck->get_v_var();
- LinearFunction::v_coeff_pair PairsToAdd;  // this array is created to add the
-                                           // pairs which are not active in LFInnBlck
-
- auto itv = LFInnBCoeff.begin();
- for( auto it = LagMatrix.begin() ; it != LagMatrix.end() ;   ) {
-
-  if( itv != LFInnBCoeff.end() ) {
-   if( it->first < itv->first ) {
-    const auto pair = std::make_pair( it->first , LinearFunction::Coefficient(0) );
-    PairsToAdd.push_back( pair );
-    (it->second).first = LinearFunction::Coefficient(0);  // if c_i does not exist in
-    it++;                                       // the sparse format of the objective
-    }                                           // function, then c_i is zero
-   else
-    if( it->first == itv->first ) {
-     (it->second).first = LFInnBlck->get_coefficient( it->first );  // set its value
-     it++;
-     itv++;
-     }
-    else
-     itv++;
-   }
-  else {
-   const auto pair = std::make_pair( it->first , LinearFunction::Coefficient(0) );
-   PairsToAdd.push_back( pair );
-   (it->second).first = LinearFunction::Coefficient(0);  // if c_i does not exist in
-   it++;                                       // the sparse format of the objective
-   }                                           // function, then c_i is zero
-
-  } // end for - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- LFInnBlck->add_variables( std::move(PairsToAdd) , true );
-
- } // end ( LagBFunction::updatee_objective_function( ) )  - - - - - - - - - -
-
+ } // end ( LagBFunction::store_function( ) )  - - - - - - - - - - - - - - - -
 
 /*--------------------------------------------------------------------------*/
 
@@ -1205,55 +1118,25 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
 	to find what this Modification exactly is and appropriately mirror the
 	changes to the "abstract representation" to the "physical one". */
 
- // VariableMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // C05FunctionMod   - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  {
-  const auto tmod = std::dynamic_pointer_cast<VariableMod>( mod );
+  const auto tmod = std::dynamic_pointer_cast<C05FunctionMod>( mod );
   if( tmod ) {
 
-   // register the fact that all the solutions must be checked for feasibility
+  //?????
+  for( auto tpl : g_pool )
+   std::get<2>(tpl) = VarToBeChckd;
+
+   // add modification - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-   for( auto tpl : g_pool )
-	std::get<2>(tpl) = VarToBeChckd;
-
-   // issue modification - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
    if( f_Observer )
     f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
     		C05FunctionMod::AlphaChanged , 0  ) , chnl );
 
    }
-
-  } // end VariableMod - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- // LinearFunctionModSbst  - - - - - - - - - - - - - - - - - - - - - - - - - -
- {
-  const auto tmod = std::dynamic_pointer_cast<LinearFunctionModSbst>( mod );
-  if( tmod ) {
-
-   auto lfo = static_cast<LinearFunction * const>( tmod->f_function );
-   auto LFInnBlck = static_cast<LinearFunction *>( obj->get_function() );
-
-   if( lfo != LFInnBlck )
-    throw( std::invalid_argument( "Modification cannot be handling" ) );
-
-   // all the solutions must be checked for feasibility  - - - - - - - - - - - -
-   //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-   update_objective_function();
-
-   // issue modification - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-   if( f_Observer )
-    f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-    		C05FunctionMod::AlphaChanged , 0  ) , chnl );
-
-   }
-
-  } // end VariableMod - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
+  }
 
  }  // end ( LagBFunction::guts_of_add_Modification( sp_Mod ) )  - - - - - - -
 

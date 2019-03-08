@@ -767,8 +767,7 @@ virtual Index is_active( const Variable * const var ) const override final;
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
-   void store_objective_function( );
-   void update_objective_function( );
+   void store_function( );
 
    void update_function( );
 
