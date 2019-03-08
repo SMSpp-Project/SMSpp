@@ -336,7 +336,7 @@ void LagBFunction::remove_dual_pairs( v_dual_pair && v_lag_pair ,
 
  v_lag_pair.clear();
 
- } // end ( LagBFunction::remove_dual_pairs( ) ) - - - - - - - - - - - - - - -
+ }  // end( LagBFunction::remove_dual_pairs() )- - - - - - - - - - - - - - - -
 
 /*--------------------------------------------------------------------------*/
 
@@ -350,7 +350,8 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
   }
 
  Block::add_Modification( mod , chnl );
- } // end ( LagBFunction::add_Modification( ) )  - - - - - - - - - - - - - - -
+
+ }  // end( LagBFunction::add_Modification() ) - - - - - - - - - - - - - - - -
 
 /*--------------------------------------------------------------------------*/
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF THE LagBFunction ------------*/
@@ -1217,198 +1218,159 @@ void LagBFunction::guts_of_destructor( )
 
 void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
 {
- // process abstract Modification  - - - - - - - - - - - - - - - - - - - - - -
+ // process abstract Modification- - - - - - - - - - - - - - - - - - - - - - -
  /* This requires to patiently sift through the possible Modification types
-	to find what this Modification exactly is and appropriately mirror the
-	changes to the "abstract representation" to the "physical one". */
+    to find what this Modification exactly is and appropriately mirror the
+    changes to the "abstract representation" to the "physical one". */
 
- // VariableMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // VariableMod- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  {
   const auto tmod = std::dynamic_pointer_cast<VariableMod>( mod );
   if( tmod ) {
-
    auto xj = dynamic_cast<ColVariable * const>( tmod->f_variable );
-   if( !xj->is_fixed() && !xj->is_integer() )
+   if( ( ! xj->is_fixed() ) &&
+       ( xj->get_state() == ColVariable::kContinuous ) )
     return;
 
-   // register the fact that all the solutions must be checked for feasibility
-   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
+   // signal that all the solutions must be checked for feasibility
    for( auto tpl : g_pool )
-	std::get<2>(tpl) = VarToBeChckd;
+    std::get<2>( tpl ) = VarToBeChckd;
 
-   // issue modification  - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+   // issue modification - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
    if( f_Observer )
     f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-    		C05FunctionMod::AlphaChanged , 0  ) , chnl );
-
+    		                  C05FunctionMod::AlphaChanged , 0 ) , chnl );
    }
+  }  // end VariableMod- - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-  } // end VariableMod    - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- // LinearFunctionModRngd   - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // LinearFunctionModRngd- - - - - - - - - - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  {
   const auto tmod = std::dynamic_pointer_cast<LinearFunctionModSbst>( mod );
   if( tmod ) {
-
    auto lfo = static_cast<LinearFunction * const>( tmod->f_function );
    auto LFInnBlck = static_cast<LinearFunction *>( obj->get_function() );
 
    if( lfo == LFInnBlck ) {
-
-    // all the solutions must be checked for feasibility  - - - - - - - - - -
-    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // all the solutions must be checked for feasibility - - - - - - - - - - -
 
     update_objective_function();
-
     }
    else {
-
-	// register the fact that all the solutions must be checked for feasibility
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-	for( auto tpl : g_pool )
-     std::get<2>(tpl) = VarToBeChckd;
-
-    }
-
-   // issue modification  - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-   if( f_Observer )
-    f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-    		C05FunctionMod::AlphaChanged , 0  ) , chnl );
-   }
-
-  } // end LinearFunctionModRngd - - - - - - - - - - - - - - - - - - - - - - -
-
- // LinearFunctionModSbst  - - - - - - - - - - - - - - - - - - - - - - - - - -
- {
-  const auto tmod = std::dynamic_pointer_cast<LinearFunctionModSbst>( mod );
-  if( tmod ) {
-
-   auto lfo = static_cast<LinearFunction * const>( tmod->f_function );
-   auto LFInnBlck = static_cast<LinearFunction *>( obj->get_function() );
-
-   if( lfo == LFInnBlck ) {
-
-    // all the solutions must be checked for feasibility  - - - - - - - - - -
-    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-    update_objective_function();
-
-    }
-   else {
-
-	// register the fact that all the solutions must be checked for feasibility
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-	for( auto tpl : g_pool )
-     std::get<2>(tpl) = VarToBeChckd;
-
+    // signal that all the solutions must be checked for feasibility
+    for( auto tpl : g_pool )
+     std::get<2>( tpl ) = VarToBeChckd;
     }
 
    // issue modification - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
    if( f_Observer )
     f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-    	C05FunctionMod::AlphaChanged , 0  ) , chnl );
-
+			          C05FunctionMod::AlphaChanged , 0 ) , chnl );
    }
+  }  // end LinearFunctionModRngd- - - - - - - - - - - - - - - - - - - - - - -
 
-  } // end LinearFunctionModSbst   - - - - - - - - - - - - - - - - - - - - - -
+ // LinearFunctionModSbst- - - - - - - - - - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ {
+  const auto tmod = std::dynamic_pointer_cast<LinearFunctionModSbst>( mod );
+  if( tmod ) {
 
- // FunctionMod  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+   auto lfo = static_cast<LinearFunction * const>( tmod->f_function );
+   auto LFInnBlck = static_cast<LinearFunction *>( obj->get_function() );
+
+   if( lfo == LFInnBlck ) {
+    // all the solutions must be checked for feasibility - - - - - - - - - - -
+
+    update_objective_function();
+    }
+   else {
+    // signal that all the solutions must be checked for feasibility
+    for( auto tpl : g_pool )
+     std::get<2>( tpl ) = VarToBeChckd;
+    }
+
+   // issue modification - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+   if( f_Observer )
+    f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+    	                          C05FunctionMod::AlphaChanged , 0 ) , chnl );
+   }
+  }  // end LinearFunctionModSbst- - - - - - - - - - - - - - - - - - - - - - -
+
+ // FunctionMod- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  {
   const auto tmod = std::dynamic_pointer_cast<FunctionMod>( mod );
   if( tmod ) {
-
    auto lfo = static_cast<LinearFunction * const>( tmod->f_function );
    auto LFInnBlck = static_cast<LinearFunction *>( obj->get_function() );
 
    if( lfo == LFInnBlck ) {
+    // issue modification- - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-	// issue modification  - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-	if( f_Observer )
-	 f_Observer->add_Modification( std::make_shared<FunctionMod>( this ,
-	    		LFInnBlck->get_constant_term() , 0  ) , chnl );
+    //!! distinguere caso finito da caso infinito
+ 
+    if( f_Observer )
+     f_Observer->add_Modification( std::make_shared<FunctionMod>( this ,
+	    		        LFInnBlck->get_constant_term() , 0 ) , chnl );
     }
    else {
+    // signal that all the solutions must be checked for feasibility
+    for( auto tpl : g_pool )
+     std::get<2>( tpl ) = VarToBeChckd;
 
-	// register the fact that all the solutions must be checked for feasibility
-	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // issue modification- - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-	for( auto tpl : g_pool )
-     std::get<2>(tpl) = VarToBeChckd;
-
-	// issue modification - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-	if( f_Observer )
-	 f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-	    C05FunctionMod::AlphaChanged , 0  ) , chnl );
-
+    if( f_Observer )
+     f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+	                          C05FunctionMod::AlphaChanged , 0 ) , chnl );
     }
-
    }
+  }  // end FunctionMod- - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-  } // end FunctionMod - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- // BlockMod  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- {
-  const auto tmod = std::dynamic_pointer_cast<BlockMod>( mod );
-  if( tmod ) {
-
-   // register the fact that all the solutions must be checked for feasibility
-   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-   for( auto tpl : g_pool )
-    std::get<2>(tpl) = VarToBeChckd;
-
-   // issue modification - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-   if( f_Observer )
-	f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-	    C05FunctionMod::AlphaChanged , 0  ) , chnl );
-
-   }
-
-  } // end BlockMod   - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- // BlockModAD  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // BlockModAD - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // BlockModAD::eAddVar keep feasibility
+ // BlockModAD::eDelConst keep feasibility
  {
   const auto tmod = std::dynamic_pointer_cast<BlockModAD>( mod );
   if( tmod ) {
+   if( ( tmod->f_type == BlockModAD::eAddConst ) ||
+       ( tmod->f_type == BlockModAD::eDelVar ) ) {
 
-   if( tmod->f_type == BlockModAD::eAddConst || tmod->f_type == BlockModAD::eDelConst ||
-	   tmod->f_type == BlockModAD::eAddVar || tmod->f_type == BlockModAD::eDelVar ) {
-
-    // register the fact that all the solutions must be checked for feasibility
-    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
+    // signal that all the solutions must be checked for feasibility
     for( auto tpl : g_pool )
-     std::get<2>(tpl) = VarToBeChckd;
+     std::get<2>( tpl ) = VarToBeChckd;
 
-    // issue modification - - - - - - - - - - - - - - - - - - - - - - - - - - -
-    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // issue modification- - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     if( f_Observer )
-	 f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-	    C05FunctionMod::AlphaChanged , 0  ) , chnl );
-
+     f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+				  C05FunctionMod::AlphaChanged , 0 ) , chnl );
     }
    }
+  }  // end BlockModAD - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-  } // end BlockModAD  - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // BlockMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ {
+  const auto tmod = std::dynamic_pointer_cast<BlockMod>( mod );
+  if( tmod ) {
+   // signal that all the solutions must be checked for feasibility
+   for( auto tpl : g_pool )
+    std::get<2>( tpl ) = VarToBeChckd;
 
+   // issue modification - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- }  // end ( LagBFunction::guts_of_add_Modification( sp_Mod ) )  - - - - - - -
+   if( f_Observer )
+    f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+				  C05FunctionMod::AlphaChanged , 0 ) , chnl );
+   }
+  }  // end BlockMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ }  // end( LagBFunction::guts_of_add_Modification( sp_Mod ) ) - - - - - - - -
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- End File LagBFunction.cpp -------------------------*/
