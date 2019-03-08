@@ -6,7 +6,7 @@
  * possible type of objective functions that a Block can support. Very few
  * assumptions are made about what form the function actually has, this being
  * demanded to derived classes. Since Objective can be costly to compute
- * (think multiple integrals to compute expectations or min-maxfunctions
+ * (think multiple integrals to compute expectations or min-max functions
  * requiring the solution of a hard optimization problem), the class
  * implements the ThinComputeInterface paradigm. Also, since an Objective
  * depends on a set of "active" Variable, it implements the

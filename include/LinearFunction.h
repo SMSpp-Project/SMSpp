@@ -34,6 +34,7 @@
 
 #include "C15Function.h"
 #include "ColVariable.h"
+#include "Observer.h"
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -248,8 +249,8 @@ class LinearFunction : public C15Function {
   }
 
 /*--------------------------------------------------------------------------*/
- /// destructor: it unregisters the from its active Variable
- /** The destructor of LinearFunction unregisters its Observer, it if is a
+ /// destructor: it unregisters from its active Variable
+ /** The destructor of LinearFunction unregisters its Observer, if it is a
   * ThinVarDepInterface, from the active Variable of the LinearFunction. This
   * is unless clear() has been called, so that the vector v_pairs contains
   * nothing and no un-registering is made. */
