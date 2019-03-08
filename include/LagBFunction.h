@@ -533,6 +533,10 @@ class LagBFunction : public C05Function , public Block {
 
  virtual void store_linearization( const LinearizationName name ) override final;
 
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+
+ virtual void delete_linearization( const LinearizationName name ) override final;
+
 /*--------------------------------------------------------------------------*/
  /// compute the Function
  /** It has to compute the Function. The parameter changedvars is ignored.

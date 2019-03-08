@@ -446,6 +446,13 @@ void LagBFunction::store_linearization( const LinearizationName name )
 
 /*--------------------------------------------------------------------------*/
 
+void LagBFunction::delete_linearization( const LinearizationName name )
+{
+ delete[] std::get<0>(g_pool[ name ]);
+ } // end LagBFunction::delete_linearization( LinearizationName )  - - - - - -
+
+/*--------------------------------------------------------------------------*/
+
 int LagBFunction::compute( bool changedvars )
 {
  LastSolution = Inf<Index>();	// set LastSolution as the current solution, i.e.
@@ -1372,7 +1379,33 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
 
    }
 
-  } // end FunctionMod - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  } // end BlockMod   - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ // BlockModAD  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ {
+  const auto tmod = std::dynamic_pointer_cast<BlockModAD>( mod );
+  if( tmod ) {
+
+   if( tmod->f_type == BlockModAD::eAddConst || tmod->f_type == BlockModAD::eDelConst ||
+	   tmod->f_type == BlockModAD::eAddVar || tmod->f_type == BlockModAD::eDelVar ) {
+
+    // register the fact that all the solutions must be checked for feasibility
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+    for( auto tpl : g_pool )
+     std::get<2>(tpl) = VarToBeChckd;
+
+    // issue modification - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+    if( f_Observer )
+	 f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+	    C05FunctionMod::AlphaChanged , 0  ) , chnl );
+
+    }
+   }
+
+  } // end BlockModAD  - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 
  }  // end ( LagBFunction::guts_of_add_Modification( sp_Mod ) )  - - - - - - -
