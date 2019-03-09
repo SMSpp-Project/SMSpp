@@ -276,7 +276,8 @@ class LinearFunction : public C15Function {
 /** @name Other initializations
  *  @{ */
 
- virtual void register_Observer( Observer * const observer = nullptr )
+ virtual void register_Observer( Observer * const observer = nullptr ,
+		 bool RegisterInActiveVars = true )
   override;
 
 /*--------------------------------------------------------------------------*/

@@ -305,7 +305,8 @@ class DQuadFunction : public C15Function {
   * that no Modification is ever produced and no Block/Solver ever gets
   * informed of any change occurring in the Function. */
 
- virtual void register_Observer( Observer * const observer = nullptr )
+ virtual void register_Observer( Observer * const observer = nullptr ,
+		 bool RegisterInActiveVars = true )
   override;
 
 /*--------------------------------------------------------------------------*/

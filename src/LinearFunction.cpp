@@ -42,7 +42,8 @@ using namespace SMSpp_di_unipi_it;
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void LinearFunction::register_Observer( Observer * const observer )
+void LinearFunction::register_Observer( Observer * const observer ,
+		bool RegisterInActiveVars )
 {
  if( f_Observer == observer )  // actually changing nothing
   return;                      // cowardly (and silently) return
@@ -51,7 +52,7 @@ void LinearFunction::register_Observer( Observer * const observer )
  // un-register it from all the Variable of the LinearFunction
  auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
 
- if( TVDIO )
+ if( TVDIO && ( v_pairs[0].first->is_active(TVDIO) < v_pairs[0].first->get_num_active() ) )
   for( auto pair : v_pairs )
    pair.first->remove_active( TVDIO );
 
@@ -61,7 +62,7 @@ void LinearFunction::register_Observer( Observer * const observer )
  // the Variable of the LinearFunction
  TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
 
- if( TVDIO )
+ if( TVDIO  && RegisterInActiveVars )
   for( auto pair : v_pairs )
    pair.first->add_active( TVDIO );
 

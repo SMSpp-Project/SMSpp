@@ -454,7 +454,8 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- virtual void register_Observer( Observer * const observer = nullptr )
+ virtual void register_Observer( Observer * const observer = nullptr ,
+		                         bool RegisterInActiveVars = true )
   override;
 
 /*--------------------------------------------------------------------------*/

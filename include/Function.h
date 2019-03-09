@@ -313,8 +313,11 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
   *
   * Note that if a non-nullptr Observer which also is a ThinVarDepInterface
   * is set, then that Observer--rather than the Function itself--will have to
-  * be registered in the active Variable of the Function. This has to be done
-  * in the :Function-specific implementation of the method, since the base
+  * be registered in the active Variable of the Function. But only if the second
+  * parameter is set to true. It is allowed the user to register the observer
+  * without registering the Variable and in this case the boolean has to be set to
+  * false. This has to be done in the :Function-specific
+  * implementation of the method, since the base
   * Function class has no clue about how the active Variable are managed. If
   * a previous Observer was set, all the Variable will have first to be
   * un-registered to the old Observer before they are registered to the new
@@ -322,7 +325,8 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
   * if it is a ThinVarDepInterface) will have to be un-registered from all
   * the Variable and no new one is registered in its place. */
 
- virtual void register_Observer( Observer * const observer = nullptr ) {
+ virtual void register_Observer( Observer * const observer = nullptr ,
+		                         bool RegisterInActiveVars = true ) {
   f_Observer = observer;
   }
 

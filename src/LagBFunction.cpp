@@ -169,7 +169,8 @@ void LagBFunction::set_dual_pairs( v_dual_pair && v_lag_pair ,
 
 /*--------------------------------------------------------------------------*/
 
-void  LagBFunction::register_Observer( Observer * const observer )
+void  LagBFunction::register_Observer( Observer * const observer ,
+		        bool RegisterInActiveVars )
 {
  if( f_Observer == observer )  // actually changing nothing
   return;                      // cowardly (and silently) return
@@ -181,7 +182,7 @@ void  LagBFunction::register_Observer( Observer * const observer )
 
  if( f_Observer ) {
   TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
-  if( TVDIO )
+  if( TVDIO && ( lag_p[0].first->is_active(TVDIO) < lag_p[0].first->get_num_active() ) )
    for( auto pair : lag_p )
     pair.first->remove_active( TVDIO );
   }
@@ -196,7 +197,7 @@ void  LagBFunction::register_Observer( Observer * const observer )
 
  if( f_Observer ) {
   TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
-  if( TVDIO )
+  if( TVDIO && RegisterInActiveVars )
    for( auto pair : lag_p )
     pair.first->add_active( TVDIO );
   }
@@ -1229,9 +1230,8 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
   const auto tmod = std::dynamic_pointer_cast<VariableMod>( mod );
   if( tmod ) {
    auto xj = dynamic_cast<ColVariable * const>( tmod->f_variable );
-   if( ( ! xj->is_fixed() ) &&
-       ( xj->get_state() == ColVariable::kContinuous ) )
-    return;
+ //  if( ( ! xj->is_fixed() ) &&   ( xj->get_state() == ColVariable::kContinuous ) )
+ //   return;
 
    // signal that all the solutions must be checked for feasibility
    for( auto tpl : g_pool )

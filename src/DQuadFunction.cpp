@@ -46,7 +46,8 @@ using namespace SMSpp_di_unipi_it;
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void DQuadFunction::register_Observer( Observer * const observer )
+void DQuadFunction::register_Observer( Observer * const observer ,
+		bool RegisterInActiveVars )
 {
  if( f_Observer == observer )  // actually changing nothing
   return;                      // cowardly (and silently) return
@@ -55,7 +56,8 @@ void DQuadFunction::register_Observer( Observer * const observer )
  // un-register it from all the Variable of the DQuadFunction
  auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
 
- if( TVDIO )
+ if( TVDIO && ( std::get<0>(v_triples[0])->is_active(TVDIO)
+		 < std::get<0>(v_triples[0])->get_num_active() ) )
   for( auto triple : v_triples )
     std::get<0>(triple)->remove_active( TVDIO );
 
@@ -65,7 +67,7 @@ void DQuadFunction::register_Observer( Observer * const observer )
  // the Variable of the DQuadFunction
  TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
 
- if( TVDIO )
+ if( TVDIO && RegisterInActiveVars )
   for( auto triple : v_triples )
     std::get<0>(triple)->add_active( TVDIO );
 
