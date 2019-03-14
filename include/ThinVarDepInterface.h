@@ -80,7 +80,7 @@ namespace SMSpp_di_unipi_it
  * Another reason for introducing the class at this point of the design cycle
  * is that SMS++ may evolve by allowing "more structured" access to the set
  * of "active" Variable; say, explicitly distinguishing between static and
- * dynaic ones and/or allowing to partition them in groups, like having as
+ * dynamic ones and/or allowing to partition them in groups, like having as
  * input multiple whole vector/list/multi-arrays of Variable. However, how
  * this is to be accomplished (if ever) is not decided yet. By factoring all
  * aspects of the "active" Variable interface into a single class, the effort
@@ -341,7 +341,7 @@ class ThinVarDepInterface {
  /// "rough destructor" that does not warn the "active" Variable
  /** The clear() method is intended to be a "guts of destructor": it should
   * leave the ThinVarDepInterface object "empty" and ready to be destructed
-  * with zero effort. However, it does so *withouth first removing the
+  * with zero effort. However, it does so *without first removing the
   * ThinVarDepInterface object from the list of "active stuff" in the
   * corresponding Variable*, unlike what the standard destructor is assumed
   * to do. This leaves any such Variable in an inconsistent state, so care
