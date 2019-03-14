@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 04 - 04 - 2018
+ * \date 14 - 03 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -75,7 +75,7 @@ BlockSolverConfig * Block::get_SolverConfig( BlockSolverConfig * svcc )
  scfg->v_SolverConfigs.resize( ls.size() );
 
  auto lsit = ls.begin();
- for( int i = 0 ; i < ls.size() ; ++i , ++lsit ) {
+ for( c_Lst_Solver::size_type i = 0 ; i < ls.size() ; ++i , ++lsit ) {
   scfg->v_SolverNames[ i ] = (*lsit)->name();
   scfg->v_SolverConfigs[ i ] = (*lsit)->get_ComputeConfig();
   }
@@ -84,7 +84,7 @@ BlockSolverConfig * Block::get_SolverConfig( BlockSolverConfig * svcc )
  scfg->v_BlockSolverConfigs.resize( nb.size() );
 
  auto nbit = nb.begin();
- for( int i = 0 ; i < nb.size() ; )
+ for( c_Vec_Block::size_type i = 0 ; i < nb.size() ; )
   scfg->v_BlockSolverConfigs[ i++ ] = (*(nbit++))->get_SolverConfig();
 
  return( scfg );
@@ -254,7 +254,7 @@ void Block::remove_constraint_from_variables( Constraint * constraint )
 void Block::remove_variable_from_stuff( Variable * const variable ,
 					const int issueindMod )
 {
- for( int i = 0 ; i < variable->get_num_active() ; ++i )
+  for( Variable::Index i = 0 ; i < variable->get_num_active() ; ++i )
   variable->get_active( i )->remove_variable( variable , issueindMod );
  }
 
@@ -265,7 +265,7 @@ void Block::set_BlockConfig( BlockConfig *newBC , const bool safe )
  if( ( ! safe ) && f_Block && f_Block->f_BlockConfig ) {
   // the current BlockConfig, if any, can be "live" in the BlockConfig of the
   // father: find i such that this Block is the i-th son of its father Block
-  const int i = std::distance( f_Block->v_Block.begin() ,
+   const std::size_t i = std::distance( f_Block->v_Block.begin() ,
      std::find( f_Block->v_Block.begin() , f_Block->v_Block.end() , this ) );
 
   if( i >= f_Block->v_Block.size() )
@@ -278,7 +278,7 @@ void Block::set_BlockConfig( BlockConfig *newBC , const bool safe )
   std::vector<BlockConfig *> &fvsBC =
                                     f_Block->f_BlockConfig->v_sub_BlockConfig;
 
-  int j = fvsBC.size();
+  std::size_t j = fvsBC.size();
   if( i >= j ) {  // the father did not have a i-th BlockConfig
    fvsBC.resize( i + 1 );
    for( ; j < i ; ++j )
@@ -298,7 +298,7 @@ void Block::set_BlockConfig( BlockConfig *newBC , const bool safe )
   delete f_BlockConfig;     // delete the previous BlockConfig
   }
 
- int i = 0;
+ std::size_t i = 0;
  if( newBC ) {  // a new BlockConfig is being set
   std::vector<BlockConfig *> &vsBC = newBC->v_sub_BlockConfig;
   for( ; i < vsBC.size() ; ++i )
@@ -639,7 +639,7 @@ BlockConfig::BlockConfig( BlockConfig &old ) : Configuration()
  f_extra_Configuration = old.f_extra_Configuration->clone();
 
  v_sub_BlockConfig.resize( old.v_sub_BlockConfig.size() );
- for( int i = 0 ; i < v_sub_BlockConfig.size() ; ++i )
+ for( std::size_t i = 0 ; i < v_sub_BlockConfig.size() ; ++i )
   v_sub_BlockConfig[ i ] = old.v_sub_BlockConfig[ i ]->clone();
  }
 
@@ -976,12 +976,12 @@ BlockSolverConfig::BlockSolverConfig( BlockSolverConfig &old )
  v_SolverNames = old.v_SolverNames;
 
  v_SolverConfigs.resize( old.v_SolverConfigs.size() );
- for( int i = 0 ; i < v_SolverConfigs.size() ; ++i )
+ for( std::size_t i = 0 ; i < v_SolverConfigs.size() ; ++i )
   v_SolverConfigs[ i ] = old.v_SolverConfigs[ i ]->clone();
 
  v_BlockSolverConfigs.resize( old.v_BlockSolverConfigs.size() );
 
- for( int i = 0 ; i < v_BlockSolverConfigs.size() ; ++i )
+ for( std::size_t i = 0 ; i < v_BlockSolverConfigs.size() ; ++i )
   v_BlockSolverConfigs[ i ] = old.v_BlockSolverConfigs[ i ]->clone();
  }
 
@@ -1058,7 +1058,7 @@ void BlockSolverConfig::print( std::ostream &output ) const
  output << "BlockSolverConfig";
  if( f_diff ) output << "[diff]";
  output << ": " << std::endl;
- for( int i = 0 ; i < v_SolverNames.size() ; ++i )
+ for( std::size_t i = 0 ; i < v_SolverNames.size() ; ++i )
   output << v_SolverNames[ i ] << ": " << v_SolverConfigs[ i ];
  for( const auto cfg : v_BlockSolverConfigs )
   if( cfg )
