@@ -472,7 +472,7 @@ class FRealObjective : public RealObjective , Observer {
    for( auto var : vars )
     var->remove_active( this );
 
-   f_function->remove_variables( vars , ordered , eNoMod );
+   f_function->remove_variables( std::move( vars ) , ordered , eNoMod );
    }
   }
 

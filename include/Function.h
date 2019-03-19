@@ -715,9 +715,9 @@ public:
 
 /*----------------------------- CONSTANTS ----------------------------------*/
 
- static constexpr NaNshift = std::numeric_limits<FunctionValue>::quiet_NaN();
+ static constexpr FunctionValue  NaNshift = std::numeric_limits<FunctionValue>::quiet_NaN();
  ///< convenience constexpr for "NaN", *not* to be used with ==
- static constexpr INFshift = std::numeric_limits<FunctionValue>::::infinity();
+ static constexpr FunctionValue INFshift = std::numeric_limits<FunctionValue>::infinity();
  ///< convenience constexpr for "Infty"
  
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
@@ -788,13 +788,13 @@ public:
   else
    output << "f";
    output << "] on Function " << f_function << " ]: ";
-   if( std::isnan( f_value )
+   if( std::isnan( f_shift ) )
     output << "everything changed";
    else
-    if( f_value == INFshift )
+    if( f_shift == INFshift )
      output << "values all increased";
     else
-     if( f_value == -INFshift )
+     if( f_shift == -INFshift )
       output << "values all decreased";
      else
       output << "values all changed by exactly " << f_shift;
@@ -953,9 +953,9 @@ public:
 
 /*----------------------------- CONSTANTS ----------------------------------*/
 
- static constexpr NaNshift = std::numeric_limits<FunctionValue>::quiet_NaN();
+ static constexpr FunctionValue NaNshift = std::numeric_limits<FunctionValue>::quiet_NaN();
  ///< convenience constexpr for "NaN", *not* to be used with ==
- static constexpr INFshift = std::numeric_limits<FunctionValue>::::infinity();
+ static constexpr FunctionValue INFshift = std::numeric_limits<FunctionValue>::infinity();
  ///< convenience constexpr for "Infty"
  
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
@@ -1057,7 +1057,7 @@ public:
     else
      output << "quasi-additively (" << f_shift << ") ";
 
-  if( type == AddVar )
+  if( f_type == AddVar )
    output << "adding ";
   else
    output << "deleting ";
