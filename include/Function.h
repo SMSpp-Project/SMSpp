@@ -689,7 +689,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
  *   uniformity with FunctionModVars [see].
  *
  * - +Infty (= std::numeric_limits<FunctionValue>::infinity(), for which
- *   the convenience constexpr "INFshift" is defined); this means
+ *   the convenience constexpr "INFshift" is defined): this means
  *   that the value of the Function has changed "unpredictably but
  *   monotonically upwards": computing the value of the Function at any
  *   point now returns a value that is surely greater than or equal to the
@@ -791,10 +791,10 @@ public:
    if( std::isnan( f_value )
     output << "everything changed";
    else
-    if( f_value == INFshift )
+    if( f_value >= INFshift )
      output << "values all increased";
     else
-     if( f_value == -INFshift )
+     if( f_value <= -INFshift )
       output << "values all decreased";
      else
       output << "values all changed by exactly " << f_shift;
@@ -891,36 +891,28 @@ public:
  * - NaN, e.g. as what is reported by
  *   std::numeric_limits<FunctionValue>::quiet_NaN() or by
  *   std::numeric_limits::signaling_NaN<FunctionValue>()): the Modification
- was not a
- *   quasi-additive one, and the value of the Function has changed
- *   "unpredictably" all over the space.
-
-the value of the
- *   Function has changed "unpredictably" all over the space, any previously
- *   computed value is no longer reliable. Although the convenient constexpr
+ *   was not quasi-additive one, and the value of the Function has changed
+ *   "unpredictably" all over the space. Although the convenient constexpr
  *   "NaNshift" is defined in the class, note that testing if f_shift is NaN
  *   must *not* be done with "f_shift == NaNshift", but rather with
  *   std::isnan( f_shift ).
- * - NaN (i.e., std::isnan( f_shift ) == true, e.g. as what is reported by
- *   std::numeric_limits<T>::quiet_NaN() or by
- *   std::numeric_limits::signaling_NaN()): 
  *
- * - any finite non-NaN number: the Modification was a quasi-additive one,
- *   with v_shift being the value of the shift; note that, unlike for
- *   FunctionMod, f_shift = 0 here makes full sense, as it signals that the
- *   Function does not change (when the arguments are properly filled with
- *   0 as per the definition).
+ * - Any finite non-NaN number (comprised 0, which makes full sense): the
+ *   Modification was a quasi-additive one, with v_shift being the value of
+ *   the shift.
  *
- * - +Infty (= std::numeric_limits<FunctionValue>::infinity()): the
- *   Modification was not a quasi-additive one, but while the value of the
- *   Function has changed "unpredictably" all over the space, the change is
- *   "upward monotone" in the sense that:
+ * - +Infty (= std::numeric_limits<FunctionValue>::infinity(), for which
+ *   the convenience constexpr "INFshift" is defined): the Modification was
+ *   not a quasi-additive one, but while the value of the Function has
+ *   changed "unpredictably" all over the space, the change is "upward
+ *   monotone" in the sense that:
  *   = for addition, the value of the Function at any point ( x , 0 ) is
  *     surely greater than or equal to the value that the Function had at x;
  *   = for deletion, the value of the Function at any point x is surely
  *     greater than or equal to the value that the Function had at ( x , 0 ).
  *
- * - -Infty (= -std::numeric_limits<FunctionValue>::infinity()): the
+ * - -Infty (= -std::numeric_limits<FunctionValue>::infinity(), i.e.,
+ *   "-INFshift" exploiting the defined convenience constexpr): the
  *   Modification was not a quasi-additive one, but while the value of the
  *   Function has changed "unpredictably" all over the space, the change is
  *   "downward monotone" in the sense that:
@@ -996,36 +988,23 @@ public:
  /**< The value of the field f_shift signals whether or not the just occurred
  * Modification was a quasi-additive one, with the following encoding:
  *
- * - NaN (i.e., std::isnan( f_value ) == true, e.g. as what is reported by
- *   std::numeric_limits<T>::quiet_NaN() or by
- *   std::numeric_limits::signaling_NaN()): the Modification was not a
- *   quasi-additive one, and the value of the Function has changed
- *    "unpredictably" all over the space.
+ * - NaN: the Modification was not quasi-additive one, and the value of the
+ *   Function has changed "unpredictably" all over the space. Although the
+ *   convenient constexpr "NaNshift" is defined in the class, note that
+ *   testing if f_shift is NaN must *not* be done with "f_shift == NaNshift",
+ *   but rather with std::isnan( f_shift ).
  *
- * - any finite non-NaN number: the Modification was a quasi-additive one,
- *   with v_shift being the value of the shift; note that, unlike for
- *   FunctionMod, f_shift = 0 here makes full sense, as it signals that the
- *   Function does not change (when the arguments are properly filled with
- *   0 as per the definition).
+ * - Any finite non-NaN number (comprised 0, which makes full sense): the
+ *   Modification was a quasi-additive one, with v_shift being the value of
+ *   the shift.
  *
- * - +Infty (= std::numeric_limits<FunctionValue>::infinity()): the
- *   Modification was not a quasi-additive one, but while the value of the
- *   Function has changed "unpredictably" all over the space, the change is
- *   "upward monotone" in the sense that:
- *   = for addition, the value of the Function at any point ( x , 0 ) is
- *     surely greater than or equal to the value that the Function had at x;
- *   = for deletion, the value of the Function at any point x is surely
- *     greater than or equal to the value that the Function had at ( x , 0 ).
+ * - INFshift: the Modification was not a quasi-additive one, but while the
+ *   value of the Function has changed "unpredictably" all over the space,
+ *   the change is "upward monotone".
  *
- * - -Infty (= -std::numeric_limits<FunctionValue>::infinity()): the
- *   Modification was not a quasi-additive one, but while the value of the
- *   Function has changed "unpredictably" all over the space, the change is
- *   "downward monotone" in the sense that:
- *   = for addition, the value of the Function at any point ( x , 0 ) is
- *     surely less than or equal to the value that the Function had at x;
- *   = for deletion, the value of the Function at any point x is surely
- *     less than or equal to the value that the Function had at ( x , 0 ).
- */
+ *   -INFshift: the Modification was not a quasi-additive one, but while the
+ *   value of the Function has changed "unpredictably" all over the space,
+ *   the change is "downward monotone". */
 
  int f_type;                      ///< "type" of the Modification
  std::vector<Variable *> v_vars;  ///< vector of pointers to affected Variable
@@ -1049,10 +1028,10 @@ public:
   if( std::isnan( f_shift ) )
    output << "non quasi-additively (any)";
   else
-   if( f_shift >= std::numeric_limits<FunctionValue>::infinity() )
+   if( f_shift >= INFshift )
     output << "non quasi-additively (+)";
    else
-    if( f_shift <= -std::numeric_limits<FunctionValue>::infinity() )
+    if( f_shift <= -INFshift )
      output << "non quasi-additively (-)";
     else
      output << "quasi-additively (" << f_shift << ") ";

@@ -1020,8 +1020,7 @@ class C05Function : public Function {
  * is encoded in the f_shift field with the same encoding as in the base
  * class FunctionMod. For the Lagrangian case, for instance, if the feasible
  * region U becomes smaller than the value of the problem can only reduce,
- * whence f_shift == -std::numeric_limits<FunctionValue>::infinity() is the
- * appropriate return value.
+ * whence f_shift ==INFshift is the appropriate return value.
  *
  * - AllEntriesChanged
  *
@@ -1044,8 +1043,7 @@ class C05Function : public Function {
  * class FunctionMod. For the Lagrangian case, for instance, it is unlikely
  * (but not downright impossible) that some monotonicity relationship can
  * be derived between the previous and the new function values, whence
- * f_shift == 0 or std::isnan( f_shift ) == true are appropriate return 
- * values.
+ * std::isnan( f_shift ) == true is the appropriate return value.
  *
  * - AllLinearizationChanged
  *
@@ -1086,7 +1084,7 @@ class C05FunctionMod : public FunctionMod {
   * classes to "extend" the set of possible types of modifications. */
 
  C05FunctionMod( C05Function * const f , const int mod ,
-		 const FunctionValue shift = 0 , const bool cB = true )
+		 const FunctionValue shift = NaNshift , const bool cB = true )
   : FunctionMod( f , shift , cB ), f_type( mod ) { }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
@@ -1117,7 +1115,18 @@ class C05FunctionMod : public FunctionMod {
     case( AllEntriesChanged ): output << "all the g"; break;
     default: output << "both \alpha and g";
     }
-   output << " have changed" << std::endl;
+   output << " have changed ==> f-values ";
+   if( std::isnan( f_value ) )
+    output << "changed unpredictably";
+   else
+    if( f_value >= INFshift )
+     output << "all increased";
+    else
+     if( f_value <= -INFshift )
+      output << "all decreased";
+     else
+      output << "all changed by exactly " << f_shift;
+   output << std::endl;
    }
 
 /*--------------------------------------------------------------------------*/
@@ -1237,7 +1246,7 @@ class C05FunctionModSbst : public C05FunctionMod {
  C05FunctionModSbst( C05Function * const f , const int mod ,
 		     std::vector<Variable *> && vars ,
 		     const bool ordered = true , 
-		     const FunctionValue shift = 0 ,
+		     const FunctionValue shift = NaNshift ,
 		     const bool cB = true )
   : C05FunctionMod( f , mod , shift , cB ) , v_vars( std::move( vars ) )
  {
@@ -1275,7 +1284,18 @@ class C05FunctionModSbst : public C05FunctionMod {
      output << "all the \alpha and";
     output << v_vars.size() << "entries of g";
     }
-   output << " have changed" << std::endl;
+   output << " have changed ==> f-values ";
+   if( std::isnan( f_value ) )
+    output << "changed unpredictably";
+   else
+    if( f_value >= INFshift )
+     output << "all increased";
+    else
+     if( f_value <= -INFshift )
+      output << "all decreased";
+     else
+      output << "all changed by exactly " << f_shift;
+   output << std::endl;
    }
 
 /*--------------------------------------------------------------------------*/
@@ -1406,7 +1426,18 @@ class C05FunctionModRngd : public FunctionMod
    output << v_vars.size() << "the entries of g in [ " << f_strt << ", "
 	  << f_stop << "]";
    }
-  output << " have changed" << std::endl;
+  output << " have changed ==> f-values ";
+  if( std::isnan( f_value ) )
+   output << "changed unpredictably";
+  else
+   if( f_value >= INFshift )
+    output << "all increased";
+   else
+    if( f_value <= -INFshift )
+     output << "all decreased";
+    else
+     output << "all changed by exactly " << f_shift;
+  output << std::endl;
   }
 
 /*--------------------------------------------------------------------------*/
