@@ -791,10 +791,10 @@ public:
    if( std::isnan( f_shift ) )
     output << "everything changed";
    else
-    if( f_value >= INFshift )
+    if( f_shift >= INFshift )
      output << "values all increased";
     else
-     if( f_value <= -INFshift )
+     if( f_shift <= -INFshift )
       output << "values all decreased";
      else
       output << "values all changed by exactly " << f_shift;

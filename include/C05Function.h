@@ -1116,13 +1116,13 @@ class C05FunctionMod : public FunctionMod {
     default: output << "both \alpha and g";
     }
    output << " have changed ==> f-values ";
-   if( std::isnan( f_value ) )
+   if( std::isnan( f_shift ) )
     output << "changed unpredictably";
    else
-    if( f_value >= INFshift )
+    if( f_shift >= INFshift )
      output << "all increased";
     else
-     if( f_value <= -INFshift )
+     if( f_shift <= -INFshift )
       output << "all decreased";
      else
       output << "all changed by exactly " << f_shift;
@@ -1285,13 +1285,13 @@ class C05FunctionModSbst : public C05FunctionMod {
     output << v_vars.size() << "entries of g";
     }
    output << " have changed ==> f-values ";
-   if( std::isnan( f_value ) )
+   if( std::isnan( f_shift ) )
     output << "changed unpredictably";
    else
-    if( f_value >= INFshift )
+    if( f_shift >= INFshift )
      output << "all increased";
     else
-     if( f_value <= -INFshift )
+     if( f_shift <= -INFshift )
       output << "all decreased";
      else
       output << "all changed by exactly " << f_shift;
@@ -1427,13 +1427,13 @@ class C05FunctionModRngd : public C05FunctionMod
 	  << f_stop << "]";
    }
   output << " have changed ==> f-values ";
-  if( std::isnan( f_value ) )
+  if( std::isnan( f_shift ) )
    output << "changed unpredictably";
   else
-   if( f_value >= INFshift )
+   if( f_shift >= INFshift )
     output << "all increased";
    else
-    if( f_value <= -INFshift )
+    if( f_shift <= -INFshift )
      output << "all decreased";
     else
      output << "all changed by exactly " << f_shift;
