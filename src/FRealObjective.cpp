@@ -97,7 +97,7 @@ void FRealObjective::add_Modification( sp_Mod mod , c_ChnlName chnl )
     "this" to use fields/methods of the class. */
 
  std::function< void( sp_Mod )> guts_of_aM;
- guts_of_mM = [ this , & guts_of_aM ]( sp_Mod mod ) {
+ guts_of_aM = [ this , & guts_of_aM ]( sp_Mod mod ) {
   // process Modification- - - - - - - - - - - - - - - - - - - - - - - - - - -
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /* This requires to patiently sift through the possible Modification types

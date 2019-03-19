@@ -1369,7 +1369,7 @@ class C05FunctionModSbst : public C05FunctionMod {
  * issuing the [C05]FunctionModVars that describe what happens to the
  * Variable, and therefore how the mapping has to be updated */
 
-class C05FunctionModRngd : public FunctionMod
+class C05FunctionModRngd : public C05FunctionMod
 {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
@@ -1387,7 +1387,7 @@ class C05FunctionModRngd : public FunctionMod
   * ordered: if not this is done right away, so that whomever receives the
   * Modification can assume v_vars always is. */
 
- C05FunctionModRngd( Function * const f , const int mod ,
+  C05FunctionModRngd( C05Function * const f , const int mod ,
 		     Variable * const strt = nullptr ,
 		     Variable * const stop = nullptr ,
 		     const FunctionValue shift = 0 , const bool cB = true )
@@ -1423,7 +1423,7 @@ class C05FunctionModRngd : public FunctionMod
   else {
    if( f_type == AllEntriesChanged )
     output << "all the \alpha and";
-   output << v_vars.size() << "the entries of g in [ " << f_strt << ", "
+   output << "the entries of g in [ " << f_strt << ", "
 	  << f_stop << "]";
    }
   output << " have changed ==> f-values ";
@@ -1716,7 +1716,7 @@ class C05FunctionModVars : public FunctionModVars
     else
      output << "quasi-additively (" << f_shift << ") ";
 
-  if( type == AddVar )
+  if( f_type == AddVar )
    output << "adding ";
   else
    output << "deleting ";
@@ -1831,8 +1831,8 @@ class C05FunctionModLin : public FunctionMod {
   * vector delta is re-ordered as well. */
 
  C05FunctionModLin( C05Function * const f ,
-		    Vec_FunctionValue && delta ,
-		    Vec_p_Var && vars ,
+		    Function::Vec_FunctionValue && delta ,
+			std::vector<Variable *> && vars ,
 		    const bool ordered = true , FunctionValue shift =
 		           std::numeric_limits<FunctionValue>::quiet_NaN()  ,
 		    const bool cB = true )
@@ -1843,10 +1843,10 @@ class C05FunctionModLin : public FunctionMod {
 
   if( ! ordered ) {
    // ordering done twice: not time efficient but no temporaries
-   std::sort( v_delta.begin() , v_delta.end() ,
+/*   std::sort( v_delta.begin() , v_delta.end() ,
 	      [ & v_vars ]( size_t i , size_t j ) {
 	       return( v_vars[ i ] < v_vars[ j ] ); }
-	      );
+	      ); */
    std::sort( v_vars.begin() , v_vars.end() );
    }
   }
@@ -1859,9 +1859,9 @@ class C05FunctionModLin : public FunctionMod {
 
 /*---------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
 
- Vec_FunctionValue v_delta;  ///< the vector d = b' - b
+ Function::Vec_FunctionValue v_delta;  ///< the vector d = b' - b
 
- Vec_p_Var v_vars;           ///< the vector of pointers to Variable
+ std::vector<Variable *> v_vars;           ///< the vector of pointers to Variable
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1879,7 +1879,7 @@ class C05FunctionModLin : public FunctionMod {
   else
    output << "f";
   output << "] on Function [" << &f_function
-	 << " ]: change in the linear part of "<< v_delta.size() <<
+	 << " ]: change in the linear part of "<< v_delta.size()
 	 << " variables" << std::endl;
   }
 
