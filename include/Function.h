@@ -715,9 +715,11 @@ public:
 
 /*----------------------------- CONSTANTS ----------------------------------*/
 
- static constexpr FunctionValue  NaNshift = std::numeric_limits<FunctionValue>::quiet_NaN();
+ static constexpr FunctionValue NaNshift
+                            = std::numeric_limits<FunctionValue>::quiet_NaN();
  ///< convenience constexpr for "NaN", *not* to be used with ==
- static constexpr FunctionValue INFshift = std::numeric_limits<FunctionValue>::infinity();
+ static constexpr FunctionValue INFshift
+                             = std::numeric_limits<FunctionValue>::infinity();
  ///< convenience constexpr for "Infty"
  
 /*---------------------------- CONSTRUCTOR ---------------------------------*/

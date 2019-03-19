@@ -1832,22 +1832,31 @@ class C05FunctionModLin : public FunctionMod {
 
  C05FunctionModLin( C05Function * const f ,
 		    Function::Vec_FunctionValue && delta ,
-			std::vector<Variable *> && vars ,
-		    const bool ordered = true , FunctionValue shift =
-		           std::numeric_limits<FunctionValue>::quiet_NaN()  ,
-		    const bool cB = true )
-  : FunctionMod( f , shift , cB ) , v_delta( delta )
+		    std::vector<Variable *> && vars ,
+		    const bool ordered = true ,
+		    FunctionValue shift = NaNshift , const bool cB = true )
+  : FunctionMod( f , shift , cB )
  {
-  if( v_vars.size() != v_delta.size() )
+  if( vars.size() != delta.size() )
    throw( std::invalid_argument( "vars and delta sizes do not match" ) );
 
-  if( ! ordered ) {
-   // ordering done twice: not time efficient but no temporaries
-/*   std::sort( v_delta.begin() , v_delta.end() ,
-	      [ & v_vars ]( size_t i , size_t j ) {
-	       return( v_vars[ i ] < v_vars[ j ] ); }
-	      ); */
-   std::sort( v_vars.begin() , v_vars.end() );
+  if( ordered ) {
+   v_vars = vars;
+   v_delta = delta;
+   }
+  else {
+   std::vector<Function::Index> ord( vars.size() );
+   std::iota( ord.begin() , ord.end() , 0 );
+   std::sort( ord.begin() , ord.end() ,
+	      [ & vars ]( Function::Index i , Function::Index j ) {
+	       return( vars[ i ] < vars[ j ] ); }
+	      );
+   v_vars.resize( vars.size() );
+   v_delta.resize( vars.size() );
+   for( Function::Index i = 0 ; i < ord.size() ; ++i ) {
+    v_delta[ i ] = delta[ ord[ i ] ];
+    v_vars[ i ] = vars[ ord[ i ] ];
+    }
    }
   }
 
@@ -1861,7 +1870,7 @@ class C05FunctionModLin : public FunctionMod {
 
  Function::Vec_FunctionValue v_delta;  ///< the vector d = b' - b
 
- std::vector<Variable *> v_vars;           ///< the vector of pointers to Variable
+ std::vector<Variable *> v_vars;       ///< the vector of pointers to Variable
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 

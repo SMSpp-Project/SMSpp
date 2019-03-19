@@ -314,16 +314,17 @@ void LinearFunction::modify_coefficient( ColVariable * const var ,
  if( itv->second == coeff )  // actually nothing to modify
   return;                    // cowardly (and silently) return
 
+ auto diff = coeff - itv->second;
  itv->second = coeff;        // modify the coefficient
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;                  // noone is there: all done
 
  f_Observer->add_Modification( std::make_shared<C05FunctionModLin>( this ,
-			    Vec_FunctionValue( { coeff } ),
-			    Vec_p_Var( { var } ) , true ,
-			    std::numeric_limits<FunctionValue>::quiet_NaN() ,
-			    Observer::par2concern( issueMod ) ) ,
+			                 Vec_FunctionValue( { diff } ),
+			                 Vec_p_Var( { var } ) , true ,
+				         FunctionMod:NaNshift ,
+					 Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 
  }  // end( LinearFunction::modify_coefficient )
