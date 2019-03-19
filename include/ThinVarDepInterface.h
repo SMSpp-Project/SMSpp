@@ -415,7 +415,7 @@ class ThinVarDepInterface {
   *
   * This method is not pure virtual: the base ThinVarDepInterface provides a
   * trivial implementation using repeated calls to is_active(). However, the
-  * method is virtual , so that derived classes may provide more efficient
+  * method is virtual, so that derived classes may provide more efficient
   * implementations exploiting properties of their specific data structures.
   * Doing so might require ordered to be true (which is not true for the
   * base class implementation). */

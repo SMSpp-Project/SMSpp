@@ -27,6 +27,34 @@
 	forth between this and the original one.
 
 
+2019-03-17 [medium] Variable[Index]Set
+
+	ThinVarDepInterface and FunctionMod* use std::vector<Variable *> as their
+	standard way to describe sets of (indices) of Variable. We could define a
+	class VariableSet that acts as a repository of indices of Variable. The
+	class would be abstract, with a few obvious implementtions like
+
+	std::vector<Variable *>   (or template< class T> T<Variable *>
+
+	and something taking a std::vector<Variable > & (or a
+        or template< class T> T<Variable> & ) and two iterators in it to represent
+	a range in the vector. Also, some "hybrid" data structure containing any
+	number of the two objects arranged in a container could be possible.
+
+	The class should have the typical STL container interface to be used in
+	for( : ) constructs and the rest.
+
+	An interesting possibility is to extract the relevant part of the
+	ThinVarDepInterface interface (mostly the virtual operators), and to make
+	ThinVarDepInterface itself derive from Variable[Index]Set.
+
+	One then have to use a Variable[Index]Set * everywhere std::vector<Variable *>
+	is currently used, which will be quite some work.
+
+	The obvious disadvantage is that of havig to jump through a virtual layer
+	each time one is iterating on some of these objects.
+
+
 2018-08-17 [medium] UnitTest
 
 	We should definitely start putting down the UnitTest of the core SMS++.

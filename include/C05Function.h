@@ -7,9 +7,9 @@
  * the linearizations need not be a continuous function, which means that
  * the Function may be non-smooth.
  *
- * \version 0.22
+ * \version 0.30
  *
- * \date 27 - 02 - 2019
+ * \date 15 - 03 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -71,12 +71,35 @@ namespace SMSpp_di_unipi_it
  * i.e., first-order information. However, the linearizations need not be a
  * continuous function, which means that the Function may be non-smooth.
  *
- * A linearization is defined as a pair formed by a real vector g and a real
- * number \alpha. The dimension of the vector g is equal to the size of the
- * input space of the Function, i.e., the number of its active Variable (for
- * short, "n" in all comments of the class unless otherwise specified).
+ * A "linearization" of the Function is a linear function in the same
+ * Variable as the Function that can be computed at each point and provides
+ * information about the behaviour of the Function in the neighbourhood of
+ * that point. It is therefore necessary that the interface specifies
+ *
+ *     THE WAY IN WHICH THE LINEAR FUNCTION IS DESCRIBED
+ *
+ * However, this in general
+ *
+ *     DEPENDS ON EXACTLY WHAT THE Variable OF THE FUNCTION ARE
+ *
+ * For instance, let "n" be the number of active Variable of the Function
+ * (in all comments of the class unless otherwise specified). If each
+ * Variable were a k x k real matrix, the linear function would have to
+ * specify how to (linearly) turn it into a *single* real number, which
+ * would typically require another k x k real matrix. This might be
+ * dealt with by having some general concept of "coefficient of the
+ * linearization", but here we take the route that is by far the more common:
+ *
+ *     THE Variable ARE ASSUMED TO BE SINGLE REAL VALUES (say, ColVariable)
+ *
+ * This immediately implies that
+ *
+ *     A LINEARIZATION CAN BE DEFINED BY A PAIR FORMED BY A REAL n-VECTOR
+ *     (g in the comments) AND A SINGLR REAL SCALAR (\alpha in the comments)
+ *
  * Linearization are therefore objects in the graphical space \R^{n + 1}
- * of pairs ( x , v ), where x belongs to the input space \R^n and v \in R is
+ * of pairs ( x , v ), where x belongs to the input space (which is assumed
+ * to be \R^n, i.e., each Variable holds a single real value) and v \in R is
  * the function value; indeed, Gr(f) = \{ ( x , f(x) ) : x \in \R^n \} (the
  * graph of f) is an object in \R^{n + 1}. However, like function values
  * linearizations are usually computed at specific points x \in \R^n. Often,
@@ -88,17 +111,33 @@ namespace SMSpp_di_unipi_it
  *
  * and of its (convex) Lagrangian function
  *
- *   (P(x))  f(x) = max \{ c u + x ( b - A u ) : u \in U \}
+ *   (P( x ))  f( x ) = max \{ c u + x ( b - A u ) : u \in U \}
  *
- * Given x, any optimal solution u^* of P(x) provides a linearization
+ * Given some \bar{x}, any optimal solution u^* of P( \bar{x} ) provides
+ * the pair
  *
- *    ( g , \alpha ) = L( u ) = ( b - A u^* , c u^* + x ( b - A u^* ) )
+ *    ( g , \alpha ) = ( b - A u^* , c u^* )
  *
- * which is clearly the "best possible" linearization:
+ * which defines the "best possible" linearization
  *
- * - it supports Gr(f) from below: f(y) >= \alpha + g ( y - x ) for all y;
+ *    L( x ) = \alpha + g x = c u^* + x ( b - A u^* )
  *
- * - it is "active" at x: \alpha = f(x);
+ * Indeed:
+ *
+ * - L() is "active" at \bar{x}: \L( \bar{x} ) = f( \bar{x} );
+ *
+ * - it supports Gr(f) from below, i.e.,
+ *
+xs *     f( y ) >= \f( \bar{x} ) + g ( y - \bar{x} ) for all y  ,
+ *
+ *   as it can be seen by just expanding:
+ *
+ *     f( y ) \geq c u^* + \bar{x} ( b - A u^* )
+ *                       + ( y - \bar{x} ) ( b - A u^* ) =
+ *               = c u^* + y ( b - A u^* )
+ *
+ *   (the inequality being obviously true since u^* is a feasible, but
+ *   not necessarily optimal, solution of P( y ));
  *
  * - if u^* is *unique*, then f is differentiable at x and g = \Nabla f(x).
  *
@@ -725,9 +764,13 @@ class C05Function : public Function {
   *
   * where the inner vectors G[ i ] are dimensioned to the *maximum* number of
   * Variable that the C05Function may have, and that a FunctionModVars occurs
-  * which adds k more variables, say [ n , ... , n + k - 1 ). Then, the new
-  * entries of all the linearizations corresponding to these new Variable
-  * can be written in place in the existing vectors by just calling
+  * which adds k more Variable, say [ n , ... , n + k - 1 ]. Note that the
+  * position of these new Variable in G[] depends on their pointer, so it
+  * may well be that including them in G[] would require a complete reshuffle
+  * of the vector. It may however, be that the new Variable all have a
+  * pointer > that any of the existing ones; then, the new entries of all the
+  * linearizations corresponding to these new Variable can be written in place
+  * in the existing vectors by just calling
   *
   *   get_linearization_coefficients( G[ i ].data() , i , null , n , k )
   *
@@ -737,7 +780,7 @@ class C05Function : public Function {
       const LinearizationName name =
 			     std::numeric_limits<LinearizationName>::max() ,
       c_Vec_Index * const indices = nullptr , c_Index start = 0 ,
-      c_Index end = std::numeric_limits<Index>::max() ) = 0;
+      Index end = std::numeric_limits<Index>::max() ) = 0;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// retrieve the coefficients (g) of a linearization in a sparse vector
@@ -774,7 +817,7 @@ class C05Function : public Function {
       const LinearizationName name =
                                std::numeric_limits<LinearizationName>::max() ,
       c_Vec_Index * const indices = nullptr , c_Index start = 0 ,
-      c_Index end = std::numeric_limits<Index>::max() ) = 0;
+      Index end = std::numeric_limits<Index>::max() ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// return the constant term of a linearization
@@ -800,8 +843,9 @@ class C05Function : public Function {
   * warn whatever algorithm is using the Function not to use it any longer). 
   */
 
- virtual FunctionValue get_linearization_constant( const LinearizationName name =
-	    std::numeric_limits<unsigned int>::max() ) = 0;
+ virtual FunctionValue get_linearization_constant(
+			       const LinearizationName name =
+	                       std::numeric_limits<unsigned int>::max() ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// returns true if and only if this Function is continuously differentiable
@@ -950,11 +994,11 @@ class C05Function : public Function {
  * *all the \alpha have changed in the same way*; this happens if the whole
  * function is shifted by a constant, which is what the original FunctionMod
  * is intended to convey. Rather, the idea is that each individual \alpha has
- * changed in its own way, *but all the rest has remained unchanged* (unless 
- * other Modification say otherwise). The idea is that it is possible to query
- * the value of \alpha for all the linearizations that were stored in the
- * global pool [see get_linearization_constant()], thereby re-using all the
- * corresponding information to warm-start whatever algorithm one is using.
+ * changed in its own way, *but all the g remained unchanged*. The idea is
+ * that it is possible to query the value of \alpha for all the
+ * linearizations that were stored in the global pool [see
+ * get_linearization_constant()], thereby re-using all the corresponding
+ * information to warm-start whatever algorithm one is using.
  *
  * A case where this happens is the Lagrangian one, where each linearization
  * is attached to one solution u_i \in U, and:
@@ -964,38 +1008,54 @@ class C05Function : public Function {
  * - or U itself changes to some U' \neq U.
  *
  * In the first case, having stored u_i in the global pool it is immediate to
- * compute the new value of \alpha. In the second case, each u_i is either
- * feasible (u_i \in U') or not (u_i \notin U'). In the first case \alpha
- * does not change, but in the second the original linearization (even the g
- * part) can no longer be used, as it is no longer valid. This can be handled
- * by having get_linearization_constant() returning Inf<FunctionValue>() for
- * the corresponding \alpha.
+ * compute the new value of \alpha = c u'. In the second case, each u_i is
+ * either feasible (u_i \in U') or not (u_i \notin U'). In the first case
+ * \alpha = c u_i does not change, but in the second the original
+ * linearization (even the g part) can no longer be used, as it is no longer
+ * valid. This can be handled by having get_linearization_constant()
+ * returning Inf<FunctionValue>() for the corresponding \alpha.
+ *
+ * Note that one would expect that the change in the \alpha implies a change
+ * in the values of the Function as well. If and how this actually happens
+ * is encoded in the f_shift field with the same encoding as in the base
+ * class FunctionMod. For the Lagrangian case, for instance, if the feasible
+ * region U becomes smaller than the value of the problem can only reduce,
+ * whence f_shift == -std::numeric_limits<FunctionValue>::infinity() is the
+ * appropriate return value.
  *
  * - AllEntriesChanged
  *
- * This type of modification states that all entries of previously computed
- * linearizations (the g part) may have changed, *but all the rest has
- * remained unchanged* (unless other Modification say otherwise). It is
- * then possible to query the new values of the linearizations that were
- * stored in the global pool [see get_linearization_coefficients()], thereby
- * re-using all the corresponding information to warm-start whatever
- * algorithm one is using.
+ * This type of modification states that all the entries of the g part of
+ * all previously computed linearizations may have changed, *but all the
+ * \alpha have remained unchanged*.
+ *
+ * A case where this happens is the Lagrangian one, where each linearization
+ * is attached to one solution u_i \in U, g_i = b - A u_i. If the constraint
+ * A u = b change to completely unrelated (save for the size) A' u = b',
+ * then all the corresponding g_i need to be recomputed, but the \alpha_i =
+ * c u_i remains the same. It is then possible to query the new values of the
+ * linearizations that were stored in the global pool [see
+ * get_linearization_coefficients()], thereby re-using all the corresponding
+ * information to warm-start whatever algorithm one is using.
+ *
+ * Note that one would expect that the change in the \g implies a change in
+ * the values of the Function as well. If and how this actually happens
+ * is encoded in the f_shift field with the same encoding as in the base
+ * class FunctionMod. For the Lagrangian case, for instance, it is unlikely
+ * (but not downright impossible) that some monotonicity relationship can
+ * be derived between the previous and the new function values, whence
+ * f_shift == 0 or std::isnan( f_shift ) == true are appropriate return 
+ * values.
  *
  * - AllLinearizationChanged
  *
  * This type of modification is the logical union of both previous types:
  * for all of previously computed linearizations, both the g part and the
- * \alpha may have changed, *but all the rest has remained unchanged* (unless
- * other Modification say otherwise). It is then possible to query the new
- * values of the linearizations that were stored in the global pool using the
- * available methods as in the two previous cases.
- *
- * A case where this happens is the Lagrangian one, where each linearization
- * is attached to one solution u_i \in U, and the whole set of complicating
- * constraints A u = b abruptly changes, whereas all the rest of (P) remains
- * the same. Having stored the u_i in the global pool it is immediate to
- * compute the new values of g and \alpha. For more "localized" changes of
- * the complicating constraints see C05FunctionModVars. */
+ * \alpha may have changed. This again typically implies that the function
+ * values have changed as well, with f_shift specifying how. It is then
+ * possible to query the new values of the linearizations that were stored
+ * in the global pool using the available methods as in the two previous
+ * cases. */
 
 class C05FunctionMod : public FunctionMod {
 
@@ -1035,7 +1095,7 @@ class C05FunctionMod : public FunctionMod {
 
 /*----------------------- PUBLIC FIELDS OF THE CLASS -----------------------*/
 
-  int f_type; ///< type of modification
+  int f_type;  ///< type of modification
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1044,13 +1104,14 @@ class C05FunctionMod : public FunctionMod {
 /*-------------------------- PROTECTED METHODS -----------------------------*/
   /// print the C05FunctionMod
 
-  virtual inline void print( std::ostream &output ) const {
+  virtual inline void print( std::ostream &output ) const override
+  {
    output << "C05FunctionMod[";
-  if( concerns_Block() )
-   output << "t";
-  else
-   output << "f";
-  output << "] on Function [" << &f_function << " ]: ";
+   if( concerns_Block() )
+    output << "t";
+   else
+    output << "f";
+   output << "] on Function [" << &f_function << " ]: ";
    switch( f_type ) {
     case( AlphaChanged ): output << "all the \alpha"; break;
     case( AllEntriesChanged ): output << "all the g"; break;
@@ -1064,113 +1125,262 @@ class C05FunctionMod : public FunctionMod {
  };  // end( class( C05FunctionMod ) )
 
 /*--------------------------------------------------------------------------*/
-/*-------------------- CLASS C05FunctionModVarsRngd ------------------------*/
+/*----------------------- CLASS C05FunctionModSbst -------------------------*/
+/*--------------------------------------------------------------------------*/
+/// class to describe C05Function changes limited to a subset of Variable
+/** Derived class from C05FunctionMod, extends it to the concept that the
+ * changes to the "complicated" part of the linearization (the vector g) may
+ * be localized to some subset of the entries as opposed to involving the
+ * whole vector. For this reason it include the std::vector<Variable *> field
+ * v_vars (akin to that of FunctionModVars).
+ *
+ * Formally, the class supports all the three types of change
+ *
+ * - AlphaChanged
+ * - AllEntriesChanged
+ * - AllLinearizationChanged
+ *
+ * as C05FunctionMod, but "AllEntries" and "AllLinearization" now have to be
+ * taken to mean "all those specified by v_vars". Also, it does not make
+ * sense to issue a C05FunctionModSbst with type AlphaChanged, since actually
+ * this does not involve g and therefore v_vars is useless and should at best
+ * be ignored; to all intents and purposes, a C05FunctionModSbst with type
+ * AlphaChanged is the same as a C05FunctionMod with the same type and should
+ * be dealt with in the same way (which should be possible at low cost).
+ *
+ * A convenient use case for this Modification is that of a structured
+ * optimization problem
+ *
+ *   (P)  max \{ c u : A u = b , u \in U \}
+ *
+ * and of its (convex) Lagrangian function
+ *
+ *   (P( x ))  f( x ) = max \{ c u + x ( b - A u ) : u \in U \}
+ *
+ * Linearizations are associated with feasible solutions \bar{u} \in U, as
+ *
+ *   ( g , \alpha ) = ( b - A \bar{u} , c \bar{u} )
+ *
+ * A subset I \subset { 1 , ... , n } of the (indices of the) relaxed
+ * constraints (hence, of the Lagrangian variables x_i) may be abruptly
+ * changed: the corresponding constraints A_I u = b_I become completely
+ * unrelated ones A'_I u = b'_I. Yet, the entries corresponding to I in
+ * (the g part of) a previous linearization corresponding to some \bar{u}
+ * can be re-computed as g_I = b'_I - A'_I \bar{u} while keeping all the
+ * rest unchanged. These entries can be recovered by calling
+ * get_linearization_coefficients() provided that appropriate information
+ * about that linearization (\bar{u}) has been saved in the global pool;
+ * indeed, this is why these methods have both the "name" and "indices"
+ * parameters.
+ *
+ * The mapping between the pointers in v_vars and the involved entries of g
+ * (i.e., g_I, i.e., the subset I) would seem to be obvious: in fact, that
+ * each entry of g is uniquely associated to a Variable, and therefore the
+ * "name = pointer" of the Variable can be used as an "index" in g.
+ * Therefore, the v_vars field of C05FunctionModSbst can be transformed into
+ * a set of indices (I) in g by means of ThinVarDepInterface::is_active() or
+ * ThinVarDepInterface::map_active(). However,
+ *
+ *     THOSE METHODS PROVIDE INDICES FOR THE CURRENT MAPPING IN THE
+ *     C05Function, WHICH MAY BE COMPLETELY DIFFERENT FOR THE MAPPING
+ *     THAT THE Solver/Observer HAD CONSTRUCTED
+ *
+ * In fact, when this Modification is being processed, any number of
+ * additions/removals of Variable [see C05FunctionModVar] may have occurred.
+ * The mapping stored in the C05Function may therefore have changed in any
+ * ways. As an example,
+ *
+ *     A Variable * STORED IN v_var MAY NOT EVEN BE THAT OF A Variable
+ *     THAT IS CURRENTLY "ACTIVE" IN THE C05Function
+ *
+ * as the Variable may well have been subsequently removed before this
+ * Modification is processed.
+ *
+ * This just means that whatever Solver/Observer has to process this
+ * Modification has to be careful about how to store the entries of the
+ * linearizations, possibly internally keeping its own map. The simplest way
+ * to do that is by keeping a std::vector< Variable * > whose i-th position
+ * contains the pointer to the Variable whose first-orded information is
+ * currently stored in the i-th position of the corresponding vectors. Yet,
+ * the Solver/Observer may have many other choices, such as storing the
+ * information in a std::map or any other data structure readily accessible
+ * by using a Variable * key. Also, the Solver/Observer may make assumptions
+ * on how the Variable of the C05Function are handled which simplify this
+ * task (provided, of course, that these assumptions are clearly stated in
+ * the interface); the simplest one being that Variable are never
+ * added/removed, so that the mapping is static. Alternatively, for instance,
+ * the Solver/Observer may assume all the Variable to belong to a given --
+ * say -- std::vector< Variable > of fixed size m, and store the g vectors
+ * into parallel std::vector< FunctionValue >. Whatever the choice, the
+ * responsibility of properly keeping appropiate data structures representing
+ * the "internal" mapping lies on the Solver/Observer; the C05Function is not
+ * supposed to help this in any way, save of course by issuing the
+ * [C05]FunctionModVars that describe what happens to the Variable, and
+ * therefore how the mapping has to be updated */
+
+class C05FunctionModSbst : public C05FunctionMod {
+
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
+ /// constructor: takes the set of indices (besides all else)
+/** constructor: takes the type of the Modification, a pointer to the
+  * affected Function, and the subset of affected Variable under the form
+  * of a std::vector<Variable *>. As the the && tells, the vector "becomes
+  * property" of the FunctionModVars object. The boolean parameter ordered
+  * allows to tell whether or not the vars set passed to the constructor is
+  * ordered: if not this is done right away, so that whomever receives the
+  * Modification can assume v_vars always is. */
+
+ C05FunctionModSbst( C05Function * const f , const int mod ,
+		     std::vector<Variable *> && vars ,
+		     const bool ordered = true , 
+		     const FunctionValue shift = 0 ,
+		     const bool cB = true )
+  : C05FunctionMod( f , mod , shift , cB ) , v_vars( std::move( vars ) )
+ {
+  if( ! ordered )
+   std::sort( v_vars.begin() , v_vars.end() );
+  }
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+
+ virtual ~C05FunctionModSbst() { }  ///< destructor: does nothing
+
+/*----------------------- PUBLIC FIELDS OF THE CLASS -----------------------*/
+
+ std::vector<Variable *> v_vars;  ///< vector of pointers to affected Variable
+
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+  /// print the C05FunctionModSbst
+
+  virtual inline void print( std::ostream &output ) const override
+  {
+   output << "C05FunctionModSbst[";
+   if( concerns_Block() )
+    output << "t";
+   else
+    output << "f";
+   output << "] on Function [" << &f_function << " ]: ";
+   if( f_type == AlphaChanged )
+    output << "all the \alpha";
+   else {
+    if( f_type == AllEntriesChanged )
+     output << "all the \alpha and";
+    output << v_vars.size() << "entries of g";
+    }
+   output << " have changed" << std::endl;
+   }
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( C05FunctionModSbst ) )
+
+/*--------------------------------------------------------------------------*/
+/*---------------------- CLASS C05FunctionModRngd --------------------------*/
 /*--------------------------------------------------------------------------*/
 /// class to describe changes to a C05Function involving a range of Variable
-/** Derived class from FunctionModVarsRngd to describe changes specific to a 
- * C05Function. This class defines the following type of modification:
+/** Derived class from C05FunctionMod, extends it to the concept that the
+ * changes to the "complicated" part of the linearization (the vector g) may
+ * be localized to some subset of the entries as opposed to involving the
+ * whole vector. Unlike C05FunctionModSbst, however, the range is "dense",
+ * i.e., it is specified as "all the Variable whose pointer lie between two
+ * given pointers f_strt and f_stop" (the second excluded).
  *
- * - SomeEntriesChange
+ * For all the rest, this Modification works exactly as C05FunctionModSbst,
+ * hence see the comments there. The significant point to notice is due to
+ * the fact, again, that
  *
- * "extending" function_mod_variables_type, and, basically, does nothing else.
- * 
- * It is, however, important to extensively comment how the information in
- * this Modification relates to changes in the *linearization*, that are
- * specific to C05Function. The point is simply that each entry of any
- * linearization vector is uniquely associated to a Variable, and therefore
- * the "name = pointer" of the Variable can be used as an "index" in the
- * linearization vector. Therefore, the the f_strt and f_stop fields of the
- * FunctionModVarsRngd can be transformed into indices in the linearization
- * vector by means of ThinVarDepInterface::is_active().
+ *     THE SET OF "ACTIVE" Variable THAT WERE COMPRISED BETWEEN f_strt AND
+ *     f_stop WHEN THE Modification WAS ISSUED MAY BE COMPLETELY DIFFERENT
+ *     FROM WHAT IS NOW
  *
- * In particular, SomeEntriesChange indicates that some entries of *all*
- * previously computed linearizations may have changed and must be updated in
- * order for them to reflect linearizations of the current function. The
- * (Variable names corresponding to the) indices of the components of the
- * linearization vector that must be recomputed are all those in the range
- * specified by the FunctionModVarsRngd. It is then possible to query the new
- * values of the corresponding entries of the linearizations that were stored
- * in the global pool [see get_linearization_coefficients()], thereby
- * re-using all the corresponding information to warm-start whatever
- * algorithm one is using.
+ * up to the point that
  *
- * A case where this happens is the Lagrangian one, where each linearization
- * is attached to one solution u_i \in U, and *some* of the complicating
- * constraints A u = b abruptly changes, whereas all the rest of (P) remains
- * the same. Having stored the u_i in the global pool it is immediate to
- * compute the new values of g for the appropriate entries.
+ *     f_strt MAY NOT EVEN BE A POINTER TO A Variable THAT IS CURRENTLY
+ *     "ACTIVE" IN THE C05Function
  *
- * Note that if all the entries change, this can be somehow more clearly and
- * succinctly signaled by issuing a C05FunctionMod with type
- * AllEntriesChanged (or AllLinearizationChanged); however, this is the same
- * as a FunctionModVarsRngd with strt == stop == nullptr.
+ * (nor may f_stop, but this is not a problem since that Variable is never
+ * accessed anyway, so the pointer may well be a "fake" one that points to
+ * no Variable object at all).
  *
- * Since this Modification derives from FunctionModVars, it also in principle
- * supports the
+ * Indeed, after this Modification has been issued Variable can be
+ * added/removed; this means that some of the Variable that were previously
+ * in the range [ f_strt , f_stop ) may no longer be active (the range may
+ * even be empty), or that new ones may have been inserted there.
  *
- * - AddVar
- * - RemoveVar
+ * None of the two cases is really an issue. If a Variable is no longer in
+ * the range, its component in g have to be removed anyway [see
+ * C05FunctionModVars]; thus, the fact that it has changed can be safely
+ * ignored, since a later Modification will reveal that the entry is no
+ * longer significant. For a Variable that has been inserted, the entry was
+ * not there in the first place and hence it clearly has to be recomputed;
+ * the only issue is that that Variable is not present in the "internal
+ * mapping" of the Solver/Observer that processes this Modification [see the
+ * comments in C05FunctionModSbst], so that one does not have to expect that
+ * it is. Yet, recognizing that the entry to be changed is not yet there one
+ * can again plainly ignore it, as it will be computed at the moment in which
+ * the Modification inserting it is processed. The worst case is that of a
+ * Variable that was there, is removed and then added again: in this case
+ * all the work is done thrice. Yet, should this ever become an issue, the
+ * Solver/Observer can deploy logic to examine all the Modification in its
+ * queue and avoid doing un-necessary work.
  *
-  * types. Indeed, this makes full sense for the removal: the provided range
-  * uniquely identifies the N "active" Variable that need be removed, which
-  * obviously correspond to a contiguous range of N entries in the
-  * linearization vectors, and removing these Variable "simply" correspond to
-  * cutting away that range from all previous linearization vectors; this can
-  * be done without any further input from the C05Function. Note that, of
-  * course,
-  *
-  *    THIS ONLY HOLDS IF THE C05Function IS QUASI-ADDITIVE
-  *
-  * (see comments to FunctionModVars), which is signalled by the value of
-  * shift. If shift == Inf<FunctionValue>(), one has to assume that all the
-  * entries of the previous linearizations have changed.
-  *
-  * A case where this happens is the Lagrangian one, where each linearization
-  * is attached to one solution u_i \in U, in the sense that the vector is
-  * g_i = b - A u_i. Removing one complicating constraints A_h u = b_h
-  * simply corresponds to removing the h-th row of g_i.
-  *
-  * However, this form of Modification does not lend itself well to
-  * handling the *addition* of N Variable. For this to be done, the
-  * pointers to all new Variable need be retrieved: the only way to do this
-  * with range information is to assume that both strt and stop belong to an
-  * array of Variable, so that all the ones "between" are added. However,
-  * this would require knowing *exactly which type of Variable* these are.
-  * Although the possibility is left open for some specific Function to use,
-  * it is not possible to use C05FunctionModVarsRngd in full generality to
-  * handle addition of Variable, even if the Function is quasi-additive. */
+ * Yet, all this again stresses the fact that whatever Solver/Observer has
+ * to process this Modification possibly has to internally keeping its own
+ * map between Variable * and entries of g, since it can not rely on the
+ * one that is kept by the C05Function. Again there can be many ways for
+ * doing this, or the Solver/Observer may make assumptions on how the
+ * Variable of the C05Function are handled which simplify this task. For
+ * "ranged" changes, a particularly convenient assumption is that all the
+ * Variable to belong to a given -- say -- std::vector< Variable > of fixed
+ * size m, to that the g vectors can be stored into parallel
+ * std::vector< FunctionValue >, and the [ f_strt , f_stop ) range can be
+ * easily transformed into ranges in those vectors, too. Whatever the choice,
+ * the responsibility of properly keeping appropiate data structures
+ * representing the "internal" mapping lies on the Solver/Observer; the
+ * C05Function is not supposed to help this in any way, save of course by
+ * issuing the [C05]FunctionModVars that describe what happens to the
+ * Variable, and therefore how the mapping has to be updated */
 
-class C05FunctionModVarsRngd : public FunctionModVarsRngd
+class C05FunctionModRngd : public FunctionMod
 {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
  public:
 
-/*---------------------------- PUBLIC TYPES --------------------------------*/
-
- /// definition of the possible type of C05FunctionModVarsRngd
- enum c05function_mod_variables_type {
-  SomeEntriesChange = FunctionModVarsLastParam ,
-  ///< some entries of previously computed linearizations may have changed
-  C05FunctionModVarsLastParam
-  ///< first allowed parameter value for derived classes
-  /** Convenience value for easily allow derived classes to extend the set of
-   * types of modifications. */
-  };
-
 /*-------------------- CONSTRUCTOR AND DESTRUCTOR --------------------------*/
 
- /// constructor: identical to that of FunctionModVarsRngd
+ /// constructor: takes the type of the Modification and the range
+ /** constructor: takes the type of the Modification, a pointer to the
+  * affected Function, and the subset of affected Variable under the form
+  * of a std::vector<Variable *>. As the the && tells, the vector "becomes
+  * property" of the FunctionModVars object. The boolean parameter ordered
+  * allows to tell whether or not the vars set passed to the constructor is
+  * ordered: if not this is done right away, so that whomever receives the
+  * Modification can assume v_vars always is. */
 
- C05FunctionModVarsRngd( Function * const f , const int mod ,
-			 Variable * const strt = nullptr ,
-			 Variable * const stop = nullptr ,
-			 const FunctionValue shift = 0 , const bool cB = true )
-  : FunctionModVarsRngd( f , mod , strt , stop , shift , cB ) { }
+ C05FunctionModRngd( Function * const f , const int mod ,
+		     Variable * const strt = nullptr ,
+		     Variable * const stop = nullptr ,
+		     const FunctionValue shift = 0 , const bool cB = true )
+  : C05FunctionMod( f , mod , shift , cB ) , f_strt( strt ) , f_stop( stop )
+  { }
 
  /// destructor: does nothing
- virtual ~C05FunctionModVarsRngd() { }
+ virtual ~C05FunctionModRngd() { }
+
+/*---------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
+
+ Variable * f_strt;   ///< the beginning of the range
+ Variable * f_stop;   ///< the beginning of the range
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1178,91 +1388,271 @@ class C05FunctionModVarsRngd : public FunctionModVarsRngd
 
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 
- /// print the C05FunctionModVarsRngd
+ /// print the C05FunctionModRngd
 
- virtual inline void print( std::ostream &output ) const {
-  output << "C05FunctionModVarsRngd[";
+ virtual inline void print( std::ostream &output ) const
+ {
+  output << "C05FunctionModRngd[";
   if( concerns_Block() )
    output << "t";
   else
    output << "f";
   output << "] on Function [" << f_function << " ]: ";
-  switch( f_type ) {
-   case( AddVar ): output << "add variables"; break;
-   case( RemoveVar ): output << "delete variables"; break;
-   case( SomeEntriesChange ):  output << "some entries change";
+  if( f_type == AlphaChanged )
+   output << "all the \alpha";
+  else {
+   if( f_type == AllEntriesChanged )
+    output << "all the \alpha and";
+   output << v_vars.size() << "the entries of g in [ " << f_strt << ", "
+	  << f_stop << "]";
    }
-  output << "[ " << f_strt << ", " << f_stop << "]" << std::endl;
+  output << " have changed" << std::endl;
   }
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( C05FunctionModVarsRngd ) )
+ };  // end( class( C05FunctionModRngd ) )
 
 /*--------------------------------------------------------------------------*/
-/*-------------------- CLASS C05FunctionModVarsSbst ------------------------*/
+/*---------------------- Class C05FunctionModVars --------------------------*/
 /*--------------------------------------------------------------------------*/
-/// class to describe changes to a C05Function involving a subset of Variable
-/** Derived class from FunctionModVarsSbst to describe changes specific to a 
- * C05Function. This class is (almost) completely analogous to
- * C05FunctionModVarsRngd, up to defining the identical type of modification
+/// class to describe adding/removing Variable of a C05Function
+/** Derived class from FunctionModVars to describe changes of a Function that
+ * involve adding/removing the Variable "active" in it.
  *
- * - SomeEntriesChange
+ * This class adds some information to FunctionModVars that is related to how
+ * changes in the set of "active" Variable impact the *linearization*, that
+ * are specific to C05Function. The point is that, similarly to what is done
+ * for function values in the base Function class, it is crucial to define
+ * conditions under which previously computed linearizations can be
+ * "salvaged" in case of addition/removal of Variable.
  *
- * "extending" function_mod_variables_type, and doing nothing else. However,
- * the set of indices of the linearization vectors affected by the change
- * are now provided by the v_vars std::vector of Variable *. These can be,
- * if needed, (hopefully, efficiently) translated into indices of the
- * linearization vector by means of ThinVarDepInterface::map_active().
+ * Quasi-additivity provides a starting point, in the sense that if the
+ * Function f_old( x , y ) is quasi-additive on y, and a linearization
+ * ( g = [ g_x , g_y ] , \alpha ) is obtained at a point ( x , 0 ), then
+ * ( g_x , \alpha ) should remain "valid" for the Function f( x ) with the y
+ * Variable removed. Indeed, consider the case where the linearization is
+ * the gradient: the component g_i corresponding to the variable x_i is the
+ * partial derivative, i.e., the limit for t \to 0 of
  *
- * There is one relevant difference with C05FunctionModVarsRngd, though;
- * because it provides a full set of Vector *, this method can reasonably
- * be used with type AddVar. In this case, any linearization vector of the
- * Function after the modification has N extra components. It is possible
- * to update a previously computed linearization (of the old pre-modification
- * Function) stored in the global pool by computing the N new entries of the
- * linearization associated with the new variables; this is allowed by
- * get_linearization_coefficients(), and in fact this use case is *exactly*
- * why these methods have the "name" parameter. Of course,
-  *
-  *    THIS ONLY HOLDS IF THE C05Function IS QUASI-ADDITIVE
-  *
-  * (see comments to FunctionModVars), which is true for instance for
-  * Lagrangian functions and is signalled by the value of shift. If shift
-  * == Inf<FunctionValue>(), one has to assume that all the entries of the
-  * previous linearizations have changed when new Variable are added. */
+ *  [ f_old( x_1 , ... , x_i + t , ... , x_n , y ) - f_old( x , y ) ] / t
+ *
+ * Clearly, when computed at y = 0 this is equal to (the limit ...)
+ *
+ *      [ f( x_1 , ... , x_i + t , ... , x_n ) - f( x ) ] / t
+ *
+ * Note that quasi-additivity allows f_old( x , 0 ) = f( x ) + shift, but
+ * clearly the shift cancels out while doing derivatives (although it may
+ * influence the \alpha). The same holds when new Variable are
+ * quasi-additively added, with the difference that the g_y part was not
+ * previously available and has to be computed anew. The "should" in the
+ * statement is only related to the fact that we purposely avoid to define
+ * what a "valid linearization" exactly is in order to leave flexibility in
+ * the usage of C05Function, but it is clear that whatever concept is used
+ * to define the linearization should collapse to that of the gradient when
+ * f() is smooth and only "exact" linearizations are allowed; therefore,
+ * the statement should hold in all cases.
+ *
+ * However quasi-additivity is useless to re-use information computed at
+ * points ( x , y ) with y \neq 0. This makes sense in the case of a
+ * Function, where the property only involves the function value: f( x , y )
+ * can be arbitrarily different from f( x , 0 ), unless one imposes very
+ * strong constraints on f(). However, for linearizations one would like a
+ * stronger property to hold:
+ *
+ *     THE g PART OF THE LINEARIZATION CORRESPONDING TO THE VARIABLES
+ *     WHICH SURVIVE REMANIS "VALID" EVEN IF IT HAS BEEN COMPUTED AT A
+ *     POINT WITH y \neq 0
+ *
+ * In other words, when passing from f_old( x , y ) to f( x ), the old
+ * linearizations ( g = [ g_x , g_y ] , \alpha ) of f_old() should be able
+ * to yield new linearizations ( g = g_x , \alpha' ) even if it has been
+ * obtained at a point where y \neq 0. Also,
+ *
+ *     THE g PART OF THE LINEARIZATION CORRESPONDING TO THE PREVIOUS
+ *     VARIABLES REMANIS "VALID" AND IT ONLY NEED TO BE EXTENDED
+ *
+ * In other words, when passing from f_old( x ) to f( x , y ), the old
+ * linearizations ( g = g_x , \alpha ) of f_old() should be able to yield
+ * new linearizations ( g = [ g_x , g_y ] , \alpha' ), i.e., to be directly
+ * extended by just providing the "missing" part for the new Variable. We
+ * call this property STRONG QUASI-ADDITIVITY.
+ *
+ * A convenient example of this behaviour is, as usual, that of a structured
+ * optimization problem
+ *
+ *   (P)  max \{ c u : A u = b , u \in U \}
+ *
+ * and of its (convex) Lagrangian function
+ *
+ *   (P( x ))  f( x ) = max \{ c u + x ( b - A u ) : u \in U \}
+ *
+ * Linearizations are associated with feasible solutions \bar{u} \in U, as
+ *
+ *   ( g , \alpha ) = ( b - A \bar{u} , c \bar{u} )
+ *
+ * Assuming a new block A' u = b' of constraints is added to (P), and relaxed
+ * with multipliers y, the function becomes
+ *
+ *   f( x , y ) = max \{ c u + x ( b - A u ) + y ( b' - A' u ) : u \in U \}
+ *
+ * with linearizations
+ *
+ *   ( g = [ g_x , g_y ] , \alpha ) =
+ *         ( [ b - A \bar{u} , b' - A' \bar{u} ] , c \bar{u} )
+ *
+ * The new part g_y =  b' - A' \bar{u}  can be easily computed, provided
+ * that the information \bar{u} is stored in the global pool, irrespectively
+ * to the fact that \bar{u} was obtained or not at a point where y = 0.
+ * Similarly, if constraints are removed (which is equivalent to setting the
+ * corresponding x_i to 0) the g_y component can be erased without the g_x
+ * one ceasing to be "valid", irrespectively to the fact that y be = 0 when
+ * the new constraints are added.
+ *
+ * However, it has to be remarked that the concept of "valid" linearization
+ * here is strongly tied to the fact that f() is convex, and therefore that
+ * linearizations are globally valid lower approximations. In particular,
+ * the above linearizations are epsilon-subgradients: adding/removing some
+ * Variable may not change the linearization (besides adding/removing the
+ * corresponding entries to g), but it does change the function value and
+ * therefore the epsilon. Another, simpler example of this behaviour is the
+ * (convex) quasi-additive deletion
+ *
+ *     f_old( x , y ) = e^( x + y )     and      f( x ) = e^x
+ *
+ * for which one has 
+ *
+ *     \nabla f_old( x , y ) = [ e^( x + y ) , e^( x + y ) ]
+ *
+ *     \nabla f( x ) = [ e^x ]
+ *
+ * Having computed a linearization at some point ( \bar{x} , \bar{y} ),
+ * after the removal of y said linearization is reduced to
+ * [ e^(  \bar{x} + \bar{y} ) ]. This is no longer a gradient in \bar{x}
+ * (unless, of course \bar{y} = 0), but it is still an epsilon-subgradient
+ * there for a proper \epsilon that could be easily computed if one had kept
+ * proper information in the global pool.
+ *
+ * It is unclear if similar tricks can be played without convexity. Indeed,
+ * for the quasi-additive but nonconvex deletion
+ *
+ *     f_old( x , y ) = x e^y    and      f( x ) = x
+ *
+ * one rather has
+ *
+ *     \nabla f_old( x , y ) = [ e^y , x e^y ]
+ *
+ *     \nabla f( x ) = [ 1 ]
+ *
+ * Save for linearizations computed precisely when y = 0, it is unclear how
+ * the first-order information obained by deleting the g_y component can be
+ * of any use.
+ *
+ * All this is the reason why this Modification has the extra boolean field
+ * f_strong; if true, it is intended to signal that the Modification to the
+ * C05Function is *strongly* quasi-additive (which likely means that the
+ * C05Function is either convex or concave, but this is not fixed in stone).
+ * One would expect that strong quasi-additivity implies quasi-additivity,
+ * and therefore that f_strong == true ==> f_shift finite and non-NaN, but
+ * surely the vice-versa need not be true. If f_strong == false, all
+ * linearizations computed at points ( x , y ) where y \neq 0 have to be
+ * considered as completely invalid, even in their g_x part.
+ *
+ * For strongly quasi-additive additions, it is possible to update the
+ * previously computed linearizations, computed by the Function before the
+ * Modification, provided they are stored in the global pool. Indeed, any
+ * g-part of any linerizarion of the Function after the Modification has
+ * N = v_vars.size() extra entries; these can be retrieved by calls to
+ * get_linearization_coefficients(), and in fact this use case is one of the
+ * primary reasons why these methods have the "name" and "indices"
+ * parameters. Similarly, for removals, v_vars uniquely identifies the N
+ * "active" Variable that need be removed, and removing these Variable
+ * "simply" correspond to deleting the corresponding entries from all
+ * previous linearization vectors; unlike for additions, removals can in
+ * principle be done without any further input from the C05Function.
+ *
+ * It still has to be remarked, however, that any Solver (or, in general,
+ * Observer) processing this sort of Modification has to be careful. The
+ * point is how information about previous linearizations, that has to be
+ * updated, is stored. The most "natural" form would be something akin to a
+ * std::vector< FunctionValue >; one could then think that, given v_vars,
+ * the indices of the affected entries could be immediately computed by
+ * calls to ThinVarDepInterface::is_active() or
+ * ThinVarDepInterface::map_active(). However,
+ *
+ *     THOSE METHODS PROVIDE INDICES FOR THE CURRENT MAPPING IN THE
+ *     C05Function, WHICH MAY BE COMPLETELY DIFFERENT FOR THE MAPPING
+ *     THAT THE Solver/Observer HAD CONSTRUCTED
+ *
+ * In fact, when this Modification is being processed, any number of other
+ * additions/removals of Variable may have occurred. The mapping stored in
+ * the C05Function may therefore have changed in any ways. As an example,
+ *
+ *     A Variable * STORED IN v_var MAY NOT EVEN BE THAT OF A Variable
+ *     THAT IS CURRENTLY "ACTIVE" IN THE C05Function
+ *
+ * as the Variable -- that is, say, added with this Modification -- may well
+ * have been subsequently removed before this Modification is processed.
+ *
+ * It is of course possible to adapt the mapping inside the Solver/Observer to
+ * match the current one in the C05Function. This can be done by processing
+ * all Modification (in the right order), or by simply reading from scratch
+ * the current mapping and adapting the internal data structures of the
+ * Solver/Observer to it (incidentally, the first is probably preferable if
+ * the Modifications are "few/small", while the second may well be more
+ * efficient if they are "many/large"). However, in both cases the
+ * Solver/Observer has to be able to map a Variable * with the index in its
+ * vector(s) where the corresponding linearization information is without
+ * expecting any support for it by the C05Function.
+ *
+ * This can of course be done, the simplest way is by keeping a
+ * std::vector< Variable * > whose i-th position contains the pointer to the
+ * Variable whose first-orded information is currently stored in the i-th
+ * position of the corresponding vectors. Yet, the Solver/Observer may have
+ * many other choices, such as storing the information in a std::map or any
+ * other data structure readily accessible by using a Variable * key. Also,
+ * the Solver/Observer may make assumptions on how the Variable of the
+ * C05Function are handled which simplify this task (provided, of course,
+ * that these assumptions are clearly stated in the interface); the simplest
+ * one being that Variable are never added/removed, so that this Modification
+ * never occurs and the mapping is static. Alternatively, for instance, the
+ * Solver/Observer may assume all the Variable to belong to a given -- say --
+ * std::vector< Variable > of fixed size m, and store the g vectors into
+ * parallel std::vector< FunctionValue >. Whatever the choice, the
+ * responsibility of properly keeping appropiate data structures representing
+ * the "internal" mapping lies on the Solver/Observer; the C05Function is not
+ * supposed to help this in any way, save of course by issuing the
+ * Modification that describe what happens to the Variable, and therefore how
+ * the mapping has to be updated. */
 
-class C05FunctionModVarsSbst : public FunctionModVarsSbst
+class C05FunctionModVars : public FunctionModVars
 {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
  public:
 
-/*---------------------------- PUBLIC TYPES --------------------------------*/
-
- /// definition of the possible type of C05FunctionModVarsSbst
- enum c05function_mod_variables_type {
-  SomeEntriesChange = FunctionModVarsLastParam ,
-  ///< some entries of previously computed linearizations may have changed
-  C05FunctionModVarsLastParam
-  /**< first allowed parameter value for derived classes Convenience value
-   * for easily allow derived classes to extend the set of types of
-   * modifications. */
-  };
-
 /*-------------------- CONSTRUCTOR AND DESTRUCTOR --------------------------*/
 
- /// constructor: identical to that of FunctionModVarsSbst
+ /// constructor: identical to that of FunctionModVars, plus strong
+ /** Constructor of C05FunctionModVars; besides the same arguments as that of
+  * the base FunctionModVars, it takes a boolean indicating if the
+  * addition/removal of Variable is *strongly* quasi-additive. This is saved
+  * in the field f_strong. */
 
- C05FunctionModVarsSbst( Function * const f , const int mod ,
-			 std::vector<Variable *> && vars ,
-			 const FunctionValue shift = 0 ,
-			 const bool cB = true )
-  : FunctionModVarsSbst( f , mod , std::move( vars ) , shift , cB ) { }
+ C05FunctionModVars( Function * const f , const int mod ,
+		     std::vector<Variable *> && vars ,
+		     const FunctionValue shift = 0 ,
+		     const bool strong = false , const bool cB = true )
+  : FunctionModVars( f , mod , std::move( vars ) , shift , cB ) ,
+    f_strong( strong ) { }
 
  /// destructor: does nothing
- virtual ~C05FunctionModVarsSbst() { }
+ virtual ~C05FunctionModVars() { }
+
+/*---------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
+
+ bool f_strong;  ///< true if the Modification is strongly quasi-additive
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1270,125 +1660,201 @@ class C05FunctionModVarsSbst : public FunctionModVarsSbst
 
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 
- /// print the C05FunctionModVarsSbst
+ /// print the C05FunctionModVars
 
- virtual inline void print( std::ostream &output ) const {
-  output << "C05FunctionModVarsSbst[";
+ virtual inline void print( std::ostream &output ) const override
+ {
+  output << "C05FunctionModVars[";
   if( concerns_Block() )
    output << "t";
   else
    output << "f";
   output << "] on Function [" << f_function << " ]: ";
-  switch( f_type ) {
-   case( AddVar ): output << "add variables"; break;
-   case( RemoveVar ): output << "delete variables"; break;
-   case( SomeEntriesChange ):  output << "some entries change";
-   }
-  output << "(# " <<  v_vars.size() << ")" << std::endl;
+
+  if( f_strong )
+   output << "strongly ";
+
+  if( std::isnan( f_shift ) )
+   output << "non quasi-additively (any)";
+  else
+   if( f_shift >= std::numeric_limits<FunctionValue>::infinity() )
+    output << "non quasi-additively (+)";
+   else
+    if( f_shift <= -std::numeric_limits<FunctionValue>::infinity() )
+     output << "non quasi-additively (-)";
+    else
+     output << "quasi-additively (" << f_shift << ") ";
+
+  if( type == AddVar )
+   output << "adding ";
+  else
+   output << "deleting ";
+
+  output  << v_vars.size() << " variables" << std::endl;
   }
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( C05FunctionModVarsSbst ) )
+ };  // end( class( C05FunctionModVars ) )
 
 /*--------------------------------------------------------------------------*/
-/*---------------------- CLASS C05FunctionModShift -------------------------*/
+/*----------------------- CLASS C05FunctionModLin --------------------------*/
 /*--------------------------------------------------------------------------*/
-/// class to describe modifications specific to a C05Function
-/** Derived class from FunctionModVars to describe a change to a C05Function
- * where some entries of the linearization are modified by a simple shift.
+/// class to describe "linear" modifications specific to a C05Function
+/** Linear functions are the simplest class of non-trivial functions: any
+ * function can be thought to have a linear component (possibly with all-0
+ * coefficients). Besides, they clearly play a fundamental role for a
+ * C05Function. It therefore makes sense to offer specific support in 
+ * C05Function for "changes in the linear part of the function". This is
+ * what this class of Modification is about: it indicates that the value of
+ * the Function has changed "in a linear way on a subset of the Variable".
+ * This immediately implies a "simple" change in the linearizations.
  *
- * A case where this happens is the Lagrangian one, where each linearization
- * is attached to one solution u_i \in U, and *some* of the RHS of the
- * complicating constraints A u = b change, whereas all the rest of (P)
- * remains the same. If b' is the new RHS vector, then all the previous
- * linearizations g_i = b - A u_i now have to become g'_i = b' - A u_i;
- * in other words, g'_i = g_i + ( b' - b ). This allows to update all the
- * linearizations that were stored in the global pool, without even having to
- * ask the Function object about them (since the vector b' - b is all the
- * information that is needed), thereby re-using all the corresponding
- * information to warm-start whatever algorithm one is using. This
- * Modification basically provides (the equivalent of) b' - b, in a sparse
- * format. */
+ * A convenient example of this behaviour is, as usual, that of a structured
+ * optimization problem
+ *
+ *   (P)  max \{ c u : A u = b , u \in U \}
+ *
+ * and of its (convex) Lagrangian function
+ *
+ *   (P( x ))  f( x ) = max \{ c u + x ( b - A u ) : u \in U \}
+ *
+ * Linearizations are associated with feasible solutions \bar{u} \in U, as
+ *
+ *   ( g , \alpha ) = ( b - A \bar{u} , c \bar{u} )
+ *
+ * Let I \subset { 1 , ... , n } be a subset of the (indices of the) of the
+ * relaxed constraints (hence, of the Lagrangian variables x_i), and assume
+ * that the corresponding constraints A_I u = b_I become A_I u = b'_I; as
+ * opposed to the case catered for by C05FunctionModSbst and
+ * C05FunctionModRngd, *only the right-hand side changes*. For simplicity let
+ * us denote by b' the whole new right-hand side vector, i.e., b'_i = b_i for
+ * i \notin I. The change has two effects:
+ *
+ * - each linearization b - A \bar{u} now becomes b' - A \bar{u}, i.e.,
+ *   the *fixed vector* d = b' - b can be used to transform every previously
+ *   valid linearization into a new valid linearization (and, of course,
+ *   (d_i = 0 for i \notin I);
+ *
+ * - given the value f( \bar{x} ) = c u^* + \bar{x}  ( b - A u^* ) computed
+ *   at any point \bar{x}, one can compute the *exact* new value
+ *   f( \bar{x} ) = c u^* + \bar{x}  ( b' - A u^* ) by just adding
+ *   \bar{x}  ( b' - b ) = \bar{x} d to the old one (and, of course, the
+ *   scalar product only need to be computed for i \in I, since d_i = 0 for
+ *   i \notin I); this is guaranteed to be the right function value, because
+ *   the right-hand side b clearly has no role in the solution of
+ *   P( \bar{x} ), and therefore u^* remains an optimal solution to that
+ *   problem.
+ *
+ * In other words, the Lagrangian function can be rewritten as
+ *
+ *    f( x ) = x b + max \{ ( c - x A ) : u \in U \}
+ *
+ * i.e., as the sum of the simple linear function x b plus a "complicated
+ * one". Again, any function can be thought to have a linear component
+ * (at worst, b = 0): this Modification caters for the case where the linear
+ * component of f() changes in a given way.
+ *
+ * The particular form of this Modification takes all the flexibility
+ * implied in rule 1. of the Modification [see Modification.h]:
+ *
+ * 1. A Modification typically says *what* has changed but not (necessarily)
+ *    *how*. [...]
+ *
+ * While in general a Modification would not say "how", this one does: it
+ * provides the index set I of the Variable whose "linear part" changes,
+ * together with the coefficients d_i = b'_i - b_i (allegedly nonzero). This
+ * means that both all function values and all previous linearizations can be
+ * immediately updated without making any query to the C05Function, unlike
+ * C05FunctionModSbst and C05FunctionModRngd which require calls to
+ * get_linearization_coefficients(), thereby re-using all the corresponding
+ * information to warm-start whatever algorithm one is using.
+ *
+ * A final observation is that this is a FunctionMod, and therefore it has a
+ * f_shift value. Clearly, the value *can't* be finite, as the value of the
+ * shift for two different points \bar{x} and \bar{x}' is d \bar{x} and
+ * d \bar{x}', which cannot be always equal. Thus, the expected value of
+ * f_shift should be NaN, except if the C05Function can infer something on
+ * the sign; say, all Variable are non-negative and d >= 0, hence the shift
+ * can only be positive and f_shift = 
+ * std::numeric_limits<FunctionValue>::infinity() is appropriate. */
 
-class C05FunctionModShift : public FunctionMod {
+class C05FunctionModLin : public FunctionMod {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
  public:
-
-/*---------------------------- PUBLIC TYPES --------------------------------*/
-
- typedef std::pair< Variable * , Function::FunctionValue > SingleShift;
- ///< type for describing a shift: a pair < Variable * , real >
-
- typedef std::vector<SingleShift> ShiftSet;  ///< a set of SingleShift
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
 
- /// constructor: takes a pointer to the affected C0%Function
- C05FunctionModShift( C05Function * const f ,
-		      Function::FunctionValue shift = 0 ,
-		      const bool cB = true )
-  : FunctionMod( f , shift , cB ) { }
+ /// constructor: takes the type of the Modification and the delta vector
+ /** constructor: takes the type of the Modification, a pointer to the
+  * affected Function, the vector of changes in the linear part of the
+  * C05Function under the form of a std::vector< FunctionValue >, and the
+  * subset of the Variable whose "linear part" changes under the form of a
+  * std::vector< Variable * >. As the the && tells, both vectors "becomes
+  * property" of the C05FunctionModLin object. The boolean parameter ordered
+  * allows to tell whether or not the vars set passed to the constructor is
+  * ordered: if not this is done right away, so that whomever receives the
+  * Modification can assume v_vars always is. Note that, of course, then the
+  * vector delta is re-ordered as well. */
+
+ C05FunctionModLin( C05Function * const f ,
+		    Vec_FunctionValue && delta ,
+		    Vec_p_Var && vars ,
+		    const bool ordered = true , FunctionValue shift =
+		           std::numeric_limits<FunctionValue>::quiet_NaN()  ,
+		    const bool cB = true )
+  : FunctionMod( f , shift , cB ) , v_delta( delta )
+ {
+  if( v_vars.size() != v_delta.size() )
+   throw( std::invalid_argument( "vars and delta sizes do not match" ) );
+
+  if( ! ordered ) {
+   // ordering done twice: not time efficient but no temporaries
+   std::sort( v_delta.begin() , v_delta.end() ,
+	      [ & v_vars ]( size_t i , size_t j ) {
+	       return( v_vars[ i ] < v_vars[ j ] ); }
+	      );
+   std::sort( v_vars.begin() , v_vars.end() );
+   }
+  }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
  ///< destructor: does nothing
- virtual ~C05FunctionModShift() { }
 
-/*------------------------- OTHER INITIALIZATIONS --------------------------*/
+ virtual ~C05FunctionModLin() { }
 
- /// add one single entry to the set of shifts
- void add_linearization_shift( SingleShift shift ) {
-  v_shifts.push_back( shift );
-  }
+/*---------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// add all the shifts in one blow
- void add_all_shifts( ShiftSet & shfts ) {
-  v_shifts = shfts;
-  }
+ Vec_FunctionValue v_delta;  ///< the vector d = b' - b
 
-/*------- METHODS FOR READING THE DATA OF THE C05FunctionModShift ----------*/
-
- /// get the vector of shifts
- /** Returns the vector with the components of the linearization vector (g)
-  * that were shifted and the respective amount. For each pair < V* , s > in
-  * this shift vector, the pointer to the Variable indicates the affected
-  * component of the linearization and the second element of the pair is the
-  * amount the value of that component has been shifted. So, if the value of
-  * the component associated with the variable V is g in some linearization,
-  * then the value of that component should become g + s. */
-
- const ShiftSet & get_linearization_shifts( void ) const {
-  return( v_shifts );
-  }
+ Vec_p_Var v_vars;           ///< the vector of pointers to Variable
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
  protected:
 
-/*--------------------------- PROTECTED FIELDS  ----------------------------*/
-
- ShiftSet v_shifts;  ///< the vector of shifts
-
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 
- /// print the C05FunctionModShift
- virtual inline void print( std::ostream &output ) const {
-  output << "C05FunctionModShift[";
+ /// print the C05FunctionModLin
+
+ virtual inline void print( std::ostream &output ) const override
+ {
+  output << "C05FunctionModLin[";
   if( concerns_Block() )
    output << "t";
   else
    output << "f";
-  output << "] on Function [" << &f_function << " ], (# shifts = "
-	 << v_shifts.size() << ")" << std::endl;
+  output << "] on Function [" << &f_function
+	 << " ]: change in the linear part of "<< v_delta.size() <<
+	 << " variables" << std::endl;
   }
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( C05FunctionModShift ) )
+ };  // end( class( C05FunctionModLin ) )
 
 /*@}  end( group( C05Function_CLASSES ) ) ----------------------------------*/
 /*--------------------------------------------------------------------------*/

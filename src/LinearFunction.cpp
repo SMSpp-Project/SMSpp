@@ -4,9 +4,9 @@
 /** @file
  * Implementation of the LinearFunction class.
  *
- * \version 0.11
+ * \version 0.20
  *
- * \date 14 - 02 - 2019
+ * \date 14 - 03 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -14,8 +14,9 @@
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Department of Applied Mathematics \n
- *         State University of Campinas, Brazil \n
+ *         Operations Research Group \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
  *
  * Copyright &copy by Antonio Frangioni, Rafael Durbano Lobato
  */
@@ -36,37 +37,6 @@
 /*--------------------------------------------------------------------------*/
 
 using namespace SMSpp_di_unipi_it;
-
-/*--------------------------------------------------------------------------*/
-/*--------------------------------- METHODS --------------------------------*/
-/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
-/*--------------------------------------------------------------------------*/
-
-void LinearFunction::register_Observer( Observer * const observer ,
-		bool RegisterInActiveVars )
-{
- if( f_Observer == observer )  // actually changing nothing
-  return;                      // cowardly (and silently) return
-
- // if there was a previous Observer and it was a ThinVarDepInterface, then
- // un-register it from all the Variable of the LinearFunction
- auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
-
- if( TVDIO && ( v_pairs[0].first->is_active(TVDIO) < v_pairs[0].first->get_num_active() ) )
-  for( auto pair : v_pairs )
-   pair.first->remove_active( TVDIO );
-
- f_Observer = observer;
-
- // if the new Observer is a ThinVarDepInterface, then register it to all
- // the Variable of the LinearFunction
- TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
-
- if( TVDIO  && RegisterInActiveVars )
-  for( auto pair : v_pairs )
-   pair.first->add_active( TVDIO );
-
- }  // end( register_Observer )
 
 /*--------------------------------------------------------------------------*/
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF THE LinearFunction ----------*/
@@ -252,13 +222,6 @@ void LinearFunction::add_variables( v_coeff_pair && vars ,
                                           }
 	     );
 
- // if the Observer is a ThinVarDepInterface, register it with the vars
- auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
-
- if( TVDIO )
-  for( auto pair : vars )
-   pair.first->add_active( TVDIO );
-
  if( v_pairs.empty() ) {    // adding to nothing
   v_pairs = std::move( vars );
 
@@ -303,12 +266,6 @@ void LinearFunction::add_variable( ColVariable * const var ,
  if( var == nullptr )  // actually nothing to add
   return;              // cowardly (and silently) return
 
- // if the Observer is a ThinVarDepInterface, register it with var
- auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
-
- if( TVDIO )
-  var->add_active( TVDIO );
-
  auto pair = std::make_pair( var , coeff );
 
  if( v_pairs.empty() )  // adding to nothing
@@ -319,8 +276,7 @@ void LinearFunction::add_variable( ColVariable * const var ,
 			       []( const coeff_pair &a , const coeff_pair &b )
 			         { return( a.first < b.first ); } );
   if( itv->first == var )
-   throw( std::invalid_argument(
-                    "add_variables: Variable is already in the Function" ) );
+   throw( std::invalid_argument( "add_variables: var is already active" ) );
 
   v_pairs.insert( itv , pair );
   }
@@ -328,9 +284,10 @@ void LinearFunction::add_variable( ColVariable * const var ,
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
 
+ // alinear function is additive ==> strongly quasi-additive
  f_Observer->add_Modification( std::make_shared<LinearFunctionModSbst>( this ,
 					 FunctionModVars::AddVar ,
-					 Vec_p_Var( { var } ) , 0 ,
+					 Vec_p_Var( { var } ) , 0 , true ,
 					 Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 
@@ -351,17 +308,22 @@ void LinearFunction::modify_coefficient( ColVariable * const var ,
                                  { return( p.first == var ); } );
 
  if( itv == v_pairs.end() ) // if the Variable is not there
-  throw( std::invalid_argument( "Variable is not active" ) );
+  throw( std::invalid_argument( "modify_coefficient: Variable is not active" )
+	 );
 
- itv->second = coeff;  // modify the coefficient
+ if( itv->second == coeff )  // actually nothing to modify
+  return;                    // cowardly (and silently) return
+
+ itv->second = coeff;        // modify the coefficient
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;                  // noone is there: all done
 
- f_Observer->add_Modification( std::make_shared<LinearFunctionModSbst>( this ,
-                                    LinearFunctionModSbst::SomeEntriesChange ,
-			            Vec_p_Var( { var } ) , 0 ,
-				    Observer::par2concern( issueMod ) ) ,
+ f_Observer->add_Modification( std::make_shared<C05FunctionModLin>( this ,
+			    Vec_FunctionValue( { coeff } ),
+			    Vec_p_Var( { var } ) , true ,
+			    std::numeric_limits<FunctionValue>::quiet_NaN() ,
+			    Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 
  }  // end( LinearFunction::modify_coefficient )
@@ -393,7 +355,8 @@ void LinearFunction::modify_coefficients( v_coeff_pair && vars ,
                              { return( p.first == it->first ); } );
 
   if( itv == v_pairs.end() )  // if the variable is not there
-   throw( std::invalid_argument( "some Variable is not active" ) );
+   throw( std::invalid_argument(
+		        "modify_coefficients: some Variable is not active" ) );
 
   itv->second = it->second;  // modify the coefficient
   }
@@ -512,12 +475,6 @@ void LinearFunction::remove_variable( Variable * var , c_ModParam issueMod )
  if( ! f_Observer )
   return;
 
- // if the Observer is a ThinVarDepInterface, un-register it from var
- auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
-
- if( TVDIO )
-  var->remove_active( TVDIO );
-
  if( ! f_Observer->issue_mod( issueMod ) )
   return;
 
@@ -543,12 +500,6 @@ void LinearFunction::remove_variable( c_Index i , c_ModParam issueMod )
  if( ! f_Observer )
   return;
 
- // if the Observer is a ThinVarDepInterface, un-register it from var
- auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
-
- if( TVDIO )
-  var->remove_active( TVDIO );
-
  if( ! f_Observer->issue_mod( issueMod ) )
   return;
 
@@ -571,13 +522,6 @@ void LinearFunction::remove_variables( c_Index strt , Index stop ,
 
  const auto strtit = v_pairs.begin() + strt;
  const auto stopit = v_pairs.begin() + stop;
-
- // if the Observer is a ThinVarDepInterface, un-register it from the vars
- auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
-
- if( TVDIO )
-  for( auto it = strtit ; it < stopit ; )
-   (*(it++)).first->remove_active( TVDIO );
 
  if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
   Variable * const vstrt = strt ? v_pairs[ strt ].first : nullptr;
@@ -643,13 +587,6 @@ void LinearFunction::remove_variables( Vec_p_Var && vars ,
  if( ! f_Observer )
   return;
 
- // if the Observer is a ThinVarDepInterface, un-register it from the vars
- auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
-
- if( TVDIO )
-  for( auto var :  vars )
-   var->remove_active( TVDIO );
-
  if( ! f_Observer->issue_mod( issueMod ) )
   return;
 
@@ -682,34 +619,18 @@ void LinearFunction::remove_variables( c_Vec_Index & nms ,
  auto vi = *it;    // first element to be eliminated
  auto curr = v_pairs.begin() + vi;   // position where to move stuff
 
- // if the Observer is a ThinVarDepInterface, un-register it from the vars
- auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
-
- if( TVDIO )
-  v_pairs[ *(it++) ].first->remove_active( TVDIO );
- else
-  ++it;             // skip the first elements
+ ++it;              // skip the first elements
  ++vi;              // as they have been processed already
 
- if( TVDIO )
-  for( ; it < nms.end() ; ++vi ) {
-   if( *it == vi )                    // one element to be eliminated
-    v_pairs[ *(it++) ].first->remove_active( TVDIO );  // skip it
-                                      // and meanwhile un-register it
-   else
-    *(curr++) = v_pairs[ vi ];    // move in the current position
-   }
- else
-  for( ; it < nms.end() ; ++vi ) {
-   if( *it == vi )                    // one element to be eliminated
-    ++it;                             // skip it
-   else
-    *(curr++) = v_pairs[ vi ];    // move in the current position
-   }
+ for( ; it < nms.end() ; ++vi )
+  if( *it == vi )                 // one element to be eliminated
+   ++it;                          // skip it
+  else
+   *(curr++) = v_pairs[ vi ];     // move in the current position
 
  auto itv = v_pairs.begin() + vi;
  for( ; itv < v_pairs.end() ; )   // copy the last part
-  *(curr++) = *(itv++);               // after the last of v_var
+  *(curr++) = *(itv++);           // after the last of v_var
 
  v_pairs.erase( curr , itv );     // erase the last part
 
@@ -760,9 +681,10 @@ void LinearFunction::issue_add_variables_modification( v_coeff_pair & pairs ,
  for( Index i = 0 ; i < pairs.size() ; ++i )
   vars[ i ] = pairs[ i ].first;
 
- f_Observer->add_Modification( std::make_shared<LinearFunctionModSbst>( this ,
+ // a linear function is additive and therefore strongly quasi-additive
+ f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
                                          FunctionModVars::AddVar ,
-					 std::move( vars ) , 0 ,
+					 std::move( vars ) , 0 , true ,
 					 Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
  }

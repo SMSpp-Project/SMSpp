@@ -158,15 +158,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
 /** @name Public Types
     @{ */
 
- typedef double FunctionValue;                  ///< type of the returned value
-
- typedef const FunctionValue c_FunctionValue;   ///< a const FunctionValue
-
- typedef std::vector<FunctionValue> Vec_FunctionValue;
- ///< a std::vector of FunctionValue
-
- typedef const Vec_FunctionValue c_Vec_FunctionValue;
- ///< a const Vec_FunctionValue
+ typedef double FunctionValue;  ///< type of the returned value
 
 /*--------------------------------------------------------------------------*/
  /// public enum for the int algorithmic parameters of Function
@@ -671,32 +663,27 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
  * that are covered by this Modification, which are encoded in the field
  * f_shift in the following way:
  *
- * - NaN, e.g. as what is reported by
- *   std::numeric_limits<FunctionValue>::quiet_NaN() or by
- *   std::numeric_limits::signaling_NaN<FunctionValue>()): the value of the
- *   Function has changed "unpredictably" all over the space, any previously
- *   computed value is no longer reliable. Although the convenient constexpr
- *   "NaNshift" is defined in the class, note that testing if f_shift is NaN
- *   must *not* be done with "f_shift == NaNshift", but rather with
- *   std::isnan( f_shift ).
+ * - either 0 or NaN (i.e., std::isnan( f_shift ) == true, e.g. as what
+ *   is reported by std::numeric_limits<T>::quiet_NaN() or by
+ *   std::numeric_limits::signaling_NaN()): the value of the Function has
+ *   changed "unpredictably" all over the space, any previously computed
+ *   value is no longer reliable;
  *
- * - Any finite non-NaN number: conversely, the value of the Function has
- *   changed in a very predictable way: computing the value of the Function at
- *   any point now returns f_v + v_shift, where f_v is the value that would
- *   have been returned prior to the Modification. It should be noted that
- *   f_shift = 0 does not really have a sense in this case as it would not
- *   be a change in the Function; however, the value is still allowed for
- *   uniformity with FunctionModVars [see].
+ * - any finite nonzero non-NaN number: conversely, the value of the Function
+ *   has changed in a very predictable way: computing the value of the
+ *   Function at any point now returns f_v + v_shift, where f_v is the value
+ *   that would have been returned prior to the Modification. Obviously,
+ *   f_shift = 0 would not have sense in this case as it would not be a
+ *   change in the Function, which allows using it to signal "any change";
+ *   however, note that the meaning is different for FunctionModVars.
  *
- * - +Infty (= std::numeric_limits<FunctionValue>::infinity(), for which
- *   the convenience constexpr "INFshift" is defined); this means
+ * - +Infty (= std::numeric_limits<FunctionValue>::infinity()): this means
  *   that the value of the Function has changed "unpredictably but
  *   monotonically upwards": computing the value of the Function at any
- *   point now returns a value that is surely greater than or equal to the
- *   value that would have been returned prior to the Modification.
+ *   point now returns a value that is surely greater that or equal to the
+ *   value that would have been returned prior to the Modification;
  *
- * - -Infty (= - std::numeric_limits<FunctionValue>::infinity(), i.e.,
- *   "-INFshift" exploiting the defined convenience constexpr): this means
+ * - -Infty (= - std::numeric_limits<FunctionValue>::infinity()): this means
  *   that the value of the Function has changed "unpredictably but
  *   monotonically downwards": computing the value of the Function at any
  *   point now returns a value that is surely smaller than or equal to the
@@ -713,16 +700,9 @@ public:
  typedef Function::FunctionValue FunctionValue;
  ///< "import" FunctionValue from Function
 
-/*----------------------------- CONSTANTS ----------------------------------*/
-
- static constexpr NaNshift = std::numeric_limits<FunctionValue>::quiet_NaN();
- ///< convenience constexpr for "NaN", *not* to be used with ==
- static constexpr INFshift = std::numeric_limits<FunctionValue>::::infinity();
- ///< convenience constexpr for "Infty"
- 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
 
- FunctionMod( Function * const f , const FunctionValue shift = NaNshift ,
+ FunctionMod( Function * const f , const FunctionValue shift = 0 ,
 	      const bool cB = true )
   : AModification( cB ) , f_function( f ) , f_shift( shift ) { }
 
@@ -747,31 +727,32 @@ public:
  FunctionValue f_shift;
  ///< Amount the value of the function has been shifted
  /**< This field encloses four types of changes, depending on its value:
- *
- * - NaN: the value of the Function has changed "unpredictably" all over the
- *   space, any previously computed value is no longer reliable. Although the
- *   convenient constexpr "NaNshift" is defined in the class, note that
- *   testing if f_shift is NaN must *not* be done with "f_shift == NaNshift", *    but rather with std::isnan( f_shift ).
- *
- * - Any finite non-NaN number: conversely, the value of the Function has
- *   changed in a very predictable way: computing the value of the Function at
- *   any point now returns f_v + v_shift, where f_v is the value that would
- *   have been returned prior to the Modification. It should be noted that
- *   f_shift = 0 does not really have a sense in this case as it would not
- *   be a change in the Function; however, the value is still allowed for
- *   uniformity with FunctionModVars.
- *
- * - +INFshift: this means that the value of the Function has changed
- *   "unpredictably but monotonically upwards": computing the value of the
- *   Function at any point now returns a value that is surely greater than or
- *   equal to the value that would have been returned prior to the
- *   Modification.
- *
- * - -INFshif: this means that the value of the Function has changed
- *   "unpredictably but monotonically downwards": computing the value of the
- *   Function at any point now returns a value that is surely smaller than or
- *   equal to the value that would have been returned prior to the
- *   Modification. */
+  *
+  * - either 0 or NaN (i.e., std::isnan( f_shift ) == true, e.g. as what
+  *   is reported by std::numeric_limits<T>::quiet_NaN() or by
+  *   std::numeric_limits::signaling_NaN()): the value of the Function has
+  *   changed "unpredictably" all over the space, any previously computed
+  *   value is no longer reliable;
+  *
+  * - any finite nonzero non-NaN number: conversely, the value of the Function
+  *   has changed in a very predictable way: computing the value of the
+  *   Function at any point now returns f_v + v_shift, where f_v is the value
+  *   that would have been returned prior to the Modification. Obviously,
+  *   f_shift = 0 would not have sense in this case as it would not be a
+  *   change in the Function, which allows using it to signal "any change";
+  *   however, note that the meaning is different for FunctionModVars.
+  *
+  * - +Infty (= std::numeric_limits<FunctionValue>::infinity()): this means
+  *   that the value of the Function has changed "unpredictably but
+  *   monotonically upwards": computing the value of the Function at any
+  *   point now returns a value that is surely greater that or equal to the
+  *   value that would have been returned prior to the Modification;
+  *
+  * - -Infty (= - std::numeric_limits<FunctionValue>::infinity()): this means
+  *   that the value of the Function has changed "unpredictably but
+  *   monotonically downwards": computing the value of the Function at any
+  *   point now returns a value that is surely smaller than or equal to the
+  *   value that would have been returned prior to the Modification. */
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -788,13 +769,13 @@ public:
   else
    output << "f";
    output << "] on Function " << f_function << " ]: ";
-   if( std::isnan( f_value )
+   if( ( f_value == 0 ) || std::isnan( f_value ) )
     output << "everything changed";
    else
-    if( f_value == INFshift )
+    if( f_value == std::numeric_limits<FunctionValue>::infinity() )
      output << "values all increased";
     else
-     if( f_value == -INFshift )
+     if( f_value == std::numeric_limits<FunctionValue>::infinity() )
       output << "values all decreased";
      else
       output << "values all changed by exactly " << f_shift;
@@ -888,22 +869,11 @@ public:
  * The value of the field f_shift signals whether or not the just occurred
  * Modification was a quasi-additive one, with the following encoding:
  *
- * - NaN, e.g. as what is reported by
- *   std::numeric_limits<FunctionValue>::quiet_NaN() or by
- *   std::numeric_limits::signaling_NaN<FunctionValue>()): the Modification
- was not a
- *   quasi-additive one, and the value of the Function has changed
- *   "unpredictably" all over the space.
-
-the value of the
- *   Function has changed "unpredictably" all over the space, any previously
- *   computed value is no longer reliable. Although the convenient constexpr
- *   "NaNshift" is defined in the class, note that testing if f_shift is NaN
- *   must *not* be done with "f_shift == NaNshift", but rather with
- *   std::isnan( f_shift ).
  * - NaN (i.e., std::isnan( f_shift ) == true, e.g. as what is reported by
  *   std::numeric_limits<T>::quiet_NaN() or by
- *   std::numeric_limits::signaling_NaN()): 
+ *   std::numeric_limits::signaling_NaN()): the Modification was not a
+ *   quasi-additive one, and the value of the Function has changed
+ *   "unpredictably" all over the space.
  *
  * - any finite non-NaN number: the Modification was a quasi-additive one,
  *   with v_shift being the value of the shift; note that, unlike for
@@ -951,13 +921,6 @@ public:
    * the set of types of modifications. */
   };
 
-/*----------------------------- CONSTANTS ----------------------------------*/
-
- static constexpr NaNshift = std::numeric_limits<FunctionValue>::quiet_NaN();
- ///< convenience constexpr for "NaN", *not* to be used with ==
- static constexpr INFshift = std::numeric_limits<FunctionValue>::::infinity();
- ///< convenience constexpr for "Infty"
- 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: takes the type, a Function *, and the changed Variable
  /** constructor: takes the type of the Modification, a pointer to the
@@ -974,7 +937,7 @@ public:
 
  FunctionModVars( Function * const f , const int mod ,
 		  std::vector<Variable *> && vars ,
-		  const FunctionValue shift = NaNshift ,
+		  const FunctionValue shift = 0 ,
 		  const bool ordered = true , const bool cB = true )
   : AModification( cB ) , f_function( f ) , f_shift( shift ) ,
    f_type( mod ) , v_vars( std::move( vars ) )

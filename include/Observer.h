@@ -58,18 +58,21 @@ namespace SMSpp_di_unipi_it
  * (pure virtual, which is why this is an abstract class) add_Modification()
  * method whereby the subjects can report the Modification.
  *
- * In SMS++, Modification has to reach the interested Solver. This is usually
- * done directly via the Block (which is an Observer), to which interested
- * Solver are attached (directly, or to any ancestor). However, the reason for
- * a separate Observer class is that Function objects can issue Modification,
- * but they may not be directly attached to a Block; rather, they can, for
- * instance, be inside a FRowConstraint or a FRealObjective (which then
- * themselves belong to a Block), and with no direct knowledge of which of
- * the two. Indeed, both FRowConstraint and FRealObjective are Observer.
- *
- * Although this is not as yet implemented, this would also allows for having
- * "Function of Function" objects (think SumFuction, CompositeFunction, ...)
- * to be implemented, provided that Function itself is made an Observer.
+ * In SMS++, Modification has to reach all the interested Solver. If the
+ * Modification is directly issued by, say, a Variable, Constraint or
+ * Objective, this can be done directly via the Block (which is an Observer),
+ * to which both the Modification-spewing object and the interested Solver
+ * are attached (directly, or to any ancestor). However, the reason for a
+ * separate Observer class is that some objects (e.g., Function) can issue
+ * Modification, but they may not be directly attached to a Block. Rather,
+ * they can may "live inside another object"; a Function, for instance, may
+ * be used by some Constraint or Objective to "implement themselves". In
+ * this case, the object that "hosts" a Modification-spewing one has to be
+ * an Observer in order for the Modification to be received, and ultimately
+ * routed to the appropriate Block. A possible example of this behaviour is
+ * that of "Function of Function" objects (SumFuction, CompositeFunction,
+ * ...), which may be easily implemented provided that that they themselves
+ * are made Observer.
  *
  * The Observer class also supports the following notions:
  *

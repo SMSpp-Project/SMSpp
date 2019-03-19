@@ -5,9 +5,9 @@
  * Header file for the *concrete* class DQuadFunction, which
  * implements C15Function with a diagonal quadratic function.
  *
- * \version 0.10
+ * \version 0.20
  *
- * \date 07 - 03 - 2019
+ * \date 04 - 03 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -15,16 +15,11 @@
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Department of Applied Mathematics \n
- *         State University of Campinas, Brazil \n
- *
- * \author Kostas Tavlaridis-Gyparakis \n
  *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Rafael Durbano Lobato, Kostas
- * Tavlaridis-Gyparakis
+ * Copyright &copy by Antonio Frangioni, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -54,7 +49,7 @@ namespace SMSpp_di_unipi_it
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
-/** @defgroup DQuadFun_CLASSES Classes in DQuadFunction.h
+/** @defgroup DQuadFunction_CLASSES Classes in DQuadFunction.h
  *  @{ */
 
 /*--------------------------------------------------------------------------*/
@@ -193,7 +188,8 @@ class DQuadFunction : public C15Function {
  {
   public:
 
-  v_const_iterator( v_c_var_coeff_coeff_triple::const_iterator itr ) : itr_( itr ) { }
+  v_const_iterator( v_c_var_coeff_coeff_triple::const_iterator itr )
+   : itr_( itr ) { }
 
   virtual void operator++( void ) override final { (itr_)++; }
   virtual reference operator*( void ) const override final {
@@ -242,8 +238,7 @@ class DQuadFunction : public C15Function {
   * the variable in the linear term and the second being the
   * coefficient of the variable in the diagonal quadratic term of the
   * function (and a bool telling if this vector is already ordered by
-  * ColVariable "name = pointer" or not, in which case they are
-  * ordered).
+  * ColVariable "name = pointer" or not, in which case they are ordered).
   *
   * Note that if this vector of triples is passed, it becomes property
   * of the DQuadFunction, which therefore has the responsibility to
@@ -251,12 +246,13 @@ class DQuadFunction : public C15Function {
   *
   * All inputs have a default (nullptr, false respectively), so that
   * this can be used as the void constructor. */
-  DQuadFunction(v_var_coeff_coeff_triple && v_var = {} ,
-		const FunctionValue ct = 0 ,
-                const bool ordered = false)
-    : C15Function() , v_triples( std::move( v_var ) ) ,
-     f_value( Inf<FunctionValue>() ) , f_constant_term( ct ) {
 
+ DQuadFunction(v_var_coeff_coeff_triple && v_var = {} ,
+	       const FunctionValue ct = 0 ,
+	       const bool ordered = false)
+  : C15Function() , v_triples( std::move( v_var ) ) ,
+    f_value( Inf<FunctionValue>() ) , f_constant_term( ct )
+ {
   if( ! ordered )
    std::sort( v_triples.begin() , v_triples.end() ,
 	      []( const auto & p1, const auto & p2 ) {
@@ -266,23 +262,16 @@ class DQuadFunction : public C15Function {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// destructor: it does nothing (explicitly)
 
- /// destructor: it unregisters its active Variable
- /** The destructor of DQuadFunction unregisters its Observer, if it
-  * is a ThinVarDepInterface, from the active Variable of the
-  * DQuadFunction. This is unless clear() has been called, so that the
-  * vector v_triples contains nothing and no un-registering is
-  * made. */
-
- virtual ~DQuadFunction() {
-  auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
-
-  if( TVDIO )
-   for( auto triple : v_triples )
-     std::get<0>(triple)->remove_active( TVDIO );
- }
+ virtual ~DQuadFunction() {}
 
 /*--------------------------------------------------------------------------*/
+ /// clear method: clears the v_triples field
+ /** Method to "clear" the DQuadFunction: it clear() the vector v_triples.
+  * This destroys the list of "active" Variable without unregistering from
+  * them. Not that the LinearFunction would have, but the Observer may.
+  * By not having any Variable, the Observer can no longer do that. */
 
  virtual void clear( void ) override {
   v_triples.clear();
@@ -295,21 +284,6 @@ class DQuadFunction : public C15Function {
 /** @name Other initializations
  *  @{ */
 
- /// set the pointer to the Observer of this Function
- /** If a non-nullptr Observer is set that also is a ThinVarDepInterface, then
-  * the Observer (rather than the DQuadFunction itself) will be registered
-  * in the Variable of the DQuadFunction. If a null Observer
-  * pointer is provided (either in the constructor or here), or the Function
-  * is "unregistered" from the current observer by calling the method with
-  * nullptr (default), then the Function is left "free floating", which means
-  * that no Modification is ever produced and no Block/Solver ever gets
-  * informed of any change occurring in the Function. */
-
- virtual void register_Observer( Observer * const observer = nullptr ,
-		 bool RegisterInActiveVars = true )
-  override;
-
-/*--------------------------------------------------------------------------*/
  /// set the whole (empty) set of parameters in one blow
  /** Although a DQuadFunction formally has a lot of parameters, in fact it
   * "listens to no-one"; hence, the implementation of set_ComputeConfig() is
@@ -327,8 +301,8 @@ class DQuadFunction : public C15Function {
  /// returns the vector of triples (ColVariable *, Coefficient, Coefficient)
 
  v_c_var_coeff_coeff_triple & get_v_var( void ) const {
-   return( v_triples );
- }
+  return( v_triples );
+  }
 
 /*@} -----------------------------------------------------------------------*/
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF THE DQuadFunction -----------*/
@@ -352,13 +326,13 @@ class DQuadFunction : public C15Function {
 
 /*--------------------------------------------------------------------------*/
 
- virtual bool is_lower_semicontinuous( void )
-   const override final { return true; }
+ virtual bool is_lower_semicontinuous( void ) const override final {
+  return( true ); }
 
 /*--------------------------------------------------------------------------*/
 
- virtual bool is_upper_semicontinuous( void )
-   const override final { return true; }
+ virtual bool is_upper_semicontinuous( void ) const override final {
+  return( true ); }
 
 /*--------------------------------------------------------------------------*/
 
@@ -370,7 +344,8 @@ class DQuadFunction : public C15Function {
 
 /*--------------------------------------------------------------------------*/
 
- virtual void get_hessian_approximation( DenseHessian &hessian ) const override;
+ virtual void get_hessian_approximation( DenseHessian &hessian ) const
+  override;
 
 /*--------------------------------------------------------------------------*/
 
@@ -380,8 +355,8 @@ class DQuadFunction : public C15Function {
 /*--------------------------------------------------------------------------*/
 
  virtual bool is_continuously_differentiable( void ) const override final {
-   return true;
- }
+  return( true );
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -430,25 +405,23 @@ class DQuadFunction : public C15Function {
    c_Index end = std::numeric_limits<Index>::max() ) override final;
 
 /*--------------------------------------------------------------------------*/
- /** There is only one linearization in a DQuadFunction. The value of
-  * the linearization constant for this diagonal quadratic function is
-  * given by c - x'Ax.
-  */
+ /** There is only one linearization in a DQuadFunction. The value of the
+  * linearization constant for this diagonal quadratic function is
+  * given by c - x'Ax. */
 
  virtual double get_linearization_constant( const LinearizationName name =
-   std::numeric_limits<Index>::max() ) override {
+			      std::numeric_limits<Index>::max() ) override {
+  double quadratic_term = 0.0;
 
-   double quadratic_term = 0.0;
-
-   for( const auto &triple : v_triples ) {
-     auto variable_value = std::get<0>(triple)->get_value();
-     auto quadratic_coefficient_value = std::get<2>(triple);
-     quadratic_term += variable_value * quadratic_coefficient_value *
-       quadratic_coefficient_value;
+  for( const auto &triple : v_triples ) {
+   auto variable_value = std::get<0>( triple )->get_value();
+   auto quadratic_coefficient_value = std::get<2>( triple );
+   quadratic_term += variable_value * quadratic_coefficient_value *
+    quadratic_coefficient_value;
    }
 
-   return this->f_constant_term - quadratic_term;
- }
+  return( this->f_constant_term - quadratic_term );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  ///< Returns the value of the constant term of this DQuadFunction.
@@ -456,30 +429,30 @@ class DQuadFunction : public C15Function {
  FunctionValue get_constant_term( void ) const { return( f_constant_term ); }
 
 /*--------------------------------------------------------------------------*/
-
- /// Returns the Coefficient in the linear term of the i-th Variable
+ /// returns the Coefficient in the linear term of the i-th Variable
  /** This method returns the Coefficient, in the linear term, of the
   * i-th Variable of this diagonal quadratic function. The index i
   * must be between 0 and get_num_active_var() - 1.
   *
   * @param i Index of the Variable whose coefficient is desired.
   */
+
  virtual Coefficient get_linear_coefficient( c_Index i ) const {
-   return std::get<1>( *( v_triples.begin() + i ) );
- }
+  return( std::get<1>( *( v_triples.begin() + i ) ) );
+  }
 
 /*--------------------------------------------------------------------------*/
-
-  /// Returns the Coefficient in the quadratic term of the i-th Variable
+ /// returns the Coefficient in the quadratic term of the i-th Variable
  /** This method returns the Coefficient, in the quadratic term, of
   * the i-th Variable of this diagonal quadratic function. The index i
   * must be between 0 and get_num_active_var() - 1.
   *
   * @param i Index of the Variable whose coefficient is desired.
   */
+
  virtual Coefficient get_quadratic_coefficient( c_Index i ) const {
-   return std::get<2>( *( v_triples.begin() + i ) );
- }
+  return( std::get<2>( *( v_triples.begin() + i ) ) );
+  }
 
 /*@} -----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
@@ -507,8 +480,8 @@ class DQuadFunction : public C15Function {
  * @{ */
 
  virtual Index get_num_active_var( void ) const override final {
-   return( v_triples.size() );
- }
+  return( v_triples.size() );
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -534,32 +507,32 @@ class DQuadFunction : public C15Function {
 /*--------------------------------------------------------------------------*/
 
  virtual Variable *get_active_var( const Index i ) const override {
-   return std::get<0>( *( v_triples.begin() + i ) );
- }
+  return( std::get<0>( *( v_triples.begin() + i ) ) );
+  }
 
 /*--------------------------------------------------------------------------*/
 
  virtual v_iterator * v_begin( void ) override final {
-   return( new DQuadFunction::v_iterator( v_triples.begin() ) );
- }
+  return( new DQuadFunction::v_iterator( v_triples.begin() ) );
+  }
 
 /*--------------------------------------------------------------------------*/
 
  virtual v_const_iterator * v_begin( void ) const override final {
-   return( new DQuadFunction::v_const_iterator( v_triples.begin() ) );
- }
+  return( new DQuadFunction::v_const_iterator( v_triples.begin() ) );
+  }
 
 /*--------------------------------------------------------------------------*/
 
  virtual v_iterator * v_end( void ) override final {
-   return( new DQuadFunction::v_iterator( v_triples.end() ) );
- }
+  return( new DQuadFunction::v_iterator( v_triples.end() ) );
+  }
 
 /*--------------------------------------------------------------------------*/
 
  virtual v_const_iterator * v_end( void ) const override final {
-   return( new DQuadFunction::v_const_iterator( v_triples.end() ) );
- }
+  return( new DQuadFunction::v_const_iterator( v_triples.end() ) );
+  }
 
 /*@} -----------------------------------------------------------------------*/
 /*-------------- METHODS FOR MODIFYING THE DQuadFunction -------------------*/
@@ -568,9 +541,8 @@ class DQuadFunction : public C15Function {
  *  @{ */
 
  /// add a set of new Variable to the DQuadFunction
-
  /**< Method that receives a pointer to a vector of triples
-  * (ColVariable *, Coefficient, Coefficient) and adds these triples
+  * < ColVariable * , Coefficient , Coefficient > and adds these triples
   * to the list of triples already in the DQuadFunction. The first
   * coefficient is that in the linear term and the second one is that
   * in the quadratic term. If any variable in vars is already an
@@ -583,8 +555,9 @@ class DQuadFunction : public C15Function {
   * "name = pointer" or not, otherwise it may get ordered inside the
   * method (which is why it is not const).
   *
-  * The parameter issueMod decides if and how the DQuadFunctionMod is
-  * issued, as described in Observer::make_par(). */
+  * The parameter issueMod decides if and how the C05FunctionModVars is
+  * issued, as described in Observer::make_par(). Note that a diagonal
+  * quadratic function is additive, and therefore strongly quasi-additive. */
 
  void add_variables( v_var_coeff_coeff_triple && vars ,
 		     const bool ordered = false ,
@@ -592,32 +565,42 @@ class DQuadFunction : public C15Function {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// add one single new Variable to the DQuadFunction
- /** Like add_variables(), but just only one Variable. The
-     linear_coeff is the coefficient of the Variable in the linear
-     term and quadratic_coeff is the coefficient of the Variable in
-     the quadratic term. */
+ /** Like add_variables(), but just only one Variable. The linear_coeff is
+  * the coefficient of the Variable in the linear term and quadratic_coeff
+  * is the coefficient of the Variable in the quadratic term. */
 
  void add_variable( ColVariable * const var , const Coefficient linear_coeff ,
 		    const Coefficient quadratic_coeff ,
 		    c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
- /// modify a single existing coefficient
- /**  Method that receives new coefficients for a specific Variable *
-  * and modifies them. The linear_coeff is the coefficient of the
-  * Variable in the linear term and quadratic_coeff is the coefficient
-  * of the Variable in the quadratic term. If var is not an active
-  * variable in the * DQuadFunction, exception is thrown.
+ /// modify a single existing quadratic term
+ /** Method that modifies both the linear and the quadratic coefficients for
+  * a specific Variable *. If var is not an active variable in the
+  * DQuadFunction, exception is thrown.
   *
-  * The parameter issueMod decides if and how the DQuadFunctionMod is issued,
-  * as described in Observer::make_par(). */
+  * The parameter issueMod decides if and how the C05FunctionModRngd is
+  * issued, as described in Observer::make_par(). */
 
- void modify_coefficient( ColVariable * const var , const Coefficient linear_coeff ,
-			  const Coefficient quadratic_coeff ,
-			  c_ModParam issueMod = eModBlck );
+ void modify_term( ColVariable * const var , const Coefficient linear_coeff ,
+		   const Coefficient quadratic_coeff ,
+		   c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// modify a set of existing coefficients
+ /// modify a single existing coefficient
+ /** Method that modifies only the linear coefficient for a specific
+  * Variable, leaving the quadratic one unchanged; if var is not an active
+  * variable in the LinearFunction, exception is thrown. 
+  *
+  * The parameter issueMod decides if and how the C05FunctionModLin is issued,
+  * as described in Observer::make_par(). */
+
+ void modify_linear_coefficient( ColVariable * const var ,
+				 const Coefficient coeff ,
+				 c_ModParam issueMod = eModBlck );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// modify a set of existing quadratic terms
  /** Method that receives a vector of triples < ColVariable * ,
   * Coefficient , Coefficient > so that the ColVariables are already
   * in the DQuadFunction, and modify their coefficients
@@ -634,7 +617,7 @@ class DQuadFunction : public C15Function {
   * The parameter issueMod decides if and how the DQuadFunctionMod is
   * issued, as described in Observer::make_par(). */
 
- void modify_coefficients( v_var_coeff_coeff_triple && vars ,
+ void modify_terms( v_var_coeff_coeff_triple && vars ,
 			   const bool ordered = false ,
 			   c_ModParam issueMod = eModBlck );
 
@@ -650,7 +633,8 @@ class DQuadFunction : public C15Function {
   * not be searched for. The set of indices must be ordered in
   * increasing sense. */
 
- virtual void modify_coefficients( c_v_coeff_coeff_it NCoef , c_Vec_Index &nms ,
+ virtual void modify_coefficients( c_v_coeff_coeff_it NCoef ,
+				   c_Vec_Index &nms ,
 				   c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -837,127 +821,7 @@ class DQuadFunction : public C15Function {
 
  };  // end( class( DQuadFunction ) )
 
-/*--------------------------------------------------------------------------*/
-/*-------------------- CLASS DQuadFunctionModRngd --------------------------*/
-/*--------------------------------------------------------------------------*/
-/// derived from C05FunctionModVarsRngd for changes in a range of coefficients
-/** Derived class from C05FunctionModVarsRngd to describe changes specific to
- * a DQuadFunction, i.e., those of a range of coefficients.
- *
- * The change of some of the coefficients in a diagonal quadratic
- * function perfectly coincides with what the type of modification of
- * C05FunctionModVarsRngd "SomeEntriesChange" postulates. Indeed,
- * there is no real reason for defining this class, as it is identical
- * to C05FunctionModVarsRngd, save for the fact that some Block /
- * Solver may want to be sure that the Modification is actually coming
- * out of a DQuadFunction. */
-
- class DQuadFunctionModRngd : public C05FunctionModVarsRngd
- {
-
-/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
-
- public:
-
-/*-------------------- CONSTRUCTOR AND DESTRUCTOR --------------------------*/
-
- /// constructor: identical to that of C05FunctionModVarsRngd
-
- DQuadFunctionModRngd( Function * const f , const int mod ,
-		       Variable * const strt = nullptr ,
-		       Variable * const stop = nullptr ,
-		       const FunctionValue shift = 0 , const bool cB = true )
-  : C05FunctionModVarsRngd( f , mod , strt , stop , shift , cB ) { }
-
- virtual ~DQuadFunctionModRngd() { }  ///< destructor, does nothing
-
-/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
-
- protected:
-
-/*-------------------------- PROTECTED METHODS -----------------------------*/
-
- /// print the DquadFunctionModRngd
-
- virtual inline void print( std::ostream &output ) const {
-  output << "DQuadFunctionModRngd[";
-  if( concerns_Block() )
-   output << "t";
-  else
-   output << "f";
-  output << "] on Function[" << f_function << " ]: ";
-  switch( f_type ) {
-   case( AddVar ): output << "add variables"; break;
-   case( RemoveVar ): output << "delete variables"; break;
-   case( SomeEntriesChange ): output << "modify coefficients";
-   }
-  output << "[ " << f_strt << ", " << f_stop << "]" << std::endl;
-  }
-
-/*--------------------------------------------------------------------------*/
-
- };  // end( class( DQuadFunctionModRngd ) )
-
-/*--------------------------------------------------------------------------*/
-/*-------------------- CLASS DQuadFunctionModSbst --------------------------*/
-/*--------------------------------------------------------------------------*/
-/// derived from C05FunctionModVarsSbst for changes in subset of coefficients
-/** Derived class from C05FunctionModVarsSbst to describe changes specific to
- * a DQuadFunction, i.e., those of a subset of coefficients.
- *
- * The change of some of the coefficients in a diagonal quadratic
- * function perfectly coincides with what the type of modification of
- * C05FunctionModVarsSbst "SomeEntriesChange" postulates. Indeed,
- * there is no real reason for defining this class, as it is identical
- * to C05FunctionModVarsSbst, save for the fact that some Block /
- * Solver may want to be sure that the Modification is actually coming
- * out of a DQuadFunction. */
-
- class DQuadFunctionModSbst : public C05FunctionModVarsSbst
- {
-
-/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
-
- public:
-
-/*-------------------- CONSTRUCTOR AND DESTRUCTOR --------------------------*/
-
- /// constructor: identical to that of C05FunctionModVarsSbst
-
- DQuadFunctionModSbst( Function * const f , const int mod ,
-		       std::vector<Variable *> && vars ,
-		       FunctionValue shift = 0 , const bool cB = true )
-  : C05FunctionModVarsSbst( f , mod , std::move( vars ) , shift , cB ) { }
-
- virtual ~DQuadFunctionModSbst() { }  ///< destructor, does nothing
-
-/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
-
- protected:
-
-/*-------------------------- PROTECTED METHODS -----------------------------*/
- /// print the DQuadFunctionModSbst
-
- virtual inline void print( std::ostream &output ) const {
-  output << "DQuadFunctionModSbst[";
-  if( concerns_Block() )
-   output << "t";
-  else
-   output << "f";
-  output << "] on Function[" << f_function << " ]: ";
-  switch( f_type ) {
-   case( AddVar ): output << "add variables"; break;
-   case( RemoveVar ): output << "delete variables"; break;
-   case( SomeEntriesChange ): output << "modify coefficients";
-   }
-  output << "(# " << v_vars.size() << ")" << std::endl;
-  }
-
-/*--------------------------------------------------------------------------*/
-
- };  // end( class( DQuadFunctionModSbst ) )
-
-/*@}  end( group( DQuadFun_CLASSES ) ) */
+/*@}  end( group( DQuadFunction_CLASSES ) ) */
 /*--------------------------------------------------------------------------*/
 
  }  // end( namespace SMSpp_di_unipi_it )

@@ -2,12 +2,12 @@
 /*------------------------ File LinearFunction.h ---------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Header file for the *concrete* class LinearFunction, which
- * implements C15Function with a simple linear function.
+ * Header file for the *concrete* class LinearFunction, which implements
+ * C15Function with a simple linear function.
  *
- * \version 0.13
+ * \version 0.20
  *
- * \date 27 - 02 - 2019
+ * \date 14 - 03 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -15,8 +15,9 @@
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Department of Applied Mathematics \n
- *         State University of Campinas, Brazil \n
+ *         Operations Research Group \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
  *
  * Copyright &copy by Antonio Frangioni, Rafael Durbano Lobato
  */
@@ -47,7 +48,7 @@ namespace SMSpp_di_unipi_it
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
-/** @defgroup LFun_CLASSES Classes in LinearFunction.h
+/** @defgroup LinearFunction_CLASSES Classes in LinearFunction.h
  *  @{ */
 
 /*--------------------------------------------------------------------------*/
@@ -249,24 +250,16 @@ class LinearFunction : public C15Function {
   }
 
 /*--------------------------------------------------------------------------*/
- /// destructor: it unregisters from its active Variable
- /** The destructor of LinearFunction unregisters its Observer, if it is a
-  * ThinVarDepInterface, from the active Variable of the LinearFunction. This
-  * is unless clear() has been called, so that the vector v_pairs contains
-  * nothing and no un-registering is made. */
+ /// destructor: it does nothing (explicitly)
 
- virtual ~LinearFunction() {
-  auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
-
-  if( TVDIO )
-   for( auto pair : v_pairs )
-    pair.first->remove_active( TVDIO );
- }
+ virtual ~LinearFunction() {}
 
 /*--------------------------------------------------------------------------*/
  /// clear method: clears the v_pairs field
- /** Method to "clear" the LinearFunction: it clear() the vector v_pairs, so
-  * that in the destructor no un-registering is made. */
+ /** Method to "clear" the LinearFunction: it clear() the vector v_pairs.
+  * This destroys the list of "active" Variable without unregistering from
+  * them. Not that the LinearFunction would have, but the Observer may.
+  * By not having any Variable, the Observer can no longer do that. */
 
  virtual void clear( void ) override { v_pairs.clear(); }
 
@@ -276,11 +269,6 @@ class LinearFunction : public C15Function {
 /** @name Other initializations
  *  @{ */
 
- virtual void register_Observer( Observer * const observer = nullptr ,
-		 bool RegisterInActiveVars = true )
-  override;
-
-/*--------------------------------------------------------------------------*/
  /// set the whole (empty) set of parameters in one blow
  /** Although a LinearFunction formally has a lot of parameters, in fact it
   * "listens to no-one"; hence, the implementation of set_ComputeConfig() is
@@ -313,7 +301,7 @@ class LinearFunction : public C15Function {
 
  /*--------------------------------------------------------------------------*/
   /// returns the Coefficient of the Variable var of this LinearFunction
-  /** Like add_variables( int ), but works directly with the Variable
+  /** Like get_coefficient( int ), but works directly with the Variable
    * instead of its index. */
 
  inline Coefficient get_coefficient( const ColVariable * const var ) const {
@@ -322,7 +310,6 @@ class LinearFunction : public C15Function {
 	                             std::make_pair( var , 0 ) ,
 	                             []( const auto & p1, const auto & p2 )
 	                              { return p1.first < p2.first; } );
-
    if( idx->first != var )
     throw( std::invalid_argument( "stop is not an active Variable" ) );
 
@@ -412,13 +399,12 @@ class LinearFunction : public C15Function {
    c_Index end = Inf<Index>() ) override final;
 
 /*--------------------------------------------------------------------------*/
+/** There is only one linearization in a LinearFunction. The linearization
+ * constant is equal to the constant term of the LinearFunction. */
 
-/** There is only one linearization in a LinearFunction. The
- * linearization constant is equal to the constant term of the
- * LinearFunction. */
-
- virtual Function::FunctionValue get_linearization_constant( const LinearizationName name =
-		 Inf<LinearizationName>() ) override final {
+ virtual Function::FunctionValue get_linearization_constant(
+                   const LinearizationName name = Inf<LinearizationName>() )
+  override final {
  return( f_constant_term );
  }
 
@@ -529,26 +515,27 @@ class LinearFunction : public C15Function {
   * "name = pointer" or not, otherwise it may get ordered inside the
   * method (which is why it is not const).
   *
-  * The parameter issueMod decides if and how the LinearFunctionMod is issued,
-  * as described in Observer::make_par(). */
+  * The parameter issueMod decides if and how the C05FunctionModVars is
+  * issued, as described in Observer::make_par(). Note that a linear function
+  * is additive, and therefore strongly quasi-additive. */
 
  void add_variables( v_coeff_pair && vars , const bool ordered = false ,
 		     c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// add one single new Variable to the LinearFunction
- /** Like add_variables(), but just only one Variable. */
+ /** Like add_variables(), but just only one Variable. coeff is the
+  * coefficient of the Variable in the linear function. */
 
  void add_variable( ColVariable * const var , const Coefficient coeff ,
 		    c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// modify a single existing coefficient
- /**  Method that receives a new coefficient for a specific Variable and
-  * modifies it. If var is not an active variable in the LinearFunction,
-  * exception is thrown. 
+ /** Method that modifies the coefficient for a specific Variable; if var is
+  * not an active variable in the LinearFunction, exception is thrown. 
   *
-  * The parameter issueMod decides if and how the LinearFunctionMod is issued,
+  * The parameter issueMod decides if and how the C05FunctionModLin is issued,
   * as described in Observer::make_par(). */
 
  void modify_coefficient( ColVariable * const var , const Coefficient coeff ,
@@ -760,125 +747,7 @@ class LinearFunction : public C15Function {
 
  };  // end( class( LinearFunction ) )
 
-/*--------------------------------------------------------------------------*/
-/*-------------------- CLASS LinearFunctionModRngd -------------------------*/
-/*--------------------------------------------------------------------------*/
-/// derived from C05FunctionModVarsRngd for changes in a range of coefficients
-/** Derived class from C05FunctionModVarsRngd to describe changes specific to
- * a LinearFunction, i.e., those of a range of coefficients.
- *
- * The change of some of the coefficients in a linear function perfectly
- * coincides with what the type of modification of C05FunctionModVarsRngd
- * "SomeEntriesChange" postulates. Indeed, there is no real reason for
- * defining this class, as it is identical to C05FunctionModVarsRngd, save
- * for the fact that some Block / Solver may want to be sure that the
- * Modification is actually coming out of a LinearFunction. */
-
- class LinearFunctionModRngd : public C05FunctionModVarsRngd
- {
-
-/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
-
- public:
-
-/*-------------------- CONSTRUCTOR AND DESTRUCTOR --------------------------*/
-
- /// constructor: identical to that of C05FunctionModVarsRngd
-
- LinearFunctionModRngd( Function * const f , const int mod ,
-			Variable * const strt = nullptr ,
-			Variable * const stop = nullptr ,
-			const FunctionValue shift = 0 , const bool cB = true )
-  : C05FunctionModVarsRngd( f , mod , strt , stop , shift , cB ) { }
-
- virtual ~LinearFunctionModRngd() { }  ///< destructor, does nothing
-
-/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
-
- protected:
-
-/*-------------------------- PROTECTED METHODS -----------------------------*/
-
- /// print the LinearFunctionModRngd
-
- virtual inline void print( std::ostream &output ) const {
-  output << "LinearFunctionModRngd[";
-  if( concerns_Block() )
-   output << "t";
-  else
-   output << "f";
-  output << "] on Function[" << f_function << " ]: ";
-  switch( f_type ) {
-   case( AddVar ): output << "add variables"; break;
-   case( RemoveVar ): output << "delete variables"; break;
-   case( SomeEntriesChange ): output << "modify coefficients";
-   }
-  output << "[ " << f_strt << ", " << f_stop << "]" << std::endl;
-  }
-
-/*--------------------------------------------------------------------------*/
-
- };  // end( class( LinearFunctionModRngd ) )
-
-/*--------------------------------------------------------------------------*/
-/*-------------------- CLASS LinearFunctionModSbst -------------------------*/
-/*--------------------------------------------------------------------------*/
-/// derived from C05FunctionModVarsSbst for changes in subset of coefficients
-/** Derived class from C05FunctionModVarsSbst to describe changes specific to
- * a LinearFunction, i.e., those of a subset of coefficients.
- *
- * The change of some of the coefficients in a linear function perfectly
- * coincides with what the type of modification of C05FunctionModVarsSbst
- * "SomeEntriesChange" postulates. Indeed, there is no real reason for
- * defining this class, as it is identical to C05FunctionModVarsSbst, save
- * for the fact that some Block / Solver may want to be sure that the
- * Modification is actually coming out of a LinearFunction. */
-
- class LinearFunctionModSbst : public C05FunctionModVarsSbst
- {
-
-/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
-
- public:
-
-/*-------------------- CONSTRUCTOR AND DESTRUCTOR --------------------------*/
-
- /// constructor: identical to that of C05FunctionModVarsSbst
-
- LinearFunctionModSbst( Function * const f , const int mod ,
-			std::vector<Variable *> && vars ,
-			FunctionValue shift = 0 , const bool cB = true )
-  : C05FunctionModVarsSbst( f , mod , std::move( vars ) , shift , cB ) { }
-
- virtual ~LinearFunctionModSbst() { }  ///< destructor, does nothing
-
-/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
-
- protected:
-
-/*-------------------------- PROTECTED METHODS -----------------------------*/
- /// print the LinearFunctionModSbst
-
- virtual inline void print( std::ostream &output ) const {
-  output << "LinearFunctionModSbst[";
-  if( concerns_Block() )
-   output << "t";
-  else
-   output << "f";
-  output << "] on Function[" << f_function << " ]: ";
-  switch( f_type ) {
-   case( AddVar ): output << "add variables"; break;
-   case( RemoveVar ): output << "delete variables"; break;
-   case( SomeEntriesChange ): output << "modify coefficients";
-   }
-  output << "(# " << v_vars.size() << ")" << std::endl;
-  }
-
-/*--------------------------------------------------------------------------*/
-
- };  // end( class( LinearFunctionModSbst ) )
-
-/*@}  end( group( LFun_CLASSES ) ) */
+/*@}  end( group( LinearFunction_CLASSES ) ) */
 /*--------------------------------------------------------------------------*/
 
  }  // end( namespace SMSpp_di_unipi_it )

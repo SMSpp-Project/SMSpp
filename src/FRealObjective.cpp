@@ -4,9 +4,9 @@
 /** @file
  * Implementation of the FRealObjective class.
  *
- * \version 0.10
+ * \version 0.20
  *
- * \date 05 - 04 - 2018
+ * \date 14 - 03 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -47,10 +47,16 @@ void FRealObjective::set_function( Function * const function ,
  if( function == f_function )  // changing nothing
   return;                      // all done
 
- // this Objective is no longer interested in the Modification
- // of the old Function: unregister itself from that Function
- if( f_function )
+ if( f_function ) {
+  // this Objective is no longer interested in the Modification
+  // of the old Function: unregister itself from that Function
   f_function->register_Observer();
+
+  // also, this Objective is no longer active in the Variable of the Function
+  const auto vend = f_function->end();
+  for( auto vbeg = f_function->begin() ; vbeg != vend ; ++vbeg )
+   vbeg->remove_active( this );
+  }
 
  // if so instructed, delete the old Function
  if( deleteold )
@@ -59,9 +65,15 @@ void FRealObjective::set_function( Function * const function ,
  // update the Function associated with this Objective
  f_function = function;
 
-  // register this Objective as an Observer of the given Function
- if( f_function )
+ if( f_function ) {
+  // register this Objective as an Observer of the given Function (if any)
   f_function->register_Observer( this );
+
+  // register this Objective as active in the Variable of the Function
+  const auto vend = f_function->end();
+  for( auto vbeg = f_function->begin() ; vbeg != vend ; ++vbeg )
+   vbeg->add_active( this );
+  }
 
  // if so instructed, issue the FRealObjectiveMod
  if( f_Block && f_Block->issue_mod( issueMod ) )
@@ -71,6 +83,64 @@ void FRealObjective::set_function( Function * const function ,
 			     Observer::par2chnl( issueMod ) );
 
  }  // end( FRealObjective::set_function )
+
+/*--------------------------------------------------------------------------*/
+
+void FRealObjective::add_Modification( sp_Mod mod , c_ChnlName chnl )
+{
+ // first check if mod is some :FunctionModVars, and if it is- - - - - - - - -
+ // register/unregister this FRowConstraintwith the added/removed Variable
+ /* Use a Lambda to define a "guts" of the method that can be called
+    recursively without having to pass "local globals". Note the trick of
+    defining the std::function object and "passing" it to the lambda,
+    which allows recursive calls. Note the need to explicitly capture
+    "this" to use fields/methods of the class. */
+
+ std::function< void( sp_Mod )> guts_of_aM;
+ guts_of_mM = [ this , & guts_of_aM ]( sp_Mod mod ) {
+  // process Modification- - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  /* This requires to patiently sift through the possible Modification types
+     to find what this Modification exactly is; for the :FunctionModVars
+     ones, Variable registration/unregistration has to ensue. */
+  
+  // GroupModification - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  {
+   const auto tmod = std::dynamic_pointer_cast<GroupModification>( mod );
+   if( tmod ) {
+    for( const auto & submod : tmod->v_sub_Modifications )
+     guts_of_aM( submod );
+    }
+   }
+
+  // FunctionModVars - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  {
+   const auto tmod = std::dynamic_pointer_cast<FunctionModVars>( mod );
+   if( ! tmod )
+    return;
+
+   if( tmod->f_type == FunctionModVars::AddVar )
+    for( auto el : tmod->v_vars )
+      el->add_active( this );
+   else
+    if( tmod->f_type == FunctionModVars::RemoveVar )
+     for( auto el : tmod->v_vars )
+      el->remove_active( this );
+   }
+
+  // whatever has happened, or not, so far, nothing else has to be done
+
+  };  // end( guts_of_aM ) - - - - - - - - - - - - - - - - - - - - - - - - - -
+      // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ guts_of_aM( mod );  // now the actual call to the "guts of"
+
+ // finally, dispatch to add_Modification() of the Block (if any)- - - - - - -
+
+ if( f_Block )
+  f_Block->add_Modification( mod , chnl );
+
+ }  // end( FRealObjective::add_Modification )
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- End File FRealObjective.cpp ----------------------*/

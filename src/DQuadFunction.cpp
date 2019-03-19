@@ -4,9 +4,9 @@
 /** @file
  * Implementation of the DQuadFunction class.
  *
- * \version 0.10
+ * \version 0.20
  *
- * \date 07 - 03 - 2019
+ * \date 14 - 03 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -14,16 +14,11 @@
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Department of Applied Mathematics \n
- *         State University of Campinas, Brazil \n
- *
- * \author Kostas Tavlaridis-Gyparakis \n
  *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Rafael Durbano Lobato, Kostas
- * Tavlaridis-Gyparakis
+ * Copyright &copy by Antonio Frangioni, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
@@ -42,126 +37,99 @@
 using namespace SMSpp_di_unipi_it;
 
 /*--------------------------------------------------------------------------*/
-/*--------------------------------- METHODS --------------------------------*/
-/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
-/*--------------------------------------------------------------------------*/
-
-void DQuadFunction::register_Observer( Observer * const observer ,
-		bool RegisterInActiveVars )
-{
- if( f_Observer == observer )  // actually changing nothing
-  return;                      // cowardly (and silently) return
-
- // if there was a previous Observer and it was a ThinVarDepInterface, then
- // un-register it from all the Variable of the DQuadFunction
- auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
-
- if( TVDIO && ( std::get<0>(v_triples[0])->is_active(TVDIO)
-		 < std::get<0>(v_triples[0])->get_num_active() ) )
-  for( auto triple : v_triples )
-    std::get<0>(triple)->remove_active( TVDIO );
-
- f_Observer = observer;
-
- // if the new Observer is a ThinVarDepInterface, then register it to all
- // the Variable of the DQuadFunction
- TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
-
- if( TVDIO && RegisterInActiveVars )
-  for( auto triple : v_triples )
-    std::get<0>(triple)->add_active( TVDIO );
-
- }  // end( register_Observer )
-
-/*--------------------------------------------------------------------------*/
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF THE DQuadFunction -----------*/
 /*--------------------------------------------------------------------------*/
 
 int DQuadFunction::compute( bool changedvars )
 {
  if( changedvars ) {
-
   f_value = f_constant_term;  // value of the function
   for( const auto &triple : v_triples ) {
-    auto variable_value = std::get<0>(triple)->get_value();
-    f_value += variable_value *
-      (std::get<1>(triple) + std::get<2>(triple) * variable_value);
-    }
+   auto variable_value = std::get<0>(triple)->get_value();
+   f_value += variable_value * ( std::get<1>(triple) +
+				 std::get<2>(triple) * variable_value );
+   }
   }
 
  return( kOK );
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 
-bool DQuadFunction::is_convex( void ) const {
-  for(const auto &triple : v_triples) {
-    if(std::get<2>(triple) < 0) return false;
+bool DQuadFunction::is_convex( void ) const
+{
+ for( const auto &triple : v_triples )
+  if( std::get<2>( triple ) < 0 )
+   return( false );
+
+ return( true );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool DQuadFunction::is_concave( void ) const
+{
+ for( const auto &triple : v_triples )
+  if( std::get<2>(triple) > 0 )
+   return( false );
+
+ return( true );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+bool DQuadFunction::is_linear( void ) const
+{
+ for( const auto &triple : v_triples )
+  if( std::get<2>(triple) != 0 )
+   return( false );
+
+ return( true );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void DQuadFunction::get_hessian_approximation( SparseHessian &hessian ) const
+{
+ int num_active_var = this->get_num_active_var();
+
+ std::vector< Eigen::Triplet<FunctionValue> > tripletList;
+ tripletList.reserve( num_active_var );
+
+ int index = 0;
+ for(const auto &triple : v_triples)
+  tripletList.push_back(
+   Eigen::Triplet<FunctionValue>( index , index, 2 * std::get<2>( triple ) ) );
+
+ hessian.setZero();
+ hessian.reserve( Eigen::VectorXi::Constant( num_active_var , 1 ) );
+ hessian.setFromTriplets( tripletList.begin() , tripletList.end() );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void DQuadFunction::get_hessian_approximation( DenseHessian &hessian ) const
+{
+ int num_active_var = get_num_active_var();
+ hessian.setZero( num_active_var , num_active_var );
+ int index = 0;
+ for(const auto &triple : v_triples) {
+  hessian( index , index ) = 2 * std::get<2>( triple );
+  index++;
   }
-  return true;
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 
-bool DQuadFunction::is_concave( void ) const {
-  for(const auto &triple : v_triples) {
-    if(std::get<2>(triple) > 0) return false;
-  }
-  return true;
-}
+double DQuadFunction::get_linearization_coefficient( c_Index i ) const
+{
+ if( ( i < 0 ) || ( i >= v_triples.size() ) )
+  throw( std::invalid_argument( "wrong index in "
+	                  "DQuadFunction::get_linearization_coefficient" ) );
 
-/*--------------------------------------------------------------------------*/
-
-bool DQuadFunction::is_linear( void ) const {
-  for(const auto &triple : v_triples)
-    if(std::get<2>(triple) != 0)
-      return false;
-  return true;
-}
-
-/*--------------------------------------------------------------------------*/
-
-void DQuadFunction::get_hessian_approximation( SparseHessian &hessian ) const {
-
-  int num_active_var = this->get_num_active_var();
-
-  std::vector< Eigen::Triplet<FunctionValue> > tripletList;
-  tripletList.reserve(num_active_var);
-
-  int index = 0;
-  for(const auto &triple : v_triples)
-    tripletList.push_back
-      (Eigen::Triplet<FunctionValue>(index, index, 2 * std::get<2>(triple)));
-
-  hessian.setZero();
-  hessian.reserve(Eigen::VectorXi::Constant(num_active_var, 1));
-  hessian.setFromTriplets(tripletList.begin(), tripletList.end());
-}
-
-/*--------------------------------------------------------------------------*/
-
-void DQuadFunction::get_hessian_approximation( DenseHessian &hessian ) const {
-  int num_active_var = get_num_active_var();
-  hessian.setZero(num_active_var, num_active_var);
-  int index = 0;
-  for(const auto &triple : v_triples) {
-    hessian(index, index) = 2 * std::get<2>(triple);
-    index++;
-  }
-}
-
-/*--------------------------------------------------------------------------*/
-
-double DQuadFunction::get_linearization_coefficient( c_Index i ) const {
-
-  if( i < 0 || i >= v_triples.size() )
-    throw( std::invalid_argument
-	   ( "wrong index in "
-	     "DQuadFunction::get_linearization_coefficient" ) );
-
-  return 2 * std::get<0>(v_triples[ i ])->get_value() *
-    std::get<2>(v_triples[ i ]) + std::get<1>(v_triples[ i ]);
-}
+ return( 2 * std::get<0>( v_triples[ i ] )->get_value() *
+	 std::get<2>( v_triples[ i ] ) + std::get<1>( v_triples[ i ] ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -309,13 +277,6 @@ void DQuadFunction::add_variables( v_var_coeff_coeff_triple && vars ,
 	     }
 	     );
 
- // if the Observer is a ThinVarDepInterface, register it with the vars
- auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
-
- if( TVDIO )
-  for( auto triple : vars )
-    std::get<0>( triple )->add_active( TVDIO );
-
  if( v_triples.empty() ) {    // adding to nothing
   v_triples = std::move( vars );
 
@@ -361,12 +322,6 @@ void DQuadFunction::add_variable( ColVariable * const var ,
  if( var == nullptr )  // actually nothing to add
   return;              // cowardly (and silently) return
 
- // if the Observer is a ThinVarDepInterface, register it with var
- auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
-
- if( TVDIO )
-  var->add_active( TVDIO );
-
  auto triple = std::make_tuple( var , linear_coeff , quadratic_coeff );
 
  if( v_triples.empty() )  // adding to nothing
@@ -389,9 +344,10 @@ void DQuadFunction::add_variable( ColVariable * const var ,
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
 
+ // a diagonal quadratic function is additive ==> strongly quasi-additive
  f_Observer->add_Modification( std::make_shared<DQuadFunctionModSbst>( this ,
 					 FunctionModVars::AddVar ,
-					 Vec_p_Var( { var } ) , 0 ,
+					 Vec_p_Var( { var } ) , 0 , true ,
 					 Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 
@@ -399,10 +355,10 @@ void DQuadFunction::add_variable( ColVariable * const var ,
 
 /*--------------------------------------------------------------------------*/
 
-void DQuadFunction::modify_coefficient( ColVariable * const var ,
-					const Coefficient linear_coeff ,
-					const Coefficient quadratic_coeff ,
-					c_ModParam issueMod )
+void DQuadFunction::modify_term( ColVariable * const var ,
+				 const Coefficient linear_coeff ,
+				 const Coefficient quadratic_coeff ,
+				 c_ModParam issueMod )
 {
  if( var == nullptr )  // actually nothing to modify
   return;              // cowardly (and silently) return
@@ -415,6 +371,10 @@ void DQuadFunction::modify_coefficient( ColVariable * const var ,
  if( itv == v_triples.end() ) // if the Variable is not there
   throw( std::invalid_argument( "Variable is not active" ) );
 
+ if( ( std::get<1>( *itv ) == linear_coeff ) &&
+     ( std::get<2>( *itv ) == quadratic_coeff ) ) // actually nothing to modify
+  return;                                    // cowardly (and silently) return
+
  std::get<1>( *itv ) = linear_coeff;     // modify the coefficient in
 					 // the linear term
 
@@ -424,19 +384,53 @@ void DQuadFunction::modify_coefficient( ColVariable * const var ,
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;                  // noone is there: all done
 
- f_Observer->add_Modification( std::make_shared<DQuadFunctionModSbst>( this ,
-                                    DQuadFunctionModSbst::SomeEntriesChange ,
-			            Vec_p_Var( { var } ) , 0 ,
+ f_Observer->add_Modification( std::make_shared<C05FunctionModRngd>( this ,
+                                    C05FunctionMod::AllLinearizationChanged ,
+				    var , var + 1 , 0 ,
 				    Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 
- }  // end( DQuadFunction::modify_coefficient )
+ }  // end( DQuadFunction::modify_term )
 
 /*--------------------------------------------------------------------------*/
 
-void DQuadFunction::modify_coefficients( v_var_coeff_coeff_triple && vars ,
-					 const bool ordered  ,
-					 c_ModParam issueMod )
+void DQuadFunction::modify_linear_coefficient( ColVariable * const var ,
+					       const Coefficient coeff ,
+					       c_ModParam issueMod )
+{
+ if( var == nullptr )  // actually nothing to modify
+  return;              // cowardly (and silently) return
+
+ // look for position of var
+ auto itv = std::find_if( v_triples.begin() , v_triples.end() ,
+			  [ var ]( const var_coeff_coeff_triple &p )
+			  { return( std::get<0>( p ) == var ); } );
+
+ if( itv == v_triples.end() ) // if the Variable is not there
+  throw( std::invalid_argument( "Variable is not active" ) );
+
+ if( std::get<1>( *itv ) == linear_coeff )  // actually nothing to modify
+  return;                                   // cowardly (and silently) return
+
+ std::get<1>( *itv ) = linear_coeff;     // modify the coefficient in
+					 // the linear term
+
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+  return;                  // noone is there: all done
+
+ f_Observer->add_Modification( std::make_shared<C05FunctionModLin>( this ,
+			    Vec_FunctionValue( { linear_coeff; } ),
+			    Vec_p_Var( { var } ) , true ,
+			    std::numeric_limits<FunctionValue>::quiet_NaN() ,
+			    Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
+
+ }  // end( DQuadFunction::modify_linear_coefficient )
+
+/*--------------------------------------------------------------------------*/
+
+void DQuadFunction::modify_terms( v_var_coeff_coeff_triple && vars ,
+				  const bool ordered  , c_ModParam issueMod )
 {
  if( vars.empty() )  // actually nothing to modify
   return;            // all done
@@ -483,7 +477,7 @@ void DQuadFunction::modify_coefficients( v_var_coeff_coeff_triple && vars ,
 			       Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 
- }  // end( DQuadFunction::modify_coefficients( subset ) )
+ }  // end( DQuadFunction::modify_terms( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -599,12 +593,6 @@ void DQuadFunction::remove_variable( Variable * var , c_ModParam issueMod )
  if( ! f_Observer )
   return;
 
- // if the Observer is a ThinVarDepInterface, un-register it from var
- auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
-
- if( TVDIO )
-  var->remove_active( TVDIO );
-
  if( ! f_Observer->issue_mod( issueMod ) )
   return;
 
@@ -630,12 +618,6 @@ void DQuadFunction::remove_variable( c_Index i , c_ModParam issueMod )
  if( ! f_Observer )
   return;
 
- // if the Observer is a ThinVarDepInterface, un-register it from var
- auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
-
- if( TVDIO )
-  var->remove_active( TVDIO );
-
  if( ! f_Observer->issue_mod( issueMod ) )
   return;
 
@@ -658,13 +640,6 @@ void DQuadFunction::remove_variables( c_Index strt , Index stop ,
 
  const auto strtit = v_triples.begin() + strt;
  const auto stopit = v_triples.begin() + stop;
-
- // if the Observer is a ThinVarDepInterface, un-register it from the vars
- auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
-
- if( TVDIO )
-  for( auto it = strtit ; it < stopit ; )
-    std::get<0>( *(it++) )->remove_active( TVDIO );
 
  if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
    Variable * const vstrt = strt ? std::get<0>( v_triples[ strt ] ) : nullptr;
@@ -730,13 +705,6 @@ void DQuadFunction::remove_variables( Vec_p_Var && vars ,
  if( ! f_Observer )
   return;
 
- // if the Observer is a ThinVarDepInterface, un-register it from the vars
- auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
-
- if( TVDIO )
-  for( auto var :  vars )
-   var->remove_active( TVDIO );
-
  if( ! f_Observer->issue_mod( issueMod ) )
   return;
 
@@ -772,31 +740,18 @@ void DQuadFunction::remove_variables( c_Vec_Index & nms ,
  // if the Observer is a ThinVarDepInterface, un-register it from the vars
  auto TVDIO = dynamic_cast<ThinVarDepInterface *>( f_Observer );
 
- if( TVDIO )
-  std::get<0>( v_triples[ *(it++) ] )->remove_active( TVDIO );
- else
-  ++it;             // skip the first elements
+ ++it;              // skip the first elements
  ++vi;              // as they have been processed already
 
- if( TVDIO )
-  for( ; it < nms.end() ; ++vi ) {
-   if( *it == vi )                    // one element to be eliminated
-     std::get<0>( v_triples[ *(it++) ] )->remove_active( TVDIO );  // skip it
-                                      // and meanwhile un-register it
-   else
-    *(curr++) = v_triples[ vi ];    // move in the current position
-   }
- else
-  for( ; it < nms.end() ; ++vi ) {
-   if( *it == vi )                    // one element to be eliminated
-    ++it;                             // skip it
-   else
-    *(curr++) = v_triples[ vi ];    // move in the current position
-   }
+ for( ; it < nms.end() ; ++vi )
+  if( *it == vi )                  // one element to be eliminated
+   ++it;                           // skip it
+  else
+   *(curr++) = v_triples[ vi ];    // move in the current position
 
  auto itv = v_triples.begin() + vi;
  for( ; itv < v_triples.end() ; )   // copy the last part
-  *(curr++) = *(itv++);               // after the last of v_var
+  *(curr++) = *(itv++);             // after the last of v_var
 
  v_triples.erase( curr , itv );     // erase the last part
 
@@ -847,9 +802,10 @@ void DQuadFunction::issue_add_variables_modification
  for( Index i = 0 ; i < triples.size() ; ++i )
   vars[ i ] = std::get<0>( triples[ i ] );
 
- f_Observer->add_Modification( std::make_shared<DQuadFunctionModSbst>( this ,
+ // a diagonal quadratic function is additive ==> strongly quasi-additive
+ f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
                                          FunctionModVars::AddVar ,
-					 std::move( vars ) , 0 ,
+					 std::move( vars ) , 0 , true ,
 					 Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
  }
