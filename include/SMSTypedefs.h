@@ -136,6 +136,118 @@ namespace SMSpp_di_unipi_it
   eLastFileParam   ///< first value available to define new file types
   };
 
+/*--------------------------------------------------------------------------*/
+/*----------------------- Variable-RELATED TYPES ---------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @defgroup Variable_TYPES Variable-related types.
+ *  @{ */
+
+ class Variable;             // forward definition of Variable
+
+ typedef Variable *p_Var;
+ ///< a pointer to Variable (Variable *)
+
+ typedef std::vector<p_Var> Vec_p_Var;
+ ///< a (1-D) vector of pointer to Variable
+
+ typedef const Vec_p_Var c_Vec_p_Var;
+ ///< a (1-D) const vector of pointer to Variable
+
+ template <size_t K>
+ using KD_Vec_p_Var = boost::multi_array<p_Var , K>;
+ ///< Vec_p_Var<K> is a K-D vector of pointer to Variable
+
+ template <size_t K>
+ using KD_c_Vec_p_Var = const boost::multi_array<p_Var , K>;
+ ///< c_Vec_p_Var<K> is a const K-D vector of pointer to Variable
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ typedef std::list<p_Var> List_p_Var;
+ ///< a list of pointer to Variable (Variable *)
+
+ typedef List_p_Var::iterator List_p_Var_it;
+ ///< iterator for a List_p_Var
+
+ typedef const List_p_Var c_List_p_Var;
+  ///< a const list of pointers to Variable
+
+ typedef c_List_p_Var::const_iterator c_List_p_Var_it;
+ ///< iterator for a c_List_p_Var
+
+ typedef std::vector<List_p_Var> Vec_List_p_Var;
+ ///< a 1-D array of lists of pointer to Variable
+
+ typedef const Vec_List_p_Var c_Vec_List_p_Var;
+ ///< a const 1-D array of lists of Variable *
+
+ template<size_t K>
+ using KD_Vec_List_p_Var = boost::multi_array<List_p_Var , K>;
+ ///< Vec_List_p_Var<K> is a K-D vector of lists of Variable *
+
+ template<size_t K>
+ using KD_c_Vec_List_p_Var = const boost::multi_array<List_p_Var , K>;
+ ///< c_Vec_List_p_Var<K> is a const K-D vector of lists of Variable *
+
+
+/** @}  end( group( Variable_TYPES ) )*/
+/*--------------------------------------------------------------------------*/
+/*--------------------- Constraint-RELATED TYPES ---------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @defgroup Constraint_TYPES Constraint-related types.
+ *  @{ */
+
+ class Constraint;  // forward definition
+
+ typedef Constraint* p_Const;
+ ///< a pointer to Constraint (Constraint *)
+
+ typedef const p_Const c_p_Const;
+ ///< a const pointer to Constraint
+
+ typedef std::vector<p_Const> Vec_p_Const;
+ ///< a (1-D) vector of pointer to Constraint
+
+ typedef const Vec_p_Const c_Vec_p_Const;
+ ///< a (1-D) const vector of pointer to Constraint
+
+ template<int K>
+ using KD_Vec_p_Const = boost::multi_array<p_Const , K>;
+ ///< Vec_p_Const<K> is a K-D vector of pointer to Constraint
+
+ template<int K>
+ using KD_c_Vec_p_Const = const boost::multi_array<p_Const , K>;
+ ///< c_Vec_p_Const<K> is a const K-D vector of pointer to Constraint
+
+ typedef std::list<p_Const> List_p_Const;
+ ///< a list of pointers to Constraint (Constraint *)
+
+ typedef List_p_Const::iterator List_p_Const_it;
+ ///< iterator for a List_p_Const
+
+ typedef const List_p_Const c_List_p_Const;
+  ///< a const list of Constraint *
+
+ typedef c_List_p_Const::const_iterator c_List_p_Const_it;
+ ///< iterator for a c_List_p_Const
+
+ typedef std::vector<List_p_Const> Vec_List_p_Const;
+ ///< a 1-D array of lists of Constraint *
+
+ typedef const Vec_List_p_Const c_Vec_List_p_Const;
+ ///< a const 1-D array of lists of Constraint *
+
+ template<int K>
+ using KD_Vec_List_p_Const = boost::multi_array<List_p_Const , K>;
+ ///< Vec_List_p_Const<K> is a K-D vector of lists of Constraint *
+
+ template<int K>
+ using KD_c_Vec_List_p_Const = const boost::multi_array<List_p_Const , K>;
+ ///< c_Vec_List_p_Const<K> is a const K-D vector of lists of Constraint *
+
+/*@}  end( group( Constraint_TYPES ) ) */
+
+
 /*@} -----------------------------------------------------------------------*/
 /*------------------------- UTILITIES FOR FACTORIES ------------------------*/
 /*--------------------------------------------------------------------------*/

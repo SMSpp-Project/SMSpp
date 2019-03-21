@@ -50,63 +50,10 @@
 /// namespace for the Structured Modeling System++ (SMS++)
 namespace SMSpp_di_unipi_it {
 
-/*--------------------------------------------------------------------------*/
-/*----------------------- Variable-RELATED TYPES ---------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @defgroup Variable_TYPES Variable-related types.
- *  @{ */
-
  class ThinVarDepInterface;  // forward definition of ThinVarDepInterface
  class Variable;             // forward definition of Variable
  class Block;                // forward definition of Block
 
- typedef Variable *p_Var;
- ///< a pointer to Variable (Variable *)
-
- typedef std::vector<p_Var> Vec_p_Var;
- ///< a (1-D) vector of pointer to Variable
-
- typedef const Vec_p_Var c_Vec_p_Var;
- ///< a (1-D) const vector of pointer to Variable
-
- template <size_t K>
- using KD_Vec_p_Var = boost::multi_array<p_Var , K>;
- ///< Vec_p_Var<K> is a K-D vector of pointer to Variable
-
- template <size_t K>
- using KD_c_Vec_p_Var = const boost::multi_array<p_Var , K>;
- ///< c_Vec_p_Var<K> is a const K-D vector of pointer to Variable
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
- typedef std::list<p_Var> List_p_Var;
- ///< a list of pointer to Variable (Variable *)
-
- typedef List_p_Var::iterator List_p_Var_it;
- ///< iterator for a List_p_Var
-
- typedef const List_p_Var c_List_p_Var;
-  ///< a const list of pointers to Variable
-
- typedef c_List_p_Var::const_iterator c_List_p_Var_it;
- ///< iterator for a c_List_p_Var
-
- typedef std::vector<List_p_Var> Vec_List_p_Var;
- ///< a 1-D array of lists of pointer to Variable
-
- typedef const Vec_List_p_Var c_Vec_List_p_Var;
- ///< a const 1-D array of lists of Variable *
-
- template<size_t K>
- using KD_Vec_List_p_Var = boost::multi_array<List_p_Var , K>;
- ///< Vec_List_p_Var<K> is a K-D vector of lists of Variable *
-
- template<size_t K>
- using KD_c_Vec_List_p_Var = const boost::multi_array<List_p_Var , K>;
- ///< c_Vec_List_p_Var<K> is a const K-D vector of lists of Variable *
-
-
-/** @}  end( group( Variable_TYPES ) )*/
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
 /*--------------------------------------------------------------------------*/

@@ -789,17 +789,17 @@ public:
    output << "t";
   else
    output << "f";
-   output << "] on Function " << f_function << " ]: ";
+   output << "] on Function " << f_function << " ]: f-values changed";
    if( std::isnan( f_shift ) )
-    output << "everything changed";
+    output << "(+-)";
    else
     if( f_shift >= INFshift )
-     output << "values all increased";
+     output << "(+)";
     else
      if( f_shift <= -INFshift )
-      output << "values all decreased";
+      output << "(-)";
      else
-      output << "values all changed by exactly " << f_shift;
+      output << " by " << f_shift;
   }
 
 /*--------------------------------------------------------------------------*/
@@ -853,8 +853,11 @@ public:
  * removing z leads to f( x , y ) = x y, and this clearly is quasi-additive,
  * while removing y may lead to f( x , z ) = x + z which is not. Yet,
  * removing (all algebraic terms containing) y could also lead to
- * f( x , z ) = z, which is quasi-additive. This is not to be taken as
- * that only functions additive in x and y, i.e., with the form
+ * f( x , z ) = z, which is a quasi-additive removal. Of course, an additivw
+ * function f( x , y ) = f_1( x ) + f_2( y ) is quasi additive for whatever
+ * reasonable concept of addition (of other additive terms) and removal one
+ * can think of, but the concept also covers non-additive functions:
+ *
  * f( x , y ) = f_1( x ) + f_2( y ), can be dealt with:
  *
  *     f_old( x ) = e^x     and      f( x , y ) = e^( x + y )
@@ -947,9 +950,11 @@ public:
 
 /*----------------------------- CONSTANTS ----------------------------------*/
 
- static constexpr FunctionValue NaNshift = std::numeric_limits<FunctionValue>::quiet_NaN();
+ static constexpr FunctionValue NaNshift =
+                              std::numeric_limits<FunctionValue>::quiet_NaN();
  ///< convenience constexpr for "NaN", *not* to be used with ==
- static constexpr FunctionValue INFshift = std::numeric_limits<FunctionValue>::infinity();
+ static constexpr FunctionValue INFshift =
+                               std::numeric_limits<FunctionValue>::infinity();
  ///< convenience constexpr for "Infty"
  
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
@@ -967,9 +972,9 @@ public:
   * whomever receives the Modification can assume v_vars always is. */
 
  FunctionModVars( Function * const f , const int mod ,
-		  std::vector<Variable *> && vars ,
+		  Vec_p_Var && vars , const bool ordered = true ,
 		  const FunctionValue shift = NaNshift ,
-		  const bool ordered = true , const bool cB = true )
+		  const bool cB = true )
   : AModification( cB ) , f_function( f ) , f_shift( shift ) ,
    f_type( mod ) , v_vars( std::move( vars ) )
  {
@@ -983,33 +988,32 @@ public:
 
 /*---------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
 
- Function *f_function;
- ///< pointer to the Function where the Modification occurs
+ Function *f_function;  ///< the Function where the Modification occurs
 
  FunctionValue f_shift;   ///< tells if the Modification was quasi-additive
  /**< The value of the field f_shift signals whether or not the just occurred
- * Modification was a quasi-additive one, with the following encoding:
- *
- * - NaN: the Modification was not quasi-additive one, and the value of the
- *   Function has changed "unpredictably" all over the space. Although the
- *   convenient constexpr "NaNshift" is defined in the class, note that
- *   testing if f_shift is NaN must *not* be done with "f_shift == NaNshift",
- *   but rather with std::isnan( f_shift ).
- *
- * - Any finite non-NaN number (comprised 0, which makes full sense): the
- *   Modification was a quasi-additive one, with v_shift being the value of
- *   the shift.
- *
- * - INFshift: the Modification was not a quasi-additive one, but while the
- *   value of the Function has changed "unpredictably" all over the space,
- *   the change is "upward monotone".
- *
- *   -INFshift: the Modification was not a quasi-additive one, but while the
- *   value of the Function has changed "unpredictably" all over the space,
- *   the change is "downward monotone". */
+  * Modification was a quasi-additive one, with the following encoding:
+  *
+  * - NaN: the Modification was not quasi-additive one, and the value of the
+  *   Function has changed "unpredictably" all over the space. Although the
+  *   convenient constexpr "NaNshift" is defined in the class, note that
+  *   testing if f_shift is NaN must *not* be done with "f_shift == NaNshift",
+  *   but rather with std::isnan( f_shift ).
+  *
+  * - Any finite non-NaN number (comprised 0, which makes full sense): the
+  *   Modification was a quasi-additive one, with v_shift being the value of
+  *   the shift.
+  *
+  * - INFshift: the Modification was not a quasi-additive one, but while the
+  *   value of the Function has changed "unpredictably" all over the space,
+  *   the change is "upward monotone".
+  *
+  * - -INFshift: the Modification was not a quasi-additive one, but while the
+  *   value of the Function has changed "unpredictably" all over the space,
+  *   the change is "downward monotone". */
 
- int f_type;                      ///< "type" of the Modification
- std::vector<Variable *> v_vars;  ///< vector of pointers to affected Variable
+ int f_type;        ///< "type" of the Modification
+ Vec_p_Var v_vars;  ///< vector of pointers to affected Variable
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1028,7 +1032,7 @@ public:
    output << "f";
   output << "] on Function[" << &f_function << " ]: ";
   if( std::isnan( f_shift ) )
-   output << "non quasi-additively (any)";
+   output << "non quasi-additively (+-)";
   else
    if( f_shift >= INFshift )
     output << "non quasi-additively (+)";

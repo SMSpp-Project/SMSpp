@@ -7,7 +7,7 @@
  *
  * \version 0.20
  *
- * \date 14 - 03 - 2019
+ * \date 20 - 03 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -67,27 +67,24 @@ namespace SMSpp_di_unipi_it
  *
  * This Function issues the following modifications:
  *
- * - When Variables are added, a LinearFunctionModSbst
- *   (C05FunctionModVarsSbst of type AddVar) is issued; pointers to
- *   the Variables that were added are provided in the Modification.
+ * - When Variables are added or removed, a C05FunctionModVars of appropriate
+ *   type (AddVar or RemoveVar) is issued; pointers to the Variables that
+ *   were added/removed are provided in the Modification. Note that, being
+ *   this a linear Function, the addition/removal is strongly quasi-additive.
  *
- * - When Variables are removed, either a LinearFunctionModSbst
- *   (C05FunctionModVarsSbst of type RemoveVar) or a
- *   LinearFunctionModRngd (C05FunctionModVarsRngd of type RemoveVar)
- *   is issued. Pointers to the Variables that were removed are
- *   provided in the Modification.
- *
- * - When the coefficients of some Variables change, either a
- *   LinearFunctionModSbst (C05FunctionModVarsSbst of type
- *   SomeEntriesChange) or a LinearFunctionModRngd
- *   (C05FunctionModVarsRngd of type SomeEntriesChange) is issued. The
- *   entries of a linearization affected by this modification are
- *   precisely the ones associated with the Variables whose
- *   coefficients have changed.
+ * - When the coefficients of some Variables change, a C05FunctionModLin is
+ *   issued; the Modification provides both the set of Variables whose
+ *   coefficients have changed and the change in the coefficients. The
+ *   shift is NaN, no check on the sign of the Variables / coefficient
+ *   change is performed (yet).
  *
  * - When the constant term changes, a FunctionMod is issued with the shift
  *   equals to the difference between the new and old constant term values.
- */
+ *
+ * TODO: when "a lot" of the coefficients change, rahter issue a
+ *       C05FunctionMod of type AllEntriesChanged, because it might be
+ *       faster to just re-read all the coefficients than to skip the
+ *       few non-changed ones. */
 
 class LinearFunction : public C15Function {
 
@@ -103,8 +100,8 @@ class LinearFunction : public C15Function {
 /** @name Public Types
     @{ */
 
- typedef double Coefficient;
- ///< type of the coefficients of the linear function
+ typedef FunctionValue Coefficient;
+ ///< type of the coefficients of the linear function = FunctionValue
 
  typedef std::vector<Coefficient> v_coeff;
  ///< a vector of Coefficients
@@ -135,6 +132,9 @@ class LinearFunction : public C15Function {
   public:
 
   v_iterator( v_coeff_pair::iterator itr ) : itr_( itr ) { }
+  virtual v_iterator * clone( void ) override {
+   return( new v_iterator( itr_ ) );
+   }
 
   virtual void operator++( void ) override final { (itr_)++; }
   virtual reference operator*( void ) const override final {
@@ -160,7 +160,7 @@ class LinearFunction : public C15Function {
     return( itr_ != tmp->itr_ );
    #else
     auto tmp = dynamic_cast<const LinearFunction::v_iterator *>( & rhs );
-    return( tmp ? itr_ != tmp->itr_ : false );
+    return( tmp ? itr_ != tmp->itr_ : true );
    #endif
    }
 
@@ -180,7 +180,10 @@ class LinearFunction : public C15Function {
   public:
 
   v_const_iterator( v_c_coeff_pair::const_iterator itr ) : itr_( itr ) { }
-
+  virtual v_const_iterator * clone( void ) override {
+   return( new v_const_iterator( itr_ ) );
+   }
+ 
   virtual void operator++( void ) override final { (itr_)++; }
   virtual reference operator*( void ) const override final {
    return( *((*itr_).first) );
@@ -207,7 +210,7 @@ class LinearFunction : public C15Function {
    #else
     auto tmp = dynamic_cast<const LinearFunction::v_const_iterator *>( & rhs
 								       );
-    return( tmp ? itr_ != tmp->itr_ : false );
+    return( tmp ? itr_ != tmp->itr_ : true );
    #endif
    }
 
@@ -476,8 +479,7 @@ class LinearFunction : public C15Function {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual v_const_iterator * v_begin( void )
-  const override final
+ virtual v_const_iterator * v_begin( void ) const override final
  {
   return( new LinearFunction::v_const_iterator( v_pairs.begin() ) );
   }
@@ -491,8 +493,7 @@ class LinearFunction : public C15Function {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual v_const_iterator * v_end( void )
-  const override final
+ virtual v_const_iterator * v_end( void ) const override final
  {
   return( new LinearFunction::v_const_iterator( v_pairs.end() ) );
   }
@@ -525,7 +526,11 @@ class LinearFunction : public C15Function {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// add one single new Variable to the LinearFunction
  /** Like add_variables(), but just only one Variable. coeff is the
-  * coefficient of the Variable in the linear function. */
+  * coefficient of the Variable in the linear function.
+ *
+  * The parameter issueMod decides if and how the C05FunctionModVars is
+  * issued, as described in Observer::make_par(). Note that a linear function
+  * is additive, and therefore strongly quasi-additive. */
 
  void add_variable( ColVariable * const var , const Coefficient coeff ,
 		    c_ModParam issueMod = eModBlck );
@@ -546,19 +551,15 @@ class LinearFunction : public C15Function {
  /** Method that receives a vector of pairs < ColVariable * , Coefficient >
   * so that the ColVariables are already in the LinearFunction, and modify
   * their coefficients accordingly. If any ColVariable in vars is not an
-  * active variable in the LinearFunction, exception is thrown. As the the
-  * && tells, vars is "consumed" by the method and its resources become
-  * property of the LinearFunction object (which may dispatch them to the
-  * Modification that it may issue).
+  * active variable in the LinearFunction, exception is thrown.  The
+  * parameter ordered tells if vars is already ordered by ColVariable
+  * "name = pointer" or not, otherwise it gets ordered inside the method
+  * (which is why it is not const).
   *
-  * The parameter ordered tells if vars is already ordered by ColVariable
-  * "name = pointer" or not, otherwise it may get ordered inside the
-  * method (which is why it is not const).
-  *
-  * The parameter issueMod decides if and how the LinearFunctionMod is issued,
+  * The parameter issueMod decides if and how the C05FunctionModLin is issued,
   * as described in Observer::make_par(). */
 
- void modify_coefficients( v_coeff_pair && vars , const bool ordered = false ,
+ void modify_coefficients( v_coeff_pair & vars , const bool ordered = false ,
 			   c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -567,7 +568,10 @@ class LinearFunction : public C15Function {
   * index of the Variable whose coefficients need be modified, together with
   * (an iterator into) the vector of new coefficient values. Useful if one
   * knows the indices already, so that they need not be searched for. The
-  * set of indices must be ordered in increasing sense. */
+  * set of indices *must* be ordered in increasing sense.
+  *
+  * The parameter issueMod decides if and how the C05FunctionModLin is issued,
+  * as described in Observer::make_par(). */
 
  virtual void modify_coefficients( c_v_coeff_it NCoef , c_Vec_Index &nms ,
 				   c_ModParam issueMod = eModBlck );
@@ -579,7 +583,10 @@ class LinearFunction : public C15Function {
   * LinearFunction. NCoef is a (const) iterator into a vector of coefficients
   * that must clearly be at least as long (from NCoef to the end) as
   * min( stop , get_num_active_var() ) - start. Useful if one knows the
-  * indices already, so that they need not be searched for. */
+  * indices already, so that they need not be searched for.
+  *
+  * The parameter issueMod decides if and how the C05FunctionModLin is issued,
+  * as described in Observer::make_par(). */
 
  void modify_coefficients( c_v_coeff_it NCoef ,
 			   c_Index strt = 0 , Index stop = Inf<Index>() ,
@@ -594,7 +601,10 @@ class LinearFunction : public C15Function {
   * of Variable currently active in this LinearFunction. NCoef is a (const)
   * iterator into a vector of coefficients that must clearly be at least as
   * long (from NCoef to the end) as there are coefficients between the one
-  * of strt and the one of stop (these included). */
+  * of strt and the one of stop (these included).
+  *
+  * The parameter issueMod decides if and how the C05FunctionModLin is issued,
+  * as described in Observer::make_par(). */
 
  void modify_coefficients( c_v_coeff_it NCoef ,
 			   const Variable * strt = nullptr ,
@@ -620,8 +630,18 @@ class LinearFunction : public C15Function {
 /*--------------------------------------------------------------------------*/
  /// remove the given Variable from the LinearFunction
  /** Remove the given Variable from the LinearFunction. This is
-  * *mathematically* equivalent to setting the corresponding
-  * coefficient to zero. */
+  * *mathematically* equivalent to setting the corresponding coefficient to
+  * zero, but it is considered a "stronger" operation (it is possible to have
+  * an active Variable with zero coefficient). If the Variable is not active
+  * in the LinearFunction, exception is thrown.
+  *
+  * Note that the pointer must necessarily be to a ColVariable for it to
+  * be active in a LinearFunction, but this method overrides that of
+  * ThinVarDepInterface which, by necessity, has a Variable * type.
+  *
+  * The parameter issueMod decides if and how the C05FunctionModVars is
+  * issued, as described in Observer::make_par(). Note that a linear function
+  * is additive, and therefore strongly quasi-additive. */
 
  virtual void remove_variable( Variable * var ,
 			       c_ModParam issueMod = eModBlck )
@@ -631,14 +651,22 @@ class LinearFunction : public C15Function {
  /// remove the i-th Variable
  /** Like remove_variable( Variable * ), but takes in input the index of
   * the Variable to be removed rather than its pointer. Useful if one knows
-  * the index already, so that it need not be searched for. */
+  * the index already, so that it need not be searched for.
+  *
+  * The parameter issueMod decides if and how the C05FunctionModVars is
+  * issued, as described in Observer::make_par(). Note that a linear function
+  * is additive, and therefore strongly quasi-additive. */
 
  void remove_variable( c_Index i , c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// remove a range of Variable
  /** Remove all the Variable that are in position from start (included) to
-  * min( stop , get_num_active_var() ) (excluded) in this LinearFunction. */
+  * min( stop , get_num_active_var() ) (excluded) in this LinearFunction.
+  *
+  * The parameter issueMod decides if and how the C05FunctionModVars is
+  * issued, as described in Observer::make_par(). Note that a linear function
+  * is additive, and therefore strongly quasi-additive. */
 
  void remove_variables( c_Index strt = 0 , Index stop = Inf<Index>() ,
 			c_ModParam issueMod = eModBlck );
@@ -649,7 +677,11 @@ class LinearFunction : public C15Function {
   * (excluded). Setting strt == nullptr means "the first Variable", and
   * setting stop == nullptr means "(one after) the last Variable". If
   * no-nullptr arguments are provided, they *must* be "names" of Variable
-  * currently active in this LinearFunction. */
+  * currently active in this LinearFunction.
+  *
+  * The parameter issueMod decides if and how the C05FunctionModVars is
+  * issued, as described in Observer::make_par(). Note that a linear function
+  * is additive, and therefore strongly quasi-additive. */
 
  void remove_variables( const Variable * const strt = nullptr ,
 			const Variable * const stop = nullptr ,
@@ -672,6 +704,34 @@ class LinearFunction : public C15Function {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// remove the given set of Variable
+ /** Remove all the Variable in the given vector of pointers vars. If any
+  * Variable in vars is not an active Variable in the LinearFunction,
+  * exception is thrown. The parameter ordered tells if vars is already
+  * ordered by Variable "name = pointer" or not, otherwise it gets ordered
+  * inside the method (which is why it is not const).
+  *
+  * Note that vars is a std::vector< Variable * > rather than a
+  * std::vector< ColVariable * >, although of course all the pointers have
+  * to be to a ColVariable. This is because the vector can then be passed
+  * right away to the C05FunctionModLin, that expects one; indeed, as the
+  * && tells, the vector (as that of new coefficients) becomes "property"
+  * of the LinearFunction, that dispatches it to the Modification. The
+  * point is that since C05FunctionModLin is defined in C05Function, it is
+  * not restricted to the case where Variable is a ColVariable, although it
+  * should be "like" one (a Variable representing a single real value) for
+  * the current form of linearizations to work. Although a
+  * std::vector< ColVariable * > and a std::vector< Variable * > should be
+  * physically indistinguishable, there is no sound way to cheaply pass the
+  * former as the latter in C++; having the input as a
+  * std::vector< Variable * > circumvents the problems (and each pointer
+  * could be static_cast-ed to a ColVariable * as soon as it is confirmed
+  * that the Variable is active in the LinearFunction, should this be
+  * necessary).
+  *
+  * The parameter issueMod decides if and how the C05FunctionModVars is
+  * issued, as described in Observer::make_par(). Note that a linear function
+  * is additive, and therefore strongly quasi-additive. */
 
  virtual void remove_variables( Vec_p_Var && vars ,
 				const bool ordered = false ,
@@ -682,10 +742,18 @@ class LinearFunction : public C15Function {
  /// remove a set of Variable by index
  /** Like remove_variables( Vec_p_Var * ), but takes in input a set of index
   * of the Variable to be removed rather than their pointers. Useful if one
-  * knows the indices already, so that they need not be searched for. The set
-  * of indices must be ordered in increasing sense. */
+  * knows the indices already, so that they need not be searched for. The
+  * parameter ordered tells if nms is already ordered in increasing sense
+  * (by index, but this also implies by Variable "name = pointer") if not
+  * otherwise it gets ordered inside the method (which is why it is not
+  * const). Note that nms is *not* &&, hence it is not "taken" by the
+  * LinearFunction.
+  *
+  * The parameter issueMod decides if and how the C05FunctionModVars is
+  * issued, as described in Observer::make_par(). Note that a linear function
+  * is additive, and therefore strongly quasi-additive. */
 
- virtual void remove_variables( c_Vec_Index & nms ,
+ virtual void remove_variables( Vec_Index & nms , const bool ordered = false ,
 				c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/

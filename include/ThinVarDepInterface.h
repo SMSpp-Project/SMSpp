@@ -119,7 +119,11 @@ class ThinVarDepInterface {
   * rather than the two standard versions of operator++ (prefix and postfix)
   * returning an iterator (which cannot be done, since the class is abstract)
   * there is only one version doing the increment. This single version is
-  * then transformed into the ordinary two by the "normal" iterator. */
+  * then transformed into the ordinary two by the "normal" iterator.
+  *
+  * Also, because the virtual iterator is accessed via pointers, its copy
+  * cannot be done via standard copy constructors/assignments, and a clone()
+  * method is requird. */
 
  class v_iterator
  {
@@ -131,9 +135,9 @@ class ThinVarDepInterface {
   typedef std::forward_iterator_tag iterator_category;
   typedef int difference_type;
 
-  v_iterator( void ) { }                                     ///< constructor
-  virtual ~v_iterator() { };                                  ///< destructor
-
+  v_iterator( void ) { }                                       ///< constructor
+  virtual ~v_iterator() { };                                   ///< destructor
+  virtual v_iterator * clone( void ) = 0;                      ///< cloner
   virtual void operator++( void ) = 0;                         ///< increment
   virtual reference operator*( void ) const = 0;               ///< operator*
   virtual pointer operator->( void ) const = 0;                ///< operator->
@@ -165,9 +169,9 @@ class ThinVarDepInterface {
   typedef int difference_type;
   typedef std::forward_iterator_tag iterator_category;
 
-  v_const_iterator( void ) { }                              ///< constructor
-  virtual ~v_const_iterator() { };                          ///< destructor
-  
+  v_const_iterator( void ) { }                                ///< constructor
+  virtual ~v_const_iterator() { };                            ///< destructor
+  virtual v_const_iterator * clone( void ) = 0;               ///< cloner
   virtual void operator++( void ) = 0;                        ///< increment
   virtual reference operator*( void ) const = 0;              ///< operator*
   virtual pointer operator->( void ) const = 0;               ///< Operator->
@@ -199,18 +203,20 @@ class ThinVarDepInterface {
   typedef int difference_type;
   
   iterator( v_iterator * itr ) : itr_( itr ) { }
+  iterator( iterator & itr ) { itr_ = itr.itr_->clone(); }
   iterator( iterator && itr ) { itr_ = itr.itr_; itr.itr_ = nullptr; }
-  iterator & operator=( iterator && itr ) {
-   itr_ = itr.itr_; itr.itr_ = nullptr; return *this;
+  iterator & operator=( iterator & itr ) { itr_ = itr.itr_; return( *this ); }
+   iterator & operator=( iterator && itr ) {
+   itr_ = itr.itr_; itr.itr_ = nullptr; return( *this );
    }
   ~iterator( ) { delete itr_; }
 
-  iterator operator++( void ) {
+  iterator operator++( void ) { itr_->operator++(); return( *this ); }
+  iterator operator++( int ) {
    iterator i( itr_ ); itr_->operator++(); return( i );
    }
-  iterator & operator++( int ) { itr_->operator++(); return( *this ); }
-  reference operator*( void ) const { return *(*itr_); }
-  pointer operator->( void ) const { return itr_->operator->(); }
+  reference operator*( void ) const { return( *(*itr_) ); }
+  pointer operator->( void ) const { return( itr_->operator->() ); }
   bool operator==( const iterator & rhs ) const {
    return( *itr_ == *(rhs.itr_) );
    }
@@ -245,20 +251,24 @@ class ThinVarDepInterface {
   typedef std::forward_iterator_tag iterator_category;
 
   const_iterator( v_const_iterator * itr ) : itr_( itr ) { }
+  const_iterator( const_iterator & itr ) { itr_ = itr.itr_->clone(); }
   const_iterator( const_iterator && itr ) {
    itr_ = itr.itr_; itr.itr_ = nullptr;
    }
+  const_iterator & operator=( const_iterator & itr ) {
+   itr_ = itr.itr_; return( *this );
+   }
   const_iterator & operator=( const_iterator && itr ) {
-   itr_ = itr.itr_; itr.itr_ = nullptr; return *this;
+   itr_ = itr.itr_; itr.itr_ = nullptr; return( *this );
    }
   ~const_iterator( ) { delete itr_; }
 
-  const_iterator operator++( void ) {
+  const_iterator operator++( void ) { itr_->operator++(); return( *this ); }
+  const_iterator operator++( int ) {
    const_iterator i( itr_ ); itr_->operator++(); return( i );
    }
-  const_iterator & operator++( int ) { itr_->operator++(); return( *this ); }
-  reference operator*( void ) const { return *(*itr_); }
-  pointer operator->( void ) const { return itr_->operator->(); }
+  reference operator*( void ) const { return( *(*itr_) ); }
+  pointer operator->( void ) const { return( itr_->operator->() ); }
   bool operator==( const const_iterator & rhs ) const {
    return( *itr_ == *(rhs.itr_) );
    }

@@ -1115,17 +1115,17 @@ class C05FunctionMod : public FunctionMod {
     case( AllEntriesChanged ): output << "all the g"; break;
     default: output << "both \alpha and g";
     }
-   output << " have changed ==> f-values ";
+   output << " have changed ==> f-values changed";
    if( std::isnan( f_shift ) )
-    output << "changed unpredictably";
+    output << "(+-)";
    else
     if( f_shift >= INFshift )
-     output << "all increased";
+     output << "(+)";
     else
      if( f_shift <= -INFshift )
-      output << "all decreased";
+      output << "(-)";
      else
-      output << "all changed by exactly " << f_shift;
+      output << " by " << f_shift;
    output << std::endl;
    }
 
@@ -1244,8 +1244,7 @@ class C05FunctionModSbst : public C05FunctionMod {
   * Modification can assume v_vars always is. */
 
  C05FunctionModSbst( C05Function * const f , const int mod ,
-		     std::vector<Variable *> && vars ,
-		     const bool ordered = true , 
+		     Vec_p_Var && vars , const bool ordered = true , 
 		     const FunctionValue shift = NaNshift ,
 		     const bool cB = true )
   : C05FunctionMod( f , mod , shift , cB ) , v_vars( std::move( vars ) )
@@ -1260,7 +1259,7 @@ class C05FunctionModSbst : public C05FunctionMod {
 
 /*----------------------- PUBLIC FIELDS OF THE CLASS -----------------------*/
 
- std::vector<Variable *> v_vars;  ///< vector of pointers to affected Variable
+ Vec_p_Var v_vars;  ///< vector of pointers to affected Variable
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1832,8 +1831,7 @@ class C05FunctionModLin : public FunctionMod {
 
  C05FunctionModLin( C05Function * const f ,
 		    Function::Vec_FunctionValue && delta ,
-		    std::vector<Variable *> && vars ,
-		    const bool ordered = true ,
+		    Vec_p_Var && vars , const bool ordered = true ,
 		    FunctionValue shift = NaNshift , const bool cB = true )
   : FunctionMod( f , shift , cB )
  {
@@ -1841,8 +1839,8 @@ class C05FunctionModLin : public FunctionMod {
    throw( std::invalid_argument( "vars and delta sizes do not match" ) );
 
   if( ordered ) {
-   v_vars = vars;
-   v_delta = delta;
+   v_vars = std::move( vars );
+   v_delta = std::move( delta );
    }
   else {
    std::vector<Function::Index> ord( vars.size() );
@@ -1870,7 +1868,7 @@ class C05FunctionModLin : public FunctionMod {
 
  Function::Vec_FunctionValue v_delta;  ///< the vector d = b' - b
 
- std::vector<Variable *> v_vars;       ///< the vector of pointers to Variable
+ Vec_p_Var v_vars;       ///< the vector of pointers to Variable
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 

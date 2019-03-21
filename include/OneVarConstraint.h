@@ -123,6 +123,9 @@ class OneVarConstraint : public RowConstraint {
   public:
 
   v_iterator( ColVariable * ptr ) : ptr_( ptr ) { }
+  virtual v_iterator * clone( void ) override {
+   return( new v_iterator( ptr_ ) );
+   }
 
   virtual void operator++( void ) override final { (ptr_)++; }
   virtual reference operator*( void ) const override final {
@@ -170,7 +173,10 @@ class OneVarConstraint : public RowConstraint {
   public:
 
   v_const_iterator( ColVariable * ptr ) : ptr_( ptr ) { }
-
+  virtual v_const_iterator * clone( void ) override {
+   return( new v_const_iterator( ptr_ ) );
+   }
+ 
   virtual void operator++( void ) override final { (ptr_)++; }
   virtual reference operator*( void ) const override final {
    return( *ptr_ );

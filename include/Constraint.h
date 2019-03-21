@@ -57,63 +57,10 @@
 /// namespace for the Structured Modeling System++ (SMS++)
 namespace SMSpp_di_unipi_it {
 
-/*--------------------------------------------------------------------------*/
-/*--------------------- Constraint-RELATED TYPES ---------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @defgroup Constraint_TYPES Constraint-related types.
- *  @{ */
-
  class Block;       // forward definition
  class Variable;    // forward definition
  class Constraint;  // forward definition
 
- typedef Constraint* p_Const;
- ///< a pointer to Constraint (Constraint *)
-
- typedef const p_Const c_p_Const;
- ///< a const pointer to Constraint
-
- typedef std::vector<p_Const> Vec_p_Const;
- ///< a (1-D) vector of pointer to Constraint
-
- typedef const Vec_p_Const c_Vec_p_Const;
- ///< a (1-D) const vector of pointer to Constraint
-
- template<int K>
- using KD_Vec_p_Const = boost::multi_array<p_Const , K>;
- ///< Vec_p_Const<K> is a K-D vector of pointer to Constraint
-
- template<int K>
- using KD_c_Vec_p_Const = const boost::multi_array<p_Const , K>;
- ///< c_Vec_p_Const<K> is a const K-D vector of pointer to Constraint
-
- typedef std::list<p_Const> List_p_Const;
- ///< a list of pointers to Constraint (Constraint *)
-
- typedef List_p_Const::iterator List_p_Const_it;
- ///< iterator for a List_p_Const
-
- typedef const List_p_Const c_List_p_Const;
-  ///< a const list of Constraint *
-
- typedef c_List_p_Const::const_iterator c_List_p_Const_it;
- ///< iterator for a c_List_p_Const
-
- typedef std::vector<List_p_Const> Vec_List_p_Const;
- ///< a 1-D array of lists of Constraint *
-
- typedef const Vec_List_p_Const c_Vec_List_p_Const;
- ///< a const 1-D array of lists of Constraint *
-
- template<int K>
- using KD_Vec_List_p_Const = boost::multi_array<List_p_Const , K>;
- ///< Vec_List_p_Const<K> is a K-D vector of lists of Constraint *
-
- template<int K>
- using KD_c_Vec_List_p_Const = const boost::multi_array<List_p_Const , K>;
- ///< c_Vec_List_p_Const<K> is a const K-D vector of lists of Constraint *
-
-/*@}  end( group( Constraint_TYPES ) ) */
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
 /*--------------------------------------------------------------------------*/

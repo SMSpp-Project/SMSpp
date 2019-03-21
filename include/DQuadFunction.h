@@ -26,8 +26,8 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __DQuadFunction
- #define __DQuadFunction  /* self-identification: #endif at the end
-                            * of the file */
+ #define __DQuadFunction
+                      /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -69,27 +69,32 @@ namespace SMSpp_di_unipi_it
  *
  * This Function issues the following modifications:
  *
- * - When Variables are added, a DQuadFunctionModSbst
- *   (C05FunctionModVarsSbst of type AddVar) is issued; pointers to
- *   the Variables that were added are provided in the Modification.
+ * - When Variables are added or removed, a C05FunctionModVars of appropriate
+ *   type (AddVar or RemoveVar) is issued; pointers to the Variables that
+ *   were added/removed are provided in the Modification. Note that, being
+ *   this a diagonal quadratic (hence, separable) Function, the
+ *   addition/removal is strongly quasi-additive.
  *
- * - When Variables are removed, a either a DQuadFunctionModSbst
- *   (C05FunctionModVarsSbst of type RemoveVar) or a
- *   DQuadFunctionModRngd (C05FunctionModVarsRngd of type RemoveVar)
- *   is issued. Pointers to the Variables that were removed are
- *   provided in the Modification.
+ * - When the *linear* coefficients *only* of some Variables change, a
+ *   C05FunctionModLin is issued; the Modification provides both the set of
+ *   Variables whose coefficients have changed and the change in the
+ *   coefficients. The shift is NaN, no check on the sign of the Variables /
+ *   coefficient change is performed (yet).
  *
- * - When the coefficients of some Variables change, either a
- *   DQuadFunctionModSbst (C05FunctionModVarsSbst of type
- *   SomeEntriesChange) or a DQuadFunctionModRngd
- *   (C05FunctionModVarsRngd of type SomeEntriesChange) is issued. The
- *   entries of a linearization affected by this modification are
- *   precisely the ones associated with the Variables whose
- *   coefficients have changed.
+ * - When the *quadratic* coefficients of some Variables change (and, possibly
+ *   the linear ones as well), either a C05FunctionModSbst or a
+ *   C05FunctionModSbst is issued (depending on which method is called): the
+ *   Modification provides the set of Variables whose coefficients have
+ *   changed. The shift is NaN, no check on the sign of the Variables /
+ *   coefficient change is performed (yet).
  *
  * - When the constant term changes, a FunctionMod is issued with the shift
  *   equals to the difference between the new and old constant term values.
- */
+ *
+ * TODO: when "a lot" of the linear and/or quadratic coefficients change,
+ *       rahter issue a C05FunctionMod of type AllEntriesChanged, because it
+ *       might be faster to just re-read all the coefficients than to skip
+ *       the few non-changed ones. */
 
 class DQuadFunction : public C15Function {
 
@@ -144,6 +149,9 @@ class DQuadFunction : public C15Function {
   public:
 
   v_iterator( v_var_coeff_coeff_triple::iterator itr ) : itr_( itr ) { }
+  virtual v_iterator * clone( void ) override {
+   return( new v_iterator( itr_ ) );
+   }
 
   virtual void operator++( void ) override final { (itr_)++; }
   virtual reference operator*( void ) const override final {
@@ -169,7 +177,7 @@ class DQuadFunction : public C15Function {
     return( itr_ != tmp->itr_ );
    #else
     auto tmp = dynamic_cast<const DQuadFunction::v_iterator *>( & rhs );
-    return( tmp ? itr_ != tmp->itr_ : false );
+    return( tmp ? itr_ != tmp->itr_ : true );
    #endif
    }
 
@@ -190,7 +198,10 @@ class DQuadFunction : public C15Function {
 
   v_const_iterator( v_c_var_coeff_coeff_triple::const_iterator itr )
    : itr_( itr ) { }
-
+  virtual v_const_iterator * clone( void ) override {
+   return( new v_const_iterator( itr_ ) );
+   }
+ 
   virtual void operator++( void ) override final { (itr_)++; }
   virtual reference operator*( void ) const override final {
    return( *( std::get<0>( (*itr_) ) ) );
@@ -215,7 +226,7 @@ class DQuadFunction : public C15Function {
     return( itr_ != tmp->itr_ );
    #else
     auto tmp = dynamic_cast<const DQuadFunction::v_const_iterator *>( & rhs );
-    return( tmp ? itr_ != tmp->itr_ : false );
+    return( tmp ? itr_ != tmp->itr_ : true );
    #endif
    }
 
@@ -579,7 +590,7 @@ class DQuadFunction : public C15Function {
   * a specific Variable *. If var is not an active variable in the
   * DQuadFunction, exception is thrown.
   *
-  * The parameter issueMod decides if and how the C05FunctionModRngd is
+  * The parameter issueMod decides if and how the C05FunctionModSbst is
   * issued, as described in Observer::make_par(). */
 
  void modify_term( ColVariable * const var , const Coefficient linear_coeff ,
@@ -587,13 +598,16 @@ class DQuadFunction : public C15Function {
 		   c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// modify a single existing coefficient
+ /// modify a single existing linear coefficient
  /** Method that modifies only the linear coefficient for a specific
   * Variable, leaving the quadratic one unchanged; if var is not an active
   * variable in the LinearFunction, exception is thrown. 
   *
   * The parameter issueMod decides if and how the C05FunctionModLin is issued,
-  * as described in Observer::make_par(). */
+  * as described in Observer::make_par(). This is precisely the advantage of
+  * using this method w.r.t. modify_term() with quadratic_coeff == 0; a
+  * "less general" C05FunctionModLin can be issued in place of a
+  * C05FunctionModSbst one. */
 
  void modify_linear_coefficient( ColVariable * const var ,
 				 const Coefficient coeff ,
@@ -601,77 +615,116 @@ class DQuadFunction : public C15Function {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify a set of existing quadratic terms
- /** Method that receives a vector of triples < ColVariable * ,
-  * Coefficient , Coefficient > so that the ColVariables are already
-  * in the DQuadFunction, and modify their coefficients
-  * accordingly. If any ColVariable in vars is not an active variable
-  * in the DQuadFunction, exception is thrown. As the the && tells,
-  * vars is "consumed" by the method and its resources become property
-  * of the DQuadFunction object (which may dispatch them to the
-  * Modification that it may issue).
+ /** Method that receives a vector of triples < ColVariable * , Coefficient ,
+  * Coefficient > so that the ColVariables are already in the DQuadFunction,
+  * and modify their coefficients accordingly. If any ColVariable in vars is
+  * not an active Variable in the DQuadFunction, exception is thrown. The
+  * parameter ordered tells if vars is already ordered by ColVariable
+  * "name = pointer" or not, otherwise it gets ordered inside the method
+  * (which is why it is not const).
   *
-  * The parameter ordered tells if vars is already ordered by ColVariable
-  * "name = pointer" or not, otherwise it may get ordered inside the
-  * method (which is why it is not const).
-  *
-  * The parameter issueMod decides if and how the DQuadFunctionMod is
+  * The parameter issueMod decides if and how the C05FunctionModSbst is
   * issued, as described in Observer::make_par(). */
 
  void modify_terms( v_var_coeff_coeff_triple && vars ,
-			   const bool ordered = false ,
-			   c_ModParam issueMod = eModBlck );
+		    const bool ordered = false ,
+		    c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// modify a set of existing coefficients
- /** Like modify_coefficients( v_var_coeff_coeff_triple * ), but takes
-  * in input a set of index of the Variable whose coefficients need be
-  * modified, together with (an iterator into) the vector of new
-  * coefficient values. The coefficients come as pairs, the first
-  * element being the coefficient of the Variable in the linear term
-  * and the second element being the coefficient in the quadratic
-  * term. Useful if one knows the indices already, so that they need
-  * not be searched for. The set of indices must be ordered in
-  * increasing sense. */
+ /// modify a set of existing linear coefficients
+ /** Method that modifies only the linear coefficients for a specific set
+  * of Variable, leaving the quadratic one unchanged. If any Variable in
+  * vars is not an active Variable in the DQuadFunction, exception is
+  * thrown. The parameter ordered tells if vars is already ordered by
+  * ColVariable "name = pointer" or not, otherwise it gets ordered inside
+  * the method (which is why it is not const).
+  *
+  * Note that vars is a std::vector< Variable * > rather than a
+  * std::vector< ColVariable * >, although of course all the pointers have
+  * to be to a ColVariable. This is because the vector can then be passed
+  * right away to the C05FunctionModLin, that expects one; indeed, as the
+  * && tells, the vector (as that of new coefficients) becomes "property"
+  * of the DQuadFunction, that dispatches it to the Modification. The
+  * point is that since C05FunctionModLin is defined in C05Function, it is
+  * not restricted to the case where Variable is a ColVariable, although it
+  * should be "like" one (a Variable representing a single real value) for
+  * the current form of linearizations to work. Although a
+  * std::vector< ColVariable * > and a std::vector< Variable * > should be
+  * physically indistinguishable, there is no sound way to cheaply pass the
+  * former as the latter in C++; having the input as a
+  * std::vector< Variable * > circumvents the problems (and each pointer
+  * could be static_cast-ed to a ColVariable * as soon as it is confirmed
+  * that the Variable is active in the DQuadFunction, should this be
+  * necessary).
+  *
+  * The parameter issueMod decides if and how the C05FunctionModLin is issued,
+  * as described in Observer::make_par(). This is precisely the advantage of
+  * using this method w.r.t. modify_terms() with all-zero quadratic
+  * coefficients == 0; "less general" C05FunctionModLin can be issued in
+  * place of a C05FunctionModSbst one. */
 
- virtual void modify_coefficients( c_v_coeff_coeff_it NCoef ,
-				   c_Vec_Index &nms ,
-				   c_ModParam issueMod = eModBlck );
+ virtual void modify_linear_coefficients( Vec_FunctionValue && NCoef ,
+					  Vec_p_Var && vars ,
+					  const bool ordered = false ,
+					  c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// modify a range of coefficients
- /** Modify the coefficients of all the Variable that are in position
-  * from start (included) to min( stop , get_num_active_var() )
-  * (excluded) in this DQuadFunction. NCoef is a (const) iterator into
-  * a vector of coefficients that must clearly be at least as long
-  * (from NCoef to the end) as min( stop , get_num_active_var() ) -
-  * start. The coefficients come as pairs, the first element being the
-  * coefficient of the Variable in the linear term and the second
-  * element being the coefficient in the quadratic term. Useful if one
-  * knows the indices already, so that they need not be searched
-  * for. */
+ /// modify a set of existing quadratic terms
+ /** Like modify_terms( v_var_coeff_coeff_triple * ), but takes in input a
+  * set of index of the Variable whose coefficients need be modified,
+  * together with (an iterator into) the vector of new coefficient values.
+  * The coefficients come as pairs, the first element being the coefficient
+  * of the Variable in the linear term and the second element being the 
+  * coefficient in the quadratic term. Useful if one knows the indices
+  * already, so that they need not be searched for. The set of indices
+  * *must* be ordered in increasing sense.
+  *
+  * The parameter issueMod decides if and how the C05FunctionModSbst is
+  * issued, as described in Observer::make_par(). */
 
- void modify_coefficients( c_v_coeff_coeff_it NCoef ,
-			   c_Index strt = 0 , Index stop = Inf<Index>() ,
-			   c_ModParam issueMod = eModBlck );
+ virtual void modify_terms( c_v_coeff_coeff_it NCoef ,
+			    c_Vec_Index &nms ,
+			    c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// modify a range of coefficients
- /** Modify the coefficients of all the Variable comprised between
-  * strt (included) and stop (excluded). Setting strt == nullptr means
-  * "the first Variable", and setting stop == nullptr means "(one
-  * after) the last Variable". If no-nullptr arguments are provided,
-  * they *must* be "names" of Variable currently active in this
-  * DQuadFunction. NCoef is a (const) iterator into a vector of pairs
-  * of coefficients that must clearly be at least as long (from NCoef
-  * to the end) as there are coefficients between the one of strt and
-  * the one of stop (these included). The first element of the pair is
-  * the coefficient of the Variable in the linear term and the second
-  * element is the coefficient in the quadratic term. */
+ /// modify a range of existing quadratic terms
+ /** Modify the coefficients of all the Variable that are in position from
+  * strt (included) to min( stop , get_num_active_var() ) (excluded) in
+  * this DQuadFunction. NCoef is a (const) iterator into a vector of
+  * coefficients that must clearly be at least as long (from NCoef to the
+  * end) as min( stop , get_num_active_var() ) - start. The coefficients
+  * come as pairs, the first element being the coefficient of the Variable
+  * in the linear term and the second element being the coefficient in the
+  * quadratic term. Useful if one knows the indices already, so that they
+  * need not be searched for.
+  *
+  * The parameter issueMod decides if and how the C05FunctionModSbst is
+  * issued, as described in Observer::make_par(). */
 
- void modify_coefficients( c_v_coeff_coeff_it NCoef ,
-			   const Variable * strt = nullptr ,
-			   const Variable * stop = nullptr ,
-			   c_ModParam issueMod = eModBlck )
+ void modify_terms( c_v_coeff_coeff_it NCoef ,
+		    c_Index strt = 0 , Index stop = Inf<Index>() ,
+		    c_ModParam issueMod = eModBlck );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// modify a range of existing quadratic terms
+ /** Modify the coefficients of all the Variable comprised between strt
+  * (included) and stop (excluded). Setting strt == nullptr means "the first
+  * Variable", and setting stop == nullptr means "(one after) the last
+  * Variable". If no-nullptr arguments are provided, they *must* be "names"
+  * of Variable currently active in this DQuadFunction. NCoef is a (const)
+  * iterator into a vector of pairs of coefficients that must clearly be at
+  * least as long (from NCoef to the end) as there are coefficients between
+  * the one of strt and the one of stop (these included). The first element
+  * of the pair is the coefficient of the Variable in the linear term and
+  * the second element is the coefficient in the quadratic term.
+  *
+  * The parameter issueMod decides if and how the C05FunctionModSbst is
+  * issued, as described in Observer::make_par(). */
+
+ void modify_terms( c_v_coeff_coeff_it NCoef ,
+		    const Variable * strt = nullptr ,
+		    const Variable * stop = nullptr ,
+		    c_ModParam issueMod = eModBlck )
  {
   c_Index istrt = strt ? is_active( strt ) : 0;
   if( istrt >= get_num_active_var() )
@@ -686,7 +739,7 @@ class DQuadFunction : public C15Function {
   else
    istop = get_num_active_var();
 
-  modify_coefficients( NCoef , istrt , istop , issueMod );
+  modify_terms( NCoef , istrt , istop , issueMod );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -694,6 +747,19 @@ class DQuadFunction : public C15Function {
  /** Remove the given Variable from the DQuadFunction. This is
   * *mathematically* equivalent to setting the coefficients associated
   * with this Variable to zero. */
+ /** Remove the given Variable from the DQuadFunction. This is
+  * *mathematically* equivalent to setting both its linear and quadratic
+  * coefficients to zero, but it is considered a "stronger" operation (it is
+  * possible to have an active Variable with both zero coefficienta). If the
+  * Variable is not active in the DQuadFunction, exception is thrown.
+  *
+  * Note that the pointer must necessarily be to a ColVariable for it to
+  * be active in a LinearFunction, but this method overrides that of
+  * ThinVarDepInterface which, by necessity, has a Variable * type.
+  *
+  * The parameter issueMod decides if and how the C05FunctionModVars is
+  * issued, as described in Observer::make_par(). Note that a diagonal
+  * quadratic function is additive, and therefore strongly quasi-additive. */
 
  virtual void remove_variable( Variable * var ,
 			       c_ModParam issueMod = eModBlck )
@@ -703,14 +769,22 @@ class DQuadFunction : public C15Function {
  /// remove the i-th Variable
  /** Like remove_variable( Variable * ), but takes in input the index of
   * the Variable to be removed rather than its pointer. Useful if one knows
-  * the index already, so that it need not be searched for. */
+  * the index already, so that it need not be searched for.
+  *
+  * The parameter issueMod decides if and how the C05FunctionModVars is
+  * issued, as described in Observer::make_par(). Note that a diagonal
+  * quadratic function is additive, and therefore strongly quasi-additive. */
 
  void remove_variable( c_Index i , c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// remove a range of Variable
  /** Remove all the Variable that are in position from start (included) to
-  * min( stop , get_num_active_var() ) (excluded) in this DQuadFunction. */
+  * min( stop , get_num_active_var() ) (excluded) in this DQuadFunction.
+  *
+  * The parameter issueMod decides if and how the C05FunctionModVars is
+  * issued, as described in Observer::make_par(). Note that a diagonal
+  * quadratic function is additive, and therefore strongly quasi-additive. */
 
  void remove_variables( c_Index strt = 0 , Index stop = Inf<Index>() ,
 			c_ModParam issueMod = eModBlck );
@@ -721,7 +795,11 @@ class DQuadFunction : public C15Function {
   * (excluded). Setting strt == nullptr means "the first Variable", and
   * setting stop == nullptr means "(one after) the last Variable". If
   * no-nullptr arguments are provided, they *must* be "names" of Variable
-  * currently active in this DQuadFunction. */
+  * currently active in this DQuadFunction.
+  *
+  * The parameter issueMod decides if and how the C05FunctionModVars is
+  * issued, as described in Observer::make_par(). Note that a diagonal
+  * quadratic function is additive, and therefore strongly quasi-additive. */
 
  void remove_variables( const Variable * const strt = nullptr ,
 			const Variable * const stop = nullptr ,
@@ -744,6 +822,34 @@ class DQuadFunction : public C15Function {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// remove the given set of Variable
+ /** Remove all the Variable in the given vector of pointers vars. If any
+  * Variable in vars is not an active Variable in the DQuadFunction,
+  * exception is thrown. The parameter ordered tells if vars is already
+  * ordered by Variable "name = pointer" or not, otherwise it gets ordered
+  * inside the method (which is why it is not const).
+  *
+  * Note that vars is a std::vector< Variable * > rather than a
+  * std::vector< ColVariable * >, although of course all the pointers have
+  * to be to a ColVariable. This is because the vector can then be passed
+  * right away to the C05FunctionModLin, that expects one; indeed, as the
+  * && tells, the vector (as that of new coefficients) becomes "property"
+  * of the DQuadFunction, that dispatches it to the Modification. The
+  * point is that since C05FunctionModLin is defined in C05Function, it is
+  * not restricted to the case where Variable is a ColVariable, although it
+  * should be "like" one (a Variable representing a single real value) for
+  * the current form of linearizations to work. Although a
+  * std::vector< ColVariable * > and a std::vector< Variable * > should be
+  * physically indistinguishable, there is no sound way to cheaply pass the
+  * former as the latter in C++; having the input as a
+  * std::vector< Variable * > circumvents the problems (and each pointer
+  * could be static_cast-ed to a ColVariable * as soon as it is confirmed
+  * that the Variable is active in the DQuadFunction, should this be
+  * necessary).
+  *
+  * The parameter issueMod decides if and how the C05FunctionModVars is
+  * issued, as described in Observer::make_par(). Note that a diagonal
+  * quadratic function is additive, and therefore strongly quasi-additive. */
 
  virtual void remove_variables( Vec_p_Var && vars ,
 				const bool ordered = false ,
@@ -754,10 +860,19 @@ class DQuadFunction : public C15Function {
  /// remove a set of Variable by index
  /** Like remove_variables( Vec_p_Var * ), but takes in input a set of index
   * of the Variable to be removed rather than their pointers. Useful if one
-  * knows the indices already, so that they need not be searched for. The set
-  * of indices must be ordered in increasing sense. */
+  * knows the indices already, so that they need not be searched for. The
+  * parameter ordered tells if nms is already ordered in increasing sense
+  * (by index, but this also implies by Variable "name = pointer") if not
+  * otherwise it gets ordered inside the method (which is why it is not
+  * const). Note that nms is *not* &&, hence it is not "taken" by the
+  * DQuadFunction.
+  *
+  * The parameter issueMod decides if and how the C05FunctionModVars is
+  * issued, as described in Observer::make_par(). Note that a linear diagonal
+  * quadratic function is additive, and therefore strongly quasi-additive. */
 
- virtual void remove_variables( c_Vec_Index & nms ,
+ virtual void remove_variables( Vec_Index & nms ,
+				const bool ordered = false ,
 				c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
