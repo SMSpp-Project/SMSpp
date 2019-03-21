@@ -6,9 +6,9 @@
  * intended as the base class for all the Variable that are single real
  * values, possibly restricted to some subset (e.g., the integers).
  *
- * \version 0.10
+ * \version 0.30
  *
- * \date 03 - 09 - 2018
+ * \date 21 - 03 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -39,6 +39,7 @@
 /*--------------------------------------------------------------------------*/
 
 #include "Variable.h"
+#include <cmath>
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -281,6 +282,30 @@ class ColVariable : public Variable {
 
  /// method to get the value of the ColVariable (a real, i.e., a VarValue)
  VarValue get_value( void ) const { return( f_value ); }
+
+/*--------------------------------------------------------------------------*/
+ /// method to check feasibility of a ColVariable
+ /** The current value of a ColVariable may or may not be "compatible" with
+  * the current "type" of the ColVariable; this method returns true if it is.
+  * The eps parameter gives the maximum deviation from the "ideal" value;
+  * that is, a non-negative ColVariable is feasible if its value is >= - eps,
+  * and so on. */
+
+ bool is_feasible( const var_type eps = 0 ) const {
+  if( is_integer() && ( std::abs( std::round( f_value ) - f_value ) > eps ) )
+   return( false );
+
+  if( is_positive() && ( f_value < - eps ) )
+   return( false );
+		       
+  if( is_negative() && ( f_value > eps ) )
+   return( false );
+
+  if( is_unitary() && ( std::abs( f_value ) - 1 > eps ) )
+   return( false );
+
+  return( true );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// method to get the type of the ColVariable
