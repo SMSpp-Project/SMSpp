@@ -963,7 +963,7 @@ public:
   * affected Function, and the subset of affected Variable under the form
   * of a std::vector<Variable *>. As the the && tells, the vector "becomes
   * property" of the FunctionModVars object. Note that while the enum
-  * function_mod_type is provided to encode the possible values of
+  * function_mod_variables_type is provided to encode the possible values of
   * Modification, the field f_type is of type "int", and therefore so is
   * the parameter of the constructor, in order to allow derived classes to
   * "extend" the set of possible types of FunctionModVars. The boolean
