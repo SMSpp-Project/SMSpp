@@ -308,7 +308,7 @@ public:
 
  intLogVerb ,   ///< "verbosity" of the log
                 /**< An integer parameter dictating how "verbose" the log of
-		 * the solver [see set_log()] has to be. The specific meaning
+		 * the Solver [see set_log()] has to be. The specific meaning
  * of each value is Solver-dependent, but it is intended that 0 means "no log
  * at all", and increasing values correspond to increasing verbosity. The
  * default value is 0 (no log). */
@@ -384,7 +384,7 @@ public:
  * with objective function value at least as good as (i.e., larger than)
  * \eps, now that I have found one the problem is as good as solved to me.
  * Hence this parameter is analogous to the maximum absolute accuracy (see
- * kAbsAccur), but "weaker" in that it does not not require any upper bound
+ * dblAbsAcc), but "weaker" in that it does not not require any upper bound
  * to work. For a minimization problem, instead, the condition says: I
  * actually needed a solution with objective function value at least as
  * good as (i.e., smaller than) \eps, now that I have know for sure that
@@ -405,7 +405,7 @@ public:
  * with objective function value at least as good as (i.e., smaller than)
  * \eps, now that I have found one the problem is as good as solved to me.
  * Hence this parameter is analogous to the maximum absolute accuracy (see
- * kAbsAccur), but "weaker" in that it does not not require any lower bound
+ * dblAbsAcc), but "weaker" in that it does not not require any lower bound
  * to work. For a maximization problem, instead, the condition says: I
  * actually needed a solution with objective function value at least as
  * good as (i.e., larger than) \eps, now that I have know for sure that
@@ -416,7 +416,7 @@ public:
 		/**< The algorithmic parameter for setting the relative
 		 * accuracy of the accepted solutions. It instructs the
  * Solver not to even consider a solution among the ones to be reported (see
- * kMaxSol) if its objective function value is "too" bad. For a minimization
+ * intMaxSol) if its objective function value is "too" bad. For a minimization
  * problem, the objective function value of a feasible solution provides an
  * upper bound "ub" on the optimal value. Assuming a lower bound "lb" on the
  * *optimal* value of the problem has been found [see get_lb()], a solution
@@ -433,7 +433,7 @@ public:
  * a maximization problem. The default is Inf<OFValue>(). */
 
  dblAAccSol ,   ///< maximum absolute error in any reported solution
-		/**< Similar to kAccRSol but for an *absolute* accuracy;
+		/**< Similar to dblRAccSol but for an *absolute* accuracy;
                   * that is, a solution is deemed acceptable with the
  * provided parameter \eps if
  *
@@ -443,7 +443,7 @@ public:
  *
  *    ub - fbest <= \eps
  *
- * with the same notation as in kAccRSol and the same provisions about the
+ * with the same notation as in dblRAccSol and the same provisions about the
  * case of a maximization problem. The default is Inf<OFValue>(). */
 
  dblFAccSol ,   ///< maximum constraint violation in any reported solution

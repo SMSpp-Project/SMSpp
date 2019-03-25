@@ -221,8 +221,8 @@ class CDASolver : public Solver {
                                /**< The algorithmic parameter for setting the
 			        * maximum number of different *dual* solutions
  * that the Solver should attempt to obtain and store. Since dual solutions
- * can be a "big" objects (in some cases, buch bigger than primal sones),
- * storing them may be costly. It may be therefore helpful for a CFASolver to
+ * can be a "big" objects (in some cases, much bigger than primal sones),
+ * storing them may be costly. It may be therefore helpful for a CDASolver to
  * know beforehand how many different dual solutions the user would like to
  * get. Among the reasonable values for this parameter, 1 says "I don't care
  * of multuple dual solutions, give me only the best one", and 0 says
@@ -260,11 +260,11 @@ class CDASolver : public Solver {
  *
  * where fbest is the value of the best (with largest objective value)
  * solution found so far. The roles of ub and lb are suitably reversed if
- * the primal thar is a maximixation problem, so that the dual is a
- * minimization. The default is Inf<OFValue>. */
+ * the primal is a maximization problem, so that the dual is a minimization
+ * one. The default is Inf<OFValue>. */
 
  dblAAccDSol ,     ///< maximum absolute error in any dual solution
-                   /**< Similar to kAccRDSol but for an *absolute* accuracy;
+                   /**< Similar to dblRAccDSol but for an *absolute* accuracy;
                     * that is, a dual solution is deemed acceptable with the
  * provided parameter \eps if
  *
@@ -274,21 +274,21 @@ class CDASolver : public Solver {
  *
  *    fbest - lb <= \eps
  *
- * with the same notation as in kAccRDSol and the same provisions about the
- * case of a maximixation problem. The default is Inf<OFValue>. */
+ * with the same notation as in dblRAccDSol and the same provisions about the
+ * case of a maximization problem. The default is Inf<OFValue>. */
 
  dblFAccDSol ,    ///< maximum absolute error in any dual solution
                   /**< The algorithmic parameter for setting the maximum
 		   * relative allowed violation of *dual* constraints,
  * assuming of course something like that exists in the specific dual that
- * is being dealt with. Whenever the Solver is uncapable of finding feasible
+ * is being dealt with. Whenever the CDASolver is incapable of finding feasible
  * dual solutions (maybe because there is none), it may still be useful that
  * it returns the "least unfeasible" ones. This parameter instructs the
  * CDASolver not to even consider a solution among the ones to be reported
- * (see kMaxDSol) if its violation is "too" bad. The actual meaning of this
+ * (see intMaxDSol) if its violation is "too" bad. The actual meaning of this
  * parameter is necessarily be CDASolver-dependent; intuitively, it may be
  * thought to work as the "relative constraint violation" feas_epsilon of
- * the Block [see Block.h] is the concept of "dual constraint" is applicable.
+ * the Block [see Block.h] if the concept of "dual constraint" is applicable.
  * A setting of 0 may be taken as a way to tell the CDASolver not to bother
  * to produce unfeasible solutions at all, which is why this is the default
  * value of the parameter. */

@@ -315,7 +315,7 @@ class C05Function : public Function {
  /**< The algorithmic parameter for setting the size of the "local pool",
   * that is, the maximum number of linearizations that should be stored in
   * the local pool. The default is 1, which corresponds to the fact that the
-  * Function can only produce a single Linearization at a time (for it is,
+  * Function can only produce a single linearization at a time (for it is,
   * say, smooth). */
 
  intGPMaxSz ,  ///< maximum size of the "global pool"
@@ -323,7 +323,7 @@ class C05Function : public Function {
 		* "global pool", that is, the maximum number of
  * linearizations that should be stored in the local pool. The default is 0,
  * which corresponds to the fact that the Function cannot store any
- * Linearization (for it is, say, smooth and therefore there is no need to).
+ * linearization (for it is, say, smooth and therefore there is no need to).
  */
 
  intLastParC0F   ///< first allowed new int parameter for derived classes
@@ -344,7 +344,7 @@ class C05Function : public Function {
  /**< The parameter for setting the relative accuracy of the linearizations.
   * A linearization ( g , \alpha ) computed at the point x is "accurate" if
   * the value of the linearization coincides with the value of the function
-  * at x, i.e., alpha = f(x). In general linearizations that are not
+  * at x, i.e., \alpha = f(x). In general linearizations that are not
   * "completely accurate" can still be useful: for instance, in the Lagrangian
   * case an \eps-optimal solution to the Lagrangian problem gives rise to a
   * valid linearization ( g , \alpha ) with \eps >= f(x) - \alpha. This can be
