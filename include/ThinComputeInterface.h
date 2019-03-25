@@ -704,6 +704,72 @@ class ComputeConfig : public Configuration
   return( new ComputeConfig( *this ) );
   }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// extends Configuration::deserialize( netCDF::NcGroup )
+ /** Extends Configuration::deserialize( netCDF::NcGroup ) to the specific
+  * format of a ComputeConfig. Besides the mandatory "type" attribute of
+  * any :Configuration, the group should contain the following:
+  *
+  * - the attribute "diff" of int type containing the value for the f_diff
+  *   field of the ComputeConfig (basically, a bool telling if the
+  *   information in it has to be taken as "the configuration to be set" or
+  *   as "the changes to be made from the current configuration");
+  *
+  * - the dimension "num_int_par" containing the number of int parameters;
+  *
+  * - the variable "int_par_names", of type string and indexed over the
+  *   dimension "num_int_par"; the i-th entry of the variable is assumed to
+  *   contain the string name of an int parameter (see int_par_idx2str());
+  *
+  * - the variable "int_par_vals", of type int and indexed over the
+  *   dimension "num_int_par"; the i-th entry of the variable is assumed to
+  *   contain the value of the int parameter whose string name is to be found
+  *   in the i-th entry of "int_par_names";
+  *
+  * - the dimension "num_dbl_par" containing the number of double parameters;
+  *
+  * - the variable "dbl_par_names", of type string and indexed over the
+  *   dimension "num_dbl_par"; the i-th entry of the variable is assumed to
+  *   contain the string name of a double parameter (see dbl_par_idx2str());
+  *
+  * - the variable "dbl_par_vals", of type double and indexed over the
+  *   dimension "num_dbl_par"; the i-th entry of the variable is assumed to
+  *   contain the value of the double parameter whose string name is to be
+  *   found in the i-th entry of "dbl_par_names";
+  *
+  * - the dimension "num_str_par" containing the number of string parameters;
+  *
+  * - the variable "str_par_names", of type string and indexed over the
+  *   dimension "num_str_par"; the i-th entry of the variable is assumed to
+  *   contain the string name of a string parameter (see int_par_idx2str());
+  *
+  * - the variable "str_par_vals", of type string and indexed over the
+  *   dimension "num_str_par"; the i-th entry of the variable is assumed to
+  *   contain the value of the string parameter whose string name is to be
+  *   found in the i-th entry of "str_par_names";
+  *
+  * - the group "extra" containing a Configuration object, which has no
+  *   direct use in the base ComputeConfig class, but is added so that
+  *   derived classes can put there any configuration information without
+  *   having to define further derived classes form ComputeConfig (which,
+  *   however, they can still do if they want).
+  *
+  * The three dimensions "num_*_par" are mandatory. If any of these is zero,
+  * the corresponding variables "*_par_names" and "*_par_vals" may not be
+  * defined. The "extra" group may not exist, in which case the corresponding
+  * Configuration object is set to a nullptr. */
+
+ virtual void deserialize( netCDF::NcGroup && group ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// extends Configuration::serialize( netCDF::NcGroup )
+ /** Extends Configuration::serialize( netCDF::NcGroup ) to the specific
+  * format of a ComputeConfig. See
+  * ComputeConfig::deserialize( netCDF::NcGroup ) for details of the format
+  * of the created netCDF group. */
+
+ virtual void serialize( netCDF::NcGroup && group ) const override;
+
 /*--------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
 
  bool f_diff;  ///< tells is the configuration is a "differential" one

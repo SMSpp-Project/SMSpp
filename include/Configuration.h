@@ -439,7 +439,7 @@ class Configuration
   }
 
 /*--------------------------------------------------------------------------*/
- /// serialize a  , const int type to an open netCDF file
+ /// serialize a Configuration to an open netCDF file
  /** Method to serialize a Configuration to an open netCDF file in
   * netCDF-based SMS++-format. The type of the file, provided as a parameter
   * (mainly to make the signature of the method not ambiguous with the
@@ -493,7 +493,6 @@ class Configuration
  {
   group.putAtt( "type" , name() );
   }
-
 
 /*@} -----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/

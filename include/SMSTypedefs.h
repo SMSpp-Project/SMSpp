@@ -130,10 +130,10 @@ namespace SMSpp_di_unipi_it
   * needs to read/write files with a specific structure. */
 
  enum smspp_netCDF_file_type {
-  eProbFile ,      ///< a "complete" file with both Block and Configuration
-  eBlockFile ,     ///< a file of Block
-  eConfigFile ,    ///< a file of Configuration
-  eLastFileParam   ///< first value available to define new file types
+  eProbFile      = 0 ,  ///< a "complete" file of both Block and Configuration
+  eBlockFile     = 1 ,  ///< a file of Block
+  eConfigFile    = 2 ,  ///< a file of Configuration
+  eLastFileParam = 3    ///< first value available to define new file types
   };
 
 /*--------------------------------------------------------------------------*/

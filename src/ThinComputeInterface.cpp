@@ -127,6 +127,160 @@ ComputeConfig * ThinComputeInterface::get_ComputeConfig( bool all ,
 /*------------------------ METHODS of ComputeConfig ------------------------*/
 /*--------------------------------------------------------------------------*/
 
+void ComputeConfig::deserialize( netCDF::NcGroup && group )
+{
+ // call the method of the base class, which does not much
+ Configuration::deserialize( std::move( group ) );
+
+ // f_diff field- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ netCDF::NcGroupAtt diff = group.getAtt( "diff" );
+ if( diff.isNull() )
+  throw( std::invalid_argument( "missing diff in netCDF group" ) );
+
+ int diffint;
+ diff.getValues( &diffint );
+ f_diff = diffint > 0;
+
+ // int parameters- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ netCDF::NcDim nip = group.getDim( "num_int_par" );
+ if( nip.isNull() )
+  throw( std::invalid_argument( "missing num_int_par in netCDF group" ) );
+
+ size_t num_int_par = nip.getSize();
+ if( num_int_par ) {
+  netCDF::NcVar int_par_names = group.getVar( "int_par_names" );
+  if( int_par_names.isNull() )
+   throw( std::invalid_argument( "missing int_par_names in netCDF group" ) );
+
+  netCDF::NcVar int_par_vals = group.getVar( "int_par_vals" );
+  if( int_par_vals.isNull() )
+   throw( std::invalid_argument( "missing int_par_vals in netCDF group" ) );
+
+  int_pars.resize( num_int_par );
+  for( size_t i = 0 ; i < num_int_par ; ++i ) {
+   std::vector<size_t> idx = { i };
+   int_par_names.getVar( idx , &(int_pars[ i ].first) );
+   int_par_vals.getVar( idx , &(int_pars[ i ].second) );
+   }
+  }
+
+ // double parameters - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ netCDF::NcDim ndp = group.getDim( "num_dbl_par" );
+ if( ndp.isNull() )
+  throw( std::invalid_argument( "missing num_dbl_par in netCDF group" ) );
+
+ size_t num_dbl_par = ndp.getSize();
+ if( num_dbl_par ) {
+  netCDF::NcVar dbl_par_names = group.getVar( "dbl_par_names" );
+  if( dbl_par_names.isNull() )
+   throw( std::invalid_argument( "missing dbl_par_names in netCDF group" ) );
+
+  netCDF::NcVar dbl_par_vals = group.getVar( "dbl_par_vals" );
+  if( dbl_par_vals.isNull() )
+   throw( std::invalid_argument( "missing dbl_par_vals in netCDF group" ) );
+
+  dbl_pars.resize( num_dbl_par );
+  for( size_t i = 0 ; i < num_dbl_par ; ++i ) {
+   std::vector<size_t> idx = { i };
+   dbl_par_names.getVar( idx , &(dbl_pars[ i ].first) );
+   dbl_par_vals.getVar( idx , &(dbl_pars[ i ].second) );
+   }
+  }
+
+ // string parameters - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ netCDF::NcDim nsp = group.getDim( "num_str_par" );
+ if( nsp.isNull() )
+  throw( std::invalid_argument( "missing num_str_par in netCDF group" ) );
+
+ size_t num_str_par = nsp.getSize();
+ if( num_str_par ) {
+  netCDF::NcVar str_par_names = group.getVar( "str_par_names" );
+  if( str_par_names.isNull() )
+   throw( std::invalid_argument( "missing str_par_names in netCDF group" ) );
+
+  netCDF::NcVar str_par_vals = group.getVar( "str_par_vals" );
+  if( str_par_vals.isNull() )
+   throw( std::invalid_argument( "missing str_par_vals in netCDF group" ) );
+
+  str_pars.resize( num_str_par );
+  for( size_t i = 0 ; i < num_str_par ; ++i ) {
+   std::vector<size_t> idx = { i };
+   str_par_names.getVar( idx , &(str_pars[ i ].first) );
+   str_par_vals.getVar( idx , &(str_pars[ i ].second) );
+   }
+  }
+
+ // "extra" Configuration - - - - - - - - - - - - - - - - - - - - - - - - - -
+ f_extra_Configuration = new_Configuration( group.getGroup( "extra" ) );
+ 
+ }  // end( ComputeConfig::deserialize( netCDF::NcGroup ) )
+
+/*--------------------------------------------------------------------------*/
+
+void ComputeConfig::serialize( netCDF::NcGroup && group ) const
+{
+ // call the method of the base class, which writes the "type" attribute
+ Configuration::serialize( std::move( group ) );
+
+ // f_diff field- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ group.putAtt( "diff" , netCDF::NcInt() , int( f_diff ) );
+
+ // int parameters- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ netCDF::NcDim num_int_par = group.addDim( "num_int_par" , int_pars.size() );
+ if( int_pars.size() ) {
+  netCDF::NcVar int_par_names = group.addVar( "int_par_names" ,
+					      netCDF::NcString() ,
+					      num_int_par );
+  netCDF::NcVar int_par_vals = group.addVar( "int_par_names" ,
+					     netCDF::NcInt() ,
+					     num_int_par );
+  for( size_t i = 0 ; i < int_pars.size() ; ++i ) {
+   std::vector<size_t> idx = { i };
+   int_par_names.putVar( idx , int_pars[ i ].first );
+   int_par_vals.putVar( idx , int_pars[ i ].second );
+   }
+  }
+
+ // double parameters - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ netCDF::NcDim num_dbl_par = group.addDim( "num_dbl_par" , dbl_pars.size() );
+ if( dbl_pars.size() ) {
+  netCDF::NcVar dbl_par_names = group.addVar( "dbl_par_names" ,
+					      netCDF::NcString() ,
+					      num_dbl_par );
+  netCDF::NcVar dbl_par_vals = group.addVar( "dbl_par_vals" ,
+					     netCDF::NcDouble() ,
+					     num_dbl_par );
+  for( size_t i = 0 ; i < dbl_pars.size() ; ++i ) {
+   std::vector<size_t> idx = { i };
+   dbl_par_names.putVar( idx , dbl_pars[ i ].first );
+   dbl_par_vals.putVar( idx , dbl_pars[ i ].second );
+   }
+  }
+
+ // string parameters - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ netCDF::NcDim num_str_par = group.addDim( "num_str_par" , str_pars.size() );
+ if( str_pars.size() ) {
+  netCDF::NcVar str_par_names = group.addVar( "str_par_names" ,
+					      netCDF::NcString() ,
+					      num_str_par );
+  netCDF::NcVar str_par_vals = group.addVar( "str_par_names" ,
+					     netCDF::NcString() ,
+					     num_str_par );
+  for( size_t i = 0 ; i < str_pars.size() ; ++i ) {
+   std::vector<size_t> idx = { i };
+   str_par_names.putVar( idx , str_pars[ i ].first );
+   str_par_vals.putVar( idx , str_pars[ i ].second );
+   }
+  }
+
+ // "extra" Configuration - - - - - - - - - - - - - - - - - - - - - - - - - -
+ if( f_extra_Configuration )
+  f_extra_Configuration->serialize( group.addGroup( "extra" ) );
+
+ }  // end( ComputeConfig::serialize( netCDF::NcGroup ) )
+
+/*--------------------------------------------------------------------------*/
+
 void ComputeConfig::print( std::ostream &output ) const {
  output << "ComputeConfig";
  if( f_diff ) output << "[diff]";

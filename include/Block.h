@@ -4239,6 +4239,64 @@ class BlockConfig : public Configuration
 				   const unsigned int idx = 0 );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// extends Configuration::deserialize( netCDF::NcGroup )
+ /** Extends Configuration::deserialize( netCDF::NcGroup ) to the specific
+  * format of a BlockConfig. Besides the mandatory "type" attribute of any
+  * :Configuration, the group should contain the following:
+  *
+  * - the attribute "name" of string type containing the name of the Block;
+  *
+  * - the group "static_constraints" containing a Configuration object for
+  *   the static Constraint of the Block;
+  *
+  * - the group "dynamic_constraints" containing a Configuration object for
+  *   the dynamic Constraint of the Block;
+  *
+  * - the group "static_variables" containing a Configuration object for
+  *   the static Variable of the Block;
+  *
+  * - the group "dynamic_variables" containing a Configuration object for
+  *   the dynamic Variable of the Block;
+  *
+  * - the group "objective" containing a Configuration object for the
+  *   objective of the Block;
+  *
+  * - the group "is_feasible" containing a Configuration object for the
+  *   is_feasible() method of the Block;
+  *
+  * - the group "is_optimal" containing a Configuration object for the
+  *   is_optimal() method of the Block;
+  *
+  * - the group "solution" containing a Configuration object for the
+  *   methods of the Block dealing with solutions (get_Solution() and
+  *   map_[back/forward]_solution());
+  *
+  * - the group "extra" containing a Configuration object, which has no
+  *   direct use in the base Block class, but is added so that derived
+  *   classes can put there any configuration information without having to
+  *   define further derived classes form BlockConfig (which, however, they
+  *   can still do if they want);
+  *
+  * - the dimension "n_sub_Block" containing the number of BlockConfig
+  *   descriptions for the sub-Block of the current Block;
+  *
+  * - with n being the size of n_sub_Block, n groups, with name
+  *   "sub-BlockConfig_<i>" for all i = 0, ..., n - 1, containing each the
+  *   description of a BlockConfig for one of the sub-Block of the current
+  *   :Block.
+  *
+  * Of all these, only the "name" attribute and the "n_sub_Block" dimension
+  * are mandatory (they must exist, although they may be empty/zero). All
+  * other groups may not exist, in which case the corresponding field of the
+  * class is filled with a nullptr, indicating that the "default"
+  * configuration (whatever that may mean for the :Block in question) have
+  * to be used. Note that that the matching between the sub-BlockConfig and
+  * the sub-Block is positional: the BlockConfig found in the group
+  * "sub-BlockConfig_<i>" is that for the i-th sub-Block. Note that the
+  * vector of sub-BlockConfig is allowed to be of different size than the
+  * number of sub-Block; if it is larger any extra BlockConfig is simply
+  * ignored, if it shorted then all missing sub-BlockConfig are treated as
+  * nullptr (default configuration). */
 
  virtual void deserialize( netCDF::NcGroup && group ) override;
 
@@ -4276,7 +4334,11 @@ class BlockConfig : public Configuration
   const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
+ /// extends Configuration::serialize( netCDF::NcGroup )
+ /** Extends Configuration::serialize( netCDF::NcGroup ) to the specific
+  * format of a BlockConfig. See BlockConfig::deserialize( netCDF::NcGroup )
+  * for details of the format of the created netCDF group. */
+ 
  virtual void serialize( netCDF::NcGroup && group ) const override;
 
 /*--------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
@@ -4405,6 +4467,45 @@ class BlockSolverConfig : public Configuration
 					 const unsigned int idx = 0 );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// extends Configuration::deserialize( netCDF::NcGroup )
+ /** Extends Configuration::deserialize( netCDF::NcGroup ) to the specific
+  * format of a BlockSolverConfig. Besides the mandatory "type" attribute of
+  * any :Configuration, the group should contain the following:
+  *
+  * - the dimension "n_SolverConfig" containing the number of Solver that
+  *   are to be attached to this Block, and therefore the number of their
+  *   SolverConfig objects;
+  *
+  * - the variable "SolverNames", of type string and indexed over the
+  *   dimension "n_SolverConfig"; the i-th entry of the variable is assumed
+  *   to contain the classname of a :Solver object to be attached to the
+  *   Block (this must be exact, e.g., as returned by the protected virtual
+  *   method name(), since it is used in the factory when creating the
+  *   object;
+  *
+  * - with n being the size of n_SolverConfig, n groups, with name
+  *   "SolverConfig_<i>" for all i = 0, ..., n - 1, containing each the
+  *   description of a ComputeConfig object for the i-th :Solver;
+  *
+  * - the dimension "n_BlockSolverConfig" containing containing the number
+  *   of BlockSolverConfig descriptions for the sub-Block of the current
+  *   Block;
+  *
+  * - with m being the size of n_BlockSolverConfig, m groups, with name
+  *   "BlockSolverConfig_<i>}" for all i = 0, \ldots, m - 1, containing each
+  *   the description of a BlockSolverConfig for one of the sub-Block of the
+  *   current Block.
+  *
+  * Of all these, only the "n_SolverConfig" and "n_BlockSolverConfig"
+  * dimensions and the "SolverNames" variable are mandatory; the individual
+  * groups may not exist if the corresponding dimension is 0. Note that that
+  * the matching between the sub-BlockSolverConfig and the sub-Block is
+  * positional: the BlockSolverConfig found in the group
+  * "BlockSolverConfig_<i>" is that for the i-th sub-Block. Note that the
+  * vector of sub-BlockSolverConfig is allowed to be of different size than
+  * the number of sub-Block; if it is larger any extra BlockSolverConfig is
+  * simply ignored, if it shorted then all missing sub-BlockConfig are
+  * treated as nullptr (default configuration). */
 
  virtual void deserialize( netCDF::NcGroup && group ) override;
 
@@ -4436,7 +4537,12 @@ class BlockSolverConfig : public Configuration
   const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
+ /// extends Configuration::serialize( netCDF::NcGroup )
+ /** Extends Configuration::serialize( netCDF::NcGroup ) to the specific
+  * format of a BlockSolverConfig. See
+  * BlockSolverConfig::deserialize( netCDF::NcGroup ) for details of the
+  * format of the created netCDF group. */
+ 
  virtual void serialize( netCDF::NcGroup && group ) const override;
 
 /*--------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/

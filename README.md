@@ -1,8 +1,7 @@
 The "core" SMS++ {#mainpage}
 ================
 
-![To boldly model (and solve) what no one has modeled (and solved)
-before](./doxygen/SMSpp_logo_mid_noback.png)
+![To boldly model (and solve) what no one has modeled (and solved) before](./doxygen/SMSpp_logo_mid_noback.png)
 
 Introduction
 ------------
