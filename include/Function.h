@@ -682,7 +682,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
  *
  * - Any finite non-NaN number: conversely, the value of the Function has
  *   changed in a very predictable way: computing the value of the Function at
- *   any point now returns f_v + v_shift, where f_v is the value that would
+ *   any point now returns f_v + f_shift, where f_v is the value that would
  *   have been returned prior to the Modification. It should be noted that
  *   f_shift = 0 does not really have a sense in this case as it would not
  *   be a change in the Function; however, the value is still allowed for
@@ -757,7 +757,7 @@ public:
  *
  * - Any finite non-NaN number: conversely, the value of the Function has
  *   changed in a very predictable way: computing the value of the Function at
- *   any point now returns f_v + v_shift, where f_v is the value that would
+ *   any point now returns f_v + f_shift, where f_v is the value that would
  *   have been returned prior to the Modification. It should be noted that
  *   f_shift = 0 does not really have a sense in this case as it would not
  *   be a change in the Function; however, the value is still allowed for
@@ -903,7 +903,7 @@ public:
  *   std::isnan( f_shift ).
  *
  * - Any finite non-NaN number (comprised 0, which makes full sense): the
- *   Modification was a quasi-additive one, with v_shift being the value of
+ *   Modification was a quasi-additive one, with f_shift being the value of
  *   the shift.
  *
  * - +Infty (= std::numeric_limits<FunctionValue>::infinity(), for which
@@ -1001,7 +1001,7 @@ public:
   *   but rather with std::isnan( f_shift ).
   *
   * - Any finite non-NaN number (comprised 0, which makes full sense): the
-  *   Modification was a quasi-additive one, with v_shift being the value of
+  *   Modification was a quasi-additive one, with f_shift being the value of
   *   the shift.
   *
   * - INFshift: the Modification was not a quasi-additive one, but while the

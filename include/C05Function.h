@@ -1753,7 +1753,7 @@ class C05FunctionModVars : public FunctionModVars
  *
  *   ( g , \alpha ) = ( b - A \bar{u} , c \bar{u} )
  *
- * Let I \subset { 1 , ... , n } be a subset of the (indices of the) of the
+ * Let I \subset { 1 , ... , n } be a subset of the (indices of the)
  * relaxed constraints (hence, of the Lagrangian variables x_i), and assume
  * that the corresponding constraints A_I u = b_I become A_I u = b'_I; as
  * opposed to the case catered for by C05FunctionModSbst and
