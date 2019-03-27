@@ -6,7 +6,7 @@
  *
  * \version 0.20
  *
- * \date 14 - 03 - 2019
+ * \date 27 - 03 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -369,7 +369,7 @@ void LinearFunction::modify_coefficients( v_coeff_pair & vars ,
   // somebody is there: meanwhile, prepare data for the Modification
   
   Vec_p_Var vp( vars.size() );
-  Function::Vec_FunctionValue dlt( vars.size() );
+  Function::Vec_FunctionValue delta( vars.size() );
 
   Index i = 0;
   for( auto it = vars.begin() ; it != vars.end() ; ++it , ++itv ) {
@@ -383,13 +383,13 @@ void LinearFunction::modify_coefficients( v_coeff_pair & vars ,
 			"modify_coefficients: some Variable is not active" ) );
 
    vp[ i ] = itv->first;
-   dlt[ i++ ] = it->second - itv->second;
+   delta[ i++ ] = it->second - itv->second;
    itv->second = it->second;  // modify the coefficient
    }
 
   // now issue the Modification
   f_Observer->add_Modification( std::make_shared<C05FunctionModLin>( this ,
-			                 std::move( dlt ) , std::move( vp ) ,
+			                 std::move( delta ) , std::move( vp ) ,
 					 true , FunctionMod::NaNshift ,
 					 Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
@@ -419,19 +419,21 @@ void LinearFunction::modify_coefficients( c_v_coeff_it NCoef ,
   // somebody is there: meanwhile, prepare data for the Modification
 
   Vec_p_Var vp( nms.size() );
-  Function::Vec_FunctionValue dlt( nms.size() );
+  Function::Vec_FunctionValue delta( nms.size() );
 
   auto vpit = vp.begin();
-  auto dltit = dlt.begin();
+  auto deltait = delta.begin();
+  Index i = 0;
+
   while( it < nms.end() ) {
-   auto diff = v_pairs[ *it ].second - *NCoef;
+   delta[ i++ ] = *NCoef - v_pairs[ *it ].second;
    (*(vpit++)) = v_pairs[ *it ].first;
    v_pairs[ *(it++) ].second = *(NCoef++);
    }
 
   // now issue the Modification
   f_Observer->add_Modification( std::make_shared<C05FunctionModLin>( this ,
-			                 std::move( dlt ) , std::move( vp ) ,
+			                 std::move( delta ) , std::move( vp ) ,
 					 true , FunctionMod::NaNshift ,
 					 Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
@@ -458,20 +460,21 @@ void LinearFunction::modify_coefficients( c_v_coeff_it NCoef , c_Index strt ,
   // somebody is there: meanwhile, prepare data for the Modification
 
   Vec_p_Var vp( stop - strt );
-  Function::Vec_FunctionValue dlt( stop - strt );
+  Function::Vec_FunctionValue delta( stop - strt );
 
   auto vpit = vp.begin();
-  auto dltit = dlt.begin();
+  auto deltait = delta.begin();
+  Index i = 0;
 
   while( strtit < stopit ) {
-   auto diff = (*strtit).second - *NCoef;
+   delta[ i++ ] = *NCoef - (*strtit).second;
    (*(vpit++)) = (*strtit).first;
    (*(strtit++)).second = *(NCoef++);
    }
 
   // now issue the Modification
   f_Observer->add_Modification( std::make_shared<C05FunctionModLin>( this ,
-			                 std::move( dlt ) , std::move( vp ) ,
+			                 std::move( delta ) , std::move( vp ) ,
 					 true , FunctionMod::NaNshift ,
 					 Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
