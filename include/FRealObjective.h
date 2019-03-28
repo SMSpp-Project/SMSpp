@@ -577,8 +577,7 @@ class FRealObjective : public RealObjective , Observer {
   output << "FRealObjectiveFunction [" << this << "] of Block [" << f_Block
 	 << "] with Function [" << f_function << "] with "
          << ( f_function ? f_function->get_num_active_var() : 0 )
-         << " active variables, to "
-	 << std::endl;
+         << " active variables, to ";
   if( f_sense == eMin )
     output << "minimize" << std::endl;
   else
