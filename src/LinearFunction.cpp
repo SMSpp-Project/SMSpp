@@ -400,6 +400,7 @@ void LinearFunction::modify_coefficients( v_coeff_pair & vars ,
 
 void LinearFunction::modify_coefficients( c_v_coeff_it NCoef ,
 					  c_Vec_Index &nms ,
+					  const bool ordered ,
 					  c_ModParam issueMod )
 {
  if( ! nms.size() )
@@ -408,8 +409,7 @@ void LinearFunction::modify_coefficients( c_v_coeff_it NCoef ,
  if( v_pairs.empty() )  // modifying from nothing
   throw( std::logic_error( "modifying an empty set" ) );
 
- auto it = nms.begin();
- if( *it >= v_pairs.size() )  // if the first name is wrong
+ if( nms.front() >= v_pairs.size() )  // if the first name is wrong
   throw( std::invalid_argument( "wrong index in LinearFunction" ) );
 
  if( nms.back() >= v_pairs.size() )  // if the last name is wrong
@@ -423,12 +423,28 @@ void LinearFunction::modify_coefficients( c_v_coeff_it NCoef ,
 
   auto vpit = vp.begin();
   auto deltait = delta.begin();
-  Index i = 0;
-
-  while( it < nms.end() ) {
-   delta[ i++ ] = *NCoef - v_pairs[ *it ].second;
-   (*(vpit++)) = v_pairs[ *it ].first;
-   v_pairs[ *(it++) ].second = *(NCoef++);
+ 
+  if( ordered ) {
+   for( auto it = nms.begin() ; it < nms.end() ; ) {
+    *(deltait++) = *NCoef - v_pairs[ *it ].second;
+    *(vpit++) = v_pairs[ *it ].first;
+    v_pairs[ *(it++) ].second = *(NCoef++);
+    }
+   }
+  else {
+   std::vector<Index> ord( nms.size() );
+   std::iota( ord.begin() , ord.end() , 0 );
+   std::sort( ord.begin() , ord.end() ,
+	      [ & nms ]( Index i , Index j ) {
+	       return( nms[ i ] < nms[ j ] ); }
+	      );
+   for( auto ordi = ord.begin() ; ordi < ord.end() ; ) {
+    auto nci = *(NCoef + *ordi);
+    auto ni = nms[ *(ordi++) ];
+    *(deltait++) = nci - v_pairs[ ni ].second;
+    *(vpit++) = v_pairs[ ni ].first;
+    v_pairs[ ni ].second = nci;
+    }
    }
 
   // now issue the Modification
@@ -439,7 +455,7 @@ void LinearFunction::modify_coefficients( c_v_coeff_it NCoef ,
 				Observer::par2chnl( issueMod ) );
   }
  else  // noone is there: just do it
-  while( it < nms.end() )
+  for( auto it = nms.begin() ; it < nms.end() ; )
    v_pairs[ *(it++) ].second = *(NCoef++);
 
  }  // end( LinearFunction::modify_coefficients( indices ) )

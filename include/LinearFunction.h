@@ -568,12 +568,15 @@ class LinearFunction : public C15Function {
   * index of the Variable whose coefficients need be modified, together with
   * (an iterator into) the vector of new coefficient values. Useful if one
   * knows the indices already, so that they need not be searched for. The
-  * set of indices *must* be ordered in increasing sense.
+  * parameter ordered tells if nms is already ordered in increasing sense
+  * (which corresponds to the fact that the ColVariable are ordered by
+  * "name = pointer").
   *
   * The parameter issueMod decides if and how the C05FunctionModLin is issued,
   * as described in Observer::make_par(). */
 
  virtual void modify_coefficients( c_v_coeff_it NCoef , c_Vec_Index &nms ,
+				   const bool ordered = false ,
 				   c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
