@@ -61,6 +61,24 @@
 	SimpleMILPBlock/test could be a nice starting point.
 
 
+2019-04-01 [medium] boost::stable_vector for dynamic stuff
+
+	Allow dynemic stuff to be stored in boost::stable_vector other than in
+	std::list. This has a BIG IF: IT IS NOT CLEAR IF ONE CAN EXTRACT A SLICE
+	OF A boost::stable_vector AND TAKE IT AWAY WITHOUT CHANGING THE ADDRESS
+	OF THE ELEMENTS. This should ideally be possible, but it does not seem
+	that boost::stable_vector supports this operation.
+
+
+2019-04-01 [medium] std::vector for dynamic stuff
+
+	Allow dynemic stuff to be stored in a std::stable_vector that has been
+	reserve()-d. Thus, no re-allocation would happen if the std::vector()
+	is resize()-d up until its size() <= capacity(). Dynamic stuff could
+	only be added and removed at the end, but the advantage over std::list
+	may well make it worth.
+
+
 2018-09-08 [low] DenseLinear function
 
 	Make LinearFunction a base class. Transform the current one in
