@@ -238,7 +238,7 @@ class ColVariable : public Variable {
   * reported by a Modification, and other mechanisms must be put in place to
   * (avoid) deal(ing) with it; see the discussion in ThinComputeInterface. */
 
- virtual void set_value( c_VarValue new_value ) { f_value = new_value; }
+ virtual void set_value( c_VarValue new_value = 0 ) { f_value = new_value; }
 
 /*--------------------------------------------------------------------------*/
  /// sets the "type" of the ColVariable
