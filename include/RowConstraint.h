@@ -189,7 +189,7 @@ class RowConstraint : public Constraint {
   * Block to which this RowConstraint belongs will do it. For more ease of
   * mind, this method is virtual. */
 
- virtual void set_dual( c_RHSValue new_value ) { d_value = new_value; }
+ virtual void set_dual( c_RHSValue new_value = 0 ) { d_value = new_value; }
 
 /*@} -----------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE RowConstraint -----------*/
