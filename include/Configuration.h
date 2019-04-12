@@ -164,8 +164,8 @@ class Configuration
  static Configuration * deserialize( const char * filename )
  {
   try {
-   return( Configuration::deserialize( netCDF::NcFile( filename ,
-					           netCDF::NcFile::read ) ) );
+   netCDF::NcFile f( filename , netCDF::NcFile::read );
+   return( Configuration::deserialize( f ) );
    }
   catch( netCDF::exceptions::NcException & e ) {
    std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
@@ -236,7 +236,7 @@ class Configuration
   * What this method does is finding the right child group, and then 
   * dispatching to new_Configuration( netCDF::NcGroup && ). */
 
- static Configuration * deserialize( netCDF::NcFile && f ,
+ static Configuration * deserialize( netCDF::NcFile & f ,
 				     const unsigned int idx = 0 )
  {
   try {
@@ -435,7 +435,7 @@ class Configuration
 
   f.putAtt( "SMS++_file_type" , netCDF::NcInt() , type );
 
-  serialize( std::move( f ) , type );
+  serialize( f , type );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -460,16 +460,12 @@ class Configuration
   * exception is thrown. Although the method is virtual, it is not expected
   * that derived classes will have a need to re-define it. */
 
- virtual void serialize( netCDF::NcFile && f , const int type ) const
+ virtual void serialize( netCDF::NcFile & f , const int type ) const
  {
   if( type != eConfigFile )
    throw( std::invalid_argument( "invalid SMS++ netCDF file type" ) );
 
-  const int idx = f.getGroupCount();
-
-  netCDF::NcGroup bg = f.addGroup( "Config_" + std::to_string( idx ) );
-
-  serialize( std::move( bg ) );
+  serialize( f.addGroup( "Config_" + std::to_string( f.getGroupCount() ) ) );
   }
 
 /*--------------------------------------------------------------------------*/

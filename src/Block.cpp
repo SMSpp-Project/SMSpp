@@ -645,7 +645,7 @@ BlockConfig::BlockConfig( BlockConfig &old ) : Configuration()
 
 /*--------------------------------------------------------------------------*/
 
-BlockConfig * BlockConfig::deserialize( netCDF::NcFile && f ,
+BlockConfig * BlockConfig::deserialize( netCDF::NcFile & f ,
 					const unsigned int idx )
 {
  try {
@@ -696,10 +696,10 @@ BlockConfig * BlockConfig::deserialize( netCDF::NcFile && f ,
 
 /*--------------------------------------------------------------------------*/
 
-void BlockConfig::serialize( netCDF::NcFile && f , const int type ) const
+void BlockConfig::serialize( netCDF::NcFile & f , const int type ) const
 {
  if( type == eConfigFile ) {
-  Configuration::serialize( std::move( f ) , type );
+  Configuration::serialize( f , type );
   return;
   }
 
@@ -987,7 +987,7 @@ BlockSolverConfig::BlockSolverConfig( BlockSolverConfig &old )
 
 /*--------------------------------------------------------------------------*/
 
-BlockSolverConfig * BlockSolverConfig::deserialize( netCDF::NcFile && f ,
+BlockSolverConfig * BlockSolverConfig::deserialize( netCDF::NcFile & f ,
 						    const unsigned int idx )
 {
  try {
@@ -1038,11 +1038,11 @@ BlockSolverConfig * BlockSolverConfig::deserialize( netCDF::NcFile && f ,
 
 /*--------------------------------------------------------------------------*/
 
-void BlockSolverConfig::serialize( netCDF::NcFile && f , const int type )
+void BlockSolverConfig::serialize( netCDF::NcFile & f , const int type )
  const
 {
  if( type == eConfigFile ) {
-  Configuration::serialize( std::move( f ) , type );
+  Configuration::serialize( f , type );
   return;
   }
 

@@ -623,6 +623,12 @@ class Block : public Observer {
   * i.e., without any reference to any specific Block (and, therefore, it can
   * be used to construct the very first Block if needed).
   *
+  * Besides the newly created Block, the method also returns a && reference to
+  * the netCDF::NcFile created, which allows chaining of [de]serializing
+  * operations on it. Note the "&&", which comes from the inststence of
+  * netCDF C++ interface on never copying netCDF::NcFile / netCDF::NcGroup
+  * and always rather transfer ownership to the caller.
+  *
   * Note that the :Block returned my this method is clearly not "empty", as
   * opposed as :Block fresh out of the factory (see new_Block()), but is it
   * "un-configured": the "abstract representation" is not constructed (unless
@@ -633,8 +639,8 @@ class Block : public Observer {
  static Block * deserialize( const char * filename )
  {
   try {
-   return( Block::deserialize( netCDF::NcFile( filename ,
-					       netCDF::NcFile::read ) ) );
+   netCDF::NcFile f( filename , netCDF::NcFile::read );
+   return( Block::deserialize( f ) );
    }
   catch( netCDF::exceptions::NcException & e ) {
    std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
@@ -706,8 +712,7 @@ class Block : public Observer {
   * What this method does is finding the right child group and forward to
   * new_Block( netCDF::NcGroup ). */
 
- static Block * deserialize( netCDF::NcFile && f ,
-			     const unsigned int idx = 0 )
+ static Block * deserialize( netCDF::NcFile & f , const unsigned int idx = 0 )
  {
   try {
    netCDF::NcGroupAtt gtype = f.getAtt( "SMS++_file_type" );
@@ -3316,7 +3321,7 @@ class Block : public Observer {
 
   f.putAtt( "SMS++_file_type" , netCDF::NcInt() , type );
 
-  serialize( std::move( f ) , type );
+  serialize( f , type );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -3337,7 +3342,7 @@ class Block : public Observer {
   * the method is virtual, it is not expected that derived classes will have
   * a need to re-define it. */
 
- virtual void serialize( netCDF::NcFile && f , const int type )
+ virtual void serialize( netCDF::NcFile & f , const int type )
  {
   if( ( type != eProbFile ) && ( type != eBlockFile ) )
    throw( std::invalid_argument( "invalid SMS++ netCDF file type" ) );
@@ -4235,7 +4240,7 @@ class BlockConfig : public Configuration
  /** Since a BlockConfig knows it is a BlockConfig, it "knows its place" in
   * an eProbFile netCDF SMS++ file. */
 
- static BlockConfig * deserialize( netCDF::NcFile && f ,
+ static BlockConfig * deserialize( netCDF::NcFile & f ,
 				   const unsigned int idx = 0 );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -4330,7 +4335,7 @@ class BlockConfig : public Configuration
  /** Since a BlockConfig knows it is a BlockConfig, it "knows its place" in
   * an eProbFile netCDF SMS++ file. */
 
- virtual void serialize( netCDF::NcFile && f , const int type )
+ virtual void serialize( netCDF::NcFile & f , const int type )
   const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -4463,7 +4468,7 @@ class BlockSolverConfig : public Configuration
  /** Since a BlockSolverConfig knows it is a BlockSolverConfig, it "knows its
   * place" in an eProbFile netCDF SMS++ file. */
 
- static BlockSolverConfig * deserialize( netCDF::NcFile && f ,
+ static BlockSolverConfig * deserialize( netCDF::NcFile & f ,
 					 const unsigned int idx = 0 );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -4533,7 +4538,7 @@ class BlockSolverConfig : public Configuration
  /** Since a BlockSolverConfig knows it is a BlockSolverConfig, it "knows its
   * place" in an eProbFile netCDF SMS++ file. */
 
- virtual void serialize( netCDF::NcFile && f , const int type )
+ virtual void serialize( netCDF::NcFile & f , const int type )
   const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/

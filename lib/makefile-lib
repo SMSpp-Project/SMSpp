@@ -30,7 +30,7 @@ endif
 NAME = $(SMS++SDR)lib/libSMS++.a
 
 # debug switches
-SW = -g -std=c++17
+SW = -g -std=c++17 -ferror-limit=1
 # production switches
 #SW = -O3 -DNDEBUG -std=c++17
 
