@@ -684,7 +684,7 @@ class ComputeConfig : public Configuration
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: does what it says on the tin
- ComputeConfig( ComputeConfig &old ) : Configuration() {
+ ComputeConfig( const ComputeConfig &old ) : Configuration() {
   f_diff = old.f_diff;
   int_pars = old.int_pars;
   dbl_pars = old.dbl_pars;
@@ -700,7 +700,7 @@ class ComputeConfig : public Configuration
 
 /*------------------------------- CLONE -----------------------------------*/
  /// clone method
- virtual ComputeConfig * clone( void ) override {
+ virtual ComputeConfig * clone( void ) const override {
   return( new ComputeConfig( *this ) );
   }
 

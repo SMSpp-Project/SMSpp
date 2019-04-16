@@ -105,7 +105,7 @@ class Configuration
   * explicitly for each :Configuration, but in our case it seems that the
   * pain is higher than the gain. */
 
- virtual Configuration * clone( void ) = 0;
+ virtual Configuration * clone( void ) const = 0;
 
 /*--------------------------------------------------------------------------*/
  /// construct a :Configuration of given type using the Configuration factory
@@ -619,7 +619,7 @@ class SimpleConfiguration : public Configuration
  Configuration() { f_value = initval; }
 
  /// copy constructor: does what it says on the tin
- SimpleConfiguration( SimpleConfiguration &old ) : Configuration() {
+ SimpleConfiguration( const SimpleConfiguration &old ) : Configuration() {
   f_value = old.f_value;
   }
   
@@ -628,7 +628,7 @@ class SimpleConfiguration : public Configuration
  virtual ~SimpleConfiguration() { }  ///< destructor: does nothing
 
  /// clone method
- virtual SimpleConfiguration * clone( void ) override
+ virtual SimpleConfiguration * clone( void ) const override
  {
   return( new SimpleConfiguration( *this ) );
   }

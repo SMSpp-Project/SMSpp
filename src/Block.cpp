@@ -620,7 +620,7 @@ Block::BlockFactoryMap & Block::f_factory( void )
 /*------------------------- METHODS of BlockConfig -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-BlockConfig::BlockConfig( BlockConfig &old ) : Configuration()
+BlockConfig::BlockConfig( const BlockConfig &old ) : Configuration()
 {
  f_name = old.f_name;
 
@@ -969,7 +969,7 @@ void BlockConfig::deserialize( netCDF::NcGroup && group )
 /*--------------------- METHODS of BlockSolverConfig -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-BlockSolverConfig::BlockSolverConfig( BlockSolverConfig &old )
+BlockSolverConfig::BlockSolverConfig( const BlockSolverConfig &old )
  : Configuration()
 {
  f_diff = old.f_diff;

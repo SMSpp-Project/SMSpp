@@ -4233,7 +4233,7 @@ class BlockConfig : public Configuration
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: does what it says on the tin
- BlockConfig( BlockConfig &old );
+ BlockConfig( const BlockConfig &old );
 
 /*--------------------------------------------------------------------------*/
  /// "extends" Configuration::deserialize( netCDF::NcFile ) to eProbFile
@@ -4325,7 +4325,7 @@ class BlockConfig : public Configuration
 
 /*------------------------------- CLONE -----------------------------------*/
 
- virtual BlockConfig * clone( void ) override
+ virtual BlockConfig * clone( void ) const override
  {
   return( new BlockConfig( *this ) );
   }
@@ -4461,7 +4461,7 @@ class BlockSolverConfig : public Configuration
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: does what it says on the tin
- BlockSolverConfig( BlockSolverConfig &old );
+ BlockSolverConfig( const BlockSolverConfig &old );
 
 /*--------------------------------------------------------------------------*/
  /// extends Configuration::deserialize( netCDF::NcFile ) to eProbFile
@@ -4528,7 +4528,7 @@ class BlockSolverConfig : public Configuration
 
 /*------------------------------- CLONE -----------------------------------*/
 
- virtual BlockSolverConfig * clone( void ) override
+ virtual BlockSolverConfig * clone( void ) const override
  {
   return( new BlockSolverConfig( *this ) );
   }
