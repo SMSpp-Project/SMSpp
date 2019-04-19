@@ -127,10 +127,10 @@ ComputeConfig * ThinComputeInterface::get_ComputeConfig( bool all ,
 /*------------------------ METHODS of ComputeConfig ------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void ComputeConfig::deserialize( netCDF::NcGroup && group )
+void ComputeConfig::deserialize( netCDF::NcGroup & group )
 {
  // call the method of the base class, which does not much
- Configuration::deserialize( std::move( group ) );
+ Configuration::deserialize( group );
 
  // f_diff field- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  netCDF::NcGroupAtt diff = group.getAtt( "diff" );
@@ -211,16 +211,17 @@ void ComputeConfig::deserialize( netCDF::NcGroup && group )
   }
 
  // "extra" Configuration - - - - - - - - - - - - - - - - - - - - - - - - - -
- f_extra_Configuration = new_Configuration( group.getGroup( "extra" ) );
- 
+ auto ec = group.getGroup( "extra" );
+ f_extra_Configuration = new_Configuration( ec );
+
  }  // end( ComputeConfig::deserialize( netCDF::NcGroup ) )
 
 /*--------------------------------------------------------------------------*/
 
-void ComputeConfig::serialize( netCDF::NcGroup && group ) const
+void ComputeConfig::serialize( netCDF::NcGroup & group ) const
 {
  // call the method of the base class, which writes the "type" attribute
- Configuration::serialize( std::move( group ) );
+ Configuration::serialize( group );
 
  // f_diff field- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  group.putAtt( "diff" , netCDF::NcInt() , int( f_diff ) );
@@ -274,9 +275,10 @@ void ComputeConfig::serialize( netCDF::NcGroup && group ) const
   }
 
  // "extra" Configuration - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( f_extra_Configuration )
-  f_extra_Configuration->serialize( group.addGroup( "extra" ) );
-
+ if( f_extra_Configuration ) {
+  auto ec = group.addGroup( "extra" );
+  f_extra_Configuration->serialize( ec );
+  }
  }  // end( ComputeConfig::serialize( netCDF::NcGroup ) )
 
 /*--------------------------------------------------------------------------*/

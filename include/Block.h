@@ -737,7 +737,7 @@ class Block : public Observer {
    else
     bg = f.getGroup( "Block_" + std::to_string( idx ) );
 
-   return( new_Block( std::move( bg ) ) );
+   return( new_Block( bg ) );
    }
   catch( netCDF::exceptions::NcException & e ) {
    std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
@@ -766,7 +766,7 @@ class Block : public Observer {
   * from deserialize( netCDF::NcGroup , Block * ) (since the signature is the
   * same but for the return type). */
 
- static Block * new_Block( netCDF::NcGroup && group ,
+ static Block * new_Block( netCDF::NcGroup & group ,
 			   Block * const father = nullptr )
  {
   try {
@@ -780,7 +780,7 @@ class Block : public Observer {
    std::string blocktype;
    gtype.getValues( blocktype );
    Block * result = new_Block( blocktype );
-   result->deserialize( std::move( group ) , father );
+   result->deserialize( group , father );
    return( result );
    }
   catch( netCDF::exceptions::NcException & e ) {
@@ -859,14 +859,14 @@ class Block : public Observer {
   * information about the father Block by peeking into the "father" NcGroup
   * via NcGroup::getParentGroup(). */
 
- virtual void deserialize( netCDF::NcGroup && group ,
+ virtual void deserialize( netCDF::NcGroup & group ,
 			   Block *father = nullptr )
  {
   v_Block.clear();
   std::multimap< std::string , netCDF::NcGroup > ng = group.getGroups();
 
   for( auto it = ng.begin() ; it != ng.end() ; ++it )
-   v_Block.push_back( new_Block( std::move( it->second ) , this ) );
+   v_Block.push_back( new_Block( it->second , this ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -3301,13 +3301,13 @@ class Block : public Observer {
  /// serialize a Block (recursively) to a netCDF file given the filename
  /** Top-level method to serialize a Block (recursively) to a file in
   * netCDF-based SMS++-format, given the filename and its type. See
-  * deserialize( netCDF::NcFile && ) for details of the different file types.
+  * deserialize( netCDF::NcFile & ) for details of the different file types.
   * Note that any existing content  of the file is overwritten, and that the
   * Block is saved as *the first one* in the newly created file.
   *
   * The base class implementation opens the netCDF file, creates the required
   * attribute "SMS++_file_type", assigns it the type, and dispatches to the
-  * netCDF::NcFile && version of the method. If anything goes wrong with any
+  * netCDF::NcFile & version of the method. If anything goes wrong with any
   * step of the process, exception is thrown. Although the method is virtual,
   * it is not expected that derived classes will have a need to re-define it.
   */
@@ -3358,7 +3358,7 @@ class Block : public Observer {
   else
    bg = f.addGroup( "Block_" + std::to_string( idx ) );
 
-  serialize( std::move( bg ) );
+  serialize( bg );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -3381,7 +3381,7 @@ class Block : public Observer {
   *
   * An important note applies to serialize():
   *
-  * -     ANY :Block IS SERIALIZED "NAKED"
+  *      ANY :Block IS SERIALIZED "NAKED"
   *
   *   This means that the minimum amount of information required to fully
   *   reconstruct it should be saved; typically this is the "physical
@@ -3410,14 +3410,16 @@ class Block : public Observer {
   * rate, the implementation of Block::serialize( netCDF::NcGroup ) provides
   * a clean blueprint of how this can be done by specific :Block. */
 
- virtual void serialize( netCDF::NcGroup && group ) const
+ virtual void serialize( netCDF::NcGroup & group ) const
  {
   group.putAtt( "type" , name() );
 
   c_Vec_Block & nb = get_nested_Blocks();
 
-  for( size_t i = 0 ; i < nb.size() ; ++i )
-   nb[ i ]->serialize( group.addGroup( "sub-Block_" + std::to_string( i ) ) );
+  for( size_t i = 0 ; i < nb.size() ; ++i ) {
+   auto gi = group.addGroup( "sub-Block_" + std::to_string( i ) );
+   nb[ i ]->serialize( gi );
+   }
   }
 
 /*@} -----------------------------------------------------------------------*/
@@ -3861,8 +3863,8 @@ class Block : public Observer {
  * Block via deserialize().
  *
  * For conditions that need be respected by load() see the comments to
- * deserialize( netCDF::NcGroup && ), while for those that need be respected
- * by print() see comments to serialize( netCDF::NcGroup && ).
+ * deserialize( netCDF::NcGroup & ), while for those that need be respected
+ * by print() see comments to serialize( netCDF::NcGroup & ).
  * @{ */
 
  /// print information about the Block on an ostream with the given verbosity
@@ -4303,7 +4305,7 @@ class BlockConfig : public Configuration
   * ignored, if it shorted then all missing sub-BlockConfig are treated as
   * nullptr (default configuration). */
 
- virtual void deserialize( netCDF::NcGroup && group ) override;
+ virtual void deserialize( netCDF::NcGroup & group ) override;
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
  /// destructor: deletes all sub-BlockConfig
@@ -4344,7 +4346,7 @@ class BlockConfig : public Configuration
   * format of a BlockConfig. See BlockConfig::deserialize( netCDF::NcGroup )
   * for details of the format of the created netCDF group. */
  
- virtual void serialize( netCDF::NcGroup && group ) const override;
+ virtual void serialize( netCDF::NcGroup & group ) const override;
 
 /*--------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
 
@@ -4512,7 +4514,7 @@ class BlockSolverConfig : public Configuration
   * simply ignored, if it shorted then all missing sub-BlockConfig are
   * treated as nullptr (default configuration). */
 
- virtual void deserialize( netCDF::NcGroup && group ) override;
+ virtual void deserialize( netCDF::NcGroup & group ) override;
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
  /// destructor
@@ -4548,7 +4550,7 @@ class BlockSolverConfig : public Configuration
   * BlockSolverConfig::deserialize( netCDF::NcGroup ) for details of the
   * format of the created netCDF group. */
  
- virtual void serialize( netCDF::NcGroup && group ) const override;
+ virtual void serialize( netCDF::NcGroup & group ) const override;
 
 /*--------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
 

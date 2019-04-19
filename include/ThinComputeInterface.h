@@ -759,7 +759,7 @@ class ComputeConfig : public Configuration
   * defined. The "extra" group may not exist, in which case the corresponding
   * Configuration object is set to a nullptr. */
 
- virtual void deserialize( netCDF::NcGroup && group ) override;
+ virtual void deserialize( netCDF::NcGroup & group ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// extends Configuration::serialize( netCDF::NcGroup )
@@ -768,7 +768,7 @@ class ComputeConfig : public Configuration
   * ComputeConfig::deserialize( netCDF::NcGroup ) for details of the format
   * of the created netCDF group. */
 
- virtual void serialize( netCDF::NcGroup && group ) const override;
+ virtual void serialize( netCDF::NcGroup & group ) const override;
 
 /*--------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
 

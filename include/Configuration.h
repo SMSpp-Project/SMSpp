@@ -240,7 +240,7 @@ class Configuration
 				     const unsigned int idx = 0 )
  {
   try {
-   netCDF::NcGroupAtt gtype = f.getAtt( "SMS++_file_type" );
+   auto gtype = f.getAtt( "SMS++_file_type" );
    if( gtype.isNull() )
     return( nullptr );
 
@@ -250,8 +250,8 @@ class Configuration
    if( type != eConfigFile )
     return( nullptr );
 
-   return( new_Configuration( f.getGroup( "Config_" + std::to_string( idx ) )
-			      ) );
+   auto cg = f.getGroup( "Config_" + std::to_string( idx ) );
+   return( new_Configuration( cg ) );
    }
   catch( netCDF::exceptions::NcException & e ) {
    std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
@@ -279,7 +279,7 @@ class Configuration
   * different name from deserialize( netCDF::NcGroup ) (since the signature
   * is the same but for the return type). */
 
- static Configuration * new_Configuration( netCDF::NcGroup && group )
+ static Configuration * new_Configuration( netCDF::NcGroup & group )
  {
   try {
    if( group.isNull() )
@@ -292,7 +292,7 @@ class Configuration
    std::string cfgtype;
    gtype.getValues( cfgtype );
    Configuration * result = new_Configuration( cfgtype );
-   result->deserialize( std::move( group ) );
+   result->deserialize( group );
    return( result );
    }
   catch( netCDF::exceptions::NcException & e ) {
@@ -324,7 +324,7 @@ class Configuration
   * :Configuration class, and exception should be thrown if anything goes
   * wrong in the process. */
 
- virtual void deserialize( netCDF::NcGroup && group )
+ virtual void deserialize( netCDF::NcGroup & group )
  {
   #ifndef NDEBUG
    netCDF::NcGroupAtt gtype = group.getAtt( "type" );
@@ -465,7 +465,8 @@ class Configuration
   if( type != eConfigFile )
    throw( std::invalid_argument( "invalid SMS++ netCDF file type" ) );
 
-  serialize( f.addGroup( "Config_" + std::to_string( f.getGroupCount() ) ) );
+  auto cg = f.addGroup( "Config_" + std::to_string( f.getGroupCount() ) );
+  serialize( cg );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -485,7 +486,7 @@ class Configuration
   * The method of the base class just creates and fills the "name" attribute
   * (with the right name, thanks to the name() method). */
 
- virtual void serialize( netCDF::NcGroup && group ) const
+ virtual void serialize( netCDF::NcGroup & group ) const
  {
   group.putAtt( "type" , name() );
   }
@@ -581,16 +582,18 @@ class Configuration
  *
  * in SMSTypedefs.h. For convenience, in Configuration.cpp this is done for
  *
- *  - SimpleConfiguration<int>
- *  - SimpleConfiguration<double>
- *  - SimpleConfiguration< std::pair<int,int> >
- *  - SimpleConfiguration< std::pair<double,double> >
- *  - SimpleConfiguration< std::pair<int,double> >
- *  - SimpleConfiguration< std::pair<double,int> >
- *  - SimpleConfiguration< std::vector<int> >
- *  - SimpleConfiguration< std::vector<double> >
- *  - SimpleConfiguration< std::list<int> >
- *  - SimpleConfiguration< std::list<double> >
+ *  - SimpleConfiguration< int >
+ *  - SimpleConfiguration< double >
+ *  - SimpleConfiguration< std::pair< int , int > >
+ *  - SimpleConfiguration< std::pair< double , double > >
+ *  - SimpleConfiguration< std::pair< int , double > >
+ *  - SimpleConfiguration< std::pair< double , int > >
+ *  - SimpleConfiguration< std::vector< int > >
+ *  - SimpleConfiguration< std::vector< double > >
+ *  - SimpleConfiguration< std::list< int > >
+ *  - SimpleConfiguration< std::list< double > >
+ *  - SimpleConfiguration< std::pair< Configuration * , Configuration * > >
+ *  - SimpleConfiguration< std::vector< Configuration * > >
  *
  * but whomever is using a different SimpleConfiguration<something> for the
  * first time has the responsibility of doing it for their variant.
@@ -623,7 +626,7 @@ class SimpleConfiguration : public Configuration
   f_value = old.f_value;
   }
   
- virtual void deserialize( netCDF::NcGroup && group ) override;
+ virtual void deserialize( netCDF::NcGroup & group ) override;
 
  virtual ~SimpleConfiguration() { }  ///< destructor: does nothing
 
@@ -635,7 +638,7 @@ class SimpleConfiguration : public Configuration
 
 /*--------------------------------------------------------------------------*/
 
- virtual void serialize( netCDF::NcGroup && group ) const override;
+ virtual void serialize( netCDF::NcGroup & group ) const override;
 
 /*---------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
 

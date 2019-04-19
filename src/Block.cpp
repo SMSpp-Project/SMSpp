@@ -671,7 +671,7 @@ BlockConfig * BlockConfig::deserialize( netCDF::NcFile & f ,
   else
    cg = f.getGroup( "Config_" + std::to_string( idx ) );
 
-  auto result = new_Configuration( std::move( cg ) );
+  auto result = new_Configuration( cg );
   auto bcresult = dynamic_cast< BlockConfig * >( result );
   if( ! bcresult ) {
    delete result;
@@ -703,8 +703,9 @@ void BlockConfig::serialize( netCDF::NcFile & f , const int type ) const
   return;
   }
 
- serialize( ( f.addGroup( "Config_" + std::to_string( f.getGroupCount() )
-			  ) ).addGroup( "BlockConfig" ) );
+ auto cg = ( f.addGroup( "Config_" + std::to_string( f.getGroupCount() )
+			 ) ).addGroup( "BlockConfig" );
+ serialize( cg );
 
  }  // end( BlockConfig::serialize( file ) )
 
@@ -867,53 +868,68 @@ void BlockConfig::load( std::istream &input )
 
 /*--------------------------------------------------------------------------*/
 
-void BlockConfig::serialize( netCDF::NcGroup && group ) const
+void BlockConfig::serialize( netCDF::NcGroup & group ) const
 {
- Configuration::serialize( std::move( group ) );
+ Configuration::serialize( group );
 
- if( f_static_constraints_Configuration )
-  f_static_constraints_Configuration->serialize(
-				    group.addGroup( "static_constraints" ) );
+ if( f_static_constraints_Configuration ) {
+  auto cg = group.addGroup( "static_constraints" );
+  f_static_constraints_Configuration->serialize( cg );
+  }
 
- if( f_dynamic_constraints_Configuration )
-  f_dynamic_constraints_Configuration->serialize(
-                                   group.addGroup( "dynamic_constraints" ) );
+ if( f_dynamic_constraints_Configuration ) {
+  auto cg = group.addGroup( "dynamic_constraints" );
+  f_dynamic_constraints_Configuration->serialize( cg );
+  }
 
- if( f_static_variables_Configuration )
-  f_static_variables_Configuration->serialize(
-				      group.addGroup( "static_variables" ) );
+ if( f_static_variables_Configuration ) {
+  auto cg = group.addGroup( "static_variables" );
+  f_static_variables_Configuration->serialize( cg );
+  }
 
- if( f_dynamic_variables_Configuration )
-  f_dynamic_variables_Configuration->serialize(
-				     group.addGroup( "dynamic_variables" ) );
+ if( f_dynamic_variables_Configuration ) {
+  auto cg = group.addGroup( "dynamic_variables" );
+  f_dynamic_variables_Configuration->serialize( cg );
+  }
 
- if( f_objective_Configuration )
-  f_objective_Configuration->serialize( group.addGroup( "objective" ) );
+ if( f_objective_Configuration ) {
+  auto cg = group.addGroup( "objective" );
+  f_objective_Configuration->serialize( cg );
+  }
 
- if( f_is_feasible_Configuration )
-  f_is_feasible_Configuration->serialize( group.addGroup( "is_feasible" ) );
+ if( f_is_feasible_Configuration ) {
+  auto cg = group.addGroup( "is_feasible" );
+  f_is_feasible_Configuration->serialize( cg );
+  }
 
- if( f_is_optimal_Configuration )
-  f_is_optimal_Configuration->serialize( group.addGroup( "is_optimal" ) );
+ if( f_is_optimal_Configuration ) {
+  auto cg = group.addGroup( "is_optimal" );
+  f_is_optimal_Configuration->serialize( cg );
+  }
 
- if( f_solution_Configuration )
-  f_solution_Configuration->serialize( group.addGroup( "solution" ) );
+ if( f_solution_Configuration ) {
+  auto cg = group.addGroup( "solution" );
+  f_solution_Configuration->serialize( cg );
+  }
 
- if( f_extra_Configuration )
-  f_extra_Configuration->serialize( group.addGroup( "extra" ) );
+ if( f_extra_Configuration ) {
+  auto cg = group.addGroup( "extra" );
+  f_extra_Configuration->serialize( cg );
+  }
 
  group.addDim( "n_sub_Block" , v_sub_BlockConfig.size() );
 
  for( size_t i = 0 ; i < v_sub_BlockConfig.size() ; ++i )
-  if( v_sub_BlockConfig[ i ] )
-   v_sub_BlockConfig[ i ]->serialize(
-	         group.addGroup( "sub-BlockConfig_" + std::to_string( i ) ) );
+  if( v_sub_BlockConfig[ i ] ) {
+   auto cg =  group.addGroup( "sub-BlockConfig_" + std::to_string( i ) );
+   v_sub_BlockConfig[ i ]->serialize( cg );
+   }
 
  }  // end( BlockConfig::serialize( group ) )
 
 /*--------------------------------------------------------------------------*/
 
-void BlockConfig::deserialize( netCDF::NcGroup && group )
+void BlockConfig::deserialize( netCDF::NcGroup & group )
 {
  if( f_static_constraints_Configuration ||
      f_dynamic_constraints_Configuration ||
@@ -929,40 +945,42 @@ void BlockConfig::deserialize( netCDF::NcGroup && group )
 
  name.getValues( f_name );
 
- f_static_constraints_Configuration = new_Configuration(
-				    group.getGroup( "static_constraints" ) );
+ auto cg = group.getGroup( "static_constraints" );
+ f_static_constraints_Configuration = new_Configuration( cg );
 
- f_dynamic_constraints_Configuration = new_Configuration(
-				   group.getGroup( "dynamic_constraints" ) );
+ cg = group.getGroup( "dynamic_constraints" );
+ f_dynamic_constraints_Configuration = new_Configuration( cg );
 
- f_static_variables_Configuration = new_Configuration(
-				      group.getGroup( "static_variables" ) );
+ cg = group.getGroup( "static_variables" );
+ f_static_variables_Configuration = new_Configuration( cg );
 
- f_dynamic_variables_Configuration = new_Configuration(
-				     group.getGroup( "dynamic_variables" ) );
+ cg = group.getGroup( "dynamic_variables" );
+ f_dynamic_variables_Configuration = new_Configuration( cg );
 
- f_objective_Configuration = new_Configuration(
-					     group.getGroup( "objective" ) );
+ cg = group.getGroup( "objective" );
+ f_objective_Configuration = new_Configuration( cg );
 
- f_is_feasible_Configuration = new_Configuration(
-					   group.getGroup( "is_feasible" ) );
+ cg = group.getGroup( "is_feasible" );
+ f_is_feasible_Configuration = new_Configuration( cg );
 
- f_is_optimal_Configuration = new_Configuration(
-					    group.getGroup( "is_optimal" ) );
+ cg = group.getGroup( "is_optimal" );
+ f_is_optimal_Configuration = new_Configuration( cg );
 
- f_solution_Configuration = new_Configuration( group.getGroup( "solution" ) );
+ cg = group.getGroup( "solution" );
+ f_solution_Configuration = new_Configuration( cg );
 
- f_extra_Configuration = new_Configuration( group.getGroup( "extra" ) );
+ cg = group.getGroup( "extra" );
+ f_extra_Configuration = new_Configuration( cg );
 
  size_t size = ( group.getDim( "n_sub_Block" ) ).getSize();
 
  v_sub_BlockConfig.resize( size );
 
- for( size_t i = 0 ; i < size ; ++i )
+ for( size_t i = 0 ; i < size ; ++i ) {
+  cg = group.getGroup( "sub-BlockConfig_" + std::to_string( i ) );
   v_sub_BlockConfig[ i ] = dynamic_cast< BlockConfig *> (
-		   new_Configuration( group.getGroup( "sub-BlockConfig_" +
-						      std::to_string( i ) ) )
-							 );
+						   new_Configuration( cg ) );
+  }
  }  // end( BlockConfig::deserialize( group ) )
 
 /*--------------------------------------------------------------------------*/
@@ -1013,7 +1031,7 @@ BlockSolverConfig * BlockSolverConfig::deserialize( netCDF::NcFile & f ,
   else
    cg = f.getGroup( "Config_" + std::to_string( idx ) );
 
-  auto result = new_Configuration( std::move( cg ) );
+  auto result = new_Configuration( cg );
   auto bcresult = dynamic_cast< BlockSolverConfig * >( result );
   if( ! bcresult ) {
    delete result;
@@ -1046,8 +1064,9 @@ void BlockSolverConfig::serialize( netCDF::NcFile & f , const int type )
   return;
   }
 
- serialize( ( f.addGroup( "Config_" + std::to_string( f.getGroupCount() )
-			  ) ).addGroup( "SolverConfig" ) );
+ auto cg = ( f.addGroup( "Config_" + std::to_string( f.getGroupCount() )
+			 ) ).addGroup( "SolverConfig" );
+ serialize( cg );
 
  }  // end( BlockSolverConfig::serialize( file ) )
 
@@ -1122,9 +1141,9 @@ void BlockSolverConfig::load( std::istream &input )
 
 /*--------------------------------------------------------------------------*/
 
-void BlockSolverConfig::serialize( netCDF::NcGroup && group ) const
+void BlockSolverConfig::serialize( netCDF::NcGroup & group ) const
 {
- Configuration::serialize( std::move( group ) );
+ Configuration::serialize( group );
 
  netCDF::NcDim sd = group.addDim( "n_SolverConfig" , v_SolverConfigs.size() );
  group.addDim( "n_BlockSolverConfig" , v_BlockSolverConfigs.size() );
@@ -1135,25 +1154,25 @@ void BlockSolverConfig::serialize( netCDF::NcGroup && group ) const
  for( size_t i = 0 ; i < v_SolverConfigs.size() ; ++i ) {
   idx[ 0 ] = i;
   slvnms.putVar( idx , v_SolverNames[ i ] );
-  v_SolverConfigs[ i ]->serialize( group.addGroup(
-		                   "SolverConfig_" + std::to_string( i ) ) );
+  auto sc = group.addGroup( "SolverConfig_" + std::to_string( i ) );
+  v_SolverConfigs[ i ]->serialize( sc );
   }
 
- for( size_t i = 0 ; i < v_BlockSolverConfigs.size() ; ++i )
-  v_BlockSolverConfigs[ i ]->serialize( group.addGroup(
-		              "BlockSolverConfig_" + std::to_string( i ) ) );
-
+ for( size_t i = 0 ; i < v_BlockSolverConfigs.size() ; ++i ) {
+  auto bc = group.addGroup( "BlockSolverConfig_" + std::to_string( i ) );
+  v_BlockSolverConfigs[ i ]->serialize( bc );
+  }
  }  // end( BlockSolverConfig::serialize( group ) )
 
 /*--------------------------------------------------------------------------*/
 
-void BlockSolverConfig::deserialize( netCDF::NcGroup && group )
+void BlockSolverConfig::deserialize( netCDF::NcGroup & group )
 {
  if( v_SolverNames.size() || v_SolverConfigs.size() ||
      v_BlockSolverConfigs.size() )
   throw( std::logic_error( "deserializing a non-empty BlockSolverConfig" ) );
 
- Configuration::deserialize( std::move( group ) );
+ Configuration::deserialize( group );
 
  size_t slvsize = ( group.getDim( "n_SolverConfig" ) ).getSize();
  size_t blkslvsize = ( group.getDim( "n_BlockSolverConfig" ) ).getSize();
@@ -1169,18 +1188,16 @@ void BlockSolverConfig::deserialize( netCDF::NcGroup && group )
   char * str;
   slvnms.getVar( idx , & str );
   v_SolverNames[ i ] = std::string( str );
+  auto sc = group.getGroup( "SolverConfig_" + std::to_string( i ) );
   v_SolverConfigs[ i ] = dynamic_cast< ComputeConfig * >(
-                  new_Configuration( group.getGroup( "SolverConfig_" +
-						     std::to_string( i ) ) )
-							 );
+                                                   new_Configuration( sc ) );
   }
 
- for( size_t i = 0 ; i < blkslvsize ; ++i )
+ for( size_t i = 0 ; i < blkslvsize ; ++i ) {
+  auto bc = group.getGroup( "BlockSolverConfig_" + std::to_string( i ) );
   v_BlockSolverConfigs[ i ] = dynamic_cast< BlockSolverConfig * >(
-	          new_Configuration( group.getGroup( "BlockSolverConfig_" +
-						     std::to_string( i ) ) )
-								  );
-
+	                                            new_Configuration( bc ) );
+  }
  }  // end( BlockSolverConfig::deserialize( group ) )
 
 /*--------------------------------------------------------------------------*/

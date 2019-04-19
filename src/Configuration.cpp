@@ -38,20 +38,37 @@ using namespace std;
 
 // register various versions of SimpleConfiguration<> to the factory
 
-SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration<int> );
-SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration<double> );
-using SimpleConfig_i_i = SimpleConfiguration< std::pair<int,int> >;
+SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< int > );
+
+SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< double > );
+
+using SimpleConfig_i_i = SimpleConfiguration< std::pair< int , int > >;
 SMSpp_insert_in_factory_cpp_0_t( SimpleConfig_i_i );
-using SimpleConfig_d_d = SimpleConfiguration< std::pair<double,double> >;
+
+using SimpleConfig_d_d = SimpleConfiguration< std::pair< double , double > >;
 SMSpp_insert_in_factory_cpp_0_t( SimpleConfig_d_d );
-using SimpleConfig_i_d = SimpleConfiguration< std::pair<int,double> >;
+
+using SimpleConfig_i_d = SimpleConfiguration< std::pair< int , double > >;
 SMSpp_insert_in_factory_cpp_0_t( SimpleConfig_i_d );
-using SimpleConfig_d_i = SimpleConfiguration< std::pair<double,int> >;
+
+using SimpleConfig_d_i = SimpleConfiguration< std::pair< double , int > >;
 SMSpp_insert_in_factory_cpp_0_t( SimpleConfig_d_i );
-SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::vector<int> > );
-SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::vector<double> > );
-SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::list<int> > );
-SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::list<double> > );
+
+SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::vector< int > > );
+
+SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration<
+				                   std::vector< double > > );
+
+SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::list< int > > );
+
+SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::list< double > > );
+
+using SimpleConfig_p_p = SimpleConfiguration<
+                            std::pair< Configuration * , Configuration * > >;
+SMSpp_insert_in_factory_cpp_0_t( SimpleConfig_p_p );
+
+SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration<
+				          std::vector< Configuration * > > );
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- FUNCTIONS --------------------------------*/
@@ -75,36 +92,36 @@ Configuration::ConfigurationFactoryMap & Configuration::f_factory( void )
 // "basic" versions of SimpleConfiguration
 
 template<>
-void SimpleConfiguration<int>::serialize( netCDF::NcGroup && group ) const
+void SimpleConfiguration<int>::serialize( netCDF::NcGroup & group ) const
 {
- Configuration::serialize( std::move( group ) );
+ Configuration::serialize( group );
  ( group.addVar( "value" , netCDF::NcInt() ) ).putVar( & f_value );
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 template<>
-void SimpleConfiguration<int>::deserialize( netCDF::NcGroup && group )
+void SimpleConfiguration<int>::deserialize( netCDF::NcGroup & group )
 {
- Configuration::deserialize( std::move( group ) );
+ Configuration::deserialize( group );
  ( group.getVar( "value" ) ).getVar( & f_value );
  }
 
 /*--------------------------------------------------------------------------*/
 
 template<>
-void SimpleConfiguration<double>::serialize( netCDF::NcGroup && group ) const
+void SimpleConfiguration<double>::serialize( netCDF::NcGroup & group ) const
 {
- Configuration::serialize( std::move( group ) );
+ Configuration::serialize( group );
  ( group.addVar( "value" , netCDF::NcDouble() ) ).putVar( & f_value );
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 template<>
-void SimpleConfiguration<double>::deserialize( netCDF::NcGroup && group )
+void SimpleConfiguration<double>::deserialize( netCDF::NcGroup & group )
 {
- Configuration::deserialize( std::move( group ) );
+ Configuration::deserialize( group );
  ( group.getVar( "value" ) ).getVar( & f_value );
  }
 
@@ -112,9 +129,9 @@ void SimpleConfiguration<double>::deserialize( netCDF::NcGroup && group )
 
 template<>
 void SimpleConfiguration< std::pair<int,int> >::serialize(
-					      netCDF::NcGroup && group ) const
+					      netCDF::NcGroup & group ) const
 {
- Configuration::serialize( std::move( group ) );
+ Configuration::serialize( group );
  ( group.addVar( "value_f" , netCDF::NcInt() ) ).putVar( & f_value.first );
  ( group.addVar( "value_s" , netCDF::NcInt() ) ).putVar( & f_value.second );
  }
@@ -123,10 +140,9 @@ void SimpleConfiguration< std::pair<int,int> >::serialize(
 
 template<>
 void SimpleConfiguration< std::pair<int,int> >::deserialize(
-						    netCDF::NcGroup && group )
- 
+						     netCDF::NcGroup & group )
 {
- Configuration::deserialize( std::move( group ) );
+ Configuration::deserialize( group );
  ( group.getVar( "value_f" ) ).getVar( & f_value.first );
  ( group.getVar( "value_s" ) ).getVar( & f_value.second );
  }
@@ -135,9 +151,9 @@ void SimpleConfiguration< std::pair<int,int> >::deserialize(
 
 template<>
 void SimpleConfiguration< std::pair<double,double> >::serialize(
-					     netCDF::NcGroup && group ) const
+					      netCDF::NcGroup & group ) const
 {
- Configuration::serialize( std::move( group ) );
+ Configuration::serialize( group );
  ( group.addVar( "value_f" , netCDF::NcDouble() ) ).putVar( & f_value.first );
  ( group.addVar( "value_s" , netCDF::NcDouble() ) ).putVar( & f_value.second );
  }
@@ -146,10 +162,10 @@ void SimpleConfiguration< std::pair<double,double> >::serialize(
 
 template<>
 void SimpleConfiguration< std::pair<double,double> >::deserialize(
-						    netCDF::NcGroup && group )
+						     netCDF::NcGroup & group )
  
 {
- Configuration::deserialize( std::move( group ) );
+ Configuration::deserialize( group );
  ( group.getVar( "value_f" ) ).getVar( & f_value.first );
  ( group.getVar( "value_s" ) ).getVar( & f_value.second );
  }
@@ -158,9 +174,9 @@ void SimpleConfiguration< std::pair<double,double> >::deserialize(
 
 template<>
 void SimpleConfiguration< std::pair<int,double> >::serialize(
-					     netCDF::NcGroup && group ) const
+					      netCDF::NcGroup & group ) const
 {
- Configuration::serialize( std::move( group ) );
+ Configuration::serialize( group );
  ( group.addVar( "value_f" , netCDF::NcInt() ) ).putVar( & f_value.first );
  ( group.addVar( "value_s" , netCDF::NcDouble() ) ).putVar( & f_value.second );
  }
@@ -169,10 +185,9 @@ void SimpleConfiguration< std::pair<int,double> >::serialize(
 
 template<>
 void SimpleConfiguration< std::pair<int,double> >::deserialize(
-						    netCDF::NcGroup && group )
- 
+						     netCDF::NcGroup & group )
 {
- Configuration::deserialize( std::move( group ) );
+ Configuration::deserialize( group );
  ( group.getVar( "value_f" ) ).getVar( & f_value.first );
  ( group.getVar( "value_s" ) ).getVar( & f_value.second );
  }
@@ -181,9 +196,9 @@ void SimpleConfiguration< std::pair<int,double> >::deserialize(
 
 template<>
 void SimpleConfiguration< std::pair<double,int> >::serialize(
-					     netCDF::NcGroup && group ) const
+					      netCDF::NcGroup & group ) const
 {
- Configuration::serialize( std::move( group ) );
+ Configuration::serialize( group );
  ( group.addVar( "value_f" , netCDF::NcDouble() ) ).putVar( & f_value.first );
  ( group.addVar( "value_s" , netCDF::NcInt() ) ).putVar( & f_value.second );
  }
@@ -192,10 +207,9 @@ void SimpleConfiguration< std::pair<double,int> >::serialize(
 
 template<>
 void SimpleConfiguration< std::pair<double,int> >::deserialize(
-						    netCDF::NcGroup && group )
- 
+						     netCDF::NcGroup & group )
 {
- Configuration::deserialize( std::move( group ) );
+ Configuration::deserialize( group );
  ( group.getVar( "value_f" ) ).getVar( & f_value.first );
  ( group.getVar( "value_s" ) ).getVar( & f_value.second );
  }
@@ -204,10 +218,10 @@ void SimpleConfiguration< std::pair<double,int> >::deserialize(
 
 template<>
 void SimpleConfiguration< std::vector<int> >::serialize(
-					     netCDF::NcGroup && group ) const
+					      netCDF::NcGroup & group ) const
 {
- Configuration::serialize( std::move( group ) );
- netCDF::NcDim sz = group.addDim( "size" , f_value.size() );
+ Configuration::serialize( group );
+ auto sz = group.addDim( "size" , f_value.size() );
  std::vector<size_t> startp = { 0 };
  std::vector<size_t> countp = { f_value.size() };
  ( group.addVar( "value" , netCDF::NcInt() , sz ) ).putVar( startp , countp ,
@@ -218,10 +232,15 @@ void SimpleConfiguration< std::vector<int> >::serialize(
 
 template<>
 void SimpleConfiguration< std::vector<int> >::deserialize(
-						   netCDF::NcGroup && group )
+						    netCDF::NcGroup & group )
 {
- Configuration::deserialize( std::move( group ) );
- size_t size = ( group.getDim( "size" ) ).getSize();
+ Configuration::deserialize( group );
+ auto dim = group.getDim( "size" );
+ if( dim.isNull() ) {
+  f_value.clear();
+  return;
+  }
+ size_t size = dim.getSize();
  f_value.resize( size );
  std::vector<size_t> start = { 0 };
  std::vector<size_t> count = { size };
@@ -232,10 +251,10 @@ void SimpleConfiguration< std::vector<int> >::deserialize(
 
 template<>
 void SimpleConfiguration< std::vector<double> >::serialize(
-					      netCDF::NcGroup && group ) const
+					       netCDF::NcGroup & group ) const
 {
- Configuration::serialize( std::move( group ) );
- netCDF::NcDim sz = group.addDim( "size" , f_value.size() );
+ Configuration::serialize( group );
+ auto sz = group.addDim( "size" , f_value.size() );
  std::vector<size_t> startp = { 0 };
  std::vector<size_t> countp = { f_value.size() };
  ( group.addVar( "value" , netCDF::NcDouble() , sz ) ).putVar( startp ,
@@ -248,10 +267,15 @@ void SimpleConfiguration< std::vector<double> >::serialize(
 
 template<>
 void SimpleConfiguration< std::vector<double> >::deserialize(
-						   netCDF::NcGroup && group )
+						    netCDF::NcGroup & group )
 {
- Configuration::deserialize( std::move( group ) );
- size_t size = ( group.getDim( "size" ) ).getSize();
+ Configuration::deserialize( group );
+ auto dim = group.getDim( "size" );
+ if( dim.isNull() ) {
+  f_value.clear();
+  return;
+  }
+ size_t size = dim.getSize();
  f_value.resize( size );
  std::vector<size_t> start = { 0 };
  std::vector<size_t> count = { size };
@@ -262,12 +286,12 @@ void SimpleConfiguration< std::vector<double> >::deserialize(
 
 template<>
 void SimpleConfiguration< std::list<int> >::serialize(
-					     netCDF::NcGroup && group ) const
+					      netCDF::NcGroup & group ) const
 {
- Configuration::serialize( std::move( group ) );
- netCDF::NcDim sz = group.addDim( "size" , f_value.size() );
+ Configuration::serialize( group );
+ auto sz = group.addDim( "size" , f_value.size() );
  auto it = f_value.begin();
- netCDF::NcVar var = group.addVar( "value" , netCDF::NcInt() , sz );
+ auto var = group.addVar( "value" , netCDF::NcInt() , sz );
  for( size_t i = 0 ; i < f_value.size() ; )
   var.putVar( { i++ } , *(it++) );
  }
@@ -276,12 +300,15 @@ void SimpleConfiguration< std::list<int> >::serialize(
 
 template<>
 void SimpleConfiguration< std::list<int> >::deserialize(
-						    netCDF::NcGroup && group )
+						     netCDF::NcGroup & group )
 {
- Configuration::deserialize( std::move( group ) );
- size_t size = ( group.getDim( "size" ) ).getSize();
+ Configuration::deserialize( group );
  f_value.clear();
- netCDF::NcVar var = group.getVar( "value" );
+ auto dim = group.getDim( "size" );
+ if( dim.isNull() )
+  return;
+ size_t size = dim.getSize();
+ auto var = group.getVar( "value" );
  for( size_t i = 0 ; i < size ; ) {
   int val;
   var.getVar( { i++ } , &val );
@@ -293,12 +320,12 @@ void SimpleConfiguration< std::list<int> >::deserialize(
 
 template<>
 void SimpleConfiguration< std::list<double> >::serialize(
-					     netCDF::NcGroup && group ) const
+					      netCDF::NcGroup & group ) const
 {
- Configuration::serialize( std::move( group ) );
- netCDF::NcDim sz = group.addDim( "size" , f_value.size() );
+ Configuration::serialize( group );
+ auto sz = group.addDim( "size" , f_value.size() );
  auto it = f_value.begin();
- netCDF::NcVar var = group.addVar( "value" , netCDF::NcDouble() , sz );
+ auto var = group.addVar( "value" , netCDF::NcDouble() , sz );
  for( size_t i = 0 ; i < f_value.size() ; )
   var.putVar( { i++ } , *(it++) );
  }
@@ -307,16 +334,123 @@ void SimpleConfiguration< std::list<double> >::serialize(
 
 template<>
 void SimpleConfiguration< std::list<double> >::deserialize(
-					            netCDF::NcGroup && group )
+					             netCDF::NcGroup & group )
 {
- Configuration::deserialize( std::move( group ) );
- size_t size = ( group.getDim( "size" ) ).getSize();
+ Configuration::deserialize( group );
  f_value.clear();
- netCDF::NcVar var = group.getVar( "value" );
+ auto dim = group.getDim( "size" );
+ if( dim.isNull() )
+  return;
+ size_t size = dim.getSize();
+ auto var = group.getVar( "value" );
  for( size_t i = 0 ; i < size ; ) {
   double val;
   var.getVar( { i++ } , &val );
   f_value.push_back( val );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+template<>
+void SimpleConfiguration< std::pair< Configuration * , Configuration * >
+			  >::serialize( netCDF::NcGroup & group ) const
+{
+ Configuration::serialize( group );
+ if( f_value.first ) {
+  auto cg = group.addGroup( "value_f" );
+  f_value.first->serialize( cg );
+  }
+ if( f_value.second ) {
+  auto cg = group.addGroup( "value_s" );
+  f_value.second->serialize( cg );
+  }
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::pair< Configuration * , Configuration * >
+			  >::deserialize( netCDF::NcGroup & group )
+{
+ Configuration::deserialize( group );
+ auto sc = group.getGroup( "value_f" );
+ f_value.first = new_Configuration( sc );
+ sc = group.getGroup( "value_s" );
+ f_value.second = new_Configuration( sc );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::pair< Configuration * , Configuration * >
+			  >::load( std::istream &input )
+{
+ std::string name;
+ input >> eatcomments >> name;
+ f_value.first = new_Configuration( name );
+ input >> *(f_value.first);
+ input >> eatcomments >> name;
+ f_value.second = new_Configuration( name );
+ input >> *(f_value.second);
+ }
+
+/*--------------------------------------------------------------------------*/
+
+template<>
+void SimpleConfiguration< std::vector< Configuration * > >::serialize(
+					       netCDF::NcGroup & group ) const
+{
+ Configuration::serialize( group );
+ auto sz = group.addDim( "size" , f_value.size() );
+ 
+ for( int i = 0 ; i < f_value.size() ; ++i ) {
+  auto ci = group.addGroup( "Config_" + std::to_string( i ) );
+  f_value[ i ]->serialize( ci );
+  }
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::vector< Configuration * > >::deserialize(
+						    netCDF::NcGroup & group )
+{
+ Configuration::deserialize( group );
+ auto dim = group.getDim( "size" );
+ for( auto ptr : f_value )
+  delete( ptr );
+ if( dim.isNull() ) {
+  f_value.clear();
+  return;
+  }
+ size_t size = dim.getSize();
+ f_value.resize( size );
+ for( int i = 0 ; i < f_value.size() ; ++i ) {
+  auto ci = group.getGroup( "Config_" + std::to_string( i ) );
+  f_value[ i ] = new_Configuration( ci );
+  }
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::vector< Configuration * >
+			  >::load( std::istream &input )
+{
+ for( auto ptr : f_value )
+  delete( ptr );
+ int dim;
+ input >> eatcomments >> dim;
+ if( ! dim ) {
+  f_value.clear();
+  return;
+  }
+ for( int i = 0 ; i < dim ; ++i ) {
+  std::string name;
+  input >> eatcomments >> name;
+  f_value[ i ] = new_Configuration( name );
+  input >> *(f_value[ i ]);
   }
  }
 
