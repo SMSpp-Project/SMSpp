@@ -4148,11 +4148,11 @@ class BlockModAD : public AModification
  ///< list describing the Constraints / Variables added / removed
  /**< this boost::any field contains two different things:
   *
-  * - for an addition, it contains a std::vector of either a derived class
+  * - for an addition, it contains either a pointer, or a std::vector of
+  *   pointers, or a boost::multi_array of pointers to some derived class
   *   from Constraint or Variable (you cannot make objects of the base
-  *   class), or pointers to either Constraint, or Variable, or a derived
-  *   class from one of these. The vector holds the "names" (pointers) of
-  *   the things having just been added
+  *   class), holds the "names" (pointers) of the things having just been
+  *   added
   *
   * - for a deletion, it contains a std::list of either a derived class
   *   from either Constraint or Variable (you cannot make objects of the
