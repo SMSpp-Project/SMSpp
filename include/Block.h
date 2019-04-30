@@ -779,7 +779,7 @@ class Block : public Observer {
 
    std::string blocktype;
    gtype.getValues( blocktype );
-   Block * result = new_Block( blocktype );
+   Block * result = new_Block( blocktype , father );
    result->deserialize( group , father );
    return( result );
    }
