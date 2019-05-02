@@ -6,7 +6,7 @@
  *
  * \version 0.20
  *
- * \date 27 - 03 - 2019
+ * \date 02 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -479,7 +479,6 @@ void LinearFunction::modify_coefficients( c_v_coeff_it NCoef , c_Index strt ,
   Function::Vec_FunctionValue delta( stop - strt );
 
   auto vpit = vp.begin();
-  auto deltait = delta.begin();
   Index i = 0;
 
   while( strtit < stopit ) {
