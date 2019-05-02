@@ -39,6 +39,7 @@
 #include "FRealObjective.h"
 #include "LinearFunction.h"
 #include "Solution.h"
+#include "Configuration.h"
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -48,10 +49,12 @@
 namespace SMSpp_di_unipi_it
 {
 
+ class LagBConfig;  // forward definition of LagBConfig
+
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
-/** @defgroup LFun_CLASSES Classes in LagBFunction.h
+/** @defgroup LagFun_CLASSES Classes in LagBFunction.h
  *  @{ */
 
 /*--------------------------------------------------------------------------*/
@@ -291,6 +294,9 @@ class LagBFunction : public C05Function , public Block {
    public:
 
    v_iterator( v_dual_pair::iterator itr ) : itr_( itr ) { }
+   virtual v_iterator * clone( void ) override {
+    return( new v_iterator( itr_ ) );
+    }
 
    virtual void operator++( void ) override final { (itr_)++; }
    virtual reference operator*( void ) const override final {
@@ -336,6 +342,9 @@ class LagBFunction : public C05Function , public Block {
    public:
 
    v_const_iterator( v_dual_pair::const_iterator itr ) : itr_( itr ) { }
+   virtual v_const_iterator * clone( void ) override {
+    return( new v_const_iterator( itr_ ) );
+    }
 
    virtual void operator++( void ) override final { (itr_)++; }
    virtual reference operator*( void ) const override final {
@@ -383,23 +392,16 @@ class LagBFunction : public C05Function , public Block {
   /// constructor of LagBFunction: does nothing
 
  /// constructor of LagBFunction, taking the static Lagrangian pairs.
- /** Constructor of LagBFunction. It accepts a vector of dual pairs <y, g(x)>
-  * of the form < pointer to ColVariable , pointer to Function >, and a bool
-  * telling if the given vector is already ordered by ColVariable
-  * "name = pointer" or not, in which case it is ordered. As the the && tells,
-  * the dual pairs are "consumed" by the constructor
-  * and its resource become property of the LagBFunction object.
-  *
-  * By default the vector of dual pairs is assumed to *not* be ordered. */
+ /** Constructor of LagBFunction. It accepts a pointer both to a Block and
+  * an Observer, in particular the Block is the sub-problem (B). */
 
- LagBFunction( v_dual_pair && v_lag_pair = {} , const bool static_is_ordered = false ,
-		 Block* innerblock = nullptr , Observer * const observer = nullptr );
+ LagBFunction( Block* innerblock = nullptr , Observer * const observer = nullptr );
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
- /// destructor of LagBFunction: delete the static and dynamic dual Lagrangian
- /** destructor of LagBFunction. It deletes the static and dynamic dual
-   * pairs and the global pool, if exists */
+ /// destructor of LagBFunction: delete the allocated memory.
+ /** destructor of LagBFunction. It deletes delete the global pool and the
+     LagMatrix which is used to change the Lagrangian costs. */
 
  virtual ~LagBFunction( ) { guts_of_destructor(); };
 
@@ -414,49 +416,63 @@ class LagBFunction : public C05Function , public Block {
  *  @{ */
 
  /// set the sub-block pointer.
- /** Method to set the pointer to the sub-Block, which is assumed to be
-  *  only one. lineare vincoli e funzione obiettivo
+ /** Method to set the pointer to the sub-Block (B), which is assumed to be
+  *  without children.
   *
   * If a set of "static" dual pairs <y, g(x)> have been already accommodated
-  * [ see set_static_pairs(), LagBFunction(v_dual_pair &&, bool) ],
-  * the cost vector c of (B) will be saved. This because the evaluation of
+  * [ see set_dual_pairs(), LagBFunction() ], the cost vector c of (obj_B) will
+  * be saved in LagMatrix. This because the evaluation of
   * Lagrangian function l(y) requires the vector c -stored in (B)- to be
   * replaced by c^y = c + yA, and consequently the original vector c
   * would be unavailable.
   *
-  * In addition, since c(x) of (B) is stored in a *sparse* format,
-  * the LagBFunction has to add -to the *active* variable set of the
-  * LinearFunction of (B)- the Variable with coefficient zero
-  * which are involved in the definition of g(x)  */
+  * In addition, since c(x) of (obj_B) is stored in a *sparse* format,
+  * LagBFunction has to add -to the *active* variable set of (obj_B)-
+  * the Variable with coefficient zero which are involved in the definition
+  * of the relaxed constraints (RCs).  */
 
  void set_inner_block( Block* innerblock );
 
 /*--------------------------------------------------------------------------*/
 
- /// set a bunch of *static* dual pairs <y, g(x)>
+ /// set a bunch of *static* Lagrangian pairs <y, g(x)>
  /** This method must be called after the construction of the
-  * class and only if an empty constructor has been used. By calling
-  * this method a bunch of dual pairs <y, g(x)> is stored.
+  * class and *only if* an empty constructor has been used. By calling
+  * this method a bunch of Lagrangian pairs <y, g(x)> is stored.
   *
-  * If the a pointer to (B) has been passed, [ see set_inner_block(Block*),
-  * LagBFunction(v_dual_pair &&, bool) ], the cost vector c of (B)
-  * will be saved. This because the evaluation of Lagrangian function l(y)
+  * If a pointer to (B) has been passed, [ see set_inner_block(Block*),
+  * LagBFunction( ) ], the cost vector c of (obj_B) will be saved in LagMatrix.
+  * This because the evaluation of Lagrangian function l(y)
   * requires the vector c -stored in (B)- to be replaced by c^y = c + yA,
   * and consequently the original vector c would be unavailable.
   *
-  * In addition, since c(x) of (B) is stored in a *sparse* format,
-  * the LagBFunction has to add -to the *active* variable set of the
-  * LinearFunction of (B)- the Variable with coefficient zero
-  * which are involved in the definition of g(x)  */
+  * In addition, since c(x) of (obj_B) is stored in a *sparse* format,
+  * the LagBFunction has to add -to the *active* variable set of (obj_B)-
+  * the Variable with coefficient zero which are involved in the definition
+  * of the relaxed constraints (RCs).  */
 
  void set_dual_pairs( v_dual_pair && v_lag_pairs ,
- 		 const bool static_is_ordered = false );
+ 		 const bool static_is_ordered = false , c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
 
- virtual void register_Observer( Observer * const observer = nullptr ,
-		                         bool RegisterInActiveVars = true )
-  override;
+ /// set LagBFunction as the Observer of (RCs)
+ /** This method sets this LagBFunction as the Observer of the relaxed
+  * constraints. No variables are registered because the Lagrangian multipliers
+  * are the variables of LagBFuntion while the primal variables x are the
+  * the variables of (RCs). */
+
+ virtual void set_relaxed_function( Function * const function = nullptr  );
+
+/*--------------------------------------------------------------------------*/
+
+  /// set the whole (empty) set of parameters in one blow
+  /** Although a LagBFunction formally has a lot of parameters, in fact it
+   * "listens to no-one"; hence, the implementation of set_ComputeConfig() is
+   * quite a trivial one. */
+
+  virtual void set_ComputeConfig( ComputeConfig *scfg = nullptr )
+   override final;
 
 /*--------------------------------------------------------------------------*/
 
@@ -474,30 +490,37 @@ class LagBFunction : public C05Function , public Block {
 
  virtual void set_par( const idx_type par , const double value ) override;
 
+/*--------------------------------------------------------------------------*/
+
+  virtual void deserialize( netCDF::NcGroup& group ,
+ 			   Block *father = nullptr ) override;
+
 /*@} -----------------------------------------------------------------------*/
 /*-------------------- Methods for handling Modification -------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling Modification
  *  @{ */
 
- /// add a bunch of dual pairs <y, g(x)>,
- /** This method adds a bunch of new Lagrangian pairs. The part of cost vector
-   * c of (B) -not already saved- will be stored. The evaluation of the
-   * Lagrangian function l(y) requires the vector c -stored in (B)- to be
+ /// add a bunch of *dynamic* Lagrangian pairs <y, g(x)>,
+ /** This method adds a bunch of Lagrangian pairs. The part of cost vector
+   * c of (obj_B) -not already saved- will be stored in LagMatrix. The evaluation
+   * of the Lagrangian function l(y) requires the vector c -stored in (B)- to be
    * replaced by c^y = c + yA, and consequently the original vector c would be
-   * unavailable.
+   * unavailable from (B).
    *
-   * In addition, since c(x) of (B) is stored in a *sparse* format,
-   * the LagBFunction has to add -to the *active* variable set of the
-   * LinearFunction of (B)- the Variable with coefficient zero
-   * which are involved in the definition of g(x)  */
+   * In addition, since c(x) of (obj_B) is stored in a *sparse* format,
+   * the LagBFunction has to add -to the *active* variable set of (obj_B)-
+   * the Variable with coefficient zero which are involved in the definition
+   * of the relaxed constraints (RCs).  */
 
  void add_dual_pairs( v_dual_pair && v_lag_pair ,
- 		 const bool static_is_ordered = false , c_ModParam issueMod = eNoBlck ,
-		 c_ModParam issueAMod = eNoBlck  );
+ 		 const bool static_is_ordered = false , c_ModParam issueMod = eNoBlck );
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
+ /// remove a bunch of *dynamic* Lagrangian pairs <y, g(x)>,
+ /** This method removes a bunch of Lagrangian pairs. The structure LagMatrix
+  *  used to compute the Lagrangian costs needs to be update.  */
  void remove_dual_pairs( v_dual_pair && v_lag_pair ,
 		 const bool static_is_ordered = false , c_ModParam issueMod = eNoBlck ,
 		 c_ModParam issueAMod = eNoBlck  );
@@ -507,10 +530,12 @@ class LagBFunction : public C05Function , public Block {
  virtual void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
 
 /*@} -----------------------------------------------------------------------*/
-/*---------- METHODS FOR READING THE DATA OF THE LagBFunction --------------*/
+/*---------- METHODS FOR Loading/Saving THE DATA OF THE LagBFunction -------*/
 /*--------------------------------------------------------------------------*/
-/** @name Reading the data of the LagBFunction
+/** @name Saving the data of the LagBFunction
     @{ */
+
+ virtual void serialize( netCDF::NcGroup& group ) const override final;
 
 /*@} -----------------------------------------------------------------------*/
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF THE LagBFunction ------------*/
@@ -521,12 +546,6 @@ class LagBFunction : public C05Function , public Block {
  virtual bool has_linearization( const bool diagonal = true ) override final;
 
 /*--------------------------------------------------------------------------*/
- /// compute a new linearization for this Function
-  /** This method has to compute a *new* linearization for this Function ( see
-   * C05Function ].
-   *
-   * If the methods returns false, one can still access to the previous solution
-   * of the local pool. */
 
  virtual bool compute_new_linearization( const bool diagonal = true ) override final;
 
@@ -540,12 +559,14 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
  /// compute the Function
- /** It has to compute the Function. The parameter changedvars is ignored.
+ /** It has to compute the Function. ?? The parameter changedvars is false if
+  *  the constant vector b of (RCs) is changed and the remaining data problem
+  *  is still valid. ??
   *
   *  It is assumed that the sub-Block (B) does not have Variable defined
   *  in other Blocks. Then, the re-optimization of (B) can be performed starting
-  *  from the warm-start (the old solution) and any problem shouldn't occur.
-  *  No relevant Variable are defined in (B). */
+  *  from the warm-start (the old solution). No relevant Variable are defined
+  *  in (B). */
 
  virtual int compute( bool changedvars = true ) override;
 
@@ -580,8 +601,7 @@ class LagBFunction : public C05Function , public Block {
 /** This method retrieves the vector of coefficients g that is the (largest)
   * part of the linearization with the given name.
   *
-  * This implements the virtual function of class C05Function. If name is
-  * INF , the current linearization of the local pool shall be unavailable. */
+  * This implements the virtual function of class C05Function.  */
 
  virtual void get_linearization_coefficients( FunctionValue * g ,
    const LinearizationName name = Inf<LinearizationName>() ,
@@ -594,8 +614,7 @@ class LagBFunction : public C05Function , public Block {
 /** This method retrieves the sparse vector of coefficients g that is part
   * of a linearization.
   *
-  * This implements the virtual function of class C05Function. If name is
-  * INF , the current linearization of the local pool shall be unavailable. */
+  * This implements the virtual function of class C05Function. */
 
  virtual void get_linearization_coefficients( SparseVector &g ,
    const LinearizationName name = Inf<LinearizationName>() ,
@@ -619,10 +638,7 @@ class LagBFunction : public C05Function , public Block {
   * quite a trivial one. */
 
  virtual ComputeConfig * get_ComputeConfig( bool all = false ,
-		       ComputeConfig * ocfg = nullptr ) const override final
- {
-  return( nullptr );
-  }
+		       ComputeConfig * ocfg = nullptr ) const override final;
 
 /*--------------------------------------------------------------------------*/
 
@@ -637,7 +653,7 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling the set of "active" Variable in the
  * LagBFunction; this is the actual concrete implementation exploiting the
- * vector v_pairs of pairs.
+ * vector lag_p of Lagrangian pairs.
  * @{ */
 
  virtual Index get_num_active_var( void ) const override final {
@@ -718,13 +734,13 @@ virtual Index is_active( const Variable * const var ) const override final;
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
  v_dual_pair lag_p;
- ///< list of Lagrangian dual pairs
+ ///< vector of Lagrangian dual pairs
 
  v_linearization_pair g_pool;
- ///< global pool of variables
+ ///< global pool
 
  m_column LagMatrix;
- ///< the matrix yA in the Lagrangian function
+ ///< the matrix < x , <c,yA> > used to update the Lagrangian cost vector
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
@@ -733,8 +749,6 @@ virtual Index is_active( const Variable * const var ) const override final;
 
  bool VarType;
  ///< the type of variable contained in the solver
-
- bool VarIsSet;
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
@@ -750,6 +764,9 @@ virtual Index is_active( const Variable * const var ) const override final;
  double AAccLin;
  ///< maximum absolute error in any reported solution
 
+ BlockSolverConfig * svcc;
+ ///< the block solver configuration of the sub-block
+
 /*@}------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -760,22 +777,24 @@ virtual Index is_active( const Variable * const var ) const override final;
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-   void add_to_structure( v_dual_pair & v_lag_pair ,
-		   const bool static_is_ordered = false );
-
-   void remove_to_structure( v_dual_pair & v_lag_pair ,
- 		   const bool static_is_ordered = false );
-
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
-
    void set_objective_and_solver();
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
-   void store_objective_function( );
-   void update_objective_function( );
+   Vec_p_Var add_columns( v_dual_pair & v_lag_pair );
+   Vec_p_Var update_columns( v_dual_pair & v_lag_pair );
+   void rm_columns( v_dual_pair & v_lag_pair );
 
-   void update_function( );
+/*--------------------------------------------------------------------------*/
+
+   void issue_add_variables_modification( v_dual_pair & pairs ,
+   					c_ModParam issueMod );
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+
+   void fix_sblock_objective( );
+   void set_original_costs( c_Vec_p_Var & xvar = {} );
+   void compute_Lagrangian_costs( );
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
@@ -790,37 +809,56 @@ virtual Index is_active( const Variable * const var ) const override final;
  };  // end( class( LagBFunction ) )
 
 /*--------------------------------------------------------------------------*/
-/*-------------------- CLASS LagBFunctionModRngd ---------------------------*/
+/*--------------------------- CLASS LagBConfig -----------------------------*/
 /*--------------------------------------------------------------------------*/
-/// derived from C05FunctionModVarsRngd for changes in a range of coefficients
-/** Derived class from C05FunctionModVarsRngd to describe changes specific to
- * a LagBFunction, i.e., those of a range of coefficients.
- *
- * The change of some of the coefficients in a linear function perfectly
- * coincides with what the type of modification of LagBFunctionModRngd
- * "SomeEntriesChange" postulates. Indeed, there is no real reason for
- * defining this class, as it is identical to LagBFunctionModRngd, save
- * for the fact that some Block / Solver may want to be sure that the
- * Modification is actually coming out of a LagBFunction. */
 
- class LagBFunctionModRngd : public C05FunctionModVarsRngd
- {
+class LagBConfig : public ComputeConfig
+{
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
  public:
 
-/*-------------------- CONSTRUCTOR AND DESTRUCTOR --------------------------*/
+/*---------------------------- CONSTRUCTORS --------------------------------*/
+ /// constructor: initializes everything to "default configuration"
+ LagBConfig( void ) : ComputeConfig() , blkslvcnfg( nullptr ) , blkcnfg( nullptr ) {
+  f_diff = true;
+  f_extra_Configuration = nullptr;
+  }
 
- /// constructor: identical to that of C05FunctionModVarsRngd
+/*--------------------------------------------------------------------------*/
+ /// copy constructor: does what it says on the tin
+ LagBConfig( const LagBConfig &old ) : ComputeConfig( old ) {
+  blkslvcnfg = old.blkslvcnfg->clone();
+  blkcnfg = old.blkcnfg->clone();
+  }
 
- LagBFunctionModRngd( Function * const f , const int mod ,
-			Variable * const strt = nullptr ,
-			Variable * const stop = nullptr ,
-			const FunctionValue shift = 0 , const bool cB = true )
-  : C05FunctionModVarsRngd( f , mod , strt , stop , shift , cB ) { }
+/*------------------------------ DESTRUCTOR --------------------------------*/
+ /// destructor; it deletes the f_extra_Configuration (if any)
+ virtual ~LagBConfig() {
+  delete f_extra_Configuration;
+  delete blkslvcnfg;
+  delete blkcnfg;
+  }
 
- virtual ~LagBFunctionModRngd() { }  ///< destructor, does nothing
+/*------------------------------- CLONE -----------------------------------*/
+ /// clone method
+ virtual LagBConfig * clone( void ) const override {
+  return( new LagBConfig( *this ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// extends Configuration::deserialize( netCDF::NcGroup )
+ virtual void deserialize( netCDF::NcGroup & group ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// extends Configuration::serialize( netCDF::NcGroup )
+ virtual void serialize( netCDF::NcGroup & group ) const override;
+
+/*--------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
+
+ BlockSolverConfig * blkslvcnfg;
+ BlockConfig * blkcnfg;
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -828,64 +866,26 @@ virtual Index is_active( const Variable * const var ) const override final;
 
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 
- /// print the LagBFunctionModRngd
+ /// print the LagBConfig
+ // virtual void print( std::ostream &output ) const override;
 
- virtual inline void print( std::ostream &output ) const {
+/*--------------------------------------------------------------------------*/
+ /// load this LagBConfig out of an istream
+ // virtual void load( std::istream &input ) override;
 
-  } // end LagBFunctionModRngd::print( ) - - - - - - - - - - - - - - - - - - -
+/*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
+
+ private:
+
+/*---------------------------- PRIVATE FIELDS ------------------------------*/
+
+ SMSpp_insert_in_factory_h;
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( LagBFunctionModRngd ) )
+ };  // end( class( ComputeConfig ) )
 
-/*--------------------------------------------------------------------------*/
-/*-------------------- CLASS LagBFunctionModSbst -------------------------*/
-/*--------------------------------------------------------------------------*/
-/// derived from C05FunctionModVarsSbst for changes in subset of coefficients
-/** Derived class from C05FunctionModVarsSbst to describe changes specific to
- * a LagBFunction, i.e., those of a subset of coefficients.
- *
- * The change of some of the coefficients in a linear function perfectly
- * coincides with what the type of modification of C05FunctionModVarsSbst
- * "SomeEntriesChange" postulates. Indeed, there is no real reason for
- * defining this class, as it is identical to C05FunctionModVarsSbst, save
- * for the fact that some Block / Solver may want to be sure that the
- * Modification is actually coming out of a LagBFunction. */
-
- class LagBFunctionModSbst : public C05FunctionModVarsSbst
- {
-
-/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
-
- public:
-
-/*-------------------- CONSTRUCTOR AND DESTRUCTOR --------------------------*/
-
- /// constructor: identical to that of C05FunctionModVarsSbst
-
- LagBFunctionModSbst( Function * const f , const int mod ,
-			std::vector<Variable *> && vars ,
-			FunctionValue shift = 0 , const bool cB = true )
-  : C05FunctionModVarsSbst( f , mod , std::move( vars ) , shift , cB ) { }
-
- virtual ~LagBFunctionModSbst() { }  ///< destructor, does nothing
-
-/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
-
- protected:
-
-/*-------------------------- PROTECTED METHODS -----------------------------*/
- /// print the LagBFunctionModSbst
-
- virtual inline void print( std::ostream &output ) const {
-
-  } // end LagBFunctionModSbst::print( ) - - - - - - - - - - - - - - - - - - -
-
-/*--------------------------------------------------------------------------*/
-
- };  // end( class( LagBFunctionModSbst ) )
-
-/*@}  end( group( LFun_CLASSES ) ) */
+/*@}  end( group( LagFun_CLASSES ) ) ---------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
  }  // end( namespace SMSpp_di_unipi_it )
@@ -896,5 +896,5 @@ virtual Index is_active( const Variable * const var ) const override final;
 #endif  /* LagBFunction.h included */
 
 /*--------------------------------------------------------------------------*/
-/*--------------------- End File LagBFunction.h --------------------------*/
+/*--------------------- End File LagBFunction.h ----------------------------*/
 /*--------------------------------------------------------------------------*/
