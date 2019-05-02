@@ -780,7 +780,7 @@ class Block : public Observer {
    std::string blocktype;
    gtype.getValues( blocktype );
    Block * result = new_Block( blocktype , father );
-   result->deserialize( group , father );
+   result->deserialize( group );
    return( result );
    }
   catch( netCDF::exceptions::NcException & e ) {
@@ -800,9 +800,9 @@ class Block : public Observer {
  /// de-serialize the current :Block out of netCDF::NcGroup
  /** Fourth and final level de-serialization method: takes a netCDF::NcGroup
   * supposedly containing all the information required to de-serialize the
-  * Block must, starting with the "type" attribute that has to contain the
-  * name() of the current Block (and exception should clearly be thrown is
-  * this does not happen), and initialize the current Block out of it.
+  * Block, starting with the "type" attribute that has to contain the name()
+  * of the current Block (and exception should clearly be thrown is this does
+  * not happen), and initialize the current Block out of it.
   *
   *      THIS IS THE METHOD TO BE IMPLEMENTED BY DERIVED CLASSES
   *
@@ -833,7 +833,7 @@ class Block : public Observer {
   * Although clearly not "empty", as opposed as :Block fresh out of the
   * factory (see new_Block( string )), a freshly loaded Block is otherwise
   * "in pristine state": the "abstract representation" is not constructed
-  *  (unless the :Block does this by its own volition), both the BlockConfig
+  * (unless the :Block does this by its own volition), both the BlockConfig
   * and the BlockSolverConfig are not set, and (therefore) there are no Solver
   * attached, unless there were before. The eProbFile SMS++ netCDF file type
   * is precisely provided for allowing to save *all* the information required
@@ -845,23 +845,13 @@ class Block : public Observer {
   * implementation just (checks if type and name() match, and) scans all the
   * child NcGroup of the current NcGroup, assumes that each one of them is a
   * Block group and de-serializes a sub-Block of the Block out of it, in
-  * left-to-right order. 
-  *
-  * Note that the method has a further Block * argument, that can be used as
-  * in the Block constructor to ensure that the :Block has access to all the
-  * data structures of its father it needs for correctly initializing itself
-  * (if any). Indeed, in the base class implementation (that provides a clean
-  * blueprint of how this can be done by specific :Block), the parameter is
-  * used to pass "this" to all the sub-Block. This should be the preferred
-  * way to access to such information (provided that, as it probably should,
-  * the father Block has correctly initialized itself before doing its
-  * sub-Block), although note that the sub-Block can alternatively access the
-  * information about the father Block by peeking into the "father" NcGroup
-  * via NcGroup::getParentGroup(). */
+  * left-to-right order. */
 
- virtual void deserialize( netCDF::NcGroup & group ,
-			   Block *father = nullptr )
+ virtual void deserialize( netCDF::NcGroup & group )
  {
+  for( auto sblck : v_Block )
+   delete sblck;
+
   v_Block.clear();
   std::multimap< std::string , netCDF::NcGroup > ng = group.getGroups();
 
