@@ -404,7 +404,7 @@ void SimpleConfiguration< std::vector< Configuration * > >::serialize(
  Configuration::serialize( group );
  auto sz = group.addDim( "size" , f_value.size() );
  
- for( int i = 0 ; i < f_value.size() ; ++i ) {
+ for( size_t i = 0 ; i < f_value.size() ; ++i ) {
   auto ci = group.addGroup( "Config_" + std::to_string( i ) );
   f_value[ i ]->serialize( ci );
   }
@@ -426,7 +426,7 @@ void SimpleConfiguration< std::vector< Configuration * > >::deserialize(
   }
  size_t size = dim.getSize();
  f_value.resize( size );
- for( int i = 0 ; i < f_value.size() ; ++i ) {
+ for( size_t i = 0 ; i < f_value.size() ; ++i ) {
   auto ci = group.getGroup( "Config_" + std::to_string( i ) );
   f_value[ i ] = new_Configuration( ci );
   }
