@@ -255,7 +255,7 @@ class FRowConstraint : public RowConstraint , Observer {
     @{ */
 
  ///< method to get a pointer to the Function of the FRowConstraint
- const Function* get_function( void ) const { return( f_function ); }
+ Function * get_function( void ) const { return( f_function ); }
 
 /*--------------------------------------------------------------------------*/
  /// method to get the RHS of the RowConstraint
