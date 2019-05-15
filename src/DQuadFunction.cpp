@@ -345,10 +345,11 @@ void DQuadFunction::add_variable( ColVariable * const var ,
   return;
 
  // a diagonal quadratic function is additive ==> strongly quasi-additive
+ // note that there is only one Variable, hence it is ordered
  f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
-                                         FunctionModVars::AddVar ,
-					 Vec_p_Var( { var } ) , 0 , true ,
-					 Observer::par2concern( issueMod ) ) ,
+				      FunctionModVars::AddVar ,
+				      Vec_p_Var( { var } ) , true , 0 , true ,
+				      Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 
  }  // end( DQuadFunction::add_variable )
@@ -652,10 +653,12 @@ void DQuadFunction::remove_variable( Variable *var , c_ModParam issueMod )
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
 
- f_Observer->add_Modification( std::make_shared<FunctionModVars>( this ,
-                                       FunctionModVars::RemoveVar ,
-				       Vec_p_Var( { var } ) , true , 0 ,
-				       Observer::par2concern( issueMod ) ) ,
+ // a diagonal quadratic function is additive ==> strongly quasi-additive
+ // note that there is only one Variable, hence it is ordered
+ f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
+                                    FunctionModVars::RemoveVar ,
+				    Vec_p_Var( { var } ) , true , 0 , true ,
+				    Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 
  }  // end( DQuadFunction::remove_variable( pointer ) )
@@ -674,10 +677,12 @@ void DQuadFunction::remove_variable( c_Index i , c_ModParam issueMod )
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
 
- f_Observer->add_Modification( std::make_shared<FunctionModVars>( this ,
-                                       FunctionModVars::RemoveVar ,
-				       Vec_p_Var( { var } ) , true , 0 ,
-				       Observer::par2concern( issueMod ) ) ,
+ // a diagonal quadratic function is additive ==> strongly quasi-additive
+ // note that there is only one Variable, hence it is ordered
+ f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
+                                   FunctionModVars::RemoveVar ,
+				    Vec_p_Var( { var } ) , true , 0 , true ,
+				    Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 
  }  // end( DQuadFunction::remove_variable( index ) )
@@ -705,9 +710,11 @@ void DQuadFunction::remove_variables( c_Index strt , Index stop ,
   v_triples.erase( strtit , stopit );
 
   // now issue the Modification
-  f_Observer->add_Modification( std::make_shared<FunctionModVars>( this ,
+  // a diagonal quadratic function is additive ==> strongly quasi-additive
+  // note that the Variable are ordered by construction
+  f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
                                        FunctionModVars::RemoveVar ,
-				       std::move( vars ) , true , 0 ,
+				       std::move( vars ) , true , 0 , true ,
 				       Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
   }
@@ -763,9 +770,12 @@ void DQuadFunction::remove_variables( Vec_p_Var && vars ,
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
 
- f_Observer->add_Modification( std::make_shared<FunctionModVars>( this ,
+ // now issue the Modification
+ // a diagonal quadratic function is additive ==> strongly quasi-additive
+ // note that the Variable have been ordered (if they were not so already)
+ f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
                                        FunctionModVars::RemoveVar ,
-				       std::move( vars ) , true , 0 ,
+				       std::move( vars ) , true , 0 , true ,
 				       Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 
@@ -821,9 +831,12 @@ void DQuadFunction::remove_variables( Vec_Index & nms , const bool ordered ,
  for( auto nm : nms )
    *(its++) = std::get<0>( v_triples[ nm ] );
 
- f_Observer->add_Modification( std::make_shared<FunctionModVars>( this ,
+ // now issue the Modification
+ // a diagonal quadratic function is additive ==> strongly quasi-additive
+ // note that the Variable have been ordered (if they were not so already)
+ f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
                                        FunctionModVars::RemoveVar ,
-				       std::move( vars ) , true , 0 ,
+				       std::move( vars ) , true , 0 , true ,
 				       Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 
@@ -861,9 +874,10 @@ void DQuadFunction::issue_add_variables_modification
   vars[ i ] = std::get<0>( triples[ i ] );
 
  // a diagonal quadratic function is additive ==> strongly quasi-additive
+ // note that triples is always ordered
  f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
                                          FunctionModVars::AddVar ,
-					 std::move( vars ) , 0 , true ,
+					 std::move( vars ) , true , 0 , true ,
 					 Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
  }

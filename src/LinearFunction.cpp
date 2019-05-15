@@ -285,10 +285,11 @@ void LinearFunction::add_variable( ColVariable * const var ,
   return;
 
  // a linear function is additive ==> strongly quasi-additive
+ // note that there is only one Variable, hence it is ordered
  f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
-					 FunctionModVars::AddVar ,
-					 Vec_p_Var( { var } ) , 0 , true ,
-					 Observer::par2concern( issueMod ) ) ,
+				      FunctionModVars::AddVar ,
+				      Vec_p_Var( { var } ) , true , 0 , true ,
+				      Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 
  }  // end( LinearFunction::add_variable )
@@ -525,10 +526,12 @@ void LinearFunction::remove_variable( Variable *var , c_ModParam issueMod )
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
 
- f_Observer->add_Modification( std::make_shared<FunctionModVars>( this ,
-                                       FunctionModVars::RemoveVar ,
-				       Vec_p_Var( { var } ) , true , 0 ,
-				       Observer::par2concern( issueMod ) ) ,
+ // a linear function is additive ==> strongly quasi-additive
+ // note that there is only one Variable, hence it is ordered
+ f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
+                                    FunctionModVars::RemoveVar ,
+				    Vec_p_Var( { var } ) , true , 0 , true ,
+				    Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 
  }  // end( LinearFunction::remove_variable( pointer ) )
@@ -547,10 +550,12 @@ void LinearFunction::remove_variable( c_Index i , c_ModParam issueMod )
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
 
- f_Observer->add_Modification( std::make_shared<FunctionModVars>( this ,
-                                       FunctionModVars::RemoveVar ,
-				       Vec_p_Var( { var } ) , true , 0 ,
-				       Observer::par2concern( issueMod ) ) ,
+ // a linear function is additive ==> strongly quasi-additive
+ // note that there is only one Variable, hence it is ordered
+ f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
+                                    FunctionModVars::RemoveVar ,
+				    Vec_p_Var( { var } ) , true , 0 , true ,
+				    Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 
  }  // end( LinearFunction::remove_variable( index ) )
@@ -578,11 +583,13 @@ void LinearFunction::remove_variables( c_Index strt , Index stop ,
   v_pairs.erase( strtit , stopit );
 
   // now issue the Modification
-  f_Observer->add_Modification( std::make_shared<FunctionModVars>( this ,
+  // a linear function is additive ==> strongly quasi-additive
+  // note that the Variable are ordered by construction
+  f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
                                        FunctionModVars::RemoveVar ,
-				       std::move( vars ) , true , 0 ,
+				       std::move( vars ) , true , 0 , true ,
 				       Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
+				Observer::par2chnl( issueMod ) );
   }
  else  // noone is there: just do it
   v_pairs.erase( strtit , stopit );
@@ -636,9 +643,12 @@ void LinearFunction::remove_variables( Vec_p_Var && vars ,
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
 
- f_Observer->add_Modification( std::make_shared<FunctionModVars>( this ,
+ // now issue the Modification
+ // a linear function is additive ==> strongly quasi-additive
+ // note that the Variable have been ordered (if they were not so already)
+ f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
                                        FunctionModVars::RemoveVar ,
-				       std::move( vars ) , true , 0 ,
+				       std::move( vars ) , true , 0 , true ,
 				       Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 
@@ -688,9 +698,12 @@ void LinearFunction::remove_variables( Vec_Index & nms , const bool ordered ,
  for( auto nm : nms )
   *(its++) = v_pairs[ nm ].first;
 
- f_Observer->add_Modification( std::make_shared<FunctionModVars>( this ,
+ // now issue the Modification
+ // a linear function is additive ==> strongly quasi-additive
+ // note that the Variable have been ordered (if they were not so already)
+ f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
                                        FunctionModVars::RemoveVar ,
-				       std::move( vars ) , true , 0 ,
+				       std::move( vars ) , true , 0 , true ,
 				       Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 
@@ -728,9 +741,10 @@ void LinearFunction::issue_add_variables_modification( v_coeff_pair & pairs ,
   vars[ i ] = pairs[ i ].first;
 
  // a linear function is additive ==> strongly quasi-additive
+ // note that pairs is always ordered
  f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
                                          FunctionModVars::AddVar ,
-					 std::move( vars ) , 0 , true ,
+					 std::move( vars ) , true , 0 , true ,
 					 Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
  }
