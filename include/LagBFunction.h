@@ -5,9 +5,9 @@
  * Header file for the class LagBFunction, which
  * implements C05Function and Block with a Lagrangian function.
  *
- * \version 0.03
+ * \version 0.04
  *
- * \date 01 - 03 - 2019
+ * \date 15 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -48,8 +48,6 @@
 /// namespace for the Structured Modeling System++ (SMS++)
 namespace SMSpp_di_unipi_it
 {
-
- class LagBConfig;  // forward definition of LagBConfig
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
@@ -469,7 +467,12 @@ class LagBFunction : public C05Function , public Block {
   /// set the whole (empty) set of parameters in one blow
   /** Although a LagBFunction formally has a lot of parameters, in fact it
    * "listens to no-one"; hence, the implementation of set_ComputeConfig() is
-   * quite a trivial one. */
+   * quite a trivial one.
+   *
+   * ComputeConfig is assumed to be of the SimpleConfig_p_p type wherein
+   * the field f_value is a Configuration pointers pair. The first element
+   * of that pair is a BlockSolverConfig and the second one is a
+   * BlockConfig. */
 
   virtual void set_ComputeConfig( ComputeConfig *scfg = nullptr )
    override final;
@@ -492,8 +495,7 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
-  virtual void deserialize( netCDF::NcGroup& group ,
- 			   Block *father = nullptr ) override;
+  virtual void deserialize( netCDF::NcGroup& group ) override;
 
 /*@} -----------------------------------------------------------------------*/
 /*-------------------- Methods for handling Modification -------------------*/
@@ -635,7 +637,12 @@ class LagBFunction : public C05Function , public Block {
  ///< get the whole (empty) set of parameters in one blow
  /** Although a LagBFunction formally has a lot of parameters, in fact it
   * "listens to no-one"; hence, the implementation of get_ComputeConfig() is
-  * quite a trivial one. */
+  * quite a trivial one.
+  *
+  * ComputeConfig is assumed to be of the SimpleConfig_p_p type wherein
+  * the field f_value is a Configuration pointers pair. The first element
+  * of that pair is a BlockSolverConfig and the second one is a
+  * BlockConfig. */
 
  virtual ComputeConfig * get_ComputeConfig( bool all = false ,
 		       ComputeConfig * ocfg = nullptr ) const override final;
@@ -805,85 +812,12 @@ virtual Index is_active( const Variable * const var ) const override final;
    void guts_of_add_Modification( sp_Mod mod , ChnlName chnl );
 
 /*--------------------------------------------------------------------------*/
+/*---------------------------- PRIVATE FIELDS ------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ SMSpp_insert_in_factory_h;        // insert LagBFunction in the Block factory
 
  };  // end( class( LagBFunction ) )
-
-/*--------------------------------------------------------------------------*/
-/*--------------------------- CLASS LagBConfig -----------------------------*/
-/*--------------------------------------------------------------------------*/
-
-class LagBConfig : public ComputeConfig
-{
-
-/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
-
- public:
-
-/*---------------------------- CONSTRUCTORS --------------------------------*/
- /// constructor: initializes everything to "default configuration"
- LagBConfig( void ) : ComputeConfig() , blkslvcnfg( nullptr ) , blkcnfg( nullptr ) {
-  f_diff = true;
-  f_extra_Configuration = nullptr;
-  }
-
-/*--------------------------------------------------------------------------*/
- /// copy constructor: does what it says on the tin
- LagBConfig( const LagBConfig &old ) : ComputeConfig( old ) {
-  blkslvcnfg = old.blkslvcnfg->clone();
-  blkcnfg = old.blkcnfg->clone();
-  }
-
-/*------------------------------ DESTRUCTOR --------------------------------*/
- /// destructor; it deletes the f_extra_Configuration (if any)
- virtual ~LagBConfig() {
-  delete f_extra_Configuration;
-  delete blkslvcnfg;
-  delete blkcnfg;
-  }
-
-/*------------------------------- CLONE -----------------------------------*/
- /// clone method
- virtual LagBConfig * clone( void ) const override {
-  return( new LagBConfig( *this ) );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// extends Configuration::deserialize( netCDF::NcGroup )
- virtual void deserialize( netCDF::NcGroup & group ) override;
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// extends Configuration::serialize( netCDF::NcGroup )
- virtual void serialize( netCDF::NcGroup & group ) const override;
-
-/*--------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
-
- BlockSolverConfig * blkslvcnfg;
- BlockConfig * blkcnfg;
-
-/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
-
- protected:
-
-/*-------------------------- PROTECTED METHODS -----------------------------*/
-
- /// print the LagBConfig
- // virtual void print( std::ostream &output ) const override;
-
-/*--------------------------------------------------------------------------*/
- /// load this LagBConfig out of an istream
- // virtual void load( std::istream &input ) override;
-
-/*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
-
- private:
-
-/*---------------------------- PRIVATE FIELDS ------------------------------*/
-
- SMSpp_insert_in_factory_h;
-
-/*--------------------------------------------------------------------------*/
-
- };  // end( class( ComputeConfig ) )
 
 /*@}  end( group( LagFun_CLASSES ) ) ---------------------------------------*/
 /*--------------------------------------------------------------------------*/
