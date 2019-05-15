@@ -275,10 +275,14 @@ void LinearFunction::add_variable( ColVariable * const var ,
   auto itv = std::lower_bound( v_pairs.begin() , v_pairs.end() , pair ,
 			       []( const coeff_pair &a , const coeff_pair &b )
 			         { return( a.first < b.first ); } );
-  if( itv->first == var )
-   throw( std::invalid_argument( "add_variables: var is already active" ) );
+  if( itv != v_pairs.end() ) {  // in the middle of the list
+   if( itv->first == var )
+    throw( std::invalid_argument( "add_variables: var is already active" ) );
 
-  v_pairs.insert( itv , pair );
+   v_pairs.insert( itv , pair );
+   }
+  else                           // at the end of the list
+   v_pairs.push_back( pair );
   }
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )

@@ -333,12 +333,15 @@ void DQuadFunction::add_variable( ColVariable * const var ,
 				   const var_coeff_coeff_triple &b )
 			       { return( std::get<0>( a ) < std::get<0>( b ) );
 			       } );
-
-  if( std::get<0>( *itv ) == var )
-   throw( std::invalid_argument(
+  if( itv != v_triples.end() ) {  // in the middle of the list
+   if( std::get<0>( *itv ) == var )
+    throw( std::invalid_argument(
                     "add_variables: Variable is already in the Function" ) );
 
-  v_triples.insert( itv , triple );
+   v_triples.insert( itv , triple );
+   }
+  else                           // at the end of the list
+   v_triples.push_back( triple );
   }
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )

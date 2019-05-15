@@ -226,8 +226,10 @@ class OneVarConstraint : public RowConstraint {
 
  OneVarConstraint( Block *my_block = nullptr ,
 		   ColVariable * const variable = nullptr )
-  : RowConstraint( my_block ) , f_variable( nullptr ) {
-  this->set_variable( variable , eNoMod );
+  : RowConstraint( my_block ) , f_variable( nullptr )
+ {
+  if( variable )
+   this->set_variable( variable , eNoMod );
   }
 
 /*--------------------------------------------------------------------------*/
