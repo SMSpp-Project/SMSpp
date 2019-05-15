@@ -58,7 +58,7 @@ static const char VarAreSol = 1;   // a solution is stored
 static const char VarToBeChckd = 1;  // Variable must be checked for feasibility
 
 // register MCFBlock to the Block factory
-// SMSpp_insert_in_factory_cpp_1( LagBFunction );
+SMSpp_insert_in_factory_cpp_1( LagBFunction );
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -1047,6 +1047,27 @@ void LagBFunction::map_active( c_Vec_p_Var & vars , Vec_Index & map ,
 /*--------------------------- PROTECTED METHODS ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
+void LagBFunction::print( std::ostream &output ) const {
+
+ C05Function::print( output );
+
+ output << "LagBFunction [" << this << "]"
+ 	 << " with MaxPoll = ( " << LPMaxSz << " ~ " << GPMaxSz << " ) ";
+ output << std::endl << " and tol. = ( " << AAccLin << " , " << RAccLin
+		<< " ) " << std::endl;
+
+ } // end LagBFunction::print( ) - - - - - - - - - - - - - - - - - - - - - - -
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::load( std::istream &input ) {
+
+ input >> LPMaxSz;
+ input >> GPMaxSz;
+ input >> AAccLin;
+ input >> RAccLin;
+
+ } // end LagBFunction::load( ) - - - - - - - - - - - - - - - - - - - - - - -
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/

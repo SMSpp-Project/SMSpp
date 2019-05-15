@@ -527,6 +527,17 @@ class LagBFunction : public C05Function , public Block {
 		 const bool static_is_ordered = false , c_ModParam issueMod = eNoBlck ,
 		 c_ModParam issueAMod = eNoBlck  );
 
+
+ virtual void remove_variable( Variable * var ,
+ 			       c_ModParam issueMod = eModBlck ) {
+
+   }
+
+ virtual void remove_variables( std::vector<Variable *> && vars ,
+ 				const bool ordered = false ,
+ 				c_ModParam issueMod = eModBlck ) {
+   }
+
 /*--------------------------------------------------------------------------*/
 
  virtual void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
@@ -724,9 +735,9 @@ virtual Index is_active( const Variable * const var ) const override final;
     @{ */
 
  /// printing the LagBFunction
- virtual void print( std::ostream &output ) const override {
+ virtual void print( std::ostream &output ) const override;
 
-  } // end LagBFunction::print( )
+ virtual void load( std::istream &input ) override final;
 
 /*@} -----------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
