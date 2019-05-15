@@ -2,11 +2,13 @@
 /*------------------------ File LagBFunction.cpp ---------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Implementation of the LagBFunction class.
+ * Implementation of the LagBFunction class, which is derived from
+ * both a C05Function and a Block. The class is an interface for a
+ * Lagrangian function.
  *
- * \version 0.03
+ * \version 0.04
  *
- * \date 01 - 03 - 2019
+ * \date 15 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -40,6 +42,9 @@
 
 using namespace SMSpp_di_unipi_it;
 
+using SimpleConfig_p_p = SimpleConfiguration<
+                            std::pair< Configuration * , Configuration * > >;
+
 /*--------------------------------------------------------------------------*/
 /*----------------------------- STATIC MEMBERS -----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -51,6 +56,9 @@ static const char VarAreDir = 0;   // a direction is stored
 static const char VarAreSol = 1;   // a solution is stored
 
 static const char VarToBeChckd = 1;  // Variable must be checked for feasibility
+
+// register MCFBlock to the Block factory
+// SMSpp_insert_in_factory_cpp_1( LagBFunction );
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -227,12 +235,21 @@ void LagBFunction::set_relaxed_function( Function * const function  )
 
 void LagBFunction::set_ComputeConfig( ComputeConfig *scfg )
 {
- auto cc = dynamic_cast<const LagBConfig *>( scfg );
+ auto cc = dynamic_cast<const SimpleConfig_p_p *>( scfg );
+ if( cc == nullptr )
+  throw( std::logic_error( "the configuration is not a SimpleConfiguration" ) );
 
  ThinComputeInterface::set_ComputeConfig( scfg );
 
- v_Block[0]->set_SolverConfig( cc->blkslvcnfg );
- v_Block[0]->set_BlockConfig( cc->blkcnfg );
+ auto sc = dynamic_cast<BlockSolverConfig *>( cc->f_value.first );
+ if( sc == nullptr )
+  throw( std::logic_error( "the configuration is not a BlockSolverConfig" ) );
+ v_Block[0]->set_SolverConfig( sc );
+
+ auto bc = dynamic_cast<BlockConfig *>( cc->f_value.second );
+ if( bc == nullptr )
+  throw( std::logic_error( "the configuration is not a BlockConfig" ) );
+ v_Block[0]->set_BlockConfig( bc );
 
  }  // end ( LagBFunction::set_relaxed_function( ) )   - - - - - - - - - - - -
 
@@ -342,7 +359,7 @@ void LagBFunction::set_par( const idx_type par , const double value )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::deserialize( netCDF::NcGroup & group , Block * father )
+void LagBFunction::deserialize( netCDF::NcGroup & group )
 {
 
  v_Block.clear();
@@ -917,10 +934,12 @@ ComputeConfig * LagBFunction::get_ComputeConfig( bool all ,
 
  ComputeConfig* ccfg = ThinComputeInterface::get_ComputeConfig( all , ocfg );
 
- auto lbcc = dynamic_cast<LagBConfig *>( ccfg );
+ auto cc = dynamic_cast<SimpleConfig_p_p *>( ccfg );
+ if( cc == nullptr )
+  throw( std::logic_error( "the configuration is not a SimpleConfiguration" ) );
 
- lbcc->blkslvcnfg = v_Block[0]->get_SolverConfig();
- lbcc->blkcnfg = (v_Block[0]->get_BlockConfig())->clone();
+ cc->f_value.first = v_Block[0]->get_SolverConfig();
+ cc->f_value.second = (v_Block[0]->get_BlockConfig())->clone();
 
  return( ccfg );
 
@@ -1984,31 +2003,6 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
 
 
  }  // end( LagBFunction::guts_of_add_Modification( sp_Mod ) ) - - - - - - - -
-
-/*--------------------------------------------------------------------------*/
-/*------------------------ METHODS of ComputeConfig ------------------------*/
-/*--------------------------------------------------------------------------*/
-
-void LagBConfig::deserialize( netCDF::NcGroup & group )
-{
- Configuration::deserialize( group );
- auto sc = group.getGroup( "Block" );
- // blkcnfg = new_Configuration( sc );
- sc = group.getGroup( "Solver" );
- // blkslvcnfg = new_Configuration( sc );
-
- } // end( LagBConfig::deserialize( ) )  - - - - - - - - - - - - - - - - - - -
-
-/*--------------------------------------------------------------------------*/
-
-void LagBConfig::serialize( netCDF::NcGroup & group ) const
-{
- Configuration::serialize( group );
- auto cg = group.addGroup( "Block" );
- blkcnfg->serialize( cg );
- cg = group.addGroup( "Solver" );
- blkslvcnfg->serialize(group);
- } // end( LagBConfig::serialize( ) )  - - - - - - - - - - - - - - - - - - - -
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- End File LagBFunction.cpp -------------------------*/
