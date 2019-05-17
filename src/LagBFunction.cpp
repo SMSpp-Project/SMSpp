@@ -6,9 +6,9 @@
  * both a C05Function and a Block. The class is an interface for a
  * Lagrangian function.
  *
- * \version 0.04
+ * \version 0.06
  *
- * \date 15 - 05 - 2019
+ * \date 17 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -20,7 +20,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Enrico Gorgone
+ * Copyright &copy by Antonio Frangioni.
  *
  */
 /*--------------------------------------------------------------------------*/
@@ -91,18 +91,6 @@ LagBFunction::LagBFunction( Block* innerblock , Observer * const observer )
 
  if( observer )
   register_Observer( observer );
-
- /* set a bunch of relaxed constraints (RCs)={g_i(x): for some i},
-    each constraint is a dual pairs <y_i,g_i(x)> where g_i is the constraint
-    and y_i is the Lagrangian multiplier thereof.
-
-    Because relaxed during the construction phase these relaxed constraints
-    are the *static* ones.
-
- // if( v_lag_pair.size() )
- //  set_dual_pairs( std::move( v_lag_pair ) , static_is_ordered );
-  *
- */
 
  } // end ( LagBFunction::LagBFunction( ) )  - - - - - - - - - - - - - - - - -
 
@@ -269,7 +257,6 @@ void LagBFunction::set_par( const idx_type par , const int value )
     		 std::make_pair( int_par_idx2str(intLPMaxSz) , value ) );
     }
    else {
-
     auto it_v = std::find_if( svcc->v_SolverConfigs[0]->int_pars.begin() ,
     	 svcc->v_SolverConfigs[0]->int_pars.end() ,
     	 [ ]( const std::pair< std::string , int > & p ) {
@@ -311,8 +298,6 @@ void LagBFunction::set_par( const idx_type par , const double value )
     		 std::make_pair( dbl_par_idx2str(dblRAccLin) , value ) );
      }
     else {
-
-     //??? controllare []
      auto it_v = std::find_if( svcc->v_SolverConfigs[0]->dbl_pars.begin() ,
     	 svcc->v_SolverConfigs[0]->dbl_pars.end() ,
     	 [ ]( const std::pair< std::string , double > & p ) {
@@ -361,14 +346,12 @@ void LagBFunction::set_par( const idx_type par , const double value )
 
 void LagBFunction::deserialize( netCDF::NcGroup & group )
 {
-
  v_Block.clear();
  netCDF::NcGroup sb = group.getGroup( "B" );
  if( sb.isNull() )
   throw( std::logic_error( "the group B is null" ) );
 
  v_Block.push_back( new_Block( sb , this ) );
-
  } // end ( LagBFunction::deserialize )  - - - - - - - - - - - - - - - - - - -
 
 /*--------------------------------------------------------------------------*/
@@ -377,8 +360,6 @@ void LagBFunction::deserialize( netCDF::NcGroup & group )
 
 void LagBFunction::add_dual_pairs( v_dual_pair && v_lag_pair ,
 		 const bool static_is_ordered , c_ModParam issueMod ) {
-
-   // ??? perchee2 ci non ci sta il parametro del channel
 
  /* If not already ordered by ColVariable "name = pointer", sort the vector of
 	dual Lagrangian pairs <y_i,g_i(x)=a_i^T x > and update the structure
@@ -403,6 +384,9 @@ void LagBFunction::add_dual_pairs( v_dual_pair && v_lag_pair ,
   std::sort( v_lag_pair.begin() , v_lag_pair.end() ,
 	  []( const auto & p1, const auto & p2 ) { return( p1.first < p2.first ); } );
 
+ // by calling add_columns the *new active variables* x_j are retrieved in
+ // varsX  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
  Vec_p_Var varsX = add_columns( v_lag_pair );
 
  /* copy the coefficients c of (obj_B) of the newly inserted variables vars
@@ -421,7 +405,6 @@ void LagBFunction::add_dual_pairs( v_dual_pair && v_lag_pair ,
 
  // merge the list of dual Lagrangian pairs, both containers shall already be
  // ordered  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  std::merge( lag_p.begin() , lag_p.end() , v_lag_pair.begin() , v_lag_pair.end() ,
 		 lag_p.begin() ,
@@ -441,55 +424,106 @@ void LagBFunction::add_dual_pairs( v_dual_pair && v_lag_pair ,
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::remove_dual_pairs( v_dual_pair && v_lag_pair ,
-		 const bool static_is_ordered , c_ModParam issueMod ,
-		 c_ModParam issueAMod ) {
+void LagBFunction::remove_variables( std::vector<Variable *> && vars ,
+		const bool ordered , c_ModParam issueMod  ) {
 
- /* update the structure LagMatrix:
-	remove the pointer to variable x_j from LagMatrix if no longer the relaxed
-	constraints (RCs) are active and restore the coefficient c_j in (obj_B) */
+ if( vars.empty() )  // actually nothing to remove
+  return;            // cowardly (and silently) return
 
- std::move( v_lag_pair );
+ if( lag_p.empty() )  // deleting from nothing
+  throw( std::logic_error( "deleting from an empty set" ) );
 
- for( const auto lagdual : v_lag_pair ) { // for each relaxed constraints
-  auto LinFunc = static_cast<const LinearFunction *>( lagdual.second );
-  if( LinFunc == nullptr )
-   throw( std::logic_error( "the objective is not a linear function" ) );
+ if( ! ordered )
+  std::sort( vars.begin() , vars.end() );
+
+ // remove the Lagrangian pairs <y_i,g_i(x)=a_i^T x> whose y_i belongs to vars
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ auto it = vars.begin();
+ auto itv = lag_p.begin();
+
+ // search the first variable to be eliminated
+ itv = std::find_if( itv , lag_p.end() ,
+                     [ &it ]( const dual_pair &p )
+                            { return( p.first == *it ); } );
+
+ if( itv >= lag_p.end() )  // if the variable is not there
+  throw( std::invalid_argument( "a Variable is not active" ) );
+
+ auto curr = itv;  // position where to move stuff
+ ++it;             // skip the first elements
+ ++itv;            // as they have been processed already
+ for( ; it < vars.end() ; ++itv ) {
+  if( *it < itv->first )
+   throw( std::invalid_argument( "a Variable is not active" ) );
+
+  if( *it == itv->first )  // one element to be eliminated
+   ++it;                   // skip it
+  else
+   *(curr++) = *itv;       // move in the current position
   }
 
- if( ! static_is_ordered )
-  std::sort( v_lag_pair.begin() , v_lag_pair.end() ,
-	  []( const auto & p1, const auto & p2 ) { return( p1.first < p2.first ); } );
+ for( ; itv < lag_p.end() ; )  // copy the last part
+  *(curr++) = *(itv++);        // after the last of vars
 
+ lag_p.erase( curr , itv );    // erase the last part
 
- rm_columns( v_lag_pair );
+ /* remove the pointer to variable x_j from LagMatrix if no longer the relaxed
+	constraints (RCs) are active and restore the coefficient c_j in (obj_B) */
 
- // remove the Lagrangian pairs <y_i,g_i(x)=a_i^T x> contained in v_dual_pair
- // from lag_p - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- for( auto it = v_lag_pair.begin() ; it != v_lag_pair.end() ;  ++it )
-  lag_p.erase( it );
+ rm_columns( vars );
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
 
- Vec_p_Var vars( v_lag_pair.size() );
- auto its = vars.begin();
- for( auto nm : v_lag_pair )
-  *(its++) = nm.first;
+ f_Observer->add_Modification( std::make_shared<FunctionModVars>( this ,
+                                        FunctionModVars::RemoveVar ,
+ 				       std::move( vars ) , true , 0 ,
+ 				       Observer::par2concern( issueMod ) ) ,
+ 			       Observer::par2chnl( issueMod ) );
+
+ }  // end( LagBFunction::remove_variables() ) - - - - - - - - - - - - - - - -
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::remove_variable( Variable * var , c_ModParam issueMod ) {
+
+ if( ! var )  // actually nothing to remove
+  return;     // cowardly (and silently) return
+
+ if( lag_p.empty() )  // deleting from nothing
+  throw( std::logic_error( "deleting from an empty set" ) );
+
+ // search where the variable lives
+ auto itv = std::find_if( lag_p.begin() , lag_p.end() ,
+				  [ var ]( const dual_pair & p ) {
+				   return( p.first == var );
+				   }
+				  );
+
+ if( itv == lag_p.end() )  // if the variable is not there
+  throw( std::invalid_argument( "Variable is not active" ) );
+
+ lag_p.erase( itv );       // erase it
+
+ /* remove the pointer to variable x_j from LagMatrix if no longer the relaxed
+	constraints (RCs) are active and restore the coefficient c_j in (obj_B) */
+
+ Vec_p_Var vars( { var } );
+ rm_columns( vars ); // ?? si puo' ottimizzare ??
+ vars.clear();
+
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+  return;
 
  f_Observer->add_Modification( std::make_shared<FunctionModVars>( this ,
                                        FunctionModVars::RemoveVar ,
-				       std::move( vars ) , true , 0 ,
+				       Vec_p_Var( { var } ) , true , 0 ,
 				       Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 
- // clear v_lag_pair, because already removed from lag_p   - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- v_lag_pair.clear();
-
- }  // end( LagBFunction::remove_dual_pairs() )- - - - - - - - - - - - - - - -
+ } // end( LagBFunction::remove_variable() ) - - - - - - - - - - - - - - - - -
 
 /*--------------------------------------------------------------------------*/
 
@@ -525,19 +559,18 @@ void LagBFunction::serialize( netCDF::NcGroup & group ) const
  LinearFunction::v_coeff_pair VarsToChange( LagMatrix.size() );  // temporary
  LinearFunction::v_coeff_pair VarsToRestore( LagMatrix.size() ); // vectors
 
+ // the size of ov_pair may be large than that of LagMatrix, so if the
+ // variable is not present in LagMatrix just go further
+
  auto itb = ov_pair.begin();
  auto itc = VarsToChange.begin();
  auto itd = VarsToRestore.begin();
  for( auto ita = LagMatrix.begin() ; ita != LagMatrix.end() ; itb++ ) {
   // there is no variable active in (RCs) and *not active* in (obj_B)
-  if( ita->first == itb->first ) {
-   itc->first = ita->first;  // put the original costs into VarsToChange
-   itc->second = (ita->second).first;
-   itd->first = itb->first;  // put the Lagrangian costs into VarsToRestore
-   itd->second = itb->second;
+  if( ita->first == itb->first ) { // put the original costs into VarsToChange and
+   (*itc++) = std::make_pair( ita->first , (ita->second).first ); // the Lagrangian
+   (*itd++) = std::make_pair( itb->first , itb->second );  // costs into VarsToRestore
    ita++;
-   itc++;
-   itd++;
    }
   }
 
@@ -650,7 +683,7 @@ int LagBFunction::compute( bool changedvars )
  // update the Lagrangian cost vector  - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( changedvars ) //???
+ if( changedvars ) // ?? else do I have to exit ??
   compute_Lagrangian_costs();
 
  // if some parameters have been changed, set BlockSolverConfig
@@ -691,7 +724,6 @@ Function::FunctionValue LagBFunction::get_value( void ) const
    objvalue += lfrel->get_constant_term() * (lagdual.first)->get_value();
    }
 
-
  return( objvalue );
 
  } // end ( LagBFunction::get_value( ) ) - - - - - - - - - - - - - - - - - - -
@@ -728,7 +760,7 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
  else {  // asking for a linearization of the global pool  - - - - - - - - - -
 
   // assign Solution to the sub-Block in such a way the linearization
-  // associated with the given name will be recovered from the global pool
+  // associated with the given name will be retrieved from the global pool
 
   if( std::get<0>(g_pool[ name ]) == nullptr )
    throw( std::logic_error( "the linearization is not available" ) );
@@ -887,39 +919,21 @@ Function::FunctionValue LagBFunction::get_linearization_constant(
  // return the constant c^Tx + c_0 unless the solution is no longer feasible
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- LinearFunction::v_c_coeff_pair & LFInnBCoeff = lfobj->get_v_var();
+ LinearFunction::v_c_coeff_pair & ov_pair = lfobj->get_v_var();
 
- auto it = LagMatrix.begin() ;
- auto itv = LFInnBCoeff.begin();
+ /* note that the size of ov_pair may be large than that of LagMatrix, so
+   if the variable is present in LagMatrix the coefficient of the variable
+   if the Lagrangian cost, otherwise the coefficient of the variable
+   is the original one */
 
- while( it != LagMatrix.end() || itv != LFInnBCoeff.end() )
- {
-  if( itv == LFInnBCoeff.end() ) {
-   alpha += (it->first)->get_value() * (it->second).first;
-   it++;
+ auto ita = LagMatrix.begin();
+ for( auto itb = ov_pair.begin() ; itb != ov_pair.end() ; itb++ )
+  if( ita->first == itb->first ) {
+   alpha += (ita->first)->get_value() * (ita->second).first;
+   ita++;
    }
   else
-   if( it == LagMatrix.end() ) {
-    alpha += (itv->first)->get_value() * (itv->second);
-    itv++;
-    }
-   else {
-    if( it->first < itv->first ) {
-     alpha += (it->first)->get_value() * (it->second).first;
-     it++;
-     }
-    else
-     if( it->first == itv->first ) {
-      alpha += (it->first)->get_value() * (it->second).first;
-      it++;
-      itv++;
-      }
-     else {
-      alpha += (itv->first)->get_value() * (itv->second);
-      itv++;
-      }
-    }
-  } // end while  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+   alpha += (itb->first)->get_value() * (itb->second);
 
  return( alpha );
 
@@ -1019,12 +1033,14 @@ void LagBFunction::map_active( c_Vec_p_Var & vars , Vec_Index & map ,
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  auto itvb = vars.begin();
+
  auto itvv = std::lower_bound( lag_p.begin() , lag_p.end() ,
-     std::make_pair( *itvb , 0 ) , []( const auto & p1 , const auto & p2 ) {
-	 return( p1.first < p2.first ); } );
+     std::make_pair( *itvb , 0 ) , []( const auto & p1 , const auto & p2 )
+	 { return( p1.first < p2.first ); } );
+
  auto itve = std::upper_bound( itvv , lag_p.end() ,
-	 std::make_pair( *(--vars.end()) , 0 ) , []( const auto & p1 , const auto & p2 ) {
-	 return( p1.first < p2.first ); } );
+	 std::make_pair( *(--vars.end()) , 0 ) , []( const auto & p1 , const auto & p2 )
+	 { return( p1.first < p2.first ); } );
 
  auto itm = map.begin();
  while( itvb < vars.end() ) {
@@ -1075,7 +1091,7 @@ void LagBFunction::load( std::istream &input ) {
 
 Vec_p_Var LagBFunction::add_columns( v_dual_pair & v_lag_pair )
 {
- // update the map which provides the information used to compute the
+ // update LagMatrix which provides the information used to compute the
  // Lagrangian costs - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  std::set<p_Var> unique_vars;
@@ -1146,12 +1162,15 @@ Vec_p_Var LagBFunction::add_columns( v_dual_pair & v_lag_pair )
 
 Vec_p_Var LagBFunction::update_columns( v_dual_pair & v_lag_pair )
 {
- // update the map which provides the information used to compute the
- // Lagrangian costs - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // update the map which provides the information needed to compute the
+ // Lagrangian costs , the method is similar to add_column() [see above ]
+ // except for the fact the update_columns( ) has - in addition- to remove
+ // all the primal variable x_j no longer active in any (RCs) constraint
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  std::set<p_Var> unique_vars; // variables to be removed from LagMatrix
 
- // the following array has to save the variables which are no longer
+ // the following array has to save the primal variables which are no longer
  // active in any constraint - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -1259,8 +1278,6 @@ Vec_p_Var LagBFunction::update_columns( v_dual_pair & v_lag_pair )
  // longer are active in (RCs), write them in (obj_B).  - - - - - - - - - -
 
  auto lfobj = static_cast<LinearFunction *>( obj->get_function() );
- LinearFunction::v_c_coeff_pair & LFInnBCoeff = lfobj->get_v_var();
-
  lfobj->modify_coefficients( VarsToRmv );
 
  Vec_p_Var vars(unique_vars.begin(), unique_vars.end());
@@ -1273,7 +1290,7 @@ Vec_p_Var LagBFunction::update_columns( v_dual_pair & v_lag_pair )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::rm_columns( v_dual_pair & v_lag_pair )
+void LagBFunction::rm_columns( Vec_p_Var & vars )
 {
  // update the map which provides the information used to compute the
  // Lagrangian costs - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1281,22 +1298,22 @@ void LagBFunction::rm_columns( v_dual_pair & v_lag_pair )
  // the following array has to save the variables which are no longer
  // active in any constraint - - - - - - - - - - - - - - - - - - - - - - - - -
 
- LinearFunction::v_coeff_pair VarsToRmv( v_lag_pair.size() );
+ LinearFunction::v_coeff_pair VarsToRmv( vars.size() );
 
- // remove the Lagrangian pairs from the map LagMatrix
+ // remove the Lagrangian pairs from the map LagMatrix - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  for( auto el : LagMatrix ) {
   auto & curr_column = (el.second).second;
-  auto itv1 = v_lag_pair.begin();
+  auto itv1 = vars.begin();
   for( auto it = curr_column.begin() ;
-		  it != curr_column.end() && itv1 != v_lag_pair.end() ; ) {
-   if( it->first < itv1->first )
+		  it != curr_column.end() && itv1 != vars.end() ; ) {
+   if( it->first < *itv1 )
     it++;
    else
-    if( it->first == itv1->first ) {
-     curr_column.erase( it );
-     itv1++;
+    if( it->first == *itv1 ) {
+     curr_column.erase( it ); // erasing the element, the iterator is moved
+     itv1++;                  // to the next entry
      }
     else
      itv1++;
@@ -1316,30 +1333,11 @@ void LagBFunction::rm_columns( v_dual_pair & v_lag_pair )
   }
 
  // save the original coefficients c_j of he variables x_j which no
- // longer are active in (RCs), write them in (obj_B)  - - - - - - - - - - -
+ // longer are active in (RCs), write them in (obj_B).  - - - - - - - - - -
 
  auto lfobj = static_cast<LinearFunction *>( obj->get_function() );
- LinearFunction::v_c_coeff_pair & LFInnBCoeff = lfobj->get_v_var();
+ lfobj->modify_coefficients( VarsToRmv );
 
- auto itv2 = LFInnBCoeff.begin();
- for( auto it = VarsToRmv.begin() ; it != VarsToRmv.end() ;   ) {
-
-  if( itv2 != LFInnBCoeff.end() ) {
-   if( it->first < itv2->first )
-    it++;
-   else
-    if( it->first == itv2->first ) {
-     lfobj->modify_coefficient( it->first , it->second );
-     it++;
-     itv2++;
-     }
-    else
-     itv2++;
-   }
-  else
-   it++;
-
-  } // end for - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  } // end ( LagBFunction::rm_columns() ) - - - - - - - - - - - - - - - - - - -
 
@@ -1442,16 +1440,9 @@ void LagBFunction::set_original_costs( c_Vec_p_Var & v_xvar )
   variable name and a column < y, A_j> is ordered by Lagrangian multiplier
   name (= pointer).
 
-  Any variable x_j is in LagMatrix is inserted with coefficient c_j set to
-  zero, so the coefficients to be updated are the active ones in (obj_B).
-
-   v_xpair is constructed like this:
-
-    v_xpair(i) = { ( x_j , c_j ) : x_j =  v_xvar(i) )
-
-  Obviously in this way v_xvar is read twice, but if v_xvar was once read
-  the coefficients have to be get from (obj_B) by means of
-  LinearFunction::get_coefficient, and it would be more costly. */
+  Note that variable x_j is in LagMatrix is inserted with zero-coefficient
+  c_j and the coefficients to be updated are only the active ones in
+  the objective function (obj_B) of the sub-block. */
 
  auto lsb = static_cast<LinearFunction *>( obj->get_function() );
  LinearFunction::v_c_coeff_pair & ov_pair = lsb->get_v_var();
@@ -1464,24 +1455,18 @@ void LagBFunction::set_original_costs( c_Vec_p_Var & v_xvar )
    for( auto ita = v_xvar.begin() ; ita != v_xvar.end() ;   ) {
     if( itb != ov_pair.end() )
 	 if( *ita < itb->first ) { // the variable is not active in (obj_B)
-	  //(itc)->second = 0;     // and so its coefficient is zero but
-	  //(itc++)->first = itb->first; // there is no need to set the
-      ita++;                         // coefficient in LagMatrix
+      ita++;	               // and its coefficient is already zero
 	  }
 	 else
 	  if( *ita == itb->first ) {    // copy the coefficient value from (obj_B)
-	   (itc)->first = itb->first;   // and insert it into LagMatrix
-	   (itc++)->second = itb->second;
-	   ita++;
+	   (*itc++) = std::make_pair( itb->first , itb->second ); // and insert
+	   ita++;                       // it into LagMatrix
 	   itb++;
 	   }
 	  else  // nothing to do
 	   itb++;
-    else {                // the variable is not active in (obj_B)
-     //(itc)->second = 0; // and so its coefficient is zero but
-     //(itc++)->first = itb->first; // there is no need to set the coefficient in
-     ita++;                         // LagMatrix
-     }
+    else      // the variable is not active in (obj_B)
+     ita++;	  // and its coefficient is already zero but
     }
 
  /* The original costs have to be replaced by Lagrangian ones in (obj_B)

@@ -5,9 +5,9 @@
  * Header file for the class LagBFunction, which
  * implements C05Function and Block with a Lagrangian function.
  *
- * \version 0.04
+ * \version 0.06
  *
- * \date 15 - 05 - 2019
+ * \date 17 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -19,7 +19,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Enrico Gorgone
+ * Copyright &copy by Antonio Frangioni.
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -83,11 +83,12 @@ namespace SMSpp_di_unipi_it
  *
  *      (O)    max { c(x) : g(x) [ + ... ] [<]= 0 , x \in X }
  *
- *    that are relaxed to make it easier. The "[ + ... ]" term underlines the
- *    fact that (O) may have other variables that, once the complicating
- *    constraints are relaxed, become independent from x; these will be
- *    typically put into one (or more) other LagBFunction, and therefore are
- *    not a concern of this specific (B). The notation "[<]=" means that the
+ *    that are relaxed to make it easier. To make the notation easier the
+ *    relaxed constraints are also referred to as (RCs).The "[ + ... ]" term
+ *    underlines the fact that (O) may have other variables that, once the
+ *    complicating constraints are relaxed, become independent from x; these
+ *    will be typically put into one (or more) other LagBFunction, and therefore
+ *    are not a concern of this specific (B). The notation "[<]=" means that the
  *    constraints can (almost) indifferently be equalities or inequalities,
  *    the difference simply yielding (or not) sign constraints on the
  *    Lagrangian multipliers [see right below]. The vector y = [ y_i ]_{i \in I}
@@ -242,8 +243,12 @@ namespace SMSpp_di_unipi_it
  * of BiLinearFunction and extensions. More importantly, so far there is no
  * evidence that a specialized Solver exists that it may be appropriate to
  * use to solve this kind of problem, and therefore there does not appear to
- * be any compelling reason to implement this kludge. */
-
+ * be any compelling reason to implement this kludge.
+ *
+ * The Objective of a Lagrangian function is its Observer, but in turn a
+ * LagBFunction is also the Observer of its relaxed (linear) function (RCs).
+ * This means this a Lagrangian function handles the Modification which come
+ * to it from both way: the sub-Block (B) and the constraints (RCs). */
 
 class LagBFunction : public C05Function , public Block {
 
@@ -391,7 +396,13 @@ class LagBFunction : public C05Function , public Block {
 
  /// constructor of LagBFunction, taking the static Lagrangian pairs.
  /** Constructor of LagBFunction. It accepts a pointer both to a Block and
-  * an Observer, in particular the Block is the sub-problem (B). */
+  * an Observer, in particular the Block is the sub-block (B).
+  *
+  * It is assumed the sub-block (B) has no children. The constructor does not
+  * accept an array of dual pair, which consists of a pair of relaxed
+  * constraints g_i(x) and its Lagrangian multiplier y_i, for some i \in I.
+  * The assumption makes sure that, before saving the Lagrangian multipliers,
+  * the Observer has been registered. */
 
  LagBFunction( Block* innerblock = nullptr , Observer * const observer = nullptr );
 
@@ -414,8 +425,8 @@ class LagBFunction : public C05Function , public Block {
  *  @{ */
 
  /// set the sub-block pointer.
- /** Method to set the pointer to the sub-Block (B), which is assumed to be
-  *  without children.
+ /** This method to set the pointer to the sub-Block (B), which is assumed
+  *  to be without children.
   *
   * If a set of "static" dual pairs <y, g(x)> have been already accommodated
   * [ see set_dual_pairs(), LagBFunction() ], the cost vector c of (obj_B) will
@@ -454,11 +465,13 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- /// set LagBFunction as the Observer of (RCs)
- /** This method sets this LagBFunction as the Observer of the relaxed
-  * constraints. No variables are registered because the Lagrangian multipliers
-  * are the variables of LagBFuntion while the primal variables x are the
-  * the variables of (RCs). */
+ /// register LagBFunction as the Observer of g_i, with i \in I.
+ /** This method registers this class as the Observer of the relaxed
+  * constraints given in input. This method *must be* called for all the
+  * relaxed constraints (RCs). No variable is registered because the
+  * Lagrangian multipliers are the variables of LagBFuntion while the primal
+  * variables x are the variables of (RCs), and then the set of variables
+  * are not compatible with each other. */
 
  virtual void set_relaxed_function( Function * const function = nullptr  );
 
@@ -523,20 +536,15 @@ class LagBFunction : public C05Function , public Block {
  /// remove a bunch of *dynamic* Lagrangian pairs <y, g(x)>,
  /** This method removes a bunch of Lagrangian pairs. The structure LagMatrix
   *  used to compute the Lagrangian costs needs to be update.  */
- void remove_dual_pairs( v_dual_pair && v_lag_pair ,
-		 const bool static_is_ordered = false , c_ModParam issueMod = eNoBlck ,
-		 c_ModParam issueAMod = eNoBlck  );
-
-
- virtual void remove_variable( Variable * var ,
- 			       c_ModParam issueMod = eModBlck ) {
-
-   }
 
  virtual void remove_variables( std::vector<Variable *> && vars ,
- 				const bool ordered = false ,
- 				c_ModParam issueMod = eModBlck ) {
-   }
+			const bool ordered = false ,
+			c_ModParam issueMod = eModBlck ) override;
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+
+ virtual void remove_variable( Variable * var ,
+ 			       c_ModParam issueMod = eModBlck ) override;
 
 /*--------------------------------------------------------------------------*/
 
@@ -586,8 +594,8 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
  /// returns the value of the Function
  /** It returns the value of the Function that was computed in the most recent
-  * call to compute(); if the latter has never been invoked, then the value returned
-  * by this method is meaningless.
+  * call to compute(); if the latter has never been invoked, then the value
+  * returned by this method is meaningless.
   *
   * If (B) is computed with a low accuracy and the function value lays in an
   * interval, the upper bound shall be returned (the lower bound if (B) is a
@@ -744,10 +752,10 @@ virtual Index is_active( const Variable * const var ) const override final;
 /*--------------------------------------------------------------------------*/
 
  FRealObjective * obj;
- ///< the (linear) objective function
+ ///< the (linear) objective function of the sub-Block (B)
 
  Solver* slv;
- ///< Solver of the sub-Block
+ ///< the Solver of (B)
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
@@ -801,7 +809,7 @@ virtual Index is_active( const Variable * const var ) const override final;
 
    Vec_p_Var add_columns( v_dual_pair & v_lag_pair );
    Vec_p_Var update_columns( v_dual_pair & v_lag_pair );
-   void rm_columns( v_dual_pair & v_lag_pair );
+   void rm_columns( Vec_p_Var & vars );
 
 /*--------------------------------------------------------------------------*/
 
