@@ -1672,9 +1672,10 @@ class C05FunctionModVars : public FunctionModVars
 
  C05FunctionModVars( Function * const f , const int mod ,
 		     std::vector<Variable *> && vars ,
+		     const bool ordered = true ,
 		     const FunctionValue shift = 0 ,
 		     const bool strong = false , const bool cB = true )
-  : FunctionModVars( f , mod , std::move( vars ) , shift , cB ) ,
+  : FunctionModVars( f , mod , std::move( vars ) , ordered , shift , cB ) ,
     f_strong( strong ) { }
 
  /// destructor: does nothing
