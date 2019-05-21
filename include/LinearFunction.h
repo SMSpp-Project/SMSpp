@@ -375,8 +375,7 @@ class LinearFunction : public C15Function {
   * linearization. */
 
  void get_linearization_coefficients( FunctionValue * g ,
-				      c_Vec_Index * const indices ,
-				      c_Index start , c_Index end ) const;
+		c_Vec_Index & indices ,  c_Index start , c_Index end ) const;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get a range of linearization coefficients
@@ -391,14 +390,14 @@ class LinearFunction : public C15Function {
 
  virtual void get_linearization_coefficients( FunctionValue * g ,
    const LinearizationName name = Inf<LinearizationName>() ,
-   c_Vec_Index * const indices = nullptr , c_Index start = 0 ,
+   c_Vec_Index & indices = {} , c_Index start = 0 ,
    c_Index end = Inf<Index>() ) override final;
 
 /*--------------------------------------------------------------------------*/
 
  virtual void get_linearization_coefficients( SparseVector &g ,
    const LinearizationName name = Inf<LinearizationName>() ,
-   c_Vec_Index * const indices = nullptr , c_Index start = 0 ,
+   c_Vec_Index & indices = {} , c_Index start = 0 ,
    c_Index end = Inf<Index>() ) override final;
 
 /*--------------------------------------------------------------------------*/
@@ -406,7 +405,7 @@ class LinearFunction : public C15Function {
  * constant is equal to the constant term of the LinearFunction. */
 
  virtual Function::FunctionValue get_linearization_constant(
-                   const LinearizationName name = Inf<LinearizationName>() )
+         const LinearizationName name = Inf<LinearizationName>() )
   override final {
  return( f_constant_term );
  }

@@ -731,8 +731,9 @@ class C05Function : public Function {
   *
   * It is possible to retrieve the whole vector of coefficients or only part
   * of it. The parameters indices, start, and end are used to indicate which
-  * components of the linearization vector should be obtained. The components
-  * of a linearization are numbered from 0 to n - 1, where
+  * components of the linearization vector should be obtained. If indices
+  * is empty all the components from start to end will be retrieved. The
+  * components of a linearization are numbered from 0 to n - 1, where
   * n = get_num_active_var() is the number of active Variables of this
   * Function. Moreover, the i-th component of a linearization is associated
   * with the i-th active Variable of this Function.
@@ -777,10 +778,9 @@ class C05Function : public Function {
   * for all i. */
 
  virtual void get_linearization_coefficients( FunctionValue *g ,
-      const LinearizationName name =
-			     std::numeric_limits<LinearizationName>::max() ,
-      c_Vec_Index * const indices = nullptr , c_Index start = 0 ,
-      Index end = std::numeric_limits<Index>::max() ) = 0;
+      const LinearizationName name = Inf<LinearizationName>() ,
+	  c_Vec_Index & indices = {} , c_Index start = 0 ,
+	  Index end = Inf<Index>() ) = 0;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// retrieve the coefficients (g) of a linearization in a sparse vector
@@ -814,10 +814,9 @@ class C05Function : public Function {
   */
 
  virtual void get_linearization_coefficients( SparseVector &g ,
-      const LinearizationName name =
-                               std::numeric_limits<LinearizationName>::max() ,
-      c_Vec_Index * const indices = nullptr , c_Index start = 0 ,
-      Index end = std::numeric_limits<Index>::max() ) = 0;
+      const LinearizationName name = Inf<LinearizationName>() ,
+	  c_Vec_Index & indices = {} , c_Index start = 0 ,
+	  Index end = Inf<Index>() ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// return the constant term of a linearization
@@ -844,8 +843,7 @@ class C05Function : public Function {
   */
 
  virtual FunctionValue get_linearization_constant(
-			       const LinearizationName name =
-	                       std::numeric_limits<unsigned int>::max() ) = 0;
+   const LinearizationName name = Inf<Index>()  ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// returns true if and only if this Function is continuously differentiable

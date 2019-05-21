@@ -48,9 +48,9 @@ SMS++OBJ = $(SMS++SDR)obj/Block.o \
 	$(SMS++SDR)obj/OneVarConstraint.o \
 	$(SMS++SDR)obj/Solver.o \
 	$(SMS++SDR)obj/ThinComputeInterface.o \
-	$(SMS++SDR)obj/Variable.o
-#	$(SMS++SDR)obj/RowConstraint.o
-#        $(SMS++SDR)obj/LagBFunction.o \
+	$(SMS++SDR)obj/Variable.o \
+        $(SMS++SDR)obj/LagBFunction.o 
+#	$(SMS++SDR)obj/RowConstraint.o \
 
 SMS++INC := $(SMS++INC) -I$(SMS++SDR)include
 
@@ -76,9 +76,9 @@ SMS++H = $(SMS++SDR)include/Block.h \
 	$(SMS++SDR)include/Solver.h \
 	$(SMS++SDR)include/ThinComputeInterface.h \
 	$(SMS++SDR)include/ThinVarDepInterface.h \
-	$(SMS++SDR)include/Variable.h
-#	$(SMS++SDR)include/DQuadFunction.h
-#	$(SMS++SDR)include/LagBFunction.h \
+	$(SMS++SDR)include/Variable.h \
+	$(SMS++SDR)include/LagBFunction.h 
+#	$(SMS++SDR)include/DQuadFunction.h \
 
 # clean - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -139,15 +139,15 @@ $(SMS++SDR)obj/FRowConstraint.o: $(SMS++SDR)src/FRowConstraint.cpp \
 	$(SMS++SDR)include/ThinVarDepInterface.h
 	$(CC) -c $(SMS++SDR)src/FRowConstraint.cpp -o $@ $(SMS++INC) $(SW)
 
-#$(SMS++SDR)obj/LagBFunction.o: $(SMS++SDR)src/LagBFunction.cpp \
-#	$(SMS++SDR)include/LinearFunction.h $(SMS++SDR)include/C15Function.h \
-#	$(SMS++SDR)include/C05Function.h $(SMS++SDR)include/Function.h \
-#	$(SMS++SDR)include/ColVariable.h $(SMS++SDR)include/Variable.h \
-#	$(SMS++SDR)include/Constraint.h $(SMS++SDR)include/Modification.h \
-#	$(SMS++SDR)include/Observer.h $(SMS++SDR)include/SMSTypedefs.h \
-#	$(SMS++SDR)include/ThinComputeInterface.h $(intBlockINC) \
-#	$(SMS++SDR)include/ThinVarDepInterface.h
-#	$(CC) -c $(SMS++SDR)src/LagBFunction.cpp -o $@ $(SMS++INC) $(SW)
+$(SMS++SDR)obj/LagBFunction.o: $(SMS++SDR)src/LagBFunction.cpp \
+	$(SMS++SDR)include/LinearFunction.h $(SMS++SDR)include/C15Function.h \
+	$(SMS++SDR)include/C05Function.h $(SMS++SDR)include/Function.h \
+	$(SMS++SDR)include/ColVariable.h $(SMS++SDR)include/Variable.h \
+	$(SMS++SDR)include/Constraint.h $(SMS++SDR)include/Modification.h \
+	$(SMS++SDR)include/Observer.h $(SMS++SDR)include/SMSTypedefs.h \
+	$(SMS++SDR)include/ThinComputeInterface.h $(intBlockINC) \
+	$(SMS++SDR)include/ThinVarDepInterface.h
+	$(CC) -c $(SMS++SDR)src/LagBFunction.cpp -o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)obj/LinearFunction.o: $(SMS++SDR)src/LinearFunction.cpp \
 	$(SMS++SDR)include/LinearFunction.h $(SMS++SDR)include/C15Function.h \

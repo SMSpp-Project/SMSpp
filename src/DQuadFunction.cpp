@@ -134,11 +134,10 @@ double DQuadFunction::get_linearization_coefficient( c_Index i ) const
 /*--------------------------------------------------------------------------*/
 
 void DQuadFunction::get_linearization_coefficients( FunctionValue * g ,
-				  c_Vec_Index * const indices ,
-				  c_Index start , c_Index end ) const
+		c_Vec_Index & indices ,  c_Index start , c_Index end ) const
 {
  c_Index tend = std::min( end , get_num_active_var() );
- for( const auto & i : *indices )
+ for( const auto & i : indices )
   if( ( i >= start ) && ( i < tend ) )
     *(g++) = get_linearization_coefficient( i );
  }
@@ -156,11 +155,10 @@ void DQuadFunction::get_linearization_coefficients( FunctionValue * g ,
 /*--------------------------------------------------------------------------*/
 
 void DQuadFunction::get_linearization_coefficients( FunctionValue * g ,
-				 const LinearizationName name ,
-                                 const std::vector<Index> * const indices ,
-                                 const Index start , const Index end )
+	 const LinearizationName name , c_Vec_Index & indices ,
+	 const Index start , const Index end )
 {
- if( indices != nullptr )
+ if( indices.size() )
   get_linearization_coefficients( g , indices , start , end );
  else
   get_linearization_coefficients( g , start , end );
@@ -169,9 +167,8 @@ void DQuadFunction::get_linearization_coefficients( FunctionValue * g ,
 /*--------------------------------------------------------------------------*/
 
 void DQuadFunction::get_linearization_coefficients( SparseVector & g ,
-				         const LinearizationName name ,
-                                         c_Vec_Index * const indices ,
-                                         c_Index start , c_Index end )
+	 const LinearizationName name , c_Vec_Index & indices,
+     c_Index start , c_Index end )
 {
  c_Index num_active_var = get_num_active_var();
  c_Index tend = std::min( end , num_active_var );
@@ -185,8 +182,8 @@ void DQuadFunction::get_linearization_coefficients( SparseVector & g ,
 
   g.reserve( tend - start );
 
-  if( indices != nullptr ) {
-   for( const auto & i : *indices )
+  if( indices.size() ) {
+   for( const auto & i : indices )
      if( ( i >= start ) && ( i < tend ) ) {
        g.insert( i ) = get_linearization_coefficient( i );
      }
@@ -203,8 +200,8 @@ void DQuadFunction::get_linearization_coefficients( SparseVector & g ,
 	    "the size of the sparse vector must be equal to the number "
 	    "of active Variables of the Function" ) );
 
-  if( indices ) {
-   for( const auto & i : *indices )
+  if( indices.size() ) {
+   for( const auto & i : indices )
     if( ( i >= start ) && ( i < tend ) )
      g.coeffRef( i ) = get_linearization_coefficient( i );
    }

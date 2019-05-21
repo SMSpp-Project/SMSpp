@@ -626,7 +626,7 @@ class LagBFunction : public C05Function , public Block {
 
  virtual void get_linearization_coefficients( FunctionValue * g ,
    const LinearizationName name = Inf<LinearizationName>() ,
-   c_Vec_Index * const indices = nullptr , c_Index start = 0 ,
+   c_Vec_Index & indices = {} , c_Index start = 0 ,
    c_Index end = std::numeric_limits<Index>::max() ) override final;
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
@@ -639,13 +639,13 @@ class LagBFunction : public C05Function , public Block {
 
  virtual void get_linearization_coefficients( SparseVector &g ,
    const LinearizationName name = Inf<LinearizationName>() ,
-   c_Vec_Index * const indices = nullptr , c_Index start = 0 ,
+   c_Vec_Index & indices = {} , c_Index start = 0 ,
    c_Index end = std::numeric_limits<Index>::max() ) override final;
 
 /*--------------------------------------------------------------------------*/
 
- virtual FunctionValue get_linearization_constant( const LinearizationName name =
-   std::numeric_limits<Index>::max() ) override final;
+ virtual FunctionValue get_linearization_constant(
+		 const LinearizationName name = Inf<Index>() ) override final;
 
 /*@} -----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/

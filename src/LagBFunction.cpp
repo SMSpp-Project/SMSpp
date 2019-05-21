@@ -731,7 +731,7 @@ Function::FunctionValue LagBFunction::get_value( void ) const
 /*--------------------------------------------------------------------------*/
 
 void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
-	  const LinearizationName name , const std::vector<Index> * const indices ,
+	  const LinearizationName name , c_Vec_Index & indices ,
       const Index start , const Index end )
 
 {
@@ -776,8 +776,8 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
  // (RCs)_i is the corresponding entry of the linearization - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( indices != nullptr ) {
-  for( const auto & i : *indices )
+ if( indices.size() ) {
+  for( const auto & i : indices )
    if( ( i >= start ) && ( i < end_p ) )
     *(g++) = lag_p[ i ].second->get_value();
   }
@@ -790,7 +790,7 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
 /*--------------------------------------------------------------------------*/
 
 void LagBFunction::get_linearization_coefficients( SparseVector & g ,
-			const LinearizationName name , c_Vec_Index * const indices ,
+			const LinearizationName name , c_Vec_Index & indices ,
             c_Index start , c_Index end )
 {
  c_Index end_p = std::min( Index( lag_p.size()) , end );
@@ -842,8 +842,8 @@ void LagBFunction::get_linearization_coefficients( SparseVector & g ,
 
   g.reserve( end_p - start );
 
-  if( indices != nullptr ) {
-   for( const auto & i : *indices )
+  if( indices.size() ) {
+   for( const auto & i : indices )
     if( ( i >= start ) && ( i < end_p ) )
      g.insert( i ) = lag_p[ i ].second->get_value();
    }
@@ -859,8 +859,8 @@ void LagBFunction::get_linearization_coefficients( SparseVector & g ,
       "the size of the sparse vector must be equal to the number "
       "of Lagrangian multipliers" ) );
 
-  if( indices != nullptr ) {
-   for( const auto & i : *indices )
+  if( indices.size() ) {
+   for( const auto & i : indices )
     if( ( i >= start ) && ( i < end_p ) )
      g.coeffRef( i ) = lag_p[ i ].second->get_value();  //*?????
      }

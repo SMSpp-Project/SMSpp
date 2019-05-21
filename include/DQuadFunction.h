@@ -387,8 +387,7 @@ class DQuadFunction : public C15Function {
   * linearization. */
 
  void get_linearization_coefficients( FunctionValue * g ,
-				      c_Vec_Index * const indices ,
-				      c_Index start , c_Index end ) const;
+	c_Vec_Index & indices ,  c_Index start , c_Index end ) const;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get a range of linearization coefficients
@@ -402,26 +401,25 @@ class DQuadFunction : public C15Function {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  virtual void get_linearization_coefficients( FunctionValue * g ,
-   const LinearizationName name =
-                              std::numeric_limits<LinearizationName>::max() ,
-   c_Vec_Index * const indices = nullptr , c_Index start = 0 ,
-   c_Index end = std::numeric_limits<Index>::max() ) override final;
+   const LinearizationName name = Inf<LinearizationName>() ,
+   c_Vec_Index & indices = {} , c_Index start = 0 ,
+   Index end = Inf<Index>() ) override final;
 
 /*--------------------------------------------------------------------------*/
 
  virtual void get_linearization_coefficients( SparseVector &g ,
-   const LinearizationName name =
-                              std::numeric_limits<LinearizationName>::max() ,
-   c_Vec_Index * const indices = nullptr , c_Index start = 0 ,
-   c_Index end = std::numeric_limits<Index>::max() ) override final;
+   const LinearizationName name = Inf<LinearizationName>() ,
+   c_Vec_Index & indices = {} , c_Index start = 0 ,
+   Index end = Inf<Index>() ) override final;
 
 /*--------------------------------------------------------------------------*/
  /** There is only one linearization in a DQuadFunction. The value of the
   * linearization constant for this diagonal quadratic function is
   * given by c - x'Ax. */
 
- virtual double get_linearization_constant( const LinearizationName name =
-			      std::numeric_limits<Index>::max() ) override {
+ virtual double get_linearization_constant(
+	const LinearizationName name = Inf<Index>() ) override
+ {
   double quadratic_term = 0.0;
 
   for( const auto &triple : v_triples ) {
