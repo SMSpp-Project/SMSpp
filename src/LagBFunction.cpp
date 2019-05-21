@@ -647,6 +647,12 @@ void LagBFunction::store_linearization( const LinearizationName name )
 		 LastSolution < Inf<LinearizationName>() )
   throw( std::logic_error( "the linearization is unvailable" ) );
 
+ // throw exception if name is greater thatn the dimension of the global pool
+
+ if( name >= GPMaxSz )
+  throw( std::logic_error( "the max size of the global pool "
+		  "has been already exceed" ) );
+
  // get the current solution   - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -959,14 +965,31 @@ ComputeConfig * LagBFunction::get_ComputeConfig( bool all ,
 
  } // end( LagBFunction::get_ComputeConfig() )  - - - - - - - - - - - - - - - -
 
-/*--------------------------------------------------------------------------*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
-int LagBFunction::get_dflt_int_par( const idx_type par ) const
-{
+int LagBFunction::get_int_par( const idx_type par ) const {
+
  switch( par ) {
   case( intLPMaxSz ):
    return( RAccLin );
-	break;
+   break;
+  case( intGPMaxSz ):
+   return( RAccLin );
+   break;
+  default:
+   return( C05Function::get_dflt_int_par( par ) ) ;
+  }
+
+ } // end( LagBFunction::get_int_par( idx_type ) )  - - - - - - - - - - -
+
+/*--------------------------------------------------------------------------*/
+
+double LagBFunction::get_dbl_par( const idx_type par ) const {
+
+ switch( par ) {
+  case( dblRAccLin ):
+    return( RAccLin );
+    break;
   case( intGPMaxSz ):
    return( RAccLin );
    break;
@@ -974,23 +997,21 @@ int LagBFunction::get_dflt_int_par( const idx_type par ) const
    return( C05Function::get_dflt_dbl_par( par ) ) ;
   }
 
-} // end( LagBFunction::get_dflt_int_par( idx_type ) )  - - - - - - - - - - -
+ } // end( LagBFunction::get_dbl_par( idx_type ) ) - - - - - - - - - - - - - -
+
+/*--------------------------------------------------------------------------*/
+
+int LagBFunction::get_dflt_int_par( const idx_type par ) const
+{
+ return( C05Function::get_dflt_int_par( par ) ) ;
+ } // end( LagBFunction::get_dflt_int_par( idx_type ) ) - - - - - - - - - - -
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
 double LagBFunction::get_dflt_dbl_par( const idx_type par ) const
 {
- switch( par ) {
-  case( dblRAccLin ):
-   return( RAccLin );
-   break;
-  case( intGPMaxSz ):
-   return( RAccLin );
-	break;
-  default:
-	return( C05Function::get_dflt_dbl_par( par ) ) ;
-  }
-} // end( LagBFunction::get_dflt_dbl_par( idx_type ) ) - - - - - - - - - - - -
+ return( C05Function::get_dflt_dbl_par( par ) ) ;
+ } // end( LagBFunction::get_dflt_dbl_par( idx_type ) ) - - - - - - - - - - - -
 
 /*--------------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE LagBFunction ---------*/

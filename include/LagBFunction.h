@@ -668,6 +668,14 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
+ virtual int get_int_par( const idx_type par ) const override;
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+
+ virtual double get_dbl_par( const idx_type par ) const override;
+
+/*--------------------------------------------------------------------------*/
+
  virtual int get_dflt_int_par( const idx_type par ) const override;
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
