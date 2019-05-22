@@ -7,7 +7,7 @@
  *
  * \version 0.06
  *
- * \date 17 - 05 - 2019
+ * \date 22 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -248,7 +248,9 @@ namespace SMSpp_di_unipi_it
  * The Objective of a Lagrangian function is its Observer, but in turn a
  * LagBFunction is also the Observer of its relaxed (linear) function (RCs).
  * This means this a Lagrangian function handles the Modification which come
- * to it from both way: the sub-Block (B) and the constraints (RCs). */
+ * to it from both way: the sub-Block (B) and the constraints (RCs).
+ * In addition, the Observer of a LagBFunction is assumed to be a
+ * FRealObjective. */
 
 class LagBFunction : public C05Function , public Block {
 
@@ -273,9 +275,11 @@ class LagBFunction : public C05Function , public Block {
  /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
  typedef std::tuple< p_Solution , bool , bool > linearization_tuple;
- ///< a solution equipped with boolean which defines the type of linearization
+ /* a solution equipped with two boolean, one which defines the type of
+    and the other one states if the solution has to be checked for
+    feasibility. */
 
- typedef std::vector< linearization_tuple > v_linearization_pair;
+ typedef std::vector< linearization_tuple > v_linearization_tuple;
  ///< a vector of linearization_pair
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
@@ -510,6 +514,17 @@ class LagBFunction : public C05Function , public Block {
 
   virtual void deserialize( netCDF::NcGroup& group ) override;
 
+/*--------------------------------------------------------------------------*/
+ /** As stated above, the Observer of a LagBFunction is assumed to be a
+   * FRealObjective. */
+
+ virtual void register_Observer( Observer * const observer = nullptr ) override {
+  Function::register_Observer( observer );
+  auto TVDIO = dynamic_cast<FRealObjective *>( f_Observer );
+  if( !TVDIO )
+   throw( std::logic_error( "this is not allowed" ) );
+  }
+
 /*@} -----------------------------------------------------------------------*/
 /*-------------------- Methods for handling Modification -------------------*/
 /*--------------------------------------------------------------------------*/
@@ -577,6 +592,37 @@ class LagBFunction : public C05Function , public Block {
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
  virtual void delete_linearization( const LinearizationName name ) override final;
+
+/*--------------------------------------------------------------------------*/
+
+ virtual void store_convex_combination_of_linearizations(
+	  LinearCombination coefficients , const LinearizationName name ) override;
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+
+ /// set/get the important linearization
+ /** These methods, respectively, writes and reads the name of the important
+  * linearization without touching the solution kept in the solver of the
+  * sub-block (B). To write the solution of the important linearizaiton
+  * call the method write_important_linearization [see below]  */
+
+ virtual void set_important_linearization( LinearizationName name ) override;
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+
+ virtual LinearizationName get_important_linearization_name( void ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// write the important linearization into (B)
+ /** This method writes the solution associated to the important linearization
+  * into the inner block. */
+
+ virtual void write_important_linearization( void );
+
+/*--------------------------------------------------------------------------*/
+
+ virtual void rename_linearization( const LinearizationName current_name ,
+ 				    const LinearizationName new_name ) override;
 
 /*--------------------------------------------------------------------------*/
  /// compute the Function
@@ -770,7 +816,7 @@ virtual Index is_active( const Variable * const var ) const override final;
  v_dual_pair lag_p;
  ///< vector of Lagrangian dual pairs
 
- v_linearization_pair g_pool;
+ v_linearization_tuple g_pool;
  ///< global pool
 
  m_column LagMatrix;
@@ -782,6 +828,10 @@ virtual Index is_active( const Variable * const var ) const override final;
  ///< the last solution read by get_linearization
 
  bool VarType;
+ ///< the type of variable contained in the solver
+
+
+ LinearizationName ImpLinName;
  ///< the type of variable contained in the solver
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */

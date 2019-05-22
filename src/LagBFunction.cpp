@@ -8,7 +8,7 @@
  *
  * \version 0.06
  *
- * \date 17 - 05 - 2019
+ * \date 22 - 05 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -650,8 +650,7 @@ void LagBFunction::store_linearization( const LinearizationName name )
  // throw exception if name is greater thatn the dimension of the global pool
 
  if( name >= GPMaxSz )
-  throw( std::logic_error( "the max size of the global pool "
-		  "has been already exceed" ) );
+  throw( std::logic_error( "the max size of global pool has been already exceed" ) );
 
  // get the current solution   - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -679,8 +678,69 @@ void LagBFunction::store_linearization( const LinearizationName name )
 
 void LagBFunction::delete_linearization( const LinearizationName name )
 {
- delete[] std::get<0>(g_pool[ name ]);
+ if( name >= GPMaxSz )
+  throw( std::logic_error( "the max size of global pool has been already exceed" ) );
+
+ if( std::get<0>(g_pool[ name ]) )
+  delete[] std::get<0>(g_pool[ name ]);
  } // end LagBFunction::delete_linearization( LinearizationName )  - - - - - -
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::store_convex_combination_of_linearizations(
+	  LinearCombination coefficients , const LinearizationName name ) {
+
+ if( name >= GPMaxSz )
+  throw( std::logic_error( "the max size of global pool has been already exceed" ) );
+
+ p_Solution convex_solution = v_Block[0]->get_Solution();
+ for( auto & pair : coefficients )
+  convex_solution->sum( std::get<0>( g_pool[ pair.first ] ) , pair.second );
+
+ if( std::get<0>(g_pool[ name ]) )
+  delete std::get<0>(g_pool[ name ]);
+ std::get<0>(g_pool[ name ]) = convex_solution;
+
+ std::get<1>(g_pool[ name ]) = std::get<1>(g_pool[ coefficients[0].first ]);
+ std::get<2>(g_pool[ name ]) = !VarToBeChckd;
+
+ } // end LagBFunction::store_convex_combination_of_linearizations(  ) - - - -
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::set_important_linearization( LinearizationName name ) {
+ // throw exception if name is greater thatn the dimension of the global pool
+ if( name >= GPMaxSz )
+  throw( std::logic_error( "the max size of global pool has been already exceed" ) );
+ ImpLinName = name;
+ } // end LagBFunction::set_important_linearization(  )  - - - - - - - - - - -
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+
+C05Function::LinearizationName LagBFunction::get_important_linearization_name( ) {
+ return( ImpLinName );
+ } // end LagBFunction::get_important_linearization_name(  )   - - - - - - - -
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::write_important_linearization( void ) {
+ std::get<0>(g_pool[ ImpLinName ])->write( v_Block[0] );
+ } // end LagBFunction::save_important_linearization_name(  )  - - - - - - - -
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::rename_linearization( const LinearizationName current_name ,
+ 				    const LinearizationName new_name ) {
+
+ if( new_name >= GPMaxSz )
+  throw( std::logic_error( "the max size of global pool has been already exceed" ) );
+
+ if( std::get<0>(g_pool[ current_name ]) == nullptr )
+  throw( std::logic_error( "this solution does not exist" ) );
+
+ g_pool[ new_name ] = g_pool[ current_name ];
+
+ } // end LagBFunction::rename_linearization(  )  - - - - - - - - - - - - - - -
 
 /*--------------------------------------------------------------------------*/
 

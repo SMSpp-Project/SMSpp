@@ -13,3 +13,15 @@ doc/*
 XCode/
 obj/
 
+test/test
+test/test
+test/test
+extlib/makefile-libBoost
+extlib/makefile-libBoost
+extlib/makefile-libBoost
+extlib/makefile-libBoost
+extlib/makefile-libEigen
+extlib/makefile-libBoost
+extlib/makefile-libEigen
+extlib/makefile-libNetCDF
+test/test
