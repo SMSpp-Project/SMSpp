@@ -801,7 +801,7 @@ class Block : public Observer {
  /** Fourth and final level de-serialization method: takes a netCDF::NcGroup
   * supposedly containing all the information required to de-serialize the
   * Block, starting with the "type" attribute that has to contain the name()
-  * of the current Block (and exception should clearly be thrown is this does
+  * of the current Block (and exception should clearly be thrown if this does
   * not happen), and initialize the current Block out of it.
   *
   *      THIS IS THE METHOD TO BE IMPLEMENTED BY DERIVED CLASSES
@@ -2441,6 +2441,136 @@ class Block : public Observer {
    if( ! blck->is_optimal( useabstract ) )
     return( false );
 
+  return( true );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns true if the current solution is an unbounded ray
+ /** Returns true if the values stored in the Variable of the Block are a
+  * certificate that the problem is unbounded (either below, if it is a
+  * minimization problem, or above if it is a maximization one). Often this
+  * means that the values represent a ray of the feasible region along which
+  * the Objective is unbounded (either below or above). This should always be
+  * reasonably cheap, even if the Block encodes for an NP-hard problem. Yet,
+  * note that the existence of an unbounded ray may not, strictly speaking,
+  * be enough to prove that the problem is unbounded: this also requires the
+  * problem to be non-empty. This method can be thought to only check that
+  * the Variable encode for a ray, with non-emptyness being checked in
+  * different ways.
+  *
+  * The useabstract parameter dictates how the check should be performed:
+  *
+  * - if true, it should use the abstract representation of the Block;
+  *
+  * - if false, it should rather use the physical representation of the Block.
+  *
+  * The second version is useful for several reasons:
+  *
+  * - it can be more computationally efficient;
+  *
+  * - it does not require the abstract representation of the Block to be
+  *   even constructed;
+  *
+  * - it can serve as "debug" of the abstract representation of the Block
+  *   itself.
+  *
+  * Checking the property is likely to entail some numerical computation, say
+  * to verify that some matrix-vector scalar product is "zero". This may
+  * require numerical accuracy parameters, which is what the parameter fsbc
+  * is designed to provide. If non-null, it is meant to point to an
+  * arbitrarily complex Configuration object (although it can in fact be
+  * as simple as a SimpleConfiguration<double> specifying, say, the maximum
+  * relative accuracy in a "x == 0" computation).
+  *
+  * Note that the fsbc parameter is meant as an *override* of the default
+  * Configuration for is_feasible() set by means of set_BlockConfig(). That
+  * is, if the method is called with fsbc = nullptr then the corresponding
+  * configuration from the BlockConfig() is used. If the BlockConfig is not
+  * set (nullptr) or the corresponding field is not set (nullptr), some
+  * default value will have to be used. Note that the rationale for re-using
+  * the is_feasible() configuration is mostly to avoid excessive proliferation
+  * of Configuration objects in a Block; however, this also makes sense in at
+  * least some important cases. For instance, il Linear Programming the
+  * numerical tolerances for defining "a solution is feasible" and "a vector
+  * is an unbounded ray" are basically the same. Yet, a Configuration object
+  * can contain anbitrarily many values, so if the is_feasible() Configuration
+  * requires more values to be specified to also cover the use within this
+  * method, this can always be done.
+  *
+  * The method is given a default implementation always returning false, which
+  * is appropriate for Block which cannot ever be unbounded (say, the feasible
+  * region is compact). */
+
+ virtual bool is_unbounded( bool useabstract = false ,
+			    Configuration *fsbc = nullptr )
+ {
+  return( true );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns true if the Block provably has no feasible solutions
+ /** Returns true if the Block provably has no feasible solutions, and a
+  * certificate for this is readily available. This might very well be a hard
+  * task, typically if the Block encodes for an NP-hard problem.
+  *
+  * A case in which this is possible is if the problem is convex, since then a
+  * convenient way to prove emptyness of the primal is to prove that the dual
+  * is unbounded (above if the primal is a minimization problem, below
+  * otherwise). In turn, this can be proven by exhibiting a ray of the dual
+  * feasible region along which the dual objective is unbounded (either above
+  * or below). For such a case, this method can be taken as being equivalent
+  * to "is_dual_unbounded()". More precisely, the method can be assumed to
+  * check that the dual solution stored in the Block (however this is done)
+  * represents the appropriate dual ray. Note that this may not, strictly
+  * speaking, be enough to prove that the dual is unbounded: this also
+  * requires the dual problem to be non-empty. This is supposed to be checked
+  * in different ways.
+  *
+  * The useabstract parameter dictates how the check should be performed:
+  *
+  * - if true, it should use the abstract representation of the Block;
+  *
+  * - if false, it should rather use the physical representation of the Block.
+  *
+  * The second version is useful for several reasons:
+  *
+  * - it can be more computationally efficient;
+  *
+  * - it does not require the abstract representation of the Block to be
+  *   even constructed;
+  *
+  * - it can serve as "debug" of the abstract representation of the Block
+  *   itself.
+  *
+  * Checking the property is likely to entail some numerical computation, say
+  * to verify that some matrix-vector scalar product is "zero". This may
+  * require numerical accuracy parameters, which is what the parameter optc
+  * is designed to provide. If non-null, it is meant to point to an
+  * arbitrarily complex Configuration object (although it can in fact be
+  * as simple as a SimpleConfiguration<double> specifying, say, the maximum
+  * relative accuracy in a "x == 0" computation).
+  *
+  * Note that the fsbc parameter is meant as an *override* of the default
+  * Configuration for is_optimal() set by means of set_BlockConfig(). That
+  * is, if the method is called with optc == nullptr then the corresponding
+  * configuration from the BlockConfig() is used. If the BlockConfig is not
+  * set (nullptr) or the corresponding field is not set (nullptr), some
+  * default value will have to be used. Note that the rationale for re-using
+  * the is_optimal() configuration is mostly to avoid excessive proliferation
+  * of Configuration objects in a Block; however, this also makes sense in at
+  * least some important cases. For instance, il Linear Programming the
+  * numerical tolerances for defining "a dual solution is feasible" and "a
+  * vector is an unbounded ray of the dual" are basically the same. Yet, a
+  * Configuration object can contain anbitrarily many values, so if the
+  * is_optimal() Configuration requires more values to be specified to also
+  * cover the use within this method, this can always be done.
+  *
+  * The method is given a default implementation always returning false, which
+  * is appropriate for Block which cannot ever be empty. */
+
+ virtual bool is_empty( bool useabstract = false ,
+			Configuration *optc = nullptr )
+ {
   return( true );
   }
 
@@ -4141,7 +4271,7 @@ class BlockModAD : public AModification
   * - for an addition, it contains either a pointer, or a std::vector of
   *   pointers, or a boost::multi_array of pointers to some derived class
   *   from Constraint or Variable (you cannot make objects of the base
-  *   class), holds the "names" (pointers) of the things having just been
+  *   class), holding the "names" (pointers) of the things having just been
   *   added
   *
   * - for a deletion, it contains a std::list of either a derived class
