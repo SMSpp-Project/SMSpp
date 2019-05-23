@@ -696,14 +696,14 @@ void LagBFunction::store_convex_combination_of_linearizations(
  if( coefficients.empty() )
   throw( std::invalid_argument( "the convex combination is empty" ) );
 
- bool convex_combination_type = std::get<1>(g_pool[ coefficients[0].first ] );
+ bool convex_combination_type = VarAreDir;
  bool convex_combination_is_feasible = !VarToBeChckd;
 
  p_Solution convex_combination = v_Block[0]->get_Solution();
  for( auto & pair : coefficients ) {
   convex_combination->sum( std::get<0>( g_pool[ pair.first ] ) , pair.second );
-  if( convex_combination_type != std::get<1>( g_pool[ pair.first ] ) )
-   throw( std::logic_error( "convex combination of different items is not allowed" ) );
+  if( convex_combination_type == VarAreSol )
+   convex_combination_type = VarAreSol;
   if( std::get<2>( g_pool[ pair.first ] ) == VarToBeChckd )
    convex_combination_is_feasible = VarToBeChckd;
   }
