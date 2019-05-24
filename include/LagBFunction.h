@@ -652,14 +652,12 @@ class LagBFunction : public C05Function , public Block {
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
  virtual FunctionValue get_lower_estimate( void ) const override final{
-  Solver* slv = v_Block[0]->get_registered_solvers().back();
   return( slv->get_lb() );
   }
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
  virtual FunctionValue get_upper_estimate( void ) const override final{
-  Solver* slv = v_Block[0]->get_registered_solvers().back();
   return( slv->get_ub() );
   }
 
