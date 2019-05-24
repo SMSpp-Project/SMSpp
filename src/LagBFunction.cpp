@@ -687,8 +687,8 @@ void LagBFunction::delete_linearization( const LinearizationName name )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::store_convex_combination_of_linearizations(
-	  LinearCombination coefficients , const LinearizationName name ) {
+void LagBFunction::store_combination_of_linearizations(
+	  LinearCombination & coefficients , const LinearizationName name ) {
 
  if( name >= GPMaxSz )
   throw( std::logic_error( "the max size of global pool has been already exceed" ) );
@@ -719,11 +719,14 @@ void LagBFunction::store_convex_combination_of_linearizations(
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::set_important_linearization( LinearizationName name ) {
+void LagBFunction::set_important_linearization( LinearCombination && coefficients ,
+		LinearizationName name ) {
  // throw exception if name is greater thatn the dimension of the global pool
  if( name >= GPMaxSz )
   throw( std::logic_error( "the max size of global pool has been already exceed" ) );
  ImpLinName = name;
+ std::get<0>(g_pool[ ImpLinName ])->write( v_Block[0] );
+ ImpLinComb = move( coefficients );
  } // end LagBFunction::set_important_linearization(  )  - - - - - - - - - - -
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
@@ -734,9 +737,9 @@ C05Function::LinearizationName LagBFunction::get_important_linearization_name( )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::write_important_linearization( void ) {
- std::get<0>(g_pool[ ImpLinName ])->write( v_Block[0] );
- } // end LagBFunction::save_important_linearization_name(  )  - - - - - - - -
+C05Function::cLinearCombination & LagBFunction::get_important_linearization_coefficients( void ) {
+ return( ImpLinComb );
+ } // end LagBFunction::get_important_linearization_coefficients(  )  - - - - - - - -
 
 /*--------------------------------------------------------------------------*/
 

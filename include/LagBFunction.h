@@ -595,29 +595,30 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- virtual void store_convex_combination_of_linearizations(
-	  LinearCombination coefficients , const LinearizationName name ) override;
+ virtual void store_combination_of_linearizations(
+	  LinearCombination & coefficients , const LinearizationName name ) override;
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+ /// set the important linearization
+ /** This method *must* be called after store_combination_of_linearizations()
+  * in such a way the important linearization already exists when
+  * set_important_linearization() is called. It sets the name of the important
+  * linearization and saves the combination used to form it.
+  * This method also writes the solution relative to the important linearizaiton
+  * into the sub-Block (B).  */
 
- /// set/get the important linearization
- /** These methods, respectively, writes and reads the name of the important
-  * linearization without touching the solution kept in the solver of the
-  * sub-block (B). To write the solution of the important linearizaiton
-  * call the method write_important_linearization [see below]  */
-
- virtual void set_important_linearization( LinearizationName name ) override;
+ virtual void set_important_linearization( LinearCombination && coefficients ,
+		 LinearizationName name ) override;
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+ /// get the name of the important linearization
+ /** These method reads the name of the important linearization */
 
  virtual LinearizationName get_important_linearization_name( void ) override;
 
 /*--------------------------------------------------------------------------*/
- /// write the important linearization into (B)
- /** This method writes the solution associated to the important linearization
-  * into the inner block. */
 
- virtual void write_important_linearization( void );
+ virtual cLinearCombination & get_important_linearization_coefficients( void );
 
 /*--------------------------------------------------------------------------*/
 
@@ -830,7 +831,10 @@ virtual Index is_active( const Variable * const var ) const override final;
 
 
  LinearizationName ImpLinName;
- ///< the type of variable contained in the solver
+ ///< the name of the important linearization
+
+ LinearCombination ImpLinComb;
+ ///< the LinearCombination of the important linearization
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 

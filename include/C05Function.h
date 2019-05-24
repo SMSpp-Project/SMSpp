@@ -302,6 +302,9 @@ class C05Function : public Function {
  LinearCombination;
  ///< type used to define linear combinations of linearizations
 
+ typedef const LinearCombination cLinearCombination;
+ ///< type used to define a const LinearCombination
+
 /*--------------------------------------------------------------------------*/
  /// public enum for the int algorithmic parameters of C05Function
  /** Public enum describing the different parameters of "int" type that a
@@ -621,8 +624,8 @@ class C05Function : public Function {
   * everywhere, and therefore any convex combination of these always returns
   * the same vector. */
 
- virtual void store_convex_combination_of_linearizations(
-	  LinearCombination coefficients , const LinearizationName name ) { }
+ virtual void store_combination_of_linearizations(
+	  LinearCombination & coefficients , const LinearizationName name ) { }
 
 /*--------------------------------------------------------------------------*/
  /// specify which linearization is "the important one"
@@ -630,6 +633,16 @@ class C05Function : public Function {
   * one". A linearization with the given name should be stored in the global
   * pool of linearizations, otherwise an exception may be thrown (unless, for
   * instance, the concept is completely ignored, see below).
+  *
+  * This method *must* be called after store_combination_of_linearizations() [see
+  * above] in such a way the important linearization already exists when
+  * set_important_linearization() is called. The combination used to construct
+  * the important linearization has to be passed in input to
+  * set_important_linearization() along its name. This allows C05Function to
+  * save these information. The name and the linear combination of the important
+  * linearization are retrieved, respectively, by means of
+  * get_important_linearization_name() and get_important_linearization_coefficients()
+  * [see below].
   *
   * There is usually "one important convex combination" that is very relevant
   * for algorithmic purposes. This can be clearly seen in the Lagrangian
@@ -669,7 +682,8 @@ class C05Function : public Function {
   * everywhere, and therefore only one well-known linearization can be the
   * "important one". */
 
- virtual void set_important_linearization( LinearizationName name ) { }
+ virtual void set_important_linearization( LinearCombination && coefficients ,
+		 LinearizationName name ) { }
 
 /*--------------------------------------------------------------------------*/
  /// return the name of "the important linearization"
@@ -679,6 +693,17 @@ class C05Function : public Function {
 
  virtual LinearizationName get_important_linearization_name( void ) {
   return( 0 );
+  }
+
+ /*--------------------------------------------------------------------------*/
+ /// return the combination used to form "the important linearization"
+ /** This method returns the combination used to form  "the important linearization".
+  * It throws exception as default implementation because some Functions may not
+  * need to store this information. */
+
+ virtual cLinearCombination & get_important_linearization_coefficients( void )
+ {
+  throw( std::logic_error( "no combination is stored" ) );
   }
 
 /*--------------------------------------------------------------------------*/
