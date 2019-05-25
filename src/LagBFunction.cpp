@@ -724,9 +724,9 @@ void LagBFunction::set_important_linearization( LinearCombination && coefficient
  // throw exception if name is greater thatn the dimension of the global pool
  if( name >= GPMaxSz )
   throw( std::logic_error( "the max size of global pool has been already exceed" ) );
- ImpLinName = name;
- std::get<0>(g_pool[ ImpLinName ])->write( v_Block[0] );
- ImpLinComb = move( coefficients );
+ zName = name;
+ std::get<0>(g_pool[ zName ])->write( v_Block[0] );
+ zLC = move( coefficients );
  } // end LagBFunction::set_important_linearization(  )  - - - - - - - - - - -
 
 /*--------------------------------------------------------------------------*/
