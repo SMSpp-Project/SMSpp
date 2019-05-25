@@ -726,7 +726,9 @@ void LagBFunction::set_important_linearization( LinearCombination && coefficient
   throw( std::logic_error( "the max size of global pool has been already exceed" ) );
  zName = name;
  std::get<0>(g_pool[ zName ])->write( v_Block[0] );
- zLC = move( coefficients );
+ if( zLC.size() )
+  zLC.clear();
+ zLC = std::move( coefficients );
  } // end LagBFunction::set_important_linearization(  )  - - - - - - - - - - -
 
 /*--------------------------------------------------------------------------*/

@@ -612,19 +612,22 @@ class LagBFunction : public C05Function , public Block {
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
  /// get the name of the important linearization
- /** These method reads the name of the important linearization */
+ /** This method reads the name of the important linearization */
 
  virtual LinearizationName get_important_linearization_name( void ) override
  {
-  return( ImpLinName );
+  return( zName );
   }
 
  /*--------------------------------------------------------------------------*/
+ /// get the name of the important linearization
+  /** This method retrieves the linear combination used to form the important
+   * linearization */
 
  virtual c_LinearCombination &
                      get_important_linearization_coefficients( void ) override
  {
-  return( ImpLinComb );
+  return( zLC );
   }
 
 /*--------------------------------------------------------------------------*/
