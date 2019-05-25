@@ -2254,8 +2254,70 @@ class Block : public Observer {
 /*@} -----------------------------------------------------------------------*/
 /*--------------------- Methods for checking the Block ---------------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Methods for checking the Block
-    @{ */
+/** @name Methods for checking solution information in the Block
+ *
+ * The following four methods allow to check that the solution information
+ * (typically produced by a Solver) currently present in the Block has the
+ * fundamental properties that may be required. This is primarily stored in
+ * the Variable of the Block, but potentially also elsewhere (such as in the
+ * dual variables associated to the Constraint of the Block, if any).
+ *
+ * In particular, the four methods check if the solution information provides:
+ *
+ * - a certificate of non-emptyness of the Block, which means it represents
+ *   a(n almost) feasible solution;
+ *
+ * - a certificate of non-unboundedness of the Block, which typically means it
+ *   represents something providing a bound (lower if the Block is a
+ *   minimization problem, upper otherwise) that can be used to prove that a
+ *   given feasible solution is (almost) optimal, and anyway proves that the
+ *   the problem is not unbounded; for convex problems this is typically a
+ *   feasible solution to the dual problem;
+ *
+ * - a certificate of non-optimality of the Block, which typically means it
+ *   represents something like a ray of the feasible region along which the
+ *   Objective is unbounded (either below or above as appropriate): note that
+ *   the existence of such an object is not, strictly speaking, enough to
+ *   prove that the problem is unbounded: this also requires the problem to be
+ *   non-empty; yet, exsistence of such an object does prove that the problem
+ *   at least does not have an optimal solution (either it does not have a
+ *   solution at all, or it is unbounded);
+ *
+ * - a certificate of non-feasibility of the Block, i.e., something proving
+ *   that the problem cannot have any solution; for convex problems this is
+ *   typically a ray of the feasible region of the dual problem along which
+ *   the dual objective is unbounded (either above or below as appropriate):
+ *   note that the existence of such an object is not, strictly speaking,
+ *   enough to prove that the dual problem is unbounded (and therefore the
+ *   primal is empty): this also requires the dual problem to be non-empty;
+ *   yet, exsistence of such an object does prove that the dual problem
+ *   at least does not have an optimal solution (either it does not have a
+ *   solution at all, or it is unbounded), which under some qualification
+ *   conditions implies that the primal problem is empty.
+ *
+ * The rationale for providing these methods is two-fold:
+ *
+ * - they can be used to "debug" a Solver, in that when the Solver declares
+ *   to, say, have found a feasible solution and have written it in the
+ *   Variable of the Block, the methods can be used to ensure that the
+ *   Solver indeed did the right job;
+ *
+ * - they can be used to verify if some solution information (say, obtained
+ *   "a long time ago" and stored into a Solution object) still has the
+ *   required properties (say, feasibility) even after all the Modification
+ *   that may have occurred in the Meantime (note that for this to happen the
+ *   Solution has to be read back into the Block).
+
+
+
+ Often this
+  * means that the values represent a ray of the feasible region along which
+  * the Objective is unbounded (either below or above). This should always be
+  * reasonably cheap, even if the Block encodes for an NP-hard problem. Yet,
+  * note that the existence of an unbounded ray may not,  This method can be thought to only check that
+  * the Variable encode for a ray, with non-emptyness being checked in
+  * different ways.
+ *  @{ */
 
  /// returns true if the current solution is (approximately) feasible
  /** Returns true if the solution encoded in the current value of the

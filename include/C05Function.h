@@ -128,7 +128,7 @@ namespace SMSpp_di_unipi_it
  *
  * - it supports Gr(f) from below, i.e.,
  *
-xs *     f( y ) >= \f( \bar{x} ) + g ( y - \bar{x} ) for all y  ,
+ *     f( y ) >= \f( \bar{x} ) + g ( y - \bar{x} ) for all y  ,
  *
  *   as it can be seen by just expanding:
  *
@@ -230,27 +230,46 @@ xs *     f( y ) >= \f( \bar{x} ) + g ( y - \bar{x} ) for all y  ,
  *
  * More in general, proving optimality/stationariety of some x^* involves
  * constructing one convex combination of linearizations with appropriate
- * properties. It may be very useful to be able to store away this object
- * in case the Function (or other parts of the Block) changes, in order to
- * provide effective reoptimization. For instances, the changes may be such
- * that x^* may nonetheless remain an optimal solution, and the availability
- * of the "important linearization" may allow to prove this with very little
- * computational effort. This is why the interface has specific provisions
- * for producing and storing in the global pool this kind of objects.
+ * properties.  This is why C05Function has the concept of "important
+ * linearization": once an optimization involving the function has
+ * terminated, the Solver can store this "important" lineariazione in the
+ * global pool for future use. For instance, in case the Function (or other
+ * parts of the Block) changes, the changes may be such that x^* may
+ * nonetheless remain an optimal solution, and the availability of the
+ * "important linearization" may allow to prove this with very little
+ * computational effort. In other words,
  *
- * A further important detail is that there can be two types of
- * linearizations: "diagonal" and "vertical". Diagonal linearizations are
- * the previously illustrated ones; the names comes from picturing the
- * ( x , v ) space \R^{n+1} as having the x component on the horizontal
- * axis and the v component as the vertical one (the typical arrangement
- * for the graphical space of a function). Then, a linearization
- * ( g , \alpha ) typically corresponds to a line approximating f in the
- * neighbourhood of some x. If, say, f is convex, this corresponds to a
- * linear constraint
+ *    THE "IMPORTANT LINEARIZATION" TYPICALLY CORRESPONDS TO THE
+ *    OPTIMAL DUAL SOLUTION
+ *
+ * of a optimization problem involving the C05Function.
+ *
+ * Actually, depending on how the dual problem is written, one may be
+ * interested in a "different representation" of the "important
+ * linearization": not the linearization per se, but rather the set of
+ * (convex) multipliers used to construct it out of other linearizations
+ * from the global pool. In the Lagrangian case, for instance, the latter
+ * correspond to (say) unfeasible integer solutions. These can be used e.g.
+ * in Lagrangian heuristics to construct a (say) feasible integer solution,
+ * where the weights can be used as "probability that some feature of the
+ * solution is conserved in the optimal one". This is why when the
+ * "important linearization" is set, the interface also offers specific
+ * provisions for producing storing the multipliers together with it.
+ * Again, those multipliers can be considered the optimal dual solution
+ * of the optimization problem involving the C05Function.
+ *
+ * A final important detail is that there can be two types of linearizations:
+ * "diagonal" and "vertical". Diagonal linearizations are the previously
+ * illustrated ones; the name comes from picturing the ( x , v ) space
+ * \R^{n+1} as having the x component on the horizontal axis and the v
+ * component as the vertical one (the typical arrangement for the graphical
+ * space of a function). Then, a linearization ( g , \alpha ) typically
+ * corresponds to a line approximating f in the neighbourhood of some x. If,
+ * say, f is convex, this corresponds to a linear constraint
  *
  *       ( 1 , - g ) ( v , x ) >= \alpha       (*)
  *
- * which is globally correct for the graph of f (actually, the epigraph).
+ * which is globally valid for the graph of f (actually, the epigraph).
  * The corresponding line in the ( x , v ) space either intersects the x axis
  * "diagonally" or is parallel to it (if g = 0), but it can never be
  * orthogonal to it. Thus, there is an entirely different form of lines in
@@ -276,7 +295,17 @@ xs *     f( y ) >= \f( \bar{x} ) + g ( y - \bar{x} ) for all y  ,
  * and therefore can return both a diagonal and a vertical linearization,
  * which the interface allows. In the parlance of Benders' decomposition,
  * diagonal linearizations are "optimality cuts" and vertical linearizations
- * are "feasibility cuts". However, the concept is possibly general. */
+ * are "feasibility cuts". However, the concept is possibly general.
+ *
+ * Note that, while typically combinations of "diagonal" linearizations need
+ * be convex ones, combination of "vertical" linearizations can usually be
+ * performed with arbitrary non-negative weights. In the Lagrangian case,
+ * "diagonal" linearizations corresponds to points of the feasible region,
+ * while "vertical" ones correspond to directions. Thus, all previous
+ * comments about *convex* combination of linearizations, and in particular
+ * about the "important" linearization, need in general to be understood as
+ * convex combinations of "diagonal" linearizations plus conical combinations
+ * of "vertical" linearizations. */
 
 class C05Function : public Function {
 
@@ -302,7 +331,7 @@ class C05Function : public Function {
  LinearCombination;
  ///< type used to define linear combinations of linearizations
 
- typedef const LinearCombination cLinearCombination;
+ typedef const LinearCombination c_LinearCombination;
  ///< type used to define a const LinearCombination
 
 /*--------------------------------------------------------------------------*/
@@ -577,21 +606,20 @@ class C05Function : public Function {
  virtual void store_linearization( const LinearizationName name ) { }
 
 /*--------------------------------------------------------------------------*/
- /// stores a convex combination of the given linearizations
- /** This method creates a convex combination of a given set of
+ /// stores a combination of the given linearizations
+ /** This method creates a linear combination of a given set of
   * linearizations, with given coefficients, and stores it (or information
   * allowing to compute it) into the global pool of linearizations with the
   * given name.
   *
-  * The linearizations whose convex combination the new one must be created
-  * from, together with the corresponding coefficients, are indicated by 
-  * vector of pairs. Each pair has the name of a linearization (that must be
-  * currently stored in the global pool of linearizations) and the
-  * coefficient this linearization must have in the convex combination. Once
-  * this convex combination is created, it is stored into the global pool
-  * with the name passed as argument. If the new linearization is stored
-  * under the name of a previously stored linearization, the latter is
-  * replaced with the former.
+  * The linearizations whose combination the new one must be created from,
+  * together with the corresponding coefficients, are indicated by vector of
+  * pairs. Each pair has the name of a linearization (that must be currently
+  * stored in the global pool of linearizations) and the coefficient this
+  * linearization must have in the convex combination. Once the combination
+  * is created, it is stored into the global pool with the name passed as
+  * argument. If the new linearization is stored under the name of a
+  * previously stored linearization, the latter is replaced with the former.
   *
   * The rationale for this method is that most approximate sub-differentials
   * are convex sets. Thus, proving (approximate) optimality/stationariety of
@@ -605,9 +633,14 @@ class C05Function : public Function {
   * x^* and then proving that 0 \in conv( { g_i } ). Such a "convexified
   * linearization" is often a valid linearization as any one directly
   * produced by the function, and therefore can be saved in the global pool
-  * as they are. This may allow, for instance, to reduce the maximum size of
-  * the global pool by replacing many linearizations by just one
-  * "representing them all" (think conjugate subgradients).
+  * as they are. Indeed, typically the "important linearizaton" (see
+  * set_important_linearization()), which is basically the dual optimal
+  * solution of any optimization problem involving the C05Function, is one of
+  * these. Yet, combinations of linearizations also have other algorithmic
+  * uses besides being "dual solutions": the may be used, for instance, to
+  * reduce the maximum size of the global pool by replacing many
+  * linearizations by just one "representing them all" (think conjugate
+  * subgradients).
   *
   * Note that the C05Function may freely decide to either store the
   * convexified linearization itself, or information allowing to compute it,
@@ -630,51 +663,64 @@ class C05Function : public Function {
 /*--------------------------------------------------------------------------*/
  /// specify which linearization is "the important one"
  /** This method sets the linearization with the given name as "the important
-  * one". A linearization with the given name should be stored in the global
-  * pool of linearizations, otherwise an exception may be thrown (unless, for
-  * instance, the concept is completely ignored, see below).
-  *
-  * This method *must* be called after store_combination_of_linearizations() [see
-  * above] in such a way the important linearization already exists when
-  * set_important_linearization() is called. The combination used to construct
-  * the important linearization has to be passed in input to
-  * set_important_linearization() along its name. This allows C05Function to
-  * save these information. The name and the linear combination of the important
-  * linearization are retrieved, respectively, by means of
-  * get_important_linearization_name() and get_important_linearization_coefficients()
-  * [see below].
+  * one".
   *
   * There is usually "one important convex combination" that is very relevant
-  * for algorithmic purposes. This can be clearly seen in the Lagrangian
-  * function example: for a point x^* to be \eps-optimal for the minimization
-  * of f (the Lagrangian Dual), one must collect a set of \eps-subgradients
-  * g_i such that 0 \in conv( { g_i } ). It is immediate to realize that this
-  * corresponds to a set of \eps-optimal solutions u_i to P(x^*) such that
+  * for algorithmic purposes. Basically, proving optimality/stationariety of
+  * some x^* in problems containing the C05Function involves constructing one
+  * convex combination of linearizations with appropriate properties (say,
+  * be the all-0 vector). This is basically the *dual optimal solution* of
+  * the optimization problem. It may be very useful to be able to store away
+  * this object in case the C05Function (or other parts of the Block) changes,
+  * in order to provide effective reoptimization. For instances, the changes
+  * may be such that x^* may nonetheless remain an optimal solution, and the
+  * availability of the "important linearization" may allow to prove this with
+  * very little computational effort. This is why saving the "important
+  * linearization" when the algorithm is finished (but, possibly, even while
+  * it is running) may be useful.
+  *
+  * This can be clearly seen in the Lagrangian function example: for a point
+  * x^* to be \eps-optimal for the minimization of f (the Lagrangian Dual),
+  * one must collect a set of \eps-subgradients g_i such that
+  * 0 \in conv( { g_i } ). It is immediate to realize that this corresponds to
+  * a set of \eps-optimal solutions u_i to P(x^*) such that
   * u^* = \sum_i u_i \theta_i, for appropriate convex multipliers \theta_i,
   * is such that A u^* = b. If U in (P) is a convex set then such an u^* is
   * an optimal solution to (P), otherwise u^* is the optimal solution of the
   * relaxation of (P) substituting U with conv( U ). Any reasonable algorithm
   * for solving the Lagrangian Dual should be able to conceptually produce
   * such an object in order to stop; when this is done, u^* can be
-  * *explicitly* produced by calling
-  * store_convex_combination_of_linearizations() with the appropriate
-  * multipliers, and then be available for algorithmic purposes. For
-  * instance, u^* can be used to to separation of constraints (say, in case
-  * the A u = b ones are very many, so that an active-set strategy is
-  * necessary), or to guide heuristics or branching operations (if the set U
-  * included integrality constraints, so that the Lagrangian Dual of (P) is
-  * only a relaxation).
+  * *explicitly* produced by calling store_combination_of_linearizations()
+  * with the appropriate multipliers, and then be available for algorithmic
+  * purposes. For instance, u^* can be used to to separation of constraints
+  * (say, in case the A u = b ones are very many, so that an active-set
+  * strategy is necessary), or to guide heuristics or branching operations (if
+  * the set U included integrality constraints, so that the Lagrangian Dual of
+  * (P) is only a relaxation).
   *
-  * More in general, proving optimality/stationariety of some x^* involves
-  * constructing one convex combination of linearizations with appropriate
-  * properties. It may be very useful to be able to store away this object
-  * in case the Function (or other parts of the Block) changes, in order to
-  * provide effective reoptimization. For instances, the changes may be such
-  * that x^* may nonetheless remain an optimal solution, and the availability
-  * of the "important linearization" may allow to prove this with very little
-  * computational effort. This is why saving the "important linearization"
-  * when the algorithm is finished (but, possibly, even while it is running)
-  * may be useful.
+  * When the method is called, a linearization with the given name should be
+  * stored already in the global pool of linearizations, otherwise an
+  * exception may be thrown (unless, for instance, the concept is completely
+  * ignored, see below). That is, this method *must* be called only *after*
+  * store_combination_of_linearizations() has already been called, if
+  * necessary, to produce the "important linearization" and store it in the
+  * global pool. Note, however, this is not strictly necessary: the "important
+  * linearization" can be one of those directly produced by the C05Function,
+  * think to the case where the function is smooth at its optimum.
+  *
+  * Besides the name, the method also allows to store the linear combination
+  * (indices of used linearizations and corresponding coefficients) that has
+  * been used to construct the "important one"; note that if the latter is a
+  * "natural" linearization produced by the C05Function, then this information
+  * will just be < name of the important one , 1 >. Actually, one can always
+  * reduce to this case, e.g. if the size of the global pool has to be kept
+  * low by deleting some of the linearizations that had actually been used,
+  * but of course this causes some loss of information that may be useful.
+  * The name and the linear combination of the important linearization are
+  * retrieved, respectively, by means of get_important_linearization_name()
+  * and get_important_linearization_coefficients(). As the "&&" tells, the
+  * LinearCombination vector passed to this method becomes "property" of the
+  * C05Function.
   *
   * This method has a default empty implementation as some Functions may not
   * need to store linearizations, in which case the name is irrelevant. In
@@ -687,9 +733,11 @@ class C05Function : public Function {
 
 /*--------------------------------------------------------------------------*/
  /// return the name of "the important linearization"
- /** This method returns the name of "the important linearization". It has a
-  * default empty implementation, returning 0, as some Functions may not
-  * need to store linearizations, in which case the name is irrelevant. */
+ /** This method has to return the name of "the important linearization", as
+  * set by set_important_linearization(). It has a default "empty"
+  * implementation, returning 0, as some Function may not need to store
+  * linearizations (in particular, a linear function always has the same,
+  * so there is nothing to store) in which case the name is irrelevant. */
 
  virtual LinearizationName get_important_linearization_name( void ) {
   return( 0 );
@@ -697,13 +745,18 @@ class C05Function : public Function {
 
  /*--------------------------------------------------------------------------*/
  /// return the combination used to form "the important linearization"
- /** This method returns the combination used to form  "the important linearization".
-  * It throws exception as default implementation because some Functions may not
-  * need to store this information. */
+ /** This method has to return the combination used to form "the important
+  * linearization", as set by set_important_linearization(). It has a default
+  * "empty" implementation returning the pair < 0 , 1 > because for some
+  * Function there is actually no need to store this information (in
+  * particular, a linear function always has the same linearization, hence
+  * all linearizations in the global pool taken individually are the important
+  * one, comprised the one with name 0). */
 
- virtual cLinearCombination & get_important_linearization_coefficients( void )
+ virtual c_LinearCombination & get_important_linearization_coefficients( void )
  {
-  throw( std::logic_error( "no combination is stored" ) );
+  static c_LinearCombination _tmp = { std::make_pair( 0 , 1 ) };
+  return( _tmp );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -720,8 +773,8 @@ class C05Function : public Function {
   * The method can be useful, e.g., to move linearizations in the initial
   * part of the global pool, that with "small" names", before shrinking it.
   *
-  * The method has a default empty implementation as some Functions may not
-  * store anything. */
+  * The method has a default empty implementation as some Function, such as
+  * linear ones, may not have to store anything. */
 
  virtual void rename_linearization( const LinearizationName current_name ,
 				    const LinearizationName new_name ) { }

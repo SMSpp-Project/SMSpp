@@ -729,18 +729,6 @@ void LagBFunction::set_important_linearization( LinearCombination && coefficient
  ImpLinComb = move( coefficients );
  } // end LagBFunction::set_important_linearization(  )  - - - - - - - - - - -
 
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
-
-C05Function::LinearizationName LagBFunction::get_important_linearization_name( ) {
- return( ImpLinName );
- } // end LagBFunction::get_important_linearization_name(  )   - - - - - - - -
-
-/*--------------------------------------------------------------------------*/
-
-C05Function::cLinearCombination & LagBFunction::get_important_linearization_coefficients( void ) {
- return( ImpLinComb );
- } // end LagBFunction::get_important_linearization_coefficients(  )  - - - - - - - -
-
 /*--------------------------------------------------------------------------*/
 
 void LagBFunction::rename_linearization( const LinearizationName current_name ,
