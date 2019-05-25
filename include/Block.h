@@ -2307,47 +2307,63 @@ class Block : public Observer {
  *   required properties (say, feasibility) even after all the Modification
  *   that may have occurred in the Meantime (note that for this to happen the
  *   Solution has to be read back into the Block).
-
-
-
- Often this
-  * means that the values represent a ray of the feasible region along which
-  * the Objective is unbounded (either below or above). This should always be
-  * reasonably cheap, even if the Block encodes for an NP-hard problem. Yet,
-  * note that the existence of an unbounded ray may not,  This method can be thought to only check that
-  * the Variable encode for a ray, with non-emptyness being checked in
-  * different ways.
+ *
+ * Note that these checks may be either "easy" or "hard". For instance,
+ * feasibility and ray-ness should be "easy" for an NP-hard problem, while
+ * optimality and emptyness are "hard"; the converse happens for co-NP-hard
+ * problems. For everything to be "easy", the problem should be an "easy"
+ * (polynomial) one to start with.
+ *
+ * All these methods have a useabstract parameter dictates how the check
+ * should be performed:
+ *
+ * - if true, it should use the abstract representation of the Block;
+ *
+ * - if false, it should rather use the physical representation of the Block.
+ *
+ * The second version is useful for several reasons:
+ *
+ * - it can be more computationally efficient;
+ *
+ * - it does not require the abstract representation of the Block to be
+ *   even constructed;
+ *
+ * - it can serve as "debug" of the abstract representation of the Block
+ *   itself.
+ *
+ * Also, all these methods have a (pointer to) Configuration parameter. This
+ * can serve two different purposes:
+ *
+ * - Checking the property (whatever that is) is likely to entail at the
+ *   very least some numerical computation, sayto verify that some
+ *   matrix-vector scalar product is "zero". This may require numerical
+ *   accuracy parameters, which the Configuration can hold. For instance,
+ *   the Configuration (pointer) may simply be (a pointer to) a
+ *   SimpleConfiguration<double> specifying, say, the maximum relative
+ *   accuracy in a "x == 0" computation).
+ *
+ * - One may be interested in checking "only partly" the property. This
+ *   goes hand-in-hand with the fact that a Solution can hold only "a
+ *   part" of all the solution information, say, only a subset of the
+ *   Variable. It may thus not be possible, or just not be useful, to
+ *   check (say) feasibility af all Constraint, but only of those that
+ *   concern a particular subset of the Variable. Just as the methods
+ *   for producing Solution have a Configuration to allow specifying
+ *   what part of the Solution is "interesting", so the Configuration
+ *   parameter of these methods can serve a similar purpose.
  *  @{ */
 
+/*--------------------------------------------------------------------------*/
  /// returns true if the current solution is (approximately) feasible
  /** Returns true if the solution encoded in the current value of the
   * Variable of the Block is approximately feasible within the given
-  * tolerances. This should always be reasonably cheap, even if the Block
-  * encodes for an NP-hard problem.
+  * tolerances.
   *
-  * The useabstract parameter dictates how the check should be performed:
+  * The useabstract parameter being true dictates that the check should be
+  * performed using the "abstract representation" of the Block, otherwise
+  * the "pyhsical representation" of the Block should be used.
   *
-  * - if true, it should use the abstract representation of the Block
-  *   (basically, check feasibility of all Constraint);
-  *
-  * - if false, it should rather use the data of the Block and the "logical"
-  *   conditions that define feasibility in abstract, without using the
-  *   Constraint.
-  *
-  * The second version is useful for several reasons:
-  *
-  * - it can be more computationally efficient;
-  *
-  * - it does not require the abstract representation of the Block to be
-  *   even constructed;
-  *
-  * - it can serve as "debug" of the abstract representation of the Block
-  *   itself, in the sense that it gives a way to check that the feasible
-  *   region as represented by the Constraints, that is checked by
-  *   is_feasible( true ), is the same as the feasible region that
-  *   "logically" the Block has, which is checked by is_feasible( false ).
-  *
-  * However, a significant difference exists between the two versions in case
+  * Note that a significant difference exists between the two versions in case
   * the Block has dynamic constraints. Indeed, in that case the abstract
   * representation of the Block only contains those that have been explicitly
   * generated so far, while the physical representation (logically) "contains
@@ -2372,7 +2388,9 @@ class Block : public Observer {
   * arbitrarily complex Configuration specifying different thresholds for
   * different groups of Constraint of the Block (say, via 
   * SimpleConfiguration<std::vector<double> >), and arbitrarily complex
-  * sub-Configurations (recursively) for the sub-Block of the Block.
+  * sub-Configurations (recursively) for the sub-Block of the Block. Also,
+  * the parameter can be used to specify that only "a part" of the
+  * feasibility check need be performed.
   *
   * Note that the fsbc parameter is meant as an *override* of the default
   * Configuration for this task set by means of set_BlockConfig(), which
@@ -2414,39 +2432,21 @@ class Block : public Observer {
  ///< returns true if the current solution is (approximately) optimal
  /**< Returns true if the solution encoded in the current value of the
   * Variable of the Block can be proven to be approximately optimal within
-  * the given tolerances. This might very well be a hard task, typically if
-  * the Block encodes for an NP-hard problem.
+  * the given tolerances. This might very well be a hard task, say if the
+  * Block encodes for an NP-hard problem.
   *
-  * A case in which this is possible is if the problem is convex, since then a
-  * dual feasible solution satisfying the Complementary Slackness conditions
-  * with the "primal one" encoded in the current value of the Variable of the
-  * Block is a convenient "compact" optimality certificate. For such a case,
-  * this method can be taken as being equivalent to "is_dual_feasible()"
-  * (which means that the primal solution in the Variable may not actually
-  * be optimal, if it is either not feasible or does not satisfy the
-  * Complementary Slackness conditions).
+  * A case in which this is possible is if the problem is convex (with a
+  * compact dual), since then a dual feasible solution satisfying the
+  * Complementary Slackness conditions with the "primal one" encoded in the
+  * current value of the Variable of the Block is a convenient "compact"
+  * optimality certificate. For such a case, this method can be taken as
+  * being equivalent to "is_dual_feasible()" (which means that the primal
+  * solution in the Variable may not actually be optimal, if it is either not
+  * feasible or does not satisfy the Complementary Slackness conditions).
   *
-  * The parameter dictates how the check should be performed:
-  *
-  * - if true, it should use the abstract representation of the Block
-  *   (like, checking dual feasibility using the Constraint);
-  *
-  * - if false, it should rather use the data of the Block and the "logical"
-  *   conditions that define optimality in abstract (assuming there is any
-  *   such thing), without using the Constraint.
-  *
-  * The second version is useful for several reasons:
-  *
-  * - it can be more computationally efficient;
-  *
-  * - it does not require the abstract representation of the Block to be
-  *   even constructed;
-  *
-  * - it can serve as "debug" of the abstract representation of the Block
-  *   itself, in the sense that it gives a way to check that the optimality
-  *   conditions using the "abstract" Constraint and Objective of the Block,
-  *   that are checked by is_optimal( true ), coincide with those "logically"
-  *   the Block has, which are checked by is_feasible( optimal ).
+  * The useabstract parameter being true dictates that the check should be
+  * performed using the "abstract representation" of the Block, otherwise
+  * the "pyhsical representation" of the Block should be used.
   *
   * However, a significant difference exists between the two versions in case
   * the Block has dynamic variables. Indeed, in that case the abstract
@@ -2473,7 +2473,8 @@ class Block : public Observer {
   * constraint violation and another for Complementary Slackness violations.
   * However, it can also be any arbitrarily complex Configuration, say
   * containing arbitrarily complex sub-Configurations (recursively) for the
-  * sub-Block of the Block.
+  * sub-Block of the Block. Also, the parameter can be used to specify that
+  * only "a part" of the optimality (dual feasibility) check need be performed.
   *
   * Note that the optc parameter is meant as an *override* of the default
   * Configuration for this task set by means of set_BlockConfig(), which
@@ -2512,29 +2513,16 @@ class Block : public Observer {
   * certificate that the problem is unbounded (either below, if it is a
   * minimization problem, or above if it is a maximization one). Often this
   * means that the values represent a ray of the feasible region along which
-  * the Objective is unbounded (either below or above). This should always be
-  * reasonably cheap, even if the Block encodes for an NP-hard problem. Yet,
-  * note that the existence of an unbounded ray may not, strictly speaking,
-  * be enough to prove that the problem is unbounded: this also requires the
-  * problem to be non-empty. This method can be thought to only check that
-  * the Variable encode for a ray, with non-emptyness being checked in
-  * different ways.
+  * the Objective is unbounded (either below or above). Note that the
+  * existence of an unbounded ray is not, strictly speaking, enough to prove
+  * that the problem is unbounded: this also requires the problem to be
+  * non-empty. This method is only required to check that the Variable
+  * encode for a proper ray, with non-emptyness having to be established
+  * in different ways (basically, this is a remit of the Solver).
   *
-  * The useabstract parameter dictates how the check should be performed:
-  *
-  * - if true, it should use the abstract representation of the Block;
-  *
-  * - if false, it should rather use the physical representation of the Block.
-  *
-  * The second version is useful for several reasons:
-  *
-  * - it can be more computationally efficient;
-  *
-  * - it does not require the abstract representation of the Block to be
-  *   even constructed;
-  *
-  * - it can serve as "debug" of the abstract representation of the Block
-  *   itself.
+  * The useabstract parameter being true dictates that the check should be
+  * performed using the "abstract representation" of the Block, otherwise
+  * the "pyhsical representation" of the Block should be used.
   *
   * Checking the property is likely to entail some numerical computation, say
   * to verify that some matrix-vector scalar product is "zero". This may
@@ -2542,7 +2530,9 @@ class Block : public Observer {
   * is designed to provide. If non-null, it is meant to point to an
   * arbitrarily complex Configuration object (although it can in fact be
   * as simple as a SimpleConfiguration<double> specifying, say, the maximum
-  * relative accuracy in a "x == 0" computation).
+  * relative accuracy in a "x == 0" computation). Also, the parameter can be
+  * used to specify that only "a part" of the check, say considering only a
+  * subset of the Variable, need be performed.
   *
   * Note that the fsbc parameter is meant as an *override* of the default
   * Configuration for is_feasible() set by means of set_BlockConfig(). That
@@ -2573,7 +2563,7 @@ class Block : public Observer {
  /// returns true if the Block provably has no feasible solutions
  /** Returns true if the Block provably has no feasible solutions, and a
   * certificate for this is readily available. This might very well be a hard
-  * task, typically if the Block encodes for an NP-hard problem.
+  * task, say if the Block encodes for an NP-hard problem.
   *
   * A case in which this is possible is if the problem is convex, since then a
   * convenient way to prove emptyness of the primal is to prove that the dual
@@ -2585,32 +2575,24 @@ class Block : public Observer {
   * check that the dual solution stored in the Block (however this is done)
   * represents the appropriate dual ray. Note that this may not, strictly
   * speaking, be enough to prove that the dual is unbounded: this also
-  * requires the dual problem to be non-empty. This is supposed to be checked
-  * in different ways.
+  * requires the dual problem to be non-empty. This method is only required
+  * to check that the dual solution encodes for a proper dual ray, with
+  * non-emptyness of the dual having to be established in different ways
+  * (basically, this is a remit of the Solver).
   *
-  * The useabstract parameter dictates how the check should be performed:
-  *
-  * - if true, it should use the abstract representation of the Block;
-  *
-  * - if false, it should rather use the physical representation of the Block.
-  *
-  * The second version is useful for several reasons:
-  *
-  * - it can be more computationally efficient;
-  *
-  * - it does not require the abstract representation of the Block to be
-  *   even constructed;
-  *
-  * - it can serve as "debug" of the abstract representation of the Block
-  *   itself.
-  *
+  * The useabstract parameter being true dictates that the check should be
+  * performed using the "abstract representation" of the Block, otherwise
+  * the "pyhsical representation" of the Block should be used.
+ *
   * Checking the property is likely to entail some numerical computation, say
   * to verify that some matrix-vector scalar product is "zero". This may
   * require numerical accuracy parameters, which is what the parameter optc
   * is designed to provide. If non-null, it is meant to point to an
   * arbitrarily complex Configuration object (although it can in fact be
   * as simple as a SimpleConfiguration<double> specifying, say, the maximum
-  * relative accuracy in a "x == 0" computation).
+  * relative accuracy in a "x == 0" computation). Also, the parameter can be
+  * used to specify that only "a part" of the check, say considering only a
+  * subset of the Constraint, need be performed.
   *
   * Note that the fsbc parameter is meant as an *override* of the default
   * Configuration for is_optimal() set by means of set_BlockConfig(). That
