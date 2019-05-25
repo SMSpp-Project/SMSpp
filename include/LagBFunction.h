@@ -830,10 +830,10 @@ virtual Index is_active( const Variable * const var ) const override final;
  ///< the type of variable contained in the solver
 
 
- LinearizationName ImpLinName;
+ LinearizationName zName;
  ///< the name of the important linearization
 
- LinearCombination ImpLinComb;
+ LinearCombination zLC;
  ///< the LinearCombination of the important linearization
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
