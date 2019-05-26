@@ -25,6 +25,3 @@ extlib/makefile-libBoost
 extlib/makefile-libEigen
 extlib/makefile-libNetCDF
 test/test
-extlib/makefile-libBoost
-extlib/makefile-libEigen
-extlib/makefile-libNetCDF
