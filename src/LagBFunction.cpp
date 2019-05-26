@@ -981,8 +981,10 @@ Function::FunctionValue LagBFunction::get_linearization_constant(
   // if the solution must be checked and is proved to be not feasible, the method
   // returns Inf
 
-  if( (std::get<2>(g_pool[ name ]) == VarToBeChckd) && !v_Block[0]->is_feasible( ) )
-   return( Inf< Function::FunctionValue >() );
+  if( std::get<2>(g_pool[ name ]) == VarToBeChckd )
+   if( ( ( std::get<1>(g_pool[ name ]) == VarAreSol ) && (!v_Block[0]->is_feasible( ) ) )
+	|| ( ( std::get<1>(g_pool[ name ]) == VarAreDir ) && (!v_Block[0]->is_unbounded( ) ) ) )
+    return( Inf< Function::FunctionValue >() );
 
   }
 
