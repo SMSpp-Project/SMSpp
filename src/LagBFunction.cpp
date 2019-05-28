@@ -274,7 +274,7 @@ void LagBFunction::set_par( const idx_type par , const int value )
   case( intGPMaxSz ):
    GPMaxSz = value;
    if( g_pool.size() > GPMaxSz )
-	for( auto it = g_pool.begin() + GPMaxSz ; it != g_pool.end() ;   )
+	for( auto it = g_pool.begin() + GPMaxSz ; it != g_pool.end() ; ++it  )
 	 delete[] std::get<0>(*it);
    g_pool.resize( GPMaxSz );
    break;
