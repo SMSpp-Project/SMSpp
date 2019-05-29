@@ -2335,7 +2335,7 @@ class Block : public Observer {
  * can serve two different purposes:
  *
  * - Checking the property (whatever that is) is likely to entail at the
- *   very least some numerical computation, sayto verify that some
+ *   very least some numerical computation, say to verify that some
  *   matrix-vector scalar product is "zero". This may require numerical
  *   accuracy parameters, which the Configuration can hold. For instance,
  *   the Configuration (pointer) may simply be (a pointer to) a
