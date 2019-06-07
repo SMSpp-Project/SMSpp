@@ -36,7 +36,7 @@
  *
  * \version 0.30
  *
- * \date 04 - 09 - 2018
+ * \date 07 - 06 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -64,6 +64,8 @@
 
 #include <iostream>
 #include <list>
+#include <memory>
+#include <vector>
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
