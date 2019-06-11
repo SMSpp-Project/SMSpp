@@ -496,13 +496,20 @@ void Block::set_SolverConfig( BlockSolverConfig * svcc )
     ++cit;
    }
   else {                   // the name is non-empty
-   register_Solver( Solver::new_Solver( *nit ) );
+   // important note: the order is
+   // - first the Solver is created;
+   // - then it is ComputeConfig-ured
+   // - only then it is passed to the Block
+
+   auto slvr = Solver::new_Solver( *nit );
 
    if( cit != svcc->v_SolverConfigs.end() ) {
     if( *cit )  // if the configurtion is empty, do nothing
-     v_Solver.back()->set_ComputeConfig( *cit );
+     slvr->set_ComputeConfig( *cit );
     ++cit;
     }
+
+   register_Solver( slvr );
    }
 
  // set the configurations for the sub-Block ---------------------------------

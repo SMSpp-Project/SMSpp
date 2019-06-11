@@ -563,7 +563,20 @@ public:
   *
   * Passing block == nullptr signals to the Solver to discard every
   * information related to the solution process of the previous Block (if
-  * any), and sit down quietly in a corner waiting for new orders. 
+  * any), and sit down quietly in a corner waiting for new orders.
+  *
+  * Important note: the moment when the Block is passed to the Solver, the
+  * Solver should in principle do all the necessary initializations, since
+  * immediately afterwords compute() may be called already. However, some of
+  * the initializations could be heavily impacted by the algorithmic parameters
+  * of the Solver. This means that
+  *
+  *     IT IS EXPECTED THAT set_ComputeConfig() SHOULD BE CALLED *BEFORE*
+  *     set_Block() IS
+  *
+  * so that when set_Block() is finally called, the Solver fully knows how to
+  * initialize itsefl. This is in fact how this is done in
+  * Block::set_SolverConfig().
   *
   * Important note: set_Block( < some Block > ) does *not* call
   *

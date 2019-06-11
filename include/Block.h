@@ -3406,6 +3406,17 @@ class Block : public Observer {
   * false. Hence, calling set_SolverConfig() will unregister and delete all
   * Solver attached to this Block and to each of its sub-Block.
   *
+  * Important note: the moment when the Block is passed to the Solver, the
+  * Solver should in principle do all the necessary initializations, since
+  * immediately afterwords compute() may be called already. However, some
+  * of the initializations could be heavily impacted by the algorithmic
+  * parameters of the Solver. This means that
+  *
+  *     IT IS EXPECTED THAT, IN A Solver, set_ComputeConfig() SHOULD BE
+  *     CALLED *BEFORE* set_Block() IS
+  *
+  * This is in fact how this is done here inside.
+  *
   * Note an important difference between this method and register_Solver(),
   * unregister_Solver() and replace_Solver(): in the latter the new solver
   * have to be already constructed outside of Block, and the ones that get
