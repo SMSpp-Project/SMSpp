@@ -2,7 +2,7 @@
 /*------------------------ File SMSTypedefs.h ------------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Header file defining a bunch of data types that are useful in mutiple
+ * Header file defining a bunch of data types that are useful in multiple
  * SMS++ classes, and therefore that it would be annoying to define as
  * public data types of some specific class. The file also provides:
  *
@@ -319,7 +319,7 @@ namespace SMSpp_di_unipi_it
  * The alert reader may similarly wonder why the funny "{}" after
  * "_initializer" in the _t versions, but not in the standard ones. This is
  * because for a template class (say, A, say template over the int) with a
- * static mamber (say, int a), something like
+ * static member (say, int a), something like
  *
  *   template<>
  *   int A<5>::a;
@@ -433,9 +433,9 @@ namespace SMSpp_di_unipi_it
  *
  *   bool un_any_static_ptr( boost::any & any , F f , un_any_type<T> )
  *
- *   bool un_any_dyanamic( boost::any & any , F f , un_any_type<T> )
+ *   bool un_any_dynamic( boost::any & any , F f , un_any_type<T> )
  *
- *   bool un_any_dyanamic_ptr( boost::any & any , F f , un_any_type<T> )
+ *   bool un_any_dynamic_ptr( boost::any & any , F f , un_any_type<T> )
  *
  * and the four macros (which, however, behave as a bool-returning function)
  *
@@ -450,7 +450,7 @@ namespace SMSpp_di_unipi_it
  * The difference between the two is that the functions take a "f" that is
  * a ( T & ) --> void function and it is applied to all *elements* in the
  * boost any (it could also be a ( T ) --> void function but this would
- * mean copying the object and noone wants that, right?), whereas the macros
+ * mean copying the object and no one wants that, right?), whereas the macros
  * take a "f" that is a *piece of code* that is applied to the *container*
  * of the elements, i.e., either a thing_type, or a std::vector<thing_type>,
  * or a boost::multi_array<thing_type>. This requires the piece of code to
@@ -462,10 +462,10 @@ namespace SMSpp_di_unipi_it
 /*--------------------------------------------------------------------------*/
 
 template<unsigned short K> struct un_any_int {};
-///< empty type, template over the integers, for recursive template sheningans
+///< empty type, template over the integers, for recursive template shenaningans
 
 template<class T> struct un_any_type {};
-///< empty type, template over a type, for template functions sheningans
+///< empty type, template over a type, for template functions shenaningans
 /**< empty type for allowing to declare the expected inner type in
  * un_any_*() and un_any_*_ptr() */
 
@@ -484,7 +484,7 @@ template<class T> struct un_any_type {};
  *
  * and apply the function "f" to all the objects of type T it contains. "f"
  * must be a ( T & ) --> void function (it could also be a ( T ) --> void
- * function but this would mean copying the object and noone wants that,
+ * function but this would mean copying the object and no one wants that,
  * right?); a lambda would work perfectly there.
  *
  * The function can work with any K, but a maximum K has to be fixed at
@@ -552,7 +552,7 @@ bool un_any_static( boost::any & any , F f , un_any_type<T> ,
  * and apply the function "f" to all corresponding pairs of objects of type T
  * and U they contain. "f" must be a ( T & , U & ) --> void function (it could
  * also be a ( T , U ) --> void function but this would mean copying the object
- * and noone wants that, right?); a lambda would work perfectly there.
+ * and no one wants that, right?); a lambda would work perfectly there.
  *
  * The function can work with any K, but a maximum K has to be fixed at
  * compile time; currently the maximum K is 8, but it may be easily extended
@@ -686,7 +686,7 @@ bool un_any_static_2( const boost::any & any1 , const boost::any & any2 , F f ,
  * "f" is applied to all corresponding pairs of objects of types T and U that
  * any1 and any2 contain. "f" must be a ( T & , U & ) --> void function (it
  * could also be a ( T , U ) --> void function but this would mean copying
- * the object and noone wants that, right?); a lambda would work perfectly
+ * the object and no one wants that, right?); a lambda would work perfectly
  * there.
  *
  * Returns true if "any1" did indeed contain one of the sought-for types.
@@ -788,7 +788,7 @@ bool un_any_static_2_create( const boost::any & any1 , boost::any & any2 ,
  *
  * and apply the function "f" to all the objects of type T it contains. "f"
  * must be a ( T & ) --> void function (it could also be a ( T ) --> void
- * function but this would mean copying the object and noone wants that,
+ * function but this would mean copying the object and no one wants that,
  * right?): note that it is *not* a ( T * ) --> void function, i.e., it is
  * passed the (reference to the) dereferenced object rather than the pointer.
  *
@@ -855,7 +855,7 @@ bool un_any_static_ptr( boost::any & any , F f , un_any_type<T> ,
  *
  * and apply the function "f" to all the objects of type T it contains. "f"
  * must be a ( T & ) --> void function (it could also be a ( T ) --> void
- * function but this would mean copying the object and noone wants that,
+ * function but this would mean copying the object and no one wants that,
  * right?); a lambda would work perfectly there.
  *
  * The function can work with any K, but a maximum K has to be fixed at
@@ -920,7 +920,7 @@ bool un_any_const_static( const boost::any & any , F f , un_any_type<T> ,
  *
  * and apply the function "f" to all the objects of type T it contains. "f"
  * must be a ( T & ) --> void function (it could also be a ( T ) --> void
- * function but this would mean copying the object and noone wants that,
+ * function but this would mean copying the object and no one wants that,
  * right?): note that it is *not* a ( T * ) --> void function, i.e., it is
  * passed the (reference to the) dereferenced object rather than the pointer.
  *
@@ -990,7 +990,7 @@ bool un_any_const_static_ptr( const boost::any & any , F f , un_any_type<T> ,
  * that "f" is applied to the *individual objects*, *not* to the *lists* of
  * object: in fact, "f" must be a ( T & ) --> void function (it could also
  * be a ( T ) --> void function but this would mean copying the object and
- * noone wants that, right?)
+ * no one wants that, right?)
  *
  * The function can work with any K, but a maximum K has to be fixed at
  * compile time; currently the maximum K is 8, but it may be easily extended
@@ -1065,7 +1065,7 @@ bool un_any_dynamic( boost::any & any , F f , un_any_type<T> ,
  * ( std::list<T> & , U & ) --> void function (it could also be a
 
  * ( std::list<T> , U ) --> void function but this would mean copying the
- * object and noone wants that, right?); a lambda would work perfectly there.
+ * object and no one wants that, right?); a lambda would work perfectly there.
  *
  * The function can work with any K, but a maximum K has to be fixed at
  * compile time; currently the maximum K is 8, but it may be easily extended
@@ -1190,7 +1190,7 @@ bool un_any_dynamic_2( const boost::any & any1 , const boost::any & any2 , F f ,
  * types std::list<T> and U that any1 and any2 contain. "f" must be a
  * ( std::list<T> & , U & ) --> void function (it could also be a
  * ( std::list<T> , U ) --> void function but this would mean copying
- * the object and noone wants that, right?); a lambda would work
+ * the object and no one wants that, right?); a lambda would work
  * perfectly there.
  *
  * Returns true if "any1" did indeed contain one of the sought-for types.
@@ -1291,7 +1291,7 @@ bool un_any_dynamic_2_create( const boost::any & any1 , boost::any & any2 ,
  * "f" is *not* a ( T * ) --> void function, i.e., it is passed the
  * (reference to the) dereferenced object rather than the pointer (it could
  * also be a ( T ) --> void function but this would mean copying the object
- * and noone wants that, right?)
+ * and no one wants that, right?)
  *
  * The function can work with any K, but a maximum K has to be fixed at
  * compile time; currently the maximum K is 8, but it may be easily extended
@@ -1363,7 +1363,7 @@ bool un_any_dynamic_ptr( boost::any & any , F f , un_any_type<T> ,
  * that "f" is applied to the *individual objects*, *not* to the *lists* of
  * object: in fact, "f" must be a ( T & ) --> void function (it could also
  * be a ( T ) --> void function but this would mean copying the object and
- * noone wants that, right?)
+ * no one wants that, right?)
  *
  * The function can work with any K, but a maximum K has to be fixed at
  * compile time; currently the maximum K is 8, but it may be easily extended
@@ -1439,7 +1439,7 @@ bool un_any_const_dynamic( const boost::any & any , F f , un_any_type<T> ,
  * "f" is *not* a ( T * ) --> void function, i.e., it is passed the
  * (reference to the) dereferenced object rather than the pointer (it could
  * also be a ( T ) --> void function but this would mean copying the object
- * and noone wants that, right?)
+ * and no one wants that, right?)
  *
  * The function can work with any K, but a maximum K has to be fixed at
  * compile time; currently the maximum K is 8, but it may be easily extended
