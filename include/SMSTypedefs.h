@@ -1899,6 +1899,30 @@ inline void deserialize_dim( const netCDF::NcGroup & group,
 /*--------------------------------------------------------------------------*/
 
 /**
+ * This function receives a netCDF variable and returns a vector whose
+ * size is the number of dimensions of the given variable. The i-th
+ * position of this vector stores the size of the i-th dimension of
+ * the given netCDF variable.
+ *
+ * @param[in] var The netCDF variable from which the sizes of the
+ * dimensions will be extracted.
+ *
+ * @return A vector with the sizes of the dimensions of the variable
+ * var.
+ */
+inline std::vector<std::size_t>
+get_sizes_dimensions( const netCDF::NcVar & var ) {
+  std::vector<std::size_t> sizes_dimensions( var.getDimCount() );
+  std::vector<std::size_t>::size_type i = 0;
+  for( const auto & dim : var.getDims() ) {
+    sizes_dimensions[ i++ ] = dim.getSize();
+  }
+  return sizes_dimensions;
+}
+
+/*--------------------------------------------------------------------------*/
+
+/**
  * This function reads a multi-dimensional array of values of type T
  * from a netCDF variable with name var_name within the given netCDF
  * NcGroup. The number of dimensions of the multi-dimensional array is
@@ -1924,11 +1948,11 @@ inline void deserialize_dim( const netCDF::NcGroup & group,
  * @param[in] var_name The name of the variable within the given
  * group.
  *
- * @param[out] data A reference to the vector that will store the
- * multi-dimensional array in row-major layout.
- *
  * @param[in] sizes A vector containing the sizes of each dimension of
  * the multi-dimensional array.
+ *
+ * @param[out] data A reference to the vector that will store the
+ * multi-dimensional array in row-major layout.
  *
  * @param[in] optional This parameter informs whether the variable is
  * optional. This means that if the variable is not present in the
@@ -1938,12 +1962,12 @@ inline void deserialize_dim( const netCDF::NcGroup & group,
 template<class T>
 inline void deserialize( const netCDF::NcGroup & group,
                          const std::string & var_name,
+                         const std::vector<std::size_t> & sizes,
                          std::vector<T> & data,
-                         const std::vector<size_t> & sizes,
                          const bool optional = true ) {
 
   auto total_size = std::accumulate( begin( sizes ), end( sizes ), 1,
-                                     std::multiplies<size_t>() );
+                                     std::multiplies<std::size_t>() );
 
   if( total_size == 0 ) {
     data.resize( 0 );
@@ -1960,13 +1984,41 @@ inline void deserialize( const netCDF::NcGroup & group,
            ( "deserialize: " + var_name + " is not present" ) );
   }
 
+  auto var_sizes = get_sizes_dimensions( ncVar );
+  if( sizes.size() != ncVar.getDimCount() ) {
+    throw( std::invalid_argument
+           ( "deserialize: netCDF variable '" + var_name + "' has dimension " +
+             std::to_string( ncVar.getDimCount() ) + ", but provided argument "
+             " has dimension " + std::to_string( sizes.size() ) ) );
+  }
+
+  if( sizes != var_sizes ) {
+    throw( std::invalid_argument
+           ( "deserialize: given sizes of dimensions and the sizes of "
+             "dimensions of netCDF variable " + var_name + " do not match" ) );
+  }
+
   data.resize( total_size );
 
-  std::vector<size_t> start;
+  std::vector<std::size_t> start;
   start.assign( sizes.size(), 0 );
 
   ncVar.getVar( start, sizes, data.data() );
 }
+
+/*--------------------------------------------------------------------------*/
+
+/* TODO In the version that receives a size (a single one or a vector
+ * of sizes) of the dimension, we could do the following:
+ *
+ * If the dimension in the netCDF variable is 1 and the given size n
+ * is greater than 1, then resize the vector to n and copy the value
+ * read into the other positions. MAYBE NOT!
+ *
+ * If the dimension in the netCDF variable is m > 1 and the given size
+ * n is greater than m, throw an exception. OR throw an exception if
+ * the sizes of dimensions do not match.
+ */
 
 /*--------------------------------------------------------------------------*/
 
@@ -2002,11 +2054,55 @@ inline void deserialize( const netCDF::NcGroup & group,
  * given NcGroup, an exception is thrown in case the variable is not
  * optional.
  */
+
 template<class T>
-void deserialize( const netCDF::NcGroup & group,
-                  const std::string & var_name,
-                  const size_t & size, std::vector<T> & data ,
-                  const bool optional = true ) {
+inline void deserialize( const netCDF::NcGroup & group,
+                         const std::string & var_name,
+                         const std::size_t & size,
+                         std::vector<T> & data,
+                         const bool optional = true ) {
+  deserialize( group, var_name, std::vector<size_t> { size }, data, optional );
+}
+
+/*--------------------------------------------------------------------------*/
+
+/**
+ * This function reads a multi-dimensional array of values of type T
+ * from a netCDF variable with name var_name within the given netCDF
+ * NcGroup. The values read are stored in the given vector data in
+ * row-major layout.
+ *
+ * If the size of any dimension is zero, then data is resized to
+ * zero. If the variable is not present in the given group, then the
+ * vector data is resized to zero if the value of the parameter
+ * optional is true or an std::invalid_argument exception is thrown if
+ * optional is false.
+ *
+ * If the given group has more than one variable with the same name,
+ * then the variable that is considered follows the rule defined by
+ * the netCDF method NcGroup::getVar(). As of version 4.3.1 of netCDF,
+ * if this happens, then the variable closest to the given group is
+ * considered.
+ *
+ * @param[in] group The netCDF NcGroup from which the array will be
+ * obtained from.
+ *
+ * @param[in] var_name The name of the variable within the given
+ * group.
+ *
+ * @param[out] data A reference to the vector that will store the
+ * multi-dimensional array in row-major layout.
+ *
+ * @param[in] optional This parameter informs whether the variable is
+ * optional. This means that if the variable is not present in the
+ * given NcGroup, an exception is thrown in case the variable is not
+ * optional.
+ */
+template<class T>
+inline void deserialize( const netCDF::NcGroup & group,
+                         const std::string & var_name,
+                         std::vector<T> & data,
+                         const bool optional = true ) {
 
   auto ncVar = group.getVar( var_name );
   if( ncVar.isNull() ) {
@@ -2018,8 +2114,23 @@ void deserialize( const netCDF::NcGroup & group,
            ( "deserialize: " + var_name + " is not present" ) );
   }
 
-  data.resize( size );
-  ncVar.getVar( { 0 }, { size }, data.data() );
+  auto sizes_dimensions = get_sizes_dimensions( ncVar );
+
+  auto total_size = std::accumulate
+    ( begin( sizes_dimensions ), end( sizes_dimensions ), 1,
+      std::multiplies<std::size_t>() );
+
+  if( total_size == 0 ) {
+    data.resize( 0 );
+    return;
+  }
+
+  data.resize( total_size );
+
+  std::vector<std::size_t> start;
+  start.assign( sizes_dimensions.size(), 0 );
+
+  ncVar.getVar( start, sizes_dimensions, data.data() );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -2111,16 +2222,16 @@ inline void serialize( netCDF::NcGroup & group, const std::string & var_name,
                        const std::vector<netCDF::NcDim> & ncDim,
                        const std::vector<T> & data ) {
 
-  std::vector<size_t> start;
+  std::vector<std::size_t> start;
   start.assign( ncDim.size(), 0 );
 
-  std::vector<size_t> sizes;
+  std::vector<std::size_t> sizes;
   sizes.resize( ncDim.size() );
-  for( size_t i = 0; i < sizes.size(); ++i )
+  for( std::size_t i = 0; i < sizes.size(); ++i )
     sizes[i] = ncDim[i].getSize();
 
   auto total_size = std::accumulate( begin( sizes ), end( sizes ), 1,
-                                     std::multiplies<size_t>() );
+                                     std::multiplies<std::size_t>() );
 
   if( total_size == 0 )
     return;
