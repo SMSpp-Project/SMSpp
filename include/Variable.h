@@ -104,10 +104,10 @@ class Variable {
 /*--------------------------------------------------------------------------*/
  /// type for the "type" of the Variable
  /** The base class has a protected field f_state of type var_type, which is
-  * only menat to store one but of information, i.e., if the Variable is fixed
+  * only meant to store one but of information, i.e., if the Variable is fixed
   * or not. Since there is no way to store a single bit, this leaves "a lot of
   * free space" available to derived classes to store other information about
-  * their soecific :Variable, provided they don't mess up with the LSB of that
+  * their specific :Variable, provided they don't mess up with the LSB of that
   * field. */
 
  typedef unsigned char var_type;
@@ -230,7 +230,7 @@ class Variable {
  virtual void set_to_default_value( void ) = 0;
 
 /*--------------------------------------------------------------------------*/
- /// fox or un-fix the Variable
+ /// fix or un-fix the Variable
  /** Method to change the state of the Variable from "free" to "fixed" (if
   * fixed == true) or vice-versa (if fixed == false). This is recorded in
   * the LSB of the f_state protected field, taking great care in not touching
