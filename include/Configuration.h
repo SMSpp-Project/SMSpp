@@ -17,7 +17,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni
+ * Copyright &copy; by Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -339,7 +339,7 @@ class Configuration
   #endif
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*------------- Methods for reading the data of the Configuration ----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for reading the data of the Configuration
@@ -365,7 +365,7 @@ class Configuration
   return( private_name() );
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------- METHODS FOR LOADING, PRINTING & SAVING THE Configuration --------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the Configuration
@@ -491,7 +491,7 @@ class Configuration
   group.putAtt( "type" , name() );
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -537,7 +537,7 @@ class Configuration
 
  virtual void load( std::istream &input ) = 0;
 
-/*@}------------------------------------------------------------------------*/
+/**@} ---------------------------------------------------------------------*/
  /// method incapsulating the Configuration factory
  /** This method returns the Configuration factory, which is a static object.
   * The rationale for using a method is that this is the "Construct On First
@@ -689,7 +689,7 @@ class SimpleConfiguration : public Configuration
 
  };  // end( class( SimpleConfiguration ) )
 
-/*@}  end( group( Configuration_CLASSES ) ) */ 
+/** @} end( group( Configuration_CLASSES ) ) */ 
 /*--------------------------------------------------------------------------*/
 /*-------------------- Configuration-RELATED TYPES -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -702,7 +702,7 @@ class SimpleConfiguration : public Configuration
  typedef std::vector<p_Conf> Vec_p_Conf;
  ///< a vector of pointer to Configuration
 
-/*@}  end( group( Configuration_TYPES ) ) */
+/** @} end( group( Configuration_TYPES ) ) */
 /*--------------------------------------------------------------------------*/
 
 }  // end( namespace SMSpp_di_unipi_it )

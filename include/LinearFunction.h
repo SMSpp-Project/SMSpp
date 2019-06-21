@@ -19,7 +19,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Rafael Durbano Lobato
+ * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -219,7 +219,7 @@ class LinearFunction : public C15Function {
   v_coeff_pair::const_iterator itr_;
   };
 
-/*@}------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -266,7 +266,7 @@ class LinearFunction : public C15Function {
 
  virtual void clear( void ) override { v_pairs.clear(); }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -280,7 +280,7 @@ class LinearFunction : public C15Function {
  virtual void set_ComputeConfig( ComputeConfig *scfg = nullptr )
   override final { }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE DATA OF THE LinearFunction ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the LinearFunction
@@ -319,7 +319,7 @@ class LinearFunction : public C15Function {
    return( idx->second );
    }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF THE LinearFunction ----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of the LinearFunction
@@ -415,7 +415,7 @@ class LinearFunction : public C15Function {
 
  FunctionValue get_constant_term( void ) const { return( f_constant_term ); }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the parameters of the LinearFunction
@@ -432,7 +432,7 @@ class LinearFunction : public C15Function {
   return( nullptr );
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE LinearFunction -------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling the set of "active" Variable in the
@@ -497,7 +497,7 @@ class LinearFunction : public C15Function {
   return( new LinearFunction::v_const_iterator( v_pairs.end() ) );
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------- METHODS FOR MODIFYING THE LinearFunction ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for modifying the LinearFunction
@@ -769,7 +769,7 @@ class LinearFunction : public C15Function {
  void set_constant_term( const FunctionValue constant_term ,
 			 c_ModParam issueMod = eModBlck );
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -802,7 +802,7 @@ class LinearFunction : public C15Function {
  FunctionValue f_constant_term;
  ///< the value of the constant term of this Function
 
-/*@}------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -817,7 +817,7 @@ class LinearFunction : public C15Function {
 
  };  // end( class( LinearFunction ) )
 
-/*@}  end( group( LinearFunction_CLASSES ) ) */
+/** @} end( group( LinearFunction_CLASSES ) ) ------------------------------*/
 /*--------------------------------------------------------------------------*/
 
  }  // end( namespace SMSpp_di_unipi_it )

@@ -17,7 +17,7 @@
  *         Department of Applied Mathematics \n
  *         State University of Campinas, Brazil \n
  *
- * Copyright &copy by Antonio Frangioni, Rafael Durbano Lobato
+ * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/

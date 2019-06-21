@@ -19,7 +19,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni.
+ * Copyright &copy; by Antonio Frangioni, Enrico Gorgone.
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -264,7 +264,7 @@ class LagBFunction : public C05Function , public Block {
 /*---------------------- PUBLIC TYPES OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Public Types
-    @{ */
+ *  @{ */
 
  typedef std::pair< ColVariable * , Function * > dual_pair;
  ///< a constraint and its dual variable
@@ -387,7 +387,7 @@ class LagBFunction : public C05Function , public Block {
    v_dual_pair::const_iterator itr_;
    };
 
-/*@}------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -408,7 +408,8 @@ class LagBFunction : public C05Function , public Block {
   * The assumption makes sure that, before saving the Lagrangian multipliers,
   * the Observer has been registered. */
 
- LagBFunction( Block* innerblock = nullptr , Observer * const observer = nullptr );
+ LagBFunction( Block* innerblock = nullptr ,
+	       Observer * const observer = nullptr );
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
@@ -416,13 +417,13 @@ class LagBFunction : public C05Function , public Block {
  /** destructor of LagBFunction. It deletes delete the global pool and the
      LagMatrix which is used to change the Lagrangian costs. */
 
- virtual ~LagBFunction( ) { guts_of_destructor(); };
+ virtual ~LagBFunction( void ) { guts_of_destructor(); };
 
 /*--------------------------------------------------------------------------*/
  
- virtual void clear( ) override;
+ virtual void clear( void ) override;
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -512,20 +513,23 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
-  virtual void deserialize( netCDF::NcGroup& group ) override;
+ virtual void deserialize( netCDF::NcGroup& group ) override;
 
 /*--------------------------------------------------------------------------*/
  /** As stated above, the Observer of a LagBFunction is assumed to be a
-   * FRealObjective. */
+  * FRealObjective. */
 
- virtual void register_Observer( Observer * const observer = nullptr ) override {
-  Function::register_Observer( observer );
+ virtual void register_Observer( Observer * const observer = nullptr ) override
+ {
   auto TVDIO = dynamic_cast<FRealObjective *>( f_Observer );
-  if( !TVDIO )
-   throw( std::logic_error( "this is not allowed" ) );
+  if( ! TVDIO )
+   throw( std::logic_error(
+	       "the Observer of a LagBFunction must be a FRealObjective" ) );
+
+  Function::register_Observer( observer );
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- Methods for handling Modification -------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling Modification
@@ -544,7 +548,8 @@ class LagBFunction : public C05Function , public Block {
    * of the relaxed constraints (RCs).  */
 
  void add_dual_pairs( v_dual_pair && v_lag_pair ,
- 		 const bool static_is_ordered = false , c_ModParam issueMod = eNoBlck );
+		      const bool static_is_ordered = false ,
+		      c_ModParam issueMod = eNoBlck );
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
@@ -553,8 +558,8 @@ class LagBFunction : public C05Function , public Block {
   *  used to compute the Lagrangian costs needs to be update.  */
 
  virtual void remove_variables( std::vector<Variable *> && vars ,
-			const bool ordered = false ,
-			c_ModParam issueMod = eModBlck ) override;
+				const bool ordered = false ,
+				c_ModParam issueMod = eModBlck ) override;
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
@@ -565,15 +570,15 @@ class LagBFunction : public C05Function , public Block {
 
  virtual void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*---------- METHODS FOR Loading/Saving THE DATA OF THE LagBFunction -------*/
 /*--------------------------------------------------------------------------*/
 /** @name Saving the data of the LagBFunction
-    @{ */
+ *  @{ */
 
  virtual void serialize( netCDF::NcGroup& group ) const override final;
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF THE LagBFunction ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of the LagBFunction
@@ -702,7 +707,7 @@ class LagBFunction : public C05Function , public Block {
  virtual FunctionValue get_linearization_constant(
 		 const LinearizationName name = Inf<Index>() ) override final;
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the parameters of the LagBFunction
@@ -719,7 +724,8 @@ class LagBFunction : public C05Function , public Block {
   * BlockConfig. */
 
  virtual ComputeConfig * get_ComputeConfig( bool all = false ,
-		       ComputeConfig * ocfg = nullptr ) const override final;
+					    ComputeConfig * ocfg = nullptr )
+  const override final;
 
 /*--------------------------------------------------------------------------*/
 
@@ -737,7 +743,7 @@ class LagBFunction : public C05Function , public Block {
 
  virtual double get_dflt_dbl_par( const idx_type par ) const override;
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE LagBFunction ---------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling the set of "active" Variable in the
@@ -787,13 +793,7 @@ virtual Index is_active( const Variable * const var ) const override final;
   return( new LagBFunction::v_const_iterator( lag_p.end() ) );
   }
 
-/*@} -----------------------------------------------------------------------*/
-/*-------------- METHODS FOR MODIFYING THE LagBFunction --------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Methods for modifying the LagBFunction
- *  @{ */
-
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -803,14 +803,14 @@ virtual Index is_active( const Variable * const var ) const override final;
 /*--------------------------- PROTECTED METHODS ----------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Protected methods for inserting and extracting
-    @{ */
+ *  @{ */
 
  /// printing the LagBFunction
  virtual void print( std::ostream &output ) const override;
 
  virtual void load( std::istream &input ) override final;
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -863,7 +863,7 @@ virtual Index is_active( const Variable * const var ) const override final;
  BlockSolverConfig * svcc;
  ///< the block solver configuration of the sub-block
 
-/*@}------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -908,7 +908,7 @@ virtual Index is_active( const Variable * const var ) const override final;
 
  };  // end( class( LagBFunction ) )
 
-/*@}  end( group( LagFun_CLASSES ) ) ---------------------------------------*/
+/** @} end( group( LagFun_CLASSES ) ) --------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
  }  // end( namespace SMSpp_di_unipi_it )

@@ -18,7 +18,7 @@
  *         Department of Applied Mathematics \n
  *         State University of Campinas, Brazil \n
  *
- * Copyright &copy by Antonio Frangioni, Rafael Durbano Lobato
+ * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -48,7 +48,7 @@ namespace SMSpp_di_unipi_it
 /** @defgroup C15Function_TYPES C15Function-related types.
  *  @{ */
 
-/*@}  end( group( C15Function_TYPES ) ) */
+/** @} end( group( C15Function_TYPES ) ) */
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -89,7 +89,7 @@ class C15Function : public C05Function {
  typedef Eigen::SparseMatrix<FunctionValue> SparseHessian;
  ///< type used to store a sparse Hessian matrix
 
-/*@}------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and destructor
@@ -102,19 +102,7 @@ class C15Function : public C05Function {
 
  virtual ~C15Function() { }  ///< destructor: it is virtual, and empty
 
-/*@} -----------------------------------------------------------------------*/
-/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Other initializations
- *  @{ */
-
-/*@} -----------------------------------------------------------------------*/
-/*----------- METHODS FOR READING THE DATA OF THE C15Function --------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Reading the data of the C15Function
- *  @{ */
-
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A C15Function -------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a C15Function
@@ -151,7 +139,7 @@ class C15Function : public C05Function {
   return( false );
   }
 
-/*@}------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -243,7 +231,7 @@ class C15FunctionMod : public C05FunctionMod {
 
 };  // end( class( C15FunctionMod ) )
 
-/*@}  end( group( C15Function_CLASSES ) ) ----------------------------------*/
+/** @} end( group( C15Function_CLASSES ) ) ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 }  // end( namespace SMSpp_di_unipi_it )

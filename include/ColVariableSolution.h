@@ -22,7 +22,7 @@
  *         Department of Applied Mathematics \n
  *         State University of Campinas, Brazil \n
  *
- * Copyright &copy by Antonio Frangioni, Rafael Durbano Lobato
+ * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -110,7 +110,7 @@ public:
 
   virtual ~ColVariableSolution();  ///< destructor
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF AN OBSERVER -------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a ColVariableSolution
@@ -263,11 +263,11 @@ public:
     return nested_solutions;
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*----- METHODS FOR LOADING, PRINTING & SAVING THE ColVariableSolution -----*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for printing the ColVariableSolution
- */
+ *  @{ */
 
   /// friend operator<<(), dispatching to virtual protected print()
   /** Not really a method, but a friend operator<<() that just
@@ -282,7 +282,7 @@ public:
     return( out );
   }
 
-/*@}------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -332,7 +332,7 @@ public:
     output << "ColVariableSolution [" << this << "]";
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -349,7 +349,8 @@ public:
 
 };  // end( class( ColVariableSolution ) )
 
-/*@}  end( group( ColVariableSolution_CLASSES ) ) */
+/** @} end( group( ColVariableSolution_CLASSES ) ) -------------------------*/
+/*--------------------------------------------------------------------------*/
 
 }  // end( namespace SMSpp_di_unipi_it )
 

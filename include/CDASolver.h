@@ -22,7 +22,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Kostas Tavlaridis-Gyparakis
+ * Copyright &copy; by Antonio Frangioni, Kostas Tavlaridis-Gyparakis
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -298,7 +298,7 @@ class CDASolver : public Solver {
 		    * to further extend the set of types of return codes */
  };             // end( dbl_par_type_CDAS )
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
 /*--------------------------------------------------------------------------*/
  /** @name Constructor and destructor
@@ -311,13 +311,7 @@ class CDASolver : public Solver {
 
  virtual ~CDASolver() { }  ///< destructor: it is virtual, and it is empty
 
-/*@} -----------------------------------------------------------------------*/
-/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Other initializations
- *  @{ */
-
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*---------------------- METHODS FOR READING RESULTS -----------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Accessing dual solutions and dual unbounded directions
@@ -685,16 +679,14 @@ class CDASolver : public Solver {
 
  virtual bool new_dual_direction( void ) { return( false ); }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE CDASolver ---------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the state of the CDASolver
  *  @{ */
 
- virtual bool is_dual_exact( void ) const { return( true ); }
-
- ///< returns true if the dual problem is an "exact" one
- /**< This method returns true if the dual problem is an "exact" one. That
+ /// returns true if the dual problem is an "exact" one
+ /** This method returns true if the dual problem is an "exact" one. That
   * is, being v(P) the optimal value of the primal (minimization) problem and
   * v(D) the optimal value of the dual (maximization) problem, this method
   * returns true only if it is theoretically guaranteed (which, usually,
@@ -720,7 +712,9 @@ class CDASolver : public Solver {
   * The method is given a default implementation in the base CDASolver class
   * catering the very lucky case in which the dual is exact. */
 
-/*@} -----------------------------------------------------------------------*/
+ virtual bool is_dual_exact( void ) const { return( true ); }
+
+/**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the parameters of the CDASolver
@@ -804,12 +798,12 @@ class CDASolver : public Solver {
    return( Solver::dbl_par_idx2str( idx ) );
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
  };   // end( class CDASolver )
 
-/*@}  end( group( CDASolver_CLASSES ) ) ------------------------------------*/
+/** @} end( group( CDASolver_CLASSES ) ) -----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
  };  // end( namespace SMSpp_di_unipi_it )

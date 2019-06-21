@@ -30,7 +30,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Rafael Durbano Lobato
+ * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -112,12 +112,6 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface {
  public:
 
 /*--------------------------------------------------------------------------*/
-/*---------------------------- PUBLIC TYPES --------------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Public Types
-    @{ */
-
-/*@}------------------------------------------------------------------------*/
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -149,7 +143,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface {
  /// destructor of Constraint: it is virtual, and empty
  virtual ~Constraint() {};
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -175,7 +169,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface {
 
  virtual void relax( bool relax_it , c_ModParam issueMod = eModBlck );
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE Constraint --------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the Constraint
@@ -184,7 +178,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface {
  /// returns the pointer to the Block to which the Constraint belongs
  Block *get_Block( void ) const { return( f_Block ); }
  
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*------------ METHODS DESCRIBING THE BEHAVIOR OF THE Constraint -----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of the Constraint
@@ -228,7 +222,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface {
 
  bool is_relaxed( void ) const { return( f_is_relaxed ); }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*---------- METHODS FOR LOADING, PRINTING & SAVING THE Constraint ---------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for printing the Constraint
@@ -251,7 +245,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface {
   return( out );
   }
 
-/*@}------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -277,7 +271,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface {
 	 << std::endl;
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -371,8 +365,7 @@ class ConstraintMod : public AModification
 
  };  // end( class( ConstraintMod ) )
 
-/*@}  end( group( Constraint_CLASSES ) ) */
-/*--------------------------------------------------------------------------*/
+/** @} end( group( Constraint_CLASSES ) ) ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 }  // end( namespace SMSpp_di_unipi_it )

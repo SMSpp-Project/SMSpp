@@ -24,7 +24,7 @@
  *         Department of Applied Mathematics \n
  *         State University of Campinas, Brazil \n
  *
- * Copyright &copy by Antonio Frangioni, Rafael Durbano Lobato
+ * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -51,13 +51,6 @@ namespace SMSpp_di_unipi_it
  class Observer;  // forward definition of Observer
  class Variable;  // forward definition of Variable
 
-/*--------------------------------------------------------------------------*/
-/*----------------------- Function-RELATED TYPES ---------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @defgroup Function_TYPES Function-related types.
- *  @{ */
-
-/*@}  end( group( Function_TYPES ) ) */
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -257,7 +250,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
 		  * to extend the set of double algorithmic parameters. */
  };  // end( dbl_par_type_F )
 
-/*@}------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and destructor
@@ -303,7 +296,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
 
  virtual ~Function() { }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -340,7 +333,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
   f_Observer = observer;
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF A Function --------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a Function
@@ -499,7 +492,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
 	  this->is_upper_semicontinuous() );
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the parameters of the Function
@@ -596,7 +589,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
    return( ThinComputeInterface::dbl_par_idx2str( idx ) );
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE DATA OF THE Function ---------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the Function
@@ -605,7 +598,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
  /// returns the pointer to the Observer of this Function
  Observer * get_Observer( void ) const { return( f_Observer ); }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR LOADING, PRINTING & SAVING THE Function ----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for printing the Function
@@ -622,7 +615,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
   return( out );
   }
 
-/*@}------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1054,7 +1047,7 @@ public:
 
  };  // end( class( FunctionModVars ) )
 
-/*@}  end( group( Function_CLASSES ) ) -------------------------------------*/
+/** @} end( group( Function_CLASSES ) ) ------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 }  // end( namespace SMSpp_di_unipi_it )

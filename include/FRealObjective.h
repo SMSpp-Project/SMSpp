@@ -18,7 +18,7 @@
  *         Department of Applied Mathematics \n
  *         State University of Campinas, Brazil \n
  *
- * Copyright &copy by Antonio Frangioni, Rafael Durbano Lobato
+ * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -43,7 +43,7 @@
 namespace SMSpp_di_unipi_it
 {
 
-/*@} -----------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @defgroup FRealObjective_CLASSES Classes in FRealObjective.h
@@ -88,12 +88,6 @@ class FRealObjective : public RealObjective , Observer {
  public:
 
 /*--------------------------------------------------------------------------*/
-/*---------------------------- PUBLIC TYPES --------------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Public Types
-    @{ */
-
-/*@}------------------------------------------------------------------------*/
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and destructor
@@ -132,7 +126,7 @@ class FRealObjective : public RealObjective , Observer {
    f_function->clear();
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -188,7 +182,7 @@ class FRealObjective : public RealObjective , Observer {
 			    c_ModParam issueMod = eModBlck ,
 			    bool deleteold = true );
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE FRealObjective -----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the FRealObjective
@@ -230,7 +224,7 @@ class FRealObjective : public RealObjective , Observer {
    f_function->set_ComputeConfig( scfg );
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*------------ METHODS DESCRIBING THE BEHAVIOR OF A FRealObjective ---------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a FRealObjective
@@ -255,7 +249,7 @@ class FRealObjective : public RealObjective , Observer {
   return( f_function ? f_function->get_value() : Inf<OFValue>() );
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the parameters of the FRealObjective; they all dispatch
@@ -367,7 +361,7 @@ class FRealObjective : public RealObjective , Observer {
   return( f_function->get_ComputeConfig( all , ocfg ) );
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE FRealObjective -------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling the set of "active" Variable in the
@@ -434,7 +428,7 @@ class FRealObjective : public RealObjective , Observer {
                                 const bool ordered = false ,
                                 c_ModParam issueMod = eModBlck ) override;
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF AN Observer -------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of an Observer
@@ -496,7 +490,7 @@ class FRealObjective : public RealObjective , Observer {
 
  virtual void set_default_channel( c_ChnlName chnl = 0 ) override;
 
-/*@}------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -606,7 +600,7 @@ class FRealObjectiveMod : public ObjectiveMod
 
  };  // end( class( FRealObjectiveMod ) )
 
-/*@}  end( group( FRealObjective_CLASSES ) ) -------------------------------*/
+/** @} end( group( FRealObjective_CLASSES ) ) ------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 }  // end( namespace SMSpp_di_unipi_it )

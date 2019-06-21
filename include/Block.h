@@ -106,7 +106,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Rafael Durbano Lobato, Kostas
+ * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato, Kostas
  * Tavlaridis-Gyparakis
  */
 /*--------------------------------------------------------------------------*/
@@ -875,7 +875,7 @@ class Block : public Observer {
    delete ptr;
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -1422,7 +1422,7 @@ class Block : public Observer {
    blck->generate_objective();
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*----------------- Methods for reading the data of the Block --------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for reading the data of the Block
@@ -1510,7 +1510,7 @@ class Block : public Observer {
 
  verbosity_type get_verbosity( void ) const { return( verbosity_lvl ); }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /** @name Methods for reading the Block's Variables and Constraints
  *  @{ */
 
@@ -1909,7 +1909,7 @@ class Block : public Observer {
  /**< Returns a const reference to the vector storing the names of the
   * different types (sets) of dynamic Variables of the Block */
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*----- Methods for adding/removing (dynamic) Variables and Constraints ----*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for changing Variables, Constraints and Objective
@@ -2251,7 +2251,7 @@ class Block : public Observer {
  template<class ObjF>
   void set_objective( ObjF & newOF , c_ModParam issueMod = eModBlck );
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*--------------------- Methods for checking the Block ---------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for checking solution information in the Block
@@ -2618,7 +2618,7 @@ class Block : public Observer {
   return( true );
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*------------------------- Methods for R3 Blocks --------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for R3 Blocks
@@ -3104,7 +3104,7 @@ class Block : public Observer {
   }
 
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling Solution
@@ -3169,7 +3169,7 @@ class Block : public Observer {
   return( nullptr );
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF AN Observer -------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of an Observer
@@ -3219,7 +3219,7 @@ class Block : public Observer {
 
  virtual void set_default_channel( c_ChnlName chnl = 0 ) override;
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*---------------------- Methods for handling Solver -----------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling Solvers
@@ -3429,7 +3429,7 @@ class Block : public Observer {
 
  virtual void set_SolverConfig( BlockSolverConfig * svcc = nullptr );
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR LOADING, PRINTING & SAVING THE Block ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the Block
@@ -3597,7 +3597,7 @@ class Block : public Observer {
    }
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -3992,7 +3992,7 @@ class Block : public Observer {
   v_d_Variable_names.emplace_back();
   }
 
-/*@}------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /** @name Protected methods for handling Solver list
  *
  * These are the protected versions of the same-named public methods, which
@@ -4089,7 +4089,7 @@ class Block : public Observer {
 
  virtual void load( std::istream &input ) = 0;
 
-/*@}------------------------------------------------------------------------*/
+ /**@} ----------------------------------------------------------------------*/
  /// method encapsulating the Block factory
  /** This method returns the Block factory, which is a static object. The
   * rationale for using a method is that this is the "Construct On First Use
@@ -4791,14 +4791,14 @@ class BlockSolverConfig : public Configuration
 
  };  // end( class( BlockSolverConfig ) )
 
-/*@}  end( group( Block_CLASSES ) ) */
+/** @}  end( group( Block_CLASSES ) ) */
 /*--------------------------------------------------------------------------*/
 /*------------------------------ TYPEDEFS ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @defgroup Block_TYPEDEFS Type definitions in Block.h
  *  @{ */
 
-/*@}  end( group( Block_TYPEDEFS ) ) */
+/** @}  end( group( Block_TYPEDEFS ) ) */
 /*--------------------------------------------------------------------------*/
 /*---------------------- INLINE METHODS IMPLEMENTATION ---------------------*/
 /*--------------------------------------------------------------------------*/

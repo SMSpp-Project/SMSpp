@@ -48,7 +48,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni
+ * Copyright &copy; by Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -634,7 +634,7 @@ class GroupModification : public AModification {
 
  };  // end( class( GroupModification ) )
 
-/*@}  end( group( Modification_CLASSES ) ) */
+/** @} end( group( Modification_CLASSES ) ) */
 /*--------------------------------------------------------------------------*/
 /*--------------------- Modification-RELATED TYPES -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -686,7 +686,7 @@ class GroupModification : public AModification {
 
 /*--------------------------------------------------------------------------*/
 
-/*@}  end( group( Modification_TYPES ) ) -----------------------------------*/
+/** @} end( group( Modification_TYPES ) ) ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 }  // end( namespace SMSpp_di_unipi_it )

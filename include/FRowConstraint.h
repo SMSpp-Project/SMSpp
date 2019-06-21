@@ -19,7 +19,7 @@
  *         Department of Applied Mathematics \n
  *         State University of Campinas, Brazil \n
  *
- * Copyright &copy by Antonio Frangioni, Rafael Durbano Lobato
+ * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -95,13 +95,6 @@ class FRowConstraint : public RowConstraint , Observer {
  public:
 
 /*--------------------------------------------------------------------------*/
-/*---------------------------- PUBLIC TYPES --------------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Public Types
-    @{ */
-
-
-/*@}------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and destructor
@@ -144,7 +137,7 @@ class FRowConstraint : public RowConstraint , Observer {
    f_function->clear();
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -248,11 +241,11 @@ class FRowConstraint : public RowConstraint , Observer {
    f_function->set_ComputeConfig( scfg );
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE FRowConstraint -----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the FRowConstraint
-    @{ */
+ *  @{ */
 
  ///< method to get a pointer to the Function of the FRowConstraint
  Function * get_function( void ) const { return( f_function ); }
@@ -264,7 +257,7 @@ class FRowConstraint : public RowConstraint , Observer {
  /// method to get the LHS of the RowConstraint
  virtual RHSValue get_lhs( void ) const override { return( f_lhs ); }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A FRowConstraint ----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a FRowConstraint
@@ -379,7 +372,7 @@ class FRowConstraint : public RowConstraint , Observer {
 		      ( uval - f_rhs ) / std::abs( f_rhs ) ) );
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the parameters of the FRowConstraint; they all dispatch
@@ -491,7 +484,7 @@ class FRowConstraint : public RowConstraint , Observer {
   return( f_function->get_ComputeConfig( all , ocfg ) );
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE FRowConstraint -------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling the set of "active" Variable in the
@@ -600,7 +593,7 @@ class FRowConstraint : public RowConstraint , Observer {
    }
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF AN Observer -------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of an Observer
@@ -678,7 +671,7 @@ class FRowConstraint : public RowConstraint , Observer {
    f_Block->set_default_channel( chnl );
   }
 
-/*@}------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -787,7 +780,7 @@ class FRowConstraintMod : public RowConstraintMod
 
 /*--------------------------------------------------------------------------*/
 
-/*@}  end( group( FRowConstraint_CLASSES ) ) -------------------------------*/
+/** @} end( group( FRowConstraint_CLASSES ) ) ------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 }  // end( namespace SMSpp_di_unipi_it )

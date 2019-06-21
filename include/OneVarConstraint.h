@@ -40,7 +40,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni
+ * Copyright &copy; by Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -212,11 +212,11 @@ class OneVarConstraint : public RowConstraint {
   ColVariable * ptr_;
   };
 
-/*@}------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and destructor
-    @{ */
+ *  @{ */
 
  /// constructor of OneVarConstraint: takes a Block * and a ColVariable *
  /** Constructor of OneVarConstraint. It receives a pointer to the Block to
@@ -240,7 +240,7 @@ class OneVarConstraint : public RowConstraint {
  /// "guts of destructor", not unregistering from the ColVariable
  virtual void clear( void ) override { f_variable = nullptr; }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -265,7 +265,7 @@ class OneVarConstraint : public RowConstraint {
  virtual void set_variable( ColVariable * const variable = nullptr ,
 			    c_ModParam issueMod = eModBlck );
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*---------- METHODS DESCRIBING THE BEHAVIOR OF A OneVarConstraint ---------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a OneVarConstraint
@@ -287,7 +287,7 @@ class OneVarConstraint : public RowConstraint {
   return( f_variable ? f_variable->get_value() : 0 );
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE OneVarConstraint -----*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling the set of "active" Variable in the
@@ -363,7 +363,7 @@ class OneVarConstraint : public RowConstraint {
   set_variable( nullptr , issueMod );
   }
 
-/*@}------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -415,11 +415,11 @@ class BoxConstraint : public OneVarConstraint {
 
  public:
 
-/*@}------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and destructor
-    @{ */
+ *  @{ */
 
  /// constructor of BoxConstraint: takes Block *, ColVariable *, LHS and RHS
  /** Constructor of BoxConstraint. It receives a pointer to the Block to
@@ -439,7 +439,7 @@ class BoxConstraint : public OneVarConstraint {
  /// destructor: does nothing special
  virtual ~BoxConstraint() { }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -478,11 +478,11 @@ class BoxConstraint : public OneVarConstraint {
  virtual void set_both( c_RHSValue both_value ,
 			c_ModParam issueMod = eModBlck ) override;
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE BoxConstraint -----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the BoxConstraint
-    @{ */
+ *  @{ */
 
  /// method to get the RHS of the BoxConstraint
  virtual RHSValue get_rhs( void ) const override { return( f_rhs ); }
@@ -490,7 +490,7 @@ class BoxConstraint : public OneVarConstraint {
  /// method to get the LHS of the BoxConstraint
  virtual RHSValue get_lhs( void ) const override { return( f_lhs ); }
 
-/*@}------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -538,11 +538,11 @@ class LB0Constraint : public OneVarConstraint {
 
  public:
 
-/*@}------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and destructor
-    @{ */
+ *  @{ */
 
  /// constructor of LB0Constraint: takes Block *, ColVariable *, and RHS
  /** Constructor of LB0Constraint. It receives a pointer to the Block to
@@ -560,7 +560,7 @@ class LB0Constraint : public OneVarConstraint {
  /// destructor: does nothing special
  virtual ~LB0Constraint() { }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -596,7 +596,7 @@ class LB0Constraint : public OneVarConstraint {
    throw( std::invalid_argument( "cannot change LHS in a LB0Constraint" ) );
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE LB0Constraint -----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the LB0Constraint
@@ -608,7 +608,7 @@ class LB0Constraint : public OneVarConstraint {
  /// method to get the LHS of the LB0Constraint
  virtual RHSValue get_lhs( void ) const override final { return( 0 ); }
 
-/*@}------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -654,11 +654,11 @@ class UB0Constraint : public OneVarConstraint {
 
  public:
 
-/*@}------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and destructor
-    @{ */
+ *  @{ */
 
  /// constructor of UB0Constraint: takes Block *, ColVariable *, and LHS
  /** Constructor of UB0Constraint. It receives a pointer to the Block to
@@ -676,7 +676,7 @@ class UB0Constraint : public OneVarConstraint {
  /// destructor: does nothing special
  virtual ~UB0Constraint() { }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -712,7 +712,7 @@ class UB0Constraint : public OneVarConstraint {
    throw( std::invalid_argument( "cannot change RHS in a UB0Constraint" ) );
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE UB0Constraint -----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the UB0Constraint
@@ -724,7 +724,7 @@ class UB0Constraint : public OneVarConstraint {
  /// method to get the LHS of the UB0Constraint
  virtual RHSValue get_lhs( void ) const override { return( f_lhs ); }
 
-/*@}------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -770,11 +770,11 @@ class LBConstraint : public OneVarConstraint {
 
  public:
 
-/*@}------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and destructor
-    @{ */
+ *  @{ */
 
  /// constructor of LBConstraint: takes Block *, ColVariable *, and LHS
  /** Constructor of LBConstraint. It receives a pointer to the Block to
@@ -791,7 +791,7 @@ class LBConstraint : public OneVarConstraint {
  /// destructor: does nothing special
  virtual ~LBConstraint() { }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -827,7 +827,7 @@ class LBConstraint : public OneVarConstraint {
    throw( std::invalid_argument( "cannot change RHS in a LBConstraint" ) );
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE LBConstraint ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the LBConstraint
@@ -841,7 +841,7 @@ class LBConstraint : public OneVarConstraint {
  /// method to get the LHS of the LBConstraint
  virtual RHSValue get_lhs( void ) const override final { return( f_lhs ); }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A LBConstraint ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a LBConstraint
@@ -878,7 +878,7 @@ class LBConstraint : public OneVarConstraint {
   return( f_lhs == 0 ? f_lhs - val : ( f_lhs - val ) / std::abs( f_lhs ) );
   }
 
-/*@}------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -924,11 +924,11 @@ class UBConstraint : public OneVarConstraint {
 
  public:
 
-/*@}------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and destructor
-    @{ */
+ *  @{ */
 
  /// constructor of UBConstraint: takes Block *, ColVariable *, and RHS
  /** Constructor of UBConstraint. It receives a pointer to the Block to
@@ -945,7 +945,7 @@ class UBConstraint : public OneVarConstraint {
  /// destructor: does nothing special
  virtual ~UBConstraint() { }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -981,7 +981,7 @@ class UBConstraint : public OneVarConstraint {
    throw( std::invalid_argument( "cannot change LHS in a UBConstraint" ) );
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE UBConstraint ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the UBConstraint
@@ -995,7 +995,7 @@ class UBConstraint : public OneVarConstraint {
   return( - std::numeric_limits<RHSValue>::infinity() );
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A UBConstraint ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a UBConstraint
@@ -1032,7 +1032,7 @@ class UBConstraint : public OneVarConstraint {
   return( f_rhs == 0 ? val - f_rhs : ( val - f_rhs ) / std::abs( f_rhs ) );
   }
 
-/*@}------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1079,11 +1079,11 @@ class NNConstraint : public OneVarConstraint {
 
  public:
 
-/*@}------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and destructor
-    @{ */
+ *  @{ */
 
  /// constructor of NNConstraint: takes Block * an d ColVariable *
  /** Constructor of NNConstraint. It receives a pointer to the Block to
@@ -1099,7 +1099,7 @@ class NNConstraint : public OneVarConstraint {
  /// destructor: does nothing special
  virtual ~NNConstraint() { }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -1130,7 +1130,7 @@ class NNConstraint : public OneVarConstraint {
   throw( std::invalid_argument( "LHS == RHS impossible in a NNConstraint" ) );
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE NNConstraint ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the NNConstraint
@@ -1144,7 +1144,7 @@ class NNConstraint : public OneVarConstraint {
  /// method to get the LHS of the NNConstraint
  virtual RHSValue get_lhs( void ) const override final { return( 0 ); }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A NNConstraint ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a NNConstraint
@@ -1167,7 +1167,7 @@ class NNConstraint : public OneVarConstraint {
   return( NNConstraint::abs_viol() );
   }
 
-/*@}------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1205,11 +1205,11 @@ class NPConstraint : public OneVarConstraint {
 
  public:
 
-/*@}------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and destructor
-    @{ */
+ *  @{ */
 
  /// constructor of NPConstraint: takes Block * an d ColVariable *
  /** Constructor of NPConstraint. It receives a pointer to the Block to
@@ -1225,7 +1225,7 @@ class NPConstraint : public OneVarConstraint {
  /// destructor: does nothing special
  virtual ~NPConstraint() { }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -1256,11 +1256,11 @@ class NPConstraint : public OneVarConstraint {
   throw( std::invalid_argument( "LHS == RHS impossible in a NPConstraint" ) );
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE NPConstraint ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the NPConstraint
-    @{ */
+ *  @{ */
 
  /// method to get the RHS of the NNConstraint
  virtual RHSValue get_rhs( void ) const override final { return( 0 ); }
@@ -1270,7 +1270,7 @@ class NPConstraint : public OneVarConstraint {
   return( - std::numeric_limits<RHSValue>::infinity( ) );
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A NPConstraint ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a NPConstraint
@@ -1293,7 +1293,7 @@ class NPConstraint : public OneVarConstraint {
   return( NPConstraint::abs_viol() );
   }
 
-/*@}------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1330,11 +1330,11 @@ class ZOConstraint : public OneVarConstraint {
 
  public:
 
-/*@}------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and destructor
-    @{ */
+ *  @{ */
 
  /// constructor of ZOConstraint: takes Block * an d ColVariable *
  /** Constructor of ZOConstraint. It receives a pointer to the Block to
@@ -1350,7 +1350,7 @@ class ZOConstraint : public OneVarConstraint {
  /// destructor: does nothing special
  virtual ~ZOConstraint() { }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -1381,7 +1381,7 @@ class ZOConstraint : public OneVarConstraint {
   throw( std::invalid_argument( "LHS == RHS impossible in a ZOConstraint" ) );
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE NNConstraint ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the ZOConstraint
@@ -1393,7 +1393,7 @@ class ZOConstraint : public OneVarConstraint {
  /// method to get the LHS of the ZOConstraint
  virtual RHSValue get_lhs( void ) const override final { return( 0 ); }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A ZOConstraint ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a ZOConstraint
@@ -1417,7 +1417,7 @@ class ZOConstraint : public OneVarConstraint {
   return( ZOConstraint::abs_viol() );
   }
 
-/*@}------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1512,7 +1512,7 @@ class OneVarConstraintMod : public RowConstraintMod
 
 /*--------------------------------------------------------------------------*/
 
-/*@}  end( group( OneVarConstraint_CLASSES ) ) -----------------------------*/
+/** @} end( group( OneVarConstraint_CLASSES ) ) ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
 }  // end( namespace SMSpp_di_unipi_it )

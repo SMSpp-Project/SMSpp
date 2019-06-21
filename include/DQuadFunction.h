@@ -19,7 +19,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Rafael Durbano Lobato
+ * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -289,7 +289,7 @@ class DQuadFunction : public C15Function {
   f_Observer = nullptr;
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -303,7 +303,7 @@ class DQuadFunction : public C15Function {
  virtual void set_ComputeConfig( ComputeConfig *scfg = nullptr )
   override final { }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE DQuadFunction ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the DQuadFunction
@@ -315,7 +315,7 @@ class DQuadFunction : public C15Function {
   return( v_triples );
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF THE DQuadFunction -----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of the DQuadFunction
@@ -463,7 +463,7 @@ class DQuadFunction : public C15Function {
   return( std::get<2>( *( v_triples.begin() + i ) ) );
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the parameters of the DQuadFunction
@@ -480,7 +480,7 @@ class DQuadFunction : public C15Function {
   return( nullptr );
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE DQuadFunction --------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling the set of "active" Variable in the
@@ -543,7 +543,7 @@ class DQuadFunction : public C15Function {
   return( new DQuadFunction::v_const_iterator( v_triples.end() ) );
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------- METHODS FOR MODIFYING THE DQuadFunction -------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for modifying the DQuadFunction
@@ -884,7 +884,7 @@ class DQuadFunction : public C15Function {
  void set_constant_term( const FunctionValue constant_term ,
 			 c_ModParam issueMod = eModBlck );
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -919,7 +919,7 @@ class DQuadFunction : public C15Function {
  FunctionValue f_constant_term = 0;
  ///< the value of the constant term of this function
 
-/*@}------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -934,7 +934,7 @@ class DQuadFunction : public C15Function {
 
  };  // end( class( DQuadFunction ) )
 
-/*@}  end( group( DQuadFunction_CLASSES ) ) */
+/** @} end( group( DQuadFunction_CLASSES ) ) */
 /*--------------------------------------------------------------------------*/
 
  }  // end( namespace SMSpp_di_unipi_it )

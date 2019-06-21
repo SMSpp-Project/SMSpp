@@ -29,7 +29,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni, Rafael Durbano Lobato
+ * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -124,7 +124,7 @@ class RowConstraint : public Constraint {
 
  typedef const RHSValue c_RHSValue;  ///< a const VarValue
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and destructor
@@ -143,7 +143,7 @@ class RowConstraint : public Constraint {
 
  virtual ~RowConstraint() { }  ///< destructor: it is virtual, and empty
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -191,7 +191,7 @@ class RowConstraint : public Constraint {
 
  virtual void set_dual( c_RHSValue new_value = 0 ) { d_value = new_value; }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE RowConstraint -----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the RowConstraint
@@ -203,7 +203,7 @@ class RowConstraint : public Constraint {
  /// pure virtual  method to get the LHS of the RowConstraint
  virtual RHSValue get_lhs( void ) const = 0;
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ---------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A RowConstraint -----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a RowConstraint
@@ -330,7 +330,7 @@ class RowConstraint : public Constraint {
 
  RHSValue get_dual( void ) const { return ( d_value ); }
 
-/*@}------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -438,8 +438,7 @@ class RowConstraintMod : public ConstraintMod {
 
 /*--------------------------------------------------------------------------*/
 
-/*@}  end( group( RowConstraint_CLASSES ) ) */
-/*--------------------------------------------------------------------------*/
+/** @} end( group( RowConstraint_CLASSES ) ) -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 }  // end( namespace SMSpp_di_unipi_it )

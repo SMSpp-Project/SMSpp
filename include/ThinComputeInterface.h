@@ -17,7 +17,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy by Antonio Frangioni
+ * Copyright &copy; by Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -168,7 +168,7 @@ public:
 
  };  // end( compute_type )
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*----------- CONSTRUCTING AND DESTRUCTING ThinComputeInterface ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructing and destructing Block
@@ -182,7 +182,7 @@ public:
 
  virtual ~ThinComputeInterface() { }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -261,7 +261,7 @@ public:
 
  virtual void set_ComputeConfig( ComputeConfig *scfg = nullptr );
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- METHODS FOR DOING THE COMPUTATION -------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Compute whatever the object is supposed to
@@ -379,7 +379,7 @@ public:
 
  virtual int compute( bool changedvars = true ) = 0;
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the parameters of the ThinComputeInterface
@@ -623,7 +623,7 @@ public:
  virtual ComputeConfig * get_ComputeConfig( bool all = false ,
 				      ComputeConfig * ocfg = nullptr ) const;
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 // empty, this is a thin interface
@@ -839,7 +839,7 @@ class ComputeConfig : public Configuration
 
  };  // end( class( ComputeConfig ) )
 
-/*@}  end( group( ThinComputeInterface_CLASSES ) ) -------------------------*/
+/** @} end( group( ThinComputeInterface_CLASSES ) ) ------------------------*/
 /*--------------------------------------------------------------------------*/
 
 }  // end( namespace SMSpp_di_unipi_it )

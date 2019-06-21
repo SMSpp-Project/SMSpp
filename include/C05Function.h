@@ -20,7 +20,7 @@
  *         Department of Applied Mathematics \n
  *         State University of Campinas, Brazil \n
  *
- * Copyright &copy by Antonio Frangioni, Rafael Durbano Lobato
+ * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -53,7 +53,7 @@ namespace SMSpp_di_unipi_it
 /** @defgroup C05Function_TYPES C05Function-related types.
  *  @{ */
 
-/*@}  end( group( C05Function_TYPES ) ) */
+/** @}  end( group( C05Function_TYPES ) ) */
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -412,8 +412,7 @@ class C05Function : public Function {
 		  * to extend the set of double algorithmic parameters. */
  };  // end( dbl_par_type_F )
 
-
-/*@}------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*--------------- CONSTRUCTING AND DESTRUCTING C05Function -----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructing and destructing C05Function
@@ -426,7 +425,7 @@ class C05Function : public Function {
  /// destructor: it is virtual, and empty
  virtual ~C05Function() { }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -472,7 +471,7 @@ class C05Function : public Function {
    }
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A C05Function -------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a C05Function
@@ -936,7 +935,7 @@ class C05Function : public Function {
   return( false );
   }
 
-/*@} -----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the parameters of the Function
@@ -1029,7 +1028,7 @@ class C05Function : public Function {
    return( Function::dbl_par_idx2str( idx ) );
   }
 
-/*@}------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1971,7 +1970,7 @@ class C05FunctionModLin : public FunctionMod {
 
  };  // end( class( C05FunctionModLin ) )
 
-/*@}  end( group( C05Function_CLASSES ) ) ----------------------------------*/
+/** @} end( group( C05Function_CLASSES ) ) ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 }  // end( namespace SMSpp_di_unipi_it )
