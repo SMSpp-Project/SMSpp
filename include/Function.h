@@ -782,17 +782,17 @@ public:
    output << "t";
   else
    output << "f";
-   output << "] on Function " << f_function << " ]: f-values changed";
-   if( std::isnan( f_shift ) )
-    output << "(+-)";
+  output << "] on Function " << f_function << " ]: f-values changed";
+  if( std::isnan( f_shift ) )
+   output << "(+-)";
+  else
+   if( f_shift >= INFshift )
+    output << "(+)";
    else
-    if( f_shift >= INFshift )
-     output << "(+)";
+    if( f_shift <= -INFshift )
+     output << "(-)";
     else
-     if( f_shift <= -INFshift )
-      output << "(-)";
-     else
-      output << " by " << f_shift;
+     output << " by " << f_shift;
   }
 
 /*--------------------------------------------------------------------------*/
