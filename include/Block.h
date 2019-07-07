@@ -6,35 +6,35 @@
  * concept of a "block" in a block-structured mathematical model.
  *
  * A Block contains some Variable [see Variable.h], some Constraint [see
- * Constraint.h], one Objective [see Objective.h], and some (inner) Block;
+ * Constraint.h], one Objective [see Objective.h], and some sub-Block;
  * furthermore, it can be contained into a father Block. Variable and
- * Constraints can either be static (i.e., they are guaranteed to be always
+ * Constraint can either be static (i.e., they are guaranteed to be always
  * there throughout the life of the model, although of course the value that
- * the Variable attain is, well, variable) or dynamic (i.e., that may
- * appear and disappear during the life of the model). Conversely, the inner
- * Blocks are static, i.e., they cannot individually appear or disappear.
- * Dynamic Variable and Constraint allow to cope with "very large models"
- * by means of column and row generation techniques.
+ * the Variable attain is, well, variable) or dynamic (i.e., that may appear
+ * and disappear during the life of the model). Conversely, the sub-Block
+ * are static, i.e., they cannot individually appear or disappear. Dynamic
+ * Variable and Constraint allow to cope with "very large models" by means of
+ * column and row generation techniques.
  *
- * A Block can be attached to any number of Solvers [see Solver.h], that can
+ * A Block can be attached to any number of Solver [see Solver.h], that can
  * then be used to solve the corresponding mathematical model.
  *
- * Variable and Constraint in a Block can be arranged in any number of
+ * Variable and Constraint in a Block can be arranged in any number of 
  * "sets", or "groups", each of which can be a multi-dimensional array with
  * (in principle) an arbitrary number of dimensions. The idea is that a model
  * with a specific  structure (say, a Knapsack, a Traveling Salesman Problem,
  * a SemiDefinite program, ...) be represented as a specific derived class of
  * Block. Hence, its Variable and Constraint will be organized into
  * appropriate, "natural" (multi-dimensional) vectors, and will be accessed as
- * such by specialized Solvers that can exploit the specific structure of the
- * Block. Actually, the Variable and Constraint can be represented
- * implicitly by just providing the data that characterizes them (the weights
- * and costs of the item in a knapsack, an annotated graph, the size of a
- * square semidefinite matrix, ...), and a specialized Solver will only need
- * access to that data (characterizing the instance of the problem) to be
- * able to solve the Block. We call this the "physical representation" of the
- * Block. This means that the Constraint may not even need to be explicitly
- * constructed, as specialized Solvers already know of them. Conversely,
+ * such by specialized Solver that can exploit the specific structure of the
+ * Block. Actually, the Variable and Constraint can be represented implicitly
+ * by just providing the data that characterizes them (the weights and costs
+ * of the item in a knapsack, an annotated graph, the size of a square
+ * semidefinite matrix, ...), and a specialized Solver will only need access
+ * to that data (characterizing the instance of the problem) to be able to
+ * solve the Block. We call this the "physical representation" of the Block.
+ * This means that the Constraint may not even need to be explicitly
+ * constructed, as specialized Solver already "know of{ them. Conversely,
  * the Variable will always have to be constructed, as they are the place
  * where Solver will write the solution of the Block once they have found it.
  *
@@ -44,10 +44,7 @@
  * provides a mechanism whereby, upon request, the Block "exhibits" its
  * Variable and Constraint as "unstructured" lists of (multi-dimensional
  * arrays of) Constraint and Variable; we call this the "abstract
- * representation" of the Block. Note that the physical representation of
- * Constraint need be constructed before the abstract one is, since it is not
- * by default; conversely, the physical representation of Variable need
- * always be definite (but the abstract one need not).
+ * representation" of the Block.
  *
  * A Block supports "lazy" modifications of all its components: each time a
  * modification occurs, an appropriate Modification object [see
@@ -63,10 +60,9 @@
  * Modification. The specific classes BlockMod and BlockModAD are also
  * defined in this file to contain all Block-specific Modification.
  *
- * Block can "save" the current status of its Variable into a Solution
- * object  [see Solution.h], and read it back from a Solution object. Since 
- * Constraint can have dual information attached to them, this can similarly
- * be saved.
+ * Block can "save" the current status of its Variable into a Solution object
+ * [see Solution.h], and read it back from a Solution object. If Constraint
+ * have dual information attached to them, this can similarly be saved.
  *
  * Block explicitly supports the notion that a model may need to be modified
  * for algorithmic purposes, i.e., by producing either a Reformulation (a
@@ -88,9 +84,9 @@
  * specific for each Block and R3 Block of its, and the base class provides
  * no general mechanism for it (besides the interface).
  *
- * \version 0.21
+ * \version 0.22
  *
- * \date 31 - 01 - 2019
+ * \date 06 - 07 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -187,19 +183,19 @@ namespace SMSpp_di_unipi_it
  *
  * - one Objective [see Objective.h];
  *
- * - any number of (inner) Block.
+ * - any number of sub-Block.
  *
  * Furthermore, it is possibly contained into a father Block. Variable and
- * Constraints can either be static (i.e., they are guaranteed to be always
+ * Constraint can either be static (i.e., they are guaranteed to be always
  * there throughout the life of the model, although of course the value that
- * the Variable attain is, well, variable) or dynamic (i.e., that may
- * appear and disappear during the life of the model). Conversely, the
- * inner Block of a given Block are assumed to be always static, i.e., their
- * number and type cannot change. One of the main design decisions in SMS++
- * is that the "name" of a Variable or Constraint is just its memory address;
- * this means that, once constructed, they cannot be moved to a different
- * memory location. Hence, the difference between static and dynamic stuff is
- * that only the former can live into arrays, provided that the arrays are
+ * the Variable attain is, well, variable) or dynamic (i.e., that may appear
+ * and disappear during the life of the model). Conversely, the sub-Block of
+ * a given Block are assumed to be always static, i.e., their number and
+ * type cannot change. One of the main design decisions in SMS++ is that the
+ * "name" of a Variable or Constraint is just its memory address; this means
+ * that, once constructed, they cannot be moved to a different memory
+ * location. Hence, the difference between static and dynamic stuff is that
+ * only the former can live into arrays, provided that the arrays are
  * *never shortened or lengthened* (for doing so may cause the memory to be
  * re-allocated, which would change the address violating the basic
  * assumption). Conversely, dynamic stuff can only live into lists, so that
@@ -222,58 +218,59 @@ namespace SMSpp_di_unipi_it
  * a mathematical model with a well-understood identity"; in other words, it
  * is expected that it will be used to define *derived* classes, each of which
  * represents a model with a specific structure (say, a Knapsack, a Traveling
- * Salesman Problem, a SemiDefinite program, ...). be represented as a Block.
- * Hence, the Variables and Constraints of such a specific model will be
- * organized into appropriate, "natural" (multi-dimensional) vectors.
- * Actually, the Constraint/Objective can then be represented *implicitly* by
- * just providing the data that characterizes them (the weights and costs of
- * the item in a knapsack, an annotated graph, the size of a square
- * semidefinite matrix, ...). Such data (characterizing the instance of the
- * problem) will be available as fields/methods of the derived class. We call
- * this the "physical representation" of the Block.
+ * Salesman Problem, a SemiDefinite program, ...). Hence, the Variable and
+ * Constraint of such a specific model will be organized into appropriate,
+ * "natural" (multi-dimensional) vectors. Actually, the Constraint/Objective
+ * can then be represented *implicitly* by just providing the data that
+ * characterizes them (the weights and costs of the item in a knapsack, an
+ * annotated graph, the size of a square semidefinite matrix, ...). Such data
+ * (characterizing the instance of the problem) will be available as
+ * fields/methods of the derived class. We call this the "physical
+ * representation" of the Block.
  *
  * The reason for wanting to define a Block is to have the corresponding
  * mathematical model solved. For this reason, the general interface class
- * Solver [see Solver.h] is defined. The idea is that a Block can be
- * attached to any number of *appropriate* Solver, i.e., that are able to
- * solve the corresponding mathematical model. All solvers are specialized,
- * i.e., they are only able to solve a Block with specific characteristics
- * (this is obviously so because, basically, the base Block is completely
- * generic and can represent anything, and there is no Solver that can solve
- * anything). So, a Solver will only accept to be attached to specific
- * sub-classes of Block. Hence, the specific data for that specific sub-class
- * will be visible to the Solver, which could in principle only need it, and
- * *not* the Constraint/Objective of the Block, to solve the corresponding
- * problem. Thus, the base Block class supports the notion that the
- * constraints and objective may not necessarily be explicitly defined (in
- * terms of the corresponding Constraint/Objective objects. Conversely,
- * Variable are in principle always needed, as they are a crucial part of the
- * interface between the user of the Block and the Solver: the latter write
- * their solutions into the Variable of the Block, so that the user of the
- * Block can read them. However, any specialized :Block can also have a
- * specialized way to represent its solution, and a user of that particular
- * :Block can conceptually only use that. Indeed, the status at any point in
- * time of the solution of a Block can be saved into a Solution object [see
- * Solution.h], and read it back from a Solution object; this need not
- * necessarily be expressed in terms of Variable (although of course it has
- * to be written in the Variable if they are defined). Since Constraint can
- * have dual information attached to them, this can similarly be saved.
+ * Solver [see Solver.h] is defined. The idea is that a Block any number of
+ * *appropriate* Solver -- i.e., ones that are able to solve the
+ * corresponding mathematical model -- can be attached to the Block. All
+ * Solver are specialized, i.e., they are only able to solve a Block with
+ * specific characteristics; this is necessarily so because, basically, the
+ * base Block is completely generic and can represent anything, and there is
+ * no Solver that can solve "anything". So, a Solver may only accept to be
+ * attached to specific sub-classes of Block. Hence, the specific data for
+ * that specific sub-class will be visible to the Solver, which may in
+ * principle only need it, and *not* the Constraint/Objective of the Block,
+ * to solve the corresponding problem. Thus, the base Block class supports
+ * the notion that the constraints and objective may not necessarily be
+ * explicitly defined (in terms of the corresponding Constraint/Objective
+ * objects. Conversely, Variable are in principle always needed, as they are
+ * a crucial part of the interface between the user of the Block and the
+ * Solver: the latter write its solutions into the Variable of the Block, so
+ * that the user of the Block can read them. However, any specialized :Block
+ * can also have a specialized way to represent its solution, and a user of
+ * that particular :Block can conceptually only use that. Indeed, the status
+ * at any point in time of the solution of a Block can be saved into a
+ * Solution object [see Solution.h], and read it back from a Solution object;
+ * this need not necessarily be expressed in terms of Variable (although of
+ * course it has to be written in the Variable if they are defined). Since
+ * Constraint can have dual information attached to them, this can similarly
+ * be saved.
  *
- * However, Blocks can also be attached to general-purpose solvers that only
- * need the Variable and Constraint/Objective to be of some specific type
- * (say, single real numbers and affine functions, ...). Hence, the base
- * Block class provides a mechanism whereby, upon request, the Block
- * "exhibits" its Constraint/Objective and Variable as an "unstructured" list
- * of [multi-dimensional arrays of] [lists of] [pointers to] objects of class
+ * However, some Solver can be "general-purpose", i.e., that only need the
+ * Variable and Constraint/Objective to be of some specific type (say, single
+ * real numbers and affine functions, ...). Hence, the base Block class
+ * provides a mechanism whereby, upon request, the Block "exhibits" its
+ * Constraint/Objective and Variable as an "unstructured" list of
+ * [multi-dimensional arrays of] [lists of] [pointers to] objects of class
  * (derived from) Constraint/Objective and Variable; we call this the
  * "abstract representation" of the Block. This representation somewhat
- * abstracts away from the very specific structure of the problem, allowing to
- * see it as just an "unstructured" instance of some very general class.
+ * "abstracts away" from the very specific structure of the problem, allowing
+ * to see it as just an "unstructured" instance of some very general class.
  *
  * Variable and Constraint/Objective in a Blocks are in principle dynamic
  * (even static ones), in the sense that, at the very least, Variable can take
  * different values and can be fixed/unfixed, while Constraints can be
- * relaxed/enforced. Because a Block can be attached to several Solver at the
+ * relaxed/enforced. Because several Solver can be attached to a Block at the
  * same time, changes in its components are handled in a "lazy" way. That is,
  * each time a change occurs, an appropriate Modification object [see
  * Modification.h] is dispatched to the Block, which is why Block derives from
@@ -299,11 +296,11 @@ namespace SMSpp_di_unipi_it
  *
  * It is important to clearly state the *ownership* of Constraint and
  * Variable, which is that they are directly defined either in the Block,
- * or in any of its inner Blocks (recursively). This has important
- * consequences, related to the fact that a Constraint defined in a Block
- * may contain Variable that the Block does not own. Conversely, some
- * Variable of the Block can be active in a Constraint that is not owned
- * by the block. The intended semantic of these cases are:
+ * or in any of its sub-Block (recursively). This has important consequences,
+ * related to the fact that a Constraint defined in a Block may contain
+ * Variable that the Block does not own. Conversely, some Variable of the
+ * Block can be active in a Constraint that is not owned by the Block. The
+ * intended semantic of these cases are:
  *
  * - If a Constraint defined in a Block contains a Variable that the Block
  *   does not own, at the time when the Block is solved they have to be
@@ -328,7 +325,7 @@ namespace SMSpp_di_unipi_it
  * one Objective would seem to prevent a Block from representing a
  * multi-objective optimization problem. However this is not true, as the base
  * Block class (and the base Objective class) make no stipulations about the
- * return value of the Objective. By having the Objective to produce, sat, a
+ * return value of the Objective. By having the Objective to produce, say, a
  * vector of reals (or any other complex data structure with a partial
  * ordering) rather than a single one, it is easy to represent multi-objective
  * optimization problems. Of course this means that the concept of "optimal
@@ -338,89 +335,101 @@ namespace SMSpp_di_unipi_it
  * single-objective optimization, although admittedly how the Pareto-optimal
  * solutions (which may be infinitely many) are produced is still not clearly
  * stipulated by the Solver interface. Perhaps a MOSolver class will be
- * needed.
+ * needed. Anyway, both Block and Solver are somewhat slanted towards the
+ * single-objective case where the value of the Objective is a single real
+ * value. Indeed, both Solver and Block have mechanism,s (see e.g. the methods
+ * Block::get_valid_lower_bound(), Block::get_valid_upper_bound(),
+ * Solver::get_lb() and Solver::get_ub(), and the Solver parameters dealing
+ * with cutoffs) that make reference to upper and lower bounds on the optimal
+ * value of the Block, intended as a single real number. These mechanisms
+ * would not be appropriate for the case where the Block actually encodes for
+ * (and, therefore, the Solver  needs to solve) multi-objective optimization
+ * problems, but so far no better solution has been found.
  *
- * Since a Block has a set of inner Blocks, each of which has its own
+ * Since a Block has a set of sub-Block, each of which has its own
  * Objective, it actually has "many" objectives. It is therefore crucial to
- * define how the Objective of the inner Blocks "contribute" to defining the
+ * define how the Objective of the sub-Block "contribute" to defining the
  * "total" objective of the problem represented by the whole Block (the father
- * one plus the inner Blocks, recursively). The principle is simple: the total
+ * one plus the sub-Block, recursively). The principle is simple: the total
  * objective of a Block is given by the *sum* of its Objective and of all the
- * Objective of the inner Blocks (recursively).
+ * Objective of the sub-Block (recursively).
  *
- * This principle need some commenting. First of all, the sum may be
- * considered just one of the very many composition operations that may
- * conceivably be used to define the objective function of the father Block
- * in terms of the objective functions of its inner Blocks. However, it is in
- * principle always possible to keep as the objective function of each inner
- * Block only the terms of the "total" objective function that only depend on
- * variables of the given inner Block; if there is none, the objective
- * function of the inner Block can be set as null (constantly 0). This indeed
- * makes good sense, as if the objective function contains a term (say)
- * f( x , y ) where x belongs to one inner Block and y to a different one,
- * then it is more natural (although not strictly necessary) to define it in
- * the father Block rather than in either one of the inner Blocks. In fact,
- * it is natural (although not strictly necessary) that each inner Block only
- * defines its Constraint and Objective in terms of the Variable owned by the
- * inner Block itself, leaving any "linking term" (be them linking Constraint
- * or terms in the Objective with Variable not owned by the inner Block) to be
- * defined in the father Block. This argument may be countered by saying that
- * in some cases it may be useful to move these terms inside the inner Block,
- * but this is not really an issue due to the fact that a Block can always
- * "reformulate itself" so as to move around any linking terms to the place
- * that any specific algorithm requires; see the discussion about the R3
- * Blocks below. Hence, assuming the sum as the default (only) composition is
- * very natural and does not prevent using any arbitrarily complex overall
- * objective function.
+ * This principle need some commenting. First of all, it says that whatever
+ * is the return value of the Objective, it must admit a sum operation
+ * (this seems a quite minimal requirement, although in the multi-objective
+ * case it means that the number of different objectives must be the same in
+ * the father Block and all its sub-Block). Also, the sum is just one of the
+ * very many composition operations that may conceivably be used to define
+ * the objective function of the father Block in terms of the objective
+ * functions of its sub-Block. However, it is in principle always possible to
+ * keep as the objective function of each sub-Block only the terms of the
+ * "total" objective function that only depend on variables of the given
+ * sub-Block; if there is none, the objective function of the sub-Block can
+ * be set as null (constantly 0). This indeed makes good sense, as if the 
+ * objective function contains a term (say) f( x , y ) where x belongs to one
+ * sub-Block and y to a different one, then it is more natural (although
+ * not strictly necessary) to define it in the father Block rather than in
+ * either one of the sub-Block. In fact, it is natural (although not strictly
+ * necessary) that each sub-Block only defines its Constraint and Objective
+ * in terms of the Variable owned by the sub-Block itself, leaving any
+ * "linking term" (be them linking Constraint or terms in the Objective with
+ * Variable not owned by the sub-Block) to be defined in the father Block.
+ * This argument may be countered by saying that in some cases it may be
+ * useful to move these terms inside the sub-Block, but this is not really
+ * an issue due to the fact that a Block can always "reformulate itself" so
+ * as to move around any linking terms to the place that any specific
+ * algorithm requires; see the discussion about the R3 Blocks below. Hence,
+ * assuming the sum as the default (only) composition is very natural and
+ * does not prevent using any arbitrarily complex overall objective function.
  *
  * A further detail need explicit discussion, though. An Objective, besides
  * the actual function, also has a sense. This means that there are actually
  * two rather different cases:
  *
- * - the Objective of the father Block and that of the inner Block have *the
+ * - the Objective of the father Block and that of the sub-Block have *the
  *   same* sense (say, min-min);
  *
- * - the Objective of the father Block and that of the inner Block have
+ * - the Objective of the father Block and that of the sub-Block have
  *   *different* senses (say, min-max).
  *
- * The first case is completely obvious: the inner Block is "just a part of
+ * The first case is completely obvious: the sub-Block is "just a part of
  * the father Block". This can be stated as follows: if one removes everything
- * from the inner Block and moves it to the father Block, the described
+ * from the sub-Block and moves it to the father Block, the described
  * problem remains exactly the same.
  *
  * The second case is rather different, though. On the outset, all previous
- * definitions remain valid: each Variable in the inner Block is owned by the
+ * definitions remain valid: each Variable in the sub-Block is owned by the
  * father Block (which means that a Solver attached to the father Block can
- * change it as it sees fit), and the Objective of the inner Block is one term
+ * change it as it sees fit), and the Objective of the sub-Block is one term
  * of that of the father Block. However, being this a (say) min-max setting,
  * this means that for any solution (considering all the Variable owned by the
- * father Block, which include those owned by the inner Block) to be
- * considered optimal, *the variables of the inner Block must be maximizing
- * its Objective*. Note that the value of the inner Objective is still
- * comprised in that of the father Block, which is instead minimized. This
- * allows to naturally define classical min-max settings, such as
+ * father Block, which include those owned by the sub-Block) to be
+ * considered optimal, *the variables of the sub-Block must be maximizing its
+ * Objective*. Note that the value of the inner Objective is still comprised
+ * in that of the father Block, which is instead minimized. This allows to
+ * naturally define classical min-max settings, such as
  * \f[
  *   min { yb + max { ( c - yA ) x : x \in X } : y \in Y }
  * \f]
- * that should be familiar to many users. However, it is important to
- * remark that in this case removing everything from the inner Block and
- * moving it to the father Block does *not* define an equivalent problem, as
- * it is immediately seen by considering the difference between the above and
+ * that should be familiar to many users. However, it is important to remark
+ * that in this case removing everything from the sub-Block and moving it to
+ * the father Block does *not* define an equivalent problem, as it is
+ * immediately seen by considering the difference between the above and
  * \f[
  *   min { yb + ( c - yA ) x : x \in X , y \in Y }
  * \f]
  * An apparently unfortunate consequence of this choice is that, while neatly
  * handling min-max settings, it would seem to entirely prevent a Block
- * representing multi-level optimization problems, where inner Blocks may
- * be (in the multi-level parlance) "followers", and therefore have to
- * optimize a completely unrelated objective function from that of the father
- * Block. This is not true, however. In particular, multi-level optimization
- * can be made possible by defining a constraint like OptimalWRT( g ),
- * where g is a (possibly, vector-valued) Objective (and, therefore, includes
- * an optimization sense). For an an inner Block having such a Constraint,
- * the only feasible solutions are those that optimize w.r.t. the Objective
- * g. Hence, the Objective of the inner Block can still be used to define a
- * part of the "total" objective function, with OptimalWRT( g ) defining the
+ * representing multi-level optimization problems, where sub-Blocks may be
+ * (in the multi-level parlance) "followers", and therefore have to optimize
+ * a completely unrelated objective function from that of the father Block.
+ * This is not true, however. In particular, multi-level optimization can be
+ * made possible by defining a constraint like OptimalWRT( g ), where g is a
+ * (possibly, vector-valued) Objective (and, therefore, includes an
+ * optimization sense). For an sub-Block having such a Constraint, the only
+ * feasible solutions are those that optimize w.r.t. the Objective g Hence,
+ * the Objective of the sub-Block can still be used to define a part of the
+ * "total" objective function, with OptimalWRT( g ) defining the
  * "follower objective function".
  *
  * Another very important, feature of Block is that it explicitly supports
@@ -678,7 +687,7 @@ class Block : public Observer {
   *   necessarily contain a string attribute "type" containing the name() of
   *   the corresponding :Block / :Configuration class, plus of course all the
   *   information necessary to reconstruct the specific instance. Note that
-  *   inner Block of the Block and inner Configuration of the Configuration
+  *   sub-Block of the Block and sub-Configuration of the Configuration
   *   (if any) are assumed each to be contained into a child of the group
   *   containing the original :Block / :Configuration, recursively.
   * 
@@ -915,7 +924,7 @@ class Block : public Observer {
   *
   * Note, however, that changing (or deleting) a BlockConfig is only
   * automatically safe if done top-down from the "root" Block (the one having
-  * no father Block), as changing the BlockConfig of an inner Block leaves a
+  * no father Block), as changing the BlockConfig of a sub-Block leaves a
   * dangling pointer in the BlockConfig of the father Block. This is the
   * reason for the second parameter of the method. If safe == true, the
   * method can assume that the BlockConfig (if any) of the father Block (if
@@ -1035,10 +1044,10 @@ class Block : public Observer {
   * means that if the method is called with stcc = nullptr then the
   * corresponding configuration from the BlockConfig is used. Indeed, the
   * method is not pure virtual, but it is given a default implementation
-  * doing nothing but calling itself for each inner Block with no (= default
+  * doing nothing but calling itself for each sub-Block with no (= default
   * = nullptr) argument. This is correct for those :Block that either have no
   * static Variable at all or that construct them all anyway, and for which
-  * all the inner Block either have the same property or are only to be
+  * all the sub-Block either have the same property or are only to be
   * called with the default configuration set by the BlockConfig. Note that
   * if the BlockConfig is not set (nullptr) or the corresponding field is not
   * set (nullptr), this is assumed to mean "construct all the static Variable
@@ -1048,7 +1057,7 @@ class Block : public Observer {
   * object to specific sub-Configuration for each of its sub-Block. This
   * cannot be done in the default implementation because the Configuration
   * stvv for the father Block will likely have to be "unpacked", with each
-  * inner Block getting its own specific sub-Configuration, but this can only
+  * sub-Block getting its own specific sub-Configuration, but this can only
   * be done by a specific :Block for a specific :Configuration, as the base
   * Configuration class does not have direct support for the fact that a
   * Configuration contains a sub-Configuration for each specific sub-Block of
@@ -1141,28 +1150,27 @@ class Block : public Observer {
   * Note that the dyvv parameter is meant as an *override* of the default
   * Configuration for this task set by means of set_BlockConfig(), which
   * means that if the method is called with dycc = nullptr then the
-  * corresponding configuration from the BlockConfig() is used.
-  * Indeed, the method is not pure virtual, but it is given a default
-  * implementation doing nothing but calling itself for each inner Block
-  * with no (= default = nullptr) argument. This is correct for those :Block
-  * have no dynamic Variable at all, and for which all the inner Block
-  * either have the same property or are only to be called with the default
-  * configuration set by the BlockConfig. Note that if the BlockConfig is not
-  * set (nullptr) or the corresponding field is not set (nullptr), this is
-  * assumed to mean "price-in all the dynamic Variable that you have, if
-  * any", which is fine if the pricing process actually has no parameters
-  * (say, a single class of dynamic variables with an easy exact pricing
-  * algorithm). Thus, the default implementation automatically works in the
-  * "simple" cases, while for any other case the :Block will have to
-  * implement its own version, say "unpacking" its :Configuration object to
-  * specific sub-Configuration for each of its sub-Block. This cannot be done
-  * in the default implementation because the Configuration dyvv for the
-  * father Block will likely have to be "unpacked", with each inner Block
-  * getting its own specific sub-Configuration, but this can only be done by
-  * a specific :Block for a specific :Configuration, as the base
-  * Configuration class does not have direct support for the fact that a
-  * Configuration contains a sub-Configuration for each sub-Block of a Block.
-  */
+  * corresponding configuration from the BlockConfig() is used. Indeed, the
+  * method is not pure virtual, but it is given a default implementation
+  * doing nothing but calling itself for each sub-Block with no (= default =
+  * nullptr) argument. This is correct for those :Block have no dynamic
+  * Variable at all, and for which all the sub-Block either have the same
+  * property or are only to be called with the default configuration set by
+  * the BlockConfig. Note that if the BlockConfig is not set (nullptr) or the
+  * corresponding field is not set (nullptr), this is assumed to mean 
+  * "price-in all the dynamic Variable that you have, if any", which is fine
+  * if the pricing process actually has no parameters (say, a single class of
+  * dynamic variables with an easy exact pricing algorithm). Thus, the
+  * default implementation automatically works in the "simple" cases, while
+  * for any other case the :Block will have to implement its own version, say
+  * "unpacking" its :Configuration object to specific sub-Configuration for
+  * each of its sub-Block. This cannot be done in the default implementation
+  * because the Configuration dyvv for the father Block will likely have to
+  * be "unpacked", with each sub-Block getting its own specific
+  * sub-Configuration, but this can only be done by a specific :Block for a
+  * specific :Configuration, as the base Configuration class does not have
+  * direct support for the fact that a Configuration contains a
+  * sub-Configuration for each sub-Block of a Block. */
 
  virtual void generate_dynamic_variables( Configuration *dyvv = nullptr ) {
   for( auto blck : v_Block )
@@ -1240,10 +1248,10 @@ class Block : public Observer {
   * means that if the method is called with stcc = nullptr then the
   * corresponding configuration from the BlockConfig is used. Indeed,
   * the method is not pure virtual, but it is given a default implementation
-  * doing nothing but calling itself for each inner Block with no (= default
+  * doing nothing but calling itself for each sub-Block with no (= default
   * = nullptr) argument. This is correct for those :Block that either have no
   * static Constraints at all or that construct them all anyway, and for which
-  * all the inner Block either have the same property or are only to be called
+  * all the sub-Block either have the same property or are only to be called
   * with the default configuration set by the BlockConfig. Note that if the
   * BlockConfig is not set (nullptr) or the corresponding field is not set
   * (nullptr), this is assumed to mean "construct all the static
@@ -1253,7 +1261,7 @@ class Block : public Observer {
   * :Configuration object to specific sub-Configuration for each of its
   * sub-Block. This cannot be done in the default implementation because the
   * Configuration stcc for the father Block will likely have to be "unpacked",
-  * with each inner Block getting its own specific sub-Configuration, but this
+  * with each sub-Block getting its own specific sub-Configuration, but this
   * can only be done by a specific :Block for a specific :Configuration, as
   * the base Configuration class does not have direct support for the fact
   * that a Configuration contains a sub-Configuration for each specific
@@ -1355,9 +1363,9 @@ class Block : public Observer {
   * means that if the method is called with dycc = nullptr then the
   * corresponding configuration from the BlockConfig() is used. Indeed, the
   * method is not pure virtual, but it is given a default implementation
-  * doing nothing but calling itself for each inner Block with no (= default
+  * doing nothing but calling itself for each sub-Block with no (= default
   * = nullptr) argument. This is correct for those :Block have no dynamic
-  * Constraint at all, and for which all the inner Block either have the same
+  * Constraint at all, and for which all the sub-Block either have the same
   * property or are only to be called with the default configuration set by
   * the BlockConfig. Note that if the BlockConfig is not set (nullptr) or the
   * corresponding field is not set (nullptr), this is assumed to mean
@@ -1369,7 +1377,7 @@ class Block : public Observer {
   * own version, say "unpacking" its :Configuration object to specific
   * sub-Configuration for each of its sub-Block. This cannot be done in the
   * default implementation because the Configuration dycc for the father
-  * Block will likely have to be "unpacked", with each inner Block getting
+  * Block will likely have to be "unpacked", with each sub-Block getting
   * its own specific sub-Configuration, but this can only be done by a
   * specific :Block for a specific :Configuration, as the base Configuration
   * class does not have direct support for the fact that a Configuration
@@ -1411,9 +1419,9 @@ class Block : public Observer {
   * means that if the method is called with objc = nullptr then the
   * corresponding configuration from the BlockConfig() is used. Indeed, the
   * method is not pure virtual, but it is given a default implementation
-  * doing nothing but calling itself for each inner Block with no (= default
+  * doing nothing but calling itself for each sub-Block with no (= default
   * = nullptr) argument. This is correct for those :Block have no complex
-  * objective, and for which all the inner Block either have the same
+  * objective, and for which all the sub-Block either have the same
   * property or are only to be called with the default configuration set by
   * the BlockConfig. */
 
@@ -1483,7 +1491,7 @@ class Block : public Observer {
  virtual BlockSolverConfig *  get_SolverConfig(
 	                                BlockSolverConfig * svcc = nullptr );
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*--------------------------------------------------------------------------*/
  /// getting the reference to the current Objective
  /** Getting the current Objective; the boost any contains a pointer to
   * Objective or to any class derived by Objective. */
@@ -1493,15 +1501,91 @@ class Block : public Observer {
   }
 
 /*--------------------------------------------------------------------------*/
- /// reading the vector of inner sub-Blocks of the Block
- /** Method for reading the vector of inner sub-Blocks of the Block. Note
-  * that the vector v_Block is the "abstract representation" of the inner
-  * Blocks. In this case it may well coincide with the "physical" one, but
-  * the point is that the base Block class does not claim ownership of the
-  * Blocks in the v_Block field. In other words, the sub-Blocks in that
-  * vector are *not* deleted by the destructor of the base Block class:
-  * whomever produced them in the first place (likely, the current derived
-  * Block class itself) must take responsibility for this. */
+ /// getting a global valid lower bound on the value of the Objective
+ /** This method should return a global valid lower bound on the value of the
+  * Objective, which immediately implies that the value of the Objective is a
+  * real number, something that is purposely *not* stipulated by the Objective
+  * interface. In other words, this method assumes that the Objective is a
+  * RealObjective, which may *not* be true. Should this happen, this method
+  * makes no sense and it should not be called. But global valid lower bounds
+  * on the value of the Objective are very important in single-objective
+  * optimization, and they are typically associated *to the Block as a whole*
+  * rather than to only a part of it, such as the objective (think of the
+  * case where the objective is linear, and therefore has no finite lower
+  * bound unless the feasible region is suitably restricted). Thus, the
+  * base Block class has to have this method, which is virtual and whose
+  * default implementation just returns "- infinity", i.e., "no lower bound".
+  *
+  * Assuming the Objective is a RealObjective, if its sense is "min" then
+  * this method should return a value guaranteed to be below the Objective
+  * value of any feasible solution; thus, finding a feasible solution whose
+  * value is (approximately) equal to the returned value guarantees that it is
+  * an (approximately) optimal solution (although one has to "trust the Block"
+  * that the returned value is correct). If the sense of the [Real]Objective
+  * rather is "max", then this method rather provides a bound on "how much
+  * bad a solution can be", which may also have its uses: for instance, if
+  * one then finds a global valid lower bound on the optimal value that is
+  * larger than the returned value, it can conclude (if one trusts the Block)
+  * that the problem is empty. This method returning "+ infinity" means that
+  * the Block is 100% certain there are no feasible solutions at all
+  * (although, again, one is "taking the Block's word for that").
+  *
+  * Global lower bounds are "fragile" values: in principle, *any* change in
+  * any part of the Block (Variable, Constraint, Objective, ...) can lead to
+  * a change in this value. Thus, the current design decision is that there
+  * is no specific Modification for changes in this particular value, which
+  * has to be intended as "basically, any Modification changes this". The
+  * rationale is that specific Modifications would likely be produced very
+  * many times, thus posing an unnecessary strain on the mechanism. So, a
+  * user (or, most likely, Solver) interested in this value should just check
+  * it "frequently" to see if it has changed. Since the computation of this
+  * value can be costly, the Block will have to have a way to assess if it
+  * really will have to be done again (say, by putting the value of some
+  * field to - infinity). If not, the method should cost very little, hence
+  * there is little harm in calling it frequently. When a change in the Block
+  * happens, the Block can simply properly set the value; if the method is
+  * called (which it may not) the computation is done, otherwise effort is
+  * saved. 
+  *
+  * As far as what "frequently" should mean, this is surely "at least each
+  * time a Modification is issued, unless it is one of the few Modification
+  * that cannot change it (say, addition of dynamic Variable which is
+  * guaranteed not to change the optimal value). However, note that the
+  * return value may change even if no Modification is issued. A possible
+  * example is when the Block encodes the Lagrangian Dual of an maximization
+  * problem (which means it is a minimization one): every feasible solution
+  * of the original problem provides a valid lower bound to the optimal value
+  * of the Lagrangian Dual. Such solution may be "revealed" to the Block by
+  * means of some method of its specialized interface, and the Block may
+  * react by changing this value. This would actually be a case where a
+  * Modification signalling it may be appropriate, but for the reasons above
+  * it has been decided against it. */
+
+ virtual double get_valid_lower_bound( void ) {
+  return( - Inf<double>() );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// getting a global valid upper bound on the value of the Objective
+ /** This method should return a global valid upper bound on the value of the
+  * Objective. See the companion method  get_valid_lower_bound() for comments,
+  * obviously exchanging "min" with "max" and "- infinity" with "+ infinity"
+  * where appropriate (as in the default return value). */
+
+ virtual double get_valid_upper_bound( void ) {
+  return( + Inf<double>() );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// reading the vector of sub-Blocks of the Block
+ /** Method for reading the vector of sub-Blocks of the Block. Note that the
+  * vector v_Block is the "abstract representation" of the sub-Block. In this
+  * case it may well coincide with the "physical" one, but the point is that
+  * the base Block class does not claim ownership of the Blocks in the
+  * v_Block field. In other words, the sub-Blocks in that vector are *not*
+  * deleted by the destructor of the base Block class: whomever produced them
+  * in the first place (likely, the current derived Block class itself) must
+  * take responsibility for this. */
 
  c_Vec_Block & get_nested_Blocks( void ) const { return( v_Block ); }
 
@@ -2412,7 +2496,7 @@ class Block : public Observer {
   * task set by means of set_BlockConfig(). For any other case the :Block
   * will have to implement its own version; this cannot be done in the
   * default implementation because the Configuration fsbc for the father Block
-  * will likely have to be "unpacked", with each inner Block getting its own
+  * will likely have to be "unpacked", with each sub-Block getting its own
   * specific sub-Configuration, but this can only be done by a specific
   * :Block for a specific :Configuration, as the base Configuration class
   * does not have direct support for the fact that a Configuration contains a
@@ -2493,7 +2577,7 @@ class Block : public Observer {
   * that basically only works if the problem is actually decomposable, hence
   * one expects that true :Block will have to implement their own version,
   * not least because the Configuration optc for the father Block will likely
-  * have to be "unpacked", with each inner Block getting its own specific
+  * have to be "unpacked", with each sub-Block getting its own specific
   * sub-Configuration, which cannot be done with the base Configuration
   * class. */
 
