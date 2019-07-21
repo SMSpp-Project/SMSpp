@@ -95,8 +95,12 @@ class C15Function : public C05Function {
 /** @name Constructor and destructor
  *  @{ */
 
- /// constructor
- C15Function() : C05Function() { }
+ /// constructor of C15Function: only calls that of C05Function
+ /** Constructor of C15Function. Takes as input an optional pointer to an
+  * Observer and passes it to the constructor of C05Function. */
+
+ C15Function( Observer * const observer = nullptr )
+  : C05Function( observer ) { }
 
 /*--------------------------------------------------------------------------*/
 

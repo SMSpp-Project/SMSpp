@@ -7,9 +7,9 @@
  * the linearizations need not be a continuous function, which means that
  * the Function may be non-smooth.
  *
- * \version 0.30
+ * \version 0.31
  *
- * \date 15 - 03 - 2019
+ * \date 18 - 07 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -418,8 +418,11 @@ class C05Function : public Function {
 /** @name Constructing and destructing C05Function
  *  @{ */
 
- /// constructor of C05Function: does nothing
- C05Function() : Function() { }
+ /// constructor of C05Function: does nothing except calling that of Function
+ /** Constructor of C05Function. Takes as input an optional pointer to an
+  * Observer and passes it to the constructor of Function. */
+
+ C05Function( Observer * const observer = nullptr ) : Function( observer ) { }
 
 /*--------------------------------------------------------------------------*/
  /// destructor: it is virtual, and empty
@@ -657,7 +660,7 @@ class C05Function : public Function {
   * the same vector. */
 
  virtual void store_combination_of_linearizations(
-	  LinearCombination & coefficients , const LinearizationName name ) { }
+	 LinearCombination & coefficients , const LinearizationName name ) { }
 
 /*--------------------------------------------------------------------------*/
  /// specify which linearization is "the important one"
@@ -742,7 +745,7 @@ class C05Function : public Function {
   return( 0 );
   }
 
- /*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
  /// return the combination used to form "the important linearization"
  /** This method has to return the combination used to form "the important
   * linearization", as set by set_important_linearization(). It has a default
@@ -752,8 +755,8 @@ class C05Function : public Function {
   * all linearizations in the global pool taken individually are the important
   * one, comprised the one with name 0). */
 
- virtual c_LinearCombination & get_important_linearization_coefficients( void )
- {
+ virtual c_LinearCombination & get_important_linearization_coefficients(
+								     void ) {
   static c_LinearCombination _tmp = { std::make_pair( 0 , 1 ) };
   return( _tmp );
   }
@@ -920,7 +923,7 @@ class C05Function : public Function {
   */
 
  virtual FunctionValue get_linearization_constant(
-   const LinearizationName name = Inf<Index>()  ) = 0;
+   const LinearizationName name = Inf<LinearizationName>() ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// returns true if and only if this Function is continuously differentiable
@@ -1062,6 +1065,40 @@ class C05Function : public Function {
 /** Derived class from FunctionMod to describe modifications to a
  * C05Function. This class defines the following types of modifications:
  *
+ * - NothingChanged
+ *
+ * This type of modification states that the all the previously produced
+ * linearizations, both g and \alpha, are still perfectly valid for the
+ * changed C05Function. This may look weird at first, but there can be cases
+ * where it happens. For instance, consider a (convex, finite) max-function
+ *
+ *     f( x ) = max { g_i x + \alpha_i : i = 1 , ... , m }
+ *
+ * and assume that f() changes because one more linear form
+ *
+ *               g_{m + 1} x + \alpha_{m + 1}
+ *
+ * is added in the max. Clearly the new function is different from before, and
+ * in general >= (thus, f_shift == INFshift can be reported); however, all the
+ * previous linearizations (that are lower linearizations of the epigraph of
+ * the convex function) still remain perfectly valid \epsilon-subgradients
+ * for the new f(), albeit in general with a larger \epsilon (but since the
+ * linearization is given in terms of \alpha, which does not depend on the
+ * actual function value, this is irrelevant). Another case is the one in
+ * which the max-function is abruptly changed to be a min-function on exactly
+ * the same data: albeit the function changes from convex to concave, and
+ * clearly the function values change (in this case they become <=, which
+ * means that f_shift == -INFshift can be reported); still all the previously
+ * computed linearizations remain valid without any change. The difference is
+ * that when the function was convex they were (approximate) *sub*gradients,
+ * i.e., *lower* linearizations of the *epi*graph; as the function is turned
+ * into concave they become (approximate) *super*gradients, i.e., *upper*
+ * linearizations of the *ipo*graph. Of course the Solver will have to be able
+ * to deal with this, which is not necessarily obvious, but still this can
+ * in principle happen. Note that a similar occurrence happens in the
+ * Lagrangian case (a non-necessarily-finite max function) if the verse of the
+ * objective is reversed.
+ *
  * - AlphaChanged
  *
  * This type of modification states that the constant (\alpha) of the
@@ -1139,9 +1176,12 @@ class C05FunctionMod : public FunctionMod {
 /*---------------------------- PUBLIC TYPES --------------------------------*/
 
   /// Definition of the possibles type of C05FunctionMod
+  /** This enum specifies what kind of assumption can be made about any
+   * previously produced linearization. */
   enum c05function_mod_type {
-   AlphaChanged ,             ///< all the \alpha have changed
-   AllEntriesChanged ,        ///< all the g have changed
+   NothingChanged ,           ///< both \alpha and g are still valid
+   AlphaChanged ,             ///< all the \alpha have changed, but g has not
+   AllEntriesChanged ,        ///< all the g have changed, but \alpha has not
    AllLinearizationChanged ,  ///< both \alpha and g have changed
    C05FunctionModLastParam
    ///< First allowed parameter value for derived classes

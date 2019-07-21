@@ -28,6 +28,7 @@
 /*--------------------------------------------------------------------------*/
 
 #include "Block.h"
+#include "Objective.h"
 #include "Solver.h"
 
 #include "FakeSolver.h"
@@ -103,6 +104,15 @@ void Solver::set_Block( Block *block )
                          // Block, so it is now irrelevant
 
  f_Block = block;        // this is the new Block now
+ }
+
+/*--------------------------------------------------------------------------*/
+
+Solver::OFValue Solver::get_var_value( void )
+{
+ return( f_Block ? f_Block->get_objective_sense() == Objective::eMin ?
+	           get_ub() : get_lb()
+	         : Objective::eMin );
  }
 
 /*--------------------------------------------------------------------------*/

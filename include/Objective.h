@@ -119,9 +119,18 @@ class Objective : public ThinComputeInterface , public ThinVarDepInterface {
     @{ */
 
  /// define the possible type of optimization (min, max)
+ /** Public enum for describing the two different "senses" that a
+  * (real-valued) Objective can have: minimization (lower values are better)
+  * and maximization (higher values are better). The catch is that this only
+  * works for Objective whose return value has a complete ordering, which is
+  * the case e.g. for the all-important real-valued ones but not for, say,
+  * multi-objective ones. Yet, single-objective real-valued optimization is
+  * so important as to make it worth to define this in the base Objective
+  * class. Also, Objective supports ways (see set_sense() and get_sense())
+  * to easily "extend" the set of supported senses. */
  enum of_type {
-  eMin ,  ///< minimize the objective function
-  eMax    ///< maximize the objective function
+  eMin = 0 ,  ///< minimize the objective function
+  eMax = 1    ///< maximize the objective function
   };
 
 /**@} ----------------------------------------------------------------------*/
@@ -196,6 +205,11 @@ class Objective : public ThinComputeInterface , public ThinVarDepInterface {
 
 /*--------------------------------------------------------------------------*/
  /// returns the sense (min/max) of the Objective
+ /** Returns the sense (min/max) of the Objective. Note that, while the enum
+  * of_type is provided to encode the "classical" values (max/min), the field
+  * f_sense is of type "int", and therefore so is the return value of this
+  * method, in order to allow derived classes to "extend" the set of possible
+  * types. */
 
  virtual int get_sense( void ) const { return( f_sense ); }
 

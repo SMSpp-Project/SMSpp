@@ -711,12 +711,8 @@ public:
  *                 TO ENSURE THAT THE RULE IS RESPECTED
  *  @{ */
 
- virtual OFValue get_lb( void ) {
-  return( - std::numeric_limits<OFValue>::infinity() );
-  }
-
- ///< return a valid lower bound on the optimal objective function value
- /**< Returns a valid lower bound on the optimal objective function value.
+ /// return a valid lower bound on the optimal objective function value
+ /** Returns a valid lower bound on the optimal objective function value.
   * The meaning of this information clearly depends on whether the problem is
   * a minimization or a maximization one, and on the status of the solution
   * process.
@@ -782,14 +778,13 @@ public:
   * should be safe for any derived classes which simply don't have the
   * concept of real objective function. */
 
-/*--------------------------------------------------------------------------*/
-
- virtual OFValue get_ub( void )  {
-  return( std::numeric_limits<OFValue>::infinity() );
+ virtual OFValue get_lb( void ) {
+  return( - std::numeric_limits<OFValue>::infinity() );
   }
 
- ///< return a valid upper bound on the optimal objective function value
- /**< Returns a valid upper bound on the optimal objective function value.
+/*--------------------------------------------------------------------------*/
+ /// return a valid upper bound on the optimal objective function value
+ /** Returns a valid upper bound on the optimal objective function value.
   * The meaning of this information clearly depends on whether the problem is
   * a minimization or a maximization one, and on the status of the solution
   * process.
@@ -862,6 +857,10 @@ public:
   * should be safe for any derived classes which simply don't have the
   * concept of real objective function. */
 
+ virtual OFValue get_ub( void )  {
+  return( std::numeric_limits<OFValue>::infinity() );
+  }
+
 /*--------------------------------------------------------------------------*/
  /// tells whether a solution is available
  /** Called after compute() this method has to return true if a solution is
@@ -900,6 +899,24 @@ public:
   * (if any). */
 
  virtual bool is_var_feasible( void ) { return( true ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the value of the (current) solution, if any
+ /** Assuming that a solution has been constructed (cf. has_var_solution()),
+  * this method returns its objective value. In principle one would expect
+  * that this is called only if is_var_feasible() returned true, but there
+  * may be cases where the Solver detects unfeasibility and finds something
+  * like "the least unfeasible solution", so this rule is not necessarily
+  * enforced.
+  *
+  * This method is provided with a standard implementation that just looks
+  * if the problem is a minimization or a maximization one, and calls
+  * get_ub() and get_lb() accordingly (for a minimization problem each feasible
+  * solution provides a valid upper bound, for a maximization one a feasible
+  * lower bound). However the method is virtual and can be redefined by
+  * derived classes. */
+
+ virtual OFValue get_var_value( void );
 
 /*--------------------------------------------------------------------------*/
  /// write the "current" solution in the Variable of the Block
@@ -1489,8 +1506,3 @@ typedef Lst_Solver::const_iterator c_Lst_Solver_it;
 /*--------------------------------------------------------------------------*/
 /*-------------------------- End File Solver.h -----------------------------*/
 /*--------------------------------------------------------------------------*/
-
-
-
-
-

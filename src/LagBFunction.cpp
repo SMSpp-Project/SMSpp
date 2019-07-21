@@ -1448,12 +1448,12 @@ void LagBFunction::issue_add_variables_modification( v_dual_pair & pairs ,
 
 void LagBFunction::set_objective_and_solver( )
 {
- assert( ! ( v_Block[0]->get_objective() ).empty() );  // ... which must exist
+ assert( v_Block[ 0 ]->get_objective() );  // ... which must exist
 
  // the objective function of the inner block must be linear - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- obj = boost::any_cast<FRealObjective *>( v_Block[0]->get_objective() );
+ obj = dynamic_cast<FRealObjective *>( v_Block[0]->get_objective() );
  if( obj == nullptr )
   throw( std::logic_error( "the objective is not a real function" ) );
 

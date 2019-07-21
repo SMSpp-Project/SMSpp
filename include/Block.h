@@ -561,7 +561,7 @@ class Block : public Observer {
 
  Block( Block *father = nullptr ) : Observer() ,
   f_at( false ) , verbosity_lvl( low ) , f_BlockConfig( nullptr ) ,
-  f_channel( 0 ) , f_Block( father ) , f_Objective() {}
+  f_channel( 0 ) , f_Block( father ) , f_Objective( nullptr ) {}
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: it is deleted
@@ -1492,45 +1492,155 @@ class Block : public Observer {
 	                                BlockSolverConfig * svcc = nullptr );
 
 /*--------------------------------------------------------------------------*/
- /// getting the reference to the current Objective
- /** Getting the current Objective; the boost any contains a pointer to
-  * Objective or to any class derived by Objective. */
+ /// getting the pointer to the current Objective
+ /** Getting a pointer to current :Objective. Of course, for this method to
+  * return something meaningful (i.e., for the returned pointer to be
+  * non-nullptr) the abstract representation of the Objective must have been
+  * constructed, cf. generate_objective(). */
 
- const boost::any & get_objective( void ) const {
+ Objective * get_objective( void ) const {
   return( f_Objective );
   }
 
 /*--------------------------------------------------------------------------*/
- /// getting a global valid lower bound on the value of the Objective
- /** This method should return a global valid lower bound on the value of the
-  * Objective, which immediately implies that the value of the Objective is a
+ /// getting the current sense of the Objective
+ /** Getting the current sense (minimization or maximization) of the
+  * Objective of the Block. This method has a default implementation that
+  * relies on the existence of an Objective in the "abstract representation"
+  * of the Block but it is virtual, so that :Block for which this may not be
+  * true can override it and answer using the "physical representation" (or
+  * maybe just answer a constant since the sense of the problem is fixed).
+  * If there is no "abstract representation" of the Objective, the default
+  * implementation arbitrarily returns 0 (== Objective::eMin), i.e.,
+  * minimization. The rationale is that a Block that only encodes for a
+  * feasibility problem actually can have no Objective even even the
+  * "abstract representation" is fully constructed, but then this means that
+  * the Objective is constantly 0 across all feasible solutions and therefore
+  * in principle the sense does not matter (although this changes if an
+  * unfeasible solution should be associated with a value +Infinity or
+  * -Infinity). Besides, minimization problems are somewhat more common that
+  * maximization ones in practice. */
+
+ virtual int get_objective_sense( void ) const;
+
+/*--------------------------------------------------------------------------*/
+ /// getting upper bounds on the value of the Objective
+ /** This method should return an upper bound on the optimal value of the
+  * Objective. This immediately implies that the value of the Objective is a
   * real number, something that is purposely *not* stipulated by the Objective
-  * interface. In other words, this method assumes that the Objective is a
-  * RealObjective, which may *not* be true. Should this happen, this method
-  * makes no sense and it should not be called. But global valid lower bounds
-  * on the value of the Objective are very important in single-objective
+  * interface. In other words, this method implicitly assumes that the
+  * Objective is a RealObjective, which may *not* be true. Should this happen,
+  * this method makes no sense and it should not be called. But bounds on the
+  * optimal value of the Objective are very important in single-objective
   * optimization, and they are typically associated *to the Block as a whole*
-  * rather than to only a part of it, such as the objective (think of the
-  * case where the objective is linear, and therefore has no finite lower
-  * bound unless the feasible region is suitably restricted). Thus, the
-  * base Block class has to have this method, which is virtual and whose
-  * default implementation just returns "- infinity", i.e., "no lower bound".
+  * rather than to only a part of it, such as the Objective (think of the case
+  * where the Objective is linear, and therefore has no finite upper/lower
+  * bound unless the feasible region is suitably restricted). Thus, the base
+  * Block class has to have this method, which is virtual and whose default
+  * implementation just returns "+ Infinity", i.e., "no upper bound".
   *
-  * Assuming the Objective is a RealObjective, if its sense is "min" then
-  * this method should return a value guaranteed to be below the Objective
-  * value of any feasible solution; thus, finding a feasible solution whose
-  * value is (approximately) equal to the returned value guarantees that it is
-  * an (approximately) optimal solution (although one has to "trust the Block"
-  * that the returned value is correct). If the sense of the [Real]Objective
-  * rather is "max", then this method rather provides a bound on "how much
-  * bad a solution can be", which may also have its uses: for instance, if
-  * one then finds a global valid lower bound on the optimal value that is
-  * larger than the returned value, it can conclude (if one trusts the Block)
-  * that the problem is empty. This method returning "+ infinity" means that
-  * the Block is 100% certain there are no feasible solutions at all
-  * (although, again, one is "taking the Block's word for that").
+  * This method can be used to query about two different kinds of upper bounds.
+  * The defauly type (when the "conditional" parameter is at its default value
+  * of false) is a globally valid upper bound, which is simply a value
+  * guaranteed to be above the value of the [Real]Objective of any feasible
+  * solution. If the sense of the [Real]Objective is "maximization", then
+  * any feasible solution whose value is (approximately) equal to the value
+  * returned by this method is guaranteed to be an (approximately) optimal
+  * solution (although one has to "trust the Block" that the returned value is
+  * correct). If the sense of the [Real]Objective rather is "minimization",
+  * then this method rather provides a bound on "how much bad a solution can
+  * be", which may also have its uses.
   *
-  * Global lower bounds are "fragile" values: in principle, *any* change in
+  * Indeed, the latter concept is tied to the other type of upper bound, which
+  * is the one required when the "conditional" parameter is true: a
+  * "conditionally valid upper bound". The formal definition is the following:
+  *
+  *    a value v is a conditionally valid upper bound for the problem if
+  *    it is a valid upper bound on the optimal value of the problem
+  *    PROVIDED THAT THE OPTIMAL VALUE IS NOT +INFINITY
+  *
+  * The interpretation is, however, quite different if the problem encoded by
+  * the Block is a maximization problem or a minimization one:
+  *
+  * - if the problem encoded by the Block is a maximization problem, then its
+  *   optimal value being + infinity means that the problem is unbounded
+  *   above; then, v is a conditionally valid upper bound if whenever one
+  *   finds a feasible solution whose objective value is greater than v, then
+  *   the problem is unbounded above;
+  *
+  * - if the problem encoded by the Block is a minimization problem, then its
+  *   optimal value being + infinity means that the problem empty; then v is
+  *   a conditionally valid upper bound if whenever one finds a valid lower
+  *   bound on the optimal value that is larger than v, then the problem is
+  *   empty.
+  *
+  * Explaining how conditionally valid upper bounds can be derived requires a
+  * bit of discussion. For the sake of illustration let us assume that the
+  * problem encoded in the Block is
+  *
+  *     (P)   max { c(x) : x \in X }
+  *
+  * and that (P) is "nice": it has a dual problem
+  *
+  *     (D)   min { f(y) : y \in Y }
+  *
+  * that, besides weak duality (f(y) >= c(x) for each y \in Y and x \in X)
+  * also satisfies strong duality in the strongest possible sense: the
+  * optimal values of (P) and (D) are identical *even when they are plus or
+  * minus infinity", which means that (P) is empty <==> (D) is unbounded below
+  * and (D) is empty <==> (P) is unbounded above. In other words, (P) and (D)
+  * are completely equivalent in terms of optimal values; most often this
+  * means that any algorithm solving one actually solves the other as well.
+  * One can therefore equivalently consider Block a representation of (P) (a
+  * maximization problem) or of (D) (a minimization one). In this setting we
+  * may be able to derive a conditionally valid upper bound on both.
+  *
+  * To do that we assume that we know an "easy" relaxation of (D) that is
+  * surely nonempty
+  *
+  *     (D')   min { f(y) : y \in Y' }
+  *
+  * For instance, one may know a compact box Y' = [ l , u ] such that 
+  * l <= y <= u for all y \in Y. Now, let us assume that we can find a
+  * *globally valid* finite *upper* bound v on (D') (note that this is a
+  * minimization problem, so this is a bound on how *bad* a solution of (D)
+  * can ever be); for instance, we may be able to compute a linear upper
+  * approximation of f(y) which is valid on Y' (or f() may have been linear
+  * in the first place), which makes the computation of v trivial. Then, we
+  * know that v >= f(y) for all y \in Y (note, again, that (D) is a
+  * minimization problem). Now, let us assume that we find some x \in X such
+  * that c(x) > v: that is, we have found a valid lower bound on the optimal
+  * value of (D) which is greater than v. Then, (D) is empty as requiired by
+  * the definition of conditionally valid upper bound for a minimization
+  * problem (in this case, (D)). Indeed, assume there is any y \in Y: by weak
+  * duality f(y) >= c(x) > v, but on the other hand by construction v >= f(y),
+  * which yields the contradiction. Hence, (D) must be empty. But for the
+  * strong duality assumption, this means that (P) must be unbounded above.
+  * Thus, v is a conditionally valid upper bound also according to the
+  * definition given for a maximization problem (in this case, (P)): in fact,
+  * as soon as we find x \in X such that c(x) > v, we can conclude (by duality
+  * arguments) that (P) is unbounded above.
+  *
+  * Algorithmically, one can use such a construction to declare (D) empty when
+  * it is solving it by dual methods, and the algorithm that is solving (P) is
+  * "converging to +Infinity". Alternatively, one can see this v providing a
+  * convenient stopping criterion when one is solving a (P) which is unbounded
+  * above, but for which there is no easy way to characterise things like
+  * unbounded ascent directions (say, X is convex and c(x) is concave but it
+  * is provided by some completely obscure black box): a conditional valid
+  * upper bound on (P) -- obtained by duality arguments -- can allow the
+  * optimization to finitely stop declaring that (P) is unbounded above
+  * "without having finitely reached +Infinity" (which is not possible).
+  *
+  * The boolean parameter "conditional", if true, indicates that the required
+  * upper bound only has to be conditionally valid, as opposed to globally
+  * valid. Note that the return value when the method is called with true
+  * can only be greater or equal to that when the method is called with false.
+  * Indeed, when (P) is unbounded above ((D) is empty) then the only possible
+  * globally valid upper bound can be +Infinity, but, as we have discussed,
+  * there can be finite conditionally valid upper bounds.
+  *
+  * Global upper bounds are "fragile" values: in principle, *any* change in
   * any part of the Block (Variable, Constraint, Objective, ...) can lead to
   * a change in this value. Thus, the current design decision is that there
   * is no specific Modification for changes in this particular value, which
@@ -1541,7 +1651,7 @@ class Block : public Observer {
   * it "frequently" to see if it has changed. Since the computation of this
   * value can be costly, the Block will have to have a way to assess if it
   * really will have to be done again (say, by putting the value of some
-  * field to - infinity). If not, the method should cost very little, hence
+  * field to + infinity). If not, the method should cost very little, hence
   * there is little harm in calling it frequently. When a change in the Block
   * happens, the Block can simply properly set the value; if the method is
   * called (which it may not) the computation is done, otherwise effort is
@@ -1552,28 +1662,29 @@ class Block : public Observer {
   * that cannot change it (say, addition of dynamic Variable which is
   * guaranteed not to change the optimal value). However, note that the
   * return value may change even if no Modification is issued. A possible
-  * example is when the Block encodes the Lagrangian Dual of an maximization
-  * problem (which means it is a minimization one): every feasible solution
-  * of the original problem provides a valid lower bound to the optimal value
+  * example is when the Block encodes the Lagrangian Dual of an minimization
+  * problem (which means it is a maximization one): every feasible solution
+  * of the original problem provides a valid upper bound to the optimal value
   * of the Lagrangian Dual. Such solution may be "revealed" to the Block by
   * means of some method of its specialized interface, and the Block may
   * react by changing this value. This would actually be a case where a
   * Modification signalling it may be appropriate, but for the reasons above
   * it has been decided against it. */
 
- virtual double get_valid_lower_bound( void ) {
-  return( - Inf<double>() );
+ virtual double get_valid_upper_bound( const bool conditional = false ) {
+  return( + Inf<double>() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// getting a global valid upper bound on the value of the Objective
- /** This method should return a global valid upper bound on the value of the
-  * Objective. See the companion method  get_valid_lower_bound() for comments,
-  * obviously exchanging "min" with "max" and "- infinity" with "+ infinity"
-  * where appropriate (as in the default return value). */
+ /// getting a global valid lower bound on the value of the Objective
+ /** This method should return a global valid lower bound on the value of the
+  * Objective for *every possible feasible solution*. See the companion
+  * method  get_valid_upper_bound() for comments, obviously exchanging "min"
+  * with "max" and "+ infinity" with "- infinity" where appropriate (starting
+  * from the default return value). */
 
- virtual double get_valid_upper_bound( void ) {
-  return( + Inf<double>() );
+ virtual double get_valid_lower_bound( const bool conditional = false ) {
+  return( - Inf<double>() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2319,22 +2430,20 @@ class Block : public Observer {
 
 /*--------------------------------------------------------------------------*/
  /// change the Objective of the Block
- /** Method to entirely change, in one blow, the Objective object of the
-  * Block. newOF is a pointer to an object of class Objective, or of any
-  * derived class, which is stored into a boost::any field. Note that, this,
-  * being a pointer to a single object, may well be the "physical
-  * representation" of the Objective, but it is dealt with as being the
-  * "abstract representation" in that the base Block class does not claim
-  * ownership of newOF, i.e., it does not delete it in the destructor:
-  * whomever produced it in the first place (most likely, the current derived
-  * Block class) must take responsibility for this.
+ /** Method to change, the Objective of the Block. newOF is a pointer to an
+  * object of (a derived) class (from) Objective, which is stored into the
+  * f_Objective field. Note that this, being a pointer to a single object,
+  * may well be the "physical representation" of the Objective, but it is
+  * dealt with as being the "abstract representation" in that the base Block
+  * class does not claim ownership of newOF, i.e., it does not delete it in
+  * the destructor: whomever produced it in the first place (most likely, the
+  * current derived Block class) must take responsibility for this.
   *
   * The parameter issueMod decides if and how the BlockMod is issued, as
   * described in Observer::make_par(). */
 
- template<class ObjF>
-  void set_objective( ObjF & newOF , c_ModParam issueMod = eModBlck );
-
+ void set_objective( Objective * newOF , c_ModParam issueMod = eModBlck );
+ 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- Methods for checking the Block ---------------------*/
 /*--------------------------------------------------------------------------*/
@@ -2443,26 +2552,53 @@ class Block : public Observer {
   * Variable of the Block is approximately feasible within the given
   * tolerances.
   *
-  * The useabstract parameter being true dictates that the check should be
-  * performed using the "abstract representation" of the Block, otherwise
-  * the "pyhsical representation" of the Block should be used.
+  * The useabstract parameter being true dictates that the solution is
+  * checked for feasibility w.r.t. "abstract representation" of the Block,
+  * otherwise the "pyhsical representation" of the Block is used. This may
+  * yield different outcomes, as discussed below. Of course, for
+  * is_feasible( true ) to work the "abstract representation" have to
+  * have been constructed in the first place.
   *
-  * Note that a significant difference exists between the two versions in case
-  * the Block has dynamic constraints. Indeed, in that case the abstract
-  * representation of the Block only contains those that have been explicitly
-  * generated so far, while the physical representation (logically) "contains
-  * them all". This means that is_feasible( true ) may return true while
-  * is_feasible( false ) may return false, as there might be dynamic
-  * constraints that have not been explicitly generated yet and that are
-  * violated by the current solution. This is not an issue, as it is always
-  * possible to call generate_dynamic_constraints() before is_feasible() to
-  * ensure that violated dynamic constraints, if any, are generated. Note
-  * that a call to is_feasible( false ) may well rely on the same separation
-  * procedures as generate_dynamic_constraints() to verify "logical"
-  * feasibility of the dynamic constraints; if the corresponding dynamic
-  * constraints are actually generated (a Block-specific decision), then
-  * is_feasible( false ) and is_feasible( true ), called in this order, should
-  * indeed give the same result.
+  * Note that significant differences exist between the two versions that
+  * may "reasonably" lead is_feasible( true ) and is_feasible( false ) to
+  * return different values:
+  *
+  * - When the Block has dynamic constraints, the "abstract representation"
+  *   of the Block only contains those that have been explicitly generated so
+  *   far, while the "physical representation" (logically) "contains them
+  *   all". This means that is_feasible( true ) may return true while
+  *   is_feasible( false ) may return false, as there might be dynamic
+  *   constraints that have not been explicitly generated yet and that are
+  *   violated by the current solution. This is not an issue, as it is always
+  *   possible to call generate_dynamic_constraints() before is_feasible() to
+  *   ensure that violated dynamic constraints, if any, are generated. Note
+  *   that a call to is_feasible( false ) may well rely on the same separation
+  *   procedures as generate_dynamic_constraints() to verify "logical"
+  *   feasibility of the dynamic constraints; if the corresponding dynamic
+  *   constraints are actually generated (a Block-specific decision), then
+  *   is_feasible( false ) and is_feasible( true ), called in this order,
+  *   should indeed give the same result.
+  *
+  * - A Block may have two types of Variable: "structural" ones and
+  *   "auxiliary" ones. Consider for instance the case of a Knapsack problem:
+  *   the standard representation of the problem only has x[ i ] variables
+  *   corresponding to taking (or not) the objects in the knapsack, and the
+  *   feasibility can be checked (trivially) using the "physical
+  *   representation" and these variables alone, so this is what one assumes
+  *   would happen when is_feasible( false ) is called. However, the
+  *   "abstract representation" of the problem can be written in different
+  *   ways, for instance in terms of the graph of the Dynamic Programming
+  *   formulation: besides the x[ i ] variables, that would have some other
+  *   (flow) variables f[ i , t ]. Hence is_feasible( true ) would have to
+  *   look at both the x[] and f[] variables to work. It is therefore
+  *   conceivable that the x[] part of the solution may be feasible, but the
+  *   f[] part may be not; thus, is_feasible( true ) would return false,
+  *   while is_feasible( false ) would return true.
+  *
+  * Since these methods are primarily provided for "debugging" Block and/or
+  * Solver, it is intended that the user will be well-aware of what it is
+  * testing; the two is_feasible() returning different values may well be
+  * the valuable information that the process was meant to find.
   *
   * The parameter fsbc, which is a pointer to an arbitrarily complex
   * Configuration object, is meant to specify "how much approximately feasible
@@ -2546,7 +2682,10 @@ class Block : public Observer {
   * as generate_dynamic_variables() to verify "logical" optimality; if the
   * corresponding dynamic variables are actually generated (a Block-specific
   * decision), then is_optimal( false ) and is_optimal( true ), called in this
-  * order, should indeed give the same result.
+  * order, should indeed give the same result. See also the comments to
+  * is_feasible() for the cases where the check using the "abstract
+  * representation" may give different results that that using the "physical"
+  * one.
   *
   * The parameter optc, which is a pointer to an arbitrarily complex
   * Configuration object, is meant to specify "how much approximately optimal
@@ -2606,7 +2745,10 @@ class Block : public Observer {
   *
   * The useabstract parameter being true dictates that the check should be
   * performed using the "abstract representation" of the Block, otherwise
-  * the "pyhsical representation" of the Block should be used.
+  * the "pyhsical representation" of the Block should be used. See the
+  * comments to is_feasible() for the cases where the check using the
+  * "abstract representation" may give different results that that using
+  * the "physical" one.
   *
   * Checking the property is likely to entail some numerical computation, say
   * to verify that some matrix-vector scalar product is "zero". This may
@@ -2666,7 +2808,10 @@ class Block : public Observer {
   *
   * The useabstract parameter being true dictates that the check should be
   * performed using the "abstract representation" of the Block, otherwise
-  * the "pyhsical representation" of the Block should be used.
+  * the "pyhsical representation" of the Block should be used. See the
+  * comments to is_feasible() for the cases where the check using the
+  * "abstract representation" may give different results that that using
+  * the "physical" one.
  *
   * Checking the property is likely to entail some numerical computation, say
   * to verify that some matrix-vector scalar product is "zero". This may
@@ -3719,34 +3864,34 @@ class Block : public Observer {
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
  /// removes any existing static Variable; to be used with care
+
  void reset_static_variables( void ) {
   v_s_Variable.clear();
   v_s_Variable_names.clear();
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
  /// removes any existing dynamic Constraint; to be used with care
+
  void reset_dynamic_constraints( void ) {
   v_d_Constraint.clear();
   v_d_Constraint_names.clear();
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
  /// removes any existing dynamic Variable; to be used with care
+
  void reset_dynamic_variables( void ) {
   v_d_Variable.clear();
   v_d_Variable_names.clear();
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
  /// removes any existing objective; to be used with care
+
  void reset_objective( void ) {
-  f_Objective = boost::any();
+  f_Objective = nullptr;
   }
 
 /*--------------------------------------------------------------------------*/
@@ -4153,9 +4298,9 @@ class Block : public Observer {
   * since these are no longer relevant and, worse, they may refer to elements
   * of the Block that simply no longer exist; thus, they cannot possibly be
   * processed in any meaningful way, which is why the NBModification cannot be
-  * avoided. This is unless the Block is only a sub-Block of the Block that the
-  * Solver is solving, in which case Modification pertaining to other parts
-  * of the Block still are relevant; see the comments to
+  * avoided. This is unless the Block is only a sub-Block of the Block that
+  * the Solver is solving, in which case Modification pertaining to other
+  * parts of the Block still are relevant; see the comments to
   * Solver::add_Modification. Note that the NBModification is sent to the
   * "default channel", since it "must be seen immediately" rather then being
   * "hidden" into any GroupModification.
@@ -4173,7 +4318,7 @@ class Block : public Observer {
 
  virtual void load( std::istream &input ) = 0;
 
- /**@} ----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
  /// method encapsulating the Block factory
  /** This method returns the Block factory, which is a static object. The
   * rationale for using a method is that this is the "Construct On First Use
@@ -4262,9 +4407,8 @@ class Block : public Observer {
  Block *f_Block;
  ///< pointer to the block where the current Block is nested (if any)
 
- boost::any f_Objective;     ///< the objective function of the Block
- /**< boost::any intended to keep a pointer to the objective function of
-  * the Block */
+ Objective * f_Objective;     ///< the objective function of the Block
+ /**< A pointer to the objective function of the Block */
 
  Vec_any v_s_Constraint;        ///< the static Constraints of the Block
  /**< vector of pointers to [multi/single dimensional arrays of]
@@ -5393,23 +5537,6 @@ void Block::remove_dynamic_variable( std::list< Var *> &list ,
 
  }  // end( Block::remove_dynamic_variable( Var * ) )
  
-/*--------------------------------------------------------------------------*/
-
-template<class ObjF>
-void Block::set_objective( ObjF & newOF , c_ModParam issueMod )
-{
- // ensure newOF is a derivate of Objective
- static_assert( std::is_base_of< Objective , ObjF >::value ,
-               "set_objective_function: newOF must inherit from Objective" );
-
- newOF.set_Block( this );
- f_Objective = & newOF;
-
- if( issue_mod( issueMod ) )
-  add_Modification(
-     std::make_shared<BlockMod>( this , Observer::par2concern( issueMod ) ) );
- }
-
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 

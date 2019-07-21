@@ -227,21 +227,30 @@ class LinearFunction : public C15Function {
 /** @name Constructor and Destructor
  *  @{ */
 
- /// constructor of LinearFunction, taking the pairs
- /** Constructor of LinearFunction. It accepts a vector of pairs
-  * < pointer to ColVariable , Coefficient > representing the linear
-  * expression of the function, the value of the constant term of the
-  * function, and a bool telling if the given vector is already ordered by
-  * ColVariable "name = pointer" or not, in which case it is ordered. As the
-  * the && tells, vars is "consumed" by the constructor and its resources
-  * become property of the LinearFunction object.
+ /// constructor of LinearFunction, taking the data describing it
+ /** Constructor of LinearFunction. It accepts:
   *
-  * All inputs have a default ({}, 0, and true, respectively) so that this
-  * can be used as the void constructor. */
+  * @param vars, a && to a vector of pairs < pointer to ColVariable ,
+  *        Coefficient > representing the linear expression of the function;
+  *        as the the && tells, vars is "consumed" by the constructor and its
+  *        resources become property of the LinearFunction object.
+  *
+  * @param ct, a FunctionValue providing the value of the constant term of the
+  *        function (which is affine rather than, strictly speaking, linear);
+  *
+  * @param ordered, a boolean indicating whether or not vars is already
+  *        ordered in increasing pointer ColVariable "name = pointer" (if not
+  *        it is ordered);
+  *
+  * @param observer, a pointer to the Observer of this LinearFunction.
+  *
+  * All inputs have a default ({}, 0, true, and nullptr, respectively) so
+  * that this can be used as the void constructor. */
 
  LinearFunction( v_coeff_pair && vars = {} , const FunctionValue ct = 0,
-                 const bool ordered = false )
-  :  C15Function() , v_pairs( std::move( vars ) ) ,
+                 const bool ordered = false ,
+		 Observer * const observer = nullptr )
+  :  C15Function( observer ) , v_pairs( std::move( vars ) ) ,
      f_value( Inf<FunctionValue>() ) , f_constant_term( ct )
  {
   if( ! ordered )
@@ -325,11 +334,28 @@ class LinearFunction : public C15Function {
 /** @name Methods describing the behavior of the LinearFunction
  *  @{ */
 
- virtual int compute( bool changedvars = true ) override;
+ virtual int compute( bool changedvars = true ) override final;
 
 /*--------------------------------------------------------------------------*/
+ /// returns the value of the LinearFunction
 
- virtual FunctionValue get_value( void ) const override { return( f_value ); }
+ virtual FunctionValue get_value( void ) const override final {
+  return( f_value );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the LinearFunction is exact, hence lower_estimate == value
+ 
+ virtual FunctionValue get_lower_estimate( void ) const override final {
+  return( f_value );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the LinearFunction is exact, hence upper_estimate == value
+
+ virtual FunctionValue get_upper_estimate( void ) const override final {
+  return( f_value );
+  }
 
 /*--------------------------------------------------------------------------*/
 

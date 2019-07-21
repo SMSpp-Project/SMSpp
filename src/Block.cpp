@@ -92,6 +92,25 @@ BlockSolverConfig * Block::get_SolverConfig( BlockSolverConfig * svcc )
  }  // end( Block::get_SolverConfig )
 
 /*--------------------------------------------------------------------------*/
+
+int Block::get_objective_sense( void ) const
+{
+ return( f_Objective ? f_Objective->get_sense() : Objective::eMin );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void Block::set_objective( Objective * newOF , c_ModParam issueMod )
+{
+ f_Objective = newOF;
+ newOF->set_Block( this );
+
+ if( issue_mod( issueMod ) )
+  add_Modification(
+     std::make_shared<BlockMod>( this , Observer::par2concern( issueMod ) ) );
+ }
+ 
+/*--------------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF AN Observer -------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -241,23 +260,6 @@ void Block::set_default_channel( c_ChnlName chnl )
 
 /*--------------------------------------------------------------------------*/
 /*------------ METHODS FOR LOADING, PRINTING & SAVING THE Block ------------*/
-/*--------------------------------------------------------------------------*/
-
-void Block::remove_constraint_from_variables( Constraint * constraint )
-{
- for( auto & var : *constraint )
-  var.remove_active( constraint );
- }
-
-/*--------------------------------------------------------------------------*/
-
-void Block::remove_variable_from_stuff( Variable * const variable ,
-					const int issueindMod )
-{
-  for( Variable::Index i = 0 ; i < variable->get_num_active() ; ++i )
-  variable->get_active( i )->remove_variable( variable , issueindMod );
- }
-
 /*--------------------------------------------------------------------------*/
 
 void Block::set_BlockConfig( BlockConfig *newBC , const bool safe )
@@ -538,7 +540,7 @@ void Block::set_SolverConfig( BlockSolverConfig * svcc )
    (*bit)->set_SolverConfig();
   }                    // end setting mode -----------------------------------
 
-}  // end( Block::set_SolverConfig )
+ }  // end( Block::set_SolverConfig )
 
 /*--------------------------------------------------------------------------*/
 
@@ -621,6 +623,25 @@ Block::BlockFactoryMap & Block::f_factory( void )
 {
  static BlockFactoryMap s_factory;
  return( s_factory );
+ }
+
+/*--------------------------------------------------------------------------*/
+/*-------------------------- PRIVATE METHODS -------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+void Block::remove_constraint_from_variables( Constraint * constraint )
+{
+ for( auto & var : *constraint )
+  var.remove_active( constraint );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void Block::remove_variable_from_stuff( Variable * const variable ,
+					const int issueindMod )
+{
+  for( Variable::Index i = 0 ; i < variable->get_num_active() ; ++i )
+  variable->get_active( i )->remove_variable( variable , issueindMod );
  }
 
 /*--------------------------------------------------------------------------*/

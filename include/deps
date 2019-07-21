@@ -115,6 +115,7 @@ Solver.h
 Solver.cpp
 - Block.h
 - Solver.h
+- Objective.h
 - FakeSolver.h
 
 ThinComputeInterface.h

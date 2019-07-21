@@ -285,14 +285,15 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
 
 /*--------------------------------------------------------------------------*/
  /// destructor: it is virtual, and empty
- /** The destructor of the base Function class has nothing to do. However,
-  * the destructor of any derived class, besides deallocating all its data
-  * structures, will have to un-register the Observer of the :Function--rather
-  * than the :Function itsefl--from all its "active" Variable; this provided
-  * the Observer also is a ThinVarDepInterface. A simple and general way to
-  * do this is to call register_Observer() (with default = nullptr argument),
-  * see below. This provided that the clear() method has not been invoked
-  * before, in which case un-registering is not required. */
+ /** The destructor of the base Function class has nothing to do. Indeed,
+  * unlike other ThinVarDepInterface, a Function should *not* un-register
+  * itself from all its "active" Variable. If the Function is used by an
+  * Observer that to "implement itself", then the Observer will be
+  * registered in the Function's "active" Variable, and un-registration will
+  * have to be performed in its destructor. This unless the clear() method
+  * has been invoked, in which case un-registering is not required (and,
+  * indeed, clear() deletes the list of "active" Variable in the Function,
+  * so the Observer cannot un-register from them even if it tried). */
 
  virtual ~Function() { }
 
@@ -358,6 +359,17 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
  *
  *               IT IS UNIQUELY THE CALLER'S RESPONSIBILITY
  *                 TO ENSURE THAT THE RULE IS RESPECTED
+ *
+ * Note that several methods in this section (get_Lipschitz_constant(),
+ * is_convex(), is_concave(), ...) refer to properties of the Function that
+ * may be true at a certain moment, but may become false when the Function is
+ * modified. The guidelines is that these methods should return "safe"
+ * information that should not need to be updated each time any Modification
+ * occurs: if the Function is_convex(), this is supposed to remain true. There
+ * can be exceptions to that; for instance, if the Function changes entirely,
+ * then reasonably this information can change. Also, certain changes (like
+ * adding and removing Variable) almost certainly change the Lipschitz
+ * constant, which must therefore be re-checked (if needed).
  * @{ */
 
  /// compute the Function
@@ -746,7 +758,8 @@ public:
  * - NaN: the value of the Function has changed "unpredictably" all over the
  *   space, any previously computed value is no longer reliable. Although the
  *   convenient constexpr "NaNshift" is defined in the class, note that
- *   testing if f_shift is NaN must *not* be done with "f_shift == NaNshift", *    but rather with std::isnan( f_shift ).
+ *   testing if f_shift is NaN must *not* be done with "f_shift == NaNshift",
+ *   but rather with std::isnan( f_shift ).
  *
  * - Any finite non-NaN number: conversely, the value of the Function has
  *   changed in a very predictable way: computing the value of the Function at

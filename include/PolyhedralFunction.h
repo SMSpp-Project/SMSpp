@@ -1,0 +1,1049 @@
+/*--------------------------------------------------------------------------*/
+/*----------------------- File PolyhedralFunction.h ------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @file
+ * Header file for the PolyhedralFunction class, which is a convex (or
+ * concave) C05Function defined by the maximum (or minimum) of a "small"
+ * number of explicitly provided affine forms.
+ *
+ * \version 0.10
+ *
+ * \date 15 - 07 - 2019
+ *
+ * \author Antonio Frangioni \n
+ *         Operations Research Group \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * Copyright &copy; by Antonio Frangioni
+ */
+/*--------------------------------------------------------------------------*/
+/*----------------------------- DEFINITIONS --------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+#ifndef __PolyhedralFunction
+ #define __PolyhedralFunction
+                      /* self-identification: #endif at the end of the file */
+
+/*--------------------------------------------------------------------------*/
+/*------------------------------ INCLUDES ----------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+#include "C05Function.h"
+
+/*--------------------------------------------------------------------------*/
+/*--------------------------- NAMESPACE ------------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+// namespace for the Structured Modeling System++ (SMS++)
+namespace SMSpp_di_unipi_it
+{
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- PolyhedralFunction-RELATED TYPES -------------------*/
+/*--------------------------------------------------------------------------*/
+/** @defgroup PolyhedralFunction_TYPES PolyhedralFunction-related types.
+ *  @{ */
+
+/** @}  end( group( PolyhedralFunction_TYPES ) ) */
+/*--------------------------------------------------------------------------*/
+/*---------------------- CLASS PolyhedralFunction --------------------------*/
+/*--------------------------------------------------------------------------*/
+/*--------------------------- GENERAL NOTES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+/// a C05Function with a fixed number of linearizations
+/** The PolyhedralFunction class derives from C05Function, and defines a
+ * simple implementation of a convex (or concave) Function defined by the
+ * maximum (or minimum) of a "small" number of explicitly provided affine
+ * forms. In other words, if the PolyhedralFunction depends on a set of n
+ * ColVariable, its input data is a m \times n matrix A and a m \times 1
+ * vector b (with m given and small), so that
+ *
+ *   f(x) =  max \{ A_i x + b_i , i = 0, ..., m - 1 \}
+ *
+ * (in which case it is convex, exchange "max" with "min" to make it concave).
+ * The function is therefore finite-valued everywhere, and each of the pairs
+ * ( A_i , b_i ) define one of the possible diagonal linearizations; thus far
+ * vertical linearizations are not handled, but adding them would not be too
+ * much of an issue. The only exception is when m is 0, in which case the
+ * function evaluates to - \infinity (in the convex case, + \infinity on the
+ * concave one).
+ *
+ * When the function is evaluated, all m linearizations enter the local pool
+ * in order of their value v_i = A_i x + b_i (non-increasing in the convex
+ * case, non-decreasing in the concave one), and are reported in that order.
+ * The global pool is just a subset of the fixed index set 0, ..., m - 1.
+ *
+ * PolyhedralFunction handles all possible changes in its input data:
+ *
+ * - addition of variables (adding columns to A);
+ *
+ * - removal of variables (removing columns from A);
+ *
+ * - addition of cutting planes (adding rows to A);
+ *
+ * - removal of cutting planes (removing rows to A);
+ *
+ * - changes in any subset of elements of b. */
+
+class PolyhedralFunction : public C05Function {
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ public:
+
+/*--------------------------------------------------------------------------*/
+/*---------------------------- PUBLIC TYPES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Public Types
+    @{ */
+
+ typedef std::vector< std::vector < FunctionValue > > MultiVector;
+ ///< representing the A matrix: a vector of m elements, each a real n-vector
+
+ typedef std::vector< ColVariable * > VarVector;
+ ///< representing the x variables upon which the function depends
+
+ typedef const VarVector c_VarVector;
+ ///< a const version of the x variables upon which the function depends
+
+ // typedef Eigen::SparseVector<FunctionValue> SparseVector;
+
+ // typedef unsigned int LinearizationName;
+
+ // typedef std::vector< std::pair < LinearizationName , FunctionValue > >
+ // LinearCombination;
+
+ // typedef const LinearCombination c_LinearCombination;
+
+/*--------------------------------------------------------------------------*/
+ /// virtualized concrete iterator
+ /** A concrete class deriving from ThinVarDepInterface::v_iterator and
+  * implementing the concrete iterator for sifting through the "active"
+  * Variable of a PolyhedralFunction. */
+
+ class v_iterator : public ThinVarDepInterface::v_iterator
+ {
+  public:
+
+  v_iterator( VarVector::iterator itr ) : itr_( itr ) { }
+  virtual v_iterator * clone( void ) override {
+   return( new v_iterator( itr_ ) );
+   }
+
+  virtual void operator++( void ) override final { (itr_)++; }
+  virtual reference operator*( void ) const override final {
+   return( *((*itr_)) );
+   }
+  virtual pointer operator->( void ) const override final {
+   return( (*itr_) );
+   }
+  virtual bool operator==( const ThinVarDepInterface::v_iterator & rhs )
+   const override final {
+   #ifdef NDEBUG
+    auto tmp = static_cast<const PolyhedralFunction::v_iterator *>( & rhs );
+    return( itr_ == tmp->itr_ );
+   #else
+    auto tmp = dynamic_cast<const PolyhedralFunction::v_iterator *>( & rhs );
+    return( tmp ? itr_ == tmp->itr_ : false );
+   #endif
+   }
+  virtual bool operator!=( const ThinVarDepInterface::v_iterator & rhs )
+   const override final {
+   #ifdef NDEBUG
+    auto tmp = static_cast<const PolyhedralFunction::v_iterator *>( & rhs );
+    return( itr_ != tmp->itr_ );
+   #else
+    auto tmp = dynamic_cast<const PolyhedralFunction::v_iterator *>( & rhs );
+    return( tmp ? itr_ != tmp->itr_ : true );
+   #endif
+   }
+
+  private:
+
+  VarVector::iterator itr_;
+  };
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// virtualized concrete const_iterator
+ /** A concrete class deriving from ThinVarDepInterface::v_const_iterator and
+  * implementing the concrete iterator for sifting through the "active"
+  * Variable of a PolyhedralFunction. */
+
+ class v_const_iterator : public ThinVarDepInterface::v_const_iterator
+ {
+  public:
+
+  v_const_iterator( VarVector::const_iterator itr ) : itr_( itr ) { }
+  virtual v_const_iterator * clone( void ) override {
+   return( new v_const_iterator( itr_ ) );
+   }
+ 
+  virtual void operator++( void ) override final { (itr_)++; }
+  virtual reference operator*( void ) const override final {
+   return( *((*itr_)) );
+   }
+  virtual pointer operator->( void ) const override final {
+   return( (*itr_) );
+   }
+  virtual bool operator==( const ThinVarDepInterface::v_const_iterator & rhs )
+   const override final {
+   #ifdef NDEBUG
+    auto tmp = static_cast<const PolyhedralFunction::v_const_iterator *>(
+								      & rhs );
+    return( itr_ == tmp->itr_ );
+   #else
+    auto tmp = dynamic_cast<const PolyhedralFunction::v_const_iterator *>(
+								      & rhs );
+    return( tmp ? itr_ == tmp->itr_ : false );
+   #endif
+   }
+  virtual bool operator!=( const ThinVarDepInterface::v_const_iterator & rhs )
+   const override final {
+   #ifdef NDEBUG
+    auto tmp = static_cast<const PolyhedralFunction::v_const_iterator *>(
+								      & rhs );
+    return( itr_ != tmp->itr_ );
+   #else
+    auto tmp = dynamic_cast<const PolyhedralFunction::v_const_iterator *>(
+								      & rhs );
+    return( tmp ? itr_ != tmp->itr_ : true );
+   #endif
+   }
+
+  private:
+
+  VarVector::const_iterator itr_;
+  };
+
+/**@} ----------------------------------------------------------------------*/
+/*------------ CONSTRUCTING AND DESTRUCTING PolyhedralFunction -------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Constructing and destructing PolyhedralFunction
+ *  @{ */
+
+ /// constructor of PolyhedralFunction, possibly inputting the data
+ /** Constructor of PolyhedralFunction. Inputs:
+  *
+  * @param VarVector && x, a n-vector of pointers to ColVariable representing
+  *        the x variable vector in the definition of the function; x *must*
+  *        already be ordered by increasing pointer = ColVariable "name";
+  *
+  * @param the MultiVector && A, a m-vector of n-vectors of FunctionValue
+  *        representing the A matrix in the definition of the function;
+  *        entry A[ i ][ j ] is (obviously) meant to be the coefficient
+  *        of variable *x[ j ] for the i-th row;
+  *
+  * @param the std::vector<FunctionValue> && b, a m-vector of FunctionValue
+  *        representing the b vector in the definition of the function
+  *        (that is, b[ i ] is the constant factor of the i-th linear form);
+  *
+  * @param is_convex, a boolean indicating whether the function has to be
+  *        defined as the maximization of the provided linear (affine)
+  *        functions, and therefore is a convex function, or as the
+  *        minimization and therefore it is a concave function;
+  *
+  * @param observer, a pointer to the Observer of this PolyhedralFunction.
+  *
+  * As the && implies, x, A, and b become property of the PolyhedralFunction
+  * object.
+  *
+  * All inputs have a default ({}, {}, {}, true, and nullptr, respectively)
+  * so that this can be used as the void constructor. */
+
+ PolyhedralFunction( VarVector && x = {} , MultiVector && A = {} ,
+		     std::vector<FunctionValue> && b = {} ,
+		     const bool is_convex = true ,
+		     Observer * const observer = nullptr)
+  : C05Function( observer ) , f_is_convex( is_convex ) ,
+    f_loc_pool_sz( 1 ) , f_next( 0 ) , f_imp( 0 )
+ {
+  guts_of_constructor_Ab( A , b );
+  if( ! v_A.empty() )
+   if( x.size() != v_A[ 0 ].size() )
+    throw( std::invalid_argument( "A and x must have the same columns" ) );
+
+  v_x = std::move( x );
+  v_ord.resize( 1 );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// destructor: it is virtual, and empty
+
+ virtual ~PolyhedralFunction() { }
+
+/*--------------------------------------------------------------------------*/
+ /// clear method: clears the v_x field
+ /** Method to "clear" the PolyhedralFunction: it clear() the vector v_x. This
+  * destroys the list of "active" Variable without unregistering from them.
+  * Not that the PolyhedralFunction would have to, but an Observer using it
+  * to "implement iyself" should. By not having any Variable, the Observer
+  * can no longer do that. */
+
+ virtual void clear( void ) override { v_x.clear(); }
+
+/**@} ----------------------------------------------------------------------*/
+/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Other initializations
+ *  @{ */
+
+ /// set a given integer (int) numerical parameter
+ /** Set a given integer (int) numerical parameter. PolyhedralFunction takes
+  * care of intLPMaxSz and intGPMaxSz, leaving all the rest to Function. */
+
+ virtual void set_par( const idx_type par , const int value ) override
+ {
+  switch( par ) {
+   case( intLPMaxSz ):
+    if( value < 1 )
+     throw( std::invalid_argument( "intLPMaxSz must be positive" ) );
+    if( value != f_loc_pool_sz ) {
+     if( value == 1 )
+      v_ord.resize( 1 );
+     else {
+      v_ord.resize( A.size() );
+      std::iota( v_ord.begin() , v_ord.end() , 0 );
+      }
+     f_loc_pool_sz = value;
+     }
+    break;
+   case( intGPMaxSz ):
+    if( value < 0 )
+     throw( std::invalid_argument( "intGPMaxSz must be non-negative" ) );
+    v_glob.resize( value , Inf<Index>() );
+    break;
+   default: Function::set_par( par , value );
+   }
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// set a given float (double) numerical parameter
+ /** Set a given float (double) numerical parameter. PolyhedralFunction
+  * ignores the C05Function-specific dblRAccLin and dblAAccLin, and leaves
+  * all the rest to Function. */
+
+ virtual void set_par( const idx_type par , const double value ) override
+ {
+  switch( par ) {
+   case( dblRAccLin ):
+   case( dblAAccLin ):
+    break;
+   default: Function::set_par( par , value );
+   }
+  }
+
+/**@} ----------------------------------------------------------------------*/
+/*-------- METHODS DESCRIBING THE BEHAVIOR OF A PolyhedralFunction ---------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods describing the behavior of a PolyhedralFunction
+ * The methods in this section allow to compute the current value of the
+ * PolyhedralFunction and retrieve first-order information about the point
+ * where the C05Function have been last evaluated.
+ * @{ */
+
+ /// compute the PolyhedralFunction
+
+ virtual int compute( bool changedvars = true ) override final;
+
+/*--------------------------------------------------------------------------*/
+ /// returns the value of the PolyhedralFunction
+
+ virtual FunctionValue get_value( void ) override final { return( f_value ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the PolyhedralFunction is exact, hence lower_estimate == value
+ 
+ virtual FunctionValue get_lower_estimate( void ) const override final {
+  return( f_value );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the PolyhedralFunction is exact, hence upper_estimate == value
+
+ virtual FunctionValue get_upper_estimate( void ) const override final {
+  return( f_value );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns a (global) Lipschitz constant for the PolyhedralFunction
+
+ virtual FunctionValue get_Lipschitz_constant( void ) override final
+ {
+  if( f_Lipschitz_constant < 0 )
+   compute_Lipschitz_constant();
+  return( f_Lipschitz_constant );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns true if and only if this PolyhedralFunction is convex
+
+ virtual bool is_convex( void ) const override final {
+  return( f_is_convex );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns true if and only if this PolyhedralFunction is concave
+
+ virtual bool is_concave( void ) const override final {
+  return( ! f_is_convex );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns true only if this PolyhedralFunction is linear
+ /** Method that returns true if and only if this PolyhedralFunction is
+  * linear. It therefore returns false. Actually, in the case where the
+  * number of rows in A is exactly one the PolyhedralFunction is linear,
+  * but this is supposed to be an accident that may and probably will change
+  * at any time, while this kind of method should return a "stable" result. */
+
+ virtual bool is_linear( void ) const override final { return( false ); }
+
+/*--------------------------------------------------------------------------*/
+ /// tells whether a linearization is available
+
+ virtual bool has_linearization( const bool diagonal = true ) override final
+ {
+  return( diagonal ? ( ! A.empty() ) : false );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// compute a new linearization for this PolyhedralFunction
+
+ virtual bool compute_new_linearization( const bool diagonal = true )
+  override final {
+  if( ( ! diagonal ) || A.empty() || ( f_next >= v_ord.size() - 1 ) ||
+      ( f_next >= f_loc_pool_sz - 1 ) )
+   return( false );
+
+  ++f_next;
+  return( true );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// store a linearization in the global pool 
+
+ virtual void store_linearization( const LinearizationName name )
+  override final {
+  if( name >= v_glob.size() )
+   throw( std::invalid_argument( "invalid global pool name" ) );
+
+  v_glob[ name ] = v_ord[ f_next ];
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// stores a combination of the given linearizations
+
+ virtual void store_combination_of_linearizations(
+	  LinearCombination & coefficients , const LinearizationName name )
+  override final;
+
+/*--------------------------------------------------------------------------*/
+ /// specify which linearization is "the important one"
+
+ virtual void set_important_linearization( LinearCombination && coefficients ,
+					   LinearizationName name )
+  override final {
+  if( name >= v_glob.size() )
+   throw( std::invalid_argument( "invalid global pool name" ) );
+
+  f_imp = name;
+  f_imp_coeff = std::move( coefficients );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// return the name of "the important linearization"
+
+ virtual LinearizationName get_important_linearization_name( void )
+  override final { return( f_imp ); }
+
+/*--------------------------------------------------------------------------*/
+ /// return the combination used to form "the important linearization"
+
+ virtual c_LinearCombination &
+  get_important_linearization_coefficients( void ) override final {
+  return( & f_imp_coeff );
+  }
+
+/*-------------------------------------------------------------------------*/
+ /// rename a linearization that is stored in the global pool
+
+ virtual void rename_linearization( const LinearizationName current_name ,
+				    const LinearizationName new_name )
+  override final;
+
+/*--------------------------------------------------------------------------*/
+ /// delete the given linearization from the global pool of linearizations
+
+ virtual void delete_linearization( const LinearizationName name )
+  override final;
+
+/*--------------------------------------------------------------------------*/
+ /// retrieve the coefficients (g vector) of a linearization in a vector
+
+ virtual void get_linearization_coefficients( FunctionValue *g ,
+                    const LinearizationName name = Inf<LinearizationName>() ,
+		    c_Vec_Index & indices = {} , c_Index start = 0 ,
+		    Index end = Inf<Index>() ) override final;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// retrieve the coefficients (g) of a linearization in a sparse vector
+
+ virtual void get_linearization_coefficients( SparseVector &g ,
+                     const LinearizationName name = Inf<LinearizationName>() ,
+	             c_Vec_Index & indices = {} , c_Index start = 0 ,
+	             Index end = Inf<Index>() ) override final;
+
+/*--------------------------------------------------------------------------*/
+ /// return the constant term of a linearization
+
+ virtual FunctionValue get_linearization_constant(
+     const LinearizationName name = Inf<LinearizationName>() ) override final
+ {
+  if( name >= v_glob.size() )
+   return( v_b[ v_ord[ f_next ] ] );
+
+  if( v_glob[ name ] == Inf<Index>() )
+   // there is no item with such a name, which may mean that it was there
+   // once but it has been deleted: the linearization is invalid
+   return( Inf<FunctionValue>() );
+
+  if( v_glob[ name ] < v_A.size() )
+   return( v_b[ v_glob[ name ] ] );
+  else
+   return( v_ab[ v_glob[ name ] - v_A.size() ] );
+  }
+
+/**@} ----------------------------------------------------------------------*/
+/*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Handling the parameters of the PolyhedralFunction
+ *  @{ */
+
+ /// get a specific integer (int) numerical parameter
+ /** Get a specific integer (int) numerical parameter. PolyhedralFunction
+  * takes care of intLPMaxSz and intGPMaxSz, leaving all the rest to
+  * Function. */
+
+ virtual int get_int_par( const idx_type par ) const {
+  switch( par ) {
+   case( intLPMaxSz ): return( f_loc_pool_sz );
+   case( intGPMaxSz ): return( v_glob.size() );
+   }
+  return( Function::get_int_par( par ) );
+  }
+
+/**@} ----------------------------------------------------------------------*/
+/*---- METHODS FOR HANDLING "ACTIVE" Variable IN THE PolyhedralFunction ----*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for handling the set of "active" Variable in the
+ * PolyhedralFunction; this is the actual concrete implementation exploiting
+ * the vector v_x of pointers.
+ * @{ */
+
+ virtual Index get_num_active_var( void ) const override final {
+  return( v_x.size() );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ virtual Index is_active( const Variable * const var )
+  const override final {
+  auto idx = std::lower_bound( v_x.begin() , v_x.end() , var );
+  if( idx < v_x.end() )
+   return( std::distance( v_x.begin() , idx ) );
+  else
+   return( Inf<Index>() );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ virtual void map_active( c_Vec_p_Var & vars , Vec_Index & map ,
+			  const bool ordered = false ) const override final;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ virtual Variable *get_active_var( const Index i ) const override final {
+  return( v_x[ i ] );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ virtual v_iterator * v_begin( void ) override final
+ {
+  return( new LinearFunction::v_iterator( v_x.begin() ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ virtual v_const_iterator * v_begin( void ) const override final
+ {
+  return( new LinearFunction::v_const_iterator( v_x.begin() ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ virtual v_iterator * v_end( void ) override final
+ {
+  return( new LinearFunction::v_iterator( v_x.end() ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ virtual v_const_iterator * v_end( void ) const override final
+ {
+  return( new LinearFunction::v_const_iterator( v_x.end() ) );
+  }
+
+/**@} ----------------------------------------------------------------------*/
+/*------------ METHODS FOR MODIFYING THE PolyhedralFunction ----------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for modifying the PolyhedralFunction
+ *  @{ */
+
+ /// completely resets the PolyhedralFunction with entirely new data
+ /** Completely resets the PolyhedralFunction with entirely new data,
+  * but leaving the current set of n input Variable:
+  *
+  * @param the MultiVector && A, a m-vector of n-vectors of FunctionValue
+  *        representing the A matrix in the definition of the function;
+  *        entry A[ i ][ j ] is (obviously) meant to be the coefficient
+  *        of variable *x[ j ] for the i-th row;
+  *
+  * @param the std::vector<FunctionValue> && b, a m-vector of FunctionValue
+  *        representing the b vector in the definition of the function
+  *        (that is, b[ i ] is the constant factor of the i-th linear form);
+  *
+  * @param is_convex, a boolean indicating whether the function has to be
+  *        defined as the maximization of the provided linear (affine)
+  *        functions, and therefore is a convex function, or as the
+  *        minimization and therefore it is a concave function.
+  *
+  * @param issueMod, which decides if and how the FunctionMod (with f_shift
+  *        == FunctionMod::NaNshift, i.e., "everything changed") is issued,
+  *        as described in Observer::make_par().
+  *
+  * This completely resets the PolyhedralFunction, save that it remains
+  * defined on the very same variable space, which means that n (the number
+  * of columns in A) must be equal to get_num_active_var().
+  *
+  * As the && implies, A and b become property of the PolyhedralFunction
+  * object. */
+ 
+ void set_PolyhedralFunction( MultiVector && A = {} ,
+			      std::vector<FunctionValue> && b = {} ,
+			      const bool is_convex = true ,
+			      c_ModParam issueMod = eModBlck )
+ {
+  if( ! A.empty() )
+   if( v_x.size() != v_A[ 0 ].size() )
+    throw( std::invalid_argument( "A and x must have the same columns" ) );
+
+  guts_of_constructor_Ab( A , b );
+  f_is_convex = is_convex;
+  f_next = f_imp = 0;
+ 
+  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+   return;
+
+  // "nuclear modification" for Function: everything changed
+  f_Observer->add_Modification( std::make_shared<FunctionMod>( this ,
+				         FunctionMod::NaNshift ,
+				         Observer::par2concern( issueMod ) ) ,
+				Observer::par2chnl( issueMod ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// change the "sign" of the PolyhedralFunction
+ /**< The method allows to [re]set the parameter governing the "sign" of the
+  * PolyhedralFunction:
+  *
+  * @param is_convex, a boolean indicating whether the function has to be
+  *        defined as the maximization of the provided linear (affine)
+  *        functions, and therefore is a convex function, or as the
+  *        minimization and therefore it is a concave function.
+  *
+  * @param issueMod, which decides if and how the C05FunctionMod is issued,
+  *        as described in Observer::make_par().
+  *
+  * Note that when the sign changes from "max" to "min" (from convex to
+  * concave) then the value of the function surely decreases, and vice-versa.
+  * However, funnily enough *all the linearizations remain valid* without any
+  * change. The difference is of course that when the function was (say)
+  * convex they were (approximate) *sub*gradients, i.e., *lower*
+  * linearizations of the *epi*graph; as the function is turned into (say)
+  * concave they become (approximate) *super*gradients, i.e., *upper*
+  * linearizations of the *ipo*graph. Still, each linearization is still a
+  * valid one, which is the poster case for the weird-ish setting
+  * C05FunctionMod::NothingChanged for the f_type of the C05FunctionMod. */
+
+ void set_is_convex( const bool is_convex = true ,
+		     c_ModParam issueMod = eModBlck )
+ {
+  if( is_convex == f_is_convex )  // actually doing nothing
+   return;                        // cowardly (and silently) return
+
+  f_is_convex = is_convex;           // change the verse
+  f_value = - Inf<FunctionValue>();  // the function value has changed
+
+  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+   return;
+
+  // issue the C05FunctionMod: if f_is_convex is true the function has
+  // changed from min to max, hence has increased, and vice-versa
+  f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+				      C05FunctionMod::NothingChanged ,
+				      f_is_convex ? FunctionMod::INFshift :
+				                  - FunctionMod::INFshift ,
+				      Observer::par2concern( issueMod ) ) ,
+				Observer::par2chnl( issueMod ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// add a set of new Variable to the PolyhedralFunction
+ /**< The method receives:
+  *
+  * @param nx, a std::vector< Variable * > && containing the pointers to k
+  *        new ColVarable; nx *must* be ordered in increasing sense, and all
+  *        the ColVariable in there must *not* be already among the active
+  *        Variable of the PolyhedralFunction.
+  *
+  * @param nA, a MultiVector && having as many rows as the current A matrix
+  *        and exactly k columns representing the new part of the linear
+  *        mapping; entry nA[ i ][ h ] is (obviously) meant to be the
+  *        coefficient of *nx[ h ] for the i-th row.
+  *
+  * @param issueMod, which decides if and how the C05FunctionModVars (with
+  *        f_shift == 0, since a PolyhedralFunction is strongly quasi-additive)
+  *        is issued, as described in Observer::make_par().
+  *
+  * Note that nx is a std::vector< Variable * > rather than a
+  * std::vector< ColVariable * >, although of course all the pointers have
+  * to be to a ColVariable. This is because the vector can then be passed
+  * right away to the C05FunctionModVars, that expects one; indeed, as the
+  * && tells, the nx (and nA) become "property" of the PolyhedralFunction
+  * object. For nA this likely only happens if A is currently "empty of
+  * columns" (say, only the rows have been defined, or all previous columns
+  * have been deleted); nx, however, can be dispatched to the Modification.
+  * The point is that since C05FunctionModVars is defined in C05Function, it is
+  * not restricted to the case where Variable is a ColVariable, although it
+  * should be "like" one (a Variable representing a single real value) for
+  * the current form of linearizations to work. Although a
+  * std::vector< ColVariable * > and a std::vector< Variable * > should be
+  * physically indistinguishable, there is no sound way to cheaply pass the
+  * former as the latter in C++; having the input as a
+  * std::vector< Variable * > circumvents the problems (and each pointer
+  * could be static_cast-ed to a ColVariable * as soon as it is confirmed
+  * that the Variable is active in the LinearFunction, should this be
+  * necessary). */
+
+ void add_variables( Vec_p_Var && nx , MultiVector && nA ,
+		     c_ModParam issueMod = eModBlck );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// add one single new Variable to the PolyhedralFunction
+ /** Like add_variables(), but just only one Variable:
+  *
+  * @param var is a ColVariable *, and the pointed ColVariable must *not* be
+  *        already among the active Variable of the PolyhedralFunction.
+  *
+  * @param Aj is a std::vector<FunctionValue> containing having as many rows
+  *        as the current A matrix and containing the new column of the linear
+  *        mapping; entry Aj[ i ][ h ] is (obviously) meant to be the
+  *        coefficient of *vaf for the i-th row.
+  *
+  * @param issueMod, which decides if and how the C05FunctionModVars (with
+  *        f_shift == 0, since a PolyhedralFunction is strongly quasi-additive)
+  *        is issued, as described in Observer::make_par(). */
+
+ void add_variable( ColVariable * const var ,
+		    const std::vector<FunctionValue> & Aj ,
+		    c_ModParam issueMod = eModBlck );
+
+/*--------------------------------------------------------------------------*/
+
+ void modify_row( c_Index i , std::vector<FunctionValue> && Ai ,
+		  c_FunctionValue bi , c_ModParam issueMod = eModBlck );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// modify only the constant term of one row of the linear mapping
+ /** Like modify_row(), but modify the constant term only for one row of the
+  * linear mapping:
+  *
+  */
+
+ void modify_constant( c_Index i , c_FunctionValue bi ,
+		       c_ModParam issueMod = eModBlck );
+
+/*--------------------------------------------------------------------------*/
+
+ void add_rows( MultiVector && nA , std::vector<FunctionValue> && nb ,
+		c_ModParam issueMod = eModBlck );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// add one single new row to the linear mapping
+ /** Like add_row(), but just only one row of the linear mapping:
+  *
+  */
+
+ void add_row( std::vector<FunctionValue> && Ai , c_FunctionValue bi ,
+	       c_ModParam issueMod = eModBlck );
+ 
+/*--------------------------------------------------------------------------*/
+
+ void delete_rows( std::vector<Index> rows = {} ,
+		   c_ModParam issueMod = eModBlck );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// deletes one single existing row from the linear mapping
+ /** Like delete_rows(), but just only one row of the linear mapping:
+  *
+  */
+
+ void delete_row( c_Index i , c_ModParam issueMod = eModBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// remove the given Variable from the LinearFunction
+ /** Remove the given Variable from the LinearFunction. This is
+  * *mathematically* equivalent to setting the corresponding coefficient to
+  * zero, but it is considered a "stronger" operation (it is possible to have
+  * an active Variable with zero coefficient). If the Variable is not active
+  * in the LinearFunction, exception is thrown.
+  *
+  * Note that the pointer must necessarily be to a ColVariable for it to
+  * be active in a LinearFunction, but this method overrides that of
+  * ThinVarDepInterface which, by necessity, has a Variable * type.
+  *
+  * The parameter issueMod decides if and how the C05FunctionModVars is
+  * issued, as described in Observer::make_par(). Note that a linear function
+  * is additive, and therefore strongly quasi-additive. */
+
+ virtual void remove_variable( Variable * var ,
+			       c_ModParam issueMod = eModBlck )
+  override final;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// remove the i-th Variable
+ /** Like remove_variable( Variable * ), but takes in input the index of
+  * the Variable to be removed rather than its pointer. Useful if one knows
+  * the index already, so that it need not be searched for.
+  *
+  * The parameter issueMod decides if and how the C05FunctionModVars is
+  * issued, as described in Observer::make_par(). Note that a linear function
+  * is additive, and therefore strongly quasi-additive. */
+
+ void remove_variable( c_Index i , c_ModParam issueMod = eModBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// remove a range of Variable
+ /** Remove all the Variable that are in position from start (included) to
+  * min( stop , get_num_active_var() ) (excluded) in this LinearFunction.
+  *
+  * The parameter issueMod decides if and how the C05FunctionModVars is
+  * issued, as described in Observer::make_par(). Note that a linear function
+  * is additive, and therefore strongly quasi-additive. */
+
+ void remove_variables( c_Index strt = 0 , Index stop = Inf<Index>() ,
+			c_ModParam issueMod = eModBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// remove a range of Variable
+ /** Remove all the Variable comprised between strt (included) and stop
+  * (excluded). Setting strt == nullptr means "the first Variable", and
+  * setting stop == nullptr means "(one after) the last Variable". If
+  * no-nullptr arguments are provided, they *must* be "names" of Variable
+  * currently active in this LinearFunction.
+  *
+  * The parameter issueMod decides if and how the C05FunctionModVars is
+  * issued, as described in Observer::make_par(). Note that a linear function
+  * is additive, and therefore strongly quasi-additive. */
+
+ void remove_variables( const Variable * const strt = nullptr ,
+			const Variable * const stop = nullptr ,
+			c_ModParam issueMod = eModBlck )
+ {
+  c_Index istrt = strt ? is_active( strt ) : 0;
+  if( istrt >= get_num_active_var() )
+   throw( std::invalid_argument( "strt is not an active Variable" ) );
+
+  Index istop;
+  if( stop ) {
+   istop = is_active( stop );
+   if( istrt >= get_num_active_var() )
+    throw( std::invalid_argument( "stop is not an active Variable" ) );
+   }
+  else
+   istop = get_num_active_var();
+
+  remove_variables( istrt , istop , issueMod );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// remove the given set of Variable
+ /** Remove all the Variable in the given vector of pointers vars. If any
+  * Variable in vars is not an active Variable in the LinearFunction,
+  * exception is thrown. The parameter ordered tells if vars is already
+  * ordered by Variable "name = pointer" or not, otherwise it gets ordered
+  * inside the method (which is why it is not const).
+  *
+  * Note that vars is a std::vector< Variable * > rather than a
+  * std::vector< ColVariable * >, although of course all the pointers have
+  * to be to a ColVariable. This is because the vector can then be passed
+  * right away to the C05FunctionModLin, that expects one; indeed, as the
+  * && tells, the vector (as that of new coefficients) becomes "property"
+  * of the LinearFunction, that dispatches it to the Modification. The
+  * point is that since C05FunctionModLin is defined in C05Function, it is
+  * not restricted to the case where Variable is a ColVariable, although it
+  * should be "like" one (a Variable representing a single real value) for
+  * the current form of linearizations to work. Although a
+  * std::vector< ColVariable * > and a std::vector< Variable * > should be
+  * physically indistinguishable, there is no sound way to cheaply pass the
+  * former as the latter in C++; having the input as a
+  * std::vector< Variable * > circumvents the problems (and each pointer
+  * could be static_cast-ed to a ColVariable * as soon as it is confirmed
+  * that the Variable is active in the LinearFunction, should this be
+  * necessary).
+  *
+  * The parameter issueMod decides if and how the C05FunctionModVars is
+  * issued, as described in Observer::make_par(). Note that a linear function
+  * is additive, and therefore strongly quasi-additive. */
+
+ virtual void remove_variables( Vec_p_Var && vars ,
+				const bool ordered = false ,
+				c_ModParam issueMod = eModBlck )
+  override final;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// remove a set of Variable by index
+ /** Like remove_variables( Vec_p_Var * ), but takes in input a set of index
+  * of the Variable to be removed rather than their pointers. Useful if one
+  * knows the indices already, so that they need not be searched for. The
+  * parameter ordered tells if nms is already ordered in increasing sense
+  * (by index, but this also implies by Variable "name = pointer") if not
+  * otherwise it gets ordered inside the method (which is why it is not
+  * const). Note that nms is *not* &&, hence it is not "taken" by the
+  * LinearFunction.
+  *
+  * The parameter issueMod decides if and how the C05FunctionModVars is
+  * issued, as described in Observer::make_par(). Note that a linear function
+  * is additive, and therefore strongly quasi-additive. */
+
+ virtual void remove_variables( Vec_Index & nms , const bool ordered = false ,
+				c_ModParam issueMod = eModBlck );
+
+/**@} ----------------------------------------------------------------------*/
+/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+  protected:
+
+/*--------------------------------------------------------------------------*/
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Protected methods for printing and serializing
+    @{ */
+
+ /// print information about the C05Function on an ostream
+ /** Protected method intended to print information about the C05Function; it
+  * is virtual so that derived classes can print their specific information
+  * in the format they choose. */
+
+ virtual void print( std::ostream &output ) const override {
+  output << "C05Function [" << this << "]"
+	 << " with " << get_num_active_var() << " active variables";
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ void guts_of_constructor_Ab( MultiVector && A ,
+			      std::vector<FunctionValue> && b )
+ {
+  if( A.size() != b.size() )
+   throw( std::invalid_argument( "A and b must have the same rows" ) );
+  if( ! A.empty() ) {
+   const Index n = A[ 0 ].size();
+   for( auto & a : A )
+    if( a.size() != n )
+     throw( std::invalid_argument( "all rows A must have the same size" ) );
+   }
+  v_A = std::move( A );
+  v_b = std::move( b );
+  f_value = - Inf<FunctionValue>();
+  f_Lipschitz_constant = - Inf<FunctionValue>();
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ void compute_Lipschitz_constant( void )
+ {
+  f_Lipschitz_constant = 0;
+  for( const auto & Ai : A ) {
+   FunctionValue L = 0;
+   for( const auto aij : Ai )
+    L += aij * aij;
+
+   if( L > f_Lipschitz_constant )
+    f_Lipschitz_constant = L;
+   }
+
+  f_Lipschitz_constant = sqrt( double( f_Lipschitz_constant ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+/*-------------------------- PROTECTED FIELDS ------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ bool f_is_convex;    ///< true if the function is a "max" = convex one
+
+ MultiVector v_A;     ///< the A matrix of A x + b
+ 
+ std::vector<FunctionValue> v_b;  ///< the b vector of A x + b
+
+ MultiVector v_aA;     ///< the A matrix for aggregated linearizations
+ 
+ std::vector<FunctionValue> v_ab;  ///< the b vector for aggregated linear.
+
+ VarVector v_x;       ///< the pointer to the variables x in A x + b
+
+ FunctionValue f_value;   ///< the value of the function
+
+ FunctionValue f_Lipschitz_constant;  ///< the Lipschitz constant
+
+ Index f_loc_pool_sz;       ///< size of the local pool
+ Index f_next;              ///< next linearization in the local pool
+ 
+ std::vector<Index> v_ord;  ///< the ordering of linearizations
+
+ std::vector<Index> v_glob;  ///< the global pool
+                             /**< h = v_glob[ i ] contains the place where the
+			      * i-th item of the global pool is stored; if
+			      * h < v_A.size() then it's an original
+			      * linearization and it's found in v_A[ h ] and
+			      * v_b[ h ], otherwise is an aggregated one and
+			      * it's found in v_aA[ k ] and v_ab[ k ] for
+			      * k = h - v_A.size(). If h = Inf<Index>() there
+			      * is no item with this name. */
+
+ Index f_imp;                ///< the important linearization
+
+ LinearCombination f_imp_coeff;  ///< coefficients of the important linear.
+ 
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( PolyhedralFunction ) )
+
+/*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+}  // end( namespace SMSpp_di_unipi_it )
+
+/*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+#endif  /* C05Function.h included */
+
+/*--------------------------------------------------------------------------*/
+/*------------------------ End File C05Function.h --------------------------*/
+/*--------------------------------------------------------------------------*/

@@ -242,26 +242,32 @@ class DQuadFunction : public C15Function {
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and Destructor
  *  @{ */
- /** constructor of DQuadFunction, taking the the coefficients of the
-  * linear and diagonal quadratic terms. It accepts a pointer to a
-  * vector of triples < pointer to ColVariable , real coefficient ,
-  * real coefficient > the first coefficient being the coefficient of
-  * the variable in the linear term and the second being the
-  * coefficient of the variable in the diagonal quadratic term of the
-  * function (and a bool telling if this vector is already ordered by
-  * ColVariable "name = pointer" or not, in which case they are ordered).
+
+ /// constructor of DQuadFunction, taking the data describing it
+ /** Constructor of DQuadFunction. It accepts:
   *
-  * Note that if this vector of triples is passed, it becomes property
-  * of the DQuadFunction, which therefore has the responsibility to
-  * delete it.
+  * @param v_var, a && to a vector of triples < pointer to ColVariable ,
+  *        real coefficient , real coefficient >, with the first coefficient
+  *        being that of the linear term and the second being that of the
+  *        quadratic term of the function corresponding to the given
+  *        ColVariable;
   *
-  * All inputs have a default (nullptr, false respectively), so that
-  * this can be used as the void constructor. */
+  * @param ct, a FunctionValue providing the value of the constant term of the
+  *        function;
+  *
+  * @param ordered, a boolean indicating whether or not v_var is already
+  *        ordered in increasing pointer ColVariable "name = pointer" (if not
+  *        it is ordered);
+  *
+  * @param observer, a pointer to the Observer of this DQuadFunction.
+  *
+  * All inputs have a default ({}, 0, true, and nullptr, respectively) so
+  * that this can be used as the void constructor. */
 
  DQuadFunction(v_var_coeff_coeff_triple && v_var = {} ,
-	       const FunctionValue ct = 0 ,
-	       const bool ordered = false)
-  : C15Function() , v_triples( std::move( v_var ) ) ,
+	       const FunctionValue ct = 0 , const bool ordered = false ,
+	       Observer * const observer = nullptr )
+  : C15Function( observer ) , v_triples( std::move( v_var ) ) ,
     f_value( Inf<FunctionValue>() ) , f_constant_term( ct )
  {
   if( ! ordered )
@@ -324,8 +330,23 @@ class DQuadFunction : public C15Function {
  virtual int compute( bool changedvars = true ) override;
 
 /*--------------------------------------------------------------------------*/
+ /// returns the value of the DQuadFunction
 
  virtual FunctionValue get_value( void ) const override { return( f_value ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the DQuadFunction is exact, hence lower_estimate == value
+ 
+ virtual FunctionValue get_lower_estimate( void ) const override final {
+  return( f_value );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the DQuadFunction is exact, hence upper_estimate == value
+
+ virtual FunctionValue get_upper_estimate( void ) const override final {
+  return( f_value );
+  }
 
 /*--------------------------------------------------------------------------*/
 
