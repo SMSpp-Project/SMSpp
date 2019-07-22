@@ -516,6 +516,20 @@ class PolyhedralFunction : public C05Function {
    return( v_ab[ v_glob[ name ] - v_A.size() ] );
   }
 
+/*--------------------------------------------------------------------------*/
+ /// returns a (const reference) to the current A matrix in the mapping
+
+ const MultiVector & get_A( void ) const {
+  return( v_A );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns a (const reference) to the current b vector in the mapping
+
+ const std::vector<FunctionValue> & get_b( void ) const {
+  return( v_b );
+  }
+
 /**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/
@@ -863,34 +877,46 @@ class PolyhedralFunction : public C05Function {
   * leaving the current set of n = get_num_active_var() input Variable and
   * all rows that are not explicitly deleted:
   *
-  * @param the MultiVector && nA, a k-vector of n-vectors of FunctionValue
-  *        representing the new rows of the A matrix in the definition of the
-  *        function; entry nA[ i ][ j ] is (obviously) meant to be the
-  *        coefficient of variable *x[ j ] for the i-th new row; as the &&
-  *        tells, the object (most likely, its individual rows) becomes
-  *         "property" of the PolyhedralFunction.
-  *
-  * @param the std::vector<FunctionValue> & b, a k-vector of FunctionValue
-  *        representing the new entries of b vector in the definition of the
-  *        function (that is, b[ i ] is the constant factor of the new i-th
-  *        linear form);
+  * @param  std::vector<Index> & rows contans the indices of the rows to be
+  *         deleted; all entries must therefore be numbers in 0, ...,
+  *         get_A().size() - 1, *unique* and *ordered in increasing sense*;
   *
   * @param issueMod, which decides if and how the C05FunctionMod is issued,
   *        as described in Observer::make_par().
   *
-  * Note that adding new rows makes a "max" (convex) function to increase in
-  * value and a "min" (concave) one to decrease in value, but all existing
-  * linearization are still valid ones, which is the poster case for the
-  * weird-ish setting C05FunctionMod::NothingChanged for the f_type of the
-  * C05FunctionMod. */
+  * Note that removing rows makes a "max" (convex) function to decrease in
+  * value and a "min" (concave) one to increase in value; also, existing
+  * lnearizations in the global pool may disappear. Even worse, and aggregated
+  * linearization may have been constructed out of the ones that are deleted,
+  * and there is no way of saying it in general. Hence, the C05FunctionMod
+  * will have f_type = C05FunctionMod::AlphaChanged if:
+  *
+  * - any of the deleted rows are present in the global pool;
+  *
+  * - any aggregated linearization is present in the global pool.
+  *
+  * Otherwise no linearization is affected, and the C05FunctionMod will have
+  * f_type = C05FunctionMod::NothingChanged. The linearizations that are not
+  * deleted (both those in the list and the aggregated ones) remain identical
+  * (the constant term does not change, even less the vector of coefficients),
+  * the others get constant == Inf<FunctionValue>(), and therefore the vector
+  * of coefficients is no longer significant. */
 
- void delete_rows( std::vector<Index> rows = {} ,
+ void delete_rows( std::vector<Index> & rows ,
 		   c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// deletes all rows from the linear mapping in the PolyhedralFunction
+ /**< Like delete_rows( some ), but immediately removes *all* the matrix A
+  * and vector b, leaving the mapping "empty". Hence, the best Modification
+  * to issue is a FunctionMod with f_shift == FunctionMod::NaNshift, i.e.,
+  * "everything changed". */
+
+ void delete_rows( c_ModParam issueMod = eModBlck );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// deletes one single existing row from the linear mapping
- /** Like delete_rows(), but just only one row of the linear mapping:
-  *
+ /** Like delete_rows(), but just only the i-th row of the linear mapping.
   */
 
  void delete_row( c_Index i , c_ModParam issueMod = eModBlck );

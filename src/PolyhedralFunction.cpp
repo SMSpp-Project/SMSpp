@@ -612,6 +612,178 @@ void PolyhedralFunction::add_row( std::vector<FunctionValue> && Ai ,
 
 /*--------------------------------------------------------------------------*/
 
+void PolyhedralFunction::delete_rows( std::vector<Index> & rows ,
+				      c_ModParam issueMod )
+{
+ if( rows.empty() )  // actually nothing to remove
+  return;            // cowardly (and silently) returning
+
+ auto prev = rows.front();
+
+ if( rows.size() == 1 ) {
+  delete_row( prev , issueMod );
+  return;
+  }
+
+ for( auto rit = rows.begin() ; ++rit < rows.end() ; ) {
+  if( *rit < prev )
+   throw( std::invalid_argument( "rows must be ordered increasing" ) );
+  prev = *rit;
+  }
+
+ if( prev >= v_A.size() )
+  throw( std::invalid_argument( "invalid names in rows" ) );
+
+ // mark stuff to be killed in v_A[] and v_b[]
+ for( auto idx : rows ) {
+  v_A[ idx ].clear();
+  v_b[ idx ] = Inf<FunctionValue>();
+  }
+
+ // kill stuff in v_A[]
+ v_A.erase( remove_if( v_A.begin() + rows.front() , v_A.end() ,
+		       []( std::vector < FunctionValue > & ai ) {
+			return( ai.empty() );
+		        }
+		       ) , v_A.end() );
+
+ // kill stuff in v_b[]
+ v_b.erase( remove_if( v_b.begin() + rows.front() , v_b.end() ,
+		       []( FunctionValue bi ) {
+			return( bi == Inf<FunctionValue>() );
+		        }
+		       ) , v_b.end() );
+
+ // now search and mark as deleted the rows in the global pool
+ Index todo = rows.size();
+ for( auto & gn : v_glob ) {
+  auto it = std::lower_bound( rows.begin() , rows.end() , gn );
+  if( ( it != rows.end() ) && ( *it == gn ) ) {
+   gn = Inf<Index>();
+   if( ! --todo )  // found them all
+    break;         // all done
+   }
+  }
+ 
+ f_value = - Inf<FunctionValue>();  // the function value has changed
+
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+  return;                  // noone is there: all done
+
+ // issue the C05FunctionMod
+ f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+				    C05FunctionMod::AlphaChanged ,
+				    f_is_convex ? - FunctionMod::INFshift :
+				                  + FunctionMod::INFshift ,
+				    Observer::par2concern( issueMod ) ) ,
+				Observer::par2chnl( issueMod ) );
+
+ }  // end( PolyhedralFunction::delete_rows( some ) )
+
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunction::delete_rows( c_ModParam issueMod )
+{
+ if( rows.empty() )  // actually nothing to remove
+  return;            // cowardly (and silently) returning
+
+ auto prev = rows.front();
+
+ if( rows.size() == 1 ) {
+  delete_row( prev , issueMod );
+  return;
+  }
+
+ for( auto rit = rows.begin() ; ++rit < rows.end() ; ) {
+  if( *rit < prev )
+   throw( std::invalid_argument( "rows must be ordered increasing" ) );
+  prev = *rit;
+  }
+
+ if( prev >= v_A.size() )
+  throw( std::invalid_argument( "invalid names in rows" ) );
+
+ // mark stuff to be killed in v_A[] and v_b[]
+ for( auto idx : rows ) {
+  v_A[ idx ].clear();
+  v_b[ idx ] = Inf<FunctionValue>();
+  }
+
+ // kill stuff in v_A[]
+ v_A.erase( remove_if( v_A.begin() + rows.front() , v_A.end() ,
+		       []( std::vector < FunctionValue > & ai ) {
+			return( ai.empty() );
+		        }
+		       ) , v_A.end() );
+
+ // kill stuff in v_b[]
+ v_b.erase( remove_if( v_b.begin() + rows.front() , v_b.end() ,
+		       []( FunctionValue bi ) {
+			return( bi == Inf<FunctionValue>() );
+		        }
+		       ) , v_b.end() );
+
+ // now search and mark as deleted the rows in the global pool
+ Index todo = rows.size();
+ for( auto & gn : v_glob ) {
+  auto it = std::lower_bound( rows.begin() , rows.end() , gn );
+  if( ( it != rows.end() ) && ( *it == gn ) ) {
+   gn = Inf<Index>();
+   if( ! --todo )  // found them all
+    break;         // all done
+   }
+  }
+ 
+ f_value = - Inf<FunctionValue>();  // the function value has changed
+
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+  return;                  // noone is there: all done
+
+ // "nuclear modification" for Function: everything changed
+ f_Observer->add_Modification( std::make_shared<FunctionMod>( this ,
+				         FunctionMod::NaNshift ,
+				         Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
+
+ }  // end( PolyhedralFunction::delete_rows( all ) )
+
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunction::delete_row( c_Index i , c_ModParam issueMod )
+{
+ if( i >= v_A.size() )
+  throw( std::invalid_argument( "invalid names in rows" ) );
+
+ // kill i in v_A[]
+ v_A.erase( v_A.begin() + i );
+
+ // kill i in v_b[]
+ v_b.erase( v_b.begin() + i );
+
+ // now search and mark as deleted the row i in the global pool
+ for( auto & gn : v_glob )
+  if( gn == i ) {
+   gn = Inf<Index>();
+   break;
+   }
+ 
+ f_value = - Inf<FunctionValue>();  // the function value has changed
+
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+  return;                  // noone is there: all done
+
+ // issue the C05FunctionMod
+ f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+				    C05FunctionMod::AlphaChanged ,
+				    f_is_convex ? - FunctionMod::INFshift :
+				                  + FunctionMod::INFshift ,
+				    Observer::par2concern( issueMod ) ) ,
+				Observer::par2chnl( issueMod ) );
+
+ }  // end( PolyhedralFunction::delete_row )
+
+/*--------------------------------------------------------------------------*/
+
 void PolyhedralFunction::remove_variable( Variable *var , c_ModParam issueMod )
 {
  if( ! var )  // actually nothing to remove
