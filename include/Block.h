@@ -1543,17 +1543,30 @@ class Block : public Observer {
   * The defauly type (when the "conditional" parameter is at its default value
   * of false) is a globally valid upper bound, which is simply a value
   * guaranteed to be above the value of the [Real]Objective of any feasible
-  * solution. If the sense of the [Real]Objective is "maximization", then
-  * any feasible solution whose value is (approximately) equal to the value
-  * returned by this method is guaranteed to be an (approximately) optimal
-  * solution (although one has to "trust the Block" that the returned value is
-  * correct). If the sense of the [Real]Objective rather is "minimization",
-  * then this method rather provides a bound on "how much bad a solution can
-  * be", which may also have its uses.
+  * solution. If the sense of the [Real]Objective is "maximization" and the
+  * Block returns a *finite* globally valid upper bound:
   *
-  * Indeed, the latter concept is tied to the other type of upper bound, which
-  * is the one required when the "conditional" parameter is true: a
-  * "conditionally valid upper bound". The formal definition is the following:
+  * - this is a certificate that the problem is *not unbounded above*;
+  *
+  * - any feasible solution whose value is (approximately) equal to the value
+  *   returned by this method is guaranteed to be an (approximately) optimal
+  *   solution;
+  *
+  * although note that for both things one has to "trust the Block" that the
+  * returned value is correct. If the sense of the [Real]Objective rather is
+  * "minimization" and the Block returns a *finite* globally valid upper bound: 
+  *
+  * - this is a certificate that the problem is *not empty*;
+  *
+  * - the value returned by this method provides a bound on "how much bad a
+  *   solution can be";
+  *
+  * although again one has to "trust the Block" about the correctness of the
+  * returned value is correct. This (in particular the last part) may look
+  * rather weird, but it also has its uses. Indeed, it is tied to the other
+  * type of upper bound, which is the one required when the "conditional"
+  * parameter is true: a "conditionally valid upper bound". The formal
+  * definition is the following:
   *
   *    a value v is a conditionally valid upper bound for the problem if
   *    it is a valid upper bound on the optimal value of the problem
@@ -1564,13 +1577,13 @@ class Block : public Observer {
   *
   * - if the problem encoded by the Block is a maximization problem, then its
   *   optimal value being + infinity means that the problem is unbounded
-  *   above; then, v is a conditionally valid upper bound if whenever one
+  *   above; hence, v is a conditionally valid upper bound if whenever one
   *   finds a feasible solution whose objective value is greater than v, then
   *   the problem is unbounded above;
   *
   * - if the problem encoded by the Block is a minimization problem, then its
-  *   optimal value being + infinity means that the problem empty; then v is
-  *   a conditionally valid upper bound if whenever one finds a valid lower
+  *   optimal value being + infinity means that the problem is empty; hence, v
+  *   is a conditionally valid upper bound if whenever one finds a valid lower
   *   bound on the optimal value that is larger than v, then the problem is
   *   empty.
   *
@@ -1610,7 +1623,7 @@ class Block : public Observer {
   * know that v >= f(y) for all y \in Y (note, again, that (D) is a
   * minimization problem). Now, let us assume that we find some x \in X such
   * that c(x) > v: that is, we have found a valid lower bound on the optimal
-  * value of (D) which is greater than v. Then, (D) is empty as requiired by
+  * value of (D) which is greater than v. Then, (D) is empty as required by
   * the definition of conditionally valid upper bound for a minimization
   * problem (in this case, (D)). Indeed, assume there is any y \in Y: by weak
   * duality f(y) >= c(x) > v, but on the other hand by construction v >= f(y),
@@ -1634,8 +1647,8 @@ class Block : public Observer {
   *
   * The boolean parameter "conditional", if true, indicates that the required
   * upper bound only has to be conditionally valid, as opposed to globally
-  * valid. Note that the return value when the method is called with true
-  * can only be greater or equal to that when the method is called with false.
+  * valid. Note that the return value when the method is called with false
+  * can only be greater or equal to that when the method is called with true.
   * Indeed, when (P) is unbounded above ((D) is empty) then the only possible
   * globally valid upper bound can be +Infinity, but, as we have discussed,
   * there can be finite conditionally valid upper bounds.
@@ -1677,11 +1690,58 @@ class Block : public Observer {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// getting a global valid lower bound on the value of the Objective
- /** This method should return a global valid lower bound on the value of the
-  * Objective for *every possible feasible solution*. See the companion
-  * method  get_valid_upper_bound() for comments, obviously exchanging "min"
-  * with "max" and "+ infinity" with "- infinity" where appropriate (starting
-  * from the default return value). */
+ /** This method should return valid lower bounds on the optimal value of the
+  * Objective. See the companion method  get_valid_upper_bound() for comments,
+  * obviously exchanging "minimization" with "maximization", "+ infinity"
+  * with "- infinity" and unbounded with empty where appropriate. To
+  * summarize:
+  *
+  * - this method is virtual and its default implementation just returns
+  *   "- Infinity", i.e., "no lower bound".
+  *
+  * - when the "conditional" parameter is at its default value of false, the
+  *   method should return is a globally valid lower bound, which is a value
+  *   guaranteed to be below the value of the [Real]Objective of any feasible
+  *   solution. If the sense of the [Real]Objective is "minimization" and the
+  *   Block returns a *finite* globally valid lower bound:
+  *
+  *   - this is a certificate that the problem is *not unbounded below*;
+  *
+  *   - any feasible solution whose value is (approximately) equal to the value
+  *     returned by this method is guaranteed to be an (approximately) optimal
+  *     solution;
+  *
+  *   while if the sense of the [Real]Objective rather is "maximization" and
+  *   the Block returns a *finite* globally valid lower bound: 
+  *
+  *   - this is a certificate that the problem is *not empty*;
+  *
+  *   - the value returned by this method provides a bound on "how much bad a
+  *     solution can be".
+  *
+  * - when the "conditional" parameter is at true, the method shold return a
+  *   "conditionally valid upper bound", i.e., a value v such that
+  *
+  *    v is a valid lower bound on the optimal value of the problem
+  *    PROVIDED THAT THE OPTIMAL VALUE IS NOT -INFINITY
+  *
+  *   The interpretation is:
+  *
+  *   - if the problem encoded by the Block is a minimization problem, then
+  *     its optimal value being - infinity means that the problem is unbounded
+  *     below; hence, v is a conditionally valid lower bound if whenever one
+  *     finds a feasible solution whose objective value is smaller than v,
+  *     then the problem is unbounded below;
+  *
+  *   - if the problem encoded by the Block is a maximization problem, then its
+  *     optimal value being - infinity means that the problem is empty; hence,
+  *     v is a conditionally valid lower bound if whenever one finds a valid
+  *     upper bound on the optimal value that is smaller than v, then the
+  *     problem is empty.
+  *
+  * Conditionally valid lower bounds can sometimes be found by duality arguments
+  * and can be used as a convenient stopping condition in empty/unounded cases
+  * for algorithms solving the problem, possibly via duality. */
 
  virtual double get_valid_lower_bound( const bool conditional = false ) {
   return( - Inf<double>() );
