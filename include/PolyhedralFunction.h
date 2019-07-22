@@ -605,7 +605,7 @@ class PolyhedralFunction : public C05Function {
 
  /// completely resets the PolyhedralFunction with entirely new data
  /** Completely resets the PolyhedralFunction with entirely new data,
-  * but leaving the current set of n input Variable:
+  * but leaving the current set of n = get_num_active_var() input Variable:
   *
   * @param the MultiVector && A, a m-vector of n-vectors of FunctionValue
   *        representing the A matrix in the definition of the function;
@@ -763,6 +763,25 @@ class PolyhedralFunction : public C05Function {
 		    c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
+ /// modify one single row of the linear mapping
+ /** Modifies one row of the linear mapping:
+  *
+  * @param i is the index of the row to be modified;
+  *
+  * @param Ai is the new std::vector<FunctionValue>, with exactly n =
+  *        get_num_active_var() elements, to replace the existing vector of
+  *        coefficients in the i-th linear mapping; as the && tells, Ai
+  *        becomes "property" of the PolyhedralFunction object and physically
+  *        replaces the previous vector;
+  *
+  * @param bi is the new constant term of the i-th mapping;
+  *
+  * @param issueMod, which decides if and how the C05FunctionMod, is issued,
+  *        as described in Observer::make_par(). Note that the value of the
+  *        function has changed "unpredictably" (hence, the shift is NANshift)
+  *        and "all the linearizations may have changed" (the Modification type
+  *        is "AllLinearizationChanged"), although actually only one of them
+  *        has. */  
 
  void modify_row( c_Index i , std::vector<FunctionValue> && Ai ,
 		  c_FunctionValue bi , c_ModParam issueMod = eModBlck );
@@ -772,26 +791,98 @@ class PolyhedralFunction : public C05Function {
  /** Like modify_row(), but modify the constant term only for one row of the
   * linear mapping:
   *
-  */
+  * @param i is the index of the row to be modified;
+  *
+  * @param bi is the new constant term of the i-th mapping;
+  *
+  * @param issueMod, which decides if and how the C05FunctionMod, is issued,
+  *        as described in Observer::make_par(). Note that the value of the
+  *        function has changed "unpredictably" (hence, the shift is NANshift)
+  *        and "all the alphas may have changed" (the Modification type
+  *        is "AlphaChanged"), although actually only one of them has. */  
 
  void modify_constant( c_Index i , c_FunctionValue bi ,
 		       c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
+ /// add some rows to the linear mapping in the PolyhedralFunction
+ /**< Adds some rows to the linear mapping in the PolyhedralFunction, leaving
+  * the current set of n = get_num_active_var() input Variable and all the
+  * current rows:
+  *
+  * @param the MultiVector && nA, a k-vector of n-vectors of FunctionValue
+  *        representing the new rows of the A matrix in the definition of the
+  *        function; entry nA[ i ][ j ] is (obviously) meant to be the
+  *        coefficient of variable *x[ j ] for the i-th new row; as the &&
+  *        tells, the object (most likely, its individual rows) becomes
+  *         "property" of the PolyhedralFunction.
+  *
+  * @param the std::vector<FunctionValue> & b, a k-vector of FunctionValue
+  *        representing the new entries of b vector in the definition of the
+  *        function (that is, b[ i ] is the constant factor of the new i-th
+  *        linear form);
+  *
+  * @param issueMod, which decides if and how the C05FunctionMod is issued,
+  *        as described in Observer::make_par().
+  *
+  * Note that adding new rows makes a "max" (convex) function to increase in
+  * value and a "min" (concave) one to decrease in value, but all existing
+  * linearization are still valid ones, which is the poster case for the
+  * weird-ish setting C05FunctionMod::NothingChanged for the f_type of the
+  * C05FunctionMod. */
 
- void add_rows( MultiVector && nA , std::vector<FunctionValue> && nb ,
+ void add_rows( MultiVector && nA , std::vector<FunctionValue> & nb ,
 		c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// add one single new row to the linear mapping
  /** Like add_row(), but just only one row of the linear mapping:
   *
-  */
+  * @param Ai is the std::vector<FunctionValue>, with exactly n =
+  *        get_num_active_var() elements, with the coefficients of the new
+  *        row in the mapping; as the && tells, Ai becomes "property" of the
+  *        PolyhedralFunction object;
+  *
+  * @param bi is the constant term of the new row in the mapping;
+  *
+  * @param issueMod, which decides if and how the C05FunctionMod is issued,
+  *        as described in Observer::make_par().
+  *
+  * Note that adding a new row makes a "max" (convex) function to increase in
+  * value and a "min" (concave) one to decrease in value, but all existing
+  * linearization are still valid ones, which is the poster case for the
+  * weird-ish setting C05FunctionMod::NothingChanged for the f_type of the
+  * C05FunctionMod. */
 
  void add_row( std::vector<FunctionValue> && Ai , c_FunctionValue bi ,
 	       c_ModParam issueMod = eModBlck );
  
 /*--------------------------------------------------------------------------*/
+ /// deletes some rows from the linear mapping in the PolyhedralFunction
+ /**< Deletes some rows from the linear mapping in the PolyhedralFunction,
+  * leaving the current set of n = get_num_active_var() input Variable and
+  * all rows that are not explicitly deleted:
+  *
+  * @param the MultiVector && nA, a k-vector of n-vectors of FunctionValue
+  *        representing the new rows of the A matrix in the definition of the
+  *        function; entry nA[ i ][ j ] is (obviously) meant to be the
+  *        coefficient of variable *x[ j ] for the i-th new row; as the &&
+  *        tells, the object (most likely, its individual rows) becomes
+  *         "property" of the PolyhedralFunction.
+  *
+  * @param the std::vector<FunctionValue> & b, a k-vector of FunctionValue
+  *        representing the new entries of b vector in the definition of the
+  *        function (that is, b[ i ] is the constant factor of the new i-th
+  *        linear form);
+  *
+  * @param issueMod, which decides if and how the C05FunctionMod is issued,
+  *        as described in Observer::make_par().
+  *
+  * Note that adding new rows makes a "max" (convex) function to increase in
+  * value and a "min" (concave) one to decrease in value, but all existing
+  * linearization are still valid ones, which is the poster case for the
+  * weird-ish setting C05FunctionMod::NothingChanged for the f_type of the
+  * C05FunctionMod. */
 
  void delete_rows( std::vector<Index> rows = {} ,
 		   c_ModParam issueMod = eModBlck );

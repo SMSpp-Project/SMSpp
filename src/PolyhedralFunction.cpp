@@ -351,7 +351,7 @@ void PolyhedralFunction::add_variables( Vec_p_Var && nx , MultiVector && nA ,
   if( a.size() != nn )
    throw( std::invalid_argument( "all rows nA must have the size of nx" ) );
 
- const Index n = x.size();
+ const Index n = v_x.size();
 
  if( ! n ) {    // very easy case: adding to nothing
   v_A = std::move( nA );
@@ -361,336 +361,254 @@ void PolyhedralFunction::add_variables( Vec_p_Var && nx , MultiVector && nA ,
    *(tvx++) = nxi;
 
   // now issue the C05FunctionModVars
-  f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
+  if( f_Observer && f_Observer->issue_mod( issueMod ) )
+   f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
                                          FunctionModVars::AddVar ,
 					 std::move( nx ) , true , 0 , true ,
 					 Observer::par2concern( issueMod ) ) ,
-				Observer::par2chnl( issueMod ) );
-  // all done
-  return;
+				 Observer::par2chnl( issueMod ) );
+  return;  // all done
   }
 
  if( nx.front() > v_x.back() )  {  // easy case: adding at the end
-
   for( Index i = 0 ; i < v_A.size() ; ++i ) {
    v_A[ i ].resize( n + nn );
    std::copy( nA[ i ].begin() , nA[ i ].end() , v_A[ i ].begin() + n );
    }
 
   // now issue the C05FunctionModVars
-  f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
+  if( f_Observer && f_Observer->issue_mod( issueMod ) )
+   f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
                                          FunctionModVars::AddVar ,
 					 std::move( nx ) , true , 0 , true ,
 					 Observer::par2concern( issueMod ) ) ,
-				Observer::par2chnl( issueMod ) );
-  // all done
-  return;
+				 Observer::par2chnl( issueMod ) );
+  return;  // all done
   }
 
  if( nx.back() < v_x.front() )  {  // easy-ish case: adding at the beginning
-
   for( Index i = 0 ; i < v_A.size() ; ++i )
    v_A[ i ].insert( v_A.begin() , nA[ i ].begin() , nA[ i ].end() );
 
   // now issue the C05FunctionModVars
-  f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
+  if( f_Observer && f_Observer->issue_mod( issueMod ) )
+   f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
                                          FunctionModVars::AddVar ,
 					 std::move( nx ) , true , 0 , true ,
 					 Observer::par2concern( issueMod ) ) ,
-				Observer::par2chnl( issueMod ) );
-  // all done
-  return;
+				 Observer::par2chnl( issueMod ) );
+  return;  // all done
   }
 
  // nasty general case: add somewhere in the middle
- 
+
+ // newpos[ i ] = position of nx[ i ] in the merged vector
+ // oldpos[ i ] = position of v_x[ i ] in the merged vector
  std::vector<Index> newpos;  // position of new variables in new vectors
  std::vector<Index> oldpos;  // position of old variables in new vectors
  
  auto npi = newpos.begin();
  auto opi = oldpos.begin();
+ auto nxi = nx.begin();
+ auto xi = v_x.begin();
+ Index i = 0;
+ for( ; ( nxi != nx.end ) && ( xi != v_x.end() ) ; )
+  if( *nxi == *xi )
+   throw( std::invalid_argument( "some variable already present" ) );
+  else
+   if( *nxi < *xi ) {
+    *(npi++) = i++;
+    ++nxi;
+    }
+   else {
+    *(opi++) = i++;
+    ++xi;
+    }
+   
+ for( ; nxi != nx.end ; ) {
+  *(npi++) = i++;
+  ++nxi;
+  }
+
+ for( ; xi != v_x.end() ; ) {
+  *(opi++) = i++;
+  ++xi;
+  }
+
+ assert( i == n + nn );
+
+ // merge v_x and nx
+ VarVector t_x( n + nn );
+ for( i = n ; i-- ; )
+  t_x[ oldpos[ i ] ] = v_x[ i ];
+ for( i = 0 ; i < n ; ++i )
+  t_x[ newpos[ i ] ] = nx[ i ];
  
-   v_coeff_pair join( vars.size() + v_pairs.size() );
-  auto newit = vars.begin();
-  auto oldit = v_pairs.begin();
-  auto joinit = join.begin();
-  for( ; ( newit != vars.end() ) && ( oldit != v_pairs.end() ) ; ) {
-   if( newit->first == oldit->first )
-    throw( std::invalid_argument(
-       "add_variables: some Variable is already active in the Function" ) );
+ v_x = std::move( t_x );
 
-   if( newit->first < oldit->first )
-    *(joinit++) = *(newit++);
-   else
-    *(joinit++) = *(oldit++);
-   }
+ // merge v_A and nA
+ for( Index j = 0 ; j < v_A.size() ; ++j ) {
+  std::vector < FunctionValue > Aj( n + nn );
+  for( i = n ; i-- ; )
+   Aj[ oldpos[ i ] ] = v_A[ i ];
+  for( i = 0 ; i < n ; ++i )
+   Aj[ newpos[ i ] ] = nA[ i ];
 
-  for( ; newit != vars.end() ; )
-   *(joinit++) = *(newit++);
-
-  for( ; oldit != v_pairs.end() ; )
-   *(joinit++) = *(oldit++);
-
-  v_pairs = std::move( join );
-
+  v_A[ j ] = std::move( Aj );
   }
 
  // now issue the C05FunctionModVars
- f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
+ if( f_Observer && f_Observer->issue_mod( issueMod ) )
+  f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
                                          FunctionModVars::AddVar ,
 					 std::move( nx ) , true , 0 , true ,
 					 Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
+				Observer::par2chnl( issueMod ) );
 
  }  // end( PolyhedralFunction::add_variables )
 
 /*--------------------------------------------------------------------------*/
 
 void PolyhedralFunction::add_variable( ColVariable * const var ,
-                                   const Coefficient coeff ,
-				   c_ModParam issueMod )
+				       const std::vector<FunctionValue> & Aj ,
+				       c_ModParam issueMod )
 {
  if( var == nullptr )  // actually nothing to add
   return;              // cowardly (and silently) return
 
- auto pair = std::make_pair( var , coeff );
+ auto itr = std::lower_bound( v_x.begin() , v_x.end() , var );
+ if( *itr == var ) 
+  throw( std::invalid_argument( "var is already present" ) );
 
- if( v_pairs.empty() )  // adding to nothing
-  v_pairs.push_back( pair );
- else {                     // adding to a nonempty set
-  // search where the variable lives
-  auto itv = std::lower_bound( v_pairs.begin() , v_pairs.end() , pair ,
-			       []( const coeff_pair &a , const coeff_pair &b )
-			         { return( a.first < b.first ); } );
-  if( itv != v_pairs.end() ) {  // in the middle of the list
-   if( itv->first == var )
-    throw( std::invalid_argument( "add_variables: var is already active" ) );
+ auto pos = std::distance( v_x.begin() , itr );
 
-   v_pairs.insert( itv , pair );
-   }
-  else                           // at the end of the list
-   v_pairs.push_back( pair );
-  }
+ v_x.insert( itr , var );
+
+
+ for( Index j = 0 ; j < v_A.size() ; ++j )
+  v_A[ j ].insert( v_A[ j ].begin() + pos , Aj[ j ] );
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
 
- // a linear function is additive ==> strongly quasi-additive
- // note that there is only one Variable, hence it is ordered
  f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
-				      FunctionModVars::AddVar ,
-				      Vec_p_Var( { var } ) , true , 0 , true ,
-				      Observer::par2concern( issueMod ) ) ,
+                                         FunctionModVars::AddVar ,
+					 { var } , true , 0 , true ,
+					 Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 
  }  // end( PolyhedralFunction::add_variable )
 
 /*--------------------------------------------------------------------------*/
 
-void LinearFunction::modify_coefficient( ColVariable * const var ,
-					 const Coefficient coeff ,
-					 c_ModParam issueMod )
+void PolyhedralFunction::modify_row( c_Index i ,
+				     std::vector<FunctionValue> && Ai ,
+				     c_FunctionValue bi , c_ModParam issueMod )
 {
- if( var == nullptr )  // actually nothing to modify
-  return;              // cowardly (and silently) return
+ if( i >= v_A.size() )
+  throw( std::invalid_argument( "wrong row name" ) );
 
- // look for position of var
- auto itv = std::find_if( v_pairs.begin() , v_pairs.end() ,
-			  [ var ]( const coeff_pair &p )
-                                 { return( p.first == var ); } );
+ v_A[ i ] = std::move( Ai );
+ v_b[ i ] = bi;
 
- if( itv == v_pairs.end() ) // if the Variable is not there
-  throw( std::invalid_argument( "modify_coefficient: Variable is not active" )
-	 );
-
- if( itv->second == coeff )  // actually nothing to modify
-  return;                    // cowardly (and silently) return
-
- auto diff = coeff - itv->second;
- itv->second = coeff;        // modify the coefficient
+ f_value = - Inf<FunctionValue>();  // the function value has changed
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;                  // noone is there: all done
 
- f_Observer->add_Modification( std::make_shared<C05FunctionModLin>( this ,
-			                 Vec_FunctionValue( { diff } ) ,
-			                 Vec_p_Var( { var } ) , true ,
-					 FunctionMod::NaNshift ,
-					 Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
-
- }  // end( LinearFunction::modify_coefficient )
-
-/*--------------------------------------------------------------------------*/
-
-void LinearFunction::modify_coefficients( v_coeff_pair & vars ,
-                                          const bool ordered  ,
-					  c_ModParam issueMod )
-{
- if( vars.empty() )  // actually nothing to modify
-  return;            // all done
-
- if( v_pairs.empty() )  // modifying nothing
-  throw( std::logic_error( "modifying an empty set" ) );
-
- if( ! ordered )
-  std::sort( vars.begin() , vars.end() , []( const coeff_pair & x ,
-                                             const coeff_pair & y ) {
-                                          return( x.first < y.first );
-                                          }
-	     );
-
- auto itv = v_pairs.begin();
-
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) ) {
-  // noone is there: just do it
-  for( auto it = vars.begin() ; it != vars.end() ; ++it , ++itv ) {
-   // look for position of next variable to be modified
-   itv = std::find_if( itv , v_pairs.end() ,
-		       [ &it ]( const coeff_pair &p )
-		              { return( p.first == it->first ); } );
-
-   if( itv == v_pairs.end() )  // if the variable is not there
-    throw( std::invalid_argument(
-			"modify_coefficients: some Variable is not active" ) );
-
-   itv->second = it->second;  // modify the coefficient
-   }
-  }
- else {
-  // somebody is there: meanwhile, prepare data for the Modification
-  
-  Vec_p_Var vp( vars.size() );
-  Function::Vec_FunctionValue delta( vars.size() );
-
-  Index i = 0;
-  for( auto it = vars.begin() ; it != vars.end() ; ++it , ++itv ) {
-   // look for position of next variable to be modified
-   itv = std::find_if( itv , v_pairs.end() ,
-		       [ &it ]( const coeff_pair &p )
-		              { return( p.first == it->first ); } );
-
-   if( itv == v_pairs.end() )  // if the variable is not there
-    throw( std::invalid_argument(
-			"modify_coefficients: some Variable is not active" ) );
-
-   vp[ i ] = itv->first;
-   delta[ i++ ] = it->second - itv->second;
-   itv->second = it->second;  // modify the coefficient
-   }
-
-  // now issue the Modification
-  f_Observer->add_Modification( std::make_shared<C05FunctionModLin>( this ,
-			                 std::move( delta ) , std::move( vp ) ,
-					 true , FunctionMod::NaNshift ,
-					 Observer::par2concern( issueMod ) ) ,
+ // issue the C05FunctionMod
+ f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+				     C05FunctionMod::AllLinearizationChanged ,
+			             NANshift ,
+				     Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
-  }
- }  // end( LinearFunction::modify_coefficients( subset ) )
+
+ }  // end( PolyhedralFunction::modify_row )
 
 /*--------------------------------------------------------------------------*/
 
-void LinearFunction::modify_coefficients( c_v_coeff_it NCoef ,
-					  c_Vec_Index &nms ,
-					  const bool ordered ,
+void PolyhedralFunction::modify_constant( c_Index i , c_FunctionValue bi ,
 					  c_ModParam issueMod )
 {
- if( ! nms.size() )
-  return;
+ if( i >= v_A.size() )
+  throw( std::invalid_argument( "wrong row name" ) );
 
- if( v_pairs.empty() )  // modifying from nothing
-  throw( std::logic_error( "modifying an empty set" ) );
+ v_b[ i ] = bi;
 
- if( nms.front() >= v_pairs.size() )  // if the first name is wrong
-  throw( std::invalid_argument( "wrong index in LinearFunction" ) );
+ f_value = - Inf<FunctionValue>();  // the function value has changed
 
- if( nms.back() >= v_pairs.size() )  // if the last name is wrong
-  throw( std::invalid_argument( "wrong index in LinearFunction" ) );
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+  return;                  // noone is there: all done
 
- if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
-  // somebody is there: meanwhile, prepare data for the Modification
+ // issue the C05FunctionMod
+ f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+				         C05FunctionMod::AlphaChanged ,
+			                 NANshift ,
+				         Observer::par2concern( issueMod ) ) ,
+				Observer::par2chnl( issueMod ) );
 
-  Vec_p_Var vp( nms.size() );
-  Function::Vec_FunctionValue delta( nms.size() );
+ }  // end( PolyhedralFunction::modify_constant )
 
-  auto vpit = vp.begin();
-  auto deltait = delta.begin();
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunction::add_rows( MultiVector && nA ,
+				   std::vector<FunctionValue> & nb ,
+				   c_ModParam issueMod )
+{
+ const Index k = nA.size();
+ if( k != nb.size() )
+  throw( std::invalid_argument( "nA and nb must have the same size" ) );
+
+ const Index n = v_x.size();
+ for( auto & a : nA )
+  if( a.size() != n )
+   throw( std::invalid_argument( "some rows of nA have a wrong size" ) );
+
+ v_A.insert( v_A.end() , std::make_move_iterator( nA.begin() ) , 
+                         std::make_move_iterator( nA.end() ) );
+
+ v_b.insert( v_b.end() , nb.begin(), nb.end() );
  
-  if( ordered ) {
-   for( auto it = nms.begin() ; it < nms.end() ; ) {
-    *(deltait++) = *NCoef - v_pairs[ *it ].second;
-    *(vpit++) = v_pairs[ *it ].first;
-    v_pairs[ *(it++) ].second = *(NCoef++);
-    }
-   }
-  else {
-   std::vector<Index> ord( nms.size() );
-   std::iota( ord.begin() , ord.end() , 0 );
-   std::sort( ord.begin() , ord.end() ,
-	      [ & nms ]( Index i , Index j ) {
-	       return( nms[ i ] < nms[ j ] ); }
-	      );
-   for( auto ordi = ord.begin() ; ordi < ord.end() ; ) {
-    auto nci = *(NCoef + *ordi);
-    auto ni = nms[ *(ordi++) ];
-    *(deltait++) = nci - v_pairs[ ni ].second;
-    *(vpit++) = v_pairs[ ni ].first;
-    v_pairs[ ni ].second = nci;
-    }
-   }
+ f_value = - Inf<FunctionValue>();  // the function value has changed
 
-  // now issue the Modification
-  f_Observer->add_Modification( std::make_shared<C05FunctionModLin>( this ,
-			                 std::move( delta ) , std::move( vp ) ,
-					 true , FunctionMod::NaNshift ,
-					 Observer::par2concern( issueMod ) ) ,
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+  return;                  // noone is there: all done
+
+ // issue the C05FunctionMod
+ f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+				      C05FunctionMod::NothingChanged ,
+				      f_is_convex ? FunctionMod::INFshift :
+				                  - FunctionMod::INFshift ,
+				      Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
-  }
- else  // noone is there: just do it
-  for( auto it = nms.begin() ; it < nms.end() ; )
-   v_pairs[ *(it++) ].second = *(NCoef++);
 
- }  // end( LinearFunction::modify_coefficients( indices ) )
+ }  // end( PolyhedralFunction::add_rows )
 
 /*--------------------------------------------------------------------------*/
 
-void LinearFunction::modify_coefficients( c_v_coeff_it NCoef , c_Index strt ,
-					  Index stop , c_ModParam issueMod )
+void PolyhedralFunction::add_row( std::vector<FunctionValue> && Ai ,
+				  c_FunctionValue bi , c_ModParam issueMod )
 {
- stop = std::min( stop , c_Index( v_pairs.size() ) );
- if( stop <= strt )
-  return;
+ if( Ai.size() != v_x.size() )
+  throw( std::invalid_argument( "Ai has a wrong size" ) );
 
- auto strtit = v_pairs.begin() + strt;
- const auto stopit = v_pairs.begin() + stop;
+ v_A.push_back( std::move( Ai ) );
+ v_b.push_back( bi );
 
- if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
-  // somebody is there: meanwhile, prepare data for the Modification
+ f_value = - Inf<FunctionValue>();  // the function value has changed
 
-  Vec_p_Var vp( stop - strt );
-  Function::Vec_FunctionValue delta( stop - strt );
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+  return;                  // noone is there: all done
 
-  auto vpit = vp.begin();
-  Index i = 0;
-
-  while( strtit < stopit ) {
-   delta[ i++ ] = *NCoef - (*strtit).second;
-   (*(vpit++)) = (*strtit).first;
-   (*(strtit++)).second = *(NCoef++);
-   }
-
-  // now issue the Modification
-  f_Observer->add_Modification( std::make_shared<C05FunctionModLin>( this ,
-			                 std::move( delta ) , std::move( vp ) ,
-					 true , FunctionMod::NaNshift ,
-					 Observer::par2concern( issueMod ) ) ,
+ // issue the C05FunctionMod
+ f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+				      C05FunctionMod::NothingChanged ,
+				      f_is_convex ? FunctionMod::INFshift :
+				                  - FunctionMod::INFshift ,
+				      Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
-  }
- else  // noone is there: just do it
-  while( strtit < stopit )
-   (*(strtit++)).second = *(NCoef++);
 
- }  // end( LinearFunction::modify_coefficients( range ) )
+ }  // end( PolyhedralFunction::add_row )
 
 /*--------------------------------------------------------------------------*/
 
