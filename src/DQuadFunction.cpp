@@ -356,197 +356,214 @@ void DQuadFunction::add_variable( ColVariable * const var ,
 
 /*--------------------------------------------------------------------------*/
 
-void DQuadFunction::modify_term( ColVariable * const var ,
-				 const Coefficient linear_coeff ,
-				 const Coefficient quadratic_coeff ,
-				 c_ModParam issueMod )
-{
+void DQuadFunction::modify_term( ColVariable * const var,
+                                 const Coefficient linear_coeff,
+                                 const Coefficient quadratic_coeff,
+                                 c_ModParam issueMod ) {
  if( var == nullptr )  // actually nothing to modify
   return;              // cowardly (and silently) return
 
- // look for position of var
- auto itv = std::find_if( v_triples.begin() , v_triples.end() ,
-			  [ var ]( const var_coeff_coeff_triple &p )
-			  { return( std::get<0>( p ) == var ); } );
+ auto itv = std::lower_bound( v_triples.begin(),
+                              v_triples.end(),
+                              std::make_tuple( var, 0, 0 ),
+                              []( const auto & p1, const auto & p2 ) {
+                               return ( std::get< 0 >( p1 ) <
+                                        std::get< 0 >( p2 ) );
+                              } );
 
  if( itv == v_triples.end() ) // if the Variable is not there
-  throw( std::invalid_argument( "Variable is not active" ) );
+  throw ( std::invalid_argument( "Variable is not active" ) );
 
- if( ( std::get<1>( *itv ) == linear_coeff ) &&
-     ( std::get<2>( *itv ) == quadratic_coeff ) ) // actually nothing to modify
+ if( ( std::get< 1 >( *itv ) == linear_coeff ) &&
+     ( std::get< 2 >( *itv ) == quadratic_coeff ) ) // actually nothing to modify
   return;                                    // cowardly (and silently) return
 
- std::get<1>( *itv ) = linear_coeff;     // modify the linear coefficient in
- std::get<2>( *itv ) = quadratic_coeff;  // modify the quadratic coefficient
+ std::get< 1 >( *itv ) = linear_coeff;     // modify the linear coefficient in
+ std::get< 2 >( *itv ) = quadratic_coeff;  // modify the quadratic coefficient
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( !f_Observer || !f_Observer->issue_mod( issueMod ) )
   return;                  // noone is there: all done
 
- f_Observer->add_Modification( std::make_shared<C05FunctionModSbst>( this ,
-				    C05FunctionMod::AllLinearizationChanged ,
-				    Vec_p_Var( { var } ) , true ,
-				    FunctionMod::NaNshift ,
-				    Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
+ f_Observer->add_Modification(
+  std::make_shared< C05FunctionModSbst >( this,
+                                          C05FunctionMod::AllLinearizationChanged,
+                                          Vec_p_Var( { var } ),
+                                          true,
+                                          FunctionMod::NaNshift,
+                                          Observer::par2concern( issueMod ) ),
+  Observer::par2chnl( issueMod ) );
 
- }  // end( DQuadFunction::modify_term )
+}  // end( DQuadFunction::modify_term )
 
 /*--------------------------------------------------------------------------*/
 
-void DQuadFunction::modify_linear_coefficient( ColVariable * const var ,
-					       const Coefficient coeff ,
-					       c_ModParam issueMod )
-{
+void DQuadFunction::modify_linear_coefficient( ColVariable * const var,
+                                               const Coefficient coeff,
+                                               c_ModParam issueMod ) {
  if( var == nullptr )  // actually nothing to modify
   return;              // cowardly (and silently) return
 
  // look for position of var
- auto itv = std::find_if( v_triples.begin() , v_triples.end() ,
-			  [ var ]( const var_coeff_coeff_triple &p )
-			  { return( std::get<0>( p ) == var ); } );
+ auto itv = std::lower_bound( v_triples.begin(),
+                              v_triples.end(),
+                              std::make_tuple( var, 0, 0 ),
+                              []( const auto & p1, const auto & p2 ) {
+                               return ( std::get< 0 >( p1 ) <
+                                        std::get< 0 >( p2 ) );
+                              } );
 
  if( itv == v_triples.end() ) // if the Variable is not there
-  throw( std::invalid_argument( "Variable is not active" ) );
+  throw ( std::invalid_argument( "Variable is not active" ) );
 
- if( std::get<1>( *itv ) == coeff )  // actually nothing to modify
+ if( std::get< 1 >( *itv ) == coeff )  // actually nothing to modify
   return;                            // cowardly (and silently) return
 
- auto diff = coeff - std::get<1>( *itv );
- std::get<1>( *itv ) = coeff;        // modify the linear coefficient
+ auto diff = coeff - std::get< 1 >( *itv );
+ std::get< 1 >( *itv ) = coeff;        // modify the linear coefficient
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( !f_Observer || !f_Observer->issue_mod( issueMod ) )
   return;                            // noone is there: all done
 
- f_Observer->add_Modification( std::make_shared<C05FunctionModLin>( this ,
-			                Vec_FunctionValue( { diff } ),
-			                Vec_p_Var( { var } ) , true ,
-			                FunctionMod::NaNshift ,
-			                Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
+ f_Observer->add_Modification(
+  std::make_shared< C05FunctionModLin >( this,
+                                         Vec_FunctionValue( { diff } ),
+                                         Vec_p_Var( { var } ), true,
+                                         FunctionMod::NaNshift,
+                                         Observer::par2concern( issueMod ) ),
+  Observer::par2chnl( issueMod ) );
 
- }  // end( DQuadFunction::modify_linear_coefficient )
+}  // end( DQuadFunction::modify_linear_coefficient )
 
 /*--------------------------------------------------------------------------*/
 
-void DQuadFunction::modify_terms( v_var_coeff_coeff_triple && vars ,
-				  const bool ordered , c_ModParam issueMod )
-{
+void DQuadFunction::modify_terms( v_var_coeff_coeff_triple && vars,
+                                  const bool ordered,
+                                  c_ModParam issueMod ) {
  if( vars.empty() )  // actually nothing to modify
   return;            // all done
 
  if( v_triples.empty() )  // modifying nothing
-  throw( std::logic_error( "modifying an empty set" ) );
+  throw ( std::logic_error( "modifying an empty set" ) );
 
- if( ! ordered )
-  std::sort( vars.begin() , vars.end() ,
-	     []( const var_coeff_coeff_triple & x ,
-		 const var_coeff_coeff_triple & y ) {
-	       return( std::get<0>( x ) < std::get<0>( y ) );
-	     }
-	     );
+ if( !ordered )
+  std::sort( vars.begin(), vars.end(),
+             []( const var_coeff_coeff_triple & x,
+                 const var_coeff_coeff_triple & y ) {
+              return ( std::get< 0 >( x ) < std::get< 0 >( y ) );
+             }
+  );
 
  auto itv = v_triples.begin();
- for( auto it = vars.begin() ; it != vars.end() ; ++it , ++itv ) {
+
+ for( auto it = vars.begin(); it != vars.end(); ++it, ++itv ) {
   // look for position of next variable to be modified
-  itv = std::find_if( itv , v_triples.end() ,
-                      [ &it ]( const var_coeff_coeff_triple &p )
-		      { return( std::get<0>( p ) == std::get<0>( *it ) ); } );
+  itv = std::lower_bound( itv, v_triples.end(),
+                          *it,
+                          []( const auto & a, const auto & b ) {
+                           return ( std::get< 0 >( a ) == std::get< 0 >( b ) );
+                          } );
 
   if( itv == v_triples.end() )  // if the variable is not there
-   throw( std::invalid_argument( "some Variable is not active" ) );
+   throw ( std::invalid_argument( "some Variable is not active" ) );
 
-  std::get<1>( *itv ) = std::get<1>( *it );  // modify the linear coefficient
-  std::get<2>( *itv ) = std::get<2>( *it );  // modify the quadratic coefficient
-  }
+  std::get< 1 >( *itv ) = std::get< 1 >( *it );  // modify the linear coefficient
+  std::get< 2 >( *itv ) = std::get< 2 >( *it );  // modify the quadratic coefficient
+ }
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( !f_Observer || !f_Observer->issue_mod( issueMod ) )
   return;                  // noone is there: all done
 
  Vec_p_Var vp( vars.size() );
- for( Index i = 0 ; i < vars.size() ; ++i )
-   vp[ i ] = std::get<0>( vars[ i ] );
+ for( Index i = 0; i < vars.size(); ++i )
+  vp[ i ] = std::get< 0 >( vars[ i ] );
 
- f_Observer->add_Modification( std::make_shared<C05FunctionModSbst>( this ,
-				    C05FunctionMod::AllLinearizationChanged ,
-				    std::move( vp ) , true ,
-				    FunctionMod::NaNshift ,
-				    Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
+ f_Observer->add_Modification(
+  std::make_shared< C05FunctionModSbst >( this,
+                                          C05FunctionMod::AllLinearizationChanged,
+                                          std::move( vp ), true,
+                                          FunctionMod::NaNshift,
+                                          Observer::par2concern( issueMod ) ),
+  Observer::par2chnl( issueMod ) );
 
- }  // end( DQuadFunction::modify_terms( subset ) )
+}  // end( DQuadFunction::modify_terms( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
-void DQuadFunction::modify_linear_coefficients( Vec_FunctionValue && NCoef ,
-						Vec_p_Var && vars ,
-						const bool ordered ,
-						c_ModParam issueMod )
-{
+void DQuadFunction::modify_linear_coefficients( Vec_FunctionValue && NCoef,
+                                                Vec_p_Var && vars,
+                                                const bool ordered,
+                                                c_ModParam issueMod ) {
  if( vars.size() != NCoef.size() )
-  throw( std::invalid_argument( "vars and NCoef sizes do not match" ) );
+  throw ( std::invalid_argument( "vars and NCoef sizes do not match" ) );
 
- if( ! ordered ) {
-  std::vector<Index> ord( vars.size() );
-  std::iota( ord.begin() , ord.end() , 0 );
-  std::sort( ord.begin() , ord.end() ,
-	     [ & vars ]( Function::Index i , Function::Index j ) {
-	      return( vars[ i ] < vars[ j ] ); }
-	      );
+ if( !ordered ) {
+  std::vector< Index > ord( vars.size() );
+  std::iota( ord.begin(), ord.end(), 0 );
+  std::sort( ord.begin(), ord.end(),
+             [ & vars ]( Function::Index i, Function::Index j ) {
+              return ( vars[ i ] < vars[ j ] );
+             } );
   Vec_FunctionValue nc( vars.size() );
   Vec_p_Var v( vars.size() );
-  for( Function::Index i = 0 ; i < ord.size() ; ++i ) {
+  for( Function::Index i = 0; i < ord.size(); ++i ) {
    nc[ i ] = NCoef[ ord[ i ] ];
    v[ i ] = vars[ ord[ i ] ];
-   }
+  }
   NCoef = std::move( nc );
   vars = std::move( v );
-  }
+ }
 
  auto itv = v_triples.begin();
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) ) {
+ if( !f_Observer || !f_Observer->issue_mod( issueMod ) ) {
   // noone is there: just do it
 
-  for( Index i = 0 ; i < vars.size() ; ) {
+  for( Index i = 0; i < vars.size(); ) {
    // look for position of next variable to be modified
    auto var = vars[ i ];
-   itv = std::find_if( itv , v_triples.end() ,
-		       [ &var ]( const var_coeff_coeff_triple &p )
-		       { return( std::get<0>( p ) == var ); } );
+   itv = std::lower_bound( itv, v_triples.end(),
+                           var,
+                           []( const var_coeff_coeff_triple & p,
+                               const Variable * v ) {
+                            return ( std::get< 0 >( p ) < v );
+                           } );
 
    if( itv == v_triples.end() )  // if the variable is not there
-    throw( std::invalid_argument( "some Variable is not active" ) );
+    throw ( std::invalid_argument( "some Variable is not active" ) );
 
-   std::get<1>( *itv ) = NCoef[ i++ ];  // modify the linear coefficient
-   }
+   std::get< 1 >( *itv ) = NCoef[ i++ ];  // modify the linear coefficient
   }
- else {
+ } else {
   // somebody is there: meanwhile, prepare data for the Modification
 
-  for( Index i = 0 ; i < vars.size() ; ) {
+  for( Index i = 0; i < vars.size(); ) {
    // look for position of next variable to be modified
    auto var = vars[ i ];
-   itv = std::find_if( itv , v_triples.end() ,
-		       [ &var ]( const var_coeff_coeff_triple &p )
-		       { return( std::get<0>( p ) == var ); } );
+   itv = std::lower_bound( itv, v_triples.end(),
+                           var,
+                           []( const var_coeff_coeff_triple & p,
+                               const Variable * v ) {
+                            return ( std::get< 0 >( p ) < v );
+                           } );
 
    if( itv == v_triples.end() )  // if the variable is not there
-    throw( std::invalid_argument( "some Variable is not active" ) );
+    throw ( std::invalid_argument( "some Variable is not active" ) );
 
-   auto diff = NCoef[ i ] - std::get<1>( *itv );
-   std::get<1>( *itv ) = NCoef[ i ];  // modify the linear coefficient
+   auto diff = NCoef[ i ] - std::get< 1 >( *itv );
+   std::get< 1 >( *itv ) = NCoef[ i ];  // modify the linear coefficient
    NCoef[ i++ ] = diff;
-   }
+  }
 
   // now issue the Modification
-  f_Observer->add_Modification( std::make_shared<C05FunctionModLin>( this ,
-					std::move( NCoef ) ,
-					std::move( vars ) , true ,
-			                FunctionMod::NaNshift ,
-			                Observer::par2concern( issueMod ) ) ,
-				Observer::par2chnl( issueMod ) );
-  }
- }  // end( DQuadFunction::modify_linear_coefficients )
+  f_Observer->add_Modification(
+   std::make_shared< C05FunctionModLin >( this,
+                                          std::move( NCoef ),
+                                          std::move( vars ), true,
+                                          FunctionMod::NaNshift,
+                                          Observer::par2concern( issueMod ) ),
+   Observer::par2chnl( issueMod ) );
+ }
+}  // end( DQuadFunction::modify_linear_coefficients )
 
 /*--------------------------------------------------------------------------*/
 
@@ -630,38 +647,39 @@ void DQuadFunction::modify_terms( c_v_coeff_coeff_it NCoef ,
 
 /*--------------------------------------------------------------------------*/
 
-void DQuadFunction::remove_variable( Variable *var , c_ModParam issueMod )
-{
- if( ! var )  // actually nothing to remove
+void DQuadFunction::remove_variable( Variable * var, c_ModParam issueMod ) {
+ if( !var )  // actually nothing to remove
   return;     // cowardly (and silently) return
 
  if( v_triples.empty() )  // deleting from nothing
-  throw( std::logic_error( "deleting from an empty set" ) );
+  throw ( std::logic_error( "deleting from an empty set" ) );
 
  // search where the variable lives
- auto itv = std::find_if( v_triples.begin() , v_triples.end() ,
-			  [ var ]( const var_coeff_coeff_triple & p ) {
-			    return( std::get<0>( p ) == var );
-			   }
-			  );
+ auto itv = std::lower_bound( v_triples.begin(), v_triples.end(),
+                              var,
+                              []( const var_coeff_coeff_triple & p,
+                                  const Variable * v ) {
+                               return ( std::get< 0 >( p ) < v );
+                              } );
 
  if( itv == v_triples.end() )  // if the variable is not there
-  throw( std::invalid_argument( "Variable is not active" ) );
+  throw ( std::invalid_argument( "Variable is not active" ) );
 
  v_triples.erase( itv );       // erase it
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( !f_Observer || !f_Observer->issue_mod( issueMod ) )
   return;
 
  // a diagonal quadratic function is additive ==> strongly quasi-additive
  // note that there is only one Variable, hence it is ordered
- f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
-                                    FunctionModVars::RemoveVar ,
-				    Vec_p_Var( { var } ) , true , 0 , true ,
-				    Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
+ f_Observer->add_Modification(
+  std::make_shared< C05FunctionModVars >( this,
+                                          FunctionModVars::RemoveVar,
+                                          Vec_p_Var( { var } ), true, 0, true,
+                                          Observer::par2concern( issueMod ) ),
+  Observer::par2chnl( issueMod ) );
 
- }  // end( DQuadFunction::remove_variable( pointer ) )
+}  // end( DQuadFunction::remove_variable( pointer ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -725,61 +743,64 @@ void DQuadFunction::remove_variables( c_Index strt , Index stop ,
 
 /*--------------------------------------------------------------------------*/
 
-void DQuadFunction::remove_variables( Vec_p_Var && vars ,
-				      const bool ordered ,
-				      c_ModParam issueMod )
-{
+void DQuadFunction::remove_variables( Vec_p_Var && vars,
+                                      const bool ordered,
+                                      c_ModParam issueMod ) {
  if( vars.empty() )  // actually nothing to remove
   return;            // cowardly (and silently) return
 
  if( v_triples.empty() )  // deleting from nothing
-  throw( std::logic_error( "deleting from an empty set" ) );
+  throw ( std::logic_error( "deleting from an empty set" ) );
 
- if( ! ordered )
-  std::sort( vars.begin() , vars.end() );
+ if( !ordered )
+  std::sort( vars.begin(), vars.end() );
 
  auto it = vars.begin();
  auto itv = v_triples.begin();
 
  // search the first variable to be eliminated
- itv = std::find_if( itv , v_triples.end() ,
-                     [ &it ]( const var_coeff_coeff_triple &p )
-		     { return( std::get<0>( p ) == *it ); } );
+ itv = std::lower_bound( itv, v_triples.end(),
+                         *it,
+                         []( const var_coeff_coeff_triple & p,
+                             const Variable * v ) {
+                          return ( std::get< 0 >( p ) < v );
+                         } );
 
  if( itv >= v_triples.end() )  // if the variable is not there
-  throw( std::invalid_argument( "a Variable is not active" ) );
+  throw ( std::invalid_argument( "a Variable is not active" ) );
 
  auto curr = itv;  // position where to move stuff
  ++it;             // skip the first elements
  ++itv;            // as they have been processed already
- for( ; it < vars.end() ; ++itv ) {
-  if( *it < std::get<0>( *itv ) )
-   throw( std::invalid_argument( "a Variable is not active" ) );
+ for( ; it < vars.end(); ++itv ) {
+  if( *it < std::get< 0 >( *itv ) )
+   throw ( std::invalid_argument( "a Variable is not active" ) );
 
-  if( *it == std::get<0>( *itv ) )  // one element to be eliminated
+  if( *it == std::get< 0 >( *itv ) )  // one element to be eliminated
    ++it;                   // skip it
   else
-   *(curr++) = *itv;       // move in the current position
-  }
+   *( curr++ ) = *itv;       // move in the current position
+ }
 
- for( ; itv < v_triples.end() ; )  // copy the last part
-  *(curr++) = *(itv++);              // after the last of v_var
+ for( ; itv < v_triples.end(); )  // copy the last part
+  *( curr++ ) = *( itv++ );              // after the last of v_var
 
- v_triples.erase( curr , itv );    // erase the last part
+ v_triples.erase( curr, itv );    // erase the last part
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( !f_Observer || !f_Observer->issue_mod( issueMod ) )
   return;
 
  // now issue the Modification
  // a diagonal quadratic function is additive ==> strongly quasi-additive
  // note that the Variable have been ordered (if they were not so already)
- f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
-                                       FunctionModVars::RemoveVar ,
-				       std::move( vars ) , true , 0 , true ,
-				       Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
+ f_Observer->add_Modification(
+  std::make_shared< C05FunctionModVars >( this,
+                                          FunctionModVars::RemoveVar,
+                                          std::move( vars ), true, 0, true,
+                                          Observer::par2concern( issueMod ) ),
+  Observer::par2chnl( issueMod ) );
 
- }  // end( DQuadFunction::remove_variables( pointers ) )
+}  // end( DQuadFunction::remove_variables( pointers ) )
 
 /*--------------------------------------------------------------------------*/
 
