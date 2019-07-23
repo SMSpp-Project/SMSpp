@@ -1647,11 +1647,19 @@ class Block : public Observer {
   *
   * The boolean parameter "conditional", if true, indicates that the required
   * upper bound only has to be conditionally valid, as opposed to globally
-  * valid. Note that the return value when the method is called with false
-  * can only be greater or equal to that when the method is called with true.
-  * Indeed, when (P) is unbounded above ((D) is empty) then the only possible
-  * globally valid upper bound can be +Infinity, but, as we have discussed,
-  * there can be finite conditionally valid upper bounds.
+  * valid. There are basically two different cases:
+  *
+  * - the global valid upper bound (conditional == false) is + infinity;
+  *   then, necessarily the conditionally valid upper bound
+  *   (conditional == true) is <= than the global valid upper bound, and (as
+  *   we have discussed) it can be finite (or not);
+  *
+  * - the global valid upper bound (conditional == false) is finite
+  *   (< + infinity); then, necessarily the conditionally valid upper bound
+  *   makes no sense (since the problem cannot be unbounded above), and in
+  *   particular it can be expected to be > than the global valid upper
+  *   bound (cf. the discussion), but this is pointless since there is no
+  *   reason for checking it.
   *
   * Global upper bounds are "fragile" values: in principle, *any* change in
   * any part of the Block (Variable, Constraint, Objective, ...) can lead to
@@ -1738,6 +1746,20 @@ class Block : public Observer {
   *     v is a conditionally valid lower bound if whenever one finds a valid
   *     upper bound on the optimal value that is smaller than v, then the
   *     problem is empty.
+  *
+  * - There are basically two different cases:
+  *
+  *   - the global valid lower bound (conditional == false) is - infinity;
+  *   then, necessarily the conditionally valid lower bound
+  *   (conditional == true) is >= than the global valid lower bound, and (as
+  *   we have discussed) it can be finite (or not);
+  *
+  * - the global valid lower bound (conditional == false) is finite
+  *   (> - infinity); then, necessarily the conditionally valid lower bound
+  *   makes no sense (since the problem cannot be unbounded below), and in
+  *   particular it can be expected to be < than the global valid lower
+  *   bound (cf. the discussion), but this is pointless since there is no
+  *   reason for checking it.
   *
   * Conditionally valid lower bounds can sometimes be found by duality arguments
   * and can be used as a convenient stopping condition in empty/unounded cases

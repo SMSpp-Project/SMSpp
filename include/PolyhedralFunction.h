@@ -906,36 +906,33 @@ class PolyhedralFunction : public C05Function {
 		   c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// deletes all rows from the linear mapping in the PolyhedralFunction
- /**< Like delete_rows( some ), but immediately removes *all* the matrix A
-  * and vector b, leaving the mapping "empty". Hence, the best Modification
-  * to issue is a FunctionMod with f_shift == FunctionMod::NaNshift, i.e.,
-  * "everything changed". */
-
- void delete_rows( c_ModParam issueMod = eModBlck );
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// deletes one single existing row from the linear mapping
  /** Like delete_rows(), but just only the i-th row of the linear mapping.
   */
 
  void delete_row( c_Index i , c_ModParam issueMod = eModBlck );
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// deletes all rows from the linear mapping in the PolyhedralFunction
+ /**< Like delete_rows( some ), but immediately removes *all* the matrix A
+  * and vector b, leaving the mapping "empty". This of course also resets 
+  * alla aggregated linearizations, which can no longer be valid. Hence, the
+  * best Modification to issue is a FunctionMod with f_shift ==
+  * FunctionMod::NaNshift, i.e., "everything changed". */
+
+ void delete_rows( c_ModParam issueMod = eModBlck );
+
 /*--------------------------------------------------------------------------*/
- /// remove the given Variable from the LinearFunction
- /** Remove the given Variable from the LinearFunction. This is
-  * *mathematically* equivalent to setting the corresponding coefficient to
-  * zero, but it is considered a "stronger" operation (it is possible to have
-  * an active Variable with zero coefficient). If the Variable is not active
-  * in the LinearFunction, exception is thrown.
+ /// remove the given Variable from the PolyhedralFunction
+ /** Removes the given Variable from the LinearFunction, thereby eliminating
+  * the corresponding column of the matrix A:
   *
-  * Note that the pointer must necessarily be to a ColVariable for it to
-  * be active in a LinearFunction, but this method overrides that of
-  * ThinVarDepInterface which, by necessity, has a Variable * type.
+  * @param var is a ColVariable *, and the pointed ColVariable must be
+  *        already among the active Variable of the PolyhedralFunction.
   *
-  * The parameter issueMod decides if and how the C05FunctionModVars is
-  * issued, as described in Observer::make_par(). Note that a linear function
-  * is additive, and therefore strongly quasi-additive. */
+  * @param issueMod, which decides if and how the C05FunctionModVars (with
+  *        f_shift == 0, since a PolyhedralFunction is strongly quasi-additive)
+  *        is issued, as described in Observer::make_par(). */
 
  virtual void remove_variable( Variable * var ,
 			       c_ModParam issueMod = eModBlck )
@@ -947,16 +944,19 @@ class PolyhedralFunction : public C05Function {
   * the Variable to be removed rather than its pointer. Useful if one knows
   * the index already, so that it need not be searched for.
   *
-  * The parameter issueMod decides if and how the C05FunctionModVars is
-  * issued, as described in Observer::make_par(). Note that a linear function
-  * is additive, and therefore strongly quasi-additive. */
+  * @param i is the index of the Variable to be removed, an integer between 0
+  *        and get_num_active_var().
+  *
+  * @param issueMod, which decides if and how the C05FunctionModVars (with
+  *        f_shift == 0, since a PolyhedralFunction is strongly quasi-additive)
+  *        is issued, as described in Observer::make_par(). */
 
  void remove_variable( c_Index i , c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// remove a range of Variable
  /** Remove all the Variable that are in position from start (included) to
-  * min( stop , get_num_active_var() ) (excluded) in this LinearFunction.
+  * min( stop , get_num_active_var() ) (excluded) in this PolyhedralFunction.
   *
   * The parameter issueMod decides if and how the C05FunctionModVars is
   * issued, as described in Observer::make_par(). Note that a linear function
@@ -974,8 +974,8 @@ class PolyhedralFunction : public C05Function {
   * currently active in this LinearFunction.
   *
   * The parameter issueMod decides if and how the C05FunctionModVars is
-  * issued, as described in Observer::make_par(). Note that a linear function
-  * is additive, and therefore strongly quasi-additive. */
+  * issued, as described in Observer::make_par(). Note that a polyhedral
+  * function is strongly quasi-additive. */
 
  void remove_variables( const Variable * const strt = nullptr ,
 			const Variable * const stop = nullptr ,
@@ -1008,44 +1008,50 @@ class PolyhedralFunction : public C05Function {
   * Note that vars is a std::vector< Variable * > rather than a
   * std::vector< ColVariable * >, although of course all the pointers have
   * to be to a ColVariable. This is because the vector can then be passed
-  * right away to the C05FunctionModLin, that expects one; indeed, as the
-  * && tells, the vector (as that of new coefficients) becomes "property"
-  * of the LinearFunction, that dispatches it to the Modification. The
-  * point is that since C05FunctionModLin is defined in C05Function, it is
-  * not restricted to the case where Variable is a ColVariable, although it
-  * should be "like" one (a Variable representing a single real value) for
-  * the current form of linearizations to work. Although a
-  * std::vector< ColVariable * > and a std::vector< Variable * > should be
-  * physically indistinguishable, there is no sound way to cheaply pass the
-  * former as the latter in C++; having the input as a
-  * std::vector< Variable * > circumvents the problems (and each pointer
-  * could be static_cast-ed to a ColVariable * as soon as it is confirmed
-  * that the Variable is active in the LinearFunction, should this be
-  * necessary).
+  * right away to map_active() to produce a set of indices that can then be
+  * used to call remove_variables( Vec_Index & nms ) which actually
+  * implements the operation.
   *
   * The parameter issueMod decides if and how the C05FunctionModVars is
-  * issued, as described in Observer::make_par(). Note that a linear function
-  * is additive, and therefore strongly quasi-additive. */
+  * issued, as described in Observer::make_par(). Note that a polyhedral
+  * function is strongly quasi-additive. */
 
  virtual void remove_variables( Vec_p_Var && vars ,
 				const bool ordered = false ,
 				c_ModParam issueMod = eModBlck )
-  override final;
+  override final {
+  if( vars.empty() )  // actually nothing to remove
+   return;            // cowardly (and silently) return
+
+  if( v_x.empty() )  // deleting from nothing
+   throw( std::logic_error( "deleting from an empty set" ) );
+
+  if( ! ordered )
+   std::sort( vars.begin() , vars.end() );
+
+  Vec_Index map;
+  map_active( vars , map , true );
+
+  remove_variables( map , true , issueMod );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// remove a set of Variable by index
- /** Like remove_variables( Vec_p_Var * ), but takes in input a set of index
-  * of the Variable to be removed rather than their pointers. Useful if one
-  * knows the indices already, so that they need not be searched for. The
-  * parameter ordered tells if nms is already ordered in increasing sense
-  * (by index, but this also implies by Variable "name = pointer") if not
-  * otherwise it gets ordered inside the method (which is why it is not
-  * const). Note that nms is *not* &&, hence it is not "taken" by the
-  * LinearFunction.
+ /** Like remove_variables( Vec_p_Var * ) (which is implemented via a call to
+  * this), but takes in input a set of index of the Variable to be removed
+  * rather than their pointers. Useful if one knows the indices already, so
+  * that they need not be searched for.
   *
-  * The parameter issueMod decides if and how the C05FunctionModVars is
-  * issued, as described in Observer::make_par(). Note that a linear function
-  * is additive, and therefore strongly quasi-additive. */
+  * @param nms is Vec_Index & containing the indices of the Variable to be
+  *        removed, i.e., integers between 0 and get_num_active_var()
+  *
+  * @param ordered is a bool indicating if nms[] is already ordered in
+  *        increasing sense (otherwise this is done inside the method,
+  *        which is why nms[] is not const) 
+  *
+  * @param issueMod, which decides if and how the C05FunctionModVars (with
+  *        f_shift == 0, since a PolyhedralFunction is strongly quasi-additive)
+  *        is issued, as described in Observer::make_par(). */
 
  virtual void remove_variables( Vec_Index & nms , const bool ordered = false ,
 				c_ModParam issueMod = eModBlck );

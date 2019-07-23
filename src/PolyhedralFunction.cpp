@@ -654,14 +654,24 @@ void PolyhedralFunction::delete_rows( std::vector<Index> & rows ,
 		        }
 		       ) , v_b.end() );
 
+ /* Reset all aggregated linearizations, since there is no way to know if
+  * they are still valid. */
+ bool stgchgd = ! v_aA.empty();  // if some linearization changed
+ v_aA.clear();
+ v_ab.clear();
+
  // now search and mark as deleted the rows in the global pool
- Index todo = rows.size();
  for( auto & gn : v_glob ) {
+  if( gn >= v_A.size() ) {  // an aggregated one
+   gn = Inf<Index>();       // kill it
+   continue;
+   }
+
+  // look it up to see if it is one of the deleted ones
   auto it = std::lower_bound( rows.begin() , rows.end() , gn );
   if( ( it != rows.end() ) && ( *it == gn ) ) {
    gn = Inf<Index>();
-   if( ! --todo )  // found them all
-    break;         // all done
+   stgchgd = true;
    }
   }
  
@@ -672,68 +682,80 @@ void PolyhedralFunction::delete_rows( std::vector<Index> & rows ,
 
  // issue the C05FunctionMod
  f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-				    C05FunctionMod::AlphaChanged ,
-				    f_is_convex ? - FunctionMod::INFshift :
-				                  + FunctionMod::INFshift ,
-				    Observer::par2concern( issueMod ) ) ,
+				   stgchgd ? C05FunctionMod::AlphaChanged
+				             C05FunctionMod::NothingChanged ,
+				   f_is_convex ? - FunctionMod::INFshift :
+				                 + FunctionMod::INFshift ,
+				   Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
 
  }  // end( PolyhedralFunction::delete_rows( some ) )
 
 /*--------------------------------------------------------------------------*/
 
-void PolyhedralFunction::delete_rows( c_ModParam issueMod )
+void PolyhedralFunction::delete_row( c_Index i , c_ModParam issueMod )
 {
- if( rows.empty() )  // actually nothing to remove
-  return;            // cowardly (and silently) returning
-
- auto prev = rows.front();
-
- if( rows.size() == 1 ) {
-  delete_row( prev , issueMod );
-  return;
-  }
-
- for( auto rit = rows.begin() ; ++rit < rows.end() ; ) {
-  if( *rit < prev )
-   throw( std::invalid_argument( "rows must be ordered increasing" ) );
-  prev = *rit;
-  }
-
- if( prev >= v_A.size() )
+ if( i >= v_A.size() )
   throw( std::invalid_argument( "invalid names in rows" ) );
 
- // mark stuff to be killed in v_A[] and v_b[]
- for( auto idx : rows ) {
-  v_A[ idx ].clear();
-  v_b[ idx ] = Inf<FunctionValue>();
-  }
+ // kill i in v_A[]
+ v_A.erase( v_A.begin() + i );
 
- // kill stuff in v_A[]
- v_A.erase( remove_if( v_A.begin() + rows.front() , v_A.end() ,
-		       []( std::vector < FunctionValue > & ai ) {
-			return( ai.empty() );
-		        }
-		       ) , v_A.end() );
+ // kill i in v_b[]
+ v_b.erase( v_b.begin() + i );
 
- // kill stuff in v_b[]
- v_b.erase( remove_if( v_b.begin() + rows.front() , v_b.end() ,
-		       []( FunctionValue bi ) {
-			return( bi == Inf<FunctionValue>() );
-		        }
-		       ) , v_b.end() );
+ /* Reset all aggregated linearizations, since there is no way to know if
+  * they are still valid. */
+ bool stgchgd = ! v_aA.empty();  // if some linearization changed
+ v_aA.clear();
+ v_ab.clear();
 
  // now search and mark as deleted the rows in the global pool
- Index todo = rows.size();
- for( auto & gn : v_glob ) {
-  auto it = std::lower_bound( rows.begin() , rows.end() , gn );
-  if( ( it != rows.end() ) && ( *it == gn ) ) {
-   gn = Inf<Index>();
-   if( ! --todo )  // found them all
-    break;         // all done
+ auto git = v_glob.begin();
+ for( ; git != v_glob.end() ; ++git ) {
+  if( *git >= v_A.size() ) {  // an aggregated one
+   *git = Inf<Index>();       // kill it
+   continue;
+   }
+
+  if( *git == i ) {
+   *git = Inf<Index>();
+   stgchgd = true;
+   break;
    }
   }
- 
+
+ for( ; git != v_glob.end() ; ++git )
+  if( *git >= v_A.size() )
+   *git = Inf<Index>();
+
+ f_value = - Inf<FunctionValue>();  // the function value has changed
+
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+  return;                  // noone is there: all done
+
+ // issue the C05FunctionMod
+ f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+				   stgchgd ? C05FunctionMod::AlphaChanged
+				             C05FunctionMod::NothingChanged ,
+				   f_is_convex ? - FunctionMod::INFshift :
+				                 + FunctionMod::INFshift ,
+				   Observer::par2concern( issueMod ) ) ,
+				Observer::par2chnl( issueMod ) );
+
+ }  // end( PolyhedralFunction::delete_row )
+
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunction::delete_rows( c_ModParam issueMod )
+{
+ v_A.clear();   // delete original rows
+ v_B.clear();
+ v_aA.clear();  // delete aggregated linearizations
+ v_ab.clear();
+
+ v_glob.assign( v_glob.size() , Inf<Index>() );
+
  f_value = - Inf<FunctionValue>();  // the function value has changed
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
@@ -749,65 +771,30 @@ void PolyhedralFunction::delete_rows( c_ModParam issueMod )
 
 /*--------------------------------------------------------------------------*/
 
-void PolyhedralFunction::delete_row( c_Index i , c_ModParam issueMod )
-{
- if( i >= v_A.size() )
-  throw( std::invalid_argument( "invalid names in rows" ) );
-
- // kill i in v_A[]
- v_A.erase( v_A.begin() + i );
-
- // kill i in v_b[]
- v_b.erase( v_b.begin() + i );
-
- // now search and mark as deleted the row i in the global pool
- for( auto & gn : v_glob )
-  if( gn == i ) {
-   gn = Inf<Index>();
-   break;
-   }
- 
- f_value = - Inf<FunctionValue>();  // the function value has changed
-
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
-  return;                  // noone is there: all done
-
- // issue the C05FunctionMod
- f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-				    C05FunctionMod::AlphaChanged ,
-				    f_is_convex ? - FunctionMod::INFshift :
-				                  + FunctionMod::INFshift ,
-				    Observer::par2concern( issueMod ) ) ,
-				Observer::par2chnl( issueMod ) );
-
- }  // end( PolyhedralFunction::delete_row )
-
-/*--------------------------------------------------------------------------*/
-
-void PolyhedralFunction::remove_variable( Variable *var , c_ModParam issueMod )
+void PolyhedralFunction::remove_variable( Variable *var ,
+					  c_ModParam issueMod )
 {
  if( ! var )  // actually nothing to remove
   return;     // cowardly (and silently) return
 
- if( v_pairs.empty() )  // deleting from nothing
+ if( v_x.empty() )  // deleting from nothing
   throw( std::logic_error( "deleting from an empty set" ) );
 
- // search where the variable lives
- auto itv = std::find_if( v_pairs.begin() , v_pairs.end() ,
-			  [ var ]( const coeff_pair & p ) {
-			   return( p.first == var );
-			   }
-			  );
+ auto itv = std::lower_bound( v_x.begin() , v_x.end() , var );
 
- if( itv == v_pairs.end() )  // if the variable is not there
-  throw( std::invalid_argument( "Variable is not active" ) );
+ if( ( itv == v_x.end() ) || ( *itv != var ) ) // if the Variable is not there
+  throw( std::invalid_argument( "remove_variable: Variable is not active" ) );
 
- v_pairs.erase( itv );       // erase it
+ auto pos = std::distance( v_x.begin() , itv );
+
+ v_x.erase( itv );                // erase it in v_x
+ for( auto & ai : v_A )           // erase the column in A
+  ai.erase( ai.begin() + pos );
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
 
- // a linear function is additive ==> strongly quasi-additive
+ // a polyhedral function is strongly quasi-additive
  // note that there is only one Variable, hence it is ordered
  f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
                                     FunctionModVars::RemoveVar ,
@@ -821,17 +808,17 @@ void PolyhedralFunction::remove_variable( Variable *var , c_ModParam issueMod )
 
 void PolyhedralFunction::remove_variable( c_Index i , c_ModParam issueMod )
 {
- if( v_pairs.size() >= i )
-  throw( std::logic_error( "less than i Variable are active" ) );
+ if( v_x.size() >= i )
+  throw( std::logic_error( "invalid Variable index" ) );
 
- auto itv = v_pairs.begin() + i;
- auto var = (*itv).first;
- v_pairs.erase( itv );       // erase it
+ v_x.erase( v_x.begin() + i );    // erase it in v_x
+ for( auto & ai : v_A )           // erase the column in A
+  ai.erase( ai.begin() + i );
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
 
- // a linear function is additive ==> strongly quasi-additive
+ // a polyhedral function is strongly quasi-additive
  // note that there is only one Variable, hence it is ordered
  f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
                                     FunctionModVars::RemoveVar ,
@@ -844,27 +831,27 @@ void PolyhedralFunction::remove_variable( c_Index i , c_ModParam issueMod )
 /*--------------------------------------------------------------------------*/
 
 void PolyhedralFunction::remove_variables( c_Index strt , Index stop ,
-				       c_ModParam issueMod )
+					   c_ModParam issueMod )
 {
  stop = std::min( stop , c_Index( v_pairs.size() ) );
  if( stop <= strt )
   return;
 
- const auto strtit = v_pairs.begin() + strt;
- const auto stopit = v_pairs.begin() + stop;
+ for( auto & ai : v_A )           // erase the columns in A
+  ai.erase( ai.begin() + strt , ai.begin() + stop );
+
+ const auto strtit = v_x.begin() + strt;
+ const auto stopit = v_x.begin() + stop;
 
  if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
   // somebody is there: meanwhile, prepare data for the Modification
 
   Vec_p_Var vars( stop - strt );
-  auto vpit = vars.begin();
-  for( auto tmpit = strtit ; tmpit < stopit ; )
-   *(vpit++) = (*(tmpit++)).first;
-
-  v_pairs.erase( strtit , stopit );
+  std::copy( vars.begin() , vars.end() , strtit );
+  v_x.erase( strtit , stopit );
 
   // now issue the Modification
-  // a linear function is additive ==> strongly quasi-additive
+  // a polyhedral function is strongly quasi-additive
   // note that the Variable are ordered by construction
   f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
                                        FunctionModVars::RemoveVar ,
@@ -879,136 +866,66 @@ void PolyhedralFunction::remove_variables( c_Index strt , Index stop ,
 
 /*--------------------------------------------------------------------------*/
 
-void PolyhedralFunction::remove_variables( Vec_p_Var && vars ,
-				       const bool ordered ,
-				       c_ModParam issueMod )
+template< class T >
+static void compact( std::vector< T > x ,
+		     PolyhedralFunction::Vec_Index & nms )
 {
- if( vars.empty() )  // actually nothing to remove
-  return;            // cowardly (and silently) return
-
- if( v_pairs.empty() )  // deleting from nothing
-  throw( std::logic_error( "deleting from an empty set" ) );
-
- if( ! ordered )
-  std::sort( vars.begin() , vars.end() );
-
- auto it = vars.begin();
- auto itv = v_pairs.begin();
-
- // search the first variable to be eliminated
- itv = std::find_if( itv , v_pairs.end() ,
-                     [ &it ]( const coeff_pair &p )
-                            { return( p.first == *it ); } );
-
- if( itv >= v_pairs.end() )  // if the variable is not there
-  throw( std::invalid_argument( "a Variable is not active" ) );
-
- auto curr = itv;  // position where to move stuff
- ++it;             // skip the first elements
- ++itv;            // as they have been processed already
- for( ; it < vars.end() ; ++itv ) {
-  if( *it < itv->first )
-   throw( std::invalid_argument( "a Variable is not active" ) );
-
-  if( *it == itv->first )  // one element to be eliminated
-   ++it;                   // skip it
+ Index i = nms.front();
+ auto xit = x.begin() + (i++);
+ for( auto nit = ++(nms.begin()) ; nit != nms.end() ; ++i )
+  if( *nit == i )
+   ++nit;
   else
-   *(curr++) = *itv;       // move in the current position
-  }
+   *(xit++) = x[ i ];
 
- for( ; itv < v_pairs.end() ; )  // copy the last part
-  *(curr++) = *(itv++);          // after the last of v_var
+ for( ; i < x.size() ; ++i )
+   *(xit++) = x[ i ];
 
- v_pairs.erase( curr , itv );    // erase the last part
+ x.resize( x.size() - nms.size() );
+ }
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
-  return;
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- // now issue the Modification
- // a linear function is additive ==> strongly quasi-additive
- // note that the Variable have been ordered (if they were not so already)
- f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
-                                       FunctionModVars::RemoveVar ,
-				       std::move( vars ) , true , 0 , true ,
-				       Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
-
- }  // end( PolyhedralFunction::remove_variables( pointers ) )
-
-/*--------------------------------------------------------------------------*/
-
-void PolyhedralFunction::remove_variables( Vec_Index & nms , const bool ordered ,
-				       c_ModParam issueMod )
+void PolyhedralFunction::remove_variables( Vec_Index & nms ,
+					   const bool ordered ,
+					   c_ModParam issueMod )
 {
  if( nms.empty() )  // actually nothing to remove
   return;           // cowardly (and silently) return
 
- if( v_pairs.empty() )  // deleting from nothing
+ if( v_x.empty() )  // deleting from nothing
   throw( std::logic_error( "deleting from an empty set" ) );
 
- auto it = nms.begin();
  if( ! ordered )
-  std::sort( it , nms.end() );
- 
- if( *it >= v_pairs.size() )  // if the first name is wrong
-  throw( std::invalid_argument( "wrong index in LinearFunction" ) );
+  std::sort( nms.begin() , nms.end() );
 
- auto vi = *it;    // first element to be eliminated
- auto curr = v_pairs.begin() + vi;   // position where to move stuff
+ if( nms.back() >= v_x.size() )  // the last name is wrong
+  throw( std::invalid_argument( "wrong Variable index in nms" ) );
 
- ++it;              // skip the first elements
- ++vi;              // as they have been processed already
+ for( auto & ai : v_A )           // erase the columns in A
+  compact( ai , nms );
 
- for( ; it < nms.end() ; ++vi )
-  if( *it == vi )                 // one element to be eliminated
-   ++it;                          // skip it
-  else
-   *(curr++) = v_pairs[ vi ];     // move in the current position
+ if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+  Vec_p_Var vars( nms.size() );
+  auto its = vars.begin();
+  for( auto nm : nms )
+   *(its++) = v_x[ nm ];
 
- auto itv = v_pairs.begin() + vi;
- for( ; itv < v_pairs.end() ; )   // copy the last part
-  *(curr++) = *(itv++);           // after the last of v_var
+  compact( v_x , nms );
 
- v_pairs.erase( curr , itv );     // erase the last part
-
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
-  return;
-
- Vec_p_Var vars( nms.size() );
- auto its = vars.begin();
- for( auto nm : nms )
-  *(its++) = v_pairs[ nm ].first;
-
- // now issue the Modification
- // a linear function is additive ==> strongly quasi-additive
- // note that the Variable have been ordered (if they were not so already)
- f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
+  // now issue the Modification
+  // a polyhedral function is strongly quasi-additive
+  // note that the Variable have been ordered (if they were not so already)
+  f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
                                        FunctionModVars::RemoveVar ,
 				       std::move( vars ) , true , 0 , true ,
 				       Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
-
+				Observer::par2chnl( issueMod ) );
+  }
+ else
+  compact( v_x , nms );
+  
  }  // end( PolyhedralFunction::remove_variables( indices ) )
-
-/*--------------------------------------------------------------------------*/
-/*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
-/*--------------------------------------------------------------------------*/
-
-void PolyhedralFunction::issue_add_variables_modification( v_coeff_pair & pairs ,
-						       c_ModParam issueMod )
-{
- Vec_p_Var vars( pairs.size() );
- for( Index i = 0 ; i < pairs.size() ; ++i )
-  vars[ i ] = pairs[ i ].first;
-
- // a linear function is additive ==> strongly quasi-additive
- // note that pairs is always ordered
- f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
-                                         FunctionModVars::AddVar ,
-					 std::move( vars ) , true , 0 , true ,
-					 Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
- }
 
 /*--------------------------------------------------------------------------*/
 /*------------------- End File PolyhedralFunction.cpp ----------------------*/
