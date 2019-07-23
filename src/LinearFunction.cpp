@@ -357,7 +357,7 @@ void LinearFunction::modify_coefficients( v_coeff_pair & vars,
   for( auto it = vars.begin(); it != vars.end(); ++it, ++itv ) {
    // look for position of next variable to be modified
    itv = std::lower_bound( itv, v_pairs.end(),
-                           it,
+                           *it,
                            []( const auto & a, const auto & b ) {
                             return ( a.first < b.first );
                            } );
@@ -378,7 +378,7 @@ void LinearFunction::modify_coefficients( v_coeff_pair & vars,
   for( auto it = vars.begin(); it != vars.end(); ++it, ++itv ) {
    // look for position of next variable to be modified
    itv = std::lower_bound( itv, v_pairs.end(),
-                           it,
+                           *it,
                            []( const auto & a, const auto & b ) {
                             return ( a.first < b.first );
                            } );
@@ -626,8 +626,8 @@ void LinearFunction::remove_variables( Vec_p_Var && vars,
  // search the first variable to be eliminated
  itv = std::lower_bound( itv, v_pairs.end(),
                          *it,
-                         []( const auto & a, const auto & b ) {
-                          return ( a.first < b.first );
+                         []( const coeff_pair & p, const Variable * v ) {
+                          return ( p.first < v );
                          } );
 
  if( itv == v_pairs.end() )  // if the variable is not there
