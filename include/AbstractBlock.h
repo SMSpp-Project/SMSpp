@@ -225,18 +225,17 @@ class AbstractBlock : public Block {
  *
  * - reset_objective
  *
- * - add_static_constraint
+ * - add_static_constraint (all versions)
  *
- * - add_static_variable
+ * - add_static_variable (all versions)
  *
- * - add_dynamic_constraint
+ * - add_dynamic_constraint (all versions)
  *
-
-
- using Block::add_dynamic_variable;
+ * - add_dynamic_variable (all versions)
+ *
+ * are made public in AbstractBlock, so that they can be used "from outside"
+ * the AbstractBlock to manage its abstract representation;
  *  @{ */
-
- // "publicize" methods to manage abstract representation
  
  using Block::reset_static_constraints;
 
@@ -257,26 +256,35 @@ class AbstractBlock : public Block {
  using Block::add_dynamic_variable;
 
  /**@} ----------------------------------------------------------------------*/
-/*--------------------- Methods for checking the Block ---------------------*/
+/*----------------- Methods for checking the AbstractBlock -----------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Methods for checking solution information in the Block
+/** @name Methods for checking solution information in the AbstractBlock
  **/
 
  /// returns true if the current solution is (approximately) feasible
  /** Returns true if the solution encoded in the current value of the
   * Variable of the Block is approximately feasible within the given
-  * tolerances.
-  **/
+  * tolerances. The method works by basically calling is_feasible() on all
+  * the [Col]Variable and [FRow/OneVar]Constraint of the abstract
+  * representation, for there clearly is no other possible way to do this.
+  *
+  * The parameter for deciding what "approximately feasible" exactly means is
+  * a single double value, representing the *relative* tolerance for
+  * satisfaction of all [FRow/OneVar]Constraint, and domain restrictions for
+  * [Col]Variable. This value is to be found as:
+  *
+  * - if fsbc is not nullptr and it is a SimpleConfiguration<double>, then it
+  *   if fsbc->f_value;
+  *
+  * - otherwise, if f_BlockConfig is not nullptr,
+  *   f_BlockConfig->f_is_feasible_Configuration is not nullptr and it
+  *   is a SimpleConfiguration<double>, then it is
+  *   f_BlockConfig->f_is_feasible_Configuration->f_value;
+  *
+  * - otherwise, it is 0. */
 
  virtual bool is_feasible( bool useabstract = false ,
-			   Configuration *fsbc = nullptr )
- {
-  for( auto blck : v_Block )
-   if( ! blck->is_feasible( useabstract ) )
-    return( false );
-
-  return( true );
-  }
+			   Configuration *fsbc = nullptr ) override final;
 
 /**@} ----------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
@@ -286,14 +294,12 @@ class AbstractBlock : public Block {
 
  /// returns a Solution representing the current solution of this Block
  /** This method must construct and return a (pointer to a) Solution object
-  * representing the current "solution state" of this Block. A Solution
+  * representing the current "solution state" of this Block. For an
+  * AbstractBlock, the "only reasonable" Solution is a ColVariableSolution.
   */
 
  virtual Solution * get_Solution( Configuration *solc = nullptr ,
-				  bool emptys = true )
- {
-  return( nullptr );
-  }
+				  bool emptys = true ) override final;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -305,15 +311,11 @@ class AbstractBlock : public Block {
 /** @name Protected methods for inserting and extracting
  */
 
- /// print information about the Block on an ostream with the given verbosity
- /** Protected method intended to print information about the Block; it is
-  * virtual so that derived classes can print their specific information in
-  * the format they choose.
-  * The level of the verbosity of the printed information is defined by the
-  * verbosity_lvl field of the class; in particular, the "complete" level is
-  * is assumed to save enough information to allow a Block to completely
-  * re-read its structure from the file. This makes little sense for the base
-  * Block class, in that it has no real structure of its own to save. */
+ /// print information about the AbstractBlock on an ostream 
+ /** Protected method intended to print information about the AbstractBlock;
+  * it basically goes over all the abstract representation (static and dynamic
+  * Variable and Constraint, Objective, and inner Block) and asks everyone to
+  * print itself. */
 
  virtual void print( std::ostream &output ) const;
 

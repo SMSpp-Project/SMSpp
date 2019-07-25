@@ -49,12 +49,12 @@ clean::
 # *INC is the -I<include directories>
 
 # MILPSolver
-MILPSSDR = ../
+MILPSSDR = ../../../MILPSolver/
 include $(MILPSSDR)makefile-c
 
 # BundleSolver
-BNDSLVSDR = ../../BundleSolver/
-BNDSLVODR = ../../BundleSolver/
+BNDSLVSDR = ../../../BundleSolver/
+BNDSLVODR = ../../../BundleSolver/
 include $(BNDSLVSDR)makefile-c
 
 # main module (linking phase) - - - - - - - - - - - - - - - - - - - - - - - -

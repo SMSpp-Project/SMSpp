@@ -93,6 +93,17 @@ intBlockINC = $(SMS++SDR)include/Block.h $(SMS++SDR)include/Configuration.h \
 	$(SMS++SDR)include/Observer.h $(SMS++SDR)include/SMSTypedefs.h \
 	$(SMS++SDR)include/ThinComputeInterface.h
 
+$(SMS++SDR)obj/AbstractBlock.o: $(SMS++SDR)src/AbstractBlock.cpp
+	$(SMS++SDR)include/AbstractBlock.h $(intBlockINC) \
+	$(SMS++SDR)include/Variable.h $(SMS++SDR)include/ColVariable.h \
+	$(SMS++SDR)include/Objective.h $(SMS++SDR)include/FRealObjective.h \
+	$(SMS++SDR)include/Constraint.h $(SMS++SDR)include/RowConstraint.h  \
+	$(SMS++SDR)include/FRowConstraint.h \
+	$(SMS++SDR)include/OneVarConstraint.h $(SMS++SDR)include/Function.h \
+	$(SMS++SDR)include/ColVariableSolution.h \
+	$(SMS++SDR)include/Solution.h
+	$(CC) -c $(SMS++SDR)src/AbstractBlock.cpp -o $@ $(SMS++INC) $(SW)
+
 $(SMS++SDR)obj/Block.o: $(SMS++SDR)src/Block.cpp $(intBlockINC) \
 	$(SMS++SDR)include/Constraint.h $(SMS++SDR)include/Objective.h \
 	$(SMS++SDR)include/Variable.h
@@ -108,7 +119,8 @@ $(SMS++SDR)obj/ColVariable.o: $(SMS++SDR)src/ColVariable.cpp \
 	$(CC) -c $(SMS++SDR)src/ColVariable.cpp -o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)obj/ColVariableSolution.o: $(SMS++SDR)src/ColVariableSolution.cpp \
-	$(SMS++SDR)include/ColVariableSolution.h $(SMS++SDR)include/Solution.h \
+	$(SMS++SDR)include/ColVariableSolution.h \
+	$(SMS++SDR)include/Solution.h \
 	$(intBlockINC) $(SMS++SDR)include/ColVariable.h \
 	$(SMS++SDR)include/Variable.h $(SMS++SDR)include/Constraint.h \
 	$(SMS++SDR)include/ThinComputeInterface.h
