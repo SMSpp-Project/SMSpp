@@ -19,15 +19,15 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
+ * \copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 #ifndef __LinearFunction
- #define __LinearFunction
-                      /* self-identification: #endif at the end of the file */
+#define __LinearFunction
+/* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -42,8 +42,7 @@
 /*--------------------------------------------------------------------------*/
 
 /// namespace for the Structured Modeling System++ (SMS++)
-namespace SMSpp_di_unipi_it
-{
+namespace SMSpp_di_unipi_it {
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
@@ -103,7 +102,7 @@ class LinearFunction : public C15Function {
  typedef FunctionValue Coefficient;
  ///< type of the coefficients of the linear function = FunctionValue
 
- typedef std::vector<Coefficient> v_coeff;
+ typedef std::vector< Coefficient > v_coeff;
  ///< a vector of Coefficients
 
  typedef v_coeff::iterator v_coeff_it;
@@ -112,10 +111,10 @@ class LinearFunction : public C15Function {
  typedef v_coeff::const_iterator c_v_coeff_it;
  ///< const iterator in v_coeff
 
- typedef std::pair<ColVariable *, Coefficient> coeff_pair;
+ typedef std::pair< ColVariable *, Coefficient > coeff_pair;
  ///< element of a Linear Coefficient matrix: (ColVariable *, Coefficient)
 
- typedef std::vector<coeff_pair> v_coeff_pair;
+ typedef std::vector< coeff_pair > v_coeff_pair;
  ///< a vector of coeff_pair
 
  typedef const v_coeff_pair v_c_coeff_pair;
@@ -127,47 +126,49 @@ class LinearFunction : public C15Function {
   * implementing the concrete iterator for sifting through the "active"
   * Variable of a LinearFunction. */
 
- class v_iterator : public ThinVarDepInterface::v_iterator
- {
+ class v_iterator : public ThinVarDepInterface::v_iterator {
   public:
 
-  v_iterator( v_coeff_pair::iterator itr ) : itr_( itr ) { }
-  virtual v_iterator * clone( void ) override {
-   return( new v_iterator( itr_ ) );
-   }
+  explicit v_iterator( v_coeff_pair::iterator itr ) : itr_( itr ) {}
 
-  virtual void operator++( void ) override final { (itr_)++; }
-  virtual reference operator*( void ) const override final {
-   return( *((*itr_).first) );
-   }
-  virtual pointer operator->( void ) const override final {
-   return( (*itr_).first );
-   }
-  virtual bool operator==( const ThinVarDepInterface::v_iterator & rhs )
-   const override final {
-   #ifdef NDEBUG
-    auto tmp = static_cast<const LinearFunction::v_iterator *>( & rhs );
-    return( itr_ == tmp->itr_ );
-   #else
-    auto tmp = dynamic_cast<const LinearFunction::v_iterator *>( & rhs );
-    return( tmp ? itr_ == tmp->itr_ : false );
-   #endif
-   }
-  virtual bool operator!=( const ThinVarDepInterface::v_iterator & rhs )
-   const override final {
-   #ifdef NDEBUG
-    auto tmp = static_cast<const LinearFunction::v_iterator *>( & rhs );
-    return( itr_ != tmp->itr_ );
-   #else
-    auto tmp = dynamic_cast<const LinearFunction::v_iterator *>( & rhs );
-    return( tmp ? itr_ != tmp->itr_ : true );
-   #endif
-   }
+  v_iterator * clone() override {
+   return new v_iterator( itr_ );
+  }
+
+  void operator++() final { itr_++; }
+
+  reference operator*() const final {
+   return *( *itr_ ).first;
+  }
+
+  pointer operator->() const final {
+   return ( *itr_ ).first;
+  }
+
+  bool operator==( const ThinVarDepInterface::v_iterator & rhs ) const final {
+#ifdef NDEBUG
+   auto tmp = static_cast<const LinearFunction::v_iterator *>( & rhs );
+   return itr_ == tmp->itr_ ;
+#else
+   auto tmp = dynamic_cast<const LinearFunction::v_iterator *>( &rhs );
+   return tmp ? itr_ == tmp->itr_ : false;
+#endif
+  }
+
+  bool operator!=( const ThinVarDepInterface::v_iterator & rhs ) const final {
+#ifdef NDEBUG
+   auto tmp = static_cast<const LinearFunction::v_iterator *>( & rhs );
+   return itr_ != tmp->itr_ ;
+#else
+   auto tmp = dynamic_cast<const LinearFunction::v_iterator *>( &rhs );
+   return tmp ? itr_ != tmp->itr_ : true;
+#endif
+  }
 
   private:
 
   v_coeff_pair::iterator itr_;
-  };
+ };
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// virtualized concrete const_iterator
@@ -175,49 +176,52 @@ class LinearFunction : public C15Function {
   * implementing the concrete iterator for sifting through the "active"
   * Variable of a LinearFunction. */
 
- class v_const_iterator : public ThinVarDepInterface::v_const_iterator
- {
+ class v_const_iterator : public ThinVarDepInterface::v_const_iterator {
   public:
 
-  v_const_iterator( v_c_coeff_pair::const_iterator itr ) : itr_( itr ) { }
-  virtual v_const_iterator * clone( void ) override {
-   return( new v_const_iterator( itr_ ) );
-   }
- 
-  virtual void operator++( void ) override final { (itr_)++; }
-  virtual reference operator*( void ) const override final {
-   return( *((*itr_).first) );
-   }
-  virtual pointer operator->( void ) const override final {
-   return( (*itr_).first );
-   }
-  virtual bool operator==( const ThinVarDepInterface::v_const_iterator & rhs )
-   const override final {
-   #ifdef NDEBUG
-    auto tmp = static_cast<const LinearFunction::v_const_iterator *>( & rhs );
-    return( itr_ == tmp->itr_ );
-   #else
-    auto tmp = dynamic_cast<const LinearFunction::v_const_iterator *>( & rhs
-								       );
-    return( tmp ? itr_ == tmp->itr_ : false );
-   #endif
-   }
-  virtual bool operator!=( const ThinVarDepInterface::v_const_iterator & rhs )
-   const override final {
-   #ifdef NDEBUG
-    auto tmp = static_cast<const LinearFunction::v_const_iterator *>( & rhs );
-    return( itr_ != tmp->itr_ );
-   #else
-    auto tmp = dynamic_cast<const LinearFunction::v_const_iterator *>( & rhs
-								       );
-    return( tmp ? itr_ != tmp->itr_ : true );
-   #endif
-   }
+  explicit v_const_iterator( v_c_coeff_pair::const_iterator itr ) :
+   itr_( itr ) {}
+
+  v_const_iterator * clone() override {
+   return new v_const_iterator( itr_ );
+  }
+
+  void operator++() final { itr_++; }
+
+  reference operator*() const final {
+   return *( *itr_ ).first;
+  }
+
+  pointer operator->() const final {
+   return ( *itr_ ).first;
+  }
+
+  bool operator==( const ThinVarDepInterface::v_const_iterator & rhs )
+  const final {
+#ifdef NDEBUG
+   auto tmp = static_cast<const LinearFunction::v_const_iterator *>( & rhs );
+   return itr_ == tmp->itr_;
+#else
+   auto tmp = dynamic_cast<const LinearFunction::v_const_iterator *>( &rhs );
+   return tmp ? itr_ == tmp->itr_ : false;
+#endif
+  }
+
+  bool operator!=( const ThinVarDepInterface::v_const_iterator & rhs )
+  const final {
+#ifdef NDEBUG
+   auto tmp = static_cast<const LinearFunction::v_const_iterator *>( & rhs );
+   return itr_ != tmp->itr_;
+#else
+   auto tmp = dynamic_cast<const LinearFunction::v_const_iterator *>( &rhs );
+   return tmp ? itr_ != tmp->itr_ : true;
+#endif
+  }
 
   private:
 
   v_coeff_pair::const_iterator itr_;
-  };
+ };
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
@@ -247,24 +251,26 @@ class LinearFunction : public C15Function {
   * All inputs have a default ({}, 0, true, and nullptr, respectively) so
   * that this can be used as the void constructor. */
 
- LinearFunction( v_coeff_pair && vars = {} , const FunctionValue ct = 0,
-                 const bool ordered = false ,
-		 Observer * const observer = nullptr )
-  :  C15Function( observer ) , v_pairs( std::move( vars ) ) ,
-     f_value( Inf<FunctionValue>() ) , f_constant_term( ct )
- {
-  if( ! ordered )
-   std::sort( v_pairs.begin() , v_pairs.end() ,
-	      []( const auto & p1, const auto & p2 ) {
-	       return( p1.first < p2.first );
-	       }
-	      );
-  }
+ explicit LinearFunction( v_coeff_pair && vars = {},
+                 const FunctionValue ct = 0,
+                 const bool ordered = false,
+                 Observer * const observer = nullptr )
+  : C15Function( observer ),
+    v_pairs( std::move( vars ) ),
+    f_value( Inf< FunctionValue >() ),
+    f_constant_term( ct ) {
+  if( !ordered )
+   std::sort( v_pairs.begin(), v_pairs.end(),
+              []( const auto & p1, const auto & p2 ) {
+               return p1.first < p2.first;
+              }
+   );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// destructor: it does nothing (explicitly)
 
- virtual ~LinearFunction() {}
+ ~LinearFunction() override = default;
 
 /*--------------------------------------------------------------------------*/
  /// clear method: clears the v_pairs field
@@ -273,7 +279,7 @@ class LinearFunction : public C15Function {
   * them. Not that the LinearFunction would have, but the Observer may.
   * By not having any Variable, the Observer can no longer do that. */
 
- virtual void clear( void ) override { v_pairs.clear(); }
+ void clear() override { v_pairs.clear(); }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -286,8 +292,7 @@ class LinearFunction : public C15Function {
   * "listens to no-one"; hence, the implementation of set_ComputeConfig() is
   * quite a trivial one. */
 
- virtual void set_ComputeConfig( ComputeConfig *scfg = nullptr )
-  override final { }
+ void set_ComputeConfig( ComputeConfig *scfg ) final { }
 
 /**@} ----------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE DATA OF THE LinearFunction ------------*/
@@ -297,7 +302,7 @@ class LinearFunction : public C15Function {
 
  /// returns the vector of pairs (ColVariable *, Coefficient)
 
- v_c_coeff_pair & get_v_var( void ) const { return( v_pairs ); }
+ v_c_coeff_pair & get_v_var() const { return v_pairs; }
 
 /*--------------------------------------------------------------------------*/
  /// returns the Coefficient of the i-th Variable of this LinearFunction
@@ -308,25 +313,27 @@ class LinearFunction : public C15Function {
   * @param i Index of the Variable whose coefficient is desired. */
 
  Coefficient get_coefficient( const int i ) const {
-  return( ( v_pairs.begin() + i )->second );
-  }
+  return ( v_pairs.begin() + i )->second;
+ }
 
  /*--------------------------------------------------------------------------*/
-  /// returns the Coefficient of the Variable var of this LinearFunction
-  /** Like get_coefficient( int ), but works directly with the Variable
-   * instead of its index. */
+ /// returns the Coefficient of the Variable var of this LinearFunction
+ /** Like get_coefficient( int ), but works directly with the Variable
+  * instead of its index. */
 
  inline Coefficient get_coefficient( const ColVariable * const var ) const {
 
-   auto idx = std::lower_bound( v_pairs.begin() , v_pairs.end() ,
-	                             std::make_pair( var , 0 ) ,
-	                             []( const auto & p1, const auto & p2 )
-	                              { return p1.first < p2.first; } );
-   if( idx->first != var )
-    throw( std::invalid_argument( "stop is not an active Variable" ) );
+  auto idx = std::lower_bound( v_pairs.begin(),
+                               v_pairs.end(),
+                               std::make_pair( var, 0 ),
+                               []( const auto & p1, const auto & p2 ) {
+                                return p1.first < p2.first;
+                               } );
+  if( idx->first != var )
+   throw ( std::invalid_argument( "stop is not an active Variable" ) );
 
-   return( idx->second );
-   }
+  return idx->second;
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF THE LinearFunction ----------*/
@@ -334,65 +341,60 @@ class LinearFunction : public C15Function {
 /** @name Methods describing the behavior of the LinearFunction
  *  @{ */
 
- virtual int compute( bool changedvars = true ) override final;
+ int compute( bool changedvars ) final;
 
 /*--------------------------------------------------------------------------*/
  /// returns the value of the LinearFunction
 
- virtual FunctionValue get_value( void ) const override final {
-  return( f_value );
-  }
+ FunctionValue get_value() const final {
+  return f_value;
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the LinearFunction is exact, hence lower_estimate == value
- 
- virtual FunctionValue get_lower_estimate( void ) const override final {
-  return( f_value );
-  }
+
+ FunctionValue get_lower_estimate() const final {
+  return f_value;
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the LinearFunction is exact, hence upper_estimate == value
 
- virtual FunctionValue get_upper_estimate( void ) const override final {
-  return( f_value );
-  }
+ FunctionValue get_upper_estimate() const final {
+  return f_value;
+ }
 
 /*--------------------------------------------------------------------------*/
 
- virtual FunctionValue get_Lipschitz_constant() override;
+ FunctionValue get_Lipschitz_constant() override;
 
 /*--------------------------------------------------------------------------*/
 
- virtual bool is_convex( void ) const override final { return( true ); }
+ bool is_convex() const final { return true; }
 
 /*--------------------------------------------------------------------------*/
 
- virtual bool is_concave( void ) const override final { return( true ); }
+ bool is_concave() const final { return true; }
 
 /*--------------------------------------------------------------------------*/
 
- virtual void compute_hessian_approximation( void ) override final { };
+ void compute_hessian_approximation() final {};
 
 /*--------------------------------------------------------------------------*/
 
- virtual void get_hessian_approximation( DenseHessian &hessian )
-  const override final;
+ void get_hessian_approximation( DenseHessian & hessian ) const final;
 
 /*--------------------------------------------------------------------------*/
 
- virtual void get_hessian_approximation( SparseHessian &hessian )
-   const override final;
+ void get_hessian_approximation( SparseHessian & hessian ) const final;
 
 /*--------------------------------------------------------------------------*/
 
- virtual bool is_continuously_differentiable( void ) const override final {
-  return( true );
-  }
+ bool is_continuously_differentiable() const final { return true; }
 
 /*--------------------------------------------------------------------------*/
 
- virtual bool is_twice_continuously_differentiable( void )
-  const override final { return( true ); }
+ bool is_twice_continuously_differentiable() const final { return true; }
 
 /*--------------------------------------------------------------------------*/
  /// get an arbitrary subset of linearization coefficients
@@ -400,8 +402,10 @@ class LinearFunction : public C15Function {
   * but without the name, because a LinearFunction only have one
   * linearization. */
 
- void get_linearization_coefficients( FunctionValue * g ,
-		c_Vec_Index & indices ,  c_Index start , c_Index end ) const;
+ void get_linearization_coefficients( FunctionValue * g,
+                                      c_Vec_Index & indices,
+                                      c_Index start,
+                                      c_Index end ) const;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get a range of linearization coefficients
@@ -409,37 +413,39 @@ class LinearFunction : public C15Function {
   * but without the name, because a LinearFunction only have one
   * linearization, and without the arbitrary subset. */
 
- void get_linearization_coefficients( FunctionValue * g ,
-				      c_Index start , c_Index end ) const;
+ void get_linearization_coefficients( FunctionValue * g,
+                                      c_Index start,
+                                      c_Index end ) const;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual void get_linearization_coefficients( FunctionValue * g ,
-   const LinearizationName name = Inf<LinearizationName>() ,
-   c_Vec_Index & indices = {} , c_Index start = 0 ,
-   c_Index end = Inf<Index>() ) override final;
+ void get_linearization_coefficients( FunctionValue * g,
+                                      LinearizationName name,
+                                      c_Vec_Index & indices,
+                                      c_Index start,
+                                      c_Index end ) final;
 
 /*--------------------------------------------------------------------------*/
 
- virtual void get_linearization_coefficients( SparseVector &g ,
-   const LinearizationName name = Inf<LinearizationName>() ,
-   c_Vec_Index & indices = {} , c_Index start = 0 ,
-   c_Index end = Inf<Index>() ) override final;
+ void get_linearization_coefficients( SparseVector & g,
+                                      LinearizationName name,
+                                      c_Vec_Index & indices,
+                                      c_Index start,
+                                      c_Index end ) final;
 
 /*--------------------------------------------------------------------------*/
 /** There is only one linearization in a LinearFunction. The linearization
  * constant is equal to the constant term of the LinearFunction. */
 
- virtual Function::FunctionValue get_linearization_constant(
-         const LinearizationName name = Inf<LinearizationName>() )
-  override final {
- return( f_constant_term );
+ Function::FunctionValue
+ get_linearization_constant( const LinearizationName name ) final {
+  return f_constant_term;
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  ///< Returns the value of the constant term of this LinearFunction.
 
- FunctionValue get_constant_term( void ) const { return( f_constant_term ); }
+ FunctionValue get_constant_term() const { return f_constant_term; }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
@@ -452,11 +458,10 @@ class LinearFunction : public C15Function {
   * "listens to no-one"; hence, the implementation of get_ComputeConfig() is
   * quite a trivial one. */
 
- virtual ComputeConfig * get_ComputeConfig( bool all = false ,
-		       ComputeConfig * ocfg = nullptr ) const override final
- {
-  return( nullptr );
-  }
+ ComputeConfig * get_ComputeConfig( bool all,
+                                    ComputeConfig * ocfg ) const final {
+  return nullptr;
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE LinearFunction -------*/
@@ -466,62 +471,60 @@ class LinearFunction : public C15Function {
  * vector v_pairs of pairs.
  * @{ */
 
- virtual Index get_num_active_var( void ) const override final {
-  return( v_pairs.size() );
-  }
+ Index get_num_active_var() const final {
+  return v_pairs.size();
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual Index is_active( const Variable * const var )
-  const override final {
-  auto idx = std::lower_bound( v_pairs.begin() , v_pairs.end() ,
-                               std::make_pair( var , 0 ) ,
-                               []( const auto & p1, const auto & p2 )
-                                 { return p1.first < p2.first; } );
+ Index is_active( const Variable * const var ) const final {
+  auto idx = std::lower_bound( v_pairs.begin(),
+                               v_pairs.end(),
+                               std::make_pair( var, 0 ),
+                               []( const auto & p1, const auto & p2 ) {
+                                return p1.first < p2.first;
+                               } );
   if( idx < v_pairs.end() )
-   return( std::distance( v_pairs.begin() , idx ) );
+   return std::distance( v_pairs.begin(), idx );
   else
-   return( Inf<Index>() );
-  }
+   return Inf< Index >();
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual void map_active( c_Vec_p_Var & vars , Vec_Index & map ,
-			  const bool ordered = false ) const override final;
+ void map_active( c_Vec_p_Var & vars,
+                  Vec_Index & map,
+                  bool ordered ) const final;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual Variable *get_active_var( const Index i ) const override final {
-  return( ( v_pairs.begin() + i )->first );
-  }
+ Variable * get_active_var( const Index i ) const final {
+  return ( v_pairs.begin() + i )->first;
+ }
 
 /*--------------------------------------------------------------------------*/
 
- virtual v_iterator * v_begin( void ) override final
- {
-  return( new LinearFunction::v_iterator( v_pairs.begin() ) );
-  }
+ v_iterator * v_begin() final {
+  return new LinearFunction::v_iterator( v_pairs.begin() );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual v_const_iterator * v_begin( void ) const override final
- {
-  return( new LinearFunction::v_const_iterator( v_pairs.begin() ) );
-  }
+ v_const_iterator * v_begin() const final {
+  return new LinearFunction::v_const_iterator( v_pairs.begin() );
+ }
 
 /*--------------------------------------------------------------------------*/
 
- virtual v_iterator * v_end( void ) override final
- {
-  return( new LinearFunction::v_iterator( v_pairs.end() ) );
-  }
+ v_iterator * v_end() final {
+  return new LinearFunction::v_iterator( v_pairs.end() );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual v_const_iterator * v_end( void ) const override final
- {
-  return( new LinearFunction::v_const_iterator( v_pairs.end() ) );
-  }
+ v_const_iterator * v_end() const final {
+  return new LinearFunction::v_const_iterator( v_pairs.end() );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------- METHODS FOR MODIFYING THE LinearFunction ------------------*/
@@ -545,8 +548,9 @@ class LinearFunction : public C15Function {
   * issued, as described in Observer::make_par(). Note that a linear function
   * is additive, and therefore strongly quasi-additive. */
 
- void add_variables( v_coeff_pair && vars , const bool ordered = false ,
-		     c_ModParam issueMod = eModBlck );
+ void add_variables( v_coeff_pair && vars,
+                     bool ordered = false,
+                     c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// add one single new Variable to the LinearFunction
@@ -557,8 +561,9 @@ class LinearFunction : public C15Function {
   * issued, as described in Observer::make_par(). Note that a linear function
   * is additive, and therefore strongly quasi-additive. */
 
- void add_variable( ColVariable * const var , const Coefficient coeff ,
-		    c_ModParam issueMod = eModBlck );
+ void add_variable( ColVariable * var,
+                    Coefficient coeff,
+                    c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// modify a single existing coefficient
@@ -568,8 +573,9 @@ class LinearFunction : public C15Function {
   * The parameter issueMod decides if and how the C05FunctionModLin is issued,
   * as described in Observer::make_par(). */
 
- void modify_coefficient( ColVariable * const var , const Coefficient coeff ,
-			  c_ModParam issueMod = eModBlck );
+ void modify_coefficient( ColVariable * var,
+                          Coefficient coeff,
+                          c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify a set of existing coefficients
@@ -584,8 +590,9 @@ class LinearFunction : public C15Function {
   * The parameter issueMod decides if and how the C05FunctionModLin is issued,
   * as described in Observer::make_par(). */
 
- void modify_coefficients( v_coeff_pair & vars , const bool ordered = false ,
-			   c_ModParam issueMod = eModBlck );
+ void modify_coefficients( v_coeff_pair & vars,
+                           bool ordered = false,
+                           c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify a set of existing coefficients
@@ -600,9 +607,10 @@ class LinearFunction : public C15Function {
   * The parameter issueMod decides if and how the C05FunctionModLin is issued,
   * as described in Observer::make_par(). */
 
- virtual void modify_coefficients( c_v_coeff_it NCoef , c_Vec_Index &nms ,
-				   const bool ordered = false ,
-				   c_ModParam issueMod = eModBlck );
+ virtual void modify_coefficients( c_v_coeff_it NCoef,
+                                   c_Vec_Index & nms,
+                                   bool ordered,
+                                   c_ModParam issueMod );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify a range of coefficients
@@ -616,9 +624,10 @@ class LinearFunction : public C15Function {
   * The parameter issueMod decides if and how the C05FunctionModLin is issued,
   * as described in Observer::make_par(). */
 
- void modify_coefficients( c_v_coeff_it NCoef ,
-			   c_Index strt = 0 , Index stop = Inf<Index>() ,
-			   c_ModParam issueMod = eModBlck );
+ void modify_coefficients( c_v_coeff_it NCoef,
+                           c_Index strt = 0,
+                           Index stop = Inf< Index >(),
+                           c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify a range of coefficients
@@ -634,26 +643,24 @@ class LinearFunction : public C15Function {
   * The parameter issueMod decides if and how the C05FunctionModLin is issued,
   * as described in Observer::make_par(). */
 
- void modify_coefficients( c_v_coeff_it NCoef ,
-			   const Variable * strt = nullptr ,
-			   const Variable * stop = nullptr ,
-			   c_ModParam issueMod = eModBlck )
- {
+ void modify_coefficients( c_v_coeff_it NCoef,
+                           const Variable * strt = nullptr,
+                           const Variable * stop = nullptr,
+                           c_ModParam issueMod = eModBlck ) {
   c_Index istrt = strt ? is_active( strt ) : 0;
   if( istrt >= get_num_active_var() )
-   throw( std::invalid_argument( "strt is not an active Variable" ) );
+   throw ( std::invalid_argument( "strt is not an active Variable" ) );
 
   Index istop;
   if( stop ) {
    istop = is_active( stop );
    if( istop >= get_num_active_var() )
-    throw( std::invalid_argument( "stop is not an active Variable" ) );
-   }
-  else
+    throw ( std::invalid_argument( "stop is not an active Variable" ) );
+  } else
    istop = get_num_active_var();
 
-  modify_coefficients( NCoef , istrt , istop , issueMod );
-  }
+  modify_coefficients( NCoef, istrt, istop, issueMod );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// remove the given Variable from the LinearFunction
@@ -671,9 +678,7 @@ class LinearFunction : public C15Function {
   * issued, as described in Observer::make_par(). Note that a linear function
   * is additive, and therefore strongly quasi-additive. */
 
- virtual void remove_variable( Variable * var ,
-			       c_ModParam issueMod = eModBlck )
-  override final;
+ void remove_variable( Variable * var, c_ModParam issueMod ) final;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// remove the i-th Variable
@@ -685,7 +690,7 @@ class LinearFunction : public C15Function {
   * issued, as described in Observer::make_par(). Note that a linear function
   * is additive, and therefore strongly quasi-additive. */
 
- void remove_variable( c_Index i , c_ModParam issueMod = eModBlck );
+ void remove_variable( c_Index i, c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// remove a range of Variable
@@ -696,8 +701,9 @@ class LinearFunction : public C15Function {
   * issued, as described in Observer::make_par(). Note that a linear function
   * is additive, and therefore strongly quasi-additive. */
 
- void remove_variables( c_Index strt = 0 , Index stop = Inf<Index>() ,
-			c_ModParam issueMod = eModBlck );
+ void remove_variables( c_Index strt = 0,
+                        Index stop = Inf< Index >(),
+                        c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// remove a range of Variable
@@ -711,25 +717,23 @@ class LinearFunction : public C15Function {
   * issued, as described in Observer::make_par(). Note that a linear function
   * is additive, and therefore strongly quasi-additive. */
 
- void remove_variables( const Variable * const strt = nullptr ,
-			const Variable * const stop = nullptr ,
-			c_ModParam issueMod = eModBlck )
- {
+ void remove_variables( const Variable * const strt = nullptr,
+                        const Variable * const stop = nullptr,
+                        c_ModParam issueMod = eModBlck ) {
   c_Index istrt = strt ? is_active( strt ) : 0;
   if( istrt >= get_num_active_var() )
-   throw( std::invalid_argument( "strt is not an active Variable" ) );
+   throw ( std::invalid_argument( "strt is not an active Variable" ) );
 
   Index istop;
   if( stop ) {
    istop = is_active( stop );
    if( istrt >= get_num_active_var() )
-    throw( std::invalid_argument( "stop is not an active Variable" ) );
-   }
-  else
+    throw ( std::invalid_argument( "stop is not an active Variable" ) );
+  } else
    istop = get_num_active_var();
 
-  remove_variables( istrt , istop , issueMod );
-  }
+  remove_variables( istrt, istop, issueMod );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// remove the given set of Variable
@@ -761,10 +765,9 @@ class LinearFunction : public C15Function {
   * issued, as described in Observer::make_par(). Note that a linear function
   * is additive, and therefore strongly quasi-additive. */
 
- virtual void remove_variables( Vec_p_Var && vars ,
-				const bool ordered = false ,
-				c_ModParam issueMod = eModBlck )
-  override final;
+ void remove_variables( Vec_p_Var && vars,
+                        bool ordered,
+                        c_ModParam issueMod ) final;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// remove a set of Variable by index
@@ -781,8 +784,9 @@ class LinearFunction : public C15Function {
   * issued, as described in Observer::make_par(). Note that a linear function
   * is additive, and therefore strongly quasi-additive. */
 
- virtual void remove_variables( Vec_Index & nms , const bool ordered = false ,
-				c_ModParam issueMod = eModBlck );
+ virtual void remove_variables( Vec_Index & nms,
+                                bool ordered,
+                                c_ModParam issueMod );
 
 /*--------------------------------------------------------------------------*/
  ///< sets the value of the constant term of this function.
@@ -792,8 +796,8 @@ class LinearFunction : public C15Function {
   * The parameter issueMod decides if and how the LinearFunctionMod is issued,
   * as described in Observer::make_par(). */
 
- void set_constant_term( const FunctionValue constant_term ,
-			 c_ModParam issueMod = eModBlck );
+ void set_constant_term( FunctionValue constant_term,
+                         c_ModParam issueMod );
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -806,12 +810,12 @@ class LinearFunction : public C15Function {
 /*--------------------------------------------------------------------------*/
 
  /// printing the LinearFunction
- void print( std::ostream &output ) const override {
+ void print( std::ostream & output ) const override {
   output << "LinearFunction [" << this << "] observed by ["
-	 << &f_Observer << "] with " << get_num_active_var()
-	 << " active variables;";
+         << &f_Observer << "] with " << get_num_active_var()
+         << " active variables;";
   output << "current value = " << get_value();
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
@@ -836,17 +840,17 @@ class LinearFunction : public C15Function {
 
 /*--------------------------------------------------------------------------*/
 
- void issue_add_variables_modification( v_coeff_pair & pairs ,
-					c_ModParam issueMod );
+ void issue_add_variables_modification( v_coeff_pair & pairs,
+                                        c_ModParam issueMod );
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( LinearFunction ) )
+};  // end( class( LinearFunction ) )
 
 /** @} end( group( LinearFunction_CLASSES ) ) ------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- }  // end( namespace SMSpp_di_unipi_it )
+}  // end( namespace SMSpp_di_unipi_it )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

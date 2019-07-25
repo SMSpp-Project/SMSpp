@@ -170,6 +170,16 @@ $(SMS++SDR)obj/OneVarConstraint.o: $(SMS++SDR)src/OneVarConstraint.cpp \
 	$(SMS++SDR)include/ThinVarDepInterface.h
 	$(CC) -c $(SMS++SDR)src/OneVarConstraint.cpp -o $@ $(SMS++INC) $(SW)
 
+$(SMS++SDR)obj/PolyhedralFunction.o: $(SMS++SDR)src/PolyhedralFunction.cpp \
+	$(SMS++SDR)include/PolyhedralFunction.h
+	$(SMS++SDR)include/C05Function.h $(SMS++SDR)include/Function.h \
+	$(SMS++SDR)include/ColVariable.h $(SMS++SDR)include/Variable.h \
+	$(SMS++SDR)include/Modification.h $(SMS++SDR)include/Observer.h \
+	$(SMS++SDR)include/SMSTypedefs.h \
+	$(SMS++SDR)include/ThinComputeInterface.h \
+	$(SMS++SDR)include/ThinVarDepInterface.h
+	$(CC) -c $(SMS++SDR)src/PolyhedralFunction.cpp -o $@ $(SMS++INC) $(SW)
+
 #$(SMS++SDR)obj/RowConstraint.o: $(SMS++SDR)src/RowConstraint.cpp $(intBlockINC)
 #	$(SMS++SDR)include/RowConstraint.h $(SMS++SDR)include/Constraint.h
 #	$(SMS++SDR)include/ThinVarDepInterface.h
