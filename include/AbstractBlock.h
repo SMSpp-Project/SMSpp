@@ -67,7 +67,8 @@ namespace SMSpp_di_unipi_it
  *
  * - all Variable to be ColVariable;
  *
- * - all Constraint to be either FRowConstraint or OneVarConstraint;
+ * - all Constraint to be either FRowConstraint or (any concrete class
+ *   derived from the abstract) OneVarConstraint;
  *
  * - the Objective to be a FRealObjective.
  *
@@ -145,40 +146,40 @@ class AbstractBlock : public Block {
  *  @{ */
 
  /// set a (either globally valid or conditionally valid) upper bound
- /** Upper bounds (either globally valid or conditionally valid ones)
-  * cannot reasonably be computed by the AbstractBlock itself; so, if any
-  * is known "from the outside", it has to be explicitly passed to the
-  * AbstractBlock so that the latter can rely it to any attached Solver.
-  * Only one of the two kinds of bounds makese sense at any given time
-  * (if a globally valid upper bound is known then the problem is not
-  * unbounded above and there is no point in checking for a conditionally
-  * valid one), so the method sets the globally valid bound if the
-  * conditional parameter is false, and the conditionally valid one
-  * otherwise, with the other being automatically set to + infinity. */
+ /** Upper bounds (either globally valid or conditionally valid ones) cannot
+  * reasonably be computed by the AbstractBlock itself; so, if any is known
+  * "from the outside", it has to be explicitly passed to the AbstractBlock
+  * so that the latter can rely it to any attached Solver. Only one of the
+  * two kinds of bounds makese sense at any given time (if a globally valid
+  * upper bound is known then the problem is not unbounded above and there
+  * is no point in checking for a conditionally valid one), so the method
+  * sets the globally valid bound if the conditional parameter is false, and
+  * the conditionally valid one otherwise, with the other being automatically
+  * set to + infinity. */
 
- double set_valid_upper_bound( const double newub = + Inf<double>() ,
-			       const bool conditional = false )
+ void set_valid_upper_bound( const double newub = + Inf<double>() ,
+			     const bool conditional = false )
  {
-  f_ub = newub; f_ub_cond = conditional );
+  f_ub = newub; f_ub_cond = conditional;
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set a (either globally valid or conditionally valid) lower bound
- /** Lower bounds (either globally valid or conditionally valid ones)
-  * cannot reasonably be computed by the AbstractBlock itself; so, if any
-  * is known "from the outside", it has to be explicitly passed to the
-  * AbstractBlock so that the latter can rely it to any attached Solver.
-  * Only one of the two kinds of bounds makese sense at any given time
-  * (if a globally valid lower bound is known then the problem is not
-  * unbounded below and there is no point in checking for a conditionally
-  * valid one), so the method sets the globally valid bound if the
-  * conditional parameter is false, and the conditionally valid one
-  * otherwise, with the other being automatically set to - infinity. */
+ /** Lower bounds (either globally valid or conditionally valid ones) cannot
+  * reasonably be computed by the AbstractBlock itself; so, if any is known
+  * "from the outside", it has to be explicitly passed to the AbstractBlock
+  * so that the latter can rely it to any attached Solver. Only one of the
+  * two kinds of bounds makese sense at any given time (if a globally valid
+  * lower bound is known then the problem is not unbounded below and there
+  * is no point in checking for a conditionally valid one), so the method
+  * sets the globally valid bound if the conditional parameter is false, and
+  * the conditionally valid one otherwise, with the other being automatically
+  * set to - infinity. */
 
- double set_valid_lower_bound( const double newlb = - Inf<double>() ,
-			       const bool conditional = false )
+ void set_valid_lower_bound( const double newlb = - Inf<double>() ,
+			     const bool conditional = false )
  {
-  f_lb = newlb; f_lb_cond = conditional );
+  f_lb = newlb; f_lb_cond = conditional;
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -193,7 +194,7 @@ class AbstractBlock : public Block {
   * great care, and *not* as soon as there is any solver attached to the
   * AbstractBlock. */
 
- Vec_Block & access_nested_Blocks( void ) const { return( v_Block ); }
+ Vec_Block & access_nested_Blocks( void ) { return( v_Block ); }
 
 /*--------------------------------------------------------------------------*/
 
@@ -317,7 +318,7 @@ class AbstractBlock : public Block {
   * Variable and Constraint, Objective, and inner Block) and asks everyone to
   * print itself. */
 
- virtual void print( std::ostream &output ) const;
+ virtual void print( std::ostream &output ) const override final;
 
 /*--------------------------------------------------------------------------*/
  /// load the Block out of an istream

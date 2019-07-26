@@ -24,6 +24,7 @@
 /*--------------------------------------------------------------------------*/
 
 #include "SMSTypedefs.h"
+#include "Observer.h"
 #include "PolyhedralFunction.h"
 #include <math.h>
 
@@ -42,15 +43,15 @@ int PolyhedralFunction::compute( bool changedvars )
  if( changedvars ) {
   f_next = 0;
   f_value = - Inf<FunctionValue>();
-  if( A.empty() )
+  if( v_A.empty() )
    return( kOK );
 
   if( v_ord.size() > 1 ) {
    std::vector<FunctionValue> v;
-   for( Index i = 0 ; i < A.size() ; ++i ) {
-    v[ i ] = b[ i ];
-    for( Index j = 0 ; j < x.size() ; ++j )
-     v[ i ] += x[ j ]->get_value() * A[ i ][ j ];
+   for( Index i = 0 ; i < v_A.size() ; ++i ) {
+    v[ i ] = v_b[ i ];
+    for( Index j = 0 ; j < v_x.size() ; ++j )
+     v[ i ] += v_x[ j ]->get_value() * v_A[ i ][ j ];
     }
 
    if( f_is_convex )
@@ -67,10 +68,10 @@ int PolyhedralFunction::compute( bool changedvars )
    f_value = v[ v_ord[ 0 ] ];
    }
   else {
-   for( Index i = 0 ; i < A.size() ; ++i ) {
-    FunctionValue vi = b[ i ];
-    for( Index j = 0 ; j < x.size() ; ++j ) {
-     vi += x[ j ]->get_value() * A[ i ][ j ];
+   for( Index i = 0 ; i < v_A.size() ; ++i ) {
+    FunctionValue vi = v_b[ i ];
+    for( Index j = 0 ; j < v_x.size() ; ++j ) {
+     vi += v_x[ j ]->get_value() * v_A[ i ][ j ];
 
      if( f_is_convex ) {
       if( vi > f_value ) {
@@ -102,25 +103,25 @@ void PolyhedralFunction::store_combination_of_linearizations(
 
  // construct the aggregated linearization in a new vector
  std::vector<FunctionValue> a;
- a.resize( x.size() , 0 );
+ a.resize( v_x.size() , 0 );
  FunctionValue b = 0;
 
  for( const auto & coef : coefficients ) {
   if( v_glob[ coef.first ] == Inf<Index>() )
    throw( std::invalid_argument( "invalid name in coefficients" ) );
 
-  std::vector<FunctionValue> & ai;
+  std::vector<FunctionValue>::iterator ait;
   if( v_glob[ coef.first ] < v_A.size() ) {
-   ai = & v_A[ v_glob[ coef.first ] ];
+   ait = v_A[ v_glob[ coef.first ] ].begin();
    b += v_b[ v_glob[ coef.first ] ] * coef.second;
    }
   else {
-   ai = & v_aA[ v_glob[ coef.first ] - v_A.size() ];
+   ait = v_aA[ v_glob[ coef.first ] - v_A.size() ].begin();
    b += v_b[ v_glob[ coef.first ] - v_A.size() ] * coef.second;
    }
 
-  for( Index i = 0 ; i < x.size() ; ++i )
-   a[ i ] += ai[ i ] * coef.second;
+  for( auto & ai : a )
+   ai += (*(ait++)) * coef.second;
   }
 
  // now put the vector in the right place
@@ -135,17 +136,17 @@ void PolyhedralFunction::store_combination_of_linearizations(
 
   if( pos == v_ab.size() ) {
    // no free position is found, thus create one
-   v_ab.push_back();
-   v_aA.push_back();
+   v_aA.push_back( std::move( a ) );
+   v_ab.push_back( b );
    }
   }
- else
+ else {
   // the aggregated linearization replaces an already aggregated one
-  pos = v_glob[ name ] - A.size();
+  pos = v_glob[ name ] - v_A.size();
 
- aA[ pos ] = std::move( a );
- ab[ pos ] = b;
-
+  v_aA[ pos ] = std::move( a );
+  v_ab[ pos ] = b;
+  }
  }  // end( PolyhedralFunction::store_combination_of_linearizations )
 
 /*--------------------------------------------------------------------------*/
@@ -204,30 +205,21 @@ void PolyhedralFunction::get_linearization_coefficients( FunctionValue * g ,
 	const LinearizationName name ,
 	c_Vec_Index & indices  , const Index start , const Index end )
 {
- c_Index tend = std::min( end , v_x.size() );
+ c_Index tend = std::min( end , Index( v_x.size() ) );
  if( tend <= start )
   return;
 
- std::vector<FunctionValue> & ai;
- if( name >= v_glob.size() )
-  ai = & v_A[ v_ord[ f_next ] ];
- else {
-  auto pos = v_glob[ name ];
-  if( pos < v_A.size() )
-   ai = & v_A[ pos ];
-  else
-   ai = & v_aA[ pos - v_A.size() ];
-  }
+ std::vector<FunctionValue> & ai =  get_ai( name );
 
  if( indices.empty() )
-  for( ; start < end ; ++start )
-   *(g++) = ai[ start ];
+  for( Index i = start ; i < end ; ++i )
+   *(g++) = ai[ i ];
  else {
   auto ti = indices.begin();
   while( ( *ti < start ) && ( ti != indices.end() ) )
    ++ti;
 
-  while( ( *ti < emd ) && ( ti != indices.end() ) )
+  while( ( *ti < end ) && ( ti != indices.end() ) )
    *(g++) = ai[ *(ti++) ];
   }
  }  // end( PolyhedralFunction::get_linearization_coefficients( array ) )
@@ -235,35 +227,26 @@ void PolyhedralFunction::get_linearization_coefficients( FunctionValue * g ,
 /*--------------------------------------------------------------------------*/
 
 void PolyhedralFunction::get_linearization_coefficients( SparseVector & g ,
-	 const LinearizationName name , c_Vec_Index & indices ,
-     c_Index start , c_Index end )
+	             const LinearizationName name , c_Vec_Index & indices ,
+		     c_Index start , c_Index end )
 {
- c_Index tend = std::min( end , v_x.size() );
+ c_Index tend = std::min( end , Index( v_x.size() ) );
  if( tend <= start )
   return;
 
- std::vector<FunctionValue> & ai;
- if( name >= v_glob.size() )
-  ai = & v_A[ v_ord[ f_next ] ];
- else {
-  auto pos = v_glob[ name ];
-  if( pos < v_A.size() )
-   ai = & v_A[ pos ];
-  else
-   ai = & v_aA[ pos - v_A.size() ];
-  }
+ std::vector<FunctionValue> & ai =  get_ai( name );
 
  if( g.nonZeros() == 0 ) {
   // the given vector contains no non-zero element
-  if( g.size() < x.size() )
-   g.resize( x.size() );
+  if( g.size() < v_x.size() )
+   g.resize( v_x.size() );
 
   g.reserve( tend - start );
 
   if( indices.empty() ) {
-   for( ; start < end ; ++start ) {
-    if( ai[ start ] != 0 )
-     g.insert( start ) = ai[ start ];
+   for( Index i = start ; i < end ; ++i ) {
+    if( ai[ i ] != 0 )
+     g.insert( i ) = ai[ i ];
     }
    }
   else {
@@ -271,23 +254,23 @@ void PolyhedralFunction::get_linearization_coefficients( SparseVector & g ,
    while( ( *ti < start ) && ( ti != indices.end() ) )
     ++ti;
 
-   for( ; ( *ti < emd ) && ( ti != indices.end() ) ; ++ti )
+   for( ; ( *ti < end ) && ( ti != indices.end() ) ; ++ti )
     if( ai[ *ti ] != 0 )
      g.insert( *ti ) = ai[ *ti ];
    }
   }
  else {
   // the given vector contains some non-zero elements
-  if( g.size() != x.size() )
+  if( g.size() != v_x.size() )
    throw( std::invalid_argument(
 	    "PolyhedralFunction::get_linearization_coefficients: "
 	    "the size of the sparse vector must be equal to the number "
 	    "of active Variables of the Function" ) );
 
   if( indices.empty() ) {
-   for( ; start < end ; ++start ) {
-    if( ai[ start ] != 0 )
-     g.coeffRef( start ) = ai[ start ];
+   for( Index i = start ; i < end ; ++i ) {
+    if( ai[ i ] != 0 )
+     g.coeffRef( i ) = ai[ i ];
     }
    }
   else {
@@ -295,7 +278,7 @@ void PolyhedralFunction::get_linearization_coefficients( SparseVector & g ,
    while( ( *ti < start ) && ( ti != indices.end() ) )
     ++ti;
 
-   for( ; ( *ti < emd ) && ( ti != indices.end() ) ; ++ti )
+   for( ; ( *ti < end ) && ( ti != indices.end() ) ; ++ti )
     if( ai[ *ti ] != 0 )
      g.coeffRef( *ti ) = ai[ *ti ];
    }
@@ -337,6 +320,56 @@ void PolyhedralFunction::map_active( c_Vec_p_Var & vars , Vec_Index & map ,
 /*------------- METHODS FOR MODIFYING THE PolyhedralFunction ---------------*/
 /*--------------------------------------------------------------------------*/
 
+void PolyhedralFunction::set_PolyhedralFunction( MultiVector && A ,
+					    std::vector<FunctionValue> && b ,
+						 const bool is_convex ,
+						 c_ModParam issueMod )
+{
+ if( ! A.empty() )
+  if( v_x.size() != v_A[ 0 ].size() )
+   throw( std::invalid_argument( "A and x must have the same columns" ) );
+
+ guts_of_constructor_Ab( std::move( A ) , std::move( b ) );
+ f_is_convex = is_convex;
+ f_next = f_imp = 0;
+ 
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+  return;
+
+ // "nuclear modification" for Function: everything changed
+ f_Observer->add_Modification( std::make_shared<FunctionMod>( this ,
+				         FunctionMod::NaNshift ,
+				         Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
+
+ }  // end( PolyhedralFunction::set_PolyhedralFunction )
+
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunction::set_is_convex( const bool is_convex ,
+					c_ModParam issueMod )
+{
+ if( is_convex == f_is_convex )  // actually doing nothing
+  return;                        // cowardly (and silently) return
+
+ f_is_convex = is_convex;           // change the verse
+ f_value = - Inf<FunctionValue>();  // the function value has changed
+
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+  return;
+
+ // issue the C05FunctionMod: if f_is_convex is true the function has
+ // changed from min to max, hence has increased, and vice-versa
+ f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+				      C05FunctionMod::NothingChanged ,
+				      f_is_convex ? FunctionMod::INFshift :
+				                  - FunctionMod::INFshift ,
+				      Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 void PolyhedralFunction::add_variables( Vec_p_Var && nx , MultiVector && nA ,
 				        c_ModParam issueMod )
 {
@@ -355,10 +388,14 @@ void PolyhedralFunction::add_variables( Vec_p_Var && nx , MultiVector && nA ,
 
  if( ! n ) {    // very easy case: adding to nothing
   v_A = std::move( nA );
-  v_x.resize( nm );
+  v_x.resize( nx.size() );
   auto tvx = v_x.begin();
-  for( const auto nxi : nx )
-   *(tvx++) = nxi;
+  for( auto nxi : nx ) {
+   auto nxicv = dynamic_cast<ColVariable *>( nxi );
+   if( ! nxicv )
+    throw( std::invalid_argument( "some Variable in nx not a ColVariable" ) );
+   *(tvx++) = nxicv;
+   }
 
   // now issue the C05FunctionModVars
   if( f_Observer && f_Observer->issue_mod( issueMod ) )
@@ -388,7 +425,7 @@ void PolyhedralFunction::add_variables( Vec_p_Var && nx , MultiVector && nA ,
 
  if( nx.back() < v_x.front() )  {  // easy-ish case: adding at the beginning
   for( Index i = 0 ; i < v_A.size() ; ++i )
-   v_A[ i ].insert( v_A.begin() , nA[ i ].begin() , nA[ i ].end() );
+   v_A[ i ].insert( v_A[ i ].begin() , nA[ i ].begin() , nA[ i ].end() );
 
   // now issue the C05FunctionModVars
   if( f_Observer && f_Observer->issue_mod( issueMod ) )
@@ -412,7 +449,7 @@ void PolyhedralFunction::add_variables( Vec_p_Var && nx , MultiVector && nA ,
  auto nxi = nx.begin();
  auto xi = v_x.begin();
  Index i = 0;
- for( ; ( nxi != nx.end ) && ( xi != v_x.end() ) ; )
+ for( ; ( nxi != nx.end() ) && ( xi != v_x.end() ) ; )
   if( *nxi == *xi )
    throw( std::invalid_argument( "some variable already present" ) );
   else
@@ -425,7 +462,7 @@ void PolyhedralFunction::add_variables( Vec_p_Var && nx , MultiVector && nA ,
     ++xi;
     }
    
- for( ; nxi != nx.end ; ) {
+ for( ; nxi != nx.end() ; ) {
   *(npi++) = i++;
   ++nxi;
   }
@@ -441,18 +478,22 @@ void PolyhedralFunction::add_variables( Vec_p_Var && nx , MultiVector && nA ,
  VarVector t_x( n + nn );
  for( i = n ; i-- ; )
   t_x[ oldpos[ i ] ] = v_x[ i ];
- for( i = 0 ; i < n ; ++i )
-  t_x[ newpos[ i ] ] = nx[ i ];
- 
+ for( i = 0 ; i < nn ; ++i ) {
+  auto nxicv = dynamic_cast<ColVariable *>( nx[ i ] );
+  if( ! nxicv )
+   throw( std::invalid_argument( "some Variable in nx not a ColVariable" ) );
+  t_x[ newpos[ i ] ] = nxicv;
+  }
+
  v_x = std::move( t_x );
 
  // merge v_A and nA
  for( Index j = 0 ; j < v_A.size() ; ++j ) {
   std::vector < FunctionValue > Aj( n + nn );
   for( i = n ; i-- ; )
-   Aj[ oldpos[ i ] ] = v_A[ i ];
-  for( i = 0 ; i < n ; ++i )
-   Aj[ newpos[ i ] ] = nA[ i ];
+   Aj[ oldpos[ i ] ] = v_A[ j ][ i ];
+  for( i = 0 ; i < nn ; ++i )
+   Aj[ newpos[ i ] ] = nA[ j ][ i ];
 
   v_A[ j ] = std::move( Aj );
   }
@@ -493,7 +534,8 @@ void PolyhedralFunction::add_variable( ColVariable * const var ,
 
  f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
                                          FunctionModVars::AddVar ,
-					 { var } , true , 0 , true ,
+					 std::vector<Variable *>( { var } ) ,
+					 true , 0 , true ,
 					 Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 
@@ -519,7 +561,7 @@ void PolyhedralFunction::modify_row( c_Index i ,
  // issue the C05FunctionMod
  f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
 				     C05FunctionMod::AllLinearizationChanged ,
-			             NANshift ,
+			             C05FunctionMod::NaNshift ,
 				     Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
 
@@ -543,7 +585,7 @@ void PolyhedralFunction::modify_constant( c_Index i , c_FunctionValue bi ,
  // issue the C05FunctionMod
  f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
 				         C05FunctionMod::AlphaChanged ,
-			                 NANshift ,
+			                 C05FunctionMod::NaNshift ,
 				         Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
 
@@ -683,7 +725,7 @@ void PolyhedralFunction::delete_rows( std::vector<Index> & rows ,
  // issue the C05FunctionMod
  f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
 				   stgchgd ? C05FunctionMod::AlphaChanged
-				             C05FunctionMod::NothingChanged ,
+					   : C05FunctionMod::NothingChanged ,
 				   f_is_convex ? - FunctionMod::INFshift :
 				                 + FunctionMod::INFshift ,
 				   Observer::par2concern( issueMod ) ) ,
@@ -737,7 +779,7 @@ void PolyhedralFunction::delete_row( c_Index i , c_ModParam issueMod )
  // issue the C05FunctionMod
  f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
 				   stgchgd ? C05FunctionMod::AlphaChanged
-				             C05FunctionMod::NothingChanged ,
+					   : C05FunctionMod::NothingChanged ,
 				   f_is_convex ? - FunctionMod::INFshift :
 				                 + FunctionMod::INFshift ,
 				   Observer::par2concern( issueMod ) ) ,
@@ -750,7 +792,7 @@ void PolyhedralFunction::delete_row( c_Index i , c_ModParam issueMod )
 void PolyhedralFunction::delete_rows( c_ModParam issueMod )
 {
  v_A.clear();   // delete original rows
- v_B.clear();
+ v_b.clear();
  v_aA.clear();  // delete aggregated linearizations
  v_ab.clear();
 
@@ -811,6 +853,7 @@ void PolyhedralFunction::remove_variable( c_Index i , c_ModParam issueMod )
  if( v_x.size() >= i )
   throw( std::logic_error( "invalid Variable index" ) );
 
+ auto var = v_x[ i ];
  v_x.erase( v_x.begin() + i );    // erase it in v_x
  for( auto & ai : v_A )           // erase the column in A
   ai.erase( ai.begin() + i );
@@ -833,7 +876,7 @@ void PolyhedralFunction::remove_variable( c_Index i , c_ModParam issueMod )
 void PolyhedralFunction::remove_variables( c_Index strt , Index stop ,
 					   c_ModParam issueMod )
 {
- stop = std::min( stop , c_Index( v_pairs.size() ) );
+ stop = std::min( stop , c_Index( v_x.size() ) );
  if( stop <= strt )
   return;
 
@@ -847,7 +890,7 @@ void PolyhedralFunction::remove_variables( c_Index strt , Index stop ,
   // somebody is there: meanwhile, prepare data for the Modification
 
   Vec_p_Var vars( stop - strt );
-  std::copy( vars.begin() , vars.end() , strtit );
+  std::copy( strtit , stopit , vars.begin() );
   v_x.erase( strtit , stopit );
 
   // now issue the Modification
@@ -860,7 +903,7 @@ void PolyhedralFunction::remove_variables( c_Index strt , Index stop ,
 				Observer::par2chnl( issueMod ) );
   }
  else  // noone is there: just do it
-  v_pairs.erase( strtit , stopit );
+  v_x.erase( strtit , stopit );
 
  }  // end( PolyhedralFunction::remove_variables( range ) )
 
@@ -870,7 +913,7 @@ template< class T >
 static void compact( std::vector< T > x ,
 		     PolyhedralFunction::Vec_Index & nms )
 {
- Index i = nms.front();
+ PolyhedralFunction::Index i = nms.front();
  auto xit = x.begin() + (i++);
  for( auto nit = ++(nms.begin()) ; nit != nms.end() ; ++i )
   if( *nit == i )

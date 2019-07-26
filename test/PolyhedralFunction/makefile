@@ -48,22 +48,31 @@ clean::
 # *H   is the list of all include files
 # *INC is the -I<include directories>
 
-# MILPSolver
-MILPSSDR = ../../../MILPSolver/
-include $(MILPSSDR)makefile-c
-
-# BundleSolver
+# BundleSolver (this also includes SMS++)
 BNDSLVSDR = ../../../BundleSolver/
 BNDSLVODR = ../../../BundleSolver/
 include $(BNDSLVSDR)makefile-c
 
+# define input macros for SMS++ complete makefile, then include it
+#SMS++SDR = ../../../SMS++/
+#include $(SMS++SDR)lib/makefile-inc
+
+# define input macros for libCPLEX complete makefile, then include it
+libCPLEXDIR = ../../../extlib/
+include $(libCPLEXDIR)makefile-libCPLEX
+
+# MILPSolver
+MILPSSDR = ../../../MILPSolver/
+include $(MILPSSDR)makefile
+
+
 # main module (linking phase) - - - - - - - - - - - - - - - - - - - - - - - -
 
 # object files
-MOBJ =  $(MILPSOBJ) $(BNDSLVOBJ)
+MOBJ =  $(MILPSOBJ) $(BNDSLVOBJ) $(libNDOOBJ) $(libCPLEXOBJ) $(SMS++OBJ)
 
 # libreries
-MLIB =  $(MILPSLIB) $(BNDSLVLIB)
+MLIB =  $(MILPSLIB) $(BNDSLVLIB) $(libNDOLIB) $(libCPLEXLIB) $(SMS++LIB) 
 
 $(NAME): $(MOBJ) $(DIR)$(NAME).o
 	$(CC) -o test $(DIR)$(NAME).o $(MOBJ) $(MLIB) $(SW)
@@ -71,7 +80,7 @@ $(NAME): $(MOBJ) $(DIR)$(NAME).o
 # dependencies: every .o from its .C + every recursively included .h- - - - -
 
 # include directives
-MINC =  $(MILPSINC) $(BNDSLVINC)
+MINC =  $(MILPSINC) $(BNDSLVINC) $(libNDOINC) $(libCPLEXINC) $(SMS++INC)
 
 # includes
 MH =    $(MILPSH) $(BNDSLVH)
