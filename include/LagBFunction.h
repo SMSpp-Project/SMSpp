@@ -707,6 +707,10 @@ class LagBFunction : public C05Function , public Block {
  virtual FunctionValue get_linearization_constant(
 		 const LinearizationName name = Inf<Index>() ) override final;
 
+ /*--------------------------------------------------------------------------*/
+
+ Block* get_inner_block( void );
+
 /**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/

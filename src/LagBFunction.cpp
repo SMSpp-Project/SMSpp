@@ -1011,6 +1011,13 @@ Function::FunctionValue LagBFunction::get_linearization_constant(
  } // end( LagBFunction::get_linearization_constant() )  - - - - - - - - - - -
 
 /*--------------------------------------------------------------------------*/
+
+Block* LagBFunction::get_inner_block( void ) {
+
+ return( v_Block[0] );
+ }
+
+/*--------------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/
 
