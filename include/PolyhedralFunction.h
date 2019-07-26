@@ -30,6 +30,7 @@
 /*--------------------------------------------------------------------------*/
 
 #include "C05Function.h"
+#include "ColVariable.h"
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -108,15 +109,6 @@ class PolyhedralFunction : public C05Function {
 
  typedef const VarVector c_VarVector;
  ///< a const version of the x variables upon which the function depends
-
- // typedef Eigen::SparseVector<FunctionValue> SparseVector;
-
- // typedef unsigned int LinearizationName;
-
- // typedef std::vector< std::pair < LinearizationName , FunctionValue > >
- // LinearCombination;
-
- // typedef const LinearCombination c_LinearCombination;
 
 /*--------------------------------------------------------------------------*/
  /// virtualized concrete iterator
@@ -260,7 +252,7 @@ class PolyhedralFunction : public C05Function {
   : C05Function( observer ) , f_is_convex( is_convex ) ,
     f_loc_pool_sz( 1 ) , f_next( 0 ) , f_imp( 0 )
  {
-  guts_of_constructor_Ab( A , b );
+  guts_of_constructor_Ab( std::move( A ) , std::move( b ) );
   if( ! v_A.empty() )
    if( x.size() != v_A[ 0 ].size() )
     throw( std::invalid_argument( "A and x must have the same columns" ) );
@@ -304,7 +296,7 @@ class PolyhedralFunction : public C05Function {
      if( value == 1 )
       v_ord.resize( 1 );
      else {
-      v_ord.resize( A.size() );
+      v_ord.resize( v_A.size() );
       std::iota( v_ord.begin() , v_ord.end() , 0 );
       }
      f_loc_pool_sz = value;
@@ -351,7 +343,9 @@ class PolyhedralFunction : public C05Function {
 /*--------------------------------------------------------------------------*/
  /// returns the value of the PolyhedralFunction
 
- virtual FunctionValue get_value( void ) override final { return( f_value ); }
+ virtual FunctionValue get_value( void ) const override final {
+  return( f_value );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the PolyhedralFunction is exact, hence lower_estimate == value
@@ -406,7 +400,7 @@ class PolyhedralFunction : public C05Function {
 
  virtual bool has_linearization( const bool diagonal = true ) override final
  {
-  return( diagonal ? ( ! A.empty() ) : false );
+  return( diagonal ? ( ! v_A.empty() ) : false );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -414,7 +408,7 @@ class PolyhedralFunction : public C05Function {
 
  virtual bool compute_new_linearization( const bool diagonal = true )
   override final {
-  if( ( ! diagonal ) || A.empty() || ( f_next >= v_ord.size() - 1 ) ||
+  if( ( ! diagonal ) || v_A.empty() || ( f_next >= v_ord.size() - 1 ) ||
       ( f_next >= f_loc_pool_sz - 1 ) )
    return( false );
 
@@ -464,7 +458,7 @@ class PolyhedralFunction : public C05Function {
 
  virtual c_LinearCombination &
   get_important_linearization_coefficients( void ) override final {
-  return( & f_imp_coeff );
+  return( f_imp_coeff );
   }
 
 /*-------------------------------------------------------------------------*/
@@ -541,7 +535,7 @@ class PolyhedralFunction : public C05Function {
   * takes care of intLPMaxSz and intGPMaxSz, leaving all the rest to
   * Function. */
 
- virtual int get_int_par( const idx_type par ) const {
+ virtual int get_int_par( const idx_type par ) const override final {
   switch( par ) {
    case( intLPMaxSz ): return( f_loc_pool_sz );
    case( intGPMaxSz ): return( v_glob.size() );
@@ -587,28 +581,28 @@ class PolyhedralFunction : public C05Function {
 
  virtual v_iterator * v_begin( void ) override final
  {
-  return( new LinearFunction::v_iterator( v_x.begin() ) );
+  return( new PolyhedralFunction::v_iterator( v_x.begin() ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  virtual v_const_iterator * v_begin( void ) const override final
  {
-  return( new LinearFunction::v_const_iterator( v_x.begin() ) );
+  return( new PolyhedralFunction::v_const_iterator( v_x.begin() ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
  virtual v_iterator * v_end( void ) override final
  {
-  return( new LinearFunction::v_iterator( v_x.end() ) );
+  return( new PolyhedralFunction::v_iterator( v_x.end() ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  virtual v_const_iterator * v_end( void ) const override final
  {
-  return( new LinearFunction::v_const_iterator( v_x.end() ) );
+  return( new PolyhedralFunction::v_const_iterator( v_x.end() ) );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -649,25 +643,7 @@ class PolyhedralFunction : public C05Function {
  void set_PolyhedralFunction( MultiVector && A = {} ,
 			      std::vector<FunctionValue> && b = {} ,
 			      const bool is_convex = true ,
-			      c_ModParam issueMod = eModBlck )
- {
-  if( ! A.empty() )
-   if( v_x.size() != v_A[ 0 ].size() )
-    throw( std::invalid_argument( "A and x must have the same columns" ) );
-
-  guts_of_constructor_Ab( A , b );
-  f_is_convex = is_convex;
-  f_next = f_imp = 0;
- 
-  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
-   return;
-
-  // "nuclear modification" for Function: everything changed
-  f_Observer->add_Modification( std::make_shared<FunctionMod>( this ,
-				         FunctionMod::NaNshift ,
-				         Observer::par2concern( issueMod ) ) ,
-				Observer::par2chnl( issueMod ) );
-  }
+			      c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// change the "sign" of the PolyhedralFunction
@@ -694,26 +670,7 @@ class PolyhedralFunction : public C05Function {
   * C05FunctionMod::NothingChanged for the f_type of the C05FunctionMod. */
 
  void set_is_convex( const bool is_convex = true ,
-		     c_ModParam issueMod = eModBlck )
- {
-  if( is_convex == f_is_convex )  // actually doing nothing
-   return;                        // cowardly (and silently) return
-
-  f_is_convex = is_convex;           // change the verse
-  f_value = - Inf<FunctionValue>();  // the function value has changed
-
-  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
-   return;
-
-  // issue the C05FunctionMod: if f_is_convex is true the function has
-  // changed from min to max, hence has increased, and vice-versa
-  f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-				      C05FunctionMod::NothingChanged ,
-				      f_is_convex ? FunctionMod::INFshift :
-				                  - FunctionMod::INFshift ,
-				      Observer::par2concern( issueMod ) ) ,
-				Observer::par2chnl( issueMod ) );
-  }
+		     c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// add a set of new Variable to the PolyhedralFunction
@@ -1102,7 +1059,7 @@ class PolyhedralFunction : public C05Function {
  void compute_Lipschitz_constant( void )
  {
   f_Lipschitz_constant = 0;
-  for( const auto & Ai : A ) {
+  for( const auto & Ai : v_A ) {
    FunctionValue L = 0;
    for( const auto aij : Ai )
     L += aij * aij;
@@ -1113,6 +1070,21 @@ class PolyhedralFunction : public C05Function {
 
   f_Lipschitz_constant = sqrt( double( f_Lipschitz_constant ) );
   }
+
+/*--------------------------------------------------------------------------*/
+
+ std::vector<FunctionValue> & get_ai( c_Index name )
+ {
+  if( name >= v_glob.size() )
+   return( v_A[ v_ord[ f_next ] ] );
+  else {
+   auto pos = v_glob[ name ];
+   if( pos < v_A.size() )
+    return( v_A[ pos ] );
+   else
+    return( v_aA[ pos - v_A.size() ] );
+  }
+ }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PROTECTED FIELDS ------------------------------*/

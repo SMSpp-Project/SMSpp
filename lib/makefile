@@ -35,7 +35,8 @@
 
 # macroes to be exported- - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-SMS++OBJ = $(SMS++SDR)obj/Block.o \
+SMS++OBJ = $(SMS++SDR)obj/AbstractBlock.o \
+	$(SMS++SDR)obj/Block.o \
 	$(SMS++SDR)obj/ColVariable.o \
 	$(SMS++SDR)obj/ColVariableSolution.o \
 	$(SMS++SDR)obj/Constraint.o \
@@ -46,6 +47,7 @@ SMS++OBJ = $(SMS++SDR)obj/Block.o \
 	$(SMS++SDR)obj/LinearFunction.o \
 	$(SMS++SDR)obj/Objective.o \
 	$(SMS++SDR)obj/OneVarConstraint.o \
+	$(SMS++SDR)obj/PolyhedralFunction.o \
 	$(SMS++SDR)obj/Solver.o \
 	$(SMS++SDR)obj/ThinComputeInterface.o \
 	$(SMS++SDR)obj/Variable.o \
@@ -54,7 +56,8 @@ SMS++OBJ = $(SMS++SDR)obj/Block.o \
 
 SMS++INC := $(SMS++INC) -I$(SMS++SDR)include
 
-SMS++H = $(SMS++SDR)include/Block.h \
+SMS++H = $(SMS++SDR)include/AbstractBlock.h \
+	$(SMS++SDR)include/Block.h \
 	$(SMS++SDR)include/C05Function.h \
 	$(SMS++SDR)include/C15Function.h \
 	$(SMS++SDR)include/CDASolver.h \
@@ -70,6 +73,7 @@ SMS++H = $(SMS++SDR)include/Block.h \
 	$(SMS++SDR)include/Objective.h \
 	$(SMS++SDR)include/Observer.h \
 	$(SMS++SDR)include/OneVarConstraint.h \
+	$(SMS++SDR)include/PolyhedralFunction.h \
 	$(SMS++SDR)include/RowConstraint.h \
 	$(SMS++SDR)include/SMSTypedefs.h \
 	$(SMS++SDR)include/Solution.h \
@@ -93,7 +97,7 @@ intBlockINC = $(SMS++SDR)include/Block.h $(SMS++SDR)include/Configuration.h \
 	$(SMS++SDR)include/Observer.h $(SMS++SDR)include/SMSTypedefs.h \
 	$(SMS++SDR)include/ThinComputeInterface.h
 
-$(SMS++SDR)obj/AbstractBlock.o: $(SMS++SDR)src/AbstractBlock.cpp
+$(SMS++SDR)obj/AbstractBlock.o: $(SMS++SDR)src/AbstractBlock.cpp \
 	$(SMS++SDR)include/AbstractBlock.h $(intBlockINC) \
 	$(SMS++SDR)include/Variable.h $(SMS++SDR)include/ColVariable.h \
 	$(SMS++SDR)include/Objective.h $(SMS++SDR)include/FRealObjective.h \
@@ -183,7 +187,7 @@ $(SMS++SDR)obj/OneVarConstraint.o: $(SMS++SDR)src/OneVarConstraint.cpp \
 	$(CC) -c $(SMS++SDR)src/OneVarConstraint.cpp -o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)obj/PolyhedralFunction.o: $(SMS++SDR)src/PolyhedralFunction.cpp \
-	$(SMS++SDR)include/PolyhedralFunction.h
+	$(SMS++SDR)include/PolyhedralFunction.h \
 	$(SMS++SDR)include/C05Function.h $(SMS++SDR)include/Function.h \
 	$(SMS++SDR)include/ColVariable.h $(SMS++SDR)include/Variable.h \
 	$(SMS++SDR)include/Modification.h $(SMS++SDR)include/Observer.h \

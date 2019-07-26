@@ -1836,7 +1836,7 @@ class Block : public Observer {
   * Hence, should a derived class choose to implement its "physical
   * representation" as (...) vectors of Constraint, as opposed to (...)
   * vectors of pointers, it has to be *very* careful to *NEVER* MODIFY THESE
-  * VECTORS (in particular, increase their size) during  the lifetime of the
+  * VECTORS (in particular, increase their size) during the lifetime of the
   * Block in order to avoid the risk that some Constraints may change their
   * memory location, hence their "name".
   *
@@ -2163,28 +2163,40 @@ class Block : public Observer {
   * order to "incorporate" this new information. */
 
 /*--------------------------------------------------------------------------*/
-
- c_Vec_string * get_s_const_name( void ) const {
-  return( &v_s_Constraint_names );
-  }
- ///< getting the static Constraints' names
- /**< Returns a const reference to the vector storing the names of the
+ /// getting the static Constraints' names
+ /** Returns a const reference to the vector storing the names of the
   * different types (sets) of static Constraints of the Block */
 
- c_Vec_string * get_s_var_name( void ) { return( &v_s_Variable_names ); }
- ///< getting the static Variables' names
- /**< Returns a const reference to the vector storing the names of the
+ c_Vec_string & get_s_const_name( void ) const {
+  return( v_s_Constraint_names );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// getting the static Variables' names
+ /** Returns a const reference to the vector storing the names of the
   * different types (sets) of static Variables of the Block */
 
- c_Vec_string * get_d_const_name( void ) { return( &v_d_Constraint_names ); }
- ///< getting the dynamic Constraints' names
- /**< Returns a const reference to the vector storing the names of the
+ c_Vec_string & get_s_var_name( void ) const {
+  return( v_s_Variable_names );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// getting the dynamic Constraints' names
+ /** Returns a const reference to the vector storing the names of the
   * different types (sets) of dynamic Constraints of the Block */
 
- c_Vec_string * get_d_var_name( void ) { return( &v_d_Variable_names ); }
- ///< getting the dynamic Variables' names
- /**< Returns a const reference to the vector storing the names of the
+ c_Vec_string & get_d_const_name( void ) const {
+  return( v_d_Constraint_names );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// getting the dynamic Variables' names
+ /** Returns a const reference to the vector storing the names of the
   * different types (sets) of dynamic Variables of the Block */
+
+ c_Vec_string & get_d_var_name( void ) const {
+  return( v_d_Variable_names );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*----- Methods for adding/removing (dynamic) Variables and Constraints ----*/

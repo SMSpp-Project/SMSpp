@@ -1586,7 +1586,7 @@ bool un_any_const_dynamic_ptr( const boost::any & any , F f , un_any_type<T> ,
  * 8, but it may be easily extended to go higher if needed. */
 
 #define un_any_thing( thing_type , my_thing , f ) \
- [&]( boost::any & _any ) -> bool { \
+ [&]( const boost::any & _any ) -> bool { \
   if( un_any_thing_0( thing_type , _any , f ) ) return( true ); \
   else if( un_any_thing_1( thing_type , _any , f ) ) return( true ); \
   return( un_any_thing_K( thing_type , _any , f ) ); \
@@ -1595,7 +1595,7 @@ bool un_any_const_dynamic_ptr( const boost::any & any , F f , un_any_type<T> ,
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
 #define un_any_thing_0( thing_type , my_thing , f )	\
- [&]( boost::any & _any ) -> bool { \
+ [&]( const boost::any & _any ) -> bool { \
   if( _any.type() == typeid( thing_type * ) ) { auto & var = \
    * boost::any_cast< thing_type * >( _any ); f; return( true ); } \
   return( false ); \
@@ -1604,7 +1604,7 @@ bool un_any_const_dynamic_ptr( const boost::any & any , F f , un_any_type<T> ,
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
 #define un_any_thing_1( thing_type , my_thing , f )	\
- [&]( boost::any & _any ) -> bool { \
+ [&]( const boost::any & _any ) -> bool { \
   if( _any.type() == typeid( std::vector< thing_type > * ) ) { \
    auto & var = * boost::any_cast< std::vector< thing_type > * >( _any ); \
    f; return( true ); } \
@@ -1614,7 +1614,7 @@ bool un_any_const_dynamic_ptr( const boost::any & any , F f , un_any_type<T> ,
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
 #define un_any_thing_K( thing_type , my_thing , f )	\
- [&]( boost::any & _any ) -> bool { \
+ [&]( const boost::any & _any ) -> bool { \
   if( _any.type() == typeid( boost::multi_array< thing_type , 2 > * ) ) { \
    auto & var = \
    * boost::any_cast< boost::multi_array< thing_type , 2 > * >( _any ); f; \
