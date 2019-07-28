@@ -420,25 +420,26 @@ class LinearFunction : public C15Function {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  void get_linearization_coefficients( FunctionValue * g,
-                                      LinearizationName name,
-                                      c_Vec_Index & indices,
-                                      c_Index start,
-                                      c_Index end ) final;
+                                      LinearizationName name = Inf<LinearizationName>() ,
+                                      c_Vec_Index & indices = {},
+                                      c_Index start = 0 ,
+                                      c_Index end = Inf<Index>() ) final;
 
 /*--------------------------------------------------------------------------*/
 
  void get_linearization_coefficients( SparseVector & g,
-                                      LinearizationName name,
-                                      c_Vec_Index & indices,
-                                      c_Index start,
-                                      c_Index end ) final;
+                                      LinearizationName name = Inf<LinearizationName>(),
+                                      c_Vec_Index & indices  = {},
+                                      c_Index start = 0,
+                                      c_Index end = Inf<Index>() ) final;
 
 /*--------------------------------------------------------------------------*/
 /** There is only one linearization in a LinearFunction. The linearization
  * constant is equal to the constant term of the LinearFunction. */
 
  Function::FunctionValue
- get_linearization_constant( const LinearizationName name ) final {
+ get_linearization_constant(
+     const LinearizationName name = Inf<LinearizationName>() ) final {
   return f_constant_term;
  }
 
