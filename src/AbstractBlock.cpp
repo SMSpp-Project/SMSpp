@@ -50,7 +50,7 @@ using namespace std;
 SMSpp_insert_in_factory_cpp_1( AbstractBlock );
 
 /*--------------------------------------------------------------------------*/
-/*-------------------------- METHODS of Block ------------------------------*/
+/*---------------------- METHODS of AbstractBlock --------------------------*/
 /*--------------------------------------------------------------------------*/
 
 AbstractBlock::~AbstractBlock( )
@@ -428,31 +428,37 @@ void AbstractBlock::print( ostream &output ) const
    if( un_any_const_dynamic( dc[ i ] ,
 			     [ &output ]( FRowConstraint & cnst )
 		                        { output << cnst << endl; } ,
-		      un_any_type< FRowConstraint >() ) )
+			     un_any_type< FRowConstraint >() ) )
     continue;
-   if( un_any_const_static( dc[ i ] , [ &output ]( BoxConstraint & cnst )
-		                                 { output << cnst << endl; } ,
-		     un_any_type< BoxConstraint >() ) )
+   if( un_any_const_dynamic( dc[ i ] ,
+			     [ &output ]( BoxConstraint & cnst )
+		                        { output << cnst << endl; } ,
+			     un_any_type< BoxConstraint >() ) )
     continue;
-   if( un_any_const_static( dc[ i ] , [ &output ]( LBConstraint & cnst )
-		                                 { output << cnst << endl; } ,
-		     un_any_type< LBConstraint >() ) )
+   if( un_any_const_dynamic( dc[ i ] ,
+			     [ &output ]( LBConstraint & cnst )
+		                        { output << cnst << endl; } ,
+			     un_any_type< LBConstraint >() ) )
     continue;
-   if( un_any_const_static( dc[ i ] , [ &output ]( UBConstraint & cnst )
-		                                 { output << cnst << endl; } ,
-		     un_any_type< UBConstraint >() ) )
+   if( un_any_const_dynamic( dc[ i ] ,
+			     [ &output ]( UBConstraint & cnst )
+			                { output << cnst << endl; } ,
+			     un_any_type< UBConstraint >() ) )
     continue;
-   if( un_any_const_static( dc[ i ] , [ &output ]( NNConstraint & cnst )
-		                                 { output << cnst << endl; } ,
-		     un_any_type< NNConstraint >() ) )
+   if( un_any_const_dynamic( dc[ i ] ,
+			     [ &output ]( NNConstraint & cnst )
+			                { output << cnst << endl; } ,
+			     un_any_type< NNConstraint >() ) )
     continue;
-   if( un_any_const_static( dc[ i ] , [ &output ]( NPConstraint & cnst )
-		                                 { output << cnst << endl; } ,
-		     un_any_type< NPConstraint >() ) )
+   if( un_any_const_dynamic( dc[ i ] ,
+			     [ &output ]( NPConstraint & cnst )
+			                { output << cnst << endl; } ,
+			     un_any_type< NPConstraint >() ) )
     continue;
-   if( un_any_const_static( dc[ i ] , [ &output ]( ZOConstraint & cnst )
-		                                 { output << cnst << endl; } ,
-		     un_any_type< ZOConstraint >() ) )
+   if( un_any_const_dynamic( dc[ i ] ,
+			     [ &output ]( ZOConstraint & cnst )
+			                { output << cnst << endl; } ,
+			     un_any_type< ZOConstraint >() ) )
     continue;
    throw( logic_error(
        "some dynamic Constraint not FRowConstraint or :OneVarConstraint" ) );

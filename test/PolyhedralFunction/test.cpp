@@ -37,6 +37,7 @@
 #include <sstream>
 #include <iomanip>
 
+#include "AbstractBlock.h"
 #include "BundleSolver.h"
 #include "CPXMILPSolver.h"
 
@@ -79,19 +80,12 @@ typedef unsigned int Index;
 const double scale = 10;
 
 /*--------------------------------------------------------------------------*/
-/*----------------------------- STATIC MEMBERS -----------------------------*/
-/*--------------------------------------------------------------------------*/
-
-// register AbstractBlock to the Block factory
-SMSpp_insert_in_factory_cpp_1( AbstractBlock );
-
-/*--------------------------------------------------------------------------*/
 /*------------------------------- GLOBALS ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-AbstractBlock LPBlock;      // the problem expressed as an LP
+AbstractBlock * LPBlock;      // the problem expressed as an LP
 
-AbstractBlock NDOBlock;     // the problem expressed via PolyhedralFunction
+AbstractBlock * NDOBlock;     // the problem expressed via PolyhedralFunction
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ FUNCTIONS ---------------------------------*/
@@ -123,7 +117,7 @@ static inline bool SolveBoth( void )
   int rtrnLP = slvrLP->compute( false );
 
   // solve the NODBlock - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  Solver * slvrNDO = (NODBlock->get_registered_solvers()).front();
+  Solver * slvrNDO = (NDOBlock->get_registered_solvers()).front();
   int rtrnNDO = slvrNDO->compute( false );
 
   if( ( rtrnLP >= Solver::kOK ) && ( rtrnLP < Solver::kError ) &&
@@ -139,7 +133,7 @@ static inline bool SolveBoth( void )
 
   if( ( rtrnLP == Solver::kInfeasible ) &&
       ( rtrnNDO == Solver::kInfeasible ) ) {
-   LOG1( "OK(??e??)" << endl );
+   LOG1( "OK(?e?)" << endl );
     return( false );
     }
 
@@ -155,7 +149,7 @@ static inline bool SolveBoth( void )
     cout << slvrLP->get_ub() << endl;
    else
     if( rtrnLP == Solver::kInfeasible )
-     cout << "    +INF(??)";
+     cout << "    +INF(?)";
     else
      if( rtrnLP == Solver::kUnbounded )
       cout << "        -INF";
@@ -167,7 +161,7 @@ static inline bool SolveBoth( void )
     cout << slvrNDO->get_ub() << endl;
    else
     if( rtrnNDO == Solver::kInfeasible )
-     cout << "    +INF(??)";
+     cout << "    +INF(?)";
     else
      if( rtrnNDO == Solver::kUnbounded )
       cout << "        -INF";
@@ -252,20 +246,20 @@ int main( int argc , char **argv )
  PolyhedralFunction::MultiVector A( m );
  std::vector < Function::FunctionValue > b( m );
 
- for( auto Ai & : A ) {
+ for( auto & Ai : A ) {
   Ai.resize( nvar );
   for( auto & aij : Ai )
    aij = scale * ( 2 * drand48() - 1 );
   }
 
  for( auto & bj : b )
-  bj = scale * nvars * ( 2 * drand48() - 1 ) / 4; 
+  bj = scale * nvar * ( 2 * drand48() - 1 ) / 4; 
 
  #if( LOG_LEVEL >= 2 )
-  cout << "n = " << numvar << ", m = " << m << endl;
+  cout << "n = " << nvar << ", m = " << m << endl;
   for( Index i = 0 ; i < m ; ++i ) {
    cout << "A[ " << i << " ] = [ ";
-   for( Index j = 0 ; j < numvar ; ++j )
+   for( Index j = 0 ; j < nvar ; ++j )
     cout << A[ i ][ j ] << " ";
    cout << " ], b[ " << i << " ] = " << b[ i ] << endl;
    }
@@ -285,7 +279,7 @@ int main( int argc , char **argv )
   /*!!
   auto xLP = new std::list<ColVariable>( nvars );
   !!*/
-  auto xLP = new std::vector<ColVariable>( nvars );
+  auto xLP = new std::vector<ColVariable>( nvar );
   for( auto & xi : *xLP )
    xi.set_Block( LPBlock );
 
@@ -297,17 +291,17 @@ int main( int argc , char **argv )
   auto ALP = new std::list<FRowConstraint>( m );
   for( auto & ci : *ALP ) {
    // the constraint is 0 <= vLP - \sum_j Ai[ j ] * xLP[ j ] <= INF
-   ci.set_rhs( Inf<FRowConstraint::RHSValue>() );
+   ci.set_rhs( SMSpp_di_unipi_it::Inf<FRowConstraint::RHSValue>() );
    LinearFunction::v_coeff_pair vars;
    vars.push_back( std::make_pair( vLP , 1 ) );
-   auto xit = xLP.begin();
+   auto xit = xLP->begin();
    for( auto aij : *Ait ) {
     if( aij != 0 )
-     vars.push_back( std::make_pair( &(*xit) , - Aij ) );
+     vars.push_back( std::make_pair( &(*xit) , - aij ) );
     ++xit;
     }
    ci.set_function( new LinearFunction( std::move( vars ) ) );
-   c.set_Block( LPBlock );
+   ci.set_Block( LPBlock );
    ++Ait;
    }
 
@@ -334,10 +328,10 @@ int main( int argc , char **argv )
 
   // construct the Variable
   /*!!
-  auto xNDO = new std::list<ColVariable>( nvars );
+  auto xNDO = new std::list<ColVariable>( nvar );
     !!*/
-  auto xNDO = new std::vector<ColVariable>( nvars );
-  PolyhedralFunction::VarVector vars( nvars );
+  auto xNDO = new std::vector<ColVariable>( nvar );
+  PolyhedralFunction::VarVector vars( nvar );
   auto vit = vars.begin();
   for( auto & xi : *xNDO ) {
    *(vit++) = & xi;
@@ -370,8 +364,8 @@ int main( int argc , char **argv )
  NDOBlock->register_Solver( Solver::new_Solver( "BundleSolver" ) );
 
  #if( LOG_LEVEL >= 2 )
-  ((LPBlock->get_registered_solvers()).front())->set_par( strOutputFile ,
-							  "LPBlock.lp" );
+  ((LPBlock->get_registered_solvers()).front())->set_par(
+			      CPXMILPSolver::strOutputFile , "LPBlock.lp" );
  #endif
 
  // first solver call - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
@@ -716,13 +710,13 @@ int main( int argc , char **argv )
 
   // finally, re-solve the problems- - - - - - - - - - - - - - - - - - - - -
 
-  AllPassed &= SolveBoth;
+  AllPassed &= SolveBoth();
 
   }  // end( main loop )- - - - - - - - - - - - - - - - - - - - - - - - - - -
      // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  if( AllPassed )
-  cout << "All test passed!!" << end;
+  cout << "All test passed!!" << endl;
  else
   cout << "Shit happened!!" << endl;
  
