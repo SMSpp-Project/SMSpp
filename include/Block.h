@@ -1481,7 +1481,12 @@ class Block : public Observer {
   * in the methods factory must reimplement this method. Typically,
   * this method would contain appropriate calls to the
   * SMSpp_register_method_range() and/or
-  * SMSpp_register_method_subset() macros. */
+  * SMSpp_register_method_subset() macros.
+  *
+  *     IT IS IMPORTANT TO NOTICE THAT THIS METHOD MAY BE CALLED MORE
+  *     THAN ONCE. THUS, ONE SHOULD CONSIDER THIS POSSIBILITY WHEN
+  *     REIMPLEMENTING THIS METHOD IN A DERIVED CLASS.
+  */
 
  static void register_methods() { }
 
