@@ -342,7 +342,7 @@ namespace SMSpp_di_unipi_it
     \
  ClassName::_init::_init( void ) {				\
   f_factory()[ #ClassName ] = boost::factory<ClassName*>();	\
-  ::SMSpp_di_unipi_it::register_methods_<ClassName>();          \
+  ::SMSpp_di_unipi_it::_register_methods<ClassName>();          \
   } \
     \
  ClassName::_init ClassName::_initializer
@@ -357,7 +357,7 @@ namespace SMSpp_di_unipi_it
   auto f = boost::factory<ClassName*>(); \
   auto f2 = boost::forward_adapter<decltype(f)>( f ); \
   f_factory()[ #ClassName ] = boost::bind<ClassName*>(f2,_1);	\
-  ::SMSpp_di_unipi_it::register_methods_<ClassName>();          \
+  ::SMSpp_di_unipi_it::_register_methods<ClassName>();          \
   } \
     \
  ClassName::_init ClassName::_initializer
@@ -371,7 +371,7 @@ namespace SMSpp_di_unipi_it
     \
  template<> ClassName::_init::_init( void ) { \
   f_factory()[ #ClassName ] = boost::factory<ClassName*>();	\
-  ::SMSpp_di_unipi_it::register_methods_<ClassName>();          \
+  ::SMSpp_di_unipi_it::_register_methods<ClassName>();          \
   } \
     \
  template<> ClassName::_init ClassName::_initializer{}
@@ -387,7 +387,7 @@ namespace SMSpp_di_unipi_it
   auto f = boost::factory<ClassName*>(); \
   auto f2 = boost::forward_adapter<decltype(f)>( f ); \
   f_factory()[ #ClassName ] = boost::bind<ClassName*>(f2,_1);	\
-  ::SMSpp_di_unipi_it::register_methods_<ClassName>();          \
+  ::SMSpp_di_unipi_it::_register_methods<ClassName>();          \
   } \
     \
  template<> ClassName::_init ClassName::_initializer{}
@@ -404,21 +404,21 @@ namespace SMSpp_di_unipi_it
  * must be changed: one taking a range (a < start , stop > pair of
  * indices), and one taking a subset (a std::vector< indices >).
  *
- * The auxiliary functions register_methods_(), which are invoked from
+ * The auxiliary functions _register_methods(), which are invoked from
  * within the init_() methods defined above, are used to call the
  * register_methods() function only for classes derived from Block. */
 
 class Block;
 
 template<class T>
-typename std::enable_if<std::is_base_of<Block, T>::value>::type
-register_methods_() {
+typename std::enable_if<std::is_base_of<Block , T>::value>::type
+_register_methods() {
   T::register_methods();
 }
 
 template<class T>
-typename std::enable_if<!std::is_base_of<Block, T>::value>::type
-register_methods_() { }
+typename std::enable_if<!std::is_base_of<Block , T>::value>::type
+_register_methods() { }
 
 #define SMSpp_register_method_range( Class , member_function ,          \
                                      member_function_name )             \
