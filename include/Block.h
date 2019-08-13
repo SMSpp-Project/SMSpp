@@ -86,7 +86,7 @@
  *
  * \version 0.22
  *
- * \date 06 - 07 - 2019
+ * \date 13 - 08 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -121,6 +121,7 @@
 #include "Observer.h"
 #include "Solver.h"
 
+#include <boost/bimap.hpp>
 #include "netcdf"
 
 /*--------------------------------------------------------------------------*/
@@ -159,6 +160,18 @@ namespace SMSpp_di_unipi_it
 
  typedef Vec_Block::iterator Vec_Block_it;
  ///< iterator for a Vec_Block
+
+ using Range = std::pair<std::size_t , std::size_t>;
+ ///< a pair of indices for the "range" methods in the methods factory
+
+ using Subset = std::vector<std::size_t>;
+ ///< a vector of indices for the "subset" methods in the methods factory
+
+ template<class Set>
+ using FunctionType = std::function<
+   void( Block * , const std::vector<double>::const_iterator & ,
+         const Set & , c_ModParam , c_ModParam )>;
+ ///< types of methods allowed in the methods factory
 
 /** @}  end( group( Block_TYPES ) ) */
 /*--------------------------------------------------------------------------*/
@@ -1429,6 +1442,48 @@ class Block : public Observer {
   for( auto blck : v_Block )
    blck->generate_objective();
   }
+
+/*--------------------------------------------------------------------------*/
+ /// register a new method in the methods factory
+ /** It register the given method in the methods factory and
+  * associates it with the given #name. If the methods factory already
+  * has a method associated with the given #name, this method is
+  * replaced by the one that is being provided as argument.
+  *
+  * @param name The name that will identify the given method in the
+  * methods factory.
+  *
+  * @param method The method to be added to the methods factory. */
+
+ template<class F>
+ static void register_method( std::string name , F * method ) {
+   auto iter = methods<F>().left.find( name );
+   if( iter != methods<F>().left.end() ) {
+     delete iter->second;
+     auto replaced = methods<F>().left.replace_data( iter , method );
+     assert( replaced );
+   }
+   else {
+     methods<F>().insert
+       ( typename bimap<F>::value_type( name, method ) );
+   }
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// register methods in the "methods factory"
+ /** This method is used for any :Block to be able to register its own
+  * methods (e.g., class member functions) in the methods factory. It
+  * has an empty implementation so that any :Block that does not
+  * intend to register any method in the methods factory is not
+  * affected and need not to be modified.
+  *
+  * Classes that are willing to register some or all of their methods
+  * in the methods factory must reimplement this method. Typically,
+  * this method would contain appropriate calls to the
+  * SMSpp_register_method_range() and/or
+  * SMSpp_register_method_subset() macros. */
+
+ static void register_methods() { }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------------- Methods for reading the data of the Block --------------*/
@@ -3753,6 +3808,41 @@ class Block : public Observer {
  virtual void set_SolverConfig( BlockSolverConfig * svcc = nullptr );
 
 /**@} ----------------------------------------------------------------------*/
+/*--------------- Methods for handling the methods factory -----------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for handling the methods factory
+    @{ */
+
+ /// returns the method associated with the given name in the methods factory
+ /** This function returns a pointer to the method associated with the
+  * given #name in the methods factory. If there is no method
+  * associated with the given #name, this function returns a nullptr.
+  *
+  * @param name The name associated with the method.
+  */
+ template<class F>
+ static const F * get_method( std::string name ) {
+   try {
+     return methods<F>().left.at( name );
+   } catch( std::exception & e ) {
+     return nullptr;
+   }
+ }
+
+ /// returns the name that is associated with the given method
+ /** This function returns the name that is associated with the given
+  * method in the methods factory. If the given method is not present
+  * in the methods factory, an exception is thrown.
+  *
+  * @param method A pointer to the method whose associated name is
+  * desired.
+  */
+ template<class F>
+ static std::string get_method_name( const F * method ) {
+   return methods<F>().right.at( method );
+ }
+
+/**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR LOADING, PRINTING & SAVING THE Block ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the Block
@@ -4472,6 +4562,14 @@ class Block : public Observer {
  private:
 
 /*--------------------------------------------------------------------------*/
+/*--------------------------- PRIVATE TYPES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ template<class F>
+ using bimap = boost::bimap<std::string , const F *>;
+ ///< a bidirectional map for the methods factory
+
+/*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
  // Definition of Block::private_name() (pure virtual)
@@ -4493,6 +4591,17 @@ class Block : public Observer {
 
  void remove_variable_from_stuff( Variable * const variable ,
 				  const int issueindMod  );
+
+/*--------------------------------------------------------------------------*/
+ /// returns the bimap associated with the methods of type F
+ /** This function returns the bimap associated with the methods of
+  * type F. This is where the pointer to the methods (and their names)
+  * in the methods factory are stored. */
+ template<class F>
+ static inline bimap<F> & methods() {
+   static bimap<F> methods;
+   return methods;
+ }
 
 /*--------------------------------------------------------------------------*/
 /*---------------------------- PRIVATE FIELDS ------------------------------*/

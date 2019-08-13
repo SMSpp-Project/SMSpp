@@ -21,7 +21,7 @@
  *
  * \version 0.12
  *
- * \date 21 - 06 - 2019
+ * \date 13 - 08 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -342,6 +342,7 @@ namespace SMSpp_di_unipi_it
     \
  ClassName::_init::_init( void ) {				\
   f_factory()[ #ClassName ] = boost::factory<ClassName*>();	\
+  ::SMSpp_di_unipi_it::register_methods_<ClassName>();          \
   } \
     \
  ClassName::_init ClassName::_initializer
@@ -356,6 +357,7 @@ namespace SMSpp_di_unipi_it
   auto f = boost::factory<ClassName*>(); \
   auto f2 = boost::forward_adapter<decltype(f)>( f ); \
   f_factory()[ #ClassName ] = boost::bind<ClassName*>(f2,_1);	\
+  ::SMSpp_di_unipi_it::register_methods_<ClassName>();          \
   } \
     \
  ClassName::_init ClassName::_initializer
@@ -369,6 +371,7 @@ namespace SMSpp_di_unipi_it
     \
  template<> ClassName::_init::_init( void ) { \
   f_factory()[ #ClassName ] = boost::factory<ClassName*>();	\
+  ::SMSpp_di_unipi_it::register_methods_<ClassName>();          \
   } \
     \
  template<> ClassName::_init ClassName::_initializer{}
@@ -384,9 +387,64 @@ namespace SMSpp_di_unipi_it
   auto f = boost::factory<ClassName*>(); \
   auto f2 = boost::forward_adapter<decltype(f)>( f ); \
   f_factory()[ #ClassName ] = boost::bind<ClassName*>(f2,_1);	\
+  ::SMSpp_di_unipi_it::register_methods_<ClassName>();          \
   } \
     \
  template<> ClassName::_init ClassName::_initializer{}
+
+/*--------------------------------------------------------------------------*/
+/* The macros SMSpp_register_method_range and
+ * SMSpp_register_method_subset allow to "manually" register the
+ * methods in the "methods factory"; they can be used into the
+ * register_methods() method of the class, which is automatically
+ * called in the _init() methods defined above.
+ *
+ * Two types of methods can be registered, differing in the way they
+ * specify "where" in some data structure of the :Block the values
+ * must be changed: one taking a range (a < start , stop > pair of
+ * indices), and one taking a subset (a std::vector< indices >).
+ *
+ * The auxiliary functions register_methods_(), which are invoked from
+ * within the init_() methods defined above, are used to call the
+ * register_methods() function only for classes derived from Block. */
+
+class Block;
+
+template<class T>
+typename std::enable_if<std::is_base_of<Block, T>::value>::type
+register_methods_() {
+  T::register_methods();
+}
+
+template<class T>
+typename std::enable_if<!std::is_base_of<Block, T>::value>::type
+register_methods_() { }
+
+#define SMSpp_register_method_range( Class , member_function ,          \
+                                     member_function_name )             \
+{                                                                       \
+ Block::register_method( member_function_name ,                         \
+  new FunctionType<Range>( []( Block * input_block ,                    \
+        const std::vector<double>::const_iterator & begin ,             \
+        const Range & range , c_ModParam issuePMod = eNoBlck ,          \
+        c_ModParam issueAMod = eModBlck ) {                             \
+          static_cast<Class *>( input_block )->member_function          \
+            ( begin , range, issuePMod , issueAMod );                   \
+                                         } ) );                         \
+ }
+
+#define SMSpp_register_method_subset( Class , member_function ,         \
+                                      member_function_name )            \
+{                                                                       \
+ Block::register_method( member_function_name ,                         \
+  new FunctionType<Subset>( []( Block * input_block ,                   \
+      const std::vector<double>::const_iterator & begin ,               \
+      const Subset & subset , c_ModParam issuePMod = eNoBlck ,          \
+        c_ModParam issueAMod = eModBlck ) {                             \
+          static_cast<Class *>( input_block )->member_function          \
+            ( begin , subset, issuePMod , issueAMod );                  \
+                                         } ) );                         \
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------- HANDLE boost::any SPECIALIZATIONS --------------------*/
