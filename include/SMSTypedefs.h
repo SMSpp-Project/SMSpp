@@ -21,7 +21,7 @@
  *
  * \version 0.12
  *
- * \date 13 - 08 - 2019
+ * \date 14 - 08 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -403,22 +403,14 @@ namespace SMSpp_di_unipi_it
  * specify "where" in some data structure of the :Block the values
  * must be changed: one taking a range (a < start , stop > pair of
  * indices), and one taking a subset (a std::vector< indices >).
- *
- * The auxiliary functions _register_methods(), which are invoked from
- * within the init_() methods defined above, are used to call the
- * register_methods() function only for classes derived from Block. */
+ */
 
-class Block;
-
-template<class T>
-typename std::enable_if<std::is_base_of<Block , T>::value>::type
-_register_methods() {
-  T::register_methods();
-}
-
-template<class T>
-typename std::enable_if<!std::is_base_of<Block , T>::value>::type
-_register_methods() { }
+/** The macro SMSpp_register_method_range allow to "manually" register
+ * methods in the "methods factory". It can be used within the
+ * register_methods() function of the class, which is automatically
+ * called in the _init() methods defined above. This macro is for
+ * registering methods that accept a Range (a < start , stop > pair of
+ * indices) as parameter. */
 
 #define SMSpp_register_method_range( Class , member_function ,          \
                                      member_function_name )             \
@@ -433,6 +425,13 @@ _register_methods() { }
                                          } ) );                         \
  }
 
+/** The macro SMSpp_register_method_subset allow to "manually"
+ * register methods in the "methods factory". It can be used within
+ * the register_methods() function of the class, which is
+ * automatically called in the _init() methods defined above. This
+ * macro is for registering methods that accept a Subset (a
+ * std::vector< indices >) as parameter. */
+
 #define SMSpp_register_method_subset( Class , member_function ,         \
                                       member_function_name )            \
 {                                                                       \
@@ -445,6 +444,24 @@ _register_methods() { }
             ( begin , subset, issuePMod , issueAMod );                  \
                                          } ) );                         \
  }
+
+class Block;
+
+/** The auxiliary function _register_methods(), which is invoked from
+ * within the init_() methods defined above, is used as wrapper in
+ * order to call the register_methods() function only for classes
+ * derived from Block. If a class is not derived from Block, then
+ * nothing happens. */
+
+template<class T>
+typename std::enable_if<std::is_base_of<Block , T>::value>::type
+_register_methods() {
+  T::register_methods();
+}
+
+template<class T>
+typename std::enable_if<!std::is_base_of<Block , T>::value>::type
+_register_methods() { }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------- HANDLE boost::any SPECIALIZATIONS --------------------*/
