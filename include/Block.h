@@ -1451,6 +1451,18 @@ class Block : public Observer {
   * currently present in the methods factory is replaced by the one
   * that is being provided as argument to this function.
   *
+  * The methods in the methods factory must have the following type:
+  *
+  *     void( Block * , const std::vector<double>::const_iterator & ,
+  *           const Set & , c_ModParam , c_ModParam )>;
+  *
+  * That is, their return type is "void", the first parameter is a
+  * pointer to a Block, the second one is an iterator to an
+  * std::vector of doubles, the third parameter is usually a #Range or
+  * a #Subset, and the last parameters indicate how "physical
+  * Modification" and "abstract Modification" are issued,
+  * respectively.
+  *
   * Normally, each class decides which of its class member functions
   * will be registered in the methods factory. This is usually done
   * within the register_methods() function, which is implemented in
@@ -1470,8 +1482,8 @@ class Block : public Observer {
   *
   *     void customized_set_demand_range
   *     ( Block * block , const std::vector<double>::const_iterator & begin ,
-  *       const Block::Range & range ,
-  *       c_ModParam issuePMod = eNoBlck , c_ModParam issueAMod = eModBlck ) {
+  *       const Range & range , c_ModParam issuePMod = eNoBlck ,
+  *       c_ModParam issueAMod = eModBlck ) {
   *
   *       auto it = begin;
   *       for( std::size_t i = range.first ; i < range.second ; ++i , ++it )
@@ -1480,8 +1492,8 @@ class Block : public Observer {
   *
   *     void customized_set_demand_subset
   *     ( Block * block , const std::vector<double>::const_iterator & begin ,
-  *       const Block::Subset & subset ,
-  *       c_ModParam issuePMod = eNoBlck , c_ModParam issueAMod = eModBlck ) {
+  *       const Subset & subset , c_ModParam issuePMod = eNoBlck ,
+  *       c_ModParam issueAMod = eModBlck ) {
   *
   *       auto it = begin;
   *       for(size_t i = 0; i < subset.size(); ++i, ++it) {}
@@ -1494,28 +1506,16 @@ class Block : public Observer {
   *
   *     Block::register_method
   *     ( "NetworkBlock::customized_set_demand_range" ,
-  *       new Block::FunctionType<Block::Range>(customized_set_demand_range) );
+  *       new FunctionType<Range>( customized_set_demand_range) );
   *
   *     Block::register_method
   *     ( "NetworkBlock::customized_set_demand_subset" ,
-  *       new Block::FunctionType<Block::Subset>(customized_set_demand_subset));
+  *       new FunctionType<Subset>( customized_set_demand_subset ) );
   *
   * Although the name of the method can be arbitrarily chosen, we
   * recommend following the pattern "ClassName::methods_name" so as to
   * avoid any name collisions and make it easier for the user to
   * identify the available methods.
-  *
-  * The methods in the methods factory must have the following type:
-  *
-  *     void( Block * , const std::vector<double>::const_iterator & ,
-  *           const Set & , c_ModParam , c_ModParam )>;
-  *
-  * That is, their return type is "void", the first parameter is a
-  * pointer to a Block, the second one is an iterator to an
-  * std::vector of doubles, the third parameter is usually a #Range or
-  * a #Subset, and the last parameters indicate how "physical
-  * Modification" and "abstract Modification" are issued,
-  * respectivelly.
   *
   * @param name The name that will identify the given method in the
   * methods factory.
@@ -1552,12 +1552,12 @@ class Block : public Observer {
   * class called HydroUnitBlock has the following methods:
   *
   *     void set_inflow_range(const std::vector<double>::const_iterator &begin,
-  *                           const Block::Range & range,
+  *                           const Range & range,
   *                           c_ModParam issuePMod = eNoBlck,
   *                           c_ModParam issueAMod = eModBlck);
   *
   *     void set_inflow_subset(const std::vector<double>::const_iterator &begin,
-  *                            const Block::Subset & subset,
+  *                            const Subset & subset,
   *                            c_ModParam issuePMod = eNoBlck,
   *                            c_ModParam issueAMod = eModBlck);
   *
