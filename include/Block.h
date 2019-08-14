@@ -1463,6 +1463,12 @@ class Block : public Observer {
   * Modification" and "abstract Modification" are issued,
   * respectively.
   *
+  * The #Range and #Subset are used to specify which part of the data
+  * related to the method should be considered. A #Range is a pair of
+  * indices representing an interval. If (a, b) is such a pair of
+  * indices, then this Range represents the left-closed, right-open
+  * interval { i : a <= i < b }. The #Subset is a vector of indices.
+  *
   * Normally, each class decides which of its class member functions
   * will be registered in the methods factory. This is usually done
   * within the register_methods() function, which is implemented in
