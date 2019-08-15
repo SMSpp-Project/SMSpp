@@ -554,8 +554,12 @@ class Block : public Observer {
  /// types of methods allowed in the methods factory
  template<class Set>
  using FunctionType = std::function<
-   void( Block * , MF_data_iterator ,
-         const Set & , c_ModParam , c_ModParam )>;
+   void( Block * , MF_data_iterator , const Set & , c_ModParam , c_ModParam )>;
+
+ /// types of the class member functions allowed in the methods factory
+ template<class Class, class Set>
+ using MemberFunction = void( Class::* )( MF_data_iterator , const Set & ,
+                                          c_ModParam , c_ModParam );
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- FRIENDS ----------------------------------*/
@@ -3870,6 +3874,45 @@ class Block : public Observer {
    }
  }
 
+
+/*--------------------------------------------------------------------------*/
+ /// register a new method in the methods factory
+ /** This method registers a member class function in the methods
+  * factory and associates it with the given \p name. It has two
+  * template parameters. The first one, Class, is the class of which
+  * the function is a member. The second parameter, Set, specifies the
+  * type of set of indices that the function accepts (e.g., #Range or
+  * #Subset).
+  *
+  * This method serves as a wrapper for the register_method() method
+  * (which has a single template parameter). It creates a FunctionType
+  * function based on the given \p member_function and then calls
+  * register_method() in order to register it in the methods
+  * factory. Tipically, this method would be invoke from within the
+  * register_methods() static function that is implemented in the
+  * class that defines the function passed as argument. See
+  * register_methods() for more details.
+  *
+  * @param name The name associated with the method.
+  *
+  * @param member_function A pointer to a class member function.
+  */
+ template<class Class, class Set>
+ static void register_method( std::string name ,
+                              MemberFunction<Class, Set> member_function ) {
+   Block::register_method
+     ( name , new Block::FunctionType<Set>
+       ( [ member_function ] ( Block * input_block ,
+                               Block::MF_data_iterator begin ,
+                               const Set & set ,
+                               c_ModParam issuePMod = eNoBlck ,
+                               c_ModParam issueAMod = eModBlck ) {
+         auto block = static_cast<Class *>( input_block );
+         std::invoke( member_function, block,
+                      begin , set, issuePMod , issueAMod );
+       } ) );
+ }
+
 /*--------------------------------------------------------------------------*/
  /// register methods in the "methods factory"
  /** This method is used for any :Block to be able to register its own
@@ -3881,43 +3924,39 @@ class Block : public Observer {
   * Classes that are willing to register some or all of their methods
   * in the methods factory must reimplement this method. Typically,
   * this method would contain appropriate calls to the
-  * SMSpp_register_method_range() and/or
-  * SMSpp_register_method_subset() macros. For example, suppose that a
-  * class called HydroUnitBlock has the following methods:
+  * register_method() function that admits two template
+  * parameters. For example, suppose that a class called
+  * HydroUnitBlock has the following methods:
   *
-  *     void set_inflow_range(Block::MF_data_iterator begin,
-  *                           const Block::Range & range,
-  *                           c_ModParam issuePMod = eNoBlck,
-  *                           c_ModParam issueAMod = eModBlck);
+  *     void set_inflow_range( Block::MF_data_iterator begin ,
+  *                            const Block::Range & range ,
+  *                            c_ModParam issuePMod = eNoBlck ,
+  *                            c_ModParam issueAMod = eModBlck );
   *
-  *     void set_inflow_subset(Block::MF_data_iterator begin,
-  *                            const Block::Subset & subset,
-  *                            c_ModParam issuePMod = eNoBlck,
-  *                            c_ModParam issueAMod = eModBlck);
+  *     void set_inflow_subset( Block::MF_data_iterator begin ,
+  *                             const Block::Subset & subset ,
+  *                             c_ModParam issuePMod = eNoBlck ,
+  *                             c_ModParam issueAMod = eModBlck );
   *
   * In order to register these methods in the methods factory, one
   * could implement the following function in HydroUnitBlock class:
   *
   *     static void register_methods() {
   *
-  *       SMSpp_register_method_range(HydroUnitBlock,
-  *                                   HydroUnitBlock::set_inflow_range,
-  *                                   "HydroUnitBlock::set_inflow_range");
+  *       Block::register_method( "HydroUnitBlock::set_inflow_range" ,
+  *                               &HydroUnitBlock::set_inflow_range );
   *
-  *       SMSpp_register_method_subset(HydroUnitBlock,
-  *                                    HydroUnitBlock::set_inflow_subset,
-  *                                    "HydroUnitBlock::set_inflow_subset");
+  *       Block::register_method( "HydroUnitBlock::set_inflow_subset" ,
+  *                               &HydroUnitBlock::set_inflow_range );
   *     }
   *
-  * In the macros SMSpp_register_method_subset and
-  * SMSpp_register_method_range, the first parameter is the class
-  * name, the second one is a pointer to the method that one wants to
-  * register, and the third parameter is the name by which the method
-  * will be identified in the methods factory. Although the name of
-  * the method can be arbitrarily chosen, we recommend following the
-  * pattern "ClassName::methods_name" so as to avoid any name
-  * collisions and make it easier for the user to identify the
-  * available methods.
+  * In the function register_methods(), the first parameter is the
+  * name by which the method will be identified in the methods factory
+  * and the second one is a pointer to the (class member) method that
+  * one wants to register. Although the name of the method can be
+  * arbitrarily chosen, we recommend following the pattern
+  * "ClassName::methods_name" so as to avoid any name collisions and
+  * make it easier for the user to identify the available methods.
   *
   *     IT IS IMPORTANT TO NOTICE THAT THE register_methods() FUNCTION
   *     MAY BE CALLED MORE THAN ONCE. THUS, ONE SHOULD CONSIDER THIS

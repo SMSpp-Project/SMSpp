@@ -393,57 +393,6 @@ namespace SMSpp_di_unipi_it
  template<> ClassName::_init ClassName::_initializer{}
 
 /*--------------------------------------------------------------------------*/
-/* The macros SMSpp_register_method_range and
- * SMSpp_register_method_subset allow to "manually" register the
- * methods in the "methods factory"; they can be used into the
- * register_methods() method of the class, which is automatically
- * called in the _init() methods defined above.
- *
- * Two types of methods can be registered, differing in the way they
- * specify "where" in some data structure of the :Block the values
- * must be changed: one taking a range (a < start , stop > pair of
- * indices), and one taking a subset (a std::vector< indices >).
- */
-
-/** The macro SMSpp_register_method_range allow to "manually" register
- * methods in the "methods factory". It can be used within the
- * register_methods() function of the class, which is automatically
- * called in the _init() methods defined above. This macro is for
- * registering methods that accept a Range (a < start , stop > pair of
- * indices) as parameter. */
-
-#define SMSpp_register_method_range( Class , member_function ,          \
-                                     member_function_name )             \
-{                                                                       \
- Block::register_method( member_function_name ,                         \
-  new Block::FunctionType<Block::Range>( []( Block * input_block ,      \
-        Block::MF_data_iterator begin , const Block::Range & range ,    \
-        c_ModParam issuePMod = eNoBlck ,                                \
-        c_ModParam issueAMod = eModBlck ) {                             \
-          static_cast<Class *>( input_block )->member_function          \
-            ( begin , range, issuePMod , issueAMod );                   \
-                                         } ) );                         \
- }
-
-/** The macro SMSpp_register_method_subset allow to "manually"
- * register methods in the "methods factory". It can be used within
- * the register_methods() function of the class, which is
- * automatically called in the _init() methods defined above. This
- * macro is for registering methods that accept a Subset (a
- * std::vector< indices >) as parameter. */
-
-#define SMSpp_register_method_subset( Class , member_function ,         \
-                                      member_function_name )            \
-{                                                                       \
- Block::register_method( member_function_name ,                         \
-  new Block::FunctionType<Block::Subset>( []( Block * input_block ,     \
-      Block::MF_data_iterator begin , const Block::Subset & subset ,    \
-        c_ModParam issuePMod = eNoBlck ,                                \
-        c_ModParam issueAMod = eModBlck ) {                             \
-          static_cast<Class *>( input_block )->member_function          \
-            ( begin , subset, issuePMod , issueAMod );                  \
-                                         } ) );                         \
- }
 
 class Block;
 
