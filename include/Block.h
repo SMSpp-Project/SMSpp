@@ -3947,7 +3947,7 @@ class Block : public Observer {
   *                               &HydroUnitBlock::set_inflow_range );
   *
   *       Block::register_method( "HydroUnitBlock::set_inflow_subset" ,
-  *                               &HydroUnitBlock::set_inflow_range );
+  *                               &HydroUnitBlock::set_inflow_subset );
   *     }
   *
   * In the function register_methods(), the first parameter is the
