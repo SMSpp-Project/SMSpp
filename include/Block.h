@@ -3974,12 +3974,12 @@ class Block : public Observer {
   * nullptr.
   *
   * Suppose, for example, that the methods factory has a method
-  * associated with the name "HydroUnitBlock::set_inflow_range" that
-  * admits a #Range as argument. In order to obtain a pointer to this
-  * method, one would do the following:
+  * associated with the name "HydroUnitBlock::set_inflow" that admits
+  * a #Range as argument. In order to obtain a pointer to this method,
+  * one would do the following:
   *
   *     auto function = Block::get_method<Block::FunctionType<Block::Range>>
-  *                     ( "HydroUnitBlock::set_inflow_range" );
+  *                     ( "HydroUnitBlock::set_inflow" );
   *
   * Notice that it is necessary to inform the type of set of indices
   * that the function accepts (a #Range, in this example). Then, to
@@ -3999,9 +3999,13 @@ class Block : public Observer {
   * If the type of the function is unkown (i.e., if the type of the
   * index set is not known), one could try first retriving a method
   * with Block::FunctionType<Block::Range> as template argument to
-  * get_method(). If a nullptr is returned, then one could try next
-  * invoking the get_method() with Block::FunctionType<Block::Subset>
-  * as template argument, for example.
+  * get_method() (as in the example above). If a nullptr is returned,
+  * then one could try next invoking the get_method() with
+  * Block::FunctionType<Block::Subset> as template argument, for
+  * example. So, one could do:
+  *
+  *     auto function = Block::get_method<Block::FunctionType<Block::Subset>>
+  *                     ( "HydroUnitBlock::set_inflow" );
   *
   * @param name The name associated with the method.
   */
