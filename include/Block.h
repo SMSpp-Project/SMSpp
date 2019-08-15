@@ -3924,7 +3924,7 @@ class Block : public Observer {
   * Classes that are willing to register some or all of their methods
   * in the methods factory must reimplement this method. Typically,
   * this method would contain appropriate calls to the
-  * register_method() function that admits two template
+  * %register_method() function that admits two template
   * parameters. For example, suppose that a class called
   * HydroUnitBlock has the following methods:
   *
