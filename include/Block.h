@@ -1446,160 +1446,6 @@ class Block : public Observer {
    blck->generate_objective();
   }
 
-/*--------------------------------------------------------------------------*/
- /// register a new method in the methods factory
- /** This function registers the given method in the methods factory
-  * and associates it with the given #name. If the methods factory
-  * already has a method associated with the given #name, this method
-  * currently present in the methods factory is replaced by the one
-  * that is being provided as argument to this function.
-  *
-  * The methods in the methods factory must have the following type:
-  *
-  *     void( Block * , Block::MF_data_iterator ,
-  *           const Set & , c_ModParam , c_ModParam )>;
-  *
-  * That is, their return type is "void", the first parameter is a
-  * pointer to a Block, the second one is an iterator to an element in
-  * an appropriate data structure (see #MF_data_iterator), the third
-  * parameter is usually a #Range or a #Subset, and the last
-  * parameters indicate how "physical Modification" and "abstract
-  * Modification" are issued, respectively.
-  *
-  * The #Range and #Subset are used to specify which part of the data
-  * related to the method should be considered. A #Range is a pair of
-  * indices representing an interval. If (a, b) is such a pair of
-  * indices, then this Range represents the left-closed, right-open
-  * interval { i : a <= i < b }. The #Subset is a vector of indices.
-  *
-  * Normally, each class decides which of its class member functions
-  * will be registered in the methods factory. This is usually done
-  * within the register_methods() function, which is implemented in
-  * that class. If, however, the methods registered by the classes
-  * derived from Block are not enough to deal with a particular
-  * problem, then the user can implement its own functions and
-  * register them in the methods factory.
-  *
-  * As an example, consider a class called NetworkBlock, which has the
-  * following method for setting the demand at a given node:
-  *
-  *     void set_demand( double demand , int node );
-  *
-  * A user who would like to have a method in the methods factory for
-  * setting the demand of some nodes could implement the following
-  * functions:
-  *
-  *     void customized_set_demand_range
-  *     ( Block * block , Block::MF_data_iterator begin ,
-  *       const Block::Range & range , c_ModParam issuePMod = eNoBlck ,
-  *       c_ModParam issueAMod = eModBlck ) {
-  *
-  *       for( std::size_t i = range.first ; i < range.second ; ++i , ++begin )
-  *         static_cast<NetworkBlock *>(block)->set_demand( *begin, i );
-  *     }
-  *
-  *     void customized_set_demand_subset
-  *     ( Block * block , Block::MF_data_iterator begin ,
-  *       const Block::Subset & subset , c_ModParam issuePMod = eNoBlck ,
-  *       c_ModParam issueAMod = eModBlck ) {
-  *
-  *       for(size_t i = 0; i < subset.size(); ++i, ++begin) {}
-  *         static_cast<NetworkBlock *>(block)->set_demand( *begin, subset[i] );
-  *     }
-  *
-  * The first function accepts a #Range as parameter; while the second
-  * function accepts a #Subset. Then, for registering them in the
-  * methods factory, one would use the register_method() as follows:
-  *
-  *     Block::register_method
-  *     ("NetworkBlock::customized_set_demand_range" ,
-  *      new Block::FunctionType<Block::Range>(customized_set_demand_range));
-  *
-  *     Block::register_method
-  *     ("NetworkBlock::customized_set_demand_subset" ,
-  *      new Block::FunctionType<Block::Subset>(customized_set_demand_subset));
-  *
-  * Although the name of the method can be arbitrarily chosen, we
-  * recommend following the pattern "ClassName::methods_name" so as to
-  * avoid any name collisions and make it easier for the user to
-  * identify the available methods.
-  *
-  * @param name The name that will identify the given method in the
-  * methods factory.
-  *
-  * @param method The method to be added to the methods factory. */
-
- template<class F>
- static void register_method( std::string name , F * method ) {
-   auto iter = methods<F>().left.find( name );
-   if( iter != methods<F>().left.end() ) {
-     delete iter->second;
-     auto replaced = methods<F>().left.replace_data( iter , method );
-     assert( replaced );
-   }
-   else {
-     methods<F>().insert
-       ( typename bimap<F>::value_type( name, method ) );
-   }
- }
-
-/*--------------------------------------------------------------------------*/
- /// register methods in the "methods factory"
- /** This method is used for any :Block to be able to register its own
-  * methods (e.g., class member functions) in the methods factory. It
-  * has an empty implementation so that any :Block that does not
-  * intend to register any method in the methods factory is not
-  * affected and need not to be modified.
-  *
-  * Classes that are willing to register some or all of their methods
-  * in the methods factory must reimplement this method. Typically,
-  * this method would contain appropriate calls to the
-  * SMSpp_register_method_range() and/or
-  * SMSpp_register_method_subset() macros. For example, suppose that a
-  * class called HydroUnitBlock has the following methods:
-  *
-  *     void set_inflow_range(Block::MF_data_iterator begin,
-  *                           const Block::Range & range,
-  *                           c_ModParam issuePMod = eNoBlck,
-  *                           c_ModParam issueAMod = eModBlck);
-  *
-  *     void set_inflow_subset(Block::MF_data_iterator begin,
-  *                            const Block::Subset & subset,
-  *                            c_ModParam issuePMod = eNoBlck,
-  *                            c_ModParam issueAMod = eModBlck);
-  *
-  * In order to register these methods in the methods factory, one
-  * could implement the following function in HydroUnitBlock class:
-  *
-  *     static void register_methods() {
-  *
-  *       SMSpp_register_method_range(HydroUnitBlock,
-  *                                   HydroUnitBlock::set_inflow_range,
-  *                                   "HydroUnitBlock::set_inflow_range");
-  *
-  *       SMSpp_register_method_subset(HydroUnitBlock,
-  *                                    HydroUnitBlock::set_inflow_subset,
-  *                                    "HydroUnitBlock::set_inflow_subset");
-  *     }
-  *
-  * In the macros SMSpp_register_method_subset and
-  * SMSpp_register_method_range, the first parameter is the class
-  * name, the second one is a pointer to the method that one wants to
-  * register, and the third parameter is the name by which the method
-  * will be identified in the methods factory. Although the name of
-  * the method can be arbitrarily chosen, we recommend following the
-  * pattern "ClassName::methods_name" so as to avoid any name
-  * collisions and make it easier for the user to identify the
-  * available methods.
-  *
-  *     IT IS IMPORTANT TO NOTICE THAT THE register_methods() FUNCTION
-  *     MAY BE CALLED MORE THAN ONCE. THUS, ONE SHOULD CONSIDER THIS
-  *     POSSIBILITY WHEN REIMPLEMENTING THIS FUNCTION IN A DERIVED
-  *     CLASS.
-  */
-
- static void register_methods() { }
-
 /**@} ----------------------------------------------------------------------*/
 /*----------------- Methods for reading the data of the Block --------------*/
 /*--------------------------------------------------------------------------*/
@@ -3928,6 +3774,160 @@ class Block : public Observer {
 /** @name Methods for handling the methods factory
     @{ */
 
+ /// register a new method in the methods factory
+ /** This function registers the given method in the methods factory
+  * and associates it with the given #name. If the methods factory
+  * already has a method associated with the given #name, this method
+  * currently present in the methods factory is replaced by the one
+  * that is being provided as argument to this function.
+  *
+  * The methods in the methods factory must have the following type:
+  *
+  *     void( Block * , Block::MF_data_iterator ,
+  *           const Set & , c_ModParam , c_ModParam )>;
+  *
+  * That is, their return type is "void", the first parameter is a
+  * pointer to a Block, the second one is an iterator to an element in
+  * an appropriate data structure (see #MF_data_iterator), the third
+  * parameter is usually a #Range or a #Subset, and the last
+  * parameters indicate how "physical Modification" and "abstract
+  * Modification" are issued, respectively.
+  *
+  * The #Range and #Subset are used to specify which part of the data
+  * related to the method should be considered. A #Range is a pair of
+  * indices representing an interval. If (a, b) is such a pair of
+  * indices, then this Range represents the left-closed, right-open
+  * interval { i : a <= i < b }. The #Subset is a vector of indices.
+  *
+  * Normally, each class decides which of its class member functions
+  * will be registered in the methods factory. This is usually done
+  * within the register_methods() function, which is implemented in
+  * that class. If, however, the methods registered by the classes
+  * derived from Block are not enough to deal with a particular
+  * problem, then the user can implement its own functions and
+  * register them in the methods factory.
+  *
+  * As an example, consider a class called NetworkBlock, which has the
+  * following method for setting the demand at a given node:
+  *
+  *     void set_demand( double demand , int node );
+  *
+  * A user who would like to have a method in the methods factory for
+  * setting the demand of some nodes could implement the following
+  * functions:
+  *
+  *     void customized_set_demand_range
+  *     ( Block * block , Block::MF_data_iterator begin ,
+  *       const Block::Range & range , c_ModParam issuePMod = eNoBlck ,
+  *       c_ModParam issueAMod = eModBlck ) {
+  *
+  *       for( std::size_t i = range.first ; i < range.second ; ++i , ++begin )
+  *         static_cast<NetworkBlock *>(block)->set_demand( *begin, i );
+  *     }
+  *
+  *     void customized_set_demand_subset
+  *     ( Block * block , Block::MF_data_iterator begin ,
+  *       const Block::Subset & subset , c_ModParam issuePMod = eNoBlck ,
+  *       c_ModParam issueAMod = eModBlck ) {
+  *
+  *       for(size_t i = 0; i < subset.size(); ++i, ++begin) {}
+  *         static_cast<NetworkBlock *>(block)->set_demand( *begin, subset[i] );
+  *     }
+  *
+  * The first function accepts a #Range as parameter; while the second
+  * function accepts a #Subset. Then, for registering them in the
+  * methods factory, one would use the register_method() as follows:
+  *
+  *     Block::register_method
+  *     ("NetworkBlock::customized_set_demand_range" ,
+  *      new Block::FunctionType<Block::Range>(customized_set_demand_range));
+  *
+  *     Block::register_method
+  *     ("NetworkBlock::customized_set_demand_subset" ,
+  *      new Block::FunctionType<Block::Subset>(customized_set_demand_subset));
+  *
+  * Although the name of the method can be arbitrarily chosen, we
+  * recommend following the pattern "ClassName::methods_name" so as to
+  * avoid any name collisions and make it easier for the user to
+  * identify the available methods.
+  *
+  * @param name The name that will identify the given method in the
+  * methods factory.
+  *
+  * @param method The method to be added to the methods factory. */
+
+ template<class F>
+ static void register_method( std::string name , F * method ) {
+   auto iter = methods<F>().left.find( name );
+   if( iter != methods<F>().left.end() ) {
+     delete iter->second;
+     auto replaced = methods<F>().left.replace_data( iter , method );
+     assert( replaced );
+   }
+   else {
+     methods<F>().insert
+       ( typename bimap<F>::value_type( name, method ) );
+   }
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// register methods in the "methods factory"
+ /** This method is used for any :Block to be able to register its own
+  * methods (e.g., class member functions) in the methods factory. It
+  * has an empty implementation so that any :Block that does not
+  * intend to register any method in the methods factory is not
+  * affected and need not to be modified.
+  *
+  * Classes that are willing to register some or all of their methods
+  * in the methods factory must reimplement this method. Typically,
+  * this method would contain appropriate calls to the
+  * SMSpp_register_method_range() and/or
+  * SMSpp_register_method_subset() macros. For example, suppose that a
+  * class called HydroUnitBlock has the following methods:
+  *
+  *     void set_inflow_range(Block::MF_data_iterator begin,
+  *                           const Block::Range & range,
+  *                           c_ModParam issuePMod = eNoBlck,
+  *                           c_ModParam issueAMod = eModBlck);
+  *
+  *     void set_inflow_subset(Block::MF_data_iterator begin,
+  *                            const Block::Subset & subset,
+  *                            c_ModParam issuePMod = eNoBlck,
+  *                            c_ModParam issueAMod = eModBlck);
+  *
+  * In order to register these methods in the methods factory, one
+  * could implement the following function in HydroUnitBlock class:
+  *
+  *     static void register_methods() {
+  *
+  *       SMSpp_register_method_range(HydroUnitBlock,
+  *                                   HydroUnitBlock::set_inflow_range,
+  *                                   "HydroUnitBlock::set_inflow_range");
+  *
+  *       SMSpp_register_method_subset(HydroUnitBlock,
+  *                                    HydroUnitBlock::set_inflow_subset,
+  *                                    "HydroUnitBlock::set_inflow_subset");
+  *     }
+  *
+  * In the macros SMSpp_register_method_subset and
+  * SMSpp_register_method_range, the first parameter is the class
+  * name, the second one is a pointer to the method that one wants to
+  * register, and the third parameter is the name by which the method
+  * will be identified in the methods factory. Although the name of
+  * the method can be arbitrarily chosen, we recommend following the
+  * pattern "ClassName::methods_name" so as to avoid any name
+  * collisions and make it easier for the user to identify the
+  * available methods.
+  *
+  *     IT IS IMPORTANT TO NOTICE THAT THE register_methods() FUNCTION
+  *     MAY BE CALLED MORE THAN ONCE. THUS, ONE SHOULD CONSIDER THIS
+  *     POSSIBILITY WHEN REIMPLEMENTING THIS FUNCTION IN A DERIVED
+  *     CLASS.
+  */
+
+ static void register_methods() { }
+
+/*--------------------------------------------------------------------------*/
  /// returns the method associated with the given name in the methods factory
  /** This function returns a pointer to the method associated with the
   * given #name in the methods factory. If there is no method
@@ -3944,6 +3944,7 @@ class Block : public Observer {
    }
  }
 
+/*--------------------------------------------------------------------------*/
  /// returns the name that is associated with the given method
  /** This function returns the name that is associated with the given
   * method in the methods factory. If the given method is not present
