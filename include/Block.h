@@ -3780,10 +3780,10 @@ class Block : public Observer {
 
  /// register a new method in the methods factory
  /** This function registers the given method in the methods factory
-  * and associates it with the given #name. If the methods factory
-  * already has a method associated with the given #name, this method
-  * currently present in the methods factory is replaced by the one
-  * that is being provided as argument to this function.
+  * and associates it with the given \p name. If the methods factory
+  * already has a method associated with the given \p name, this
+  * method currently present in the methods factory is replaced by the
+  * one that is being provided as argument to this function.
   *
   * The methods in the methods factory must have the following type:
   *
@@ -3969,8 +3969,39 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
  /// returns the method associated with the given name in the methods factory
  /** This function returns a pointer to the method associated with the
-  * given #name in the methods factory. If there is no method
-  * associated with the given #name, this function returns a nullptr.
+  * given \p name in the methods factory. If there is no method
+  * associated with the given \p name, this function returns a
+  * nullptr.
+  *
+  * Suppose, for example, that the methods factory has a method
+  * associated with the name "HydroUnitBlock::set_inflow_range" that
+  * admits a #Range as argument. In order to obtain a pointer to this
+  * method, one would do the following:
+  *
+  *     auto function = Block::get_method<Block::FunctionType<Block::Range>>
+  *                     ( "HydroUnitBlock::set_inflow_range" );
+  *
+  * Notice that it is necessary to inform the type of set of indices
+  * that the function accepts (a #Range, in this example). Then, to
+  * invoke this method, one could do
+  *
+  *     std::invoke( *function , pointer_to_object , iterator ,
+  *                  range , issuePMod , issueAMod );
+  *
+  * where pointer_to_object is a pointer to a HydroUnitBlock object
+  * (assuming the method obtained from the methods factory is
+  * associated with this class; and, as a good practice, it should be,
+  * considering the name with which it was registered in the methods
+  * factory), iterator is an iterator of type #MF_data_iterator, range
+  * is a #Range, and issuePMod and issueAMod are the last two
+  * parameters of the method.
+  *
+  * If the type of the function is unkown (i.e., if the type of the
+  * index set is not known), one could try first retriving a method
+  * with Block::FunctionType<Block::Range> as template argument to
+  * get_method(). If a nullptr is returned, then one could try next
+  * invoking the get_method() with Block::FunctionType<Block::Subset>
+  * as template argument, for example.
   *
   * @param name The name associated with the method.
   */
