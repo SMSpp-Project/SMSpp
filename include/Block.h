@@ -3976,11 +3976,11 @@ class Block : public Observer {
   */
  template<class F>
  static const F * get_method( std::string name ) {
-   try {
-     return methods<F>().left.at( name );
-   } catch( std::exception & e ) {
-     return nullptr;
-   }
+   auto it = methods<F>().left.find( name );
+   if( it != methods<F>().left.end() )
+     return( it->second );
+   else
+     return( nullptr );
  }
 
 /*--------------------------------------------------------------------------*/
