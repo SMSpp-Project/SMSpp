@@ -548,10 +548,13 @@ class Block : public Observer {
  /// a vector of indices for the "subset" methods in the methods factory
  using Subset = std::vector<std::size_t>;
 
+ /// iterator for the data received by the methods in the methods factory
+ using MF_data_iterator = std::vector<double>::const_iterator;
+
  /// types of methods allowed in the methods factory
  template<class Set>
  using FunctionType = std::function<
-   void( Block * , const std::vector<double>::const_iterator & ,
+   void( Block * , MF_data_iterator ,
          const Set & , c_ModParam , c_ModParam )>;
 
 /*--------------------------------------------------------------------------*/
@@ -1453,15 +1456,15 @@ class Block : public Observer {
   *
   * The methods in the methods factory must have the following type:
   *
-  *     void( Block * , const std::vector<double>::const_iterator & ,
+  *     void( Block * , Block::MF_data_iterator ,
   *           const Set & , c_ModParam , c_ModParam )>;
   *
   * That is, their return type is "void", the first parameter is a
-  * pointer to a Block, the second one is an iterator to an
-  * std::vector of doubles, the third parameter is usually a #Range or
-  * a #Subset, and the last parameters indicate how "physical
-  * Modification" and "abstract Modification" are issued,
-  * respectively.
+  * pointer to a Block, the second one is an iterator to an element in
+  * an appropriate data structure (see #MF_data_iterator), the third
+  * parameter is usually a #Range or a #Subset, and the last
+  * parameters indicate how "physical Modification" and "abstract
+  * Modification" are issued, respectively.
   *
   * The #Range and #Subset are used to specify which part of the data
   * related to the method should be considered. A #Range is a pair of
@@ -1487,23 +1490,21 @@ class Block : public Observer {
   * functions:
   *
   *     void customized_set_demand_range
-  *     ( Block * block , const std::vector<double>::const_iterator & begin ,
+  *     ( Block * block , Block::MF_data_iterator begin ,
   *       const Block::Range & range , c_ModParam issuePMod = eNoBlck ,
   *       c_ModParam issueAMod = eModBlck ) {
   *
-  *       auto it = begin;
-  *       for( std::size_t i = range.first ; i < range.second ; ++i , ++it )
-  *         static_cast<NetworkBlock *>( block )->set_demand( *it , i );
+  *       for( std::size_t i = range.first ; i < range.second ; ++i , ++begin )
+  *         static_cast<NetworkBlock *>(block)->set_demand( *begin, i );
   *     }
   *
   *     void customized_set_demand_subset
-  *     ( Block * block , const std::vector<double>::const_iterator & begin ,
+  *     ( Block * block , Block::MF_data_iterator begin ,
   *       const Block::Subset & subset , c_ModParam issuePMod = eNoBlck ,
   *       c_ModParam issueAMod = eModBlck ) {
   *
-  *       auto it = begin;
-  *       for(size_t i = 0; i < subset.size(); ++i, ++it) {}
-  *         static_cast<NetworkBlock *>( block )->set_demand( *it , subset[i] );
+  *       for(size_t i = 0; i < subset.size(); ++i, ++begin) {}
+  *         static_cast<NetworkBlock *>(block)->set_demand( *begin, subset[i] );
   *     }
   *
   * The first function accepts a #Range as parameter; while the second
@@ -1557,12 +1558,12 @@ class Block : public Observer {
   * SMSpp_register_method_subset() macros. For example, suppose that a
   * class called HydroUnitBlock has the following methods:
   *
-  *     void set_inflow_range(const std::vector<double>::const_iterator &begin,
+  *     void set_inflow_range(Block::MF_data_iterator begin,
   *                           const Block::Range & range,
   *                           c_ModParam issuePMod = eNoBlck,
   *                           c_ModParam issueAMod = eModBlck);
   *
-  *     void set_inflow_subset(const std::vector<double>::const_iterator &begin,
+  *     void set_inflow_subset(Block::MF_data_iterator begin,
   *                            const Block::Subset & subset,
   *                            c_ModParam issuePMod = eNoBlck,
   *                            c_ModParam issueAMod = eModBlck);

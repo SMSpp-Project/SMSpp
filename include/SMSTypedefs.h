@@ -417,8 +417,8 @@ namespace SMSpp_di_unipi_it
 {                                                                       \
  Block::register_method( member_function_name ,                         \
   new Block::FunctionType<Block::Range>( []( Block * input_block ,      \
-        const std::vector<double>::const_iterator & begin ,             \
-        const Block::Range & range , c_ModParam issuePMod = eNoBlck ,   \
+        Block::MF_data_iterator begin , const Block::Range & range ,    \
+        c_ModParam issuePMod = eNoBlck ,                                \
         c_ModParam issueAMod = eModBlck ) {                             \
           static_cast<Class *>( input_block )->member_function          \
             ( begin , range, issuePMod , issueAMod );                   \
@@ -437,8 +437,8 @@ namespace SMSpp_di_unipi_it
 {                                                                       \
  Block::register_method( member_function_name ,                         \
   new Block::FunctionType<Block::Subset>( []( Block * input_block ,     \
-      const std::vector<double>::const_iterator & begin ,               \
-      const Block::Subset & subset , c_ModParam issuePMod = eNoBlck ,   \
+      Block::MF_data_iterator begin , const Block::Subset & subset ,    \
+        c_ModParam issuePMod = eNoBlck ,                                \
         c_ModParam issueAMod = eModBlck ) {                             \
           static_cast<Class *>( input_block )->member_function          \
             ( begin , subset, issuePMod , issueAMod );                  \
