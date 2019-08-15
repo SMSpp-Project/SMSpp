@@ -86,7 +86,7 @@
  *
  * \version 0.22
  *
- * \date 14 - 08 - 2019
+ * \date 15 - 08 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -160,18 +160,6 @@ namespace SMSpp_di_unipi_it
 
  typedef Vec_Block::iterator Vec_Block_it;
  ///< iterator for a Vec_Block
-
- using Range = std::pair<std::size_t , std::size_t>;
- ///< a pair of indices for the "range" methods in the methods factory
-
- using Subset = std::vector<std::size_t>;
- ///< a vector of indices for the "subset" methods in the methods factory
-
- template<class Set>
- using FunctionType = std::function<
-   void( Block * , const std::vector<double>::const_iterator & ,
-         const Set & , c_ModParam , c_ModParam )>;
- ///< types of methods allowed in the methods factory
 
 /** @}  end( group( Block_TYPES ) ) */
 /*--------------------------------------------------------------------------*/
@@ -553,6 +541,18 @@ class Block : public Observer {
 		 * instead of a netCDF one (say, compatibility with legacy
 		 * instance formats). */
   };
+
+ /// a pair of indices for the "range" methods in the methods factory
+ using Range = std::pair<std::size_t , std::size_t>;
+
+ /// a vector of indices for the "subset" methods in the methods factory
+ using Subset = std::vector<std::size_t>;
+
+ /// types of methods allowed in the methods factory
+ template<class Set>
+ using FunctionType = std::function<
+   void( Block * , const std::vector<double>::const_iterator & ,
+         const Set & , c_ModParam , c_ModParam )>;
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- FRIENDS ----------------------------------*/
@@ -1488,7 +1488,7 @@ class Block : public Observer {
   *
   *     void customized_set_demand_range
   *     ( Block * block , const std::vector<double>::const_iterator & begin ,
-  *       const Range & range , c_ModParam issuePMod = eNoBlck ,
+  *       const Block::Range & range , c_ModParam issuePMod = eNoBlck ,
   *       c_ModParam issueAMod = eModBlck ) {
   *
   *       auto it = begin;
@@ -1498,7 +1498,7 @@ class Block : public Observer {
   *
   *     void customized_set_demand_subset
   *     ( Block * block , const std::vector<double>::const_iterator & begin ,
-  *       const Subset & subset , c_ModParam issuePMod = eNoBlck ,
+  *       const Block::Subset & subset , c_ModParam issuePMod = eNoBlck ,
   *       c_ModParam issueAMod = eModBlck ) {
   *
   *       auto it = begin;
@@ -1511,12 +1511,12 @@ class Block : public Observer {
   * methods factory, one would use the register_method() as follows:
   *
   *     Block::register_method
-  *     ( "NetworkBlock::customized_set_demand_range" ,
-  *       new FunctionType<Range>( customized_set_demand_range) );
+  *     ("NetworkBlock::customized_set_demand_range" ,
+  *      new Block::FunctionType<Block::Range>(customized_set_demand_range));
   *
   *     Block::register_method
-  *     ( "NetworkBlock::customized_set_demand_subset" ,
-  *       new FunctionType<Subset>( customized_set_demand_subset ) );
+  *     ("NetworkBlock::customized_set_demand_subset" ,
+  *      new Block::FunctionType<Block::Subset>(customized_set_demand_subset));
   *
   * Although the name of the method can be arbitrarily chosen, we
   * recommend following the pattern "ClassName::methods_name" so as to
@@ -1558,12 +1558,12 @@ class Block : public Observer {
   * class called HydroUnitBlock has the following methods:
   *
   *     void set_inflow_range(const std::vector<double>::const_iterator &begin,
-  *                           const Range & range,
+  *                           const Block::Range & range,
   *                           c_ModParam issuePMod = eNoBlck,
   *                           c_ModParam issueAMod = eModBlck);
   *
   *     void set_inflow_subset(const std::vector<double>::const_iterator &begin,
-  *                            const Subset & subset,
+  *                            const Block::Subset & subset,
   *                            c_ModParam issuePMod = eNoBlck,
   *                            c_ModParam issueAMod = eModBlck);
   *

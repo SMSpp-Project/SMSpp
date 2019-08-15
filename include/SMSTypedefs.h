@@ -21,7 +21,7 @@
  *
  * \version 0.12
  *
- * \date 14 - 08 - 2019
+ * \date 15 - 08 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -416,9 +416,9 @@ namespace SMSpp_di_unipi_it
                                      member_function_name )             \
 {                                                                       \
  Block::register_method( member_function_name ,                         \
-  new FunctionType<Range>( []( Block * input_block ,                    \
+  new Block::FunctionType<Block::Range>( []( Block * input_block ,      \
         const std::vector<double>::const_iterator & begin ,             \
-        const Range & range , c_ModParam issuePMod = eNoBlck ,          \
+        const Block::Range & range , c_ModParam issuePMod = eNoBlck ,   \
         c_ModParam issueAMod = eModBlck ) {                             \
           static_cast<Class *>( input_block )->member_function          \
             ( begin , range, issuePMod , issueAMod );                   \
@@ -436,9 +436,9 @@ namespace SMSpp_di_unipi_it
                                       member_function_name )            \
 {                                                                       \
  Block::register_method( member_function_name ,                         \
-  new FunctionType<Subset>( []( Block * input_block ,                   \
+  new Block::FunctionType<Block::Subset>( []( Block * input_block ,     \
       const std::vector<double>::const_iterator & begin ,               \
-      const Subset & subset , c_ModParam issuePMod = eNoBlck ,          \
+      const Block::Subset & subset , c_ModParam issuePMod = eNoBlck ,   \
         c_ModParam issueAMod = eModBlck ) {                             \
           static_cast<Class *>( input_block )->member_function          \
             ( begin , subset, issuePMod , issueAMod );                  \
