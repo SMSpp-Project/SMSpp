@@ -4102,7 +4102,7 @@ class Block : public Observer {
   */
 
  template<class F>
- static const F * get_method( std::string & name ) {
+ static const F * get_method( const std::string & name ) {
   auto it = methods<F>().left.find( name );
   return( it != methods<F>().left.end() ? it->second : nullptr );
   }
@@ -4118,8 +4118,8 @@ class Block : public Observer {
   */
 
  template<class F>
- static std::string & get_method_name( const F * method ) {
-  static std::string empty;
+ static const std::string & get_method_name( const F * method ) {
+  static const std::string empty;
   auto it = methods<F>().right.find( method );
   return( it != methods<F>().right.end() ? it->second : empty );
   }
