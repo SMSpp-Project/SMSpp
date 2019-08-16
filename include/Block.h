@@ -571,7 +571,7 @@ class Block : public Observer {
   * factories (although different signatures could be added in the future,
   * as the mechanism is very general). They take a Block *, a(n iterator
   * into a const) std::vector< double >, a "set" of indices into the internal
-  * data structure if the :Block, and two parameters controlling if and where
+  * data structure of the :Block, and two parameters controlling if and where
   * the corresponding "physical" and "abstract" Modification are issued. This
   * type is, however, template over the possible ways in which "set" can be
   * specified; at least the two choices Range and Subset are there, but
@@ -687,7 +687,7 @@ class Block : public Observer {
   *
   * Besides the newly created Block, the method also returns a && reference to
   * the netCDF::NcFile created, which allows chaining of [de]serializing
-  * operations on it. Note the "&&", which comes from the inststence of
+  * operations on it. Note the "&&", which comes from the insistence of
   * netCDF C++ interface on never copying netCDF::NcFile / netCDF::NcGroup
   * and always rather transfer ownership to the caller.
   *
@@ -1593,7 +1593,7 @@ class Block : public Observer {
   * implementation just returns "+ Infinity", i.e., "no upper bound".
   *
   * This method can be used to query about two different kinds of upper bounds.
-  * The defauly type (when the "conditional" parameter is at its default value
+  * The default type (when the "conditional" parameter is at its default value
   * of false) is a globally valid upper bound, which is simply a value
   * guaranteed to be above the value of the [Real]Objective of any feasible
   * solution. If the sense of the [Real]Objective is "maximization" and the
@@ -1780,7 +1780,7 @@ class Block : public Observer {
   *   - the value returned by this method provides a bound on "how much bad a
   *     solution can be".
   *
-  * - when the "conditional" parameter is at true, the method shold return a
+  * - when the "conditional" parameter is at true, the method should return a
   *   "conditionally valid upper bound", i.e., a value v such that
   *
   *    v is a valid lower bound on the optimal value of the problem
@@ -1815,7 +1815,7 @@ class Block : public Observer {
   *   reason for checking it.
   *
   * Conditionally valid lower bounds can sometimes be found by duality arguments
-  * and can be used as a convenient stopping condition in empty/unounded cases
+  * and can be used as a convenient stopping condition in empty/unbounded cases
   * for algorithms solving the problem, possibly via duality. */
 
  virtual double get_valid_lower_bound( const bool conditional = false ) {
@@ -2619,7 +2619,7 @@ class Block : public Observer {
  *   Objective is unbounded (either below or above as appropriate): note that
  *   the existence of such an object is not, strictly speaking, enough to
  *   prove that the problem is unbounded: this also requires the problem to be
- *   non-empty; yet, exsistence of such an object does prove that the problem
+ *   non-empty; yet, existence of such an object does prove that the problem
  *   at least does not have an optimal solution (either it does not have a
  *   solution at all, or it is unbounded);
  *
@@ -2630,7 +2630,7 @@ class Block : public Observer {
  *   note that the existence of such an object is not, strictly speaking,
  *   enough to prove that the dual problem is unbounded (and therefore the
  *   primal is empty): this also requires the dual problem to be non-empty;
- *   yet, exsistence of such an object does prove that the dual problem
+ *   yet, existence of such an object does prove that the dual problem
  *   at least does not have an optimal solution (either it does not have a
  *   solution at all, or it is unbounded), which under some qualification
  *   conditions implies that the primal problem is empty.
@@ -2686,7 +2686,7 @@ class Block : public Observer {
  *   goes hand-in-hand with the fact that a Solution can hold only "a
  *   part" of all the solution information, say, only a subset of the
  *   Variable. It may thus not be possible, or just not be useful, to
- *   check (say) feasibility af all Constraint, but only of those that
+ *   check (say) feasibility of all Constraint, but only of those that
  *   concern a particular subset of the Variable. Just as the methods
  *   for producing Solution have a Configuration to allow specifying
  *   what part of the Solution is "interesting", so the Configuration
@@ -2701,7 +2701,7 @@ class Block : public Observer {
   *
   * The useabstract parameter being true dictates that the solution is
   * checked for feasibility w.r.t. "abstract representation" of the Block,
-  * otherwise the "pyhsical representation" of the Block is used. This may
+  * otherwise the "physical representation" of the Block is used. This may
   * yield different outcomes, as discussed below. Of course, for
   * is_feasible( true ) to work the "abstract representation" have to
   * have been constructed in the first place.
@@ -2813,7 +2813,7 @@ class Block : public Observer {
   *
   * The useabstract parameter being true dictates that the check should be
   * performed using the "abstract representation" of the Block, otherwise
-  * the "pyhsical representation" of the Block should be used.
+  * the "physical representation" of the Block should be used.
   *
   * However, a significant difference exists between the two versions in case
   * the Block has dynamic variables. Indeed, in that case the abstract
@@ -2892,7 +2892,7 @@ class Block : public Observer {
   *
   * The useabstract parameter being true dictates that the check should be
   * performed using the "abstract representation" of the Block, otherwise
-  * the "pyhsical representation" of the Block should be used. See the
+  * the "physical representation" of the Block should be used. See the
   * comments to is_feasible() for the cases where the check using the
   * "abstract representation" may give different results that that using
   * the "physical" one.
@@ -2915,10 +2915,10 @@ class Block : public Observer {
   * default value will have to be used. Note that the rationale for re-using
   * the is_feasible() configuration is mostly to avoid excessive proliferation
   * of Configuration objects in a Block; however, this also makes sense in at
-  * least some important cases. For instance, il Linear Programming the
+  * least some important cases. For instance, in Linear Programming the
   * numerical tolerances for defining "a solution is feasible" and "a vector
   * is an unbounded ray" are basically the same. Yet, a Configuration object
-  * can contain anbitrarily many values, so if the is_feasible() Configuration
+  * can contain arbitrarily many values, so if the is_feasible() Configuration
   * requires more values to be specified to also cover the use within this
   * method, this can always be done.
   *
@@ -2955,7 +2955,7 @@ class Block : public Observer {
   *
   * The useabstract parameter being true dictates that the check should be
   * performed using the "abstract representation" of the Block, otherwise
-  * the "pyhsical representation" of the Block should be used. See the
+  * the "physical representation" of the Block should be used. See the
   * comments to is_feasible() for the cases where the check using the
   * "abstract representation" may give different results that that using
   * the "physical" one.
@@ -2978,10 +2978,10 @@ class Block : public Observer {
   * default value will have to be used. Note that the rationale for re-using
   * the is_optimal() configuration is mostly to avoid excessive proliferation
   * of Configuration objects in a Block; however, this also makes sense in at
-  * least some important cases. For instance, il Linear Programming the
+  * least some important cases. For instance, in Linear Programming the
   * numerical tolerances for defining "a dual solution is feasible" and "a
   * vector is an unbounded ray of the dual" are basically the same. Yet, a
-  * Configuration object can contain anbitrarily many values, so if the
+  * Configuration object can contain arbitrarily many values, so if the
   * is_optimal() Configuration requires more values to be specified to also
   * cover the use within this method, this can always be done.
   *
@@ -3816,7 +3816,7 @@ class Block : public Observer {
  * calling methods of the specialized interface of the :Block.
  *
  * This is done by constructing a (bi-directional) map between names and
- * pointer to mathods (actually, functions) that can change the data of the
+ * pointer to methods (actually, functions) that can change the data of the
  * :Block. In this way a pointer can be retrieved via its name (a std::string
  * that can be read at runtime, e.g. by some Configuration object) and the
  * corresponding specialized method of the :Block can be invoked to change
@@ -3850,12 +3850,12 @@ class Block : public Observer {
  * parameter is a pointer to a Block, the second one is an iterator to a
  * std::vector< double > (see #MF_data_it), the third parameter is usually
  * either a #Range or a #Subset, and the last two parameters respectively
- * indicate if and where "physical" and "abstract" Modification" are issued.
+ * indicate if and where "physical" and "abstract" Modification are issued.
  * This signature is that defined by the template type FunctionType< Set >.
  *
  * The idea is that #Range or #Subset are used to specify which part of the
  * data related to the method should be considered. A #Range is a pair
- * < a , b > of indices representing the customery left-closed, right-open
+ * < a , b > of indices representing the customary left-closed, right-open
  * interval { i : a <= i < b }. The #Subset is a std::vector< Index >.
  * Other ways to specify "sets" could be easily added in the future, but
  * these two should cover most of the use cases. Let "iter" be the provided
@@ -3932,7 +3932,7 @@ class Block : public Observer {
  * The above discussion clearly reveals that there is actually no need for
  * the methods in the :Block to have the FunctionType< Set > signature in
  * order for them to be used in the methods factory. Indeed, even if they
- * are a ("void") adapter function need to be written anyway. More in general,
+ * are, a ("void") adapter function need to be written anyway. More in general,
  * adapter functions can be written to use existing :Block methods to perform
  * changes that can be added to the methods factory. For instance, assume that
  * our fictional NetworkBlock class only has the method
@@ -3949,19 +3949,19 @@ class Block : public Observer {
  *                            c_ModParam issuePMod = eNoBlc ,
  *                            c_ModParam issueAMod = eModBlck ) {
  *      for( Index i = range.first ; i < range.second ; ++i , ++begin )
- *       static_cast<NetworkBlock *>( block )->set_demand( *begin , i , 
- *                                                         issuePMod ,
- *                                                         issueAMod );
+ *       static_cast<NetworkBlock *>( block )->set_arc_weight( *begin , i ,
+ *                                                             issuePMod ,
+ *                                                             issueAMod );
  *      }
  *
  *     void set_weight_subset( Block * block , MF_data_it begin , 
  *                             c_Subset & subset ,
  *                             c_ModParam issuePMod = eNoBlc ,
  *                             c_ModParam issueAMod = eModBlck ) {
- *      for( auto i :subset )
- *       static_cast<NetworkBlock *>( block )->set_demand( *(begin++) , i , 
- *                                                         issuePMod ,
- *                                                         issueAMod );
+ *      for( auto i : subset )
+ *       static_cast<NetworkBlock *>( block )->set_arc_weight( *(begin++) , i ,
+ *                                                             issuePMod ,
+ *                                                             issueAMod );
  *      }
  *
  * These could then be freely registered in the methods factory as in
@@ -4001,11 +4001,10 @@ class Block : public Observer {
  *  @{ */
 
  /// register a new "method" in the methods factory
- /** This function registers the given method (actually, an adapter function
-  * calling the methods of some :Block) in the appropriate methods factory,
-  * and associates it with the given \p name. If the methods factory already
-  * has a method associated with the given \p name, the currently present
-  * method is replaced by the new one.
+ /** This function registers the given method in the appropriate
+  * methods factory, and associates it with the given \p name. If the
+  * methods factory already has a method associated with the given \p
+  * name, the currently present method is replaced by the new one.
   *
   * Although the name of the "method" can be arbitrarily chosen, it is
   * recommended to follow the pattern "ClassName::methods_name" (insomuch
@@ -4038,13 +4037,13 @@ class Block : public Observer {
 
 /*--------------------------------------------------------------------------*/
  /// register a new method in the methods factory
- /** This method registers a member class function the appropriate methods
+ /** This method registers a member class function in the appropriate methods
   * factory, and associates it with the given \p name. It has two template
   * parameters. The first one, Class, is the class (derived from Block) of
   * which the function is a member. The second parameter, Set, specifies the
   * type of set of indices that the function accepts (e.g., #Range or
-  * #Subset), and therefore to which methods factory the member class is
-  * registered.
+  * #Subset), and therefore which methods factory the member class is
+  * registered in.
   *
   * This method serves as a wrapper for the "general" register_method()
   * method, which has a single template parameter corresponding to the type
@@ -4052,7 +4051,7 @@ class Block : public Observer {
   * FunctionType< Set > lambda function which just static_cast<> the Block *
   * argument to a pointer to Class, and then invokes \p method.
   *
-  * @param name The name that will identify the given method (actually,
+  * @param name The name that will identify the given \p method (actually,
   *             function) in the methods factory; as the "&&" tells, the
   *             std::string becomes "property" of the methods factory.
   *
@@ -4113,7 +4112,7 @@ class Block : public Observer {
  /** This function returns (a reference to) the name that is associated with
   * the given  (pointer to a) method (actually, function) in the methods
   * factory. If the given method is not present in the methods factory,
-  * a (refeence to a)n empty string is returned.
+  * a (reference to a)n empty string is returned.
   *
   * @param method A pointer to the method whose associated name is desired.
   */
@@ -4921,11 +4920,9 @@ class Block : public Observer {
 
 /*--------------------------------------------------------------------------*/
 /// returns the bimap associated with the methods of type F
-/** This method returns the bimap implementing the "methods factory" for the
- * methods of type F.
-
- This is where the pointer to the methods (and their names)
-  * in the methods factory are stored. */
+/** This method returns the bimap implementing the "methods factory"
+ * for the methods of type F. This is where the pointer to the methods
+ * (and their names) in the methods factory are stored. */
 
  template<class F>
  static inline bimap<F> & methods( void ) {
