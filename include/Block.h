@@ -3879,10 +3879,10 @@ class Block : public Observer {
  * registered straight away in the methods factory by just calling anywhere
  *
  *     register_method( "NetworkBlock::set_arc_weight_rng" ,
- *                      & NetworkBlock::set_arc_weight_rng );
+ *                     & NetworkBlock::set_arc_weight_rng );
  *
  *     register_method( "NetworkBlock::set_arc_weight_sbst" ,
- *                      & NetworkBlock::set_arc_weight_sbst );
+ *                     & NetworkBlock::set_arc_weight_sbst );
  *
  * Note that the methods could rather be overloaded, as in
  *
@@ -3892,23 +3892,33 @@ class Block : public Observer {
  *     void set_arc_weight( MF_data_it , c_Subset & ,
  *                          c_ModParam , c_ModParam );
  *
- * This is just as well provided one uses static_cast<> to remove ambiguity
- * as in
+ * This is just as well provided one uses the right version of
+ * register_method() to remove ambiguity as in
  *
- *     register_method( "NetworkBlock::set_arc_weight_rng" ,
- *                      static_cast< MemberFunction< NetworkBlock , Range >
- *                                   >( & NetworkBlock::set_arc_weight ) );
+ *     register_method< NetworkBlock, Range >
+ *                   ( "NetworkBlock::set_arc_weight_rng" ,
+ *                    & NetworkBlock::set_arc_weight );
  *
- *     register_method( "NetworkBlock::set_arc_weight_sbst" ,
- *                      static_cast< MemberFunction< NetworkBlock , Subset >
- *                                   >( & NetworkBlock::set_arc_weight ) );
+ *     register_method< NetworkBlock, Subset >
+ *                   ( "NetworkBlock::set_arc_weight_sbst" ,
+ *                    & NetworkBlock::set_arc_weight );
  *
- * Note that in this case the "name" string is not identical to the name of
- * the method, but this can't be helped. Indeed, in general the "name" string
- * can be arbitrary, but we recommend following the pattern
- * "ClassName::method_name" (as much as possible) so as to avoid any name
- * collisions and to make it easier for the user to identify the available
- * methods.
+ * Note that since these methods are registered in different methods
+ * factories, we could use the same "name" string for registering both
+ * of them, as in
+ *
+ *     register_method< NetworkBlock, Range >
+ *                   ( "NetworkBlock::set_arc_weight" ,
+ *                    & NetworkBlock::set_arc_weight );
+ *
+ *     register_method< NetworkBlock, Subset >
+ *                   ( "NetworkBlock::set_arc_weight" ,
+ *                    & NetworkBlock::set_arc_weight );
+ *
+ * In general, the "name" string can be arbitrary, but we recommend
+ * following the pattern "ClassName::method_name" (as much as
+ * possible) so as to avoid any name collisions and to make it easier
+ * for the user to identify the available methods.
  *
  * In all cases, the register_method() method called here is
  *
