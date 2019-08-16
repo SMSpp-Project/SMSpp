@@ -4023,6 +4023,8 @@ class Block : public Observer {
  template< class F >
  static void register_method( std::string && name , F * method )
  {
+  if( name.empty() )
+   throw( std::invalid_argument( "register_method: name is empty" ) );
   auto iter = methods<F>().left.find( name );
   if( iter != methods<F>().left.end() ) {
    delete iter->second;
