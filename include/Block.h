@@ -3947,7 +3947,7 @@ class Block : public Observer {
  * changes that can be added to the methods factory. For instance, assume that
  * our fictional NetworkBlock class only has the method
  *
- *     void set_arc_weight( Index arc , c_Range & range ,
+ *     void set_arc_weight( Index arc , double weight ,
  *                          c_ModParam issuePMod = eNoBlck ,
  *                          c_ModParam issueAMod = eModBlck );
  *
@@ -3959,7 +3959,7 @@ class Block : public Observer {
  *                            c_ModParam issuePMod = eNoBlc ,
  *                            c_ModParam issueAMod = eModBlck ) {
  *      for( Index i = range.first ; i < range.second ; ++i , ++begin )
- *       static_cast<NetworkBlock *>( block )->set_arc_weight( *begin , i ,
+ *       static_cast<NetworkBlock *>( block )->set_arc_weight( i , *begin ,
  *                                                             issuePMod ,
  *                                                             issueAMod );
  *      }
@@ -3969,7 +3969,7 @@ class Block : public Observer {
  *                             c_ModParam issuePMod = eNoBlc ,
  *                             c_ModParam issueAMod = eModBlck ) {
  *      for( auto i : subset )
- *       static_cast<NetworkBlock *>( block )->set_arc_weight( *(begin++) , i ,
+ *       static_cast<NetworkBlock *>( block )->set_arc_weight( i , *(begin++) ,
  *                                                             issuePMod ,
  *                                                             issueAMod );
  *      }
