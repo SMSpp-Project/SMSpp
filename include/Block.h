@@ -3937,7 +3937,7 @@ class Block : public Observer {
  * in the FunctionType< Set > methods factory.
  *
  * The typical place in which these calls to register_method() should be put
- * is in the private static_initialization() method of the :Block.
+ * is in the protected static_initialization() method of the :Block.
  *
  * The above discussion clearly reveals that there is actually no need for
  * the methods in the :Block to have the FunctionType< Set > signature in
