@@ -266,13 +266,21 @@ class LagBFunction : public C05Function , public Block {
 /** @name Public Types
  *  @{ */
 
+ /* Since LagBFunction is both a ThinVarDepInterface and a Block, it "sees"
+  * two definitions of "Index". These are actually the same, but compilers
+  * still don't like it. Disambiguate by declaring we use the
+  * ThinVarDepInterface version (but it could have been the Block version,
+  * as they are the same. */
+ using Index = ThinVarDepInterface::Index;
+ using c_Index = ThinVarDepInterface::c_Index;
+
  typedef std::pair< ColVariable * , Function * > dual_pair;
  ///< a constraint and its dual variable
 
  typedef std::vector< dual_pair > v_dual_pair;
  ///< a vector of dual_pair
 
- /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
  typedef std::tuple< p_Solution , bool , bool > linearization_tuple;
  /* a solution equipped with two boolean, one which defines the type of

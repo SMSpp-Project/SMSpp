@@ -542,23 +542,56 @@ class Block : public Observer {
 		 * instance formats). */
   };
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/* Types for the "methods factory". */
+
+ /// an index in any internal data structure of the Block
+ using Index = std::size_t;
+ using c_Index = const Index;                 ///< a const Index
+
  /// a pair of indices for the "range" methods in the methods factory
- using Range = std::pair<std::size_t , std::size_t>;
+ using Range = std::pair< Index , Index >;
+ using c_Range = const Range;                 ///< a const Range
 
  /// a vector of indices for the "subset" methods in the methods factory
- using Subset = std::vector<std::size_t>;
+ using Subset = std::vector< Index >;
+ using c_Subset = const Subset;               ///< a const Subset
+
+ using Subset_it = Subset::iterator;          ///< iterator in Subset
+ using c_Subset_it = Subset::const_iterator;  ///< const iterator in Subset
 
  /// iterator for the data received by the methods in the methods factory
- using MF_data_iterator = std::vector<double>::const_iterator;
+ using MF_data_it = std::vector<double>::const_iterator;
 
- /// types of methods allowed in the methods factory
- template<class Set>
+ /// types of functions allowed in the methods factory
+ /** The "methods factory" (more properly, methods factor*ies*) is a map
+  * between method (or, more in general, function) names and pointer to
+  * functions that can modify the data of a given :Block. This type defines
+  * the basic signature of the methods for the currently supported method
+  * factories (although different signatures could be added in the future,
+  * as the mechanism is very general). They take a Block *, a(n iterator
+  * into a const) std::vector< double >, a "set" of indices into the internal
+  * data structure if the :Block, and two parameters controlling if and where
+  * the corresponding "physical" and "abstract" Modification are issued. This
+  * type is, however, template over the possible ways in which "set" can be
+  * specified; at least the two choices Range and Subset are there, but
+  * further choices may be added. */
+
+ template< class Set >
  using FunctionType = std::function<
-   void( Block * , MF_data_iterator , const Set & , c_ModParam , c_ModParam )>;
+  void( Block * , MF_data_it , const Set & , c_ModParam , c_ModParam ) >;
 
- /// types of the class member functions allowed in the methods factory
- template<class Class, class Set>
- using MemberFunction = void( Class::* )( MF_data_iterator , const Set & ,
+ /// typedef for methods to be added to the methods factory
+ /** Typedef for the "convenience version" of register_method() [see the
+  * comments] that take a pointer to a method of a :Block class and
+  * construct an appropriate lambda function that can then be inserted into
+  * the (corresponding)  methods factory. This type is template both over
+  * the Class (derived from Block) and the possible ways in which "set" can
+  * be specified (at least Range and Subset, but further choices may be
+  * added. */
+
+ template< class Class, class Set >
+ using MemberFunction = void( Class::* )( MF_data_it , const Set & ,
                                           c_ModParam , c_ModParam );
 
 /*--------------------------------------------------------------------------*/
@@ -3776,261 +3809,319 @@ class Block : public Observer {
 /*--------------- Methods for handling the methods factory -----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling the methods factory
-    @{ */
+ *
+ * The "methods factory" (more properly, methods factor*ies*) is a powerful
+ * general concept that allows to interact with a :Block (in the sense of
+ * changing its data) whose type is not known at compile time, and yet
+ * calling methods of the specialized interface of the :Block.
+ *
+ * This is done by constructing a (bi-directional) map between names and
+ * pointer to mathods (actually, functions) that can change the data of the
+ * :Block. In this way a pointer can be retrieved via its name (a std::string
+ * that can be read at runtime, e.g. by some Configuration object) and the
+ * corresponding specialized method of the :Block can be invoked to change
+ * the data, even if the type of the :Block is not known at compile time.
+ *
+ * This of course requires fixing the signature of the methods. Actually, the
+ * mechanism is flexible in that
+ *
+ *     IN PRINCIPLE ANY NUMBER OF SIGNATURES IS POSSIBLE
+ *
+ * Indeed,
+ *
+ *      EACH TIME THE (PRIVATE) METHOD methods<F>() IS CALLED WITH A
+ *      DIFFERENT FUNCTION TYPE F, WHICH IN TURN HAPPENS IF EITHER
+ *      register_method( , F * ) OR get_method<F>() ARE CALLED, A NEW
+ *      METHODS FACTORY FOR F IS AUTOMAGICALLY CREATED (AT COMPILE TIME)
+ *
+ * However, the issue is that
+ *
+ *      POINTERS IN THE MAPPING CANNOT BE TO ACTUAL METHODS BECAUSE THE
+ *      SIGNATURE CANNOT HAVE A POINTER TO *ANY* DERIVED CLASS FROM Block,
+ *      AND THEREFORE MUST HAVE A POINTER TO THE BASE Block.
+ *
+ * Thus, a bit of type-handling has to go on behind the scenes, which
+ * requires some support. Currently, only signatures of the form
+ *
+ *     template< class Set >
+ *     void( Block * , MF_data_it , const Set & , c_ModParam , c_ModParam )
+ *
+ * are directly supported. That is, their return type is "void", the first
+ * parameter is a pointer to a Block, the second one is an iterator to a
+ * std::vector< double > (see #MF_data_it), the third parameter is usually
+ * either a #Range or a #Subset, and the last two parameters respectively
+ * indicate if and where "physical" and "abstract" Modification" are issued.
+ * This signature is that defined by the template type FunctionType< Set >.
+ *
+ * The idea is that #Range or #Subset are used to specify which part of the
+ * data related to the method should be considered. A #Range is a pair
+ * < a , b > of indices representing the customery left-closed, right-open
+ * interval { i : a <= i < b }. The #Subset is a std::vector< Index >.
+ * Other ways to specify "sets" could be easily added in the future, but
+ * these two should cover most of the use cases. Let "iter" be the provided
+ * MF_data_it: it must point to a vector at least as long (after the
+ * position pointed by iter) as how many elements are there in the set, and
+ * the double value *( iter + h ) has to be taken as the new value for the
+ * data structure in the :Block corresponding to the h-th Index in Set.
+ *
+ * The "easy" use case of the methods factory is when the :Block has methods
+ * (i.e., class member functions) with precisely this structure. For instance,
+ * assume a class NetworkBlock : Block representing (an optimization problem
+ * defined over some) weighted graph. NetworkBlock may have two methods 
+ *
+ *     void set_arc_weight_rng( MF_data_it , c_Range & ,
+ *                              c_ModParam , c_ModParam );
+ *
+ *     void set_arc_weight_sbst( MF_data_it , c_Subset & ,
+ *                               c_ModParam , c_ModParam );
+ *
+ * for changing the weights in the arcs of the graph. These methods can be
+ * registered straight away in the methods factory by just calling anywhere
+ *
+ *     register_method( "NetworkBlock::set_arc_weight_rng" ,
+ *                      & NetworkBlock::set_arc_weight_rng );
+ *
+ *     register_method( "NetworkBlock::set_arc_weight_sbst" ,
+ *                      & NetworkBlock::set_arc_weight_sbst );
+ *
+ * Note that the methods could rather be overloaded, as in
+ *
+ *     void set_arc_weight( MF_data_it , c_Range & ,
+ *                          c_ModParam , c_ModParam );
+ *
+ *     void set_arc_weight( MF_data_it , c_Subset & ,
+ *                          c_ModParam , c_ModParam );
+ *
+ * This is just as well provided one uses static_cast<> to remove ambiguity
+ * as in
+ *
+ *     register_method( "NetworkBlock::set_arc_weight_rng" ,
+ *                      static_cast< MemberFunction< NetworkBlock , Range >
+ *                                   >( & NetworkBlock::set_arc_weight ) );
+ *
+ *     register_method( "NetworkBlock::set_arc_weight_sbst" ,
+ *                      static_cast< MemberFunction< NetworkBlock , Subset >
+ *                                   >( & NetworkBlock::set_arc_weight ) );
+ *
+ * Note that in this case the "name" string is not identical to the name of
+ * the method, but this can't be helped. Indeed, in general the "name" string
+ * can be arbitrary, but we recommend following the pattern
+ * "ClassName::method_name" (as much as possible) so as to avoid any name
+ * collisions and to make it easier for the user to identify the available
+ * methods.
+ *
+ * In all cases, the register_method() method called here is
+ *
+ *     template< class Class , class Set >
+ *     static void register_method( std::string && ,
+ *                                  MemberFunction< Class , Set > )
+ *
+ * which is provided as a wrapper for the "regular"
+ *
+ *     template< class F >
+ *     static void register_method( std::string && , F * )
+ *
+ * version. What the method does is to create a FunctionType< Set > lambda
+ * function which just static_cast<> the Block * to a pointer to Class *, and
+ * then invokes \p method; this function, rather than \p method, is then put
+ * in the FunctionType< Set > methods factory.
+ *
+ * The typical place in which these calls to register_method() should be put
+ * is in the private static_initialization() method of the :Block.
+ *
+ * The above discussion clearly reveals that there is actually no need for
+ * the methods in the :Block to have the FunctionType< Set > signature in
+ * order for them to be used in the methods factory. Indeed, even if they
+ * are a ("void") adapter function need to be written anyway. More in general,
+ * adapter functions can be written to use existing :Block methods to perform
+ * changes that can be added to the methods factory. For instance, assume that
+ * our fictional NetworkBlock class only has the method
+ *
+ *     void set_arc_weight( Index arc , c_Range & range ,
+ *                          c_ModParam issuePMod = eNoBlck ,
+ *                          c_ModParam issueAMod = eModBlck );
+ *
+ * A user who would like to have a method in the methods factory for setting
+ * the weight of some arcs could implement the following functions:
+ *
+ *     void set_weight_range( Block * block , MF_data_it begin , 
+ *                            c_Range & range ,
+ *                            c_ModParam issuePMod = eNoBlc ,
+ *                            c_ModParam issueAMod = eModBlck ) {
+ *      for( Index i = range.first ; i < range.second ; ++i , ++begin )
+ *       static_cast<NetworkBlock *>( block )->set_demand( *begin , i , 
+ *                                                         issuePMod ,
+ *                                                         issueAMod );
+ *      }
+ *
+ *     void set_weight_subset( Block * block , MF_data_it begin , 
+ *                             c_Subset & subset ,
+ *                             c_ModParam issuePMod = eNoBlc ,
+ *                             c_ModParam issueAMod = eModBlck ) {
+ *      for( auto i :subset )
+ *       static_cast<NetworkBlock *>( block )->set_demand( *(begin++) , i , 
+ *                                                         issuePMod ,
+ *                                                         issueAMod );
+ *      }
+ *
+ * These could then be freely registered in the methods factory as in
+ *
+ *     register_method( "NetworkBlock::set_weight_range" ,
+ *                      & set_weight_range );
+ *
+ *     register_method( "NetworkBlock::set_weight_subset" ,
+ *                      & set_weight_subset );
+ *
+ * (note that the version taking a FunctionType< Set > is being used here,
+ * as opposed to the one taking a MemberFunction< Class , Set >). Of course,
+ * any data format adapter can be implemented here; think e.g. of the case
+ * where the :Block methods expect a boost::multi_array< double >, that 
+ * therefore has to be "flattened" into a std::vector< double >, or of
+ * the case where the :Block methods expect integer rather than double
+ * values. Adapters still allow for the methods factory to be used in these
+ * cases (save, of course, for the possibility of adding new kinds of
+ * signatures allowing the corresponding different input capabilities).
+ *
+ * This also justifies why, somehow counter-intuitively, these methods are
+ * public, which means that anyone with access to a :Block can register "its
+ * methods" (actually, adapter functions calling them) in the methods
+ * factory. Indeed, this allows to handle cases where:
+ *
+ * - the :Block owner couldn't be bothered to do the registration herself, but
+ *   some user needs it;
+ *
+ * - some non-obvious adapter function has to be written, e.g. to support
+ *   some new form of "Set" that the :Block owner did not know at the time
+ *   where she wrote it.
+ *
+ * So, while one would expect that most of the registration work is done by
+ * the :Block owner in static_initialization() once and for all, the
+ * possibility is always left open that some registration may happen outside
+ * it. 
+ *  @{ */
 
- /// register a new method in the methods factory
- /** This function registers the given method in the methods factory
-  * and associates it with the given \p name. If the methods factory
-  * already has a method associated with the given \p name, this
-  * method currently present in the methods factory is replaced by the
-  * one that is being provided as argument to this function.
+ /// register a new "method" in the methods factory
+ /** This function registers the given method (actually, an adapter function
+  * calling the methods of some :Block) in the appropriate methods factory,
+  * and associates it with the given \p name. If the methods factory already
+  * has a method associated with the given \p name, the currently present
+  * method is replaced by the new one.
   *
-  * The methods in the methods factory must have the following type:
+  * Although the name of the "method" can be arbitrarily chosen, it is
+  * recommended to follow the pattern "ClassName::methods_name" (insomuch
+  * as this is possible, cue the overloaded case) so as to avoid any name
+  * collisions and make it easier for the user to identify the available
+  * methods.
   *
-  *     void( Block * , Block::MF_data_iterator ,
-  *           const Set & , c_ModParam , c_ModParam )>;
+  * @param name The name that will identify the given method (actually,
+  *             function) in the methods factory; as the "&&" tells, the
+  *             std::string becomes "property" of the methods factory.
   *
-  * That is, their return type is "void", the first parameter is a
-  * pointer to a Block, the second one is an iterator to an element in
-  * an appropriate data structure (see #MF_data_iterator), the third
-  * parameter is usually a #Range or a #Subset, and the last
-  * parameters indicate how "physical Modification" and "abstract
-  * Modification" are issued, respectively.
-  *
-  * The #Range and #Subset are used to specify which part of the data
-  * related to the method should be considered. A #Range is a pair of
-  * indices representing an interval. If (a, b) is such a pair of
-  * indices, then this Range represents the left-closed, right-open
-  * interval { i : a <= i < b }. The #Subset is a vector of indices.
-  *
-  * Normally, each class decides which of its class member functions
-  * will be registered in the methods factory. This is usually done
-  * within the register_methods() function, which is implemented in
-  * that class. If, however, the methods registered by the classes
-  * derived from Block are not enough to deal with a particular
-  * problem, then the user can implement its own functions and
-  * register them in the methods factory.
-  *
-  * As an example, consider a class called NetworkBlock, which has the
-  * following method for setting the demand at a given node:
-  *
-  *     void set_demand( double demand , int node );
-  *
-  * A user who would like to have a method in the methods factory for
-  * setting the demand of some nodes could implement the following
-  * functions:
-  *
-  *     void customized_set_demand_range
-  *     ( Block * block , Block::MF_data_iterator begin ,
-  *       const Block::Range & range , c_ModParam issuePMod = eNoBlck ,
-  *       c_ModParam issueAMod = eModBlck ) {
-  *
-  *       for( std::size_t i = range.first ; i < range.second ; ++i , ++begin )
-  *         static_cast<NetworkBlock *>(block)->set_demand( *begin, i );
-  *     }
-  *
-  *     void customized_set_demand_subset
-  *     ( Block * block , Block::MF_data_iterator begin ,
-  *       const Block::Subset & subset , c_ModParam issuePMod = eNoBlck ,
-  *       c_ModParam issueAMod = eModBlck ) {
-  *
-  *       for(size_t i = 0; i < subset.size(); ++i, ++begin) {}
-  *         static_cast<NetworkBlock *>(block)->set_demand( *begin, subset[i] );
-  *     }
-  *
-  * The first function accepts a #Range as parameter; while the second
-  * function accepts a #Subset. Then, for registering them in the
-  * methods factory, one would use the register_method() as follows:
-  *
-  *     Block::register_method
-  *     ("NetworkBlock::customized_set_demand_range" ,
-  *      new Block::FunctionType<Block::Range>(customized_set_demand_range));
-  *
-  *     Block::register_method
-  *     ("NetworkBlock::customized_set_demand_subset" ,
-  *      new Block::FunctionType<Block::Subset>(customized_set_demand_subset));
-  *
-  * Although the name of the method can be arbitrarily chosen, we
-  * recommend following the pattern "ClassName::methods_name" so as to
-  * avoid any name collisions and make it easier for the user to
-  * identify the available methods.
-  *
-  * @param name The name that will identify the given method in the
-  * methods factory.
-  *
-  * @param method The method to be added to the methods factory. */
+  * @param method The (pointer to the) method (actually, function) to be
+  *               added to the corresponding methods factory. */
 
- template<class F>
- static void register_method( std::string name , F * method ) {
-   auto iter = methods<F>().left.find( name );
-   if( iter != methods<F>().left.end() ) {
-     delete iter->second;
-     auto replaced = methods<F>().left.replace_data( iter , method );
-     assert( replaced );
+ template< class F >
+ static void register_method( std::string && name , F * method )
+ {
+  auto iter = methods<F>().left.find( name );
+  if( iter != methods<F>().left.end() ) {
+   delete iter->second;
+   auto replaced = methods<F>().left.replace_data( iter , method );
+   assert( replaced );
    }
-   else {
-     methods<F>().insert
-       ( typename bimap<F>::value_type( name, method ) );
-   }
- }
-
+  else
+   methods<F>().insert( typename bimap<F>::value_type( std::move( name ) ,
+						       method ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// register a new method in the methods factory
- /** This method registers a member class function in the methods
-  * factory and associates it with the given \p name. It has two
-  * template parameters. The first one, Class, is the class of which
-  * the function is a member. The second parameter, Set, specifies the
+ /** This method registers a member class function the appropriate methods
+  * factory, and associates it with the given \p name. It has two template
+  * parameters. The first one, Class, is the class (derived from Block) of
+  * which the function is a member. The second parameter, Set, specifies the
   * type of set of indices that the function accepts (e.g., #Range or
-  * #Subset).
+  * #Subset), and therefore to which methods factory the member class is
+  * registered.
   *
-  * This method serves as a wrapper for the register_method() method
-  * (which has a single template parameter). It creates a FunctionType
-  * function based on the given \p member_function and then calls
-  * register_method() in order to register it in the methods
-  * factory. Tipically, this method would be invoke from within the
-  * register_methods() static function that is implemented in the
-  * class that defines the function passed as argument. See
-  * register_methods() for more details.
+  * This method serves as a wrapper for the "general" register_method()
+  * method, which has a single template parameter corresponding to the type
+  * (signature) F of the function. What this version does is to create a
+  * FunctionType< Set > lambda function which just static_cast<> the Block *
+  * argument to a pointer to Class, and then invokes \p method.
   *
-  * @param name The name associated with the method.
+  * @param name The name that will identify the given method (actually,
+  *             function) in the methods factory; as the "&&" tells, the
+  *             std::string becomes "property" of the methods factory.
   *
-  * @param member_function A pointer to a class member function.
-  */
- template<class Class, class Set>
- static void register_method( std::string name ,
-                              MemberFunction<Class, Set> member_function ) {
-   Block::register_method
-     ( name , new Block::FunctionType<Set>
-       ( [ member_function ] ( Block * input_block ,
-                               Block::MF_data_iterator begin ,
-                               const Set & set ,
-                               c_ModParam issuePMod = eNoBlck ,
-                               c_ModParam issueAMod = eModBlck ) {
-         auto block = static_cast<Class *>( input_block );
-         std::invoke( member_function, block,
-                      begin , set, issuePMod , issueAMod );
-       } ) );
- }
+  * @param method The (pointer to the) method (actually, function) to be
+  *               added to the corresponding methods factory. */
 
-/*--------------------------------------------------------------------------*/
- /// register methods in the "methods factory"
- /** This method is used for any :Block to be able to register its own
-  * methods (e.g., class member functions) in the methods factory. It
-  * has an empty implementation so that any :Block that does not
-  * intend to register any method in the methods factory is not
-  * affected and need not to be modified.
-  *
-  * Classes that are willing to register some or all of their methods
-  * in the methods factory must reimplement this method. Typically,
-  * this method would contain appropriate calls to the
-  * %register_method() function that admits two template
-  * parameters. For example, suppose that a class called
-  * HydroUnitBlock has the following methods:
-  *
-  *     void set_inflow_range( Block::MF_data_iterator begin ,
-  *                            const Block::Range & range ,
-  *                            c_ModParam issuePMod = eNoBlck ,
-  *                            c_ModParam issueAMod = eModBlck );
-  *
-  *     void set_inflow_subset( Block::MF_data_iterator begin ,
-  *                             const Block::Subset & subset ,
-  *                             c_ModParam issuePMod = eNoBlck ,
-  *                             c_ModParam issueAMod = eModBlck );
-  *
-  * In order to register these methods in the methods factory, one
-  * could implement the following function in HydroUnitBlock class:
-  *
-  *     static void register_methods() {
-  *
-  *       Block::register_method( "HydroUnitBlock::set_inflow_range" ,
-  *                               &HydroUnitBlock::set_inflow_range );
-  *
-  *       Block::register_method( "HydroUnitBlock::set_inflow_subset" ,
-  *                               &HydroUnitBlock::set_inflow_subset );
-  *     }
-  *
-  * In the function register_methods(), the first parameter is the
-  * name by which the method will be identified in the methods factory
-  * and the second one is a pointer to the (class member) method that
-  * one wants to register. Although the name of the method can be
-  * arbitrarily chosen, we recommend following the pattern
-  * "ClassName::methods_name" so as to avoid any name collisions and
-  * make it easier for the user to identify the available methods.
-  *
-  *     IT IS IMPORTANT TO NOTICE THAT THE register_methods() FUNCTION
-  *     MAY BE CALLED MORE THAN ONCE. THUS, ONE SHOULD CONSIDER THIS
-  *     POSSIBILITY WHEN REIMPLEMENTING THIS FUNCTION IN A DERIVED
-  *     CLASS.
-  */
+ template< class Class , class Set >
+ static void register_method( std::string && name ,
+                              MemberFunction< Class , Set > method )
+ {
+  // ensure Class derives from Block
+  static_assert( std::is_base_of< Block , Class >::value ,
+                 "register_method: Class must inherit from Block" );
 
- static void register_methods() { }
+  register_method( std::move( name ) ,
+   new FunctionType< Set >(
+	[ method ]( Block * input_block , MF_data_it begin , const Set & set ,
+		    c_ModParam issuePMod = eNoBlck ,
+		    c_ModParam issueAMod = eModBlck )
+	{
+         std::invoke( method , static_cast<Class *>( input_block ) ,
+                      begin , set , issuePMod , issueAMod );
+	 } ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the method associated with the given name in the methods factory
- /** This function returns a pointer to the method associated with the
-  * given \p name in the methods factory. If there is no method
-  * associated with the given \p name, this function returns a
-  * nullptr.
+ /** This function returns a pointer to the method (actually, function)
+  * associated with the given \p name in the methods factory. If there is no
+  * method associated with the given \p name, this function returns nullptr.
   *
-  * Suppose, for example, that the methods factory has a method
-  * associated with the name "HydroUnitBlock::set_inflow" that admits
-  * a #Range as argument. In order to obtain a pointer to this method,
-  * one would do the following:
+  * Suppose, for example, that the methods factory has a method associated
+  * with the name "NetworkBlock::set_arc_weight" that admits a #Range as
+  * argument. In order to call this method (actually, function) one would
+  * do the following:
   *
-  *     auto function = Block::get_method<Block::FunctionType<Block::Range>>
-  *                     ( "HydroUnitBlock::set_inflow" );
+  *     auto mthd = get_method< FunctionType< Range > >(
+  *                                        "NetworkBlock::set_arc_weight" );
+  *     std::invoke( *mthd , NB , iter , range , issuePMod , issueAMod );
   *
-  * Notice that it is necessary to inform the type of set of indices
-  * that the function accepts (a #Range, in this example). Then, to
-  * invoke this method, one could do
-  *
-  *     std::invoke( *function , pointer_to_object , iterator ,
-  *                  range , issuePMod , issueAMod );
-  *
-  * where pointer_to_object is a pointer to a HydroUnitBlock object
-  * (assuming the method obtained from the methods factory is
-  * associated with this class; and, as a good practice, it should be,
-  * considering the name with which it was registered in the methods
-  * factory), iterator is an iterator of type #MF_data_iterator, range
-  * is a #Range, and issuePMod and issueAMod are the last two
-  * parameters of the method.
-  *
-  * If the type of the function is unkown (i.e., if the type of the
-  * index set is not known), one could try first retriving a method
-  * with Block::FunctionType<Block::Range> as template argument to
-  * get_method() (as in the example above). If a nullptr is returned,
-  * then one could try next invoking the get_method() with
-  * Block::FunctionType<Block::Subset> as template argument, for
-  * example. So, one could do:
-  *
-  *     auto function = Block::get_method<Block::FunctionType<Block::Subset>>
-  *                     ( "HydroUnitBlock::set_inflow" );
+  * where NB is a pointer to a NetworkBlock object (assuming the method
+  * obtained from the methods factory is associated with this class, as it
+  * is good practice), iter is an iterator of type #MF_data_it, range is a
+  * #Range, and issuePMod and issueAMod are the last two parameters of the
+  * method.
   *
   * @param name The name associated with the method.
   */
+
  template<class F>
- static const F * get_method( std::string name ) {
-   auto it = methods<F>().left.find( name );
-   if( it != methods<F>().left.end() )
-     return( it->second );
-   else
-     return( nullptr );
- }
+ static const F * get_method( std::string & name ) {
+  auto it = methods<F>().left.find( name );
+  return( it != methods<F>().left.end() ? it->second : nullptr );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the name that is associated with the given method
- /** This function returns the name that is associated with the given
-  * method in the methods factory. If the given method is not present
-  * in the methods factory, an exception is thrown.
+ /** This function returns (a reference to) the name that is associated with
+  * the given  (pointer to a) method (actually, function) in the methods
+  * factory. If the given method is not present in the methods factory,
+  * a (refeence to a)n empty string is returned.
   *
-  * @param method A pointer to the method whose associated name is
-  * desired.
+  * @param method A pointer to the method whose associated name is desired.
   */
+
  template<class F>
- static std::string get_method_name( const F * method ) {
-   return methods<F>().right.at( method );
- }
+ static std::string & get_method_name( const F * method ) {
+  static std::string empty;
+  auto it = methods<F>().right.find( method );
+  return( it != methods<F>().right.end() ? it->second : empty );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR LOADING, PRINTING & SAVING THE Block ------------*/
@@ -4212,6 +4303,7 @@ class Block : public Observer {
 
  typedef boost::function<Block*(Block *)> BlockFactory;
  // type of the factory of Block
+
  typedef std::map<std::string,BlockFactory> BlockFactoryMap;
  // Type of the map between strings and the factory of Block
 
@@ -4693,14 +4785,57 @@ class Block : public Observer {
  virtual void load( std::istream &input ) = 0;
 
 /**@} ----------------------------------------------------------------------*/
+/** @name Protected methods for handling static fields
+ *
+ * These methods allow derived classes to partake into static initialization
+ * procedures performed once and for all at the start of the program. These
+ * are typically related with factories.
+ * @{ */
+
  /// method encapsulating the Block factory
  /** This method returns the Block factory, which is a static object. The
   * rationale for using a method is that this is the "Construct On First Use
   * Idiom" that solves the "static initialization order problem". */
 
  static BlockFactoryMap & f_factory( void );
- 
+
 /*--------------------------------------------------------------------------*/
+ /// empty placeholder for class-specific static initialization
+ /** The method static_initialization() is an empty placeholder which is made
+  * available to derived classes that need to perform some class-specific
+  * static initialization besides these of any :Block class, i.e., the
+  * management of the factory. This method is invoked by the
+  * SMSpp_insert_in_factory_cpp_* macros [see SMSTypedefs.h] during the
+  * standard initialization procedures. If a derived class needs to perform
+  * any static initialization it just have to do this into its version of
+  * this method; if not it just has nothing to do, as the (empty) method of
+  * the base class will be called. One such activity that :Block classes
+  * should always consider doing is adding their data-changing methods (or
+  * adapters for those) to the corresponding "method factories", see the
+  * comments in the appropriate section.
+  *
+  * This mechanism has a potential drawback in that a redefined
+  * static_initialization() may be called multiple times. Assume that a
+  * derived class X redefines the method to perform something, and that a
+  * further class Y is derived from X that has to do nothing, and that
+  * therefore will not define Y::static_initialization(): them, within the
+  * SMSpp_insert_in_factory_cpp_* of Y, X::static_initialization() will be
+  * called again.
+  *
+  * If this is undesirable, X will have to explicitly instruct derived classes
+  * to redefine their (empty) static_initialization(). Alternatively,
+  * X::static_initialization() may contain mechanisms to ensure that it will
+  * actually do things only the very first time it is called. One standard
+  * trick is to do everything within the initialisation of a static local
+  * variable of X::static_initialization(): this is guaranteed by the
+  * compiler to happen only once, regardless of how many times the function
+  * is called. Alternatively, an explicit static boolean could be used (this
+  * may just be the same as what the compiler does during the initialization
+  * of static variables without telling you). */
+
+ static void static_initialization( void ) { }
+
+/**@} ----------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -4756,7 +4891,7 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
 
  template<class F>
- using bimap = boost::bimap<std::string , const F *>;
+ using bimap = boost::bimap< std::string , const F * >;
  ///< a bidirectional map for the methods factory
 
 /*--------------------------------------------------------------------------*/
@@ -4783,15 +4918,18 @@ class Block : public Observer {
 				  const int issueindMod  );
 
 /*--------------------------------------------------------------------------*/
- /// returns the bimap associated with the methods of type F
- /** This function returns the bimap associated with the methods of
-  * type F. This is where the pointer to the methods (and their names)
+/// returns the bimap associated with the methods of type F
+/** This method returns the bimap implementing the "methods factory" for the
+ * methods of type F.
+
+ This is where the pointer to the methods (and their names)
   * in the methods factory are stored. */
+
  template<class F>
- static inline bimap<F> & methods() {
-   static bimap<F> methods;
-   return methods;
- }
+ static inline bimap<F> & methods( void ) {
+  static bimap<F> methods;
+  return( methods );
+  }
 
 /*--------------------------------------------------------------------------*/
 /*---------------------------- PRIVATE FIELDS ------------------------------*/

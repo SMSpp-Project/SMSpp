@@ -10,9 +10,9 @@
  * optimal ones, or proving that there is none. Since doing this has to be
  * expected to costly, the class implements the ThinComputeInterface paradigm.
  *
- * \version 0.21
+ * \version 0.22
  *
- * \date 23 - 02 - 2019
+ * \date 16 - 08 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1397,14 +1397,20 @@ protected:
 /*--------------------------------------------------------------------------*/
 
  typedef boost::function<Solver*()> SolverFactory;
- ///< type of the factory of Solver
+ // type of the factory of Solver
 
  typedef std::map<std::string,SolverFactory> SolverFactoryMap;
- ///< type of the map between strings and the factory of Solver
+ // type of the map between strings and the factory of Solver
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 /*--------------------------------------------------------------------------*/
+/** @name Protected methods for handling static fields
+ *
+ * These methods allow derived classes to partake into static initialization
+ * procedures performed once and for all at the start of the program. These
+ * are typically related with factories.
+ * @{ */
 
  /// method incapsulating the Solver factory
  /** This method returns the Solver factory, which is a static object.
@@ -1414,6 +1420,39 @@ protected:
  static SolverFactoryMap & f_factory( void );
 
 /*--------------------------------------------------------------------------*/
+ /// empty placeholder for class-specific static initialization
+ /** The method static_initialization() is an empty placeholder which is made
+  * available to derived classes that need to perform some class-specific
+  * static initialization besides these of any :Solver class, i.e., the
+  * management of the factory. This method is invoked by the
+  * SMSpp_insert_in_factory_cpp_* macros [see SMSTypedefs.h] during the
+  * standard initialization procedures. If a derived class needs to perform
+  * any static initialization it just have to do this into its version of
+  * this method; if not it just has nothing to do, as the (empty) method of
+  * the base class will be called.
+  *
+  * This mechanism has a potential drawback in that a redefined
+  * static_initialization() may be called multiple times. Assume that a
+  * derived class X redefines the method to perform something, and that a
+  * further class Y is derived from X that has to do nothing, and that
+  * therefore will not define Y::static_initialization(): them, within the
+  * SMSpp_insert_in_factory_cpp_* of Y, X::static_initialization() will be
+  * called again.
+  *
+  * If this is undesirable, X will have to explicitly instruct derived classes
+  * to redefine their (empty) static_initialization(). Alternatively,
+  * X::static_initialization() may contain mechanisms to ensure that it will
+  * actually do things only the very first time it is called. One standard
+  * trick is to do everything within the initialisation of a static local
+  * variable of X::static_initialization(): this is guaranteed by the
+  * compiler to happen only once, regardless of how many times the function
+  * is called. Alternatively, an explicit static boolean could be used (this
+  * may just be the same as what the compiler does during the initialization
+  * of static variables without telling you). */
+
+ static void static_initialization( void ) { }
+
+/**@} ----------------------------------------------------------------------*/
 /*---------------------------- PROTECTED FIELDS  ---------------------------*/
 /*--------------------------------------------------------------------------*/
 

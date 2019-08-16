@@ -274,8 +274,8 @@ namespace SMSpp_di_unipi_it
  * "_k" versions of the _cpp macro refer to the fact that the constructor of
  * the base class has k parameters. The further "_t" versions need be used if
  * the class is template, since then a template specialization is needed and
- * this requires adding "template<>" at proper places. */
-/*--------------------------------------------------------------------------*/
+ * this requires adding "template<>" at proper places.
+ * @{ */
 
 /* The macro defines a very small, "fake" class _init. Its only meaning is to
  * define a static member _initializer that is initialized in whatever object
@@ -294,12 +294,16 @@ namespace SMSpp_di_unipi_it
  virtual const std::string & private_name( void ) const override
 
 /*--------------------------------------------------------------------------*/
-/* These macros define three things:
+/* These macros do four things:
  *
  * 1) the actual implementation of the ClassName::_init::_init( void )
- *    constructor;
+ *    constructor, within which:
  *
- * 2) the actual declaration of the ClassName::_initializer static object;
+ *    1.1) the class is inserted into the corresponding factory;
+ *
+ *    1.2) the static_initialization() method of the class is invoked;
+ *
+ * 2) the actual declaration of the ClassName::_initializer static object,
  *
  * 3) the actual implementation of ClassName::private_name().
  *
@@ -341,7 +345,7 @@ namespace SMSpp_di_unipi_it
     \
  ClassName::_init::_init( void ) {				\
   f_factory()[ #ClassName ] = boost::factory<ClassName*>();	\
-  ::SMSpp_di_unipi_it::_register_methods<ClassName>();          \
+  ClassName::static_initialization();                           \
   } \
     \
  ClassName::_init ClassName::_initializer
@@ -356,7 +360,7 @@ namespace SMSpp_di_unipi_it
   auto f = boost::factory<ClassName*>(); \
   auto f2 = boost::forward_adapter<decltype(f)>( f ); \
   f_factory()[ #ClassName ] = boost::bind<ClassName*>(f2,_1);	\
-  ::SMSpp_di_unipi_it::_register_methods<ClassName>();          \
+  ClassName::static_initialization();                           \
   } \
     \
  ClassName::_init ClassName::_initializer
@@ -370,7 +374,7 @@ namespace SMSpp_di_unipi_it
     \
  template<> ClassName::_init::_init( void ) { \
   f_factory()[ #ClassName ] = boost::factory<ClassName*>();	\
-  ::SMSpp_di_unipi_it::_register_methods<ClassName>();          \
+  ClassName::static_initialization();                           \
   } \
     \
  template<> ClassName::_init ClassName::_initializer{}
@@ -386,30 +390,10 @@ namespace SMSpp_di_unipi_it
   auto f = boost::factory<ClassName*>(); \
   auto f2 = boost::forward_adapter<decltype(f)>( f ); \
   f_factory()[ #ClassName ] = boost::bind<ClassName*>(f2,_1);	\
-  ::SMSpp_di_unipi_it::_register_methods<ClassName>();          \
+  ClassName::static_initialization();                           \
   } \
     \
  template<> ClassName::_init ClassName::_initializer{}
-
-/*--------------------------------------------------------------------------*/
-
-class Block;
-
-/** The auxiliary function _register_methods(), which is invoked from
- * within the init_() methods defined above, is used as wrapper in
- * order to call the register_methods() function only for classes
- * derived from Block. If a class is not derived from Block, then
- * nothing happens. */
-
-template<class T>
-typename std::enable_if<std::is_base_of<Block , T>::value>::type
-_register_methods() {
-  T::register_methods();
-}
-
-template<class T>
-typename std::enable_if<!std::is_base_of<Block , T>::value>::type
-_register_methods() { }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------- HANDLE boost::any SPECIALIZATIONS --------------------*/

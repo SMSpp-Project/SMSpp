@@ -6,9 +6,9 @@
  * base class for all objects in SMS++ (Constraint, Objective, Function, ...)
  * that depend on a set of "active" Variable.
  *
- * \version 0.10
+ * \version 0.11
  *
- * \date 14 - 08 - 2018
+ * \date 16 - 08 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -99,14 +99,14 @@ class ThinVarDepInterface {
 /*--------------------------------------------------------------------------*/
 /** @name Public Types
     @{ */
- 
- typedef unsigned int Index;   ///< type for the indices of "active" Variable
 
- typedef const Index c_Index;           ///< a const Index
+ using Index = std::size_t;   ///< type for the indices of "active" Variable
 
- typedef std::vector<Index> Vec_Index;  ///< a std::vector of Index
+ using c_Index = const Index;             ///< a const Index
 
- typedef const Vec_Index c_Vec_Index;   ///< a const Vec_Index
+ using Vec_Index = std::vector< Index >;  ///< a std::vector of Index
+
+ using c_Vec_Index = const Vec_Index;     ///< a const Vec_Index
 
 /*--------------------------------------------------------------------------*/
  /// virtualized standard iterator
