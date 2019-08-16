@@ -301,7 +301,6 @@ namespace SMSpp_di_unipi_it
  *
  * 2) the actual declaration of the ClassName::_initializer static object;
  *
- *
  * 3) the actual implementation of ClassName::private_name().
  *
  * Note the use of the "Stringification" operator "#" when converting the
