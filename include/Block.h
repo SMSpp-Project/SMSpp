@@ -3879,10 +3879,10 @@ class Block : public Observer {
  * registered straight away in the methods factory by just calling anywhere
  *
  *     register_method( "NetworkBlock::set_arc_weight_rng" ,
- *                     & NetworkBlock::set_arc_weight_rng );
+ *                      & NetworkBlock::set_arc_weight_rng );
  *
  *     register_method( "NetworkBlock::set_arc_weight_sbst" ,
- *                     & NetworkBlock::set_arc_weight_sbst );
+ *                      & NetworkBlock::set_arc_weight_sbst );
  *
  * Note that the methods could rather be overloaded, as in
  *
@@ -3895,32 +3895,23 @@ class Block : public Observer {
  * This is just as well provided one uses the right version of
  * register_method() to remove ambiguity as in
  *
- *     register_method< NetworkBlock, Range >
- *                   ( "NetworkBlock::set_arc_weight_rng" ,
- *                    & NetworkBlock::set_arc_weight );
+ *     register_method< NetworkBlock , Range >(
+ *                                       "NetworkBlock::set_arc_weight" ,
+ *                                       & NetworkBlock::set_arc_weight );
  *
- *     register_method< NetworkBlock, Subset >
- *                   ( "NetworkBlock::set_arc_weight_sbst" ,
- *                    & NetworkBlock::set_arc_weight );
+ *     register_method< NetworkBlock , Subset >(
+ *                                       "NetworkBlock::set_arc_weight" ,
+ *                                       & NetworkBlock::set_arc_weight );
  *
- * Note that since these methods are registered in different methods
- * factories, we could use the same "name" string for registering both
- * of them, as in
+ * Note that we can use the same "name" string for registering bothe methods,
+ * since they get registered into different methods factories. Although the
+ * "name" string can in general be arbitrary, we recommend following the
+ * pattern "ClassName::method_name" so as to avoid any name collisions and to
+ * make it easier for the user to identify the available methods. This is, of
+ * course, if there is one and only one underlying method that is called,
+ * which may not be the case.
  *
- *     register_method< NetworkBlock, Range >
- *                   ( "NetworkBlock::set_arc_weight" ,
- *                    & NetworkBlock::set_arc_weight );
- *
- *     register_method< NetworkBlock, Subset >
- *                   ( "NetworkBlock::set_arc_weight" ,
- *                    & NetworkBlock::set_arc_weight );
- *
- * In general, the "name" string can be arbitrary, but we recommend
- * following the pattern "ClassName::method_name" (as much as
- * possible) so as to avoid any name collisions and to make it easier
- * for the user to identify the available methods.
- *
- * In all cases, the register_method() method called here is
+ * Ideed, in all cases, the register_method() method called here is
  *
  *     template< class Class , class Set >
  *     static void register_method( std::string && ,
@@ -3934,25 +3925,22 @@ class Block : public Observer {
  * version. What the method does is to create a FunctionType< Set > lambda
  * function which just static_cast<> the Block * to a pointer to Class *, and
  * then invokes \p method; this function, rather than \p method, is then put
- * in the FunctionType< Set > methods factory.
- *
- * The typical place in which these calls to register_method() should be put
- * is in the protected static_initialization() method of the :Block.
- *
- * The above discussion clearly reveals that there is actually no need for
- * the methods in the :Block to have the FunctionType< Set > signature in
- * order for them to be used in the methods factory. Indeed, even if they
- * are, a ("void") adapter function need to be written anyway. More in general,
- * adapter functions can be written to use existing :Block methods to perform
+ * in the FunctionType< Set > methods factory. This clearly reveals that
+ * there is actually no need for the methods in the :Block to have the
+ * FunctionType< Set > signature in order for them to be used in the methods
+ * factory. Indeed, even if they are, a ("void") adapter function need to be
+ * written anyway. More in general, adapter functions can be written to use
+ * existing :Block methods (or, conceivably, friend functions) to perform
  * changes that can be added to the methods factory. For instance, assume that
- * our fictional NetworkBlock class only has the method
+ * our fictional NetworkBlock class can only change the weight of a single
+ * arc at the time via the method
  *
  *     void set_arc_weight( Index arc , c_Range & range ,
  *                          c_ModParam issuePMod = eNoBlck ,
  *                          c_ModParam issueAMod = eModBlck );
  *
  * A user who would like to have a method in the methods factory for setting
- * the weight of some arcs could implement the following functions:
+ * the weight of subsets of arcs could implement the following functions:
  *
  *     void set_weight_range( Block * block , MF_data_it begin , 
  *                            c_Range & range ,
@@ -3969,8 +3957,8 @@ class Block : public Observer {
  *                             c_ModParam issuePMod = eNoBlc ,
  *                             c_ModParam issueAMod = eModBlck ) {
  *      for( auto i : subset )
- *       static_cast<NetworkBlock *>( block )->set_arc_weight( *(begin++) , i ,
- *                                                             issuePMod ,
+ *       static_cast<NetworkBlock *>( block )->set_arc_weight( *(begin++) ,
+ *                                                             i , issuePMod ,
  *                                                             issueAMod );
  *      }
  *
@@ -3992,10 +3980,12 @@ class Block : public Observer {
  * cases (save, of course, for the possibility of adding new kinds of
  * signatures allowing the corresponding different input capabilities).
  *
- * This also justifies why, somehow counter-intuitively, these methods are
- * public, which means that anyone with access to a :Block can register "its
- * methods" (actually, adapter functions calling them) in the methods
- * factory. Indeed, this allows to handle cases where:
+ * The typical place in which these calls to register_method() should be put
+ * is in the protected static_initialization() method of the :Block. However,
+ * somehow counter-intuitively, these methods are public, which means that
+ * anyone with access to a :Block can register "its methods" (actually,
+ * adapter functions calling them) in the methods factory. This allows to
+ * handle cases where:
  *
  * - the :Block owner couldn't be bothered to do the registration herself, but
  *   some user needs it;
@@ -4011,14 +4001,22 @@ class Block : public Observer {
  *  @{ */
 
  /// register a new "method" in the methods factory
- /** This function registers the given method in the appropriate
-  * methods factory, and associates it with the given \p name. If the
-  * methods factory already has a method associated with the given \p
-  * name, the currently present method is replaced by the new one.
+ /** This function registers the given method (in general, a function) in the
+  * appropriate methods factory specified by the template function signature
+  * F, and associates it with the given \p name. If the methods factory
+  * already has a method (function) associated with the given \p name, the
+  * currently present method (function) is replaced by the new one. Note that,
+  * it is in principle possible to make a factory for actual methods of a
+  * :Block (say, F being like "void ( NetworkBlock::* ) ( ... )"). This
+  * entails knowing a-priori that the Block that will be used is a :Block
+  * (say, a NetworkBlock) or some of its further derived classes. Such an
+  * occurrence is less likely to be useful than that of having F being, say,
+  * a FunctionType< Set > so as to allow any :Block, but it is still feasible.
   *
   * Although the name of the "method" can be arbitrarily chosen, it is
   * recommended to follow the pattern "ClassName::methods_name" (insomuch
-  * as this is possible, cue the overloaded case) so as to avoid any name
+  * as this is possible, i.e., there is one and only one method
+  * corresponding to the inserted function pointer), so as to avoid any name
   * collisions and make it easier for the user to identify the available
   * methods.
   *
