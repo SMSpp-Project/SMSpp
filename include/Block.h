@@ -3935,7 +3935,7 @@ class Block : public Observer {
  * our fictional NetworkBlock class can only change the weight of a single
  * arc at the time via the method
  *
- *     void set_arc_weight( Index arc , c_Range & range ,
+ *     void set_arc_weight( Index arc , double weight ,
  *                          c_ModParam issuePMod = eNoBlck ,
  *                          c_ModParam issueAMod = eModBlck );
  *
@@ -3947,7 +3947,7 @@ class Block : public Observer {
  *                            c_ModParam issuePMod = eNoBlc ,
  *                            c_ModParam issueAMod = eModBlck ) {
  *      for( Index i = range.first ; i < range.second ; ++i , ++begin )
- *       static_cast<NetworkBlock *>( block )->set_arc_weight( *begin , i ,
+ *       static_cast<NetworkBlock *>( block )->set_arc_weight( i , *begin ,
  *                                                             issuePMod ,
  *                                                             issueAMod );
  *      }
@@ -3957,8 +3957,13 @@ class Block : public Observer {
  *                             c_ModParam issuePMod = eNoBlc ,
  *                             c_ModParam issueAMod = eModBlck ) {
  *      for( auto i : subset )
+<<<<<<< HEAD
  *       static_cast<NetworkBlock *>( block )->set_arc_weight( *(begin++) ,
  *                                                             i , issuePMod ,
+=======
+ *       static_cast<NetworkBlock *>( block )->set_arc_weight( i , *(begin++) ,
+ *                                                             issuePMod ,
+>>>>>>> 5792eb41f5c4046fcfd4ef3e2514586616f85004
  *                                                             issueAMod );
  *      }
  *
@@ -4820,27 +4825,27 @@ class Block : public Observer {
   * this method; if not it just has nothing to do, as the (empty) method of
   * the base class will be called. One such activity that :Block classes
   * should always consider doing is adding their data-changing methods (or
-  * adapters for those) to the corresponding "method factories", see the
+  * adapters for those) to the corresponding "methods factories", see the
   * comments in the appropriate section.
   *
   * This mechanism has a potential drawback in that a redefined
   * static_initialization() may be called multiple times. Assume that a
   * derived class X redefines the method to perform something, and that a
   * further class Y is derived from X that has to do nothing, and that
-  * therefore will not define Y::static_initialization(): them, within the
+  * therefore will not define Y::static_initialization(): then, within the
   * SMSpp_insert_in_factory_cpp_* of Y, X::static_initialization() will be
-  * called again.
+  * called at least twice (once for X and once for Y).
   *
-  * If this is undesirable, X will have to explicitly instruct derived classes
-  * to redefine their (empty) static_initialization(). Alternatively,
-  * X::static_initialization() may contain mechanisms to ensure that it will
-  * actually do things only the very first time it is called. One standard
-  * trick is to do everything within the initialisation of a static local
-  * variable of X::static_initialization(): this is guaranteed by the
-  * compiler to happen only once, regardless of how many times the function
-  * is called. Alternatively, an explicit static boolean could be used (this
-  * may just be the same as what the compiler does during the initialization
-  * of static variables without telling you). */
+  * If this is undesirable, X will have to explicitly instruct derived
+  * classes to redefine their (empty) static_initialization(). Alternatively
+  * (and preferably), X::static_initialization() may contain mechanisms to
+  * ensure that it will actually do things only the very first time it is
+  * called. One standard trick is to do everything within the initialisation
+  * of a static local variable of X::static_initialization(): this is
+  * guaranteed by the compiler to happen only once, regardless of how many
+  * times the function is called. Alternatively, an explicit static boolean
+  * could be used (this may just be the same as what the compiler does during
+  * the initialization of static variables without telling you). */
 
  static void static_initialization( void ) { }
 
