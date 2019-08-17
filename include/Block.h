@@ -3957,13 +3957,8 @@ class Block : public Observer {
  *                             c_ModParam issuePMod = eNoBlc ,
  *                             c_ModParam issueAMod = eModBlck ) {
  *      for( auto i : subset )
-<<<<<<< HEAD
  *       static_cast<NetworkBlock *>( block )->set_arc_weight( *(begin++) ,
  *                                                             i , issuePMod ,
-=======
- *       static_cast<NetworkBlock *>( block )->set_arc_weight( i , *(begin++) ,
- *                                                             issuePMod ,
->>>>>>> 5792eb41f5c4046fcfd4ef3e2514586616f85004
  *                                                             issueAMod );
  *      }
  *
