@@ -4136,7 +4136,7 @@ This type defines
 
   register_method( std::move( name ) ,
 		   new FunctionSignature< Args... >(
-		       [ & method ]( Block * blck , Args&&... args ,
+		       [ method ]( Block * blck , Args&&... args ,
 				     c_ModParam issuePMod ,
 				     c_ModParam issueAMod )
 		       {
