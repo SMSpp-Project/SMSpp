@@ -543,10 +543,47 @@ class Block : public Observer {
   };
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/* Types for the "methods factory". */
+/** @name Types for the "methods factory"
+ *
+ * The "methods factory" (more properly, methods factor*ies*) is a map
+ * between method (or, more in general, function) names and pointer to
+ * functions that can modify the data of a given :Block. There are in
+ * principle as many factories as there are method signatures, although a
+ * factory only exists if someone registers at least a method (function) in
+ * it (cf. register_methods()). However, for the methods factories to be
+ * useful, only relatively few different signatures should reasonably be
+ * used, so that some high degree of modularity is achieved between different
+ * :Block. This is why the base Block class defines (and hardly ever uses) a
+ * bunch of types that are intended to provide the basis for most of the
+ * methods in the interface of derived classes, such as:
+ *
+ * - Index, an index into any internal data structure;
+ *
+ * - Range, a pair of indices [ start , stop ) indicating the typical
+ *   left-closed, right-open range;
+ *
+ * - Subset, a std::vector< Index > indicating an arbitrary subset of indices;
+ *
+ * - MF_dbl_it, a const_iterator into a std::vector< double >;
+ *
+ * - MF_int_it, a const_iterator into a std::vector< int >;
+
+
+
+This type defines
+ * the basic signature of the methods for the currently supported method
+ * factories (although different signatures could be added in the future,
+ * as the mechanism is very general). They take a Block *, a(n iterator
+ * into a const) std::vector< double >, a "set" of indices into the internal
+ * data structure of the :Block, and two parameters controlling if and where
+ * the corresponding "physical" and "abstract" Modification are issued. This
+ * type is, however, template over the possible ways in which "set" can be
+ * specified; at least the two choices Range and Subset are there, but
+ * further choices may be added.
+ *  @{ */
 
  /// an index in any internal data structure of the Block
- using Index = std::size_t;
+ using Index = unsigned int;
  using c_Index = const Index;                 ///< a const Index
 
  /// a pair of indices for the "range" methods in the methods factory
@@ -560,44 +597,41 @@ class Block : public Observer {
  using Subset_it = Subset::iterator;          ///< iterator in Subset
  using c_Subset_it = Subset::const_iterator;  ///< const iterator in Subset
 
- /// iterator for the data received by the methods in the methods factory
- using MF_data_it = std::vector<double>::const_iterator;
+ /// iterator for double data received by the methods in the methods factory
+ using MF_dbl_it = std::vector< double >::const_iterator;
 
- /// types of functions allowed in the methods factory
- /** The "methods factory" (more properly, methods factor*ies*) is a map
-  * between method (or, more in general, function) names and pointer to
-  * functions that can modify the data of a given :Block. This type defines
-  * the basic signature of the methods for the currently supported method
-  * factories (although different signatures could be added in the future,
-  * as the mechanism is very general). They take a Block *, a(n iterator
-  * into a const) std::vector< double >, a "set" of indices into the internal
-  * data structure of the :Block, and two parameters controlling if and where
-  * the corresponding "physical" and "abstract" Modification are issued. This
-  * type is, however, template over the possible ways in which "set" can be
-  * specified; at least the two choices Range and Subset are there, but
-  * further choices may be added. */
+ /// iterator for int data received by the methods in the methods factory
+ using MF_int_it = std::vector< int >::const_iterator;
 
- template< class Set >
- using FunctionType = std::function<
-  void( Block * , MF_data_it , const Set & , c_ModParam , c_ModParam ) >;
+ /// typedef for functions to be added to the methods factory
+ /** Items added to the methods factory should typically be (pointers to)
+  * std::functions (adapter functions for some :Block method) that take a
+  * Block * first, two c_ModParam (for "physical" and "abstract"
+  * Modification, respectively) at the end, and in the middle as many
+  * parameters as they want. */
 
- /// typedef for methods to be added to the methods factory
- /** Typedef for the "convenience version" of register_method() [see the
-  * comments] that take a pointer to a method of a :Block class and
-  * construct an appropriate lambda function that can then be inserted into
-  * the (corresponding)  methods factory. This type is template both over
-  * the Class (derived from Block) and the possible ways in which "set" can
-  * be specified (at least Range and Subset, but further choices may be
-  * added. */
+ template< typename ... Args >
+ using FunctionSignature =
+  std::function< void ( Block * , Args ... , c_ModParam , c_ModParam ) >;
 
- template< class Class, class Set >
- using MemberFunction = void( Class::* )( MF_data_it , const Set & ,
-                                          c_ModParam , c_ModParam );
+ /// typedef for original methods to be added to the methods factory
+ /** The original methods (whose adapters are to be) added to the methods
+  * factory should take two c_ModParam (for "physical" and "abstract" 
+  * Modification, respectively) at the end, before them as many parameters
+  * as they want, and be methods of some :Block; it is clearly "the same
+  * signature" as FunctionSignature< Args > (with the same Args) for a
+  * method of the given dBlock. */ 
 
-/*--------------------------------------------------------------------------*/
+ template< class dBlock , typename ... Args >
+ using MethodSignature =
+       void ( dBlock::* ) ( Args ... , c_ModParam , c_ModParam );
+
+/**@} ----------------------------------------------------------------------*/
 /*------------------------------- FRIENDS ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+ // currently, none
+ 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -4005,7 +4039,7 @@ class Block : public Observer {
   * appropriate methods factory specified by the template function signature
   * F, and associates it with the given \p name. If the methods factory
   * already has a method (function) associated with the given \p name, the
-  * currently present method (function) is replaced by the new one. Note that,
+  * currently present method (function) is replaced by the new one. Note that
   * it is in principle possible to make a factory for actual methods of a
   * :Block (say, F being like "void ( NetworkBlock::* ) ( ... )"). This
   * entails knowing a-priori that the Block that will be used is a :Block
@@ -4045,44 +4079,102 @@ class Block : public Observer {
 
 /*--------------------------------------------------------------------------*/
  /// register a new method in the methods factory
- /** This method registers a member class function in the appropriate methods
-  * factory, and associates it with the given \p name. It has two template
-  * parameters. The first one, Class, is the class (derived from Block) of
-  * which the function is a member. The second parameter, Set, specifies the
-  * type of set of indices that the function accepts (e.g., #Range or
-  * #Subset), and therefore which methods factory the member class is
-  * registered in.
+ /** This template method registers a member class function in the
+  * appropriate methods factory, and associates it with the given \p name. It
+  * has a template parameter and a variadic parameter pack. The template
+  * parameter dBlock is the class (derived from Block) of which the function
+  * is a member. The parameter pack Args specifies the signature of the
+  * method by means of MethodSignature< dBlock , Args... >.
   *
-  * This method serves as a wrapper for the "general" register_method()
-  * method, which has a single template parameter corresponding to the type
-  * (signature) F of the function. What this version does is to create a
-  * FunctionType< Set > lambda function which just static_cast<> the Block *
-  * argument to a pointer to Class, and then invokes \p method.
+  * This method serves as a wrapper for the "general" register_method< F >()
+  * which has a single template parameter corresponding to the signature F of
+  * the function to be inserted in the methods factory. Indeed, what this
+  * version does is to create a FunctionSignature< Args > lambda function
+  * which just static_cast<> the Block * argument to a dBlock * pointers, and
+  * then invokes \p method.
   *
   * @param name The name that will identify the given \p method (actually,
   *             function) in the methods factory; as the "&&" tells, the
   *             std::string becomes "property" of the methods factory.
   *
-  * @param method The (pointer to the) method (actually, function) to be
-  *               added to the corresponding methods factory. */
+  * @param method The (reference to the) method whose adapter function is to
+  *               be added to the corresponding methods factory. */
 
- template< class Class , class Set >
+ template< class dBlock , typename ... Args >
  static void register_method( std::string && name ,
-                              MemberFunction< Class , Set > method )
+                              MethodSignature< dBlock , Args... > method )
  {
   // ensure Class derives from Block
-  static_assert( std::is_base_of< Block , Class >::value ,
-                 "register_method: Class must inherit from Block" );
+  static_assert( std::is_base_of< Block , dBlock >::value ,
+                 "register_method: dBlock must inherit from Block" );
 
   register_method( std::move( name ) ,
-   new FunctionType< Set >(
-	[ method ]( Block * input_block , MF_data_it begin , const Set & set ,
-		    c_ModParam issuePMod = eNoBlck ,
-		    c_ModParam issueAMod = eModBlck )
-	{
-         std::invoke( method , static_cast<Class *>( input_block ) ,
-                      begin , set , issuePMod , issueAMod );
-	 } ) );
+		   new FunctionSignature< Args... >(
+		       [ & method ]( Block * blck , Args&&... args ,
+				     c_ModParam issuePMod = eNoBlck ,
+				     c_ModParam issueAMod = eModBlck )
+		       {
+			std::invoke( method ,
+				     static_cast< dBlock * >( blck ) ,
+				     std::forward< Args >( args )... ,
+				     issuePMod , issueAMod );
+		        } ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+ template< class dBlock >
+ static void register_method_rngd( std::string && name ,
+			       MethodSignature< dBlock , c_Range & > method )
+ {
+  Block::register_method< dBlock , c_Range & >( name , method );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+ template< class dBlock >
+ static void register_method_sbst( std::string && name ,
+	         MethodSignature< dBlock , Subset && , const bool  > method )
+ {
+  Block::register_method< dBlock , Subset && , const bool >( name , method );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+ template< class dBlock >
+ static void register_method_dbl_rngd( std::string && name ,
+		   MethodSignature< dBlock , MF_dbl_it , c_Range & > method )
+ {
+  Block::register_method< dBlock , MF_dbl_it , c_Range & >( name , method );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+ template< class dBlock >
+ static void register_method_dbl_sbst( std::string && name ,
+     MethodSignature< dBlock , MF_dbl_it , Subset && , const bool  > method )
+ {
+  Block::register_method< dBlock , MF_dbl_it , Subset && , const bool >(
+							      name , method );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+ template< class dBlock >
+ static void register_method_int_rngd( std::string && name ,
+		   MethodSignature< dBlock , MF_int_it , c_Range & > method )
+ {
+  Block::register_method< dBlock , MF_int_it , c_Range & >( name , method );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+ template< class dBlock >
+ static void register_method_dbl_sbst( std::string && name ,
+     MethodSignature< dBlock , MF_int_it , Subset && , const bool  > method )
+ {
+  Block::register_method< dBlock , MF_int_it , Subset && , const bool >(
+							      name , method );
   }
 
 /*--------------------------------------------------------------------------*/

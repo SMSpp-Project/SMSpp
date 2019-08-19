@@ -100,7 +100,7 @@ class ThinVarDepInterface {
 /** @name Public Types
     @{ */
 
- using Index = std::size_t;   ///< type for the indices of "active" Variable
+ using Index = unsigned int;   ///< type for the indices of "active" Variable
 
  using c_Index = const Index;             ///< a const Index
 

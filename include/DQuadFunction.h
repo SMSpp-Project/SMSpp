@@ -593,9 +593,8 @@ class DQuadFunction : public C15Function {
   * issued, as described in Observer::make_par(). Note that a diagonal
   * quadratic function is additive, and therefore strongly quasi-additive. */
 
- void add_variables( v_var_coeff_coeff_triple && vars,
-                     bool ordered = false,
-                     c_ModParam issueMod = eModBlck );
+ void add_variables( v_var_coeff_coeff_triple && vars ,
+                     bool ordered = false , c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// add one single new Variable to the DQuadFunction
@@ -603,8 +602,8 @@ class DQuadFunction : public C15Function {
   * the coefficient of the Variable in the linear term and quadratic_coeff
   * is the coefficient of the Variable in the quadratic term. */
 
- void add_variable( ColVariable * var, Coefficient linear_coeff,
-                    Coefficient quadratic_coeff,
+ void add_variable( ColVariable * var , Coefficient linear_coeff ,
+                    Coefficient quadratic_coeff ,
                     c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -616,8 +615,8 @@ class DQuadFunction : public C15Function {
   * The parameter issueMod decides if and how the C05FunctionModSbst is
   * issued, as described in Observer::make_par(). */
 
- void modify_term( ColVariable * var, Coefficient linear_coeff,
-                   Coefficient quadratic_coeff,
+ void modify_term( ColVariable * var , Coefficient linear_coeff ,
+                   Coefficient quadratic_coeff ,
                    c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -632,8 +631,8 @@ class DQuadFunction : public C15Function {
   * "less general" C05FunctionModLin can be issued in place of a
   * C05FunctionModSbst one. */
 
- void modify_linear_coefficient( ColVariable * var,
-                                 Coefficient coeff,
+ void modify_linear_coefficient( ColVariable * var ,
+                                 Coefficient coeff ,
                                  c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -649,9 +648,8 @@ class DQuadFunction : public C15Function {
   * The parameter issueMod decides if and how the C05FunctionModSbst is
   * issued, as described in Observer::make_par(). */
 
- void modify_terms( v_var_coeff_coeff_triple && vars,
-                    bool ordered = false,
-                    c_ModParam issueMod = eModBlck );
+ void modify_terms( v_var_coeff_coeff_triple && vars ,
+                    bool ordered = false , c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify a set of existing linear coefficients
@@ -686,10 +684,9 @@ class DQuadFunction : public C15Function {
   * coefficients == 0; "less general" C05FunctionModLin can be issued in
   * place of a C05FunctionModSbst one. */
 
- virtual void modify_linear_coefficients( Vec_FunctionValue && NCoef,
-                                          Vec_p_Var && vars,
-                                          bool ordered,
-                                          c_ModParam issueMod );
+ void modify_linear_coefficients( Vec_FunctionValue && NCoef ,
+				  Vec_p_Var && vars , bool ordered = false ,
+				  c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify a set of existing quadratic terms
@@ -705,9 +702,8 @@ class DQuadFunction : public C15Function {
   * The parameter issueMod decides if and how the C05FunctionModSbst is
   * issued, as described in Observer::make_par(). */
 
- virtual void modify_terms( c_v_coeff_coeff_it NCoef,
-                            c_Vec_Index & nms,
-                            c_ModParam issueMod );
+  void modify_terms( c_v_coeff_coeff_it NCoef, c_Vec_Index & nms ,
+		     c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify a range of existing quadratic terms
@@ -724,8 +720,8 @@ class DQuadFunction : public C15Function {
   * The parameter issueMod decides if and how the C05FunctionModSbst is
   * issued, as described in Observer::make_par(). */
 
- void modify_terms( c_v_coeff_coeff_it NCoef,
-                    c_Index strt = 0, Index stop = Inf< Index >(),
+ void modify_terms( c_v_coeff_coeff_it NCoef ,
+                    c_Index strt = 0 , Index stop = Inf< Index >() ,
                     c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -747,7 +743,8 @@ class DQuadFunction : public C15Function {
  void modify_terms( c_v_coeff_coeff_it NCoef,
                     const Variable * strt = nullptr,
                     const Variable * stop = nullptr,
-                    c_ModParam issueMod = eModBlck ) {
+                    c_ModParam issueMod = eModBlck )
+ {
   c_Index istrt = strt ? is_active( strt ) : 0;
   if( istrt >= get_num_active_var() )
    throw ( std::invalid_argument( "strt is not an active Variable" ) );
@@ -757,11 +754,12 @@ class DQuadFunction : public C15Function {
    istop = is_active( stop );
    if( istop >= get_num_active_var() )
     throw ( std::invalid_argument( "stop is not an active Variable" ) );
-  } else
+   }
+  else
    istop = get_num_active_var();
 
   modify_terms( NCoef, istrt, istop, issueMod );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// remove the given Variable from the DQuadFunction
@@ -782,9 +780,8 @@ class DQuadFunction : public C15Function {
   * issued, as described in Observer::make_par(). Note that a diagonal
   * quadratic function is additive, and therefore strongly quasi-additive. */
 
- void remove_variable( Variable * var,
-                       c_ModParam issueMod )
- final;
+ virtual void remove_variable( Variable * var , c_ModParam issueMod )
+  override final;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// remove the i-th Variable
@@ -807,7 +804,7 @@ class DQuadFunction : public C15Function {
   * issued, as described in Observer::make_par(). Note that a diagonal
   * quadratic function is additive, and therefore strongly quasi-additive. */
 
- void remove_variables( c_Index strt = 0, Index stop = Inf< Index >(),
+ void remove_variables( c_Index strt = 0 , Index stop = Inf< Index >() ,
                         c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -824,7 +821,8 @@ class DQuadFunction : public C15Function {
 
  void remove_variables( const Variable * const strt = nullptr,
                         const Variable * const stop = nullptr,
-                        c_ModParam issueMod = eModBlck ) {
+                        c_ModParam issueMod = eModBlck )
+ {
   c_Index istrt = strt ? is_active( strt ) : 0;
   if( istrt >= get_num_active_var() )
    throw ( std::invalid_argument( "strt is not an active Variable" ) );
@@ -833,12 +831,13 @@ class DQuadFunction : public C15Function {
   if( stop ) {
    istop = is_active( stop );
    if( istrt >= get_num_active_var() )
-    throw ( std::invalid_argument( "stop is not an active Variable" ) );
-  } else
+    throw( std::invalid_argument( "stop is not an active Variable" ) );
+   }
+  else
    istop = get_num_active_var();
 
-  remove_variables( istrt, istop, issueMod );
- }
+  remove_variables( istrt , istop , issueMod );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// remove the given set of Variable
@@ -870,9 +869,8 @@ class DQuadFunction : public C15Function {
   * issued, as described in Observer::make_par(). Note that a diagonal
   * quadratic function is additive, and therefore strongly quasi-additive. */
 
- void remove_variables( Vec_p_Var && vars,
-                        bool ordered,
-                        c_ModParam issueMod ) final;
+ virtual void remove_variables( Vec_p_Var && vars , bool ordered ,
+				c_ModParam issueMod ) override final;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// remove a set of Variable by index
@@ -889,9 +887,8 @@ class DQuadFunction : public C15Function {
   * issued, as described in Observer::make_par(). Note that a linear diagonal
   * quadratic function is additive, and therefore strongly quasi-additive. */
 
- virtual void remove_variables( Vec_Index & nms,
-                                bool ordered,
-                                c_ModParam issueMod );
+ void remove_variables( Vec_Index & nms , bool ordered = false ,
+			c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  ///< sets the value of the constant term of this function.
@@ -901,7 +898,7 @@ class DQuadFunction : public C15Function {
   * The parameter issueMod decides if and how the DQuadFunctionMod is
   * issued, as described in Observer::make_par(). */
 
- void set_constant_term( FunctionValue constant_term,
+ void set_constant_term( FunctionValue constant_term ,
                          c_ModParam issueMod = eModBlck );
 
 /**@} ----------------------------------------------------------------------*/

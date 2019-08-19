@@ -574,8 +574,7 @@ class LinearFunction : public C15Function {
   * The parameter issueMod decides if and how the C05FunctionModLin is issued,
   * as described in Observer::make_par(). */
 
- void modify_coefficient( ColVariable * var,
-                          Coefficient coeff,
+ void modify_coefficient( ColVariable * var , Coefficient coeff ,
                           c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -591,8 +590,7 @@ class LinearFunction : public C15Function {
   * The parameter issueMod decides if and how the C05FunctionModLin is issued,
   * as described in Observer::make_par(). */
 
- void modify_coefficients( v_coeff_pair & vars,
-                           bool ordered = false,
+ void modify_coefficients( v_coeff_pair & vars , bool ordered = false ,
                            c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -608,10 +606,9 @@ class LinearFunction : public C15Function {
   * The parameter issueMod decides if and how the C05FunctionModLin is issued,
   * as described in Observer::make_par(). */
 
- virtual void modify_coefficients( c_v_coeff_it NCoef,
-                                   c_Vec_Index & nms,
-                                   bool ordered,
-                                   c_ModParam issueMod );
+ virtual void modify_coefficients( c_v_coeff_it NCoef , c_Vec_Index & nms ,
+                                   bool ordered = false ,
+                                   c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify a range of coefficients
@@ -625,9 +622,8 @@ class LinearFunction : public C15Function {
   * The parameter issueMod decides if and how the C05FunctionModLin is issued,
   * as described in Observer::make_par(). */
 
- void modify_coefficients( c_v_coeff_it NCoef,
-                           c_Index strt = 0,
-                           Index stop = Inf< Index >(),
+ void modify_coefficients( c_v_coeff_it NCoef , c_Index strt = 0 ,
+                           Index stop = Inf< Index >() ,
                            c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -644,10 +640,11 @@ class LinearFunction : public C15Function {
   * The parameter issueMod decides if and how the C05FunctionModLin is issued,
   * as described in Observer::make_par(). */
 
- void modify_coefficients( c_v_coeff_it NCoef,
-                           const Variable * strt = nullptr,
-                           const Variable * stop = nullptr,
-                           c_ModParam issueMod = eModBlck ) {
+ void modify_coefficients( c_v_coeff_it NCoef ,
+                           const Variable * strt = nullptr ,
+                           const Variable * stop = nullptr ,
+                           c_ModParam issueMod = eModBlck )
+ {
   c_Index istrt = strt ? is_active( strt ) : 0;
   if( istrt >= get_num_active_var() )
    throw ( std::invalid_argument( "strt is not an active Variable" ) );
@@ -657,11 +654,12 @@ class LinearFunction : public C15Function {
    istop = is_active( stop );
    if( istop >= get_num_active_var() )
     throw ( std::invalid_argument( "stop is not an active Variable" ) );
-  } else
+   }
+  else
    istop = get_num_active_var();
 
   modify_coefficients( NCoef, istrt, istop, issueMod );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// remove the given Variable from the LinearFunction
@@ -679,7 +677,8 @@ class LinearFunction : public C15Function {
   * issued, as described in Observer::make_par(). Note that a linear function
   * is additive, and therefore strongly quasi-additive. */
 
- void remove_variable( Variable * var, c_ModParam issueMod ) final;
+ virtual void remove_variable( Variable * var, c_ModParam issueMod )
+  override final;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// remove the i-th Variable
@@ -702,8 +701,7 @@ class LinearFunction : public C15Function {
   * issued, as described in Observer::make_par(). Note that a linear function
   * is additive, and therefore strongly quasi-additive. */
 
- void remove_variables( c_Index strt = 0,
-                        Index stop = Inf< Index >(),
+ void remove_variables( c_Index strt = 0 , Index stop = Inf< Index >() ,
                         c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -720,7 +718,8 @@ class LinearFunction : public C15Function {
 
  void remove_variables( const Variable * const strt = nullptr,
                         const Variable * const stop = nullptr,
-                        c_ModParam issueMod = eModBlck ) {
+                        c_ModParam issueMod = eModBlck )
+ {
   c_Index istrt = strt ? is_active( strt ) : 0;
   if( istrt >= get_num_active_var() )
    throw ( std::invalid_argument( "strt is not an active Variable" ) );
@@ -729,12 +728,13 @@ class LinearFunction : public C15Function {
   if( stop ) {
    istop = is_active( stop );
    if( istrt >= get_num_active_var() )
-    throw ( std::invalid_argument( "stop is not an active Variable" ) );
-  } else
+    throw( std::invalid_argument( "stop is not an active Variable" ) );
+   }
+  else
    istop = get_num_active_var();
 
   remove_variables( istrt, istop, issueMod );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// remove the given set of Variable
@@ -766,9 +766,8 @@ class LinearFunction : public C15Function {
   * issued, as described in Observer::make_par(). Note that a linear function
   * is additive, and therefore strongly quasi-additive. */
 
- void remove_variables( Vec_p_Var && vars,
-                        bool ordered,
-                        c_ModParam issueMod ) final;
+ virtual void remove_variables( Vec_p_Var && vars , bool ordered ,
+				c_ModParam issueMod ) override final;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// remove a set of Variable by index
@@ -785,9 +784,8 @@ class LinearFunction : public C15Function {
   * issued, as described in Observer::make_par(). Note that a linear function
   * is additive, and therefore strongly quasi-additive. */
 
- virtual void remove_variables( Vec_Index & nms,
-                                bool ordered,
-                                c_ModParam issueMod );
+ void remove_variables( Vec_Index & nms , bool ordered = false ,
+			c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  ///< sets the value of the constant term of this function.
@@ -797,8 +795,8 @@ class LinearFunction : public C15Function {
   * The parameter issueMod decides if and how the LinearFunctionMod is issued,
   * as described in Observer::make_par(). */
 
- void set_constant_term( FunctionValue constant_term,
-                         c_ModParam issueMod );
+ void set_constant_term( FunctionValue constant_term ,
+                         c_ModParam issueMod = eModBlck );
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
