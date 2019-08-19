@@ -626,6 +626,32 @@ This type defines
  using MethodSignature =
        void ( dBlock::* ) ( Args ... , c_ModParam , c_ModParam );
 
+ /// helper type for template sheningans for methods factory
+ template< typename ... >
+ struct arg_packer_helper { };
+
+ /// type for packing variadic lists (template sheningans for methods factory)
+ template< typename ... Args >
+ struct arg_packer { using args = arg_packer_helper<Args...>; };
+
+ /// type for ( void , range ) methods
+ using MS_rngd = arg_packer< Range >;
+
+ /// type for ( double , range ) methods
+ using MS_dbl_rngd = arg_packer< MF_dbl_it , Range >;
+
+ /// type for ( int , range ) methods
+ using MS_int_rngd = arg_packer< MF_int_it , Range >;
+
+ /// type for ( void , subset ) methods
+ using MS_sbst = arg_packer< Subset && , const bool >;
+
+ /// type for ( double , subset ) methods
+ using MS_dbl_sbst = arg_packer< MF_dbl_it , Subset && , const bool >;
+
+ /// type for ( int , subset ) methods
+ using MS_int_sbst = arg_packer< MF_int_it , Subset && , const bool >;
+ 
 /**@} ----------------------------------------------------------------------*/
 /*------------------------------- FRIENDS ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -4111,8 +4137,8 @@ This type defines
   register_method( std::move( name ) ,
 		   new FunctionSignature< Args... >(
 		       [ & method ]( Block * blck , Args&&... args ,
-				     c_ModParam issuePMod = eNoBlck ,
-				     c_ModParam issueAMod = eModBlck )
+				     c_ModParam issuePMod ,
+				     c_ModParam issueAMod )
 		       {
 			std::invoke( method ,
 				     static_cast< dBlock * >( blck ) ,
@@ -4121,60 +4147,54 @@ This type defines
 		        } ) );
   }
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+/*--------------------------------------------------------------------------*/
+ /// register a new method in the methods factory
+ /** This template method registers a member class function in the
+  * appropriate methods factory, and associates it with the given \p name. It
+  * has a single template parameter, the dBlock class (derived from Block) of
+  * which the function is a member. 
+  *
+  * This method serves as a wrapper for the "general" register_method< F >()
+  * which has a single template parameter corresponding to the signature F of
+  * the function to be inserted in the methods factory. Indeed, what this
+  * version does is to create a lambda function which just static_cast<> the
+  * Block * argument to a dBlock * pointers, and then invokes \p method.
+  * However, the signature of the lambda function is now specified by means
+  * of the third parameter, which is dummy arg_packer_helper<Args...>. This
+  * is intended to be used with existing signature-specifying types, such as
+  * in MS_rngd::args() or MS_int_sbst::args(), although there is nothing
+  * preventing from defining new ones.
+  *
+  * @param name The name that will identify the given \p method (actually,
+  *             function) in the methods factory; as the "&&" tells, the
+  *             std::string becomes "property" of the methods factory.
+  *
+  * @param method The (reference to the) method whose adapter function is to
+  *               be added to the corresponding methods factory.
+  *
+  * @param void Dummy arg_packer_helper<Args...> parameter to specify the
+  *             signature of the method to be registered. */
 
- template< class dBlock >
- static void register_method_rngd( std::string && name ,
-			       MethodSignature< dBlock , c_Range & > method )
+ template< class dBlock , typename... Args >
+ static void register_method( std::string && name ,
+			      MethodSignature< dBlock , Args... > method ,
+			      arg_packer_helper<Args...> )
  {
-  Block::register_method< dBlock , c_Range & >( name , method );
-  }
+  //  Block::register_method< dBlock , Args... >( name , method );
+  static_assert( std::is_base_of< Block , dBlock >::value ,
+                 "register_method: dBlock must inherit from Block" );
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-
- template< class dBlock >
- static void register_method_sbst( std::string && name ,
-	         MethodSignature< dBlock , Subset && , const bool  > method )
- {
-  Block::register_method< dBlock , Subset && , const bool >( name , method );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-
- template< class dBlock >
- static void register_method_dbl_rngd( std::string && name ,
-		   MethodSignature< dBlock , MF_dbl_it , c_Range & > method )
- {
-  Block::register_method< dBlock , MF_dbl_it , c_Range & >( name , method );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-
- template< class dBlock >
- static void register_method_dbl_sbst( std::string && name ,
-     MethodSignature< dBlock , MF_dbl_it , Subset && , const bool  > method )
- {
-  Block::register_method< dBlock , MF_dbl_it , Subset && , const bool >(
-							      name , method );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-
- template< class dBlock >
- static void register_method_int_rngd( std::string && name ,
-		   MethodSignature< dBlock , MF_int_it , c_Range & > method )
- {
-  Block::register_method< dBlock , MF_int_it , c_Range & >( name , method );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-
- template< class dBlock >
- static void register_method_dbl_sbst( std::string && name ,
-     MethodSignature< dBlock , MF_int_it , Subset && , const bool  > method )
- {
-  Block::register_method< dBlock , MF_int_it , Subset && , const bool >(
-							      name , method );
+  register_method( std::move( name ) ,
+		   new FunctionSignature< Args... >(
+		       [ & method ]( Block * blck , Args&&... args ,
+				     c_ModParam issuePMod ,
+				     c_ModParam issueAMod )
+		       {
+			std::invoke( method ,
+				     static_cast< dBlock * >( blck ) ,
+				     std::forward< Args >( args )... ,
+				     issuePMod , issueAMod );
+		        } ) );
   }
 
 /*--------------------------------------------------------------------------*/
