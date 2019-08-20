@@ -4298,21 +4298,7 @@ class Block : public Observer {
 			      MethodSignature< dBlock , Args... > method ,
 			      arg_packer_helper<Args...> )
  {
-  //  Block::register_method< dBlock , Args... >( name , method );
-  static_assert( std::is_base_of< Block , dBlock >::value ,
-                 "register_method: dBlock must inherit from Block" );
-
-  register_method( std::move( name ) ,
-		   new FunctionSignature< Args... >(
-		       [ method ]( Block * blck , Args&&... args ,
-				     c_ModParam issuePMod ,
-				     c_ModParam issueAMod )
-		       {
-			std::invoke( method ,
-				     static_cast< dBlock * >( blck ) ,
-				     std::forward< Args >( args )... ,
-				     issuePMod , issueAMod );
-		        } ) );
+  register_method< dBlock , Args... >( std::move( name ) , method );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -4378,9 +4364,7 @@ class Block : public Observer {
  static const FunctionSignature< Args... > * get_method_fs(
 						  const std::string & name )
  {
-  auto it = methods< FunctionSignature< Args... > >().left.find( name );
-  return( it != methods< FunctionSignature< Args... > >().left.end() ?
-	  it->second : nullptr );
+  return get_method< FunctionSignature< Args... > >( name );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -4415,9 +4399,7 @@ class Block : public Observer {
  static const FunctionSignature< Args... > * get_method_fs(
 		     const std::string & name , arg_packer_helper<Args...> )
  {
-  auto it = methods< FunctionSignature< Args... > >().left.find( name );
-  return( it != methods< FunctionSignature< Args... > >().left.end() ?
-	  it->second : nullptr );
+  return get_method< FunctionSignature< Args... > >( name );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -4454,10 +4436,7 @@ class Block : public Observer {
  static const std::string & get_method_name_fs(
 			       const FunctionSignature< Args... > * method )
  {
-  static const std::string empty;
-  auto it = methods< FunctionSignature< Args... > >().right.find( method );
-  return( it != methods< FunctionSignature< Args... > >().right.end() ?
-	  it->second : empty );
+  return get_method_name< FunctionSignature< Args... > >( method );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -4476,10 +4455,7 @@ class Block : public Observer {
 			       const FunctionSignature< Args... > * method ,
 			       arg_packer_helper<Args...> )
  {
-  static const std::string empty;
-  auto it = methods< FunctionSignature< Args... > >().right.find( method );
-  return( it != methods< FunctionSignature< Args... > >().right.end() ?
-	  it->second : empty );
+  return get_method_name< FunctionSignature< Args... > >( method );
   }
 
 /**@} ----------------------------------------------------------------------*/
