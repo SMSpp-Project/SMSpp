@@ -611,8 +611,8 @@ class Block : public Observer {
  *
  * - Index, an index into any internal data structure;
  *
- * - Range, a pair of indices [ start , stop ) indicating the typical
- *   left-closed, right-open range;
+ * - Range, a pair of indices ( start , stop ) representing the typical
+ *   left-closed, right-open range { i : start <= i < stop };
  *
  * - Subset, an arbitrary subset of indices (currently a simple
  *   std::vector< Index >, although this may change) together with a
@@ -627,11 +627,11 @@ class Block : public Observer {
  * - FunctionSignature (variadic template), a std::function with the signature
  *   of all function that should go in the methods factory;
  *
- * - MethodSignature (variadic template), the type of the methods corresponding
- *   to the signature dictated by FunctionSignature;
+ * - MethodSignature (variadic template), the type of the class member functions
+ *   (methods) corresponding to the signature dictated by FunctionSignature;
  *
  * - arg_packer_helper and arg_packer (variadic template), helper types for
- *   template sheningans for methods factory;
+ *   template shenanigans for methods factory;
  *
  * - The six types MS[_D]_S with D in { dbl , int } (or not there) and S in
  *   { rngd , sbst } representing six standard signatures for (adapter
@@ -661,32 +661,32 @@ class Block : public Observer {
 
  /// typedef for functions to be added to the methods factory
  /** Items added to the methods factory should typically be (pointers to)
-  * std::functions (adapter functions for some :Block method) that take a
-  * Block * first, two c_ModParam (for "physical" and "abstract"
-  * Modification, respectively) at the end, and in the middle as many
-  * parameters as they want. */
+  * std::functions (usually adapter functions for some :Block method) that take
+  * a Block * first, two c_ModParam (for "physical" and "abstract" Modification,
+  * respectively) at the end, and in the middle as many parameters as they
+  * want. */
 
  template< typename ... Args >
  using FunctionSignature =
   std::function< void ( Block * , Args ... , c_ModParam , c_ModParam ) >;
 
- /// typedef for original methods to be added to the methods factory
- /** The original methods (whose adapters are to be) added to the methods
-  * factory should take two c_ModParam (for "physical" and "abstract" 
-  * Modification, respectively) at the end, before them as many parameters
-  * as they want, and be methods of some :Block; it is clearly "the same
-  * signature" as FunctionSignature< Args > (with the same Args) for a
-  * method of the given dBlock. */ 
+ /// typedef for class member functions to be added to the methods factory
+ /** The class member functions (methods) (whose adapters are to be) added to
+  * the methods factory should take two c_ModParam (for "physical" and
+  * "abstract" Modification, respectively) at the end, before them as many
+  * parameters as they want, and be methods of some \p dBlock derived from
+  * Block; it is clearly "the same signature" as FunctionSignature< Args > (with
+  * the same Args) for a method of the given \p dBlock. */
 
  template< class dBlock , typename ... Args >
  using MethodSignature =
        void ( dBlock::* ) ( Args ... , c_ModParam , c_ModParam );
 
- /// helper type for template sheningans for methods factory
+ /// helper type for template shenanigans for methods factory
  template< typename ... >
  struct arg_packer_helper { };
 
- /// type for packing variadic lists (template sheningans for methods factory)
+ /// type for packing variadic lists (template shenanigans for methods factory)
  template< typename ... Args >
  struct arg_packer { using args = arg_packer_helper<Args...>; };
 
@@ -3948,7 +3948,7 @@ class Block : public Observer {
  *      EACH TIME THE (PRIVATE) METHOD methods< F >() IS CALLED WITH A
  *      DIFFERENT FUNCTION TYPE F, WHICH IN TURN HAPPENS IF EITHER
  *      register_method( , F * ), OR get_method< F >(), OR
- *      get_method_name< F >()  ARE CALLED, A NEW METHODS FACTORY FOR F IS
+ *      get_method_name< F >() ARE CALLED, A NEW METHODS FACTORY FOR F IS
  *      AUTOMAGICALLY CREATED (AT COMPILE TIME)
  *
  * However, the issue is that
@@ -3979,21 +3979,20 @@ class Block : public Observer {
  *      std::function< void ( Block * , Args ... ,
                               c_ModParam , c_ModParam ) >;
  *
- * Are defined. MethodSignature defines the interface of a generic method
- * that, besides any set of arguments, has two final ones concerning if and
- * how "physical" and "abstract" Modification are issued by the change in
- * the :Block brough about by the method. FunctionSignature< Args > is the
- * method of an adapter function corresponding to MethodSignature< dBlock ,
- * Args >. This is what is automatically constructed and put in the
+ * are defined. MethodSignature defines the interface of a generic class member
+ * function that, besides any set of arguments, has two final ones concerning if
+ * and how "physical" and "abstract" Modification are issued by the change in
+ * the :Block brought about by the method. FunctionSignature< Args > is the
+ * interface of an adapter function that may correspond to MethodSignature<
+ * dBlock , Args >. This is what is automatically constructed and put in the
  * corresponding factory if
  *
  *     register_method< dBlock , Args >()
  *
- * is called. The adapter function simply static_cast< dBlock >()-s the
- * Block * and invokes the method. Similarly,
- * get_method_fs< dBlock , Args >() and get_method_name_fs< dBlock , Args >()
- * are provided to search into the corresponding FunctionSignature< Args >
- * method factories.
+ * is called. The adapter function simply static_cast< dBlock >()-s the Block *
+ * and invokes the given method. Similarly, get_method_fs< dBlock , Args >() and
+ * get_method_name_fs< dBlock , Args >() are provided to search into the
+ * corresponding FunctionSignature< Args > method factories.
  *
  * A further level of support comes by defining some "general signatures"
  * that (adapter functions of) methods in the methods factory should have.
@@ -4004,7 +4003,7 @@ class Block : public Observer {
  *
  * - Index, an index into any internal data structure;
  *
- * - Range, a pair of indices [ start , stop ) indicating the typical
+ * - Range, a pair of indices ( start , stop ) indicating the typical
  *   left-closed, right-open range { i : start <= i < stop };
  *
  * - Subset, an arbitrary subset of indices (currently a simple
@@ -4027,18 +4026,18 @@ class Block : public Observer {
  *
  * - slice indicates a subset of the data, in two possible forms:
  *
- *   = (range) a Range object (passed by value), yelding the signature
+ *   = (range) a Range object (passed by value), yielding the signature
  *
  *         my_method_name( [ < data > , ] Range , c_ModParam , c_ModParam )
  *
- *   = (subset) a an arbitrary subset of the data, yelding the signature
+ *   = (subset) an arbitrary subset of the data, yielding the signature
  *
  *         my_method_name( [ < data > , ] Subset && , const bool ,
  *                         c_ModParam , c_ModParam )
  *
  *     where the bool being true indicates that Subset is already ordered
  *     by increasing index on call (if not it can be ordered inside: anyway
- *     the Subset is &&, meaning that is it axpected to be "consumed" by the
+ *     the Subset is &&, meaning that it is expected to be "consumed" by the
  *     method, e.g. to be shipped to some appropriate form of Modification).
  *
  *   Note that, if present, the provided  MF_X_it (call it "iter") must
@@ -4067,8 +4066,8 @@ class Block : public Observer {
  *
  * - gently nudge the user into adopting, as far as possible, these six
  *   signatures for (as many as posisble of) the data-changing methods of
- *   her :Block; this makes is straightforward to then register them in the
- *   method factories, which greatly increases the value of the mechanism.
+ *   her :Block; this makes it straightforward to then register them in the
+ *   methods factories, which greatly increases the value of the mechanism.
  *
  * Indeed, the "easy" use case of the methods factory is when the :Block has
  * methods (i.e., class member functions) with precisely this structure. For
@@ -4101,15 +4100,15 @@ class Block : public Observer {
  * methods. This is, of course, if there is one and only one underlying
  * method that is called, which may not be the case.
  *
- * Ideed, the above discussion clearly reveals that there is actually no need
+ * Indeed, the above discussion clearly reveals that there is actually no need
  * for the methods in the :Block to have any of the pre-set signatures in
  * order for them to be used in the methods factory. Indeed, even if they
- * have, an adapter function need to be written anyway (although this can be,
- * and is, done automaticallt). More in general, adapter functions can be
+ * do, an adapter function need to be written anyway (although this can be,
+ * and is, done automatically). More in general, adapter functions can be
  * written to use existing :Block methods (or, conceivably, friend functions)
  * to perform changes that can be added to the methods factory. For instance,
  * assume that our fictional NetworkBlock class can only change the weight of
- * a single arc at the time via the method
+ * a single arc at a time via the method
  *
  *     void set_arc_weight( Index arc , double weight ,
  *                          c_ModParam issuePMod = eNoBlck ,
@@ -4133,8 +4132,8 @@ class Block : public Observer {
  *                             c_ModParam issuePMod = eNoBlc ,
  *                             c_ModParam issueAMod = eModBlck ) {
  *      for( auto i : sbst )
- *       static_cast<NetworkBlock *>( block )->set_arc_weight( *(begin++) ,
- *                                                             i , issuePMod ,
+ *       static_cast<NetworkBlock *>( block )->set_arc_weight( i , *(begin++) ,
+ *                                                             issuePMod ,
  *                                                             issueAMod );
  *      }
  *
@@ -4199,7 +4198,7 @@ class Block : public Observer {
   * collisions and make it easier for the user to identify the available
   * methods.
   *
-  * @param name The name that will identify the given method (actually,
+  * @param name The name that will identify the given \p method (actually,
   *             function) in the methods factory; as the "&&" tells, the
   *             std::string becomes "property" of the methods factory.
   *
@@ -4224,12 +4223,12 @@ class Block : public Observer {
 
 /*--------------------------------------------------------------------------*/
  /// register a new method in the methods factory
- /** This template method registers a member class function in the
-  * appropriate methods factory, and associates it with the given \p name. It
-  * has a template parameter and a variadic parameter pack. The template
-  * parameter dBlock is the class (derived from Block) of which the function
-  * is a member. The parameter pack Args specifies the signature of the
-  * method by means of MethodSignature< dBlock , Args... >.
+ /** This template method registers a member class function in the appropriate
+  * methods factory, and associates it with the given \p name. It has a template
+  * parameter and a variadic parameter pack. The template parameter \p dBlock is
+  * the class (derived from Block) of which the function is a member. The
+  * parameter pack \p Args specifies the signature of the method by means of
+  * MethodSignature< dBlock , Args... >.
   *
   * This method serves as a wrapper for the "general" register_method< F >()
   * which has a single template parameter corresponding to the signature F of
@@ -4249,7 +4248,7 @@ class Block : public Observer {
  static void register_method( std::string && name ,
                               MethodSignature< dBlock , Args... > method )
  {
-  // ensure Class derives from Block
+  // ensure dBlock derives from Block
   static_assert( std::is_base_of< Block , dBlock >::value ,
                  "register_method: dBlock must inherit from Block" );
 
@@ -4268,10 +4267,10 @@ class Block : public Observer {
 
 /*--------------------------------------------------------------------------*/
  /// register a new method in the methods factory
- /** This template method registers a member class function in the
-  * appropriate methods factory, and associates it with the given \p name. It
-  * has a single template parameter, the dBlock class (derived from Block) of
-  * which the function is a member. 
+ /** This template method registers a member class function in the appropriate
+  * methods factory, and associates it with the given \p name. It has a single
+  * template parameter, the \p dBlock class (derived from Block) of which the
+  * function is a member.
   *
   * This method serves as a wrapper for the "general" register_method< F >()
   * which has a single template parameter corresponding to the signature F of
@@ -4294,7 +4293,7 @@ class Block : public Observer {
   * @param void Dummy arg_packer_helper<Args...> parameter to specify the
   *             signature of the method to be registered. */
 
- template< class dBlock , typename... Args >
+ template< class dBlock , typename ... Args >
  static void register_method( std::string && name ,
 			      MethodSignature< dBlock , Args... > method ,
 			      arg_packer_helper<Args...> )
@@ -4367,11 +4366,11 @@ class Block : public Observer {
   *                                        "NetworkBlock::set_arc_weight" );
   *     std::invoke( *mthd , NB , iter , range , issuePMod , issueAMod );
   *
-  * where NB is a pointer to a NetworkBlock object (assuming the method
-  * obtained from the methods factory is associated with this class, as it
-  * is good practice), iter is an iterator of type #MF_dbl_it, range is a
-  * #Range, and issuePMod and issueAMod are the last two parameters of the
-  * method.
+  * where NB is a pointer to a NetworkBlock object (assuming the method obtained
+  * from the methods factory is associated with this class, as it is good
+  * practice considering the name given to the method), iter is an iterator of
+  * type #MF_dbl_it, range is a #Range, and issuePMod and issueAMod are the last
+  * two parameters of the method.
   *
   * @param name The name associated with the method. */
 
@@ -4401,11 +4400,11 @@ class Block : public Observer {
   *                                MS_dbl_rngd::args() );
   *     std::invoke( *mthd , NB , iter , range , issuePMod , issueAMod );
   *
-  * where NB is a pointer to a NetworkBlock object (assuming the method
-  * obtained from the methods factory is associated with this class, as it
-  * is good practice), iter is an iterator of type #MF_dbl_it, range is a
-  * #Range, and issuePMod and issueAMod are the last two parameters of the
-  * method.
+  * where NB is a pointer to a NetworkBlock object (assuming the method obtained
+  * from the methods factory is associated with this class, as it is good
+  * practice considering the name given to the method), iter is an iterator of
+  * type #MF_dbl_it, range is a #Range, and issuePMod and issueAMod are the last
+  * two parameters of the method.
   *
   * @param name The name associated with the method.
   *
