@@ -84,9 +84,9 @@
  * specific for each Block and R3 Block of its, and the base class provides
  * no general mechanism for it (besides the interface).
  *
- * \version 0.22
+ * \version 0.30
  *
- * \date 15 - 08 - 2019
+ * \date 20 - 08 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -294,6 +294,58 @@ namespace SMSpp_di_unipi_it
  * cause more than one Modification to be issued to a Solver. It is assumed
  * that a Solver will know which of the equivalent Modification are of its
  * interest and disregard the others.
+ *
+ * The fact that a Block has *two* representations, the "abstract" one and the
+ * "physical" one, means that there are actually two different ways to perform
+ * what is conceptually the same change:
+ *
+ * - via a call to some specialized method of the :Block interface (say,
+ *   change_weights() for a KnapsackBlock);
+ *
+ * - by accessing the corresponding abstract representation (say, the
+ *   LinearFunction inside the FRowConstraint representing the knapsack
+ *   constraint) and changing it.
+ *
+ * Doing the first is supposed to also change the abstract representation (if
+ * it has been constructed, which it may not have). However, this must happen
+ * also in the second case. For this reason, Modification are explicitly
+ * characterized between "physical" ones and "abstract" ones. The second
+ * correspond to changes that happen to the abstract representation: when the
+ * (abstract) Modification object is passed to the :Block, the latter has to
+ * "intercept" it and, before shipping it to its attached Solver and ancestors,
+ * has to "reflect" the changes to the "abstract" representation into ones to
+ * the "physical" one (if any). Note that this may not be possible, or be too
+ * difficult so that the :Block may not support it: which "abstract"
+ * Modification (changes in the :Block issued by directly accessing the 
+ * "abstract" representation) are supported is entirely a :Block decision.
+ *
+ * This underlines how there are two different mechanisms to change the data
+ * of a :Block:
+ *
+ * - one that requires knowing exactly which :Block this is, in order to
+ *   access its specialized interface;
+ *
+ * - one that is "completely general", in that it only accesses the
+ *   "abstract" representation of the :Block.
+ *
+ * As such, the second is more general; however, it has drawbacks. First of
+ * all it requires the "abstract" representation to be constructed, which may
+ * not be necessary if this is not used by the attached Solver(s). Also, it
+ * may be difficult to make some problem-specific changes via the "abstract"
+ * representation, which therefore may limit which changes the :Block support.
+ * Finally, the mechanism is somehow less efficient in that it relies on the
+ * :Block to "intercept" and process "abstract" Modification. To ease all
+ * these drawback, a third mechanism is provided which allows to access the
+ * specialized interface of the :Block without having to know at compile time
+ * its exact type. This is the "methods factory" mechanism, whereby the :Block
+ * can register into some factories its data-changing methods; these can then
+ * be retrieved by name (a string that can be pulled out some Configuration at
+ * runtime) and called, without the caller knowing which specific :Block they
+ * belong to at compile time. This is helped by some degree of standardization
+ * between the data-changing methods of a :Block; a small number of "default"
+ * signatures are defined that are directly supported by the base Block class,
+ * although the methods factory mechanism is fully generic and can be easily
+ * extended to any other signature.
  *
  * It is important to clearly state the *ownership* of Constraint and
  * Variable, which is that they are directly defined either in the Block,
@@ -562,24 +614,28 @@ class Block : public Observer {
  * - Range, a pair of indices [ start , stop ) indicating the typical
  *   left-closed, right-open range;
  *
- * - Subset, a std::vector< Index > indicating an arbitrary subset of indices;
+ * - Subset, an arbitrary subset of indices (currently a simple
+ *   std::vector< Index >, although this may change) together with a
+ *   [const] iteratior [c_]Subset_it in it;
  *
  * - MF_dbl_it, a const_iterator into a std::vector< double >;
  *
  * - MF_int_it, a const_iterator into a std::vector< int >;
-
-
-
-This type defines
- * the basic signature of the methods for the currently supported method
- * factories (although different signatures could be added in the future,
- * as the mechanism is very general). They take a Block *, a(n iterator
- * into a const) std::vector< double >, a "set" of indices into the internal
- * data structure of the :Block, and two parameters controlling if and where
- * the corresponding "physical" and "abstract" Modification are issued. This
- * type is, however, template over the possible ways in which "set" can be
- * specified; at least the two choices Range and Subset are there, but
- * further choices may be added.
+ *
+ * Also defined here are types useful for the registration process itself:
+ *
+ * - FunctionSignature (variadic template), a std::function with the signature
+ *   of all function that should go in the methods factory;
+ *
+ * - MethodSignature (variadic template), the type of the methods corresponding
+ *   to the signature dictated by FunctionSignature;
+ *
+ * - arg_packer_helper and arg_packer (variadic template), helper types for
+ *   template sheningans for methods factory;
+ *
+ * - The six types MS[_D]_S with D in { dbl , int } (or not there) and S in
+ *   { rngd , sbst } representing six standard signatures for (adapter
+ *   functions of) methods to be inserted in the methods factory.
  *  @{ */
 
  /// an index in any internal data structure of the Block
@@ -3889,111 +3945,171 @@ This type defines
  *
  * Indeed,
  *
- *      EACH TIME THE (PRIVATE) METHOD methods<F>() IS CALLED WITH A
+ *      EACH TIME THE (PRIVATE) METHOD methods< F >() IS CALLED WITH A
  *      DIFFERENT FUNCTION TYPE F, WHICH IN TURN HAPPENS IF EITHER
- *      register_method( , F * ) OR get_method<F>() ARE CALLED, A NEW
- *      METHODS FACTORY FOR F IS AUTOMAGICALLY CREATED (AT COMPILE TIME)
+ *      register_method( , F * ), OR get_method< F >(), OR
+ *      get_method_name< F >()  ARE CALLED, A NEW METHODS FACTORY FOR F IS
+ *      AUTOMAGICALLY CREATED (AT COMPILE TIME)
  *
  * However, the issue is that
  *
- *      POINTERS IN THE MAPPING CANNOT BE TO ACTUAL METHODS BECAUSE THE
- *      SIGNATURE CANNOT HAVE A POINTER TO *ANY* DERIVED CLASS FROM Block,
- *      AND THEREFORE MUST HAVE A POINTER TO THE BASE Block.
+ *      POINTERS IN THE MAPPING SHOULD NOT BE TO ACTUAL METHODS IF THE
+ *      METHODS FACTORY HAS TO BE EMPLOYED WITHOUT KNOWLEDGE OF THE
+ *      SPECIFIC :Block INVOLVED (WHICH IS ITS DEFINING USE CASE). THIS
+ *      IS BECAUSE THE SIGNATURE CANNOT THEN HAVE A POINTER TO A SPECIFIC
+ *      DERIVED CLASS FROM Block, AND THEREFORE IT MUST HAVE A POINTER TO
+ *      THE BASE Block CLASS.
+ *
+ * This is not so say that constructing methods factories holding actual
+ * methods is not possible, but any such factory would be tied to a very
+ * specific :Block class, which goes squarely against the rationale for having
+ * a methods factory in the first place.
  *
  * Thus, a bit of type-handling has to go on behind the scenes, which
- * requires some support. Currently, only signatures of the form
+ * requires some support. This is provided in two levels.
  *
- *     template< class Set >
- *     void( Block * , MF_data_it , const Set & , c_ModParam , c_ModParam )
+ * For the first, more generic level, the (variadic template) types
  *
- * are directly supported. That is, their return type is "void", the first
- * parameter is a pointer to a Block, the second one is an iterator to a
- * std::vector< double > (see #MF_data_it), the third parameter is usually
- * either a #Range or a #Subset, and the last two parameters respectively
- * indicate if and where "physical" and "abstract" Modification are issued.
- * This signature is that defined by the template type FunctionType< Set >.
+ *     template< class dBlock , typename ... Args >
+ *     using MethodSignature =
+ *           void ( dBlock::* ) ( Args ... , c_ModParam , c_ModParam );
  *
- * The idea is that #Range or #Subset are used to specify which part of the
- * data related to the method should be considered. A #Range is a pair
- * < a , b > of indices representing the customary left-closed, right-open
- * interval { i : a <= i < b }. The #Subset is a std::vector< Index >.
- * Other ways to specify "sets" could be easily added in the future, but
- * these two should cover most of the use cases. Let "iter" be the provided
- * MF_data_it: it must point to a vector at least as long (after the
- * position pointed by iter) as how many elements are there in the set, and
- * the double value *( iter + h ) has to be taken as the new value for the
- * data structure in the :Block corresponding to the h-th Index in Set.
+ *     template< typename ... Args >
+ *     using FunctionSignature =
+ *      std::function< void ( Block * , Args ... ,
+                              c_ModParam , c_ModParam ) >;
  *
- * The "easy" use case of the methods factory is when the :Block has methods
- * (i.e., class member functions) with precisely this structure. For instance,
- * assume a class NetworkBlock : Block representing (an optimization problem
- * defined over some) weighted graph. NetworkBlock may have two methods 
+ * Are defined. MethodSignature defines the interface of a generic method
+ * that, besides any set of arguments, has two final ones concerning if and
+ * how "physical" and "abstract" Modification are issued by the change in
+ * the :Block brough about by the method. FunctionSignature< Args > is the
+ * method of an adapter function corresponding to MethodSignature< dBlock ,
+ * Args >. This is what is automatically constructed and put in the
+ * corresponding factory if
  *
- *     void set_arc_weight_rng( MF_data_it , c_Range & ,
- *                              c_ModParam , c_ModParam );
+ *     register_method< dBlock , Args >()
  *
- *     void set_arc_weight_sbst( MF_data_it , c_Subset & ,
- *                               c_ModParam , c_ModParam );
+ * is called. The adapter function simply static_cast< dBlock >()-s the
+ * Block * and invokes the method. Similarly,
+ * get_method_fs< dBlock , Args >() and get_method_name_fs< dBlock , Args >()
+ * are provided to search into the corresponding FunctionSignature< Args >
+ * method factories.
+ *
+ * A further level of support comes by defining some "general signatures"
+ * that (adapter functions of) methods in the methods factory should have.
+ * These should be many enough to offer a reasonable flexibility, but on
+ * the other hand few enough so that each method factory is hopefully
+ * populated enough so that the mechanism can be used often. For this purpose
+ * the following types are defined:
+ *
+ * - Index, an index into any internal data structure;
+ *
+ * - Range, a pair of indices [ start , stop ) indicating the typical
+ *   left-closed, right-open range { i : start <= i < stop };
+ *
+ * - Subset, an arbitrary subset of indices (currently a simple
+ *   std::vector< Index >, although this may change) together with a
+ *   [const] iteratior [c_]Subset_it in it;
+ *
+ * - MF_dbl_it, a const_iterator into a std::vector< double >;
+ *
+ * - MF_int_it, a const_iterator into a std::vector< int >;
+ *
+ * These are thought to form the basis of "most" data-changing methods in
+ * any :Block class. In particular, six signatures are defined based on
+ * these, which have the form (clearly compatible with the above types)
+ *
+ *     my_method_name( [ < data > , ] < slice > , c_ModParam , c_ModParam )
+ *
+ * where:
+ *
+ * - data is either not there, or a MF_dbl_it, or a MF_int_it;
+ *
+ * - slice indicates a subset of the data, in two possible forms:
+ *
+ *   = (range) a Range object (passed by value), yelding the signature
+ *
+ *         my_method_name( [ < data > , ] Range , c_ModParam , c_ModParam )
+ *
+ *   = (subset) a an arbitrary subset of the data, yelding the signature
+ *
+ *         my_method_name( [ < data > , ] Subset && , const bool ,
+ *                         c_ModParam , c_ModParam )
+ *
+ *     where the bool being true indicates that Subset is already ordered
+ *     by increasing index on call (if not it can be ordered inside: anyway
+ *     the Subset is &&, meaning that is it axpected to be "consumed" by the
+ *     method, e.g. to be shipped to some appropriate form of Modification).
+ *
+ *   Note that, if present, the provided  MF_X_it (call it "iter") must
+ *   point to a std::vector< X > at least as long (after the position
+ *   pointed by iter) as how many elements are there in the slice, and
+ *   the X value *( iter + h ) has to be taken as the new value for the
+ *   data structure in the :Block corresponding to the h-th Index in slice.
+ *
+ * These types of signatures are "encoded" in the predefined six types
+ * MS[_D]_S with D in { dbl , int } (or not there) and S in { rngd , sbst },
+ * representing (in obvious ways) the six possible interfaces. Specific
+ * versions of register_method(), get_method() and get_method_name() are
+ * provided which take a final
+ *
+ *     MS[_D]_S::args()
+ *
+ * parameter (don't ask why the "args", that's pretty weird template
+ * wizardry) specifiying the type of method to be inserted in the methods
+ * factory.
+ *
+ * The rationale for defining these types is twofold:
+ *
+ * - make life a bit easier to the user, as the corresponding versions of
+ *   register_method(), get_method() and get_method_name() are just a tiny
+ *   bit easier to use;
+ *
+ * - gently nudge the user into adopting, as far as possible, these six
+ *   signatures for (as many as posisble of) the data-changing methods of
+ *   her :Block; this makes is straightforward to then register them in the
+ *   method factories, which greatly increases the value of the mechanism.
+ *
+ * Indeed, the "easy" use case of the methods factory is when the :Block has
+ * methods (i.e., class member functions) with precisely this structure. For
+ * instance, assume a class NetworkBlock : Block representing (an
+ * optimization problem defined over some) weighted graph. NetworkBlock may
+ * have two methods 
+ *
+ *     void set_arc_weight( MF_dbl_it , Range , c_ModParam , c_ModParam );
+ *
+ *     void set_arc_weight( MF_dbl_it , Subset && , const bool ,
+ *                          c_ModParam , c_ModParam );
  *
  * for changing the weights in the arcs of the graph. These methods can be
  * registered straight away in the methods factory by just calling anywhere
  *
- *     register_method( "NetworkBlock::set_arc_weight_rng" ,
- *                      & NetworkBlock::set_arc_weight_rng );
+ *     register_method< NetworkBlock , MF_dbl_it , Range>(
+ *                                         "NetworkBlock::set_arc_weight" ,
+ *                                         & NetworkBlock::set_arc_weight );
  *
- *     register_method( "NetworkBlock::set_arc_weight_sbst" ,
- *                      & NetworkBlock::set_arc_weight_sbst );
+ *     register_method< NetworkBlock , MF_dbl_it , Subset && , const bool >(
+ *                                         "NetworkBlock::set_arc_weight" ,
+ *                                         & NetworkBlock::set_arc_weight );
  *
- * Note that the methods could rather be overloaded, as in
+ * (note how the first form is ever so slightly more convenient). Note that
+ * the methods are overloaded, and get the same "name" in the factory:
+ * however this is not an issue, because they end up in different factories.
+ * Indeed, the "name" string can in general be arbitrary; yet, we recommend
+ * following the pattern "ClassName::method_name" so as to avoid any name
+ * collisions and to make it easier for the user to identify the available
+ * methods. This is, of course, if there is one and only one underlying
+ * method that is called, which may not be the case.
  *
- *     void set_arc_weight( MF_data_it , c_Range & ,
- *                          c_ModParam , c_ModParam );
- *
- *     void set_arc_weight( MF_data_it , c_Subset & ,
- *                          c_ModParam , c_ModParam );
- *
- * This is just as well provided one uses the right version of
- * register_method() to remove ambiguity as in
- *
- *     register_method< NetworkBlock , Range >(
- *                                       "NetworkBlock::set_arc_weight" ,
- *                                       & NetworkBlock::set_arc_weight );
- *
- *     register_method< NetworkBlock , Subset >(
- *                                       "NetworkBlock::set_arc_weight" ,
- *                                       & NetworkBlock::set_arc_weight );
- *
- * Note that we can use the same "name" string for registering bothe methods,
- * since they get registered into different methods factories. Although the
- * "name" string can in general be arbitrary, we recommend following the
- * pattern "ClassName::method_name" so as to avoid any name collisions and to
- * make it easier for the user to identify the available methods. This is, of
- * course, if there is one and only one underlying method that is called,
- * which may not be the case.
- *
- * Ideed, in all cases, the register_method() method called here is
- *
- *     template< class Class , class Set >
- *     static void register_method( std::string && ,
- *                                  MemberFunction< Class , Set > )
- *
- * which is provided as a wrapper for the "regular"
- *
- *     template< class F >
- *     static void register_method( std::string && , F * )
- *
- * version. What the method does is to create a FunctionType< Set > lambda
- * function which just static_cast<> the Block * to a pointer to Class *, and
- * then invokes \p method; this function, rather than \p method, is then put
- * in the FunctionType< Set > methods factory. This clearly reveals that
- * there is actually no need for the methods in the :Block to have the
- * FunctionType< Set > signature in order for them to be used in the methods
- * factory. Indeed, even if they are, a ("void") adapter function need to be
- * written anyway. More in general, adapter functions can be written to use
- * existing :Block methods (or, conceivably, friend functions) to perform
- * changes that can be added to the methods factory. For instance, assume that
- * our fictional NetworkBlock class can only change the weight of a single
- * arc at the time via the method
+ * Ideed, the above discussion clearly reveals that there is actually no need
+ * for the methods in the :Block to have any of the pre-set signatures in
+ * order for them to be used in the methods factory. Indeed, even if they
+ * have, an adapter function need to be written anyway (although this can be,
+ * and is, done automaticallt). More in general, adapter functions can be
+ * written to use existing :Block methods (or, conceivably, friend functions)
+ * to perform changes that can be added to the methods factory. For instance,
+ * assume that our fictional NetworkBlock class can only change the weight of
+ * a single arc at the time via the method
  *
  *     void set_arc_weight( Index arc , double weight ,
  *                          c_ModParam issuePMod = eNoBlck ,
@@ -4002,8 +4118,8 @@ This type defines
  * A user who would like to have a method in the methods factory for setting
  * the weight of subsets of arcs could implement the following functions:
  *
- *     void set_weight_range( Block * block , MF_data_it begin , 
- *                            c_Range & range ,
+ *     void set_weight_range( Block * block , MF_dbl_it begin , 
+ *                            Range range ,
  *                            c_ModParam issuePMod = eNoBlc ,
  *                            c_ModParam issueAMod = eModBlck ) {
  *      for( Index i = range.first ; i < range.second ; ++i , ++begin )
@@ -4012,11 +4128,11 @@ This type defines
  *                                                             issueAMod );
  *      }
  *
- *     void set_weight_subset( Block * block , MF_data_it begin , 
- *                             c_Subset & subset ,
+ *     void set_weight_subset( Block * block , MF_dbl_it begin , 
+ *                             Subset && sbst , const bool ordered = false ,
  *                             c_ModParam issuePMod = eNoBlc ,
  *                             c_ModParam issueAMod = eModBlck ) {
- *      for( auto i : subset )
+ *      for( auto i : sbst )
  *       static_cast<NetworkBlock *>( block )->set_arc_weight( *(begin++) ,
  *                                                             i , issuePMod ,
  *                                                             issueAMod );
@@ -4030,15 +4146,18 @@ This type defines
  *     register_method( "NetworkBlock::set_weight_subset" ,
  *                      & set_weight_subset );
  *
- * (note that the version taking a FunctionType< Set > is being used here,
- * as opposed to the one taking a MemberFunction< Class , Set >). Of course,
- * any data format adapter can be implemented here; think e.g. of the case
- * where the :Block methods expect a boost::multi_array< double >, that 
- * therefore has to be "flattened" into a std::vector< double >, or of
- * the case where the :Block methods expect integer rather than double
- * values. Adapters still allow for the methods factory to be used in these
- * cases (save, of course, for the possibility of adding new kinds of
- * signatures allowing the corresponding different input capabilities).
+ * Note that the version taking a generic type F, in this case being a
+ * FunctionSignature< Args ... > for appropriate Args, is being used here,
+ * as opposed to the one taking a MethodSignature< dBlock , Args ... >. Of
+ * course, any data format adapter can be implemented here; think e.g. of
+ * the case where the :Block methods expect a boost::multi_array< double >,
+ * that therefore has to be "flattened" into a std::vector< double >, or of
+ * the case where the :Block methods expect something else than integer or
+ * double values. Adapters still allow for the methods factory to be used in
+ * these cases; save, of course, for the ever-present possibility of adding
+ * new kinds of signatures allowing the corresponding different input
+ * capabilities, but this would increase the number of different method
+ * factories, possibly decreasing their utility.
  *
  * The typical place in which these calls to register_method() should be put
  * is in the protected static_initialization() method of the :Block. However,
@@ -4136,7 +4255,7 @@ This type defines
 
   register_method( std::move( name ) ,
 		   new FunctionSignature< Args... >(
-		       [ & method ]( Block * blck , Args&&... args ,
+		       [ method ]( Block * blck , Args&&... args ,
 				     c_ModParam issuePMod ,
 				     c_ModParam issueAMod )
 		       {
@@ -4186,7 +4305,7 @@ This type defines
 
   register_method( std::move( name ) ,
 		   new FunctionSignature< Args... >(
-		       [ & method ]( Block * blck , Args&&... args ,
+		       [ method ]( Block * blck , Args&&... args ,
 				     c_ModParam issuePMod ,
 				     c_ModParam issueAMod )
 		       {
@@ -4199,49 +4318,169 @@ This type defines
 
 /*--------------------------------------------------------------------------*/
  /// returns the method associated with the given name in the methods factory
- /** This function returns a pointer to the method (actually, function)
-  * associated with the given \p name in the methods factory. If there is no
-  * method associated with the given \p name, this function returns nullptr.
+ /** This method returns a pointer to the method (actually, function)
+  * associated with the given \p name in the methods factory specified by the
+  * template function signature F. If there is no method associated with the
+  * given \p name in that factory, this method returns nullptr.
   *
   * Suppose, for example, that the methods factory has a method associated
-  * with the name "NetworkBlock::set_arc_weight" that admits a #Range as
-  * argument. In order to call this method (actually, function) one would
-  * do the following:
+  * with the name "NetworkBlock::set_arc_weight" that has the typical "double,
+  * Range" interface, i.e., a #MF_dbl_it parameter, a #Range parameter, and
+  * two c_ModParam parameters. This has been inserted in the interface under
+  * the guise of a FunctionSignature< MF_dbl_it , Range > pointer. Thus,
+  * to invoke such a method one should do 
   *
-  *     auto mthd = get_method< FunctionType< Range > >(
+  *     auto mthd = get_method< FunctionSignature< MF_dbl_it , Range > >(
   *                                        "NetworkBlock::set_arc_weight" );
   *     std::invoke( *mthd , NB , iter , range , issuePMod , issueAMod );
   *
   * where NB is a pointer to a NetworkBlock object (assuming the method
   * obtained from the methods factory is associated with this class, as it
-  * is good practice), iter is an iterator of type #MF_data_it, range is a
+  * is good practice), iter is an iterator of type #MF_dbl_it, range is a
+  * #Range, and issuePMod and issueAMod are the last two parameters of the
+  * method.
+  *
+  * @param name The name associated with the method. */
+
+ template< class F >
+ static const F * get_method( const std::string & name ) {
+  auto it = methods< F >().left.find( name );
+  return( it != methods< F >().left.end() ? it->second : nullptr );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the method associated with the given name in the methods factory
+ /** This template method returns a pointer to the adapter function associated
+  * with the given \p name in the methods factory corresponding to the
+  * signature F implied by the variadic template parameter Args. Basically,
+  * this method is equivalent to get_method< F > with
+  * F == FunctionSignature< Args... >.
+  *
+  * Suppose, for example, that the methods factory has a method associated
+  * with the name "NetworkBlock::set_arc_weight" that has the typical "double,
+  * Range" interface, i.e., a #MF_dbl_it parameter, a #Range parameter, and
+  * two c_ModParam parameters. This has been inserted in the interface under
+  * the guise of a FunctionSignature< MF_dbl_it , Range > pointer. Thus,
+  * to invoke such a method one should do 
+  *
+  *     auto mthd = get_method_fs< MF_dbl_it , Range >(
+  *                                        "NetworkBlock::set_arc_weight" );
+  *     std::invoke( *mthd , NB , iter , range , issuePMod , issueAMod );
+  *
+  * where NB is a pointer to a NetworkBlock object (assuming the method
+  * obtained from the methods factory is associated with this class, as it
+  * is good practice), iter is an iterator of type #MF_dbl_it, range is a
+  * #Range, and issuePMod and issueAMod are the last two parameters of the
+  * method.
+  *
+  * @param name The name associated with the method. */
+
+ template< typename... Args >
+ static const FunctionSignature< Args... > * get_method_fs(
+						  const std::string & name )
+ {
+  auto it = methods< FunctionSignature< Args... > >().left.find( name );
+  return( it != methods< FunctionSignature< Args... > >().left.end() ?
+	  it->second : nullptr );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the method associated with the given name in the methods factory
+ /** This method returns a pointer to the adapter function associated with the
+  * given \p name in the methods factory implied by the second dummy
+  * parameter.
+  *
+  * Suppose, for example, that the methods factory has a method associated
+  * with the name "NetworkBlock::set_arc_weight" that has the typical "double,
+  * Range" interface, i.e., a #MF_dbl_it parameter, a #Range parameter, and
+  * two c_ModParam parameters. This has been inserted in the interface under
+  * the guise of a FunctionSignature< MF_dbl_it , Range > pointer. Thus,
+  * to invoke such a method one should do 
+  *
+  *     auto mthd = get_method_fs( "NetworkBlock::set_arc_weight" ,
+  *                                MS_dbl_rngd::args() );
+  *     std::invoke( *mthd , NB , iter , range , issuePMod , issueAMod );
+  *
+  * where NB is a pointer to a NetworkBlock object (assuming the method
+  * obtained from the methods factory is associated with this class, as it
+  * is good practice), iter is an iterator of type #MF_dbl_it, range is a
   * #Range, and issuePMod and issueAMod are the last two parameters of the
   * method.
   *
   * @param name The name associated with the method.
-  */
+  *
+  * @param void Dummy arg_packer_helper<Args...> parameter to specify the
+  *             signature of the method to be retrieved. */
 
- template<class F>
- static const F * get_method( const std::string & name ) {
-  auto it = methods<F>().left.find( name );
-  return( it != methods<F>().left.end() ? it->second : nullptr );
+ template< typename... Args >
+ static const FunctionSignature< Args... > * get_method_fs(
+		     const std::string & name , arg_packer_helper<Args...> )
+ {
+  auto it = methods< FunctionSignature< Args... > >().left.find( name );
+  return( it != methods< FunctionSignature< Args... > >().left.end() ?
+	  it->second : nullptr );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the name that is associated with the given method
- /** This function returns (a reference to) the name that is associated with
-  * the given  (pointer to a) method (actually, function) in the methods
-  * factory. If the given method is not present in the methods factory,
-  * a (reference to a)n empty string is returned.
+ /** This template method returns (a reference to) the name that is associated
+  * with the given (pointer to a) method (actually, function) in the methods
+  * factory specified by the template function signature F. If the given
+  * method is not present in that methods factory, a (reference to a)n empty
+  * string is returned.
   *
   * @param method A pointer to the method whose associated name is desired.
   */
 
- template<class F>
- static const std::string & get_method_name( const F * method ) {
+ template< class F >
+ static const std::string & get_method_name( const F * method )
+ {
   static const std::string empty;
-  auto it = methods<F>().right.find( method );
-  return( it != methods<F>().right.end() ? it->second : empty );
+  auto it = methods< F >().right.find( method );
+  return( it != methods< F >().right.end() ? it->second : empty );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the name that is associated with the given method
+ /** This template method returns (a reference to) the name that is associated
+  * with the given (pointer to a) method (actually, function) in the methods
+  * factory corresponding to the signature F implied by the variadic template
+  * parameter Args. Basically, this method is equivalent to
+  * get_method_name< F > with F == FunctionSignature< Args... >.
+  *
+  * @param method A pointer to the method whose associated name is desired.
+  */
+
+ template< typename... Args >
+ static const std::string & get_method_name_fs(
+			       const FunctionSignature< Args... > * method )
+ {
+  static const std::string empty;
+  auto it = methods< FunctionSignature< Args... > >().right.find( method );
+  return( it != methods< FunctionSignature< Args... > >().right.end() ?
+	  it->second : empty );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the name that is associated with the given method
+ /** This template method returns (a reference to) the name that is associated
+  * with the given (pointer to a) method (actually, function) in the methods
+  * factory implied by the second dummy parameter.
+  *
+  * @param method A pointer to the method whose associated name is desired.
+  *
+  * @param void Dummy arg_packer_helper<Args...> parameter to specify the
+  *             signature of the method whose associated name is desired. */
+
+ template< typename... Args >
+ static const std::string & get_method_name_fs(
+			       const FunctionSignature< Args... > * method ,
+			       arg_packer_helper<Args...> )
+ {
+  static const std::string empty;
+  auto it = methods< FunctionSignature< Args... > >().right.find( method );
+  return( it != methods< FunctionSignature< Args... > >().right.end() ?
+	  it->second : empty );
   }
 
 /**@} ----------------------------------------------------------------------*/
