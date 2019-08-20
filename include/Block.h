@@ -4210,25 +4210,25 @@ class Block : public Observer {
  {
   if( name.empty() )
    throw( std::invalid_argument( "register_method: name is empty" ) );
-  auto iter = methods<F>().left.find( name );
-  if( iter != methods<F>().left.end() ) {
+  auto iter = methods< F >().left.find( name );
+  if( iter != methods< F >().left.end() ) {
    delete iter->second;
-   auto replaced = methods<F>().left.replace_data( iter , method );
+   auto replaced = methods< F >().left.replace_data( iter , method );
    assert( replaced );
    }
   else
-   methods<F>().insert( typename bimap<F>::value_type( std::move( name ) ,
-						       method ) );
+   methods< F >().insert( typename bimap< F >::value_type( std::move( name ) ,
+							   method ) );
   }
 
 /*--------------------------------------------------------------------------*/
  /// register a new method in the methods factory
  /** This template method registers a member class function in the appropriate
-  * methods factory, and associates it with the given \p name. It has a template
-  * parameter and a variadic parameter pack. The template parameter \p dBlock is
-  * the class (derived from Block) of which the function is a member. The
-  * parameter pack \p Args specifies the signature of the method by means of
-  * MethodSignature< dBlock , Args... >.
+  * methods factory, and associates it with the given \p name. It has a
+  * template parameter and a variadic parameter pack. The template parameter
+  * \p dBlock is the class (derived from Block) of which the function is a
+  * member. The parameter pack \p Args specifies the signature of the method
+  * by means of MethodSignature< dBlock , Args... >.
   *
   * This method serves as a wrapper for the "general" register_method< F >()
   * which has a single template parameter corresponding to the signature F of
@@ -4366,11 +4366,11 @@ class Block : public Observer {
   *                                        "NetworkBlock::set_arc_weight" );
   *     std::invoke( *mthd , NB , iter , range , issuePMod , issueAMod );
   *
-  * where NB is a pointer to a NetworkBlock object (assuming the method obtained
-  * from the methods factory is associated with this class, as it is good
-  * practice considering the name given to the method), iter is an iterator of
-  * type #MF_dbl_it, range is a #Range, and issuePMod and issueAMod are the last
-  * two parameters of the method.
+  * where NB is a pointer to a NetworkBlock object (assuming the method
+  * obtained from the methods factory is associated with this class, as it is
+  * good practice considering the name given to the method), iter is an
+  * iterator of type #MF_dbl_it, range is a #Range, and issuePMod and
+  * issueAMod are the last two parameters of the method.
   *
   * @param name The name associated with the method. */
 
@@ -4400,11 +4400,11 @@ class Block : public Observer {
   *                                MS_dbl_rngd::args() );
   *     std::invoke( *mthd , NB , iter , range , issuePMod , issueAMod );
   *
-  * where NB is a pointer to a NetworkBlock object (assuming the method obtained
-  * from the methods factory is associated with this class, as it is good
-  * practice considering the name given to the method), iter is an iterator of
-  * type #MF_dbl_it, range is a #Range, and issuePMod and issueAMod are the last
-  * two parameters of the method.
+  * where NB is a pointer to a NetworkBlock object (assuming the method
+  * obtained from the methods factory is associated with this class, as it is
+  * good practice considering the name given to the method), iter is an
+  * iterator of type #MF_dbl_it, range is a #Range, and issuePMod and
+  * issueAMod are the last two parameters of the method.
   *
   * @param name The name associated with the method.
   *
