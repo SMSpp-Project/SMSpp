@@ -543,13 +543,56 @@ void PolyhedralFunction::add_variable( ColVariable * const var ,
 
 /*--------------------------------------------------------------------------*/
 
+void PolyhedralFunction::modify_rows( std::vector<Index> & rows ,
+				      MultiVector && nA ,
+				      std::vector<FunctionValue> & nb ,
+				      c_ModParam issueMod )
+{
+ if( rows.empty() )  // actually nothing to modify
+  return;            // cowardly (and silently) return
+
+ if( nA.size() != rows.size() )
+  throw( std::invalid_argument( "rows and nA sizes do not match" ) );
+  
+ if( nb.size() != rows.size() )
+  throw( std::invalid_argument( "rows and nb sizes do not match" ) );
+
+ for( Index i = 0 ; i < rows.size() ; ++i ) {
+  if( rows[ i ] >= v_A.size() )
+   throw( std::invalid_argument( "wrong row name" ) );
+  if( nA[ i ].size() != v_x.size() )
+   throw( std::invalid_argument( "wrong row size" ) );
+
+  v_A[ rows[ i ] ] = std::move( nA[ i ] );
+  v_b[ rows[ i ] ] = nb[ i ];
+  }
+
+ f_value = - Inf<FunctionValue>();  // the function value has changed
+
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+  return;                  // noone is there: all done
+
+ // issue the C05FunctionMod
+ f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+				     C05FunctionMod::AllLinearizationChanged ,
+			             C05FunctionMod::NaNshift ,
+				     Observer::par2concern( issueMod ) ) ,
+				Observer::par2chnl( issueMod ) );
+
+ }  // end( PolyhedralFunction::modify_rows )
+
+/*--------------------------------------------------------------------------*/
+
 void PolyhedralFunction::modify_row( c_Index i ,
 				     std::vector<FunctionValue> && Ai ,
 				     c_FunctionValue bi , c_ModParam issueMod )
 {
  if( i >= v_A.size() )
   throw( std::invalid_argument( "wrong row name" ) );
+ if( Ai.size() != v_x.size() )
+  throw( std::invalid_argument( "wrong row size" ) );
 
+ // actually change things
  v_A[ i ] = std::move( Ai );
  v_b[ i ] = bi;
 
@@ -569,13 +612,47 @@ void PolyhedralFunction::modify_row( c_Index i ,
 
 /*--------------------------------------------------------------------------*/
 
-void PolyhedralFunction::modify_constant( c_Index i , c_FunctionValue bi ,
-					  c_ModParam issueMod )
+void PolyhedralFunction::modify_constants( std::vector<Index> & rows ,
+					   std::vector<FunctionValue> & nb ,
+					   c_ModParam issueMod )
 {
- if( i >= v_A.size() )
-  throw( std::invalid_argument( "wrong row name" ) );
+ if( rows.empty() )  // actually nothing to modify
+  return;            // cowardly (and silently) return
 
- v_b[ i ] = bi;
+ for( auto i : rows )
+  if( i >= v_A.size() )
+   throw( std::invalid_argument( "wrong row name" ) );
+
+ if( nb.size() != rows.size() )
+  throw( std::invalid_argument( "rows and nb sizes do not match" ) );
+
+ // first check if actually something has changed
+ FunctionValue shift = 0;
+ for( Index i = 0 ; i < rows.size() ; ++i )
+  if( nb[ i ] > v_b[ rows[ i ] ] ) {
+   if( shift == - C05FunctionMod::INFshift ) {
+    shift = C05FunctionMod::NaNshift;
+    break;
+    }
+   else
+    shift = C05FunctionMod::INFshift;
+   }
+  else
+  if( nb[ i ] < v_b[ rows[ i ] ] ) {
+   if( shift == C05FunctionMod::INFshift ) {
+    shift = C05FunctionMod::NaNshift;
+    break;
+    }
+   else
+    shift = - C05FunctionMod::INFshift;
+   }
+
+ if( shift == 0 )  // actually nothing is changing
+  return;          // cowardly (and silently) return
+
+ // actually change the constants
+ for( Index i = 0 ; i < rows.size() ; ++i )
+  v_b[ rows[ i ] ] = nb[ i ];
 
  f_value = - Inf<FunctionValue>();  // the function value has changed
 
@@ -584,10 +661,40 @@ void PolyhedralFunction::modify_constant( c_Index i , c_FunctionValue bi ,
 
  // issue the C05FunctionMod
  f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-				         C05FunctionMod::AlphaChanged ,
-			                 C05FunctionMod::NaNshift ,
-				         Observer::par2concern( issueMod ) ) ,
+					C05FunctionMod::AlphaChanged , shift ,
+					Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
+
+ }  // end( PolyhedralFunction::modify_constant )
+
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunction::modify_constant( c_Index i , c_FunctionValue bi ,
+					  c_ModParam issueMod )
+{
+ if( i >= v_A.size() )
+  throw( std::invalid_argument( "wrong row name" ) );
+
+ if( bi == v_b[ i ] )  // actually nothing is changing
+  return;              // cowardly (and silently) return
+
+ f_value = - Inf<FunctionValue>();  // the function value has changed
+
+ if( f_Observer && ( f_Observer->issue_mod( issueMod ) ) ) {
+  // check if the function is increasing or decreasing
+  FunctionValue shift = bi > v_b[ i ] ? C05FunctionMod::INFshift :
+                                      - C05FunctionMod::INFshift;
+  // actually change the constant
+  v_b[ i ] = bi;
+
+  // issue the C05FunctionMod
+  f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+					C05FunctionMod::AlphaChanged , shift ,
+					Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
+  }
+ else  // just do it
+  v_b[ i ] = bi;
 
  }  // end( PolyhedralFunction::modify_constant )
 

@@ -84,9 +84,9 @@
  * specific for each Block and R3 Block of its, and the base class provides
  * no general mechanism for it (besides the interface).
  *
- * \version 0.30
+ * \version 0.31
  *
- * \date 20 - 08 - 2019
+ * \date 23 - 08 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -2473,7 +2473,7 @@ class Block : public Observer {
   * The parameter issueMod decides if and how the BlockModAD is issued, as
   * described in Observer::make_par().
   *
-  * The removed Constraint are these whose (const) iterator is found in the
+  * The removed Constraint are these whose iterator is found in the
   * std::vector rmvd. Note that, if the BlockModAD is issued, these
   * Constraint are not immediately deleted; rather, they are added to a list
   * stored into the boost::any field of the BlockModAD object, so that they
@@ -2513,16 +2513,16 @@ class Block : public Observer {
 
  template<class Const>
  void remove_dynamic_constraints( std::list<Const> &list ,
-	       std::vector<typename std::list<Const>::const_iterator> &rmvd ,
-	       c_ModParam issueMod = eModBlck );
+	              std::vector<typename std::list<Const>::iterator> &rmvd ,
+		      c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// Like remove_dynamic_constraint*s*( Const ), just only one of them
 
  template<class Const>
  void remove_dynamic_constraint( std::list<Const> &list ,
-			   typename std::list<Const>::const_iterator &rmvd  ,
-			   c_ModParam issueMod = eModBlck );
+				 typename std::list<Const>::iterator rmvd  ,
+				 c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// removes a bunch of Constraint * from the given list
@@ -2553,7 +2553,7 @@ class Block : public Observer {
 
  template<class Const>
  void remove_dynamic_constraints( std::list<Const *> &list ,
-             std::vector<typename std::list<Const *>::const_iterator> &rmvd ,
+             std::vector<typename std::list<Const *>::iterator> &rmvd ,
 	     c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -2561,8 +2561,8 @@ class Block : public Observer {
 
  template<class Const>
  void remove_dynamic_constraint( std::list<Const *> &list ,
-                         typename std::list<Const *>::const_iterator &rmvd  ,
-			 c_ModParam issueMod = eModBlck );
+				 typename std::list<Const *>::iterator rmvd ,
+				 c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// removes a bunch of Variable from the given list
@@ -2579,10 +2579,10 @@ class Block : public Observer {
   * The parameter issueMod decides if and how the BlockModAD is issued, as
   * described in Observer::make_par().
   *
-  * The removed Variable are these whose (const) iterator is found in the
-  * std::vector rmvd. Note that, if the BlockModAD is issued, these Variable
-  * are not immediately deleted; rather, they are added to a list stored into
-  * the boost::any field of the BlockModAD object, so that they remain alive
+  * The removed Variable are these whose iterator is found in the std::vector
+  * rmvd. Note that, if the BlockModAD is issued, these Variable are not
+  * immediately deleted; rather, they are added to a list stored into the
+  * boost::any field of the BlockModAD object, so that they remain alive
   * until the last interested Solver had had the chance to use them to
   * perform the required changes. This also implies that the same memory
   * address cannot be used for new Variable (or anything), which also avoids
@@ -2639,16 +2639,18 @@ class Block : public Observer {
 
  template<class Var>
  void remove_dynamic_variables( std::list<Var> &list ,
-               std::vector<typename std::list<Var>::const_iterator> &rmvd  ,
-	       c_ModParam issueMod = eModBlck , c_ModParam = eModBlck );
+                       std::vector<typename std::list<Var>::iterator> &rmvd  ,
+	               c_ModParam issueMod = eModBlck ,
+		       c_ModParam issueindMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// Like remove_dynamic_variable*s*( Var ), just only one of them
 
  template<class Var>
  void remove_dynamic_variable( std::list<Var> &list ,
-                    typename std::list<Var>::const_iterator &rmvd ,
-	            c_ModParam issueMod = eModBlck , c_ModParam = eModBlck );
+			       typename std::list<Var>::iterator rmvd ,
+			       c_ModParam issueMod = eModBlck ,
+			       c_ModParam issueindMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// removes a bunch of Variable * from the given list
@@ -2679,16 +2681,18 @@ class Block : public Observer {
 
  template<class Var>
  void remove_dynamic_variables( std::list<Var *> &list ,
-        std::vector<typename std::list<Var *>::const_iterator> &rmvd ,
-	c_ModParam issueMod = eModBlck , c_ModParam issueindMod = eModBlck );
+		     std::vector<typename std::list<Var *>::iterator> &rmvd ,
+		     c_ModParam issueMod = eModBlck ,
+		     c_ModParam issueindMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// Like remove_dynamic_variable*s*( Var * ), just only one of them
 
  template<class Var>
  void remove_dynamic_variable( std::list< Var *> &list ,
-        typename std::list<Var *>::const_iterator &rmvd ,
-	c_ModParam issueMod = eModBlck , c_ModParam issueindMod = eModBlck );
+			       typename std::list<Var *>::iterator rmvd ,
+			       c_ModParam issueMod = eModBlck ,
+			       c_ModParam issueindMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// change the Objective of the Block
@@ -5895,9 +5899,9 @@ class BlockSolverConfig : public Configuration
 /*---------------------- INLINE METHODS IMPLEMENTATION ---------------------*/
 /*--------------------------------------------------------------------------*/
 
-template<class Const>
-void Block::add_dynamic_constraints( std::list<Const> &list ,
-                                     std::list<Const> &newlist ,
+template< class Const >
+void Block::add_dynamic_constraints( std::list< Const > &list ,
+                                     std::list< Const > &newlist ,
 				     c_ModParam issueMod )
 {
  // ensure Const is a derivate of Constraint
@@ -5940,9 +5944,9 @@ void Block::add_dynamic_constraints( std::list<Const> &list ,
 
 /*--------------------------------------------------------------------------*/
 
-template<class Const>
-void Block::add_dynamic_constraints( std::list<Const *> &list ,
-                                     std::list<Const *> &newlist ,
+template< class Const >
+void Block::add_dynamic_constraints( std::list< Const * > &list ,
+                                     std::list< Const * > &newlist ,
 				     c_ModParam issueMod )
 {
  // ensure Const is a derivate of Constraint
@@ -5985,8 +5989,8 @@ void Block::add_dynamic_constraints( std::list<Const *> &list ,
 /*--------------------------------------------------------------------------*/
 
 template<class Var>
-void Block::add_dynamic_variables( std::list<Var> &list ,
-				   std::list<Var> &newlist ,
+void Block::add_dynamic_variables( std::list< Var > &list ,
+				   std::list< Var > &newlist ,
 				   c_ModParam issueMod )
 {
  // ensure Var is a derivate of Variables
@@ -6029,8 +6033,8 @@ void Block::add_dynamic_variables( std::list<Var> &list ,
 /*--------------------------------------------------------------------------*/
 
 template<class Var>
-void Block::add_dynamic_variables( std::list<Var *> &list ,
-                                   std::list<Var *> &newlist ,
+void Block::add_dynamic_variables( std::list< Var * > &list ,
+                                   std::list< Var * > &newlist ,
 				   c_ModParam issueMod )
 {
  // ensure Var is a derivate of Variable
@@ -6072,10 +6076,10 @@ void Block::add_dynamic_variables( std::list<Var *> &list ,
 
 /*--------------------------------------------------------------------------*/
 
-template<class Const>
-void Block::remove_dynamic_constraints( std::list<Const> &list ,
-               std::vector<typename std::list<Const>::const_iterator> &rmvd ,
-	       c_ModParam issueMod )
+template< class Const >
+void Block::remove_dynamic_constraints( std::list< Const > &list ,
+                  std::vector< typename std::list< Const >::iterator > &rmvd ,
+		  c_ModParam issueMod )
 {
  // ensure Const is a derivate of Constraint
  static_assert( std::is_base_of< Constraint , Const >::value ,
@@ -6112,16 +6116,16 @@ void Block::remove_dynamic_constraints( std::list<Const> &list ,
   }
  else
   for( auto & el : rmvd )
-   list.remove( el );
+   list.erase( el );
 
  }  // end( Block::remove_dynamic_constraints( Const ) )
 
 /*--------------------------------------------------------------------------*/
 
-template<class Const>
-void Block::remove_dynamic_constraint( std::list<Const> &list ,
-                            typename std::list<Const>::const_iterator &rmvd ,
-	                    c_ModParam issueMod )
+template< class Const >
+void Block::remove_dynamic_constraint( std::list< Const > &list ,
+                                  typename std::list< Const >::iterator rmvd ,
+	                          c_ModParam issueMod )
 {
  // ensure Const is a derivate of Constraint
  static_assert( std::is_base_of< Constraint , Const >::value ,
@@ -6150,16 +6154,16 @@ void Block::remove_dynamic_constraint( std::list<Const> &list ,
   add_Modification( mod , Observer::par2chnl( issueMod ) );
   }
  else
-  list.remove( rmvd );
+  list.erase( rmvd );
 
  }  // end( Block::remove_dynamic_constraint( Const ) )
 
 /*--------------------------------------------------------------------------*/
 
-template<class Const>
-void Block::remove_dynamic_constraints( std::list<Const *> &list ,
-             std::vector<typename std::list<Const *>::const_iterator> &rmvd ,
-	     c_ModParam issueMod )
+template< class Const >
+void Block::remove_dynamic_constraints( std::list< Const * > &list ,
+                std::vector< typename std::list< Const * >::iterator > &rmvd ,
+	        c_ModParam issueMod )
 {
  // ensure Const is a derivate of Constraint
  static_assert( std::is_base_of< Constraint , Const >::value ,
@@ -6199,10 +6203,10 @@ void Block::remove_dynamic_constraints( std::list<Const *> &list ,
 
 /*--------------------------------------------------------------------------*/
 
-template<class Const>
-void Block::remove_dynamic_constraint( std::list<Const *> &list ,
-                          typename std::list<Const *>::const_iterator &rmvd ,
-			  c_ModParam issueMod )
+template< class Const >
+void Block::remove_dynamic_constraint( std::list< Const * > &list ,
+			       typename std::list< Const * >::iterator rmvd ,
+			       c_ModParam issueMod )
 {
  // ensure Const is a derivate of Constraint
  static_assert( std::is_base_of< Constraint , Const >::value ,
@@ -6237,10 +6241,10 @@ void Block::remove_dynamic_constraint( std::list<Const *> &list ,
 
 /*--------------------------------------------------------------------------*/
 
-template<class Var>
-void Block::remove_dynamic_variables( std::list<Var> &list ,
-                 std::vector<typename std::list<Var>::const_iterator> &rmvd ,
-		 c_ModParam issueMod , c_ModParam issueindMod )
+template< class Var >
+void Block::remove_dynamic_variables( std::list< Var > &list ,
+                    std::vector< typename std::list< Var >::iterator > &rmvd ,
+		    c_ModParam issueMod , c_ModParam issueindMod )
 {
  // ensure Var is a derivate of Variable
  static_assert( std::is_base_of< Variable , Var >::value ,
@@ -6282,10 +6286,11 @@ void Block::remove_dynamic_variables( std::list<Var> &list ,
 
 /*--------------------------------------------------------------------------*/
 
-template<class Var>
-void Block::remove_dynamic_variable( std::list<Var> &list ,
-                             typename std::list< Var>::const_iterator &rmvd ,
-			     c_ModParam issueMod , c_ModParam issueindMod )
+template< class Var >
+void Block::remove_dynamic_variable( std::list< Var > &list ,
+				    typename std::list< Var >::iterator rmvd ,
+				    c_ModParam issueMod ,
+				    c_ModParam issueindMod )
 {
  // ensure Var is a derivate of Variable
  static_assert( std::is_base_of< Variable , Var >::value ,
@@ -6321,10 +6326,10 @@ void Block::remove_dynamic_variable( std::list<Var> &list ,
 
 /*--------------------------------------------------------------------------*/
 
-template<class Var>
-void Block::remove_dynamic_variables( std::list<Var *> &list ,
-              std::vector<typename std::list<Var *>::const_iterator> &rmvd  ,
-              c_ModParam issueMod , c_ModParam issueindMod )
+template< class Var >
+void Block::remove_dynamic_variables( std::list< Var * > &list ,
+                 std::vector< typename std::list< Var * >::iterator > &rmvd  ,
+                 c_ModParam issueMod , c_ModParam issueindMod )
 {
  // ensure Var is a derivate of Variable
  static_assert( std::is_base_of< Variable , Var >::value ,
@@ -6365,10 +6370,11 @@ void Block::remove_dynamic_variables( std::list<Var *> &list ,
 
 /*--------------------------------------------------------------------------*/
 
-template<class Var>
-void Block::remove_dynamic_variable( std::list< Var *> &list ,
-                            typename std::list<Var *>::const_iterator &rmvd ,
-			    c_ModParam issueMod , c_ModParam issueindMod )
+template< class Var >
+void Block::remove_dynamic_variable( std::list< Var * > &list ,
+				 typename std::list< Var * >::iterator rmvd ,
+				 c_ModParam issueMod ,
+				 c_ModParam issueindMod )
 {
  // ensure Var is a derivate of Variable
  static_assert( std::is_base_of< Variable , Var >::value ,

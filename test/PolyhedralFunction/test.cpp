@@ -16,7 +16,7 @@
  *
  * \version 0.10
  *
- * \date 23 - 07 - 2019
+ * \date 21 - 08 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -49,7 +49,7 @@
 /*-------------------------------- MACROS ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#define LOG_LEVEL 2
+#define LOG_LEVEL 1
 // 0 = only pass/fail
 // 1 = result of each test
 // 2 = print data
@@ -59,6 +59,18 @@
 #else
  #define LOG1( x )
 #endif
+
+#define PANICMSG { \
+                   cout << endl << "something very bad happened!" << endl; \
+		   exit( 1 ); \
+                   }
+
+#define PANIC( x ) if( ! ( x ) ) PANICMSG
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+#define DYNAMIC_VARS 0
+// if 1, half of the variables are dynamic
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------------- USING -----------------------------------*/
@@ -70,8 +82,6 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------------------------------------------------*/
 /*-------------------------------- TYPES -----------------------------------*/
 /*--------------------------------------------------------------------------*/
-
-typedef unsigned int Index;
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CONSTANTS --------------------------------*/
@@ -86,6 +96,27 @@ const double scale = 10;
 AbstractBlock * LPBlock;      // the problem expressed as an LP
 
 AbstractBlock * NDOBlock;     // the problem expressed via PolyhedralFunction
+
+double lb = - 1000;           // a tentative LB to detect unbounded instances
+
+Block::Index nvar = 10;       // number of variables
+#if DYNAMIC_VARS > 0
+ Block::Index nsvar;          // number of static variables
+ Block::Index ndvar;          // number of dynamic variables
+#else
+ #define nsvar nvar           // all variables are static
+#endif
+
+ColVariable * vLP;            // pointer to v LP variable
+
+std::vector< ColVariable > * xLP;  // pointer to (static) x LP variables
+#if DYNAMIC_VARS > 0
+ std::list< ColVariable > * xLPd;  // pointer to (dynamic) x LP variables
+#endif
+
+PolyhedralFunction::MultiVector A;
+
+std::vector < Function::FunctionValue > b;
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ FUNCTIONS ---------------------------------*/
@@ -109,7 +140,89 @@ static inline double rndfctr( void )
 
 /*--------------------------------------------------------------------------*/
 
-static inline bool SolveBoth( void ) 
+static void GenerateA( Block::Index nr , Block::Index nc )
+{
+ A.resize( nr );
+
+ for( auto & Ai : A ) {
+  Ai.resize( nc );
+  for( auto & aij : Ai )
+   aij = scale * ( 2 * drand48() - 1 );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+static void Generateb( Block::Index nr )
+{
+ b.resize( nr );
+
+ for( auto & bj : b )
+  bj = scale * nvar * ( 2 * drand48() - 1 ) / 4;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+static void GenerateAb( Block::Index nr , Block::Index nc )
+{
+ // rationale: the solution x^* will be more or less the solution of some
+ // square sub-system A_B x = b_B. We want x^* to be "well scaled", i.e.,
+ // the entries to be ~= 1 (in absolute value). The average of each row A_i
+ // is 0, the maximum (and minimum) expected value is something like
+ // scale * nvars / 2. So we take each b_j in +- scale * nvars / 4
+
+ GenerateA( nr , nc );
+ Generateb( nr );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+static std::vector< Block::Index > && GenerateRand( Block::Index m ,
+						    Block::Index k )
+{
+ // generate a sorted random k-vector of unique integers in 0 ... m - 1
+
+ std::vector< Block::Index > rnd( m );
+ std::iota( rnd.begin() , rnd.end() , 1 );
+
+ for( Block::Index i = 0 ; i < k ; i++ )
+  swap( rnd[ i ] , rnd[ i + drand48() * ( m - i ) ] );
+
+ rnd.resize( k );
+ sort( rnd.begin() , rnd.end() );
+
+ return( std::move( rnd ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+static void ConstructLPConstraint( Block::c_Index i , FRowConstraint & ci ,
+				   const bool setblock = true )
+{
+ // construct constraint ci out of A[ i ] and b[ i ]:
+ // the constraint is b[ i ] <= vLP - \sum_j Ai[ j ] * xLP[ j ] <= INF
+ ci.set_lhs( b[ i ] );
+ ci.set_rhs( SMSpp_di_unipi_it::Inf< FRowConstraint::RHSValue >() );
+ LinearFunction::v_coeff_pair vars;
+ vars.push_back( std::make_pair( vLP , 1 ) );
+ for( Block::Index j = 0 ; j < nsvar ; ++j ) {
+  if( A[ i ][ j ] != 0 )
+   vars.push_back( std::make_pair( &((*xLP)[ j ] ) , - A[ i ][ j ] ) );
+  #if DYNAMIC_VARS > 0
+   for( Block::Index j = 0 ; j < ndvar ; ++j )
+    if( A[ i ][ nsvar + j ] != 0 )
+     vars.push_back( std::make_pair( &((*xLPd)[ j ] ) ,
+				     - A[ i ][ nsvar + j ] ) );
+  #endif
+  ci.set_function( new LinearFunction( std::move( vars ) ) );
+  if( setblock )
+   ci.set_Block( LPBlock );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+static bool SolveBoth( void ) 
 {
  try {
   // solve the LPBlock- - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -131,9 +244,22 @@ static inline bool SolveBoth( void )
     }
    }
 
+  if( ( rtrnLP >= Solver::kOK ) && ( rtrnLP < Solver::kError ) &&
+      ( rtrnNDO == Solver::kUnbounded ) ) {
+   /* Weird case: the LP found an optimal solution but the NDO declared the
+    * problem unbounded below. This may be because the tentative lb is too
+    * high, check it this actually is the case and if so declare the
+    * run a success (but also decrease the lb). */
+   if( slvrNDO->get_ub() <= lb * ( 1 + 1e-9 ) ) {
+    LOG1( "OK(?lb?)" << endl );
+    lb *= 2;
+    return( false );
+    }
+   }
+
   if( ( rtrnLP == Solver::kInfeasible ) &&
       ( rtrnNDO == Solver::kInfeasible ) ) {
-   LOG1( "OK(?e?)" << endl );
+    LOG1( "OK(?e?)" << endl );
     return( false );
     }
 
@@ -190,12 +316,11 @@ int main( int argc , char **argv )
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  long int seed = 1;
- Index wchg = 127;
- Index nvar = 10;
+ Block::Index wchg = 63;
  double dens = 4;  
  double p_change = 0.5;
- Index n_change = 10;
- Index n_repeat = 0;
+ Block::Index n_change = 10;
+ Block::Index n_repeat = 0;
 
  switch( argc ) {
   case( 8 ): Str2Sthg( argv[ 7 ] , p_change );
@@ -205,17 +330,33 @@ int main( int argc , char **argv )
   case( 4 ): Str2Sthg( argv[ 3 ] , nvar );
   case( 3 ): Str2Sthg( argv[ 2 ] , wchg );
   case( 2 ): Str2Sthg( argv[ 1 ] , seed );
+             break;
   default: cerr << "Usage: " << argv[ 0 ] <<
-	   " [seed wchg nvar dens #rounds #chng %chng]"
+  #if DYNAMIC_VARS > 0
+	   " seed [wchg nvar dens #rounds #chng %chng]"
+  #else
+	   " seed [wchg nvar dens #rounds rchng]"
+  #endif
+ 		<< endl <<
            "       wchg: what to change, coded bit-wise "
 		<< endl <<
-           "             0 = cost, 1 = cap, 2 = dfct, 3 = o.arc, 4 = c.arc"
+           "             0 = add rows, 1 = delete rows "
 		<< endl <<
-           "             5 = add arc, 6 = delete arc"
+           "             2 = modify rows, 3 = modify constants"
+  #if DYNAMIC_VARS > 0  
+		<< endl <<
+           "             4 = add variables rows, 5 = delete variables"
+  #endif
 	        << endl <<
            "       nvar: number of variables [10]"
 	        << endl <<
            "       dens: rows / variables [4]"
+	        << endl <<
+           "       #rounds: how many iterations [80]"
+	        << endl <<
+           "       #chng: number changes [10]"
+	        << endl <<
+           "       %chng: probability of changing [50%]"
 	        << endl;
 	   return( 1 );
   }
@@ -225,7 +366,12 @@ int main( int argc , char **argv )
   exit( 1 );
   }
 
- Index m = nvar * dens;
+ #if DYNAMIC_VARS > 0
+  nsvar = nvar / 2;      // half of the variables are dynamic
+  ndvar = nvar - nsvar;  // the other half are static
+ #endif
+
+ Block::Index m = nvar * dens;
  if( m < 1 ) {
   cout << "error: dens too small";
   exit( 1 );
@@ -236,30 +382,14 @@ int main( int argc , char **argv )
  // constructing the data of the problem- - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // construct the matrix m x nvars matrix A and the m-vector b
- //
- // rationale: the solution x^* will be more or less the solution of some
- // square sub-system A_B x = b_B. We want x^* to be "well scaled", i.e.,
- // the entries to be ~= 1 (in absolute value). The average of each row A_i
- // is 0, the maximum (and minimum) expected value is something like
- // scale * nvars / 2. So we take each b_j in +- scale * nvars / 4
  
- PolyhedralFunction::MultiVector A( m );
- std::vector < Function::FunctionValue > b( m );
-
- for( auto & Ai : A ) {
-  Ai.resize( nvar );
-  for( auto & aij : Ai )
-   aij = scale * ( 2 * drand48() - 1 );
-  }
-
- for( auto & bj : b )
-  bj = scale * nvar * ( 2 * drand48() - 1 ) / 4; 
+ GenerateAb( m , nvar );
 
  #if( LOG_LEVEL >= 2 )
   cout << "n = " << nvar << ", m = " << m << endl;
-  for( Index i = 0 ; i < m ; ++i ) {
+  for( Block::Index i = 0 ; i < m ; ++i ) {
    cout << "A[ " << i << " ] = [ ";
-   for( Index j = 0 ; j < nvar ; ++j )
+   for( Block::Index j = 0 ; j < nvar ; ++j )
     cout << A[ i ][ j ] << " ";
    cout << " ], b[ " << i << " ] = " << b[ i ] << endl;
    }
@@ -276,44 +406,33 @@ int main( int argc , char **argv )
   LPBlock = new AbstractBlock();
 
   // construct the Variable
-  /*!!
-  auto xLP = new std::list<ColVariable>( nvars );
-  !!*/
-  auto xLP = new std::vector<ColVariable>( nvar );
+  xLP = new std::vector< ColVariable >( nsvar );
+  #if DYNAMIC_VARS > 0
+   xLPd = new std::list< ColVariable >( ndvar );
+   for( auto & xi : *xLPd )
+    xi.set_Block( LPBlock );
+  #endif
   for( auto & xi : *xLP )
    xi.set_Block( LPBlock );
 
-  auto vLP = new ColVariable;
+  vLP = new ColVariable;
   vLP->set_Block( LPBlock );
 
   // construct the Constraint
-  auto Ait = A.begin();
-  auto ALP = new std::list<FRowConstraint>( m );
-  for( auto & ci : *ALP ) {
-   // the constraint is 0 <= vLP - \sum_j Ai[ j ] * xLP[ j ] <= INF
-   ci.set_rhs( SMSpp_di_unipi_it::Inf<FRowConstraint::RHSValue>() );
-   LinearFunction::v_coeff_pair vars;
-   vars.push_back( std::make_pair( vLP , 1 ) );
-   auto xit = xLP->begin();
-   for( auto aij : *Ait ) {
-    if( aij != 0 )
-     vars.push_back( std::make_pair( &(*xit) , - aij ) );
-    ++xit;
-    }
-   ci.set_function( new LinearFunction( std::move( vars ) ) );
-   ci.set_Block( LPBlock );
-   ++Ait;
-   }
-
+  auto ALP = new std::list< FRowConstraint >( m );
+  auto ALPit = ALP->begin();
+  for( Block::Index i = 0 ; i < m ; )
+   ConstructLPConstraint( i++ , *(ALPit++) );
+  
   // construct the Objective
   auto objLP = new FRealObjective();
   objLP->set_function( new LinearFunction( { std::make_pair( vLP , 1 ) } ) );
 
   // now set the Variable, Constraint and Objective in the AbstractBlock
   LPBlock->add_static_variable( *vLP );
-  /*!!
-  LPBlock->add_dynamic_variable( *xLP );
-  !!*/
+  #if DYNAMIC_VARS > 0
+   LPBlock->add_dynamic_variable( *xLPd );
+  #endif
   LPBlock->add_static_variable( *xLP );
   LPBlock->add_dynamic_constraint( *ALP );
   LPBlock->set_objective( objLP );
@@ -327,10 +446,12 @@ int main( int argc , char **argv )
   NDOBlock = new AbstractBlock();
 
   // construct the Variable
-  /*!!
-  auto xNDO = new std::list<ColVariable>( nvar );
-    !!*/
-  auto xNDO = new std::vector<ColVariable>( nvar );
+  auto xNDO = new std::vector< ColVariable >( nsvar );
+  #if DYNAMIC_VARS > 0
+   auto xNDOd = new std::list< ColVariable >( ndvar );
+   for( auto & xi : *xNDOd )
+    xi.set_Block( LPBlock );
+  #endif
   PolyhedralFunction::VarVector vars( nvar );
   auto vit = vars.begin();
   for( auto & xi : *xNDO ) {
@@ -338,9 +459,9 @@ int main( int argc , char **argv )
    xi.set_Block( NDOBlock );
    }
 
-  /*!!
-  std::sort( vars.begin() , vars.end() );
-    !!*/
+  #if DYNAMIC_VARS > 0
+   std::sort( vars.begin() , vars.end() );
+  #endif
 
   // construct the Objective
   auto objNDO = new FRealObjective();
@@ -349,10 +470,10 @@ int main( int argc , char **argv )
 						std::move( b ) ) );
 
   // now set the Variable and Objective in the AbstractBlock
-  /*!!
-  NDOBlock->add_dynamic_variable( *xNDO );
-    !!*/
   NDOBlock->add_static_variable( *xNDO );
+  #if DYNAMIC_VARS > 0
+   NDOBlock->add_dynamic_variable( *xNDOd );
+  #endif
   NDOBlock->set_objective( objNDO );
   }
 
@@ -380,334 +501,298 @@ int main( int argc , char **argv )
  // main loop - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // now, for n_repeat times:
- // - up tp n_change rows are added
- // - ...
+ // - up to n_change rows are added
+ // - up to n_change rows are deleted
+ // - up to n_change rows are modified
+ // - up to n_change rows are modified
  //
  // then the two problems are re-solved
 
  while( n_repeat-- ) {
 
-  cout << "Changing: ";
+  LOG1( "Changes: ");
 
   // add rows - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-  /*!!
   if( ( wchg & 1 ) && ( drand48() <= p_change ) ) {
-   }
-   !!*/
+   Block::Index tochange = max( double( 1 ) , drand48() * n_change );
+   if( tochange ) {
+    LOG1( "added " << tochange << " rows - " );
 
-  /*!!
-  // change capacities- - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    GenerateAb( tochange , nvar );
+
+    // add them to the LP
+    auto SV = LPBlock->get_static_variables();
+    PANIC( ( SV.size() == 2 ) );
+    vLP = boost::any_cast< ColVariable * >( SV[ 0 ] );
+    PANIC( vLP );
+    xLP = boost::any_cast< std::vector< ColVariable > * >( SV[ 1 ] );
+    PANIC( xLP );
+    #if DYNAMIC_VARS > 0
+     auto DV = LPBlock->get_dynamic_variables();
+     PANIC( DV.size() );
+     xLPd = boost::any_cast< std::list< ColVariable > * >( DV[ 0 ] );
+     PANIC( xLPd );
+    #endif
+    std::list< FRowConstraint > nc( tochange );
+    auto ncit = nc.begin();
+    for( Block::Index i = 0 ; i < tochange ; )
+     ConstructLPConstraint( i++ , *(ncit++) );
+    auto DC = LPBlock->get_dynamic_constraints();
+    PANIC( DC.size() );
+    auto cnst = boost::any_cast< std::list< FRowConstraint > * >( DC[ 0 ] );
+    PANIC( cnst );
+    LPBlock->add_dynamic_constraints( *cnst , nc );
+
+    // add them to the NDO
+    auto NDOobj = dynamic_cast< FRealObjective * >( NDOBlock->get_objective() );
+    PANIC( NDOobj );
+    auto PF = dynamic_cast< PolyhedralFunction * >( NDOobj );
+    PANIC( PF );
+     
+    if( tochange == 1 )
+     PF->add_row( std::move( A[ 0 ] ) , b[ 0 ] );
+    else
+     PF->add_rows( std::move( A ) , b );
+
+    // update m
+    m += tochange;
+
+    // sanity checks
+    PANIC( m == PF->get_A().size() );
+    PANIC( m == PF->get_b().size() );
+    PANIC( m == cnst->size() );
+    }
+   }
+
+  // delete rows- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   if( ( wchg & 2 ) && ( drand48() <= p_change ) ) {
-   MCFBlock::Index tochange = max( double( 1 ) , drand48() * n_change );
-   cout << tochange << " capacit";
+   Block::Index tochange = max( double( 1 ) , drand48() * n_change );
+   if( tochange ) {
+    LOG1( "deleted " << tochange << " rows - " );
 
-   if( tochange == 1 ) {
-    MCFBlock::Index arc = MCFBlock::Index( drand48() * ( m - 1 ) );
-    MCFBlock::CNumber newcap = mcf->MCFUCap( arc ) * rndfctr();
-    mcf->ChgUCap( arc , newcap );
+    std::vector<Function::Index> nms = GenerateRand( tochange , m );
 
-    if( ( mode & 16 ) && ( drand48() < 0.5 ) ) {
-     // change via abstract representation
-     cout << "y(a) - ";
-     mMCFB->i2p_ub( arc )->set_rhs( newcap );
-     }
-    else {  // change via call to chg_* method
-     mMCFB->chg_ucap( newcap , arc );
-     cout << "y - ";
-     }
-    }
-   else {
-    MCFBlock::Vec_FNumber newcaps( tochange );
-
-    // in 50% of the cases do a ranged change, in the others a sparse change
-    if( drand48() <= 0.5 ) {
-     MCFBlock::Index strt = drand48() * ( m - tochange );
-     MCFBlock::Index stp = strt + tochange;
-     for( MCFBlock::Index i = 0 ; i < tochange ; ++i )
-      newcaps[ i ] = mcf->MCFUCap( i + strt ) * rndfctr();
-     mcf->ChgUCaps( newcaps.data() , nullptr , strt , stp );
-
-     if( ( mode & 16 ) && ( drand48() < 0.5 ) ) {
-      // change via abstract representation
-      cout << "ies(a,r) - ";
-      for( MCFBlock::Index i = 0 ; i < tochange ; ++i )
-       mMCFB->i2p_ub( i + strt )->set_rhs( newcaps[ i ] );
-      }
-     else {  // change via call to chg_* method
-      mMCFB->chg_ucaps( newcaps.begin() , strt , stp );
-      cout << "ies(r) - ";
-      }
-     }
+    // remove them from the LP
+    auto DC = LPBlock->get_dynamic_constraints();
+    PANIC( DC.size() );
+    auto cnst = boost::any_cast< std::list< FRowConstraint > * >( DC[ 0 ] );
+    PANIC( cnst );
+    if( tochange == 1 )
+     LPBlock->remove_dynamic_constraint( *cnst , std::next( cnst->begin() ,
+							    nms[ 0 ] ) );
     else {
-     MCFBlock::Vec_Index nms( m + 1 );
-     for( MCFBlock::Index i = 0 ; i < m ; i++ )
-      nms[ i ] = i;
-
-     for( MCFBlock::Index i = 0 ; i < tochange ; i++ ) {
-      swap( nms[ i ] , nms[ i + drand48() * ( m - i ) ] );
-      newcaps[ i ] = mcf->MCFUCap( nms[ i ]  ) * rndfctr();
+     std::vector< std::list< FRowConstraint >::iterator > itrs( tochange );
+     Block::Index prev = 0;
+     auto cit = cnst->begin();
+     for( Block::Index i = 0 ; i < tochange ; ) {
+      itrs[ i ] = cit = std::next( cit , nms[ i ] - prev );
+      prev = nms[ i++ ];
       }
 
-     auto end = nms.begin() + tochange;
-     sort( nms.begin() , end );
-     *end = OPTtypes_di_unipi_it::Inf<Index>();
-     mcf->ChgUCaps( newcaps.data() , nms.data() );
-     nms.resize( tochange );
-
-     if( ( mode & 16 ) && ( drand48() < 0.5 ) ) {
-      // change via abstract representation
-      cout << "ies(a,s) - ";
-      for( MCFBlock::Index i = 0 ; i < tochange ; ++i )
-       mMCFB->i2p_ub( nms[ i ] )->set_rhs( newcaps[ i ] );
-      }
-     else {  // change via call to chg_* method
-      mMCFB->chg_ucaps( newcaps.begin() , std::move( nms ) , true );
-      cout << "ies(s) - ";
-      }
+     LPBlock->remove_dynamic_constraints( *cnst , itrs );
      }
+    
+    // remove them from the NDO
+    auto NDOobj = dynamic_cast< FRealObjective * >( NDOBlock->get_objective() );
+    PANIC( NDOobj );
+    auto PF = dynamic_cast< PolyhedralFunction * >( NDOobj );
+    PANIC( PF );
+     
+    if( tochange == 1 )
+     PF->delete_row( nms[ 0 ] );
+    else
+     PF->delete_rows( nms );
+
+    // update m
+    m -= tochange;
+
+    // sanity checks
+    PANIC( m == PF->get_A().size() );
+    PANIC( m == PF->get_b().size() );
+    PANIC( m == cnst->size() );
     }
-   }  // end( if( change capacities ) )
-   !!*/
+   }
 
-  // change deficits- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // modify rows- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-  /*!!
   if( ( wchg & 4 ) && ( drand48() <= p_change ) ) {
-   cout << "2 deficits";
+   Block::Index tochange = max( double( 1 ) , drand48() * n_change );
+   if( tochange ) {
+    LOG1( "modified " << tochange << " rows - " );
 
-   Index posn;
-   Index negn;
-   FNumber posd;
-   FNumber negd;
+    GenerateAb( tochange , nvar );
 
-   if( nzdfct ) {  // if there are nonzero deficits
-    MCFBlock::Vec_FNumber dfcts( n );
-    mcf->MCFDfcts( dfcts.data() );
+    std::vector<Function::Index> nms = GenerateRand( tochange , m );
 
-    do
-     posn = Index( drand48() * n );  // select node with positive
-    while( dfcts[ posn ] <= 0 );               // deficit (one must exist)
-    posd = dfcts[ posn ];
+    // modify them in the LP
+    auto SV = LPBlock->get_static_variables();
+    PANIC( ( SV.size() == 2 ) );
+    vLP = boost::any_cast< ColVariable * >( SV[ 0 ] );
+    PANIC( vLP );
+    xLP = boost::any_cast< std::vector< ColVariable > * >( SV[ 1 ] );
+    PANIC( xLP );
+    #if DYNAMIC_VARS > 0
+     auto DV = LPBlock->get_dynamic_variables();
+     PANIC( DV.size() );
+     xLPd = boost::any_cast< std::list< ColVariable > * >( DV[ 0 ] );
+     PANIC( xLPd );
+    #endif
+    auto DC = LPBlock->get_dynamic_constraints();
+    PANIC( DC.size() );
+    auto cnst = boost::any_cast< std::list< FRowConstraint > * >( DC[ 0 ] );
+    PANIC( cnst );
 
-    do
-     negn = Index( drand48() * n );  // select node with negative
-    while( dfcts[ negn ] >= 0 );               // deficit (one must exist)
-    negd = dfcts[ negn ];
+    Block::Index prev = 0;
+    auto cit = cnst->begin();
+    for( Block::Index i = 0 ; i < tochange ; ) {
+     cit = std::next( cit , nms[ i ] - prev );
+     prev = nms[ i ];
+     ConstructLPConstraint( i++ , *cit );
+     }
+
+    // modify them in the NDO
+    auto NDOobj = dynamic_cast< FRealObjective * >( NDOBlock->get_objective() );
+    PANIC( NDOobj );
+    auto PF = dynamic_cast< PolyhedralFunction * >( NDOobj );
+    PANIC( PF );
+     
+    if( tochange == 1 )
+     PF->modify_row( nms[ 0 ] , std::move( A[ 0 ] ) , b[ 0 ] );
+    else
+     PF->modify_rows( nms , std::move( A ) , b );
     }
-   else {
-    posn = Index( drand48() * n );   // just select at random
-    negn = Index( drand48() * n );
-    posd = negd = 0;
-    }
+   }
 
-   FNumber Dlt = u_avg * 2 * drand48();
-   if( drand48() <= 0.5 ) {  // in 50% of cases up, in 50% of cases down
-    posd += Dlt;
-    negd -= Dlt;
-    }
-   else {
-    Dlt = min( Dlt , max( max( posd , - negd ) / 2 , double( 1 ) ) );
-    posd -= Dlt;
-    negd += Dlt;
-    }
+  // modify constants - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-   mcf->ChgDfct( posn , posd );
-   mcf->ChgDfct( negn , negd );
-
-   if( ( mode & 16 ) && ( drand48() < 0.5 ) ) {
-    // change via abstract representation
-    cout << "(a)";
-    mMCFB->i2p_e( posn )->set_both( posd );
-    mMCFB->i2p_e( negn )->set_both( negd );
-    }
-   else {  // change via call to chg_* method
-    mMCFB->chg_dfct( posd , posn );
-    mMCFB->chg_dfct( negd , negn );
-    }
-
-   cout << " - ";
-
-   }  // end( change deficits )
-   !!*/
-
-  // closing arcs- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-  /*!!
   if( ( wchg & 8 ) && ( drand48() <= p_change ) ) {
-   MCFBlock::Index changed = 0;
+   Block::Index tochange = max( double( 1 ) , drand48() * n_change );
+   if( tochange ) {
+    LOG1( "modified " << tochange << " constants - " );
 
-   MCFBlock::Vec_Index nms( n_change );
-   for( MCFBlock::Index i = mMCFB->get_NStaticArcs() ;
-	i < mMCFB->get_NArcs() ; ++i ) {
-    if( mcf->IsDeletedArc( i ) )
-     continue;
-    if( mcf->IsClosedArc( i ) )
-     continue;
-    if( drand48() <= 0.5 )
-     continue;
-    
-    nms[ changed++ ] = i;
-    mcf->CloseArc( i );
+    Generateb( tochange );
 
-    if( changed >= n_change )
-     break;
-    }
+    std::vector<Function::Index> nms = GenerateRand( tochange , m );
 
-   if( changed ) {
-    nms.resize( changed );
-    cout << changed << " close";
+    // change them in the LP
+    auto DC = LPBlock->get_dynamic_constraints();
+    PANIC( DC.size() );
+    auto cnst = boost::any_cast< std::list< FRowConstraint > * >( DC[ 0 ] );
+    PANIC( cnst );
 
-    if( ( mode & 16 ) && ( drand48() < 0.5 ) ) {
-     // change via abstract representation
-     cout << "(a)";
-     for( auto i : nms ) {
-      auto x = mMCFB->i2p_x( i );
-      x->set_value( 0 );
-      x->is_fixed( true );
-      }
+    Block::Index prev = 0;
+    auto cit = cnst->begin();
+    for( Block::Index i = 0 ; i < tochange ; ) {
+     cit = std::next( cit , nms[ i ] - prev );
+     prev = nms[ i ];
+     (*cit).set_lhs( b[ i++ ] );
      }
-    else  // change via call to chg_* method
-     mMCFB->close_arcs( std::move( nms ) );
 
-    cout << " - ";
+    // modify them in the NDO
+    auto NDOobj = dynamic_cast< FRealObjective * >( NDOBlock->get_objective() );
+    PANIC( NDOobj );
+    auto PF = dynamic_cast< PolyhedralFunction * >( NDOobj );
+    PANIC( PF );
+     
+    if( tochange == 1 )
+     PF->modify_constant( nms[ 0 ] , b[ 0 ] );
+    else
+     PF->modify_constants( nms , b );
     }
    }
-   !!*/
 
-  // re-opening arcs - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // add variables- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // before really going down to this, one issue should be clarified:
+  // IT IS POSSIBLE TO KEEP THE LISTS OF DYNAMIC VARIABLES ORDERED??
+  // CURRENTLY IT IS NOT, BUT IN THIS CASE IT WOULD MOST DEFINITELY BE
+  // USEFUL - FOR Variable, BUT *NOT* FOR Constraint. SO, IF THE
+  // MECHANISM IS ADDED, IT SHOULD BE OPTIONAL (AS WELL AS UNOBTRUSIVE)
 
-  /*!!
+  #if DYNAMIC_VARS > 0
   if( ( wchg & 16 ) && ( drand48() <= p_change ) ) {
-   MCFBlock::Index changed = 0;
+   Block::Index tochange = max( double( 1 ) , drand48() * n_change );
+   if( tochange ) {
+    LOG1( "added " << tochange << " variables - " );
 
-   MCFBlock::Vec_Index nms( n_change );
-   for( MCFBlock::Index i = mMCFB->get_NStaticArcs() ;
-	i < mMCFB->get_NArcs() ; ++i ) {
-    if( mcf->IsDeletedArc( i ) )
-     continue;
-    if( ! mcf->IsClosedArc( i ) )
-     continue;
-    if( drand48() <= 0.5 )
-     continue;
-    
-    nms[ changed++ ] = i;
-    mcf->OpenArc( i );
+    GenerateA( m , tochange );
 
-    if( changed >= n_change )
-     break;
-    }
+    std::list< ColVariable > newxLPd( tochange );
 
-   if( changed ) {
-    nms.resize( changed );
-    cout << changed << " open";
+    std::vector<Function::Index> nms = GenerateRand( tochange , ndvar );
 
-    if( ( mode & 16 ) && ( drand48() < 0.5 ) ) {
-     // change via abstract representation
-     cout << "(a)";
-     for( auto i : nms )
-      mMCFB->i2p_x( i )->is_fixed( false );
-     }
-    else  // change via call to chg_* method
-     mMCFB->open_arcs( std::move( nms ) );
+    // add them in the LP
+    auto DV = LPBlock->get_dynamic_variables();
+    PANIC( DV.size() );
+    xLPd = boost::any_cast< std::list< ColVariable > * >( DV[ 0 ] );
+    PANIC( xLPd );
+ 
+    auto DC = LPBlock->get_dynamic_constraints();
+    PANIC( DC.size() );
+    auto cnst = boost::any_cast< std::list< FRowConstraint > * >( DC[ 0 ] );
+    PANIC( cnst );
 
-    cout << " - ";
+    // TBD ...
+
+    // modify them in the NDO
+    std::list< ColVariable > newxNDOd( tochange );
+
+    auto NDOobj = dynamic_cast< FRealObjective * >( NDOBlock->get_objective() );
+    PANIC( NDOobj );
+    auto PF = dynamic_cast< PolyhedralFunction * >( NDOobj );
+    PANIC( PF );
+
+    // add them to the NDOBlock: TBD
+
+    if( tochange == 1 )
+     PF->add_variable( & newxNDOd.front() , A[ 0 ] );
+    else
+     PF->add_variables( std::move( newxNDOd ) , std::move( A ) );
     }
    }
-   !!*/
 
-  // deleting arcs - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // remove variables - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-  /*!!
   if( ( wchg & 32 ) && ( drand48() <= p_change ) ) {
-   MCFBlock::Index changed = 0;
+   Block::Index tochange = max( double( 1 ) , drand48() * n_change );
+   if( tochange ) {
+    LOG1( "removed " << tochange << " variables - " );
 
-   if( drand48() < 0.5 ) {
-    // delete somewhere in the middle
+    std::vector<Function::Index> nms = GenerateRand( tochange , ndvar );
+    for( auto & nmsi : nms )
+     nmsi += nsvar;
 
-    for( MCFBlock::Index i = mMCFB->get_NStaticArcs() ;
-	 i < mMCFB->get_NArcs() ; ++i ) {
-     if( mcf->IsDeletedArc( i ) )
-      continue;
-     if( drand48() <= 0.75 )
-      continue;
+    // remove them from the LP
+    auto DV = LPBlock->get_dynamic_variables();
+    PANIC( DV.size() );
+    xLPd = boost::any_cast< std::list< ColVariable > * >( DV[ 0 ] );
+    PANIC( xLPd );
+ 
+    auto DC = LPBlock->get_dynamic_constraints();
+    PANIC( DC.size() );
+    auto cnst = boost::any_cast< std::list< FRowConstraint > * >( DC[ 0 ] );
+    PANIC( cnst );
 
-     mcf->DelArc( i );
-     mMCFB->remove_arc( i );
-     if( ++changed >= n_change )
-      break;
-     }
+    // TBD ...
 
-    if( changed )
-     cout << changed << " delete(m) - ";
-    }
-   else {
-    for( MCFBlock::Index i =  mMCFB->get_NArcs() ;
-	 --i >= mMCFB->get_NStaticArcs() ; ) {
-     if( mcf->IsDeletedArc( i ) )
-      continue;
-     if( drand48() <= 0.13 )
-      break;
-
-     mcf->DelArc( i );
-     mMCFB->remove_arc( i );
-     if( ++changed >= n_change )
-      break;
-     }
-
-    if( changed )
-     cout << changed << " delete(e) - ";
+    // remove them from the NDO
+    auto NDOobj = dynamic_cast< FRealObjective * >( NDOBlock->get_objective() );
+    PANIC( NDOobj );
+    auto PF = dynamic_cast< PolyhedralFunction * >( NDOobj );
+    PANIC( PF );
+     
+    if( tochange == 1 )
+     PF->remove_variable( nms[ 0 ] );
+    else
+     PF->remove_variables( nms , true );
     }
    }
-   !!*/
 
-  // creating new arcs - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  
+  #endif  // DYNAMIC_VARS > 0
 
-  /*!!
-  if( ( wchg & 64 ) && ( drand48() <= p_change ) ) {
-
-   MCFBlock::Index changed = 0;
-   MCFBlock::Index afterend = 0;
-   while( changed < n_change ) {
-    if( drand48() <= 0.13 )
-     break;
-
-    ++changed;
-
-    // random sn != en
-    MCFBlock::Index sn , en;
-    do {
-     sn = drand48() * mMCFB->get_NNodes() + 1;
-     en = drand48() * mMCFB->get_NNodes() + 1;
-     } while( sn == en );
-
-    // random cost in [ - c_max , c_max ]
-    auto cst = c_max * ( 1 - 2 * drand48() );
-
-    // random capacity <= 0.75 u_avg
-    auto cap = 1.5 * ( u_avg - u_min ) * drand48() + u_min;
-
-    auto arc = mMCFB->add_arc( sn , en , cst , cap );
-    if( arc != mcf->AddArc( sn , en , cap , cst ) )
-     diffarcs = false;
-
-    if( arc >= m )
-     ++afterend;
-
-    if( mMCFB->get_NArcs() >= mMCFB->get_MaxNArcs() )
-     break;
-    }
-
-   if( changed ) {
-    cout << "create " << changed << "(" << afterend << ")";
-    if( diffarcs )
-     cout << "[d]";
-    cout << " - ";
-    }
-   }
-   !!*/
-
+  
   // finally, re-solve the problems- - - - - - - - - - - - - - - - - - - - -
 
   AllPassed &= SolveBoth();

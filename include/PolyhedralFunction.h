@@ -684,7 +684,8 @@ class PolyhedralFunction : public C05Function {
   * @param nA, a MultiVector && having as many rows as the current A matrix
   *        and exactly k columns representing the new part of the linear
   *        mapping; entry nA[ i ][ h ] is (obviously) meant to be the
-  *        coefficient of *nx[ h ] for the i-th row.
+  *        coefficient of *nx[ h ] for the i-th row; as the && implies, nA
+  *        becomes property of the PolyhedralFunction object;
   *
   * @param issueMod, which decides if and how the C05FunctionModVars (with
   *        f_shift == 0, since a PolyhedralFunction is strongly quasi-additive)
@@ -734,8 +735,37 @@ class PolyhedralFunction : public C05Function {
 		    c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
+ /// modify one bunch of rows of the linear mapping
+ /** Modifies one bunch of rows of the linear mapping:
+  *
+  * @param std::vector<Index> & rows contans the indices of the rows to be
+  *        modified; all entries must therefore be numbers in 0, ...,
+  *        get_A().size() - 1, *unique* and *ordered in increasing sense*;
+  *
+  * @param nA, a MultiVector && with nA.size() == rows.size() and exactly as
+  *        many columns as the current A matrix; entry nA[ i ][ h ] is
+  *        (obviously) meant to be the new coefficient for the h-th variable
+  *        in row rows[ i ]; as the && implies, nA becomes property of the
+  *        PolyhedralFunction object;
+  *
+  * @param the std::vector<FunctionValue> & nb, a vector of FunctionValue with
+  *        nb.size() == nms.size(): entry nb[ i ] is (obviously) meant to be
+  *        the new value of the constant term for row rows[ i ];
+  *
+  * @param issueMod, which decides if and how the C05FunctionMod, is issued,
+  *        as described in Observer::make_par(). Note that the value of the
+  *        function has changed "unpredictably" (hence, the shift is NANshift)
+  *        and "all the linearizations may have changed" (the Modification type
+  *        is "AllLinearizationChanged"), although actually only one of them
+  *        has. */  
+
+ void modify_rows( std::vector<Index> & rows , MultiVector && nA ,
+		   std::vector<FunctionValue> & nb ,
+		   c_ModParam issueMod = eModBlck );
+ 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify one single row of the linear mapping
- /** Modifies one row of the linear mapping:
+ /** Like modify_rows(), but only for one row:
   *
   * @param i is the index of the row to be modified;
   *
@@ -758,9 +788,38 @@ class PolyhedralFunction : public C05Function {
 		  c_FunctionValue bi , c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// modify only the constant term of one row of the linear mapping
+ /// modify only the constant term of a bunch of rows of the linear mapping
  /** Like modify_row(), but modify the constant term only for one row of the
   * linear mapping:
+  *
+  * @param std::vector<Index> & rows contans the indices of the rows to be
+  *        modified; all entries must therefore be numbers in 0, ...,
+  *        get_A().size() - 1, *unique* and *ordered in increasing sense*;
+  *
+  * @param the std::vector<FunctionValue> & nb, a vector of FunctionValue with
+  *        nb.size() == nms.size(): entry nb[ i ] is (obviously) meant to be
+  *        the new value of the constant term for row rows[ i ];
+  *
+  * @param issueMod, which decides if and how the C05FunctionMod, is issued,
+  *        as described in Observer::make_par(). Note that the value of the
+  *        function *may* change in a very predictable way: if the new value
+  *        of the constant if > than the current value for *all* rows, then
+  *        the function has necessarily increased, hence the shift is
+  *        +INFshift. If it is < for *all* rows, then the function has
+  *        necessarily decreased, hence the shift is -INFshift. Otherwise the
+  *        value has changed "unpredictably" and the shift is NANshift (unless
+  *        all the values are equal, in which case the function value has
+  *        not chsanged and the method does nothing). However, "all the alphas
+  *        may have changed" (the Modification type is "AlphaChanged"),
+  *        although actually only a subset of them has. */  
+
+ void modify_constants( std::vector<Index> & rows ,
+		        std::vector<FunctionValue> & nb ,
+			c_ModParam issueMod = eModBlck );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// modify only the constant term of one row of the linear mapping
+ /** Like modify_constants(), but only for one row:
   *
   * @param i is the index of the row to be modified;
   *
@@ -768,9 +827,13 @@ class PolyhedralFunction : public C05Function {
   *
   * @param issueMod, which decides if and how the C05FunctionMod, is issued,
   *        as described in Observer::make_par(). Note that the value of the
-  *        function has changed "unpredictably" (hence, the shift is NANshift)
-  *        and "all the alphas may have changed" (the Modification type
-  *        is "AlphaChanged"), although actually only one of them has. */  
+  *        function changes in a very predictable way: if bi is > than the
+  *        current value the function has necessarily increased, otherwise
+  *        necessarily decreased (if it is == it has not changed and the
+  *        method does nothing), hence the shift is either +INFshift or
+  *        -INFshift accordingly. However, "all the alphas may have changed"
+  *        (the Modification type is "AlphaChanged"), although actually only
+  *        one of them has. */  
 
  void modify_constant( c_Index i , c_FunctionValue bi ,
 		       c_ModParam issueMod = eModBlck );
