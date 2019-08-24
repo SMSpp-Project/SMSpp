@@ -522,26 +522,17 @@ int main( int argc , char **argv )
     GenerateAb( tochange , nvar );
 
     // add them to the LP
-    auto SV = LPBlock->get_static_variables();
-    PANIC( ( SV.size() == 2 ) );
-    vLP = boost::any_cast< ColVariable * >( SV[ 0 ] );
-    PANIC( vLP );
-    xLP = boost::any_cast< std::vector< ColVariable > * >( SV[ 1 ] );
-    PANIC( xLP );
+    vLP = LPBlock->get_static_variable< ColVariable >( 0 );
+    xLP = LPBlock->get_static_variable_v< ColVariable >( 1 );
     #if DYNAMIC_VARS > 0
-     auto DV = LPBlock->get_dynamic_variables();
-     PANIC( DV.size() );
-     xLPd = boost::any_cast< std::list< ColVariable > * >( DV[ 0 ] );
-     PANIC( xLPd );
+     xLPd = LPBlock->get_dynamic_variable< ColVariable >( 0 );
     #endif
+
     std::list< FRowConstraint > nc( tochange );
     auto ncit = nc.begin();
     for( Block::Index i = 0 ; i < tochange ; )
      ConstructLPConstraint( i++ , *(ncit++) );
-    auto DC = LPBlock->get_dynamic_constraints();
-    PANIC( DC.size() );
-    auto cnst = boost::any_cast< std::list< FRowConstraint > * >( DC[ 0 ] );
-    PANIC( cnst );
+    auto cnst = LPBlock->get_dynamic_constraint< FRowConstraint >( 0 );
     LPBlock->add_dynamic_constraints( *cnst , nc );
 
     // add them to the NDO
@@ -575,10 +566,7 @@ int main( int argc , char **argv )
     std::vector<Function::Index> nms = GenerateRand( tochange , m );
 
     // remove them from the LP
-    auto DC = LPBlock->get_dynamic_constraints();
-    PANIC( DC.size() );
-    auto cnst = boost::any_cast< std::list< FRowConstraint > * >( DC[ 0 ] );
-    PANIC( cnst );
+    auto cnst = LPBlock->get_dynamic_constraint< FRowConstraint >( 0 );
     if( tochange == 1 )
      LPBlock->remove_dynamic_constraint( *cnst , std::next( cnst->begin() ,
 							    nms[ 0 ] ) );
@@ -627,22 +615,12 @@ int main( int argc , char **argv )
     std::vector<Function::Index> nms = GenerateRand( tochange , m );
 
     // modify them in the LP
-    auto SV = LPBlock->get_static_variables();
-    PANIC( ( SV.size() == 2 ) );
-    vLP = boost::any_cast< ColVariable * >( SV[ 0 ] );
-    PANIC( vLP );
-    xLP = boost::any_cast< std::vector< ColVariable > * >( SV[ 1 ] );
-    PANIC( xLP );
+    vLP = LPBlock->get_static_variable< ColVariable >( 0 );
+    xLP = LPBlock->get_static_variable_v< ColVariable >( 1 );
     #if DYNAMIC_VARS > 0
-     auto DV = LPBlock->get_dynamic_variables();
-     PANIC( DV.size() );
-     xLPd = boost::any_cast< std::list< ColVariable > * >( DV[ 0 ] );
-     PANIC( xLPd );
+     xLPd = LPBlock->get_dynamic_variable< ColVariable >( 0 );
     #endif
-    auto DC = LPBlock->get_dynamic_constraints();
-    PANIC( DC.size() );
-    auto cnst = boost::any_cast< std::list< FRowConstraint > * >( DC[ 0 ] );
-    PANIC( cnst );
+    auto cnst = LPBlock->get_dynamic_constraint< FRowConstraint >( 0 );
 
     Block::Index prev = 0;
     auto cit = cnst->begin();
@@ -677,10 +655,7 @@ int main( int argc , char **argv )
     std::vector<Function::Index> nms = GenerateRand( tochange , m );
 
     // change them in the LP
-    auto DC = LPBlock->get_dynamic_constraints();
-    PANIC( DC.size() );
-    auto cnst = boost::any_cast< std::list< FRowConstraint > * >( DC[ 0 ] );
-    PANIC( cnst );
+    auto cnst = LPBlock->get_dynamic_constraint< FRowConstraint >( 0 );
 
     Block::Index prev = 0;
     auto cit = cnst->begin();
@@ -723,15 +698,8 @@ int main( int argc , char **argv )
     std::vector<Function::Index> nms = GenerateRand( tochange , ndvar );
 
     // add them in the LP
-    auto DV = LPBlock->get_dynamic_variables();
-    PANIC( DV.size() );
-    xLPd = boost::any_cast< std::list< ColVariable > * >( DV[ 0 ] );
-    PANIC( xLPd );
- 
-    auto DC = LPBlock->get_dynamic_constraints();
-    PANIC( DC.size() );
-    auto cnst = boost::any_cast< std::list< FRowConstraint > * >( DC[ 0 ] );
-    PANIC( cnst );
+    xLPd = LPBlock->get_dynamic_variable< ColVariable >( 0 );
+    auto cnst = LPBlock->get_dynamic_constraint< FRowConstraint >( 0 );
 
     // TBD ...
 
@@ -764,15 +732,8 @@ int main( int argc , char **argv )
      nmsi += nsvar;
 
     // remove them from the LP
-    auto DV = LPBlock->get_dynamic_variables();
-    PANIC( DV.size() );
-    xLPd = boost::any_cast< std::list< ColVariable > * >( DV[ 0 ] );
-    PANIC( xLPd );
- 
-    auto DC = LPBlock->get_dynamic_constraints();
-    PANIC( DC.size() );
-    auto cnst = boost::any_cast< std::list< FRowConstraint > * >( DC[ 0 ] );
-    PANIC( cnst );
+    xLPd = LPBlock->get_dynamic_variable< ColVariable >( 0 );
+    auto cnst = LPBlock->get_dynamic_constraint< FRowConstraint >( 0 );
 
     // TBD ...
 

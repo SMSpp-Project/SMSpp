@@ -1193,10 +1193,10 @@ class Block : public Observer {
   * that this method has been called at least once before making any attempt
   * at using the Variable, unless it knows for sure that the Block it is
   * working with has done that already. Note that it is easy to check whether
-  * or not generate_abstract_variables() still has to be called by just testing
-  * if get_static_variables().size() == 0, although this is a necessary but
-  * not sufficient condition, as a Block may not have any static Variable at
-  * all.
+  * or not generate_abstract_variables() still has to be called by just
+  * testing if get_static_variables().size() == 0, although this is a
+  * necessary but not sufficient condition, as a Block may not have any
+  * static Variable at all.
   *
   * Most expected uses of this method rely on the fact that a Block can have
   * several different types (groups) of static Variable. This is why the
@@ -1959,11 +1959,8 @@ class Block : public Observer {
 /** @name Methods for reading the Block's Variables and Constraints
  *  @{ */
 
- c_Vec_any & get_static_constraints( void ) const {
-  return( v_s_Constraint );
-  }
- ///< reading the *static* Constraint of the Block
- /**< Method for reading the *static* Constraint of the Block. It returns a
+ /// reading the *static* Constraint of the Block
+ /** Method for reading the *static* Constraint of the Block. It returns a
   * vector of boost::any, each element of which is supposed to contain only
   * one among:
   *
@@ -2034,13 +2031,71 @@ class Block : public Observer {
   * change (except for addition/deletion of dynamic Constraint and changes in
   * the Constraint that are handled by the appropriate Modification). */
 
-/*--------------------------------------------------------------------------*/
-
- c_Vec_any & get_static_variables( void ) const {
-  return ( v_s_Variable );
+ c_Vec_any & get_static_constraints( void ) const {
+  return( v_s_Constraint );
   }
- ///< reading the *static* Variable of the Block
- /**< Method for reading the *static* Variable of the Block. It returns a
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// template method to get the a "simple" static Constraint
+ /** This method, template over the class Cnst (which must derive from
+  * Constraint), extracts the i-th static constraint group, which is supposed
+  * to be a simple Cnst *, and returns it. If anything goes wrong, exception
+  * is thrown. */
+
+ template< class Cnst >
+ Cnst * get_static_constraint( c_Index i ) const {
+  static_assert( std::is_base_of< Constraint , Cnst >::value ,
+                 "register_method: Cnst must inherit from Constraint" );
+  if( i >= v_s_Constraint.size() )
+   throw( std::invalid_argument( "no such group of constraints" ) );
+  auto cnst = boost::any_cast< Cnst * >( v_s_Constraint[ i ] );
+  if( ! cnst )
+   throw( std::invalid_argument( "i-th group is not of required type" ) );
+  return( cnst );
+  }
+ 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// template method to get the a (static) std::vector< Constraint >
+ /** This method, template over the class Cnst (which must derive from
+  * Constraint), extracts the i-th static constraint group, which is supposed
+  * to be a std::vector< Cnst > *, and returns it. If anything goes wrong,
+  * exception is thrown. */
+
+ template< class Cnst >
+ std::vector< Cnst > * get_static_constraint_v( c_Index i ) const {
+  static_assert( std::is_base_of< Constraint , Cnst >::value ,
+                 "register_method: Cnst must inherit from Constraint" );
+  if( i >= v_s_Constraint.size() )
+   throw( std::invalid_argument( "no such group of constraints" ) );
+  auto cnst = boost::any_cast< std::vector< Cnst > * >( v_s_Constraint[ i ] );
+  if( ! cnst )
+   throw( std::invalid_argument( "i-th group is not of required type" ) );
+  return( cnst );
+  }
+ 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// template method to get the a (static) boost::multi_array< Cnst , K >
+ /** This method, template over the class Cnst (which must derive from
+  * Constraint) and the integer K, extracts the i-th static constraint group,
+  * which is supposed to be a boost::multi_array< Cnst , K > *, and returns
+  * it. If anything goes wrong, exception is thrown. */
+
+ template< class Cnst , unsigned short K >
+ boost::multi_array< Cnst , K > * get_static_constraint( c_Index i ) const {
+  static_assert( std::is_base_of< Constraint , Cnst >::value ,
+                 "register_method: Cnst must inherit from Constraint" );
+  if( i >= v_s_Constraint.size() )
+   throw( std::invalid_argument( "no such group of constraints" ) );
+  auto cnst = boost::any_cast< boost::multi_array< Cnst , K > * >(
+						      v_s_Constraint[ i ] );
+  if( ! cnst )
+   throw( std::invalid_argument( "i-th group is not of required type" ) );
+  return( cnst );
+  }
+ 
+/*--------------------------------------------------------------------------*/
+ /// reading the *static* Variable of the Block
+ /** Method for reading the *static* Variable of the Block. It returns a
   * vector of boost::any, each element of which is supposed to contain only
   * one among:
   *
@@ -2112,13 +2167,71 @@ class Block : public Observer {
   * for addition/deletion of dynamic Variable and changes in the Variable
   * that are handled by the appropriate Modification). */
 
-/*--------------------------------------------------------------------------*/
-
- c_Vec_any & get_dynamic_constraints( void ) const {
-  return( v_d_Constraint );
+ c_Vec_any & get_static_variables( void ) const {
+  return ( v_s_Variable );
   }
- ///< reading the *dynamic* Constraint of the Block
- /**< Method for reading the *dynamic* Constraint of the Block. It returns a
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// template method to get the a "simple" static Variable
+ /** This method, template over the class Var (which must derive from
+  * Variable), extracts the i-th static variable group, which is supposed to
+  * be a simple Var *, and returns it. If anything goes wrong, exception is
+  * thrown. */
+
+ template< class Var >
+ Var * get_static_variable( c_Index i ) const {
+  static_assert( std::is_base_of< Variable , Var >::value ,
+                 "register_method: Var must inherit from Variable" );
+  if( i >= v_s_Variable.size() )
+   throw( std::invalid_argument( "no such group of constraints" ) );
+  auto var = boost::any_cast< Var * >( v_s_Variable[ i ] );
+  if( ! var )
+   throw( std::invalid_argument( "i-th group is not of required type" ) );
+  return( var );
+  }
+ 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// template method to get the a (static) std::vector< Variable >
+ /** This method, template over the class Var (which must derive from
+  * Variable), extracts the i-th static variable group, which is supposed to
+  * be a std::vector< Var > *, and returns it. If anything goes wrong,
+  * exception is thrown. */
+
+ template< class Var >
+ std::vector< Var > * get_static_variable_v( c_Index i ) const {
+  static_assert( std::is_base_of< Variable , Var >::value ,
+                 "register_method: Var must inherit from Variable" );
+  if( i >= v_s_Variable.size() )
+   throw( std::invalid_argument( "no such group of constraints" ) );
+  auto var = boost::any_cast< std::vector< Var > * >( v_s_Variable[ i ] );
+  if( ! var )
+   throw( std::invalid_argument( "i-th group is not of required type" ) );
+  return( var );
+  }
+ 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// template method to get the a (static) boost::multi_array< Var , K >
+ /** This method, template over the class Var (which must derive from
+  * Variable) and the integer K, extracts the i-th static variable group,
+  * which is supposed to be a boost::multi_array< Var , K > *, and returns
+  * it. If anything goes wrong, exception is thrown. */
+
+ template< class Var , unsigned short K >
+ boost::multi_array< Var , K > * get_static_variable( c_Index i ) const {
+  static_assert( std::is_base_of< Variable , Var >::value ,
+                 "register_method: Var must inherit from Variable" );
+  if( i >= v_s_Variable.size() )
+   throw( std::invalid_argument( "no such group of constraints" ) );
+  auto var = boost::any_cast< boost::multi_array< Var , K > * >(
+						          v_s_Variable[ i ] );
+  if( ! var )
+   throw( std::invalid_argument( "i-th group is not of required type" ) );
+  return( var );
+  }
+ 
+/*--------------------------------------------------------------------------*/
+ /// reading the *dynamic* Constraint of the Block
+ /** Method for reading the *dynamic* Constraint of the Block. It returns a
   * vector of boost::any, each element of which is supposed to contain only
   * one among:
   *
@@ -2221,13 +2334,75 @@ class Block : public Observer {
   * which means that there should be no need to call this method again in
   * order to "incorporate" this new information. */
 
-/*--------------------------------------------------------------------------*/
-
- c_Vec_any & get_dynamic_variables( void ) const {
-  return( v_d_Variable );
+ c_Vec_any & get_dynamic_constraints( void ) const {
+  return( v_d_Constraint );
   }
- ///< reading the *dynamic* Variable of the Block
- /**< Method for reading the *dynamic* Variable of the Block. It returns a
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// template method to get the a "simple" dynamic Constraint
+ /** This method, template over the class Cnst (which must derive from
+  * Constraint), extracts the i-th dynamic constraint group, which is
+  * supposed to be a std::list< Cnst > *, and returns it. If anything goes
+  * wrong, exception is thrown. */
+
+ template< class Cnst >
+ std::list< Cnst > * get_dynamic_constraint( c_Index i ) const {
+  static_assert( std::is_base_of< Constraint , Cnst >::value ,
+                 "register_method: Cnst must inherit from Constraint" );
+  if( i >= v_d_Constraint.size() )
+   throw( std::invalid_argument( "no such group of constraints" ) );
+  auto cnst = boost::any_cast< std::list< Cnst > * >( v_d_Constraint[ i ] );
+  if( ! cnst )
+   throw( std::invalid_argument( "i-th group is not of required type" ) );
+  return( cnst );
+  }
+ 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// template method to get the a dynamic std::vector< std::list< Cnst > >
+ /** This method, template over the class Cnst (which must derive from
+  * Constraint), extracts the i-th dynamic constraint group, which is supposed
+  * to be a std::vector< std::list< Cnst > > *, and returns it. If anything
+  * goes wrong, exception is thrown. */
+
+ template< class Cnst >
+ std::vector< std::list< Cnst > > * get_dynamic_constraint_v( c_Index i )
+  const {
+  static_assert( std::is_base_of< Constraint , Cnst >::value ,
+                 "register_method: Cnst must inherit from Constraint" );
+  if( i >= v_s_Constraint.size() )
+   throw( std::invalid_argument( "no such group of constraints" ) );
+  auto cnst = boost::any_cast< std::vector< std::list< Cnst > > * >(
+						       v_d_Constraint[ i ] );
+  if( ! cnst )
+   throw( std::invalid_argument( "i-th group is not of required type" ) );
+  return( cnst );
+  }
+ 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method to get the a dynamic boost::multi_array< std::list< Cnst > , K >
+ /** This method, template over the class Cnst (which must derive from
+  * Constraint) and the integer K, extracts the i-th dynamic constraint group,
+  * which is supposed to be a boost::multi_array< std::list< Cnst > , K > *,
+  * and returns it. If anything goes wrong, exception is thrown. */
+
+ template< class Cnst , unsigned short K >
+ boost::multi_array< std::list< Cnst > , K > * get_dynamic_constraint(
+							 c_Index i ) const {
+  static_assert( std::is_base_of< Constraint , Cnst >::value ,
+                 "register_method: Cnst must inherit from Constraint" );
+  if( i >= v_s_Constraint.size() )
+   throw( std::invalid_argument( "no such group of constraints" ) );
+  auto cnst =
+   boost::any_cast< boost::multi_array< std::list< Cnst > , K > * >(
+						      v_d_Constraint[ i ] );
+  if( ! cnst )
+   throw( std::invalid_argument( "i-th group is not of required type" ) );
+  return( cnst );
+  }
+ 
+/*--------------------------------------------------------------------------*/
+ /// reading the *dynamic* Variable of the Block
+ /** Method for reading the *dynamic* Variable of the Block. It returns a
   * vector of boost::any, each element of which is supposed to contain only
   * one among:
   *
@@ -2330,6 +2505,72 @@ class Block : public Observer {
   * which means that there should be no need to call this method again in
   * order to "incorporate" this new information. */
 
+ c_Vec_any & get_dynamic_variables( void ) const {
+  return( v_d_Variable );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// template method to get the a "simple" dynamic Variable
+ /** This method, template over the class Var (which must derive from
+  * Variable), extracts the i-th dynamic variable group, which is supposed
+  * to be a std::list< Var > *, and returns it. If anything goes wrong,
+  * exception is thrown. */
+
+ template< class Var >
+ std::list< Var > * get_dynamic_variable( c_Index i ) const {
+  static_assert( std::is_base_of< Variable , Var >::value ,
+                 "register_method: Var must inherit from Variable" );
+  if( i >= v_d_Variable.size() )
+   throw( std::invalid_argument( "no such group of constraints" ) );
+  auto var = boost::any_cast< std::list< Var > * >( v_d_Variable[ i ] );
+  if( ! var )
+   throw( std::invalid_argument( "i-th group is not of required type" ) );
+  return( var );
+  }
+ 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// template method to get the a dynamic std::vector< std::list< Var > >
+ /** This method, template over the class Var (which must derive from
+  * Variable), extracts the i-th dynamic variable group, which is supposed to
+  * be a std::vector< std::list< Var > > *, and returns it. If anything goes
+  * wrong, exception is thrown. */
+
+ template< class Var >
+ std::vector< std::list< Var > > * get_dynamic_variable_v( c_Index i )
+  const {
+  static_assert( std::is_base_of< Variable , Var >::value ,
+                 "register_method: Var must inherit from Variable" );
+  if( i >= v_s_Variable.size() )
+   throw( std::invalid_argument( "no such group of constraints" ) );
+  auto var = boost::any_cast< std::vector< std::list< Var > > * >(
+						       v_d_Variable[ i ] );
+  if( ! var )
+   throw( std::invalid_argument( "i-th group is not of required type" ) );
+  return( var );
+  }
+ 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method to get the a dynamic boost::multi_array< std::list< Var > , K >
+ /** This method, template over the class Var (which must derive from
+  * Variable) and the integer K, extracts the i-th dynamic variable group,
+  * which is supposed to be a boost::multi_array< std::list< Var > , K > *,
+  * and returns it. If anything goes wrong, exception is thrown. */
+
+ template< class Var , unsigned short K >
+ boost::multi_array< std::list< Var > , K > * get_dynamic_variable(
+							 c_Index i ) const {
+  static_assert( std::is_base_of< Variable , Var >::value ,
+                 "register_method: Var must inherit from Variable" );
+  if( i >= v_s_Variable.size() )
+   throw( std::invalid_argument( "no such group of constraints" ) );
+  auto var =
+   boost::any_cast< boost::multi_array< std::list< Var > , K > * >(
+						      v_d_Variable[ i ] );
+  if( ! var )
+   throw( std::invalid_argument( "i-th group is not of required type" ) );
+  return( var );
+  }
+ 
 /*--------------------------------------------------------------------------*/
  /// getting the static Constraints' names
  /** Returns a const reference to the vector storing the names of the
