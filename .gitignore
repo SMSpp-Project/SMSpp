@@ -1,6 +1,7 @@
 **/*~
 **/*.o
 **/*.a
+**/*.xcodeproj
 **/.DS_Store
 **/*.dSYM
 .DS_Store
