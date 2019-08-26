@@ -1670,6 +1670,24 @@ class Block : public Observer {
   return( f_Objective );
   }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// template method to get the the current Objective
+ /** This method, template over the class Obj (which must derive from
+  * Objective), get the the current Objective, which is supposed to be an
+  * Obj *, and returns it. If the Objective is not of the required type,
+  * exception is thrown. */
+
+ template< class Obj >
+ Obj * get_objective( void ) const {
+  static_assert( std::is_base_of< Objective , Obj >::value ,
+                 "register_method: Obj must inherit from Constraint" );
+  auto obj = dynamic_cast< Obj * >( f_Objective );
+  if( ! obj )
+   throw( std::invalid_argument( "objective is not of required type" ) );
+  return( obj );
+  }
+
+ 
 /*--------------------------------------------------------------------------*/
  /// getting the current sense of the Objective
  /** Getting the current sense (minimization or maximization) of the
