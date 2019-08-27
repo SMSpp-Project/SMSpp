@@ -7,9 +7,9 @@
  * by the values of the static and dynamic Variable and dual variables of
  * the Constraint of a Block.
  *
- * \version 0.10
+ * \version 0.20
  *
- * \date 11 - 05 - 2018
+ * \date 27 - 08 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -143,6 +143,22 @@ class Solution {
  Solution & operator=( const Solution& ) = delete;
 
 /*--------------------------------------------------------------------------*/
+ /// de-serialize a :Solution out of netCDF::NcGroup
+ /** The method takes a netCDF::NcGroup supposedly containing all the
+  * information required to de-serialize the :Solution, and produces a "full"
+  * Solution object as a result. Most likely, the netCDF::NcGroup has been
+  * produced by calling serialize() with a previously existing :Solution (of
+  * the very same type as this one), but individual :Solution should openly
+  * declare the format of their :Solution so that possibly a netCDF::NcGroup
+  * containing some pre-computed solution can be constructed from scratch
+  * whenever this is useful.
+  *
+  * This method is pure virtual, as it clearly has to be implemented by
+  * derived classes. */
+
+ virtual void deserialize( netCDF::NcGroup & group ) = 0;
+
+/*--------------------------------------------------------------------------*/
 
  virtual ~Solution() { }  ///< destructor: it is virtual, and empty
 
@@ -168,6 +184,17 @@ class Solution {
   * the required part (and, a fortiori, if block is not the right Block). */
 
  virtual void write( Block * const block ) = 0;
+
+/*--------------------------------------------------------------------------*/
+ /// serialize a :Solution into a netCDF::NcGroup
+ /** The method takes a (supposedly, "full") Solution object and serializes
+  * it into the provided netCDF::NcGroup, so that it can possibly be read by
+  * deserialize() (of a :Solution of the very same type as this one).
+  *
+  * This method is pure virtual, as it clearly has to be implemented by
+  * derived classes. */
+
+ virtual void serialize( netCDF::NcGroup & group ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// returns a scaled version of this Solution

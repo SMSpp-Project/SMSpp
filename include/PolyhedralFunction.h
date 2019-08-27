@@ -262,6 +262,29 @@ class PolyhedralFunction : public C05Function {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// de-serialize a PolyhedralFunction out of netCDF::NcGroup
+ /** The method takes a netCDF::NcGroup supposedly containing all the
+  * *numerical* information required to de-serialize the PolyhedralFunction,
+  * i.e., a n x m real matrix A and a real m-vector b and the "verse" of the
+  * function, and initializes the PolyhedralFunction by calling
+  * set_PolyhedralFunction() with the recovered data. Note that this does
+  * *not* change the set of active variables, that must have been initialized
+  * before the call (and its size has to match with the size of A).
+  *
+  * Usually [de]serialization is done by Block, but PolyhedralFunction is a
+  * complex enough object so that having its own ready-made [de]serialization
+  * procedure may make sense.
+  *
+  * @param group, a netCDF::NcGroup holding the data in the format described
+  *        in the comments to deserialize();
+  *
+  * @param issueMod, which decides if and how the FunctionMod (with f_shift
+  *        == FunctionMod::NaNshift, i.e., "everything changed") is issued,
+  *        as described in Observer::make_par(). */
+
+ void deserialize( netCDF::NcGroup & group , c_ModParam issueMod = eModBlck );
+
+/*--------------------------------------------------------------------------*/
  /// destructor: it is virtual, and empty
 
  virtual ~PolyhedralFunction() { }
@@ -511,6 +534,35 @@ class PolyhedralFunction : public C05Function {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// serialize a PolyhedralFunction into a netCDF::NcGroup
+ /** Serialize a PolyhedralFunction into a netCDF::NcGroup, with the following
+  * format:
+  *
+  * - The dimension "PolyFunction_NumVar" containing the number of columns of
+  *   the A matrix, i.e., the number of active variables.
+  *
+  * - The dimension "PolyFunction_NumRow" containing the number of rows of the
+  *   A matrix. The dimension is optional, if it is not provided than 0 (no
+  *   rows) is assumed.
+  *
+  * - The variable "PolyFunction_A", of type double and indexed over both
+  *   the dimensions NumRow and NumVar (in this order); it contains the
+  *   (row-major) representation of the matrix A. The variable is only
+  *   optional if NumRow == 0.
+  *
+  * - The variable "PolyFunction_b", of type double and indexed over the
+  *   dimension NumRow, which contains the vector b. The variable is only
+  *   optional if NumRow == 0.
+  *
+  * - The dimension "PolyFunction_sign", of type bool, which contains the
+  *   "verse" of the PolyhedralFunction (true for a convex max-function,
+  *   false for a concave min-function) encoded in the obvious way (zero for
+  *   false, nonzero for true). The variable is optional, if it is not
+  *   provided true is assumed. */
+ 
+ void serialize( netCDF::NcGroup & group );
+
+/*--------------------------------------------------------------------------*/
  /// returns a (const reference) to the current A matrix in the mapping
 
  const MultiVector & get_A( void ) const {
@@ -524,6 +576,9 @@ class PolyhedralFunction : public C05Function {
   return( v_b );
   }
 
+
+
+ 
 /**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/

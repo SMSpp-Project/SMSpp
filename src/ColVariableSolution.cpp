@@ -41,9 +41,17 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+void ColVariableSolution::deserialize( netCDF::NcGroup & group )
+{
+ throw( std::logic_error( " ColVariableSolution::deserialize not ready yet" )
+	);
+ }
+
+/*--------------------------------------------------------------------------*/
+
 ColVariableSolution::~ColVariableSolution() {
-  this->delete_vectors();
-}
+ delete_vectors();
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -411,6 +419,13 @@ void ColVariableSolution::write( Block * const block ) {
   }
 
 }
+
+/*--------------------------------------------------------------------------*/
+
+void ColVariableSolution::serialize( netCDF::NcGroup & group )
+{
+ throw( std::logic_error( " ColVariableSolution::serialize not ready yet" ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 

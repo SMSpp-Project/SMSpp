@@ -8,15 +8,12 @@
  * of an otherwise "empty" Block. The same PolyhedralFunction is represented
  * in terms of linear inequalities for another otherwise "empty" Block. The
  * two Block are solved by a BundleSolver and a MILPSolver, respectively,
- * and the results are compared.
- *
- * TODO:
- * The two Block are repeatedly randomly modified "in the same way", and
- * re-solved several times.
+ * and the results are compared. The two Block are then repeatedly randomly
+ * modified "in the same way", and re-solved several times.
  *
  * \version 0.10
  *
- * \date 21 - 08 - 2019
+ * \date 26 - 08 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -49,7 +46,7 @@
 /*-------------------------------- MACROS ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#define LOG_LEVEL 1
+#define LOG_LEVEL 2
 // 0 = only pass/fail
 // 1 = result of each test
 // 2 = print data
@@ -85,6 +82,8 @@ using namespace SMSpp_di_unipi_it;
 
 using Index =  Block::Index;
 
+using FunctionValue =  Function::FunctionValue;
+
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CONSTANTS --------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -95,30 +94,33 @@ const double scale = 10;
 /*------------------------------- GLOBALS ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-AbstractBlock * LPBlock;      // the problem expressed as an LP
+AbstractBlock * LPBlock;   // the problem expressed as an LP
 
-AbstractBlock * NDOBlock;     // the problem expressed via PolyhedralFunction
+AbstractBlock * NDOBlock;  // the problem expressed via PolyhedralFunction
 
-double lb = - 1000;           // a tentative LB to detect unbounded instances
+double lb = - 1000;        // a tentative LB to detect unbounded instances
 
-Index nvar = 10;       // number of variables
+Index nvar = 10;           // number of variables
 #if DYNAMIC_VARS > 0
- Index nsvar;          // number of static variables
- Index ndvar;          // number of dynamic variables
+ Index nsvar;              // number of static variables
+ Index ndvar;              // number of dynamic variables
 #else
- #define nsvar nvar           // all variables are static
+ #define nsvar nvar        // all variables are static
 #endif
 
-ColVariable * vLP;            // pointer to v LP variable
+Index m;                   // number of rows
+
+PolyhedralFunction::MultiVector A;
+
+std::vector < FunctionValue > b;
+
+ColVariable * vLP;                 // pointer to v LP variable
 
 std::vector< ColVariable > * xLP;  // pointer to (static) x LP variables
 #if DYNAMIC_VARS > 0
  std::list< ColVariable > * xLPd;  // pointer to (dynamic) x LP variables
 #endif
 
-PolyhedralFunction::MultiVector A;
-
-std::vector < Function::FunctionValue > b;
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ FUNCTIONS ---------------------------------*/
@@ -219,6 +221,26 @@ static void ConstructLPConstraint( Block::c_Index i , FRowConstraint & ci ,
   ci.set_function( new LinearFunction( std::move( vars ) ) );
   if( setblock )
    ci.set_Block( LPBlock );
+  }
+ }
+
+
+/*--------------------------------------------------------------------------*/
+
+static void printAb( const PolyhedralFunction::MultiVector & tA ,
+		     const std::vector < FunctionValue > & tb )
+{
+ PANIC( tA.size() == tb.size() );
+ PANIC( tA.size() == m );
+ for( auto & tai : tA )
+  PANIC( tai.size() == nvar );
+
+ cout << "n = " << nvar << ", m = " << m << endl;
+ for( Index i = 0 ; i < m ; ++i ) {
+  cout << "A[ " << i << " ] = [ ";
+  for( Index j = 0 ; j < nvar ; ++j )
+   cout << A[ i ][ j ] << " ";
+   cout << "], b[ " << i << " ] = " << b[ i ] << endl;
   }
  }
 
@@ -373,7 +395,7 @@ int main( int argc , char **argv )
   ndvar = nvar - nsvar;  // the other half are static
  #endif
 
- Index m = nvar * dens;
+ m = nvar * dens;
  if( m < 1 ) {
   cout << "error: dens too small";
   exit( 1 );
@@ -388,13 +410,7 @@ int main( int argc , char **argv )
  GenerateAb( m , nvar );
 
  #if( LOG_LEVEL >= 2 )
-  cout << "n = " << nvar << ", m = " << m << endl;
-  for( Index i = 0 ; i < m ; ++i ) {
-   cout << "A[ " << i << " ] = [ ";
-   for( Index j = 0 ; j < nvar ; ++j )
-    cout << A[ i ][ j ] << " ";
-   cout << " ], b[ " << i << " ] = " << b[ i ] << endl;
-   }
+  printAb( A , b );
  #endif
 
  // construction and loading of the objects - - - - - - - - - - - - - - - - -
@@ -510,7 +526,7 @@ int main( int argc , char **argv )
  //
  // then the two problems are re-solved
 
- while( n_repeat-- ) {
+ for( Index rep = 0 ; rep < n_repeat ; ++rep ) {
 
   LOG1( "Changes: ");
 
@@ -852,7 +868,18 @@ int main( int argc , char **argv )
   
   #endif  // DYNAMIC_VARS > 0
 
-  
+  // if verbose, print out stuff- - - - - - - - - - - - - - - - - - - - - - -
+
+  #if( LOG_LEVEL >= 2 )
+   ((LPBlock->get_registered_solvers()).front())->set_par(
+		                  CPXMILPSolver::strOutputFile , "LPBlock-" +
+		                  std::to_string( rep ) + ".lp" );
+   auto PF = dynamic_cast< PolyhedralFunction * >(
+	       NDOBlock->get_objective< FRealObjective >()->get_function() );
+   PANIC( PF );
+   printAb( PF->get_A() , PF->get_b() );
+  #endif
+
   // finally, re-solve the problems- - - - - - - - - - - - - - - - - - - - -
 
   AllPassed &= SolveBoth();

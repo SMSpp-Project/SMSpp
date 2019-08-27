@@ -35,6 +35,54 @@
 using namespace SMSpp_di_unipi_it;
 
 /*--------------------------------------------------------------------------*/
+/*------------ CONSTRUCTING AND DESTRUCTING PolyhedralFunction -------------*/
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunction::deserialize( netCDF::NcGroup & group ,
+				      c_ModParam issueMod  )
+{
+ const Index nvar = get_num_active_var();
+
+ netCDF::NcDim nv = group.getDim( "PolyFunction_NumVar" );
+ if( nv.isNull() )
+  throw( std::logic_error( "PolyFunction_NumVar dimension is required" ) );
+ if( nv.getSize() != nvar )
+  throw( std::invalid_argument( "wrong A col size in netCDF::NcGroup" ) );
+
+ MultiVector tA;
+ std::vector<FunctionValue> tb;
+
+ netCDF::NcDim nr = group.getDim( "PolyFunction_NumRow" );
+ if( ( ! nv.isNull() ) && ( nv.getSize() ) ) {
+   netCDF::NcVar ncdA = group.getVar( "PolyFunction_A" );
+   if( ncdA.isNull() )
+    throw( std::logic_error( "PolyFunction_A not found" ) );
+
+   netCDF::NcVar ncdb = group.getVar( "PolyFunction_b" );
+   if( ncdb.isNull() )
+    throw( std::logic_error( "PolyFunction_b not found" ) );
+
+  tA.resize( nv.getSize() );
+  for( Index i = 0 ; i < tA.size() ; ++i ) {
+   tA[ i ].resize( nvar );
+   ncdA.getVar( { i , 0 } , { 1 , nvar } , tA[ i ].data() );
+   }
+
+  tb.resize( nv.getSize() );
+  ncdb.getVar( tb.data() );
+  }
+
+ bool cnvx = true;
+ netCDF::NcDim sgn = group.getDim( "PolyFunction_sign" );
+ if( ! sgn.isNull() )
+  cnvx = sgn.getSize() > 0 ? true : false;
+
+ set_PolyhedralFunction( std::move( tA ) , std::move( tb ) , cnvx , issueMod
+			 );
+
+ }  // end( PolyhedralFunction::deserialize )
+
+/*--------------------------------------------------------------------------*/
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF THE LinearFunction ----------*/
 /*--------------------------------------------------------------------------*/
 
@@ -284,6 +332,33 @@ void PolyhedralFunction::get_linearization_coefficients( SparseVector & g ,
    }
   }
  }  // end( PolyhedralFunction::get_linearization_coefficients( sparse ) )
+
+
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunction::serialize( netCDF::NcGroup & group )
+{
+ const Index nvar = get_num_active_var();
+
+ netCDF::NcDim nv = group.addDim( "PolyFunction_NumVar" , nvar );
+
+ if( v_A.size() ) {
+  netCDF::NcDim nr = group.addDim( "PolyFunction_NumRow" , v_A.size() );
+
+  auto ncdA = group.addVar( "PolyFunction_A" , netCDF::NcDouble() ,
+			    { nr , nv } );
+
+  for( Index i = 0 ; i < v_A.size() ; ++i )
+   ncdA.putVar( { i , 0 } , { 1 , nvar } , v_A[ i ].data() );
+
+  ( group.addVar( "PolyFunction_b" , netCDF::NcDouble() , nr ) ).putVar(
+							       v_b.data() );
+  }
+
+ if( ! f_is_convex )
+  group.addDim( "PolyFunction_sign" , 0 );
+
+ }  // end( PolyhedralFunction::serialize )
 
 /*--------------------------------------------------------------------------*/
 /*--- METHODS FOR HANDLING "ACTIVE" Variable IN THE PolyhedralFunction -----*/

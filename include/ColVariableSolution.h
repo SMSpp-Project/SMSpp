@@ -76,10 +76,18 @@ namespace SMSpp_di_unipi_it
 /// a solution (values of the Variables) of a Block
 /** The ColVariableSolution class represents a solution of a Block whose
  * Variables are all ColVariables. It is able to store the values of the
- * static and dynamic Variables of a Block.
- */
+ * static and dynamic Variables of a Block. The main characteristic of
+ * ColVariableSolution is that of entirely relying on the "abstract
+ * representation" of the Block to work, which means that it can in
+ * principle be used with any Block, and in particular with those that only
+ * have the "abstract representation", like AbstractBlock.
+ *
+ * Conversely, this may not necessarily play well with Block that rely on
+ * a "physical representation" of the solution information, since the
+ * information saved here may not be enough to fully reconstruct it
+ * (although it well may). */
 
-class ColVariableSolution : public Solution { // Stores the values of the Variables of a Block
+class ColVariableSolution : public Solution {
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
@@ -93,18 +101,21 @@ public:
 /** @name Constructor and destructor
  *  @{ */
 
-  /// constructor of ColVariableSolution
-  /** Constructor of ColVariableSolution. */
+  /// constructor of ColVariableSolution, does nothing
 
   ColVariableSolution( ) : Solution() { }
 
 /*--------------------------------------------------------------------------*/
 
-  ColVariableSolution(const ColVariableSolution & ) : Solution() {
+  ColVariableSolution( const ColVariableSolution & ) : Solution() {
     throw std::invalid_argument( "Trying to copy ColVariableSolution" );
   }
   ///< copy constructor, so that it cannot be used
   /**< inhibit copy constructor */
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ virtual void deserialize( netCDF::NcGroup & group ) override final;
 
 /*--------------------------------------------------------------------------*/
 
@@ -116,49 +127,69 @@ public:
 /** @name Methods describing the behavior of a ColVariableSolution
  *  @{ */
 
-  /// read the solution from the given Block
+  /// read the ColVariableSolution from the given Block
   /** This method reads the solution of the given Block and stores it in this
    * ColVariableSolution. For this method to be used, it is required that:
    *
    * 1) the abstract representation of the Variables of the Block have been
-   * generated; and
+   *    generated; and
    *
-   * 2) this Solution has been initialized to represent a solution of the
-   * given Block. This should normally mean that this Solution was obtained
-   * from a call to the method get_solution() of the Block associated with
-   * this Solution.
+   * 2) this ColVariableSolution has been initialized to represent a solution
+   *    of the given Block. This should normally mean that this
+   *    ColVariableSolution was obtained from a call to the method
+   *    get_solution() of the Block associated with this ColVariableSolution.
    */
 
   virtual void read( const Block * const block ) override;
 
-  /// write the solution in the given Block
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+  /// write the ColVariableSolution in the given Block
   /** This method writes the solution currently stored in this
    * ColVariableSolution on the given Block. For this method to be used, it
    * is required that:
    *
    * 1) the abstract representation of the Variables of the Block have been
-   * generated; and
+   *    generated; and
    *
-   * 2) this Solution has been initialized to represent a solution of the
-   * given Block. This should normally mean that this Solution was obtained
-   * from a call to the method get_solution() of the Block associated with
-   * this Solution.
+   * 2) this ColVariableSolution has been initialized to represent a solution
+   *    of the given Block. This should normally mean that this
+   *    ColVariableSolution was obtained from a call to the method
+   *    get_solution() of the Block associated with this ColVariableSolution.
    */
 
   virtual void write( Block * const block ) override;
 
-  /// returns a scaled version of this Solution
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// serialize a ColVariableSolution into a netCDF::NcGroup
+ /** Serialize a ColVariableSolution into a netCDF::NcGroup, with the
+  * following format:
+  *
+  * - The dimension "xxx" containing ... The dimension
+  *   is optional, if it is not specified then the corresponding variable
+  *   "yyy" is not read 
+  *
+  *
+  * - The variable "yyy", of type double and indexed over the
+  *   dimension xxx. The variable is optional, if it is not specified
+  *   then ...
+  */
+
+   virtual void serialize( netCDF::NcGroup & group )  override final;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+  /// returns a scaled version of this ColVariableSolution
   /** This method constructs and returns a scaled version of this
-   * Solution. The newly created Solution will have the same structure of
-   * this Solution. This means that the newly created Solution will be equal
-   * to this Solution except for the value of the Variables. For each
-   * Variable whose value "v" is stored in this Solution, the newly created
-   * Solution will store the value "factor * v". */
+   * ColVariableSolution. The newly ColVariableSolution Solution will have the
+   * same structure of this ColVariableSolution. This means that the newly
+   * created ColVariableSolution will be equal to this ColVariableSolution
+   * except for the value of the Variables. For each Variable whose value "v"
+   * is stored in this Solution, the newly created ColVariableSolution will
+   * store the value "factor * v". */
 
   virtual ColVariableSolution * scale( double factor ) const override;
 
-  /// stores a scaled version of the given Solution
-  /** This method stores a scaled version of the Solution provided as
+  /// stores a scaled version of the given ColVariableSolution
+  /** This method stores a scaled version of the ColVariableSolution provided as
    * argument into this Solution. This Solution is completely destroyed and
    * its structure is reconstructed to be the same as that of the given
    * Solution. This Solution will then be equal to the given Solution except
@@ -214,8 +245,8 @@ public:
    *   ColVariables. */
 
   c_Vec_any & get_static_variable_values( void ) const {
-    return ( static_variable_values );
-  }
+   return( static_variable_values );
+   }
 
   /// returns the values of the *dynamic* Variables
   /** Method for reading the values of the *dynamic* Variables of the Block
@@ -252,16 +283,16 @@ public:
    *   of those ColVariables. */
 
   c_Vec_any & get_dynamic_variable_values( void ) const {
-    return ( dynamic_variable_values );
-  }
+   return( dynamic_variable_values );
+   }
 
  /// returns the vector of inner sub-Solutions of this ColVariableSolution
  /** Method for reading the vector of inner sub-Solutions of this
   * Solution. */
 
   c_Vec_ColVariableSolution & get_nested_solutions( void ) const {
-    return nested_solutions;
-  }
+   return( nested_solutions );
+   }
 
 /**@} ----------------------------------------------------------------------*/
 /*----- METHODS FOR LOADING, PRINTING & SAVING THE ColVariableSolution -----*/

@@ -18,6 +18,41 @@
 	back and forth between the original Block and its Lagrangian
 	Function/Dual.
 
+2019-08-26 [medium-high] implement [de]serialize() in ColVariableSolution
+
+	the name says it all
+
+
+2019-08-26 [medium-high] the Solver can return a Solution without the Block
+
+	We could have a
+
+           Solution * get_solution( Configuration * )
+
+        in the Solver. The defaul implementation will be to lock the Block,
+	call the standard get_solution() to write solution information in
+	the Block, ask the Block to produce a Solution, unlock the Block,
+	give the Solution back. However, a Solver that knows how the
+	specific :Solution is done can skip the Block and directly
+	produce an appropriate :Solution without having to lock the Block,
+	which avoids potential synchronization bottlenecks.
+
+
+2019-08-26 [medium] use the methods factory to work with "physical solution"
+
+        A Block may well have a "physical representation of the solution" that
+	is different from the "abstract representation". This may be
+	particularly useful for dual solutions, since it would allow them to
+	exist without the need for having the abstract representation of
+	Constraint constructed; but it would be nice to also have the
+	possibility to avoid to construct the abstract representation of the
+	Variable if nobody is really using it. This is now made possible by
+	the methods factory by just defining a set of interfaces for
+	*reading* from the Block, other than the existing ones for *writing*
+	into it. This may be used to read both data and solution information.
+	Maybe solution information could need to have a specific signature,
+	maybe not. This is relatively quick to do, but quite some comments
+	around Block will have to be updated.
 
 2018-03-22 [medium, pre-requisite LagrangianBlock] LagrangianUCBlock
 
@@ -29,45 +64,45 @@
 
 2019-03-17 [medium] Variable[Index]Set
 
-	ThinVarDepInterface and FunctionMod* use std::vector<Variable *> as their
-	standard way to describe sets of (indices) of Variable. We could define a
-	class VariableSet that acts as a repository of indices of Variable. The
-	class would be abstract, with a few obvious implementtions like
+	ThinVarDepInterface and FunctionMod* use std::vector<Variable *> as
+	their standard way to describe sets of (indices) of Variable. We
+	could define a class VariableSet that acts as a repository of indices
+	of Variable. The class would be abstract, with a few obvious
+	implementtions like std::vector<Variable *>  (or
+	template< class T> T<Variable *>) and something taking a
+	std::vector<Variable > & (or template< class T> T<Variable> & ) and
+	two iterators in it to represent a range in the vector. Also, some
+	"hybrid" data structure containing any number of the two objects
+	arranged in a container could be possible.
 
-	std::vector<Variable *>   (or template< class T> T<Variable *>
-
-	and something taking a std::vector<Variable > & (or a
-        or template< class T> T<Variable> & ) and two iterators in it to represent
-	a range in the vector. Also, some "hybrid" data structure containing any
-	number of the two objects arranged in a container could be possible.
-
-	The class should have the typical STL container interface to be used in
-	for( : ) constructs and the rest.
+	The class should have the typical STL container interface to be used
+	in for( : ) constructs and the rest.
 
 	An interesting possibility is to extract the relevant part of the
-	ThinVarDepInterface interface (mostly the virtual operators), and to make
-	ThinVarDepInterface itself derive from Variable[Index]Set.
+	ThinVarDepInterface interface (mostly the virtual operators), and to
+	make ThinVarDepInterface itself derive from Variable[Index]Set.
 
-	One then have to use a Variable[Index]Set * everywhere std::vector<Variable *>
-	is currently used, which will be quite some work.
+	One then have to use a Variable[Index]Set * everywhere
+	std::vector<Variable *> is currently used, which will be quite some
+	work.
 
-	The obvious disadvantage is that of havig to jump through a virtual layer
-	each time one is iterating on some of these objects.
+	The obvious disadvantage is that of havig to jump through a virtual
+	layer each time one is iterating on some of these objects.
 
 
 2018-08-17 [medium] UnitTest
 
-	We should definitely start putting down the UnitTest of the core SMS++.
-	SimpleMILPBlock/test could be a nice starting point.
+	We should definitely start putting down the UnitTest of the core
+	SMS++. SimpleMILPBlock/test could be a nice starting point.
 
 
 2019-04-01 [medium] boost::stable_vector for dynamic stuff
 
 	Allow dynemic stuff to be stored in boost::stable_vector other than in
-	std::list. This has a BIG IF: IT IS NOT CLEAR IF ONE CAN EXTRACT A SLICE
-	OF A boost::stable_vector AND TAKE IT AWAY WITHOUT CHANGING THE ADDRESS
-	OF THE ELEMENTS. This should ideally be possible, but it does not seem
-	that boost::stable_vector supports this operation.
+	std::list. This has a BIG IF: IT IS NOT CLEAR IF ONE CAN EXTRACT A
+	SLICE OF A boost::stable_vector AND TAKE IT AWAY WITHOUT CHANGING THE
+	ADDRESS OF THE ELEMENTS. This should ideally be possible, but it does
+	not seem that boost::stable_vector supports this operation.
 
 
 2019-04-01 [medium] std::vector for dynamic stuff
@@ -98,15 +133,17 @@
 
 	We could implement a template class MultiVarConstraint, inspired from
 	OneVarConstraint, that defines "group constraints" on arbitrary
-	containers of ColVariable. For instance, one could do a MultiBoxConstraint
-	that has a container of ColVariable and two parallel containers of double
-	(or a container of pairs) for the LHS and RHS of the boxes. This would be
-	fractionally less expensive than a corresponding container of BoxConstraint,
-	since for instance it would be all-or-nothing in terms of relaxing it.
-	Also, it might perhaps lead to more efficient implementation of, say,
-	LinearConstraint if all the ColVariable you make a linear combination of
-	belong to the same (multi-)array; but I'm not really sure of it. Since the
-	advantage is not likely to be large, this is left for the future (if ever).
+	containers of ColVariable. For instance, one could do a
+	MultiBoxConstraint that has a container of ColVariable and two
+	parallel containers of double (or a container of pairs) for the LHS
+	and RHS of the boxes. This would be fractionally less expensive than
+	a corresponding container of BoxConstraint, since for instance it
+	would be all-or-nothing in terms of relaxing it. Also, it might
+	perhaps lead to more efficient implementation of, say,
+	LinearConstraint if all the ColVariable you make a linear combination
+	of belong to the same (multi-)array; but I'm not really sure of it.
+	Since the advantage is not likely to be large, this is left for the
+	future (if ever).
 
 
 2019-02-21 [low] MultiVariable, MultiConstraint, MultiObjective, MultiFunction
@@ -433,3 +470,8 @@
         is enough for Blocks and Solvers to be able to update
         themselves.
 
+################################################################################
+################################################################################
+#-------------------------------- DISCARDED -----------------------------------#
+################################################################################
+################################################################################
