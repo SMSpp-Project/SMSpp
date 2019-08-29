@@ -1953,6 +1953,24 @@ get_sizes_dimensions( const netCDF::NcVar & var ) {
  * @param[in] optional This parameter informs whether the variable is
  *                     optional. This means that if the variable is not 
  *                     present in the given NcGroup, an exception is thrown.
+ *
+ * @param[in] allow_zero_dim_var This parameter indicates whether the desired
+ *                               variable (whose name is \p var_name) can have
+ *                               dimension zero (i.e., it could be a scalar
+ *                               instead of an array). Its default value is
+ *                               false and this means that, if the size of the
+ *                               given \p sizes vector is not the same as the
+ *                               number of dimensions of the netCDF variable or
+ *                               if the sizes of the dimensions specified by \p
+ *                               sizes do not match that of the netCDF variable,
+ *                               an exception is thrown. If \p
+ *                               allow_zero_dim_var is true, this means that if
+ *                               the netCDF variable has dimension zero (i.e.,
+ *                               it is a scalar), then the given vector \p data
+ *                               is resized to 1 and the value of the netCDF
+ *                               variable is stored in the first position of \p
+ *                               data (notice that, in this case, the given
+ *                               vector \p sizes is completely ignored).
  */
 
 template<class T>
@@ -1960,7 +1978,8 @@ inline void deserialize( const netCDF::NcGroup & group,
                          const std::string & var_name,
                          const std::vector<std::size_t> & sizes,
                          std::vector<T> & data,
-                         const bool optional = true ) {
+                         const bool optional = true ,
+                         const bool allow_zero_dim_var = false ) {
 
   auto total_size = std::accumulate( begin( sizes ), end( sizes ), 1,
                                      std::multiplies<std::size_t>() );
@@ -1980,18 +1999,27 @@ inline void deserialize( const netCDF::NcGroup & group,
                                   " is not present" ) );
   }
 
-  auto var_sizes = get_sizes_dimensions( ncVar );
-  if( sizes.size() != ncVar.getDimCount() )
+  if( sizes.size() != ncVar.getDimCount() &&
+      ( ncVar.getDimCount() != 0 || ! allow_zero_dim_var ) )
+
     throw( std::invalid_argument
            ( "deserialize: netCDF variable '" + var_name + "' has dimension " +
              std::to_string( ncVar.getDimCount() ) +
              ", but provided argument has dimension " +
              std::to_string( sizes.size() ) ) );
 
+  if( ncVar.getDimCount() == 0 ) {
+    data.resize( 1 );
+    ncVar.getVar( & data[ 0 ] );
+    return;
+  }
+
+  auto var_sizes = get_sizes_dimensions( ncVar );
+
   if( sizes != var_sizes )
     throw( std::invalid_argument
-           ("deserialize: given sizes of dimensions and the sizes of "
-            "dimensions of netCDF variable " + var_name + " do not match" ) );
+           ( "deserialize: given sizes of dimensions and the sizes of "
+             "dimensions of netCDF variable " + var_name + " do not match" ) );
 
   data.resize( total_size );
 
@@ -2029,6 +2057,24 @@ inline void deserialize( const netCDF::NcGroup & group,
  * @param[in] optional This parameter informs whether the variable is
  *                     optional. This means that if the variable is not
  *                     present in the given NcGroup, an exception is thrown.
+ *
+ * @param[in] allow_zero_dim_var This parameter indicates whether the desired
+ *                               variable (whose name is \p var_name) can have
+ *                               dimension zero (i.e., it could be a scalar
+ *                               instead of an array). Its default value is
+ *                               false and this means that, if the size of the
+ *                               given \p sizes vector is not the same as the
+ *                               number of dimensions of the netCDF variable or
+ *                               if the sizes of the dimensions specified by \p
+ *                               sizes do not match that of the netCDF variable,
+ *                               an exception is thrown. If \p
+ *                               allow_zero_dim_var is true, this means that if
+ *                               the netCDF variable has dimension zero (i.e.,
+ *                               it is a scalar), then the given vector \p data
+ *                               is resized to 1 and the value of the netCDF
+ *                               variable is stored in the first position of \p
+ *                               data (notice that, in this case, the given
+ *                               vector \p sizes is completely ignored).
  */
 
 template<class T>
@@ -2036,9 +2082,10 @@ inline void deserialize( const netCDF::NcGroup & group,
                          const std::string & var_name,
                          const std::size_t & size,
                          std::vector<T> & data,
-                         const bool optional = true ) {
+                         const bool optional = true ,
+                         const bool allow_zero_dim_var = false ) {
   deserialize( group , var_name , std::vector<size_t> { size } , data ,
-               optional );
+               optional , allow_zero_dim_var );
 }
 
 /*--------------------------------------------------------------------------*/
