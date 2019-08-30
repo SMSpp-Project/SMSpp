@@ -22,6 +22,12 @@
 
 	the name says it all
 
+2019-08-29 [medium-high] implement [de]serialize() in AbstractBlock
+
+	the name says it all; if we are ever going to use it seriously inside
+	"true" models, this is needed. It is not simple, but it makes
+	AbstractBlock a lot more valuable since you don't always have to
+	build it up programmatically.
 
 2019-08-26 [medium-high] the Solver can return a Solution without the Block
 

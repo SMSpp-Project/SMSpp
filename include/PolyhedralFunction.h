@@ -101,13 +101,20 @@ class PolyhedralFunction : public C05Function {
 /** @name Public Types
     @{ */
 
- typedef std::vector< std::vector < FunctionValue > > MultiVector;
+ using RealVector = std::vector < FunctionValue >;
+ ///< a real n-vector, useful for both the rows of A and b
+
+ using c_RealVector = const RealVector;   ///< a const RealVector
+
+ using MultiVector = std::vector< RealVector >;
  ///< representing the A matrix: a vector of m elements, each a real n-vector
 
- typedef std::vector< ColVariable * > VarVector;
+ using c_MultiVector = const MultiVector;   ///< a const MultiVector
+
+ using VarVector = std::vector< ColVariable * >;
  ///< representing the x variables upon which the function depends
 
- typedef const VarVector c_VarVector;
+ using c_VarVector = const VarVector;
  ///< a const version of the x variables upon which the function depends
 
 /*--------------------------------------------------------------------------*/
@@ -228,9 +235,9 @@ class PolyhedralFunction : public C05Function {
   *        entry A[ i ][ j ] is (obviously) meant to be the coefficient
   *        of variable *x[ j ] for the i-th row;
   *
-  * @param the std::vector<FunctionValue> && b, a m-vector of FunctionValue
-  *        representing the b vector in the definition of the function
-  *        (that is, b[ i ] is the constant factor of the i-th linear form);
+  * @param the RealVector && b, a m-vector of FunctionValue representing the
+  *        b vector in the definition of the function (that is, b[ i ] is the
+  *        constant factor of the i-th linear form);
   *
   * @param is_convex, a boolean indicating whether the function has to be
   *        defined as the maximization of the provided linear (affine)
@@ -246,8 +253,7 @@ class PolyhedralFunction : public C05Function {
   * so that this can be used as the void constructor. */
 
  PolyhedralFunction( VarVector && x = {} , MultiVector && A = {} ,
-		     std::vector<FunctionValue> && b = {} ,
-		     const bool is_convex = true ,
+		     RealVector && b = {} , const bool is_convex = true ,
 		     Observer * const observer = nullptr)
   : C05Function( observer ) , f_is_convex( is_convex ) ,
     f_loc_pool_sz( 1 ) , f_next( 0 ) , f_imp( 0 )
@@ -572,12 +578,9 @@ class PolyhedralFunction : public C05Function {
 /*--------------------------------------------------------------------------*/
  /// returns a (const reference) to the current b vector in the mapping
 
- const std::vector<FunctionValue> & get_b( void ) const {
+ const RealVector & get_b( void ) const {
   return( v_b );
   }
-
-
-
  
 /**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
@@ -675,9 +678,9 @@ class PolyhedralFunction : public C05Function {
   *        entry A[ i ][ j ] is (obviously) meant to be the coefficient
   *        of variable *x[ j ] for the i-th row;
   *
-  * @param the std::vector<FunctionValue> && b, a m-vector of FunctionValue
-  *        representing the b vector in the definition of the function
-  *        (that is, b[ i ] is the constant factor of the i-th linear form);
+  * @param the RealVector && b, a m-vector of FunctionValue representing the
+  *        b vector in the definition of the function (that is, b[ i ] is the
+  *        constant factor of the i-th linear form);
   *
   * @param is_convex, a boolean indicating whether the function has to be
   *        defined as the maximization of the provided linear (affine)
@@ -695,8 +698,7 @@ class PolyhedralFunction : public C05Function {
   * As the && implies, A and b become property of the PolyhedralFunction
   * object. */
  
- void set_PolyhedralFunction( MultiVector && A = {} ,
-			      std::vector<FunctionValue> && b = {} ,
+ void set_PolyhedralFunction( MultiVector && A = {} , RealVector && b = {} ,
 			      const bool is_convex = true ,
 			      c_ModParam issueMod = eModBlck );
 
@@ -776,25 +778,24 @@ class PolyhedralFunction : public C05Function {
   * @param var is a ColVariable *, and the pointed ColVariable must *not* be
   *        already among the active Variable of the PolyhedralFunction.
   *
-  * @param Aj is a std::vector<FunctionValue> containing having as many rows
-  *        as the current A matrix and containing the new column of the linear
-  *        mapping; entry Aj[ i ][ h ] is (obviously) meant to be the
-  *        coefficient of *vaf for the i-th row.
+  * @param Aj is a RealVector containing having as many rows as the current
+  *        A matrix and containing the new column of the linear mapping;
+  *        entry Aj[ i ][ h ] is (obviously) meant to be the coefficient of
+  *        *var for the i-th row.
   *
   * @param issueMod, which decides if and how the C05FunctionModVars (with
   *        f_shift == 0, since a PolyhedralFunction is strongly quasi-additive)
   *        is issued, as described in Observer::make_par(). */
 
- void add_variable( ColVariable * const var ,
-		    const std::vector<FunctionValue> & Aj ,
+ void add_variable( ColVariable * const var , RealVector & Aj ,
 		    c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// modify one bunch of rows of the linear mapping
  /** Modifies one bunch of rows of the linear mapping:
   *
-  * @param std::vector<Index> & rows contans the indices of the rows to be
-  *        modified; all entries must therefore be numbers in 0, ...,
+  * @param Vec_Index & rows contans the indices of the rows to be modified;
+  *        all entries must therefore be numbers in 0, ...,
   *        get_A().size() - 1, *unique* and *ordered in increasing sense*;
   *
   * @param nA, a MultiVector && with nA.size() == rows.size() and exactly as
@@ -803,9 +804,9 @@ class PolyhedralFunction : public C05Function {
   *        in row rows[ i ]; as the && implies, nA becomes property of the
   *        PolyhedralFunction object;
   *
-  * @param the std::vector<FunctionValue> & nb, a vector of FunctionValue with
-  *        nb.size() == nms.size(): entry nb[ i ] is (obviously) meant to be
-  *        the new value of the constant term for row rows[ i ];
+  * @param the RealVector & nb, a vector of FunctionValue with nb.size() ==
+  *        nms.size(): entry nb[ i ] is (obviously) meant to be the new value
+  *        of the constant term for row rows[ i ];
   *
   * @param issueMod, which decides if and how the C05FunctionMod, is issued,
   *        as described in Observer::make_par(). Note that the value of the
@@ -814,8 +815,7 @@ class PolyhedralFunction : public C05Function {
   *        is "AllLinearizationChanged"), although actually only one of them
   *        has. */  
 
- void modify_rows( std::vector<Index> & rows , MultiVector && nA ,
-		   std::vector<FunctionValue> & nb ,
+ void modify_rows( Vec_Index & rows , MultiVector && nA , RealVector & nb ,
 		   c_ModParam issueMod = eModBlck );
  
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -824,11 +824,11 @@ class PolyhedralFunction : public C05Function {
   *
   * @param i is the index of the row to be modified;
   *
-  * @param Ai is the new std::vector<FunctionValue>, with exactly n =
-  *        get_num_active_var() elements, to replace the existing vector of
-  *        coefficients in the i-th linear mapping; as the && tells, Ai
-  *        becomes "property" of the PolyhedralFunction object and physically
-  *        replaces the previous vector;
+  * @param Ai is the new RealVector, with exactly n = get_num_active_var()
+  *        elements, to replace the existing vector of coefficients in the
+  *        i-th linear mapping; as the && tells, Ai becomes "property" of the
+  *        PolyhedralFunction object and physically replaces the previous
+  *        vector;
   *
   * @param bi is the new constant term of the i-th mapping;
   *
@@ -839,21 +839,21 @@ class PolyhedralFunction : public C05Function {
   *        is "AllLinearizationChanged"), although actually only one of them
   *        has. */  
 
- void modify_row( c_Index i , std::vector<FunctionValue> && Ai ,
-		  c_FunctionValue bi , c_ModParam issueMod = eModBlck );
+ void modify_row( c_Index i , RealVector && Ai , c_FunctionValue bi ,
+		  c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify only the constant term of a bunch of rows of the linear mapping
  /** Like modify_row(), but modify the constant term only for one row of the
   * linear mapping:
   *
-  * @param std::vector<Index> & rows contans the indices of the rows to be
-  *        modified; all entries must therefore be numbers in 0, ...,
+  * @param Vec_Index & rows contans the indices of the rows to be modified;
+  *        all entries must therefore be numbers in 0, ...,
   *        get_A().size() - 1, *unique* and *ordered in increasing sense*;
   *
-  * @param the std::vector<FunctionValue> & nb, a vector of FunctionValue with
-  *        nb.size() == nms.size(): entry nb[ i ] is (obviously) meant to be
-  *        the new value of the constant term for row rows[ i ];
+  * @param the RealVector & nb, a vector of FunctionValue with nb.size() ==
+  *        nms.size(): entry nb[ i ] is (obviously) meant to be the new value
+  *        of the constant term for row rows[ i ];
   *
   * @param issueMod, which decides if and how the C05FunctionMod, is issued,
   *        as described in Observer::make_par(). Note that the value of the
@@ -868,8 +868,7 @@ class PolyhedralFunction : public C05Function {
   *        may have changed" (the Modification type is "AlphaChanged"),
   *        although actually only a subset of them has. */  
 
- void modify_constants( std::vector<Index> & rows ,
-		        std::vector<FunctionValue> & nb ,
+ void modify_constants( Vec_Index & rows , RealVector & nb ,
 			c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -906,10 +905,9 @@ class PolyhedralFunction : public C05Function {
   *        tells, the object (most likely, its individual rows) becomes
   *         "property" of the PolyhedralFunction.
   *
-  * @param the std::vector<FunctionValue> & b, a k-vector of FunctionValue
-  *        representing the new entries of b vector in the definition of the
-  *        function (that is, b[ i ] is the constant factor of the new i-th
-  *        linear form);
+  * @param the RealVector & b, a k-vector of FunctionValue representing the
+  *        new entries of b vector in the definition of the function (that is,
+  *        b[ i ] is the constant factor of the new i-th linear form);
   *
   * @param issueMod, which decides if and how the C05FunctionMod is issued,
   *        as described in Observer::make_par().
@@ -920,17 +918,17 @@ class PolyhedralFunction : public C05Function {
   * weird-ish setting C05FunctionMod::NothingChanged for the f_type of the
   * C05FunctionMod. */
 
- void add_rows( MultiVector && nA , std::vector<FunctionValue> & nb ,
+ void add_rows( MultiVector && nA , RealVector & nb ,
 		c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// add one single new row to the linear mapping
  /** Like add_row(), but just only one row of the linear mapping:
   *
-  * @param Ai is the std::vector<FunctionValue>, with exactly n =
-  *        get_num_active_var() elements, with the coefficients of the new
-  *        row in the mapping; as the && tells, Ai becomes "property" of the
-  *        PolyhedralFunction object;
+  * @param Ai is the RealVector, with exactly n = get_num_active_var()
+  *        elements, with the coefficients of the new row in the mapping; as
+  *        the && tells, Ai becomes "property" of the PolyhedralFunction
+  *        object;
   *
   * @param bi is the constant term of the new row in the mapping;
   *
@@ -943,7 +941,7 @@ class PolyhedralFunction : public C05Function {
   * weird-ish setting C05FunctionMod::NothingChanged for the f_type of the
   * C05FunctionMod. */
 
- void add_row( std::vector<FunctionValue> && Ai , c_FunctionValue bi ,
+ void add_row( RealVector && Ai , c_FunctionValue bi ,
 	       c_ModParam issueMod = eModBlck );
  
 /*--------------------------------------------------------------------------*/
@@ -952,8 +950,8 @@ class PolyhedralFunction : public C05Function {
   * leaving the current set of n = get_num_active_var() input Variable and
   * all rows that are not explicitly deleted:
   *
-  * @param  std::vector<Index> & rows contans the indices of the rows to be
-  *         deleted; all entries must therefore be numbers in 0, ...,
+  * @param  Vec_Index & rows contans the indices of the rows to be deleted;
+  *         all entries must therefore be numbers in 0, ...,
   *         get_A().size() - 1, *unique* and *ordered in increasing sense*;
   *
   * @param issueMod, which decides if and how the C05FunctionMod is issued,
@@ -977,8 +975,7 @@ class PolyhedralFunction : public C05Function {
   * the others get constant == Inf<FunctionValue>(), and therefore the vector
   * of coefficients is no longer significant. */
 
- void delete_rows( std::vector<Index> & rows ,
-		   c_ModParam issueMod = eModBlck );
+ void delete_rows( Vec_Index & rows , c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// deletes one single existing row from the linear mapping
@@ -1155,8 +1152,7 @@ class PolyhedralFunction : public C05Function {
 
 /*--------------------------------------------------------------------------*/
 
- void guts_of_constructor_Ab( MultiVector && A ,
-			      std::vector<FunctionValue> && b )
+ void guts_of_constructor_Ab( MultiVector && A , RealVector && b )
  {
   if( A.size() != b.size() )
    throw( std::invalid_argument( "A and b must have the same rows" ) );
@@ -1191,7 +1187,7 @@ class PolyhedralFunction : public C05Function {
 
 /*--------------------------------------------------------------------------*/
 
- std::vector<FunctionValue> & get_ai( c_Index name )
+ RealVector & get_ai( c_Index name )
  {
   if( name >= v_glob.size() )
    return( v_A[ v_ord[ f_next ] ] );
@@ -1212,11 +1208,11 @@ class PolyhedralFunction : public C05Function {
 
  MultiVector v_A;     ///< the A matrix of A x + b
  
- std::vector<FunctionValue> v_b;  ///< the b vector of A x + b
+ RealVector v_b;      ///< the b vector of A x + b
 
- MultiVector v_aA;     ///< the A matrix for aggregated linearizations
+ MultiVector v_aA;    ///< the A matrix for aggregated linearizations
  
- std::vector<FunctionValue> v_ab;  ///< the b vector for aggregated linear.
+ RealVector v_ab;     ///< the b vector for aggregated linear.
 
  VarVector v_x;       ///< the pointer to the variables x in A x + b
 
@@ -1224,12 +1220,12 @@ class PolyhedralFunction : public C05Function {
 
  FunctionValue f_Lipschitz_constant;  ///< the Lipschitz constant
 
- Index f_loc_pool_sz;       ///< size of the local pool
- Index f_next;              ///< next linearization in the local pool
+ Index f_loc_pool_sz;        ///< size of the local pool
+ Index f_next;               ///< next linearization in the local pool
  
- std::vector<Index> v_ord;  ///< the ordering of linearizations
+ Vec_Index v_ord;            ///< the ordering of linearizations
 
- std::vector<Index> v_glob;  ///< the global pool
+ Vec_Index v_glob;           ///< the global pool
                              /**< h = v_glob[ i ] contains the place where the
 			      * i-th item of the global pool is stored; if
 			      * h < v_A.size() then it's an original

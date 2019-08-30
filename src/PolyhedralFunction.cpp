@@ -41,7 +41,7 @@ using namespace SMSpp_di_unipi_it;
 void PolyhedralFunction::deserialize( netCDF::NcGroup & group ,
 				      c_ModParam issueMod  )
 {
- const Index nvar = get_num_active_var();
+ c_Index nvar = get_num_active_var();
 
  netCDF::NcDim nv = group.getDim( "PolyFunction_NumVar" );
  if( nv.isNull() )
@@ -50,7 +50,7 @@ void PolyhedralFunction::deserialize( netCDF::NcGroup & group ,
   throw( std::invalid_argument( "wrong A col size in netCDF::NcGroup" ) );
 
  MultiVector tA;
- std::vector<FunctionValue> tb;
+ RealVector tb;
 
  netCDF::NcDim nr = group.getDim( "PolyFunction_NumRow" );
  if( ( ! nv.isNull() ) && ( nv.getSize() ) ) {
@@ -95,7 +95,7 @@ int PolyhedralFunction::compute( bool changedvars )
    return( kOK );
 
   if( v_ord.size() > 1 ) {
-   std::vector<FunctionValue> v;
+   RealVector v;
    for( Index i = 0 ; i < v_A.size() ; ++i ) {
     v[ i ] = v_b[ i ];
     for( Index j = 0 ; j < v_x.size() ; ++j )
@@ -104,12 +104,12 @@ int PolyhedralFunction::compute( bool changedvars )
 
    if( f_is_convex )
     std::sort( v_ord.begin() , v_ord.end() ,
-	       [ & v ]( const Index x , const Index y ) {
+	       [ & v ]( c_Index x , c_Index y ) {
 		return( v[ x ] > v[ y ] );
 	       } );
    else
     std::sort( v_ord.begin() , v_ord.end() ,
-	       [ & v ]( const Index x , const Index y ) {
+	       [ & v ]( c_Index x , c_Index y ) {
 		return( v[ x ] < v[ y ] );
 	       } );
 
@@ -150,7 +150,7 @@ void PolyhedralFunction::store_combination_of_linearizations(
   throw( std::invalid_argument( "invalid global pool name" ) );
 
  // construct the aggregated linearization in a new vector
- std::vector<FunctionValue> a;
+ RealVector a;
  a.resize( v_x.size() , 0 );
  FunctionValue b = 0;
 
@@ -158,7 +158,7 @@ void PolyhedralFunction::store_combination_of_linearizations(
   if( v_glob[ coef.first ] == Inf<Index>() )
    throw( std::invalid_argument( "invalid name in coefficients" ) );
 
-  std::vector<FunctionValue>::iterator ait;
+  RealVector::iterator ait;
   if( v_glob[ coef.first ] < v_A.size() ) {
    ait = v_A[ v_glob[ coef.first ] ].begin();
    b += v_b[ v_glob[ coef.first ] ] * coef.second;
@@ -251,13 +251,13 @@ void PolyhedralFunction::delete_linearization( const LinearizationName name )
 
 void PolyhedralFunction::get_linearization_coefficients( FunctionValue * g ,
 	const LinearizationName name ,
-	c_Vec_Index & indices  , const Index start , const Index end )
+	c_Vec_Index & indices  , c_Index start , c_Index end )
 {
  c_Index tend = std::min( end , Index( v_x.size() ) );
  if( tend <= start )
   return;
 
- std::vector<FunctionValue> & ai =  get_ai( name );
+ RealVector & ai =  get_ai( name );
 
  if( indices.empty() )
   for( Index i = start ; i < end ; ++i )
@@ -282,7 +282,7 @@ void PolyhedralFunction::get_linearization_coefficients( SparseVector & g ,
  if( tend <= start )
   return;
 
- std::vector<FunctionValue> & ai =  get_ai( name );
+ RealVector & ai =  get_ai( name );
 
  if( g.nonZeros() == 0 ) {
   // the given vector contains no non-zero element
@@ -338,7 +338,7 @@ void PolyhedralFunction::get_linearization_coefficients( SparseVector & g ,
 
 void PolyhedralFunction::serialize( netCDF::NcGroup & group )
 {
- const Index nvar = get_num_active_var();
+ c_Index nvar = get_num_active_var();
 
  netCDF::NcDim nv = group.addDim( "PolyFunction_NumVar" , nvar );
 
@@ -396,7 +396,7 @@ void PolyhedralFunction::map_active( c_Vec_p_Var & vars , Vec_Index & map ,
 /*--------------------------------------------------------------------------*/
 
 void PolyhedralFunction::set_PolyhedralFunction( MultiVector && A ,
-					    std::vector<FunctionValue> && b ,
+						 RealVector && b ,
 						 const bool is_convex ,
 						 c_ModParam issueMod )
 {
@@ -448,7 +448,7 @@ void PolyhedralFunction::set_is_convex( const bool is_convex ,
 void PolyhedralFunction::add_variables( Vec_p_Var && nx , MultiVector && nA ,
 				        c_ModParam issueMod )
 {
- const Index nn = nx.size();
+ c_Index nn = nx.size();
  if( ! nn )  // actually nothing to add
   return;    // cowardly (and silently) return
 
@@ -459,7 +459,7 @@ void PolyhedralFunction::add_variables( Vec_p_Var && nx , MultiVector && nA ,
   if( a.size() != nn )
    throw( std::invalid_argument( "all rows nA must have the size of nx" ) );
 
- const Index n = v_x.size();
+ c_Index n = v_x.size();
 
  if( ! n ) {    // very easy case: adding to nothing
   v_A = std::move( nA );
@@ -516,8 +516,8 @@ void PolyhedralFunction::add_variables( Vec_p_Var && nx , MultiVector && nA ,
 
  // newpos[ i ] = position of nx[ i ] in the merged vector
  // oldpos[ i ] = position of v_x[ i ] in the merged vector
- std::vector<Index> newpos;  // position of new variables in new vectors
- std::vector<Index> oldpos;  // position of old variables in new vectors
+ Vec_Index newpos;  // position of new variables in new vectors
+ Vec_Index oldpos;  // position of old variables in new vectors
  
  auto npi = newpos.begin();
  auto opi = oldpos.begin();
@@ -564,7 +564,7 @@ void PolyhedralFunction::add_variables( Vec_p_Var && nx , MultiVector && nA ,
 
  // merge v_A and nA
  for( Index j = 0 ; j < v_A.size() ; ++j ) {
-  std::vector < FunctionValue > Aj( n + nn );
+  RealVector Aj( n + nn );
   for( i = n ; i-- ; )
    Aj[ oldpos[ i ] ] = v_A[ j ][ i ];
   for( i = 0 ; i < nn ; ++i )
@@ -586,8 +586,7 @@ void PolyhedralFunction::add_variables( Vec_p_Var && nx , MultiVector && nA ,
 /*--------------------------------------------------------------------------*/
 
 void PolyhedralFunction::add_variable( ColVariable * const var ,
-				       const std::vector<FunctionValue> & Aj ,
-				       c_ModParam issueMod )
+				       RealVector & Aj , c_ModParam issueMod )
 {
  if( var == nullptr )  // actually nothing to add
   return;              // cowardly (and silently) return
@@ -618,10 +617,8 @@ void PolyhedralFunction::add_variable( ColVariable * const var ,
 
 /*--------------------------------------------------------------------------*/
 
-void PolyhedralFunction::modify_rows( std::vector<Index> & rows ,
-				      MultiVector && nA ,
-				      std::vector<FunctionValue> & nb ,
-				      c_ModParam issueMod )
+void PolyhedralFunction::modify_rows( Vec_Index & rows , MultiVector && nA ,
+				      RealVector & nb , c_ModParam issueMod )
 {
  if( rows.empty() )  // actually nothing to modify
   return;            // cowardly (and silently) return
@@ -658,8 +655,7 @@ void PolyhedralFunction::modify_rows( std::vector<Index> & rows ,
 
 /*--------------------------------------------------------------------------*/
 
-void PolyhedralFunction::modify_row( c_Index i ,
-				     std::vector<FunctionValue> && Ai ,
+void PolyhedralFunction::modify_row( c_Index i , RealVector && Ai ,
 				     c_FunctionValue bi , c_ModParam issueMod )
 {
  if( i >= v_A.size() )
@@ -687,8 +683,7 @@ void PolyhedralFunction::modify_row( c_Index i ,
 
 /*--------------------------------------------------------------------------*/
 
-void PolyhedralFunction::modify_constants( std::vector<Index> & rows ,
-					   std::vector<FunctionValue> & nb ,
+void PolyhedralFunction::modify_constants( Vec_Index & rows , RealVector & nb ,
 					   c_ModParam issueMod )
 {
  if( rows.empty() )  // actually nothing to modify
@@ -775,15 +770,14 @@ void PolyhedralFunction::modify_constant( c_Index i , c_FunctionValue bi ,
 
 /*--------------------------------------------------------------------------*/
 
-void PolyhedralFunction::add_rows( MultiVector && nA ,
-				   std::vector<FunctionValue> & nb ,
+void PolyhedralFunction::add_rows( MultiVector && nA , RealVector & nb ,
 				   c_ModParam issueMod )
 {
- const Index k = nA.size();
+ c_Index k = nA.size();
  if( k != nb.size() )
   throw( std::invalid_argument( "nA and nb must have the same size" ) );
 
- const Index n = v_x.size();
+ c_Index n = v_x.size();
  for( auto & a : nA )
   if( a.size() != n )
    throw( std::invalid_argument( "some rows of nA have a wrong size" ) );
@@ -810,8 +804,8 @@ void PolyhedralFunction::add_rows( MultiVector && nA ,
 
 /*--------------------------------------------------------------------------*/
 
-void PolyhedralFunction::add_row( std::vector<FunctionValue> && Ai ,
-				  c_FunctionValue bi , c_ModParam issueMod )
+void PolyhedralFunction::add_row( RealVector && Ai , c_FunctionValue bi ,
+				  c_ModParam issueMod )
 {
  if( Ai.size() != v_x.size() )
   throw( std::invalid_argument( "Ai has a wrong size" ) );
@@ -836,8 +830,7 @@ void PolyhedralFunction::add_row( std::vector<FunctionValue> && Ai ,
 
 /*--------------------------------------------------------------------------*/
 
-void PolyhedralFunction::delete_rows( std::vector<Index> & rows ,
-				      c_ModParam issueMod )
+void PolyhedralFunction::delete_rows( Vec_Index & rows , c_ModParam issueMod )
 {
  if( rows.empty() )  // actually nothing to remove
   return;            // cowardly (and silently) returning
@@ -866,10 +859,8 @@ void PolyhedralFunction::delete_rows( std::vector<Index> & rows ,
 
  // kill stuff in v_A[]
  v_A.erase( remove_if( v_A.begin() + rows.front() , v_A.end() ,
-		       []( std::vector < FunctionValue > & ai ) {
-			return( ai.empty() );
-		        }
-		       ) , v_A.end() );
+		       []( RealVector & ai ) { return( ai.empty() ); } ) ,
+	    v_A.end() );
 
  // kill stuff in v_b[]
  v_b.erase( remove_if( v_b.begin() + rows.front() , v_b.end() ,
