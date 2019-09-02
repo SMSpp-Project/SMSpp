@@ -321,7 +321,6 @@ void ComputeConfig::load( std::istream &input )
   input >> eatcomments >> str_pars[ i ].first
 	>> eatcomments >> str_pars[ i ].second;
 
- input >> eatcomments >> k;
  if( input.peek() == input.widen( '*' ) )
   f_extra_Configuration = nullptr;
  else {
