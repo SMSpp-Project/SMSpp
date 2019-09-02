@@ -1191,12 +1191,12 @@ class C05FunctionMod : public FunctionMod {
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: takes the type of Modification and a C05Function pointer
- /** Constructor: takes the type of the Modification and a pointer to
-  * the affected C05Function. Note that while the enum
-  * c05function_mod_type is provided to encode the possible values of
-  * modification, the field f_type is of type "int", and therefore so
-  * is the parameter of the constructor, in order to allow derived
-  * classes to "extend" the set of possible types of modifications. */
+ /** Constructor: takes a pointer to the affected C05Function, the type of the
+  * Modification, the value of the shift, and the "concerns Block" value.
+  * Note that while the enum c05function_mod_type is provided to encode the
+  * possible values of modification, the field f_type is of type "int", and
+  * therefore so is the parameter of the constructor, in order to allow
+  * derived classes to "extend" the set of possible types of modifications. */
 
  C05FunctionMod( C05Function * const f , const int mod ,
 		 const FunctionValue shift = NaNshift , const bool cB = true )
