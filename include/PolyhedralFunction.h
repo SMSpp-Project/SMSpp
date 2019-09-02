@@ -286,9 +286,11 @@ class PolyhedralFunction : public C05Function {
   *
   * @param issueMod, which decides if and how the FunctionMod (with f_shift
   *        == FunctionMod::NaNshift, i.e., "everything changed") is issued,
-  *        as described in Observer::make_par(). */
+  *        as described in Observer::make_par(). The default is eNoMod,
+  *        since the method is mostly thought to be used during initialization
+  *        when "no one is listening". */
 
- void deserialize( netCDF::NcGroup & group , c_ModParam issueMod = eModBlck );
+ void deserialize( netCDF::NcGroup & group , c_ModParam issueMod = eNoMod );
 
 /*--------------------------------------------------------------------------*/
  /// destructor: it is virtual, and empty
@@ -712,8 +714,8 @@ class PolyhedralFunction : public C05Function {
   *        functions, and therefore is a convex function, or as the
   *        minimization and therefore it is a concave function.
   *
-  * @param issueMod, which decides if and how the C05FunctionMod is issued,
-  *        as described in Observer::make_par().
+  * @param issueMod, which decides if and how the PolyhedralFunctionMod is
+  *        issued, as described in Observer::make_par().
   *
   * Note that when the sign changes from "max" to "min" (from convex to
   * concave) then the value of the function surely decreases, and vice-versa.
@@ -794,9 +796,11 @@ class PolyhedralFunction : public C05Function {
  /// modify one bunch of rows of the linear mapping
  /** Modifies one bunch of rows of the linear mapping:
   *
-  * @param Vec_Index & rows contans the indices of the rows to be modified;
+  * @param Vec_Index && rows contans the indices of the rows to be modified;
   *        all entries must therefore be numbers in 0, ...,
   *        get_A().size() - 1, *unique* and *ordered in increasing sense*;
+  *        as the && tells, the vector becomes property of the method, to be
+  *        dispatched to the issued PolyhedralFunctionModRng (if any);
   *
   * @param nA, a MultiVector && with nA.size() == rows.size() and exactly as
   *        many columns as the current A matrix; entry nA[ i ][ h ] is
@@ -808,14 +812,14 @@ class PolyhedralFunction : public C05Function {
   *        nms.size(): entry nb[ i ] is (obviously) meant to be the new value
   *        of the constant term for row rows[ i ];
   *
-  * @param issueMod, which decides if and how the C05FunctionMod, is issued,
-  *        as described in Observer::make_par(). Note that the value of the
-  *        function has changed "unpredictably" (hence, the shift is NANshift)
-  *        and "all the linearizations may have changed" (the Modification type
-  *        is "AllLinearizationChanged"), although actually only one of them
-  *        has. */  
+  * @param issueMod, which decides if and how the PolyhedralFunctionModRng, is
+  *        issued, as described in Observer::make_par(). Note that the value of
+  *        the function has changed "unpredictably" (hence, the shift is
+  *        NANshift) and "all the linearizations may have changed" (the
+  *        Modification type is "AllLinearizationChanged"), although actually
+  *        only a subset of them has. */  
 
- void modify_rows( Vec_Index & rows , MultiVector && nA , RealVector & nb ,
+ void modify_rows( Vec_Index && rows , MultiVector && nA , RealVector & nb ,
 		   c_ModParam issueMod = eModBlck );
  
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -850,6 +854,8 @@ class PolyhedralFunction : public C05Function {
   * @param Vec_Index & rows contans the indices of the rows to be modified;
   *        all entries must therefore be numbers in 0, ...,
   *        get_A().size() - 1, *unique* and *ordered in increasing sense*;
+  *        as the && tells, the vector becomes property of the method, to be
+  *        dispatched to the issued PolyhedralFunctionModRng (if any);
   *
   * @param the RealVector & nb, a vector of FunctionValue with nb.size() ==
   *        nms.size(): entry nb[ i ] is (obviously) meant to be the new value
@@ -868,7 +874,7 @@ class PolyhedralFunction : public C05Function {
   *        may have changed" (the Modification type is "AlphaChanged"),
   *        although actually only a subset of them has. */  
 
- void modify_constants( Vec_Index & rows , RealVector & nb ,
+ void modify_constants( Vec_Index && rows , RealVector & nb ,
 			c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -909,8 +915,8 @@ class PolyhedralFunction : public C05Function {
   *        new entries of b vector in the definition of the function (that is,
   *        b[ i ] is the constant factor of the new i-th linear form);
   *
-  * @param issueMod, which decides if and how the C05FunctionMod is issued,
-  *        as described in Observer::make_par().
+  * @param issueMod, which decides if and how the PolyhedralFunctionModAdd is
+  *        issued, as described in Observer::make_par().
   *
   * Note that adding new rows makes a "max" (convex) function to increase in
   * value and a "min" (concave) one to decrease in value, but all existing
@@ -932,8 +938,8 @@ class PolyhedralFunction : public C05Function {
   *
   * @param bi is the constant term of the new row in the mapping;
   *
-  * @param issueMod, which decides if and how the C05FunctionMod is issued,
-  *        as described in Observer::make_par().
+  * @param issueMod, which decides if and how the PolyhedralFunctionModAdd is
+  *        issued, as described in Observer::make_par().
   *
   * Note that adding a new row makes a "max" (convex) function to increase in
   * value and a "min" (concave) one to decrease in value, but all existing
@@ -950,12 +956,14 @@ class PolyhedralFunction : public C05Function {
   * leaving the current set of n = get_num_active_var() input Variable and
   * all rows that are not explicitly deleted:
   *
-  * @param  Vec_Index & rows contans the indices of the rows to be deleted;
+  * @param  Vec_Index && rows contans the indices of the rows to be deleted;
   *         all entries must therefore be numbers in 0, ...,
   *         get_A().size() - 1, *unique* and *ordered in increasing sense*;
+  *        as the && tells, the vector becomes property of the method, to be
+  *        dispatched to the issued PolyhedralFunctionModRng (if any);
   *
-  * @param issueMod, which decides if and how the C05FunctionMod is issued,
-  *        as described in Observer::make_par().
+  * @param issueMod, which decides if and how the PolyhedralFunctionModRng is
+  *        issued, as described in Observer::make_par().
   *
   * Note that removing rows makes a "max" (convex) function to decrease in
   * value and a "min" (concave) one to increase in value; also, existing
@@ -975,7 +983,7 @@ class PolyhedralFunction : public C05Function {
   * the others get constant == Inf<FunctionValue>(), and therefore the vector
   * of coefficients is no longer significant. */
 
- void delete_rows( Vec_Index & rows , c_ModParam issueMod = eModBlck );
+ void delete_rows( Vec_Index && rows , c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// deletes one single existing row from the linear mapping
@@ -1164,6 +1172,7 @@ class PolyhedralFunction : public C05Function {
    }
   v_A = std::move( A );
   v_b = std::move( b );
+  f_next = f_imp = 0;
   f_value = - Inf<FunctionValue>();
   f_Lipschitz_constant = - Inf<FunctionValue>();
   }
@@ -1242,6 +1251,231 @@ class PolyhedralFunction : public C05Function {
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( PolyhedralFunction ) )
+
+/*--------------------------------------------------------------------------*/
+/*---------------------- CLASS PolyhedralFunctionMod -----------------------*/
+/*--------------------------------------------------------------------------*/
+/// class to describe modifications specific to a PolyhedralFunction
+/** Derived class from C0FunctionMod to describe modifications to a
+ * PolyhedralFunction. This obviously "keeps the same interface" as
+ * C0FunctionMod, so that it can be used by Solver and/or Block just relying
+ * on the C0Function interface, but it also add PolyhedralFunction-specific
+ * information, so that Solver and/or Block can actually react in
+ * PolyhedralFunction-specific if they want to.
+ *
+ * This base class actually has *no* PolyhedralFunction-specific information,
+ * besides being of a specific type; a PolyhedralFunctionMod is issued by
+ * the method set_is_convex(), which means that the "sign" of the
+ * PolyhedralFunction is changed; therefore, no other information is needed.
+ * Further derived classes contain data for other types of changes. */
+
+class PolyhedralFunctionMod : public C05FunctionMod {
+
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
+ /// constructor: identical to that of C05FunctionMod
+ /** Constructor: takes a pointer to the affected C05Function, the type of the
+  * Modification, the value of the shift, and the "concerns Block" value. No
+  * other PolyhedralFunction-specific information is needed. */
+
+ PolyhedralFunctionMod( C05Function * const f , const int mod ,
+			const FunctionValue shift = NaNshift ,
+			const bool cB = true )
+  : C05FunctionMod( f , mod , shift , cB ) { }
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+
+ virtual ~PolyhedralFunctionMod() { }  ///< destructor: does nothing
+
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+  /// print the PolyhedralFunctionMod
+
+  virtual inline void print( std::ostream &output ) const override
+  {
+   output << "PolyhedralFunctionMod[";
+   if( concerns_Block() )
+    output << "t";
+   else
+    output << "f";
+   output << "] on PolyhedralFunction [" << &f_function << " ]: ";
+   switch( f_type ) {
+    case( AlphaChanged ): output << "all the \alpha"; break;
+    case( AllEntriesChanged ): output << "all the g"; break;
+    default: output << "both \alpha and g";
+    }
+   output << " have changed ==> f-values changed";
+   if( std::isnan( f_shift ) )
+    output << "(+-)";
+   else
+    if( f_shift >= INFshift )
+     output << "(+)";
+    else
+     if( f_shift <= -INFshift )
+      output << "(-)";
+     else
+      output << " by " << f_shift;
+   output << std::endl;
+   }
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( PolyhedralFunctionMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- CLASS PolyhedralFunctionModAdd ---------------------*/
+/*--------------------------------------------------------------------------*/
+/// class to describe modification specific to a PolyhedralFunction: add rows
+/** Derived class from PolyhedralFunctionMod to describe a very specifuc
+ * modifications to a PolyhedralFunction: add some new rows. The 
+ * PolyhedralFunction-specific information is therefore the number of
+ * added rows. */
+
+class PolyhedralFunctionModAdd : public PolyhedralFunctionMod {
+
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
+ /// constructor: like that of PolyhedralFunctionMod + the added rows
+ /** Constructor: takes a pointer to the affected C05Function, the type of the
+  * Modificationt, the number of added rows, the value of the shif, and the
+  * "concerns Block" value. */
+
+ PolyhedralFunctionModAdd( C05Function * const f , const int mod ,
+			   Function::Index ar ,
+			   const FunctionValue shift = NaNshift ,
+			   const bool cB = true )
+  : PolyhedralFunctionMod( f , mod , shift , cB ) , f_addedrows( ar ) { }
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+
+ virtual ~PolyhedralFunctionModAdd() { }  ///< destructor: does nothing
+
+/*----------------------- PUBLIC FIELDS OF THE CLASS -----------------------*/
+
+  Function::Index f_addedrows;  ///< number of added rows
+
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+  /// print the PolyhedralFunctionModAdd
+
+  virtual inline void print( std::ostream &output ) const override
+  {
+   output << "PolyhedralFunctionModAdd[";
+   if( concerns_Block() )
+    output << "t";
+   else
+    output << "f";
+   output << "] on PolyhedralFunction [" << &f_function << " ]: added "
+	  << f_addedrows << " rows" << std::endl;
+   }
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( PolyhedralFunctionModAdd ) )
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- CLASS PolyhedralFunctionModRng ---------------------*/
+/*--------------------------------------------------------------------------*/
+/// class to describe range modification specific to a PolyhedralFunction
+/** Derived class from PolyhedralFunctionMod to describe all modifications to
+ * a PolyhedralFunction that involve an arbitrary set of rows:
+ *
+ * - modify_row[s]
+ * - modify_constant[s]
+ * - delete_row[s]
+ *
+ * For all these, the Vec_Index of the affected rows is provided, as well as
+ * the exact type of operation. */
+
+class PolyhedralFunctionModRng : public PolyhedralFunctionMod {
+
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*---------------------------- PUBLIC TYPES --------------------------------*/
+
+  /// Definition of the possibles type of PolyhedralFunctionModRng
+  /** This enum specifies what kind of assumption can be made about any
+   * previously produced linearization. */
+  enum poly_function_mod_type {
+   ModifyRows ,         ///< modify a set of rows (both A and b)
+   ModifyCnst ,         ///< modify a set of constants (b only)
+   DeleteRows ,         ///< delete a set of rows
+   PolyhedralFunctionModRngLastParam
+   ///< First allowed parameter value for derived classes
+   /**< Convenience value for easily allow derived classes to extend
+    * the set of types of modifications. */
+   };
+
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
+ /// constructor: like that of PolyhedralFunctionMod + the added rows
+ /** Constructor: takes a pointer to the affected C05Function, the type of the
+  * Modificationt (according to C05FunctionMod), the type of the
+  * Modificationt (according to PolyhedralFunctionMod), the set of concerned
+  * rows, the value of the shift, and the "concerns Block" value. As the &&
+  * tells, the rows parameter becomes property of the
+  * PolyhedralFunctionModRng. */
+
+ PolyhedralFunctionModRng( C05Function * const f , const int mod ,
+			   const int pfmod , Function::Vec_Index && rows ,
+			   const FunctionValue shift = NaNshift ,
+			   const bool cB = true )
+  : PolyhedralFunctionMod( f , mod , shift , cB ) , f_PFtype( pfmod ) ,
+    f_rows( std::move( rows ) ) { }
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+
+ virtual ~PolyhedralFunctionModRng() { }  ///< destructor: does nothing
+
+/*----------------------- PUBLIC FIELDS OF THE CLASS -----------------------*/
+
+ int f_PFtype;  // the exact PolyhedralFunction-specific operation
+
+ Function::Vec_Index f_rows;  ///< the set of affected rows
+
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+  /// print the PolyhedralFunctionModRng
+
+  virtual inline void print( std::ostream &output ) const override
+  {
+   output << "PolyhedralFunctionModRng[";
+   if( concerns_Block() )
+    output << "t";
+   else
+    output << "f";
+   output << "] on PolyhedralFunction [" << &f_function << " ]: "
+	  << f_rows.size();
+   if( f_PFtype == ModifyCnst )
+    output << " constants";
+   else
+    output << " rows";
+   if( f_PFtype == DeleteRows )
+    output << " deleted";
+   else
+    output << " modified";
+   output << std::endl;
+   }
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( PolyhedralFunctionModRng ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
