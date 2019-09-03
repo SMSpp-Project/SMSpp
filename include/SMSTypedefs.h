@@ -117,14 +117,14 @@ namespace SMSpp_di_unipi_it
  ///< iterator for a c_Vec_string
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// Inf<T>() = infinity value for T
 
- /// Inf<T> = infinity value for T
  template <typename T>
- class Inf {
- public:
-  Inf() {}
-  operator T() { return( std::numeric_limits<T>::max() ); }
-  };
+ static constexpr T Inf( void ) noexcept {
+  return( std::numeric_limits<T>::has_infinity ?
+	  std::numeric_limits<T>::infinity() :
+	  std::numeric_limits<T>::max() );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// public enum for types of SMS++ netCDF files
