@@ -21,7 +21,7 @@
  *
  * \version 0.12
  *
- * \date 02 - 09 - 2019
+ * \date 03 - 09 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1876,8 +1876,8 @@ std::istream &operator>>( std::istream &is , std::list<T> &l )
  *
  * @param[in] optional This parameter informs whether the dimension is
  *                     optional. This means that if the dimension is not
- *                     present in the given NcGroup, then an exception is
- *                     thrown. */
+ *                     present in the given NcGroup and \p optional is false,
+ *                     then an exception is thrown. */
 
 template<class T>
 inline void deserialize_dim( const netCDF::NcGroup & group ,
@@ -1952,7 +1952,8 @@ get_sizes_dimensions( const netCDF::NcVar & var ) {
  *
  * @param[in] optional This parameter informs whether the variable is
  *                     optional. This means that if the variable is not
- *                     present in the given NcGroup, an exception is thrown.
+ *                     present in the given NcGroup and \p optional is false,
+ *                     an exception is thrown.
  *
  * @param[in] allow_scalar_var This parameter indicates whether the desired
  *                             variable (whose name is \p var_name) can have
@@ -2057,7 +2058,8 @@ inline void deserialize( const netCDF::NcGroup & group ,
  *
  * @param[in] optional This parameter informs whether the variable is
  *                     optional. This means that if the variable is not
- *                     present in the given NcGroup, an exception is thrown.
+ *                     present in the given NcGroup and \p optional is false,
+ *                     an exception is thrown.
  *
  * @param[in] allow_scalar_var This parameter indicates whether the desired
  *                             variable (whose name is \p var_name) can have
@@ -2120,8 +2122,8 @@ inline void deserialize( const netCDF::NcGroup & group ,
  *
  * @param[in] optional This parameter informs whether the variable is
  *                     optional. This means that if the variable is not
- *                     present in the given NcGroup, an exception is thrown
- *                     in case the variable is not optional.
+ *                     present in the given NcGroup and \p optional is false,
+ *                     an exception is thrown.
  */
 
 template<class T>
@@ -2276,8 +2278,8 @@ inline void deserialize( const netCDF::NcGroup & group ,
  *
  * @param[in] optional This parameter informs whether the variable is
  *                     optional. This means that if the variable is not
- *                     present in the given NcGroup, an exception is thrown
- *                     in case the variable is not optional.
+ *                     present in the given NcGroup and \p optional is false,
+ *                     an exception is thrown.
  */
 
 template<class T>
