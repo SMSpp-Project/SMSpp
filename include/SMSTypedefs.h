@@ -2025,8 +2025,7 @@ inline void deserialize( const netCDF::NcGroup & group ,
 
   data.resize( total_size );
 
-  std::vector<std::size_t> start;
-  start.assign( sizes.size() , 0 );
+  std::vector<std::size_t> start( sizes.size() , 0 );
 
   ncVar.getVar( start , sizes , data.data() );
 }
@@ -2155,8 +2154,7 @@ inline void deserialize( const netCDF::NcGroup & group ,
 
   data.resize( total_size );
 
-  std::vector<std::size_t> start;
-  start.assign( sizes_dimensions.size() , 0 );
+  std::vector<std::size_t> start( sizes_dimensions.size() , 0 );
 
   ncVar.getVar( start , sizes_dimensions , data.data() );
 }
@@ -2247,8 +2245,7 @@ inline void deserialize( const netCDF::NcGroup & group ,
 
   array.reshape( sizes_dimensions );
 
-  std::vector<std::size_t> start;
-  start.assign( sizes_dimensions.size() , 0 );
+  std::vector<std::size_t> start( sizes_dimensions.size() , 0 );
 
   ncVar.getVar( start , sizes_dimensions , array.data() );
 }
@@ -2360,11 +2357,8 @@ inline void serialize( netCDF::NcGroup & group , const std::string & var_name ,
     return;
   }
 
-  std::vector<std::size_t> start;
-  start.assign( ncDim.size() , 0 );
-
-  std::vector<std::size_t> sizes;
-  sizes.resize( ncDim.size() );
+  std::vector<std::size_t> start( ncDim.size() , 0 );
+  std::vector<std::size_t> sizes( ncDim.size() );
   for( std::size_t i = 0 ; i < sizes.size() ; ++i )
     sizes[ i ] = ncDim[ i ].getSize();
 
