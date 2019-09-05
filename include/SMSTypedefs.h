@@ -21,7 +21,7 @@
  *
  * \version 0.12
  *
- * \date 04 - 09 - 2019
+ * \date 05 - 09 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -2311,8 +2311,8 @@ void deserialize( const netCDF::NcGroup & group , const std::string & var_name ,
  */
 
 template<class T>
-void serialize( netCDF::NcGroup & group , const std::string & var_name ,
-                const netCDF::NcType ncType , const T data ) {
+inline void serialize( netCDF::NcGroup & group , const std::string & var_name ,
+                       const netCDF::NcType ncType , const T data ) {
   ( group.addVar( var_name , ncType ) ).putVar( & data );
 }
 
@@ -2324,7 +2324,7 @@ void serialize( netCDF::NcGroup & group , const std::string & var_name ,
  * that variable in row-major layout.
  *
  * @param[in, out] group The netCDF NcGroup in which the variable will be
- *                       added.
+ * added.
  *
  * @param[in] var_name The name of the variable that will be added.
  *
@@ -2333,43 +2333,81 @@ void serialize( netCDF::NcGroup & group , const std::string & var_name ,
  * @param[in] ncDim A vector with the netCDF dimensions of the array.
  *
  * @param[in] data A vector containing the data to be stored in the variable
- *                 in row-major layout.
+ * in row-major layout.
  *
- * @param[in] allow_scalar_var Although this function is supposed to
- *                             serialize an array, it can also be used to
- *                             serialize a scalar. If the given vector \p
- *                             data has size 1 and \p allow_scalar_var is
- *                             true, then a netCDF scalar variable is
- *                             created instead of a multi-dimensional one
- *                             (notice that, in this case, the argument \p
- *                             ncDim is completely ignored).
+ * @param[in] sizes This is an optional parameter that indicates the sizes of
+ * each dimension of the multi-dimensional array to be serialized. If the
+ * number of dimensions is greater than 1, then (a) if \p sizes is not
+ * provided then unlimited dimensions are not supported (an exception is
+ * thrown in this case); (b) if \p sizes is provided, it must have the same
+ * number of elements as \p ncDim (otherwise, an exception is thrown).
+ *
+ * @param[in] allow_scalar_var Although this function is supposed to serialize
+ * an array, it can also be used to serialize a scalar. If the given vector \p
+ * data has size 1 and \p allow_scalar_var is true, then a netCDF scalar
+ * variable is created instead of a multi-dimensional one (notice that, in
+ * this case, the argument \p ncDim is completely ignored).
  */
 
 template<class T>
-inline void serialize( netCDF::NcGroup & group , const std::string & var_name ,
-                       const netCDF::NcType & ncType ,
-                       const std::vector<netCDF::NcDim> & ncDim ,
-                       const std::vector<T> & data ,
-                       const bool allow_scalar_var = false ) {
+void serialize( netCDF::NcGroup & group , const std::string & var_name ,
+                const netCDF::NcType & ncType ,
+                const std::vector<netCDF::NcDim> & ncDim ,
+                const std::vector<T> & data ,
+                const std::vector<std::size_t> & sizes = {} ,
+                const bool allow_scalar_var = false ) {
+
+  if( data.size() == 0 )
+    return; // Nothing to be serialized.
+
+  if( ncDim.size() == 1 && sizes.size() <= 1 )
+    serialize( group , var_name , ncType , ncDim[ 0 ] , data ,
+               allow_scalar_var );
 
   if( allow_scalar_var && data.size() == 1 ) {
+    // Serializes the only element of the given vector as a scalar variable.
     serialize( group , var_name , ncType , data[ 0 ] );
     return;
   }
 
-  std::vector<std::size_t> start( ncDim.size() , 0 );
-  std::vector<std::size_t> sizes( ncDim.size() );
-  for( std::size_t i = 0 ; i < sizes.size() ; ++i )
-    sizes[ i ] = ncDim[ i ].getSize();
+  if( sizes.size() == 0 ) {
 
-  auto total_size = std::accumulate( begin( sizes ) , end( sizes ) , 1 ,
-                                     std::multiplies<std::size_t>() );
+    // The sizes of the dimensions of the multi-dimensional array to be
+    // serialized were not provided. We thus consider the sizes of the given
+    // netCDF dimensions. In this case, unlimited dimensions (dimensions with
+    // size 0) are not allowed.
 
-  if( total_size == 0 )
-    return;
+    std::vector<std::size_t> sizes( ncDim.size() );
+    for( std::size_t i = 0 ; i < ncDim.size() ; ++i ) {
+      sizes[ i ] = ncDim[ i ].getSize();
+      if( sizes[ i ] == 0 )
+        throw( std::invalid_argument
+               ( "serialize(): error when serializing variable '" + var_name +
+                 "' of group '" + group.getName() + "'. The size of given"
+                 " netCDF dimension " + std::to_string( i ) + " is zero, but"
+                 " unlimited dimension is not supported when the sizes of each"
+                 " dimension of the multi-dimensional array represented by the"
+                 " vector parameter 'data' are not provided." ) );
+    }
 
-  group.addVar( var_name , ncType , ncDim )
-    .putVar( start , sizes , data.data() );
+    std::vector<std::size_t> start( ncDim.size() , 0 );
+    group.addVar( var_name , ncType , ncDim )
+      .putVar( start , sizes , data.data() );
+
+  }
+  else if( ncDim.size() != sizes.size() )
+    throw( std::invalid_argument
+           ( "serialize(): error when serializing variable '" + var_name +
+             "' of group '" + group.getName() + "'. The vector 'sizes' has"
+             " size " + std::to_string( sizes.size() ) + ", while the vector"
+             " 'ncDim' has size " + std::to_string( ncDim.size() ) + ". When"
+             " the optional vector parameter 'sizes' is present, it must"
+             " have the same size as the vector 'ncDim'." ) );
+  else {
+    std::vector<std::size_t> start( ncDim.size() , 0 );
+    group.addVar( var_name , ncType , ncDim )
+      .putVar( start , sizes , data.data() );
+  }
 }
 
 /*--------------------------------------------------------------------------*/
