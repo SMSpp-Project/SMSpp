@@ -2388,17 +2388,17 @@ void serialize( netCDF::NcGroup & group , const std::string & var_name ,
 
     // The sizes of the dimensions of the multi-dimensional array to be
     // serialized were not provided. We thus consider the sizes of the given
-    // netCDF dimensions. In this case, unlimited dimensions (dimensions with
-    // size 0) are not allowed.
+    // netCDF dimensions. In this case, unlimited dimensions are not allowed.
 
     std::vector<std::size_t> sizes( ncDim.size() );
     for( std::size_t i = 0 ; i < ncDim.size() ; ++i ) {
       sizes[ i ] = ncDim[ i ].getSize();
-      if( sizes[ i ] == 0 )
+
+      if( ncDim[ i ].isUnlimited() )
         throw( std::invalid_argument
                ( "serialize(): error when serializing variable '" + var_name +
-                 "' of group '" + group.getName() + "'. The size of given"
-                 " netCDF dimension " + std::to_string( i ) + " is zero, but"
+                 "' of group '" + group.getName() + "'. The given netCDF"
+                 " dimension " + std::to_string( i ) + " is unlimited, but"
                  " unlimited dimension is not supported when the sizes of each"
                  " dimension of the multi-dimensional array represented by the"
                  " vector parameter 'data' are not provided." ) );
@@ -2456,8 +2456,8 @@ void serialize( netCDF::NcGroup & group , const std::string & var_name ,
  *    present in the given \p group, one is created with the name given by
  *    \p singleton_dim_name.
  *
- * 3) If a netCDF dimension has size 0 (i.e., it is an unlimited dimension),
- *    then the corresponding dimension of \p multi_array can have any size.
+ * 3) If a netCDF dimension is unlimited, then the corresponding dimension of
+ *    \p multi_array can have any size.
  *
  * Notice that the given \p multi_array will not be serialized in the given \p
  * group if some of its dimensions has size 0 (i.e., empty arrays are not
@@ -2502,11 +2502,10 @@ void serialize( netCDF::NcGroup & group , const std::string & var_name ,
  * {0, ..., N-1}, the size of the i-th dimension in \p expected_ncDim must be
  * equal to the size of the i-th dimension of \p multi_array, except when (i)
  * the \p multi_array is serialized into a netCDF *scalar* variable or (ii)
- * the i-th dimension in \p expected_ncDim has size 0 (i.e., it is an
- * unlimited dimension). If \p allow_singleton_dim is false and neither
- * condition (i) nor condition (ii) is met, then an exception is thrown when
- * the i-th dimension has different sizes in \p expected_ncDim and \p
- * multi_array.
+ * the i-th dimension in \p expected_ncDim is unlimited. If \p
+ * allow_singleton_dim is false and neither condition (i) nor condition (ii)
+ * is met, then an exception is thrown when the i-th dimension has different
+ * sizes in \p expected_ncDim and \p multi_array.
  *
  * @param[in] singleton_dim_name The name of the singleton dimension. If the
  * singleton dimension is used (see \p allow_singleton_dim parameter), then
@@ -2548,11 +2547,10 @@ void serialize( netCDF::NcGroup & group , const std::string & var_name ,
 
   for( std::vector<netCDF::NcDim>::size_type i = 0 ; i < N ; ++i ) {
 
-    auto ncdim_size = ncDim[ i ].getSize();
-
-    if( ncdim_size == 0 )
+    if( ncDim[ i ].isUnlimited() )
       continue;
 
+    auto ncdim_size = ncDim[ i ].getSize();
     auto multi_array_dim_size = multi_array.shape()[ i ];
 
     if( ncdim_size != multi_array_dim_size ) {
@@ -2594,8 +2592,7 @@ void serialize( netCDF::NcGroup & group , const std::string & var_name ,
                  " 'allow_scalar_var' is true;"
                  " (3) the size of the dimension of the given boost::"
                  "multi_array is 1 and 'allow_singleton_dim' is true;"
-                 " (4) provided netCDF dimension has size 0 (i.e., it is an"
-                 " unlimited dimension)." ) );
+                 " (4) provided netCDF dimension is unlimited." ) );
       }
     }
   }
