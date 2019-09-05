@@ -2383,9 +2383,11 @@ inline void serialize( netCDF::NcGroup & group , const std::string & var_name ,
  * multi_array is given by the template parameter \p N.
  *
  * The netCDF dimensions of the array are given by the \p expected_ncDim
- * parameter. By default, the size of each of these dimensions should be the
- * same as the size of the corresponding dimension of the given \p
- * multi_array. There are two cases in which those sizes do not need agree:
+ * parameter. In general, the size of each of these dimensions should be the
+ * same as the size of the corresponding dimension of the given \p multi_array
+ * (i.e., size of dimension i of the given netCDF dimensions should be equal
+ * to the size of dimension i of \p multi_array). There are three cases in
+ * which those sizes do not need agree:
  *
  * 1) If the given \p multi_array has a single element and \p
  *    allow_scalar_var is true, then this element is serialized into a
@@ -2402,13 +2404,12 @@ inline void serialize( netCDF::NcGroup & group , const std::string & var_name ,
  *    present in the given \p group, one is created with the name given by
  *    \p singleton_dim_name.
  *
- * Notice that the given \p multi_array may not be serialized in the given \p
- * group if some of the given netCDF dimensions has size 0:
+ * 3) If a netCDF dimension has size 0 (i.e., it is an unlimited dimension),
+ *    then the corresponding dimension of \p multi_array can have any size.
  *
- *       IF ANY OF THE GIVEN netCDF DIMENSIONS PROVIDED BY THE expected_ncDim
- *       PARAMETER HAS SIZE 0 AND THE SITUATION 1 OR 2 ABOVE DOES NOT HAPPEN,
- *       THEN THE GIVEN multi_array IS NOT SERIALIZED (AND NO EXCEPTION IS
- *       THROWN).
+ * Notice that the given \p multi_array will not be serialized in the given \p
+ * group if some of its dimensions has size 0 (i.e., empty arrays are not
+ * serialized).
  *
  * If the given \p multi_array is not serialized into a netCDF *scalar*
  * variable, then an exception is thrown in each of the following cases:
@@ -2417,8 +2418,8 @@ inline void serialize( netCDF::NcGroup & group , const std::string & var_name ,
  *   the template parameter \p N.
  *
  * - The size of some dimension i in the \p expected_ncDim vector is positive,
- *   it is different from the size S_i of dimension i of \p multi_array and
- *   either \p allow_singleton_dim is false or S_i != 1.
+ *   it is different from the size s_i of dimension i of \p multi_array and
+ *   either \p allow_singleton_dim is false or s_i != 1.
  *
  * @param[in, out] group The netCDF NcGroup in which the variable will be
  * added.
@@ -2449,11 +2450,19 @@ inline void serialize( netCDF::NcGroup & group , const std::string & var_name ,
  * {0, ..., N-1}, the size of the i-th dimension in \p expected_ncDim must be
  * equal to the size of the i-th dimension of \p multi_array, except when (i)
  * the \p multi_array is serialized into a netCDF *scalar* variable or (ii)
- * the size of some of the given netCDF dimensions is zero. If \p
- * allow_singleton_dim is false and neither condition (i) nor condition (ii)
- * is met, then an exception is thrown.
+ * the i-th dimension in \p expected_ncDim has size 0 (i.e., it is an
+ * unlimited dimension). If \p allow_singleton_dim is false and neither
+ * condition (i) nor condition (ii) is met, then an exception is thrown when
+ * the i-th dimension has different sizes in \p expected_ncDim and \p
+ * multi_array.
  *
- * @param[in] singleton_dim_name The name of the singleton dimension.
+ * @param[in] singleton_dim_name The name of the singleton dimension. If the
+ * singleton dimension is used (see \p allow_singleton_dim parameter), then
+ * the dimension whose name is given by \p singleton_dim_name is
+ * considered. If this dimension is present in the given \p group, it must
+ * have size 1 (otherwise, an exception is thrown). If a dimension with this
+ * name is not found in \p group, a dimension with this name is added to the
+ * \p group.
  */
 
 template<class T, std::size_t N>
@@ -2463,9 +2472,12 @@ void serialize( netCDF::NcGroup & group , const std::string & var_name ,
                 const boost::multi_array<T , N> & multi_array ,
                 const bool allow_scalar_var = false,
                 const bool allow_singleton_dim = false ,
-                const std::string & singleton_dim_name = "_Singleton_") {
+                const std::string & singleton_dim_name = "__Singleton__" ) {
 
-  if( allow_scalar_var && multi_array.size() == 1 ) {
+  if( multi_array.num_elements() == 0 )
+    return; // Nothing to be serialized.
+
+  if( allow_scalar_var && multi_array.num_elements() == 1 ) {
     // Serializes the only value of the given multi_array into a netCDF scalar
     // variable.
     serialize( group , var_name , ncType , * multi_array.origin() );
@@ -2474,16 +2486,20 @@ void serialize( netCDF::NcGroup & group , const std::string & var_name ,
 
   if( expected_ncDim.size() != N )
     throw( std::invalid_argument
-           ( "serialize: the given boost::multi_array has " +
-             std::to_string( N ) + " dimensions, but " +
-             std::to_string( expected_ncDim.size() ) +
+           ( "serialize(): error when serializing variable '" + var_name +
+             "'. The given boost::multi_array has " + std::to_string( N ) +
+             " dimensions, but " + std::to_string( expected_ncDim.size() ) +
              " netCDF::NcDim were provided. Those numbers must be the same." ));
 
   auto ncDim = expected_ncDim;
 
-  for( std::vector<netCDF::NcDim>::size_type i = 0 ; i < ncDim.size() ; ++i ) {
+  for( std::vector<netCDF::NcDim>::size_type i = 0 ; i < N ; ++i ) {
 
     auto ncdim_size = ncDim[ i ].getSize();
+
+    if( ncdim_size == 0 )
+      continue;
+
     auto multi_array_dim_size = multi_array.shape()[ i ];
 
     if( ncdim_size != multi_array_dim_size ) {
@@ -2493,36 +2509,47 @@ void serialize( netCDF::NcGroup & group , const std::string & var_name ,
         // the singleton dimension instead.
 
         auto singleton_dim = group.getDim( singleton_dim_name );
+
         if( singleton_dim.isNull() )
           // The singleton dimension is currently not present in the given
           // group. So, we add the singleton dimension to the given group.
           singleton_dim = group.addDim( singleton_dim_name , 1 );
 
+        else if( singleton_dim.getSize() != 1 )
+          throw( std::invalid_argument
+                 ( "serialize(): error when serializing variable '" + var_name +
+                   "'. The singleton dimension must have size 1, but the"
+                   " dimension '" + singleton_dim_name + "' found in the" +
+                   " group '" + group.getName() + "' has size " +
+                   std::to_string( singleton_dim.getSize() ) + "." ) );
+
         ncDim[ i ] = singleton_dim;
       }
 
-      else if( ncdim_size == 0 )
-        return;
-
       else {
         throw( std::invalid_argument
-               ( "serialize: the size of dimension " + std::to_string( i ) +
-                 " of the given multi_array is " +
+               ( "serialize(): error when serializing variable '" + var_name +
+                 "'. The size of dimension " + std::to_string( i ) +
+                 " of the given boost::multi_array is " +
                  std::to_string( multi_array_dim_size ) +
                  " but the size of the provided netCDF dimension is " +
                  std::to_string( ncdim_size ) +
                  ". At least one of the following requirements must be met:"
-                 " (i) these sizes are equal;"
-                 " (ii) the size of the dimension of the given multi_array is"
-                 " 1 and 'allow_singleton_dim' is true." ) );
+                 " (1) these sizes are equal;"
+                 " (2) the given boost::multi_array has a single element and"
+                 " 'allow_scalar_var' is true;"
+                 " (3) the size of the dimension of the given boost::"
+                 "multi_array is 1 and 'allow_singleton_dim' is true;"
+                 " (4) provided netCDF dimension has size 0 (i.e., it is an"
+                 " unlimited dimension)." ) );
       }
     }
   }
 
-  std::vector<std::size_t> start( ncDim.size() , 0 );
-  std::vector<std::size_t> dim_sizes( ncDim.size() );
-  for( std::vector<std::size_t>::size_type i = 0 ; i < dim_sizes.size() ; ++i )
-    dim_sizes[ i ] = ncDim[ i ].getSize();
+  std::vector<std::size_t> start( N , 0 );
+  std::vector<std::size_t> dim_sizes( N );
+  for( std::vector<std::size_t>::size_type i = 0 ; i < N ; ++i )
+    dim_sizes[ i ] = multi_array.shape()[ i ];
 
   group.addVar( var_name , ncType , ncDim )
     .putVar( start , dim_sizes , multi_array.data() );
