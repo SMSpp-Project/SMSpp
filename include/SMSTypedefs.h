@@ -2290,6 +2290,47 @@ inline void serialize( netCDF::NcGroup & group , const std::string & var_name ,
 }
 
 /*--------------------------------------------------------------------------*/
+/// serialize a one-dimensional variable into a netCDF NcGroup
+/**
+ * Add a new one-dimensional netCDF variable with the given name in
+ * the given netCDF NcGroup. Moreover, it stores the given data into
+ * that variable in row-major layout.
+ *
+ * @param[in, out] group The netCDF NcGroup in which the variable will be
+ * added.
+ *
+ * @param[in] var_name The name of the variable that will be added.
+ *
+ * @param[in] ncType The type of the elements of the array.
+ *
+ * @param[in] ncDim The netCDF dimension of the array.
+ *
+ * @param[in] data A vector containing the data to be stored in the variable.
+ *
+ * @param[in] allow_scalar_var Although this function is supposed to serialize
+ * an array, it can also be used to serialize a scalar. If the given vector \p
+ * data has size 1 and \p allow_scalar_var is true, then a netCDF scalar
+ * variable is created instead of a multi-dimensional one (notice that, in
+ * this case, the argument \p ncDim is completely ignored).
+ */
+
+template<class T>
+void serialize( netCDF::NcGroup & group , const std::string & var_name ,
+                const netCDF::NcType & ncType , const netCDF::NcDim & ncDim ,
+                const std::vector<T> & data ,
+                const bool allow_scalar_var = false ) {
+
+  if( allow_scalar_var && data.size() == 1 ) {
+    serialize( group , var_name , ncType , data[ 0 ] );
+    return;
+  }
+
+  group.addVar( var_name , ncType , ncDim ).putVar( { 0 } ,
+                                                    { data.size() } ,
+                                                    data.data() );
+}
+
+/*--------------------------------------------------------------------------*/
 /// serialize a multi-dimensional variable into a netCDF NcGroup
 /**
  * Add a new multi-dimensional netCDF variable with the given name in
@@ -2566,47 +2607,6 @@ void serialize( netCDF::NcGroup & group , const std::string & var_name ,
 
   group.addVar( var_name , ncType , ncDim )
     .putVar( start , dim_sizes , multi_array.data() );
-}
-
-/*--------------------------------------------------------------------------*/
-/// serialize a one-dimensional variable into a netCDF NcGroup
-/**
- * Add a new one-dimensional netCDF variable with the given name in
- * the given netCDF NcGroup. Moreover, it stores the given data into
- * that variable in row-major layout.
- *
- * @param[in, out] group The netCDF NcGroup in which the variable will be
- * added.
- *
- * @param[in] var_name The name of the variable that will be added.
- *
- * @param[in] ncType The type of the elements of the array.
- *
- * @param[in] ncDim The netCDF dimension of the array.
- *
- * @param[in] data A vector containing the data to be stored in the variable.
- *
- * @param[in] allow_scalar_var Although this function is supposed to serialize
- * an array, it can also be used to serialize a scalar. If the given vector \p
- * data has size 1 and \p allow_scalar_var is true, then a netCDF scalar
- * variable is created instead of a multi-dimensional one (notice that, in
- * this case, the argument \p ncDim is completely ignored).
- */
-
-template<class T>
-void serialize( netCDF::NcGroup & group , const std::string & var_name ,
-                const netCDF::NcType & ncType , const netCDF::NcDim & ncDim ,
-                const std::vector<T> & data ,
-                const bool allow_scalar_var = false ) {
-
-  if( allow_scalar_var && data.size() == 1 ) {
-    serialize( group , var_name , ncType , data[ 0 ] );
-    return;
-  }
-
-  group.addVar( var_name , ncType , ncDim ).putVar( { 0 } ,
-                                                    { data.size() } ,
-                                                    data.data() );
 }
 
 /**@} ----------------------------------------------------------------------*/
