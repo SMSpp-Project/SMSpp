@@ -1993,10 +1993,10 @@ inline void deserialize( const netCDF::NcGroup & group ,
 
     throw( std::invalid_argument
            ( "deserialize(): netCDF variable '" + var_name + "' of group '" +
-             group.getName() + "' has dimension " +
-             std::to_string( ncVar.getDimCount() ) +
-             ", but provided argument has dimension " +
-             std::to_string( sizes.size() ) + "." ) );
+             group.getName() + "' has " +
+             std::to_string( ncVar.getDimCount() ) + " dimension(s), but"
+             " provided argument has " +
+             std::to_string( sizes.size() ) + " dimension(s)." ) );
 
   if( ncVar.getDimCount() == 0 ) {
     data.resize( 1 );
