@@ -140,6 +140,7 @@ namespace SMSpp_di_unipi_it
   eLastFileParam = 3    ///< first value available to define new file types
   };
 
+/** @} end( group( SMS_TYPES ) ) */
 /*--------------------------------------------------------------------------*/
 /*----------------------- Variable-RELATED TYPES ---------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -249,7 +250,7 @@ namespace SMSpp_di_unipi_it
  using KD_c_Vec_List_p_Const = const boost::multi_array<List_p_Const , K>;
  ///< c_Vec_List_p_Const<K> is a const K-D vector of lists of Constraint *
 
- /** @} end( group( Constraint_TYPES ) ) */
+/** @} end( group( Constraint_TYPES ) ) */
 /*--------------------------------------------------------------------------*/
 /*------------------------- UTILITIES FOR FACTORIES ------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -480,7 +481,7 @@ template<class T> struct un_any_type {};
  *
  *   bool un_any_static( boost::any & any , F f , un_any_type<T> )
  *
- * is intended to take a boost:any that contains either:
+ * is intended to take a boost::any that contains either:
  *
  * - a pointer (reference) to a T;
  *
@@ -544,7 +545,7 @@ bool un_any_static( boost::any & any , F f , un_any_type<T> ,
  *   bool un_any_static_2( boost::any & any1 , boost::any & any2 ,
  *                         F f , un_any_type<T> , un_any_type<U> )
  *
- * is intended to take two boost:any "any1" and "any2" so that they
+ * is intended to take two boost::any "any1" and "any2" so that they
  * contain respectively:
  *
  * - a pointer (reference) to a T and a pointer (reference) to a U;
@@ -669,7 +670,7 @@ bool un_any_static_2( const boost::any & any1 , const boost::any & any2 , F f ,
  *                                un_any_type<T> , un_any_type<U> , F f ,
  *                                bool apply_f )
  *
- * is intended to take two boost:any "any1" and "any2" so that if "any1"
+ * is intended to take two boost::any "any1" and "any2" so that if "any1"
  * contains
  *
  * - a pointer (reference) to a T, then a U is created and a pointer to this
@@ -784,7 +785,7 @@ bool un_any_static_2_create( const boost::any & any1 , boost::any & any2 ,
  *
  *   bool un_any_static_ptr( boost::any & any , F f , un_any_type<T> )
  *
- * is intended to take a boost:any that contains either:
+ * is intended to take a boost::any that contains either:
  *
  * - a pointer (reference) to a T * (pointer to T);
  *
@@ -851,7 +852,7 @@ bool un_any_static_ptr( boost::any & any , F f , un_any_type<T> ,
  *
  *   bool un_any_const_static( const boost::any & any , F f , un_any_type<T> )
  *
- * is intended to take a const boost:any that contains either:
+ * is intended to take a const boost::any that contains either:
  *
  * - a pointer (reference) to a T;
  *
@@ -916,7 +917,7 @@ bool un_any_const_static( const boost::any & any , F f , un_any_type<T> ,
  *
  *   bool un_any_const_static_ptr( const boost::any & any , F f , un_any_type<T> )
  *
- * is intended to take a const boost:any that contains either:
+ * is intended to take a const boost::any that contains either:
  *
  * - a pointer (reference) to a T * (pointer to T);
  *
@@ -983,7 +984,7 @@ bool un_any_const_static_ptr( const boost::any & any , F f , un_any_type<T> ,
  *
  *   bool un_any_dynamic( boost::any & any , F f , un_any_type<T> )
  *
- * is intended to take a boost:any that contains either:
+ * is intended to take a boost::any that contains either:
  *
  * - a pointer (reference) to a std::list<T>;
  *
@@ -1056,7 +1057,7 @@ bool un_any_dynamic( boost::any & any , F f , un_any_type<T> ,
  *   bool un_any_dynamic_2( boost::any & any1 , boost::any & any2 ,
  *                          F f , un_any_type<T> , un_any_type<U> )
  *
- * is intended to take two boost:any "any1" and "any2" so that they
+ * is intended to take two boost::any "any1" and "any2" so that they
  * contain respectively:
  *
  * - a pointer (reference) to a std::list<T> and a pointer (reference) to a U;
@@ -1069,7 +1070,6 @@ bool un_any_dynamic( boost::any & any , F f , un_any_type<T> ,
  *
  * and apply the function "f" to the objects they point to. "f" must be a
  * ( std::list<T> & , U & ) --> void function (it could also be a
-
  * ( std::list<T> , U ) --> void function but this would mean copying the
  * object and no one wants that, right?); a lambda would work perfectly there.
  *
@@ -1172,7 +1172,7 @@ bool un_any_dynamic_2( const boost::any & any1 , const boost::any & any2 , F f ,
  *                                 un_any_type<T> , un_any_type<U> ,
  *                                 F f , bool apply_f )
  *
- * is intended to take two boost:any "any1" and "any2" so that if "any1"
+ * is intended to take two boost::any "any1" and "any2" so that if "any1"
  * contains
  *
  * - a pointer (reference) to a std::list<T>, then a U is created and a pointer
@@ -1282,7 +1282,7 @@ bool un_any_dynamic_2_create( const boost::any & any1 , boost::any & any2 ,
  *
  *   bool un_any_dynamic_ptr( boost::any & any , F f , un_any_type<T> )
  *
- * is intended to take a boost:any that contains either:
+ * is intended to take a boost::any that contains either:
  *
  * - a pointer (reference) to a std::list<T *> (pointers to T);
  *
@@ -1356,7 +1356,7 @@ bool un_any_dynamic_ptr( boost::any & any , F f , un_any_type<T> ,
  *
  *   bool un_any_const_dynamic( const boost::any & any , F f , un_any_type<T> )
  *
- * is intended to take a const boost:any that contains either:
+ * is intended to take a const boost::any that contains either:
  *
  * - a pointer (reference) to a std::list<T>;
  *
@@ -1430,7 +1430,7 @@ bool un_any_const_dynamic( const boost::any & any , F f , un_any_type<T> ,
  *
  *   bool un_any_dynamic_ptr( const boost::any & any , F f , un_any_type<T> )
  *
- * is intended to take a const boost:any that contains either:
+ * is intended to take a const boost::any that contains either:
  *
  * - a pointer (reference) to a std::list<T *> (pointers to T);
  *
