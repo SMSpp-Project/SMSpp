@@ -1842,7 +1842,7 @@ std::istream &operator>>( std::istream &is , std::list<T> &l )
  }
 
 /**@} ----------------------------------------------------------------------*/
-/*------------------ LOADING list, array and multi_array -------------------*/
+/*------------------ DE/SERIALIZING FROM/TO netCDF FILES -------------------*/
 /*--------------------------------------------------------------------------*/
 /** @defgroup helper functions for serializing/deserializing to/from netCDF
  *  files.
