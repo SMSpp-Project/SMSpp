@@ -140,7 +140,7 @@ namespace SMSpp_di_unipi_it
   eLastFileParam = 3    ///< first value available to define new file types
   };
 
-/*--------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*----------------------- Variable-RELATED TYPES ---------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @defgroup Variable_TYPES Variable-related types.
@@ -249,7 +249,7 @@ namespace SMSpp_di_unipi_it
  using KD_c_Vec_List_p_Const = const boost::multi_array<List_p_Const , K>;
  ///< c_Vec_List_p_Const<K> is a const K-D vector of lists of Constraint *
 
- /** @} end( group( Constraint_TYPES ) ) */
+/** @} end( group( Constraint_TYPES ) ) */
 /*--------------------------------------------------------------------------*/
 /*------------------------- UTILITIES FOR FACTORIES ------------------------*/
 /*--------------------------------------------------------------------------*/
