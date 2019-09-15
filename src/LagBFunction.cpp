@@ -747,6 +747,35 @@ void LagBFunction::rename_linearization( const LinearizationName current_name ,
 
 /*--------------------------------------------------------------------------*/
 
+ThinVarDepInterface::Index LagBFunction::get_Amat_nzelements( void ) {
+
+ Index size_Amat = 0;
+ for( auto el : LagMatrix )
+  size_Amat += (el.second).second.size();
+ return( size_Amat );
+ } // end LagBFunction::get_Amat_nzelements(  ) - - - - - - - - - - - - - - - -
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::get_Amat_desc( int *Abeg , int *Aind , double *Aval ,
+      const int strt , int stp ) {
+
+ int count = 0;
+ for( const auto & LagDual : lag_p ) {
+  *(Abeg++) = count;
+  for( auto LagColumn : LagMatrix )
+   for( auto LagPair : (LagColumn.second).second )
+    if( LagPair.first == LagDual.first ) {
+	 *(Aind++) = count++;
+	 *(Aval++) = LagPair.second;
+     }
+  }
+ *(Abeg++) = count;
+
+ } // end LagBFunction::get_Amat_desc() )  - - - - - - - - - - - - - - - - - -
+
+/*--------------------------------------------------------------------------*/
+
 int LagBFunction::compute( bool changedvars )
 {
  // update the Lagrangian cost vector  - - - - - - - - - - - - - - - - - - - -

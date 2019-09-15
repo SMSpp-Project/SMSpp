@@ -649,6 +649,15 @@ class LagBFunction : public C05Function , public Block {
  				    const LinearizationName new_name ) override;
 
 /*--------------------------------------------------------------------------*/
+
+ Index get_Amat_nzelements( void );
+
+/*--------------------------------------------------------------------------*/
+
+ void get_Amat_desc( int *Abeg , int *Aind , double *Aval , const int strt ,
+		 int stp );
+
+/*--------------------------------------------------------------------------*/
  /// compute the Function
  /** It has to compute the Function. ?? The parameter changedvars is false if
   *  the constant vector b of (RCs) is changed and the remaining data problem
