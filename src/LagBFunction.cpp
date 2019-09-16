@@ -537,7 +537,6 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
 
  }  // end( LagBFunction::add_Modification() ) - - - - - - - - - - - - - - - -
 
-
 /*--------------------------------------------------------------------------*/
 /*---------- METHODS FOR Loading/Saving THE DATA OF THE LagBFunction -------*/
 /*--------------------------------------------------------------------------*/
