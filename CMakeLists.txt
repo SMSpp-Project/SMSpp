@@ -6,19 +6,14 @@ set(CMAKE_VERBOSE_MAKEFILE OFF)
 # ----- Project description and directories ------------------------------------
 project(SMS++ DESCRIPTION "SMS++ main library")
 
-set(PROJECT_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include)
-set(PROJECT_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
+set(PROJECT_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
+set(PROJECT_SOURCE_DIR  ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 # ----- Requirements -----------------------------------------------------------
 find_package(Boost REQUIRED)
 find_package(Eigen3 REQUIRED)
 
-# ----- Includes ---------------------------------------------------------------
-include_directories(${Boost_INCLUDE_DIRS})
-include_directories(${EIGEN3_INCLUDE_DIRS})
-include_directories(${PROJECT_INCLUDE_DIR})
-
-# ----- SOURCE FILES -----------------------------------------------------------
+# ----- Library ----------------------------------------------------------------
 set(${PROJECT_NAME}_SOURCES
     ${PROJECT_SOURCE_DIR}/Block.cpp
     ${PROJECT_SOURCE_DIR}/ColVariable.cpp
@@ -38,18 +33,6 @@ set(${PROJECT_NAME}_SOURCES
     )
 
 add_library(${PROJECT_NAME} STATIC ${${PROJECT_NAME}_SOURCES})
-
-# ----- Install (optional) -----------------------------------------------------
-file(GLOB ${PROJECT_NAME}_HEADERS ${PROJECT_INCLUDE_DIR}/*.h)
-set_target_properties(${PROJECT_NAME} PROPERTIES
-                      PUBLIC_HEADER "${${PROJECT_NAME}_HEADERS}"
-                      )
-
-install(TARGETS ${PROJECT_NAME}
-        RUNTIME DESTINATION bin
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib/static
-        PUBLIC_HEADER DESTINATION include/${PROJECT_NAME}
-        )
-
-#add_subdirectory(test)
+target_include_directories(${PROJECT_NAME} PUBLIC ${Boost_INCLUDE_DIRS})
+target_include_directories(${PROJECT_NAME} PUBLIC ${EIGEN3_INCLUDE_DIRS})
+target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_INCLUDE_DIR})
