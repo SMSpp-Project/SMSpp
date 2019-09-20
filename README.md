@@ -224,6 +224,33 @@ for efficient serialization and de-serialization of Block and Configuration
 objects on self-describing, machine-independent data files.
 
 
+Download and build
+==================
+
+- Clone the project from the repository:
+
+      $ git clone https://gitlab.com/frangio68/sms_plus_plus
+
+- Navigate inside the project directory:
+
+      $ cd sms_plus_plus
+
+- Then configure and build the library:
+
+      $ mkdir build
+      $ cd build
+      $ cmake ..
+      $ make
+
+- Optionally, you can install the library with:
+
+      $ make install
+
+- After the library is configured, you can use it in your CMake project with:
+
+      find_package(SMSpp)
+      target_link_libraries(<my_target> SMS++::SMSpp)
+
 Legal Stuff
 ===========
 
