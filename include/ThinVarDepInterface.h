@@ -100,11 +100,27 @@ class ThinVarDepInterface {
 /** @name Public Types
     @{ */
 
- using Index = unsigned int;   ///< type for the indices of "active" Variable
+ /// type for the indices of "active" Variable
+ /** Type for the indices of "active" Variable. This is supposed to be
+  * identical to the same-name type defined in Block; it is not "imported
+  * from Block" because ThinVarDepInterface.h does not include Block.h. */
+ using Index = unsigned int;
 
  using c_Index = const Index;             ///< a const Index
 
- using Vec_Index = std::vector< Index >;  ///< a std::vector of Index
+ /// define the Range type, i.e., a pair of indices
+ /** Note: the Range type is supposed to be identical to the same-name type
+  * defined in Block; it is not "imported from Block" because
+  * ThinVarDepInterface.h does not include Block.h. */
+ using Range = std::pair< Index , Index >;
+
+ using c_Range = const Range;                 ///< a const Range
+
+ /// a std::vector< Index >
+ /** Type a "generic set if Indices", i.e., a std::vector< Index >. This is
+  * supposed to be identical to Block::Subset, but it is not "imported from 
+  * Block" because ThinVarDepInterface.h does not include Block.h. */
+ using Vec_Index = std::vector< Index >;
 
  using c_Vec_Index = const Vec_Index;     ///< a const Vec_Index
 
@@ -327,8 +343,8 @@ class ThinVarDepInterface {
  /** The destructor of the base ThinVarDepInterface class has nothing to do.
   * However, it is important to remark that the destructor of any derived
   * class *is* (unlike that of Variable) assumed to scan through the list of
-  * "active Variable" of this ThinVarDepInterface and remove the itself from
-  * then. The idea is that
+  * "active Variable" of this ThinVarDepInterface and remove itself from
+  * them. The idea is that
   *
   *     *Variable are constructed before the "stuff" they are active
   *      in and destructed after them*
@@ -345,7 +361,7 @@ class ThinVarDepInterface {
   * provided to do the "guts of destructor" *without* the removing from the
   * Variable, which helps in avoiding useless work. */
 
- virtual ~ThinVarDepInterface() {}
+ virtual ~ThinVarDepInterface() = default;
 
 /*--------------------------------------------------------------------------*/
  /// "rough destructor" that does not warn the "active" Variable
@@ -378,13 +394,88 @@ class ThinVarDepInterface {
 /*------------ METHODS FOR READING THE SET OF "ACTIVE" Variable ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for reading the set of "active" Variable
+ *
+ * These methods provide a general interface that allows to sift through the
+ * set of the "active" Variable of a ThinVarDepInterface. A particular issue
+ * to be discussed is the fact that n variable are naturally addressed by an
+ * Index in 0, 1, ... n - 1; hence, these methods (at least in part) rely on
+ * the concept of "i-th active Variable". Since the implementation of the set 
+ * of "active" Variable is entirely left to derived classes, to allow them
+ * complete flexibililty, in principle little can be said about how the
+ * order is established. That is, in general how the Index is chosen for
+ * each "active" Variable is left to the specific derived class. However,
+ * a minimum set of general principles must be established that set the rules
+ * that all implementation must satifsy. These are the following:
+ *
+ * 1) The ordering does not change unless the set of "active" Variable itself
+ *    changes. That is, given an existing "active" Variable, the value
+ *    returned by is_active() must remain the same unless "active" Variable
+ *    are either added to or removed from the set.
+ *
+ * 2) The ordering is "maximally stable under addition": when a new "active"
+ *    Variable is added to the set, all the existing "active" Variable keep
+ *    the index they previously have, and the new one takes the only possible
+ *    new index (that is, the value of get_num_active_var() before the
+ *    addition). Note that, therefore, if a *set* of new "active" Variable is
+ *    added, the indices of the new Variable *do* depend on the ordering in
+ *    which the Variable are added. Since no method is explicitly provided
+ *    for adding a set of Variable (actually, not even a single one), how the
+ *    order is specified in the set of new Variable will depend on the
+ *    individual methods of the derived classes.
+ *
+ * 3) The ordering is "minimally disrupted under deletion": when an existing
+ *    "active" Variable whose current Index is "i" is deleted, all the
+ *    remaining "active" Variable whose index is < i keep the same Index,
+ *    while all those whose index is j > i get as new Index j - 1. That is,
+ *    all indices greater than i are shifted left by one. Note that, 
+ *    therefore, if a *set* of "active" Variable is deleted, the indices of
+ *    remaining Variable *do not* depend on the ordering in which the
+ *    Variable are removed (not that methods are explicitly provided in the
+ *    base ThinVarDepInterface for deleting a set of Variable, only a single
+ *    one).
+ *
+ * As a consequence of these principles, 
+ *
+ *     THE Index OF AN EXISTING "ACTIVE" Variable CAN ONLY DIMINISH AS THE
+ *     SET OF "ACTIVE" Variable CHANGES, UNLESS THE Variable DELETED AND
+ *     RE-ADDED.
+ *
+ * This may be useful for implementations, e.g. for Modification related to
+ * adding and removing "active" Variable from a ThinVarDepInterface. The
+ * issue there is that the state of the ThinVarDepInterface when the
+ * Modification is processed can be rather different from when it was issued,
+ * with many "active" Variable having been added/removed in arbitrary order.
+ * Hence, to identify the involved "active" Variable its Index cannot be
+ * used, and a pointer must be. This requires finding the Index given the
+ * pointer [see is_active()], which may have a cost. However, assume for
+ * instance that:
+ *
+ * - the Modification also stores the original Index of the Variable, which
+ *   may no longer be the correct one (but may still be);
+ *
+ * - the Modification only has to be processed if the Variable has not been
+ *   removed, even if it has been re-added afterwards (which makes sense,
+ *   as removing ad adding typically entail their own Modification which
+ *   will be procedded in due time).
+ *
+ * Then, the current Index of the Variable need only be searched for among
+ * these smaller than (or equal to) the original one, and if the Variable is
+ * not found there then it means that is has been removed, and therefore the
+ * Modification can safely be ignored (irrespectively to if the Variable has
+ * been re-added in the meantime).
+ *
+ * Any ThinVarDepInterface must allows access to the set of "active" Variable
+ * via their Index [see get_active_var(). However, another basically
+ * independent means of acess is provided via a (virtualized) forward
+ * iterator, with standard begin() and end() accessors, so that any standard
+ * STL algorithm only relying on forward iterators can be applied.
  *  @{ */
 
  /// get the number of Variables that are "active"
  /** Pure virtual method to get the number of Variables that are "active".
-  * Note that the base ThinVarDepInterface class makes no provisions about
-  * how this set is stored in order to leave more freedom to derived classes
-  * to implement it in specialized ways. */
+  * The base ThinVarDepInterface class makes no provisions about how this set
+  * is stored in order to leave complete freedom to derived classes to
+  * implement as they best see fit. */
 
  virtual Index get_num_active_var( void ) const = 0;
 
@@ -398,9 +489,9 @@ class ThinVarDepInterface {
   *
   * - otherwise, any number >= get_num_active_var() (say, Inf<Index>()).
   *
-  * The base ThinVarDepInterface class makes no provisions about how this is
-  * done in order to leave more freedom to derived classes to implement it in
-  * specialized ways. */
+  * The base ThinVarDepInterface class makes no provisions about how this set
+  * is stored in order to leave complete freedom to derived classes to
+  * implement as they best see fit. */
 
  virtual Index is_active( const Variable * const var ) const = 0;
 
@@ -446,14 +537,12 @@ class ThinVarDepInterface {
   * get_num_active_var() - 1. For the i-th active Variable, i is said to be
   * the index of the Variable in the ThinVarDepInterface.
   *
-  * The order in which indices are associated with Variables is determined by
-  * the order of the addresses of the Variables. If two active Variables v1
-  * and v2 have addresses a1 and a2, respectively, such that a1 < a2 then the
-  * index of v1 in the ThinVarDepInterface is less than the index of v2.
-  *
-  * Note that the base ThinVarDepInterface class makes no provisions about
-  * how the set of "active" Variables is stored in order to leave more
-  * freedom to derived classes to implement it in specialized ways. */
+  * The base ThinVarDepInterface class makes no provisions about how the set
+  * of "active" Variables is stored in order to leave more freedom to derived
+  * classes to implement it in specialized ways. Accordingly, the way in
+  * which indices are associated with Variables is determined by the derived
+  * class, subject to the assumptions stated in the general comments to this
+  * section. */
 
  virtual Variable *get_active_var( const Index i ) const = 0;
 
@@ -532,6 +621,11 @@ class ThinVarDepInterface {
 /*------------ METHODS FOR CHANGING THE SET OF "ACTIVE" Variable -----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for changing the set of "active" Variable
+ *
+ * The pure virtual method remove_variable() is the single entry point that
+ * each ThinVarDepInterface must have to allow removal of one "active"
+ * Variable. This is necessary for Block to be able to remove the (dynamic)
+ * Variable that are deleted from all the existing Constraint.
  *  @{ */
 
  /// removes the given Variable from the "active" ones
@@ -547,58 +641,22 @@ class ThinVarDepInterface {
   * Usually, the Modification should be thrown. A relevant exception is the
   * case in which the method is called while destroying the (dynamic)
   * Variable. Indeed, in such a case the affected Variable don't really need
-  * to know that it are no longer active on this ThinVarDepInterface (as it
+  * to know that it is no longer active on this ThinVarDepInterface (as it
   * is to be destroyed anyway). Note that this may leave the Variable in an
   * inconsistent state, whereby the Variable still counts this
   * ThinVarDepInterface among the ones it is active in, while the
-  * ThinVarDepInterface does not. However, since the Variable is deleted (it
-  * may remain "alive" only into a Modification object waiting to be
-  * processed by some Solver), the overall Block is in a consistent state. */
+  * ThinVarDepInterface does not. Yet, since the Variable is deleted, the
+  * not-deleted part of the overall Block is in a consistent state. Note,
+  * however, that a deleted Variable may remain "undead" into a Modification
+  * object waiting to be processed by some Solver; one should therefore make
+  * as few assumptions as possible on the status of the internal data
+  * structures of such "undead" Variable, in particular on their list of
+  * "active stuff". */
 
  virtual void remove_variable( Variable * var ,
 			       c_ModParam issueMod = eModBlck ) = 0;
 
-/*--------------------------------------------------------------------------*/
- /// removes the given set of Variable from the set of "active" ones
- /** Pure virtual method that deletes the given set (vector) of Variable from
-  * the set of active Variable in this ThinVarDepInterface. The base
-  * ThinVarDepInterface class makes no provisions about how this is done in
-  * order to leave more freedom to derived classes to implement it in
-  * specialized ways. As the the && tells, vars is potentially "consumed" by
-  * the constructor and its resources become property of the
-  * ThinVarDepInterface object (which may e.g. immediately dispatch them to
-  * the Modification object generated by this operation).
-  *
-  * The parameter ordered tells whether the vector is ordered by the name (the
-  * memory address) of the Variable.
-  *
-  * This is basically equivalent to invoking remove_variable() on each
-  * Variable in vars, except that only one Modification is issued for all
-  * the removals, as opposed to one for each Variable (which is likely to
-  * be more efficient). If a Modification is actually issued is controlled
-  * by the parameter issueMod, with the usual format; see the comments to
-  * remove_variable(). */
-
- virtual void remove_variables( std::vector<Variable *> && vars ,
-				const bool ordered = false ,
-				c_ModParam issueMod = eModBlck ) = 0;
-
 /**@} ----------------------------------------------------------------------*/
-/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
-/*--------------------------------------------------------------------------*/
-
-//  protected:
-
-/*--------------------------------------------------------------------------*/
-/*-------------------------- PROTECTED METHODS -----------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Protected methods for printing and serializing
-    @{ */
-
-/*--------------------------------------------------------------------------*/
-/*--------------------------- PROTECTED FIELDS  ----------------------------*/
-/*--------------------------------------------------------------------------*/
-
 /*--------------------------------------------------------------------------*/
 
   };  // end( class( ThinVarDepInterface ) )

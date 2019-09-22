@@ -5,9 +5,9 @@
  * Header file for the *concrete* class LinearFunction, which implements
  * C15Function with a simple linear function.
  *
- * \version 0.20
+ * \version 0.30
  *
- * \date 20 - 03 - 2019
+ * \date 15 - 09 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -27,7 +27,7 @@
 
 #ifndef __LinearFunction
 #define __LinearFunction
-/* self-identification: #endif at the end of the file */
+                      /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -414,14 +414,14 @@ class LinearFunction : public C15Function {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  void get_linearization_coefficients( FunctionValue * g ,
-                          LinearizationName name = Inf<LinearizationName>() ,
+                          Index name = Inf<Index>() ,
                           c_Vec_Index & indices = {} , c_Index start = 0 ,
                           c_Index end = Inf<Index>() ) final;
 
 /*--------------------------------------------------------------------------*/
 
  void get_linearization_coefficients( SparseVector & g ,
-                           LinearizationName name = Inf<LinearizationName>(),
+                           Index name = Inf<Index>(),
                            c_Vec_Index & indices  = {} , c_Index start = 0,
                            c_Index end = Inf<Index>() ) final;
 
@@ -430,7 +430,7 @@ class LinearFunction : public C15Function {
  * constant is equal to the constant term of the LinearFunction. */
 
  Function::FunctionValue get_linearization_constant(
-            const LinearizationName name = Inf<LinearizationName>() ) final {
+            const Index name = Inf<Index>() ) final {
   return( f_constant_term );
   }
 
@@ -689,77 +689,9 @@ class LinearFunction : public C15Function {
                         c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
- /// remove a range of Variable
- /** Remove all the Variable comprised between strt (included) and stop
-  * (excluded). Setting strt == nullptr means "the first Variable", and
-  * setting stop == nullptr means "(one after) the last Variable". If
-  * no-nullptr arguments are provided, they *must* be "names" of Variable
-  * currently active in this LinearFunction.
-  *
-  * The parameter issueMod decides if and how the C05FunctionModVars is
-  * issued, as described in Observer::make_par(). Note that a linear function
-  * is additive, and therefore strongly quasi-additive. */
-
- void remove_variables( const Variable * const strt = nullptr,
-                        const Variable * const stop = nullptr,
-                        c_ModParam issueMod = eModBlck )
- {
-  c_Index istrt = strt ? is_active( strt ) : 0;
-  if( istrt >= get_num_active_var() )
-   throw ( std::invalid_argument( "strt is not an active Variable" ) );
-
-  Index istop;
-  if( stop ) {
-   istop = is_active( stop );
-   if( istrt >= get_num_active_var() )
-    throw( std::invalid_argument( "stop is not an active Variable" ) );
-   }
-  else
-   istop = get_num_active_var();
-
-  remove_variables( istrt, istop, issueMod );
-  }
-
-/*--------------------------------------------------------------------------*/
  /// remove the given set of Variable
- /** Remove all the Variable in the given vector of pointers vars. If any
-  * Variable in vars is not an active Variable in the LinearFunction,
-  * exception is thrown. The parameter ordered tells if vars is already
-  * ordered by Variable "name = pointer" or not, otherwise it gets ordered
-  * inside the method (which is why it is not const).
-  *
-  * Note that vars is a std::vector< Variable * > rather than a
-  * std::vector< ColVariable * >, although of course all the pointers have
-  * to be to a ColVariable. This is because the vector can then be passed
-  * right away to the C05FunctionModLin, that expects one; indeed, as the
-  * && tells, the vector (as that of new coefficients) becomes "property"
-  * of the LinearFunction, that dispatches it to the Modification. The
-  * point is that since C05FunctionModLin is defined in C05Function, it is
-  * not restricted to the case where Variable is a ColVariable, although it
-  * should be "like" one (a Variable representing a single real value) for
-  * the current form of linearizations to work. Although a
-  * std::vector< ColVariable * > and a std::vector< Variable * > should be
-  * physically indistinguishable, there is no sound way to cheaply pass the
-  * former as the latter in C++; having the input as a
-  * std::vector< Variable * > circumvents the problems (and each pointer
-  * could be static_cast-ed to a ColVariable * as soon as it is confirmed
-  * that the Variable is active in the LinearFunction, should this be
-  * necessary).
-  *
-  * The parameter issueMod decides if and how the C05FunctionModVars is
-  * issued, as described in Observer::make_par(). Note that a linear function
-  * is additive, and therefore strongly quasi-additive. */
-
- virtual void remove_variables( Vec_p_Var && vars , bool ordered ,
-				c_ModParam issueMod ) override final;
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// remove a set of Variable by index
- /** Like remove_variables( Vec_p_Var * ), but takes in input a set of index
-  * of the Variable to be removed rather than their pointers. Useful if one
-  * knows the indices already, so that they need not be searched for. The
-  * parameter ordered tells if nms is already ordered in increasing sense
-  * (by index, but this also implies by Variable "name = pointer") if not
+ /** Remove all the Variable in the given set of indices. The parameter
+  * ordered tells if nms is already ordered in increasing sense if not
   * otherwise it gets ordered inside the method (which is why it is not
   * const). Note that nms is *not* &&, hence it is not "taken" by the
   * LinearFunction.

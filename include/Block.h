@@ -57,8 +57,8 @@
  * Solver is only interested in the Modification that occurred after it was
  * (indirectly) attached to the Block and since the last time it solved the
  * Block (if any), but it has the responsibility of cleaning up its list of
- * Modification. The specific classes BlockMod and BlockModAD are also
- * defined in this file to contain all Block-specific Modification.
+ * Modification. The specific classes BlockMod, BlockModAdd and BlockModRmv
+ * are also defined in this file to contain all Block-specific Modification.
  *
  * Block can "save" the current status of its Variable into a Solution object
  * [see Solution.h], and read it back from a Solution object. If Constraint
@@ -599,14 +599,14 @@ class Block : public Observer {
  *
  * The "methods factory" (more properly, methods factor*ies*) is a map between
  * strings and pointer to functions that could be used, for example, to modify
- * the data of a given :Block. There are in principle as many factories as there
- * are function types, although a factory only exists if someone registers at
- * least a function in it (cf. register_methods()). However, for the methods
- * factories to be useful, only relatively few different function types should
- * reasonably be used, so that some high degree of modularity is achieved
- * between different :Block. This is why the base Block class defines (and
- * hardly ever uses) a bunch of types that are intended to provide the basis for
- * most of the functions in the interface of derived classes, such as:
+ * the data of a given :Block. There are in principle as many factories as
+ * there are function types, although a factory only exists if someone
+ * registers at least a function in it (cf. register_methods()). However, for
+ * the methods factories to be useful, only relatively few different function
+ * types should reasonably be used, so that some high degree of modularity is
+ * achieved between different :Block. This is why the base Block class defines
+ * (and hardly ever uses) a bunch of types that are intended to provide the
+ * basis for most of the functions in the interface of derived classes:
  *
  * - Index, an index into any internal data structure;
  *
@@ -623,8 +623,8 @@ class Block : public Observer {
  *
  * Also defined here are types useful for the registration process itself:
  *
- * - FunctionType (variadic template), a std::function with the function type of
- *   all function that should go in the methods factory;
+ * - FunctionType (variadic template), a std::function with the function type
+ *   of all function that should go in the methods factory;
  *
  * - MemberFunctionType (variadic template), the type of the class member
  *   functions corresponding to the type dictated by FunctionType;
@@ -996,9 +996,9 @@ class Block : public Observer {
   * since these are no longer relevant and, worse, they may refer to elements
   * of the Block that simply no longer exist; thus, they cannot possibly be
   * processed in any meaningful way, which is why the NBModification cannot be
-  * avoided. This is unless the Block is only a sub-Block of the Block that the
-  * Solver is solving, in which case Modification pertaining to other parts
-  * of the Block still are relevant; see the comments to
+  * avoided. This is unless the Block is only a sub-Block of the Block that
+  * the Solver is solving, in which case Modification pertaining to other
+  * parts of the Block still are relevant; see the comments to
   * Solver::add_Modification. Note that the NBModification is sent to the
   * "default channel", since it "must be seen immediately" rather then being
   * "hidden" into any GroupModification.
@@ -1993,45 +1993,31 @@ class Block : public Observer {
   *   (obviously you can't make a std::vector of the base Constraint class,
   *   which is why pointers to Constraint are also allowed, see below);
   *
-  * - a pointer to a std::vector of pointers to Constraint (Vec_p_Const * in
-  *   Constraint.h) or any class derived from Constraint;
-  *
   * - a pointer to a boost::multi_array<C , K>, where C is any class derived
   *   from Constraint (obviously you can't make a multi_array of the base
   *   Constraint class), in principle with any K (but the limit for K may be
   *   dictated by un_any_static() and un_any_thing() in SMSTypedefs.h);
   *
-  * - a pointer to a boost::multi_array<C * , K>, i.e., of pointers of any
-  *   class C that is either Constraint or derived from Constraint, in
-  *   principle with any K (but the limit for K may be dictated by
-  *   un_any_static() and un_any_thing() in SMSTypedefs.h);
-  *
   * Note that this is the "abstract representation" of the Block, which is
   * why these are all pointers. It is assumed that the actual [vectors or
-  * multi_array] [of pointers to] Constraints have been defined in the proper
-  * derived class, and can therefore be accessed in some model-specific
-  * version from their specialized interface. Anyway, they depend on the
-  * specific data that characterizes the derived class, which is responsible
-  * of the allocation and deallocation of the corresponding memory (the
-  * "physical representation" of the Block). The two representations of the
-  * Block may, or may not, coincide: however, Variables and Constraints MUST
-  * *NEVER* BE COPIED BY VALUE, BECAUSE THEIR MEMORY ADDRESS IS THEIR NAME.
-  * Hence, should a derived class choose to implement its "physical
-  * representation" as (...) vectors of Constraint, as opposed to (...)
-  * vectors of pointers, it has to be *very* careful to *NEVER* MODIFY THESE
-  * VECTORS (in particular, increase their size) during the lifetime of the
-  * Block in order to avoid the risk that some Constraints may change their
-  * memory location, hence their "name".
+  * multi_array] of Constraints have been defined in the derived class, and
+  * can therefore be accessed in some model-specific version from its
+  * specialized interface. Anyway, they depend on the specific data that
+  * characterizes the derived class, which is responsible of the allocation
+  * and deallocation of the corresponding memory (the "physical
+  * representation" of the Block). The two representations of the Block may,
+  * or may not, coincide: however, Variable and Constraint MUST *NEVER* BE
+  * COPIED BY VALUE, BECAUSE THEIR MEMORY ADDRESS IS THEIR NAME. Hence,
+  * a derived class has to be *very* careful to *NEVER* MODIFY THESE VECTORS
+  * (in particular, increase their size) during the lifetime of the Block in
+  * order to avoid the risk that some Constraints may change their memory
+  * location, hence their "name".
   *
   * A FORTIORI, SIZE OF THE [...] ARRAYS WHOSE POINTERS ARE PROVIDED BY THIS
   * METHOD MUST *NEVER* BE CHANGED BY WHOMEVER READS THEM. Since it must,
   * conversely, be possible to change the individual Constraints, the arrays
   * cannot be const (a size-cons, contents-mutable array should be used,
-  * which is possible but just too complicated at this point). It would be
-  * possible to enforce this for [...] arrays of *pointers*, but since it is
-  * (currently) not done for the others it's not worth the bother; besides,
-  * resizing a vector of pointers do not change the address of the original
-  * objects (although hell may break loose for many other reasons).
+  * which is possible but just too complicated at this point).
   *
   * Similarly, the size of the vector of static Constraint is *not* supposed
   * to change along the life of the Block: which *groups* of Constraint are
@@ -2128,45 +2114,31 @@ class Block : public Observer {
   *   (obviously you can't make a std::vector of the base Variable class,
   *   which is why pointers to Variable are also allowed, see below);
   *
-  * - a pointer to a std::vector of pointers to Variable (Vec_p_Var * in
-  *   Variable.h) or any class derived from Variable;
-  *
   * - a pointer to a boost::multi_array<V , K>, where V is any class derived
   *   from Variable (obviously you can't make a multi_array of the base
   *   Variable class), in principle with any K (but the limit for K may be
   *   dictated by un_any_static() and un_any_thing() in SMSTypedefs.h);
   *
-  * - a pointer to a boost::multi_array<V * , K>, i.e., of pointers of any
-  *   class V that is either Variable or derived from Variable, in
-  *   principle with any K (but the limit for K may be dictated by
-  *   un_any_static() and un_any_thing() in SMSTypedefs.h);
-  *
   * Note that this is the "abstract representation" of the Block, which is
   * why these are all pointers. It is assumed that the actual [vectors or
-  * multi_array] [of pointers to] Variable have been defined in the proper
-  * derived class, and can therefore be accessed in some model-specific
-  * version from their specialized interface. Anyway, they depend on the
-  * specific data that characterizes the derived class, which is responsible
-  * of the allocation and deallocation of the corresponding memory (the
-  * "physical representation" of the Block). The two representations of the
-  * Block may, or may not, coincide: however, Variable and Constraint MUST
-  * *NEVER* BE COPIED BY VALUE, BECAUSE THEIR MEMORY ADDRESS IS THEIR NAME.
-  * Hence, should a derived class choose to implement its "physical
-  * representation" as (...) vectors of Variable, as opposed to (...) vectors
-  * of pointers, it has to be *very* careful to *NEVER* MODIFY THESE VECTORS
-  * (in particular, increase their size) during  the lifetime of the Block in
-  * order to avoid the risk that some Variable may change their memory
-  * location, hence their "name".
+  * multi_array] of Variable have been defined in the derived class, and can
+  * therefore be accessed in some model-specific version from its specialized
+  * interface. Anyway, they depend on the specific data that characterizes
+  * the derived class, which is responsible of the allocation and
+  * deallocation of the corresponding memory (the "physical representation"
+  * of the Block). The two representations of the Block may, or may not,
+  * coincide: however, Variable and Constraint MUST *NEVER* BE COPIED BY
+  * VALUE, BECAUSE THEIR MEMORY ADDRESS IS THEIR NAME. Hence, a derived class
+  * has to be *very* careful to *NEVER* MODIFY THESE VECTORS (in particular,
+  * increase their size) during  the lifetime of the Block in order to avoid
+  * the risk that some Variable may change their memory location, hence their
+  * "name".
   *
   * A FORTIORI, SIZE OF THE [...] ARRAYS WHOSE POINTERS ARE PROVIDED BY THIS
   * METHOD MUST *NEVER* BE CHANGED BY WHOMEVER READS THEM. Since it must,
   * conversely, be possible to change the individual Variable, the arrays
   * cannot be const (a size-cons, contents-mutable array should be used,
-  * which is possible but just too complicated at this point). It would be
-  * possible to enforce this for [...] arrays of *pointers*, but since it is
-  * (currently) not done for the others it's not worth the bother; besides,
-  * resizing a vector of pointers do not change the address of the original
-  * objects (although hell may break loose for many other reasons).
+  * which is possible but just too complicated at this point).
   *
   * Similarly, the size of the vector of static Variable is *not* supposed
   * to change along the life of the Block: which *groups* of Variable are
@@ -2261,83 +2233,65 @@ class Block : public Observer {
   *   Constraint (obviously you can't make a std::list of the base Constraint
   *   class, which is why pointers to Constraint are also allowed, see below);
   *
-  * - a pointer to a single std::list<C *>, where class C is either Constraint
-  *   (List_p_Const * in Constraint.h) or derived from Constraint;
-  *
   * - a pointer to a std::vector<std::list<C> >, where class C is derived from
-  *   Constraint;
-  *
-  * - a  pointer to a std::vector<std::list<C *> >, where class C is either
-  *   Constraint (Vec_List_p_Const * in Constraint.h) or derived from
   *   Constraint;
   *
   * - a pointer to a boost::multi_array<std::list<C> , K>,  where class C is
   *   derived from Constraint, in principle with any K (but the limit for K
   *   may be dictated by un_any_static() and un_any_thing() in SMSTypedefs.h);
   *
-  * - a pointer to a boost::multi_array<std::list<C *> , K>,  where class C is
-  *   either Constraint (Vec_List_p_Const<K> * in Constraint.h) or derived
-  *   from Constraint.
-  *
   * Note that this is the "abstract representation" of the Block, which is
-  * why these are all pointers. It is assumed that the actual [vectors or
-  * multi_array] of lists of [of pointers to] Constraint have been defined in
-  * the proper derived class, and can therefore be accessed in some
-  * model-specific version from their specialized interface. Anyway, they
-  * depend on the specific data that characterizes the derived class, which
-  * is responsible of the allocation and deallocation of the corresponding
-  * memory (the "physical representation" of the Block). These being
-  * *dynamic* Constraints, the lists can well be (but need not necessarily
-  * be) empty when the object is initialized, and be populated (and
-  * de-populated) dynamically during the lifetime of the Block. The two
-  * representations of the Block may, or may not, coincide: however,
-  * Variables and Constraints MUST *NEVER* BE COPIED BY VALUE, BECAUSE
-  * THEIR MEMORY ADDRESS IS THEIR NAME. Hence, should a derived class choose
-  * to implement its "physical representation" as (...) lists of Constraint,
-  * as opposed to (...) list of pointers, it has to be *very* careful to
-  * *NEVER* MODIFY THESE VECTORS (in particular, increase their size) during
-  * the lifetime of the Block in order to avoid the risk that some Variable
-  * may change their memory location, hence their "name".
+  * why these are all pointers. It is assumed that the actual [vector or
+  * multi_array of] list of Constraint have been defined in the derived
+  * class, and can therefore be accessed in some model-specific version from
+  * its specialized interface. Anyway, they depend on the specific data that
+  * characterizes the derived class, which is responsible of the allocation
+  * and deallocation of the corresponding memory (the "physical
+  * representation" of the Block). These being *dynamic* Constraints, the
+  * lists can well be (but need not necessarily be) empty when the object is
+  * initialized, and be populated (and de-populated) dynamically during the
+  * lifetime of the Block. The two representations of the Block may, or may
+  * not, coincide: however, Variable and Constraint MUST *NEVER* BE COPIED BY
+  * VALUE, BECAUSE THEIR MEMORY ADDRESS IS THEIR NAME. Hence, a derived class
+  * has to be *very* careful to *NEVER* MODIFY THESE VECTORS (in particular,
+  * increase their size) during the lifetime of the Block in order to avoid
+  * the risk that some Constraint may change their memory location, hence
+  * their "name".
   *
   * A FORTIORI, SIZE OF THE [...] ARRAYS WHOSE POINTERS ARE PROVIDED BY THIS
   * METHOD MUST *NEVER* BE CHANGED BY WHOMEVER READS THEM. This also implies
   * that THE ADDRESS OF ALL LISTS OF DYNAMIC Constraints WILL NEVER CHANGE,
   * AND THEREFORE IT CAN BE USED AT THE COLLECTIVE NAME FOR THAT SET OF
-  * DYNAMIC Constraints (each one of which will then have its individual name
+  * DYNAMIC Constraint (each one of which will then have its individual name
   * given by its memory address, which will also never change). Since it must,
-  * conversely, be possible to change the individual Constraints, the arrays
+  * conversely, be possible to change the individual Constraint, the arrays
   * cannot be const (a size-cons, contents-mutable array should be used,
-  * which is possible but just too complicated at this point). It would be
-  * possible to enforce this for [...] arrays of *pointers*, but since it is
-  * (currently) not done for the others it's not worth the bother; besides,
-  * resizing a vector of pointers do not change the address of the original
-  * objects (although hell may break loose for many other reasons).
+  * which is possible but just too complicated at this point).
   *
   * The rationale of the structure is that the lists can be indiced over (in
   * principle) as many indices ad one wants, but each element of the list is
-  * a [pointer to a] *single Constraint*. If the user needs to have
-  * multi-dimensional dynamic Constraints (say, c[ i ] with a dynamic index
-  * "i" where each c[ i ] is a matrix of Constraints depending on two static
-  * indices "j" and "k"), then she has to put the dynamic index at the end
-  * and ensure that all the lists are updated in the same way (say, define
-  * the 2-dimensional array of lists of (...) Constraints c[ j ][ k ], and be
-  * sure that all the lists for all the indices "j" and "k" are updated
-  * simultaneously each time a new index "i" is added, or an old one is
-  * removed). Lists of lists of (...) Constraints are not supported (just
-  * make that a unique list). In other words, the size of the vectors of
-  * lists is *fixed* and must *never* be changed: the only thing that can
-  * change (freely) is the size of each list.
+  * a *single Constraint*. If the user needs to have multi-dimensional
+  * dynamic Constraints (say, c[ i ] with a dynamic index "i" where each
+  * c[ i ] is a matrix of Constraints depending on two static indices "j" and
+  * "k"), then she has to put the dynamic index at the end and ensure that
+  * all the lists are updated in the same way; say, define the 2-dimensional
+  * array of lists of Constraints c[ j ][ k ], and be sure that all the lists
+  * for all the indices "j" and "k" are updated simultaneously each time a
+  * new index "i" is added, or an old one is removed. Lists of lists of
+  * Constraint are *not* supported (just make that a unique list). In other
+  * words, the size of the vectors of lists is *fixed* and must *never* be
+  * changed: the only thing that can change (freely) is the size of each list.
   *
   * Similarly, the size of the vector of dynamic Constraints is *not* supposed
-  * to change along the life of the Block: which *groups* of Constraints are
+  * to change along the life of the Block: which *groups* of Constraint are
   * there is "the structure of the Block", and this is assumed to be given.
-  * Individual Constraints can indeed appear and disappear, which is what
-  * precisely dynamic Constraints are for, but "the set of indices of
-  * Constraints" is assumed to be given once and for all. That is,
+  * Individual Constraint can indeed appear and disappear, which is precisely
+  * what dynamic Constraint are for, but "the set of indices of
+  * Constraint" is assumed to be given once and for all. That is,
   * add_dynamic_constraint() should only be called (by derived classes)
   * during the initialization of the Block, and never thereafter. More
-  * precisely, because some Solver may not need to access the Constraints at
-  * all, the  idea is that Constraints (be them static or dynamic) are only
+  * precisely, because some Solver may not need to access the Constraint at
+  * all, the  idea is that Constraint (be them static or dynamic) are only
   * generated if and when they are actually required. This is what the method
   * generate_dynamic_constraints() is about: this method can only be called if
   * the latter has. Note that, once the sets of static and dynamic Constraint
@@ -2432,78 +2386,61 @@ class Block : public Observer {
   *   Variable (obviously you can't make a std::list of the base Variable
   *   class, which is why pointers to Variable are also allowed, see below);
   *
-  * - a pointer to a single std::list<V *>, where class V is either Variable
-  *   (List_p_Var * in Variable.h) or derived from Variable;
-  *
   * - a pointer to a std::vector<std::list<V> >, where class V is derived from
   *   Variable;
-  *
-  * - a  pointer to a std::vector<std::list<V *> >, where class V is either
-  *   Variable (Vec_List_p_Var * in Variable.h) or derived from Variable;
   *
   * - a pointer to a boost::multi_array<std::list<V> , K>,  where class V is
   *   derived from Variable, in principle with any K (but the limit for K
   *   may be dictated by un_any_static() and un_any_thing() in SMSTypedefs.h);
   *
-  * - a pointer to a boost::multi_array<std::list<V *> , K>,  where class V is
-  *   either Variable (Vec_List_p_Var<K> * in Variable.h) or derived
-  *   from Variable.
-  *
   * Note that this is the "abstract representation" of the Block, which is
-  * why these are all pointers. It is assumed that the actual [vectors or
-  * multi_array] of lists of [of pointers to] Variable have been defined in
-  * the proper derived class, and can therefore be accessed in some
-  * model-specific version from their specialized interface. Anyway, they
-  * depend on the specific data that characterizes the derived class, which
-  * is responsible of the allocation and deallocation of the corresponding
-  * memory (the "physical representation" of the Block). These being
-  * *dynamic* Variables, the lists can well be (but need not necessarily
-  * be) empty when the object is initialized, and be populated (and
-  * de-populated) dynamically during the lifetime of the Block. The two
-  * representations of the Block may, or may not, coincide: however,
-  * Variables and Constraints MUST *NEVER* BE COPIED BY VALUE, BECAUSE
-  * THEIR MEMORY ADDRESS IS THEIR NAME. Hence, should a derived class choose
-  * to implement its "physical representation" as (...) lists of Variable,
-  * as opposed to (...) list of pointers, it has to be *very* careful to
-  * *NEVER* MODIFY THESE VECTORS (in particular, increase their size) during
-  * the lifetime of the Block in order to avoid the risk that some Variable
-  * may change their memory location, hence their "name".
+  * why these are all pointers. It is assumed that the actual [vector or
+  * multi_array of] list of Variable have been defined in the derived class,
+  * and can therefore be accessed in some model-specific version from its
+  * specialized interface. Anyway, they depend on the specific data that
+  * characterizes the derived class, which is responsible of the allocation
+  * and deallocation of the corresponding memory (the "physical
+  * representation" of the Block). These being *dynamic* Variables, the lists
+  * can well be (but need not necessarily be) empty when the object is
+  * initialized, and be populated (and de-populated) dynamically during the
+  * lifetime of the Block. The two representations of the Block may, or may
+  * not, coincide: however, Variable and Constraint MUST *NEVER* BE COPIED BY
+  * VALUE, BECAUSE THEIR MEMORY ADDRESS IS THEIR NAME. Hence, a derived class
+  * has to be *very* careful to *NEVER* MODIFY THESE VECTORS (in particular,
+  * increase their size) during the lifetime of the Block in order to avoid
+  * the risk that some Variable may change their memory location, hence their
+  * "name".
   *
   * A FORTIORI, SIZE OF THE [...] ARRAYS WHOSE POINTERS ARE PROVIDED BY THIS
   * METHOD MUST *NEVER* BE CHANGED BY WHOMEVER READS THEM. This also implies
   * that THE ADDRESS OF ALL LISTS OF DYNAMIC Variables WILL NEVER CHANGE,
   * AND THEREFORE IT CAN BE USED AT THE COLLECTIVE NAME FOR THAT SET OF
-  * DYNAMIC Variables (each one of which will then have its individual name
+  * DYNAMIC Variable (each one of which will then have its individual name
   * given by its memory address, which will also never change). Since it must,
-  * conversely, be possible to change the individual Variables, the arrays
+  * conversely, be possible to change the individual Variable, the arrays
   * cannot be const (a size-cons, contents-mutable array should be used,
-  * which is possible but just too complicated at this point). It would be
-  * possible to enforce this for [...] arrays of *pointers*, but since it is
-  * (currently) not done for the others it's not worth the bother; besides,
-  * resizing a vector of pointers do not change the address of the original
-  * objects (although hell may break loose for many other reasons).
+  * which is possible but just too complicated at this point).
   *
   * The rationale of the structure is that the lists can be indiced over (in
   * principle) as many indices ad one wants, but each element of the list is
-  * a [pointer to a] *single Variable*. If the user needs to have
-  * multi-dimensional dynamic Variable (say, x[ i ] with a dynamic index
-  * "i" where each x[ i ] is a matrix of Constraints depending on two static
-  * indices "j" and "k"), then she has to put the dynamic index at the end
-  * and ensure that all the lists are updated in the same way (say, define
-  * the 2-dimensional array of lists of (...) Variable x[ j ][ k ], and be
-  * sure that all the lists for all the indices "j" and "k" are updated
-  * simultaneously each time a new index "i" is added, or an old one is
-  * removed). Lists of lists of (...) Variable are not supported (just
-  * make that a unique list). In other words, the size of the vectors of
-  * lists is *fixed* and must *never* be changed: the only thing that can
-  * change (freely) is the size of each list.
+  * a *single Variable*. If the user needs to have multi-dimensional dynamic
+  * Variable (say, x[ i ] with a dynamic index "i" where each x[ i ] is a
+  * matrix of Constraints depending on two static indices "j" and "k"), then
+  * she has to put the dynamic index at the end and ensure that all the lists
+  * are updated in the same way (say, define the 2-dimensional array of lists
+  * of Variable x[ j ][ k ], and be sure that all the lists for all the
+  * indices "j" and "k" are updated simultaneously each time a new index "i"
+  * is added, or an old one is removed). Lists of lists of Variable are *not*
+  * supported (just make that a unique list). In other words, the size of the
+  * vectors of lists is *fixed* and must *never* be changed: the only thing
+  * that can change (freely) is the size of each list.
   *
   * Similarly, the size of the vector of dynamic Variables is *not* supposed
   * to change along the life of the Block: which *groups* of Variables are
   * there is "the structure of the Block", and this is assumed to be given.
-  * Individual Variables can indeed appear and disappear, which is what
-  * precisely dynamic Variables are for, but "the set of indices of
-  * Variables" is assumed to be given once and for all. That is,
+  * Individual Variable can indeed appear and disappear, which is precisely
+  * what dynamic Variables are for, but "the set of indices of Variable" is
+  * assumed to be given once and for all. That is,
   * add_dynamic_variable() should only be called (by derived classes) during
   * the initialization of the Block, and never thereafter.
   *
@@ -2628,7 +2565,13 @@ class Block : public Observer {
 /**@} ----------------------------------------------------------------------*/
 /*----- Methods for adding/removing (dynamic) Variables and Constraints ----*/
 /*--------------------------------------------------------------------------*/
-/** @name Methods for changing Variables, Constraints and Objective
+/** @name Methods for changing Variable, Constraint and Objective
+ *
+ * Dynamic Variable and Constraint are always organized in lists (which may
+ * themselves be in a std::vector or boost::multi_array, but the size of
+ * these must be fixed, and only that of the list can change). These
+ * methods allow to add and remove elements from the lists, triggering the
+ * appropriate Modification.
  *  @{ */
 
  /// adds a bunch of new Constraint at the end of the given list
@@ -2636,7 +2579,7 @@ class Block : public Observer {
   *
   * The parameter list is obviously not "const", as the list will be updated.
   * Note that the base class implementation of this method just does this and
-  * possibly issues the appropriate BlockModAD; as list is supposed to be a
+  * possibly issues the appropriate BlockModAdd; as list is supposed to be a
   * part of the "abstract representation", this means that the "physical
   * representation" of the corresponding dynamic Constraint (if any exists)
   * is not updated, as this should clearly be responsibility of the derived
@@ -2647,7 +2590,7 @@ class Block : public Observer {
   * only way in which elements can be added to a list without being copied,
   * i.e., their memory address being changed.
   *
-  * The parameter issueMod decides if and how the BlockModAD is issued, as
+  * The parameter issueMod decides if and how the BlockModAdd is issued, as
   * described in Observer::make_par(). */
 
  template<class Const>
@@ -2655,32 +2598,13 @@ class Block : public Observer {
 			       std::list<Const> &newlist ,
 			       c_ModParam issueMod = eModBlck );
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// adds a bunch of new Constraint * at the end of the given list
- /** Adds a bunch of pointers to new Constraints at the end of the given
-  * list.
-  *
-  * Same as add_dynamic_constraints( std::list<Const> &list , ... ),
-  * except the arguments are lists of pointers rather than lists of objects.
-  * For most aspects, see the comments of that method.
-  *
-  * Note that the new Constraint must already be organized in a list, which
-  * is "spliced" into the given one. This would not be necessary for this
-  * pointer version, because copying a pointer to Constraint is always OK,
-  * but it is done to keep consistence with the non-pointer version. */
-
- template<class Const>
- void add_dynamic_constraints( std::list<Const *> &list ,
-                               std::list<Const *> &newlist ,
-			       c_ModParam issueMod = eModBlck  );
-
 /*--------------------------------------------------------------------------*/
  /// adds a bunch of new Variable at the end of the given list
  /** Adds a bunch of new Variable at the end of the given list.
   *
   * The parameter list is obviously not "const", as the list will be updated.
   * Note that the base class implementation of this method just does this and
-  * possibly issues the appropriate BlockModAD; as list is supposed to be a
+  * possibly issues the appropriate BlockModAdd; as list is supposed to be a
   * part of the "abstract representation", this means that the "physical
   * representation" of the corresponding dynamic Variable (if any exists) is
   * not updated, as this should clearly be responsibility of the derived
@@ -2691,29 +2615,11 @@ class Block : public Observer {
   * only way in which elements can be added to a list without being copied,
   * i.e., their memory address being changed.
   *
-  * The parameter issueMod decides if and how the BlockModAD is issued, as
+  * The parameter issueMod decides if and how the BlockModAdd is issued, as
   * described in Observer::make_par(). */
 
  template<class Var>
  void add_dynamic_variables( std::list<Var> &list , std::list<Var> &newlist ,
-			     c_ModParam issueMod = eModBlck );
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// adds a bunch of new Variable * at the end of the given list.
- /** Adds a bunch of pointers to new Variables at the end of the given list.
-  *
-  * Same as add_dynamic_variables( std::list<Var> &list , ... ), except the
-  * arguments are lists of pointers rather than lists of objects. For most
-  * aspects, see the comments of that method.
-  *
-  * Note that the new Variables must already be organized in a list, which
-  * is "spliced" into the given one. This would not be necessary for this
-  * pointer version, because copying a pointer to Variable is always OK,
-  * but it is done to keep consistence with the non-pointer version. */
-
- template<class Var>
- void add_dynamic_variables( std::list<Var *> &list ,
-			     std::list<Var *> &newlist ,
 			     c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -2722,26 +2628,26 @@ class Block : public Observer {
   *
   * The parameter list is obviously not "const", as the list will be updated.
   * Note that the base class implementation of this method just does this and
-  * possibly issues the appropriate BlockModAD; as list is supposed
-  * to be a part of the "abstract representation", this means that the
-  * "physical representation" of the corresponding dynamic Constraint (if any
-  * exists) is not updated, as this should clearly be responsibility of the
-  * derived class (maybe within the corresponding implementation of this
-  * method).
+  * possibly issues the appropriate BlockModRmv; as list is supposed to be a
+  * part of the "abstract representation", this means that if the "physical
+  * representation" of the corresponding dynamic Constraint (if any exists)
+  * is different from its "abstract representation" is not updated, as this
+  * should clearly be responsibility of the derived class (maybe within the
+  * corresponding implementation of this method).
   *
-  * The parameter issueMod decides if and how the BlockModAD is issued, as
-  * described in Observer::make_par().
-  *
-  * The removed Constraint are these whose iterator is found in the
-  * std::vector rmvd. Note that, if the BlockModAD is issued, these
+  * The Constraint to be removed are these whose iterator is found in the
+  * std::vector rmvd. Note that, if the BlockModRmv is issued, these
   * Constraint are not immediately deleted; rather, they are added to a list
-  * stored into the boost::any field of the BlockModAD object, so that they
-  * remain alive until the last interested Solver had had the chance to use
-  * them to perform the required changes. This also implies that the same
-  * memory address cannot be used for new Constraint (or anything), which
-  * also avoids potential problems. As soon as the BlockModAD is eventually
+  * stored into a field of the BlockModRmv object, so that they remain alive
+  * until the last interested Solver had had the chance to use them to
+  * perform the required changes. This also implies that the same memory
+  * address cannot be used for new Constraint (or anything), which also
+  * avoids potential problems. As soon as the BlockModRmv is eventually
   * destroyed, the Constraints are destroyed as well. If, instead, the
-  * BlockModAD is not issued, the Constraint are destroyed immediately.
+  * BlockModRmv is not issued, the Constraint are destroyed immediately.
+  *
+  * The parameter issueMod decides if and how the BlockModRmv is issued, as
+  * described in Observer::make_par().
   *
   * Important note: each Constraint knows which are the Variable that are
   * active in it. Likewise, each Variable knows which Constraint (among other
@@ -2759,16 +2665,26 @@ class Block : public Observer {
   * active in it. This will be accomplished by removing the Constraint from
   * each Variable that was active in it. This means that the first source of
   * information about activeness listed above will be updated. However, the
-  * Constraint will still keep the information about which Variable were
-  * active in it before its removal. This means that the second source of
-  * information about activeness will not be updated. This is OK because the
-  * Constraint will no longer exist in the Block, and it can actually be
-  * useful for the Solver to efficiently process the Modification.
+  * Constraint would still keep the information about which Variable were
+  * active in it before its removal. This would create a problem when the
+  * dynamic Constraint is ultimately destructed (possibly having spent time
+  * waiting inside the issued BlockModRmv), because the destructor of a
+  * Constraint, unlike that of a Variable, is supposed to un-register it
+  * from all the Variable that it is active in. To avoid this
+  *
+  *     ALL DELETED Constraint ARE clear()-ED WITHIN THE METHOD
+  *
+  * This means that the list of Variable that the Constraint was active in
+  * is immediately cleared (without re-warning the Variable, who have just
+  * been). As a consequence,
+  *
+  *     WHOMEVER HANDLES THE ISSUED BlockModRmv (IF ANY) CANNOT RELY ON
+  *     THAT INFORMATION, SINCE IT WILL NO LONGER BE THERE
   *
   * Note that when the Constraint is removed from the Variable, no
   * Modification is issued (see Variable::remove_active()); thus, calling
   * this method does not trigger any other Modification apart from the
-  * BlockModAD. */
+  * BlockModRmv. */
 
  template<class Const>
  void remove_dynamic_constraints( std::list<Const> &list ,
@@ -2783,71 +2699,32 @@ class Block : public Observer {
 				 typename std::list<Const>::iterator rmvd  ,
 				 c_ModParam issueMod = eModBlck );
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// removes a bunch of Constraint * from the given list
- /** Removes a bunch of pointers to Constraint from the given list.
-  *
-  * Same as remove_dynamic_constraints( std::list<Const> &list , ... ),
-  * except the arguments are lists of pointers rather than lists of objects.
-  * For most aspects, see the comments of that method.
-  *
-  * The specific difference of this version is that the list of *pointers* to
-  * the Constraint to be removed is stored in a list into the boost::any field
-  * of the BlockModAD object. The list is destroyed when the BlockModAD object
-  * is, i.e., automatically when the last registered Solver has deleted its
-  * copy. However, this being a list of *pointers*, this does *not* guarantee
-  * that the Constraint themselves will be destroyed, nor that they will *not*
-  * be destroyed too early (before all Solver are done with them). Ensuring
-  * this remains on the shoulders of whomever had created them in the first
-  * place. This should be doable, because a list of pointers to Constraint
-  * likely is not the "physical representation" of the Constraint; hence, the
-  * Constraint should "physically" be in some other data structure in the
-  * :Block, which therefore has to ensure that they will not be deleted too
-  * early (or too late).
-  *
-  * However, clearly having dynamic Constraint as list of Constraint,
-  * rather than lists of Constraint *, looks better. There is one level less
-  * of indirection, and the destruction of the object is automatically
-  * managed as opposed to requiring specific care. */
-
- template<class Const>
- void remove_dynamic_constraints( std::list<Const *> &list ,
-             std::vector<typename std::list<Const *>::iterator> &rmvd ,
-	     c_ModParam issueMod = eModBlck );
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// Like remove_dynamic_constraint*s*( Const * ), just only one of them
-
- template<class Const>
- void remove_dynamic_constraint( std::list<Const *> &list ,
-				 typename std::list<Const *>::iterator rmvd ,
-				 c_ModParam issueMod = eModBlck );
-
 /*--------------------------------------------------------------------------*/
  /// removes a bunch of Variable from the given list
  /** Removes a bunch of Variable from the given list.
   *
   * The parameter list is obviously not "const", as the list will be updated.
   * Note that the base class implementation of this method just does this and
-  * possibly issues the appropriate BlockModAD; as list is supposed to be a
-  * part of the "abstract representation", this means that the "physical
+  * possibly issues the appropriate BlockModRmv; as list is supposed to be a
+  * part of the "abstract representation", this means that if the "physical
   * representation" of the corresponding dynamic Variable (if any exists) is
-  * not updated, as this should clearly be responsibility of the derived
-  * class (maybe within the corresponding implementation of this method).
+  * different from its "abstract representation" is not updated, as this
+  * should clearly be responsibility of the derived class (maybe within the
+  * corresponding implementation of this method).
   *
-  * The parameter issueMod decides if and how the BlockModAD is issued, as
+  * The Variable to be removed are these whose iterator is found in the
+  * std::vector rmvd. Note that, if the BlockModRmv is issued, these Variable
+  * are not immediately deleted; rather, they are added to a list stored into
+  * a field of the BlockModAD object, so that they remain alive until the
+  * last interested Solver had had the chance to use them to perform the
+  * required changes. This also implies that the same memory address cannot
+  * be used for new Variable (or anything), which also avoids potential
+  * problems. As soon as the BlockModAD is eventually destroyed, the Variable
+  * are destroyed as well. If, instead, the BlockModAD is not issued, the
+  * Variable are destroyed immediately.
+  *
+  * The parameter issueMod decides if and how the BlockModRmv is issued, as
   * described in Observer::make_par().
-  *
-  * The removed Variable are these whose iterator is found in the std::vector
-  * rmvd. Note that, if the BlockModAD is issued, these Variable are not
-  * immediately deleted; rather, they are added to a list stored into the
-  * boost::any field of the BlockModAD object, so that they remain alive
-  * until the last interested Solver had had the chance to use them to
-  * perform the required changes. This also implies that the same memory
-  * address cannot be used for new Variable (or anything), which also avoids
-  * potential problems. As soon as the BlockModAD is eventually destroyed,
-  * the Variable are destroyed as well. If, instead, the BlockModAD is not
-  * issued, the Variable are destroyed immediately.
   *
   * Important note: each Constraint knows which are the Variable that are
   * active in it. Likewise, each Variable knows which "stuff" (Constraint,
@@ -2865,12 +2742,21 @@ class Block : public Observer {
   * However, the Variable will still keep the information about which "stuff"
   * it was active in before its removal. This means that the first source of
   * information about activeness will not be updated. This is OK because the
-  * Variable will no longer exist in the Block, and it can actually be useful
-  * for the Solver to efficiently process the Modification.
+  * destructor of Variable, unlike that of Constraint, is *not* supposed to
+  * un-register the Variable from all the stuff (hence, Constraint) it was
+  * active in. Hence, although the information is outdated (and possibly
+  * dangerous: the Constraint may themselves be deleted, which would lead to
+  * dangling pointers), it is not automatically used by the Variable, and
+  * therefore it is safe to keep it there (Variable do not have clear() like
+  * Constraint do). However,
   *
-  * Yet, unlike removing a dynamic Constraint (see the comments to
+  *     WHOMEVER IS HANDLING THE ISSUED BlockModRmv (IF ANY) HAS TO BE
+  *     CAREFUL NOT TO RELY ON THE INFORMATION ABOUT THE ACTIVE STUFF
+  *     OF THE Variable, SINCE IT IS NOT RELIABLE.
+  *
+  * Also, unlike removing a dynamic Constraint (see the comments to
   * remove_dynamic_constraints()), removing a dynamic Variable from a Block
-  * is a complex task. Besides this Block issuing a BlockModAD stating that
+  * is a complex task. Besides this Block issuing a BlockModRmv stating that
   * this Variable has been removed, other Modification are in principle
   * issued. For each "stuff" in which the Variable is active, 
   * ThinVarDepInterface::remove_variable() will be called, and this in
@@ -2908,48 +2794,6 @@ class Block : public Observer {
  template<class Var>
  void remove_dynamic_variable( std::list<Var> &list ,
 			       typename std::list<Var>::iterator rmvd ,
-			       c_ModParam issueMod = eModBlck ,
-			       c_ModParam issueindMod = eModBlck );
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// removes a bunch of Variable * from the given list
- /** Removes a bunch of pointers to Variable from the given list.
-  *
-  * Same as remove_dynamic_variables( std::list<Var> &list , ... ), except
-  * the arguments are lists of pointers rather than lists of objects. For
-  * most aspects, see the comments of that method.
-  *
-  * The specific difference of this version is that the list of *pointers* to
-  * the Variable to be removed is stored in a list into the boost::any field
-  * of the Modification object. The list is destroyed when the Modification
-  * object is, i.e., automatically when the last registered Solver has
-  * deleted its copy. However, this being a list of *pointers*, this does
-  * *not* guarantee that the Variable themselves will be destroyed, nor that
-  * they will *not* be destroyed too early (before all Solver are done with
-  * them). Ensuring this remains on the shoulders of whomever had created
-  * them in the first place. This should be doable because a list of pointers
-  * to Variable likely is not the "physical representation" of the Variable;
-  * hence, the Variable should "physically" be in some other data structure
-  * in the :Block, which therefore has to ensure that they will not be
-  * deleted too early (or too late).
-  *
-  * However, clearly having dynamic Variable as list of Variable, rather
-  * than lists of Variable *, looks better. There is one level less of
-  * indirection, and the destruction of the object is automatically managed
-  * as opposed to requiring specific care. */
-
- template<class Var>
- void remove_dynamic_variables( std::list<Var *> &list ,
-		     std::vector<typename std::list<Var *>::iterator> &rmvd ,
-		     c_ModParam issueMod = eModBlck ,
-		     c_ModParam issueindMod = eModBlck );
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// Like remove_dynamic_variable*s*( Var * ), just only one of them
-
- template<class Var>
- void remove_dynamic_variable( std::list< Var *> &list ,
-			       typename std::list<Var *>::iterator rmvd ,
 			       c_ModParam issueMod = eModBlck ,
 			       c_ModParam issueindMod = eModBlck );
 
@@ -4919,6 +4763,10 @@ class Block : public Observer {
  * are kept of the same size as the corresponding v_X_Y ones (giving the newly
  * added stuff no name: the v_X_Y_names vectors are protected, so derived
  * classes can mess up with them later at their leisure).
+ *
+ * For static Variable, what can be added is:
+
+
  * @{ */
 
  /// removes any existing static Constraint; to be used with care
@@ -5517,9 +5365,9 @@ class Block : public Observer {
 
 /*--------------------------------------------------------------------------*/
 /// returns the bimap associated with the methods of type F
-/** This method returns the bimap implementing the "methods factory"
- * for the methods of type F. This is where the pointer to the methods
- * (and their names) in the methods factory are stored. */
+/** This method returns the bimap implementing the "methods factory" for the
+ * methods of type F. This is where the pointer to the methods (and their
+ * names) in the methods factory are stored. */
 
  template<class F>
  static inline bimap<F> & methods( void ) {
@@ -5580,18 +5428,20 @@ class BlockMod : public AModification
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
- virtual ~BlockMod() { }   ///< destructor, does nothing
+ virtual ~BlockMod() = default;   ///< destructor, does nothing
 
-/*--------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+ /// accessor to the pointer to the Block to which the Modification refers
 
- Block *f_Block;  ///< reference to the block to which the Modification refers
+ Block * get_Block( void ) { return( f_Block ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
  protected:
 
-/*-------------------------- PROTECTED METHODS -----------------------------*/
+/*------------------- PROTECTED METHODS OF THE CLASS -----------------------*/
  /// print the BlockMod
+
  virtual inline void print( std::ostream &output ) const override {
   output << "BlockMod[";
   if( concerns_Block() )
@@ -5601,123 +5451,297 @@ class BlockMod : public AModification
   output << "] on Block [" << &f_Block << "]: obj changed" << std::endl;
   }
 
+/*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
+
+ Block *f_Block;  ///< reference to the Block to which the Modification refers
+
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( BlockMod ) )
 
 /*--------------------------------------------------------------------------*/
-/*--------------------------- CLASS BlockModAD -----------------------------*/
+/*-------------------------- CLASS BlockModAD ------------------------------*/
 /*--------------------------------------------------------------------------*/
-/// derived class from Modification for adding/removing stuff to/from a Block
-/** Derived class from Modification to describe modifications to a Block
- * involving addition or deletion of dynamic variables. Note that no pointer
- * to the affected Block is required, since it can always be inferred from
- * the other information (Constraints/Variables) that the Modification
- * contains. */
+/// derived class from AModification for adding/removing stuff to a Block
+/** Derived class from AModification to describe modifications to a Block
+ * involving either the addition or the removal of dynamic either Variable or
+ * Constraint. This is a base class for all Modification of this type, which
+ * are actually represented by BlockModAdd and BlockModRmv. However, these
+ * are template classes, and therefore are a bit more cumbersome to "catch"
+ * because you need to know the exact type of Variable / Constraint involved.
+ * This base class only conveys the general information that some Variable or
+ * Constraint have been either added or removed. It does not say *which*, but
+ * it does say *how*. If some Solver is only interested in this, it can
+ * "catch" the base class irrespective to the type of Variable / Constraint
+ * involved. */
 
 class BlockModAD : public AModification
 {
-
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
  public:
 
-/*---------------------------- PUBLIC TYPES --------------------------------*/
-
- /// Definition of the possible type of Modification
- enum block_modad_type{
-  eAddConst ,  ///< add a dynamic Constraint
-  eAddVar ,    ///< add a dynamic Variable
-  eDelConst ,  ///< delete a dynamic Constraint
-  eDelVar ,    ///< delete a dynamic Variable
-  eBADModLastParam  ///< first allowed parameter value for derived classes
-                    /**< convenience value for easily allow derived classes
-                     * to extend the set of types of modifications */
-  };
-
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
- /// constructor, taking the type of the Modification and the "concerns" value
- /** Constructor: takes the type of the Modification and the "concerns" value.
-  * Note that a pointer to the affected Block can always be inferred from the
-  * other information that the Modification contains, and therefore is not
-  * needed. Also, note that while the enum block_mod_type is provided to
-  * encode the possible values of modification, the field f_type is of type
-  * int, and therefore so is the parameter of the constructor, in order to
-  * allow derived classes to "extend" the set of possible types of
-  * modifications. */
+ /// constructor, taking the "concerns" value
 
- BlockModAD( int mod , const bool cB = false ) : AModification( cB ) ,
-  f_type( mod ) { }
+ BlockModAD( bool cB = false ) : AModification( cB ) {}
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
- /// destructor, *apparently* doing nothing
- /** Although the destructor of BlockModAD seems to be empty, it actually
-  * performs a very important and nontrivial task, i.e., destroying either
-  * the vector of new Constraint / Variable "names" (pointers), or the list
-  * of removed Constraints / Variables (the actual objects), held in the
-  * mod_list field. The fact that this can be automatically done for any type
-  * of class derived from Constraint / Variable depends on the fact that the
-  * boost::any contains the actual objects (not pointers to), so it is the
-  * destructor of boost::any that automagically calls the destructor of the
-  * appropriate object, whatever that is (kudos to boost::any for this
-  * remarkable technical accomplishment). */
 
- virtual ~BlockModAD() { }
+ virtual ~BlockModAD() = default;  ///< destructor, does nothing
 
-/*--------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
- int f_type;  ///< type of modification
+ /// returns the pointer to the enclosing Block
 
- boost::any whc_list;
- ///< pointer to the affected list of Constraint / Variable
- /**< this boost::any field contains the reference to the std::list of
-  * Constraint, Variable, or derived class from one of these, which was
-  * affected by the addition/removal. */
+ virtual Block * get_Block( void ) = 0;
 
- boost::any mod_list;
- ///< list describing the Constraints / Variables added / removed
- /**< this boost::any field contains two different things:
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns true is a Variable is involved, false if a Constraint is involved
+ /** Returns true is a Variable is involved, false if a Constraint is
+  * involved. The method is pure virtual and it is actually implemented by
+  * derived classes. */
+
+ virtual bool is_variable( void ) = 0;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns true if < something > is added, false if it is removed
+ /** Returns true if < something > is added, false if it is removed. The
+  * method is pure virtual and it is actually implemented by derived classes.
+ */
+
+ virtual bool is_added( void ) = 0;
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( BlockModAdd ) )
+
+/*--------------------------------------------------------------------------*/
+/*-------------------------- CLASS BlockModAD ------------------------------*/
+/*--------------------------------------------------------------------------*/
+/// derived class from Modification for adding stuff to a Block
+/** Derived class from BlockModAD to describe modifications to a Block
+ * involving the *addition* of dynamic Variable or Constraint. Note that no
+ * pointer to the affected Block is required, since it can always be inferred
+ * from the other information (Constraint/Variable) that the Modification
+ * contains. The class is template over the type of the Constraint or Variable
+ * that have been added, which must be either a :Constraint or a :Variable. */
+
+template< class ConstOrVar >
+class BlockModAdd : public BlockModAD
+{
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
+ /// constructor, taking all the data of the Modification
+ /** Constructor, taking:
   *
-  * - for an addition, it contains either a pointer, or a std::vector of
-  *   pointers, or a boost::multi_array of pointers to some derived class
-  *   from Constraint or Variable (you cannot make objects of the base
-  *   class), holding the "names" (pointers) of the things having just been
-  *   added
+  * @param the std::list< ConstOrVar > & whc, a reference to the list where
+  *        the Constraint or Variable (of type ConstOrVar) have been added;
   *
-  * - for a deletion, it contains a std::list of either a derived class
-  *   from either Constraint or Variable (you cannot make objects of the
-  *   base class), or pointers to either Constraint, or Variable, or a
-  *   derived class from one of these, holding the things having just been
-  *   removed. */
+  * @param the std::vector< ConstOrVar * > && add, containing the pointers
+  *        to the Constraint or Variable (of type ConstOrVar) that have been
+  *        added; as the "&&" suggests, the object becomes property of the
+  *        BlockModAdd;
+  *
+  * @param the bool cB, containing the "concerns" value.
+  *
+  * Note that a pointer to the affected Block can always be inferred from the
+  * other information that the Modification contains, and therefore is not
+  * needed. */
+
+ BlockModAdd( std::list< ConstOrVar > & whc ,
+	      std::vector< ConstOrVar * > && add , bool cB = false )
+  : BlockModAD( cB ) , whc_list( whc ) , add_vec( std::move( add ) )
+ {
+  static_assert( std::is_base_of< Variable , ConstOrVar >::value ||
+		 std::is_base_of< Constraint , ConstOrVar >::value ,
+		 "BlockModAD: must inherit from Variable or Constraint" );
+  }
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+ /// destructor, no specific code needed (all is done automatically)
+
+ virtual ~BlockModAdd() = default;
+
+/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+
+ virtual Block * get_Block( void ) override final {
+  return( add_vec[ 0 ]->get_Block() );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ /// accessor to (the reference to) the affected list of Constraint/Variable
+
+ std::list<ConstOrVar> & whc( void ) { return( whc_list ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// accessor to the array of the added/removed Constraint/Variable 
+
+ const std::vector<ConstOrVar *> & added( void ) { return( add_vec ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ virtual bool is_variable( void ) override final {
+  return( std::is_base_of< Variable , ConstOrVar >::value );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ virtual bool is_added( void ) override final { return( true ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
  protected:
 
 /*-------------------------- PROTECTED METHODS -----------------------------*/
- /// print the BlockModAD
+ /// print the BlockModAdd
 
  virtual inline void print( std::ostream &output ) const override {
-  output << "BlockModAD[";
+  output << "BlockModAdd[";
   if( concerns_Block() )
-   output << "t]: ";
+   output << "t";
   else
-   output << "f]: ";
-  if( ( f_type == eAddConst ) || ( f_type == eAddVar ) )
-   output << "adding ";
+   output << "f";
+  output << "]: added " << add_vec.size();
+  if( std::is_base_of< Variable , ConstOrVar >::value )
+   output << " Variable";
   else
-   output << "removing ";
-
-  if( ( f_type == eAddConst ) || ( f_type == eDelConst ) )
-   output << "Constraint";
-  else
-   output << "Variable";
-  output << std::endl;
+   output << " Constraint";
+  output << " from list" << whc_list << std::endl;
   }
+
+/*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
+
+ std::list< ConstOrVar > & whc_list;   ///< reference to the affected list
+
+ std::vector< ConstOrVar * > add_vec;  ///< vector of pointers to added stuff
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( BlockModAD ) )
+ };  // end( class( BlockModAdd ) )
+
+/*--------------------------------------------------------------------------*/
+/*-------------------------- CLASS BlockModRmv -----------------------------*/
+/*--------------------------------------------------------------------------*/
+/// derived class from BlockModAD for removing stuff to a Block
+/** Derived class from BlockModAD to describe modifications to a Block
+ * involving the removal of dynamic Variable or Constraint. Note that no
+ * pointer to the affected Block is required, since it can always be inferred
+ * from the other information (Constraint/Variable) that the Modification
+ * contains. The class is template over the type of the Constraint or Variable
+ * that have been removed, which must be either a :Constraint or a :Variable.
+ */
+
+template< class ConstOrVar >
+class BlockModRmv : public BlockModAD
+{
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
+ /// constructor, taking all the data of the Modification
+ /** Constructor, taking:
+  *
+  * @param the std::list< ConstOrVar > & whc, a reference to the list from
+  *        which the Constraint or Variable (of type ConstOrVar) have been
+  *        removed;
+  *
+  * @param the std::list< ConstOrVar > && rmvd, containing the *actual*
+  *        Constraint or Variable (of type ConstOrVar) that have been
+  *        removed from the std::list< ConstOrVar > & whc; as the "&&"
+  *        suggests, the object becomes property of the BlockModRmv, which
+  *        is crucial for proper timely disposal of the objects themselves
+  *        (see comments to the destructor);
+  *
+  * @param the bool cB, containing the "concerns" value.
+  *
+  * Note that a pointer to the affected Block can always be inferred from the
+  * other information that the Modification contains, and therefore is not
+  * needed. */
+
+ BlockModRmv( std::list< ConstOrVar > & whc ,
+	      std::list< ConstOrVar > && rmvd , bool cB = false )
+  : BlockModAD( cB ) , whc_list( whc ) , rmvd_list( std::move( rmvd ) )
+ {
+  static_assert( std::is_base_of< Variable , ConstOrVar >::value ||
+		 std::is_base_of< Constraint , ConstOrVar >::value ,
+		 "BlockModRmv: must inherit from Variable or Constraint" );
+  }
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+ /// destructor, *apparently* doing nothing
+ /** Although the destructor of BlockModRmv seems to be empty, it actually
+  * performs a very important and nontrivial task, i.e., destroying the list
+  * of removed Constraint / Variable (the actual objects), held in the
+  * rmvd_list field. This happens automagically when the last Solver having
+  * received the BlockModRmv deletes the pointer, hence when it is actually
+  * safe to delete the Constraint / Variable because no-one still need to
+  * access them to see what they held and what was their "name = pointer". */
+
+ virtual ~BlockModRmv() = default;
+
+/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+
+ virtual Block * get_Block( void ) override final {
+  return( rmvd_list.front().get_Block() );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ /// accessor to (the reference to) the affected list of Constraint/Variable
+
+ std::list< ConstOrVar > & whc( void ) { return( whc_list ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// accessor to the array of iterators identifying the stuff to be removed
+
+const std::list< ConstOrVar > & removed( void ) { return( rmvd_list ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ virtual bool is_variable( void ) override final {
+  return( std::is_base_of< Variable , ConstOrVar >::value );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ virtual bool is_added( void ) override final { return( false ); }
+
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+ /// print the BlockModRmv
+
+ virtual inline void print( std::ostream &output ) const override {
+  output << "BlockModRmv[";
+  if( concerns_Block() )
+   output << "t";
+  else
+   output << "f";
+  output << "]: removed " << rmvd_list.size();
+  if( std::is_base_of< Variable , ConstOrVar >::value )
+   output << " Variable";
+  else
+   output << " Constraint";
+  output << " from list" << whc_list << std::endl;
+  }
+
+/*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
+
+ std::list< ConstOrVar > & whc_list;     ///< reference to the affected list
+
+ std::list< ConstOrVar > rmvd_list;      ///< list of removed stuff
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( BlockModRmv ) )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS BlockConfig -----------------------------*/
@@ -6171,27 +6195,19 @@ void Block::add_dynamic_constraints( std::list< Const > &list ,
   return;               // cowardly (and silently) return
 
  if( issue_mod( issueMod ) ) {
-  // prepare the (shared pointer to) the Modification object
-  auto mod = std::make_shared<BlockModAD>( BlockModAD::eAddConst ,
-					   Observer::par2concern( issueMod )
-					   );
-
-  // copy in the boost::any field the (reference to the) affected list
-  mod->whc_list = &list;
-
-  // initialize the boost::any field as an empty vector of Const *
-  mod->mod_list = std::vector<Const *>();
-
-  // reference to the boost::any field as a vector of Const *
-  auto & names = boost::any_cast< std::vector<Const *>& >( mod->mod_list );
-
+  // initialize the vector of pointer to added Constraint
+  auto names = std::vector<Const *>( newlist.size() );
   auto it = names.begin();
   for( auto & el : newlist ) {  // all the new Constraint
    el.set_Block( this );        // now belong to this Block
    *(it++) = &el;               // keep their names
    }
 
-  add_Modification( mod , Observer::par2chnl( issueMod ) );
+  // now issue the BlockModAdd
+  add_Modification( std::make_shared<BlockModAdd<Const>>( list ,
+							  std::move( names ) ,
+					 Observer::par2concern( issueMod ) ) ,
+		    Observer::par2chnl( issueMod ) );
   }
  else
   for( auto & el : newlist )    // all the new Constraint
@@ -6200,50 +6216,6 @@ void Block::add_dynamic_constraints( std::list< Const > &list ,
  list.splice( list.end() , newlist );  // add them at the end
 
  }  // end( Block::add_dynamic_constraints( Const ) )
-
-/*--------------------------------------------------------------------------*/
-
-template< class Const >
-void Block::add_dynamic_constraints( std::list< Const * > &list ,
-                                     std::list< Const * > &newlist ,
-				     c_ModParam issueMod )
-{
- // ensure Const is a derivate of Constraint
- static_assert( std::is_base_of< Constraint , Const >::value ,
-                  "add_dynamic_constraints: must inherit from Constraint" );
-
- if( newlist.empty() )  // actually no Constraints to add
-  return;               // cowardly (and silently) return
-
- if( issue_mod( issueMod ) ) {
-  // prepare the (shared pointer to) the Modification object
-  auto mod = std::make_shared<BlockModAD>( BlockModAD::eAddConst ,
-					   Observer::par2concern( issueMod )
-					   );
-
-  // copy in the boost::any field the (reference to the) affected list
-  mod->whc_list = &list;
-  // initialize the boost::any field as an empty vector of Const *
-  mod->mod_list = std::vector<Const *>();
-
-  // reference to the boost::any field as a vector of Const *
-  auto & names = boost::any_cast< std::vector<Const *>& >( mod->mod_list );
-
-  auto it = names.begin();
-  for( auto & el : newlist ) {  // all the new Constraint
-   el->set_Block( this );       // now belong to this Block
-   *(it++) = el;                // keep their names
-   }
-
-  add_Modification( mod , Observer::par2chnl( issueMod ) );
-  }
- else
-  for( auto & el : newlist )    // all the new Constraint
-   el->set_Block( this );       // now belong to this Block
-
- list.splice( list.end() , newlist );  // add them at the end
-
- }  // end( Block::add_dynamic_constraints( Const * ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -6260,26 +6232,19 @@ void Block::add_dynamic_variables( std::list< Var > &list ,
   return;               // cowardly (and silently) return
 
  if( issue_mod( issueMod ) ) {
-  // prepare the (shared pointer to) the Modification object
-  auto mod = std::make_shared<BlockModAD>( BlockModAD::eAddVar ,
-					   Observer::par2concern( issueMod )
-					   );
-
-  // copy in the boost::any field the (reference to the) affected list
-  mod->whc_list = &list;
-  // initialize the boost::any field as an empty vector of Var *
-  mod->mod_list = std::vector<Var *>();
-
-  // reference to the boost::any field as a vector of Var *
-  auto & names = boost::any_cast< std::vector<Var *>& >( mod->mod_list );
-
+  // initialize the vector of pointer to added Constraint
+  auto names = std::vector<Var *>( newlist.size() );
   auto it = names.begin();
-  for( auto & el : newlist ) {  // all the new Variable
+  for( auto & el : newlist ) {  // all the new Constraint
    el.set_Block( this );        // now belong to this Block
    *(it++) = &el;               // keep their names
    }
 
-  add_Modification( mod , Observer::par2chnl( issueMod ) );
+  // now issue the BlockModAdd
+  add_Modification( std::make_shared< BlockModAdd< Var > >( list ,
+							std::move( names ) ,
+				       Observer::par2concern( issueMod ) ) ,
+		    Observer::par2chnl( issueMod ) );
   }
  else
   for( auto & el : newlist )    // all the new Variable
@@ -6288,50 +6253,6 @@ void Block::add_dynamic_variables( std::list< Var > &list ,
  list.splice( list.end() , newlist );  // add them at the end
 
  }  // end( Block::add_dynamic_variables( Var ) )
-
-/*--------------------------------------------------------------------------*/
-
-template<class Var>
-void Block::add_dynamic_variables( std::list< Var * > &list ,
-                                   std::list< Var * > &newlist ,
-				   c_ModParam issueMod )
-{
- // ensure Var is a derivate of Variable
- static_assert( std::is_base_of< Variable , Var >::value ,
-                       "add_dynamic_variables: must inherit from Variable" );
-
- if( newlist.empty() )  // actually no Variable to add
-  return;               // cowardly (and silently) return
-
- if( issue_mod( issueMod ) ) {
-  // prepare the (shared pointer to) the Modification object
-  auto mod = std::make_shared<BlockModAD>( BlockModAD::eAddVar ,
-					   Observer::par2concern( issueMod )
-					   );
-
-  // copy in the boost::any field the (reference to the) affected list
-  mod->whc_list = &list;
-  // initialize the boost::any field as an empty vector of Var *
-  mod->mod_list = std::vector<Var *>();
-
-  // reference to the boost::any field as a vector of Var *
-  auto & names = boost::any_cast< std::vector<Var *>& >( mod->mod_list );
-
-  auto it = names.begin();
-  for( auto & el : newlist ) {  // all the new Variable
-   el->set_Block( this );       // now belong to this Block
-   *(it++) = el;                // keep their names
-   }
-
-  add_Modification( mod , Observer::par2chnl( issueMod ) );
-  }
- else
-  for( auto & el : newlist )    // all the new Variable
-   el->set_Block( this );       // now belong to this Block
-
- list.splice( list.end() , newlist );  // add them at the end
-
- }  // end( Block::add_dynamic_variables( Var * ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -6348,30 +6269,25 @@ void Block::remove_dynamic_constraints( std::list< Const > &list ,
   return;            // cowardly (and silently) return
 
  // TODO What if the iterator is not valid?
- for( const auto & const_it : rmvd )
+ for( const auto & const_it : rmvd ) {
   remove_constraint_from_variables( &(*const_it) );
+  const_it->clear();
+  }
 
  if( issue_mod( issueMod ) ) {
-  // prepare the (shared pointer to) the Modification object
-  auto mod = std::make_shared<BlockModAD>( BlockModAD::eDelConst ,
-					   Observer::par2concern( issueMod )
-					   );
+  std::list< Const > removed;
 
-  // copy in the boost::any field the (reference to the) affected list
-  mod->whc_list = &list;
-  // initialize the boost::any field as an empty std::list<Const>
-  mod->mod_list = std::list<Const>();
-
-  // reference to the boost::any field as a std::list<Const>
-  auto & removed = boost::any_cast<std::list<Const>& >( mod->mod_list );
-
-  // remove all the constraints (whose iterators are found) in rmvd and
-  // add them to the list in the Modification; note that by using splice()
-  // the address of the actual Constraints objects is not changed
-  for( auto & el : rmvd )
-   list.splice( el , removed , removed.end() );
-
-  add_Modification( mod , Observer::par2chnl( issueMod ) );
+  // remove all the Constraint (whose iterators are found) in rmvd and add
+  // them to the removed list; note that by using splice() the address of
+  // the actual Constraints objects is not changed
+  for( auto el : rmvd )
+   removed.splice( removed.end() , list , el );
+  
+  // now issue the BlockModRmv
+  add_Modification( std::make_shared< BlockModRmv< Const > >( list ,
+						      std::move( removed ) ,
+				       Observer::par2concern( issueMod ) ) ,
+		    Observer::par2chnl( issueMod ) );
   }
  else
   for( auto & el : rmvd )
@@ -6391,112 +6307,26 @@ void Block::remove_dynamic_constraint( std::list< Const > &list ,
                 "remove_dynamic_constraint: must inherit from Constraint" );
 
  remove_constraint_from_variables( &(*rmvd) );
+ rmvd->clear();
 
  if( issue_mod( issueMod ) ) {
-  // prepare the (shared pointer to) the Modification object
-  auto mod = std::make_shared<BlockModAD>( BlockModAD::eDelConst ,
-					   Observer::par2concern( issueMod )
-					   );
+  std::list< Const > removed;
 
-  // copy in the boost::any field the (reference to the) affected list
-  mod->whc_list = &list;
-  // initialize the boost::any field as an empty std::list<Const>
-  mod->mod_list = std::list<Const>();
-  // reference to the boost::any field as a std::list<Const>
-  auto & removed = boost::any_cast<std::list<Const>& >( mod->mod_list );
+  // remove the Constraint pointed by rmvd and add it the removed list; note
+  // that by using splice() the address of the actual Constraint object is
+  // not changed
+  removed.splice( removed.end() , list , rmvd );
 
-  // remove the Constraint pointed by rmvd and add it to the list in the
-  // Modification; note that by using splice() the address of the actual
-  // Constraint object is not changed
-  list.splice( rmvd , removed , removed.end() );
-
-  add_Modification( mod , Observer::par2chnl( issueMod ) );
+  // now issue the BlockModRmv
+  add_Modification( std::make_shared< BlockModRmv< Const > >( list ,
+						      std::move( removed ) ,
+				       Observer::par2concern( issueMod ) ) ,
+		    Observer::par2chnl( issueMod ) );
   }
  else
   list.erase( rmvd );
 
  }  // end( Block::remove_dynamic_constraint( Const ) )
-
-/*--------------------------------------------------------------------------*/
-
-template< class Const >
-void Block::remove_dynamic_constraints( std::list< Const * > &list ,
-                std::vector< typename std::list< Const * >::iterator > &rmvd ,
-	        c_ModParam issueMod )
-{
- // ensure Const is a derivate of Constraint
- static_assert( std::is_base_of< Constraint , Const >::value ,
-                "remove_dynamic_constraints: must inherit from Constraint" );
-
- if( rmvd.empty() )  // actually no Constraints to remove
-  return;            // cowardly (and silently) return
-
- for( const auto & const_it : rmvd )
-  remove_constraint_from_variables( *const_it );
-
- if( issue_mod( issueMod ) ) {
-  // prepare the (shared pointer to) the Modification object
-  auto mod = std::make_shared<BlockModAD>( BlockModAD::eDelConst ,
-					   Observer::par2concern( issueMod )
-					   );
-
-  // copy in the boost::any field the (reference to the) affected list
-  mod->whc_list = &list;
-  // initialize the boost::any field as an empty std::list<Const *>
-  mod->mod_list = std::list<Const *>();
-  // reference to the boost::any field as a std::list<Const *>
-  auto & removed = boost::any_cast<std::list<Const *>& >( mod->mod_list );
-
-  // remove all the pointers to Constraints (whose iterators are found) in
-  // rmvd and add them to the list in the Modification
-  for( auto & el : rmvd )
-   list.splice( el , removed , removed.end() );
-
-  add_Modification( mod , Observer::par2chnl( issueMod ) );
-  }
- else
-  for( auto & el : rmvd )
-   list.erase( el );
-
- }  // end( Block::remove_dynamic_constraints( Const * ) )
-
-/*--------------------------------------------------------------------------*/
-
-template< class Const >
-void Block::remove_dynamic_constraint( std::list< Const * > &list ,
-			       typename std::list< Const * >::iterator rmvd ,
-			       c_ModParam issueMod )
-{
- // ensure Const is a derivate of Constraint
- static_assert( std::is_base_of< Constraint , Const >::value ,
-                "remove_dynamic_constraint: must inherit from Constraint" );
-
- remove_constraint_from_variables( *rmvd );
-
- if( issue_mod( issueMod ) ) {
-  // prepare the (shared pointer to) the Modification object
-  auto mod = std::make_shared<BlockModAD>( BlockModAD::eDelConst ,
-					   Observer::par2concern( issueMod )
-					   );
-
-  // copy in the boost::any field the (reference to the) affected list
-  mod->whc_list = &list;
-  // initialize the boost::any field as an empty std::list<Const *>
-  mod->mod_list = std::list<Const *>();
-
-  // reference to the boost::any field as a std::list<Const *>
-  auto & removed = boost::any_cast<std::list<Const *>& >( mod->mod_list );
-
-  // remove the pointer to Constraints pointed by rmvd and add it to the
-  // list in the Modification
-  list.splice( rmvd , removed , removed.end() );
-
-  add_Modification( mod , Observer::par2chnl( issueMod ) );
-  }
- else
-  list.erase( rmvd );
-
- }  // end( Block::remove_dynamic_constraint( Const * ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -6516,26 +6346,19 @@ void Block::remove_dynamic_variables( std::list< Var > &list ,
   remove_variable_from_stuff( &( *var_it ) , issueindMod );
 
  if( issue_mod( issueMod ) ) {
-  // prepare the (shared pointer to) the Modification object
-  auto mod = std::make_shared<BlockModAD>( BlockModAD::eDelVar ,
-					   Observer::par2concern( issueMod )
-					   );
+  std::list< Var > removed;
 
-  // copy in the boost::any field the (reference to the) affected list
-  mod->whc_list = &list;
-  // initialize the boost::any field as an empty std::list<Const>
-  mod->mod_list = std::list<Var>();
-
-  // reference to the boost::any field as a std::list<Var>
-  auto & removed = boost::any_cast<std::list<Var>& >( mod->mod_list );
-
-  // remove all the Variables (whose iterators are found) in rmvd and
-  // add them to the list in the Modification; note that by using splice()
-  // the address of the actual Variable objects is not changed
-  for( auto & el : rmvd )
-   list.splice( el , removed , removed.end() );
- 
-  add_Modification( mod , Observer::par2chnl( issueMod ) );
+  // remove all the Variable (whose iterators are found) in rmvd and add them
+  // to the removed list; note that by using splice() the address of the
+  // actual Variable objects is not changed
+  for( auto el : rmvd )
+   removed.splice( removed.end() , list , el );
+  
+  // now issue the BlockModRmv
+  add_Modification( std::make_shared< BlockModRmv< Var > >( list ,
+						      std::move( removed ) ,
+				       Observer::par2concern( issueMod ) ) ,
+		    Observer::par2chnl( issueMod ) );
   }
  else
   for( auto & el : rmvd )  // just remove them
@@ -6558,114 +6381,24 @@ void Block::remove_dynamic_variable( std::list< Var > &list ,
  remove_variable_from_stuff( &(*rmvd) , issueindMod );
 
  if( issue_mod( issueMod ) ) {
-  // prepare the (shared pointer to) the Modification object
-  auto mod = std::make_shared<BlockModAD>( BlockModAD::eDelVar ,
-					   Observer::par2concern( issueMod )
-					   );
+  std::list< Var > removed;
 
-  // copy in the boost::any field the (reference to the) affected list
-  mod->whc_list = &list;
-  // initialize the boost::any field as an empty std::list<Var>
-  mod->mod_list = std::list<Var>();
+  // remove the Variable pointed by rmvd and add it the removed list; note
+  // that by using splice() the address of the actual Variable object is
+  // not changed
+  removed.splice( removed.end() , list , rmvd );
 
-  // reference to the boost::any field as a std::list<Var>
-  auto & removed = boost::any_cast<std::list<Var>& >( mod->mod_list );
-
-  // remove the Variable pointed by rmvd and add it to the list in the
-  // Modification; note that by using splice() the address of the actual
-  // Variable object is not changed
-  list.splice( rmvd , removed , removed.end() );
-
-  add_Modification( mod , Observer::par2chnl( issueMod ) );
+  // now issue the BlockModRmv
+  add_Modification( std::make_shared< BlockModRmv< Var > >( list ,
+						      std::move( removed ) ,
+				       Observer::par2concern( issueMod ) ) ,
+		    Observer::par2chnl( issueMod ) );
   }
  else
   list.erase( rmvd );  // just remove it
 
  }  // end( Block::remove_dynamic_variable( Var ) )
 
-/*--------------------------------------------------------------------------*/
-
-template< class Var >
-void Block::remove_dynamic_variables( std::list< Var * > &list ,
-                 std::vector< typename std::list< Var * >::iterator > &rmvd  ,
-                 c_ModParam issueMod , c_ModParam issueindMod )
-{
- // ensure Var is a derivate of Variable
- static_assert( std::is_base_of< Variable , Var >::value ,
-                    "remove_dynamic_variables: must inherit from Variable" );
-
- if( rmvd.empty() )  // actually no Variables to remove
-  return;            // cowardly (and silently) return
-
- for( const auto & var_it : rmvd )
-  remove_variable_from_stuff( *var_it , issueindMod );
-
- if( issue_mod( issueMod ) ) {
-  // prepare the (shared pointer to) the Modification object
-  auto mod = std::make_shared<BlockModAD>( BlockModAD::eDelVar ,
-					   Observer::par2concern( issueMod )
-					   );
-
-  // copy in the boost::any field the (reference to the) affected list
-  mod->whc_list = &list;
-  // initialize the boost::any field as an empty std::list<Var *>
-  mod->mod_list = std::list<Var *>();
-
-  // reference to the boost::any field as a std::list<Var *>
-  auto & removed = boost::any_cast<std::list<Var *>& >( mod->mod_list );
-
-  // remove all the pointers to Variables (whose iterators are found) in
-  // rmvd and add them to the list in the Modification
-  for( auto & el : rmvd )
-   list.splice( el , removed , removed.end() );
-
-  add_Modification( mod , Observer::par2chnl( issueMod ) );
-  }
- else
-  for( auto & el : rmvd )  // just remove them
-   list.erase( el );
-
- }  // end( Block::remove_dynamic_variables( Var * ) )
-
-/*--------------------------------------------------------------------------*/
-
-template< class Var >
-void Block::remove_dynamic_variable( std::list< Var * > &list ,
-				 typename std::list< Var * >::iterator rmvd ,
-				 c_ModParam issueMod ,
-				 c_ModParam issueindMod )
-{
- // ensure Var is a derivate of Variable
- static_assert( std::is_base_of< Variable , Var >::value ,
-                     "remove_dynamic_variable: must inherit from Variable" );
-
- remove_variable_from_stuff( *rmvd , issueindMod );
-
- if( issue_mod( issueMod ) ) {
-  // prepare the (shared pointer to) the Modification object
-  auto mod = std::make_shared<BlockModAD>( BlockModAD::eDelVar ,
-					   Observer::par2concern( issueMod )
-					   );
-
-  // copy in the boost::any field the (reference to the) affected list
-  mod->whc_list = &list;
-  // initialize the boost::any field as an empty std::list<Var *>
-  mod->mod_list = std::list<Var *>();
-
-  // reference to the boost::any field as a std::list<Var *>
-  auto & removed = boost::any_cast<std::list<Var *>& >( mod->mod_list );
-
-  // remove the pointer to Variable pointed by rmvd and add it to the
-  // list in the Modification
-  list.splice( rmvd , removed , removed.end() );
-
-  add_Modification( mod , Observer::par2chnl( issueMod ) );
-  }
- else
-  list.erase( rmvd );  // just remove it
-
- }  // end( Block::remove_dynamic_variable( Var * ) )
- 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 

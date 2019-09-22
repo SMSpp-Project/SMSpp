@@ -4,9 +4,9 @@
 /** @file
  * Implementation of the LinearFunction class.
  *
- * \version 0.20
+ * \version 0.30
  *
- * \date 02 - 05 - 2019
+ * \date 15 - 09 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -103,7 +103,7 @@ void LinearFunction::get_linearization_coefficients( FunctionValue * g ,
 /*--------------------------------------------------------------------------*/
 
 void LinearFunction::get_linearization_coefficients( FunctionValue * g ,
-	const LinearizationName name ,
+	const Index name ,
 	c_Vec_Index & indices  , const Index start , const Index end )
 {
  if( indices.size() )
@@ -115,7 +115,7 @@ void LinearFunction::get_linearization_coefficients( FunctionValue * g ,
 /*--------------------------------------------------------------------------*/
 
 void LinearFunction::get_linearization_coefficients( SparseVector & g ,
-	 const LinearizationName name , c_Vec_Index & indices ,
+	 const Index name , c_Vec_Index & indices ,
      c_Index start , c_Index end )
 {
  c_Index num_active_var = get_num_active_var();
@@ -141,10 +141,7 @@ void LinearFunction::get_linearization_coefficients( SparseVector & g ,
   }
  else {                  // The given vector contains some non-zero elements
   if( g.size() != num_active_var )
-   throw( std::invalid_argument(
-	    "LinearFunction::get_linearization_coefficients: "
-	    "the size of the sparse vector must be equal to the number "
-	    "of active Variables of the Function" ) );
+   throw( std::invalid_argument( "wrong size of nonempty SparseVector g" ) );
 
   if( indices.size() ) {
    for( const auto & i : indices )
@@ -605,65 +602,6 @@ void LinearFunction::remove_variables( c_Index strt , Index stop ,
   v_pairs.erase( strtit , stopit );
 
  }  // end( LinearFunction::remove_variables( range ) )
-
-/*--------------------------------------------------------------------------*/
-
-void LinearFunction::remove_variables( Vec_p_Var && vars,
-                                       const bool ordered,
-                                       c_ModParam issueMod ) {
- if( vars.empty() )  // actually nothing to remove
-  return;            // cowardly (and silently) return
-
- if( v_pairs.empty() )  // deleting from nothing
-  throw ( std::logic_error( "deleting from an empty set" ) );
-
- if( !ordered )
-  std::sort( vars.begin(), vars.end() );
-
- auto it = vars.begin();
- auto itv = v_pairs.begin();
-
- // search the first variable to be eliminated
- itv = std::lower_bound( itv, v_pairs.end(),
-                         *it,
-                         []( const coeff_pair & p, const Variable * v ) {
-                          return ( p.first < v );
-                         } );
-
- if( itv == v_pairs.end() )  // if the variable is not there
-  throw ( std::invalid_argument( "a Variable is not active" ) );
-
- auto curr = itv;  // position where to move stuff
- ++it;             // skip the first elements
- ++itv;            // as they have been processed already
- for( ; it < vars.end(); ++itv ) {
-  if( *it < itv->first )
-   throw ( std::invalid_argument( "a Variable is not active" ) );
-
-  if( *it == itv->first )  // one element to be eliminated
-   ++it;                   // skip it
-  else
-   *( curr++ ) = *itv;       // move in the current position
- }
-
- for( ; itv < v_pairs.end() ; )  // copy the last part
-  *(curr++) = *(itv++);          // after the last of v_var
-
- v_pairs.erase( curr , itv );    // erase the last part
-
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
-  return;
-
- // now issue the Modification
- // a linear function is additive ==> strongly quasi-additive
- // note that the Variable have been ordered (if they were not so already)
- f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
-                                       FunctionModVars::RemoveVar ,
-				       std::move( vars ) , true , 0 , true ,
-				       Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
-
- }  // end( LinearFunction::remove_variables( pointers ) )
 
 /*--------------------------------------------------------------------------*/
 

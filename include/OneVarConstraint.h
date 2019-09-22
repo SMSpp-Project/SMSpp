@@ -303,7 +303,7 @@ class OneVarConstraint : public RowConstraint {
 
  virtual Index is_active( const Variable * const variable ) const override
  {
-  return( f_variable == variable ?0 : Inf<Index>() );
+  return( f_variable == variable ? 0 : Inf<Index>() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -328,13 +328,17 @@ class OneVarConstraint : public RowConstraint {
 /*--------------------------------------------------------------------------*/
 
  virtual v_iterator * v_end( void ) override {
-  return( new OneVarConstraint::v_iterator( f_variable + 1 ) );
+  // f_variable == nullptr ==> v_end() = v_iterator( nullptr ) == v_begin()
+  return( new OneVarConstraint::v_iterator( f_variable ? f_variable + 1
+					               : nullptr ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  virtual v_const_iterator * v_end( void ) const override {
-  return( new OneVarConstraint::v_const_iterator( f_variable + 1 ) );
+  // f_variable == nullptr ==> v_end() = v_iterator( nullptr ) == v_begin()
+  return( new OneVarConstraint::v_const_iterator( f_variable ? f_variable + 1
+					                     : nullptr ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -346,21 +350,6 @@ class OneVarConstraint : public RowConstraint {
    set_variable( nullptr , issueMod );
   else
    throw( std::invalid_argument( "Variable not present in the Constraint" ) );
-  }
-
-/*--------------------------------------------------------------------------*/
-
- virtual void remove_variables( std::vector<Variable *> && vars ,
-                                const bool ordered = false ,
-                                c_ModParam issueMod = eModBlck ) override
- {
-  if( ! vars.size() )  // nothing to do
-   return;             // cowardly (and silently) return
-
-  if( ( vars.size() != 1 ) || ( vars[ 0 ] != f_variable ) )
-   throw( std::invalid_argument( "Variable not present in the Constraint" ) );
-
-  set_variable( nullptr , issueMod );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -1473,15 +1462,16 @@ class OneVarConstraintMod : public RowConstraintMod
    * of types of Modification. */
   };
 
-/*---------------------- CONSTRUCTOR & DESTRUCTOR --------------------------*/
-
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: just calls that of RowConstraintMod
 
- OneVarConstraintMod( OneVarConstraint *cnst , int mod = eVariableChanged ,
-		      const bool cB = true )
-  : RowConstraintMod( cnst , mod , cB ) { }
+ OneVarConstraintMod( OneVarConstraint *cnst , int type = eVariableChanged ,
+		      bool cB = true )
+  : RowConstraintMod( cnst , type , cB ) { }
 
- virtual ~OneVarConstraintMod() { }  ///< destructor: does nothing
+/*------------------------------ DESTRUCTOR --------------------------------*/
+
+ virtual ~OneVarConstraintMod() = default;  ///< destructor: does nothing
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 

@@ -608,7 +608,7 @@ int main( int argc , char **argv )
     if( tochange == 1 )
      PF->delete_row( nms[ 0 ] );
     else
-     PF->delete_rows( nms );
+     PF->delete_rows( std::move( nms ) );
 
     // update m
     m -= tochange;
@@ -655,7 +655,7 @@ int main( int argc , char **argv )
     if( tochange == 1 )
      PF->modify_row( nms[ 0 ] , std::move( A[ 0 ] ) , b[ 0 ] );
     else
-     PF->modify_rows( nms , std::move( A ) , b );
+     PF->modify_rows( std::move( nms ) , std::move( A ) , b );
     }
    }
 
@@ -689,7 +689,7 @@ int main( int argc , char **argv )
     if( tochange == 1 )
      PF->modify_constant( nms[ 0 ] , b[ 0 ] );
     else
-     PF->modify_constants( nms , b );
+     PF->modify_constants( std::move( nms ) , b );
     }
    }
 

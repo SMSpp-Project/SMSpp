@@ -83,6 +83,9 @@ void PolyhedralFunction::deserialize( netCDF::NcGroup & group ,
  }  // end( PolyhedralFunction::deserialize )
 
 /*--------------------------------------------------------------------------*/
+
+
+/*--------------------------------------------------------------------------*/
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF THE LinearFunction ----------*/
 /*--------------------------------------------------------------------------*/
 
@@ -90,7 +93,7 @@ int PolyhedralFunction::compute( bool changedvars )
 {
  if( changedvars ) {
   f_next = 0;
-  f_value = - Inf<FunctionValue>();
+  f_value = f_is_convex ? - Inf<FunctionValue>() : Inf<FunctionValue>();
   if( v_A.empty() )
    return( kOK );
 

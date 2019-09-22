@@ -176,8 +176,8 @@ class FRealObjective : public RealObjective , Observer {
   * this potential inefficiency will be fixed later on by some mechanism
   * allowing a finer control on which Modification are "listened to".
   *
-  * The parameter issueMod decides if and how the BlockModAD is issued, as
-  * described in Observer::make_par(). */
+  * The parameter issueMod decides if and how the FRealObjectiveMod is
+  * issued, as described in Observer::make_par(). */
 
  virtual void set_function( Function * const function = nullptr ,
 			    c_ModParam issueMod = eModBlck ,
@@ -423,12 +423,6 @@ class FRealObjective : public RealObjective , Observer {
  virtual void remove_variable( Variable * variable ,
 			       c_ModParam issueMod = eModBlck ) override;
 
-/*--------------------------------------------------------------------------*/
-
- virtual void remove_variables( std::vector<Variable *> && vars ,
-                                const bool ordered = false ,
-                                c_ModParam issueMod = eModBlck ) override;
-
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF AN Observer -------------*/
 /*--------------------------------------------------------------------------*/
@@ -570,15 +564,16 @@ class FRealObjectiveMod : public ObjectiveMod
    * of types of Modification. */
   };
 
-/*---------------------- CONSTRUCTOR & DESTRUCTOR --------------------------*/
-
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: just calls that of ObjectiveMod
 
  FRealObjectiveMod( FRealObjective *obj , int mod = eFunctionChanged ,
 		    const bool cB = true )
   : ObjectiveMod( obj , mod , cB ) { }
 
- virtual ~FRealObjectiveMod() { }  ///< destructor: does nothing
+/*------------------------------ DESTRUCTOR --------------------------------*/
+
+ virtual ~FRealObjectiveMod() = default;  ///< destructor: does nothing
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 

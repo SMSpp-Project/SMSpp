@@ -224,46 +224,18 @@ class PolyhedralFunction : public C05Function {
  *  @{ */
 
  /// constructor of PolyhedralFunction, possibly inputting the data
- /** Constructor of PolyhedralFunction. Inputs:
-  *
-  * @param VarVector && x, a n-vector of pointers to ColVariable representing
-  *        the x variable vector in the definition of the function; x *must*
-  *        already be ordered by increasing pointer = ColVariable "name";
-  *
-  * @param the MultiVector && A, a m-vector of n-vectors of FunctionValue
-  *        representing the A matrix in the definition of the function;
-  *        entry A[ i ][ j ] is (obviously) meant to be the coefficient
-  *        of variable *x[ j ] for the i-th row;
-  *
-  * @param the RealVector && b, a m-vector of FunctionValue representing the
-  *        b vector in the definition of the function (that is, b[ i ] is the
-  *        constant factor of the i-th linear form);
-  *
-  * @param is_convex, a boolean indicating whether the function has to be
-  *        defined as the maximization of the provided linear (affine)
-  *        functions, and therefore is a convex function, or as the
-  *        minimization and therefore it is a concave function;
-  *
-  * @param observer, a pointer to the Observer of this PolyhedralFunction.
-  *
-  * As the && implies, x, A, and b become property of the PolyhedralFunction
-  * object.
-  *
-  * All inputs have a default ({}, {}, {}, true, and nullptr, respectively)
-  * so that this can be used as the void constructor. */
+ /** Constructor of PolyhedralFunction. Takes the mandatory pointer to the
+  * Observer of the Function. However, this may be best left to its default
+  * value of nullptr (which allows this can be used as the void constructor),
+  * since initialization may require a call to set_variables() [see], which
+  * requires the Observer not to have been set. Yet, the alternative
+  * set_PolyhedralFunction() [full] allows full (re-)initialization of the
+  * PolyhedralFunction with an already registered Observed, if needed. */
 
- PolyhedralFunction( VarVector && x = {} , MultiVector && A = {} ,
-		     RealVector && b = {} , const bool is_convex = true ,
-		     Observer * const observer = nullptr)
-  : C05Function( observer ) , f_is_convex( is_convex ) ,
-    f_loc_pool_sz( 1 ) , f_next( 0 ) , f_imp( 0 )
+ PolyhedralFunction( Observer * const observer = nullptr )
+  : C05Function( observer ) , f_is_convex( true ) , f_loc_pool_sz( 1 ) ,
+    f_next( 0 ) , f_imp( 0 )
  {
-  guts_of_constructor_Ab( std::move( A ) , std::move( b ) );
-  if( ! v_A.empty() )
-   if( x.size() != v_A[ 0 ].size() )
-    throw( std::invalid_argument( "A and x must have the same columns" ) );
-
-  v_x = std::move( x );
   v_ord.resize( 1 );
   }
 
@@ -274,12 +246,25 @@ class PolyhedralFunction : public C05Function {
   * i.e., a n x m real matrix A and a real m-vector b and the "verse" of the
   * function, and initializes the PolyhedralFunction by calling
   * set_PolyhedralFunction() with the recovered data. Note that this does
-  * *not* change the set of active variables, that must have been initialized
-  * before the call (and its size has to match with the size of A).
+  * *not* change the set of active variables, that must be initialized
+  * independently either before or after the call, see set_variable().
+  * Note, however that there is a significant difference between calling
+  * deserialize() before or after set_Variable(). Indeed, in the former case
+  * the set of Variable is empty, and therefore its size is dictated by the
+  * data found in the netCDF::NcGroup; calling set_Variable() after with a
+  * vector of different size will fail. Symmetrically, if set_variable() is
+  * called first that it dictates the size of the the set of active variables;
+  * finding non-conforming data in the netCDF::NcGroup within this method will
+  * cause it to fail. Also, in the former case the function is "not completely
+  * initialized yet" after deserialize(), and therefore it should not be
+  * passed to the Observer quite as yet.
   *
   * Usually [de]serialization is done by Block, but PolyhedralFunction is a
   * complex enough object so that having its own ready-made [de]serialization
-  * procedure may make sense.
+  * procedure may make sense. However, because this method can then
+  * conceivably be called when the PolyhedralFunction is attached to an
+  * Observer (although it is expected to be used before that), it is also
+  * necessary to specify if and how a Modification is issued.
   *
   * @param group, a netCDF::NcGroup holding the data in the format described
   *        in the comments to deserialize();
@@ -313,6 +298,90 @@ class PolyhedralFunction : public C05Function {
 /** @name Other initializations
  *  @{ */
 
+ /// sets the set of active Variable of the PolyhedralFunction
+ /** Sets the set of active Variable of the PolyhedralFunction. This method
+  * is basically provided to work in tandem with the methods which only load
+  * the "numerical data" of the PolyhedralFunction, i.e., deserialize() and
+  * set_PolyhedralFunction( A , b ). These (if the variables have not been
+  * defined prior to calling them, see below) leave the PolyhedralFunction in
+  * a somewhat inconsistent state whereby one knows the data but not the
+  * the input Variable, cue this method.
+  *
+  * Note that there are two distinct patterns of usage:
+  *
+  * - set_variables() is called *before* deserialize() or
+  *   set_PolyhedralFunction( A , b );
+  *
+  * - set_variables() is called *after* deserialize() or
+  *   set_PolyhedralFunction( A , b ).
+  *
+  * In the former case, the PolyhedralFunction is in a "well defined state"
+  * at all times: after the call to set_variables() everything is there, only
+  * A is empty and therefore the function is identically - INF if convex,
+  * + INF if concave (maximization / minimization over an empty set). In the
+  * latter case, however, the data is there, except that the
+  * PolyhedralFunction has no input Variable; in some sense, the object is
+  * in a partly defined state. Having an Observer (then, Solver) dealing with
+  * a call to set_variables() would be possible by issuing a
+  * FunctionModVars( ... , AddVar ), but this is avoided because this method
+  * is only thought to be called during initialization where the Observer is
+  * not there already, whence no "issueMod" parameter.
+  *
+  * Another important difference exists between the two cases, due to the
+  * following invariant that PolyhedralFunction mantains:
+  *
+  *     x AND A ARE SUPPOSED TO BE IN POSITIONAL CORRESPONDENCE, I.E., ENTRY
+  *     A[ i ][ j ] IS SUPPOSED TO BE THE COEFFICIENT OF x[ j ], BUT ON THE
+  *     OTHER HAND x MUST BE ORDERED BY INCREASING POINTER = NAME
+  *
+  * This creates an issue during initialization, since whomever provides A
+  * (say, a netCDF::NcGroup in deserialize()) may not know beforehand the
+  * right ordering of x. Hence, it is assumed that
+  *
+  *     THE POSITIONAL CORRESPONDENCE HOLDS BETWEEN x AS PASSED BY THIS
+  *     METHOD AND A AS ORIGINALLY PROVIDED: IF x IS NOT ORDERED, THEN
+  *     BOTH ITSELF AND A WILL BE RE-ORDERED AS TO HAVE x ORDERED AND
+  *     KEEPING THE POSITIONAL CORRESPONDENCE.
+  *
+  * This, however, implies that the re-ordering can only be done when
+  * *both* x and A are present. Hence, it may not be possible to re-order
+  * x right away here. As a consequence,
+  *
+  *     THE OBJECT MAY BE IN A PARTLY ILL-DEFINED STATE IF set_variables()
+  *     IS CALLED WITH A NON-ORDERED x, INSOMUCH AS SOME OF THE METHODS
+  *     DEALING WITH THE SET OF ACTIVE Variable REQUIRE IT TO BE SO.
+  *
+  * In other words, one should reasonably not do anything with the
+  * PolyhedralFunction until both the Variable and the data are set.
+  *
+  * @param VarVector && x, a n-vector of pointers to ColVariable representing
+  *        the x variable vector in the definition of the function. Note that
+  *        the order of the variables in x is crucial, since the
+  *        correspondence with A (whether already provided, or to be provided
+  *        later, cf. discussion above) is positional: entry A[ i ][ j ] is
+  *        (obviously) meant to be the coefficient of variable *x[ j ] for
+  *        the i-th row. However, the Variable in a Function have to be kept
+  *        ordered by increasing name = pointer, and x may not be such (see
+  *        next parameter). If not, both x and the rows of A will be
+  *        re-ordered accordingly, so that they remain in positional
+  *        correspondence (although this only happens here inside if A is
+  *        present already, obviously, otherwise it will happen whenever A
+  *        is actually provided).
+  *
+  * @param ordrd, a boolean indicating whether x (see above) is guaranteed to
+  *        be already ordered by increasing name = pointer. If not, and A is
+  *        already present, it will be reordered right away inside, which
+  *        implies that the rows of A will be re-ordered accordingly.
+  *        However, if A is not present already the parameter is basically
+  *        ignored, since whether or not x is ordered (and, therefore, both
+  *        itself and A have to be re-ordered) will have to be checked when
+  *        A is actually provided.
+  *
+  * As the && implies, x become property of the PolyhedralFunction object. */
+
+ void set_variables( VarVector && x , const bool ordrd );
+
+/*--------------------------------------------------------------------------*/
  /// set a given integer (int) numerical parameter
  /** Set a given integer (int) numerical parameter. PolyhedralFunction takes
   * care of intLPMaxSz and intGPMaxSz, leaving all the rest to Function. */
@@ -562,11 +631,11 @@ class PolyhedralFunction : public C05Function {
   *   dimension NumRow, which contains the vector b. The variable is only
   *   optional if NumRow == 0.
   *
-  * - The dimension "PolyFunction_sign", of type bool, which contains the
-  *   "verse" of the PolyhedralFunction (true for a convex max-function,
-  *   false for a concave min-function) encoded in the obvious way (zero for
-  *   false, nonzero for true). The variable is optional, if it is not
-  *   provided true is assumed. */
+  * - The dimension "PolyFunction_sign" (actually a bool), which contains the
+  *   "verse" of the PolyhedralFunction, i.e., true for a convex max-function
+  *   and false for a concave min-function (encoded in the obvious way, i.e.,
+  *   zero for false, nonzero for true). The variable is optional, if it is
+  *   not provided true is assumed. */
  
  void serialize( netCDF::NcGroup & group );
 
@@ -671,6 +740,54 @@ class PolyhedralFunction : public C05Function {
 /** @name Methods for modifying the PolyhedralFunction
  *  @{ */
 
+/*--------------------------------------------------------------------------*/
+  /// completely resets the PolyhedralFunction
+ /** Completely resets the PolyhedralFunction, with entirely new data and a
+  * new set of active variables. This is basically the constructor.
+  *
+  * @param VarVector && x, a n-vector of pointers to ColVariable representing
+  *        the x variable vector in the definition of the function. Note that
+  *        the order of the variables in x is crucial, since the
+  *        correspondence with A (see below) is positional: entry A[ i ][ j ]
+  *        is (obviously) meant to be the coefficient of variable *x[ j ] for
+  *        the i-th row. However, the Variable in a Function have to be kept
+  *        ordered by increasing name = pointer, and x may not be such (see
+  *        next parameter). If not, the rows of A will be re-ordered
+  *        accordingly so that they are in positional correspondence with the
+  *        properly re-ordered vector x.
+  *
+  * @param ordrd, a boolean indicating whether x (see above) is guaranteed to
+  *        be already ordered by increasing name = pointer. If not, it is
+  *        reordered right away inside this method, which implies that the
+  *        rows of A will be re-ordered accordingly.
+  *
+  * @param the RealVector && b, a m-vector of FunctionValue representing the
+  *        b vector in the definition of the function (that is, b[ i ] is the
+  *        constant factor of the i-th linear form);
+  *
+  * @param is_convex, a boolean indicating whether the function has to be
+  *        defined as the maximization of the provided linear (affine)
+  *        functions, and therefore is a convex function, or as the
+  *        minimization and therefore it is a concave function.
+  *
+  * @param issueMod, which decides if and how the FunctionMod (with f_shift
+  *        == FunctionMod::NaNshift, i.e., "everything changed") is issued,
+  *        as described in Observer::make_par().
+  *
+  * This completely resets the PolyhedralFunction, which means that all data
+  * is supposed to be provided, and that the data sizes must agree. Ways to
+  * "partly" reset the PolyhedralFunction are provided by other overloaded
+  * versions of this method.
+  *
+  * As the && implies, A, b and x become property of the PolyhedralFunction
+  * object. */
+
+ void set_PolyhedralFunction( VarVector && x , const bool ordrd ,
+			      MultiVector && A , RealVector && b ,
+			      const bool is_convex = true ,
+			      c_ModParam issueMod = eModBlck );
+
+/*--------------------------------------------------------------------------*/
  /// completely resets the PolyhedralFunction with entirely new data
  /** Completely resets the PolyhedralFunction with entirely new data,
   * but leaving the current set of n = get_num_active_var() input Variable:
@@ -700,7 +817,7 @@ class PolyhedralFunction : public C05Function {
   * As the && implies, A and b become property of the PolyhedralFunction
   * object. */
  
- void set_PolyhedralFunction( MultiVector && A = {} , RealVector && b = {} ,
+ void set_PolyhedralFunction( MultiVector && A , RealVector && b ,
 			      const bool is_convex = true ,
 			      c_ModParam issueMod = eModBlck );
 
@@ -1046,81 +1163,8 @@ class PolyhedralFunction : public C05Function {
 			c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
- /// remove a range of Variable
- /** Remove all the Variable comprised between strt (included) and stop
-  * (excluded). Setting strt == nullptr means "the first Variable", and
-  * setting stop == nullptr means "(one after) the last Variable". If
-  * no-nullptr arguments are provided, they *must* be "names" of Variable
-  * currently active in this LinearFunction.
-  *
-  * The parameter issueMod decides if and how the C05FunctionModVars is
-  * issued, as described in Observer::make_par(). Note that a polyhedral
-  * function is strongly quasi-additive. */
-
- void remove_variables( const Variable * const strt = nullptr ,
-			const Variable * const stop = nullptr ,
-			c_ModParam issueMod = eModBlck )
- {
-  c_Index istrt = strt ? is_active( strt ) : 0;
-  if( istrt >= get_num_active_var() )
-   throw( std::invalid_argument( "strt is not an active Variable" ) );
-
-  Index istop;
-  if( stop ) {
-   istop = is_active( stop );
-   if( istrt >= get_num_active_var() )
-    throw( std::invalid_argument( "stop is not an active Variable" ) );
-   }
-  else
-   istop = get_num_active_var();
-
-  remove_variables( istrt , istop , issueMod );
-  }
-
-/*--------------------------------------------------------------------------*/
  /// remove the given set of Variable
- /** Remove all the Variable in the given vector of pointers vars. If any
-  * Variable in vars is not an active Variable in the LinearFunction,
-  * exception is thrown. The parameter ordered tells if vars is already
-  * ordered by Variable "name = pointer" or not, otherwise it gets ordered
-  * inside the method (which is why it is not const).
-  *
-  * Note that vars is a std::vector< Variable * > rather than a
-  * std::vector< ColVariable * >, although of course all the pointers have
-  * to be to a ColVariable. This is because the vector can then be passed
-  * right away to map_active() to produce a set of indices that can then be
-  * used to call remove_variables( Vec_Index & nms ) which actually
-  * implements the operation.
-  *
-  * The parameter issueMod decides if and how the C05FunctionModVars is
-  * issued, as described in Observer::make_par(). Note that a polyhedral
-  * function is strongly quasi-additive. */
-
- virtual void remove_variables( Vec_p_Var && vars ,
-				const bool ordered = false ,
-				c_ModParam issueMod = eModBlck )
-  override final {
-  if( vars.empty() )  // actually nothing to remove
-   return;            // cowardly (and silently) return
-
-  if( v_x.empty() )  // deleting from nothing
-   throw( std::logic_error( "deleting from an empty set" ) );
-
-  if( ! ordered )
-   std::sort( vars.begin() , vars.end() );
-
-  Vec_Index map;
-  map_active( vars , map , true );
-
-  remove_variables( map , true , issueMod );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// remove a set of Variable by index
- /** Like remove_variables( Vec_p_Var * ) (which is implemented via a call to
-  * this), but takes in input a set of index of the Variable to be removed
-  * rather than their pointers. Useful if one knows the indices already, so
-  * that they need not be searched for.
+ /** Remove all the Variable in the given set of index.
   *
   * @param nms is Vec_Index & containing the indices of the Variable to be
   *        removed, i.e., integers between 0 and get_num_active_var()
@@ -1130,8 +1174,8 @@ class PolyhedralFunction : public C05Function {
   *        which is why nms[] is not const) 
   *
   * @param issueMod, which decides if and how the C05FunctionModVars (with
-  *        f_shift == 0, since a PolyhedralFunction is strongly quasi-additive)
-  *        is issued, as described in Observer::make_par(). */
+  *        f_shift == 0, since a PolyhedralFunction is strongly
+  *        quasi-additive) is issued, as described in Observer::make_par(). */
 
  virtual void remove_variables( Vec_Index & nms , const bool ordered = false ,
 				c_ModParam issueMod = eModBlck );

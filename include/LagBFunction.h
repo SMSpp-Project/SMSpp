@@ -559,17 +559,7 @@ class LagBFunction : public C05Function , public Block {
 		      const bool static_is_ordered = false ,
 		      c_ModParam issueMod = eNoBlck );
 
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
-
- /// remove a bunch of *dynamic* Lagrangian pairs <y, g(x)>,
- /** This method removes a bunch of Lagrangian pairs. The structure LagMatrix
-  *  used to compute the Lagrangian costs needs to be update.  */
-
- virtual void remove_variables( std::vector<Variable *> && vars ,
-				const bool ordered = false ,
-				c_ModParam issueMod = eModBlck ) override;
-
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+/*--------------------------------------------------------------------------*/
 
  virtual void remove_variable( Variable * var ,
  			       c_ModParam issueMod = eModBlck ) override;

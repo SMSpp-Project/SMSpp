@@ -565,34 +565,6 @@ class FRowConstraint : public RowConstraint , Observer {
    }
   }
 
-/*--------------------------------------------------------------------------*/
-
- virtual void remove_variables( std::vector<Variable *> && vars ,
-                                const bool ordered = false ,
-                                c_ModParam issueMod = eModBlck ) override
- {
-  /* FRowConstraint typically relies on FunctionModVars to know if something
-   * has happened to the Variable of the Function and register/unregister
-   * itself from them. However, in this case it knows beforehand what is
-   * happening. If there is no real reason to have the Modification issued,
-   * it will instruct the Function not to and do the unregistering herein.
-   */
-  
-  if( ( ! f_function ) || vars.empty() )
-   return;
-
-  if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
-   f_function->remove_variables( std::move( vars ) , ordered , issueMod );
-  else {
-   // unregistration can preceed removal, since the Function completely
-   // ignores this information
-   for( auto var : vars )
-    var->remove_active( this );
-
-   f_function->remove_variables( std::move( vars ) , ordered , eNoMod );
-   }
-  }
-
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF AN Observer -------------*/
 /*--------------------------------------------------------------------------*/
@@ -747,15 +719,16 @@ class FRowConstraintMod : public RowConstraintMod
    * of types of Modification. */
   };
 
-/*---------------------- CONSTRUCTOR & DESTRUCTOR --------------------------*/
-
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: just calls that of RowConstraintMod
 
  FRowConstraintMod( FRowConstraint *cnst , int mod = eFunctionChanged ,
 		    const bool cB = true )
   : RowConstraintMod( cnst , mod , cB ) { }
 
- virtual ~FRowConstraintMod() { }  ///< destructor: does nothing
+ /*------------------------------ DESTRUCTOR --------------------------------*/
+
+ virtual ~FRowConstraintMod() = default;  ///< destructor: does nothing
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 

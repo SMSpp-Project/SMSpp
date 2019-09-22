@@ -423,68 +423,6 @@ void LagBFunction::add_dual_pairs( v_dual_pair && v_lag_pair ,
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::remove_variables( std::vector<Variable *> && vars ,
-		const bool ordered , c_ModParam issueMod  ) {
-
- if( vars.empty() )  // actually nothing to remove
-  return;            // cowardly (and silently) return
-
- if( lag_p.empty() )  // deleting from nothing
-  throw( std::logic_error( "deleting from an empty set" ) );
-
- if( ! ordered )
-  std::sort( vars.begin() , vars.end() );
-
- // remove the Lagrangian pairs <y_i,g_i(x)=a_i^T x> whose y_i belongs to vars
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- auto it = vars.begin();
- auto itv = lag_p.begin();
-
- // search the first variable to be eliminated
- itv = std::find_if( itv , lag_p.end() ,
-                     [ &it ]( const dual_pair &p )
-                            { return( p.first == *it ); } );
-
- if( itv >= lag_p.end() )  // if the variable is not there
-  throw( std::invalid_argument( "a Variable is not active" ) );
-
- auto curr = itv;  // position where to move stuff
- ++it;             // skip the first elements
- ++itv;            // as they have been processed already
- for( ; it < vars.end() ; ++itv ) {
-  if( *it < itv->first )
-   throw( std::invalid_argument( "a Variable is not active" ) );
-
-  if( *it == itv->first )  // one element to be eliminated
-   ++it;                   // skip it
-  else
-   *(curr++) = *itv;       // move in the current position
-  }
-
- for( ; itv < lag_p.end() ; )  // copy the last part
-  *(curr++) = *(itv++);        // after the last of vars
-
- lag_p.erase( curr , itv );    // erase the last part
-
- /* remove the pointer to variable x_j from LagMatrix if no longer the relaxed
-	constraints (RCs) are active and restore the coefficient c_j in (obj_B) */
-
- rm_columns( vars );
-
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
-  return;
-
- f_Observer->add_Modification( std::make_shared<FunctionModVars>( this ,
-                                        FunctionModVars::RemoveVar ,
- 				       std::move( vars ) , true , 0 ,
- 				       Observer::par2concern( issueMod ) ) ,
- 			       Observer::par2chnl( issueMod ) );
-
- }  // end( LagBFunction::remove_variables() ) - - - - - - - - - - - - - - - -
-
-/*--------------------------------------------------------------------------*/
-
 void LagBFunction::remove_variable( Variable * var , c_ModParam issueMod ) {
 
  if( ! var )  // actually nothing to remove
@@ -2022,7 +1960,7 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
  {
   const auto tmod = std::dynamic_pointer_cast<VariableMod>( mod );
   if( tmod ) {
-   auto xj = dynamic_cast<ColVariable * const>( tmod->f_variable );
+   auto xj = dynamic_cast<ColVariable * const>( tmod->variable() );
 
    // if the variable is both free and continuous, the modification can be
    // ignored  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -2048,17 +1986,17 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
 
  // BlockModAD - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- // BlockModAD::eAddVar keep feasibility
- // BlockModAD::eDelConst keep feasibility
+ // BlockModAD: is_variable() && is_added() keep feasibility
+ // BlockModAD: ( ! is_variable() ) && ( ! is_added() ) keep feasibility
  {
-  const auto tmod = std::dynamic_pointer_cast<BlockModAD>( mod );
+  const auto tmod = std::dynamic_pointer_cast< BlockModAD >( mod );
   if( tmod ) {
-   if( ( tmod->f_type == BlockModAD::eAddConst ) ||
-       ( tmod->f_type == BlockModAD::eDelVar ) ) {
-
-	// the remotion of variables and addition of constraints of (B) may violate
-	// the feasibility of the global pool, signal that the feasibility of the
-	// solutions must be checked  - - - - - - - - - - - - - - - - - - - - - -
+   if( ( tmod->is_variable() && ( ! tmod->is_added() ) ) ||
+       ( ( ! tmod->is_variable() ) && tmod->is_added() ) ) {
+    // the remotion of variables and addition of constraints of (B) may
+    // violate
+    // the feasibility of the global pool, signal that the feasibility of the
+    // solutions must be checked  - - - - - - - - - - - - - - - - - - - - - -
 
     for( auto tpl : g_pool )
      std::get<2>( tpl ) = VarToBeChckd;
@@ -2069,11 +2007,10 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
 
     if( f_Observer )
      f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-   	  C05FunctionMod::AlphaChanged , FunctionMod::NaNshift ) , chnl );
-
+   	      C05FunctionMod::AlphaChanged , FunctionMod::NaNshift ) , chnl );
     }
    }
-  }  // end BlockModAD - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  }  // end BlockModAdd- - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  // BlockMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
