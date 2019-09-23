@@ -782,9 +782,9 @@ class C05Function : public Function {
  virtual void delete_linearization( Index name ) { }
 
 /*--------------------------------------------------------------------------*/
- /// retrieve the coefficients (g vector) of a linearization in a vector
- /** This method retrieves the vector of coefficients g that is the (largest)
-  * part of the linearization with the given name.
+ /// get a range of coefficients (g vector) of a linearization in an array
+ /** This method retrieves a range of the vector of coefficients g that is
+  * the (largest part of the) linearization with the given name.
   *
   * If the name of the linearization is the default value Inf<Index>(), then
   * it refers to the last computed linearization, which may "not yet have a
@@ -794,42 +794,33 @@ class C05Function : public Function {
   * linearization associated with the given name from the global pool of
   * linearizations. If a linearization with the given name is not stored in
   * the global pool, an exception may be thrown (unless, for instance, the
-  * concept is completely ignored because, say, the Function is a linear one
-  * and therefore all linearizations are the same). 
+  * concept is completely ignored because, say, the C05Function is a linear
+  * one and therefore all linearizations are the same). 
   *
-  * It is possible to retrieve the whole vector of coefficients or only part
-  * of it. The components of a linearization are numbered from 0 to n - 1,
-  * where n == get_num_active_var() is the number of active Variables of this
-  * Function. Moreover, the i-th component of a linearization is associated
-  * with the i-th active Variable of this Function, i.e., (the one pointed by)
-  * get_active_var( i ). For exposition purposes, we can therefore view the
-  * linearization as the n-vector l[]. The parameters indices and range are
-  * used to dictate which components of l[] must be returned. If indices is
-  * empty then all the components in the half-closed interval
+  * The method allows to only retrieve a range of the components of g (by
+  * default, all of it). The components of a linearization are numbered from
+  * 0 to n - 1, where n == get_num_active_var() is the number of active
+  * Variables of this Function. Moreover, the i-th component of a
+  * linearization is associated with the i-th active Variable of this
+  * C05Function, i.e., (the one pointed by) get_active_var( i ). For
+  * exposition purposes, we can therefore view the (largest part of the)
+  * linearization as the n-vector l[]. The parameter range dictates which
+  * components of l[] must be returned, i.e., all the ones in the half-closed
+  * interval
   *
   *     [ range.first , min( n , range.second ) )
   *
-  * will be retrieved. If, instead, indices is not empty, then the returned
-  * components are those whose indices are contained in indices[] *and*
-  * belong to the given interval. Each element index[ i ] (if any) must be an
-  * integer between 0 and n - 1, and it must be 0 <= range.first <
-  * range.second.
-  *
   * This is the "rough version" of the method where the output is directly
-  * into an array. If indices is empty, then all components between
-  * range.first (included) and min( n , range.second ) (excluded) will be
-  * stored in the array g in the positions from 0 to min( n , range.second )
-  * - 1 - range.first. In other words, g[ i - range.first ] = l[ i ] for all
-  * range.first <= i < min( n , range.second ). If, instead, indices is
-  * nonempty, then only the components found in indices *and* which are in
-  * the range will be stored in g. For example, if range = [ 2 , 8 ) and
-  * indices = { 0 , 3 , 7 , 9 }, then g[ 0 ] = l[ 3 ] and g[ 1 ] = l[ 7 ].
-  * All components of g[] that need not be written are left unchanged.
+  * into an array: all components of l[] between range.first (included) and
+  * min( n , range.second ) (excluded) will be stored in the array g in the
+  * positions from 0 to min( n , range.second ) - 1 - range.first, i.e.,
+  * g[ i - range.first ] = l[ i ] for all range.first <= i <
+  * min( n , range.second ).
   *
   * The rationale for having such a "rough" version is that it allows to
-  * "extend linearizations already in place". For instance, assume that
-  * whatever is using this C05Function has stored the linearizations in the
-  * global pool as a 
+  * "extend or change linearizations already in place". For instance, assume
+  * that whatever is using this C05Function has stored the linearizations in
+  * the global pool as a 
   * 
   *   std::vector < Vec_FunctionValue > > G;
   *
@@ -840,22 +831,26 @@ class C05Function : public Function {
   * linearization in the global pool corresponding to these new Variable can
   * be written in place in the existing vectors by just calling
   *
-  *   get_linearization_coefficients( G[ i ].data() , i , {} ,
-  *                                   Range( n , k ) )
+  *   get_linearization_coefficients( G[ i ].data() , Range( n , k ) , i )
   *
-  * The method returns the number of coefficients actually written in g[]. */
+  * Similarly, if a C05FunctionModRngd mod occurs, then the corresponding
+  * mod->range() of changed entries of f the i-th linearization in the global
+  * pool can be written in place in the existing vectors by just calling
+  * 
+  *
+  *   get_linearization_coefficients( G[ i ].data() , mod->range() , i )
+  */
 
- virtual Index get_linearization_coefficients( FunctionValue * g ,
-					       Index name = Inf<Index>() ,
-					       c_Vec_Index & indices = {} ,
-		      Range range = std::make_pair( 0 , Inf<Index>() ) ) = 0;
+ virtual void get_linearization_coefficients( FunctionValue * g ,
+			   Range range = std::make_pair( 0 , Inf<Index>() ) ,
+					      Index name = Inf<Index>() ) = 0;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// retrieve the coefficients (g) of a linearization in a sparse vector
+ /// get a range of coefficients of a linearization in a SparseVector
  /** This method retrieves the sparse vector of coefficients g that is part
   * of a linearization. It works like
   *
-  *   get_linearization_coefficients( FunctionValue * g , ... )
+  *   get_linearization_coefficients( FunctionValue * g , range , name  )
   *
   * except that the extracted coefficients are stored in the SparseVector g
   * instead of in a "rough" array.
@@ -870,69 +865,167 @@ class C05Function : public Function {
   * size of g must be equal to the number n of active Variables of this
   * Function. Moreover, this vector will be updated. This means that for each
   * component j of the linearization vector that is desired (the components
-  * determined by indices[] and range, see the "rough" version for details),
-  * the value l[ j ] will be stored in g[ j ], and any previously stored
-  * value in g[ j ] will be lost. There is any (nonzero) g[ h ] for any index
-  * h, that is not among the ones desired, this will be left unchanged in the
-  * vector. It is important to notice that the operation of updating the given
-  * sparse vector may be computationally costly; in order to avoid this,
-  * consider passing to this method an empty g.
+  * determined by range, see the "rough" version for details), the value
+  * l[ j ] will be stored in g[ j ], and any previously stored value in
+  * g[ j ] will be lost. If there is any (nonzero) g[ h ] for any index h
+  * that is not among the ones desired, this will be left unchanged in the
+  * SparseVector. It is important to notice that the operation of updating
+  * the given SparseVector may be computationally costly; in order to avoid
+  * this, consider passing to this method an empty g.
   *
   * This method is given by the base class a default implementation using the
   * "rough" version. Derived classes are welcome to provide specialized
   * implementations avoiding the copy for efficiency. */
 
- virtual Index get_linearization_coefficients( SparseVector & g ,
-					       Index name = Inf<Index>() ,
-					       c_Vec_Index & indices = {} ,
-		      Range range = std::make_pair( 0 , Inf<Index>() ) ) = 0;
+ virtual void get_linearization_coefficients( SparseVector & g ,
+			   Range range = std::make_pair( 0 , Inf<Index>() ) ,
+					      Index name = Inf<Index>() )
  {
   range.second = std::min( range.second , get_num_active_var() );
   if( range.second <= range.first )  // range is empty
-   return( 0 );                      // cowardly (and silently) return
+   return;                           // cowardly (and silently) return
 
   Vec_FunctionValue gg[ range.second - range.first ];
-  c_Index k = get_linearization_coefficients( gg.data() , name , indices ,
-					      range );
+  FunctionValue * ggp = gg.data();
+  get_linearization_coefficients( ggp , name , range );
 
   if( g.nonZeros() == 0 ) {  // g has no nonzeroes
 
    if( g.size() < get_num_active_var() )
     g.resize( get_num_active_var() );
 
-   g.reserve( k );
+   g.reserve( range.second - range.first );
 
-  if( indices.empty() )
    for( Index i = range.first ; i < range.second ; ++i )
-    g.insert( i ) = gg[ i - range.first ];
-  else {
-   auto iit = indices.begin();
-   while( ( iit != indices.end() ) && ( *iit < range.first ) )
-    ++iit;
+    g.insert( i ) = *(ggp++);
+   }
+  else {                  // g has some nonzeroes
+   if( g.size() != get_num_active_var() )
+    throw( std::invalid_argument( "wrong size of nonempty SparseVector g" ) );
 
-   FunctionValue * ggp = gg.data();
-   while( ( iit != indices.end() ) && ( *iit < range.second ) )
-    g.insert( *(iit++) ) = *(ggp++);
+   for( Index i = range.first ; i < range.second ; ++i )
+    g.coeffRef( i ) = *(ggp++);
    }
   }
- else {                  // g has some nonzeroes
-  if( g.size() != get_num_active_var() )
-   throw( std::invalid_argument( "wrong size of nonempty SparseVector g" ) );
 
-  if( indices.empty() )
-   for( Index i = range.first ; i < range.second ; ++i )
-    g.coeffRef( i ) = gg[ i - range.first ];
-  else {
-   auto iit = indices.begin();
-   while( ( iit != indices.end() ) && ( *iit < range.first ) )
-    ++iit;
+/*--------------------------------------------------------------------------*/
+ /// get a subset of coefficients (g vector) of a linearization in an array
+ /** This method retrieves a subset of the vector of coefficients g that is
+  * the (largest part of the) linearization with the given name.
+  *
+  * If the name of the linearization is the default value Inf<Index>(), then
+  * it refers to the last computed linearization, which may "not yet have a
+  * name" because store_linearization() may not have been called yet (and it
+  * may never be, if this linearization is not deemed "important enough" to
+  * be kept in the global pool). Otherwise, it (obviously) refers to the
+  * linearization associated with the given name from the global pool of
+  * linearizations. If a linearization with the given name is not stored in
+  * the global pool, an exception may be thrown (unless, for instance, the
+  * concept is completely ignored because, say, the Function is a linear one
+  * and therefore all linearizations are the same). 
+  *
+  * The method allows to retrieve a specific arbitrary subset of the 
+  * coefficients, the ones whose indices are to be found in the Subset subset.
+  * The components of a linearization are numbered from 0 to n - 1, where
+  * n == get_num_active_var() is the number of active Variables of this
+  * Function. Moreover, the i-th component of a linearization is associated
+  * with the i-th active Variable of this Function, i.e., (the one pointed by)
+  * get_active_var( i ). For exposition purposes, we can therefore view the
+  * linearization as the n-vector l[]. The parameter subset is used to
+  * dictate which components of l[] must be returned. Each element
+  * subset[ i ] must clearly be an integer between 0 and n - 1.
+  *
+  * This is the "rough version" of the method where the output is directly
+  * into an array. Only the components found in subset will be stored in g;
+  * that is, g[ i ] = l[ subset[ i ] ] for all 0 <= i < subset.size(). All
+  * components of g[] that need not be written are left unchanged.
+  *
+  * The rationale for having such a "rough" version is that it allows to
+  * "change linearizations already in place". For instance, assume that
+  * whatever is using this C05Function has stored the linearizations in the
+  * global pool as a 
+  * 
+  *   std::vector < Vec_FunctionValue > > G;
+  *
+  * where the inner vectors G[ i ] are dimensioned to the *maximum* number of
+  * Variable that the C05Function may have, and that a C05FunctionModSbst mod
+  * occurs; then the corresponding mod->subset() of changed entries of the
+  * i-th linearization in the global pool can be written in place in the
+  * existing vectors by just calling
+  *
+  *   get_linearization_coefficients( G[ i ].data() , mod->subset() , i  )
+  */
 
-   FunctionValue * ggp = gg.data();
-   while( ( iit != indices.end() ) && ( *iit < range.second ) )
-    g.coeffRef( *(iit++) ) = *(ggp++);
+ virtual void get_linearization_coefficients( FunctionValue * g ,
+					      c_Subset & subset  ,
+					      Index name = Inf<Index>() ) = 0;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// get a subset of coefficients of a linearization in a SparseVector
+ /** This method retrieves the sparse vector of coefficients g that is part
+  * of a linearization. It works like
+  *
+  *   get_linearization_coefficients( FunctionValue * g , subset , name )
+  *
+  * except that the extracted coefficients are stored in the SparseVector g
+  * instead of in a "rough" array.
+  *
+  * If the SparseVector g passed as argument does not have any non-zero
+  * element, it will be resized to the appropriate size, which is the number
+  * n of active Variables of the Function, and the desired components of the
+  * linearization will be stored in it. The computational cost of this
+  * operation is proportional to the number of desired components.
+  *
+  * If the SparseVector g already stores some non-zero elements, then the
+  * size of g must be equal to the number n of active Variables of this
+  * Function. Moreover, this vector will be updated. This means that for each
+  * component j of the linearization vector that is desired (the components
+  * determined by range, see the "rough" version for details), the value
+  * l[ j ] will be stored in g[ j ], and any previously stored value in
+  * g[ j ] will be lost. If there is any (nonzero) g[ h ] for any index h
+  * that is not among the ones desired, this will be left unchanged in the
+  * SparseVector. It is important to notice that the operation of updating
+  * the given SparseVector may be computationally costly; in order to avoid
+  * this, consider passing to this method an empty g.
+  *
+  * This method is given by the base class a default implementation using the
+  * "rough" version. Derived classes are welcome to provide specialized
+  * implementations avoiding the copy for efficiency. */
+
+ virtual void get_linearization_coefficients( SparseVector & g ,
+					      c_Subset & subset ,
+					      Index name = Inf<Index>() )
+ {
+  if( subset.empty() )  // subset is empty
+   return;              // cowardly (and silently) return
+
+  Vec_FunctionValue gg[ subset.size() ];
+  FunctionValue * ggp = gg.data();
+  get_linearization_coefficients( ggp , subset , name );
+
+  if( g.nonZeros() == 0 ) {  // g has no nonzeroes
+
+   if( g.size() < get_num_active_var() )
+    g.resize( get_num_active_var() );
+
+   g.reserve( subset.size() );
+
+   for( auto i : indices ) {
+    if( i >= get_num_active_var() )
+     throw( std::invalid_argument( "wrong index in subset" ) );
+    g.insert( i ) = *(ggp++);
+    }
    }
+  else {                  // g has some nonzeroes
+   if( g.size() != get_num_active_var() )
+    throw( std::invalid_argument( "wrong size of nonempty SparseVector g" ) );
 
-  return( k );
+   for( auto i : indices ) {
+    if( i >= get_num_active_var() )
+     throw( std::invalid_argument( "wrong index in subset" ) );
+    g.coeffRef( i ) = *(ggp++);
+    }
+   }
   }
 
 /*--------------------------------------------------------------------------*/

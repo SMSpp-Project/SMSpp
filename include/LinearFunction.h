@@ -5,9 +5,9 @@
  * Header file for the *concrete* class LinearFunction, which implements
  * C15Function with a simple linear function.
  *
- * \version 0.30
+ * \version 0.40
  *
- * \date 15 - 09 - 2019
+ * \date 22 - 09 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -34,7 +34,9 @@
 /*--------------------------------------------------------------------------*/
 
 #include "C15Function.h"
+
 #include "ColVariable.h"
+
 #include "Observer.h"
 
 /*--------------------------------------------------------------------------*/
@@ -59,26 +61,27 @@ namespace SMSpp_di_unipi_it {
 /**< The class LinearFunction implements C15Function with a simple linear
  * function of the form
  * \[
- *  f(x) = c + sum_{i \in I} a_i * x_i
+ *  f(x) = c + sum_{i = 1, ..., n} a_i * x_i
  * \]
  * where the scalar c is the constant term of the Function, and a_i is the
- * fixed real coefficient of the Variable x_i, for i in I.
+ * fixed real coefficient of the Variable x_i.
  *
- * This Function issues the following modifications:
+ * This Function issues the following :Modification:
  *
- * - When Variables are added or removed, a C05FunctionModVars of appropriate
- *   type (AddVar or RemoveVar) is issued; pointers to the Variables that
- *   were added/removed are provided in the Modification. Note that, being
- *   this a linear Function, the addition/removal is strongly quasi-additive.
+ * - A C05FunctionModVarsAddd when Variable are added; note that, being this
+ *   a linear Function, the addition is strongly quasi-additive.
  *
- * - When the coefficients of some Variables change, a C05FunctionModLin is
- *   issued; the Modification provides both the set of Variables whose
- *   coefficients have changed and the change in the coefficients. The
- *   shift is NaN, no check on the sign of the Variables / coefficient
- *   change is performed (yet).
+ * - A C05FunctionModVarsRngd or C05FunctionModVarsSbst when Variable are
+ *   removed (depending if they were in a range or not); note that, being
+ *   this a linear Function, the removal is strongly quasi-additive.
  *
- * - When the constant term changes, a FunctionMod is issued with the shift
- *   equals to the difference between the new and old constant term values.
+ * - a C05FunctionModLinRngd or a C05FunctionModLinSbst when the coefficients
+ *   of some Variable change (depending if they were in a range or not); the
+ *   shift is NaN, no check on the sign of the Variables / coefficient change
+ *   is performed (yet).
+ *
+ * - a FunctionMod when the constant term changes, with the shift equal to
+ *   the difference between the new and old constant term values.
  *
  * TODO: when "a lot" of the coefficients change, rahter issue a
  *       C05FunctionMod of type AllEntriesChanged, because it might be
@@ -99,26 +102,21 @@ class LinearFunction : public C15Function {
 /** @name Public Types
     @{ */
 
- typedef FunctionValue Coefficient;
- ///< type of the coefficients of the linear function = FunctionValue
+ /// type of the coefficients of the linear function = FunctionValue
+ using Coefficient = FunctionValue;
 
- typedef std::vector< Coefficient > v_coeff;
- ///< a vector of Coefficients
+ using v_coeff = std::vector< Coefficient >;  ///< a vector of Coefficients
 
- typedef v_coeff::iterator v_coeff_it;
- ///< iterator in v_coeff
+ using v_coeff_it = v_coeff::iterator;  ///< iterator in v_coeff
 
- typedef v_coeff::const_iterator c_v_coeff_it;
- ///< const iterator in v_coeff
+ using c_v_coeff_it = v_coeff::const_iterator;  ///< const iterator in v_coeff
 
- typedef std::pair< ColVariable *, Coefficient > coeff_pair;
- ///< element of a Linear Coefficient matrix: (ColVariable *, Coefficient)
+ /// one term of the sum: ( ColVariable * , Coefficient )
+ using coeff_pair = std::pair< ColVariable * , Coefficient >;
 
- typedef std::vector< coeff_pair > v_coeff_pair;
- ///< a vector of coeff_pair
+ using v_coeff_pair = std::vector< coeff_pair >;  ///< a vector of coeff_pair
 
- typedef const v_coeff_pair v_c_coeff_pair;
- ///< a const vector of coeff_pair
+ using v_c_coeff_pair = const v_coeff_pair;  ///< a const vector of coeff_pair
 
 /*--------------------------------------------------------------------------*/
  /// virtualized concrete iterator
@@ -234,38 +232,24 @@ class LinearFunction : public C15Function {
  /// constructor of LinearFunction, taking the data describing it
  /** Constructor of LinearFunction. It accepts:
   *
-  * @param vars, a && to a vector of pairs < pointer to ColVariable ,
-  *        Coefficient > representing the linear expression of the function;
-  *        as the the && tells, vars is "consumed" by the constructor and its
-  *        resources become property of the LinearFunction object.
+  * @param vars, a && to a vector of pairs < ColVariable * , Coefficient >
+  *        representing the linear expression of the function; as the the &&
+  *        tells, vars is "consumed" by the constructor and its resources
+  *        become property of the LinearFunction object.
   *
   * @param ct, a FunctionValue providing the value of the constant term of the
   *        function (which is affine rather than, strictly speaking, linear);
   *
-  * @param ordered, a boolean indicating whether or not vars is already
-  *        ordered in increasing pointer ColVariable "name = pointer" (if not
-  *        it is ordered);
-  *
   * @param observer, a pointer to the Observer of this LinearFunction.
   *
-  * All inputs have a default ({}, 0, true, and nullptr, respectively) so
-  * that this can be used as the void constructor. */
+  * All inputs have a default ({}, 0, and nullptr, respectively) so that this
+  * can be used as the void constructor. */
 
- explicit LinearFunction( v_coeff_pair && vars = {},
-                 const FunctionValue ct = 0,
-                 const bool ordered = false,
+ explicit LinearFunction( v_coeff_pair && vars = {} ,
+                 const FunctionValue ct = 0 ,
                  Observer * const observer = nullptr )
-  : C15Function( observer ),
-    v_pairs( std::move( vars ) ),
-    f_value( Inf< FunctionValue >() ),
-    f_constant_term( ct ) {
-  if( !ordered )
-   std::sort( v_pairs.begin(), v_pairs.end(),
-              []( const auto & p1, const auto & p2 ) {
-               return p1.first < p2.first;
-              }
-   );
- }
+  : C15Function( observer ) , v_pairs( std::move( vars ) ) ,
+    f_value( Inf< FunctionValue >() ), f_constant_term( ct ) { }
 
 /*--------------------------------------------------------------------------*/
  /// destructor: it does nothing (explicitly)
@@ -279,7 +263,7 @@ class LinearFunction : public C15Function {
   * them. Not that the LinearFunction would have, but the Observer may.
   * By not having any Variable, the Observer can no longer do that. */
 
- void clear() override { v_pairs.clear(); }
+ void clear( void ) override { v_pairs.clear(); }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -302,38 +286,19 @@ class LinearFunction : public C15Function {
 
  /// returns the vector of pairs (ColVariable *, Coefficient)
 
- v_c_coeff_pair & get_v_var() const { return v_pairs; }
+ v_c_coeff_pair & get_v_var( void ) const { return( v_pairs ); }
 
 /*--------------------------------------------------------------------------*/
- /// returns the Coefficient of the i-th Variable of this LinearFunction
+ /// returns the Coefficient of the i-th Variable in this LinearFunction
  /** This method returns the Coefficient of the i-th Variable of this
   * LinearFunction. The index i must be between 0 and get_num_active_var()
   * - 1.
   *
   * @param i Index of the Variable whose coefficient is desired. */
 
- Coefficient get_coefficient( const int i ) const {
-  return ( v_pairs.begin() + i )->second;
- }
-
- /*--------------------------------------------------------------------------*/
- /// returns the Coefficient of the Variable var of this LinearFunction
- /** Like get_coefficient( int ), but works directly with the Variable
-  * instead of its index. */
-
- inline Coefficient get_coefficient( const ColVariable * const var ) const {
-
-  auto idx = std::lower_bound( v_pairs.begin(),
-                               v_pairs.end(),
-                               std::make_pair( var, 0 ),
-                               []( const auto & p1, const auto & p2 ) {
-                                return p1.first < p2.first;
-                               } );
-  if( idx->first != var )
-   throw ( std::invalid_argument( "stop is not an active Variable" ) );
-
-  return idx->second;
- }
+ Coefficient get_coefficient( Index i ) const {
+  return( ( v_pairs.begin() + i )->second );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF THE LinearFunction ----------*/
@@ -346,33 +311,33 @@ class LinearFunction : public C15Function {
 /*--------------------------------------------------------------------------*/
  /// returns the value of the LinearFunction
 
- FunctionValue get_value() const final { return( f_value ); }
+ FunctionValue get_value( void ) const final { return( f_value ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the LinearFunction is exact, hence lower_estimate == value
 
- FunctionValue get_lower_estimate() const final { return( f_value ); }
+ FunctionValue get_lower_estimate( void ) const final { return( f_value ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the LinearFunction is exact, hence upper_estimate == value
 
- FunctionValue get_upper_estimate() const final { return( f_value ); }
+ FunctionValue get_upper_estimate( void ) const final { return( f_value ); }
 
 /*--------------------------------------------------------------------------*/
 
- FunctionValue get_Lipschitz_constant() override;
+ FunctionValue get_Lipschitz_constant( void ) override;
 
 /*--------------------------------------------------------------------------*/
 
- bool is_convex() const final { return true; }
+ bool is_convex( void ) const final { return( true ); }
 
 /*--------------------------------------------------------------------------*/
 
- bool is_concave() const final { return true; }
+ bool is_concave(  void ) const final { return true; }
 
 /*--------------------------------------------------------------------------*/
 
- void compute_hessian_approximation() final {};
+ void compute_hessian_approximation( void ) final { };
 
 /*--------------------------------------------------------------------------*/
 
@@ -384,58 +349,49 @@ class LinearFunction : public C15Function {
 
 /*--------------------------------------------------------------------------*/
 
- bool is_continuously_differentiable() const final { return true; }
+ bool is_continuously_differentiable( void ) const final { return( true ); }
 
 /*--------------------------------------------------------------------------*/
 
- bool is_twice_continuously_differentiable() const final { return true; }
+ bool is_twice_continuously_differentiable( void ) const final {
+  return( true );
+  }
 
 /*--------------------------------------------------------------------------*/
- /// get an arbitrary subset of linearization coefficients
- /** Like get_linearization_coefficients( FunctionValue *g , name , ... )
-  * but without the name, because a LinearFunction only have one
-  * linearization. */
-
- void get_linearization_coefficients( FunctionValue * g,
-                                      c_Vec_Index & indices,
-                                      c_Index start,
-                                      c_Index end ) const;
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// get a range of linearization coefficients
- /** Like get_linearization_coefficients( FunctionValue * g , name , ... )
-  * but without the name, because a LinearFunction only have one
-  * linearization, and without the arbitrary subset. */
-
- void get_linearization_coefficients( FunctionValue * g,
-                                      c_Index start,
-                                      c_Index end ) const;
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  void get_linearization_coefficients( FunctionValue * g ,
-                          Index name = Inf<Index>() ,
-                          c_Vec_Index & indices = {} , c_Index start = 0 ,
-                          c_Index end = Inf<Index>() ) final;
+			   Range range = std::make_pair( 0 , Inf<Index>() ) ,
+				      Index name = Inf<Index>() ) override;
 
-/*--------------------------------------------------------------------------*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  void get_linearization_coefficients( SparseVector & g ,
-                           Index name = Inf<Index>(),
-                           c_Vec_Index & indices  = {} , c_Index start = 0,
-                           c_Index end = Inf<Index>() ) final;
+			   Range range = std::make_pair( 0 , Inf<Index>() ) ,
+				      Index name = Inf<Index>() ) override;
 
 /*--------------------------------------------------------------------------*/
-/** There is only one linearization in a LinearFunction. The linearization
- * constant is equal to the constant term of the LinearFunction. */
 
- Function::FunctionValue get_linearization_constant(
-            const Index name = Inf<Index>() ) final {
+ void get_linearization_coefficients( FunctionValue * g , c_Subset & subset  ,
+				      Index name = Inf<Index>() ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ void get_linearization_coefficients( SparseVector & g ,
+				      c_Vec_Index & subset ,
+				      Index name = Inf<Index>() ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// returns the linearization constant of the only linearization
+ /** There is only one linearization in a LinearFunction. The linearization
+  * constant is equal to the constant term of the LinearFunction. */
+
+ FunctionValue get_linearization_constant( Index name = Inf<Index>() ) final
+ {
   return( f_constant_term );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- ///< Returns the value of the constant term of this LinearFunction.
+ /// returns the value of the constant term of this LinearFunction.
 
  FunctionValue get_constant_term( void ) const { return( f_constant_term ); }
 
@@ -450,8 +406,8 @@ class LinearFunction : public C15Function {
   * "listens to no-one"; hence, the implementation of get_ComputeConfig() is
   * quite a trivial one. */
 
- virtual ComputeConfig * get_ComputeConfig( bool all, ComputeConfig * ocfg )
-  const override final { return( nullptr ); }
+ ComputeConfig * get_ComputeConfig( bool all , ComputeConfig * ocfg )
+  const final { return( nullptr ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE LinearFunction -------*/
@@ -461,55 +417,52 @@ class LinearFunction : public C15Function {
  * vector v_pairs of pairs.
  * @{ */
 
- virtual Index get_num_active_var( void ) const override final {
-  return( v_pairs.size() );
-  }
+ Index get_num_active_var( void ) const final { return( v_pairs.size() ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual Index is_active( const Variable * const var ) const override final
+ Index is_active( const Variable * const var ) const final
  {
-  auto idx = std::lower_bound( v_pairs.begin() , v_pairs.end() ,
-                               std::make_pair( var , 0 ) ,
-                               []( const auto & p1, const auto & p2 ) {
-                                return p1.first < p2.first;
-			        } );
+  auto idx = std::find( v_pairs.begin() , v_pairs.end() ,
+			[ & var ]( const auto p ) {
+			 return( p.first == var );
+			 } );
   return( idx < v_pairs.end() ? std::distance( v_pairs.begin(), idx )
 	                      : Inf< Index >() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual void map_active( c_Vec_p_Var & vars , Vec_Index & map ,
-			  bool ordered ) const override final;
+ void map_active( c_Vec_p_Var & vars , Vec_Index & map , bool ordered )
+  const final;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual Variable * get_active_var( const Index i ) const override final {
-  return( ( v_pairs.begin() + i )->first );
- } 
+ Variable * get_active_var( const Index i ) const final {
+  return( v_pairs[ i ].first );
+  } 
 
 /*--------------------------------------------------------------------------*/
 
- virtual v_iterator * v_begin( void ) override final {
+ v_iterator * v_begin( void ) final {
   return( new LinearFunction::v_iterator( v_pairs.begin() ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual v_const_iterator * v_begin( void ) const override final {
+ v_const_iterator * v_begin( void ) const final {
   return( new LinearFunction::v_const_iterator( v_pairs.begin() ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
- virtual v_iterator * v_end( void ) override final {
+ v_iterator * v_end( void ) final {
   return( new LinearFunction::v_iterator( v_pairs.end() ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual v_const_iterator * v_end( void ) const override final {
+ v_const_iterator * v_end( void ) const final {
   return( new LinearFunction::v_const_iterator( v_pairs.end() ) );
   }
 

@@ -2,12 +2,12 @@
 /*------------------------- File DQuadFunction.h ---------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Header file for the *concrete* class DQuadFunction, which
- * implements C15Function with a diagonal quadratic function.
+ * Header file for the *concrete* class DQuadFunction, which implements
+ * C15Function with a diagonal (separable) quadratic function.
  *
- * \version 0.30
+ * \version 0.40
  *
- * \date 15 - 09 - 2019
+ * \date 22 - 09 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -27,15 +27,18 @@
 
 #ifndef __DQuadFunction
 #define __DQuadFunction
-/* self-identification: #endif at the end of the file */
+                     /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 #include "C15Function.h"
+
 #include "ColVariable.h"
+
 #include "Observer.h"
+
 #include <cmath>
 
 /*--------------------------------------------------------------------------*/
@@ -60,35 +63,36 @@ namespace SMSpp_di_unipi_it {
 /**< The class DQuadFunction implements C15Function with a diagonal
  * quadratic function of the form
  * \[
- * f(x) = c + sum{i in I} ( a_i * x_i * x_i + b_i * x_i )
+ * f(x) = c + sum{i = 1, ..., n} ( a_i * x_i^2 + b_i * x_i )
  * \]
- * where the scalar c is the constant term of the Function, and a_i
- * and b_i are the coefficients of the Variable x_i in the quadratic
- * and linear terms, respectively, for all i in I.
+ * where the scalar c is the constant term of the Function, and a_i and b_i
+ * are the coefficients of the Variable x_i in the quadratic and linear
+ * terms, respectively.
  *
- * This Function issues the following modifications:
+ * This Function issues the following :Modification:
  *
- * - When Variables are added or removed, a C05FunctionModVars of appropriate
- *   type (AddVar or RemoveVar) is issued; pointers to the Variables that
- *   were added/removed are provided in the Modification. Note that, being
- *   this a diagonal quadratic (hence, separable) Function, the
- *   addition/removal is strongly quasi-additive.
+ * - A C05FunctionModVarsAddd when Variable are added; note that, being this
+ *   a separable Function, the addition is strongly quasi-additive.
  *
- * - When the *linear* coefficients *only* of some Variables change, a
- *   C05FunctionModLin is issued; the Modification provides both the set of
- *   Variables whose coefficients have changed and the change in the
- *   coefficients. The shift is NaN, no check on the sign of the Variables /
- *   coefficient change is performed (yet).
+ * - A C05FunctionModVarsRngd or C05FunctionModVarsSbst when Variable are
+ *   removed (depending if they were in a range or not); note that, being
+ *   this a separable Function, the removal is strongly quasi-additive.
  *
- * - When the *quadratic* coefficients of some Variables change (and, possibly
- *   the linear ones as well), either a C05FunctionModSbst or a
- *   C05FunctionModSbst is issued (depending on which method is called): the
- *   Modification provides the set of Variables whose coefficients have
- *   changed. The shift is NaN, no check on the sign of the Variables /
- *   coefficient change is performed (yet).
+ * - a C05FunctionModLinRngd or a C05FunctionModLinSbst when the *linear*
+ *   coefficients *only* of some Variable change (depending if they were in
+ *   a range or not); the shift is NaN, no check on the sign of the
+ *   Variables / coefficient change is performed (yet).
  *
- * - When the constant term changes, a FunctionMod is issued with the shift
- *   equals to the difference between the new and old constant term values.
+ * - a C05FunctionModRngd or a C05FunctionModSbst when the *quadratic*
+ *   coefficients (and, possibly the linear ones as well) of some Variable
+ *   change, (depending if they were in a range or not); the shift is NaN,
+ *   no check on the sign of the coefficients is performed (yet) [note that
+ *   it is somewhat easier to prove increase/decrease only for a quadratic
+ *   function, think e.g. of the case of no linear coefficients, all
+ *   positive a_i which all grow].
+ *
+ * - a FunctionMod when the constant term changes, with the shift equal to
+ *   the difference between the new and old constant term values.
  *
  * TODO: when "a lot" of the linear and/or quadratic coefficients change,
  *       rahter issue a C05FunctionMod of type AllEntriesChanged, because it
@@ -107,35 +111,36 @@ class DQuadFunction : public C15Function {
 /*---------------------- PUBLIC TYPES OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
- typedef double Coefficient;
- ///< type of the coefficients of the function
+ /// type of the coefficients of linear and quadratic terms = FunctionValue
+ using Coefficient = FunctionValue;
 
- typedef std::vector< std::pair< Coefficient, Coefficient > > v_coeff_coeff;
- ///< a vector of pairs of Coefficients
+ /// a pair of Coefficient
+ using CoeffPair = std::pair< Coefficient, Coefficient >;
 
- typedef const v_coeff_coeff c_v_coeff_coeff;
- ///< a const vector of pairs of Coefficients
+ /// a vector of pairs of Coefficients
+ using v_coeff_coeff = std::vector< CoeffPair >;
 
- typedef v_coeff_coeff::iterator v_coeff_coeff_it;
- ///< iterator in v_coeff_coeff
+ /// a const vector of pairs of Coefficients
+ using c_v_coeff_coeff = const v_coeff_coeff;
 
- typedef v_coeff_coeff::const_iterator c_v_coeff_coeff_it;
- ///< const iterator in v_coeff_coeff
+ /// iterator in v_coeff_coeff
+ using v_coeff_coeff_it = v_coeff_coeff::iterator;
 
- typedef std::tuple< ColVariable *, Coefficient, Coefficient >
-  var_coeff_coeff_triple;
- /**< Triple (ColVariable *, Coefficient, Coefficient) to store a
-  * pointer to a Variable and the coefficients of the linear and
-  * diagonal quadratic terms associated with that Variable. */
+ /// const iterator in v_coeff_coeff
+ using c_v_coeff_coeff_it = v_coeff_coeff::const_iterator;
 
- typedef std::vector< var_coeff_coeff_triple > v_var_coeff_coeff_triple;
- ///< a vector of var_coeff_coeff_triple
+ /// one term of the sum: ( ColVariable * , Coefficient , Coefficient )
+ /** Triple ( ColVariable * , Coefficient , Coefficient ) that describes
+  * the term of the sum corresponding to one [Col]Variable. */
+ using coeff_triple = std::tuple< ColVariable * , Coefficient , Coefficient >;
 
- typedef const var_coeff_coeff_triple c_var_coeff_coeff_triple;
- ///< a const var_coeff_coeff_triple
+ using c_coeff_triple = const coeff_triple;  ///< a const coeff_triple
+ 
+ /// a vector of coeff_triple
+ using v_coeff_triple = std::vector< coeff_triple >;
 
- typedef const v_var_coeff_coeff_triple v_c_var_coeff_coeff_triple;
- ///< a vector of const var_coeff_coeff_triple
+ /// a const vector of coeff_triple
+ using v_c_coeff_triple = const v_coeff_triple;
 
 /*--------------------------------------------------------------------------*/
  /// virtualized concrete iterator
@@ -146,7 +151,7 @@ class DQuadFunction : public C15Function {
  class v_iterator : public ThinVarDepInterface::v_iterator {
   public:
 
-  explicit v_iterator( v_var_coeff_coeff_triple::iterator itr ) : itr_( itr ) {}
+  explicit v_iterator( v_coeff_triple::iterator itr ) : itr_( itr ) {}
 
   v_iterator * clone() override {
    return new v_iterator( itr_ );
@@ -186,7 +191,7 @@ class DQuadFunction : public C15Function {
 
   private:
 
-  v_var_coeff_coeff_triple::iterator itr_;
+  v_coeff_triple::iterator itr_;
  };
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -198,7 +203,7 @@ class DQuadFunction : public C15Function {
  class v_const_iterator : public ThinVarDepInterface::v_const_iterator {
   public:
 
-  explicit v_const_iterator( v_c_var_coeff_coeff_triple::const_iterator itr )
+  explicit v_const_iterator( v_c_coeff_triple::const_iterator itr )
    : itr_( itr ) {}
 
   v_const_iterator * clone() override {
@@ -239,7 +244,7 @@ class DQuadFunction : public C15Function {
 
   private:
 
-  v_var_coeff_coeff_triple::const_iterator itr_;
+  v_coeff_triple::const_iterator itr_;
  };
 
 /*--------------------------------------------------------------------------*/
@@ -253,37 +258,26 @@ class DQuadFunction : public C15Function {
  /// constructor of DQuadFunction, taking the data describing it
  /** Constructor of DQuadFunction. It accepts:
   *
-  * @param v_var, a && to a vector of triples < pointer to ColVariable ,
-  *        real coefficient , real coefficient >, with the first coefficient
-  *        being that of the linear term and the second being that of the
-  *        quadratic term of the function corresponding to the given
-  *        ColVariable;
+  * @param v_var, a && to a vector of triples < ColVariable * , Coefficient ,
+  *        Coefficient >, with the first coefficient being that of the linear
+  *        term and the second being that of the quadratic term of the
+  *        function corresponding to the given ColVariable; as the the &&
+  *        tells, vars is "consumed" by the constructor and its resources
+  *        become property of the LinearFunction object.
   *
   * @param ct, a FunctionValue providing the value of the constant term of the
   *        function;
   *
-  * @param ordered, a boolean indicating whether or not v_var is already
-  *        ordered in increasing pointer ColVariable "name = pointer" (if not
-  *        it is ordered);
-  *
   * @param observer, a pointer to the Observer of this DQuadFunction.
   *
-  * All inputs have a default ({}, 0, true, and nullptr, respectively) so
-  * that this can be used as the void constructor. */
+  * All inputs have a default ({}, 0, and nullptr, respectively) so that this
+  * can be used as the void constructor. */
 
- explicit DQuadFunction( v_var_coeff_coeff_triple && v_var = {},
-                         const FunctionValue ct = 0,
-                         const bool ordered = false,
+ explicit DQuadFunction( v_coeff_triple && v_var = {} ,
+                         const FunctionValue ct = 0 ,
                          Observer * const observer = nullptr )
-  : C15Function( observer ), v_triples( std::move( v_var ) ),
-    f_value( Inf< FunctionValue >() ), f_constant_term( ct ) {
-  if( !ordered )
-   std::sort( v_triples.begin(), v_triples.end(),
-              []( const auto & p1, const auto & p2 ) {
-               return ( std::get< 0 >( p1 ) < std::get< 0 >( p2 ) );
-              }
-   );
- }
+  : C15Function( observer ) , v_triples( std::move( v_var ) ) ,
+    f_value( Inf< FunctionValue >() ), f_constant_term( ct ) { }
 
 /*--------------------------------------------------------------------------*/
  /// destructor: it does nothing (explicitly)
@@ -297,10 +291,7 @@ class DQuadFunction : public C15Function {
   * them. Not that the LinearFunction would have, but the Observer may.
   * By not having any Variable, the Observer can no longer do that. */
 
- void clear() override {
-  v_triples.clear();
-  f_Observer = nullptr;
- }
+ void clear( void ) override { v_triples.clear(); }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -311,9 +302,38 @@ class DQuadFunction : public C15Function {
  /// set the whole (empty) set of parameters in one blow
  /** Although a DQuadFunction formally has a lot of parameters, in fact it
   * "listens to no-one"; hence, the implementation of set_ComputeConfig() is
-  * quite a trivial one. */
+  * almost (but not quite) a trivial one. The issue is that DQuadFunction
+  * does not currently implement the global pool management, and therefore
+  * it will throw exception if a nonzero global pool size is set. */
 
- void set_ComputeConfig( ComputeConfig * scfg ) final {}
+ void set_ComputeConfig( ComputeConfig * scfg ) final
+ {
+  if( ! scfg )  // setting nothing
+   return;      // nothing to do
+
+   for( auto pair : scfg->int_pars )
+    if( pair.first == intGPMaxSz ) {
+     if( pair.second > 0 )
+      throw( std::invalid_argument( 
+			"global pool not supported yet by DQuadFunction" ) );
+     break;
+     }
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// set a given integer (int) numerical parameter
+ /** Set a given integer (int) numerical parameter. DQuadFunction in fact
+  * "listens to no parameter"; hence, the implementation of set_par() should
+  * be void. However, DQuadFunction does not currently implement the global
+  * pool management, and therefore it will throw exception if a nonzero
+  * global pool size is set. */
+
+ void set_par( const idx_type par , const int value ) final
+ {
+  if( ( par == intGPMaxSz ) && ( value > 0 ) )
+   throw( std::invalid_argument( 
+			"global pool not supported yet by DQuadFunction" ) );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE DQuadFunction ------------*/
@@ -323,9 +343,28 @@ class DQuadFunction : public C15Function {
 
  /// returns the vector of triples (ColVariable *, Coefficient, Coefficient)
 
- v_c_var_coeff_coeff_triple & get_v_var() const {
-  return v_triples;
- }
+ v_c_coeff_triple & get_v_var( void ) const { return( v_triples ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the linear Coefficient of the i-th Variable
+ /** This method returns the linear Coefficient of the i-th Variable of this
+  * DQuadFunction. The index i must be between 0 and get_num_active_var() - 1.
+  *
+  * @param i Index of the Variable whose linear coefficient is desired. */
+
+ Coefficient get_linear_coefficient( Index i ) const {
+  return( ( std::get<1>( *( v_pairs.begin() + i ) ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/  /// returns the quadratic Coefficient of the i-th Variable
+ /** This method returns the linear Coefficient of the i-th Variable of this
+  * DQuadFunction. The index i must be between 0 and get_num_active_var() - 1.
+  *
+  * @param i Index of the Variable whose quadratic coefficient is desired. */
+
+ Coefficient get_quadratic_coefficient( Index i ) const {
+  return( ( std::get<1>( *( v_pairs.begin() + i ) ) );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF THE DQuadFunction -----------*/
@@ -338,45 +377,41 @@ class DQuadFunction : public C15Function {
 /*--------------------------------------------------------------------------*/
  /// returns the value of the DQuadFunction
 
- FunctionValue get_value() const override { return f_value; }
+ FunctionValue get_value( void ) const override { return( f_value ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the DQuadFunction is exact, hence lower_estimate == value
 
- FunctionValue get_lower_estimate() const final {
-  return f_value;
- }
+ FunctionValue get_lower_estimate( void ) const final { return( f_value ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the DQuadFunction is exact, hence upper_estimate == value
 
- FunctionValue get_upper_estimate() const final {
-  return f_value;
- }
+ FunctionValue get_upper_estimate( void ) const final { return( f_value ); }
 
 /*--------------------------------------------------------------------------*/
 
- bool is_convex() const override;
+ bool is_convex( void ) const override;
 
 /*--------------------------------------------------------------------------*/
 
- bool is_concave() const override;
+ bool is_concave( void ) const override;
 
 /*--------------------------------------------------------------------------*/
 
- bool is_lower_semicontinuous() const final { return true; }
+ bool is_lower_semicontinuous( void ) const final { return( true ); }
 
 /*--------------------------------------------------------------------------*/
 
- bool is_upper_semicontinuous() const final { return true; }
+ bool is_upper_semicontinuous( void ) const final { return( true ); }
 
 /*--------------------------------------------------------------------------*/
 
- bool is_linear() const override;
+ bool is_linear( void ) const override;
 
 /*--------------------------------------------------------------------------*/
 
- void compute_hessian_approximation() override {};
+ void compute_hessian_approximation( void ) override { };
 
 /*--------------------------------------------------------------------------*/
 
@@ -388,103 +423,74 @@ class DQuadFunction : public C15Function {
 
 /*--------------------------------------------------------------------------*/
 
- bool is_continuously_differentiable() const final { return true; }
+ bool is_continuously_differentiable( void ) const final { return( true ); }
 
 /*--------------------------------------------------------------------------*/
 
- bool is_twice_continuously_differentiable() const final { return true; }
+ bool is_twice_continuously_differentiable( void ) const final {
+  return( true );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the linearization coefficient of the i-th active Variable
+
+ double get_linearization_coefficient( c_Index i )
+ {
+  return( 2 * std::get<0>( v_triples[ i ] )->get_value() *
+	  std::get<2>( v_triples[ i ] ) + std::get<1>( v_triples[ i ] ) );
+  }
 
 /*--------------------------------------------------------------------------*/
 
-/// Returns the linearization coefficient of the i-th active Variable
- virtual double get_linearization_coefficient( c_Index i ) const;
-
-/*--------------------------------------------------------------------------*/
-
- /// get an arbitrary subset of linearization coefficients
- /** Like get_linearization_coefficients( FunctionValue *g , name ,
-  * ... ) but without the name, because a DQuadFunction only have one
-  * linearization. */
-
- void get_linearization_coefficients( FunctionValue * g,
-                                      c_Vec_Index & indices,
-                                      c_Index start,
-                                      c_Index end ) const;
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// get a range of linearization coefficients
- /** Like get_linearization_coefficients( FunctionValue * g , name ,
-  * ... ) but without the name, because a DQuadFunction only have one
-  * linearization, and without the arbitrary subset. */
-
- void get_linearization_coefficients( FunctionValue * g,
-                                      c_Index start,
-                                      c_Index end ) const;
+ void get_linearization_coefficients( FunctionValue * g ,
+			   Range range = std::make_pair( 0 , Inf<Index>() ) ,
+				      Index name = Inf<Index>() ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- void get_linearization_coefficients( FunctionValue * g,
-                                      Index name,
-                                      c_Vec_Index & indices,
-                                      c_Index start,
-                                      Index end ) final;
+ void get_linearization_coefficients( SparseVector & g ,
+			   Range range = std::make_pair( 0 , Inf<Index>() ) ,
+				      Index name = Inf<Index>() ) override;
 
 /*--------------------------------------------------------------------------*/
 
- void get_linearization_coefficients( SparseVector & g,
-                                      Index name,
-                                      c_Vec_Index & indices,
-                                      c_Index start,
-                                      Index end ) final;
+ void get_linearization_coefficients( FunctionValue * g , c_Subset & subset  ,
+				      Index name = Inf<Index>() ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ void get_linearization_coefficients( SparseVector & g ,
+				      c_Vec_Index & subset ,
+				      Index name = Inf<Index>() ) override;
 
 /*--------------------------------------------------------------------------*/
- /** There is only one linearization in a DQuadFunction. The value of the
-  * linearization constant for this diagonal quadratic function is
-  * given by c - x'Ax. */
+ /// returns the linearization constant of the current point
+ /** Since DQuadFunction currently does not support the global pool, the
+  * method only works for returning the value of the linearization constant
+  * at the current point x, which is given by c - x^T A x. */
 
- double get_linearization_constant( const Index name ) override {
-  double quadratic_term = 0.0;
+ FunctionValue get_linearization_constant( Index name = Inf<Index>() ) final
+ {
+  if( name < Inf<Index>() )
+   throw( std::invalid_argument(
+			"global pool not supported yet by DQuadFunction" ) );
+
+  FunctionValue quadratic_term = 0.0;
 
   for( const auto & triple : v_triples ) {
    auto variable_value = std::get< 0 >( triple )->get_value();
    auto quadratic_coefficient_value = std::get< 2 >( triple );
    quadratic_term += variable_value * quadratic_coefficient_value *
                      quadratic_coefficient_value;
-  }
+   }
 
-  return this->f_constant_term - quadratic_term;
+ return( this->f_constant_term - quadratic_term );
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  ///< Returns the value of the constant term of this DQuadFunction.
 
- FunctionValue get_constant_term() const { return f_constant_term; }
-
-/*--------------------------------------------------------------------------*/
- /// returns the Coefficient in the linear term of the i-th Variable
- /** This method returns the Coefficient, in the linear term, of the
-  * i-th Variable of this diagonal quadratic function. The index i
-  * must be between 0 and get_num_active_var() - 1.
-  *
-  * @param i Index of the Variable whose coefficient is desired.
-  */
-
- virtual Coefficient get_linear_coefficient( c_Index i ) const {
-  return std::get< 1 >( *( v_triples.begin() + i ) );
- }
-
-/*--------------------------------------------------------------------------*/
- /// returns the Coefficient in the quadratic term of the i-th Variable
- /** This method returns the Coefficient, in the quadratic term, of
-  * the i-th Variable of this diagonal quadratic function. The index i
-  * must be between 0 and get_num_active_var() - 1.
-  *
-  * @param i Index of the Variable whose coefficient is desired.
-  */
-
- virtual Coefficient get_quadratic_coefficient( c_Index i ) const {
-  return std::get< 2 >( *( v_triples.begin() + i ) );
- }
+ FunctionValue get_constant_term( void ) const { return( f_constant_term ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
@@ -497,10 +503,8 @@ class DQuadFunction : public C15Function {
   * "listens to no-one"; hence, the implementation of get_ComputeConfig() is
   * quite a trivial one. */
 
- ComputeConfig * get_ComputeConfig( bool all,
-                                    ComputeConfig * ocfg ) const final {
-  return nullptr;
- }
+ ComputeConfig * get_ComputeConfig( bool all , ComputeConfig * ocfg )
+  const final { return( nullptr ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE DQuadFunction --------*/
@@ -510,63 +514,54 @@ class DQuadFunction : public C15Function {
  * vector v_triples of triples.
  * @{ */
 
- Index get_num_active_var() const final {
-  return v_triples.size();
- }
+ Index get_num_active_var() const final { return( v_triples.size() ); }
 
 /*--------------------------------------------------------------------------*/
 
- Index is_active( const Variable * const var ) const final {
-
-  auto idx = std::lower_bound( v_triples.begin(),
-                               v_triples.end(),
-                               std::make_tuple( var, 0, 0 ),
-                               []( const auto & p1, const auto & p2 ) {
-                                return std::get< 0 >( p1 ) <
-                                       std::get< 0 >( p2 );
-                               } );
-
-  if( idx < v_triples.end() )
-   return std::distance( idx, v_triples.begin() );
-  else
-   return std::numeric_limits< Index >::infinity();
- }
+ Index is_active( const Variable * const var ) const final
+ {
+  auto idx = std::find( v_pairs.begin() , v_pairs.end() ,
+			[ & var ]( const auto p ) {
+			 return(  std::get< 0 >( p ) == var );
+			 } );
+  return( idx < v_triples.end() ? std::distance( v_triples.begin(), idx )
+	                        : Inf< Index >() );
+  }
 
 /*--------------------------------------------------------------------------*/
 
- void map_active( c_Vec_p_Var & vars,
-                  Vec_Index & map,
-                  bool ordered ) const final;
+ void map_active( c_Vec_p_Var & vars , Vec_Index & map , bool ordered )
+  const final;
 
 /*--------------------------------------------------------------------------*/
 
- Variable * get_active_var( const Index i ) const override {
-  return std::get< 0 >( *( v_triples.begin() + i ) );
- }
+ Variable * get_active_var( const Index i ) const final {
+  return( std::get< 0 >( v_triple[ i ] ) );
+  }
 
 /*--------------------------------------------------------------------------*/
 
- v_iterator * v_begin() final {
-  return new DQuadFunction::v_iterator( v_triples.begin() );
- }
+ v_iterator * v_begin( void ) final {
+  return( new DQuadFunction::v_iterator( v_triples.begin() ) );
+  }
 
 /*--------------------------------------------------------------------------*/
 
- v_const_iterator * v_begin() const final {
-  return new DQuadFunction::v_const_iterator( v_triples.begin() );
- }
+ v_const_iterator * v_begin( void ) const final {
+  return( new DQuadFunction::v_const_iterator( v_triples.begin() ) );
+  }
 
 /*--------------------------------------------------------------------------*/
 
- v_iterator * v_end() final {
-  return new DQuadFunction::v_iterator( v_triples.end() );
- }
+ v_iterator * v_end( void ) final {
+  return( new DQuadFunction::v_iterator( v_triples.end() ) );
+  }
 
 /*--------------------------------------------------------------------------*/
 
- v_const_iterator * v_end() const final {
-  return new DQuadFunction::v_const_iterator( v_triples.end() );
- }
+ v_const_iterator * v_end( void ) const final {
+  return( new DQuadFunction::v_const_iterator( v_triples.end() ) );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------- METHODS FOR MODIFYING THE DQuadFunction -------------------*/
@@ -593,7 +588,7 @@ class DQuadFunction : public C15Function {
   * issued, as described in Observer::make_par(). Note that a diagonal
   * quadratic function is additive, and therefore strongly quasi-additive. */
 
- void add_variables( v_var_coeff_coeff_triple && vars ,
+ void add_variables( v_coeff_triple && vars ,
                      bool ordered = false , c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -648,7 +643,7 @@ class DQuadFunction : public C15Function {
   * The parameter issueMod decides if and how the C05FunctionModSbst is
   * issued, as described in Observer::make_par(). */
 
- void modify_terms( v_var_coeff_coeff_triple && vars ,
+ void modify_terms( v_coeff_triple && vars ,
                     bool ordered = false , c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -690,7 +685,7 @@ class DQuadFunction : public C15Function {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify a set of existing quadratic terms
- /** Like modify_terms( v_var_coeff_coeff_triple * ), but takes in input a
+ /** Like modify_terms( v_coeff_triple * ), but takes in input a
   * set of index of the Variable whose coefficients need be modified,
   * together with (an iterator into) the vector of new coefficient values.
   * The coefficients come as pairs, the first element being the coefficient
@@ -854,7 +849,7 @@ class DQuadFunction : public C15Function {
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
- v_var_coeff_coeff_triple v_triples;
+ v_coeff_triple v_triples;
  /**< vector of triples (ColVariable *, Coefficient, Coefficient)
   * characterizing the linear and the diagonal quadratic terms of the
   * function; the vector is kept sorted in an ascending order based on
@@ -875,7 +870,7 @@ class DQuadFunction : public C15Function {
 
 /*--------------------------------------------------------------------------*/
 
- void issue_add_variables_modification( v_var_coeff_coeff_triple & triples,
+ void issue_add_variables_modification( v_coeff_triple & triples,
                                         c_ModParam issueMod );
 
 /*--------------------------------------------------------------------------*/

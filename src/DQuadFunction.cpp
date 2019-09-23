@@ -44,8 +44,8 @@ int DQuadFunction::compute( bool changedvars )
 {
  if( changedvars ) {
   f_value = f_constant_term;  // value of the function
-  for( const auto &triple : v_triples ) {
-   auto variable_value = std::get<0>(triple)->get_value();
+  for( const auto & triple : v_triples ) {
+   auto variable_value = std::get<0>( triple )->get_value();
    f_value += variable_value * ( std::get<1>(triple) +
 				 std::get<2>(triple) * variable_value );
    }
@@ -58,7 +58,7 @@ int DQuadFunction::compute( bool changedvars )
 
 bool DQuadFunction::is_convex( void ) const
 {
- for( const auto &triple : v_triples )
+ for( const auto & triple : v_triples )
   if( std::get<2>( triple ) < 0 )
    return( false );
 
@@ -69,8 +69,8 @@ bool DQuadFunction::is_convex( void ) const
 
 bool DQuadFunction::is_concave( void ) const
 {
- for( const auto &triple : v_triples )
-  if( std::get<2>(triple) > 0 )
+ for( const auto & triple : v_triples )
+  if( std::get<2>( triple ) > 0 )
    return( false );
 
  return( true );
@@ -80,8 +80,8 @@ bool DQuadFunction::is_concave( void ) const
 
 bool DQuadFunction::is_linear( void ) const
 {
- for( const auto &triple : v_triples )
-  if( std::get<2>(triple) != 0 )
+ for( const auto & triple : v_triples )
+  if( std::get<2>( triple ) != 0 )
    return( false );
 
  return( true );
@@ -121,95 +121,93 @@ void DQuadFunction::get_hessian_approximation( DenseHessian &hessian ) const
 
 /*--------------------------------------------------------------------------*/
 
-double DQuadFunction::get_linearization_coefficient( c_Index i ) const
-{
- if( ( i < 0 ) || ( i >= v_triples.size() ) )
-  throw( std::invalid_argument( "wrong index in "
-	                  "DQuadFunction::get_linearization_coefficient" ) );
-
- return( 2 * std::get<0>( v_triples[ i ] )->get_value() *
-	 std::get<2>( v_triples[ i ] ) + std::get<1>( v_triples[ i ] ) );
- }
-
-/*--------------------------------------------------------------------------*/
-
 void DQuadFunction::get_linearization_coefficients( FunctionValue * g ,
-		c_Vec_Index & indices ,  c_Index start , c_Index end ) const
+						    Range range ,
+						    Index name )
 {
- c_Index tend = std::min( end , get_num_active_var() );
- for( const auto & i : indices )
-  if( ( i >= start ) && ( i < tend ) )
-    *(g++) = get_linearization_coefficient( i );
- }
+ range.second = std::min( end , get_num_active_var() );
+ if( range.second <= range.first )
+  return( 0 );
 
-/*--------------------------------------------------------------------------*/
-
-void DQuadFunction::get_linearization_coefficients( FunctionValue * g ,
-					  c_Index start , c_Index end ) const
-{
- c_Index tend = std::min( end , get_num_active_var() );
- for( Index i = start ; i < tend ; i++ )
-    g[ i - start ] = get_linearization_coefficient( i );
- }
-
-/*--------------------------------------------------------------------------*/
-
-void DQuadFunction::get_linearization_coefficients( FunctionValue * g ,
-	 const Index name , c_Vec_Index & indices ,
-	 const Index start , const Index end )
-{
- if( indices.size() )
-  get_linearization_coefficients( g , indices , start , end );
- else
-  get_linearization_coefficients( g , start , end );
+ for( Index i = range.first ; i < range.second ; i++ )
+  *(g++) = get_linearization_coefficient( i );
  }
 
 /*--------------------------------------------------------------------------*/
 
 void DQuadFunction::get_linearization_coefficients( SparseVector & g ,
-	 const Index name , c_Vec_Index & indices,
-     c_Index start , c_Index end )
+						    Range range ,
+						    Index name )
 {
  c_Index num_active_var = get_num_active_var();
- c_Index tend = std::min( end , num_active_var );
- if( tend <= start )
-  return;
+ range.second = std::min( end , num_active_var );
+ if( range.second <= range.first )
+  return( 0 );
 
  if( g.nonZeros() == 0 ) {  // the given vector contains no non-zero element
 
   if( g.size() < num_active_var )
    g.resize( num_active_var );
 
-  g.reserve( tend - start );
+  g.reserve( range.second - range.first );
 
-  if( indices.size() ) {
-   for( const auto & i : indices )
-     if( ( i >= start ) && ( i < tend ) ) {
-       g.insert( i ) = get_linearization_coefficient( i );
-     }
-   }
-  else
-    for( Index i = start ; i < tend ; ++i ) {
-      g.insert( i ) = get_linearization_coefficient( i );
-    }
+  for( Index i = range.first ; i < range.second ; ++i )
+   g.insert( i ) = get_linearization_coefficient( i );
   }
  else {                  // The given vector contains some non-zero elements
   if( g.size() != num_active_var )
-   throw( std::invalid_argument(
-	    "DQuadFunction::get_linearization_coefficients: "
-	    "the size of the sparse vector must be equal to the number "
-	    "of active Variables of the Function" ) );
+   throw( std::invalid_argument( "wrong size of nonempty SparseVector g" ) );
 
-  if( indices.size() ) {
-   for( const auto & i : indices )
-    if( ( i >= start ) && ( i < tend ) )
-     g.coeffRef( i ) = get_linearization_coefficient( i );
-   }
-  else
-   for( Index i = start ; i < tend ; ++i )
-    g.coeffRef( i ) = get_linearization_coefficient( i );
+  for( Index i = range.first ; i < range.second ; ++i )
+   g.coeffRef( i ) = get_linearization_coefficient( i );
   }
- }  // end( DQuadFunction::get_linearization_coefficients( SparseVector ) )
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void DQuadFunction::get_linearization_coefficients( FunctionValue * g ,
+						    c_Subset & subset ,
+						    Index name )
+{
+ for( const auto & i : indices ) {
+  if( i >= get_num_active_var() )
+   throw( std::invalid_argument( "wrong index in subset" ) );
+  *(g++) = get_linearization_coefficient( i );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void DQuadFunction::get_linearization_coefficients( SparseVector & g ,
+						    c_Subset & subset ,
+						    Index name )
+{
+ c_Index num_active_var = get_num_active_var();
+
+ if( g.nonZeros() == 0 ) {  // the given vector contains no non-zero element
+
+  if( g.size() < num_active_var )
+   g.resize( num_active_var );
+
+  g.reserve( range.second - range.first );
+
+  for( const auto & i : indices ) {
+   if( i >= num_active_var )
+    throw( std::invalid_argument( "wrong index in subset" ) );
+   g.insert( i ) = get_linearization_coefficient( i );
+   }
+  }
+ else {                  // The given vector contains some non-zero elements
+  if( g.size() != num_active_var )
+   throw( std::invalid_argument( "wrong size of nonempty SparseVector g" ) );
+
+  for( const auto & i : indices ) {
+   if( i >= num_active_var )
+    throw( std::invalid_argument( "wrong index in subset" ) );
+   g.coeffRef( i ) = get_linearization_coefficient( i );
+   }
+  }
+ }
 
 /*--------------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE DQuadFunction --------*/
@@ -218,41 +216,35 @@ void DQuadFunction::get_linearization_coefficients( SparseVector & g ,
 void DQuadFunction::map_active( c_Vec_p_Var & vars , Vec_Index & map ,
 				const bool ordered ) const
 {
- if( ! vars.size() )
+ if( vars.empty() )
   return;
-
- if( ! ordered ) {
-  ThinVarDepInterface::map_active( vars , map );
-  return;
-  }
 
  if( map.size() < vars.size() )
-  map.resize( vars.size() );
+   map.resize( vars.size() );
 
- auto itvb = vars.begin();
- auto itvv = std::lower_bound( v_triples.begin() , v_triples.end() ,
-			       std::make_tuple( *itvb , 0 , 0 ) ,
-                               []( const auto & p1 , const auto & p2 ) {
-				 return( std::get<0>( p1 ) < std::get<0>( p2 ) );
-			        }
-			       );
- auto itve = std::upper_bound( itvv , v_triples.end() ,
-			       std::make_tuple( *(--vars.end()) , 0 , 0 ) ,
-			       []( const auto & p1 , const auto & p2 ) {
-				 return( std::get<0>( p1 ) < std::get<0>( p2 ) );
-			        }
-			       );
- auto itm = map.begin();
- while( itvb < vars.end() ) {
-  if( itvv >= itve )
-   throw( std::invalid_argument( "some Variable is not active" ) );
-
-  *(itm++) = std::distance( v_triples.begin() , itvv );
-  itvv = std::lower_bound( itvv , itve , std::make_tuple( *(++itvb) , 0 , 0 ) ,
-			   []( const auto & p1, const auto & p2 ) {
-			     return( std::get<0>( p1 ) < std::get<0>( p2 ) );
-			    }
-			   );
+ if( ordered ) {
+  Index found = 0;
+  for( Index i = 0 ; i < v_triples.size() ; ++i ) {
+   auto itvi = std::lower_bound( vars.begin() , vars.end() ,
+				 std::get<0>( v_triples[ i ] ) );
+   if( itvi != vars.end() ) {
+    map[ std::distance( vars.begin() , itvi ) ] = i;
+    ++found;
+    }
+   }
+  if( found < vars.size() )
+   throw( std::invalid_argument( "map_active: some Variable is not active" )
+	  );
+  }
+ else {
+  auto it = map.begin();
+  for( auto var : vars ) {
+   Index i = DQuadFunction::::is_active( var );
+   if( i >= v_triples.size() )
+    throw( std::invalid_argument( "map_active: some Variable is not active" )
+	   );
+   *(it++) = i;
+   }
   }
  }  // end( DQuadFunction::map_active )
 
@@ -260,7 +252,7 @@ void DQuadFunction::map_active( c_Vec_p_Var & vars , Vec_Index & map ,
 /*-------------- METHODS FOR MODIFYING THE DQuadFunction -------------------*/
 /*--------------------------------------------------------------------------*/
 
-void DQuadFunction::add_variables( v_var_coeff_coeff_triple && vars ,
+void DQuadFunction::add_variables( v_coeff_triple && vars ,
 				   const bool ordered , c_ModParam issueMod )
 {
  if( vars.empty() )  // actually nothing to add
@@ -268,8 +260,8 @@ void DQuadFunction::add_variables( v_var_coeff_coeff_triple && vars ,
 
  if( ! ordered )
   std::sort( vars.begin() , vars.end() ,
-	     []( const var_coeff_coeff_triple & x ,
-		 const var_coeff_coeff_triple & y ) {
+	     []( const coeff_triple & x ,
+		 const coeff_triple & y ) {
 	       return( std::get<0>( x ) < std::get<0>( y ) );
 	     }
 	     );
@@ -281,7 +273,7 @@ void DQuadFunction::add_variables( v_var_coeff_coeff_triple && vars ,
    issue_add_variables_modification( v_triples , issueMod );
   }
  else {                         // adding to a nonempty set
-  v_var_coeff_coeff_triple join( vars.size() + v_triples.size() );
+  v_coeff_triple join( vars.size() + v_triples.size() );
   auto newit = vars.begin();
   auto oldit = v_triples.begin();
   auto joinit = join.begin();
@@ -326,8 +318,8 @@ void DQuadFunction::add_variable( ColVariable * const var ,
  else {                     // adding to a nonempty set
   // search where the variable lives
   auto itv = std::lower_bound( v_triples.begin() , v_triples.end() , triple ,
-			       []( const var_coeff_coeff_triple &a ,
-				   const var_coeff_coeff_triple &b )
+			       []( const coeff_triple &a ,
+				   const coeff_triple &b )
 			       { return( std::get<0>( a ) < std::get<0>( b ) );
 			       } );
   if( itv != v_triples.end() ) {  // in the middle of the list
@@ -436,7 +428,7 @@ void DQuadFunction::modify_linear_coefficient( ColVariable * const var,
 
 /*--------------------------------------------------------------------------*/
 
-void DQuadFunction::modify_terms( v_var_coeff_coeff_triple && vars,
+void DQuadFunction::modify_terms( v_coeff_triple && vars,
                                   const bool ordered,
                                   c_ModParam issueMod ) {
  if( vars.empty() )  // actually nothing to modify
@@ -447,8 +439,8 @@ void DQuadFunction::modify_terms( v_var_coeff_coeff_triple && vars,
 
  if( !ordered )
   std::sort( vars.begin(), vars.end(),
-             []( const var_coeff_coeff_triple & x,
-                 const var_coeff_coeff_triple & y ) {
+             []( const coeff_triple & x,
+                 const coeff_triple & y ) {
               return ( std::get< 0 >( x ) < std::get< 0 >( y ) );
              }
   );
@@ -523,7 +515,7 @@ void DQuadFunction::modify_linear_coefficients( Vec_FunctionValue && NCoef,
    auto var = vars[ i ];
    itv = std::lower_bound( itv, v_triples.end(),
                            var,
-                           []( const var_coeff_coeff_triple & p,
+                           []( const coeff_triple & p,
                                const Variable * v ) {
                             return ( std::get< 0 >( p ) < v );
                            } );
@@ -541,7 +533,7 @@ void DQuadFunction::modify_linear_coefficients( Vec_FunctionValue && NCoef,
    auto var = vars[ i ];
    itv = std::lower_bound( itv, v_triples.end(),
                            var,
-                           []( const var_coeff_coeff_triple & p,
+                           []( const coeff_triple & p,
                                const Variable * v ) {
                             return ( std::get< 0 >( p ) < v );
                            } );
@@ -657,7 +649,7 @@ void DQuadFunction::remove_variable( Variable * var, c_ModParam issueMod ) {
  // search where the variable lives
  auto itv = std::lower_bound( v_triples.begin(), v_triples.end(),
                               var,
-                              []( const var_coeff_coeff_triple & p,
+                              []( const coeff_triple & p,
                                   const Variable * v ) {
                                return ( std::get< 0 >( p ) < v );
                               } );
@@ -827,7 +819,7 @@ void DQuadFunction::set_constant_term( const FunctionValue constant_term  ,
 /*--------------------------------------------------------------------------*/
 
 void DQuadFunction::issue_add_variables_modification
-( v_var_coeff_coeff_triple & triples , c_ModParam issueMod ) {
+( v_coeff_triple & triples , c_ModParam issueMod ) {
 
  Vec_p_Var vars( triples.size() );
  for( Index i = 0 ; i < triples.size() ; ++i )

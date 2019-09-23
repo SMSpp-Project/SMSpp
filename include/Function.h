@@ -160,7 +160,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
  using c_FunctionValue = const FunctionValue;  ///< a const FunctionValue
 
  /// a std::vector of FunctionValue
- using Vec_FunctionValue = std::vector< FunctionValue >
+ using Vec_FunctionValue = std::vector< FunctionValue >;
 
  using c_Vec_FunctionValue = const Vec_FunctionValue;
  ///< a const Vec_FunctionValue
@@ -740,7 +740,7 @@ public:
  using c_Range = const Range;  ///< a const Range
 
  /// "import" Vec_Index as Subset (equivalent to Block::Subset) from Function
- using Subset = FunctionModVars::Vec_Index;
+ using Subset = Function::Vec_Index;
 
  using c_Subset = const Subset;  ///< a const Subset
 
@@ -1017,7 +1017,7 @@ public:
  using c_Range = const Range;  ///< a const Range
 
  /// "import" Vec_Index as Subset (equivalent to Block::Subset) from Function
- using Subset = FunctionModVars::Vec_Index;
+ using Subset = Function::Vec_Index;
 
  using c_Subset = const Subset;  ///< a const Subset
 
@@ -1113,7 +1113,7 @@ public:
   * to understand what has happened, rather than going through the problem of
   * "catching" each of the derived classes individually. */
 
- virtual bool added( void ) = 0;
+ virtual bool added( void ) const = 0;
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1234,7 +1234,7 @@ public:
  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method telling that the Variables have been added
 
- virtual bool added( void ) override { return( true ); }
+ virtual bool added( void ) const override { return( true ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1340,7 +1340,7 @@ public:
  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method telling that the Variables have been removed
 
- virtual bool added( void ) override { return( false ); }
+ virtual bool added( void ) const override { return( false ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1445,7 +1445,7 @@ public:
  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method telling that the Variables have been removed
 
- virtual bool added( void ) override { return( false ); }
+ virtual bool added( void ) const override { return( false ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 

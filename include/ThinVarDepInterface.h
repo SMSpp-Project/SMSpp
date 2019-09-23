@@ -499,8 +499,8 @@ class ThinVarDepInterface {
  /// returns the set of indices of a given set "active" Variable
  /** Given in vars a set of (pointers to) Variable that are "active" in the
   * ThinVarDepInterface, returns the set of their indices in map; that is,
-  * map[ i ] will contain the index of var[ i ]. If map has size < vars then
-  * it is resized, otherwise it is not changed (which means that only its
+  * map[ i ] will contain the index of var[ i ]. If map.size() < vars.size()
+  * then map is resized, otherwise it is not changed (which means that only its
   * first vars.size() are changed, the others being left untouched). If any
   * of the Variable in vars is not "active" in the ThinVarDepInterface, an
   * exception is thrown.
@@ -508,25 +508,58 @@ class ThinVarDepInterface {
   * The parameter ordered tells if vars is ordered by increasing name =
   * pointer.
   *
-  * This method is not pure virtual: the base ThinVarDepInterface provides a
-  * trivial implementation using repeated calls to is_active(). However, the
-  * method is virtual, so that derived classes may provide more efficient
-  * implementations exploiting properties of their specific data structures.
-  * Doing so might require ordered to be true (which is not true for the
-  * base class implementation). */
+  * This method is not pure virtual: the base ThinVarDepInterface provides 
+  * *two* implementations, selected by the value of ordered:
+  *
+  * - if ordered == false, the map is constructed by repeated calls to
+  *   is_active(); this is at worst O( vars.size() * get_num_active_var() ),
+  *   if is_active() has a trivial  O( get_num_active_var() ) implementation;
+  *
+  * - if ordered == true, the map is rather constructed by sifting through the
+  *   list of "active" Variable and looking each up imn vars(), which has
+  *   O( log( vars.size() ) * get_num_active_var() ) complexity if
+  *   get_active_var() is O( 1 ).
+  *
+  * However, the method is virtual, so that derived classes may provide more
+  * efficient implementations exploiting properties of their specific data
+  * structures (say, the set of "active" Variable has an ordered map, and
+  * ordered == true). Furthermore, note that nothing is preventing a user to
+  * set ordered == false even if vars is actually ordered to choose the
+  * implementation (if the one of the base class is used) if it is for any
+  * reason preferable to do so. */
 
  virtual void map_active( const std::vector<Variable *> & vars ,
 			  Vec_Index & map , const bool ordered = false ) const
  {
-  if( map.size() < vars.size() )
+  if( vars.empty() )
+  return;
+
+ if( map.size() < vars.size() )
    map.resize( vars.size() );
 
-  auto it = map.begin();
-  for( auto var : vars ) {
-   Index i = is_active( var );
-   if( i >= get_num_active_var() )
-    throw( std::invalid_argument( "not an active Variable" ) );
-   *(it++) = i;
+  if( ordered ) {
+   Index found = 0;
+   for( Index i = 0 ; i < get_num_active_var() ; ++i ) {
+    auto vi = get_active_var( i );
+    auto itvi = std::lower_bound( vars.begin() , vars.end() , vi );
+    if( itvi != vars.end() ) {
+     map[ std::distance( vars.begin() , itvi ) ] = i;
+     ++found;
+     }
+    }
+   if( found < vars.size() )
+     throw( std::invalid_argument( "map_active: some Variable is not active" )
+	    );
+   }
+  else {
+   auto it = map.begin();
+   for( auto var : vars ) {
+    Index i = is_active( var );
+    if( i >= get_num_active_var() )
+     throw( std::invalid_argument( "map_active: some Variable is not active" )
+	    );
+    *(it++) = i;
+    }
    }   
   }
 

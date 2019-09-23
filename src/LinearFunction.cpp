@@ -29,7 +29,9 @@
 /*--------------------------------------------------------------------------*/
 
 #include "SMSTypedefs.h"
+
 #include "LinearFunction.h"
+
 #include <math.h>
 
 /*--------------------------------------------------------------------------*/
@@ -82,77 +84,92 @@ void LinearFunction::get_hessian_approximation( DenseHessian &hessian ) const
 /*--------------------------------------------------------------------------*/
 
 void LinearFunction::get_linearization_coefficients( FunctionValue * g ,
-	c_Vec_Index & indices ,  c_Index start , c_Index end ) const
+						     Range range ,
+						     Index name )
 {
- c_Index tend = std::min( end , get_num_active_var() );
- for( const auto & i : indices )
-  if( ( i >= start ) && ( i < tend ) )
-   *(g++) = v_pairs[ i ].second;
- }
+ range.second = std::min( end , get_num_active_var() );
+ if( range.second <= range.first )
+  return( 0 );
 
-/*--------------------------------------------------------------------------*/
-
-void LinearFunction::get_linearization_coefficients( FunctionValue * g ,
-					  c_Index start , c_Index end ) const
-{
- c_Index tend = std::min( end , get_num_active_var() );
- for( Index i = start ; i < tend ; i++ )
-  g[ i - start ] = v_pairs[ i ].second;
- }
-
-/*--------------------------------------------------------------------------*/
-
-void LinearFunction::get_linearization_coefficients( FunctionValue * g ,
-	const Index name ,
-	c_Vec_Index & indices  , const Index start , const Index end )
-{
- if( indices.size() )
-  get_linearization_coefficients( g , indices , start , end );
- else
-  get_linearization_coefficients( g , start , end );
+ for( Index i = range.first ; i < range.second ; i++ )
+  *(g++) = v_pairs[ i ].second;
  }
 
 /*--------------------------------------------------------------------------*/
 
 void LinearFunction::get_linearization_coefficients( SparseVector & g ,
-	 const Index name , c_Vec_Index & indices ,
-     c_Index start , c_Index end )
+						     Range range ,
+						     Index name )
 {
  c_Index num_active_var = get_num_active_var();
- c_Index tend = std::min( end , num_active_var );
- if( tend <= start )
-  return;
+ range.second = std::min( end , num_active_var );
+ if( range.second <= range.first )
+  return( 0 );
 
  if( g.nonZeros() == 0 ) {  // the given vector contains no non-zero element
 
   if( g.size() < num_active_var )
    g.resize( num_active_var );
 
-  g.reserve( tend - start );
+  g.reserve( range.second - range.first );
 
-  if( indices.size() ) {
-   for( const auto & i : indices )
-    if( ( i >= start ) && ( i < tend ) )
-     g.insert( i ) = v_pairs[ i ].second;
-   }
-  else
-   for( Index i = start ; i < tend ; ++i )
-    g.insert( i ) = v_pairs[ i ].second;
+  for( Index i = range.first ; i < range.second ; ++i )
+   g.insert( i ) = v_pairs[ i ].second;
   }
  else {                  // The given vector contains some non-zero elements
   if( g.size() != num_active_var )
    throw( std::invalid_argument( "wrong size of nonempty SparseVector g" ) );
 
-  if( indices.size() ) {
-   for( const auto & i : indices )
-    if( ( i >= start ) && ( i < tend ) )
-     g.coeffRef( i ) = v_pairs[ i ].second;
-   }
-  else
-   for( Index i = start ; i < tend ; ++i )
-    g.coeffRef( i ) = v_pairs[ i ].second;
+  for( Index i = range.first ; i < range.second ; ++i )
+   g.coeffRef( i ) = v_pairs[ i ].second;
   }
- }  // end( LinearFunction::get_linearization_coefficients( SparseVector ) )
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void LinearFunction::get_linearization_coefficients( FunctionValue * g ,
+						     c_Subset & subset ,
+						     Index name )
+{
+ for( const auto & i : indices ) {
+  if( i >= get_num_active_var() )
+   throw( std::invalid_argument( "wrong index in subset" ) );
+  *(g++) = v_pairs[ i ].second;
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void LinearFunction::get_linearization_coefficients( SparseVector & g ,
+						     c_Subset & subset ,
+						     Index name )
+{
+ c_Index num_active_var = get_num_active_var();
+
+ if( g.nonZeros() == 0 ) {  // the given vector contains no non-zero element
+
+  if( g.size() < num_active_var )
+   g.resize( num_active_var );
+
+  g.reserve( range.second - range.first );
+
+  for( const auto & i : indices ) {
+   if( i >= num_active_var )
+    throw( std::invalid_argument( "wrong index in subset" ) );
+   g.insert( i ) = v_pairs[ i ].second;
+   }
+  }
+ else {                  // The given vector contains some non-zero elements
+  if( g.size() != num_active_var )
+   throw( std::invalid_argument( "wrong size of nonempty SparseVector g" ) );
+
+  for( const auto & i : indices ) {
+   if( i >= num_active_var )
+    throw( std::invalid_argument( "wrong index in subset" ) );
+   g.coeffRef( i ) = v_pairs[ i ].second;
+   }
+  }
+ }
 
 /*--------------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE LinearFunction -------*/
@@ -161,41 +178,35 @@ void LinearFunction::get_linearization_coefficients( SparseVector & g ,
 void LinearFunction::map_active( c_Vec_p_Var & vars , Vec_Index & map ,
 				 const bool ordered ) const
 {
- if( ! vars.size() )
+ if( vars.empty() )
   return;
-
- if( ! ordered ) {
-  ThinVarDepInterface::map_active( vars , map );
-  return;
-  }
 
  if( map.size() < vars.size() )
-  map.resize( vars.size() );
+   map.resize( vars.size() );
 
- auto itvb = vars.begin();
- auto itvv = std::lower_bound( v_pairs.begin() , v_pairs.end() ,
-                               std::make_pair( *itvb , 0 ) ,
-                               []( const auto & p1 , const auto & p2 ) {
-				return( p1.first < p2.first );
-			        }
-			       );
- auto itve = std::upper_bound( itvv , v_pairs.end() ,
-			       std::make_pair( *(--vars.end()) , 0 ) ,
-			       []( const auto & p1 , const auto & p2 ) {
-				return( p1.first < p2.first );
-			        }
-			       );
- auto itm = map.begin();
- while( itvb < vars.end() ) {
-  if( itvv >= itve )
-   throw( std::invalid_argument( "some Variable is not active" ) );
-
-  *(itm++) = std::distance( v_pairs.begin() , itvv );
-  itvv = std::lower_bound( itvv , itve , std::make_pair( *(++itvb) , 0 ) ,
-			   []( const auto & p1, const auto & p2 ) {
-			    return( p1.first < p2.first );
-			    }
-			   );
+ if( ordered ) {
+  Index found = 0;
+  for( Index i = 0 ; i < v_pairs.size() ; ++i ) {
+   auto itvi = std::lower_bound( vars.begin() , vars.end() ,
+				 v_pairs[ i ].first );
+   if( itvi != vars.end() ) {
+    map[ std::distance( vars.begin() , itvi ) ] = i;
+    ++found;
+    }
+   }
+  if( found < vars.size() )
+   throw( std::invalid_argument( "map_active: some Variable is not active" )
+	  );
+  }
+ else {
+  auto it = map.begin();
+  for( auto var : vars ) {
+   Index i = LinearFunction::::is_active( var );
+   if( i >= v_pairs.size() )
+    throw( std::invalid_argument( "map_active: some Variable is not active" )
+	   );
+   *(it++) = i;
+   }
   }
  }  // end( LinearFunction::map_active )
 
