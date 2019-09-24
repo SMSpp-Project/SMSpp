@@ -1,16 +1,78 @@
-# ----- Project description and directories ------------------------------------
+# ----- Project definition and directories -------------------------------------
 cmake_minimum_required(VERSION 3.8)
 project(SMS++
         VERSION 1.0.0 # TODO: set proper version
-        HOMEPAGE_URL "https://gitlab.com/frangio68/sms_plus_plus"
-        DESCRIPTION "SMS++ main library")
+        )
 
 set(PROJECT_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(PROJECT_SOURCE_DIR  ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
+# This is to find the Find***.cmake modules we provide
+list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+
 # ----- Requirements -----------------------------------------------------------
+include(CMakeConfig.txt)
+
+# FindBoost is provided with CMake so this should never fail.
+# It already supports BOOST_ROOT as HINT.
 find_package(Boost REQUIRED)
+
+# We provide FindEigen3 so this should never fail.
+# It already supports EIGEN3_ROOT as HINT.
 find_package(Eigen3 REQUIRED)
+
+# FindEigen3 may not be installed, so we give the option
+# to override it by setting EIGEN3_ROOT.
+#if (EIGEN3_ROOT)
+#    # EIGEN3_INCLUDE_DIRS is enough because it is a header-only library
+#    find_path(EIGEN3_INCLUDE_DIRS Eigen/Dense
+#              PATHS ${EIGEN3_ROOT}
+#              NO_DEFAULT_PATH)
+#
+#    if (NOT EIGEN3_INCLUDE_DIRS)
+#        message(FATAL_ERROR "Eigen not found in ${EIGEN3_ROOT}!")
+#    endif ()
+#else ()
+#    find_package(Eigen3 REQUIRED)
+#endif ()
+
+message(STATUS "Found Eigen3: ${EIGEN3_INCLUDE_DIRS}")
+
+#find_package(netCDF REQUIRED)
+
+# FindnetCDF may not be installed, so we give the option
+# to override both netCDF_INCLUDE_DIR and netCDF_LIB_DIR by setting
+# NETCDF_INC and NETCDF_LIB.
+#if (NETCDF_INC)
+#    find_path(netCDF_INCLUDE_DIR netcdf
+#              PATHS ${NETCDF_INC}
+#              NO_DEFAULT_PATH)
+#
+#    if (NOT netCDF_INCLUDE_DIR)
+#        message(FATAL_ERROR "netCDF headers not found in ${NETCDF_INC}!")
+#    endif ()
+#
+#    if (NETCDF_LIB)
+#        message(STATUS "NETCDF_LIB is True, value: ${NETCDF_LIB}")
+#
+#        find_library(netCDF_LIBRARIES
+#                     NAMES netcdf-cxx4
+#                     PATHS ${NETCDF_LIB}
+#                     NO_DEFAULT_PATH)
+#
+#        if (NOT netCDF_LIBRARIES)
+#            message(FATAL_ERROR "netCDF library not found in ${NETCDF_LIB}!")
+#        else ()
+#            set(netCDF_LIB_DIR ${NETCDF_LIB})
+#        endif ()
+#    else ()
+#        message(FATAL_ERROR "You must provide both NETCDF_INC and NETCDF_LIB!")
+#    endif ()
+#else ()
+#    find_package(netCDF REQUIRED)
+#endif()
+
+message(STATUS "Found netCDF: ${netCDF_INCLUDE_DIR} ${netCDF_LIB_DIR}")
 
 # ----- Library ----------------------------------------------------------------
 add_library(SMSpp STATIC)
@@ -40,7 +102,10 @@ target_include_directories(SMSpp PUBLIC
                            $<INSTALL_INTERFACE:include/SMS++>
                            $<BUILD_INTERFACE:${PROJECT_INCLUDE_DIR}>)
 
-target_link_libraries(SMSpp PUBLIC Boost::boost Eigen3::Eigen)
+target_link_libraries(SMSpp PUBLIC Boost::boost Eigen3)
+#target_include_directories(SMSpp PUBLIC
+#                           ${Boost_INCLUDE_DIRS}
+#                           ${EIGEN3_INCLUDE_DIRS})
 
 # Alias for testing
 add_library(SMS++::SMSpp ALIAS SMSpp)

@@ -223,6 +223,7 @@ Finally, it relies on the C++ interface to NetCDF
 for efficient serialization and de-serialization of Block and Configuration
 objects on self-describing, machine-independent data files.
 
+Optionally, SMS++ relies on CMake for building and installing.
 
 Download and build
 ==================
@@ -235,21 +236,50 @@ Download and build
 
       $ cd sms_plus_plus
 
-- Then configure and build the library:
-
+- Now configure the project.
+  If you installed the requirements using either your OS's package manager
+  (e. g. `apt-get` under Ubuntu or Homebrew under macOS), or
+  their own CMake configuration script, you should be fine.
+  If you can't or wont install the required libraries, you will need to
+  specify the path where to find them (See troubleshooting).
+  
       $ mkdir build
       $ cd build
       $ cmake ..
+
+- You can now build the library:
+
       $ make
 
 - Optionally, you can install the library with:
 
       $ make install
 
-- After the library is configured, you can use it in your CMake project with:
+- After the library is configured and built, you can use it in your CMake project with:
 
       find_package(SMSpp)
       target_link_libraries(<my_target> SMS++::SMSpp)
+      
+Troubleshooting
+===============
+During CMake configuration, you may encounter one or more of the following errors:
+
+- `No CMAKE_CXX_COMPILER could be found.`
+   
+   This usually means that your C++ compiler is not installed.
+   Make sure that either `g++` or `clang` is installed properly.
+   
+   If the error persists you can set either the environment variable `CXX`
+   or the CMake cache entry `CMAKE_CXX_COMPILER` to the full path
+   to the compiler, or to the compiler name if it is in the `PATH`.
+
+- `Unable to find the requested Boost libraries.`
+   
+   CMake was not able to locate your Boost installation,
+   so make sure that you install Boost using your OS's package manager.
+   
+   If you can't or won't install Boost (or if the error persists),
+   you can either set `BOOST_ROOT` to the root directory containing Boost.
 
 Legal Stuff
 ===========

@@ -1,0 +1,8 @@
+# Uncomment and edit these variables to override paths for external dependecies
+# ------------------------------------------------------------------------------
+#set(CMAKE_CXX_COMPILER "/usr/bin/clang++")
+#set(CMAKE_VERBOSE_MAKEFILE OFF)
+#set(BOOST_ROOT  "/usr/local/include/")
+#set(EIGEN3_ROOT "/usr/local/include/eigen3")
+#set(NETCDF_INC  "/usr/local/include/")
+#set(NETCDF_LIB  "/usr/local/lib")
