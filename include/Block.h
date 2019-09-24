@@ -86,7 +86,7 @@
  *
  * \version 0.31
  *
- * \date 23 - 08 - 2019
+ * \date 24 - 09 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1680,10 +1680,11 @@ class Block : public Observer {
  template< class Obj >
  Obj * get_objective( void ) const {
   static_assert( std::is_base_of< Objective , Obj >::value ,
-                 "register_method: Obj must inherit from Constraint" );
+                 "get_objective: Obj must inherit from Objective" );
   auto obj = dynamic_cast< Obj * >( f_Objective );
   if( ! obj )
-   throw( std::invalid_argument( "objective is not of required type" ) );
+   throw( std::invalid_argument( "get_objective: objective is not of "
+                                 "required type" ) );
   return( obj );
   }
 
@@ -2063,12 +2064,16 @@ class Block : public Observer {
  template< class Cnst >
  Cnst * get_static_constraint( c_Index i ) const {
   static_assert( std::is_base_of< Constraint , Cnst >::value ,
-                 "register_method: Cnst must inherit from Constraint" );
+                 "get_static_constraint: Cnst must inherit from Constraint" );
   if( i >= v_s_Constraint.size() )
-   throw( std::invalid_argument( "no such group of constraints" ) );
+   throw( std::invalid_argument( "get_static_constraint: group " +
+                                 std::to_string( i ) +
+                                 " of constraints does not exist" ) );
   auto cnst = boost::any_cast< Cnst * >( v_s_Constraint[ i ] );
   if( ! cnst )
-   throw( std::invalid_argument( "i-th group is not of required type" ) );
+   throw( std::invalid_argument( "get_static_constraint: group " +
+                                 std::to_string( i ) +
+                                 " is not of required type" ) );
   return( cnst );
   }
  
@@ -2082,12 +2087,16 @@ class Block : public Observer {
  template< class Cnst >
  std::vector< Cnst > * get_static_constraint_v( c_Index i ) const {
   static_assert( std::is_base_of< Constraint , Cnst >::value ,
-                 "register_method: Cnst must inherit from Constraint" );
+                 "get_static_constraint_v: Cnst must inherit from Constraint" );
   if( i >= v_s_Constraint.size() )
-   throw( std::invalid_argument( "no such group of constraints" ) );
+   throw( std::invalid_argument( "get_static_constraint_v: group " +
+                                 std::to_string( i ) + " of constraints " +
+                                 "does not exist" ) );
   auto cnst = boost::any_cast< std::vector< Cnst > * >( v_s_Constraint[ i ] );
   if( ! cnst )
-   throw( std::invalid_argument( "i-th group is not of required type" ) );
+   throw( std::invalid_argument( "get_static_constraint_v: group " +
+                                 std::to_string( i ) + " is not of "
+                                 "required type" ) );
   return( cnst );
   }
  
@@ -2101,13 +2110,17 @@ class Block : public Observer {
  template< class Cnst , unsigned short K >
  boost::multi_array< Cnst , K > * get_static_constraint( c_Index i ) const {
   static_assert( std::is_base_of< Constraint , Cnst >::value ,
-                 "register_method: Cnst must inherit from Constraint" );
+                 "get_static_constraint: Cnst must inherit from Constraint" );
   if( i >= v_s_Constraint.size() )
-   throw( std::invalid_argument( "no such group of constraints" ) );
+   throw( std::invalid_argument( "get_static_constraint: group " +
+                                 std::to_string( i ) + " of constraints " +
+                                 "does not exist" ) );
   auto cnst = boost::any_cast< boost::multi_array< Cnst , K > * >(
 						      v_s_Constraint[ i ] );
   if( ! cnst )
-   throw( std::invalid_argument( "i-th group is not of required type" ) );
+   throw( std::invalid_argument( "get_static_constraint: group " +
+                                 std::to_string( i ) + " is not of " +
+                                 "required type" ) );
   return( cnst );
   }
  
@@ -2199,12 +2212,16 @@ class Block : public Observer {
  template< class Var >
  Var * get_static_variable( c_Index i ) const {
   static_assert( std::is_base_of< Variable , Var >::value ,
-                 "register_method: Var must inherit from Variable" );
+                 "get_static_variable: Var must inherit from Variable" );
   if( i >= v_s_Variable.size() )
-   throw( std::invalid_argument( "no such group of constraints" ) );
+   throw( std::invalid_argument( "get_static_variable: group " +
+                                 std::to_string( i ) + " of constraints "
+                                 "does not exist" ) );
   auto var = boost::any_cast< Var * >( v_s_Variable[ i ] );
   if( ! var )
-   throw( std::invalid_argument( "i-th group is not of required type" ) );
+   throw( std::invalid_argument( "get_static_variable: group " +
+                                 std::to_string( i ) + " is not of " +
+                                 "required type" ) );
   return( var );
   }
  
@@ -2218,12 +2235,16 @@ class Block : public Observer {
  template< class Var >
  std::vector< Var > * get_static_variable_v( c_Index i ) const {
   static_assert( std::is_base_of< Variable , Var >::value ,
-                 "register_method: Var must inherit from Variable" );
+                 "get_static_variable_v: Var must inherit from Variable" );
   if( i >= v_s_Variable.size() )
-   throw( std::invalid_argument( "no such group of constraints" ) );
+   throw( std::invalid_argument( "get_static_variable_v: group " +
+                                 std::to_string( i ) +
+                                 " of constraints does not exist" ) );
   auto var = boost::any_cast< std::vector< Var > * >( v_s_Variable[ i ] );
   if( ! var )
-   throw( std::invalid_argument( "i-th group is not of required type" ) );
+   throw( std::invalid_argument( "get_static_variable_v: group "
+                                 + std::to_string( i ) +
+                                 " is not of required type" ) );
   return( var );
   }
  
@@ -2237,13 +2258,17 @@ class Block : public Observer {
  template< class Var , unsigned short K >
  boost::multi_array< Var , K > * get_static_variable( c_Index i ) const {
   static_assert( std::is_base_of< Variable , Var >::value ,
-                 "register_method: Var must inherit from Variable" );
+                 "get_static_variable: Var must inherit from Variable" );
   if( i >= v_s_Variable.size() )
-   throw( std::invalid_argument( "no such group of constraints" ) );
+   throw( std::invalid_argument( "get_static_variable: group " +
+                                 std::to_string( i ) +
+                                 " of constraints does not exist" ) );
   auto var = boost::any_cast< boost::multi_array< Var , K > * >(
 						          v_s_Variable[ i ] );
   if( ! var )
-   throw( std::invalid_argument( "i-th group is not of required type" ) );
+   throw( std::invalid_argument( "get_static_variable: group " +
+                                 std::to_string( i ) +
+                                 " is not of required type" ) );
   return( var );
   }
  
@@ -2366,12 +2391,16 @@ class Block : public Observer {
  template< class Cnst >
  std::list< Cnst > * get_dynamic_constraint( c_Index i ) const {
   static_assert( std::is_base_of< Constraint , Cnst >::value ,
-                 "register_method: Cnst must inherit from Constraint" );
+                 "get_dynamic_constraint: Cnst must inherit from Constraint" );
   if( i >= v_d_Constraint.size() )
-   throw( std::invalid_argument( "no such group of constraints" ) );
+   throw( std::invalid_argument( "get_dynamic_constraint: group " +
+                                 std::to_string( i ) +
+                                 " of constraints does not exist" ) );
   auto cnst = boost::any_cast< std::list< Cnst > * >( v_d_Constraint[ i ] );
   if( ! cnst )
-   throw( std::invalid_argument( "i-th group is not of required type" ) );
+   throw( std::invalid_argument( "get_dynamic_constraint: group " +
+                                 std::to_string( i ) +
+                                 " is not of required type" ) );
   return( cnst );
   }
  
@@ -2386,13 +2415,18 @@ class Block : public Observer {
  std::vector< std::list< Cnst > > * get_dynamic_constraint_v( c_Index i )
   const {
   static_assert( std::is_base_of< Constraint , Cnst >::value ,
-                 "register_method: Cnst must inherit from Constraint" );
+                 "get_dynamic_constraint_v: "
+                 "Cnst must inherit from Constraint" );
   if( i >= v_s_Constraint.size() )
-   throw( std::invalid_argument( "no such group of constraints" ) );
+   throw( std::invalid_argument( "get_dynamic_constraint_v: group " +
+                                 std::to_string( i ) +
+                                 " of constraints does not exist" ) );
   auto cnst = boost::any_cast< std::vector< std::list< Cnst > > * >(
 						       v_d_Constraint[ i ] );
   if( ! cnst )
-   throw( std::invalid_argument( "i-th group is not of required type" ) );
+   throw( std::invalid_argument( "get_dynamic_constraint_v: group " +
+                                 std::to_string( i ) +
+                                 " is not of required type" ) );
   return( cnst );
   }
  
@@ -2407,14 +2441,18 @@ class Block : public Observer {
  boost::multi_array< std::list< Cnst > , K > * get_dynamic_constraint(
 							 c_Index i ) const {
   static_assert( std::is_base_of< Constraint , Cnst >::value ,
-                 "register_method: Cnst must inherit from Constraint" );
+                 "get_dynamic_constraint: Cnst must inherit from Constraint" );
   if( i >= v_s_Constraint.size() )
-   throw( std::invalid_argument( "no such group of constraints" ) );
+   throw( std::invalid_argument( "get_dynamic_constraint: group " +
+                                 std::to_string( i ) +
+                                 " of constraints does not exist" ) );
   auto cnst =
    boost::any_cast< boost::multi_array< std::list< Cnst > , K > * >(
 						      v_d_Constraint[ i ] );
   if( ! cnst )
-   throw( std::invalid_argument( "i-th group is not of required type" ) );
+    throw( std::invalid_argument( "get_dynamic_constraint: group " +
+                                  std::to_string( i ) +
+                                  " is not of required type" ) );
   return( cnst );
   }
  
@@ -2537,12 +2575,16 @@ class Block : public Observer {
  template< class Var >
  std::list< Var > * get_dynamic_variable( c_Index i ) const {
   static_assert( std::is_base_of< Variable , Var >::value ,
-                 "register_method: Var must inherit from Variable" );
+                 "get_dynamic_variable: Var must inherit from Variable" );
   if( i >= v_d_Variable.size() )
-   throw( std::invalid_argument( "no such group of constraints" ) );
+   throw( std::invalid_argument( "get_dynamic_variable: group " +
+                                 std::to_string( i ) +
+                                 " of constraints does not exist" ) );
   auto var = boost::any_cast< std::list< Var > * >( v_d_Variable[ i ] );
   if( ! var )
-   throw( std::invalid_argument( "i-th group is not of required type" ) );
+   throw( std::invalid_argument( "get_dynamic_variable: group " +
+                                 std::to_string( i ) +
+                                 " is not of required type" ) );
   return( var );
   }
  
@@ -2557,13 +2599,17 @@ class Block : public Observer {
  std::vector< std::list< Var > > * get_dynamic_variable_v( c_Index i )
   const {
   static_assert( std::is_base_of< Variable , Var >::value ,
-                 "register_method: Var must inherit from Variable" );
+                 "get_dynamic_variable_v: Var must inherit from Variable" );
   if( i >= v_s_Variable.size() )
-   throw( std::invalid_argument( "no such group of constraints" ) );
+   throw( std::invalid_argument( "get_dynamic_variable_v: group " +
+                                 std::to_string( i ) +
+                                 " of constraints does not exist" ) );
   auto var = boost::any_cast< std::vector< std::list< Var > > * >(
 						       v_d_Variable[ i ] );
   if( ! var )
-   throw( std::invalid_argument( "i-th group is not of required type" ) );
+   throw( std::invalid_argument( "get_dynamic_variable_v: group " +
+                                 std::to_string( i ) +
+                                 " is not of required type" ) );
   return( var );
   }
  
@@ -2578,14 +2624,18 @@ class Block : public Observer {
  boost::multi_array< std::list< Var > , K > * get_dynamic_variable(
 							 c_Index i ) const {
   static_assert( std::is_base_of< Variable , Var >::value ,
-                 "register_method: Var must inherit from Variable" );
+                 "get_dynamic_variable: Var must inherit from Variable" );
   if( i >= v_s_Variable.size() )
-   throw( std::invalid_argument( "no such group of constraints" ) );
+   throw( std::invalid_argument( "get_dynamic_variable: group " +
+                                 std::to_string( i ) +
+                                 " of constraints does not exist" ) );
   auto var =
    boost::any_cast< boost::multi_array< std::list< Var > , K > * >(
 						      v_d_Variable[ i ] );
   if( ! var )
-   throw( std::invalid_argument( "i-th group is not of required type" ) );
+    throw( std::invalid_argument( "get_dynamic_variable: group " +
+                                  std::to_string( i ) +
+                                  " is not of required type" ) );
   return( var );
   }
  
