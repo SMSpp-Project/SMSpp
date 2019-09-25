@@ -1,80 +1,46 @@
-# ----- Project definition and directories -------------------------------------
+# --------------------------------------------------------------------------- #
+#    Main CMake file for SMS++ library                                        #
+#                                                                             #
+#    If Boost, Eigen3 and netCDF are installed properly,                      #
+#    this should run just fine.                                               #
+#    Otherwise, edit CMakeCustom.txt to set the proper paths.                 #
+#                                                                             #
+#                              Niccolo' Iardella                              #
+#                          Operations Research Group                          #
+#                         Dipartimento di Informatica                         #
+#                             Universita' di Pisa                             #
+# --------------------------------------------------------------------------- #
 cmake_minimum_required(VERSION 3.8)
-project(SMS++
-        VERSION 1.0.0 # TODO: set proper version
-        )
+# ----- Project definition and directories ---------------------------------- #
+# TODO: set proper version
+project(SMS++ VERSION 1.0.0)
 
 set(PROJECT_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
-set(PROJECT_SOURCE_DIR  ${CMAKE_CURRENT_SOURCE_DIR}/src)
+set(PROJECT_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-# This is to find the Find***.cmake modules we provide
+# ----- Requirements -------------------------------------------------------- #
+# find_package() is used to find libraries and automatically configure them.
+# It requires either a package configuration module (***Config.cmake) or a
+# find module (Find***.cmake), usually provided by libraries.
+
+# If we are configuring from the umbrella project, we assume that the valid
+# settings are there.
+# If we are building this project alone we use its settings but we check
+# also for settings in its parent directory.
+# TODO: Check if this behaviour is correct
+if (NOT SMS++_CONFIG_ALL)
+    include(CMakeCustom.txt OPTIONAL)
+    include(../CMakeCustom.txt OPTIONAL)
+endif ()
+
+# This is to use the find modules we provide
 list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
-# ----- Requirements -----------------------------------------------------------
-include(CMakeConfig.txt)
-
-# FindBoost is provided with CMake so this should never fail.
-# It already supports BOOST_ROOT as HINT.
 find_package(Boost REQUIRED)
-
-# We provide FindEigen3 so this should never fail.
-# It already supports EIGEN3_ROOT as HINT.
 find_package(Eigen3 REQUIRED)
+find_package(netCDF REQUIRED)
 
-# FindEigen3 may not be installed, so we give the option
-# to override it by setting EIGEN3_ROOT.
-#if (EIGEN3_ROOT)
-#    # EIGEN3_INCLUDE_DIRS is enough because it is a header-only library
-#    find_path(EIGEN3_INCLUDE_DIRS Eigen/Dense
-#              PATHS ${EIGEN3_ROOT}
-#              NO_DEFAULT_PATH)
-#
-#    if (NOT EIGEN3_INCLUDE_DIRS)
-#        message(FATAL_ERROR "Eigen not found in ${EIGEN3_ROOT}!")
-#    endif ()
-#else ()
-#    find_package(Eigen3 REQUIRED)
-#endif ()
-
-message(STATUS "Found Eigen3: ${EIGEN3_INCLUDE_DIRS}")
-
-#find_package(netCDF REQUIRED)
-
-# FindnetCDF may not be installed, so we give the option
-# to override both netCDF_INCLUDE_DIR and netCDF_LIB_DIR by setting
-# NETCDF_INC and NETCDF_LIB.
-#if (NETCDF_INC)
-#    find_path(netCDF_INCLUDE_DIR netcdf
-#              PATHS ${NETCDF_INC}
-#              NO_DEFAULT_PATH)
-#
-#    if (NOT netCDF_INCLUDE_DIR)
-#        message(FATAL_ERROR "netCDF headers not found in ${NETCDF_INC}!")
-#    endif ()
-#
-#    if (NETCDF_LIB)
-#        message(STATUS "NETCDF_LIB is True, value: ${NETCDF_LIB}")
-#
-#        find_library(netCDF_LIBRARIES
-#                     NAMES netcdf-cxx4
-#                     PATHS ${NETCDF_LIB}
-#                     NO_DEFAULT_PATH)
-#
-#        if (NOT netCDF_LIBRARIES)
-#            message(FATAL_ERROR "netCDF library not found in ${NETCDF_LIB}!")
-#        else ()
-#            set(netCDF_LIB_DIR ${NETCDF_LIB})
-#        endif ()
-#    else ()
-#        message(FATAL_ERROR "You must provide both NETCDF_INC and NETCDF_LIB!")
-#    endif ()
-#else ()
-#    find_package(netCDF REQUIRED)
-#endif()
-
-message(STATUS "Found netCDF: ${netCDF_INCLUDE_DIR} ${netCDF_LIB_DIR}")
-
-# ----- Library ----------------------------------------------------------------
+# ----- Library ------------------------------------------------------------- #
 add_library(SMSpp STATIC)
 target_compile_features(SMSpp PUBLIC cxx_std_17)
 
@@ -98,25 +64,31 @@ target_sources(SMSpp PRIVATE
                ${PROJECT_SOURCE_DIR}/Variable.cpp
                )
 
+# Different INSTALL_INTERFACE and BUILD_INTERFACE paths are used when
+# generating the target import file (***Targets.cmake), that must be different
+# for local build and installation.
 target_include_directories(SMSpp PUBLIC
                            $<INSTALL_INTERFACE:include/SMS++>
                            $<BUILD_INTERFACE:${PROJECT_INCLUDE_DIR}>)
 
-target_link_libraries(SMSpp PUBLIC Boost::boost Eigen3)
-#target_include_directories(SMSpp PUBLIC
-#                           ${Boost_INCLUDE_DIRS}
-#                           ${EIGEN3_INCLUDE_DIRS})
+target_link_libraries(SMSpp PUBLIC
+                      Boost::boost
+                      Eigen3::Eigen
+                      NetCDF::NetCDFCxx)
 
 # Alias for testing
 add_library(SMS++::SMSpp ALIAS SMSpp)
 
-# ----- Install instructions ---------------------------------------------------
+# ----- Install instructions ------------------------------------------------ #
+# For installing the library and all its CMake modules on the system.
+# Not required for local builds (see below).
+
 include(GNUInstallDirs)
 set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/SMS++)
 
 # Install library
 install(TARGETS SMSpp
-        EXPORT  SMSpp-targets
+        EXPORT SMSpp-targets
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
@@ -124,35 +96,55 @@ install(TARGETS SMSpp
 install(DIRECTORY include/
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/SMS++)
 
-# Install export file *Targets.cmake
+# Install target import file
 install(EXPORT SMSpp-targets
-        FILE   SMSppTargets.cmake
+        FILE SMSppTargets.cmake
         NAMESPACE SMS++::
         DESTINATION ${INSTALL_CONFIGDIR})
 
-# Create *ConfigVersion.cmake
+# Generate package version file
 include(CMakePackageConfigHelpers)
 write_basic_package_version_file(
         ${CMAKE_CURRENT_BINARY_DIR}/SMSppConfigVersion.cmake
         VERSION ${PROJECT_VERSION}
         COMPATIBILITY AnyNewerVersion)
 
-# Create *Config.cmake
+# Generate package configuration file
 configure_package_config_file(
         ${CMAKE_CURRENT_LIST_DIR}/cmake/SMSppConfig.cmake.in
         ${CMAKE_CURRENT_BINARY_DIR}/SMSppConfig.cmake
         INSTALL_DESTINATION ${INSTALL_CONFIGDIR})
 
-# Install the Config and ConfigVersion
+# Install package version and configuration files
+# TODO: Check if we should install also find modules
 install(FILES
         ${CMAKE_CURRENT_BINARY_DIR}/SMSppConfig.cmake
         ${CMAKE_CURRENT_BINARY_DIR}/SMSppConfigVersion.cmake
+        # ${CMAKE_CURRENT_LIST_DIR}/cmake/FindEigen3.cmake
+        # ${CMAKE_CURRENT_LIST_DIR}/cmake/FindnetCDF.cmake
         DESTINATION ${INSTALL_CONFIGDIR})
 
-# ----- Export from the build tree ---------------------------------------------
+# ----- Export from the build tree ------------------------------------------ #
+# This is needed so other projects can find the library in a local build.
+# It does not affect installation.
+
 export(EXPORT SMSpp-targets
        FILE ${CMAKE_CURRENT_BINARY_DIR}/SMSppTargets.cmake
        NAMESPACE SMS++::)
+
+# Export also the find modules for the local config file to use it
+configure_file(${CMAKE_CURRENT_LIST_DIR}/cmake/FindEigen3.cmake
+               ${CMAKE_CURRENT_BINARY_DIR}/FindEigen3.cmake
+               COPYONLY)
+
+configure_file(${CMAKE_CURRENT_LIST_DIR}/cmake/FindnetCDF.cmake
+               ${CMAKE_CURRENT_BINARY_DIR}/FindnetCDF.cmake
+               COPYONLY)
+
+# FIXME: I think that exporting this is a bad idea
+#configure_file(${CMAKE_CURRENT_LIST_DIR}/CMakeCustom.txt
+#               ${CMAKE_CURRENT_BINARY_DIR}/CMakeCustom.txt
+#               COPYONLY)
 
 # Register package in user's package registry (~/.cmake/registry)
 export(PACKAGE SMSpp)
