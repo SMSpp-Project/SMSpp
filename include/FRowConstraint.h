@@ -498,28 +498,28 @@ class FRowConstraint : public RowConstraint , Observer {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual Index is_active( const Variable * const f_variable ) const override
+ Index is_active( const Variable * const f_variable ) const override
  {
   return( f_function ? f_function->is_active( f_variable ) : Inf<Index>() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual Variable * get_active_var( const Index i ) const override
+ Variable * get_active_var( const Index i ) const override
  {
   return( f_function ? f_function->get_active_var( i ) : nullptr );
   }
 
 /*--------------------------------------------------------------------------*/
 
- virtual v_iterator * v_begin( void ) override
+ v_iterator * v_begin( void ) override
  {
   return( f_function ? f_function->v_begin() : nullptr );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual v_const_iterator * v_begin( void ) const override
+ v_const_iterator * v_begin( void ) const override
  {
   return( f_function ?
 	  static_cast<const Function *>( f_function )->v_begin() : nullptr );
@@ -527,14 +527,14 @@ class FRowConstraint : public RowConstraint , Observer {
 
 /*--------------------------------------------------------------------------*/
 
- virtual v_iterator * v_end( void ) override
+ v_iterator * v_end( void ) override
  {
   return( f_function ? f_function->v_end() : nullptr );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual v_const_iterator * v_end( void ) const override
+ v_const_iterator * v_end( void ) const override
  {
   return( f_function ?
 	  static_cast<const Function *>( f_function )->v_end() : nullptr );
@@ -542,8 +542,7 @@ class FRowConstraint : public RowConstraint , Observer {
 
 /*--------------------------------------------------------------------------*/
 
- virtual void remove_variable( Variable * variable ,
-			       c_ModParam issueMod = eModBlck ) override
+ void remove_variable( Index i , c_ModParam issueMod = eModBlck ) override
  {
   /* FRowConstraint typically relies on FunctionModVars to know if something
    * has happened to the Variable of the Function and register/unregister
@@ -556,12 +555,12 @@ class FRowConstraint : public RowConstraint , Observer {
    return;
 
   if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
-   f_function->remove_variable( variable , issueMod );
+   f_function->remove_variable( i , issueMod );
   else {
    // unregistration can preceed removal, since the Function completely
    // ignores this information
-   variable->remove_active( this );
-   f_function->remove_variable( variable , eNoMod );
+   f_function->get_active_var( i )->remove_active( this );
+   f_function->remove_variable( i , eNoMod );
    }
   }
 

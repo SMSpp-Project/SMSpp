@@ -644,8 +644,14 @@ void Block::remove_constraint_from_variables( Constraint * constraint )
 void Block::remove_variable_from_stuff( Variable * const variable ,
 					const int issueindMod  )
 {
- for( Variable::Index i = 0 ; i < variable->get_num_active() ; )
-  variable->get_active( i++ )->remove_variable( variable , issueindMod );
+ for( Variable::Index i = 0 ; i < variable->get_num_active() ; ) {
+  auto si = variable->get_active( i++ );
+  auto ivar = si->is_active( variable );
+  if( ivar >= si->get_num_active_var() )
+   throw( std::logic_error( "inconsistency between active lists" ) );
+
+  si->remove_variable( ivar , issueindMod );
+  }
  }
 
 /*--------------------------------------------------------------------------*/

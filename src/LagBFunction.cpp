@@ -48,8 +48,8 @@ using SimpleConfig_p_p = SimpleConfiguration<
 /*----------------------------- STATIC MEMBERS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-static constexpr C05Function::LinearizationName NaNLinName
-         = std::numeric_limits<C05Function::LinearizationName>::quiet_NaN();
+static constexpr C05Function::Index NaNLinName
+         = std::numeric_limits<C05Function::Index>::quiet_NaN();
 
 static const char VarAreDir = 0;   // a direction is stored
 static const char VarAreSol = 1;   // a solution is stored
@@ -423,7 +423,9 @@ void LagBFunction::add_dual_pairs( v_dual_pair && v_lag_pair ,
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::remove_variable( Variable * var , c_ModParam issueMod ) {
+void LagBFunction::remove_variable( Index i , c_ModParam issueMod )
+{
+ /*!! TBD
 
  if( ! var )  // actually nothing to remove
   return;     // cowardly (and silently) return
@@ -443,8 +445,8 @@ void LagBFunction::remove_variable( Variable * var , c_ModParam issueMod ) {
 
  lag_p.erase( itv );       // erase it
 
- /* remove the pointer to variable x_j from LagMatrix if no longer the relaxed
-	constraints (RCs) are active and restore the coefficient c_j in (obj_B) */
+ // remove the pointer to variable x_j from LagMatrix if no longer the relaxed
+ // constraints (RCs) are active and restore the coefficient c_j in (obj_B)
 
  Vec_p_Var vars( { var } );
  rm_columns( vars ); // ?? si puo' ottimizzare ??
@@ -458,7 +460,7 @@ void LagBFunction::remove_variable( Variable * var , c_ModParam issueMod ) {
 				       Vec_p_Var( { var } ) , true , 0 ,
 				       Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
-
+			       !!*/
 
  } // end( LagBFunction::remove_variable() ) - - - - - - - - - - - - - - - - -
 
@@ -512,7 +514,10 @@ void LagBFunction::serialize( netCDF::NcGroup & group ) const
   }
 
  // put the original costs into (obj_B)  - - - - - - - - - - - - - - - - - - -
+ /*!! TO BE CHANGED, LinearFunction::modify_coefficients() changed interface
+
  lfobj->modify_coefficients( VarsToChange );
+ !!*/
 
  // serialize the sub-block  - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -521,7 +526,10 @@ void LagBFunction::serialize( netCDF::NcGroup & group ) const
  v_Block[0]->serialize( sb );
 
  // put back the Lagrangian costs into (obj_B) - - - - - - - - - - - - - - - -
+ /*!! TO BE CHANGED, LinearFunction::modify_coefficients() changed interface
+
  lfobj->modify_coefficients( VarsToRestore );
+ !!*/
 
  } // end( LagBFunction::serialize() ) - - - - - - - - - - - - - - - - - - - -
 
@@ -576,12 +584,12 @@ bool LagBFunction::compute_new_linearization( const bool diagonal )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::store_linearization( const LinearizationName name )
+void LagBFunction::store_linearization( const Index name )
 {
  // throw exception if the solution does not exist or has been already stored
 
  if( std::isnan( LastSolution ) ||
-		 LastSolution < Inf<LinearizationName>() )
+		 LastSolution < Inf<Index>() )
   throw( std::logic_error( "the linearization is unvailable" ) );
 
  // throw exception if name is greater thatn the dimension of the global pool
@@ -609,23 +617,23 @@ void LagBFunction::store_linearization( const LinearizationName name )
 
  std::get<2>(g_pool[ name ]) = !VarToBeChckd;
 
- } // end LagBFunction::store_linearization( LinearizationName ) - - - - - - -
+ } // end LagBFunction::store_linearization( Index ) - - - - - - -
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::delete_linearization( const LinearizationName name )
+void LagBFunction::delete_linearization( const Index name )
 {
  if( name >= GPMaxSz )
   throw( std::logic_error( "the max size of global pool has been already exceed" ) );
 
  if( std::get<0>(g_pool[ name ]) )
   delete[] std::get<0>(g_pool[ name ]);
- } // end LagBFunction::delete_linearization( LinearizationName )  - - - - - -
+ } // end LagBFunction::delete_linearization( Index )  - - - - - -
 
 /*--------------------------------------------------------------------------*/
 
 void LagBFunction::store_combination_of_linearizations(
-	  LinearCombination & coefficients , const LinearizationName name ) {
+	  LinearCombination & coefficients , const Index name ) {
 
  if( name >= GPMaxSz )
   throw( std::logic_error( "the max size of global pool has been already exceed" ) );
@@ -657,7 +665,7 @@ void LagBFunction::store_combination_of_linearizations(
 /*--------------------------------------------------------------------------*/
 
 void LagBFunction::set_important_linearization( LinearCombination && coefficients ,
-		LinearizationName name ) {
+		Index name ) {
  // throw exception if name is greater thatn the dimension of the global pool
  if( name >= GPMaxSz )
   throw( std::logic_error( "the max size of global pool has been already exceed" ) );
@@ -670,8 +678,8 @@ void LagBFunction::set_important_linearization( LinearCombination && coefficient
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::rename_linearization( const LinearizationName current_name ,
- 				    const LinearizationName new_name ) {
+void LagBFunction::rename_linearization( const Index current_name ,
+ 				    const Index new_name ) {
 
  if( new_name >= GPMaxSz )
   throw( std::logic_error( "the max size of global pool has been already exceed" ) );
@@ -738,10 +746,10 @@ Function::FunctionValue LagBFunction::get_value( void ) const
 /*--------------------------------------------------------------------------*/
 
 void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
-	  const LinearizationName name , c_Vec_Index & indices ,
-      const Index start , const Index end )
+						   Range range , Index name )
 
 {
+ /*!! TBD
  c_Index end_p = std::min( Index( lag_p.size()) , end );
  if( end_p <= start )
   return;
@@ -749,18 +757,18 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
  // the solution shall be written in the Variable of the Block - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( name == Inf<LinearizationName>() ) { // asking for the last computed
+ if( name == Inf<Index>() ) { // asking for the last computed
 	                                      // linearization   - - - - - - - - -
 
   // get solution/direction from the solver  - - - - - - - - - - - - - - - - -
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-  if( LastSolution != Inf<LinearizationName>() ) {
+  if( LastSolution != Inf<Index>() ) {
    if( VarType == VarAreSol )
     slv->get_var_solution();
    else
     slv->get_var_direction();
-   LastSolution = Inf<LinearizationName>();
+   LastSolution = Inf<Index>();
    }
 
   }
@@ -791,15 +799,17 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
  else
   for( Index i = start ; i < end_p ; ++i )
 	*(g++) = lag_p[ i ].second->get_value();
-
- } // end( LagBFunction::get_linearization_coefficients( DenseVector ) )
+	!!*/
+ } // end( LagBFunction::get_linearization_coefficients( * , range ) )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::get_linearization_coefficients( SparseVector & g ,
-			const LinearizationName name , c_Vec_Index & indices ,
-            c_Index start , c_Index end )
+void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
+						   c_Subset & subset ,
+						   Index name )
+
 {
+ /*!! TBD
  c_Index end_p = std::min( Index( lag_p.size()) , end );
  if( end_p <= start )
   return;
@@ -807,31 +817,30 @@ void LagBFunction::get_linearization_coefficients( SparseVector & g ,
  // the solution shall be written in the Variable of the Block - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( name == Inf<LinearizationName>() ) { // asking for the last computed
-	                                      // linearization  - - - - - - - - -
+ if( name == Inf<Index>() ) { // asking for the last computed
+	                                      // linearization   - - - - - - - - -
 
   // get solution/direction from the solver  - - - - - - - - - - - - - - - - -
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-  if( LastSolution != Inf<LinearizationName>() ) {
+  if( LastSolution != Inf<Index>() ) {
    if( VarType == VarAreSol )
-	slv->get_var_solution();
+    slv->get_var_solution();
    else
-	slv->get_var_direction();
-   LastSolution = Inf<LinearizationName>();
+    slv->get_var_direction();
+   LastSolution = Inf<Index>();
    }
 
   }
  else {  // asking for a linearization of the global pool  - - - - - - - - - -
 
   // assign Solution to the sub-Block in such a way the linearization
-  // associated with the given name will be recovered from the global pool
+  // associated with the given name will be retrieved from the global pool
 
-  if( name != LastSolution ) {
+  if( std::get<0>(g_pool[ name ]) == nullptr )
+   throw( std::logic_error( "the linearization is not available" ) );
 
-   if( std::get<0>(g_pool[ name ]) == nullptr )
-    throw( std::logic_error( "the linearization is not available" ) );
-
+  if( LastSolution != name ) {
    std::get<0>(g_pool[ name ])->write( v_Block[0] );
    LastSolution = name ;
    }
@@ -842,62 +851,38 @@ void LagBFunction::get_linearization_coefficients( SparseVector & g ,
  // (RCs)_i is the corresponding entry of the linearization - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( g.nonZeros() == 0 ) {  // the given vector contains no non-zero element
-
-  if( g.size() < Index( lag_p.size()) )
-   g.resize( Index( lag_p.size()) );
-
-  g.reserve( end_p - start );
-
-  if( indices.size() ) {
-   for( const auto & i : indices )
-    if( ( i >= start ) && ( i < end_p ) )
-     g.insert( i ) = lag_p[ i ].second->get_value();
-   }
-  else
-   for( Index i = start ; i < end_p ; ++i )
-    g.insert( i ) = lag_p[ i ].second->get_value();
-
+ if( indices.size() ) {
+  for( const auto & i : indices )
+   if( ( i >= start ) && ( i < end_p ) )
+    *(g++) = lag_p[ i ].second->get_value();
   }
- else {  // the given vector contains some non-zero elements
-  if( g.size() != Index( lag_p.size()) )
-   throw( std::invalid_argument(
-      "LagBFunction::get_linearization_coefficients: "
-      "the size of the sparse vector must be equal to the number "
-      "of Lagrangian multipliers" ) );
+ else
+  for( Index i = start ; i < end_p ; ++i )
+	*(g++) = lag_p[ i ].second->get_value();
+	!!*/
+ } // end( LagBFunction::get_linearization_coefficients( * , range ) )
 
-  if( indices.size() ) {
-   for( const auto & i : indices )
-    if( ( i >= start ) && ( i < end_p ) )
-     g.coeffRef( i ) = lag_p[ i ].second->get_value();  //*?????
-     }
-    else
-     for( Index i = start ; i < end_p ; ++i )
-      g.coeffRef( i ) = lag_p[ i ].second->get_value();
-  }
-
- }  // end( LagBFunction::get_linearization_coefficients( SparseVector ) )
 
 /*--------------------------------------------------------------------------*/
 
 Function::FunctionValue LagBFunction::get_linearization_constant(
-		const LinearizationName name )
+		const Index name )
 {
 
  auto lfobj = static_cast<LinearFunction *>( obj->get_function() );
  Function::FunctionValue alpha = lfobj->get_constant_term();
 
- if( name == Inf<LinearizationName>() ) {
+ if( name == Inf<Index>() ) {
 
   // get solution/direction from the solver  - - - - - - - - - - - - - - - - -
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-  if( LastSolution != Inf<LinearizationName>() ) {
+  if( LastSolution != Inf<Index>() ) {
    if( VarType == VarAreSol )
     slv->get_var_solution();
    else
     slv->get_var_direction();
-   LastSolution = Inf<LinearizationName>();
+   LastSolution = Inf<Index>();
    }
 
   }
@@ -1043,7 +1028,7 @@ const
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::map_active( c_Vec_p_Var & vars , Vec_Index & map ,
+void LagBFunction::map_active( c_Vec_p_Var & vars , Subset & map ,
 		const bool ordered ) const
 {
  if( ! vars.size() )
@@ -1309,7 +1294,10 @@ Vec_p_Var LagBFunction::update_columns( v_dual_pair & v_lag_pair )
  // longer are active in (RCs), write them in (obj_B).  - - - - - - - - - -
 
  auto lfobj = static_cast<LinearFunction *>( obj->get_function() );
+ /*!! TO BE CHANGED, LinearFunction::modify_coefficients() changed interface
+
  lfobj->modify_coefficients( VarsToRmv );
+ !!*/
 
  Vec_p_Var vars(unique_vars.begin(), unique_vars.end());
  std::sort( vars.begin() , vars.end() ,
@@ -1367,7 +1355,10 @@ void LagBFunction::rm_columns( Vec_p_Var & vars )
  // longer are active in (RCs), write them in (obj_B).  - - - - - - - - - -
 
  auto lfobj = static_cast<LinearFunction *>( obj->get_function() );
+ /*!! TO BE CHANGED, LinearFunction::modify_coefficients() changed interface
+
  lfobj->modify_coefficients( VarsToRmv );
+ !!*/
 
 
  } // end ( LagBFunction::rm_columns() ) - - - - - - - - - - - - - - - - - - -
@@ -1382,11 +1373,13 @@ void LagBFunction::issue_add_variables_modification( v_dual_pair & pairs ,
   vars[ i ] = pairs[ i ].first;
 
  // a Lagrangian function is strongly quasi-additive
+ /*!! TBD
  f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
                                          FunctionModVars::AddVar ,
 					 std::move( vars ) , 0 , true ,
 					 Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
+			       !!*/
  } // end ( LagBFunction::issue_add_variables_modification() ) - - - - - - - -
 
 /*--------------------------------------------------------------------------*/
@@ -1580,7 +1573,10 @@ void LagBFunction::compute_Lagrangian_costs( )
 
   } // end for - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+ /*!! TO BE CHANGED, LinearFunction::modify_coefficients() changed interface
+
  LFInnBlck->modify_coefficients( PairsToAdd , true );
+ !!*/
 
  } // end ( LagBFunction::update_function() )  - - - - - - - - - - - - - - - -
 
@@ -1624,7 +1620,7 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
  {
   const auto tmod = std::dynamic_pointer_cast<FunctionMod>( mod );
   if( tmod ) {
-   auto lfmod = static_cast<LinearFunction * const>( tmod->f_function );
+   auto lfmod = static_cast<LinearFunction * const>( tmod->function() );
    if( !lfmod )
 	throw( std::logic_error( "the function must be linear" ) );
 
@@ -1638,9 +1634,9 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
    // the function shall be shifted - - - - - - - - - - - - - - - - - - - - -
 
    if( lfmod == lfobj ) // if the Linear Function is (obj_B)
-    if( !std::isnan( tmod->f_shift ) &&
-      ( tmod->f_shift < FunctionMod::INFshift &&
-    	tmod->f_shift > -FunctionMod::INFshift ) ) { // a predictable change
+    if( !std::isnan( tmod->shift() ) &&
+	( tmod->shift() < FunctionMod::INFshift &&
+	  tmod->shift() > -FunctionMod::INFshift ) ) { // a predictable change
 
      // the Lagrangian function (obj_B) is shifted by the constant term
      // c'_0 - c_0
@@ -1654,7 +1650,7 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
 
      if( f_Observer )
       f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-       		 	C05FunctionMod::AlphaChanged , tmod->f_shift , 0 ) , chnl );
+								      C05FunctionMod::AlphaChanged , tmod->shift() , 0 ) , chnl );
 
      }
     else { // an unpredictable change
@@ -1692,9 +1688,9 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
 
      // distinguish between predictable changes and unpredictable ones - - - -
 
-     if( !std::isnan( tmod->f_shift ) &&
-      ( tmod->f_shift < FunctionMod::INFshift &&
-    	tmod->f_shift > -FunctionMod::INFshift ) ) { // a predictable change
+     if( !std::isnan( tmod->shift() ) &&
+	 ( tmod->shift() < FunctionMod::INFshift &&
+	   tmod->shift() > -FunctionMod::INFshift ) ) { // a predictable change
 
       // the constant term of the function (RCs)_i is b'_i and b_i the
       // previous value thereof, this means that the Lagrangian function
@@ -1707,10 +1703,12 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
       // f_shift has to be set to NaN, what is changed? the linear part:
       // (obj_B) -> (obj_B) + y_i( b'_i - b_i )
 
+      /*!! TBD
       if( f_Observer )
        f_Observer->add_Modification( std::make_shared<C05FunctionModLin>( this ,
     		   std::move(delta) , std::move(v_vars) ,
 			   true, FunctionMod::NaNshift , 0 ) , chnl );
+			   !!*/
       }
      else { // an unpredictable change
 
@@ -1731,10 +1729,12 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
    	  // Lagrangian function changes in an unpredictable  way and f_shift id
    	  // set to NaN  - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+	  /*!! TBD
    	  if( f_Observer )
    	   f_Observer->add_Modification( std::make_shared<C05FunctionModSbst>( this ,
    			   C05FunctionModSbst::AllEntriesChanged , std::move(v_vars) ,
    			   true, FunctionMod::NaNshift , 0 ) , chnl );
+			   !!*/
       }
      }
     else { // the changes of the constraints of (B) may violate the
@@ -1764,7 +1764,7 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
  {
   const auto tmod = std::dynamic_pointer_cast<C05FunctionModLin>( mod );
   if( tmod ) {
-   auto lfmod = static_cast<LinearFunction * const>( tmod->f_function );
+   auto lfmod = static_cast<LinearFunction * const>( tmod->function() );
    if( !lfmod )
 	throw( std::logic_error( "the function must be linear" ) );
 
@@ -1777,7 +1777,7 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
     // the coefficients c_j of variables v_vars, changed and have to
     // to be rewritten in LagMatrix - - - - - - - - - - - - - - - - - - - - -
 
-     set_original_costs( tmod->v_vars );
+    set_original_costs( tmod->vars() );
 
      // issue C05FunctionMod modification of the type AlphaChanged:
      // the Lagrangian function unpredictably changes and
@@ -1821,10 +1821,12 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
    	 // Lagrangian function unpredictably changes and f_shift is
    	 // set to NaN   - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+	 /*!!
    	 if( f_Observer )
    	  f_Observer->add_Modification( std::make_shared<C05FunctionModSbst>( this ,
    		   C05FunctionModSbst::AllEntriesChanged , std::move(v_vars) ,
    		   true, FunctionMod::NaNshift , 0 ) , chnl );
+		   !!*/
 
      }
     else { // the changes of the constraints of (B) may violate the
@@ -1854,13 +1856,13 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
  {
   const auto tmod = std::dynamic_pointer_cast<FunctionModVars>( mod );
   if( tmod ) {
-   auto lfmod = static_cast<LinearFunction * const>( tmod->f_function );
+   auto lfmod = static_cast<LinearFunction * const>( tmod->function() );
    if( !lfmod )
    throw( std::logic_error( "the function must be linear" ) );
 
    // because of the linearity of the function the modification must be
    // quasi-additive one  and the shift is zero - - - - - - - - - - - - - - -
-   if( tmod->f_shift != 0 )
+   if( tmod->shift() != 0 )
     throw( std::logic_error( "the function must be linear" ) );
 
    auto lfobj = static_cast<LinearFunction *>( obj->get_function() );
@@ -1869,15 +1871,15 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
 	// variables x_j, for some j, have been added to (remove from) (obj_B)
 	// and the new coefficients have to to be rewritten in (deleted from) LagMatrix
 
-	set_original_costs( tmod->v_vars );
+    set_original_costs( tmod->vars() );
 
 	// if there are some variables, say ZeroVars, which are active in (RCs) but
 	// *not* active in (obj_B), then the same number of coeff_pair as the number
 	// of ZeroVars have to be added to (obj_B) with zero-coefficient and
 	// Variables pointers defined by ZeroVars
 
-	if( tmod->f_type == FunctionModVars::RemoveVar )
-	 fix_sblock_objective();
+    if( ! tmod->added() )
+     fix_sblock_objective();
 
 	// issue C05FunctionMod modification of the type AlphaChanged:
 	// the Lagrangian function unpredictably changes and
@@ -1922,7 +1924,7 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
  	 // of ZeroVars have to be added to (obj_B) with zero-coefficient and
  	 // Variables pointers defined by ZeroVars
 
- 	 if( tmod->f_type == FunctionModVars::AddVar )
+     if( tmod->added() )
  	  fix_sblock_objective();
 
      // issue C05FunctionModSbst modification of the type AllEntriesChanged:
@@ -1931,10 +1933,12 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
      // get_linearization_coefficients- at the index i-th, however the
      // Lagrangian function unpredictably changes and f_shift is
      // set to NaN   - - - - - - - - - - - - - - - - - - - - - - - - - -
+     /*!! TBD
      if( f_Observer )
       f_Observer->add_Modification( std::make_shared<C05FunctionModSbst>( this ,
      		   C05FunctionModSbst::AllEntriesChanged , std::move(v_vars) ,
      		   true, FunctionMod::NaNshift , 0 ) , chnl );
+		   !!*/
 
      }
     else { // the changes of the constraints of (B) may violate the

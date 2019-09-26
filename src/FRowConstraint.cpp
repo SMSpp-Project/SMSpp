@@ -170,13 +170,12 @@ void FRowConstraint::add_Modification( sp_Mod mod , c_ChnlName chnl )
    if( ! tmod )
     return;
 
-   if( tmod->f_type == FunctionModVars::AddVar )
-    for( auto el : tmod->v_vars )
-      el->add_active( this );
+   if( tmod->added() )
+    for( auto el : tmod->vars() )
+     el->add_active( this );
    else
-    if( tmod->f_type == FunctionModVars::RemoveVar )
-     for( auto el : tmod->v_vars )
-      el->remove_active( this );
+    for( auto el : tmod->vars() )
+     el->remove_active( this );
    }
 
   // whatever has happened, or not, so far, nothing else has to be done

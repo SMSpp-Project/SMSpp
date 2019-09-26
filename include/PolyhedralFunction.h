@@ -438,33 +438,31 @@ class PolyhedralFunction : public C05Function {
 
  /// compute the PolyhedralFunction
 
- virtual int compute( bool changedvars = true ) override final;
+ int compute( bool changedvars = true ) override final;
 
 /*--------------------------------------------------------------------------*/
  /// returns the value of the PolyhedralFunction
 
- virtual FunctionValue get_value( void ) const override final {
-  return( f_value );
-  }
+ FunctionValue get_value( void ) const override final { return( f_value ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the PolyhedralFunction is exact, hence lower_estimate == value
  
- virtual FunctionValue get_lower_estimate( void ) const override final {
+ FunctionValue get_lower_estimate( void ) const override final {
   return( f_value );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the PolyhedralFunction is exact, hence upper_estimate == value
 
- virtual FunctionValue get_upper_estimate( void ) const override final {
+ FunctionValue get_upper_estimate( void ) const override final {
   return( f_value );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns a (global) Lipschitz constant for the PolyhedralFunction
 
- virtual FunctionValue get_Lipschitz_constant( void ) override final
+ FunctionValue get_Lipschitz_constant( void ) override final
  {
   if( f_Lipschitz_constant < 0 )
    compute_Lipschitz_constant();
@@ -474,16 +472,12 @@ class PolyhedralFunction : public C05Function {
 /*--------------------------------------------------------------------------*/
  /// returns true if and only if this PolyhedralFunction is convex
 
- virtual bool is_convex( void ) const override final {
-  return( f_is_convex );
-  }
+ bool is_convex( void ) const override final { return( f_is_convex ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns true if and only if this PolyhedralFunction is concave
 
- virtual bool is_concave( void ) const override final {
-  return( ! f_is_convex );
-  }
+ bool is_concave( void ) const override final { return( ! f_is_convex ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns true only if this PolyhedralFunction is linear
@@ -493,12 +487,12 @@ class PolyhedralFunction : public C05Function {
   * but this is supposed to be an accident that may and probably will change
   * at any time, while this kind of method should return a "stable" result. */
 
- virtual bool is_linear( void ) const override final { return( false ); }
+ bool is_linear( void ) const override final { return( false ); }
 
 /*--------------------------------------------------------------------------*/
  /// tells whether a linearization is available
 
- virtual bool has_linearization( const bool diagonal = true ) override final
+ bool has_linearization( const bool diagonal = true ) override final
  {
   return( diagonal ? ( ! v_A.empty() ) : false );
   }
@@ -506,8 +500,8 @@ class PolyhedralFunction : public C05Function {
 /*--------------------------------------------------------------------------*/
  /// compute a new linearization for this PolyhedralFunction
 
- virtual bool compute_new_linearization( const bool diagonal = true )
-  override final {
+ bool compute_new_linearization( const bool diagonal = true ) override final
+ {
   if( ( ! diagonal ) || v_A.empty() || ( f_next >= v_ord.size() - 1 ) ||
       ( f_next >= f_loc_pool_sz - 1 ) )
    return( false );
@@ -519,8 +513,7 @@ class PolyhedralFunction : public C05Function {
 /*--------------------------------------------------------------------------*/
  /// store a linearization in the global pool 
 
- virtual void store_linearization( const LinearizationName name )
-  override final {
+ void store_linearization( const Index name ) override final {
   if( name >= v_glob.size() )
    throw( std::invalid_argument( "invalid global pool name" ) );
 
@@ -530,16 +523,15 @@ class PolyhedralFunction : public C05Function {
 /*--------------------------------------------------------------------------*/
  /// stores a combination of the given linearizations
 
- virtual void store_combination_of_linearizations(
-	  LinearCombination & coefficients , const LinearizationName name )
+ void store_combination_of_linearizations( LinearCombination & coefficients ,
+					   const Index name )
   override final;
 
 /*--------------------------------------------------------------------------*/
  /// specify which linearization is "the important one"
 
- virtual void set_important_linearization( LinearCombination && coefficients ,
-					   LinearizationName name )
-  override final {
+ void set_important_linearization( LinearCombination && coefficients ,
+				   Index name ) override final {
   if( name >= v_glob.size() )
    throw( std::invalid_argument( "invalid global pool name" ) );
 
@@ -550,51 +542,56 @@ class PolyhedralFunction : public C05Function {
 /*--------------------------------------------------------------------------*/
  /// return the name of "the important linearization"
 
- virtual LinearizationName get_important_linearization_name( void )
-  override final { return( f_imp ); }
+ Index get_important_linearization_name( void ) override final {
+  return( f_imp );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// return the combination used to form "the important linearization"
 
- virtual c_LinearCombination &
-  get_important_linearization_coefficients( void ) override final {
+ c_LinearCombination & get_important_linearization_coefficients( void )
+  override final {
   return( f_imp_coeff );
   }
 
 /*-------------------------------------------------------------------------*/
  /// rename a linearization that is stored in the global pool
 
- virtual void rename_linearization( const LinearizationName current_name ,
-				    const LinearizationName new_name )
-  override final;
+ void rename_linearization( const Index current_name ,
+			    const Index new_name ) override final;
 
 /*--------------------------------------------------------------------------*/
  /// delete the given linearization from the global pool of linearizations
 
- virtual void delete_linearization( const LinearizationName name )
-  override final;
+ void delete_linearization( const Index name ) override final;
 
 /*--------------------------------------------------------------------------*/
- /// retrieve the coefficients (g vector) of a linearization in a vector
 
- virtual void get_linearization_coefficients( FunctionValue *g ,
-                    const LinearizationName name = Inf<LinearizationName>() ,
-		    c_Vec_Index & indices = {} , c_Index start = 0 ,
-		    Index end = Inf<Index>() ) override final;
+ void get_linearization_coefficients( FunctionValue * g ,
+			   Range range = std::make_pair( 0 , Inf<Index>() ) ,
+				      Index name = Inf<Index>() ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// retrieve the coefficients (g) of a linearization in a sparse vector
 
- virtual void get_linearization_coefficients( SparseVector &g ,
-                     const LinearizationName name = Inf<LinearizationName>() ,
-	             c_Vec_Index & indices = {} , c_Index start = 0 ,
-	             Index end = Inf<Index>() ) override final;
+ void get_linearization_coefficients( SparseVector & g ,
+			   Range range = std::make_pair( 0 , Inf<Index>() ) ,
+				      Index name = Inf<Index>() ) override;
 
+/*--------------------------------------------------------------------------*/
+
+ void get_linearization_coefficients( FunctionValue * g , c_Subset & subset  ,
+				      Index name = Inf<Index>() ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ void get_linearization_coefficients( SparseVector & g ,
+				      c_Subset & subset ,
+				      Index name = Inf<Index>() ) override;
 /*--------------------------------------------------------------------------*/
  /// return the constant term of a linearization
 
- virtual FunctionValue get_linearization_constant(
-     const LinearizationName name = Inf<LinearizationName>() ) override final
+ FunctionValue get_linearization_constant( c_Index name = Inf<Index>() )
+  override final
  {
   if( name >= v_glob.size() )
    return( v_b[ v_ord[ f_next ] ] );
@@ -697,7 +694,7 @@ class PolyhedralFunction : public C05Function {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual void map_active( c_Vec_p_Var & vars , Vec_Index & map ,
+ virtual void map_active( c_Vec_p_Var & vars , Subset & map ,
 			  const bool ordered = false ) const override final;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -913,7 +910,7 @@ class PolyhedralFunction : public C05Function {
  /// modify one bunch of rows of the linear mapping
  /** Modifies one bunch of rows of the linear mapping:
   *
-  * @param Vec_Index && rows contans the indices of the rows to be modified;
+  * @param Subset && rows contans the indices of the rows to be modified;
   *        all entries must therefore be numbers in 0, ...,
   *        get_A().size() - 1, *unique* and *ordered in increasing sense*;
   *        as the && tells, the vector becomes property of the method, to be
@@ -936,7 +933,7 @@ class PolyhedralFunction : public C05Function {
   *        Modification type is "AllLinearizationChanged"), although actually
   *        only a subset of them has. */  
 
- void modify_rows( Vec_Index && rows , MultiVector && nA , RealVector & nb ,
+ void modify_rows( Subset && rows , MultiVector && nA , RealVector & nb ,
 		   c_ModParam issueMod = eModBlck );
  
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -968,7 +965,7 @@ class PolyhedralFunction : public C05Function {
  /** Like modify_row(), but modify the constant term only for one row of the
   * linear mapping:
   *
-  * @param Vec_Index & rows contans the indices of the rows to be modified;
+  * @param Subset & rows contans the indices of the rows to be modified;
   *        all entries must therefore be numbers in 0, ...,
   *        get_A().size() - 1, *unique* and *ordered in increasing sense*;
   *        as the && tells, the vector becomes property of the method, to be
@@ -991,7 +988,7 @@ class PolyhedralFunction : public C05Function {
   *        may have changed" (the Modification type is "AlphaChanged"),
   *        although actually only a subset of them has. */  
 
- void modify_constants( Vec_Index && rows , RealVector & nb ,
+ void modify_constants( Subset && rows , RealVector & nb ,
 			c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -1073,7 +1070,7 @@ class PolyhedralFunction : public C05Function {
   * leaving the current set of n = get_num_active_var() input Variable and
   * all rows that are not explicitly deleted:
   *
-  * @param  Vec_Index && rows contans the indices of the rows to be deleted;
+  * @param  Subset && rows contans the indices of the rows to be deleted;
   *         all entries must therefore be numbers in 0, ...,
   *         get_A().size() - 1, *unique* and *ordered in increasing sense*;
   *        as the && tells, the vector becomes property of the method, to be
@@ -1100,7 +1097,7 @@ class PolyhedralFunction : public C05Function {
   * the others get constant == Inf<FunctionValue>(), and therefore the vector
   * of coefficients is no longer significant. */
 
- void delete_rows( Vec_Index && rows , c_ModParam issueMod = eModBlck );
+ void delete_rows( Subset && rows , c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// deletes one single existing row from the linear mapping
@@ -1120,22 +1117,6 @@ class PolyhedralFunction : public C05Function {
  void delete_rows( c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
- /// remove the given Variable from the PolyhedralFunction
- /** Removes the given Variable from the LinearFunction, thereby eliminating
-  * the corresponding column of the matrix A:
-  *
-  * @param var is a ColVariable *, and the pointed ColVariable must be
-  *        already among the active Variable of the PolyhedralFunction.
-  *
-  * @param issueMod, which decides if and how the C05FunctionModVars (with
-  *        f_shift == 0, since a PolyhedralFunction is strongly quasi-additive)
-  *        is issued, as described in Observer::make_par(). */
-
- virtual void remove_variable( Variable * var ,
-			       c_ModParam issueMod = eModBlck )
-  override final;
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// remove the i-th Variable
  /** Like remove_variable( Variable * ), but takes in input the index of
   * the Variable to be removed rather than its pointer. Useful if one knows
@@ -1145,10 +1126,12 @@ class PolyhedralFunction : public C05Function {
   *        and get_num_active_var().
   *
   * @param issueMod, which decides if and how the C05FunctionModVars (with
-  *        f_shift == 0, since a PolyhedralFunction is strongly quasi-additive)
+  *        f_shift == 0, since a PolyhedralFunction is strongly
+  *        quasi-additive)
   *        is issued, as described in Observer::make_par(). */
 
- void remove_variable( c_Index i , c_ModParam issueMod = eModBlck );
+ void remove_variable( c_Index i , c_ModParam issueMod = eModBlck )
+  override final;
 
 /*--------------------------------------------------------------------------*/
  /// remove a range of Variable
@@ -1166,7 +1149,7 @@ class PolyhedralFunction : public C05Function {
  /// remove the given set of Variable
  /** Remove all the Variable in the given set of index.
   *
-  * @param nms is Vec_Index & containing the indices of the Variable to be
+  * @param nms is Subset & containing the indices of the Variable to be
   *        removed, i.e., integers between 0 and get_num_active_var()
   *
   * @param ordered is a bool indicating if nms[] is already ordered in
@@ -1177,7 +1160,7 @@ class PolyhedralFunction : public C05Function {
   *        f_shift == 0, since a PolyhedralFunction is strongly
   *        quasi-additive) is issued, as described in Observer::make_par(). */
 
- virtual void remove_variables( Vec_Index & nms , const bool ordered = false ,
+ virtual void remove_variables( Subset & nms , const bool ordered = false ,
 				c_ModParam issueMod = eModBlck );
 
 /**@} ----------------------------------------------------------------------*/
@@ -1276,9 +1259,9 @@ class PolyhedralFunction : public C05Function {
  Index f_loc_pool_sz;        ///< size of the local pool
  Index f_next;               ///< next linearization in the local pool
  
- Vec_Index v_ord;            ///< the ordering of linearizations
+ Subset v_ord;            ///< the ordering of linearizations
 
- Vec_Index v_glob;           ///< the global pool
+ Subset v_glob;           ///< the global pool
                              /**< h = v_glob[ i ] contains the place where the
 			      * i-th item of the global pool is stored; if
 			      * h < v_A.size() then it's an original
@@ -1440,7 +1423,7 @@ class PolyhedralFunctionModAdd : public PolyhedralFunctionMod {
  * - modify_constant[s]
  * - delete_row[s]
  *
- * For all these, the Vec_Index of the affected rows is provided, as well as
+ * For all these, the Subset of the affected rows is provided, as well as
  * the exact type of operation. */
 
 class PolyhedralFunctionModRng : public PolyhedralFunctionMod {
@@ -1474,7 +1457,7 @@ class PolyhedralFunctionModRng : public PolyhedralFunctionMod {
   * PolyhedralFunctionModRng. */
 
  PolyhedralFunctionModRng( C05Function * const f , const int mod ,
-			   const int pfmod , Function::Vec_Index && rows ,
+			   const int pfmod , Function::Subset && rows ,
 			   const FunctionValue shift = NaNshift ,
 			   const bool cB = true )
   : PolyhedralFunctionMod( f , mod , shift , cB ) , f_PFtype( pfmod ) ,
@@ -1488,7 +1471,7 @@ class PolyhedralFunctionModRng : public PolyhedralFunctionMod {
 
  int f_PFtype;  // the exact PolyhedralFunction-specific operation
 
- Function::Vec_Index f_rows;  ///< the set of affected rows
+ Function::Subset f_rows;  ///< the set of affected rows
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 

@@ -267,12 +267,16 @@ class LagBFunction : public C05Function , public Block {
  *  @{ */
 
  /* Since LagBFunction is both a ThinVarDepInterface and a Block, it "sees"
-  * two definitions of "Index". These are actually the same, but compilers
-  * still don't like it. Disambiguate by declaring we use the
-  * ThinVarDepInterface version (but it could have been the Block version,
-  * as they are the same. */
+  * two definitions of "Index", "Range" and "Subset". These are actually the
+  * same, but compilers still don't like it. Disambiguate by declaring we
+  * use the ThinVarDepInterface versions (but it could have been the Block
+  * versions, as they are the same. */
  using Index = ThinVarDepInterface::Index;
  using c_Index = ThinVarDepInterface::c_Index;
+ using Range = ThinVarDepInterface::Range;
+ using c_Range = ThinVarDepInterface::c_Range;
+ using Subset = ThinVarDepInterface::Subset;
+ using c_Subset = ThinVarDepInterface::c_Subset;
 
  typedef std::pair< ColVariable * , Function * > dual_pair;
  ///< a constraint and its dual variable
@@ -561,12 +565,11 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- virtual void remove_variable( Variable * var ,
- 			       c_ModParam issueMod = eModBlck ) override;
+ void remove_variable( Index i , c_ModParam issueMod = eModBlck ) override;
 
 /*--------------------------------------------------------------------------*/
 
- virtual void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
+ void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*---------- METHODS FOR Loading/Saving THE DATA OF THE LagBFunction -------*/
@@ -590,16 +593,16 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- virtual void store_linearization( const LinearizationName name ) override final;
+ virtual void store_linearization( const Index name ) override final;
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
- virtual void delete_linearization( const LinearizationName name ) override final;
+ virtual void delete_linearization( const Index name ) override final;
 
 /*--------------------------------------------------------------------------*/
 
  virtual void store_combination_of_linearizations(
-	  LinearCombination & coefficients , const LinearizationName name ) override;
+	  LinearCombination & coefficients , const Index name ) override;
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
  /// set the important linearization
@@ -611,13 +614,13 @@ class LagBFunction : public C05Function , public Block {
   * into the sub-Block (B).  */
 
  virtual void set_important_linearization( LinearCombination && coefficients ,
-		 LinearizationName name ) override;
+		 Index name ) override;
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
  /// get the name of the important linearization
  /** This method reads the name of the important linearization */
 
- virtual LinearizationName get_important_linearization_name( void ) override
+ virtual Index get_important_linearization_name( void ) override
  {
   return( zName );
   }
@@ -635,8 +638,8 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- virtual void rename_linearization( const LinearizationName current_name ,
- 				    const LinearizationName new_name ) override;
+ virtual void rename_linearization( const Index current_name ,
+ 				    const Index new_name ) override;
 
 /*--------------------------------------------------------------------------*/
  /// compute the Function
@@ -676,36 +679,22 @@ class LagBFunction : public C05Function , public Block {
   }
 
 /*--------------------------------------------------------------------------*/
-/// retrieve the coefficients (g vector) of a linearization in a vector
-/** This method retrieves the vector of coefficients g that is the (largest)
-  * part of the linearization with the given name.
-  *
-  * This implements the virtual function of class C05Function.  */
 
- virtual void get_linearization_coefficients( FunctionValue * g ,
-   const LinearizationName name = Inf<LinearizationName>() ,
-   c_Vec_Index & indices = {} , c_Index start = 0 ,
-   c_Index end = std::numeric_limits<Index>::max() ) override final;
-
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
-
-/// retrieve the coefficients (g) of a linearization in a sparse vector
-/** This method retrieves the sparse vector of coefficients g that is part
-  * of a linearization.
-  *
-  * This implements the virtual function of class C05Function. */
-
- virtual void get_linearization_coefficients( SparseVector &g ,
-   const LinearizationName name = Inf<LinearizationName>() ,
-   c_Vec_Index & indices = {} , c_Index start = 0 ,
-   c_Index end = std::numeric_limits<Index>::max() ) override final;
+ void get_linearization_coefficients( FunctionValue * g ,
+			   Range range = std::make_pair( 0 , Inf<Index>() ) ,
+				      Index name = Inf<Index>() ) override;
 
 /*--------------------------------------------------------------------------*/
 
- virtual FunctionValue get_linearization_constant(
-		 const LinearizationName name = Inf<Index>() ) override final;
+ void get_linearization_coefficients( FunctionValue * g , c_Subset & subset  ,
+				      Index name = Inf<Index>() ) override;
 
- /*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ FunctionValue get_linearization_constant( c_Index name = Inf<Index>() )
+  override final;
+
+/*--------------------------------------------------------------------------*/
 
  Block* get_inner_block( void );
 
@@ -753,45 +742,46 @@ class LagBFunction : public C05Function , public Block {
  * vector lag_p of Lagrangian pairs.
  * @{ */
 
- virtual Index get_num_active_var( void ) const override final {
+ Index get_num_active_var( void ) const override final {
   return( lag_p.size() );
   }
 
 /*--------------------------------------------------------------------------*/
 
-virtual Index is_active( const Variable * const var ) const override final;
+ Index is_active( const Variable * const var ) const override final;
 
 /*--------------------------------------------------------------------------*/
 
- virtual void map_active( c_Vec_p_Var & vars , Vec_Index & map ,
-			  const bool ordered = false ) const override final;
+ void map_active( c_Vec_p_Var & vars , Subset & map ,
+		  const bool ordered = false ) const override final;
 
 /*--------------------------------------------------------------------------*/
 
- virtual Variable *get_active_var( const Index i ) const override final {
+ Variable *get_active_var( const Index i ) const override final {
   return( ( lag_p.begin() + i )->first );
   }
+
 /*--------------------------------------------------------------------------*/
 
- virtual v_iterator * v_begin( void ) override final {
+ v_iterator * v_begin( void ) override final {
   return( new LagBFunction::v_iterator( lag_p.begin() ) );
   }
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
- virtual v_const_iterator * v_begin( void ) const override final {
+ v_const_iterator * v_begin( void ) const override final {
   return( new LagBFunction::v_const_iterator( lag_p.begin() ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
- virtual v_iterator * v_end( void ) override final {
+ v_iterator * v_end( void ) override final {
   return( new LagBFunction::v_iterator( lag_p.end() ) );
   }
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
- virtual v_const_iterator * v_end( void ) const override final {
+ v_const_iterator * v_end( void ) const override final {
   return( new LagBFunction::v_const_iterator( lag_p.end() ) );
   }
 
@@ -835,14 +825,14 @@ virtual Index is_active( const Variable * const var ) const override final;
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
- LinearizationName LastSolution;
+ Index LastSolution;
  ///< the last solution read by get_linearization
 
  bool VarType;
  ///< the type of variable contained in the solver
 
 
- LinearizationName zName;
+ Index zName;
  ///< the name of the important linearization
 
  LinearCombination zLC;

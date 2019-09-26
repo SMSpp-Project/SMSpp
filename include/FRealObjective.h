@@ -376,7 +376,7 @@ class FRealObjective : public RealObjective , Observer {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual Index is_active( const Variable * const f_variable ) const override
+ Index is_active( const Variable * const f_variable ) const override
  {
   return( f_function ? f_function->is_active( f_variable ) : Inf<Index>() );
   }
@@ -390,14 +390,14 @@ class FRealObjective : public RealObjective , Observer {
 
 /*--------------------------------------------------------------------------*/
 
- virtual v_iterator * v_begin( void ) override
+ v_iterator * v_begin( void ) override
  {
   return( f_function ? f_function->v_begin() : nullptr );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual v_const_iterator * v_begin( void ) const override
+ v_const_iterator * v_begin( void ) const override
  {
   return( f_function ? 
 	  static_cast<const Function *>( f_function )->v_begin() : nullptr );
@@ -405,14 +405,14 @@ class FRealObjective : public RealObjective , Observer {
 
 /*--------------------------------------------------------------------------*/
 
- virtual v_iterator * v_end( void ) override
+ v_iterator * v_end( void ) override
  {
   return( f_function ? f_function->v_end() : nullptr );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual v_const_iterator * v_end( void ) const override
+ v_const_iterator * v_end( void ) const override
  {
   return( f_function ?
 	  static_cast<const Function *>( f_function )->v_end() : nullptr );
@@ -420,8 +420,27 @@ class FRealObjective : public RealObjective , Observer {
 
 /*--------------------------------------------------------------------------*/
 
- virtual void remove_variable( Variable * variable ,
-			       c_ModParam issueMod = eModBlck ) override;
+ void remove_variable( Index i , c_ModParam issueMod = eModBlck ) override
+ {
+  /* FRealObjective typically relies on FunctionModVars to know if something
+   * has happened to the Variable of the Function and register/unregister
+   * itself from them. However, in this case it knows beforehand what is
+   * happening. If there is no real reason to have the Modification issued,
+   * it will instruct the Function not to and do the unregistering herein.
+   */
+  
+  if( ! f_function )
+   return;
+
+  if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
+   f_function->remove_variable( i , issueMod );
+  else {
+   // unregistration can preceed removal, since the Function completely
+   // ignores this information
+   f_function->get_active_var( i )->remove_active( this );
+   f_function->remove_variable( i , eNoMod );
+   }
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF AN Observer -------------*/

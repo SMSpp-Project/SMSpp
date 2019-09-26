@@ -356,9 +356,9 @@ class Modification {
 
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
- Modification( void ) { }  ///< constructor: does nothing
+ Modification( void ) { }            ///< constructor: does nothing
 
- virtual ~Modification() { }  ///< destructor: does nothing
+ virtual ~Modification() = default;  ///< destructor: does nothing
 
 /*--------------------------------------------------------------------------*/
  /// returns true if the :Block needs to process this Modification
@@ -441,7 +441,7 @@ class AModification : public Modification {
  
  AModification( const bool cB = true ) : f_concerns_Block( cB ) { }
 
- virtual ~AModification() { }  ///< destructor: does nothing
+ virtual ~AModification() = default;  ///< destructor: does nothing
 
 /*--------------------------------------------------------------------------*/
  /// returns the value stored in the f_concerns_Block field
@@ -460,8 +460,6 @@ class AModification : public Modification {
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 
  protected:
-
-/*-------------------------- PROTECTED METHODS -----------------------------*/
 
 /*--------------------------- PROTECTED FIELDS -----------------------------*/
 
@@ -497,7 +495,7 @@ class NModification : public Modification {
  
  NModification( void ) : Modification() { }
 
- virtual ~NModification() { }  ///< destructor: does nothing
+ virtual ~NModification() = default;  ///< destructor: does nothing
 
 /*--------------------------------------------------------------------------*/
 
@@ -547,7 +545,7 @@ class NBModification : public NModification
  /// constructor: takes the Block
  NBModification( Block *fblock ) : NModification() , f_Block( fblock ) { }
 
- virtual ~NBModification() { }   ///< destructor, does nothing
+ virtual ~NBModification() = default;   ///< destructor, does nothing
 
 /*--------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
 
@@ -602,23 +600,27 @@ class GroupModification : public AModification {
   : AModification( cB ) , f_father( father ) { }
 
  ///< destructor: does nothing
- virtual ~GroupModification() { }
+ virtual ~GroupModification() = default;
 
 /*--------------------- PUBLIC FIELDS OF THE CLASS -------------------------*/
 
  std::list< std::shared_ptr<Modification> > v_sub_Modifications;
  ///< the std::list of std::shared_ptr<Modification>
- // actually, could a std::deque be better suited here?
+ /**< A GroupModification is basically just a std::list< Modifications >.
+  * Note that the field v_sub_Modifications is *not* protected and under
+  * a read-only accessor because a GroupModification, is a "dynamic" object
+  * that changes along its life (as sub_Modfication are added). This is
+  * unlike most other Modification, that are constructed in one blow and
+  * never changed afterwords. */
 
- GroupModification * f_father;  // pointer to the "father" GroupModification
+ GroupModification * f_father;
+ ///< pointer to the "father" GroupModification
 
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 
  protected:
 
 /*-------------------------- PROTECTED METHODS -----------------------------*/
-
-/*--------------------------- PROTECTED FIELDS -----------------------------*/
  /// printing the GroupModification
  /** Method for printing the GroupModification, which basically means printing
   * all its sub-Modification. */
@@ -629,6 +631,8 @@ class GroupModification : public AModification {
   for( auto mod : v_sub_Modifications )
    output << *mod << std::endl;
   }
+
+/*--------------------------- PROTECTED FIELDS -----------------------------*/
 
 /*--------------------------------------------------------------------------*/
 

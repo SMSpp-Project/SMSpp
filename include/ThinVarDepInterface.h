@@ -106,7 +106,7 @@ class ThinVarDepInterface {
   * from Block" because ThinVarDepInterface.h does not include Block.h. */
  using Index = unsigned int;
 
- using c_Index = const Index;             ///< a const Index
+ using c_Index = const Index;    ///< a const Index
 
  /// define the Range type, i.e., a pair of indices
  /** Note: the Range type is supposed to be identical to the same-name type
@@ -114,15 +114,15 @@ class ThinVarDepInterface {
   * ThinVarDepInterface.h does not include Block.h. */
  using Range = std::pair< Index , Index >;
 
- using c_Range = const Range;                 ///< a const Range
+ using c_Range = const Range;    ///< a const Range
 
  /// a std::vector< Index >
  /** Type a "generic set if Indices", i.e., a std::vector< Index >. This is
   * supposed to be identical to Block::Subset, but it is not "imported from 
   * Block" because ThinVarDepInterface.h does not include Block.h. */
- using Vec_Index = std::vector< Index >;
+ using Subset = std::vector< Index >;
 
- using c_Vec_Index = const Vec_Index;     ///< a const Vec_Index
+ using c_Subset = const Subset;  ///< a const Subset
 
 /*--------------------------------------------------------------------------*/
  /// virtualized standard iterator
@@ -508,10 +508,10 @@ class ThinVarDepInterface {
  /** Given in vars a set of (pointers to) Variable that are "active" in the
   * ThinVarDepInterface, returns the set of their indices in map; that is,
   * map[ i ] will contain the index of var[ i ]. If map.size() < vars.size()
-  * then map is resized, otherwise it is not changed (which means that only its
-  * first vars.size() are changed, the others being left untouched). If any
-  * of the Variable in vars is not "active" in the ThinVarDepInterface, an
-  * exception is thrown.
+  * then map is resized, otherwise it is not changed (which means that only
+  * its first vars.size() are changed, the others being left untouched). If
+  * any of the Variable in vars is not "active" in the ThinVarDepInterface,
+  * an exception is thrown.
   *
   * The parameter ordered tells if vars is ordered by increasing name =
   * pointer.
@@ -537,7 +537,7 @@ class ThinVarDepInterface {
   * reason preferable to do so. */
 
  virtual void map_active( const std::vector<Variable *> & vars ,
-			  Vec_Index & map , const bool ordered = false ) const
+			  Subset & map , const bool ordered = false ) const
  {
   if( vars.empty() )
    return;
@@ -670,7 +670,7 @@ class ThinVarDepInterface {
  *  @{ */
 
  /// removes the given Variable from the "active" ones
- /** Pure virtual method that deletes the given Variable from the set of
+ /** Pure virtual method that deletes the i-th Variable from the set of
   * "active" ones. The base ThinVarDepInterface class makes no provisions
   * about how this is done in order to leave more freedom to derived classes
   * to implement it in specialized ways.
@@ -694,8 +694,7 @@ class ThinVarDepInterface {
   * structures of such "undead" Variable, in particular on their list of
   * "active stuff". */
 
- virtual void remove_variable( Variable * var ,
-			       c_ModParam issueMod = eModBlck ) = 0;
+ virtual void remove_variable( Index i , c_ModParam issueMod = eModBlck ) = 0;
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

@@ -377,7 +377,7 @@ class LinearFunction : public C15Function {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  void get_linearization_coefficients( SparseVector & g ,
-				      c_Vec_Index & subset ,
+				      c_Subset & subset ,
 				      Index name = Inf<Index>() ) override;
 
 /*--------------------------------------------------------------------------*/
@@ -423,17 +423,17 @@ class LinearFunction : public C15Function {
 
  Index is_active( const Variable * const var ) const final
  {
-  auto idx = std::find( v_pairs.begin() , v_pairs.end() ,
-			[ & var ]( const auto p ) {
-			 return( p.first == var );
-			 } );
-  return( idx < v_pairs.end() ? std::distance( v_pairs.begin(), idx )
-	                      : Inf< Index >() );
+  auto idx = std::find_if( v_pairs.begin() , v_pairs.end() ,
+			   [ & var ]( const auto & p ) -> bool {
+			    return( p.first == var );
+			    } );
+  return( idx != v_pairs.end() ? std::distance( v_pairs.begin(), idx )
+	                       : Inf< Index >() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- void map_active( c_Vec_p_Var & vars , Vec_Index & map , bool ordered )
+ void map_active( c_Vec_p_Var & vars , Subset & map , bool ordered )
   const final;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -535,7 +535,7 @@ class LinearFunction : public C15Function {
   * issued, as described in Observer::make_par(). */
 
  virtual void modify_coefficients( Vec_FunctionValue && NCoef ,
-				   Vec_Index && nms ,
+				   Subset && nms ,
                                    c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -553,97 +553,56 @@ class LinearFunction : public C15Function {
 			   Range range = std::make_pair( 0 , Inf<Index>() ) ,
                            c_ModParam issueMod = eModBlck );
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// modify a range of coefficients
- /** Modify the coefficients of all the Variable comprised between strt
-  * (included) and stop (excluded). Setting strt == nullptr means "the first
-  * Variable", and setting stop == nullptr means "(one after) the last
-  * Variable". If no-nullptr arguments are provided, they *must* be "names"
-  * of Variable currently active in this LinearFunction. NCoef is a (const)
-  * iterator into a vector of coefficients that must clearly be at least as
-  * long (from NCoef to the end) as there are coefficients between the one
-  * of strt and the one of stop (these included).
-  *
-  * The parameter issueMod decides if and how the C05FunctionModLin is issued,
-  * as described in Observer::make_par(). */
-
- void modify_coefficients( c_v_coeff_it NCoef ,
-                           const Variable * strt = nullptr ,
-                           const Variable * stop = nullptr ,
-                           c_ModParam issueMod = eModBlck )
- {
-  c_Index istrt = strt ? is_active( strt ) : 0;
-  if( istrt >= get_num_active_var() )
-   throw ( std::invalid_argument( "strt is not an active Variable" ) );
-
-  Index istop;
-  if( stop ) {
-   istop = is_active( stop );
-   if( istop >= get_num_active_var() )
-    throw ( std::invalid_argument( "stop is not an active Variable" ) );
-   }
-  else
-   istop = get_num_active_var();
-
-  modify_coefficients( NCoef, istrt, istop, issueMod );
-  }
-
 /*--------------------------------------------------------------------------*/
- /// remove the given Variable from the LinearFunction
- /** Remove the given Variable from the LinearFunction. This is
+ /// remove the i-th "active" Variable from the LinearFunction
+ /** Remove the i-th "active" Variable from the LinearFunction. This is
   * *mathematically* equivalent to setting the corresponding coefficient to
   * zero, but it is considered a "stronger" operation (it is possible to have
-  * an active Variable with zero coefficient). If the Variable is not active
-  * in the LinearFunction, exception is thrown.
+  * an active Variable with zero coefficient).
   *
-  * Note that the pointer must necessarily be to a ColVariable for it to
-  * be active in a LinearFunction, but this method overrides that of
-  * ThinVarDepInterface which, by necessity, has a Variable * type.
-  *
-  * The parameter issueMod decides if and how the C05FunctionModVars is
+  * The parameter issueMod decides if and how the C05FunctionModVarsRngd is
   * issued, as described in Observer::make_par(). Note that a linear function
-  * is additive, and therefore strongly quasi-additive. */
+  * is additive, and therefore strongly quasi-additive, which is why a
+  * C05FunctionModVarsRngd is issued as opposed to a FunctionModVarsRngd
+  * one. */
 
- virtual void remove_variable( Variable * var, c_ModParam issueMod )
+ void remove_variable( c_Index i, c_ModParam issueMod = eModBlck )
   override final;
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// remove the i-th Variable
- /** Like remove_variable( Variable * ), but takes in input the index of
-  * the Variable to be removed rather than its pointer. Useful if one knows
-  * the index already, so that it need not be searched for.
-  *
-  * The parameter issueMod decides if and how the C05FunctionModVars is
-  * issued, as described in Observer::make_par(). Note that a linear function
-  * is additive, and therefore strongly quasi-additive. */
-
- void remove_variable( c_Index i, c_ModParam issueMod = eModBlck );
-
 /*--------------------------------------------------------------------------*/
- /// remove a range of Variable
- /** Remove all the Variable that are in position from start (included) to
-  * min( stop , get_num_active_var() ) (excluded) in this LinearFunction.
+ /// remove a range of "active" Variable
+ /** Remove all the "active" Variable in the given Range, i.e., all those
+  * with index i s.t. range.first <= i < min( range.second ,
+  * get_num_active_var() ), from this LinearFunction.
   *
-  * The parameter issueMod decides if and how the C05FunctionModVars is
+  * The parameter issueMod decides if and how the C05FunctionModVarsRngd is
   * issued, as described in Observer::make_par(). Note that a linear function
-  * is additive, and therefore strongly quasi-additive. */
+  * is additive, and therefore strongly quasi-additive, which is why a
+  * C05FunctionModVarsRngd is issued as opposed to a FunctionModVarsRngd
+  * one. */
 
- void remove_variables( c_Index strt = 0 , Index stop = Inf< Index >() ,
+ void remove_variables( Range range = std::make_pair( 0 , Inf<Index>() ) ,
                         c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
- /// remove the given set of Variable
- /** Remove all the Variable in the given set of indices. The parameter
-  * ordered tells if nms is already ordered in increasing sense if not
-  * otherwise it gets ordered inside the method (which is why it is not
-  * const). Note that nms is *not* &&, hence it is not "taken" by the
-  * LinearFunction.
+ /// remove the given subset of Variable
+ /** Remove all the Variable in the given set of indices. As the && tells,
+  * nms becomes property of the LinearFunction object (possibly to be
+  * immediately dispatched to the issued C05FunctionModVarSbst).
   *
-  * The parameter issueMod decides if and how the C05FunctionModVars is
+  * The parameter ordered tells if nms is ordered by increasing index. This
+  * is useful for efficently deleting them; indeed, if ordered == false the
+  * vector is sorted inside. The parameter is provided to signal the lucky
+  * case in which this operation can be avoided since nms "naturally" comes
+  * out ordered.
+  *
+  * The parameter issueMod decides if and how the C05FunctionModVarSbst is
   * issued, as described in Observer::make_par(). Note that a linear function
-  * is additive, and therefore strongly quasi-additive. */
+  * is additive, and therefore strongly quasi-additive, which is why a
+  * C05FunctionModVarsRngd is issued as opposed to a C05FunctionModVarSbst
+  * one. */
 
- void remove_variables( Vec_Index & nms , bool ordered = false ,
+ void remove_variables( Subset && nms , bool ordered = false ,
 			c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -682,8 +641,7 @@ class LinearFunction : public C15Function {
  v_coeff_pair v_pairs;
  ///< vector of pairs < ColVariable * , Coefficient > for the Function
  /**< vector of pairs < ColVariable * , Coefficient > characterizing the
-  * LinearFunction; the vector is kept sorted in an ascending order of the
-  * pointers of the ColVariables. */
+  * LinearFunction. */
 
  FunctionValue f_value;  ///< the value of the Function
 
@@ -695,11 +653,6 @@ class LinearFunction : public C15Function {
 /*--------------------------------------------------------------------------*/
 
  private:
-
-/*--------------------------------------------------------------------------*/
-
- void issue_add_variables_modification( v_coeff_pair & pairs,
-                                        c_ModParam issueMod );
 
 /*--------------------------------------------------------------------------*/
 

@@ -773,18 +773,18 @@ public:
  * they may be useful to derived classes, so we do the "importing" once and
  * for all here. */
 
- /// "import" Index from Function
+ /// "import" Index (equivalent to Block::Index) from Function
  using Index = Function::Index;
 
- using c_Index = const Index;  ///< a const Index
+ using c_Index = const Index;   ///< a const Index
 
- /// "import" Range from Function
+ /// "import" Range (equivalent to Block::Range) from Function
  using Range = Function::Range;
 
- using c_Range = const Range;  ///< a const Range
+ using c_Range = const Range;   ///< a const Range
 
- /// "import" Vec_Index as Subset (equivalent to Block::Subset) from Function
- using Subset = Function::Vec_Index;
+ /// "import" Subset (equivalent to Block::Subset) from Function
+ using Subset = Function::Subset;
 
  using c_Subset = const Subset;  ///< a const Subset
 
@@ -1050,18 +1050,18 @@ public:
  * they may be useful to derived classes, so we do the "importing" once and
  * for all here. */
 
- /// "import" Index from Function
+ /// "import" Index (equivalent to Block::Index) from Function
  using Index = Function::Index;
 
- using c_Index = const Index;  ///< a const Index
+ using c_Index = const Index;    ///< a const Index
 
- /// "import" Range from Function
+ /// "import" Range (equivalent to Block::Range) from Function
  using Range = Function::Range;
 
- using c_Range = const Range;  ///< a const Range
+ using c_Range = const Range;    ///< a const Range
 
- /// "import" Vec_Index as Subset (equivalent to Block::Subset) from Function
- using Subset = Function::Vec_Index;
+ /// "import" Subset (equivalent to Block::Subset) from Function
+ using Subset = Function::Subset;
 
  using c_Subset = const Subset;  ///< a const Subset
 
@@ -1367,7 +1367,7 @@ public:
 		      FunctionValue shift = NaNshift , bool cB = true )
   : FunctionModVars( f , std::move( vars ) , shift , cB ) , f_range( range )
  {
-  if( v_vars.size() != v_range.second - v_range.first )
+  if( v_vars.size() != f_range.second - f_range.first )
    throw( std::invalid_argument( "vars and range sizes do not match" ) );
   }
 

@@ -114,23 +114,14 @@ class DQuadFunction : public C15Function {
  /// type of the coefficients of linear and quadratic terms = FunctionValue
  using Coefficient = FunctionValue;
 
- /// a pair of Coefficient
- using CoeffPair = std::pair< Coefficient, Coefficient >;
+ using v_coeff = std::vector< Coefficient >;  ///< a vector of Coefficients
 
- /// a vector of pairs of Coefficients
- using v_coeff_coeff = std::vector< CoeffPair >;
+ using v_coeff_it = v_coeff::iterator;  ///< iterator in v_coeff
 
- /// a const vector of pairs of Coefficients
- using c_v_coeff_coeff = const v_coeff_coeff;
+ using c_v_coeff_it = v_coeff::const_iterator;  ///< const iterator in v_coeff
 
- /// iterator in v_coeff_coeff
- using v_coeff_coeff_it = v_coeff_coeff::iterator;
-
- /// const iterator in v_coeff_coeff
- using c_v_coeff_coeff_it = v_coeff_coeff::const_iterator;
-
- /// one term of the sum: ( ColVariable * , Coefficient , Coefficient )
- /** Triple ( ColVariable * , Coefficient , Coefficient ) that describes
+ /// one term of the sum: < ColVariable * , Coefficient , Coefficient >
+ /** Triple < ColVariable * , Coefficient , Coefficient > that describes
   * the term of the sum corresponding to one [Col]Variable. */
  using coeff_triple = std::tuple< ColVariable * , Coefficient , Coefficient >;
 
@@ -311,13 +302,13 @@ class DQuadFunction : public C15Function {
   if( ! scfg )  // setting nothing
    return;      // nothing to do
 
-   for( auto pair : scfg->int_pars )
-    if( pair.first == intGPMaxSz ) {
-     if( pair.second > 0 )
-      throw( std::invalid_argument( 
+  for( auto pair : scfg->int_pars )
+   if( int_par_str2idx( pair.first ) == intGPMaxSz ) {
+    if( pair.second > 0 )
+     throw( std::invalid_argument( 
 			"global pool not supported yet by DQuadFunction" ) );
-     break;
-     }
+    break;
+    }
   }
 
 /*--------------------------------------------------------------------------*/
@@ -353,7 +344,7 @@ class DQuadFunction : public C15Function {
   * @param i Index of the Variable whose linear coefficient is desired. */
 
  Coefficient get_linear_coefficient( Index i ) const {
-  return( ( std::get<1>( *( v_pairs.begin() + i ) ) );
+  return( std::get< 1 >( *( v_triples.begin() + i ) ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/  /// returns the quadratic Coefficient of the i-th Variable
@@ -363,7 +354,7 @@ class DQuadFunction : public C15Function {
   * @param i Index of the Variable whose quadratic coefficient is desired. */
 
  Coefficient get_quadratic_coefficient( Index i ) const {
-  return( ( std::get<1>( *( v_pairs.begin() + i ) ) );
+  return( std::get< 2 >( *( v_triples.begin() + i ) ) );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -460,7 +451,7 @@ class DQuadFunction : public C15Function {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  void get_linearization_coefficients( SparseVector & g ,
-				      c_Vec_Index & subset ,
+				      c_Subset & subset ,
 				      Index name = Inf<Index>() ) override;
 
 /*--------------------------------------------------------------------------*/
@@ -520,23 +511,23 @@ class DQuadFunction : public C15Function {
 
  Index is_active( const Variable * const var ) const final
  {
-  auto idx = std::find( v_pairs.begin() , v_pairs.end() ,
-			[ & var ]( const auto p ) {
-			 return(  std::get< 0 >( p ) == var );
-			 } );
-  return( idx < v_triples.end() ? std::distance( v_triples.begin(), idx )
-	                        : Inf< Index >() );
+  auto idx = std::find_if( v_triples.begin() , v_triples.end() ,
+			   [ & var ]( const auto & p ) -> bool {
+			    return( std::get< 0 >( p ) == var );
+			    } );
+  return( idx != v_triples.end() ? std::distance( v_triples.begin(), idx )
+	                         : Inf< Index >() );
   }
 
 /*--------------------------------------------------------------------------*/
 
- void map_active( c_Vec_p_Var & vars , Vec_Index & map , bool ordered )
+ void map_active( c_Vec_p_Var & vars , Subset & map , bool ordered )
   const final;
 
 /*--------------------------------------------------------------------------*/
 
  Variable * get_active_var( const Index i ) const final {
-  return( std::get< 0 >( v_triple[ i ] ) );
+  return( std::get< 0 >( v_triples[ i ] ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -563,6 +554,9 @@ class DQuadFunction : public C15Function {
   return( new DQuadFunction::v_const_iterator( v_triples.end() ) );
   }
 
+ 
+
+ 
 /**@} ----------------------------------------------------------------------*/
 /*-------------- METHODS FOR MODIFYING THE DQuadFunction -------------------*/
 /*--------------------------------------------------------------------------*/
@@ -638,19 +632,6 @@ class DQuadFunction : public C15Function {
  /** Method that receives (an iterator into) the vector of quadratic
   * coefficient values, (an iterator into) the vector of linea coefficient
   * values, and the set of index of the ColVariable whose (both) coefficients
-  * need be modifiedribed in Observer::make_par(). This is precisely the
-  * advantage of  using this method w.r.t. modify_term( i , lin , quad )
-  * with quad == 0; a "less general" C05FunctionModLinRngd can be issued in
-  * place of a C05FunctionModRngd one. */
-
- void modify_linear_coefficient( Index i , Coefficient coeff ,
-                                 c_ModParam issueMod = eModBlck );
-
-/*--------------------------------------------------------------------------*/
- /// modify a set of existing quadratic terms
- /** Method that receives (an iterator into) the vector of quadratic
-  * coefficient values, (an iterator into) the vector of linea coefficient
-  * values, and the set of index of the ColVariable whose (both) coefficients
   * need be modified, and sets the quadratic coefficient of ColVariable
   * nms[ i ] to *( NQuadCoef + i ), and the linear one to *( NLinCoef + i ).
   * As the && tells, nms becomes property of the DQuadFunction object
@@ -660,7 +641,7 @@ class DQuadFunction : public C15Function {
   * issued, as described in Observer::make_par(). */
 
  void modify_terms( c_v_coeff_it NQuadCoef , c_v_coeff_it NLinCoef ,
-		    Vec_Index && nms , c_ModParam issueMod = eModBlck );
+		    Subset && nms , c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify a set of existing linear coefficients
@@ -678,7 +659,7 @@ class DQuadFunction : public C15Function {
   * issued in place of a C05FunctionModSbst one. */
 
  void modify_linear_coefficients( Vec_FunctionValue && NCoef ,
-				  Vec_Index && nms ,
+				  Subset && nms ,
 				  c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -717,63 +698,55 @@ class DQuadFunction : public C15Function {
 				  c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
- /// remove the given Variable from the DQuadFunction
- /** Remove the given Variable from the DQuadFunction. This is
-  * *mathematically* equivalent to setting the coefficients associated
-  * with this Variable to zero. */
- /** Remove the given Variable from the DQuadFunction. This is
+ /// remove the i-th "active" Variable from the DQuadFunction
+ /** Remove the i-th "active" Variable from the DQuadFunction. This is
   * *mathematically* equivalent to setting both its linear and quadratic
   * coefficients to zero, but it is considered a "stronger" operation (it is
-  * possible to have an active Variable with both zero coefficienta). If the
-  * Variable is not active in the DQuadFunction, exception is thrown.
+  * possible to have an active Variable with both zero coefficients).
   *
-  * Note that the pointer must necessarily be to a ColVariable for it to
-  * be active in a LinearFunction, but this method overrides that of
-  * ThinVarDepInterface which, by necessity, has a Variable * type.
-  *
-  * The parameter issueMod decides if and how the C05FunctionModVars is
+  * The parameter issueMod decides if and how the C05FunctionModVarsRngd is
   * issued, as described in Observer::make_par(). Note that a diagonal
-  * quadratic function is additive, and therefore strongly quasi-additive. */
+  * quadratic function is additive, and therefore strongly quasi-additive,
+  * which is why a C05FunctionModVarsRngd is issued as opposed to a
+  * FunctionModVarsRngd one. */
 
- virtual void remove_variable( Variable * var , c_ModParam issueMod )
+ void remove_variable( c_Index i, c_ModParam issueMod = eModBlck )
   override final;
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// remove the i-th Variable
- /** Like remove_variable( Variable * ), but takes in input the index of
-  * the Variable to be removed rather than its pointer. Useful if one knows
-  * the index already, so that it need not be searched for.
-  *
-  * The parameter issueMod decides if and how the C05FunctionModVars is
-  * issued, as described in Observer::make_par(). Note that a diagonal
-  * quadratic function is additive, and therefore strongly quasi-additive. */
-
- void remove_variable( c_Index i, c_ModParam issueMod = eModBlck );
-
 /*--------------------------------------------------------------------------*/
- /// remove a range of Variable
- /** Remove all the Variable that are in position from start (included) to
-  * min( stop , get_num_active_var() ) (excluded) in this DQuadFunction.
+ /// remove a range of "active" Variable
+ /** Remove all the "active" Variable in the given Range, i.e., all those
+  * with index i s.t. range.first <= i < min( range.second ,
+  * get_num_active_var() ), from this DQuadFunction.
   *
-  * The parameter issueMod decides if and how the C05FunctionModVars is
-  * issued, as described in Observer::make_par(). Note that a diagonal
-  * quadratic function is additive, and therefore strongly quasi-additive. */
+  * The parameter issueMod decides if and how the C05FunctionModVarsRngd is
+  * issued, as described in Observer::make_par(). Note that a linear function
+  * is additive, and therefore strongly quasi-additive, which is why a
+  * C05FunctionModVarsRngd is issued as opposed to a FunctionModVarsRngd
+  * one. */
 
- void remove_variables( c_Index strt = 0 , Index stop = Inf< Index >() ,
+ void remove_variables( Range range = std::make_pair( 0 , Inf<Index>() ) ,
                         c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
- /// remove the given set of Variable
- /** Remove all the Variable in the given vector taking in input a set of index
-  * of the Variable. The parameter ordered tells if nms is already ordered in
-  * increasing sense. Note that nms is *not* &&, hence it is not "taken" by the
-  * DQuadFunction.
+ /// remove the given subset of Variable
+/** Remove all the Variable in the given set of indices. As the && tells,
+  * nms becomes property of the DQuadFunction object (possibly to be
+  * immediately dispatched to the issued C05FunctionModVarSbst).
   *
-  * The parameter issueMod decides if and how the C05FunctionModVars is
-  * issued, as described in Observer::make_par(). Note that a linear diagonal
-  * quadratic function is additive, and therefore strongly quasi-additive. */
+  * The parameter ordered tells if nms is ordered by increasing index. This
+  * is useful for efficently deleting them; indeed, if ordered == false the
+  * vector is sorted inside. The parameter is provided to signal the lucky
+  * case in which this operation can be avoided since nms "naturally" comes
+  * out ordered.
+  *
+  * The parameter issueMod decides if and how the C05FunctionModVarSbst is
+  * issued, as described in Observer::make_par(). Note that a linear function
+  * is additive, and therefore strongly quasi-additive, which is why a
+  * C05FunctionModVarsRngd is issued as opposed to a C05FunctionModVarSbst
+  * one. */
 
- void remove_variables( Vec_Index & nms , bool ordered = false ,
+ void remove_variables( Subset && nms , bool ordered = false ,
 			c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -810,10 +783,9 @@ class DQuadFunction : public C15Function {
 /*--------------------------------------------------------------------------*/
 
  v_coeff_triple v_triples;
- /**< vector of triples (ColVariable *, Coefficient, Coefficient)
-  * characterizing the linear and the diagonal quadratic terms of the
-  * function; the vector is kept sorted in an ascending order based on
-  * the pointers of the ColVariables. The first coefficient is that in
+ /**< vector of triples < ColVariable * , Coefficient , Coefficient >
+  * characterizing the linear and the quadratic terms of the DQuadFunction;
+  * the first coefficient is that in
   * the linear term and the second one is that in the quadratic
   * term. */
 
@@ -827,11 +799,6 @@ class DQuadFunction : public C15Function {
 /*--------------------------------------------------------------------------*/
 
  private:
-
-/*--------------------------------------------------------------------------*/
-
- void issue_add_variables_modification( v_coeff_triple & triples,
-                                        c_ModParam issueMod );
 
 /*--------------------------------------------------------------------------*/
 

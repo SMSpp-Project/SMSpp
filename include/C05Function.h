@@ -885,9 +885,9 @@ class C05Function : public Function {
   if( range.second <= range.first )  // range is empty
    return;                           // cowardly (and silently) return
 
-  Vec_FunctionValue gg[ range.second - range.first ];
+  Vec_FunctionValue gg( range.second - range.first );
   FunctionValue * ggp = gg.data();
-  get_linearization_coefficients( ggp , name , range );
+  get_linearization_coefficients( ggp , range , name );
 
   if( g.nonZeros() == 0 ) {  // g has no nonzeroes
 
@@ -999,7 +999,7 @@ class C05Function : public Function {
   if( subset.empty() )  // subset is empty
    return;              // cowardly (and silently) return
 
-  Vec_FunctionValue gg[ subset.size() ];
+  Vec_FunctionValue gg( subset.size() );
   FunctionValue * ggp = gg.data();
   get_linearization_coefficients( ggp , subset , name );
 
@@ -1010,7 +1010,7 @@ class C05Function : public Function {
 
    g.reserve( subset.size() );
 
-   for( auto i : indices ) {
+   for( auto i : subset ) {
     if( i >= get_num_active_var() )
      throw( std::invalid_argument( "wrong index in subset" ) );
     g.insert( i ) = *(ggp++);
@@ -1020,7 +1020,7 @@ class C05Function : public Function {
    if( g.size() != get_num_active_var() )
     throw( std::invalid_argument( "wrong size of nonempty SparseVector g" ) );
 
-   for( auto i : indices ) {
+   for( auto i : subset ) {
     if( i >= get_num_active_var() )
      throw( std::invalid_argument( "wrong index in subset" ) );
     g.coeffRef( i ) = *(ggp++);
@@ -1498,7 +1498,7 @@ class C05FunctionModRngd : public C05FunctionMod
    : C05FunctionMod( f , type , shift , cB ) , v_vars( std::move( vars ) ) ,
      f_range( range )
  {
-  if( v_vars.size() != v_range.second - v_range.first )
+  if( v_vars.size() != f_range.second - f_range.first )
    throw( std::invalid_argument( "vars and range sizes do not match" ) );
   }
 
@@ -1881,7 +1881,7 @@ class C05FunctionModVarsAddd : public FunctionModVarsAddd
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: identical to that of FunctionModVarsAddd
 
- C05FunctionModVarsAddd( Function * f , Vec_p_Var && vars , Index first ,
+ C05FunctionModVarsAddd( C05Function * f , Vec_p_Var && vars , Index first ,
 			 FunctionValue shift = NaNshift , bool cB = true )
   : FunctionModVarsAddd( f , std::move( vars ) , first , shift , cB ) { }
 
@@ -1897,7 +1897,7 @@ class C05FunctionModVarsAddd : public FunctionModVarsAddd
 
  /// print the C05FunctionModVarsAddd
 
- virtual inline void print( std::ostream &output ) const override
+ void print( std::ostream &output ) const override
  {
   output << "C05FunctionModVarsAddd[";
   if( concerns_Block() )
@@ -1908,13 +1908,13 @@ class C05FunctionModVarsAddd : public FunctionModVarsAddd
 	 << " ]: strongly quasi-additively (";
 
   if( std::isnan( f_shift ) )
-   output << "??+-??";
+   output << "+-(?)";
   else
    if( f_shift >= std::numeric_limits<FunctionValue>::infinity() )
-    output << "??+??";
+    output << "+(?)";
    else
     if( f_shift <= -std::numeric_limits<FunctionValue>::infinity() )
-     output << "??-??";
+     output << "-(?)";
     else
      output << f_shift;
 
@@ -1960,8 +1960,9 @@ public:
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: identical to that of FunctionModVarsRngd
 
- C05FunctionModVarsRngd( Function * f , Vec_p_Var && vars , c_Range & range ,
-			 FunctionValue shift = NaNshift , bool cB = true )
+ C05FunctionModVarsRngd( C05Function * f , Vec_p_Var && vars ,
+			 c_Range & range , FunctionValue shift = NaNshift ,
+			 bool cB = true )
   : FunctionModVarsRngd( f , std::move( vars ) , range , shift , cB ) { }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
@@ -1976,7 +1977,7 @@ public:
 
  /// print the C05FunctionModVarsRngd
 
- virtual inline void print( std::ostream &output ) const override
+ void print( std::ostream &output ) const override
  {
   output << "C05FunctionModVarsRngd[";
   if( concerns_Block() )
@@ -1987,13 +1988,13 @@ public:
 	 << " ]: strongly quasi-additively (";
 
   if( std::isnan( f_shift ) )
-   output << "??+-??";
+   output << "+-(?)";
   else
    if( f_shift >= std::numeric_limits<FunctionValue>::infinity() )
-    output << "??+??";
+    output << "+(?)";
    else
     if( f_shift <= -std::numeric_limits<FunctionValue>::infinity() )
-     output << "??-??";
+     output << "-(?)";
     else
      output << f_shift;
 
@@ -2037,16 +2038,17 @@ class C05FunctionModVarsSbst : public FunctionModVarsSbst {
 public:
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
- /// constructor: identical to that of FunctionModVarsRngd
+ /// constructor: identical to that of FunctionModVarsSbst
 
- C05FunctionModVarsSbst( Function * f , Vec_p_Var && vars , Subset && subset ,
-			 FunctionValue shift = NaNshift , bool cB = true )
+ C05FunctionModVarsSbst( C05Function * f , Vec_p_Var && vars ,
+			 Subset && subset , FunctionValue shift = NaNshift ,
+			 bool cB = true )
   : FunctionModVarsSbst( f , std::move( vars ) , std::move( subset ) ,
 			 shift , cB ) { }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
- virtual ~FunctionModVarsSbst() = default;  ///< destructor: does nothing
+ virtual ~C05FunctionModVarsSbst() = default;  ///< destructor: does nothing
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -2056,7 +2058,7 @@ public:
 
  /// print the C05FunctionModVarsSbst
 
- virtual inline void print( std::ostream &output ) const override
+ void print( std::ostream &output ) const override
  {
   output << "C05FunctionModVarsSbst[";
   if( concerns_Block() )
@@ -2067,13 +2069,13 @@ public:
 	 << " ]: strongly quasi-additively (";
 
   if( std::isnan( f_shift ) )
-   output << "??+-??";
+   output << "+-(?)";
   else
    if( f_shift >= std::numeric_limits<FunctionValue>::infinity() )
-    output << "??+??";
+    output << "+(?)";
    else
     if( f_shift <= -std::numeric_limits<FunctionValue>::infinity() )
-     output << "??-??";
+     output << "-(?)";
     else
      output << f_shift;
 
@@ -2224,7 +2226,7 @@ class C05FunctionModLin : public FunctionMod {
 
  /// print the C05FunctionModLin
 
- virtual inline void print( std::ostream &output ) const override
+ void print( std::ostream &output ) const override
  {
   output << "C05FunctionModLin[";
   if( concerns_Block() )
@@ -2277,7 +2279,7 @@ class C05FunctionModLin : public FunctionMod {
  *
  * This may simplify the job of the Solver/Observer somewhat. */
 
-class C05FunctionModLinRngd : public FunctionModLinRngd {
+class C05FunctionModLinRngd : public C05FunctionModLin {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
@@ -2300,7 +2302,7 @@ public:
   : C05FunctionModLin( f , std::move( delta ) , std::move( vars ) , shift ,
 		       cB ) , f_range( range )
  {
-  if( v_vars.size() != v_range.second - v_range.first )
+  if( v_vars.size() != f_range.second - f_range.first )
    throw( std::invalid_argument( "vars and range sizes do not match" ) );
   }
 
@@ -2322,7 +2324,7 @@ public:
 
  /// print the C05FunctionModLinRngd
 
- virtual inline void print( std::ostream &output ) const override
+ void print( std::ostream &output ) const override
  {
   output << "C05FunctionModLinRngd[";
   if( concerns_Block() )
@@ -2371,7 +2373,7 @@ public:
   * && tells, the vector "becomes property" of the C05FunctionModLinSbst
   * object. */
 
- C05FunctionModLinSbst( Function * f, Vec_FunctionValue && delta ,
+ C05FunctionModLinSbst( C05Function * f, Vec_FunctionValue && delta ,
 			Vec_p_Var && vars , Subset && subset ,
 			FunctionValue shift = NaNshift , bool cB = true )
   : C05FunctionModLin( f , std::move( delta ) , std::move( vars ) , shift ,
@@ -2399,7 +2401,7 @@ public:
 
  /// print the C05FunctionModLinSbst
 
- virtual inline void print( std::ostream &output ) const override
+ void print( std::ostream &output ) const override
  {
   output << "C05FunctionModLinSbst[";
   if( concerns_Block() )
