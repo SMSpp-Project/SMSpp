@@ -437,7 +437,7 @@ class ThinVarDepInterface {
  * As a consequence of these principles, 
  *
  *     THE Index OF AN EXISTING "ACTIVE" Variable CAN ONLY DIMINISH AS THE
- *     SET OF "ACTIVE" Variable CHANGES, UNLESS THE Variable DELETED AND
+ *     SET OF "ACTIVE" Variable CHANGES, UNLESS THE Variable IS DELETED AND
  *     RE-ADDED.
  *
  * This may be useful for implementations, e.g. for Modification related to
@@ -465,10 +465,18 @@ class ThinVarDepInterface {
  * been re-added in the meantime).
  *
  * Any ThinVarDepInterface must allows access to the set of "active" Variable
- * via their Index [see get_active_var(). However, another basically
+ * via their Index [see get_active_var()]. However, another basically
  * independent means of acess is provided via a (virtualized) forward
  * iterator, with standard begin() and end() accessors, so that any standard
  * STL algorithm only relying on forward iterators can be applied.
+ *
+ * An important note is that
+ *
+ *     REPEATED "ACTIVE" Variable ARE NOT PERMITTED; THAT IS, IT IS NOT 
+ *     ALLOWED THAT get_active_var( i ) == get_active_var( j ) FOR i != j
+ *
+ * This is only natural, and ties in with the fact that there is a one-to-one
+ * map between "active" Variable pointers and their indices, see map_active().
  *  @{ */
 
  /// get the number of Variables that are "active"
@@ -516,7 +524,7 @@ class ThinVarDepInterface {
   *   if is_active() has a trivial  O( get_num_active_var() ) implementation;
   *
   * - if ordered == true, the map is rather constructed by sifting through the
-  *   list of "active" Variable and looking each up imn vars(), which has
+  *   list of "active" Variable and looking each up in vars(), which has
   *   O( log( vars.size() ) * get_num_active_var() ) complexity if
   *   get_active_var() is O( 1 ).
   *
@@ -532,7 +540,7 @@ class ThinVarDepInterface {
 			  Vec_Index & map , const bool ordered = false ) const
  {
   if( vars.empty() )
-  return;
+   return;
 
  if( map.size() < vars.size() )
    map.resize( vars.size() );
@@ -577,7 +585,7 @@ class ThinVarDepInterface {
   * class, subject to the assumptions stated in the general comments to this
   * section. */
 
- virtual Variable *get_active_var( const Index i ) const = 0;
+ virtual Variable * get_active_var( const Index i ) const = 0;
 
 /*--------------------------------------------------------------------------*/
  /// get (a pointer to) a v_iterator for scanning the "active" Variable

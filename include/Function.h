@@ -365,15 +365,23 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
  *                 TO ENSURE THAT THE RULE IS RESPECTED
  *
  * Note that several methods in this section (get_Lipschitz_constant(),
- * is_convex(), is_concave(), ...) refer to properties of the Function that
- * may be true at a certain moment, but may become false when the Function is
- * modified. The guidelines is that these methods should return "safe"
- * information that should not need to be updated each time any Modification
- * occurs: if the Function is_convex(), this is supposed to remain true. There
- * can be exceptions to that; for instance, if the Function changes entirely,
- * then reasonably this information can change. Also, certain changes (like
- * adding and removing Variable) almost certainly change the Lipschitz
- * constant, which must therefore be re-checked (if needed).
+ * get_global_[lower/upper]_bound(), is_convex(), is_concave(), ...) refer to
+ * properties of the Function that may be true at a certain moment, but may
+ * become false when the Function is modified. The guidelines is therefore
+ * that each time a "major" Modification is issued (say a FunctionMod telling
+ * that the function has changed "a lot"), the properties that could
+ * potentially change should be re-checked. For instance, adding and removing
+ * Variable, as signalled by a FunctionModVar, almost certainly change the
+ * Lipschitz constant, which must therefore be re-checked (if needed). On
+ * the other hand, if the Function is only shifted by a fixed constant then
+ * the Lipschitz constant does not change, and if it changes monotonically
+ * upwards [downwards] then any previous global valid lower [upper] bound at
+ * the very least remains valid, although of course it may have changed
+ * upwards [downwards] as well, so one may want to re-check it anyway.
+ * Other properties [like convexity and linearity] should be more "stable",
+ * but the idea is that the methods returning them should be "quick", and
+ * therefore checking them often should not be a big issue.
+ *
  * @{ */
 
  /// compute the Function
@@ -439,9 +447,39 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
 
 /*--------------------------------------------------------------------------*/
  /// returns a valid global lower bound on the Function value
+ /** The Function may know that it is bounded below on its domain, and be
+  * able to (cheapily) compute a finite number guaranteed to be <= than any
+  * value that get_value() can possibly return. If so, such a value should
+  * be returned by this method. The base class implementation returns the
+  * always safe - Inf< FunctionValue >().
+  *
+  * This method is not const because the computation of the global lower bound
+  * may not be cheap. The standard approach is then to only compute it if the
+  * method is called, but on the other hand to "cache" the value to answer
+  * quickly if no change has happened that changed it. Thus, the method has
+  * to be able to write into the fields of the class. */
 
+ virtual FunctionValue get_global_lower_bound( void ) {
+  return( - Inf< FunctionValue >() );
+  }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns a valid global upper bound on the Function value
+ /** The Function may know that it is bounded above on its domain, and be
+  * able to (cheapily) compute a finite number guaranteed to be >= than any
+  * value that get_value() can possibly return. If so, such a value should
+  * be returned by this method. The base class implementation returns the
+  * always safe Inf< FunctionValue >().
+  *
+  * This method is not const because the computation of the global upper bound
+  * may not be cheap. The standard approach is then to only compute it if the
+  * method is called, but on the other hand to "cache" the value to answer
+  * quickly if no change has happened that changed it. Thus, the method has
+  * to be able to write into the fields of the class. */
 
+ virtual FunctionValue get_global_upper_bound( void ) {
+  return( Inf< FunctionValue >() );
+  }
 
  
 /*--------------------------------------------------------------------------*/
@@ -452,9 +490,15 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
   *   | f( x ) - f( y ) | <= L * | x - y |
   *
   * for all x and y in the domain of the Function. By default, the method
-  * returns Inf<FunctionValue>(), which means that the Function does
-  * *not* have a Lipschitz constant. Note that a finite Lipschitz constant
-  * implies that is_continuous() must return true. */
+  * returns Inf<FunctionValue>(), which means that the Function is *not*
+  * Lipschitz continuous. Note that a finite Lipschitz constant implies that
+  * is_continuous() must return true.
+  *
+  * This method is not const because the computation of the Lipschitz constant
+  * may not be cheap. The standard approach is then to only compute it if the
+  * method is called, but on the other hand to "cache" the value to answer
+  * quickly if no change has happened that changed it. Thus, the method has
+  * to be able to write into the fields of the class. */
 
  virtual FunctionValue get_Lipschitz_constant( void ) {
   return( std::numeric_limits<FunctionValue>::infinity() );

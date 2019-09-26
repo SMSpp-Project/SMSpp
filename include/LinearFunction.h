@@ -474,22 +474,30 @@ class LinearFunction : public C15Function {
 
  /// add a set of new Variable to the LinearFunction
  /**< Method that receives a pointer to a vector of pairs < ColVariable * ,
-  * Coefficient > and adds them to these already in the LinearFunction. If
-  * any variable in vars is already an active variable in the LinearFunction,
-  * exception is thrown. As the the && tells, vars is "consumed" by the
-  * method and its resources become property of the LinearFunction object
-  * (which may dispatch them to the Modification that it may issue).
+  * Coefficient > and adds them to these already in the LinearFunction.
+  * Note that
   *
-  * The parameter ordered tells if vars is already ordered by ColVariable
-  * "name = pointer" or not, otherwise it may get ordered inside the method
-  * (which is why it is not const).
+  *     IT IS EXPECTED THAT NONE OF THE NEW ColVariable IS ALREADY "ACTIVE"
+  *     IN THE LinearFunction, BUT NO CHECK IS DONE TO ENSURE THIS
   *
-  * The parameter issueMod decides if and how the C05FunctionModVars is
+  * Indeed, the check is costly, and the LinearFunction does not really have
+  * a functional issue with repeated ColVariable. The real issue rather comes
+  * whenever the LinearFunction is used within a Constraint or Objective that
+  * need to register istelf among the "active" Variable of the LinearFunction;
+  * this process is not structured to work with multiple copies of the same
+  * "active" Variable. Thus, a LinearFunction used within such an object
+  * should not have repeated Variable, but if this is an issue then the
+  * check will have to be performed elsewhere, it is not done here.
+  *
+  * As the the && tells, vars is "consumed" by the method and its resources
+  * become property of the LinearFunction object.
+  *
+  * The parameter issueMod decides if and how the C05FunctionModVarsAddd is
   * issued, as described in Observer::make_par(). Note that a linear function
-  * is additive, and therefore strongly quasi-additive. */
+  * is additive, and therefore strongly quasi-additive, which is why a
+  * C05FunctionModVarsAddd (rather than a FunctionModVarsAddd) is issued. */
 
- void add_variables( v_coeff_pair && vars , bool ordered = false ,
-                     c_ModParam issueMod = eModBlck );
+ void add_variables( v_coeff_pair && vars , c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// add one single new Variable to the LinearFunction
@@ -505,62 +513,44 @@ class LinearFunction : public C15Function {
 
 /*--------------------------------------------------------------------------*/
  /// modify a single existing coefficient
- /** Method that modifies the coefficient for a specific Variable; if var is
+ /** Method that modifies the coefficient for the i-th "active" Variable; if
+  * i is not a valid index,  var is
   * not an active variable in the LinearFunction, exception is thrown. 
   *
   * The parameter issueMod decides if and how the C05FunctionModLin is issued,
   * as described in Observer::make_par(). */
 
- void modify_coefficient( ColVariable * var , Coefficient coeff ,
+ void modify_coefficient( Index i , Coefficient coeff ,
                           c_ModParam issueMod = eModBlck );
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*--------------------------------------------------------------------------*/
  /// modify a set of existing coefficients
- /** Method that receives a vector of pairs < ColVariable * , Coefficient >
-  * so that the ColVariables are already in the LinearFunction, and modify
-  * their coefficients accordingly. If any ColVariable in vars is not an
-  * active variable in the LinearFunction, exception is thrown. The
-  * parameter ordered tells if vars is already ordered by ColVariable
-  * "name = pointer" or not, otherwise it gets ordered inside the method
-  * (which is why it is not const).
+ /** Method that receives the vector of coefficient values and the set of
+  * indices of the ColVariable whose coefficients need be modified, and sets
+  * the coefficient of ColVariable nms[ i ] to NCoef[ i ]. As the && tells,
+  * both NCoef and nms become property of the LinearFunction object (possibly
+  * to be immediately dispatched to the issued C05FunctionModLinSbst).
   *
-  * The parameter issueMod decides if and how the C05FunctionModLin is issued,
-  * as described in Observer::make_par(). */
+  * The parameter issueMod decides if and how the C05FunctionModLinSbst is
+  * issued, as described in Observer::make_par(). */
 
- void modify_coefficients( v_coeff_pair & vars , bool ordered = false ,
-                           c_ModParam issueMod = eModBlck );
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// modify a set of existing coefficients
- /** Like modify_coefficients( v_coeff_pair * ), but takes in input a set of
-  * index of the Variable whose coefficients need be modified, together with
-  * (an iterator into) the vector of new coefficient values. Useful if one
-  * knows the indices already, so that they need not be searched for. The
-  * parameter ordered tells if nms is already ordered in increasing sense
-  * (which corresponds to the fact that the ColVariable are ordered by
-  * "name = pointer").
-  *
-  * The parameter issueMod decides if and how the C05FunctionModLin is issued,
-  * as described in Observer::make_par(). */
-
- virtual void modify_coefficients( c_v_coeff_it NCoef , c_Vec_Index & nms ,
-                                   bool ordered = false ,
+ virtual void modify_coefficients( Vec_FunctionValue && NCoef ,
+				   Vec_Index && nms ,
                                    c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify a range of coefficients
- /** Modify the coefficients of all the Variable that are in position from
-  * start (included) to min( stop , get_num_active_var() ) (excluded) in this
-  * LinearFunction. NCoef is a (const) iterator into a vector of coefficients
-  * that must clearly be at least as long (from NCoef to the end) as
-  * min( stop , get_num_active_var() ) - start. Useful if one knows the
-  * indices already, so that they need not be searched for.
+ /** Modify the coefficients of all the Variable that are in position i,
+  * where range.first <= i < min( range.second , get_num_active_var() ),
+  * giving them value NCoef[ i - range.first ]. As the && tells, NCoef
+  * becomes property of the LinearFunction object (possibly to be
+  * immediately dispatched to the issued C05FunctionModLinRngd).
   *
-  * The parameter issueMod decides if and how the C05FunctionModLin is issued,
-  * as described in Observer::make_par(). */
+  * The parameter issueMod decides if and how the C05FunctionModLinRngd is
+  * issued, as described in Observer::make_par(). */
 
- void modify_coefficients( c_v_coeff_it NCoef , c_Index strt = 0 ,
-                           Index stop = Inf< Index >() ,
+ void modify_coefficients( Vec_FunctionValue && NCoef ,
+			   Range range = std::make_pair( 0 , Inf<Index>() ) ,
                            c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/

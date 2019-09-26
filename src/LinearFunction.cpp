@@ -215,17 +215,10 @@ void LinearFunction::map_active( c_Vec_p_Var & vars , Vec_Index & map ,
 /*--------------------------------------------------------------------------*/
 
 void LinearFunction::add_variables( v_coeff_pair && vars ,
-				    const bool ordered , c_ModParam issueMod )
+				    c_ModParam issueMod )
 {
  if( vars.empty() )  // actually nothing to add
   return;            // cowardly (and silently) return
-
- if( ! ordered )
-  std::sort( vars.begin() , vars.end() , []( const coeff_pair & x ,
-                                             const coeff_pair & y ) {
-                                          return( x.first < y.first );
-                                          }
-	     );
 
  if( v_pairs.empty() ) {    // adding to nothing
   v_pairs = std::move( vars );
@@ -234,28 +227,7 @@ void LinearFunction::add_variables( v_coeff_pair && vars ,
    issue_add_variables_modification( v_pairs , issueMod );
   }
  else {                         // adding to a nonempty set
-  v_coeff_pair join( vars.size() + v_pairs.size() );
-  auto newit = vars.begin();
-  auto oldit = v_pairs.begin();
-  auto joinit = join.begin();
-  for( ; ( newit != vars.end() ) && ( oldit != v_pairs.end() ) ; ) {
-   if( newit->first == oldit->first )
-    throw( std::invalid_argument(
-       "add_variables: some Variable is already active in the Function" ) );
-
-   if( newit->first < oldit->first )
-    *(joinit++) = *(newit++);
-   else
-    *(joinit++) = *(oldit++);
-   }
-
-  for( ; newit != vars.end() ; )
-   *(joinit++) = *(newit++);
-
-  for( ; oldit != v_pairs.end() ; )
-   *(joinit++) = *(oldit++);
-
-  v_pairs = std::move( join );
+  v_pairs.insert( v_pairs.begin() , vars.begin() , vars.end() );
 
   if( f_Observer && f_Observer->issue_mod( issueMod ) )
    issue_add_variables_modification( vars , issueMod );
@@ -271,33 +243,15 @@ void LinearFunction::add_variable( ColVariable * const var ,
  if( var == nullptr )  // actually nothing to add
   return;              // cowardly (and silently) return
 
- auto pair = std::make_pair( var , coeff );
-
- if( v_pairs.empty() )  // adding to nothing
-  v_pairs.push_back( pair );
- else {                     // adding to a nonempty set
-  // search where the variable lives
-  auto itv = std::lower_bound( v_pairs.begin() , v_pairs.end() , pair ,
-			       []( const coeff_pair &a , const coeff_pair &b )
-			         { return( a.first < b.first ); } );
-  if( itv != v_pairs.end() ) {  // in the middle of the list
-   if( itv->first == var )
-    throw( std::invalid_argument( "add_variables: var is already active" ) );
-
-   v_pairs.insert( itv , pair );
-   }
-  else                           // at the end of the list
-   v_pairs.push_back( pair );
-  }
+ v_pairs.push_back( std::make_pair( var , coeff ) );
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
 
  // a linear function is additive ==> strongly quasi-additive
- // note that there is only one Variable, hence it is ordered
- f_Observer->add_Modification( std::make_shared<C05FunctionModVars>( this ,
-				      FunctionModVars::AddVar ,
-				      Vec_p_Var( { var } ) , true , 0 , true ,
+ f_Observer->add_Modification( std::make_shared<C05FunctionModVarsAddd>(
+			              this , { var } ,
+				      v_pairs.size() - 1 , 0 , true ,
 				      Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 
@@ -305,214 +259,116 @@ void LinearFunction::add_variable( ColVariable * const var ,
 
 /*--------------------------------------------------------------------------*/
 
-void LinearFunction::modify_coefficient( ColVariable * const var,
-                                         const Coefficient coeff,
-                                         c_ModParam issueMod ) {
- if( var == nullptr )  // actually nothing to modify
-  return;              // cowardly (and silently) return
-
- // look for position of var
- auto itv = std::lower_bound( v_pairs.begin(), v_pairs.end(),
-                              std::make_pair( var, 0 ),
-                              []( const auto & a, const auto & b ) {
-                               return ( a.first < b.first );
-                              } );
-
- if( itv == v_pairs.end() || itv->first != var )
-  throw ( std::invalid_argument( "modify_coefficient: Variable is not active" ) );
-
- if( itv->second == coeff )  // actually nothing to modify
-  return;                    // cowardly (and silently) return
+void LinearFunction::modify_coefficient( Index i , Coefficient coeff,
+                                         c_ModParam issueMod )
+{
+ if( i >= v_pairs.size() )
+  throw( std::invalid_argument( "modify_coefficient: invalid index" ) );
+  
+ if( v_pairs[ i ]->second == coeff )  // actually nothing to modify
+  return;                             // cowardly (and silently) return
 
  auto diff = coeff - itv->second;
- itv->second = coeff;
+ v_pairs[ i ]->second = coeff;
 
- if( !f_Observer || !f_Observer->issue_mod( issueMod ) )
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return; // no one is there: all done
 
- f_Observer->add_Modification(
-  std::make_shared< C05FunctionModLin >( this,
-                                         Vec_FunctionValue( { diff } ),
-                                         Vec_p_Var( { var } ),
-                                         true,
-                                         FunctionMod::NaNshift,
-                                         Observer::par2concern( issueMod ) ),
-  Observer::par2chnl( issueMod ) );
+ f_Observer->add_Modification( std::make_shared< C05FunctionModLinRngd >(
+				  this, { diff } , { v_pairs[ i ]->first ) ,
+                                  std::make_pair< i , i + 1 > ,
+				  FunctionMod::NaNshift ,
+				  Observer::par2concern( issueMod ) ),
+			       Observer::par2chnl( issueMod ) );
 
-}  // end( LinearFunction::modify_coefficient )
+ }  // end( LinearFunction::modify_coefficient )
 
 /*--------------------------------------------------------------------------*/
 
-void LinearFunction::modify_coefficients( v_coeff_pair & vars,
-                                          const bool ordered,
-                                          c_ModParam issueMod ) {
- if( vars.empty() )  // actually nothing to modify
-  return;            // all done
-
- if( v_pairs.empty() )  // modifying nothing
-  throw ( std::logic_error( "modifying an empty set" ) );
-
- if( !ordered )
-  std::sort( vars.begin(), vars.end(),
-             []( const coeff_pair & x, const coeff_pair & y ) {
-              return ( x.first < y.first );
-             } );
-
- auto itv = v_pairs.begin();
-
- if( !f_Observer || !f_Observer->issue_mod( issueMod ) ) {
-  // noone is there: just do it
-  for( auto it = vars.begin(); it != vars.end(); ++it, ++itv ) {
-   // look for position of next variable to be modified
-   itv = std::lower_bound( itv, v_pairs.end(),
-                           *it,
-                           []( const auto & a, const auto & b ) {
-                            return ( a.first < b.first );
-                           } );
-
-   if( itv == v_pairs.end() )  // if the variable is not there
-    throw ( std::invalid_argument(
-     "modify_coefficients: some Variable is not active" ) );
-
-   itv->second = it->second;  // modify the coefficient
-  }
- } else {
-  // somebody is there: meanwhile, prepare data for the Modification
-
-  Vec_p_Var vp( vars.size() );
-  Function::Vec_FunctionValue delta( vars.size() );
-
-  Index i = 0;
-  for( auto it = vars.begin(); it != vars.end(); ++it, ++itv ) {
-   // look for position of next variable to be modified
-   itv = std::lower_bound( itv, v_pairs.end(),
-                           *it,
-                           []( const auto & a, const auto & b ) {
-                            return ( a.first < b.first );
-                           } );
-
-   if( itv == v_pairs.end() )  // if the variable is not there
-    throw ( std::invalid_argument(
-     "modify_coefficients: some Variable is not active" ) );
-
-   vp[ i ] = itv->first;
-   delta[ i++ ] = it->second - itv->second;
-   itv->second = it->second;  // modify the coefficient
-  }
-
-  // now issue the Modification
-  f_Observer->add_Modification(
-   std::make_shared< C05FunctionModLin >( this,
-                                          std::move( delta ),
-                                          std::move( vp ),
-                                          true,
-                                          FunctionMod::NaNshift,
-                                          Observer::par2concern( issueMod ) ),
-   Observer::par2chnl( issueMod ) );
- }
-}  // end( LinearFunction::modify_coefficients( subset ) )
-
-/*--------------------------------------------------------------------------*/
-
-void LinearFunction::modify_coefficients( c_v_coeff_it NCoef ,
-					  c_Vec_Index &nms ,
-					  const bool ordered ,
+void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
+					  Vec_Index && nms ,
 					  c_ModParam issueMod )
 {
- if( ! nms.size() )
+ if( nms.empty() )
   return;
 
- if( v_pairs.empty() )  // modifying from nothing
-  throw( std::logic_error( "modifying an empty set" ) );
+ if( NCoef.size() < nms.size() )
+  throw( std::invalid_argument( "modify_coefficient: NCoef.size < nms.size"
+				) );
 
- if( nms.front() >= v_pairs.size() )  // if the first name is wrong
-  throw( std::invalid_argument( "wrong index in LinearFunction" ) );
-
- if( nms.back() >= v_pairs.size() )  // if the last name is wrong
-  throw( std::invalid_argument( "wrong index in LinearFunction" ) );
+ auto NCit = NCoef.begin();
 
  if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
   // somebody is there: meanwhile, prepare data for the Modification
 
   Vec_p_Var vp( nms.size() );
-  Function::Vec_FunctionValue delta( nms.size() );
-
   auto vpit = vp.begin();
-  auto deltait = delta.begin();
- 
-  if( ordered ) {
-   for( auto it = nms.begin() ; it < nms.end() ; ) {
-    *(deltait++) = *NCoef - v_pairs[ *it ].second;
-    *(vpit++) = v_pairs[ *it ].first;
-    v_pairs[ *(it++) ].second = *(NCoef++);
-    }
-   }
-  else {
-   std::vector<Index> ord( nms.size() );
-   std::iota( ord.begin() , ord.end() , 0 );
-   std::sort( ord.begin() , ord.end() ,
-	      [ & nms ]( Index i , Index j ) {
-	       return( nms[ i ] < nms[ j ] ); }
-	      );
-   for( auto ordi = ord.begin() ; ordi < ord.end() ; ) {
-    auto nci = *(NCoef + *ordi);
-    auto ni = nms[ *(ordi++) ];
-    *(deltait++) = nci - v_pairs[ ni ].second;
-    *(vpit++) = v_pairs[ ni ].first;
-    v_pairs[ ni ].second = nci;
-    }
+
+  for( auto i : nms ) {
+   if( i >= v_pairs.size() )
+    throw( std::invalid_argument( "modify_coefficients: invalid index" ) );
+   *(vpit++) = v_pairs[ i ].first;
+   auto di = v_pairs[ i ].second - *NCit;
+   v_pairs[ i ].second = *NCit;
+   *(NCit++) = di;
    }
 
   // now issue the Modification
-  f_Observer->add_Modification( std::make_shared<C05FunctionModLin>( this ,
-			                 std::move( delta ) , std::move( vp ) ,
-					 true , FunctionMod::NaNshift ,
-					 Observer::par2concern( issueMod ) ) ,
+  f_Observer->add_Modification( std::make_shared<C05FunctionModLinSbst>(
+				 this , std::move( NCoef ) , std::move( vp ) ,
+				 std::move( nms ) , FunctionMod::NaNshift ,
+				 Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
   }
  else  // noone is there: just do it
-  for( auto it = nms.begin() ; it < nms.end() ; )
-   v_pairs[ *(it++) ].second = *(NCoef++);
+  for( auto i : nms ) {
+   if( i >= v_pairs.size() )
+    throw( std::invalid_argument( "modify_coefficients: invalid index" ) );
+   v_pairs[ i ].second = *(NCit++);
+   }
 
- }  // end( LinearFunction::modify_coefficients( indices ) )
+ }  // end( LinearFunction::modify_coefficients( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
-void LinearFunction::modify_coefficients( c_v_coeff_it NCoef , c_Index strt ,
-					  Index stop , c_ModParam issueMod )
+void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
+					  Range range , c_ModParam issueMod )
 {
- stop = std::min( stop , c_Index( v_pairs.size() ) );
- if( stop <= strt )
+ range.second = std::min( range.second , c_Index( v_pairs.size() ) );
+ if( range.second <= range.first )
   return;
 
- auto strtit = v_pairs.begin() + strt;
- const auto stopit = v_pairs.begin() + stop;
+ if( NCoef.size() < range.second - range.first )
+  throw( std::invalid_argument( "modify_coefficients: NCoef.size too small"
+				) );
+
+ auto NCit = NCoef.begin();
+ auto strtit = v_pairs.begin() + range.first;
+ const auto stopit = v_pairs.begin() + range.second;
 
  if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
   // somebody is there: meanwhile, prepare data for the Modification
 
-  Vec_p_Var vp( stop - strt );
-  Function::Vec_FunctionValue delta( stop - strt );
-
+  Vec_p_Var vp( range.second - range.first );
   auto vpit = vp.begin();
-  Index i = 0;
 
   while( strtit < stopit ) {
-   delta[ i++ ] = *NCoef - (*strtit).second;
+   auto di = *NCit - (*strtit).second
    (*(vpit++)) = (*strtit).first;
-   (*(strtit++)).second = *(NCoef++);
+   (*(strtit++)).second = *NCit;
+   *(*NCit++) = di;
    }
 
   // now issue the Modification
-  f_Observer->add_Modification( std::make_shared<C05FunctionModLin>( this ,
-			                 std::move( delta ) , std::move( vp ) ,
-					 true , FunctionMod::NaNshift ,
-					 Observer::par2concern( issueMod ) ) ,
+  f_Observer->add_Modification( std::make_shared<C05FunctionModLinSbst>(
+				 this , std::move( NCoef ) , std::move( vp ) ,
+				 range , FunctionMod::NaNshift ,
+				 Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
   }
  else  // noone is there: just do it
   while( strtit < stopit )
-   (*(strtit++)).second = *(NCoef++);
+   (*(strtit++)).second = *(NCit++);
 
  }  // end( LinearFunction::modify_coefficients( range ) )
 
