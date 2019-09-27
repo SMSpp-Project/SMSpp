@@ -365,8 +365,8 @@ void DQuadFunction::modify_linear_coefficient( Index i , Coefficient coeff ,
 /*--------------------------------------------------------------------------*/
 
 void DQuadFunction::modify_terms( c_v_coeff_it NQuadCoef ,
-				  c_v_coeff_it NLinCoef ,
-				  Subset && nms , c_ModParam issueMod )
+				  c_v_coeff_it NLinCoef , Subset && nms ,
+				  bool ordered , c_ModParam issueMod )
 {
  if( nms.empty() )
   return;
@@ -389,7 +389,7 @@ void DQuadFunction::modify_terms( c_v_coeff_it NQuadCoef ,
   f_Observer->add_Modification( std::make_shared< C05FunctionModSbst >( this ,
                                      C05FunctionMod::AllLinearizationChanged ,
                                      std::move( vp ) , std::move( nms ) ,
-				     FunctionMod::NaNshift,
+				     ordered , FunctionMod::NaNshift ,
 				     Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
 
@@ -407,7 +407,7 @@ void DQuadFunction::modify_terms( c_v_coeff_it NQuadCoef ,
 /*--------------------------------------------------------------------------*/
 
 void DQuadFunction::modify_linear_coefficients( Vec_FunctionValue && NCoef ,
-                                                Subset && nms ,
+                                                Subset && nms , bool ordered ,
                                                 c_ModParam issueMod )
 {
  if( nms.empty() )
@@ -436,7 +436,8 @@ void DQuadFunction::modify_linear_coefficients( Vec_FunctionValue && NCoef ,
   // now issue the Modification
   f_Observer->add_Modification( std::make_shared<C05FunctionModLinSbst>(
 				 this , std::move( NCoef ) , std::move( vp ) ,
-				 std::move( nms ) , FunctionMod::NaNshift ,
+				 std::move( nms ) , ordered ,
+				 FunctionMod::NaNshift ,
 				 Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
   }
@@ -637,7 +638,7 @@ void DQuadFunction::remove_variables( Subset && nms , bool ordered ,
   // a diagonal quadratic function is additive ==> strongly quasi-additive
   f_Observer->add_Modification( std::make_shared< C05FunctionModVarsSbst >(
 					 this , std::move( vars ) ,
-					 std::move( nms ) , 0 ,
+					 std::move( nms ) , ordered , 0 ,
                                          Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
   }

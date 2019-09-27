@@ -1606,13 +1606,15 @@ class C05FunctionModSbst : public C05FunctionMod {
   * correspondence: subset[ i ] is the index that the Variable vars[ i ] had
   * *at the moment in which the C05FunctionModSbst was issued*. As the the
   * && tells, both vectors vars[] and subser[] "becomes property" of the
-  * C05FunctionModSbst object. */
+  * C05FunctionModSbst object. The ordered parameter tells if subset is
+  * ordered by increasing Index, which may be helpful for some Block/Solver
+  * having to deal with this FunctionModVarsSbst. */
 
  C05FunctionModSbst( C05Function * f , int type , Vec_p_Var && vars ,
-		     Subset && subset , FunctionValue shift = NaNshift ,
-		     bool cB = true )
+		     Subset && subset , bool ordered = false ,
+		     FunctionValue shift = NaNshift , bool cB = true )
   : C05FunctionMod( f , type , shift , cB ) , v_vars( std::move( vars ) ) ,
-    v_subset( std::move( subset ) )
+    v_subset( std::move( subset ) ) , f_ordered( ordered )
  {
   if( v_vars.size() != v_subset.size() )
    throw( std::invalid_argument( "vars and subset sizes do not match" ) );
@@ -1628,10 +1630,15 @@ class C05FunctionModSbst : public C05FunctionMod {
 
  Vec_p_Var vars( void ) { return( v_vars ); }
 
- /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to vector of indices of affected Variable
 
  c_Subset & subset( void ) { return( v_subset ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// accessor to the ordered status
+
+ bool ordered( void ) { return( f_ordered ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1674,6 +1681,8 @@ class C05FunctionModSbst : public C05FunctionMod {
  Vec_p_Var v_vars;  ///< vector of pointers to affected Variable
 
  Subset v_subset;   ///< vector of indices of the affected Variable
+
+ bool f_ordered;    ///< true if v_subset is ordered
 
 /*--------------------------------------------------------------------------*/
 
@@ -2051,10 +2060,10 @@ public:
  /// constructor: identical to that of FunctionModVarsSbst
 
  C05FunctionModVarsSbst( C05Function * f , Vec_p_Var && vars ,
-			 Subset && subset , FunctionValue shift = NaNshift ,
-			 bool cB = true )
+			 Subset && subset , bool ordered = false ,
+			 FunctionValue shift = NaNshift , bool cB = true )
   : FunctionModVarsSbst( f , std::move( vars ) , std::move( subset ) ,
-			 shift , cB ) { }
+			 ordered , shift , cB ) { }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
@@ -2089,7 +2098,10 @@ public:
     else
      output << f_shift;
 
-  output << ") deleting " << v_subset.size() << " varables" << std::endl;
+  output << ") deleting " << v_subset.size();
+  if( f_ordered )
+   output << "(ordered)";
+  output << " varables" << std::endl;
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2381,13 +2393,17 @@ public:
   * correspondence: subset[ i ] is the index that the Variable vars[ i ] had
   * *at the moment in which the C05FunctionModLinSbst was issued*. As the the
   * && tells, the vector "becomes property" of the C05FunctionModLinSbst
-  * object. */
+  * object. The ordered parameter tells if subset is ordered by increasing
+  * Index, which may be helpful for some Block/Solver having to deal with
+  * this FunctionModVarsSbst. */
 
  C05FunctionModLinSbst( C05Function * f, Vec_FunctionValue && delta ,
 			Vec_p_Var && vars , Subset && subset ,
+			bool ordered = false ,
 			FunctionValue shift = NaNshift , bool cB = true )
   : C05FunctionModLin( f , std::move( delta ) , std::move( vars ) , shift ,
-		       cB ) , v_subset( std::move( subset ) )
+		       cB ) , v_subset( std::move( subset ) ) ,
+    f_ordered( ordered )
  {
   if( v_vars.size() != v_subset.size() )
    throw( std::invalid_argument( "vars and subset sizes do not match" ) );
@@ -2402,6 +2418,11 @@ public:
  /// accessor to the subset of the affected Variable
 
  c_Subset & subset( void ) { return( v_subset ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// accessor to the ordered status
+
+ bool ordered( void ) { return( f_ordered ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -2419,13 +2440,17 @@ public:
   else
    output << "f";
   output << "] on Function[" << &f_function
-	 << " ]: change in the linear part of " << v_subset.size()
-	 << " varables" << std::endl;
+	 << " ]: change in the linear part of " << v_subset.size();
+  if( f_ordered )
+   output << "(ordered)";
+  output << " varables" << std::endl;
   }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
  Subset v_subset;   ///< the subset of the removed Variable
+
+ bool f_ordered;    ///< true if v_subset is ordered
 
 /*--------------------------------------------------------------------------*/
 

@@ -516,8 +516,7 @@ class LinearFunction : public C15Function {
 /*--------------------------------------------------------------------------*/
  /// modify a single existing coefficient
  /** Method that modifies the coefficient for the i-th "active" Variable; if
-  * i is not a valid index,  var is
-  * not an active variable in the LinearFunction, exception is thrown. 
+  * i is not a valid index, exception is thrown. 
   *
   * The parameter issueMod decides if and how the C05FunctionModLin is issued,
   * as described in Observer::make_par(). */
@@ -531,13 +530,16 @@ class LinearFunction : public C15Function {
   * indices of the ColVariable whose coefficients need be modified, and sets
   * the coefficient of ColVariable nms[ i ] to NCoef[ i ]. As the && tells,
   * both NCoef and nms become property of the LinearFunction object (possibly
-  * to be immediately dispatched to the issued C05FunctionModLinSbst).
+  * to be immediately dispatched to the issued C05FunctionModLinSbst). The
+  * ordered parameter tells if subset is ordered by increasing Index, which
+  * is actually *not* helpful for LinearFunction but it may be for 
+  * Block/Solver having to deal with the FunctionModVarsSbst.
   *
   * The parameter issueMod decides if and how the C05FunctionModLinSbst is
   * issued, as described in Observer::make_par(). */
 
  virtual void modify_coefficients( Vec_FunctionValue && NCoef ,
-				   Subset && nms ,
+				   Subset && nms , bool ordered = false ,
                                    c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/

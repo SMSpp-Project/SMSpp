@@ -638,12 +638,16 @@ class DQuadFunction : public C15Function {
   * nms[ i ] to *( NQuadCoef + i ), and the linear one to *( NLinCoef + i ).
   * As the && tells, nms becomes property of the DQuadFunction object
   * (possibly to be immediately dispatched to the issued C05FunctionModSbst).
-  *
+  * The ordered parameter tells if subset is ordered by increasing Index,
+  * which is actually *not* helpful for DQuadFunction but it may be for 
+  * Block/Solver having to deal with the FunctionModVarsSbst.
+
   * The parameter issueMod decides if and how the C05FunctionModSbst is
   * issued, as described in Observer::make_par(). */
 
  void modify_terms( c_v_coeff_it NQuadCoef , c_v_coeff_it NLinCoef ,
-		    Subset && nms , c_ModParam issueMod = eModBlck );
+		    Subset && nms , bool ordered = false ,
+		    c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify a set of existing linear coefficients
@@ -652,7 +656,10 @@ class DQuadFunction : public C15Function {
   * and sets the linear coefficient of ColVariable nms[ i ] to NCoef[ i ]. As
   * the && tells, both NCoef and nms become property of the DQuadFunction
   * object (possibly to be immediately dispatched to the issued
-  * C05FunctionModLinSbst).
+  * C05FunctionModLinSbst). The ordered parameter tells if subset is ordered
+  * by increasing Index, which is actually *not* helpful for DQuadFunction
+  * but it may be for a Block/Solver having to deal with the
+  * FunctionModVarsSbst.
   *
   * The parameter issueMod decides if and how the C05FunctionModLinSbst is
   * issued, as described in Observer::make_par(). This is precisely the
@@ -661,7 +668,7 @@ class DQuadFunction : public C15Function {
   * issued in place of a C05FunctionModSbst one. */
 
  void modify_linear_coefficients( Vec_FunctionValue && NCoef ,
-				  Subset && nms ,
+				  Subset && nms , bool ordered = false ,
 				  c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/

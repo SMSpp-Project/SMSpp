@@ -298,7 +298,7 @@ void LinearFunction::modify_coefficient( Index i , Coefficient coeff,
 /*--------------------------------------------------------------------------*/
 
 void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
-					  Subset && nms ,
+					  Subset && nms , bool ordered ,
 					  c_ModParam issueMod )
 {
  if( nms.empty() )
@@ -328,7 +328,8 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
   // now issue the Modification
   f_Observer->add_Modification( std::make_shared<C05FunctionModLinSbst>(
 				 this , std::move( NCoef ) , std::move( vp ) ,
-				 std::move( nms ) , FunctionMod::NaNshift ,
+				 std::move( nms ) , ordered ,
+				 FunctionMod::NaNshift ,
 				 Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
   }
@@ -487,7 +488,7 @@ void LinearFunction::remove_variables( Subset && nms , bool ordered ,
   // a linear function is additive ==> strongly quasi-additive
   f_Observer->add_Modification( std::make_shared< C05FunctionModVarsSbst >(
 					 this , std::move( vars ) ,
-					 std::move( nms ) , 0 ,
+					 std::move( nms ) , ordered , 0 ,
                                          Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
   }

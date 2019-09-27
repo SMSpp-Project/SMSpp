@@ -1465,12 +1465,15 @@ public:
   * correspondence: subset[ i ] is the index that the Variable vars[ i ] had
   * *at the moment in which the FunctionModVarsRngd was issued*. As the the
   * && tells, the vector "becomes property" of the FunctionModVarsSbst
-  * object. */
+  * object. The ordered parameter tells if subset is ordered by increasing
+  * Index, which may be helpful for some Block/Solver having to deal with
+  * this FunctionModVarsSbst. */
 
  FunctionModVarsSbst( Function * f , Vec_p_Var && vars , Subset && subset ,
-		      FunctionValue shift = NaNshift , bool cB = true )
+		      bool ordered = false , FunctionValue shift = NaNshift ,
+		      bool cB = true )
   : FunctionModVars( f , std::move( vars ) , shift , cB ) ,
-    v_subset( subset )
+    v_subset( subset ) , f_ordered( ordered )
  {
   if( v_vars.size() != v_subset.size() )
    throw( std::invalid_argument( "vars and subset sizes do not match" ) );
@@ -1486,7 +1489,12 @@ public:
 
  c_Subset & subset( void ) { return( v_subset ); }
 
- /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// accessor to the ordered status
+
+ bool ordered( void ) { return( f_ordered ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method telling that the Variables have been removed
 
  virtual bool added( void ) const override { return( false ); }
@@ -1518,12 +1526,17 @@ public:
     else
      output << "quasi-additively (" << f_shift << ") ";
 
-  output << "deleting " << v_subset.size() << " varables" << std::endl;
+  output << "deleting " << v_subset.size();
+  if( f_ordered )
+   output << "(ordered)";
+  output << " varables" << std::endl;
   }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
  Subset v_subset;   ///< the subset of the removed Variable
+
+ bool f_ordered;    ///< true if v_subset is ordered
 
 /*--------------------------------------------------------------------------*/
 

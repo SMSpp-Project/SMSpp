@@ -3791,31 +3791,82 @@ class Block : public Observer {
  void anyone_there( bool isthere );
 
 /*--------------------------------------------------------------------------*/
+ /// notify the Block about a Modification
+ /** Block::add_Modification() implements the main mechanics of Modification
+  * handling; in particular:
+  *
+  * - if chnl != 0, it "packs" the Modification into the appropriate
+  *   GroupModification and does nothing else, which in particular means
+  *   that it does *not* dispatch it to its father and the attached Solver
+  *   (this being done by close_channel);
+  *
+  * - if chnl == 0, it rather immediately dispatches the Modification to its
+  *   father and the attached Solver.
+  *
+  * While this mechanism is not thought to be modified by derived classes,
+  * these *will* have to redefine add_Modification() to "catch" the
+  * "abstract" Modification and use them to update the "physical
+  * representation" of the :Block to keep it in sync with the "abstract"
+  * representation. Any such re-implementation should follow the scheme
+  *
+  *     void SomeBlock::add_Modification( sp_Mod mod , ChnlName chnl )
+  *     {
+  *      if( mod->concerns_Block() ) {
+  *       mod->concerns_Block( false );
+  *       < handle "abstract" Modification >
+  *       }
+  *
+  *      Block::add_Modification( mod , chnl );
+  *      }
+  *
+  * The important aspect in this scheme is that
+  *
+  *     SomeBlock WILL "SEE" THE "ABSTRACT" Modification IMMEDIATELY,
+  *     I.E., BEFORE IT IS "PACKED" INTO A GroupModification, EVEN IF
+  *     IT IS BEING SENT TO SOME NON-0 CHANNEL
+  *
+  * (since the latter operation is handled by Block::add_Modification()).
+  * This means that if SomeBlock handles some "atomic" :Modification that
+  * changes its data structure, there is no risk that the :Modification is
+  * "packed" into a GroupModification and held there for a long time before
+  * the :Block has the chance of processing it. As a consequence:
+  *
+  * - A :Block DOES NOT HAVE TO HANDLE "ABSTRACT" GroupModification UNLESS
+  *   THEY REFER TO CHANGES HAPPENING INTO SOME OF ITS sub-Block (HENCE,
+  *   A "LEAF" Block WITHOUT ANY sub-Block NEVER HAS TO)
+  *
+  * - THE STATE OF THE DATA STRUCTURE IN THE :Block WHEN IT HANDLES THE
+  *   "ABSTRACT" Modification IS PRECISELY THE ONE IN WHICH THE
+  *   Modification WAS ISSUED: NO COMPLCATED OPERATIONS (Variable AND/OR
+  *   Constraint BEING ADDED/REMOVED ...) CAN HAVE BEEN PERFORMED IN THE
+  *   MEANTIME
+  *
+  * This assumption can drastically simplify the logic that a :Block has
+  * to deploy to handle "abstract" Modification. */
 
- virtual void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
+ void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
 
 /*--------------------------------------------------------------------------*/
 
- virtual ChnlName open_channel( GroupModification * gmpmod = nullptr ,
-				c_ModParam issueMod = eModBlck ) override;
+ ChnlName open_channel( GroupModification * gmpmod = nullptr ,
+			c_ModParam issueMod = eModBlck ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
- virtual void nest_channel( c_ChnlName chnl ,
-			    GroupModification * gmpmod = nullptr ,
-			    c_ModParam issueMod = eModBlck ) override;
+ void nest_channel( c_ChnlName chnl , GroupModification * gmpmod = nullptr ,
+		    c_ModParam issueMod = eModBlck ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
- virtual void un_nest_channel( c_ChnlName chnl ) override;
+ void un_nest_channel( c_ChnlName chnl ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
- virtual void close_channel( ChnlName chnl ) override;
+ void close_channel( ChnlName chnl ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
- virtual void set_default_channel( c_ChnlName chnl = 0 ) override;
+ void set_default_channel( c_ChnlName chnl = 0 ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------------- Methods for handling Solver -----------------------*/
