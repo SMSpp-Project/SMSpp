@@ -940,6 +940,14 @@ class C05Function : public Function {
   * that is, g[ i ] = l[ subset[ i ] ] for all 0 <= i < subset.size(). All
   * components of g[] that need not be written are left unchanged.
   *
+  * The parameter ordered tells if the subset vector is ordered for
+  * increasing Index of the "active" Variable. This may be useful for some
+  * implementation; say, if the data is kept in something like a list, i.e.,
+  * without random access, so that ordered reading of a subset is linear
+  * rather than quadratic. In this case, is subset is not ordered the
+  * derived class may have to (copy and) order it, so it may be good to know
+  * that this is not required.
+  *
   * The rationale for having such a "rough" version is that it allows to
   * "change linearizations already in place". For instance, assume that
   * whatever is using this C05Function has stored the linearizations in the
@@ -957,7 +965,8 @@ class C05Function : public Function {
   */
 
  virtual void get_linearization_coefficients( FunctionValue * g ,
-					      c_Subset & subset  ,
+					      c_Subset & subset ,
+					      const bool ordered = false ,
 					      Index name = Inf<Index>() ) = 0;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -994,6 +1003,7 @@ class C05Function : public Function {
 
  virtual void get_linearization_coefficients( SparseVector & g ,
 					      c_Subset & subset ,
+					      const bool ordered = false ,
 					      Index name = Inf<Index>() )
  {
   if( subset.empty() )  // subset is empty
@@ -1001,7 +1011,7 @@ class C05Function : public Function {
 
   Vec_FunctionValue gg( subset.size() );
   FunctionValue * ggp = gg.data();
-  get_linearization_coefficients( ggp , subset , name );
+  get_linearization_coefficients( ggp , subset , ordered , name );
 
   if( g.nonZeros() == 0 ) {  // g has no nonzeroes
 

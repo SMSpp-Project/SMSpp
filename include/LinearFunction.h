@@ -246,8 +246,8 @@ class LinearFunction : public C15Function {
   * can be used as the void constructor. */
 
  explicit LinearFunction( v_coeff_pair && vars = {} ,
-                 const FunctionValue ct = 0 ,
-                 Observer * const observer = nullptr )
+			  const FunctionValue ct = 0 ,
+			  Observer * const observer = nullptr )
   : C15Function( observer ) , v_pairs( std::move( vars ) ) ,
     f_value( Inf< FunctionValue >() ), f_constant_term( ct ) { }
 
@@ -372,12 +372,14 @@ class LinearFunction : public C15Function {
 /*--------------------------------------------------------------------------*/
 
  void get_linearization_coefficients( FunctionValue * g , c_Subset & subset  ,
+				      const bool ordered = false ,
 				      Index name = Inf<Index>() ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  void get_linearization_coefficients( SparseVector & g ,
 				      c_Subset & subset ,
+				      const bool ordered = false ,
 				      Index name = Inf<Index>() ) override;
 
 /*--------------------------------------------------------------------------*/

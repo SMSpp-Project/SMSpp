@@ -129,6 +129,7 @@ void LinearFunction::get_linearization_coefficients( SparseVector & g ,
 
 void LinearFunction::get_linearization_coefficients( FunctionValue * g ,
 						     c_Subset & subset ,
+						     const bool ordered ,
 						     Index name )
 {
  for( const auto & i : subset ) {
@@ -142,6 +143,7 @@ void LinearFunction::get_linearization_coefficients( FunctionValue * g ,
 
 void LinearFunction::get_linearization_coefficients( SparseVector & g ,
 						     c_Subset & subset ,
+						     const bool ordered ,
 						     Index name )
 {
  c_Index num_active_var = get_num_active_var();

@@ -806,6 +806,7 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
 
 void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
 						   c_Subset & subset ,
+						   const bool ordered ,
 						   Index name )
 
 {

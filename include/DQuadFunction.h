@@ -446,12 +446,14 @@ class DQuadFunction : public C15Function {
 /*--------------------------------------------------------------------------*/
 
  void get_linearization_coefficients( FunctionValue * g , c_Subset & subset  ,
+				      const bool ordered = false ,
 				      Index name = Inf<Index>() ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  void get_linearization_coefficients( SparseVector & g ,
 				      c_Subset & subset ,
+				      const bool ordered = false ,
 				      Index name = Inf<Index>() ) override;
 
 /*--------------------------------------------------------------------------*/

@@ -346,7 +346,8 @@ c_Index tend = std::min( end , Index( v_x.size() ) );
 /*--------------------------------------------------------------------------*/
 
 void PolyhedralFunction::get_linearization_coefficients( FunctionValue * g ,
-							 c_Subset & subset  ,
+							 c_Subset & subset ,
+							 const bool ordered ,
 							 Index name )
 {
  /*!! TBD
@@ -375,6 +376,7 @@ void PolyhedralFunction::get_linearization_coefficients( FunctionValue * g ,
 
 void PolyhedralFunction::get_linearization_coefficients( SparseVector & g ,
 							 c_Subset & subset ,
+							 const bool ordered ,
 							 Index name )
 {
  /*!! TBD
