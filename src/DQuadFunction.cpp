@@ -538,7 +538,7 @@ void DQuadFunction::modify_linear_coefficients( Vec_FunctionValue && NCoef ,
 
 void DQuadFunction::remove_variable( c_Index i , c_ModParam issueMod )
 {
- if( v_triples.size() >= i )
+ if( v_triples.size() <= i )
   throw( std::logic_error( "less than i Variable are active" ) );
 
  auto itv = v_triples.begin() + i;

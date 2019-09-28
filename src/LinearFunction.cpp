@@ -389,7 +389,7 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
 
 void LinearFunction::remove_variable( c_Index i , c_ModParam issueMod )
 {
- if( v_pairs.size() >= i )
+ if( v_pairs.size() <= i )
   throw( std::logic_error( "less than i Variable are active" ) );
 
  auto itv = v_pairs.begin() + i;
