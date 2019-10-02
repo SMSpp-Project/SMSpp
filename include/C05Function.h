@@ -896,8 +896,9 @@ class C05Function : public Function {
 
    g.reserve( range.second - range.first );
 
-   for( Index i = range.first ; i < range.second ; ++i )
-    g.insert( i ) = *(ggp++);
+   for( Index i = range.first ; i < range.second ; ++i , ++ggp )
+    if( *ggp )
+     g.insert( i ) = *ggp;
    }
   else {                  // g has some nonzeroes
    if( g.size() != get_num_active_var() )
@@ -905,6 +906,8 @@ class C05Function : public Function {
 
    for( Index i = range.first ; i < range.second ; ++i )
     g.coeffRef( i ) = *(ggp++);
+
+   g.prune( 0 );
    }
   }
 
@@ -1023,7 +1026,9 @@ class C05Function : public Function {
    for( auto i : subset ) {
     if( i >= get_num_active_var() )
      throw( std::invalid_argument( "wrong index in subset" ) );
-    g.insert( i ) = *(ggp++);
+    auto gi = *(ggp++);
+    if( gi )
+     g.insert( i ) = gi;
     }
    }
   else {                  // g has some nonzeroes
@@ -1035,6 +1040,8 @@ class C05Function : public Function {
      throw( std::invalid_argument( "wrong index in subset" ) );
     g.coeffRef( i ) = *(ggp++);
     }
+
+   g.prune( 0 );
    }
   }
 

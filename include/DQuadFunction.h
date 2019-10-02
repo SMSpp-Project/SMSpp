@@ -262,7 +262,15 @@ class DQuadFunction : public C15Function {
   * @param observer, a pointer to the Observer of this DQuadFunction.
   *
   * All inputs have a default ({}, 0, and nullptr, respectively) so that this
-  * can be used as the void constructor. */
+  * can be used as the void constructor.
+  *
+  * Important note:
+  *
+  *     THE ORDER OF THE vars VECTOR WILL DICTATE THE ORDER OF THE "ACTIVE"
+  *     [Col]Variable OF THE DQuadFunction
+  *
+  * That is, get_active_var( 0 ) == std::get< 0 >( vars[ 0 ] ),
+  * get_active_var( 1 ) == std::get< 0 >( vars[ 1 ] ), ... */
 
  explicit DQuadFunction( v_coeff_triple && v_var = {} ,
                          const FunctionValue ct = 0 ,

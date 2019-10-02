@@ -106,7 +106,7 @@ void LinearFunction::get_linearization_coefficients( SparseVector & g ,
  if( range.second <= range.first )
   return;
 
- if( g.nonZeros() == 0 ) {  // the given vector contains no non-zero element
+ if( g.nonZeros() == 0 ) {  // g contains no non-zero element
 
   if( g.size() < num_active_var )
    g.resize( num_active_var );
@@ -114,14 +114,17 @@ void LinearFunction::get_linearization_coefficients( SparseVector & g ,
   g.reserve( range.second - range.first );
 
   for( Index i = range.first ; i < range.second ; ++i )
-   g.insert( i ) = v_pairs[ i ].second;
+   if( v_pairs[ i ].second )
+    g.insert( i ) = v_pairs[ i ].second;
   }
- else {                  // The given vector contains some non-zero elements
+ else {                  // g contains some non-zero elements
   if( g.size() != num_active_var )
    throw( std::invalid_argument( "wrong size of nonempty SparseVector g" ) );
 
   for( Index i = range.first ; i < range.second ; ++i )
    g.coeffRef( i ) = v_pairs[ i ].second;
+
+  g.prune( 0 );
   }
  }
 
@@ -132,6 +135,7 @@ void LinearFunction::get_linearization_coefficients( FunctionValue * g ,
 						     const bool ordered ,
 						     Index name )
 {
+ c_Index num_active_var = get_num_active_var();
  for( const auto & i : subset ) {
   if( i >= get_num_active_var() )
    throw( std::invalid_argument( "wrong index in subset" ) );
@@ -148,8 +152,7 @@ void LinearFunction::get_linearization_coefficients( SparseVector & g ,
 {
  c_Index num_active_var = get_num_active_var();
 
- if( g.nonZeros() == 0 ) {  // the given vector contains no non-zero element
-
+ if( g.nonZeros() == 0 ) {  // g contains no non-zero element
   if( g.size() < num_active_var )
    g.resize( num_active_var );
 
@@ -158,10 +161,11 @@ void LinearFunction::get_linearization_coefficients( SparseVector & g ,
   for( const auto & i : subset ) {
    if( i >= num_active_var )
     throw( std::invalid_argument( "wrong index in subset" ) );
-   g.insert( i ) = v_pairs[ i ].second;
+   if( v_pairs[ i ].second )
+    g.insert( i ) = v_pairs[ i ].second;
    }
   }
- else {                  // The given vector contains some non-zero elements
+ else {                  // g contains some non-zero elements
   if( g.size() != num_active_var )
    throw( std::invalid_argument( "wrong size of nonempty SparseVector g" ) );
 
@@ -170,6 +174,8 @@ void LinearFunction::get_linearization_coefficients( SparseVector & g ,
     throw( std::invalid_argument( "wrong index in subset" ) );
    g.coeffRef( i ) = v_pairs[ i ].second;
    }
+
+  g.prune( 0 );
   }
  }
 
@@ -184,7 +190,7 @@ void LinearFunction::map_active( c_Vec_p_Var & vars , Subset & map ,
   return;
 
  if( map.size() < vars.size() )
-   map.resize( vars.size() );
+  map.resize( vars.size() );
 
  if( ordered ) {
   Index found = 0;

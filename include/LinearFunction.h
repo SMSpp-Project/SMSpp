@@ -242,6 +242,14 @@ class LinearFunction : public C15Function {
   *
   * @param observer, a pointer to the Observer of this LinearFunction.
   *
+  * Important note:
+  *
+  *     THE ORDER OF THE vars VECTOR WILL DICTATE THE ORDER OF THE "ACTIVE"
+  *     [Col]Variable OF THE LinearFunction
+  *
+  * That is, get_active_var( 0 ) == vars[ 0 ].first,
+  * get_active_var( 1 ) == vars[ 1 ].first, ...
+  *
   * All inputs have a default ({}, 0, and nullptr, respectively) so that this
   * can be used as the void constructor. */
 
@@ -538,9 +546,9 @@ class LinearFunction : public C15Function {
   * The parameter issueMod decides if and how the C05FunctionModLinSbst is
   * issued, as described in Observer::make_par(). */
 
- virtual void modify_coefficients( Vec_FunctionValue && NCoef ,
-				   Subset && nms , bool ordered = false ,
-                                   c_ModParam issueMod = eModBlck );
+ void modify_coefficients( Vec_FunctionValue && NCoef , Subset && nms ,
+			   bool ordered = false ,
+			   c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify a range of coefficients

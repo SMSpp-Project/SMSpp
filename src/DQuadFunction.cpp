@@ -150,8 +150,11 @@ void DQuadFunction::get_linearization_coefficients( SparseVector & g ,
 
   g.reserve( range.second - range.first );
 
-  for( Index i = range.first ; i < range.second ; ++i )
-   g.insert( i ) = get_linearization_coefficient( i );
+  for( Index i = range.first ; i < range.second ; ++i ) {
+   auto gi = get_linearization_coefficient( i );
+   if( gi )
+    g.insert( i ) = gi;
+   }
   }
  else {                  // The given vector contains some non-zero elements
   if( g.size() != num_active_var )
@@ -159,6 +162,8 @@ void DQuadFunction::get_linearization_coefficients( SparseVector & g ,
 
   for( Index i = range.first ; i < range.second ; ++i )
    g.coeffRef( i ) = get_linearization_coefficient( i );
+
+  g.prune( 0 );
   }
  }
 
@@ -185,8 +190,7 @@ void DQuadFunction::get_linearization_coefficients( SparseVector & g ,
 {
  c_Index num_active_var = get_num_active_var();
 
- if( g.nonZeros() == 0 ) {  // the given vector contains no non-zero element
-
+ if( g.nonZeros() == 0 ) {  // g contains no non-zero element
   if( g.size() < num_active_var )
    g.resize( num_active_var );
 
@@ -195,10 +199,12 @@ void DQuadFunction::get_linearization_coefficients( SparseVector & g ,
   for( const auto & i : subset ) {
    if( i >= num_active_var )
     throw( std::invalid_argument( "wrong index in subset" ) );
-   g.insert( i ) = get_linearization_coefficient( i );
+   auto gi = get_linearization_coefficient( i );
+   if( gi )
+    g.insert( i ) = gi;
    }
   }
- else {                  // The given vector contains some non-zero elements
+ else {                  // g contains some non-zero elements
   if( g.size() != num_active_var )
    throw( std::invalid_argument( "wrong size of nonempty SparseVector g" ) );
 
@@ -207,6 +213,8 @@ void DQuadFunction::get_linearization_coefficients( SparseVector & g ,
     throw( std::invalid_argument( "wrong index in subset" ) );
    g.coeffRef( i ) = get_linearization_coefficient( i );
    }
+
+  g.prune( 0 );
   }
  }
 

@@ -481,7 +481,6 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
   return( Inf< FunctionValue >() );
   }
 
- 
 /*--------------------------------------------------------------------------*/
  /// returns a (global) Lipschitz constant for the Function
  /** Method that returns a (global) Lipschitz constant L for this Function,
