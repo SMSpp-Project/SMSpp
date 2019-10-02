@@ -80,7 +80,7 @@ void PolyhedralFunction::deserialize( netCDF::NcGroup & group ,
  netCDF::NcVar nclb = group.getVar( "PolyFunction_lb" );
  if( ! nclb.isNull() ) {
   tb.push_back( 0 );
-  nclb.getVar( tb.data() + nr );
+  nclb.getVar( tb.data() + nr.getSize() );
   }
     
  set_PolyhedralFunction( std::move( tA ) , std::move( tb ) , cnvx , issueMod
@@ -126,7 +126,7 @@ int PolyhedralFunction::compute( bool changedvars )
  // copy x into a std::vector<> (more cache friendly)
  RealVector x( v_x.size() );
  for( Index j = 0 ; j < v_x.size() ; ++j )
-  x[ i ] = v_x[ j ]->get_value();
+  x[ j ] = v_x[ j ]->get_value();
 
  if( v_ord.size() > 1 ) {
   RealVector v( v_b.size() );   // compute all rows values
@@ -156,8 +156,8 @@ int PolyhedralFunction::compute( bool changedvars )
 
   if( f_is_convex )
    for( Index i = 0 ; i < v_A.size() ; ++i ) {
-    vi = std::inner_product( x.begin() , x.end() , v_A[ i ].begin() ,
-			     v_b[ i ] );
+    auto vi = std::inner_product( x.begin() , x.end() , v_A[ i ].begin() ,
+				  v_b[ i ] );
     if( vi > f_value ) {
      f_value = vi;
      v_ord[ 0 ] = i;
@@ -165,9 +165,8 @@ int PolyhedralFunction::compute( bool changedvars )
     }
   else
    for( Index i = 0 ; i < v_A.size() ; ++i ) {
-    vi = std::inner_product( x.begin() , x.end() , v_A[ i ].begin() ,
-			     v_b[ i ] );
-
+    auto vi = std::inner_product( x.begin() , x.end() , v_A[ i ].begin() ,
+				  v_b[ i ] );
     if( vi < f_value ) {
      f_value = vi;
      v_ord[ 0 ] = i;
@@ -451,15 +450,16 @@ void PolyhedralFunction::serialize( netCDF::NcGroup & group )
    ncdA.putVar( { i , 0 } , { 1 , nvar } , v_A[ i ].data() );
 
   ( group.addVar( "PolyFunction_b" , netCDF::NcDouble() , nr ) ).putVar(
-					       { 0 } , { nr } , v_b.data() );
+				      { 0 } , { v_A.size() } , v_b.data() );
   }
 
  if( ! f_is_convex )
   group.addDim( "PolyFunction_sign" , 0 );
 
- if( is_bound_set() )
-  ( group.addVar( "PolyFunction_lb" , netCDF::NcDouble() ) ).putVar(
-							       v_b.back() );
+ if( is_bound_set() ) {
+  c_FunctionValue lb = v_b.back();
+  ( group.addVar( "PolyFunction_lb" , netCDF::NcDouble() ) ).putVar( &lb );
+  }
  }  // end( PolyhedralFunction::serialize )
 
 /*--------------------------------------------------------------------------*/
@@ -492,7 +492,7 @@ void PolyhedralFunction::map_active( c_Vec_p_Var & vars , Subset & map ,
   auto it = map.begin();
   for( auto var : vars ) {
    Index i = PolyhedralFunction::is_active( var );
-   if( i >= v_pairs.size() )
+   if( i >= v_x.size() )
     throw( std::invalid_argument( "map_active: some Variable is not active" )
 	   );
    *(it++) = i;
@@ -605,12 +605,10 @@ void PolyhedralFunction::add_variable( ColVariable * const var ,
  if( var == nullptr )  // actually nothing to add
   return;              // cowardly (and silently) return
 
- auto pos = std::distance( v_x.begin() , itr );
-
  for( Index j = 0 ; j < v_A.size() ; ++j )
   v_A[ j ].push_back( Aj[ j ] );
 
- v_x.push_pack( var );
+ v_x.push_back( var );
 
  set_f_uncomputed();                // the function value has changed
  f_Lipschitz_constant = - Inf<FunctionValue>();  // == unknown
@@ -649,8 +647,7 @@ void PolyhedralFunction::remove_variable( c_Index i , c_ModParam issueMod )
  // now issue the Modification
  // a polyhedral function is strongly quasi-additive
  f_Observer->add_Modification( std::make_shared<C05FunctionModVarsRngd>(
-                                    this , FunctionModVars::RemoveVar ,
-				    Vec_p_Var( { var } ) ,
+                                    this , Vec_p_Var( { var } ) ,
 				    Range( i , i + 1 ) , 0 ,
 				    Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
@@ -659,8 +656,7 @@ void PolyhedralFunction::remove_variable( c_Index i , c_ModParam issueMod )
 
 /*--------------------------------------------------------------------------*/
 
-void PolyhedralFunction::remove_variables( c_Range & range ,
-					   c_ModParam issueMod )
+void PolyhedralFunction::remove_variables( Range range , c_ModParam issueMod )
 {
  range.second = std::min( range.second , Index( v_x.size() ) );
  if( range.second <= range.first )
@@ -687,8 +683,7 @@ void PolyhedralFunction::remove_variables( c_Range & range ,
   // now issue the Modification
   // a polyhedral function is strongly quasi-additive
   f_Observer->add_Modification( std::make_shared<C05FunctionModVarsRngd>(
-                                    this , FunctionModVars::RemoveVar ,
-				    vars , range , 0 ,
+				    this , std::move( vars ) , range , 0 ,
 				    Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
   }
@@ -748,10 +743,9 @@ void PolyhedralFunction::remove_variables( Subset & nms ,
 
   // now issue the Modification
   // a polyhedral function is strongly quasi-additive, and nms is ordered
-  f_Observer->add_Modification( std::make_shared<C05FunctionModSbst>(
-                                    this , FunctionModVars::RemoveVar ,
-				    vars , nms , true ,
-				    Observer::par2concern( issueMod ) ) ,
+  f_Observer->add_Modification( std::make_shared<C05FunctionModVarsSbst>(
+			     this , std::move( vars ) , std::move( nms ) ,
+			     true , 0 , Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
   }
  else  // noone is there: just do it
@@ -762,7 +756,7 @@ void PolyhedralFunction::remove_variables( Subset & nms ,
 /*--------------------------------------------------------------------------*/
 
 void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
-				      Range && range , c_ModParam issueMod )
+				      Range range , c_ModParam issueMod )
 {
  range.second = std::min( range.second , Index( v_x.size() ) );
  if( range.second <= range.first )
@@ -803,7 +797,7 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
  // issue the PolyhedralFunctionModRngd
  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModRngd>(
 			     this , C05FunctionMod::AllLinearizationChanged ,
-			     PolyhedralFunctionModRng::ModifyRows , range ,
+			     PolyhedralFunctionMod::ModifyRows , range ,
 			     C05FunctionMod::NaNshift ,
 			     Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
@@ -853,7 +847,7 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
  // issue the PolyhedralFunctionModSbst; note that rows is ordered
  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModSbst>(
 			     this , C05FunctionMod::AllLinearizationChanged ,
-			     PolyhedralFunctionModRng::ModifyRows ,
+			     PolyhedralFunctionMod::ModifyRows ,
 			     std::move( rows ) , true ,
 			     C05FunctionMod::NaNshift ,
 			     Observer::par2concern( issueMod ) ) ,
@@ -887,7 +881,7 @@ void PolyhedralFunction::modify_row( c_Index i , RealVector && Ai ,
  // issue the PolyhedralFunctionModRngd
  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModRngd>(
 			     this , C05FunctionMod::AllLinearizationChanged ,
-			     PolyhedralFunctionModRng::ModifyRows ,
+			     PolyhedralFunctionMod::ModifyRows ,
 			     Range( i , i + 1 ) , C05FunctionMod::NaNshift ,
 			     Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
@@ -896,7 +890,7 @@ void PolyhedralFunction::modify_row( c_Index i , RealVector && Ai ,
 
 /*--------------------------------------------------------------------------*/
 
-void PolyhedralFunction::modify_constants( c_RealVector & nb , Range & range ,
+void PolyhedralFunction::modify_constants( c_RealVector & nb , Range range ,
 					   c_ModParam issueMod )
 {
  range.second = std::min( range.second , Index( v_x.size() ) );
@@ -946,7 +940,7 @@ void PolyhedralFunction::modify_constants( c_RealVector & nb , Range & range ,
  // issue the PolyhedralFunctionModRngd
  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModRngd>(
 			              this , C05FunctionMod::AlphaChanged ,
-			              PolyhedralFunctionModRng::ModifyCnst ,
+			              PolyhedralFunctionMod::ModifyCnst ,
 			              range , shift ,
 				      Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
@@ -1006,7 +1000,7 @@ void PolyhedralFunction::modify_constants( c_RealVector & nb ,
  // issue the PolyhedralFunctionModSbst: note that ordered is unmodified
  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModSbst>(
 			              this , C05FunctionMod::AlphaChanged ,
-			              PolyhedralFunctionModRng::ModifyCnst ,
+			              PolyhedralFunctionMod::ModifyCnst ,
 			              std::move( rows ) , ordered , shift ,
 				      Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
@@ -1036,7 +1030,7 @@ void PolyhedralFunction::modify_constant( c_Index i , c_FunctionValue bi ,
  // issue the PolyhedralFunctionModRngd
  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModRngd>(
 			              this , C05FunctionMod::AlphaChanged ,
-			              PolyhedralFunctionModRng::ModifyCnst ,
+			              PolyhedralFunctionMod::ModifyCnst ,
 			              Range( i , i + 1 ) , shift ,
 				      Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
@@ -1126,7 +1120,7 @@ void PolyhedralFunction::add_row( RealVector && Ai , FunctionValue bi ,
 
 /*--------------------------------------------------------------------------*/
 
-void PolyhedralFunction::delete_rows( c_Range & range , c_ModParam issueMod )
+void PolyhedralFunction::delete_rows( Range range , c_ModParam issueMod )
 {
  // now pretend that the last row does not exist
  range.second = std::min( range.second , Index( v_b.size() ) );
@@ -1134,7 +1128,7 @@ void PolyhedralFunction::delete_rows( c_Range & range , c_ModParam issueMod )
   return;
 
  if( range.second - range.first == 1 ) {
-  delete_row( prev , issueMod );
+  delete_row( range.first , issueMod );
   return;
   }
 
@@ -1155,8 +1149,8 @@ void PolyhedralFunction::delete_rows( c_Range & range , c_ModParam issueMod )
 		       []( FunctionValue bi ) { return( std::isnan( bi ) ); }
 		       ) , v_b.end() );
 
- if( v_b.size() == v_A.size() )         // if the bound has been deleted
-  v_b.push_back( get_default_bound( );  // reset it
+ if( v_b.size() == v_A.size() )          // if the bound has been deleted
+  v_b.push_back( get_default_bound() );  // reset it
 
  /* Reset all aggregated linearizations, since there is no way to know if
   * they are still valid. */
@@ -1172,7 +1166,7 @@ void PolyhedralFunction::delete_rows( c_Range & range , c_ModParam issueMod )
    }
 
   // look it up to see if it is one of the deleted ones
-  if( ( gn >= range.first ) && ( gn < range.second ) )
+  if( ( gn >= range.first ) && ( gn < range.second ) ) {
    gn = Inf<Index>();
    stgchgd = true;
    }
@@ -1182,7 +1176,8 @@ void PolyhedralFunction::delete_rows( c_Range & range , c_ModParam issueMod )
   reset_v_ord();
 
  set_f_uncomputed();                // the function value has changed
- f_Lipschitz_constant = - Inf<FunctionValue>();  // == unknown
+ if( stgchgd )
+  f_Lipschitz_constant = - Inf<FunctionValue>();  // == unknown
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;                  // noone is there: all done
@@ -1192,7 +1187,7 @@ void PolyhedralFunction::delete_rows( c_Range & range , c_ModParam issueMod )
 				this ,
 			        stgchgd ? C05FunctionMod::AlphaChanged
 					: C05FunctionMod::NothingChanged ,
-				PolyhedralFunctionModRng::DeleteRows , range ,
+				PolyhedralFunctionMod::DeleteRows , range ,
 				f_is_convex ? - FunctionMod::INFshift
 				            : + FunctionMod::INFshift ,
 				Observer::par2concern( issueMod ) ) ,
@@ -1262,7 +1257,8 @@ void PolyhedralFunction::delete_rows( Subset && rows , bool ordered ,
  set_f_uncomputed();      // the function value has changed
  if( f_loc_pool_sz > 1 )  // resize v_ord
   reset_v_ord();
- f_value = - Inf<FunctionValue>();  // the function value has changed
+ if( stgchgd )
+  f_value = - Inf<FunctionValue>();  // the function value has changed
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;                  // noone is there: all done
@@ -1272,8 +1268,8 @@ void PolyhedralFunction::delete_rows( Subset && rows , bool ordered ,
 				this ,
 			        stgchgd ? C05FunctionMod::AlphaChanged
 					: C05FunctionMod::NothingChanged ,
-				PolyhedralFunctionModRng::DeleteRows ,
-				nms , true ,
+				PolyhedralFunctionMod::DeleteRows ,
+				std::move( rows ) , true ,
 				f_is_convex ? - FunctionMod::INFshift
 				            : + FunctionMod::INFshift ,
 				Observer::par2concern( issueMod ) ) ,
@@ -1288,12 +1284,12 @@ void PolyhedralFunction::delete_row( c_Index i , c_ModParam issueMod )
  if( i >= v_b.size() )
   throw( std::invalid_argument( "invalid names in rows" ) );
 
- bool stgchgd = false;              // if some linearization changed
- if( i == v_A.size() )              // deleting the bound
-  v_b.back( get_default_bound() );  // just reset it
+ bool stgchgd = false;               // if some linearization changed
+ if( i == v_A.size() )               // deleting the bound
+  v_b.back() = get_default_bound();  // just reset it
  else {
-  v_A.erase( v_A.begin() + i );     // kill i in v_A[]
-  v_b.erase( v_b.begin() + i );     // kill i in v_b[]
+  v_A.erase( v_A.begin() + i );      // kill i in v_A[]
+  v_b.erase( v_b.begin() + i );      // kill i in v_b[]
 
   /* Reset all aggregated linearizations, since there is no way to know if
    * they are still valid. */
@@ -1303,16 +1299,16 @@ void PolyhedralFunction::delete_row( c_Index i , c_ModParam issueMod )
 
   // now search and mark as deleted the row in the global pool
   for( auto & gi : v_glob ) {
-   if( *git == i ) {
-    *git = Inf<Index>();
+   if( gi == i ) {
+    gi = Inf<Index>();
     stgchgd = true;
     break;
     }
    }
-
-  f_Lipschitz_constant = - Inf<FunctionValue>();  // == unknown
   }
 
+ if( stgchgd )
+  f_Lipschitz_constant = - Inf<FunctionValue>();  // == unknown
  set_f_uncomputed();      // the function value has changed
  if( f_loc_pool_sz > 1 )  // resize v_ord
   reset_v_ord();
@@ -1325,7 +1321,7 @@ void PolyhedralFunction::delete_row( c_Index i , c_ModParam issueMod )
 				this ,
 			        stgchgd ? C05FunctionMod::AlphaChanged
 					: C05FunctionMod::NothingChanged ,
-				PolyhedralFunctionModRng::DeleteRows ,
+				PolyhedralFunctionMod::DeleteRows ,
 				Range( i , i + 1 ) ,
 				f_is_convex ? - FunctionMod::INFshift
 				            : + FunctionMod::INFshift ,

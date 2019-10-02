@@ -516,13 +516,13 @@ class PolyhedralFunction : public C05Function {
 
 /*--------------------------------------------------------------------------*/
 
- FunctionValue get_global_lower_bound( void ) {
+ FunctionValue get_global_lower_bound( void ) override final {
   return( f_is_convex ? v_b.back() : - Inf< FunctionValue >() );
   }
 
 /*--------------------------------------------------------------------------*/
 
- FunctionValue get_global_upper_bound( void ) {
+ FunctionValue get_global_upper_bound( void ) override final {
   return( f_is_convex ? Inf< FunctionValue >() : v_b.back() );
   }
 
@@ -1010,15 +1010,15 @@ class PolyhedralFunction : public C05Function {
  /// remove a range of Variable
  /** Remove a range of "active" Variable.
   *
-  * @param c_Range & range contans the indices of the Variable to be deleted
-  *        (hence, range.second <= get_num_active_var();
+  * @param Range range contans the indices of the Variable to be deleted
+  *        (hence, range.second <= get_num_active_var());
   *
   * @param issueMod, which decides if and how the C05FunctionModVarsRngd
   *        (since a PolyhedralFunction is strongly quasi-additive, and with
   *        shift() == 0 as expected) is issued, as described in
   *        Observer::make_par(). */
 
- void remove_variables( c_Range & range , c_ModParam issueMod = eModBlck );
+ void remove_variables( Range range , c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// remove a subset of Variable
@@ -1042,7 +1042,7 @@ class PolyhedralFunction : public C05Function {
  /// modify a range of rows of the linear mapping
  /** Modifies a range of rows of the linear mapping:
   *
-  * @param Range & range contans the indices of the rows to be modified, hence
+  * @param Range range contans the indices of the rows to be modified, hence
   *        range.second < get_b().size(); note that if range.second ==
   *        get_b().size() - 1 == get_A.size(), then also the constant of
   *        the "virtual" all-0 row corresponding to the global lower/upper
@@ -1071,7 +1071,7 @@ class PolyhedralFunction : public C05Function {
   *        although actually only a subset of them has) and PFtype() ==
   *        ModifyRows. */  
 
- void modify_rows( MultiVector && nA , c_RealVector & nb , Range & range ,
+ void modify_rows( MultiVector && nA , c_RealVector & nb , Range range ,
 		   c_ModParam issueMod = eModBlck );
  
 /*--------------------------------------------------------------------------*/
@@ -1146,7 +1146,7 @@ class PolyhedralFunction : public C05Function {
  /// modify only the constant term of a range of rows of the linear mapping
  /** Like modify_rows( range ), but modify the constant terms only.
   *
-  * @param Range & range contans the indices of the rows to be modified, hence
+  * @param Range range contans the indices of the rows to be modified, hence
   *        range.second < get_b().size(); note that if range.second ==
   *        get_b().size() - 1 == get_A.size(), then also the constant of
   *        the "virtual" all-0 row corresponding to the global lower/upper
@@ -1172,7 +1172,7 @@ class PolyhedralFunction : public C05Function {
   *        case the function value has not chsanged and the method does
   *        nothing). */  
 
- void modify_constants( c_RealVector & nb , Range & range ,
+ void modify_constants( c_RealVector & nb , Range range ,
 			c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -1299,7 +1299,7 @@ class PolyhedralFunction : public C05Function {
   * leaving the current set of n = get_num_active_var() input Variable and
   * all rows that are not explicitly deleted:
   *
-  * @param Range & range contans the indices of the rows to be deleted, hence
+  * @param Range range contans the indices of the rows to be deleted, hence
   *        range.second < get_b().size(); note that if range.second ==
   *        get_b().size() - 1 == get_A.size(), then also the the "virtual"
   *        all-0 row corresponding to the global lower/upper bound is deleted,
@@ -1331,7 +1331,7 @@ class PolyhedralFunction : public C05Function {
   * with shift() == FunctionMod::NaNshift, i.e., "everything changed"
   * (cf. delete_rows( all )). */
 
- void delete_rows( c_Range & range , c_ModParam issueMod = eModBlck );
+ void delete_rows( Range range , c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// deletes a subset of rows from the linear mapping
@@ -1787,7 +1787,7 @@ class PolyhedralFunctionModRngd : public PolyhedralFunctionMod {
    output << " constants";
   else
    output << " rows";
-  output << " [ " << f_range.first << " , " << f_range.second " )";
+  output << " [ " << f_range.first << " , " << f_range.second << " )";
   if( f_PFtype == DeleteRows )
    output << " deleted";
   else
@@ -1877,7 +1877,7 @@ class PolyhedralFunctionModSbst : public PolyhedralFunctionMod {
    output << "f";
   output << "] on PolyhedralFunction [" << &f_function << " ]: "
 	 << v_rows.size();
-  if( ordered )
+  if( f_ordered )
    output << " (ordered)";
   if( f_PFtype == ModifyCnst )
    output << " constants";
