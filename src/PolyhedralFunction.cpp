@@ -1132,22 +1132,11 @@ void PolyhedralFunction::delete_rows( Range range , c_ModParam issueMod )
   return;
   }
 
- // mark stuff to be killed in v_A[] and v_b[]
- for( Index i = range.first ; i < range.second ; ++i ) {
-  if( i < v_A.size() )
-   v_A[ i ].clear();
-  v_b[ i ] = std::numeric_limits< FunctionValue >::quiet_NaN();
-  }
+ v_A.erase( v_A.begin() + range.first , range.second < v_A.size() ?
+	                                v_A.begin() + range.second :
+	                                v_A.end() );
 
- // kill stuff in v_A[]
- v_A.erase( remove_if( v_A.begin() + range.first , v_A.end() ,
-		       []( RealVector & ai ) { return( ai.empty() ); } ) ,
-	    v_A.end() );
-
- // kill stuff in v_b[]
- v_b.erase( remove_if( v_b.begin() + range.first , v_b.end() ,
-		       []( FunctionValue bi ) { return( std::isnan( bi ) ); }
-		       ) , v_b.end() );
+ v_b.erase( v_b.begin() + range.first , v_b.begin() + range.second );
 
  if( v_b.size() == v_A.size() )          // if the bound has been deleted
   v_b.push_back( get_default_bound() );  // reset it
