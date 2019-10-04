@@ -929,8 +929,8 @@ class PolyhedralFunction : public C05Function {
  /// add a set of new Variable to the PolyhedralFunction
  /**< The method receives:
   *
-  * @param nx, a std::vector< ColVarable * > && containing the pointers to k
-  *        new ColVarable, which will take index n, n + 1, ..., n + k - 1
+  * @param nx, a std::vector< ColVariable * > && containing the pointers to k
+  *        new ColVariable, which will take index n, n + 1, ..., n + k - 1
   *        where n = get_num_active_var() (*before* the call). Note that the
   *        order of the variables in nx dictates the index of the "active"
   *        Variable: after the call, x[ 0 ] == get_active_var( n ),

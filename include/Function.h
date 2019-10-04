@@ -1306,7 +1306,7 @@ public:
     else
      output << "quasi-additively (" << f_shift << ") ";
 
-  output << "adding varables [ " << f_first << " , "
+  output << "adding variables [ " << f_first << " , "
 	 << f_first + v_vars.size() << " ]" << std::endl;
   }
 
@@ -1412,7 +1412,7 @@ public:
     else
      output << "quasi-additively (" << f_shift << ") ";
 
-  output << "deleting varables [ " << f_range.first << " , "
+  output << "deleting variables [ " << f_range.first << " , "
 	 << f_range.second << " ]" << std::endl;
   }
 
@@ -1528,7 +1528,7 @@ public:
   output << "deleting " << v_subset.size();
   if( f_ordered )
    output << "(ordered)";
-  output << " varables" << std::endl;
+  output << " variables" << std::endl;
   }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/

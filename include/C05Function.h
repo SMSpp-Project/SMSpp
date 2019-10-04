@@ -1944,7 +1944,7 @@ class C05FunctionModVarsAddd : public FunctionModVarsAddd
     else
      output << f_shift;
 
-  output << ") adding varables [ " << f_first << " , "
+  output << ") adding variables [ " << f_first << " , "
 	 << f_first + v_vars.size() << " ]" << std::endl;
   }
 
@@ -2024,7 +2024,7 @@ public:
     else
      output << f_shift;
 
-  output << ") deleting varables [ " << f_range.first << " , "
+  output << ") deleting variables [ " << f_range.first << " , "
 	 << f_range.second << " ]" << std::endl;
   }
 
@@ -2108,7 +2108,7 @@ public:
   output << ") deleting " << v_subset.size();
   if( f_ordered )
    output << "(ordered)";
-  output << " varables" << std::endl;
+  output << " variables" << std::endl;
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2361,7 +2361,7 @@ public:
   else
    output << "f";
   output << "] on Function[" << &f_function
-	 << " ]: change in the linear part of varables [ "
+	 << " ]: change in the linear part of variables [ "
 	 << f_range.first << " , " << f_range.second << " ]" << std::endl;
   }
 
@@ -2450,7 +2450,7 @@ public:
 	 << " ]: change in the linear part of " << v_subset.size();
   if( f_ordered )
    output << "(ordered)";
-  output << " varables" << std::endl;
+  output << " variables" << std::endl;
   }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
