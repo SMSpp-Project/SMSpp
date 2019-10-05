@@ -1699,11 +1699,13 @@ inline void deserialize( const netCDF::NcGroup & group ,
       return;
     }
 
-    throw( std::invalid_argument( "deserialize: " + var_name +
+    throw( std::invalid_argument( "deserialize(): " + var_name +
                                   " is not present" ) );
   }
 
-  if( sizes.size() != ncVar.getDimCount() &&
+  if( ( ncVar.getDimCount() < 0 ||
+        sizes.size() != static_cast<decltype( sizes.size() )>
+                                   ( ncVar.getDimCount() ) ) &&
       ( ncVar.getDimCount() != 0 || ! allow_scalar_var ) )
 
     throw( std::invalid_argument
