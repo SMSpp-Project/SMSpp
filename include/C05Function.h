@@ -88,7 +88,7 @@ namespace SMSpp_di_unipi_it
  * This immediately implies that
  *
  *     A LINEARIZATION CAN BE DEFINED BY A PAIR FORMED BY A REAL n-VECTOR
- *     (g in the comments) AND A SINGLR REAL SCALAR (\alpha in the comments)
+ *     (g in the comments) AND A SINGLE REAL SCALAR (\alpha in the comments)
  *
  * Linearization are therefore objects in the graphical space \R^{n + 1}
  * of pairs ( x , v ), where x belongs to the input space (which is assumed
@@ -225,7 +225,7 @@ namespace SMSpp_di_unipi_it
  * constructing one convex combination of linearizations with appropriate
  * properties.  This is why C05Function has the concept of "important
  * linearization": once an optimization involving the function has
- * terminated, the Solver can store this "important" lineariazione in the
+ * terminated, the Solver can store this "important" linearization in the
  * global pool for future use. For instance, in case the Function (or other
  * parts of the Block) changes, the changes may be such that x^* may
  * nonetheless remain an optimal solution, and the availability of the
@@ -625,7 +625,7 @@ class C05Function : public Function {
   * x^* and then proving that 0 \in conv( { g_i } ). Such a "convexified
   * linearization" is often a valid linearization as any one directly
   * produced by the function, and therefore can be saved in the global pool
-  * as they are. Indeed, typically the "important linearizaton" (see
+  * as they are. Indeed, typically the "important linearization" (see
   * set_important_linearization()), which is basically the dual optimal
   * solution of any optimization problem involving the C05Function, is one of
   * these. Yet, combinations of linearizations also have other algorithmic
@@ -1464,7 +1464,7 @@ class C05FunctionMod : public FunctionMod {
  *     HAD AT THE MOMENT IN WHICH THE C05FunctionModRngd WAS ISSUED,
  *     SINCE WHEN THE C05FunctionModRngd IS PROCESSED, THESE Variable MAY
  *     HAVE CHANGED INDEX (IF Variable WITH SMALLER INDEX HAVE BEEN
- *     REMOVED), OR COULD HAVE EVEN BEEN REMOVED (IN WHCH CASE AN
+ *     REMOVED), OR COULD HAVE EVEN BEEN REMOVED (IN WHICH CASE AN
  *     APPROPRIATE Modification MUST BE SITTING IN THE QUEUE AFTER THIS ONE).
  *
  * Yet, this information may still be useful to a Solver which keeps some
@@ -1475,7 +1475,7 @@ class C05FunctionMod : public FunctionMod {
  *     THE INDEX THAT THE AFFECTED Variable HAVE AT THE MOMENT IN WHICH THE
  *     C05FunctionModRngd IS PROCESSED CAN ONLY BE SMALLER THAN OR EQUAL
  *     TO THAT THAT THE INFORMATION REPORTED HERE IMPLIES, EXCEPT IF A
- *     Variable HAS BEEN DELETED AND RE-ADDED (IN WHCH CASE TWO
+ *     Variable HAS BEEN DELETED AND RE-ADDED (IN WHICH CASE TWO
  *     APPROPRIATE Modification MUST BE SITTING IN THE QUEUE AFTER THIS ONE).
  *
  * Arguably, then,
@@ -1504,7 +1504,7 @@ class C05FunctionModRngd : public C05FunctionMod
   * C05FunctionModRngd was issued. The range is a pair of indices ( start ,
   * stop ) representing the typical left-closed, right-open range
   * { i : start <= i < stop }, and the correspondence between that and vars
-  * is positonal: vars[ 0 ] had index range, vars[ 1 ] had index range + 1,
+  * is positional: vars[ 0 ] had index range, vars[ 1 ] had index range + 1,
   * ..., which implies that vars.size() == stop - start. As the the &&
   * tells, the vars[] vector "becomes property" of the C05FunctionModRngd
   * object. */
@@ -1612,7 +1612,7 @@ class C05FunctionModSbst : public C05FunctionMod {
   * form of a std::vector< Index >. The indices of have the obvious positional
   * correspondence: subset[ i ] is the index that the Variable vars[ i ] had
   * *at the moment in which the C05FunctionModSbst was issued*. As the the
-  * && tells, both vectors vars[] and subser[] "becomes property" of the
+  * && tells, both vectors vars[] and subset[] "becomes property" of the
   * C05FunctionModSbst object. The ordered parameter tells if subset is
   * ordered by increasing Index, which may be helpful for some Block/Solver
   * having to deal with this FunctionModVarsSbst. */
@@ -1747,7 +1747,7 @@ class C05FunctionModSbst : public C05FunctionMod {
  * stronger property to hold:
  *
  *     THE g PART OF THE LINEARIZATION CORRESPONDING TO THE VARIABLES
- *     WHICH SURVIVE REMANIS "VALID" EVEN IF IT HAS BEEN COMPUTED AT A
+ *     WHICH SURVIVE REMAINS "VALID" EVEN IF IT HAS BEEN COMPUTED AT A
  *     POINT WITH y \neq 0
  *
  * In other words, when passing from f_old( x , y ) to f( x ), the old
@@ -1756,7 +1756,7 @@ class C05FunctionModSbst : public C05FunctionMod {
  * obtained at a point where y \neq 0. Also,
  *
  *     THE g PART OF THE LINEARIZATION CORRESPONDING TO THE PREVIOUS
- *     VARIABLES REMANIS "VALID" AND IT ONLY NEED TO BE EXTENDED
+ *     VARIABLES REMAINS "VALID" AND IT ONLY NEED TO BE EXTENDED
  *
  * In other words, when passing from f_old( x ) to f( x , y ), the old
  * linearizations ( g = g_x , \alpha ) of f_old() should be able to yield
@@ -1831,7 +1831,7 @@ class C05FunctionModSbst : public C05FunctionMod {
  *     \nabla f( x ) = [ 1 ]
  *
  * Save for linearizations computed precisely when y = 0, it is unclear how
- * the first-order information obained by deleting the g_y component can be
+ * the first-order information obtained by deleting the g_y component can be
  * of any use.
  *
  * All this is the reason why C05FunctionModVarsAddd exists. Issuing a
@@ -1850,11 +1850,11 @@ class C05FunctionModSbst : public C05FunctionMod {
  * FunctionModVarsAddd are (since a C05FunctionModVarsAddd will obviously
  * also "register" as a FunctionModVarsAddd).
  *
- * Issueing a C05FunctionModVarsAddd, which indicates a strongly
+ * Issuing a C05FunctionModVarsAddd, which indicates a strongly
  * quasi-additive additions, rather signals that it is possible to update the
  * previously computed linearizations, returned by the C05Function before the
  * modification, provided they are stored in the global pool. Indeed, any
- * g-part of any linerizarion of the C-5Function after the modification has
+ * g-part of any linearization of the C05Function after the modification has
  * N = v_vars.size() extra entries; these can be retrieved by calls to
  * get_linearization_coefficients(), and in fact this use case is the primary
  * reasons why these methods have the "name" and "indices" parameters.
@@ -1890,7 +1890,7 @@ class C05FunctionModSbst : public C05FunctionMod {
  *     THE INDEX THAT ANY ADDED Variable HAVE AT THE MOMENT IN WHICH THE
  *     FunctionModVarsAddd IS PROCESSED CAN ONLY BE SMALLER THAN OR EQUAL
  *     TO THAT THAT THE INFORMATION REPORTED HERE IMPLIES, EXCEPT IF A
- *     Variable HAS BEEN DELETED AND RE-ADDED, IN WHCH CASE TWO
+ *     Variable HAS BEEN DELETED AND RE-ADDED, IN WHICH CASE TWO
  *     APPROPRIATE Modification MUST BE SITTING IN THE QUEUE AFTER THIS ONE.
  *     SIMILARLY, ANY Variable THAT IS DECLARED REMOVED BY SOME Modification
  *     BUT IS CURRENTLY DECLARED "ACTIVE" BY THE C05Function MUST HAVE BEEN
@@ -2224,8 +2224,8 @@ class C05FunctionModLin : public FunctionMod {
  C05FunctionModLin( C05Function * f , Vec_FunctionValue && delta ,
 		    Vec_p_Var && vars , FunctionValue shift = NaNshift ,
 		    bool cB = true )
-  : FunctionMod( f , shift , cB ) , v_delta( std::move( delta ) ) ,
-    v_vars( std::move( vars ) )
+  : FunctionMod( f , shift , cB ) , v_vars( std::move( vars ) ) ,
+    v_delta( std::move( delta ) )
  {
   if( vars.size() != delta.size() )
    throw( std::invalid_argument( "vars and delta sizes do not match" ) );
@@ -2303,7 +2303,7 @@ class C05FunctionModLin : public FunctionMod {
  *     THE INDEX THAT ANY Variable HAVE AT THE MOMENT IN WHICH THE
  *     C05FunctionModLinRngd IS PROCESSED CAN ONLY BE SMALLER THAN OR EQUAL
  *     TO THAT THAT THE INFORMATION REPORTED HERE IMPLIES, EXCEPT IF A
- *     Variable HAS BEEN DELETED AND RE-ADDED, IN WHCH CASE TWO
+ *     Variable HAS BEEN DELETED AND RE-ADDED, IN WHICH CASE TWO
  *     APPROPRIATE Modification MUST BE SITTING IN THE QUEUE AFTER THIS ONE.
  *
  * This may simplify the job of the Solver/Observer somewhat. */
@@ -2321,7 +2321,7 @@ public:
   * affected Variable at the moment in which the C05FunctionModLinRngd was
   * issued. The range is a pair of indices ( start , stop ) representing the
   * typical left-closed, right-open range { i : start <= i < stop }, and the
-  * correspondence between that and vars is positonal: vars[ 0 ] had index
+  * correspondence between that and vars is positional: vars[ 0 ] had index
   * range, vars[ 1 ] had index range + 1 ..., which implies that
   * vars.size() == stop - start. */
 
