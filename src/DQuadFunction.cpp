@@ -337,7 +337,7 @@ void DQuadFunction::modify_term( Index i , Coefficient lin_coeff ,
 				 c_ModParam issueMod )
 {
  if( i >= v_triples.size() )
-  throw ( std::invalid_argument( "DQuadFunction::modify_term: invalid " +
+  throw ( std::invalid_argument( "DQuadFunction::modify_term: invalid "
                                  "index: " + std::to_string( i ) ) );
 
  if( ( std::get< 1 >( v_triples[ i ] ) == lin_coeff ) &&
@@ -405,7 +405,7 @@ void DQuadFunction::modify_terms( c_v_coeff_it NQuadCoef ,
 
   for( auto i : nms ) {
    if( i >= v_triples.size() )
-    throw( std::invalid_argument( "DQuadFunction::modify_terms: invalid " +
+    throw( std::invalid_argument( "DQuadFunction::modify_terms: invalid "
                                   "index: " + std::to_string( i ) ) );
    *(vpit++) = std::get< 0 >( v_triples[ i ] );
    std::get< 1 >( v_triples[ i ] ) = *(NLinCoef++);   // modify quad. coeff.
@@ -424,7 +424,7 @@ void DQuadFunction::modify_terms( c_v_coeff_it NQuadCoef ,
  else  // noone is there: just do it
   for( auto i : nms ) {
    if( i >= v_triples.size() )
-    throw( std::invalid_argument( "DQuadFunction::modify_terms: invalid " +
+    throw( std::invalid_argument( "DQuadFunction::modify_terms: invalid "
                                   "index: " + std::to_string( i ) ) );
    std::get< 1 >( v_triples[ i ] ) = *(NLinCoef++);   // modify quad. coeff.
    std::get< 2 >( v_triples[ i ] ) = *(NQuadCoef++);  // modify linear coeff.
@@ -638,7 +638,7 @@ void DQuadFunction::remove_variables( Subset && nms , bool ordered ,
  if( ( *it >= v_triples.size() ) || ( nms.back() >= v_triples.size() ) )
   throw( std::invalid_argument( "DQuadFunction::remove_variables: "
                                 "wrong index: " +
-                                std::to_string( std::max( nms.begin() ,
+                                std::to_string( std::max( *nms.begin() ,
                                                           nms.back() ) ) ) );
 
  auto vi = *it;    // first element to be eliminated

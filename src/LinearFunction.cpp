@@ -142,7 +142,7 @@ void LinearFunction::get_linearization_coefficients( FunctionValue * g ,
 {
  c_Index num_active_var = get_num_active_var();
  for( const auto & i : subset ) {
-  if( i >= get_num_active_var() )
+  if( i >= num_active_var )
    throw( std::invalid_argument( "LinearFunction::get_linearization_"
                                  "coefficients: wrong index in subset: " +
                                  std::to_string( i ) ) );
