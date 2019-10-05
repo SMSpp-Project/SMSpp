@@ -7,7 +7,7 @@
  *
  * \version 0.40
  *
- * \date 22 - 09 - 2019
+ * \date 05 - 10 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -719,7 +719,8 @@ class DQuadFunction : public C15Function {
  /** Remove the i-th "active" Variable from the DQuadFunction. This is
   * *mathematically* equivalent to setting both its linear and quadratic
   * coefficients to zero, but it is considered a "stronger" operation (it is
-  * possible to have an active Variable with both zero coefficients).
+  * possible to have an active Variable with both zero coefficients). If there
+  * is no Variable with the given index, an exception is thrown.
   *
   * The parameter issueMod decides if and how the C05FunctionModVarsRngd is
   * issued, as described in Observer::make_par(). Note that a diagonal

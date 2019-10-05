@@ -7,7 +7,7 @@
  *
  * \version 0.40
  *
- * \date 22 - 09 - 2019
+ * \date 05 - 10 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -570,7 +570,8 @@ class LinearFunction : public C15Function {
  /** Remove the i-th "active" Variable from the LinearFunction. This is
   * *mathematically* equivalent to setting the corresponding coefficient to
   * zero, but it is considered a "stronger" operation (it is possible to have
-  * an active Variable with zero coefficient).
+  * an active Variable with zero coefficient). If there is no Variable with
+  * the given index, an exception is thrown.
   *
   * The parameter issueMod decides if and how the C05FunctionModVarsRngd is
   * issued, as described in Observer::make_par(). Note that a linear function

@@ -6,7 +6,7 @@
  *
  * \version 0.30
  *
- * \date 15 - 09 - 2019
+ * \date 05 - 10 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -119,7 +119,12 @@ void LinearFunction::get_linearization_coefficients( SparseVector & g ,
   }
  else {                  // g contains some non-zero elements
   if( g.size() != num_active_var )
-   throw( std::invalid_argument( "wrong size of nonempty SparseVector g" ) );
+   throw( std::invalid_argument( "LinearFunction::get_linearization_"
+                                 "coefficients: wrong size of nonempty "
+                                 "SparseVector g: g has size " +
+                                 std::to_string( g.size() ) + " but there is "
+                                 "(are) " + std::to_string( num_active_var ) +
+                                 " active Variable(s)." ) );
 
   for( Index i = range.first ; i < range.second ; ++i )
    g.coeffRef( i ) = v_pairs[ i ].second;
@@ -138,7 +143,9 @@ void LinearFunction::get_linearization_coefficients( FunctionValue * g ,
  c_Index num_active_var = get_num_active_var();
  for( const auto & i : subset ) {
   if( i >= get_num_active_var() )
-   throw( std::invalid_argument( "wrong index in subset" ) );
+   throw( std::invalid_argument( "LinearFunction::get_linearization_"
+                                 "coefficients: wrong index in subset: " +
+                                 std::to_string( i ) ) );
   *(g++) = v_pairs[ i ].second;
   }
  }
@@ -160,18 +167,27 @@ void LinearFunction::get_linearization_coefficients( SparseVector & g ,
 
   for( const auto & i : subset ) {
    if( i >= num_active_var )
-    throw( std::invalid_argument( "wrong index in subset" ) );
+    throw( std::invalid_argument( "LinearFunction::get_linearization_"
+                                  "coefficients: wrong index in subset: " +
+                                  std::to_string( i ) ) );
    if( v_pairs[ i ].second )
     g.insert( i ) = v_pairs[ i ].second;
    }
   }
  else {                  // g contains some non-zero elements
   if( g.size() != num_active_var )
-   throw( std::invalid_argument( "wrong size of nonempty SparseVector g" ) );
+   throw( std::invalid_argument( "LinearFunction::get_linearization_"
+                                 "coefficients: wrong size of nonempty "
+                                 "SparseVector g: g has size " +
+                                 std::to_string( g.size() ) + " but there is "
+                                 "(are) " + std::to_string( num_active_var ) +
+                                 " active Variable(s)." ) );
 
   for( const auto & i : subset ) {
    if( i >= num_active_var )
-    throw( std::invalid_argument( "wrong index in subset" ) );
+    throw( std::invalid_argument( "LinearFunction::get_linearization_"
+                                  "coefficients: wrong index in subset: " +
+                                  std::to_string( i ) ) );
    g.coeffRef( i ) = v_pairs[ i ].second;
    }
 
@@ -203,16 +219,16 @@ void LinearFunction::map_active( c_Vec_p_Var & vars , Subset & map ,
     }
    }
   if( found < vars.size() )
-   throw( std::invalid_argument( "map_active: some Variable is not active" )
-	  );
+   throw( std::invalid_argument( "LinearFunction::map_active: "
+                                 "some Variable is not active" ) );
   }
  else {
   auto it = map.begin();
   for( auto var : vars ) {
    Index i = LinearFunction::is_active( var );
    if( i >= v_pairs.size() )
-    throw( std::invalid_argument( "map_active: some Variable is not active" )
-	   );
+    throw( std::invalid_argument( "LinearFunction::map_active: "
+                                  "some Variable is not active" ) );
    *(it++) = i;
    }
   }
@@ -281,7 +297,8 @@ void LinearFunction::modify_coefficient( Index i , Coefficient coeff,
                                          c_ModParam issueMod )
 {
  if( i >= v_pairs.size() )
-  throw( std::invalid_argument( "modify_coefficient: invalid index" ) );
+  throw( std::invalid_argument( "LinearFunction::modify_coefficient: invalid"
+                                " index: " + std::to_string( i ) ) );
   
  if( v_pairs[ i ].second == coeff )  // actually nothing to modify
   return;                            // cowardly (and silently) return
@@ -311,8 +328,8 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
   return;
 
  if( NCoef.size() < nms.size() )
-  throw( std::invalid_argument( "modify_coefficient: NCoef.size < nms.size"
-				) );
+  throw( std::invalid_argument( "LinearFunction::modify_coefficients: "
+                                "NCoef.size < nms.size" ) );
 
  auto NCit = NCoef.begin();
 
@@ -324,7 +341,8 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
 
   for( auto i : nms ) {
    if( i >= v_pairs.size() )
-    throw( std::invalid_argument( "modify_coefficients: invalid index" ) );
+    throw( std::invalid_argument( "LinearFunction::modify_coefficients: "
+                                  "invalid index: " + std::to_string( i ) ) );
    *(vpit++) = v_pairs[ i ].first;
    auto di = v_pairs[ i ].second - *NCit;
    v_pairs[ i ].second = *NCit;
@@ -342,7 +360,8 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
  else  // noone is there: just do it
   for( auto i : nms ) {
    if( i >= v_pairs.size() )
-    throw( std::invalid_argument( "modify_coefficients: invalid index" ) );
+    throw( std::invalid_argument( "LinearFunction::modify_coefficients: "
+                                  "invalid index: " + std::to_string( i ) ) );
    v_pairs[ i ].second = *(NCit++);
    }
 
@@ -358,8 +377,8 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
   return;
 
  if( NCoef.size() < range.second - range.first )
-  throw( std::invalid_argument( "modify_coefficients: NCoef.size too small"
-				) );
+  throw( std::invalid_argument( "LinearFunction::modify_coefficients: "
+                                "NCoef.size is too small" ) );
 
  auto NCit = NCoef.begin();
  auto strtit = v_pairs.begin() + range.first;
@@ -396,7 +415,8 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
 void LinearFunction::remove_variable( c_Index i , c_ModParam issueMod )
 {
  if( v_pairs.size() <= i )
-  throw( std::logic_error( "less than i Variable are active" ) );
+  throw( std::logic_error( "LinearFunction::remove_variable: there is no "
+                           "Variable with index " + std::to_string( i ) ) );
 
  auto itv = v_pairs.begin() + i;
  auto var = (*itv).first;
@@ -456,14 +476,18 @@ void LinearFunction::remove_variables( Subset && nms , bool ordered ,
   return;           // cowardly (and silently) return
 
  if( v_pairs.empty() )  // deleting from nothing
-  throw( std::logic_error( "deleting from an empty set" ) );
+  throw( std::logic_error( "LinearFunction::remove_variables: "
+                           "deleting from an empty set" ) );
 
  if( ! ordered )
   std::sort( nms.begin() , nms.end() );
  
  auto it = nms.begin();
- if( ( *it >= v_pairs.size() ) || ( nms.back() >= v_pairs.size() ) )
-  throw( std::invalid_argument( "wrong index in LinearFunction" ) );
+ if( ( *it >= v_pairs.size() ) || ( nms.back() >= v_pairs.size() ) ) {
+  throw( std::invalid_argument( "LinearFunction::remove_variables: wrong "
+                                "index: " + std::to_string(
+                                             std::max( *it , nms.back() ) ) ) );
+  }
 
  auto vi = *it;    // first element to be eliminated
  auto curr = v_pairs.begin() + vi;   // position where to move stuff
