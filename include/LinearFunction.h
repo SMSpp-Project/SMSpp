@@ -7,7 +7,7 @@
  *
  * \version 0.40
  *
- * \date 05 - 10 - 2019
+ * \date 07 - 10 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -284,7 +284,7 @@ class LinearFunction : public C15Function {
   * "listens to no-one"; hence, the implementation of set_ComputeConfig() is
   * quite a trivial one. */
 
- void set_ComputeConfig( ComputeConfig *scfg ) final { }
+ void set_ComputeConfig( ComputeConfig *scfg ) override final { }
 
 /**@} ----------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE DATA OF THE LinearFunction ------------*/
@@ -314,22 +314,26 @@ class LinearFunction : public C15Function {
 /** @name Methods describing the behavior of the LinearFunction
  *  @{ */
 
- int compute( bool changedvars ) final;
+ int compute( bool changedvars ) override final;
 
 /*--------------------------------------------------------------------------*/
  /// returns the value of the LinearFunction
 
- FunctionValue get_value( void ) const final { return( f_value ); }
+ FunctionValue get_value( void ) const override final { return( f_value ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the LinearFunction is exact, hence lower_estimate == value
 
- FunctionValue get_lower_estimate( void ) const final { return( f_value ); }
+ FunctionValue get_lower_estimate( void ) const override final {
+  return( f_value );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the LinearFunction is exact, hence upper_estimate == value
 
- FunctionValue get_upper_estimate( void ) const final { return( f_value ); }
+ FunctionValue get_upper_estimate( void ) const override final {
+  return( f_value );
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -337,31 +341,33 @@ class LinearFunction : public C15Function {
 
 /*--------------------------------------------------------------------------*/
 
- bool is_convex( void ) const final { return( true ); }
+ bool is_convex( void ) const override final { return( true ); }
 
 /*--------------------------------------------------------------------------*/
 
- bool is_concave(  void ) const final { return true; }
+ bool is_concave(  void ) const override final { return true; }
 
 /*--------------------------------------------------------------------------*/
 
- void compute_hessian_approximation( void ) final { };
+ void compute_hessian_approximation( void ) override final { };
 
 /*--------------------------------------------------------------------------*/
 
- void get_hessian_approximation( DenseHessian & hessian ) const final;
+ void get_hessian_approximation( DenseHessian & hessian ) const override final;
 
 /*--------------------------------------------------------------------------*/
 
- void get_hessian_approximation( SparseHessian & hessian ) const final;
+ void get_hessian_approximation( SparseHessian & hessian ) const override final;
 
 /*--------------------------------------------------------------------------*/
 
- bool is_continuously_differentiable( void ) const final { return( true ); }
+ bool is_continuously_differentiable( void ) const override final {
+  return( true );
+  }
 
 /*--------------------------------------------------------------------------*/
 
- bool is_twice_continuously_differentiable( void ) const final {
+ bool is_twice_continuously_differentiable( void ) const override final {
   return( true );
   }
 
@@ -395,8 +401,8 @@ class LinearFunction : public C15Function {
  /** There is only one linearization in a LinearFunction. The linearization
   * constant is equal to the constant term of the LinearFunction. */
 
- FunctionValue get_linearization_constant( Index name = Inf<Index>() ) final
- {
+ FunctionValue get_linearization_constant( Index name = Inf<Index>() )
+  override final {
   return( f_constant_term );
   }
 
@@ -417,7 +423,7 @@ class LinearFunction : public C15Function {
   * quite a trivial one. */
 
  ComputeConfig * get_ComputeConfig( bool all , ComputeConfig * ocfg )
-  const final { return( nullptr ); }
+  const override final { return( nullptr ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE LinearFunction -------*/
@@ -427,11 +433,13 @@ class LinearFunction : public C15Function {
  * vector v_pairs of pairs.
  * @{ */
 
- Index get_num_active_var( void ) const final { return( v_pairs.size() ); }
+ Index get_num_active_var( void ) const override final {
+  return( v_pairs.size() );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- Index is_active( const Variable * const var ) const final
+ Index is_active( const Variable * const var ) const override final
  {
   auto idx = std::find_if( v_pairs.begin() , v_pairs.end() ,
 			   [ & var ]( const auto & p ) -> bool {
@@ -444,35 +452,35 @@ class LinearFunction : public C15Function {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  void map_active( c_Vec_p_Var & vars , Subset & map , bool ordered )
-  const final;
+  const override final;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- Variable * get_active_var( const Index i ) const final {
+ Variable * get_active_var( const Index i ) const override final {
   return( v_pairs[ i ].first );
   } 
 
 /*--------------------------------------------------------------------------*/
 
- v_iterator * v_begin( void ) final {
+ v_iterator * v_begin( void ) override final {
   return( new LinearFunction::v_iterator( v_pairs.begin() ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- v_const_iterator * v_begin( void ) const final {
+ v_const_iterator * v_begin( void ) const override final {
   return( new LinearFunction::v_const_iterator( v_pairs.begin() ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
- v_iterator * v_end( void ) final {
+ v_iterator * v_end( void ) override final {
   return( new LinearFunction::v_iterator( v_pairs.end() ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- v_const_iterator * v_end( void ) const final {
+ v_const_iterator * v_end( void ) const override final {
   return( new LinearFunction::v_const_iterator( v_pairs.end() ) );
   }
 
