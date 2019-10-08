@@ -13,7 +13,7 @@
  *
  * \version 0.40
  *
- * \date 13 - 03 - 2019
+ * \date 08 - 10 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -504,18 +504,18 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns true if and only if this Function is convex
- /** Method that returns true if and only if this function is convex. The
-  * default is false (convexity being good for optimization, in particular
-  * minimization, often too good to be true). */
+ /// returns true only if this Function is convex
+ /** Method that returns true only if this function is convex. The default is
+  * false (convexity being good for optimization, in particular minimization,
+  * often too good to be true). */
 
  virtual bool is_convex( void ) const { return( false ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// returns true if and only if this Function is concave
- /** Method that returns true if and only if this function is concave. The
-  * default is false (concavity being good for optimization, in particular
-  * maximization, often too good to be true). */
+ /// returns true only if this Function is concave
+ /** Method that returns true only if this function is concave. The default is
+  * false (concavity being good for optimization, in particular maximization,
+  * often too good to be true). */
 
  virtual bool is_concave( void ) const { return( false ); }
 
