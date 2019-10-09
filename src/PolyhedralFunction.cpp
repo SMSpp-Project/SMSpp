@@ -639,7 +639,7 @@ void PolyhedralFunction::add_variable( ColVariable * const var ,
 
 void PolyhedralFunction::remove_variable( c_Index i , c_ModParam issueMod )
 {
- if( v_x.size() >= i )
+ if( v_x.size() <= i )
   throw( std::logic_error( "invalid Variable index" ) );
 
  auto var = v_x[ i ];
