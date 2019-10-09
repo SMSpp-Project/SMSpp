@@ -285,9 +285,9 @@ class PolyhedralFunction : public C05Function {
  /** Constructor of PolyhedralFunction, taking possibly all the data
   * characterising the function:
   *
-  * @param VarVector && x, a n-vector of pointers to ColVariable representing
-  *        the x variable vector in the definition of the function. Note that
-  *        the order of the variables in x is crucial, since
+  * @param x a n-vector of pointers to ColVariable representing the x variable
+  *        vector in the definition of the function. Note that the order of
+  *        the variables in x is crucial, since
   *
   *            THE ORDER OF THE x VECTOR WILL DICTATE THE ORDER OF THE
   *            "ACTIVE" [Col]Variable OF THE PolyhedralFunction
@@ -295,20 +295,20 @@ class PolyhedralFunction : public C05Function {
   *        That is, get_active_var( 0 ) == x[ 0 ], get_active_var( 1 ) ==
   *        x[ 1 ], ... 
   *
-  * @param the MultiVector && A, a m-vector of n-vectors of FunctionValue
-  *        representing the A matrix in the definition of the function; the
-  *        correspondence between A[][] and x[] is positional, i.e., entry
-  *        A[ i ][ j ] is (obviously) meant to be the coefficient of variable
-  *        *x[ j ] (i.e., get_active_var( j )) for the i-th row;
+  * @param A a m-vector of n-vectors of FunctionValue representing the A
+  *        matrix in the definition of the function; the correspondence
+  *        between A[][] and x[] is positional, i.e., entry A[ i ][ j ] is
+  *        (obviously) meant to be the coefficient of variable *x[ j ] (i.e.,
+  *        get_active_var( j )) for the i-th row;
   *
-  * @param the RealVector && b, a k-vector of FunctionValue representing the
-  *        b vector in the definition of the function (that is, b[ i ] is the
-  *        constant factor of the i-th linear form); note that both k == m and
-  *        k == m + 1 is possible: in the latter case, b[ m ] is taken to be
-  *        the value of the global [lower/upper] bound on the function value,
-  *        i.e., the constant coefficient associated with the all-0 row;
+  * @param b a k-vector of FunctionValue representing the b vector in the
+  *        definition of the function (that is, b[ i ] is the constant factor
+  *        of the i-th linear form); note that both k == m and k == m + 1 is
+  *        possible: in the latter case, b[ m ] is taken to be the value of
+  *        the global [lower/upper] bound on the function value, i.e., the
+  *        constant coefficient associated with the all-0 row;
   *
-  * @param is_convex, a boolean indicating whether the function has to be
+  * @param is_convex a boolean indicating whether the function has to be
   *        defined as the maximization of the provided linear (affine)
   *        functions, and therefore is a convex function, or as the
   *        minimization, and therefore it is a concave function.
@@ -335,7 +335,7 @@ class PolyhedralFunction : public C05Function {
  /// de-serialize a PolyhedralFunction out of netCDF::NcGroup
  /** The method takes a netCDF::NcGroup supposedly containing all the
   * *numerical* information required to de-serialize the PolyhedralFunction,
-  * i.e., a n x m real matrix A, a real m-vector b, the "verse" of the
+  * i.e., a m x n real matrix A, a real m-vector b, the "verse" of the
   * function and its global [lower/upper] bound, and initializes the
   * PolyhedralFunction by calling set_PolyhedralFunction() with the recovered
   * data. See the comments to PolyhedralFunction::serialize() for the detailed
@@ -366,10 +366,10 @@ class PolyhedralFunction : public C05Function {
   * Observer (although it is expected to be used before that), it is also
   * necessary to specify if and how a Modification is issued.
   *
-  * @param group, a netCDF::NcGroup holding the data in the format described
+  * @param group a netCDF::NcGroup holding the data in the format described
   *        in the comments to deserialize();
   *
-  * @param issueMod, which decides if and how the FunctionMod (with shift()
+  * @param issueMod which decides if and how the FunctionMod (with shift()
   *        == FunctionMod::NaNshift, i.e., "everything changed") is issued,
   *        as described in Observer::make_par(). The default is eNoMod,
   *        since the method is mostly thought to be used during initialization
@@ -428,14 +428,14 @@ class PolyhedralFunction : public C05Function {
   * not there already, whence no "issueMod" parameter.
   * PolyhedralFunction until both the Variable and the data are set.
   *
-  * @param VarVector && x, a n-vector of pointers to ColVariable representing
-  *        the x variable vector in the definition of the function. Note that
-  *        the order of the variables in x is crucial, since the
-  *        correspondence with A (whether already provided, or to be provided
-  *        later, cf. discussion above) is positional: entry A[ i ][ j ] is
-  *        (obviously) meant to be the coefficient of variable *x[ j ] for
-  *        the i-th row. In other words, after the call x[ 0 ] ==
-  *        get_active_var( 0 ), x[ 1 ] = get_active_var( 1 ), ... 
+  * @param x a n-vector of pointers to ColVariable representing the x variable
+  *        vector in the definition of the function. Note that the order of
+  *        the variables in x is crucial, since the correspondence with A
+  *        (whether already provided, or to be provided later, cf. discussion
+  *        above) is positional: entry A[ i ][ j ] is (obviously) meant to be
+  *        the coefficient of variable *x[ j ] for the i-th row. In other
+  *        words, after the call x[ 0 ] == get_active_var( 0 ), x[ 1 ] =
+  *        get_active_var( 1 ), ...
   *
   * As the && implies, x become property of the PolyhedralFunction object. */
 
@@ -815,32 +815,32 @@ class PolyhedralFunction : public C05Function {
  /** Completely resets the PolyhedralFunction, with entirely new data and a
   * new set of active variables. This is basically the constructor.
   *
-  * @param VarVector && x, a n-vector of pointers to ColVariable representing
-  *        the x variable vector in the definition of the function. Note that
-  *        the order of the variables in x is crucial, since the
-  *        correspondence with A is positional (see below), and the order
-  *        dictates the index of the "active" Variable: after the call,
-  *        x[ 0 ] == get_active_var( 0 ), x[ 1 ] = get_active_var( 1 ), ... 
+  * @param x a n-vector of pointers to ColVariable representing the x variable
+  *        vector in the definition of the function. Note that the order of
+  *        the variables in x is crucial, since the correspondence with A is
+  *        positional (see below), and the order dictates the index of the
+  *        "active" Variable: after the call, x[ 0 ] == get_active_var( 0 ),
+  *        x[ 1 ] = get_active_var( 1 ), ...
   *
-  * @param the MultiVector && A, a m-vector of n-vectors of FunctionValue
-  *        representing the A matrix in the definition of the function; the
-  *        correspondence between A[][] and x[] is positional, i.e., entry
-  *        A[ i ][ j ] is (obviously) meant to be the coefficient of variable
-  *        *x[ j ] (i.e., get_active_var( j )) for the i-th row;
+  * @param A a m-vector of n-vectors of FunctionValue representing the A
+  *        matrix in the definition of the function; the correspondence
+  *        between A[][] and x[] is positional, i.e., entry A[ i ][ j ] is
+  *        (obviously) meant to be the coefficient of variable *x[ j ] (i.e.,
+  *        get_active_var( j )) for the i-th row;
   *
-  * @param the RealVector && b, a k-vector of FunctionValue representing the
-  *        b vector in the definition of the function (that is, b[ i ] is the
-  *        constant factor of the i-th linear form); note that both k == m and
-  *        k == m + 1 is possible: in the latter case, b[ m ] is taken to be
-  *        the value of the global [lower/upper] bound on the function value,
-  *        i.e., the constant coefficient associated with the all-0 row;
+  * @param b a k-vector of FunctionValue representing the b vector in the
+  *        definition of the function (that is, b[ i ] is the constant factor
+  *        of the i-th linear form); note that both k == m and k == m + 1 is
+  *        possible: in the latter case, b[ m ] is taken to be the value of
+  *        the global [lower/upper] bound on the function value, i.e., the
+  *        constant coefficient associated with the all-0 row;
   *
-  * @param is_convex, a boolean indicating whether the function has to be
+  * @param is_convex a boolean indicating whether the function has to be
   *        defined as the maximization of the provided linear (affine)
   *        functions, and therefore is a convex function, or as the
   *        minimization and therefore it is a concave function.
   *
-  * @param issueMod, which decides if and how the FunctionMod (with shift()
+  * @param issueMod which decides if and how the FunctionMod (with shift()
   *        == FunctionMod::NaNshift, i.e., "everything changed") is issued,
   *        as described in Observer::make_par().
   *
@@ -866,24 +866,24 @@ class PolyhedralFunction : public C05Function {
  /** Completely resets the PolyhedralFunction with entirely new data,
   * but leaving the current set of n = get_num_active_var() input Variable:
   *
-  * @param the MultiVector && A, a m-vector of n-vectors of FunctionValue
-  *        representing the A matrix in the definition of the function; entry
-  *        A[ i ][ j ] is (obviously) meant to be the coefficient of variable
-  *        get_active_var( j ) for the i-th row;
+  * @param A a m-vector of n-vectors of FunctionValue representing the A
+  *        matrix in the definition of the function; entry A[ i ][ j ] is
+  *        (obviously) meant to be the coefficient of variable get_active_var(
+  *        j ) for the i-th row;
   *
-  * @param the RealVector && b, a k-vector of FunctionValue representing the
-  *        b vector in the definition of the function (that is, b[ i ] is the
-  *        constant factor of the i-th linear form); note that both k == m and
-  *        k == m + 1 is possible: in the latter case, b[ m ] is taken to be
-  *        the value of the global [lower/upper] bound on the function value,
-  *        i.e., the constant coefficient associated with the all-0 row;
+  * @param b a k-vector of FunctionValue representing the b vector in the
+  *        definition of the function (that is, b[ i ] is the constant factor
+  *        of the i-th linear form); note that both k == m and k == m + 1 is
+  *        possible: in the latter case, b[ m ] is taken to be the value of
+  *        the global [lower/upper] bound on the function value, i.e., the
+  *        constant coefficient associated with the all-0 row;
   *
-  * @param is_convex, a boolean indicating whether the function has to be
+  * @param is_convex a boolean indicating whether the function has to be
   *        defined as the maximization of the provided linear (affine)
   *        functions, and therefore is a convex function, or as the
   *        minimization and therefore it is a concave function.
   *
-  * @param issueMod, which decides if and how the FunctionMod (with f_shift
+  * @param issueMod which decides if and how the FunctionMod (with f_shift
   *        == FunctionMod::NaNshift, i.e., "everything changed") is issued,
   *        as described in Observer::make_par().
   *
@@ -903,12 +903,12 @@ class PolyhedralFunction : public C05Function {
  /**< The method allows to [re]set the parameter governing the "sign" of the
   * PolyhedralFunction:
   *
-  * @param is_convex, a boolean indicating whether the function has to be
+  * @param is_convex a boolean indicating whether the function has to be
   *        defined as the maximization of the provided linear (affine)
   *        functions, and therefore is a convex function, or as the
   *        minimization and therefore it is a concave function.
   *
-  * @param issueMod, which decides if and how the PolyhedralFunctionMod is
+  * @param issueMod which decides if and how the PolyhedralFunctionMod is
   *        issued, as described in Observer::make_par().
   *
   * Note that when the sign changes from "max" to "min" (from convex to
@@ -929,12 +929,12 @@ class PolyhedralFunction : public C05Function {
  /// add a set of new Variable to the PolyhedralFunction
  /**< The method receives:
   *
-  * @param nx, a std::vector< ColVariable * > && containing the pointers to k
+  * @param nx a std::vector< ColVariable * > && containing the pointers to k
   *        new ColVariable, which will take index n, n + 1, ..., n + k - 1
   *        where n = get_num_active_var() (*before* the call). Note that the
   *        order of the variables in nx dictates the index of the "active"
-  *        Variable: after the call, x[ 0 ] == get_active_var( n ),
-  *        x[ 1 ] = get_active_var( n + 1 ), ... Also, the correspondence
+  *        Variable: after the call, nx[ 0 ] == get_active_var( n ),
+  *        nx[ 1 ] = get_active_var( n + 1 ), ... Also, the correspondence
   *        with nA is (see below) positional. Note that
   *
   *            IT IS EXPECTED THAT NONE OF THE NEW ColVariable IS ALREADY
@@ -951,12 +951,13 @@ class PolyhedralFunction : public C05Function {
   *        object should not have repeated Variable, but if this is an issue
   *        then the check will have to be performed elsewhere.
   *
-  * @param nA, a MultiVector && having as many rows as the current A matrix
-  *        and exactly k columns representing the new part of the linear
-  *        mapping; entry nA[ i ][ h ] is (obviously) meant to be the
-  *        coefficient of *nx[ h ] for the i-th row;
+  * @param nA a MultiVector && having as many rows as the current A matrix (if
+  *        the current A matrix is not empty) and exactly k columns
+  *        representing the new part of the linear mapping; entry nA[ i ][ h ]
+  *        is (obviously) meant to be the coefficient of *nx[ h ] for the i-th
+  *        row;
   *
-  * @param issueMod, which decides if and how the C05FunctionModVarsAddd 
+  * @param issueMod which decides if and how the C05FunctionModVarsAddd
   *        (since a PolyhedralFunction is strongly quasi-additive, and with
   *        shift() == 0 as expected) is issued, as described in
   *        Observer::make_par().
@@ -976,12 +977,12 @@ class PolyhedralFunction : public C05Function {
   * @param var is a ColVariable *, and the pointed ColVariable must *not* be
   *        already among the active Variable of the PolyhedralFunction.
   *
-  * @param Aj is a RealVector containing having as many rows as the current
-  *        A matrix and containing the new column of the linear mapping;
-  *        entry Aj[ i ][ h ] is (obviously) meant to be the coefficient of
-  *        *var for the i-th row.
+  * @param Aj is a RealVector having as many rows as the current A matrix and
+  *        containing the new column of the linear mapping; entry Aj[ i ][ h ]
+  *        is (obviously) meant to be the coefficient of *var for the i-th
+  *        row.
   *
-  * @param issueMod, which decides if and how the C05FunctionModVarsAddd 
+  * @param issueMod which decides if and how the C05FunctionModVarsAddd
   *        (since a PolyhedralFunction is strongly quasi-additive, and with
   *        shift() == 0 as expected) is issued, as described in
   *        Observer::make_par(). */
@@ -998,7 +999,7 @@ class PolyhedralFunction : public C05Function {
   * @param i is the index of the Variable to be removed, an integer between 0
   *        and get_num_active_var().
   *
-  * @param issueMod, which decides if and how the C05FunctionModVarsRngd
+  * @param issueMod which decides if and how the C05FunctionModVarsRngd
   *        (since a PolyhedralFunction is strongly quasi-additive, and with
   *        shift() == 0 as expected) is issued, as described in
   *        Observer::make_par(). */
@@ -1010,10 +1011,10 @@ class PolyhedralFunction : public C05Function {
  /// remove a range of Variable
  /** Remove a range of "active" Variable.
   *
-  * @param Range range contans the indices of the Variable to be deleted
+  * @param range contains the indices of the Variable to be deleted
   *        (hence, range.second <= get_num_active_var());
   *
-  * @param issueMod, which decides if and how the C05FunctionModVarsRngd
+  * @param issueMod which decides if and how the C05FunctionModVarsRngd
   *        (since a PolyhedralFunction is strongly quasi-additive, and with
   *        shift() == 0 as expected) is issued, as described in
   *        Observer::make_par(). */
@@ -1031,7 +1032,7 @@ class PolyhedralFunction : public C05Function {
   *        increasing sense (otherwise this is done inside the method,
   *        which is why nms[] is not const) 
   *
-  * @param issueMod, which decides if and how the C05FunctionModVars (with
+  * @param issueMod which decides if and how the C05FunctionModVars (with
   *        f_shift == 0, since a PolyhedralFunction is strongly
   *        quasi-additive) is issued, as described in Observer::make_par(). */
 
@@ -1042,14 +1043,14 @@ class PolyhedralFunction : public C05Function {
  /// modify a range of rows of the linear mapping
  /** Modifies a range of rows of the linear mapping:
   *
-  * @param Range range contans the indices of the rows to be modified, hence
+  * @param range contains the indices of the rows to be modified, hence
   *        range.second < get_b().size(); note that if range.second ==
   *        get_b().size() - 1 == get_A.size(), then also the constant of
   *        the "virtual" all-0 row corresponding to the global lower/upper
   *        bound is changed, i.e., the bound itself if (the row per se is
   *        bound to be all-0 and therefore cannot be modified);
   *
-  * @param nA, a MultiVector && with nA.size() == range.second - range.first,
+  * @param nA a MultiVector && with nA.size() == range.second - range.first,
   *        (unless range.second == get_A().size() in which case it has a row
   *        less, the last row implicitly being the "virtual" all-0 row
   *        corresponding to the lower bound that cannot be changed) and
@@ -1058,13 +1059,13 @@ class PolyhedralFunction : public C05Function {
   *        the h-th variable in row range.first + i; as the && implies, nA 
   *        becomes property of the PolyhedralFunction object;
   *
-  * @param the RealVector & nb, a vector of FunctionValue with nb.size() ==
-  *        range.second - range.first: entry nb[ i ] is (obviously) meant to
-  *        be the new value of the constant term for row range.first + i;
-  *        note that if range.second == get_A().size(), nb.back() contains
-  *        the new value for the global lower/upper bound;
+  * @param nb a vector of FunctionValue with nb.size() == range.second -
+  *        range.first: entry nb[ i ] is (obviously) meant to be the new value
+  *        of the constant term for row range.first + i; note that if
+  *        range.second == get_A().size(), nb.back() contains the new value
+  *        for the global lower/upper bound;
   *
-  * @param issueMod, which decides if and how the PolyhedralFunctionModRngd is
+  * @param issueMod which decides if and how the PolyhedralFunctionModRngd is
   *        issued, as described in Observer::make_par(). Note that shift() ==
   *        NANshift (the function has changed "unpredictably"),  type() ==
   *        AllLinearizationChanged (all the linearizations may have changed,
@@ -1078,19 +1079,18 @@ class PolyhedralFunction : public C05Function {
  /// modify a subset of rows of the linear mapping
  /** Modifies a subset of rows of the linear mapping:
   *
-  * @param Subset && rows contans the indices of the rows to be modified;
-  *        all entries must therefore be numbers in 0, ..., get_A().size()
-  *        (with the special value get_A().size() == get_b().size() - 1
-  *        indicating the "virtual" all-0 row corresponding to the lower
-  *        bound); as the && tells, the vector becomes property of the
-  *        PolyhedralFunction, to be dispatched to the issued
-  *        PolyhedralFunctionModSbst (if any);
+  * @param rows contains the indices of the rows to be modified; all entries
+  *        must therefore be numbers in 0, ..., get_A().size() (with the
+  *        special value get_A().size() == get_b().size() - 1 indicating the
+  *        "virtual" all-0 row corresponding to the lower bound); as the &&
+  *        tells, the vector becomes property of the PolyhedralFunction, to be
+  *        dispatched to the issued PolyhedralFunctionModSbst (if any);
   *
   * @param bool ordered tells if rows is already ordered by increasing index
   *        (if not it may be ordered inside, after all it becomes property
   *        of the PolyhedralFunction);
   *
-  * @param nA, a MultiVector && with nA.size() == rows.size() (with one
+  * @param nA a MultiVector && with nA.size() == rows.size() (with one
   *        possible exception, see later) and exactly as many columns as the
   *        current A matrix; entry nA[ i ][ h ] is  (obviously) meant to be
   *        the new coefficient for the h-th variable in row rows[ i ]; note
@@ -1101,13 +1101,13 @@ class PolyhedralFunction : public C05Function {
   *        anyway; as the && implies, nA becomes property of the
   *        PolyhedralFunction object;
   *
-  * @param the RealVector & nb, a vector of FunctionValue with nb.size() ==
-  *        nms.size(): entry nb[ i ] is (obviously) meant to be the new value
-  *        of the constant term for row rows[ i ]; note that if rows[ i ] ==
-  *        get_A().size() then nb[ i ] contains the new value for the global
-  *        lower/upper bound;
+  * @param nb a vector of FunctionValue with nb.size() == nms.size(): entry
+  *        nb[ i ] is (obviously) meant to be the new value of the constant
+  *        term for row rows[ i ]; note that if rows[ i ] == get_A().size()
+  *        then nb[ i ] contains the new value for the global lower/upper
+  *        bound;
   *
-  * @param issueMod, which decides if and how the PolyhedralFunctionModSbst is
+  * @param issueMod which decides if and how the PolyhedralFunctionModSbst is
   *        issued, as described in Observer::make_par(). Note that shift() ==
   *        NANshift (the function has changed "unpredictably"),  type() ==
   *        AllLinearizationChanged (all the linearizations may have changed,
@@ -1132,7 +1132,7 @@ class PolyhedralFunction : public C05Function {
   *
   * @param bi is the new constant term of the i-th mapping;
   *
-  * @param issueMod, which decides if and how the PolyhedralFunctionModRngd is
+  * @param issueMod which decides if and how the PolyhedralFunctionModRngd is
   *        issued, as described in Observer::make_par(). Note that shift() ==
   *        NANshift (the function has changed "unpredictably"),  type() ==
   *        AllLinearizationChanged (all the linearizations may have changed,
@@ -1146,19 +1146,19 @@ class PolyhedralFunction : public C05Function {
  /// modify only the constant term of a range of rows of the linear mapping
  /** Like modify_rows( range ), but modify the constant terms only.
   *
-  * @param Range range contans the indices of the rows to be modified, hence
+  * @param range contains the indices of the rows to be modified, hence
   *        range.second < get_b().size(); note that if range.second ==
   *        get_b().size() - 1 == get_A.size(), then also the constant of
   *        the "virtual" all-0 row corresponding to the global lower/upper
   *        bound is changed, i.e., the bound itself if;
   * 
-  * @param the RealVector & nb, a vector of FunctionValue with nb.size() ==
-  *        range.second - range.first: entry nb[ i ] is (obviously) meant to
-  *        be the new value of the constant term for row range.first + i;
-  *        note that if range.second == get_A().size(), nb.back() contains
-  *        the new value for the global lower/upper bound;
+  * @param nb a vector of FunctionValue with nb.size() == range.second -
+  *        range.first: entry nb[ i ] is (obviously) meant to be the new value
+  *        of the constant term for row range.first + i; note that if
+  *        range.second == get_A().size(), nb.back() contains the new value
+  *        for the global lower/upper bound;
   *
-  * @param issueMod, which decides if and how the PolyhedralFunctionModRngd is
+  * @param issueMod which decides if and how the PolyhedralFunctionModRngd is
   *        issued, as described in Observer::make_par(). Note that type() ==
   *        AlphaChanged (all the alphas may have changed, although actually
   *        only a subset of them has) and PFtype() == ModifyCnst. As for
@@ -1176,10 +1176,10 @@ class PolyhedralFunction : public C05Function {
 			c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
- /// modify only the constant term of a range of rows of the linear mapping
- /** Like modify_rows( range ), but modify the constant terms only.
+ /// modify only the constant term of a subset of rows of the linear mapping
+ /** Like modify_rows( subset ), but modify the constant terms only.
   *
-  * @param Subset && rows contans the indices of the rows to be modified;
+  * @param rows contains the indices of the rows to be modified;
   *        all entries must therefore be numbers in 0, ..., get_A().size()
   *        (with the special value get_A().size() == get_b().size() - 1
   *        indicating the "virtual" all-0 row corresponding to the lower
@@ -1187,15 +1187,15 @@ class PolyhedralFunction : public C05Function {
   *        PolyhedralFunction, to be dispatched to the issued
   *        PolyhedralFunctionModSbst (if any);
   *
-  * @param bool ordered tells if rows is already ordered by increasing index
+  * @param ordered tells if rows is already ordered by increasing index
   *        (if not it may be ordered inside, after all it becomes property
   *        of the PolyhedralFunction);
   *
-  * @param the RealVector & nb, a vector of FunctionValue with nb.size() ==
-  *        nms.size(): entry nb[ i ] is (obviously) meant to be the new value
-  *        of the constant term for row rows[ i ];
+  * @param nb a vector of FunctionValue with nb.size() == nms.size(): entry
+  *        nb[ i ] is (obviously) meant to be the new value of the constant
+  *        term for row rows[ i ];
   *
-  * @param issueMod, which decides if and how the PolyhedralFunctionModSbst is
+  * @param issueMod which decides if and how the PolyhedralFunctionModSbst is
   *        issued, as described in Observer::make_par(). Note that type() ==
   *        AlphaChanged (all the alphas may have changed, although actually
   *        only a subset of them has) and PFtype() == ModifyCnst. As for
@@ -1220,7 +1220,7 @@ class PolyhedralFunction : public C05Function {
   *
   * @param bi is the new constant term of the i-th mapping;
   *
-  * @param issueMod, which decides if and how the PolyhedralFunctionModRngd is
+  * @param issueMod which decides if and how the PolyhedralFunctionModRngd is
   *        issued, as described in Observer::make_par(). Note that type() ==
   *        AlphaChanged (all the alphas may have changed, although actually
   *        only a subset of them has) and PFtype() == ModifyCnst. As for
@@ -1235,22 +1235,21 @@ class PolyhedralFunction : public C05Function {
 
 /*--------------------------------------------------------------------------*/
  /// add some rows to the linear mapping in the PolyhedralFunction
- /**< Adds some rows to the linear mapping in the PolyhedralFunction, leaving
+ /** Adds some rows to the linear mapping in the PolyhedralFunction, leaving
   * the current set of n = get_num_active_var() input Variable and all the
   * current rows:
   *
-  * @param the MultiVector && nA, a k-vector of n-vectors of FunctionValue
-  *        representing the new rows of the A matrix in the definition of the
-  *        function; entry nA[ i ][ j ] is (obviously) meant to be the
-  *        coefficient of variable *x[ j ] for the i-th new row; as the &&
-  *        tells, the object (most likely, its individual rows) becomes
-  *        "property" of the PolyhedralFunction.
+  * @param nA a k-vector of n-vectors of FunctionValue representing the new
+  *        rows of the A matrix in the definition of the function; entry nA[ i
+  *        ][ j ] is (obviously) meant to be the coefficient of variable *x[ j
+  *        ] for the i-th new row; as the && tells, the object (most likely,
+  *        its individual rows) becomes "property" of the PolyhedralFunction.
   *
-  * @param the c_RealVector & b, a k-vector of FunctionValue representing the
-  *        new entries of b vector in the definition of the function (that is,
-  *        b[ i ] is the constant factor of the new i-th linear form);
+  * @param nb a k-vector of FunctionValue representing the new entries of b
+  *        vector in the definition of the function (that is, nb[ i ] is the
+  *        constant factor of the i-th given linear form);
   *
-  * @param issueMod, which decides if and how the PolyhedralFunctionModAdd is
+  * @param issueMod which decides if and how the PolyhedralFunctionModAdd is
   *        issued, as described in Observer::make_par().
   *
   * Note that adding new rows makes a "max" (convex) function to increase in
@@ -1277,7 +1276,7 @@ class PolyhedralFunction : public C05Function {
   *
   * @param bi is the constant term of the new row in the mapping;
   *
-  * @param issueMod, which decides if and how the PolyhedralFunctionModAdd is
+  * @param issueMod which decides if and how the PolyhedralFunctionModAdd is
   *        issued, as described in Observer::make_par().
   *
   * Note that adding a new row makes a "max" (convex) function to increase in
@@ -1299,13 +1298,13 @@ class PolyhedralFunction : public C05Function {
   * leaving the current set of n = get_num_active_var() input Variable and
   * all rows that are not explicitly deleted:
   *
-  * @param Range range contans the indices of the rows to be deleted, hence
+  * @param range contains the indices of the rows to be deleted, hence
   *        range.second < get_b().size(); note that if range.second ==
   *        get_b().size() - 1 == get_A.size(), then also the the "virtual"
   *        all-0 row corresponding to the global lower/upper bound is deleted,
   *        which means that the bound is reset to +/- INF as appropriate.
   *
-  * @param issueMod, which decides if and how the PolyhedralFunctionModRngd is
+  * @param issueMod which decides if and how the PolyhedralFunctionModRngd is
   *        issued, as described in Observer::make_par().
   *
   * Note that removing rows makes a "max" (convex) function to decrease in
@@ -1339,7 +1338,7 @@ class PolyhedralFunction : public C05Function {
   * PolyhedralFunction, leaving the current set of n = get_num_active_var()
   * input Variable and all rows that are not explicitly deleted:
   *
-  * @param Subset && rows contans the indices of the rows to be modified;
+  * @param rows contains the indices of the rows to be modified;
   *        all entries must therefore be numbers in 0, ..., get_A().size();
   *        since the special value get_A().size() == get_b().size() - 1
   *        indicates the "virtual" all-0 row corresponding to the global
@@ -1349,7 +1348,7 @@ class PolyhedralFunction : public C05Function {
   *        property of the PolyhedralFunction, to be dispatched to the issued
   *        PolyhedralFunctionModSbst (if any);
   *
-  * @param bool ordered tells if rows is already ordered by increasing index
+  * @param ordered tells if rows is already ordered by increasing index
   *        (if not it may be ordered inside, after all it becomes property
   *        of the PolyhedralFunction);
   *
@@ -1390,7 +1389,7 @@ class PolyhedralFunction : public C05Function {
  /// deletes all rows from the linear mapping in the PolyhedralFunction
  /**< Like delete_rows( range ), but immediately removes *all* the matrix A
   * and vector b, leaving the mapping "empty". This of course also resets 
-  * alla aggregated linearizations, which can no longer be valid, as wel as
+  * all aggregated linearizations, which can no longer be valid, as wel as
   * the global lower/upper bouns. Hence, the best Modification to issue is a
   * FunctionMod with shift() == FunctionMod::NaNshift, i.e., "everything
   * changed". */
