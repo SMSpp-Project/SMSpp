@@ -98,6 +98,9 @@ void PolyhedralFunction::set_variables( VarVector && x )
   if( v_A[ 0 ].size() != x.size() )
    throw( std::logic_error(
 		    "PolyhedralFunction::set_variables: wrong x.size()" ) );
+
+ v_x = std::move( nx );
+
  f_next = 0;
  set_f_uncomputed();
 

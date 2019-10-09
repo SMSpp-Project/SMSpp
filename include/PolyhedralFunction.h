@@ -1101,7 +1101,7 @@ class PolyhedralFunction : public C05Function {
   *        anyway; as the && implies, nA becomes property of the
   *        PolyhedralFunction object;
   *
-  * @param nb a vector of FunctionValue with nb.size() == nms.size(): entry
+  * @param nb a vector of FunctionValue with nb.size() == rows.size(): entry
   *        nb[ i ] is (obviously) meant to be the new value of the constant
   *        term for row rows[ i ]; note that if rows[ i ] == get_A().size()
   *        then nb[ i ] contains the new value for the global lower/upper
@@ -1191,7 +1191,7 @@ class PolyhedralFunction : public C05Function {
   *        (if not it may be ordered inside, after all it becomes property
   *        of the PolyhedralFunction);
   *
-  * @param nb a vector of FunctionValue with nb.size() == nms.size(): entry
+  * @param nb a vector of FunctionValue with nb.size() == rows.size(): entry
   *        nb[ i ] is (obviously) meant to be the new value of the constant
   *        term for row rows[ i ];
   *
