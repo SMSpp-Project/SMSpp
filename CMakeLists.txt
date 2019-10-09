@@ -144,3 +144,8 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     # Register package in user's package registry (~/.cmake/registry)
     export(PACKAGE SMSpp)
 endif ()
+
+# ----- Subdirectories ------------------------------------------------------ #
+if (CMAKE_TESTING_ENABLED)
+    add_subdirectory(test)
+endif()
