@@ -997,7 +997,7 @@ class PolyhedralFunction : public C05Function {
   * the index already, so that it need not be searched for.
   *
   * @param i is the index of the Variable to be removed, an integer between 0
-  *        and get_num_active_var().
+  *        and get_num_active_var() - 1.
   *
   * @param issueMod which decides if and how the C05FunctionModVarsRngd
   *        (since a PolyhedralFunction is strongly quasi-additive, and with
@@ -1026,11 +1026,11 @@ class PolyhedralFunction : public C05Function {
  /** Remove all the Variable in the given set of indices.
   *
   * @param nms is Subset & containing the indices of the Variable to be
-  *        removed, i.e., integers between 0 and get_num_active_var()
+  *        removed, i.e., integers between 0 and get_num_active_var() - 1;
   *
   * @param ordered is a bool indicating if nms[] is already ordered in
   *        increasing sense (otherwise this is done inside the method,
-  *        which is why nms[] is not const) 
+  *        which is why nms[] is not const);
   *
   * @param issueMod which decides if and how the C05FunctionModVars (with
   *        f_shift == 0, since a PolyhedralFunction is strongly
