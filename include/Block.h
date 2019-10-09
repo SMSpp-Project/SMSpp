@@ -4966,9 +4966,12 @@ class Block : public Observer {
  * of the right type can be found there; these being vectors of boost::any, it
  * would be very easy for derived classes to accidentally put there pointers
  * of the wrong type. Also, the methods ensure that the v_X_Y_names vectors
- * are kept of the same size as the corresponding v_X_Y ones (giving the newly
- * added stuff no name: the v_X_Y_names vectors are protected, so derived
- * classes can mess up with them later at their leisure).
+ * are kept of the same size as the corresponding v_X_Y ones. The add methods
+ * accept an optional string to be put in the proper v_X_Y_names vector as an
+ * arbitrary name for the new stuff; the v_X_Y_names vectors are protected,
+ * so derived classes can mess up with them later at their leisure).
+ * For sake of consistency, set_Block(this) is called on every new added
+ * element; users may set another block later at their own risk.
  * @{ */
 
  /// removes any existing static Constraint; to be used with care
@@ -5011,329 +5014,424 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
  /// empty slot
 
- void add_static_constraint( void ) {
+ void add_static_constraint( const std::string & name = "" ) {
   v_s_Constraint.push_back( boost::any() );
-  v_s_Constraint_names.emplace_back();
-  }
+  v_s_Constraint_names.emplace_back( name );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// single object of class (derived from) Constraint
 
- template<class Const>
- void add_static_constraint( Const & newc ) {
+ template< class Const >
+ void add_static_constraint( Const & newc, const std::string & name = "" ) {
   // ensure derived classes insert a derivate of Constraint
-  static_assert( std::is_base_of< Constraint , Const >::value ,
+  static_assert( std::is_base_of< Constraint, Const >::value,
                  "add_static_constraint: newc must inherit from Constraint" );
 
-  Const *cnewc = & newc;
+  newc.set_Block( this );
+  Const * cnewc = &newc;
   v_s_Constraint.push_back( cnewc );
-  v_s_Constraint_names.emplace_back();
-  }
+  v_s_Constraint_names.emplace_back( name );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// std::vector of (derived class from) Constraint
 
- template<class Const>
-  void add_static_constraint( std::vector<Const> & newc ) {
-  static_assert( std::is_base_of< Constraint , Const >::value ,
+ template< class Const >
+ void add_static_constraint( std::vector< Const > & newc,
+                             const std::string & name = "" ) {
+  static_assert( std::is_base_of< Constraint, Const >::value,
                  "add_static_constraint: newc must inherit from Constraint" );
 
-  std::vector<Const> *cnewc = & newc;
-  v_s_Constraint.push_back( cnewc );
-  v_s_Constraint_names.emplace_back();
+  for( auto & i: newc ) {
+   i.set_Block( this );
   }
+  std::vector< Const > * cnewc = &newc;
+  v_s_Constraint.push_back( cnewc );
+  v_s_Constraint_names.emplace_back( name );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// std::vector of pointers to (...) Constraint
 
- template<class Const>
- void add_static_constraint( std::vector<Const *> & newc ) {
-  static_assert( std::is_base_of< Constraint , Const >::value ,
+ template< class Const >
+ void add_static_constraint( std::vector< Const * > & newc,
+                             const std::string& name = "" ) {
+  static_assert( std::is_base_of< Constraint, Const >::value,
                  "add_static_constraint: newc must inherit from Constraint" );
 
-  std::vector<Const *> *cnewc = & newc;
-  v_s_Constraint.push_back( cnewc );
-  v_s_Constraint_names.emplace_back();
+  for (auto i: newc) {
+   i->set_Block(this);
   }
+  std::vector< Const * > * cnewc = &newc;
+  v_s_Constraint.push_back( cnewc );
+  v_s_Constraint_names.emplace_back( name );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// boost::multi_array<K> of (...) Constraint
 
- template<class Const , unsigned long K>
- void add_static_constraint( boost::multi_array<Const , K> & newc ) {
-  static_assert( std::is_base_of< Constraint , Const >::value ,
+ template< class Const, unsigned long K >
+ void add_static_constraint( boost::multi_array< Const, K > & newc,
+                             const std::string& name = "" ) {
+  static_assert( std::is_base_of< Constraint, Const >::value,
                  "add_static_constraint: newc must inherit from Constraint" );
 
-  boost::multi_array<Const , K> *cnewc = & newc;
-  v_s_Constraint.push_back( cnewc );
-  v_s_Constraint_names.emplace_back();
+  for(auto i = newc.data(); i < (newc.data() + newc.num_elements()); ++i){
+  i->set_Block(this);
   }
+  boost::multi_array< Const, K > * cnewc = &newc;
+  v_s_Constraint.push_back( cnewc );
+  v_s_Constraint_names.emplace_back( name );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// boost::multi_array<K> of pointers to (...) Constraint
 
- template<class Const , unsigned long K>
- void add_static_constraint( boost::multi_array<Const * , K> & newc ) {
-  static_assert( std::is_base_of< Constraint , Const >::value ,
+ template< class Const, unsigned long K >
+ void add_static_constraint( boost::multi_array< Const *, K > & newc,
+                             const std::string& name = "" ) {
+  static_assert( std::is_base_of< Constraint, Const >::value,
                  "add_static_constraint: newc must inherit from Constraint" );
 
-  boost::multi_array<Const * , K> *cnewc = & newc;
-  v_s_Constraint.push_back( cnewc );
-  v_s_Constraint_names.emplace_back();
+  for(auto i = newc.data(); i < (newc.data() + newc.num_elements()); ++i){
+   i->set_Block(this);
   }
+  boost::multi_array< Const *, K > * cnewc = &newc;
+  v_s_Constraint.push_back( cnewc );
+  v_s_Constraint_names.emplace_back( name );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// empty slot
 
- void add_static_variable( void ) {
+ void add_static_variable( const std::string& name = "" ) {
   v_s_Variable.push_back( boost::any() );
-  v_s_Variable_names.emplace_back();
-  }
+  v_s_Variable_names.emplace_back( name );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// single object of class (derived from) Variable
 
- template<class Var>
- void add_static_variable( Var & newv ) {
+ template< class Var >
+ void add_static_variable( Var & newv, const std::string& name = "" ) {
   // ensure derived classes insert a derivate of Variable
-  static_assert( std::is_base_of< Variable , Var >::value ,
+  static_assert( std::is_base_of< Variable, Var >::value,
                  "add_static_variable: newv must inherit from Variable" );
 
-  Var *cnewv = & newv;
+  newv.set_Block(this);
+  Var * cnewv = &newv;
   v_s_Variable.push_back( cnewv );
-  v_s_Variable_names.emplace_back();
-  }
+  v_s_Variable_names.emplace_back( name );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// std::vector of (derived class from) Variable
 
- template<class Var>
-  void add_static_variable( std::vector<Var> & newv ) {
-  static_assert( std::is_base_of< Variable , Var >::value ,
+ template< class Var >
+ void add_static_variable( std::vector< Var > & newv,
+                           const std::string& name = "" ) {
+  static_assert( std::is_base_of< Variable, Var >::value,
                  "add_static_variable: newv must inherit from Variable" );
 
-  std::vector<Var> *cnewv = & newv;
-  v_s_Variable.push_back( cnewv );
-  v_s_Variable_names.emplace_back();
+  for (auto & i: newv) {
+   i.set_Block(this);
   }
+  std::vector< Var > * cnewv = &newv;
+  v_s_Variable.push_back( cnewv );
+  v_s_Variable_names.emplace_back( name );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// std::vector of pointers to (...) Variable
 
- template<class Var>
- void add_static_variable( std::vector<Var *> & newv ) {
-  static_assert( std::is_base_of< Variable , Var >::value ,
+ template< class Var >
+ void add_static_variable( std::vector< Var * > & newv,
+                           const std::string& name = "" ) {
+  static_assert( std::is_base_of< Variable, Var >::value,
                  "add_static_variable: newv must inherit from Variable" );
 
-  std::vector<Var *> *cnewv = & newv;
-  v_s_Variable.push_back( cnewv );
-  v_s_Variable_names.emplace_back();
+  for (auto i: newv) {
+   i->set_Block(this);
   }
+  std::vector< Var * > * cnewv = &newv;
+  v_s_Variable.push_back( cnewv );
+  v_s_Variable_names.emplace_back( name );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// boost::multi_array<K> of (...) Variable
 
- template<class Var , unsigned long K>
- void add_static_variable( boost::multi_array<Var , K> & newv ) {
-  static_assert( std::is_base_of< Variable , Var >::value ,
+ template< class Var, unsigned long K >
+ void add_static_variable( boost::multi_array< Var, K > & newv,
+                           const std::string& name = "" ) {
+  static_assert( std::is_base_of< Variable, Var >::value,
                  "add_static_variable: newv must inherit from Variable" );
 
-  boost::multi_array<Var , K> *cnewv = & newv;
-  v_s_Variable.push_back( cnewv );
-  v_s_Variable_names.emplace_back();
+  for(auto i = newv.data(); i < (newv.data() + newv.num_elements()); ++i){
+   i->set_Block(this);
   }
+  boost::multi_array< Var, K > * cnewv = &newv;
+  v_s_Variable.push_back( cnewv );
+  v_s_Variable_names.emplace_back( name );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// boost::multi_array<K> of pointers to (...) Variable
 
- template<class Var , unsigned long K>
- void add_static_variable( boost::multi_array<Var * , K> & newv ) {
-  static_assert( std::is_base_of< Variable , Var >::value ,
+ template< class Var, unsigned long K >
+ void add_static_variable( boost::multi_array< Var *, K > & newv,
+                           const std::string& name = "" ) {
+  static_assert( std::is_base_of< Variable, Var >::value,
                  "add_static_variable: newv must inherit from Variable" );
 
-  boost::multi_array<Var * , K> *cnewv = & newv;
-  v_s_Variable.push_back( cnewv );
-  v_s_Variable_names.emplace_back();
+  for(auto i = newv.data(); i < (newv.data() + newv.num_elements()); ++i){
+   i->set_Block(this);
   }
+  boost::multi_array< Var *, K > * cnewv = &newv;
+  v_s_Variable.push_back( cnewv );
+  v_s_Variable_names.emplace_back( name );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// empty slot
 
- void add_dynamic_constraint( void ) {
+ void add_dynamic_constraint( const std::string& name = "" ) {
   v_d_Constraint.push_back( boost::any() );
-  v_d_Constraint_names.emplace_back();
-  }
+  v_d_Constraint_names.emplace_back( name );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// std::list of (derived class from) Constraint
 
- template<class Const>
- void add_dynamic_constraint( std::list<Const> & newc ) {
+ template< class Const >
+ void add_dynamic_constraint( std::list< Const > & newc,
+                              const std::string& name = "" ) {
   // ensure derived classes insert a derivate of Constraint
-  static_assert( std::is_base_of< Constraint , Const >::value ,
-               "add_dynamic_constraint: newc must inherit from Constraint" );
+  static_assert( std::is_base_of< Constraint, Const >::value,
+                 "add_dynamic_constraint: newc must inherit from Constraint" );
 
-  std::list<Const> *cnewc = & newc;
-  v_d_Constraint.push_back( cnewc );
-  v_d_Constraint_names.emplace_back();
+  for (auto & i: newc) {
+   i.set_Block(this);
   }
+  std::list< Const > * cnewc = &newc;
+  v_d_Constraint.push_back( cnewc );
+  v_d_Constraint_names.emplace_back( name );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// std::list of pointers to (...) Constraint
 
- template<class Const>
- void add_dynamic_constraint( std::list<Const *> & newc ) {
+ template< class Const >
+ void add_dynamic_constraint( std::list< Const * > & newc,
+                              const std::string& name = "" ) {
   // ensure derived classes insert a derivate of Constraint
-  static_assert( std::is_base_of< Constraint , Const >::value ,
-               "add_dynamic_constraint: newc must inherit from Constraint" );
+  static_assert( std::is_base_of< Constraint, Const >::value,
+                 "add_dynamic_constraint: newc must inherit from Constraint" );
 
-  std::list<Const *> *cnewc = & newc;
-  v_d_Constraint.push_back( cnewc );
-  v_d_Constraint_names.emplace_back();
+  for (auto i: newc) {
+   i->set_Block(this);
   }
+  std::list< Const * > * cnewc = &newc;
+  v_d_Constraint.push_back( cnewc );
+  v_d_Constraint_names.emplace_back( name );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// std::vector of std::list of (...) Constraint
 
- template<class Const>
- void add_dynamic_constraint( std::vector< std::list<Const> > & newc ) {
-  static_assert( std::is_base_of< Constraint , Const >::value ,
-               "add_dynamic_constraint: newc must inherit from Constraint" );
+ template< class Const >
+ void add_dynamic_constraint( std::vector< std::list< Const > > & newc,
+                              const std::string& name = "" ) {
+  static_assert( std::is_base_of< Constraint, Const >::value,
+                 "add_dynamic_constraint: newc must inherit from Constraint" );
 
-  std::vector< std::list<Const> > *cnewc = & newc;
-  v_d_Constraint.push_back( cnewc );
-  v_d_Constraint_names.emplace_back();
+  for (auto i: newc) {
+   for (auto & j: i) {
+    j.set_Block( this );
+   }
   }
+  std::vector< std::list< Const > > * cnewc = &newc;
+  v_d_Constraint.push_back( cnewc );
+  v_d_Constraint_names.emplace_back( name );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// std::vector of std::list of pointers to (...) Constraint
 
- template<class Const>
- void add_dynamic_constraint( std::vector<std::list<Const *> > & newc ) {
-  static_assert( std::is_base_of< Constraint , Const >::value ,
-              "add_dynamic_constraint: newc must inherit from Constraint" );
+ template< class Const >
+ void add_dynamic_constraint( std::vector< std::list< Const * > > & newc,
+                              const std::string& name = "" ) {
+  static_assert( std::is_base_of< Constraint, Const >::value,
+                 "add_dynamic_constraint: newc must inherit from Constraint" );
 
-  std::vector< std::list<Const *> > *cnewc = & newc;
-  v_d_Constraint.push_back( cnewc );
-  v_d_Constraint_names.emplace_back();
+  for (auto i: newc) {
+   for (auto & j: i) {
+    j->set_Block( this );
+   }
   }
+  std::vector< std::list< Const * > > * cnewc = &newc;
+  v_d_Constraint.push_back( cnewc );
+  v_d_Constraint_names.emplace_back( name );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// boost::multi_array<K> of std::list of (...) Constraint
 
- template<class Const , unsigned long K>
- void add_dynamic_constraint( boost::multi_array<std::list<Const> , K>
-                              & newc ) {
-  static_assert( std::is_base_of< Constraint , Const >::value ,
-              "add_dynamic_constraint: newc must inherit from Constraint" );
+ template< class Const, unsigned long K >
+ void add_dynamic_constraint( boost::multi_array< std::list< Const >, K >
+                              & newc, const std::string& name = "" ) {
+  static_assert( std::is_base_of< Constraint, Const >::value,
+                 "add_dynamic_constraint: newc must inherit from Constraint" );
 
-  boost::multi_array<std::list<Const> , K> *cnewc = & newc;
-  v_d_Constraint.push_back( cnewc );
-  v_d_Constraint_names.emplace_back();
+  for(auto i = newc.data(); i < (newc.data() + newc.num_elements()); ++i){
+   for (auto & j: i) {
+    j.set_Block( this );
+   }
   }
+  boost::multi_array< std::list< Const >, K > * cnewc = &newc;
+  v_d_Constraint.push_back( cnewc );
+  v_d_Constraint_names.emplace_back( name );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// boost::multi_array<K> of std::list of Constraint * (...)
 
- template<class Const , unsigned long K>
- void add_dynamic_constraint( boost::multi_array<std::list<Const *> , K>
-                              & newc ) {
-  static_assert( std::is_base_of< Constraint , Const >::value ,
-               "add_dynamic_constraint: newc must inherit from Constraint" );
+ template< class Const, unsigned long K >
+ void add_dynamic_constraint( boost::multi_array< std::list< Const * >, K >
+                              & newc, const std::string& name = "" ) {
+  static_assert( std::is_base_of< Constraint, Const >::value,
+                 "add_dynamic_constraint: newc must inherit from Constraint" );
 
-  boost::multi_array<std::list<Const *> , K> *cnewc = & newc;
-  v_d_Constraint.push_back( cnewc );
-  v_d_Constraint_names.emplace_back();
+  for(auto i = newc.data(); i < (newc.data() + newc.num_elements()); ++i){
+   for (auto j: i) {
+    j->set_Block( this );
+   }
   }
+  boost::multi_array< std::list< Const * >, K > * cnewc = &newc;
+  v_d_Constraint.push_back( cnewc );
+  v_d_Constraint_names.emplace_back( name );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// empty slot
 
- void add_dynamic_variable( void ) {
+ void add_dynamic_variable( const std::string& name = "" ) {
   v_d_Variable.push_back( boost::any() );
-  v_d_Variable_names.emplace_back();
-  }
+  v_d_Variable_names.emplace_back( name );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// std::list of (derived class from) Variable
 
- template<class Var>
- void add_dynamic_variable( std::list<Var> & newv ) {
+ template< class Var >
+ void add_dynamic_variable( std::list< Var > & newv,
+                            const std::string& name = "" ) {
   // ensure derived classes insert a derivate of Variable
-  static_assert( std::is_base_of< Variable , Var >::value ,
-               "add_dynamic_variable: newv must inherit from Variable" );
+  static_assert( std::is_base_of< Variable, Var >::value,
+                 "add_dynamic_variable: newv must inherit from Variable" );
 
-  std::list<Var> *cnewv = & newv;
-  v_d_Variable.push_back( cnewv );
-  v_d_Variable_names.emplace_back();
+  for (auto & i: newv) {
+   i.set_Block(this);
   }
+  std::list< Var > * cnewv = &newv;
+  v_d_Variable.push_back( cnewv );
+  v_d_Variable_names.emplace_back( name );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// std::list of pointers to (...) Variable
 
- template<class Var>
- void add_dynamic_variable( std::list<Var *> & newv ) {
+ template< class Var >
+ void add_dynamic_variable( std::list< Var * > & newv,
+                            const std::string& name = "" ) {
   // ensure derived classes insert a derivate of Variable
-  static_assert( std::is_base_of< Variable , Var >::value ,
-               "add_dynamic_variable: newv must inherit from Variable" );
+  static_assert( std::is_base_of< Variable, Var >::value,
+                 "add_dynamic_variable: newv must inherit from Variable" );
 
-  std::list<Var *> *cnewv = & newv;
-  v_d_Variable.push_back( cnewv );
-  v_d_Variable_names.emplace_back();
+  for (auto i: newv) {
+   i->set_Block(this);
   }
+  std::list< Var * > * cnewv = &newv;
+  v_d_Variable.push_back( cnewv );
+  v_d_Variable_names.emplace_back( name );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// std::vector of std::list of (...) Variable
 
- template<class Var>
- void add_dynamic_variable( std::vector<std::list<Var> > & newv ) {
-  static_assert( std::is_base_of< Variable , Var >::value ,
-               "add_dynamic_variable: newv must inherit from Variable" );
+ template< class Var >
+ void add_dynamic_variable( std::vector< std::list< Var > > & newv,
+                            const std::string& name = "" ) {
+  static_assert( std::is_base_of< Variable, Var >::value,
+                 "add_dynamic_variable: newv must inherit from Variable" );
 
-  std::vector<std::list<Var> > *cnewv = & newv;
-  v_d_Variable.push_back( cnewv );
-  v_d_Variable_names.emplace_back();
+  for (auto i: newv) {
+   for (auto & j: i) {
+    j.set_Block( this );
+   }
   }
+  std::vector< std::list< Var > > * cnewv = &newv;
+  v_d_Variable.push_back( cnewv );
+  v_d_Variable_names.emplace_back( name );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// std::vector of std::list of pointers to (...) Variable
 
- template<class Var>
- void add_dynamic_variable( std::vector<std::list<Var *> > & newv ) {
-  static_assert( std::is_base_of< Variable , Var >::value ,
-              "add_dynamic_variable: newv must inherit from Variable" );
+ template< class Var >
+ void add_dynamic_variable( std::vector< std::list< Var * > > & newv,
+                            const std::string& name = "" ) {
+  static_assert( std::is_base_of< Variable, Var >::value,
+                 "add_dynamic_variable: newv must inherit from Variable" );
 
-  std::vector<std::list<Var *> > *cnewv = & newv;
-  v_d_Variable.push_back( cnewv );
-  v_d_Variable_names.emplace_back();
+  for (auto i: newv) {
+   for (auto j: i) {
+    j->set_Block( this );
+   }
   }
+  std::vector< std::list< Var * > > * cnewv = &newv;
+  v_d_Variable.push_back( cnewv );
+  v_d_Variable_names.emplace_back( name );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// boost::multi_array<K> of std::list of (...) Variable
 
- template<class Var , unsigned long K>
- void add_dynamic_variable( boost::multi_array<std::list<Var> , K> & newv ) {
-  static_assert( std::is_base_of< Variable , Var >::value ,
-              "add_dynamic_variable: newv must inherit from Variable" );
+ template< class Var, unsigned long K >
+ void add_dynamic_variable( boost::multi_array< std::list< Var >, K > & newv,
+                            const std::string& name = "" ) {
+  static_assert( std::is_base_of< Variable, Var >::value,
+                 "add_dynamic_variable: newv must inherit from Variable" );
 
-  boost::multi_array<std::list<Var> , K> *cnewv = & newv;
-  v_d_Variable.push_back( cnewv );
-  v_d_Variable_names.emplace_back();
+  for(auto i = newv.data(); i < (newv.data() + newv.num_elements()); ++i){
+   for (auto & j: i) {
+    j.set_Block( this );
+   }
   }
+  boost::multi_array< std::list< Var >, K > * cnewv = &newv;
+  v_d_Variable.push_back( cnewv );
+  v_d_Variable_names.emplace_back( name );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// boost::multi_array<K> of std::list of Variable * (...)
 
- template<class Var , unsigned long K>
- void add_dynamic_variable( boost::multi_array<std::list<Var *> , K>
-                              & newv ) {
-  static_assert( std::is_base_of< Variable , Var >::value ,
-               "add_dynamic_variable: newv must inherit from Variable" );
+ template< class Var, unsigned long K >
+ void add_dynamic_variable( boost::multi_array< std::list< Var * >, K >
+                            & newv, const std::string& name = "" ) {
+  static_assert( std::is_base_of< Variable, Var >::value,
+                 "add_dynamic_variable: newv must inherit from Variable" );
 
-  boost::multi_array<std::list<Var *> , K> *cnewv = & newv;
-  v_d_Variable.push_back( cnewv );
-  v_d_Variable_names.emplace_back();
+  for(auto i = newv.data(); i < (newv.data() + newv.num_elements()); ++i){
+   for (auto j: i) {
+    j->set_Block( this );
+   }
   }
+  boost::multi_array< std::list< Var * >, K > * cnewv = &newv;
+  v_d_Variable.push_back( cnewv );
+  v_d_Variable_names.emplace_back( name );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /** @name Protected methods for handling Solver list
