@@ -2086,7 +2086,8 @@ class Block : public Observer {
 
  template< class Cnst >
  std::vector< Cnst > * get_static_constraint_v( c_Index i ) const {
-  static_assert( std::is_base_of< Constraint , Cnst >::value ,
+  static_assert( std::is_base_of< Constraint, Cnst >::value ||
+   std::is_base_of< Constraint, std::remove_pointer_t< Cnst>>::value,
                  "get_static_constraint_v: Cnst must inherit from Constraint" );
   if( i >= v_s_Constraint.size() )
    throw( std::invalid_argument( "get_static_constraint_v: group " +
@@ -2109,7 +2110,8 @@ class Block : public Observer {
 
  template< class Cnst , unsigned short K >
  boost::multi_array< Cnst , K > * get_static_constraint( c_Index i ) const {
-  static_assert( std::is_base_of< Constraint , Cnst >::value ,
+  static_assert( std::is_base_of< Constraint, Cnst >::value ||
+   std::is_base_of< Constraint, std::remove_pointer_t< Cnst>>::value,
                  "get_static_constraint: Cnst must inherit from Constraint" );
   if( i >= v_s_Constraint.size() )
    throw( std::invalid_argument( "get_static_constraint: group " +
@@ -2234,7 +2236,8 @@ class Block : public Observer {
 
  template< class Var >
  std::vector< Var > * get_static_variable_v( c_Index i ) const {
-  static_assert( std::is_base_of< Variable , Var >::value ,
+  static_assert( std::is_base_of< Variable , Var >::value ||
+   std::is_base_of< Variable, std::remove_pointer_t< Var>>::value,
                  "get_static_variable_v: Var must inherit from Variable" );
   if( i >= v_s_Variable.size() )
    throw( std::invalid_argument( "get_static_variable_v: group " +
@@ -2257,7 +2260,8 @@ class Block : public Observer {
 
  template< class Var , unsigned short K >
  boost::multi_array< Var , K > * get_static_variable( c_Index i ) const {
-  static_assert( std::is_base_of< Variable , Var >::value ,
+  static_assert( std::is_base_of< Variable , Var >::value ||
+   std::is_base_of< Variable, std::remove_pointer_t< Var>>::value,
                  "get_static_variable: Var must inherit from Variable" );
   if( i >= v_s_Variable.size() )
    throw( std::invalid_argument( "get_static_variable: group " +
@@ -2390,7 +2394,8 @@ class Block : public Observer {
 
  template< class Cnst >
  std::list< Cnst > * get_dynamic_constraint( c_Index i ) const {
-  static_assert( std::is_base_of< Constraint , Cnst >::value ,
+  static_assert( std::is_base_of< Constraint , Cnst >::value ||
+   std::is_base_of< Constraint , std::remove_pointer_t<Cnst> >::value,
                  "get_dynamic_constraint: Cnst must inherit from Constraint" );
   if( i >= v_d_Constraint.size() )
    throw( std::invalid_argument( "get_dynamic_constraint: group " +
@@ -2414,10 +2419,11 @@ class Block : public Observer {
  template< class Cnst >
  std::vector< std::list< Cnst > > * get_dynamic_constraint_v( c_Index i )
   const {
-  static_assert( std::is_base_of< Constraint , Cnst >::value ,
+  static_assert( std::is_base_of< Constraint , Cnst >::value ||
+   std::is_base_of< Constraint , std::remove_pointer_t<Cnst> >::value ,
                  "get_dynamic_constraint_v: "
                  "Cnst must inherit from Constraint" );
-  if( i >= v_s_Constraint.size() )
+  if( i >= v_d_Constraint.size() )
    throw( std::invalid_argument( "get_dynamic_constraint_v: group " +
                                  std::to_string( i ) +
                                  " of constraints does not exist" ) );
@@ -2440,9 +2446,10 @@ class Block : public Observer {
  template< class Cnst , unsigned short K >
  boost::multi_array< std::list< Cnst > , K > * get_dynamic_constraint(
 							 c_Index i ) const {
-  static_assert( std::is_base_of< Constraint , Cnst >::value ,
+  static_assert( std::is_base_of< Constraint , Cnst >::value ||
+   std::is_base_of< Constraint , std::remove_pointer_t<Cnst> >::value ,
                  "get_dynamic_constraint: Cnst must inherit from Constraint" );
-  if( i >= v_s_Constraint.size() )
+  if( i >= v_d_Constraint.size() )
    throw( std::invalid_argument( "get_dynamic_constraint: group " +
                                  std::to_string( i ) +
                                  " of constraints does not exist" ) );
@@ -2574,12 +2581,13 @@ class Block : public Observer {
 
  template< class Var >
  std::list< Var > * get_dynamic_variable( c_Index i ) const {
-  static_assert( std::is_base_of< Variable , Var >::value ,
+  static_assert( std::is_base_of< Variable , Var >::value ||
+   std::is_base_of< Variable , std::remove_pointer_t<Var> >::value,
                  "get_dynamic_variable: Var must inherit from Variable" );
   if( i >= v_d_Variable.size() )
    throw( std::invalid_argument( "get_dynamic_variable: group " +
                                  std::to_string( i ) +
-                                 " of constraints does not exist" ) );
+                                 " of variables does not exist" ) );
   auto var = boost::any_cast< std::list< Var > * >( v_d_Variable[ i ] );
   if( ! var )
    throw( std::invalid_argument( "get_dynamic_variable: group " +
@@ -2598,12 +2606,13 @@ class Block : public Observer {
  template< class Var >
  std::vector< std::list< Var > > * get_dynamic_variable_v( c_Index i )
   const {
-  static_assert( std::is_base_of< Variable , Var >::value ,
+  static_assert( std::is_base_of< Variable , Var >::value ||
+   std::is_base_of< Variable , std::remove_pointer_t<Var> >::value,
                  "get_dynamic_variable_v: Var must inherit from Variable" );
-  if( i >= v_s_Variable.size() )
+  if( i >= v_d_Variable.size() )
    throw( std::invalid_argument( "get_dynamic_variable_v: group " +
                                  std::to_string( i ) +
-                                 " of constraints does not exist" ) );
+                                 " of variables does not exist" ) );
   auto var = boost::any_cast< std::vector< std::list< Var > > * >(
 						       v_d_Variable[ i ] );
   if( ! var )
@@ -2623,12 +2632,13 @@ class Block : public Observer {
  template< class Var , unsigned short K >
  boost::multi_array< std::list< Var > , K > * get_dynamic_variable(
 							 c_Index i ) const {
-  static_assert( std::is_base_of< Variable , Var >::value ,
+  static_assert( std::is_base_of< Variable , Var >::value ||
+   std::is_base_of< Variable , std::remove_pointer_t<Var> >::value,
                  "get_dynamic_variable: Var must inherit from Variable" );
-  if( i >= v_s_Variable.size() )
+  if( i >= v_d_Variable.size() )
    throw( std::invalid_argument( "get_dynamic_variable: group " +
                                  std::to_string( i ) +
-                                 " of constraints does not exist" ) );
+                                 " of variables does not exist" ) );
   auto var =
    boost::any_cast< boost::multi_array< std::list< Var > , K > * >(
 						      v_d_Variable[ i ] );
@@ -5095,7 +5105,7 @@ class Block : public Observer {
                  "add_static_constraint: newc must inherit from Constraint" );
 
   for(auto i = newc.data(); i < (newc.data() + newc.num_elements()); ++i){
-   i->set_Block(this);
+   (*i)->set_Block(this);
   }
   boost::multi_array< Const *, K > * cnewc = &newc;
   v_s_Constraint.push_back( cnewc );
@@ -5186,7 +5196,7 @@ class Block : public Observer {
                  "add_static_variable: newv must inherit from Variable" );
 
   for(auto i = newv.data(); i < (newv.data() + newv.num_elements()); ++i){
-   i->set_Block(this);
+   (*i)->set_Block(this);
   }
   boost::multi_array< Var *, K > * cnewv = &newv;
   v_s_Variable.push_back( cnewv );
@@ -5246,7 +5256,7 @@ class Block : public Observer {
   static_assert( std::is_base_of< Constraint, Const >::value,
                  "add_dynamic_constraint: newc must inherit from Constraint" );
 
-  for (auto i: newc) {
+  for (auto & i: newc) {
    for (auto & j: i) {
     j.set_Block( this );
    }
@@ -5265,7 +5275,7 @@ class Block : public Observer {
   static_assert( std::is_base_of< Constraint, Const >::value,
                  "add_dynamic_constraint: newc must inherit from Constraint" );
 
-  for (auto i: newc) {
+  for (auto & i: newc) {
    for (auto & j: i) {
     j->set_Block( this );
    }
@@ -5285,7 +5295,7 @@ class Block : public Observer {
                  "add_dynamic_constraint: newc must inherit from Constraint" );
 
   for(auto i = newc.data(); i < (newc.data() + newc.num_elements()); ++i){
-   for (auto & j: i) {
+   for (auto & j: *i) {
     j.set_Block( this );
    }
   }
@@ -5304,7 +5314,7 @@ class Block : public Observer {
                  "add_dynamic_constraint: newc must inherit from Constraint" );
 
   for(auto i = newc.data(); i < (newc.data() + newc.num_elements()); ++i){
-   for (auto j: i) {
+   for (auto & j: *i) {
     j->set_Block( this );
    }
   }
@@ -5349,7 +5359,7 @@ class Block : public Observer {
   static_assert( std::is_base_of< Variable, Var >::value,
                  "add_dynamic_variable: newv must inherit from Variable" );
 
-  for (auto i: newv) {
+  for (auto & i: newv) {
    i->set_Block(this);
   }
   std::list< Var * > * cnewv = &newv;
@@ -5366,7 +5376,7 @@ class Block : public Observer {
   static_assert( std::is_base_of< Variable, Var >::value,
                  "add_dynamic_variable: newv must inherit from Variable" );
 
-  for (auto i: newv) {
+  for (auto & i: newv) {
    for (auto & j: i) {
     j.set_Block( this );
    }
@@ -5405,7 +5415,7 @@ class Block : public Observer {
                  "add_dynamic_variable: newv must inherit from Variable" );
 
   for(auto i = newv.data(); i < (newv.data() + newv.num_elements()); ++i){
-   for (auto & j: i) {
+   for (auto & j: *i) {
     j.set_Block( this );
    }
   }
@@ -5424,7 +5434,7 @@ class Block : public Observer {
                  "add_dynamic_variable: newv must inherit from Variable" );
 
   for(auto i = newv.data(); i < (newv.data() + newv.num_elements()); ++i){
-   for (auto j: i) {
+   for (auto & j: *i) {
     j->set_Block( this );
    }
   }
