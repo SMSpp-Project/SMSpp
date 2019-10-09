@@ -8,7 +8,7 @@
  *
  * \version 0.06
  *
- * \date 22 - 05 - 2019
+ * \date 09 - 10 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -113,10 +113,8 @@ void LagBFunction::set_inner_block( Block* innerblock ) {
  // set the pointer to the sub-Block (B) - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( v_Block.size() )
-  v_Block.clear();
-
- v_Block[0] = innerblock;
+ v_Block.resize( 1 );
+ v_Block[ 0 ] = innerblock;
 
  // set the objective : the Lagrangian function (obj_B) is the objective of
  // sub-block (B)
@@ -937,8 +935,7 @@ Function::FunctionValue LagBFunction::get_linearization_constant(
 /*--------------------------------------------------------------------------*/
 
 Block* LagBFunction::get_inner_block( void ) {
-
- return( v_Block[0] );
+ return( v_Block.empty() ? nullptr : v_Block[0] );
  }
 
 /*--------------------------------------------------------------------------*/
