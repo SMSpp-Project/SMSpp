@@ -1073,8 +1073,8 @@ class C05Function : public Function {
 					     Index name = Inf<Index>() ) = 0;
 
 /*--------------------------------------------------------------------------*/
- /// returns true if and only if this Function is continuously differentiable
- /** Method that returns true if and only if this Function is continuously
+ /// returns true only if this Function is continuously differentiable
+ /** Method that returns true only if this Function is continuously
   * differentiable. The default is false. Note that a continuously
   * differentiable function, when called with the default value of the
   * accuracy parameters dblRAccLin and dblAAccLin, should only return one

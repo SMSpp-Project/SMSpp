@@ -521,37 +521,37 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns true only if this Function is linear
- /** Method that returns true if and only if this Function is linear. The
-  * base implementation of the class exploits the fact that the only class
-  * of functions that are both convex and concave is precisely that of
-  * linear functions (and therefore this method is not very useful ... ) */
+ /** Method that returns true only if this Function is linear. The base
+  * implementation of the class exploits the fact that the only class of
+  * functions that are both convex and concave is precisely that of linear
+  * functions (and therefore this method is not very useful ... ) */
 
  virtual bool is_linear( void ) const {
   return( this->is_convex() && this->is_concave() );
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns true if and only if this Function is lower semi-continuous
- /** Method that returns true if and only if this function is lower
+ /// returns true only if this Function is lower semi-continuous
+ /** Method that returns true only if this function is lower
   * semi-continuous. The default is true (continuity being an important
   * property for optimization). */
 
  virtual bool is_lower_semicontinuous( void ) const { return( true ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// returns true if and only if this Function is upper semi-continuous
- /** Method that returns true if and only if this function is upper
+ /// returns true only if this Function is upper semi-continuous
+ /** Method that returns true only if this function is upper
   * semi-continuous. The default is true (continuity being an important
   * property for optimization). */
 
  virtual bool is_upper_semicontinuous( void ) const { return( true ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// returns true if and only if this Function is continuous
- /** Method that returns true if and only if this function is continuous.
-  * The base implementation of the class exploits the fact that by
-  * this means that it is both upper semi-continuous and lower
-  * semi-continuous (and therefore this method is not very useful ... ) */
+ /// returns true only if this Function is continuous
+ /** Method that returns true only if this function is continuous. The base
+  * implementation of the class exploits the fact that by this means that it
+  * is both upper semi-continuous and lower semi-continuous (and therefore
+  * this method is not very useful ... ) */
 
  bool is_continuous( void ) const {
   return( this->is_lower_semicontinuous() &&
