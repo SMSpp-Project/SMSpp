@@ -5827,6 +5827,7 @@ class BlockConfig : public Configuration
 
 /*---------------------------- CONSTRUCTORS --------------------------------*/
  /// constructor: initializes everything to "default configuration"
+
  BlockConfig( void ) : Configuration() ,
   f_static_constraints_Configuration( nullptr ),
   f_dynamic_constraints_Configuration( nullptr ),
@@ -5840,6 +5841,7 @@ class BlockConfig : public Configuration
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: does what it says on the tin
+
  BlockConfig( const BlockConfig &old );
 
 /*--------------------------------------------------------------------------*/

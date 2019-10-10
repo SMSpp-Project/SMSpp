@@ -758,7 +758,7 @@ void PolyhedralFunction::remove_variables( Subset & nms ,
 void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
 				      Range range , c_ModParam issueMod )
 {
- range.second = std::min( range.second , Index( v_x.size() ) );
+ range.second = std::min( range.second , Index( v_A.size() ) );
  if( range.second <= range.first )
   return;
 
@@ -768,14 +768,10 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
  if( nb.size() != range.second - range.first )
   throw( std::invalid_argument( "range and nb sizes do not match" ) );
 
- // allow nA.size() to be == range.second - range.first - 1 if the last
- // element in range is the global bound
- if( ( nA.size() != range.second - range.first ) &&
-     ( ( nA.size() != range.second - range.first - 1 ) ||
-       ( range.second != v_A.size() ) ) )
+ if( nA.size() != range.second - range.first )
   throw( std::invalid_argument( "range and nA sizes do not match" ) );
 
- // copy normal rows
+ // copy rows
  for( Index i = 0 ; i < nA.size() ; ++i ) {
   if( nA[ i ].size() != v_x.size() )
    throw( std::invalid_argument( "wrong row size" ) );
@@ -783,10 +779,6 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
   v_A[ range.first + i ] = std::move( nA[ i ] );
   v_b[ range.first + i ] = nb[ i ];
   }
-
- // copy global bound
- if( range.second == v_A.size() )
-  v_b.back() = nb.back();
 
  set_f_uncomputed();                // the function value has changed
  f_Lipschitz_constant = - Inf<FunctionValue>();  // == unknown
@@ -821,20 +813,16 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
  if( ! ordered )
   std::sort( rows.begin() , rows.end() );
 
- // allow nA.size() to be == rows.size() - 1 if the last element in rows
- // is the global bound
- if( ( nA.size() != rows.size() ) &&
-     ( ( nA.size() != rows.size() - 1 ) || ( rows.back() != v_A.size() ) ) )
+ if( nA.size() != rows.size() )
   throw( std::invalid_argument( "rows and nA sizes do not match" ) );
 
  for( Index i = 0 ; i < rows.size() ; ++i ) {
-  if( rows[ i ] >= v_b.size() )
+  if( rows[ i ] >= v_A.size() )
    throw( std::invalid_argument( "wrong row name" ) );
   if( nA[ i ].size() != v_x.size() )
    throw( std::invalid_argument( "wrong row size" ) );
 
-  if( rows[ i ] < v_A.size() )
-   v_A[ rows[ i ] ] = std::move( nA[ i ] );
+  v_A[ rows[ i ] ] = std::move( nA[ i ] );
   v_b[ rows[ i ] ] = nb[ i ];
   }
 
@@ -861,15 +849,14 @@ void PolyhedralFunction::modify_row( c_Index i , RealVector && Ai ,
 				     c_FunctionValue bi ,
 				     c_ModParam issueMod )
 {
- if( i >= v_b.size() )
+ if( i >= v_A.size() )
   throw( std::invalid_argument( "wrong row name" ) );
 
- if( ( i < v_A.size() ) && ( Ai.size() != v_x.size() ) )
+ if( Ai.size() != v_x.size() )
   throw( std::invalid_argument( "wrong row size" ) );
 
  // actually change things
- if( i < v_A.size() )
-  v_A[ i ] = std::move( Ai );
+ v_A[ i ] = std::move( Ai );
  v_b[ i ] = bi;
 
  set_f_uncomputed();                // the function value has changed
@@ -1012,7 +999,7 @@ void PolyhedralFunction::modify_constants( c_RealVector & nb ,
 void PolyhedralFunction::modify_constant( c_Index i , c_FunctionValue bi ,
 					  c_ModParam issueMod )
 {
- if( i >= v_b.size() )
+ if( i >= v_A.size() )
   throw( std::invalid_argument( "wrong row name" ) );
 
  if( bi == v_b[ i ] )  // actually nothing is changing
@@ -1036,6 +1023,37 @@ void PolyhedralFunction::modify_constant( c_Index i , c_FunctionValue bi ,
 				Observer::par2chnl( issueMod ) );
 
  }  // end( PolyhedralFunction::modify_constant )
+
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunction::modify_bound( FunctionValue newbound ,
+				       c_ModParam issueMod )
+{
+ if( newbound == v_b.back() )  // actually nothing is changing
+  return;                      // cowardly (and silently) return
+
+ if( ( newbound == Inf< FunctionValue>() && f_is_convex ) ||
+     ( newbound ==  Inf< FunctionValue>() && ( ! f_is_convex ) ) )
+  throw( std::invalid_argument( "wrong INF value to global bound" ) );
+
+ FunctionValue shift = newbound > v_b.back() ?   C05FunctionMod::INFshift
+                                             : - C05FunctionMod::INFshift;
+ // actually change the bound
+ v_b.back() = newbound;
+
+ set_f_uncomputed();                // the function value has changed
+ // but note that the Lipschitz constant obviously has not
+ f_value = - Inf<FunctionValue>();  // the function value has changed
+
+ // issue the PolyhedralFunctionModRngd
+ f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModRngd>(
+			              this , C05FunctionMod::AlphaChanged ,
+			              PolyhedralFunctionMod::ModifyCnst ,
+			              Range( 0 , 0 ) , shift ,
+				      Observer::par2concern( issueMod ) ) ,
+				Observer::par2chnl( issueMod ) );
+
+ }  // end( PolyhedralFunction::modify_bound )
 
 /*--------------------------------------------------------------------------*/
 

@@ -222,7 +222,13 @@ class AbstractBlock : public Block {
   * Constraint/Variable (and the Objective). Similarly, the pointers to the
   * inner Block in the v_Block vector are likely the only live references to
   * these Block, and therefore they are destroyed in the AbstractBlock
-  * destructor. */
+  * destructor.
+  *
+  * Derived classes which speficic structures will have to (but, anyway, they
+  * necessarily have to) define their destructor to take care of them, which
+  * is executed before that of AbstractBlock; this therefore assumes that all
+  * specific structures have been dealt with and happily proceeds with
+  * deleting the "arbitrary part". */
 
  virtual ~AbstractBlock( );
 
@@ -320,13 +326,13 @@ class AbstractBlock : public Block {
  virtual Index get_first_inner_Block( void ) const { return( 0 ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// tells is the Objective is reserved
+ /// tells if the Objective is reserved
  /** This method returns true if the Objective is handled by the derived
   * class, i.e., it is not in the "arbitrary" part of the AbstractBlock. The
   * implementation in the base AbstractBlock class returns false, i.e., the
   * Objective is in the "arbitrary" part of the AbstractBlock. */
 
- virtual Index is_Objective_reserved( void ) const { return( false ); }
+ virtual bool is_Objective_reserved( void ) const { return( false ); }
 
 /*--------------------------------------------------------------------------*/
  /// allow unfettered access to nested Block

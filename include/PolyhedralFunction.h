@@ -81,30 +81,30 @@ namespace SMSpp_di_unipi_it
  *
  * PolyhedralFunction handles all possible changes in its input data:
  *
- * - complete reset of all the data (A, b), with our without also changing
+ * - A complete reset of all the data (A, b), with our without also changing
  *   the set of "active" Variable x, which results in a FunctionMod (with
  *   shift() == FunctionMod::NaNshift, i.e., "everything changed") being
- *   issued;
+ *   issued.
  *
- * - changing the "verse" (maximization vs. minimization, i.e., if the
+ * - Changing the "verse" (maximization vs. minimization, i.e., if the
  *   function is convex or concave) while leaving all the rest of the data
  *   unchanged, which results in a C05FunctionMod being issued, with shift()
  *   being either INFshift (min --> max, hence the function has increased)
  *   or - INFshift (max --> in, hence the function has dencreased) if the new
  *   setting is respectively convex or concave, and type() having the
- *   weird-ish value C05FunctionMod::NothingChanged;
+ *   weird-ish value C05FunctionMod::NothingChanged.
  *
- * - addition of variables (adding columns to A), either one or a range,
+ * - Addition of variables (adding columns to A), either one or a range,
  *   which results in a C05FunctionModVarsAddd being issued (since a
  *   PolyhedralFunction is strongly quasi-additive, and with shift() == 0
- *   as expected);
+ *   as expected).
  *
- * - removal of variables (removing columns from A), either one, or a range,
+ * - Removal of variables (removing columns from A), either one, or a range,
  *   or a subset of them, which results in either a C05FunctionModVarsRngd or
  *   a C05FunctionModVarsSbst being issued (since a PolyhedralFunction is
- *   strongly quasi-additive, and with shift() == 0 as expected);
+ *   strongly quasi-additive, and with shift() == 0 as expected).
  *
- * - changes of rows in A (either one, or a range or a subset of them) and
+ * - Changes of rows in A (either one, or a range or a subset of them) and
  *   in the corresponding elements of b, which results in either a
  *   PolyhedralFunctionModRngd or a PolyhedralFunctionModSbst being issued,
  *   with shift() == NANshift (the function has changed "unpredictably"),
@@ -112,15 +112,23 @@ namespace SMSpp_di_unipi_it
  *   changed, although actually only a subset of them has) and PFtype() ==
  *   ModifyRows.
  *
- * - changes of elements of b (either one, or a range or a subset of them)
+ * - Changes of elements of b (either one, or a range or a subset of them)
  *   only, which results in either a PolyhedralFunctionModRngd or a 
  *   PolyhedralFunctionModSbst being issued, with type() == AlphaChanged (all
  *   the alphas may have changed, although actually only a subset of them
  *   has) and PFtype() == ModifyCnst. As for with shift(), it may be
  *   == NANshift, but also to +-INFshift if the elements of b have changed
  *   "monotonically".
+
+ * - Changes of the global lower/upper bound, which is basically the value
+ *   of b for a "virtual" all-0 row that is not explicitly stored; this
+ *   results a PolyhedralFunctionModRngd (with Range = <  0 , 0 >) with
+ *   type() == AlphaChanged (all the alphas may have changed, although
+ *   actually only one of them has) and PFtype() == ModifyCnst. As for with
+ *   shift(), it is either +-INFshift according if the bound has increased
+ *   or decreased.
  *
- * - addition of cutting planes (adding rows to A), either one or a range,
+ * - Addition of cutting planes (adding rows to A), either one or a range,
  *   which results in PolyhedralFunctionModAdd being issued; note that adding
  *   new rows makes a "max" (convex) function to increase in value and a
  *   "min" (concave) one to decrease in value, which means that shift() will
@@ -128,15 +136,15 @@ namespace SMSpp_di_unipi_it
  *   valid ones, which is the poster case for the weird-ish setting
  *   C05FunctionMod::NothingChanged for the type() of the C05FunctionMod.
  *
- * - removal of cutting planes (removing rows to A), either one, or a range,
+ * - Removal of cutting planes (removing rows to A), either one, or a range,
  *   or a subset of them, which results in either a PolyhedralFunctionModRngd
  *   or a PolyhedralFunctionModSbst being issued; note that removing rows
  *   makes a "max" (convex) function to decrease in value and a "min"
  *   (concave) one to increase in value; also, existing lnearizations in the
  *   global pool may disappear. Even worse, and aggregated linearization may
  *   have been constructed out of the ones that are deleted, and there is no
- *   way of saying it in general. Hence, the PolyhedralFunctionModR8 will
- *   have type() = C05FunctionMod::AlphaChanged if:
+ *   way of saying it in general. Hence, the PolyhedralFunctionMod* will
+ *   have type() = C05FunctionMod::AlphaChanged; if
  *
  *   = any of the deleted rows are present in the global pool;
  *
@@ -657,6 +665,7 @@ class PolyhedralFunction : public C05Function {
 				      c_Subset & subset ,
 				      const bool ordered = false ,
 				      Index name = Inf<Index>() ) override;
+
 /*--------------------------------------------------------------------------*/
  /// return the constant term of a linearization
 
@@ -720,6 +729,9 @@ class PolyhedralFunction : public C05Function {
 
 /*--------------------------------------------------------------------------*/
  /// returns a (const reference) to the current b vector in the mapping
+ /** Returns a (const reference) to the current b vector in the mapping.
+  * Note that get_b().size() == get_A.size() + 1, with the last entry of
+  * get_b() containing the global lower/upper bound. */
 
  const RealVector & get_b( void ) const { return( v_b ); }
  
@@ -1043,17 +1055,10 @@ class PolyhedralFunction : public C05Function {
  /** Modifies a range of rows of the linear mapping:
   *
   * @param Range range contans the indices of the rows to be modified, hence
-  *        range.second < get_b().size(); note that if range.second ==
-  *        get_b().size() - 1 == get_A.size(), then also the constant of
-  *        the "virtual" all-0 row corresponding to the global lower/upper
-  *        bound is changed, i.e., the bound itself if (the row per se is
-  *        bound to be all-0 and therefore cannot be modified);
+  *        range.second < get_A().size();
   *
   * @param nA, a MultiVector && with nA.size() == range.second - range.first,
-  *        (unless range.second == get_A().size() in which case it has a row
-  *        less, the last row implicitly being the "virtual" all-0 row
-  *        corresponding to the lower bound that cannot be changed) and
-  *        exactly as many columns as the current A matrix; entry
+  *        and exactly as many columns as the current A matrix; entry
   *        nA[ i ][ h ] is (obviously) meant to be the new coefficient for
   *        the h-th variable in row range.first + i; as the && implies, nA 
   *        becomes property of the PolyhedralFunction object;
@@ -1061,8 +1066,6 @@ class PolyhedralFunction : public C05Function {
   * @param the RealVector & nb, a vector of FunctionValue with nb.size() ==
   *        range.second - range.first: entry nb[ i ] is (obviously) meant to
   *        be the new value of the constant term for row range.first + i;
-  *        note that if range.second == get_A().size(), nb.back() contains
-  *        the new value for the global lower/upper bound;
   *
   * @param issueMod, which decides if and how the PolyhedralFunctionModRngd is
   *        issued, as described in Observer::make_par(). Note that shift() ==
@@ -1078,11 +1081,9 @@ class PolyhedralFunction : public C05Function {
  /// modify a subset of rows of the linear mapping
  /** Modifies a subset of rows of the linear mapping:
   *
-  * @param Subset && rows contans the indices of the rows to be modified;
-  *        all entries must therefore be numbers in 0, ..., get_A().size()
-  *        (with the special value get_A().size() == get_b().size() - 1
-  *        indicating the "virtual" all-0 row corresponding to the lower
-  *        bound); as the && tells, the vector becomes property of the
+  * @param Subset && rows contans the indices of the rows to be modified; all
+  *        entries must therefore be numbers in 0, ..., get_A().size() - 1;
+  *        as the && tells, the vector becomes property of the
   *        PolyhedralFunction, to be dispatched to the issued
   *        PolyhedralFunctionModSbst (if any);
   *
@@ -1090,22 +1091,15 @@ class PolyhedralFunction : public C05Function {
   *        (if not it may be ordered inside, after all it becomes property
   *        of the PolyhedralFunction);
   *
-  * @param nA, a MultiVector && with nA.size() == rows.size() (with one
-  *        possible exception, see later) and exactly as many columns as the
-  *        current A matrix; entry nA[ i ][ h ] is  (obviously) meant to be
-  *        the new coefficient for the h-th variable in row rows[ i ]; note
-  *        that if rows[ i ] == get_A().size() then nA[ i ] is ignored
-  *        because that is the all-0 row, and if in particular rows.back()
-  *        == get_A().size() then nA.size() == rows.size() - 1 is allowed
-  *        because the (non existing) nA[ rows.size() - 1 ] is never accessed
-  *        anyway; as the && implies, nA becomes property of the
+  * @param nA, a MultiVector && with nA.size() == rows.size() and exactly as
+  *        many columns as the current A matrix; entry nA[ i ][ h ] is
+  *        (obviously) meant to be the new coefficient for the h-th variable
+  *        in row rows[ i ]; as the && implies, nA becomes property of the
   *        PolyhedralFunction object;
   *
   * @param the RealVector & nb, a vector of FunctionValue with nb.size() ==
   *        nms.size(): entry nb[ i ] is (obviously) meant to be the new value
-  *        of the constant term for row rows[ i ]; note that if rows[ i ] ==
-  *        get_A().size() then nb[ i ] contains the new value for the global
-  *        lower/upper bound;
+  *        of the constant term for row rows[ i ];
   *
   * @param issueMod, which decides if and how the PolyhedralFunctionModSbst is
   *        issued, as described in Observer::make_par(). Note that shift() ==
@@ -1127,8 +1121,7 @@ class PolyhedralFunction : public C05Function {
   *        elements, to replace the existing vector of coefficients in the
   *        i-th linear mapping; as the && tells, Ai becomes "property" of the
   *        PolyhedralFunction object and physically replaces the previous
-  *        vector; note that if i == v_A.size() (== the global bound), Ai is
-  *        actually ignored (and hence can and should be empty);
+  *        vector;
   *
   * @param bi is the new constant term of the i-th mapping;
   *
@@ -1147,16 +1140,11 @@ class PolyhedralFunction : public C05Function {
  /** Like modify_rows( range ), but modify the constant terms only.
   *
   * @param Range range contans the indices of the rows to be modified, hence
-  *        range.second < get_b().size(); note that if range.second ==
-  *        get_b().size() - 1 == get_A.size(), then also the constant of
-  *        the "virtual" all-0 row corresponding to the global lower/upper
-  *        bound is changed, i.e., the bound itself if;
+  *        range.second < get_A().size();
   * 
   * @param the RealVector & nb, a vector of FunctionValue with nb.size() ==
   *        range.second - range.first: entry nb[ i ] is (obviously) meant to
   *        be the new value of the constant term for row range.first + i;
-  *        note that if range.second == get_A().size(), nb.back() contains
-  *        the new value for the global lower/upper bound;
   *
   * @param issueMod, which decides if and how the PolyhedralFunctionModRngd is
   *        issued, as described in Observer::make_par(). Note that type() ==
@@ -1179,11 +1167,9 @@ class PolyhedralFunction : public C05Function {
  /// modify only the constant term of a range of rows of the linear mapping
  /** Like modify_rows( range ), but modify the constant terms only.
   *
-  * @param Subset && rows contans the indices of the rows to be modified;
-  *        all entries must therefore be numbers in 0, ..., get_A().size()
-  *        (with the special value get_A().size() == get_b().size() - 1
-  *        indicating the "virtual" all-0 row corresponding to the lower
-  *        bound); as the && tells, the vector becomes property of the
+  * @param Subset && rows contans the indices of the rows to be modified; all
+  *        entries must therefore be numbers in 0, ..., get_A().size() - 1;
+  *        as the && tells, the vector becomes property of the
   *        PolyhedralFunction, to be dispatched to the issued
   *        PolyhedralFunctionModSbst (if any);
   *
@@ -1223,7 +1209,7 @@ class PolyhedralFunction : public C05Function {
   * @param issueMod, which decides if and how the PolyhedralFunctionModRngd is
   *        issued, as described in Observer::make_par(). Note that type() ==
   *        AlphaChanged (all the alphas may have changed, although actually
-  *        only a subset of them has) and PFtype() == ModifyCnst. As for
+  *        only one of them has) and PFtype() == ModifyCnst. As for
   *        shift(), the value of the function changes in a very predictable
   *        way: if bi is > than the current value the function has
   *        necessarily increased, otherwise necessarily decreased (if it is
@@ -1232,6 +1218,32 @@ class PolyhedralFunction : public C05Function {
 
  void modify_constant( Index i , FunctionValue bi ,
 		       c_ModParam issueMod = eModBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// modify the global lower/upper bound
+ /** This is basically modify_constant() for the "virtual" all-0 row
+  * corresponding to the global lower/upper bound:
+  *
+  * @param i is the index of the row to be modified;
+  *
+  * @param newbound is the new value for the bound; note that newbound ==
+  *        - Inf< FunctionValue >() (no lower bound) is permitted for convex
+  *        functions, while newbound == Inf< FunctionValue >() (no upper
+  *        bound) is permitted for concave functions;
+  *
+  * @param issueMod, which decides if and how the PolyhedralFunctionModRngd is
+  *        issued, as described in Observer::make_par(). Note that type() ==
+  *        AlphaChanged (this is basically the change in one specific
+  *        linearization) and PFtype() == ModifyCnst. To signal this very
+  *        special kind of change, the Range in the PolyhedralFunctionModRngd
+  *        is set to < 0 , 0 >. As for shift(), the value of the function
+  *        changes in a very predictable way: if newbound is > than the
+  *        current value the function has necessarily increased, otherwise
+  *        necessarily decreased (if it is == it has not changed and the
+  *        method does nothing), hence the shift() is either +INFshift or
+  *        -INFshift accordingly. */  
+
+ void modify_bound( FunctionValue newbound , c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// add some rows to the linear mapping in the PolyhedralFunction
@@ -1257,11 +1269,7 @@ class PolyhedralFunction : public C05Function {
   * value and a "min" (concave) one to decrease in value, but all existing
   * linearization are still valid ones, which is the poster case for the
   * weird-ish setting C05FunctionMod::NothingChanged for the type() of the
-  * C05FunctionMod.
-  *
-  * Also, note that adding new rows "changes the name" of the "virtual"
-  * all-0 row corresponding to the global lower/upper bound, which is always
-  * (conceptually) the last (not physically there) row of A. */
+  * C05FunctionMod. */
 
  void add_rows( MultiVector && nA , c_RealVector & nb ,
 		c_ModParam issueMod = eModBlck );
@@ -1284,11 +1292,7 @@ class PolyhedralFunction : public C05Function {
   * value and a "min" (concave) one to decrease in value, but all existing
   * linearization are still valid ones, which is the poster case for the
   * weird-ish setting C05FunctionMod::NothingChanged for the type() of the
-  * C05FunctionMod.
-  *
-  * Also, note that adding a new row "changes the name" of the "virtual"
-  * all-0 row corresponding to the global lower/upper bound, which is always
-  * (conceptually) the last (not physically there) row of A. */
+  * C05FunctionMod. */
 
  void add_row( RealVector && Ai , FunctionValue bi ,
 	       c_ModParam issueMod = eModBlck );
