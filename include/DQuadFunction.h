@@ -7,7 +7,7 @@
  *
  * \version 0.40
  *
- * \date 22 - 09 - 2019
+ * \date 07 - 10 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -305,7 +305,7 @@ class DQuadFunction : public C15Function {
   * does not currently implement the global pool management, and therefore
   * it will throw exception if a nonzero global pool size is set. */
 
- void set_ComputeConfig( ComputeConfig * scfg ) final
+ void set_ComputeConfig( ComputeConfig * scfg ) override final
  {
   if( ! scfg )  // setting nothing
    return;      // nothing to do
@@ -327,7 +327,7 @@ class DQuadFunction : public C15Function {
   * pool management, and therefore it will throw exception if a nonzero
   * global pool size is set. */
 
- void set_par( const idx_type par , const int value ) final
+ void set_par( const idx_type par , const int value ) override final
  {
   if( ( par == intGPMaxSz ) && ( value > 0 ) )
    throw( std::invalid_argument( 
@@ -355,7 +355,8 @@ class DQuadFunction : public C15Function {
   return( std::get< 1 >( *( v_triples.begin() + i ) ) );
   }
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/  /// returns the quadratic Coefficient of the i-th Variable
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the quadratic Coefficient of the i-th Variable
  /** This method returns the linear Coefficient of the i-th Variable of this
   * DQuadFunction. The index i must be between 0 and get_num_active_var() - 1.
   *
@@ -381,12 +382,16 @@ class DQuadFunction : public C15Function {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the DQuadFunction is exact, hence lower_estimate == value
 
- FunctionValue get_lower_estimate( void ) const final { return( f_value ); }
+ FunctionValue get_lower_estimate( void ) const override final {
+  return( f_value );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the DQuadFunction is exact, hence upper_estimate == value
 
- FunctionValue get_upper_estimate( void ) const final { return( f_value ); }
+ FunctionValue get_upper_estimate( void ) const override final {
+  return( f_value );
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -398,11 +403,11 @@ class DQuadFunction : public C15Function {
 
 /*--------------------------------------------------------------------------*/
 
- bool is_lower_semicontinuous( void ) const final { return( true ); }
+ bool is_lower_semicontinuous( void ) const override final { return( true ); }
 
 /*--------------------------------------------------------------------------*/
 
- bool is_upper_semicontinuous( void ) const final { return( true ); }
+ bool is_upper_semicontinuous( void ) const override final { return( true ); }
 
 /*--------------------------------------------------------------------------*/
 
@@ -422,11 +427,13 @@ class DQuadFunction : public C15Function {
 
 /*--------------------------------------------------------------------------*/
 
- bool is_continuously_differentiable( void ) const final { return( true ); }
+ bool is_continuously_differentiable( void ) const override final {
+  return( true );
+  }
 
 /*--------------------------------------------------------------------------*/
 
- bool is_twice_continuously_differentiable( void ) const final {
+ bool is_twice_continuously_differentiable( void ) const override final {
   return( true );
   }
 
@@ -470,8 +477,8 @@ class DQuadFunction : public C15Function {
   * method only works for returning the value of the linearization constant
   * at the current point x, which is given by c - x^T A x. */
 
- FunctionValue get_linearization_constant( Index name = Inf<Index>() ) final
- {
+ FunctionValue get_linearization_constant( Index name = Inf<Index>() )
+  override final {
   if( name < Inf<Index>() )
    throw( std::invalid_argument(
 			"global pool not supported yet by DQuadFunction" ) );
@@ -505,7 +512,7 @@ class DQuadFunction : public C15Function {
   * quite a trivial one. */
 
  ComputeConfig * get_ComputeConfig( bool all , ComputeConfig * ocfg )
-  const final { return( nullptr ); }
+  const override final { return( nullptr ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE DQuadFunction --------*/
@@ -515,11 +522,11 @@ class DQuadFunction : public C15Function {
  * vector v_triples of triples.
  * @{ */
 
- Index get_num_active_var() const final { return( v_triples.size() ); }
+ Index get_num_active_var() const override final { return( v_triples.size() ); }
 
 /*--------------------------------------------------------------------------*/
 
- Index is_active( const Variable * const var ) const final
+ Index is_active( const Variable * const var ) const override final
  {
   auto idx = std::find_if( v_triples.begin() , v_triples.end() ,
 			   [ & var ]( const auto & p ) -> bool {
@@ -532,41 +539,38 @@ class DQuadFunction : public C15Function {
 /*--------------------------------------------------------------------------*/
 
  void map_active( c_Vec_p_Var & vars , Subset & map , bool ordered )
-  const final;
+  const override final;
 
 /*--------------------------------------------------------------------------*/
 
- Variable * get_active_var( const Index i ) const final {
+ Variable * get_active_var( const Index i ) const override final {
   return( std::get< 0 >( v_triples[ i ] ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
- v_iterator * v_begin( void ) final {
+ v_iterator * v_begin( void ) override final {
   return( new DQuadFunction::v_iterator( v_triples.begin() ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
- v_const_iterator * v_begin( void ) const final {
+ v_const_iterator * v_begin( void ) const override final {
   return( new DQuadFunction::v_const_iterator( v_triples.begin() ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
- v_iterator * v_end( void ) final {
+ v_iterator * v_end( void ) override final {
   return( new DQuadFunction::v_iterator( v_triples.end() ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
- v_const_iterator * v_end( void ) const final {
+ v_const_iterator * v_end( void ) const override final {
   return( new DQuadFunction::v_const_iterator( v_triples.end() ) );
   }
 
- 
-
- 
 /**@} ----------------------------------------------------------------------*/
 /*-------------- METHODS FOR MODIFYING THE DQuadFunction -------------------*/
 /*--------------------------------------------------------------------------*/
@@ -719,7 +723,8 @@ class DQuadFunction : public C15Function {
  /** Remove the i-th "active" Variable from the DQuadFunction. This is
   * *mathematically* equivalent to setting both its linear and quadratic
   * coefficients to zero, but it is considered a "stronger" operation (it is
-  * possible to have an active Variable with both zero coefficients).
+  * possible to have an active Variable with both zero coefficients). If there
+  * is no Variable with the given index, an exception is thrown.
   *
   * The parameter issueMod decides if and how the C05FunctionModVarsRngd is
   * issued, as described in Observer::make_par(). Note that a diagonal

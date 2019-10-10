@@ -158,7 +158,12 @@ void DQuadFunction::get_linearization_coefficients( SparseVector & g ,
   }
  else {                  // The given vector contains some non-zero elements
   if( g.size() != num_active_var )
-   throw( std::invalid_argument( "wrong size of nonempty SparseVector g" ) );
+   throw( std::invalid_argument( "DQuadFunction::get_linearization_"
+                                 "coefficients: wrong size of nonempty "
+                                 "SparseVector g: g has size " +
+                                 std::to_string( g.size() ) + " but there is "
+                                 "(are) " + std::to_string( num_active_var ) +
+                                 " active Variable(s)." ) );
 
   for( Index i = range.first ; i < range.second ; ++i )
    g.coeffRef( i ) = get_linearization_coefficient( i );
@@ -176,7 +181,9 @@ void DQuadFunction::get_linearization_coefficients( FunctionValue * g ,
 {
  for( const auto & i : subset ) {
   if( i >= get_num_active_var() )
-   throw( std::invalid_argument( "wrong index in subset" ) );
+   throw( std::invalid_argument( "DQuadFunction::get_linearization_"
+                                 "coefficients: wrong index in subset: " +
+                                 std::to_string( i ) ) );
   *(g++) = get_linearization_coefficient( i );
   }
  }
@@ -198,7 +205,9 @@ void DQuadFunction::get_linearization_coefficients( SparseVector & g ,
 
   for( const auto & i : subset ) {
    if( i >= num_active_var )
-    throw( std::invalid_argument( "wrong index in subset" ) );
+    throw( std::invalid_argument( "DQuadFunction::get_linearization_"
+                                  "coefficients: wrong index in subset: " +
+                                  std::to_string( i ) ) );
    auto gi = get_linearization_coefficient( i );
    if( gi )
     g.insert( i ) = gi;
@@ -206,11 +215,18 @@ void DQuadFunction::get_linearization_coefficients( SparseVector & g ,
   }
  else {                  // g contains some non-zero elements
   if( g.size() != num_active_var )
-   throw( std::invalid_argument( "wrong size of nonempty SparseVector g" ) );
+   throw( std::invalid_argument( "DQuadFunction::get_linearization_"
+                                 "coefficients: wrong size of nonempty "
+                                 "SparseVector g: g has size " +
+                                 std::to_string( g.size() ) + " but there is "
+                                 "(are) " + std::to_string( num_active_var ) +
+                                 " active Variable(s)." ) );
 
   for( const auto & i : subset ) {
    if( i >= num_active_var )
-    throw( std::invalid_argument( "wrong index in subset" ) );
+    throw( std::invalid_argument( "DQuadFunction::get_linearization_"
+                                  "coefficients: wrong index in subset: " +
+                                  std::to_string( i ) ) );
    g.coeffRef( i ) = get_linearization_coefficient( i );
    }
 
@@ -242,16 +258,16 @@ void DQuadFunction::map_active( c_Vec_p_Var & vars , Subset & map ,
     }
    }
   if( found < vars.size() )
-   throw( std::invalid_argument( "map_active: some Variable is not active" )
-	  );
+   throw( std::invalid_argument( "DQuadFunction::map_active: "
+                                 "some Variable is not active" ) );
   }
  else {
   auto it = map.begin();
   for( auto var : vars ) {
    Index i = DQuadFunction::is_active( var );
    if( i >= v_triples.size() )
-    throw( std::invalid_argument( "map_active: some Variable is not active" )
-	   );
+    throw( std::invalid_argument( "DQuadFunction::map_active: "
+                                  "some Variable is not active" ) );
    *(it++) = i;
    }
   }
@@ -321,7 +337,8 @@ void DQuadFunction::modify_term( Index i , Coefficient lin_coeff ,
 				 c_ModParam issueMod )
 {
  if( i >= v_triples.size() )
-  throw ( std::invalid_argument( "modify_coefficient: invalid index" ) );
+  throw ( std::invalid_argument( "DQuadFunction::modify_term: invalid "
+                                 "index: " + std::to_string( i ) ) );
 
  if( ( std::get< 1 >( v_triples[ i ] ) == lin_coeff ) &&
      ( std::get< 2 >( v_triples[ i ] ) == quad_coeff ) )
@@ -350,7 +367,8 @@ void DQuadFunction::modify_linear_coefficient( Index i , Coefficient coeff ,
                                                c_ModParam issueMod )
 {
  if( i >= v_triples.size() )
-  throw( std::invalid_argument( "modify_coefficient: invalid index" ) );
+  throw( std::invalid_argument( "DQuadFunction::modify_linear_coefficient: "
+                                "invalid index: " + std::to_string( i ) ) );
 
  if( std::get< 1 >( v_triples[ i ] ) == coeff )  // nothing changes
   return;                                        // silently return
@@ -387,7 +405,8 @@ void DQuadFunction::modify_terms( c_v_coeff_it NQuadCoef ,
 
   for( auto i : nms ) {
    if( i >= v_triples.size() )
-    throw( std::invalid_argument( "modify_terms: invalid index" ) );
+    throw( std::invalid_argument( "DQuadFunction::modify_terms: invalid "
+                                  "index: " + std::to_string( i ) ) );
    *(vpit++) = std::get< 0 >( v_triples[ i ] );
    std::get< 1 >( v_triples[ i ] ) = *(NLinCoef++);   // modify quad. coeff.
    std::get< 2 >( v_triples[ i ] ) = *(NQuadCoef++);  // modify linear coeff.
@@ -405,7 +424,8 @@ void DQuadFunction::modify_terms( c_v_coeff_it NQuadCoef ,
  else  // noone is there: just do it
   for( auto i : nms ) {
    if( i >= v_triples.size() )
-    throw( std::invalid_argument( "modify_terms: invalid index" ) );
+    throw( std::invalid_argument( "DQuadFunction::modify_terms: invalid "
+                                  "index: " + std::to_string( i ) ) );
    std::get< 1 >( v_triples[ i ] ) = *(NLinCoef++);   // modify quad. coeff.
    std::get< 2 >( v_triples[ i ] ) = *(NQuadCoef++);  // modify linear coeff.
    }
@@ -422,8 +442,8 @@ void DQuadFunction::modify_linear_coefficients( Vec_FunctionValue && NCoef ,
   return;
 
  if( NCoef.size() < nms.size() )
-  throw( std::invalid_argument( "modify_coefficient: NCoef.size < nms.size"
-				) );
+  throw( std::invalid_argument( "DQuadFunction::modify_linear_coefficients: "
+                                "NCoef.size < nms.size" ) );
  auto NCit = NCoef.begin();
  
  if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
@@ -434,7 +454,8 @@ void DQuadFunction::modify_linear_coefficients( Vec_FunctionValue && NCoef ,
 
   for( auto i : nms ) {
    if( i >= v_triples.size() )
-    throw( std::invalid_argument( "modify_coefficients: invalid index" ) );
+    throw( std::invalid_argument( "DQuadFunction::modify_linear_coefficients: "
+                                  "invalid index: " + std::to_string( i ) ) );
    *(vpit++) = std::get< 0 >( v_triples[ i ] );
    auto di = std::get< 1 >( v_triples[ i ] ) - *NCit;
    std::get< 1 >( v_triples[ i ] ) = *NCit;
@@ -452,7 +473,8 @@ void DQuadFunction::modify_linear_coefficients( Vec_FunctionValue && NCoef ,
  else  // noone is there: just do it
   for( auto i : nms ) {
    if( i >= v_triples.size() )
-    throw( std::invalid_argument( "modify_coefficients: invalid index" ) );
+    throw( std::invalid_argument( "DQuadFunction::modify_linear_coefficients: "
+                                  "invalid index: " + std::to_string( i ) ) );
    std::get< 1 >( v_triples[ i ] ) = *(NCit++);
    }
 
@@ -509,8 +531,8 @@ void DQuadFunction::modify_linear_coefficients( Vec_FunctionValue && NCoef ,
   return;
 
  if( NCoef.size() < range.second - range.first )
-  throw( std::invalid_argument(
-	               "modify_linear_coefficients: NCoef.size too small" ) );
+  throw( std::invalid_argument( "DQuadFunction::modify_linear_coefficients: "
+                                "NCoef.size too small" ) );
 
  auto NCit = NCoef.begin();
  auto strtit = v_triples.begin() + range.first;
@@ -614,7 +636,10 @@ void DQuadFunction::remove_variables( Subset && nms , bool ordered ,
 
  auto it = nms.begin();
  if( ( *it >= v_triples.size() ) || ( nms.back() >= v_triples.size() ) )
-  throw( std::invalid_argument( "wrong index in DQuadFunction" ) );
+  throw( std::invalid_argument( "DQuadFunction::remove_variables: "
+                                "wrong index: " +
+                                std::to_string( std::max( *nms.begin() ,
+                                                          nms.back() ) ) ) );
 
  auto vi = *it;    // first element to be eliminated
  auto curr = v_triples.begin() + vi;   // position where to move stuff

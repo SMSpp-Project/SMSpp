@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 16 - 07 - 2019
+ * \date 09 - 10 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -98,6 +98,9 @@ void PolyhedralFunction::set_variables( VarVector && x )
   if( v_A[ 0 ].size() != x.size() )
    throw( std::logic_error(
 		    "PolyhedralFunction::set_variables: wrong x.size()" ) );
+
+ v_x = std::move( x );
+
  f_next = 0;
  set_f_uncomputed();
 
@@ -559,7 +562,7 @@ void PolyhedralFunction::add_variables( VarVector && nx , MultiVector && nA ,
  if( ! nn )  // actually nothing to add
   return;    // cowardly (and silently) return
 
- if( nA.size() != v_A.size() )
+ if( ! v_A.empty() && nA.size() != v_A.size() )
   throw( std::invalid_argument( "wrong number of rows in nA" ) );
 
  for( auto & a : nA )
@@ -573,6 +576,12 @@ void PolyhedralFunction::add_variables( VarVector && nx , MultiVector && nA ,
   v_x = std::move( nx );
   }
  else {         // not much more difficult: append at the end
+
+  if( v_A.empty() ) {
+   assert( ! nA.empty() );
+   v_A.resize( nA.size() );
+   }
+
   for( Index i = 0 ; i < v_A.size() ; ++i )
    v_A[ i ].insert( v_A[ i ].end() , nA[ i ].begin() , nA[ i ].end() );
 
@@ -605,6 +614,9 @@ void PolyhedralFunction::add_variable( ColVariable * const var ,
  if( var == nullptr )  // actually nothing to add
   return;              // cowardly (and silently) return
 
+ if( v_A.empty() )
+  v_A.resize( Aj.size() );
+
  for( Index j = 0 ; j < v_A.size() ; ++j )
   v_A[ j ].push_back( Aj[ j ] );
 
@@ -630,7 +642,7 @@ void PolyhedralFunction::add_variable( ColVariable * const var ,
 
 void PolyhedralFunction::remove_variable( c_Index i , c_ModParam issueMod )
 {
- if( v_x.size() >= i )
+ if( v_x.size() <= i )
   throw( std::logic_error( "invalid Variable index" ) );
 
  auto var = v_x[ i ];

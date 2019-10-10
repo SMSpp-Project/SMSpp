@@ -675,9 +675,9 @@ class ThinVarDepInterface {
   * about how this is done in order to leave more freedom to derived classes
   * to implement it in specialized ways.
   *
-  * The parameter issueMod decides if and how the a Modification (whose
-  * specific type depends on the :ThinVarDepInterface at hand) is issued, as
-  * described in Observer::make_par().
+  * The parameter issueMod decides if and how a Modification (whose specific
+  * type depends on the :ThinVarDepInterface at hand) is issued, as described
+  * in Observer::make_par().
   *
   * Usually, the Modification should be thrown. A relevant exception is the
   * case in which the method is called while destroying the (dynamic)

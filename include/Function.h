@@ -13,7 +13,7 @@
  *
  * \version 0.40
  *
- * \date 13 - 03 - 2019
+ * \date 08 - 10 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -504,18 +504,18 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns true if and only if this Function is convex
- /** Method that returns true if and only if this function is convex. The
-  * default is false (convexity being good for optimization, in particular
-  * minimization, often too good to be true). */
+ /// returns true only if this Function is convex
+ /** Method that returns true only if this function is convex. The default is
+  * false (convexity being good for optimization, in particular minimization,
+  * often too good to be true). */
 
  virtual bool is_convex( void ) const { return( false ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// returns true if and only if this Function is concave
- /** Method that returns true if and only if this function is concave. The
-  * default is false (concavity being good for optimization, in particular
-  * maximization, often too good to be true). */
+ /// returns true only if this Function is concave
+ /** Method that returns true only if this function is concave. The default is
+  * false (concavity being good for optimization, in particular maximization,
+  * often too good to be true). */
 
  virtual bool is_concave( void ) const { return( false ); }
 
@@ -1306,7 +1306,7 @@ public:
     else
      output << "quasi-additively (" << f_shift << ") ";
 
-  output << "adding varables [ " << f_first << " , "
+  output << "adding variables [ " << f_first << " , "
 	 << f_first + v_vars.size() << " ]" << std::endl;
   }
 
@@ -1412,7 +1412,7 @@ public:
     else
      output << "quasi-additively (" << f_shift << ") ";
 
-  output << "deleting varables [ " << f_range.first << " , "
+  output << "deleting variables [ " << f_range.first << " , "
 	 << f_range.second << " ]" << std::endl;
   }
 
@@ -1528,7 +1528,7 @@ public:
   output << "deleting " << v_subset.size();
   if( f_ordered )
    output << "(ordered)";
-  output << " varables" << std::endl;
+  output << " variables" << std::endl;
   }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
