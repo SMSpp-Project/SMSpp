@@ -1,2 +1,27 @@
-add_executable(SMS++_test main.cpp)
-target_link_libraries(SMS++_test SMS++ netcdf netcdf-cxx4)
+# ----- Fetch GoogleTest ---------------------------------------------------- #
+include(FetchContent)
+fetchcontent_declare(
+        googletest
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG release-1.8.1
+)
+
+fetchcontent_getproperties(googletest)
+if (NOT googletest_POPULATED)
+    fetchcontent_populate(googletest)
+    add_subdirectory(${googletest_SOURCE_DIR} ${googletest_BINARY_DIR})
+endif ()
+
+# ----- Block_test ---------------------------------------------------------- #
+add_executable(AbstractBlock_test tests_AbstractBlock.cpp)
+target_link_libraries(AbstractBlock_test PRIVATE SMS++::SMSpp gtest)
+
+add_test(
+        NAME AbstractBlock_test
+        COMMAND AbstractBlock_test
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+
+#add_executable(SMS++_test main.cpp)
+#target_link_libraries(SMS++_test SMS++ netcdf netcdf-cxx4)
