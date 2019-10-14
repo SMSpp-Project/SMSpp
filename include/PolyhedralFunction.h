@@ -1418,7 +1418,7 @@ class PolyhedralFunction : public C05Function {
   * is virtual so that derived classes can print their specific information
   * in the format they choose. */
 
- void print( std::ostream &output ) const
+ void print( std::ostream &output ) const override
  {
   output << "PolyhedralFunction [" << this << "]"
 	 << " with " << get_num_active_var() << " columns and"

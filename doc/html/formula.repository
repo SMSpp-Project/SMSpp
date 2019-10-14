@@ -1,0 +1,2 @@
+\form#0:\[ min { yb + max { ( c - yA ) x : x \in X } : y \in Y } \]
+\form#1:\[ min { yb + ( c - yA ) x : x \in X , y \in Y } \]
