@@ -1413,14 +1413,16 @@ class PolyhedralFunction : public C05Function {
 /** @name Protected methods for printing and serializing
     @{ */
 
- /// print information about the C05Function on an ostream
+ /// print information about the PolyhedralFunction on an ostream
  /** Protected method intended to print information about the C05Function; it
   * is virtual so that derived classes can print their specific information
   * in the format they choose. */
 
- virtual void print( std::ostream &output ) const override {
-  output << "C05Function [" << this << "]"
-	 << " with " << get_num_active_var() << " active variables";
+ void print( std::ostream &output ) const
+ {
+  output << "PolyhedralFunction [" << this << "]"
+	 << " with " << get_num_active_var() << " columns and"
+	 << v_A.size() << " rows";
   }
 
 /*--------------------------------------------------------------------------*/

@@ -53,20 +53,20 @@ namespace SMSpp_di_unipi_it
  * the following concept: a Block whose sole distinguishing feature is a
  * PolyhedralFunction as objective, but which can otherwise contain any kind
  * of "abstract" Variable and Constraint (provided these are handled by the
- * base AbstractBlock class.
+ * base AbstractBlock class).
  *
  * The rationale for the PolyhedralFunctionBlock class is that a
  * PolyhedralFunction is a perfectly fine object in itself, but one that
  * several solver cannot easily deal with in its "natural" form. However, a
  * PolyhedralFunction can also be represented in a very natural way by means
- * of some extra continuous ColVariable plus a finite set of FRowConstraint
- * with LinearFunction inside (a.k.a., linear constraints). Thus, the main
- * feature that PolyhedralFunctionBlock implements is the ability to
- * "present" itself (construct an "abstract representation") as either
- * having a FRealObjective with a PolyhedralFunction inside, or having a set
- * of (continuous) ColVariable and (linear) RowConstraint. We call the first
- * the "natural representation" of a PolyhedralFunctionBlock, and the latter
- * its "linearized representation".
+ * of ome extra continuous ColVariable plus a finite set of (dynamic)
+ * FRowConstraint with LinearFunction inside (a.k.a., linear constraints).
+ * Thus, the main feature that PolyhedralFunctionBlock implements is the
+ * ability to "present" itself (construct an "abstract representation") as
+ * either having a FRealObjective with a PolyhedralFunction inside, or having
+ * a set of (continuous) ColVariable and (linear) RowConstraint. We call the
+ * first the "natural representation" of a PolyhedralFunctionBlock, and the
+ * latter its "linearized representation".
  *
  * Indeed, having a PolyhedralFunction as objective is equivalent to the
  * linear program
@@ -146,10 +146,14 @@ class PolyhedralFunctionBlock : public AbstractBlock {
  /** Constructor of PolyhedralFunctionBlock. It accepts a pointer to the
   * father Block (defaulting to nullptr, both because the root Block has no
   * father and so that this can also be used as the void constructor),
-  * passes it to the Block constructor, and does little else. */
+  * passes it to the Block constructor, and does little else. It constructs
+  * an "empty" PolyhedralFunction to start with. */
 
  PolyhedralFunctionBlock( Block * father = nullptr )
-  : AbstractBlock( father ) , f_rep( false ) , f_polyf( nullptr ) { }
+  : AbstractBlock( father ) , f_rep( false )
+ {
+  f_polyf = new PolyhedralFunction( this );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize the current PolyhedralFunctionBlock out of netCDF::NcGroup
@@ -359,16 +363,76 @@ class PolyhedralFunctionBlock : public AbstractBlock {
 
 /*--------------------------------------------------------------------------*/
 
- virtual double get_valid_upper_bound( const bool conditional = false )
-  override {
-  return( f_ub_cond == conditional ? f_ub : + Inf<double>() );
+ double get_valid_upper_bound( bool conditional = false ) override
+ {
+  auto ub = AbstractBlock::get_valid_upper_bound( conditional );
+  if( f_polyf )
+   ub = std::min( ub , f_polyf->get_global_upper_bound() );
+   
+  return( ub );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- virtual double get_valid_lower_bound( const bool conditional = false )
-  override {
-  return( f_lb_cond == conditional ? f_lb : - Inf<double>() );
+
+ double get_valid_lower_bound( bool conditional = false ) override
+ {
+  auto lb = AbstractBlock::get_valid_lower_bound( conditional );
+  if( f_polyf )
+   lb = std::max( lb , f_polyf->get_global_lower_bound() );
+   
+  return( lb );
   }
+
+/**@} ----------------------------------------------------------------------*/
+/*-------------------- Methods for handling Modification -------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for handling Modification
+ *  @{ */
+
+ /// adding a new Modification to the MCFBlock
+ /** Method for handling Modification.
+  *
+  * The version of MCFBlock has to intercept any "abstract Modification" that
+  * modifies the "abstract representation" of the MCFBlock, and "translate"
+  * them into both changes of the actual data structures and corresponding
+  * "physical Modification". These Modification are those for which
+  * Modification::concerns_Block() is true. Note, however, that before sending
+  * the Modification to the Solver and/or the father Block, the
+  * concerns_Block() value is set to false. This is because once it is passed
+  * through this method, the "abstract Modification" has "already done its
+  * duty" of providing the information to the MCFBlock, and this must not be
+  * repeated. In particular, this would be an issue if the Modification would
+  * be [map_forward or map_back]-ed, because inside of this method a "physical
+  * Modification" doing the same job is surely issued. That Modification would
+  * also be [map_forward or map_back]-ed, together with the original "abstract
+  * Modification" that would pass again through this method (in the other
+  * MCFBlock), which would mean that the "physical Modification" would be
+  * issued twice.
+  *
+  * The following "abstract Modification" are handled:
+  *
+  * - GroupModification, that are simply unpacked into the individual
+  *   sub-[Group]Modification and dealt with individually;
+  *
+  * - C05FunctionModRngd and C05FunctionModSbst changing coefficients coming
+  *   from the (LinearFunction into the FRow)Objective, but *not* from the
+  *   (LinearFunction into the FRow)Constraint;
+  *
+  * - RowConstraintMod changing the RHS of the bound constraints and both
+  *   sides at once of the flow conservation ones, but not any other
+  *   combination; and note that the RHS of the bound constraints may not
+  *   be changeable at all if they have not been constructed, in which
+  *   case there cannot be any Modification to handle here;
+  *
+  * - VariableMod fixing and un-fixing a flow ColVariable; however, note
+  *   that *fixing is only permitted if the value() of the ColVvariable is
+  *   zero*, because that corresponds to closing the arc, exception being
+  *   thrown otherwise.
+  *
+  * Any other Modification reaching the MCFBlock will lead to exception
+  * being thrown. */
+
+ void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*--- METHODS FOR LOADING, PRINTING & SAVING THE PolyhedralFunctionBlock ---*/
@@ -377,19 +441,12 @@ class PolyhedralFunctionBlock : public AbstractBlock {
  * @{ */
 
  /// serialize the PolyhedralFunctionBlock (recursively) to a netCDF NcGroup
-  /** The PolyhedralFunctionBlock serializes itself out of a netCDF::NcGroup. The
-  * method of the base AbstractBlock class only handles
-  *
-  *      OR, BETTER, WILL HANDLE WHEN THIS METHOD WILL BE IMPLEMENTED
-  *
-  * the "arbitrary" part, i.e., that after the "reserved" one as dictated
-  * by the get_first_*_*() methods; all the rest must be handled by the
-  * derived classes (if any).
-  *
-  * For the format of the produced netCDF::NcGroup, see
-  * PolyhedralFunctionBlock::deserialize(). */
+ /** The PolyhedralFunctionBlock serializes itself out of a netCDF::NcGroup.
+  * This is easy, since it is done by simply asking the PolyhedralFunction
+  * to do basically all the work, and then calling the method of the base
+  * class to do the rest. */
 
- virtual void serialize( netCDF::NcGroup & group ) const override;
+ void serialize( netCDF::NcGroup & group ) const override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -402,12 +459,10 @@ class PolyhedralFunctionBlock : public AbstractBlock {
  */
 
  /// print information about the PolyhedralFunctionBlock on an ostream 
- /** Protected method intended to print information about the PolyhedralFunctionBlock;
-  * it basically goes over all the abstract representation (static and dynamic
-  * Variable and Constraint, Objective, and inner Block) and asks everyone to
-  * print itself. */
+ /** Protected method intended to print information about the
+  * PolyhedralFunctionBlock; it basically prints the PolyhedralFunction. */
 
- virtual void print( std::ostream &output ) const override;
+ void print( std::ostream &output ) const override;
 
 /*--------------------------------------------------------------------------*/
  /// load the PolyhedralFunctionBlock out of an istream
@@ -440,10 +495,13 @@ class PolyhedralFunctionBlock : public AbstractBlock {
 /*--------------------------------------------------------------------------*/
 /*--------------------------- PRIVATE METHODS ------------------------------*/
 /*--------------------------------------------------------------------------*/
- // clears all the abstract representaton, but not f_polyf
 
+ // clears all the abstract representaton, but not f_polyf
  void guts_of_destructor( void );
- 
+
+ // deals with the abstract Modification
+ void guts_of_add_Modification( sp_Mod mod );
+
 /*--------------------------------------------------------------------------*/
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
 /*--------------------------------------------------------------------------*/

@@ -89,7 +89,7 @@
  * \date 23 - 08 - 2019
  *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
+1< *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -1878,7 +1878,7 @@ class Block : public Observer {
   * Modification signalling it may be appropriate, but for the reasons above
   * it has been decided against it. */
 
- virtual double get_valid_upper_bound( const bool conditional = false ) {
+ virtual double get_valid_upper_bound( bool conditional = false ) {
   return( + Inf<double>() );
   }
 
@@ -1951,7 +1951,7 @@ class Block : public Observer {
   * and can be used as a convenient stopping condition in empty/unbounded cases
   * for algorithms solving the problem, possibly via duality. */
 
- virtual double get_valid_lower_bound( const bool conditional = false ) {
+ virtual double get_valid_lower_bound( bool conditional = false ) {
   return( - Inf<double>() );
   }
 

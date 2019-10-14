@@ -4,9 +4,9 @@
 /** @file
  * Implementation of the PolyhedralFunctionBlock class.
  *
- * \version 0.20
+ * \version 0.10
  *
- * \date 01 - 09 - 2019
+ * \date 13 - 10 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -25,16 +25,11 @@
 
 #include "PolyhedralFunctionBlock.h"
 
-/*!!
 #include "ColVariable.h"
 
 #include "FRowConstraint.h"
-#include "OneVarConstraint.h"
 
 #include "FRealObjective.h"
-
-#include "ColVariableSolution.h"
-!!*/
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -51,15 +46,14 @@ using namespace SMSpp_di_unipi_it;
 SMSpp_insert_in_factory_cpp_1( PolyhedralFunctionBlock );
 
 /*--------------------------------------------------------------------------*/
-/*---------------------- METHODS of AbstractBlock --------------------------*/
+/*----------------- METHODS of PolyhedralFunctionBlock ---------------------*/
 /*--------------------------------------------------------------------------*/
 
 void PolyhedralFunctionBlock::deserialize( netCDF::NcGroup & group )
 {
- // deserialize the "abstract only inner Block"
- netCDF::NcDim nib = group.getDim( "NumberInnerBlock" );
- if( nib.isNull() )
-  return;
+ if( ! f_polyf )
+
+ 
 
  auto nibs = nib.getSize();
 

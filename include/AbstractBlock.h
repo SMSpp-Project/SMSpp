@@ -345,14 +345,15 @@ class AbstractBlock : public Block {
 
 /*--------------------------------------------------------------------------*/
 
- virtual double get_valid_upper_bound( const bool conditional = false )
-  override {
+ double get_valid_upper_bound( bool conditional = false ) override
+ {
   return( f_ub_cond == conditional ? f_ub : + Inf<double>() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- virtual double get_valid_lower_bound( const bool conditional = false )
-  override {
+
+ double get_valid_lower_bound( bool conditional = false ) override
+ {
   return( f_lb_cond == conditional ? f_lb : - Inf<double>() );
   }
 
