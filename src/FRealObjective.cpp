@@ -119,13 +119,12 @@ void FRealObjective::add_Modification( sp_Mod mod , c_ChnlName chnl )
    if( ! tmod )
     return;
 
-   if( tmod->f_type == FunctionModVars::AddVar )
-    for( auto el : tmod->v_vars )
-      el->add_active( this );
+   if( tmod->added() )
+    for( auto el : tmod->vars() )
+     el->add_active( this );
    else
-    if( tmod->f_type == FunctionModVars::RemoveVar )
-     for( auto el : tmod->v_vars )
-      el->remove_active( this );
+    for( auto el : tmod->vars() )
+     el->remove_active( this );
    }
 
   // whatever has happened, or not, so far, nothing else has to be done
@@ -143,99 +142,51 @@ void FRealObjective::add_Modification( sp_Mod mod , c_ChnlName chnl )
  }  // end( FRealObjective::add_Modification )
 
 /*--------------------------------------------------------------------------*/
-
-void FRealObjective::remove_variable( Variable * variable ,
-                                      c_ModParam issueMod ) {
-
-  /* FRealObjective typically relies on FunctionModVars to know if something
-   * has happened to the Variable of the Function and register/unregister
-   * itself from them. However, in this case it knows beforehand what is
-   * happening. If there is no real reason to have the Modification issued,
-   * it will instruct the Function not to and do the unregistering herein.
-   */
-
-  if( ! f_function )
-   return;
-
-  if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
-   f_function->remove_variable( variable , issueMod );
-  else {
-   // unregistration can preceed removal, since the Function completely
-   // ignores this information
-   variable->remove_active( this );
-   f_function->remove_variable( variable , eNoMod );
-   }
-}
-
-/*--------------------------------------------------------------------------*/
-
-void FRealObjective::remove_variables( std::vector<Variable *> && vars ,
-                                       const bool ordered ,
-                                       c_ModParam issueMod ) {
-
-  /* FRealObjective typically relies on FunctionModVars to know if something
-   * has happened to the Variable of the Function and register/unregister
-   * itself from them. However, in this case it knows beforehand what is
-   * happening. If there is no real reason to have the Modification issued,
-   * it will instruct the Function not to and do the unregistering herein.
-   */
-
-  if( ( ! f_function ) || vars.empty() )
-   return;
-
-  if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
-   f_function->remove_variables( std::move( vars ) , ordered , issueMod );
-  else {
-   // unregistration can preceed removal, since the Function completely
-   // ignores this information
-   for( auto var : vars )
-    var->remove_active( this );
-
-   f_function->remove_variables( std::move( vars ) , ordered , eNoMod );
-   }
-}
-
-/*--------------------------------------------------------------------------*/
 /// just dispatch to open_channel() of the Block (if any)
 
 Observer::ChnlName FRealObjective::open_channel( GroupModification * gmpmod ,
-                                                 c_ModParam issueMod ) {
-  return( f_Block ? f_Block->open_channel( gmpmod , issueMod ) : 0 );
-}
+                                                 c_ModParam issueMod )
+{
+ return( f_Block ? f_Block->open_channel( gmpmod , issueMod ) : 0 );
+ }
 
 /*--------------------------------------------------------------------------*/
 /// just dispatch to nest_channel() of the Block (if any)
 
 void FRealObjective::nest_channel( c_ChnlName chnl ,
                                    GroupModification * gmpmod ,
-                                   c_ModParam issueMod ) {
-  if( f_Block )
-   f_Block->nest_channel( chnl , gmpmod , issueMod );
-}
+                                   c_ModParam issueMod )
+{
+ if( f_Block )
+  f_Block->nest_channel( chnl , gmpmod , issueMod );
+ }
 
 /*--------------------------------------------------------------------------*/
 /// just dispatch to un_nest_channel() of the Block (if any)
 
-void FRealObjective::un_nest_channel( c_ChnlName chnl ) {
-  if( f_Block )
-   f_Block->un_nest_channel( chnl );
-}
+void FRealObjective::un_nest_channel( c_ChnlName chnl )
+{
+ if( f_Block )
+  f_Block->un_nest_channel( chnl );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 /// just dispatch to close_channel() of the Block (if any)
 
-void FRealObjective::close_channel( c_ChnlName chnl ) {
-  if( f_Block )
-   f_Block->close_channel( chnl );
-}
+void FRealObjective::close_channel( c_ChnlName chnl )
+{
+ if( f_Block )
+  f_Block->close_channel( chnl );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 /// just dispatch to set_default_channel() of the Block (if any)
 
-void FRealObjective::set_default_channel( c_ChnlName chnl ) {
-  if( f_Block )
-   f_Block->set_default_channel( chnl );
-}
+void FRealObjective::set_default_channel( c_ChnlName chnl )
+{
+ if( f_Block )
+  f_Block->set_default_channel( chnl );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- End File FRealObjective.cpp ----------------------*/

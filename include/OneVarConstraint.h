@@ -301,66 +301,55 @@ class OneVarConstraint : public RowConstraint {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual Index is_active( const Variable * const variable ) const override
+ Index is_active( const Variable * const variable ) const override
  {
-  return( f_variable == variable ?0 : Inf<Index>() );
+  return( f_variable == variable ? 0 : Inf<Index>() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual Variable * get_active_var( const Index i ) const override
+ Variable * get_active_var( const Index i ) const override
  {
   return( i == 0 ? f_variable : nullptr );
   }
 
 /*--------------------------------------------------------------------------*/
 
- virtual v_iterator * v_begin( void ) override {
+ v_iterator * v_begin( void ) override {
   return( new OneVarConstraint::v_iterator( f_variable ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual v_const_iterator * v_begin( void ) const override {
+ v_const_iterator * v_begin( void ) const override {
   return( new OneVarConstraint::v_const_iterator( f_variable ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
- virtual v_iterator * v_end( void ) override {
-  return( new OneVarConstraint::v_iterator( f_variable + 1 ) );
+ v_iterator * v_end( void ) override {
+  // f_variable == nullptr ==> v_end() = v_iterator( nullptr ) == v_begin()
+  return( new OneVarConstraint::v_iterator( f_variable ? f_variable + 1
+					               : nullptr ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual v_const_iterator * v_end( void ) const override {
-  return( new OneVarConstraint::v_const_iterator( f_variable + 1 ) );
+ v_const_iterator * v_end( void ) const override {
+  // f_variable == nullptr ==> v_end() = v_iterator( nullptr ) == v_begin()
+  return( new OneVarConstraint::v_const_iterator( f_variable ? f_variable + 1
+					                     : nullptr ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
- virtual void remove_variable( Variable * variable ,
-			       c_ModParam issueMod = eModBlck ) override
+ void remove_variable( Index i , c_ModParam issueMod = eModBlck ) override
  {
-  if( variable == f_variable )
+  if( i == 0 )
    set_variable( nullptr , issueMod );
   else
-   throw( std::invalid_argument( "Variable not present in the Constraint" ) );
-  }
-
-/*--------------------------------------------------------------------------*/
-
- virtual void remove_variables( std::vector<Variable *> && vars ,
-                                const bool ordered = false ,
-                                c_ModParam issueMod = eModBlck ) override
- {
-  if( ! vars.size() )  // nothing to do
-   return;             // cowardly (and silently) return
-
-  if( ( vars.size() != 1 ) || ( vars[ 0 ] != f_variable ) )
-   throw( std::invalid_argument( "Variable not present in the Constraint" ) );
-
-  set_variable( nullptr , issueMod );
+   throw( std::invalid_argument( "wrong Variable index in OneVarConstraint"
+				 ) );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -1473,15 +1462,16 @@ class OneVarConstraintMod : public RowConstraintMod
    * of types of Modification. */
   };
 
-/*---------------------- CONSTRUCTOR & DESTRUCTOR --------------------------*/
-
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: just calls that of RowConstraintMod
 
- OneVarConstraintMod( OneVarConstraint *cnst , int mod = eVariableChanged ,
-		      const bool cB = true )
-  : RowConstraintMod( cnst , mod , cB ) { }
+ OneVarConstraintMod( OneVarConstraint *cnst , int type = eVariableChanged ,
+		      bool cB = true )
+  : RowConstraintMod( cnst , type , cB ) { }
 
- virtual ~OneVarConstraintMod() { }  ///< destructor: does nothing
+/*------------------------------ DESTRUCTOR --------------------------------*/
+
+ virtual ~OneVarConstraintMod() = default;  ///< destructor: does nothing
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 

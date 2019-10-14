@@ -156,7 +156,7 @@ class Observer {
   * all Solver attached to its ancestors (the father, the father of the
   * father, ...). Some Modification-spewing objects (typically, Function) may
   * not be directly observed by a Block but by something else (typically,
-  * FRowConstraint and  FRealObjective), which however ultimately belongs to
+  * FRowConstraint and FRealObjective), which however ultimately belongs to
   * a Block; if the Observer is not a Block, it is its responsibility that
   * the Modification object is ultimately dispatched to the Block. Indeed,
   * :Block may also use "abstract" Modification to update their "physical
@@ -171,29 +171,28 @@ class Observer {
   * object is automatically destroyed after that all Solver have deleted it
   * (or, if a non-Block Observer translates it into a new set of
   * Modification, immediately after that). Note that the preferred way of
-  * making such an object is
+  * calling this method is
   *
-  *     sp_Mod mod = std::make_shared<DerivedModification>( <params> );
-  *     <Observer>.add_Modification( mod );
+  *     <Observer>.add_Modification(
+  *                       std::make_shared<DerivedModification>( <params> ) );
   *
   * where <params> are the parameters of the constructor of
-  * DerivedModification that should be called: using std::make_shared<> is
+  * DerivedModification that should be called. Using std::make_shared<> is
   * slightly faster then doing "new DerivedModification( <params> )" and
-  * then converting the returned ordinary pointer to a smart one. Note that
-  * "mod" is a local variable in the function/method where the Modification
-  * is issued, so it will likely be destroyed shortly after the call to
-  * <Observer>.add_Modification( mod ); this is OK, because copies of the
-  * smart pointer (say, in the Solver attached to the Block to which
-  * <Observer> belongs, with Block == <Observer> a definite possibility,
-  * and its ancestors, if any) will have been made by then. Hence, destroying
-  * "mod" will only decrease the counter by 1, effectively deleting "mod" if
-  * and only if there are no interested Solver, which is the intended
-  * semantic.
+  * then converting the returned ordinary pointer to a smart one, and calling
+  * it within the call to add_Modification() may avoid one copy of the
+  * shared pointer to be made only to be immediately destroyed. Not that this
+  * matter much, because copies of the smart pointer (say, in the Solver
+  * attached to the Block to which <Observer> belongs, with Block ==
+  * <Observer> a definite possibility, and its ancestors, if any) will have
+  * been made by then. Hence, even if a local copy were done, destroying
+  * it would only decrease the counter by 1, effectively deleting it if and
+  * only if there are no interested Solver, which is the intended semantic.
   *
   * Also, note that the Solver (or, possibly, the Observer itself if it has
   * to "translate" it) will have to downcast the Modification object to an
   * actual DerivedModification in order to gather the information about what
-  * has been modified. These being smart pointers this cannot be achieved
+  * has been modified. These being smart pointers, this cannot be achieved
   * with the ordinary dynamic_cast<>; rather,
   *
   *     auto dmod = dynamic_pointer_cast<DerivedModification>( mod );
@@ -205,9 +204,8 @@ class Observer {
   *
   * (thanks to shared_ptr operator bool).
   *
-  * It may be helpful to Solver, and to :Block having to "intercept" some
-  * "abstract Modification", that sets of "logically related Modification" be
-  * dispatched together. For this reason, Observer supports the notion that
+  * It may be helpful to Solver that sets of "logically related Modification"
+  * be dispatched together. For this reason, Observer supports the notion that
   * set of Modification can be bunched together into a GroupModification
   * object. This is done by defining different "channels" where Modification
   * can be sent, which are opened with open_channel(). The parameter chnl
@@ -223,7 +221,25 @@ class Observer {
   *   in the default), then mod is "sent to the default channel". Unless this
   *   is changed with set_default_channel(), this means that mod is not added
   *   to any GroupModification, and just immediately sent along to the
-  *   interested Solver / Block (if any). */
+  *   interested Solver / Block.
+  *
+  * This mechanism is implemented into Block::add_Modification(), and it is
+  * not assumed to be re-implemented in different ways by :Block or other
+  * :Observer. This is important in that it allows to enforce a useful
+  * property:
+  *
+  *     THE EXACT :Block IN WHICH A :Modification HAPPEN THAT IS BEING
+  *     SENT TO SOME NON-0 CHANNEL WILL NOT "SEE" THE GroupModification,
+  *     BUT RATHER THE INDIVIDUAL :Modification THAT WILL EVENTUALLY BE
+  *     PACKED INTO IT
+  *
+  * This property is *only* true for the very specific :Block, and it does
+  * not hold true for either its ancestor Block (which also receive the
+  * Modification) and the Solver. However, this is important for the handling
+  * of "abstract" Modification, since it is very useful that that :Block 
+  * (and that :Block only) is able to "see the Modification immediately" to
+  * handle the corresponding changes to the "physical representation". See
+  * the comments to Block::add_Modification() for more details. */
 
  virtual void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) = 0;
 

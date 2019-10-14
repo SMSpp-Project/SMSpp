@@ -332,13 +332,18 @@ class ConstraintMod : public AModification
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
- virtual ~ConstraintMod() { }  ///< destructor: does nothing
+ virtual ~ConstraintMod() = default;  ///< destructor: does nothing
 
-/*--------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
- Constraint *f_constraint;   ///< pointer to the modified Constraint
+ /// accessor to (the pointer to) the affected Constraint
 
- int f_type;                 ///< type of modification
+ Constraint * constraint( void ) { return( f_constraint ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// accessor to the type of Modification
+
+ int type( void ) { return( f_type ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -360,6 +365,12 @@ class ConstraintMod : public AModification
 
   output << " Constraint [" << f_constraint << "] " << std::endl;
   }
+
+/*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
+
+ Constraint *f_constraint;   ///< pointer to the modified Constraint
+
+ int f_type;                 ///< type of modification
 
 /*--------------------------------------------------------------------------*/
 

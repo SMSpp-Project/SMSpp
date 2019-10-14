@@ -408,11 +408,13 @@ class VariableMod : public AModification {
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
- virtual ~VariableMod() {}  ///< destructor: does nothing
+ virtual ~VariableMod() = default;  ///< destructor: does nothing
 
-/*--------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
- Variable *f_variable;      ///< Variable where the modification occurs
+ /// accessor to (the pointer to) the affected Variable
+
+ Variable * variable( void ) { return( f_variable ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -430,6 +432,10 @@ class VariableMod : public AModification {
   output << "]: changing state of :Variable [" << f_variable << "]"
 	 << std::endl;
   }
+
+/*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
+
+ Variable *f_variable;      ///< Variable where the modification occurs
 
 /*--------------------------------------------------------------------------*/
 

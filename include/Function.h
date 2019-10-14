@@ -2,10 +2,10 @@
 /*---------------------------- File Function.h -----------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Header file for the Function class, a quite general base class of
- * all the possible types of functions. Very few assumptions are made
- * about what form the function actually has, this being demanded to
- * derived classes. Since a Function can be costly to compute (think multiple
+ * Header file for the Function class, a quite general base class of all the
+ * possible types of real-valued functions. Very few assumptions are made
+ * about what form the function actually has, this being demanded to derived
+ * classes. Since a Function can be costly to compute (think multiple 
  * integrals or min-max functions requiring the solution of a hard
  * optimization problem), the class implements the ThinComputeInterface
  * paradigm. Also, since a Function depends on a set of "active" Variable, it
@@ -13,7 +13,7 @@
  *
  * \version 0.40
  *
- * \date 13 - 03 - 2019
+ * \date 08 - 10 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -38,7 +38,9 @@
 /*--------------------------------------------------------------------------*/
 
 #include "Modification.h"
+
 #include "ThinComputeInterface.h"
+
 #include "ThinVarDepInterface.h"
 
 /*--------------------------------------------------------------------------*/
@@ -49,6 +51,7 @@
 namespace SMSpp_di_unipi_it
 {
  class Observer;  // forward definition of Observer
+
  class Variable;  // forward definition of Variable
 
 /*--------------------------------------------------------------------------*/
@@ -78,8 +81,8 @@ namespace SMSpp_di_unipi_it
  *   which contribute to it setting its (real) value: hence, the class
  *   implements the ThinVarDepInterface paradigm (i.e., derives from
  *   ThinVarDepInterface); yet, as that base class, Function makes no
- *   provisions about how this set is stored in order to leave more freedom
- *   to derived classes to implement it in specialized ways;
+ *   provisions about how this set is stored in order to leave complete
+ *   freedom to derived classes to implement as they best see fit.
  *
  * - a Function must be computed, and this can be costly (think multiple
  *   integrals or min-max functions requiring the solution of a hard
@@ -151,14 +154,15 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
 /** @name Public Types
     @{ */
 
- typedef double FunctionValue;                  ///< type of the returned value
+ /// type of the returned value
+ using FunctionValue = double;
 
- typedef const FunctionValue c_FunctionValue;   ///< a const FunctionValue
+ using c_FunctionValue = const FunctionValue;  ///< a const FunctionValue
 
- typedef std::vector<FunctionValue> Vec_FunctionValue;
- ///< a std::vector of FunctionValue
+ /// a std::vector of FunctionValue
+ using Vec_FunctionValue = std::vector< FunctionValue >;
 
- typedef const Vec_FunctionValue c_Vec_FunctionValue;
+ using c_Vec_FunctionValue = const Vec_FunctionValue;
  ///< a const Vec_FunctionValue
 
 /*--------------------------------------------------------------------------*/
@@ -361,15 +365,23 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
  *                 TO ENSURE THAT THE RULE IS RESPECTED
  *
  * Note that several methods in this section (get_Lipschitz_constant(),
- * is_convex(), is_concave(), ...) refer to properties of the Function that
- * may be true at a certain moment, but may become false when the Function is
- * modified. The guidelines is that these methods should return "safe"
- * information that should not need to be updated each time any Modification
- * occurs: if the Function is_convex(), this is supposed to remain true. There
- * can be exceptions to that; for instance, if the Function changes entirely,
- * then reasonably this information can change. Also, certain changes (like
- * adding and removing Variable) almost certainly change the Lipschitz
- * constant, which must therefore be re-checked (if needed).
+ * get_global_[lower/upper]_bound(), is_convex(), is_concave(), ...) refer to
+ * properties of the Function that may be true at a certain moment, but may
+ * become false when the Function is modified. The guidelines is therefore
+ * that each time a "major" Modification is issued (say a FunctionMod telling
+ * that the function has changed "a lot"), the properties that could
+ * potentially change should be re-checked. For instance, adding and removing
+ * Variable, as signalled by a FunctionModVar, almost certainly change the
+ * Lipschitz constant, which must therefore be re-checked (if needed). On
+ * the other hand, if the Function is only shifted by a fixed constant then
+ * the Lipschitz constant does not change, and if it changes monotonically
+ * upwards [downwards] then any previous global valid lower [upper] bound at
+ * the very least remains valid, although of course it may have changed
+ * upwards [downwards] as well, so one may want to re-check it anyway.
+ * Other properties [like convexity and linearity] should be more "stable",
+ * but the idea is that the methods returning them should be "quick", and
+ * therefore checking them often should not be a big issue.
+ *
  * @{ */
 
  /// compute the Function
@@ -434,6 +446,42 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// returns a valid global lower bound on the Function value
+ /** The Function may know that it is bounded below on its domain, and be
+  * able to (cheapily) compute a finite number guaranteed to be <= than any
+  * value that get_value() can possibly return. If so, such a value should
+  * be returned by this method. The base class implementation returns the
+  * always safe - Inf< FunctionValue >().
+  *
+  * This method is not const because the computation of the global lower bound
+  * may not be cheap. The standard approach is then to only compute it if the
+  * method is called, but on the other hand to "cache" the value to answer
+  * quickly if no change has happened that changed it. Thus, the method has
+  * to be able to write into the fields of the class. */
+
+ virtual FunctionValue get_global_lower_bound( void ) {
+  return( - Inf< FunctionValue >() );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns a valid global upper bound on the Function value
+ /** The Function may know that it is bounded above on its domain, and be
+  * able to (cheapily) compute a finite number guaranteed to be >= than any
+  * value that get_value() can possibly return. If so, such a value should
+  * be returned by this method. The base class implementation returns the
+  * always safe Inf< FunctionValue >().
+  *
+  * This method is not const because the computation of the global upper bound
+  * may not be cheap. The standard approach is then to only compute it if the
+  * method is called, but on the other hand to "cache" the value to answer
+  * quickly if no change has happened that changed it. Thus, the method has
+  * to be able to write into the fields of the class. */
+
+ virtual FunctionValue get_global_upper_bound( void ) {
+  return( Inf< FunctionValue >() );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns a (global) Lipschitz constant for the Function
  /** Method that returns a (global) Lipschitz constant L for this Function,
   * i.e., a (real) scalar L such that
@@ -441,63 +489,69 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
   *   | f( x ) - f( y ) | <= L * | x - y |
   *
   * for all x and y in the domain of the Function. By default, the method
-  * returns Inf<FunctionValue>(), which means that the Function does
-  * *not* have a Lipschitz constant. Note that a finite Lipschitz constant
-  * implies that is_continuous() must return true. */
+  * returns Inf<FunctionValue>(), which means that the Function is *not*
+  * Lipschitz continuous. Note that a finite Lipschitz constant implies that
+  * is_continuous() must return true.
+  *
+  * This method is not const because the computation of the Lipschitz constant
+  * may not be cheap. The standard approach is then to only compute it if the
+  * method is called, but on the other hand to "cache" the value to answer
+  * quickly if no change has happened that changed it. Thus, the method has
+  * to be able to write into the fields of the class. */
 
  virtual FunctionValue get_Lipschitz_constant( void ) {
   return( std::numeric_limits<FunctionValue>::infinity() );
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns true if and only if this Function is convex
- /** Method that returns true if and only if this function is convex. The
-  * default is false (convexity being good for optimization, in particular
-  * minimization, often too good to be true). */
+ /// returns true only if this Function is convex
+ /** Method that returns true only if this function is convex. The default is
+  * false (convexity being good for optimization, in particular minimization,
+  * often too good to be true). */
 
  virtual bool is_convex( void ) const { return( false ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// returns true if and only if this Function is concave
- /** Method that returns true if and only if this function is concave. The
-  * default is false (concavity being good for optimization, in particular
-  * maximization, often too good to be true). */
+ /// returns true only if this Function is concave
+ /** Method that returns true only if this function is concave. The default is
+  * false (concavity being good for optimization, in particular maximization,
+  * often too good to be true). */
 
  virtual bool is_concave( void ) const { return( false ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns true only if this Function is linear
- /** Method that returns true if and only if this Function is linear. The
-  * base implementation of the class exploits the fact that the only class
-  * of functions that are both convex and concave is precisely that of
-  * linear functions (and therefore this method is not very useful ... ) */
+ /** Method that returns true only if this Function is linear. The base
+  * implementation of the class exploits the fact that the only class of
+  * functions that are both convex and concave is precisely that of linear
+  * functions (and therefore this method is not very useful ... ) */
 
  virtual bool is_linear( void ) const {
   return( this->is_convex() && this->is_concave() );
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns true if and only if this Function is lower semi-continuous
- /** Method that returns true if and only if this function is lower
+ /// returns true only if this Function is lower semi-continuous
+ /** Method that returns true only if this function is lower
   * semi-continuous. The default is true (continuity being an important
   * property for optimization). */
 
  virtual bool is_lower_semicontinuous( void ) const { return( true ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// returns true if and only if this Function is upper semi-continuous
- /** Method that returns true if and only if this function is upper
+ /// returns true only if this Function is upper semi-continuous
+ /** Method that returns true only if this function is upper
   * semi-continuous. The default is true (continuity being an important
   * property for optimization). */
 
  virtual bool is_upper_semicontinuous( void ) const { return( true ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// returns true if and only if this Function is continuous
- /** Method that returns true if and only if this function is continuous.
-  * The base implementation of the class exploits the fact that by
-  * this means that it is both upper semi-continuous and lower
-  * semi-continuous (and therefore this method is not very useful ... ) */
+ /// returns true only if this Function is continuous
+ /** Method that returns true only if this function is continuous. The base
+  * implementation of the class exploits the fact that by this means that it
+  * is both upper semi-continuous and lower semi-continuous (and therefore
+  * this method is not very useful ... ) */
 
  bool is_continuous( void ) const {
   return( this->is_lower_semicontinuous() &&
@@ -673,32 +727,32 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
  *
  * This base class defines the simplest type of changes, which are those to
  * the value of the function. There are four possible cases of such changes 
- * that are covered by this Modification, which are encoded in the field
- * f_shift in the following way:
+ * that are covered by this Modification, which are encoded by the return
+ * value of shift() in the following way:
  *
  * - NaN, e.g. as what is reported by
- *   std::numeric_limits<FunctionValue>::quiet_NaN() or by
+ *   std::numeric_limits::quiet_NaN<FunctionValue>() or by
  *   std::numeric_limits::signaling_NaN<FunctionValue>()): the value of the
  *   Function has changed "unpredictably" all over the space, any previously
  *   computed value is no longer reliable. Although the convenient constexpr
- *   "NaNshift" is defined in the class, note that testing if f_shift is NaN
- *   must *not* be done with "f_shift == NaNshift", but rather with
- *   std::isnan( f_shift ).
+ *   "NaNshift" is defined in the class, note that testing if shift() is NaN
+ *   must *not* be done with "shift() == NaNshift", but rather with
+ *   std::isnan( shift() ).
  *
  * - Any finite non-NaN number: conversely, the value of the Function has
  *   changed in a very predictable way: computing the value of the Function at
- *   any point now returns f_v + f_shift, where f_v is the value that would
+ *   any point now returns f_v + shift(), where f_v is the value that would
  *   have been returned prior to the Modification. It should be noted that
- *   f_shift = 0 does not really have a sense in this case as it would not
+ *   shift() = 0 does not really have a sense in this case as it would not
  *   be a change in the Function; however, the value is still allowed for
  *   uniformity with FunctionModVars [see].
  *
- * - +Infty (= std::numeric_limits<FunctionValue>::infinity(), for which
- *   the convenience constexpr "INFshift" is defined): this means
- *   that the value of the Function has changed "unpredictably but
- *   monotonically upwards": computing the value of the Function at any
- *   point now returns a value that is surely greater than or equal to the
- *   value that would have been returned prior to the Modification.
+ * - +Infty (= std::numeric_limits<FunctionValue>::infinity(), for which the
+ *   convenience constexpr "INFshift" is defined): this means that the value
+ *   of the Function has changed "unpredictably but monotonically upwards":
+ *   computing the value of the Function at any point now returns a value
+ *   that is surely greater than or equal to the value that would have been
+ *   returned prior to the Modification.
  *
  * - -Infty (= - std::numeric_limits<FunctionValue>::infinity(), i.e.,
  *   "-INFshift" exploiting the defined convenience constexpr): this means
@@ -714,23 +768,49 @@ class FunctionMod : public AModification {
 public:
 
 /*---------------------------- PUBLIC TYPES --------------------------------*/
+/* Note: several of this types are not directly used by FunctionModVars, but
+ * they may be useful to derived classes, so we do the "importing" once and
+ * for all here. */
 
- typedef Function::FunctionValue FunctionValue;
- ///< "import" FunctionValue from Function
+ /// "import" Index (equivalent to Block::Index) from Function
+ using Index = Function::Index;
+
+ using c_Index = const Index;   ///< a const Index
+
+ /// "import" Range (equivalent to Block::Range) from Function
+ using Range = Function::Range;
+
+ using c_Range = const Range;   ///< a const Range
+
+ /// "import" Subset (equivalent to Block::Subset) from Function
+ using Subset = Function::Subset;
+
+ using c_Subset = const Subset;  ///< a const Subset
+
+ /// "import" FunctionValue from Function
+ using FunctionValue = Function::FunctionValue;
+
+ using c_FunctionValue = const FunctionValue;  ///< a const FunctionValue
+
+ /// "import" Vec_FunctionValue from Function
+ using Vec_FunctionValue = Function::Vec_FunctionValue;
+
+ using c_Vec_FunctionValue = const Vec_FunctionValue;
+ ///< a const Vec_FunctionValue
 
 /*----------------------------- CONSTANTS ----------------------------------*/
 
  static constexpr FunctionValue NaNshift
                             = std::numeric_limits<FunctionValue>::quiet_NaN();
  ///< convenience constexpr for "NaN", *not* to be used with ==
+
  static constexpr FunctionValue INFshift
                              = std::numeric_limits<FunctionValue>::infinity();
  ///< convenience constexpr for "Infty"
  
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
 
- FunctionMod( Function * const f , const FunctionValue shift = NaNshift ,
-	      const bool cB = true )
+ FunctionMod( Function * f , FunctionValue shift = NaNshift , bool cB = true )
   : AModification( cB ) , f_function( f ) , f_shift( shift ) { }
 
  ///< constructor: takes a Function pointer and a shift
@@ -745,27 +825,28 @@ public:
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
  virtual ~FunctionMod() { }  ///< destructor
+ 
+/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
-/*---------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
+ /// accessor to (the pointer to) the affected Constraint
 
- Function *f_function;
- ///< pointer to the Function where the Modification occurs
+ Function * function( void ) { return( f_function ); }
 
- FunctionValue f_shift;
- ///< Amount the value of the function has been shifted
- /**< This field encloses four types of changes, depending on its value:
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// accessor to the type of Modification
+ /** This value encodes for four types of changes, depending on its value:
  *
  * - NaN: the value of the Function has changed "unpredictably" all over the
  *   space, any previously computed value is no longer reliable. Although the
  *   convenient constexpr "NaNshift" is defined in the class, note that
- *   testing if f_shift is NaN must *not* be done with "f_shift == NaNshift",
- *   but rather with std::isnan( f_shift ).
+ *   testing if f_shift is NaN must *not* be done with "shift() == NaNshift",
+ *   but rather with std::isnan( shift() ).
  *
  * - Any finite non-NaN number: conversely, the value of the Function has
  *   changed in a very predictable way: computing the value of the Function at
- *   any point now returns f_v + f_shift, where f_v is the value that would
+ *   any point now returns f_v + shift(), where f_v is the value that would
  *   have been returned prior to the Modification. It should be noted that
- *   f_shift = 0 does not really have a sense in this case as it would not
+ *   shift() = 0 does not really have a sense in this case as it would not
  *   be a change in the Function; however, the value is still allowed for
  *   uniformity with FunctionModVars.
  *
@@ -780,6 +861,8 @@ public:
  *   Function at any point now returns a value that is surely smaller than or
  *   equal to the value that would have been returned prior to the
  *   Modification. */
+
+ FunctionValue shift( void ) { return( f_shift ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -808,6 +891,12 @@ public:
      output << " by " << f_shift;
   }
 
+/*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
+
+ Function *f_function;   ///< pointer to the modified Function
+
+ FunctionValue f_shift;  ///< how the value of the function has changed
+
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( FunctionMod ) )
@@ -818,25 +907,31 @@ public:
 /// class to describe adding/removing Variable of a Function
 /** Derived class from AModification to describe changes of a Function that
  * involve adding/removing the Variable "active" in it. The class holds the
- * subset of affected Variable under the form of the field v_vars, a
- * std::vector<Variable *>.
+ * subset of affected Variable under the form of a std::vector<Variable *>,
+ * returned by vars(), containing their "name == pointer". This is already
+ * enough information to completely identify the affected Variable. However,
+ * derived classes may add some operation-specific information that make the
+ * task easier and/or more efficient under specific scenarios.
  *
  * The FunctionModVars also tells whether the Function is "quasi-additive"
  * in the added/removed Variable, which is an important property to allow
  * re-using previously computed function values. 
  *
- * The quasi-additivity property is defined as follows.
+ * The quasi-additivity property is encoded into asingle extended-real value
+ * (possibly NaN), returned by the method shift(). Note that this is similar,
+ * but not the same, to the shift() of FunctionMod (indeed, FunctionModVars
+ * does *not* derive from FunctionModV). The definition is as follows.
  *
  * Suppose that new Variables are added to the Function. Let f_old( x ) be
  * the Function, and x its vector of "active" Variable, before the
- * Modification. Let y be the vector of Variable that were added, and
+ * modification. Let y be the vector of Variable that were added, and
  * f( x , y ) be the Function after the modification. We say that the
  * Variable y are quasi-additively added to the function if and only if
  *
- *    f( x , 0 ) = f_old( x ) + f_shift   for all x
+ *    f( x , 0 ) = f_old( x ) + shift()   for all x
  *
  * In plain words, the new value of the Function just a constant shift to the
- * old value of the Function (identical if f_shift == 0) whenever all the new
+ * old value of the Function (identical if shift() == 0) whenever all the new
  * Variable are fixed to their default value (0).
  *
  * Similarly, suppose that Variables y are removed from the Function. Let
@@ -844,10 +939,10 @@ public:
  * Function after the modification. We say that the variables y are
  * quasi-additively removed from the Function if and only if
  *
- *    f( x ) = f_old( x , 0 ) + f_shift    for all x
+ *    f( x ) = f_old( x , 0 ) + shift()    for all x
  *
  * Again, the new value of the Function just a constant shift to the old value
- * of the Function (identical if f_shift == 0) whenever the latter were
+ * of the Function (identical if shift() == 0) whenever the latter were
  * computed at points where all the removed Variable are fixed to their
  * default value (0).
  *
@@ -871,11 +966,11 @@ public:
  * is quasi-additive, provided of course that the removal of y from f()
  * brings back to f_old() rather than deliting all the terms containing it.
  *
- * Also, note that for the shift to be finite, *all* the involved Variable
+ * Also, note that for the shift() to be finite, *all* the involved Variable
  * must be quasi-additive. Yet, if some of them were, and some of them were
  * not, there would be little solace in having two different Modifiction,
- * one with finite shift and one with infinite one, since at the end of the
- * day the result would still be that the new value of the Function is
+ * one with finite shift() and one with infinite one, since at the end of
+ * the day the result would still be that the new value of the Function is
  * utterly unknown.
  *
  * The fact that 0 is chosen as the "special" value for the Variable is
@@ -896,20 +991,20 @@ public:
  * i-th constraint A_i u = b_i from (P), thereby eliminating the x_i
  * variable for good, has exactly the same effect.
  *
- * The value of the field f_shift signals whether or not the just occurred
+ * The value returned by shift() signals whether or not the just occurred
  * Modification was a quasi-additive one, with the following encoding:
  *
- * - NaN, e.g. as what is reported by
- *   std::numeric_limits<FunctionValue>::quiet_NaN() or by
- *   std::numeric_limits::signaling_NaN<FunctionValue>()): the Modification
+ * - NaN, e.g. what is reported by
+ *   std::numeric_limits< FunctionValue >::quiet_NaN() or by
+ *   std::numeric_limits::signaling_NaN< FunctionValue >(): the Modification
  *   was not quasi-additive one, and the value of the Function has changed
  *   "unpredictably" all over the space. Although the convenient constexpr
- *   "NaNshift" is defined in the class, note that testing if f_shift is NaN
- *   must *not* be done with "f_shift == NaNshift", but rather with
- *   std::isnan( f_shift ).
+ *   "NaNshift" is defined in the class, note that testing if shift() is
+ *   NaN must *not* be done with "shift() == NaNshift", but rather with
+ *   std::isnan( f_shift() ).
  *
  * - Any finite non-NaN number (comprised 0, which makes full sense): the
- *   Modification was a quasi-additive one, with f_shift being the value of
+ *   Modification was a quasi-additive one, with shift() being the value of
  *   the shift.
  *
  * - +Infty (= std::numeric_limits<FunctionValue>::infinity(), for which
@@ -931,7 +1026,17 @@ public:
  *     surely less than or equal to the value that the Function had at x;
  *   = for deletion, the value of the Function at any point x is surely
  *     less than or equal to the value that the Function had at ( x , 0 ).
- */
+ *
+ * A FunctionModVars may represent either an addition or a deletion of
+ * Variable, and the method added() allows to discriminate between the two.
+ * However, the base FunctionModVars class does *not* allow to set the value
+ * returned by the method, which is pure virtual. The method is implemented
+ * by derived classes which correspond to either additions or deletions,
+ * each of which has specific information attached. However, some Solver may
+ * not have use for the extra information that the derived classes carry, and
+ * may prefer to only "catch" the base FunctionModVars and use the added()
+ * method to understand what has happened, rather than going through the
+ * problem of "catching" each of the derived classes individually. */
 
 class FunctionModVars : public AModification {
 
@@ -940,74 +1045,90 @@ class FunctionModVars : public AModification {
 public:
 
 /*---------------------------- PUBLIC TYPES --------------------------------*/
+/* Note: several of this types are not directly used by FunctionModVars, but
+ * they may be useful to derived classes, so we do the "importing" once and
+ * for all here. */
 
- typedef Function::FunctionValue FunctionValue;
- ///< "import" FunctionValue from Function
+ /// "import" Index (equivalent to Block::Index) from Function
+ using Index = Function::Index;
 
- /// Definition of the possible type of Modification
- enum function_mod_variables_type {
-  AddVar    , ///< addition of variables
-  RemoveVar , ///< deletion of variables
-  FunctionModVarsLastParam
-  ///< First allowed parameter value for derived classes
-  /**< Convenience value for easily allow derived classes to extend
-   * the set of types of modifications. */
-  };
+ using c_Index = const Index;    ///< a const Index
+
+ /// "import" Range (equivalent to Block::Range) from Function
+ using Range = Function::Range;
+
+ using c_Range = const Range;    ///< a const Range
+
+ /// "import" Subset (equivalent to Block::Subset) from Function
+ using Subset = Function::Subset;
+
+ using c_Subset = const Subset;  ///< a const Subset
+
+ /// "import" FunctionValue from Function
+ using FunctionValue = Function::FunctionValue;
+
+ using c_FunctionValue = const FunctionValue;  ///< a const FunctionValue
+
+ /// "import" Vec_FunctionValue from Function
+ using Vec_FunctionValue = Function::Vec_FunctionValue;
+
+ using c_Vec_FunctionValue = const Vec_FunctionValue;
+ ///< a const Vec_FunctionValue
 
 /*----------------------------- CONSTANTS ----------------------------------*/
 
  static constexpr FunctionValue NaNshift =
                               std::numeric_limits<FunctionValue>::quiet_NaN();
  ///< convenience constexpr for "NaN", *not* to be used with ==
+
  static constexpr FunctionValue INFshift =
                                std::numeric_limits<FunctionValue>::infinity();
  ///< convenience constexpr for "Infty"
  
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
- /// constructor: takes the type, a Function *, and the changed Variable
- /** constructor: takes the type of the Modification, a pointer to the
-  * affected Function, and the subset of affected Variable under the form
-  * of a std::vector<Variable *>. As the the && tells, the vector "becomes
-  * property" of the FunctionModVars object. Note that while the enum
-  * function_mod_variables_type is provided to encode the possible values of
-  * Modification, the field f_type is of type "int", and therefore so is
-  * the parameter of the constructor, in order to allow derived classes to
-  * "extend" the set of possible types of FunctionModVars. The boolean
-  * parameter ordered allows to tell whether or not the vars set passed
-  * to the constructor is ordered: if not this is done right away, so that
-  * whomever receives the Modification can assume v_vars always is. */
+ /// constructor: takes all the necessary information
+ /** constructor: takes a pointer to the affected Function, the subset of
+  * affected Variable under the form of a std::vector< Variable * >, the
+  * value of the shift encoding the quasi-additivity status of the
+  * modification, and the "concerns" value. As the the && tells, the vector
+  * "becomes property" of the FunctionModVars object. Note that the order
+  * of the vars[] vector is irrelevant for deletions (as the final set of
+  * indices is the same in whatever order they are performed), while it is
+  * *not* irrelevant for additions. In this case, the order of vars[] is
+  * supposed to be that of addition: vars[ 0 ] is the first new Variable
+  * added, vars[ 1 ] the second, ... (this is logically speaking, and
+  * regardless to the fact that a :Function may well implement a "add a
+  * bunch of Variable in one blow" operation; still, any such operaton must
+  * define what the addition order conceptually is). */
 
- FunctionModVars( Function * const f , const int mod ,
-		  Vec_p_Var && vars , const bool ordered = true ,
-		  const FunctionValue shift = NaNshift ,
-		  const bool cB = true )
+ FunctionModVars( Function * f , Vec_p_Var && vars ,
+		  FunctionValue shift = NaNshift , bool cB = true )
   : AModification( cB ) , f_function( f ) , f_shift( shift ) ,
-   f_type( mod ) , v_vars( std::move( vars ) )
- {
-  if( ! ordered )
-   std::sort( v_vars.begin() , v_vars.end() );
-  }
+    v_vars( std::move( vars ) ) { }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
- /// destructor, it has nothing to do
- virtual ~FunctionModVars() { }
 
-/*---------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
+ virtual ~FunctionModVars() = default;  ///< destructor: does nothing
 
- Function *f_function;  ///< the Function where the Modification occurs
+/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
- FunctionValue f_shift;   ///< tells if the Modification was quasi-additive
- /**< The value of the field f_shift signals whether or not the just occurred
-  * Modification was a quasi-additive one, with the following encoding:
+ /// accessor to (the pointer to) the affected Constraint
+
+ Function * function( void ) { return( f_function ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// tells if the Modification was quasi-additive
+ /**< This value of signals whether or not the just occurred Modification
+  * was a quasi-additive one, with the following encoding:
   *
   * - NaN: the Modification was not quasi-additive one, and the value of the
   *   Function has changed "unpredictably" all over the space. Although the
   *   convenient constexpr "NaNshift" is defined in the class, note that
-  *   testing if f_shift is NaN must *not* be done with "f_shift == NaNshift",
-  *   but rather with std::isnan( f_shift ).
+  *   testing if f_shift is NaN must *not* be done with "shift() == NaNshift",
+  *   but rather with std::isnan( shift() ).
   *
   * - Any finite non-NaN number (comprised 0, which makes full sense): the
-  *   Modification was a quasi-additive one, with f_shift being the value of
+  *   Modification was a quasi-additive one, with shift() being the value of
   *   the shift.
   *
   * - INFshift: the Modification was not a quasi-additive one, but while the
@@ -1018,8 +1139,24 @@ public:
   *   value of the Function has changed "unpredictably" all over the space,
   *   the change is "downward monotone". */
 
- int f_type;        ///< "type" of the Modification
- Vec_p_Var v_vars;  ///< vector of pointers to affected Variable
+ FunctionValue shift( void ) { return( f_shift ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// accessor to the vector of pointers to affected Variable
+
+ Vec_p_Var vars( void ) { return( v_vars ); }
+
+ /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method telling if the Variables have been added or removed
+ /** This method has to return true if the Variables have been added, and
+  * false if they have been removed. The method is pure virtual, and it is
+  * properly implemented in derived classes. However, some Solver may not
+  * have use for the extra information that the derived classes carry, and
+  * may prefer to only "catch" the base FunctionModVars and use this method
+  * to understand what has happened, rather than going through the problem of
+  * "catching" each of the derived classes individually. */
+
+ virtual bool added( void ) const = 0;
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1048,7 +1185,7 @@ public:
     else
      output << "quasi-additively (" << f_shift << ") ";
 
-  if( f_type == AddVar )
+  if( added() )
    output << "adding ";
   else
    output << "deleting ";
@@ -1056,9 +1193,353 @@ public:
   output  << v_vars.size() << " variables" << std::endl;
   }
 
+/*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
+
+ Function *f_function;   ///< pointer to the modified Function
+
+ FunctionValue f_shift;  ///< how the value of the function has changed
+
+ Vec_p_Var v_vars;       ///< vector of pointers to affected Variable
+
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( FunctionModVars ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------------------ CLASS FunctionModVarsAddd -----------------------*/
+/*--------------------------------------------------------------------------*/
+/// class to describe adding a set of Variable from a Function
+/** Derived class from FunctionModVars to describe a specific change of a
+ * Function: adding a set of Variable. It only extends FunctionModVars by
+ * specifying the indices that the Variable took, which is simply done by
+ * returning which was that the index that the *first* of them took
+ * (because when adding Variable, all the new ones get consecutive indices),
+ * which is also equal to the number of "active" Variable *before* the
+ * modification happened. 
+ *
+ * The important remark that this refers to the index that the Variable
+ * (whose pointer is anyway returned by vars() by the base class)
+ *
+ *     HAD AT THE MOMENT IN WHICH THE FunctionModVarsAddd WAS ISSUED,
+ *     SINCE WHEN THE FunctionModVarsAddd IS PROCESSED, THESE Variable MAY
+ *     HAVE CHANGED INDEX (IF Variable WITH SMALLER INDEX HAVE BEEN
+ *     REMOVED), OR COULD HAVE EVEN BEEN REMOVED (IN WHCH CASE AN
+ *     APPROPRIATE Modification MUST BE SITTING IN THE QUEUE AFTER THIS ONE).
+ *
+ * Yet, this information may still be useful to a Solver which keeps some
+ * internal data structures depending on the order of the Variable in the
+ * Function, as it then would immediately know where to put the information
+ * about the newly added Variable. Note that
+ *
+ *     THE INDEX THAT THE ADDED Variable HAVE AT THE MOMENT IN WHICH THE
+ *     FunctionModVarsAddd IS PROCESSED CAN ONLY BE SMALLER THAN OR EQUAL
+ *     TO THAT THAT THE INFORMATION REPORTED HERE IMPLIES, EXCEPT IF A
+ *     Variable HAS BEEN DELETED AND RE-ADDED (IN WHCH CASE TWO
+ *     APPROPRIATE Modification MUST BE SITTING IN THE QUEUE AFTER THIS ONE).
+ *
+ * This may allow to simplify somewhat the work for some Solver. */
+
+class FunctionModVarsAddd : public FunctionModVars {
+
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+public:
+
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
+ /// constructor: takes all the necessary information
+ /** Constructor: besides all the information required by the base
+  * FunctionModVars, it takes the index that the first of the added Variable
+  * took. Note that this hinges on vars[] to be "ordered as the Variable
+  * have been added". That is, vars[ 0 ] is the first Variable having been
+  * added, and therefore it took index first. vars[ 1 ] is the second
+  * Variable having been added, and therefore it took index first + 1 ...
+  * Of course, a :Function is likely to implement an "add a bunch of Variable
+  * in a single blow" operation, which is why this Modification allow to
+  * deal with many new Variable at a time. Still, any such operaton must
+  * define what the addition order conceptually is, and this must be
+  * reflected in the order of vars[]. */
+
+ FunctionModVarsAddd( Function * f , Vec_p_Var && vars , Index first ,
+		      FunctionValue shift = NaNshift , bool cB = true )
+  : FunctionModVars( f , std::move( vars ) , shift , cB ) , f_first( first )
+ { }
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+
+ virtual ~FunctionModVarsAddd() = default;  ///< destructor: does nothing
+
+/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+
+ /// accessor to the index obtained by the first added Variable
+
+ Index first( void ) { return( f_first ); }
+
+ /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method telling that the Variables have been added
+
+ virtual bool added( void ) const override { return( true ); }
+
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ /// print the FunctionModVarsAddd
+
+ virtual inline void print( std::ostream &output ) const override
+ {
+  output << "FunctionModVarsAddd[";
+  if( concerns_Block() )
+   output << "t";
+  else
+   output << "f";
+  output << "] on Function[" << &f_function << " ]: ";
+  if( std::isnan( f_shift ) )
+   output << "non quasi-additively (+-)";
+  else
+   if( f_shift >= INFshift )
+    output << "non quasi-additively (+)";
+   else
+    if( f_shift <= -INFshift )
+     output << "non quasi-additively (-)";
+    else
+     output << "quasi-additively (" << f_shift << ") ";
+
+  output << "adding variables [ " << f_first << " , "
+	 << f_first + v_vars.size() << " ]" << std::endl;
+  }
+
+/*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
+
+ Index f_first;   ///< the index obtained by the first added Variable
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( FunctionModVarsAddd ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------------------ CLASS FunctionModVarsRngd -----------------------*/
+/*--------------------------------------------------------------------------*/
+/// class to describe removing a range of Variable from a Function
+/** Derived class from FunctionModVars to describe a specific change of a
+ * Function: removing a range of Variable. It only extends FunctionModVars
+ * by specifying the range.
+ *
+ * The important remark that the range refers to the index that the Variable
+ * (whose pointer is anyway returned by vars() by the base class)
+ *
+ *     HAD AT THE MOMENT IN WHICH THE FunctionModVarsRngd WAS ISSUED,
+ *     SINCE WHEN THE FunctionModVarsRngd IS PROCESSED, THESE Variable ARE
+ *     NO LONGER "ACTIVE" IN THE Function UNLESS THEY HAVE LATER BEEN
+ *     RE-ADDED, IN WHCH CASE AN APPROPRIATE Modification MUST BE SITTING
+ *     IN THE QUEUE AFTER THIS ONE.
+ *
+ * Yet, this information may still be useful to a Solver which keeps some
+ * internal data structures depending on the order of the Variable in the
+ * Function, as knowing that the removed Variable are precisely those that
+ * were in the range just prior than the FunctionModVarsRngd was processed
+ * (Modification are thought to be processed in FIFO order) allows to
+ * immediately access the range in the internal data structure without
+ * having to individually look for each of the Variable from vars(), and
+ * maybe having to figure out a-posteriori that these were actually a range.
+ */
+
+class FunctionModVarsRngd : public FunctionModVars {
+
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+public:
+
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
+ /// constructor: takes all the necessary information
+ /** Constructor: besides all the information required by the base
+  * FunctionModVars, it takes the range identifying the indices of the removed
+  * Variable at the moment in which the FunctionModVarsRngd was issued. The
+  * range is a pair of indices ( start , stop ) representing the typical
+  * left-closed, right-open range { i : start <= i < stop }, and the
+  * correspondence between that and vars is positonal: vars[ 0 ] had index
+  * range, vars[ 1 ] had index range + 1 ..., which implies that
+  * vars.size() == stop - start. */
+
+ FunctionModVarsRngd( Function * f , Vec_p_Var && vars , c_Range & range ,
+		      FunctionValue shift = NaNshift , bool cB = true )
+  : FunctionModVars( f , std::move( vars ) , shift , cB ) , f_range( range )
+ {
+  if( v_vars.size() != f_range.second - f_range.first )
+   throw( std::invalid_argument( "vars and range sizes do not match" ) );
+  }
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+
+ virtual ~FunctionModVarsRngd() = default;  ///< destructor: does nothing
+
+/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+
+ /// accessor to the range of the deleted Variable
+
+ c_Range & range( void ) { return( f_range ); }
+
+ /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method telling that the Variables have been removed
+
+ virtual bool added( void ) const override { return( false ); }
+
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ /// print the FunctionModVarsRngd
+
+ virtual inline void print( std::ostream &output ) const override
+ {
+  output << "FunctionModVarsRngd[";
+  if( concerns_Block() )
+   output << "t";
+  else
+   output << "f";
+  output << "] on Function[" << &f_function << " ]: ";
+  if( std::isnan( f_shift ) )
+   output << "non quasi-additively (+-)";
+  else
+   if( f_shift >= INFshift )
+    output << "non quasi-additively (+)";
+   else
+    if( f_shift <= -INFshift )
+     output << "non quasi-additively (-)";
+    else
+     output << "quasi-additively (" << f_shift << ") ";
+
+  output << "deleting variables [ " << f_range.first << " , "
+	 << f_range.second << " ]" << std::endl;
+  }
+
+/*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
+
+ Range f_range;   ///< the range of the removed Variable
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( FunctionModVarsRngd ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------------------ CLASS FunctionModVarsSbst -----------------------*/
+/*--------------------------------------------------------------------------*/
+/// class to describe removing a subset of Variable from a Function
+/** Derived class from FunctionModVars to describe a specific change of a
+ * Function: removing a arbitrary subset of the Variable. It only extends
+ * FunctionModVars by specifying the subset.
+ *
+ * The important remark that the subset of indices specified are those that
+ *
+ *     THE DELETED Variable HAD AT THE MOMENT IN WHICH THE
+ *     FunctionModVarsSbst WAS ISSUED, SINCE WHEN THE FunctionModVarsRngd IS
+ *     PROCESSED, THESE Variable ARE NO LONGER "ACTIVE" IN THE Function
+ *     UNLESS THEY HAVE LATER BEEN RE-ADDED, IN WHCH CASE AN APPROPRIATE
+ *     Modification MUST BE SITTING IN THE QUEUE AFTER THIS ONE.
+ *
+ * The "name == pointer" of the Variable, which is anyway returned by vars()
+ * by the base class, should in principle be sufficient alone to reconstruct
+ * what the index was. However, this may require the Solver to keep some
+ * internal data structure to map the Variable pointer to its index in the
+ * function. By knowing that the removed Variable are precisely those that
+ * were in the subset just prior than the FunctionModVarsSbst was processed
+ * (Modification are thought to be processed in FIFO order) may allow to
+ * immediately access the subset in some internal data structure without
+ * having to individually look for each of the Variable from vars(). */
+
+class FunctionModVarsSbst : public FunctionModVars {
+
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+public:
+
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
+ /// constructor: takes all the necessary information
+ /** Constructor: besides all the information required by the base
+  * FunctionModVars, it takes the subset identifying the indices of the
+  * removed Variable. The indices of have the obvious positional
+  * correspondence: subset[ i ] is the index that the Variable vars[ i ] had
+  * *at the moment in which the FunctionModVarsRngd was issued*. As the the
+  * && tells, the vector "becomes property" of the FunctionModVarsSbst
+  * object. The ordered parameter tells if subset is ordered by increasing
+  * Index, which may be helpful for some Block/Solver having to deal with
+  * this FunctionModVarsSbst. */
+
+ FunctionModVarsSbst( Function * f , Vec_p_Var && vars , Subset && subset ,
+		      bool ordered = false , FunctionValue shift = NaNshift ,
+		      bool cB = true )
+  : FunctionModVars( f , std::move( vars ) , shift , cB ) ,
+    v_subset( subset ) , f_ordered( ordered )
+ {
+  if( v_vars.size() != v_subset.size() )
+   throw( std::invalid_argument( "vars and subset sizes do not match" ) );
+  }
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+
+ virtual ~FunctionModVarsSbst() = default;  ///< destructor: does nothing
+
+/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+
+ /// accessor to the subset of the deleted Variable
+
+ c_Subset & subset( void ) { return( v_subset ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// accessor to the ordered status
+
+ bool ordered( void ) { return( f_ordered ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method telling that the Variables have been removed
+
+ virtual bool added( void ) const override { return( false ); }
+
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ /// print the FunctionModVarsSbst
+
+ virtual inline void print( std::ostream &output ) const override
+ {
+  output << "FunctionModVarsSbst[";
+  if( concerns_Block() )
+   output << "t";
+  else
+   output << "f";
+  output << "] on Function[" << &f_function << " ]: ";
+  if( std::isnan( f_shift ) )
+   output << "non quasi-additively (+-)";
+  else
+   if( f_shift >= INFshift )
+    output << "non quasi-additively (+)";
+   else
+    if( f_shift <= -INFshift )
+     output << "non quasi-additively (-)";
+    else
+     output << "quasi-additively (" << f_shift << ") ";
+
+  output << "deleting " << v_subset.size();
+  if( f_ordered )
+   output << "(ordered)";
+  output << " variables" << std::endl;
+  }
+
+/*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
+
+ Subset v_subset;   ///< the subset of the removed Variable
+
+ bool f_ordered;    ///< true if v_subset is ordered
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( FunctionModVarsSbst ) )
 
 /** @} end( group( Function_CLASSES ) ) ------------------------------------*/
 /*--------------------------------------------------------------------------*/

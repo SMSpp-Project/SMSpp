@@ -135,9 +135,9 @@ class C15Function : public C05Function {
  virtual void get_hessian_approximation( SparseHessian &hessian ) const = 0;
 
 /*--------------------------------------------------------------------------*/
- /// returns true if and only if this Function has continuous Hessian
- /** Method that returns true if and only if this Function has continuous
-  * second order derivative. By default, false is returned. */
+ /// returns true only if this Function has continuous Hessian
+ /** Method that returns only if this Function has continuous second order
+  * derivative. By default, false is returned. */
 
  virtual bool is_twice_continuously_differentiable( void ) const {
   return( false );

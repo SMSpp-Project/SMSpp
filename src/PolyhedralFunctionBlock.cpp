@@ -1,12 +1,12 @@
 /*--------------------------------------------------------------------------*/
-/*------------------------ File AbstractBlock.cpp --------------------------*/
+/*------------------- File PolyhedralFunctionBlock.cpp ---------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Implementation of the AbstractBlock class.
+ * Implementation of the PolyhedralFunctionBlock class.
  *
- * \version 0.20
+ * \version 0.10
  *
- * \date 01 - 09 - 2019
+ * \date 13 - 10 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -23,16 +23,13 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#include "AbstractBlock.h"
+#include "PolyhedralFunctionBlock.h"
 
 #include "ColVariable.h"
 
 #include "FRowConstraint.h"
-#include "OneVarConstraint.h"
 
 #include "FRealObjective.h"
-
-#include "ColVariableSolution.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -44,20 +41,19 @@ using namespace SMSpp_di_unipi_it;
 /*----------------------------- STATIC MEMBERS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-// register AbstractBlock to the Block factory
+// register PolyhedralFunctionBlock to the Block factory
 
-SMSpp_insert_in_factory_cpp_1( AbstractBlock );
+SMSpp_insert_in_factory_cpp_1( PolyhedralFunctionBlock );
 
 /*--------------------------------------------------------------------------*/
-/*---------------------- METHODS of AbstractBlock --------------------------*/
+/*----------------- METHODS of PolyhedralFunctionBlock ---------------------*/
 /*--------------------------------------------------------------------------*/
 
-void AbstractBlock::deserialize( netCDF::NcGroup & group )
+void PolyhedralFunctionBlock::deserialize( netCDF::NcGroup & group )
 {
- // deserialize the "abstract only inner Block"
- netCDF::NcDim nib = group.getDim( "NumberInnerBlock" );
- if( nib.isNull() )
-  return;
+ if( ! f_polyf )
+
+ 
 
  auto nibs = nib.getSize();
 
@@ -71,11 +67,11 @@ void AbstractBlock::deserialize( netCDF::NcGroup & group )
   v_Block[ i ] = new_Block( bi );
   }
   
- }  // end( AbstractBlock::deserialize )
+ }  // end( PolyhedralFunctionBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
 
-AbstractBlock::~AbstractBlock( )
+PolyhedralFunctionBlock::~PolyhedralFunctionBlock( )
 {
  // first, clear() all Constraint
  auto & sc = get_static_constraints();
@@ -194,11 +190,11 @@ AbstractBlock::~AbstractBlock( )
  if( ! is_Objective_reserved() )
   delete get_objective();
 
- }  // end( ~AbstractBlock )
+ }  // end( ~PolyhedralFunctionBlock )
 
 /*--------------------------------------------------------------------------*/
 
-bool AbstractBlock::is_feasible( bool useabstract , Configuration *fsbc )
+bool PolyhedralFunctionBlock::is_feasible( bool useabstract , Configuration *fsbc )
 {
  if( ! useabstract )
   return( false );
@@ -268,7 +264,7 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration *fsbc )
     return( false );
    continue;
    }
-  throw( std::logic_error(
+  throw( logic_error(
 	"some static Constraint not FRowConstraint or :OneVarConstraint" ) );
   }
 
@@ -283,7 +279,7 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration *fsbc )
     return( false );
    continue;
    }
-  throw( std::logic_error( "some static Variable not ColVariable" ) );
+  throw( logic_error( "some static Variable not ColVariable" ) );
   }
 
  // the dynamic Constraints of the Block-  - - - - - - - - - - - - - - - - - -
@@ -338,7 +334,7 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration *fsbc )
     return( false );
    continue;
    }
-  throw( std::logic_error(
+  throw( logic_error(
        "some dynamic Constraint not FRowConstraint or :OneVarConstraint" ) );
   }
 
@@ -353,7 +349,7 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration *fsbc )
     return( false );
    continue;
    }
-  throw( std::logic_error( "some dynamic Variable not ColVariable" ) );
+  throw( logic_error( "some dynamic Variable not ColVariable" ) );
   }
 
  // the inner Blocks - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -364,18 +360,18 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration *fsbc )
 
  return( true );
 
- }  // end( AbstractBlock::is_feasible )
+ }  // end( PolyhedralFunctionBlock::is_feasible )
 
 /*--------------------------------------------------------------------------*/
 
-Solution * AbstractBlock::get_Solution( Configuration *solc , bool emptys )
+Solution * PolyhedralFunctionBlock::get_Solution( Configuration *solc , bool emptys )
 {
  return( new ColVariableSolution() );
  }
 
 /*--------------------------------------------------------------------------*/
 
-void AbstractBlock::serialize( netCDF::NcGroup & group ) const
+void PolyhedralFunctionBlock::serialize( netCDF::NcGroup & group ) const
 {
  auto & sc = get_static_constraints();
  auto & sv = get_static_variables();
@@ -400,26 +396,26 @@ void AbstractBlock::serialize( netCDF::NcGroup & group ) const
    v_Block[ i ]->serialize( gi );
    }
   }
- }  // end( AbstractBlock::serialize )
+ }  // end( PolyhedralFunctionBlock::serialize )
 
 /*--------------------------------------------------------------------------*/
 
-void AbstractBlock::print( std::ostream &output ) const
+void PolyhedralFunctionBlock::print( ostream &output ) const
 {
- output << std::endl << "Block with: ";
- output << std::endl << get_static_variables().size()
-	             << " types of static Variables, "
-                     << get_dynamic_variables().size()
-	             << " types of dynamic Variables, "
-        << std::endl << get_static_constraints().size()
-	             << " types of static Constraints, "
-	             << get_dynamic_constraints().size()
-	             << " types of dynamic Constraints, "
-        << std::endl << v_Block.size() << " inner Blocks" << std::endl;
+ output << endl << "Block with: ";
+ output << endl << get_static_variables().size()
+	        << " types of static Variables, "
+                << get_dynamic_variables().size()
+	        << " types of dynamic Variables, "
+        << endl << get_static_constraints().size()
+	        << " types of static Constraints, "
+	        << get_dynamic_constraints().size()
+	        << " types of dynamic Constraints, "
+        << endl << v_Block.size() << " inner Blocks" << endl;
 
  if( verbosity_lvl == Block::medium || verbosity_lvl == Block::high ) {
   // the static Constraints of the Block- - - - - - - - - - - - - - - - - - -
-  output << "Static Constraints:" << std::endl;
+  output << "Static Constraints:" << endl;
   auto & sc = get_static_constraints();
   for( unsigned int i = get_first_static_Constraint() ; i < sc.size() ; ++i ) {
    output << i;
@@ -429,40 +425,40 @@ void AbstractBlock::print( std::ostream &output ) const
    else
     output << ": ";
 
-   if( un_any_const_static( sc[ i ] , [ & output ]( FRowConstraint & cnst )
-		                      { output << cnst << std::endl; } ,
+   if( un_any_const_static( sc[ i ] , [ &output ]( FRowConstraint & cnst )
+		                                 { output << cnst << endl; } ,
 			    un_any_type< FRowConstraint >() ) )
     continue;
-   if( un_any_const_static( sc[ i ] , [ & output ]( BoxConstraint & cnst )
-		                      { output << cnst << std::endl; } ,
+   if( un_any_const_static( sc[ i ] , [ &output ]( BoxConstraint & cnst )
+		                                 { output << cnst << endl; } ,
 			    un_any_type< BoxConstraint >() ) )
     continue;
-   if( un_any_const_static( sc[ i ] , [ & output ]( LBConstraint & cnst )
-		                      { output << cnst << std::endl; } ,
+   if( un_any_const_static( sc[ i ] , [ &output ]( LBConstraint & cnst )
+		                                 { output << cnst << endl; } ,
 			    un_any_type< LBConstraint >() ) )
     continue;
-   if( un_any_const_static( sc[ i ] , [ & output ]( UBConstraint & cnst )
-		                      { output << cnst << std::endl; } ,
+   if( un_any_const_static( sc[ i ] , [ &output ]( UBConstraint & cnst )
+		                                 { output << cnst << endl; } ,
 			    un_any_type< UBConstraint >() ) )
     continue;
-   if( un_any_const_static( sc[ i ] , [ & output ]( NNConstraint & cnst )
-		                      { output << cnst << std::endl; } ,
+   if( un_any_const_static( sc[ i ] , [ &output ]( NNConstraint & cnst )
+		                                 { output << cnst << endl; } ,
 			    un_any_type< NNConstraint >() ) )
     continue;
-   if( un_any_const_static( sc[ i ] , [ & output ]( NPConstraint & cnst )
-		                      { output << cnst << std::endl; } ,
+   if( un_any_const_static( sc[ i ] , [ &output ]( NPConstraint & cnst )
+		                                 { output << cnst << endl; } ,
 			    un_any_type< NPConstraint >() ) )
     continue;
-   if( un_any_const_static( sc[ i ] , [ & output ]( ZOConstraint & cnst )
-		                      { output << cnst << std::endl; } ,
+   if( un_any_const_static( sc[ i ] , [ &output ]( ZOConstraint & cnst )
+		                                 { output << cnst << endl; } ,
 			    un_any_type< ZOConstraint >() ) )
     continue;
-   throw( std::logic_error(
+   throw( logic_error(
         "some static Constraint not FRowConstraint or :OneVarConstraint" ) );
    }
 
   // the static Variables of the Block- - - - - - - - - - - - - - - - - - - -
-  output << "Static Variables:" << std::endl;
+  output << "Static Variables:" << endl;
   auto & sv = get_static_variables();
   for( unsigned int i = get_first_static_Variable() ; i < sv.size() ; ++i ) {
    output << i;
@@ -472,15 +468,15 @@ void AbstractBlock::print( std::ostream &output ) const
    else
     output << ": ";
 
-   if( un_any_const_static( sv[ i ] , [ & output ]( ColVariable & var )
-		                      { output << var << std::endl; } ,
+   if( un_any_const_static( sv[ i ] , [ &output ]( ColVariable & var )
+		                                 { output << var << endl; } ,
 			    un_any_type< ColVariable >() ) )
     continue;
-   throw( std::logic_error( "some static Variable not ColVariable" ) );
+   throw( logic_error( "some static Variable not ColVariable" ) );
    }
 
   // the dynamic Constraints of the Block- - - - - - - - - - - - - - - - - -
-  output << "Dynamic Constraints:" << std::endl;
+  output << "Dynamic Constraints:" << endl;
   auto & dc = get_dynamic_constraints();
   for( unsigned int i = get_first_dynamic_Constraint() ; i < dc.size() ; ++i ) {
    output << i;
@@ -491,46 +487,46 @@ void AbstractBlock::print( std::ostream &output ) const
     output << ": ";
 
    if( un_any_const_dynamic( dc[ i ] ,
-			     [ & output ]( FRowConstraint & cnst )
-		                         { output << cnst << std::endl; } ,
+			     [ &output ]( FRowConstraint & cnst )
+		                        { output << cnst << endl; } ,
 			     un_any_type< FRowConstraint >() ) )
     continue;
    if( un_any_const_dynamic( dc[ i ] ,
-			     [ & output ]( BoxConstraint & cnst )
-		                         { output << cnst << std::endl; } ,
+			     [ &output ]( BoxConstraint & cnst )
+		                        { output << cnst << endl; } ,
 			     un_any_type< BoxConstraint >() ) )
     continue;
    if( un_any_const_dynamic( dc[ i ] ,
-			     [ & output ]( LBConstraint & cnst )
-		                         { output << cnst << std::endl; } ,
+			     [ &output ]( LBConstraint & cnst )
+		                        { output << cnst << endl; } ,
 			     un_any_type< LBConstraint >() ) )
     continue;
    if( un_any_const_dynamic( dc[ i ] ,
-			     [ & output ]( UBConstraint & cnst )
-			                 { output << cnst << std::endl; } ,
+			     [ &output ]( UBConstraint & cnst )
+			                { output << cnst << endl; } ,
 			     un_any_type< UBConstraint >() ) )
     continue;
    if( un_any_const_dynamic( dc[ i ] ,
-			     [ & output ]( NNConstraint & cnst )
-			                 { output << cnst << std::endl; } ,
+			     [ &output ]( NNConstraint & cnst )
+			                { output << cnst << endl; } ,
 			     un_any_type< NNConstraint >() ) )
     continue;
    if( un_any_const_dynamic( dc[ i ] ,
-			     [ & output ]( NPConstraint & cnst )
-			                 { output << cnst << std::endl; } ,
+			     [ &output ]( NPConstraint & cnst )
+			                { output << cnst << endl; } ,
 			     un_any_type< NPConstraint >() ) )
     continue;
    if( un_any_const_dynamic( dc[ i ] ,
-			     [ & output ]( ZOConstraint & cnst )
-			                 { output << cnst << std::endl; } ,
+			     [ &output ]( ZOConstraint & cnst )
+			                { output << cnst << endl; } ,
 			     un_any_type< ZOConstraint >() ) )
     continue;
-   throw( std::logic_error(
+   throw( logic_error(
        "some dynamic Constraint not FRowConstraint or :OneVarConstraint" ) );
    }
 
   // the dynamic Variables of the Block - - - - - - - - - - - - - - - - - - -
-  output << "Dynamic Variables:" << std::endl;
+  output << "Dynamic Variables:" << endl;
   auto & dv = get_dynamic_variables();
   for( unsigned int i = get_first_dynamic_Variable() ; i < dv.size() ; ++i ) {
    output << i;
@@ -540,24 +536,24 @@ void AbstractBlock::print( std::ostream &output ) const
    else
     output << ": ";
 
-   if( un_any_const_dynamic( dv[ i ] , [ & output ]( ColVariable & var )
-		                       { output << var << std::endl; } ,
+   if( un_any_const_dynamic( dv[ i ] , [ &output ]( ColVariable & var )
+		                                  { output << var << endl; } ,
 			     un_any_type< ColVariable >() ) )
     continue;
-   throw( std::logic_error( "some dynamic Variable not ColVariable" ) );
+   throw( logic_error( "some dynamic Variable not ColVariable" ) );
    }
 
   // the Objective of the Block - - - - - - - - - - - - - - - - - - - - - - -
   if( ! is_Objective_reserved() )
-   output << "Objective:" << *get_objective() << std::endl;
+   output << "Objective:" << *get_objective() << endl;
 
   // the inner Blocks - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  output  << std::endl << "Nested Blocks:" << std::endl;
+  output  << endl << "Nested Blocks:" << endl;
   for( Index i = get_first_inner_Block() ; i < v_Block.size() ; ++i )
    output << *v_Block[ i ];
   }
- }  // end( AbstractBlock::print )
+ }  // end( PolyhedralFunctionBlock::print )
 
 /*--------------------------------------------------------------------------*/
-/*-------------------- End File AbstractBlock.cpp --------------------------*/
+/*--------------- End File PolyhedralFunctionBlock.cpp ---------------------*/
 /*--------------------------------------------------------------------------*/
