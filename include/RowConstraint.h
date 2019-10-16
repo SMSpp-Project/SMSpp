@@ -13,7 +13,7 @@
  *
  * \version 0.20
  *
- * \date 16 - 08 - 2018
+ * \date 16 - 10 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -36,7 +36,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __RowConstraint
- #define __RowConstraint
+#define __RowConstraint
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
@@ -78,10 +78,10 @@ namespace SMSpp_di_unipi_it
  * reasonable; if one really needs a different return value than double she
  * can rather re-define a similar class to this.
  *
- * The above form encodes all possible kind of equality, inequality and ranged
- * constraints. In this base class, *no assumption is done upon the form of
- * the function*: typical examples are linear functions, quadratic functions
- * etc., but this is dealt with in derived classes.
+ * The above form encodes all possible kinds of equality, inequality and
+ * ranged constraints. In this base class, *no assumption is done upon the
+ * form of the function*: typical examples are linear functions, quadratic
+ * functions etc., but this is dealt with in derived classes.
  *
  * For many classes of problems this kind of Constraint naturally have a
  * "dual" information attached [see CDASolver.h], which typically has the
@@ -90,6 +90,151 @@ namespace SMSpp_di_unipi_it
  * offered by this class. This may be redundant in some cases, but if this
  * really is a problem then a similar derived class from Constraint lacking
  * the dual value can be easily defined.
+ *
+ * Notice that, although this class may represent two constraints (when the
+ * two bounds are finite and different from each other, i.e., -inf < LHS < RHS
+ * < inf), it has only one Lagrange multiplier. This is because we assume,
+ * without loss of generality (at least regarding optimality), that either the
+ * multiplier associated with the lower bound constraint or the one associated
+ * with the upper bound constraint is zero. To see this, consider the
+ * following optimization problem
+ *
+ * \f[
+ *   (P) \quad \min \{ f( x ) : l \le g( x ) \le u , x \in X \}
+ * \f]
+ *
+ * where \f$ X \f$ is a subset of \f$ R^n \f$ and \f$ g \f$ is a function from
+ * \f$ R^n \f$ to \f$ R^m \f$ (and, therefore, \f$ l, u \in R^m \f$). The
+ * Lagrangian function associated with this problem is
+ *
+ * \f[
+ *   L( w , z ) = \min \{ f( x ) + w ( l - g( x ) ) + z ( g( x ) - u ) :
+ *                        x \in X \}.
+ * \f]
+ *
+ * We can rewrite \f$ L \f$ as
+ *
+ * \f[
+ *   L( w , z ) = w l - z  u + \min \{ f( x ) + ( - w + z ) g( x ) : x \in X \},
+ * \f]
+ *
+ * so that the dual of the optimization problem (P) is
+ *
+ * \f[
+ * (D) \quad \max_{ w \ge 0 , z \ge 0 } \{
+ *              w l - z  u + \min \{ f( x ) + ( - w + z ) g( x ) : x \in X \}
+ *           \}.
+ * \f]
+ *
+ * Suppose that there is \f$ i \in \{ 1, \dots, m \} \f$ such that \f$ -\infty
+ * < l_i < u_i < \infty\f$ and the Lagrange multipliers \f$ ( w^* , z^* ) \in
+ * R^{2m} \f$ are such that \f$ w^*_i > 0 \f$ and \f$ z^*_i > 0 \f$. Now, if
+ * we define \f$ ( \bar{w} , \bar{z} ) \in R^{2m}\f$ as
+ *
+ * \f[
+ *   \bar{w}_j = \left\{ \begin{array}{ll}
+ *               w^*_j, & \mbox{ if } j \ne i \\
+ *               0,     & \mbox{ if } j = i \end{array} \right.
+ *
+ * \mbox{ and }
+ *
+ *   \bar{z}_j = \left\{ \begin{array}{ll}
+ *               z^*_j,         & \mbox{ if } j \ne i \\
+ *               z^*_j - w^*_j, & \mbox{ if } j = i \end{array} \right.
+ * \f]
+ *
+ * we see that \f$ ( - \bar{w} + \bar{z} ) = ( - w^* + z^* ) \f$ and
+ *
+ * \f{align*}{
+ * \bar{w}l - \bar{z}u & = \bar{w}_i l_i - \bar{z}_i u_i +
+ *                         \sum_{ j \ne i } ( \bar{w}_j l_j - \bar{z}_j u_j )\\
+ *                     & = - ( z^*_i - w^*_i ) u_i +
+ *                         \sum_{ j \ne i } ( w^*_j l_j - z^*_j u_j )\\
+ *                     & = w^*_i u_i - z^*_i u_i +
+ *                         \sum_{ j \ne i } ( w^*_j l_j - z^*_j u_j )\\
+ *                     & > w^*_i l_i - z^*_i u_i +
+ *                         \sum_{ j \ne i } ( w^*_j l_j - z^*_j u_j )\\
+ *                     & = w^* l - z^* u
+ * \f}
+ *
+ * where the inequality holds since \f$ u_i > l_i \f$ and \f$ w^*_i > 0 \f$.
+ * That is, the term multiplying \f$ g(x) \f$ does not change when we consider
+ * \f$ ( \bar{w} , \bar{z} ) \f$ instead of \f$ ( w^* , z^* ) \f$, but the
+ * value of the objective function of problem (D) increases. Since we are,
+ * usually, interested in the best lower bound for problem (P), the
+ * multipliers \f$ ( \bar{w} , \bar{z} ) \f$ are of more interest to \f$ ( w^*
+ * , z^* ) \f$.
+ *
+ * It is important to pay attention to the *sign* of the dual variable, which
+ * depends on how the Lagrangian function (and therefore the dual problem) is
+ * defined. In general, considering \f$ \mbox{sign}(w), \mbox{sign}(z) \in \{
+ * -1 , 1 \}^m \f$, the dual of problem (P) could also be written as
+ *
+ * \f{align*}{
+ * (D') \quad \max_{w,z \in R^m} \quad &
+ *      ( \mbox{sign}(w) \circ w ) l - ( \mbox{sign}(z) \circ z ) u +
+ *      \min \{ f( x ) + ( - \mbox{sign}(w) \circ w
+ *                         + \mbox{sign}(z) \circ z ) g( x ) : x \in X \}\\
+ *      \mbox{s.t.} \quad
+ *          & \mbox{sign}(w) \circ w \ge 0\\
+ *          & \mbox{sign}(z) \circ z \ge 0
+ * \f}
+ *
+ * where \f$ \circ \f$ denotes the Hadamard (or element-wise) product. Observe
+ * that the sign of each dual variable can be arbitrarily chosen, leading to
+ * different formulations of the same dual problem. The sign of a dual
+ * variable is a choice of each particular solver, but the RowConstraint is
+ * independent of any solver. Hence, for the dual value stored in this class
+ * to be useful, we adopt the following convention when defining a Lagrangian
+ * function. Considering this RowConstraint represents a constraint of the
+ * form LHS <= g_i(x) <= RHS, and associating dual variables w_i and z_i to
+ * the lower and upper bound constraints, respectively, the terms associated
+ * with this constraint in the Lagrangian function of an optimization problem
+ * are
+ *
+ * -# \f$ w_i ( LHS - g_i(x) ) \f$ and \f$ z_i ( g_i(x) - RHS ) \f$,
+ *        if \f$ -\infty < LHS < RHS < \infty \f$;
+ *
+ * -# \f$ w_i ( LHS - g_i(x) ) \f$, if \f$ -\infty < LHS < RHS = \infty \f$;
+ *
+ * -# \f$ z_i ( g_i(x) - RHS ) \f$, if \f$ -\infty = LHS < RHS < \infty \f$ or
+ *                                     \f$ -\infty < LHS = RHS < \infty \f$.
+ *
+ * With this convention, if the optimization problem is a *minimization* one,
+ * then
+ *
+ * - \f$ z_i \in R\f$ if this RowConstraint is an equality constraint (i.e.,
+ *   -inf < LHS = RHS < inf);
+ *
+ * - \f$ w_i \ge 0 \f$ and \f$ z_i \ge 0 \f$, otherwise.
+ *
+ * For a *maximization* problem, we have the following:
+ *
+ * - \f$ z_i \in R\f$ if this RowConstraint is an equality constraint (i.e.,
+ *   -inf < LHS = RHS < inf);
+ *
+ * - \f$ w_i \le 0 \f$ and \f$ z_i \le 0 \f$, otherwise.
+ *
+ * The value stored in \c d_value (which can be retrieved by get_dual() and
+ * set by set_dual()) may not necessarily be equal to w_i or z_i though. If
+ * this RowConstraint is an equality constraint, then \c d_value == z_i. If
+ * this RowConstraint only has the lower or the upper bound constraint, then
+ * \c d_value == w_i or \c d_value == z_i, respectively. When this
+ * RowConstraint represents two inequality constraints (i.e., when -inf < LHS
+ * < RHS < inf), then \c d_value may differ in sign from w_i or z_i. For this
+ * last case, we adopt the following convention. In a *minimization* problem,
+ * if \c d_value < 0, then \c d_value == -w_i; if \c d_value > 0, then \c
+ * d_value == z_i. In a *maximization* problem, if \c d_value < 0, then \c
+ * d_value == w_i; if \c d_value > 0, then d_value == -z_i.
+ *
+ * It is the Solver's responsibility to obey these rules in order for the
+ * value stored in \c d_value to have the correct meaning.
+ *
+ *     THE SOLVER WRITING THE DUAL SOLUTION IN THIS RowConstraint
+ *     MUST RESPECT THE CONVENTION STATED ABOVE.
+ *
+ * This means, in particular, that the dual value stored here may differ in
+ * sign from the value of the dual variable considered by a particular Solver.
  *
  * On top of this the basic ConstraintMod, other modifications are possible
  * for this kind of Constraint, namely
@@ -101,7 +246,7 @@ namespace SMSpp_di_unipi_it
  * see better fit (for instance, not storing them at all if they are fixed).
  * Thus, the methods for setting and changing these values (which are the
  * ones to throw these Modification) are pure virtual.
- *  */
+ */
 
 class RowConstraint : public Constraint {
 
@@ -184,7 +329,7 @@ class RowConstraint : public Constraint {
 
 /*--------------------------------------------------------------------------*/
  /// method to set the dual value of the RowConstraint
- /** method to set the dual value (i.e. the Langrangian multiplier) of the
+ /** method to set the dual value (i.e. the Lagrangian multiplier) of the
   * RowConstraint; typically, a CDASolver [see CDASolver.h] attached to the
   * Block to which this RowConstraint belongs will do it. For more ease of
   * mind, this method is virtual. */
@@ -256,7 +401,7 @@ class RowConstraint : public Constraint {
   * could mean that each RowConstraint need to carry its own values of
   * the parameters (while they are generally constant across many constraints
   * of "the same type" in a model); via this method checking can be done
-  * outside of the RowConstraint, which for the time being we condiser the
+  * outside of the RowConstraint, which for the time being we consider the
   * better alternative. */
 
  virtual RHSValue abs_viol( void ) const {
@@ -326,7 +471,7 @@ class RowConstraint : public Constraint {
   }
 
 /*--------------------------------------------------------------------------*/
- /// get the dual value (the Langrangian multiplier) of the RowConstraint
+ /// get the dual value (the Lagrangian multiplier) of the RowConstraint
 
  RHSValue get_dual( void ) const { return ( d_value ); }
 
@@ -358,7 +503,7 @@ class RowConstraint : public Constraint {
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
- RHSValue d_value;  ///< dual value (Langrangian multiplier)
+ RHSValue d_value;  ///< dual value (Lagrangian multiplier)
 
 /*--------------------------------------------------------------------------*/
 
@@ -372,7 +517,7 @@ class RowConstraint : public Constraint {
  * RowConstraint, i.e., change its LHS / RHS.
  *
  * Defining a class is a bit weird because the only thing the class does is
- * to define am enum for the new value of the type of Modification in the
+ * to define an enum for the new value of the type of Modification in the
  * ConstraintMod. However, throwing a Modification of a different class (but
  * derived from ConstraintMod) may make it easier for the solver to handle
  * it (at the very least, it directly knows it comes from a RowConstraint
