@@ -63,9 +63,10 @@ target_include_directories(
 # PRIVATE for build specifications
 # INTERFACE for usage requirements
 # PUBLIC for both
-target_link_libraries(SMSpp
-                      INTERFACE Boost::boost
-                      PUBLIC Eigen3::Eigen NetCDF::NetCDFCxx)
+target_link_libraries(SMSpp PUBLIC
+                      Boost::boost
+                      Eigen3::Eigen
+                      NetCDF::NetCDFCxx)
 
 # Alias for testing
 add_library(SMS++::SMSpp ALIAS SMSpp)
