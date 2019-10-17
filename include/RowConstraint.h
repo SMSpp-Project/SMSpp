@@ -91,83 +91,144 @@ namespace SMSpp_di_unipi_it
  * really is a problem then a similar derived class from Constraint lacking
  * the dual value can be easily defined.
  *
- * Notice that, although this class may represent two constraints (when the
- * two bounds are finite and different from each other, i.e., -inf < LHS < RHS
- * < inf), it has only one Lagrange multiplier. This is because we assume,
- * without loss of generality (at least regarding optimality), that either the
- * multiplier associated with the lower bound constraint or the one associated
- * with the upper bound constraint is zero. To see this, consider the
- * following optimization problem
+ * Notice that an object of this class actually represents *two* constraints
+ * (in particular, when the two bounds are finite and different from each
+ * other, i.e., -inf < LHS < RHS < inf); yet, it has only *one* Lagrangian
+ * multiplier. This is because we can assume without loss of generality (at
+ * least regarding optimality) that
  *
+ *     AT LEAST ONE BETWEEN THE Lagrangian MULTPLIER ASSOCIATED WITH THE
+ *     LOWER BOUND CONSTRAINT AND THE Lagrangian MULTPLIER ASSOCIATED WITH
+ *     THE UPPER BOUND CONSTRAINT IS ALWAYS 0
+ *
+ * This is of course true if one of the two bounds is infinite, as the
+ * corresponding Lagrangian multipler is simply not defined. To see that we
+ * can actually assume this without loss of generality, consider the
+ * following very general optimization problem
  * \f[
  *   (P) \quad \min \{ f( x ) : l \le g( x ) \le u , x \in X \}
  * \f]
- *
- * where \f$ X \f$ is a subset of \f$ R^n \f$ and \f$ g \f$ is a function from
- * \f$ R^n \f$ to \f$ R^m \f$ (and, therefore, \f$ l, u \in R^m \f$). The
- * Lagrangian function associated with this problem is
- *
+ * where \f$ X \f$ is any set, \f$ g : X \to R \f$ is any function, and
+ * \f$ -\infty < l < u < \infty \f$. The most general form of duality is the
+ * Lagrangian dual, which starts by defining the Lagrangian function
+ * associated with (P)
  * \f[
  *   L( w , z ) = \min \{ f( x ) + w ( l - g( x ) ) + z ( g( x ) - u ) :
- *                        x \in X \}.
+ *                        x \in X \}
  * \f]
- *
- * We can rewrite \f$ L \f$ as
- *
+ * where \f$ z \ge 0 \f$ is the Lagrangian multiplier of the constraint
+ * \f$ g( x ) \le u \f$, while \f$ w \ge 0 \f$ is the Lagrangian multiplier
+ * of the constraint \f$ l \le g( x ) \f$. We can rewrite \f$ L() \f$ as
  * \f[
- *   L( w , z ) = w l - z  u + \min \{ f( x ) + ( - w + z ) g( x ) : x \in X \},
+ *   L( w , z ) = w l - z  u +
+ *                \min \{ f( x ) + ( z - w ) g( x ) : x \in X \}  ,
  * \f]
- *
- * so that the dual of the optimization problem (P) is
- *
+ * so that the Lagrangian dual of (P) is
  * \f[
- * (D) \quad \max_{ w \ge 0 , z \ge 0 } \{
- *              w l - z  u + \min \{ f( x ) + ( - w + z ) g( x ) : x \in X \}
- *           \}.
+ *   (D) \quad \max \{ w l - z  u + 
+ *                     \min \{ f( x ) + ( z - w ) g( x ) : x \in X \} :
+ *                     w \ge 0  ,  z \ge 0 \}
  * \f]
- *
- * Suppose that there is \f$ i \in \{ 1, \dots, m \} \f$ such that \f$ -\infty
- * < l_i < u_i < \infty\f$ and the Lagrange multipliers \f$ ( w^* , z^* ) \in
- * R^{2m} \f$ are such that \f$ w^*_i > 0 \f$ and \f$ z^*_i > 0 \f$. Now, if
- * we define \f$ ( \bar{w} , \bar{z} ) \in R^{2m}\f$ as
- *
+ * The above formula already makes is immediately apparent that the Lagrangian
+ * function actually depend on the difference \f$ z - w \f$; that is, any
+ * choice of the two Lagrangian multiplers that have the same difference
+ * provides exactly the same value (and supergradients) in L(). Now, assume
+ * that one has a feasible solution \f$ ( \bar{w} , \bar{z} ) \f$ for (D) such
+ * that \f$ \bar{w} > 0 \f$ and \f$ \bar{z}* > 0 \f$: it is easy to prove
+ * that it cannot be an optimal solution for (D). Indeed, define
+ * \f$ ( w' = \max \{ 0 , \bar{w} - \bar{z} \} ,
+ *       z' = \max \{ 0 , \bar{z} - \bar{w} \} ) \f$. It is immediate to
+ * check that \f$ ( w' , z' ) \ge 0 \f$ (is feasible), and that
  * \f[
- *   \bar{w}_j = \left\{ \begin{array}{ll}
- *               w^*_j, & \mbox{ if } j \ne i \\
- *               0,     & \mbox{ if } j = i \end{array} \right.
- *
- * \mbox{ and }
- *
- *   \bar{z}_j = \left\{ \begin{array}{ll}
- *               z^*_j,         & \mbox{ if } j \ne i \\
- *               z^*_j - w^*_j, & \mbox{ if } j = i \end{array} \right.
+ *   z' - w' = \bar{z} - \bar{w} \qquad\qquad (*)
  * \f]
+ * It is also obvious that
+ * \f[
+ *   w' l - z' u > \bar{w} l - \bar{z} u
+ * \f]
+ * Indeed,
+ * \f[
+ *   w' l - z' u = w' l - w' u + w' u - z' u = w' ( l - u ) + ( w' - z' ) u
+ * \f]
+ * and a similar relationship holds for \f$ \bar{w} l - \bar{z} u \f$. But
+ * from (*) one has that \f$ ( w' - z' ) u = ( \bar{w} - \bar{z} ) u \f$, and
+ * \f[
+ *  w' ( l - u ) > \bar{w} ( l - u )
+ * \f]
+ * because obviously \f$ w' < \bar{w} \f$ and \f$ l - u < 0 \f$. Hence,
+ * \f$ ( w' , z' ) \f$ is the announced feasible solution of (D) whose
+ * objective value is better than that of  \f$ ( \bar{w} , \bar{z} ) \f$,
+ * and such that \f$ w' z' = 0 \f$. We will therefore assume that
  *
- * we see that \f$ ( - \bar{w} + \bar{z} ) = ( - w^* + z^* ) \f$ and
+ *     ALL DUAL SOLUTIONS STORES IN A RowConstraint ARE "NON DOMINATED"
+ *     ONES WITH THE ABOVE PROPERTY
  *
- * \f{align*}{
- * \bar{w}l - \bar{z}u & = \bar{w}_i l_i - \bar{z}_i u_i +
- *                         \sum_{ j \ne i } ( \bar{w}_j l_j - \bar{z}_j u_j )\\
- *                     & = - ( z^*_i - w^*_i ) u_i +
- *                         \sum_{ j \ne i } ( w^*_j l_j - z^*_j u_j )\\
- *                     & = w^*_i u_i - z^*_i u_i +
- *                         \sum_{ j \ne i } ( w^*_j l_j - z^*_j u_j )\\
- *                     & > w^*_i l_i - z^*_i u_i +
- *                         \sum_{ j \ne i } ( w^*_j l_j - z^*_j u_j )\\
- *                     & = w^* l - z^* u
- * \f}
+ * This is not really "without loss of generality", but arguably worse
+ * dual solutions should never be preferred to better ones. Besides, the
+ * transformation between \f$ ( \bar{w} , \bar{z} ) \f$ and
+ * \f$ ( w' , z' ) \f$ is so trivial that, even if a Solver naturally
+ * produces the former, it is perfectly reasonable to ask it to produce the
+ * latter as well.
  *
- * where the inequality holds since \f$ u_i > l_i \f$ and \f$ w^*_i > 0 \f$.
- * That is, the term multiplying \f$ g(x) \f$ does not change when we consider
- * \f$ ( \bar{w} , \bar{z} ) \f$ instead of \f$ ( w^* , z^* ) \f$, but the
- * value of the objective function of problem (D) increases. Since we are,
- * usually, interested in the best lower bound for problem (P), the
- * multipliers \f$ ( \bar{w} , \bar{z} ) \f$ are of more interest to \f$ ( w^*
- * , z^* ) \f$.
+ * The same arguments can be immediately extended to the case where (P) has
+ * any number of ranged constraints.
  *
- * It is important to pay attention to the *sign* of the dual variable, which
- * depends on how the Lagrangian function (and therefore the dual problem) is
- * defined. In general, considering \f$ \mbox{sign}(w), \mbox{sign}(z) \in \{
+ * As a consequence
+ *
+ *     THE SIGN OF THE DUAL MULTIPLIER OF A RANGED RowConstraint (WITH
+ *     \f$ -\infty < l < u < \infty \f$) CAN BE USED TO SPECIFY WHICH
+ *     OF THE TWO (NON-NEGATIVE) MULTIPLIERS \f$ w \f$ AND \f$ z \f$
+ *     IS NONZERO.
+ *
+ * This, however, requires setting some standard. Indeed, for a
+ * *minimization* problem such as (P) above, we will assume that the value
+ * stored  \c d_value (which can be retrieved by get_dual() and set by
+ * set_dual()) is
+ * \f[
+ *   ( z - w )
+ * \f]
+ * i.e., the coefficient of \f$ g( x ) \f$ in \f$ L() \f$. This means that
+ *
+ * - if d_value > 0, \f$ z > 0 \f$ and \f$ w = 0 \f$
+ *
+ * - if d_value < 0, \f$ z = 0 \f$ and \f$ w > 0 \f$
+ *
+ * However, if (P) is rather a *maximization* problem
+ * \f[
+ *   (P) \quad \max \{ f( x ) : l \le g( x ) \le u , x \in X \}
+ * \f]
+ * then its Lagrangian function rather need to be defined as
+ * \f[
+ *   L( w , z ) = \max \{ f( x ) + w ( g( x ) - l ) + z ( u - g( x ) ) :
+ *                        x \in X \}   ,
+ * \f]
+ * i.e., 
+ * \f[
+ *   L( w , z ) = z u - w l +
+ *                \min \{ f( x ) + ( w - z ) g( x ) : x \in X \}  ,
+ * \f]
+ * The transformation from \f$ ( \bar{w} , \bar{z} ) \f$ to
+ * \f$ ( w' , z' ) \f$ remains the same, but now the coefficient of
+ * \f$ g( x ) \f$ in \f$ L() \f$ is rather \f$ w - z \f$; hence, it is more
+ * natural in this case to assume that that is the value stored in
+ * \c d_value is, which leads to the opposite standard:
+ *
+ * - if d_value > 0, \f$ w > 0 \f$ and \f$ z = 0 \f$
+ *
+ * - if d_value < 0, \f$ w = 0 \f$ and \f$ z > 0 \f$
+ *
+ * It is the Solver's responsibility to obey these rules in order for the
+ * value stored in \c d_value to have the correct meaning.
+ *
+ *     THE SOLVER WRITING THE DUAL SOLUTION IN THIS RowConstraint
+ *     MUST RESPECT THE CONVENTION STATED ABOVE.
+ *
+ * This means, in particular, that the dual value stored here may differ in
+ * sign from the value of the dual variable considered by a particular Solver.
+ *
+ * start ???
+ *
+ * In general, considering \f$ \mbox{sign}(w), \mbox{sign}(z) \in \{
  * -1 , 1 \}^m \f$, the dual of problem (P) could also be written as
  *
  * \f{align*}{
@@ -187,33 +248,33 @@ namespace SMSpp_di_unipi_it
  * independent of any solver. Hence, for the dual value stored in this class
  * to be useful, we adopt the following convention when defining a Lagrangian
  * function. Considering this RowConstraint represents a constraint of the
- * form LHS <= g_i(x) <= RHS, and associating dual variables w_i and z_i to
+ * form LHS <= g( x ) <= RHS, and associating dual variables w and z to
  * the lower and upper bound constraints, respectively, the terms associated
  * with this constraint in the Lagrangian function of an optimization problem
  * are
  *
- * -# \f$ w_i ( LHS - g_i(x) ) \f$ and \f$ z_i ( g_i(x) - RHS ) \f$,
- *        if \f$ -\infty < LHS < RHS < \infty \f$;
+ * -# \f$ w ( LHS - g( x ) ) \f$ and \f$ z ( g_i( x ) - RHS ) \f$,
+ *    if \f$ -\infty < LHS < RHS < \infty \f$;
  *
- * -# \f$ w_i ( LHS - g_i(x) ) \f$, if \f$ -\infty < LHS < RHS = \infty \f$;
+ * -# \f$ w ( LHS - g( x ) ) \f$, if \f$ -\infty < LHS < RHS = \infty \f$;
  *
- * -# \f$ z_i ( g_i(x) - RHS ) \f$, if \f$ -\infty = LHS < RHS < \infty \f$ or
- *                                     \f$ -\infty < LHS = RHS < \infty \f$.
+ * -# \f$ z ( g( x ) - RHS ) \f$, if \f$ -\infty = LHS < RHS < \infty \f$ or
+ *                                   \f$ -\infty < LHS = RHS < \infty \f$.
  *
  * With this convention, if the optimization problem is a *minimization* one,
  * then
  *
- * - \f$ z_i \in R\f$ if this RowConstraint is an equality constraint (i.e.,
+ * - \f$ z \in R \f$ if this RowConstraint is an equality constraint (i.e.,
  *   -inf < LHS = RHS < inf);
  *
- * - \f$ w_i \ge 0 \f$ and \f$ z_i \ge 0 \f$, otherwise.
+ * - \f$ w \ge 0 \f$ and \f$ z \ge 0 \f$, otherwise.
  *
  * For a *maximization* problem, we have the following:
  *
  * - \f$ z_i \in R\f$ if this RowConstraint is an equality constraint (i.e.,
  *   -inf < LHS = RHS < inf);
  *
- * - \f$ w_i \le 0 \f$ and \f$ z_i \le 0 \f$, otherwise.
+ * - \f$ w \le 0 \f$ and \f$ z \le 0 \f$, otherwise.
  *
  * The value stored in \c d_value (which can be retrieved by get_dual() and
  * set by set_dual()) may not necessarily be equal to w_i or z_i though. If
@@ -227,14 +288,7 @@ namespace SMSpp_di_unipi_it
  * d_value == z_i. In a *maximization* problem, if \c d_value < 0, then \c
  * d_value == w_i; if \c d_value > 0, then d_value == -z_i.
  *
- * It is the Solver's responsibility to obey these rules in order for the
- * value stored in \c d_value to have the correct meaning.
- *
- *     THE SOLVER WRITING THE DUAL SOLUTION IN THIS RowConstraint
- *     MUST RESPECT THE CONVENTION STATED ABOVE.
- *
- * This means, in particular, that the dual value stored here may differ in
- * sign from the value of the dual variable considered by a particular Solver.
+ * end ???
  *
  * On top of this the basic ConstraintMod, other modifications are possible
  * for this kind of Constraint, namely
@@ -245,8 +299,7 @@ namespace SMSpp_di_unipi_it
  * in order to allow more flexibility for derived classes to do that as they
  * see better fit (for instance, not storing them at all if they are fixed).
  * Thus, the methods for setting and changing these values (which are the
- * ones to throw these Modification) are pure virtual.
- */
+ * ones to throw these Modification) are pure virtual. */
 
 class RowConstraint : public Constraint {
 
