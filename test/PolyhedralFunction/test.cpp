@@ -881,10 +881,8 @@ int main( int argc , char **argv )
     std::list< ColVariable > nxLPd( tochange );
     std::vector< Variable * > nxp( tochange );
     auto nxit = nxLPd.begin();
-    for( Index i = 0 ; i < tochange ; ) {
-     nxp[ i++ ] = &(*nxit);
-     (nxit++)->set_Block( LPBlock );
-     }
+    for( Index i = 0 ; i < tochange ; )
+     nxp[ i++ ] = &(*(nxit++));
 
     LPBlock->add_dynamic_variables(
 	      *(LPBlock->get_dynamic_variable< ColVariable >( 0 )) , nxLPd );
@@ -914,10 +912,8 @@ int main( int argc , char **argv )
     // add them in the NDO
     std::list< ColVariable > nxNDOd( tochange );
     auto nxit = nxNDOd.begin();
-    for( Index i = 0 ; i < tochange ; ) {
-     nxp[ i++ ] = &(*nxit);
-     (nxit++)->set_Block( NDOBlock );
-     }
+    for( Index i = 0 ; i < tochange ; )
+     nxp[ i++ ] = &(*(nxit++));
 
     NDOBlock->add_dynamic_variables(
 	    *(NDOBlock->get_dynamic_variable< ColVariable >( 0 )) , nxNDOd );
