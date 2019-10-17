@@ -13,7 +13,7 @@
  *
  * \version 0.20
  *
- * \date 16 - 10 - 2019
+ * \date 17 - 10 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -230,15 +230,27 @@ namespace SMSpp_di_unipi_it
  *
  * In general, considering \f$ \mbox{sign}(w), \mbox{sign}(z) \in \{
  * -1 , 1 \}^m \f$, the dual of problem (P) could also be written as
+ * where the inequality holds since \f$ u_i > l_i \f$ and \f$ w^*_i > 0 \f$.
+ * That is, the term multiplying \f$ g(x) \f$ does not change when we consider
+ * \f$ ( \bar{w} , \bar{z} ) \f$ instead of \f$ ( w^* , z^* ) \f$, but the
+ * value of the objective function of problem (D) increases. Since we are,
+ * usually, interested in the best lower bound for problem (P), the
+ * multipliers \f$ ( \bar{w} , \bar{z} ) \f$ are of more interest to \f$ ( w^*
+ * , z^* ) \f$.
+ *
+ * It is important to pay attention to the *sign* of the dual variable, which
+ * depends on how the Lagrangian function (and therefore the dual problem) is
+ * defined. In general, considering constants \f$ s, t \in \{ -1 , 1 \}^m \f$,
+ * the dual of problem (P) could also be written as
  *
  * \f{align*}{
  * (D') \quad \max_{w,z \in R^m} \quad &
- *      ( \mbox{sign}(w) \circ w ) l - ( \mbox{sign}(z) \circ z ) u +
- *      \min \{ f( x ) + ( - \mbox{sign}(w) \circ w
- *                         + \mbox{sign}(z) \circ z ) g( x ) : x \in X \}\\
+ *      ( s \circ w ) l - ( t \circ z ) u +
+ *      \min \{ f( x ) + ( - s \circ w
+ *                         + t \circ z ) g( x ) : x \in X \}\\
  *      \mbox{s.t.} \quad
- *          & \mbox{sign}(w) \circ w \ge 0\\
- *          & \mbox{sign}(z) \circ z \ge 0
+ *          & s \circ w \ge 0\\
+ *          & t \circ z \ge 0
  * \f}
  *
  * where \f$ \circ \f$ denotes the Hadamard (or element-wise) product. Observe
@@ -286,7 +298,7 @@ namespace SMSpp_di_unipi_it
  * last case, we adopt the following convention. In a *minimization* problem,
  * if \c d_value < 0, then \c d_value == -w_i; if \c d_value > 0, then \c
  * d_value == z_i. In a *maximization* problem, if \c d_value < 0, then \c
- * d_value == w_i; if \c d_value > 0, then d_value == -z_i.
+ * d_value == w_i; if \c d_value > 0, then \c d_value == -z_i.
  *
  * end ???
  *
