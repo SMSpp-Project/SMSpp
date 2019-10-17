@@ -2858,6 +2858,8 @@ class Block : public Observer {
   * the destructor: whomever produced it in the first place (most likely, the
   * current derived Block class) must take responsibility for this.
   *
+  * Note that, instead, set_objective() calls newOF->set_Block().
+  *
   * The parameter issueMod decides if and how the BlockMod is issued, as
   * described in Observer::make_par(). */
 

@@ -150,10 +150,8 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   * an "empty" PolyhedralFunction to start with. */
 
  PolyhedralFunctionBlock( Block * father = nullptr )
-  : AbstractBlock( father ) , f_rep( false )
- {
-  f_polyf = new PolyhedralFunction( this );
-  }
+  : AbstractBlock( father ) , f_rep( false ) ,
+    f_polyf( {} , {} , {} , true , this ) {}
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize the current PolyhedralFunctionBlock out of netCDF::NcGroup
@@ -167,7 +165,10 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   * - any other data necessary to represent the "arbitrary" part of the
   *   AbstractBlock, see AbstractBlock::deserialize() for details. */
 
- virtual void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( netCDF::NcGroup & group ) override
+ {
+  f_polyf.deserialize( group );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// the destructor actually destroys the abstract representation
@@ -186,45 +187,21 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   * the destructur of the further derived class, while that of the "arbitrary
   * part" is due to that of AbstractBlock. */
 
- virtual ~PolyhedralFunctionBlock() {
-  guts_of_destructor();
-  delete f_polyf;
-  }
+ virtual ~PolyhedralFunctionBlock() { guts_of_destructor(); }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
+ *
+ * Note that PolyhedralFunctionBlock does not provide any specific method for
+ * initializing or changing the PolyhedralFunction, since full access to it
+ * is provided by get_PolyhedralFunction(), and one can use its methods to do
+ * all required operations. PolyhedralFunctionBlock will "catch" all the
+ * corresponding Modification and react accordingly, if needed.
+ *
  *  @{ */
 
- /** Completely resets the PolyhedralFunctionBlock with entirely new
-  * PolyhedralFunction.
-  *
-  * If delf == true, the previous PolyhedralFunctionBlock (if any) is
-  * deleted; hence, one expects the parameter to be true, unless someone else
-  * is keeping tabs on the PolyhedralFunctionBlock and for some reason prefers
-  * to destroy it later on. Thus, set_PolyhedralFunction( nullptr ) basically
-  * completely resets the PolyhedralFunctionBlock (except the "arbitrary
-  * part", of course) and leaves it "naked" ready to be filled again with a
-  * different PolyhedralFunction.
-  *
-  * If there is any Solver attached to this PolyhedralFunctionBlock then a
-  * NBModification (the "nuclear option") is issued. In this case, no
-  * issueMod parameter is provided because this kind of change cannot
-  * reasonably be ignored. */
- 
- void set_PolyhedralFunction( PolyhedralFunction * polyf , bool delf = true )
- {
-  if( f_polyf )
-   guts_of_destructor();
-  if( delf )
-   delete f_polyf;
-  f_polyf = polyf;
-  if( anyone_there() )
-   add_Modification( std::make_shared<NBModification>( this ) );
-  }
-
-/*--------------------------------------------------------------------------*/
  /// generate the Variable in the "linearized representation"
  /** This method serves is to ensure that the "abstract representation" of
   * the Variable in the PolyhedralFunctionBlock is initialized, so that it
@@ -291,8 +268,8 @@ class PolyhedralFunctionBlock : public AbstractBlock {
  /// generate the Objective in the abstract representation, linearized or not
  /** This method serves is to ensure that the "abstract representation" of
   * the Objective of the PolyhedralFunctionBlock is initialized, so that it
-  * can be read witt get_objective().Of course, the effect changes depending on
-  * whether the "natural representation" or the "linearized representation"
+  * can be read witt get_objective().Of course, the effect changes depending
+  * on whether the "natural representation" or the "linearized representation"
   * are used. In fact,
   *
   *    THE CHOICE BETWEEN THE TWO IS DONE ELSEWHERE, PRECISELY IN
@@ -318,7 +295,7 @@ class PolyhedralFunctionBlock : public AbstractBlock {
 /** @name Methods for reading the data of the PolyhedralFunctionBlock
  *  @{ */
 
- PolyhedralFunction * get_PolyhedralFunction( void ) { return( f_polyf ); }
+ PolyhedralFunction & get_PolyhedralFunction( void ) { return( f_polyf ); }
 
 /*--------------------------------------------------------------------------*/
 
@@ -365,22 +342,22 @@ class PolyhedralFunctionBlock : public AbstractBlock {
 
  double get_valid_upper_bound( bool conditional = false ) override
  {
-  auto ub = AbstractBlock::get_valid_upper_bound( conditional );
-  if( f_polyf )
-   ub = std::min( ub , f_polyf->get_global_upper_bound() );
-   
-  return( ub );
+  if( conditional )
+   return( AbstractBlock::get_valid_upper_bound( true ) );
+  else
+   return( std::min( AbstractBlock::get_valid_upper_bound( false ) ,
+		     f_polyf.get_global_upper_bound() ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  double get_valid_lower_bound( bool conditional = false ) override
  {
-  auto lb = AbstractBlock::get_valid_lower_bound( conditional );
-  if( f_polyf )
-   lb = std::max( lb , f_polyf->get_global_lower_bound() );
-   
-  return( lb );
+  if( conditional )
+   return( AbstractBlock::get_valid_lower_bound( true ) );
+  else
+   return( std::max( AbstractBlock::get_valid_upper_bound( false ) ,
+		     f_polyf.get_global_lower_bound() ) );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -389,48 +366,55 @@ class PolyhedralFunctionBlock : public AbstractBlock {
 /** @name Methods for handling Modification
  *  @{ */
 
- /// adding a new Modification to the MCFBlock
+ /// adding a new Modification to the PolyhedralFunctionBlock
  /** Method for handling Modification.
   *
-  * The version of MCFBlock has to intercept any "abstract Modification" that
-  * modifies the "abstract representation" of the MCFBlock, and "translate"
-  * them into both changes of the actual data structures and corresponding
-  * "physical Modification". These Modification are those for which
-  * Modification::concerns_Block() is true. Note, however, that before sending
-  * the Modification to the Solver and/or the father Block, the
-  * concerns_Block() value is set to false. This is because once it is passed
-  * through this method, the "abstract Modification" has "already done its
-  * duty" of providing the information to the MCFBlock, and this must not be
-  * repeated. In particular, this would be an issue if the Modification would
-  * be [map_forward or map_back]-ed, because inside of this method a "physical
-  * Modification" doing the same job is surely issued. That Modification would
-  * also be [map_forward or map_back]-ed, together with the original "abstract
-  * Modification" that would pass again through this method (in the other
-  * MCFBlock), which would mean that the "physical Modification" would be
-  * issued twice.
+  * The version of PolyhedralFunctionBlock has to do two "opposite" things:
   *
-  * The following "abstract Modification" are handled:
+  * 1) Intercept any Modification coming out of its "physical"
+  *    PolyhedralFunction component, and, if the "linearized representation"
+  *    is used, properly change it to reflect those (otherwise the
+  *    Modification is passed up to AbstractBlock::add_Modification() without
+  *    further action).
   *
-  * - GroupModification, that are simply unpacked into the individual
-  *   sub-[Group]Modification and dealt with individually;
+  * 2) Intercept any "abstract Modification" that modifies anything in the
+  *    PolyhedralFunctionBlock *except* the PolyhedralFunction, which means
+  *    components of the "linearized representation", and properly change the
+  *    latter to reflect them. However, only *some* changes to the 
+  *    "linearized representation" are handled. In particular:
   *
-  * - C05FunctionModRngd and C05FunctionModSbst changing coefficients coming
-  *   from the (LinearFunction into the FRow)Objective, but *not* from the
-  *   (LinearFunction into the FRow)Constraint;
+  *    - adding/removing/changing some of the linear constraints of the
+  *      group corresponding to the "linearized representation", which
+  *      immediately translates into adding/removing/changing the
+  *      corresponding LinearFunction or RHS (however, note that only the
+  *      "right" RHS can be changed, i.e., the constraint must never change
+  *      to a ranged/equality one)
   *
-  * - RowConstraintMod changing the RHS of the bound constraints and both
-  *   sides at once of the flow conservation ones, but not any other
-  *   combination; and note that the RHS of the bound constraints may not
-  *   be changeable at all if they have not been constructed, in which
-  *   case there cannot be any Modification to handle here;
+  *    - modifying the "verse" of the Objective is allowed, which immediately
+  *      changes the "convexity" of the PolyhedralFunction
+
+  *    However, some Modification to the "linearized representation" are
+  *    *not* allowed (exception is thrown). In particular:
   *
-  * - VariableMod fixing and un-fixing a flow ColVariable; however, note
-  *   that *fixing is only permitted if the value() of the ColVvariable is
-  *   zero*, because that corresponds to closing the arc, exception being
-  *   thrown otherwise.
+  *    - modifying the LinearFunction inside the Objective function;
   *
-  * Any other Modification reaching the MCFBlock will lead to exception
-  * being thrown. */
+  *    - adding/removing Variable from an individual LinearFunction inside
+  *      a FRowConstraint: this must be done for *all of them together*,
+  *      and therefore an appropriate GroupModification should be used, but
+  *      this is not supported as yet.
+  *
+  * TODO: define and handle an appropriate GroupModification to manage
+  *       addition and removal of Variables from the LinearFunction inside
+  *       the FRowConstraint
+  *
+  * Note: conversely, adding/removing Variable from the PolyhedralFunction
+  *       itself *is* supported, and it indeed results in a GroupModification
+  *       that changes the LinearFunction inside the FRowConstraint.
+  *
+  * Any other Modification reaching the PolyhedralFunctionBlock will be
+  * passed up to AbstractBlock::add_Modification() without further action,
+  * since it may be about "the rest" of the AbstractBlock that
+  * PolyhedralFunctionBlock does not handle. */
 
  void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
 
@@ -482,9 +466,9 @@ class PolyhedralFunctionBlock : public AbstractBlock {
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
- bool f_rep;                    ///< which of the two representations is used
+ bool f_rep;                  ///< which of the two representations is used
  
- PolyhedralFunction * f_polyf;  ///< the PolyhedralFunction
+ PolyhedralFunction f_polyf;  ///< the PolyhedralFunction
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
