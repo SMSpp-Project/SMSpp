@@ -6,7 +6,7 @@
  *
  * \version 0.20
  *
- * \date 06 - 06 - 2019
+ * \date 14 - 10 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -83,6 +83,30 @@ void FRealObjective::set_function( Function * const function ,
 			     Observer::par2chnl( issueMod ) );
 
  }  // end( FRealObjective::set_function )
+
+/*--------------------------------------------------------------------------*/
+
+void FRealObjective::remove_variable( Index i , c_ModParam issueMod )
+{
+ /* FRealObjective typically relies on FunctionModVars to know if something
+  * has happened to the Variable of the Function and register/unregister
+  * itself from them. However, in this case it knows beforehand what is
+  * happening. If there is no real reason to have the Modification issued,
+  * it will instruct the Function not to and do the unregistering herein.
+  */
+
+ if( ! f_function )
+  return;
+
+ if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
+  f_function->remove_variable( i , issueMod );
+ else {
+  // unregistration can preceed removal, since the Function completely
+  // ignores this information
+  f_function->get_active_var( i )->remove_active( this );
+  f_function->remove_variable( i , eNoMod );
+  }
+ }  // end( FRealObjective::remove_variable )
 
 /*--------------------------------------------------------------------------*/
 
