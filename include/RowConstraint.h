@@ -13,7 +13,7 @@
  *
  * \version 0.20
  *
- * \date 17 - 10 - 2019
+ * \date 18 - 10 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -129,12 +129,12 @@ namespace SMSpp_di_unipi_it
  *                     \min \{ f( x ) + ( z - w ) g( x ) : x \in X \} :
  *                     w \ge 0  ,  z \ge 0 \}
  * \f]
- * The above formula already makes is immediately apparent that the Lagrangian
- * function actually depend on the difference \f$ z - w \f$; that is, any
+ * The above formula already makes it immediately apparent that the Lagrangian
+ * function actually depends on the difference \f$ z - w \f$; that is, any
  * choice of the two Lagrangian multiplers that have the same difference
  * provides exactly the same value (and supergradients) in L(). Now, assume
  * that one has a feasible solution \f$ ( \bar{w} , \bar{z} ) \f$ for (D) such
- * that \f$ \bar{w} > 0 \f$ and \f$ \bar{z}* > 0 \f$: it is easy to prove
+ * that \f$ \bar{w} > 0 \f$ and \f$ \bar{z} > 0 \f$: it is easy to prove
  * that it cannot be an optimal solution for (D). Indeed, define
  * \f$ ( w' = \max \{ 0 , \bar{w} - \bar{z} \} ,
  *       z' = \max \{ 0 , \bar{z} - \bar{w} \} ) \f$. It is immediate to
@@ -160,7 +160,7 @@ namespace SMSpp_di_unipi_it
  * objective value is better than that of  \f$ ( \bar{w} , \bar{z} ) \f$,
  * and such that \f$ w' z' = 0 \f$. We will therefore assume that
  *
- *     ALL DUAL SOLUTIONS STORES IN A RowConstraint ARE "NON DOMINATED"
+ *     ALL DUAL SOLUTIONS STORED IN A RowConstraint ARE "NON DOMINATED"
  *     ONES WITH THE ABOVE PROPERTY
  *
  * This is not really "without loss of generality", but arguably worse
@@ -176,13 +176,12 @@ namespace SMSpp_di_unipi_it
  * As a consequence
  *
  *     THE SIGN OF THE DUAL MULTIPLIER OF A RANGED RowConstraint (WITH
- *     \f$ -\infty < l < u < \infty \f$) CAN BE USED TO SPECIFY WHICH
- *     OF THE TWO (NON-NEGATIVE) MULTIPLIERS \f$ w \f$ AND \f$ z \f$
- *     IS NONZERO.
+ *     -inf < l < u < inf) CAN BE USED TO SPECIFY WHICH OF THE TWO
+ *     (NON-NEGATIVE) MULTIPLIERS w AND z IS NONZERO.
  *
  * This, however, requires setting some standard. Indeed, for a
  * *minimization* problem such as (P) above, we will assume that the value
- * stored  \c d_value (which can be retrieved by get_dual() and set by
+ * stored in \c d_value (which can be retrieved by get_dual() and set by
  * set_dual()) is
  * \f[
  *   ( z - w )
@@ -211,7 +210,7 @@ namespace SMSpp_di_unipi_it
  * \f$ ( w' , z' ) \f$ remains the same, but now the coefficient of
  * \f$ g( x ) \f$ in \f$ L() \f$ is rather \f$ w - z \f$; hence, it is more
  * natural in this case to assume that that is the value stored in
- * \c d_value is, which leads to the opposite standard:
+ * \c d_value, which leads to the opposite standard:
  *
  * - if d_value > 0, \f$ w > 0 \f$ and \f$ z = 0 \f$
  *
@@ -225,82 +224,6 @@ namespace SMSpp_di_unipi_it
  *
  * This means, in particular, that the dual value stored here may differ in
  * sign from the value of the dual variable considered by a particular Solver.
- *
- * start ???
- *
- * In general, considering \f$ \mbox{sign}(w), \mbox{sign}(z) \in \{
- * -1 , 1 \}^m \f$, the dual of problem (P) could also be written as
- * where the inequality holds since \f$ u_i > l_i \f$ and \f$ w^*_i > 0 \f$.
- * That is, the term multiplying \f$ g(x) \f$ does not change when we consider
- * \f$ ( \bar{w} , \bar{z} ) \f$ instead of \f$ ( w^* , z^* ) \f$, but the
- * value of the objective function of problem (D) increases. Since we are,
- * usually, interested in the best lower bound for problem (P), the
- * multipliers \f$ ( \bar{w} , \bar{z} ) \f$ are of more interest to \f$ ( w^*
- * , z^* ) \f$.
- *
- * It is important to pay attention to the *sign* of the dual variable, which
- * depends on how the Lagrangian function (and therefore the dual problem) is
- * defined. In general, considering constants \f$ s, t \in \{ -1 , 1 \}^m \f$,
- * the dual of problem (P) could also be written as
- *
- * \f{align*}{
- * (D') \quad \max_{w,z \in R^m} \quad &
- *      ( s \circ w ) l - ( t \circ z ) u +
- *      \min \{ f( x ) + ( - s \circ w
- *                         + t \circ z ) g( x ) : x \in X \}\\
- *      \mbox{s.t.} \quad
- *          & s \circ w \ge 0\\
- *          & t \circ z \ge 0
- * \f}
- *
- * where \f$ \circ \f$ denotes the Hadamard (or element-wise) product. Observe
- * that the sign of each dual variable can be arbitrarily chosen, leading to
- * different formulations of the same dual problem. The sign of a dual
- * variable is a choice of each particular solver, but the RowConstraint is
- * independent of any solver. Hence, for the dual value stored in this class
- * to be useful, we adopt the following convention when defining a Lagrangian
- * function. Considering this RowConstraint represents a constraint of the
- * form LHS <= g( x ) <= RHS, and associating dual variables w and z to
- * the lower and upper bound constraints, respectively, the terms associated
- * with this constraint in the Lagrangian function of an optimization problem
- * are
- *
- * -# \f$ w ( LHS - g( x ) ) \f$ and \f$ z ( g_i( x ) - RHS ) \f$,
- *    if \f$ -\infty < LHS < RHS < \infty \f$;
- *
- * -# \f$ w ( LHS - g( x ) ) \f$, if \f$ -\infty < LHS < RHS = \infty \f$;
- *
- * -# \f$ z ( g( x ) - RHS ) \f$, if \f$ -\infty = LHS < RHS < \infty \f$ or
- *                                   \f$ -\infty < LHS = RHS < \infty \f$.
- *
- * With this convention, if the optimization problem is a *minimization* one,
- * then
- *
- * - \f$ z \in R \f$ if this RowConstraint is an equality constraint (i.e.,
- *   -inf < LHS = RHS < inf);
- *
- * - \f$ w \ge 0 \f$ and \f$ z \ge 0 \f$, otherwise.
- *
- * For a *maximization* problem, we have the following:
- *
- * - \f$ z_i \in R\f$ if this RowConstraint is an equality constraint (i.e.,
- *   -inf < LHS = RHS < inf);
- *
- * - \f$ w \le 0 \f$ and \f$ z \le 0 \f$, otherwise.
- *
- * The value stored in \c d_value (which can be retrieved by get_dual() and
- * set by set_dual()) may not necessarily be equal to w_i or z_i though. If
- * this RowConstraint is an equality constraint, then \c d_value == z_i. If
- * this RowConstraint only has the lower or the upper bound constraint, then
- * \c d_value == w_i or \c d_value == z_i, respectively. When this
- * RowConstraint represents two inequality constraints (i.e., when -inf < LHS
- * < RHS < inf), then \c d_value may differ in sign from w_i or z_i. For this
- * last case, we adopt the following convention. In a *minimization* problem,
- * if \c d_value < 0, then \c d_value == -w_i; if \c d_value > 0, then \c
- * d_value == z_i. In a *maximization* problem, if \c d_value < 0, then \c
- * d_value == w_i; if \c d_value > 0, then \c d_value == -z_i.
- *
- * end ???
  *
  * On top of this the basic ConstraintMod, other modifications are possible
  * for this kind of Constraint, namely
