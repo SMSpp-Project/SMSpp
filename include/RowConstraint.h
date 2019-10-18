@@ -97,12 +97,12 @@ namespace SMSpp_di_unipi_it
  * multiplier. This is because we can assume without loss of generality (at
  * least regarding optimality) that
  *
- *     AT LEAST ONE BETWEEN THE Lagrangian MULTPLIER ASSOCIATED WITH THE
- *     LOWER BOUND CONSTRAINT AND THE Lagrangian MULTPLIER ASSOCIATED WITH
- *     THE UPPER BOUND CONSTRAINT IS ALWAYS 0
+ *     AT LEAST ONE BETWEEN THE Lagrangian MULTIPLIER ASSOCIATED WITH THE
+ *     LOWER BOUND CONSTRAINT AND THE Lagrangian MULTIPLIER ASSOCIATED
+ *     WITH THE UPPER BOUND CONSTRAINT IS ALWAYS 0
  *
  * This is of course true if one of the two bounds is infinite, as the
- * corresponding Lagrangian multipler is simply not defined. To see that we
+ * corresponding Lagrangian multiplier is simply not defined. To see that we
  * can actually assume this without loss of generality, consider the
  * following very general optimization problem
  * \f[
@@ -131,7 +131,7 @@ namespace SMSpp_di_unipi_it
  * \f]
  * The above formula already makes it immediately apparent that the Lagrangian
  * function actually depends on the difference \f$ z - w \f$; that is, any
- * choice of the two Lagrangian multiplers that have the same difference
+ * choice of the two Lagrangian multipliers that have the same difference
  * provides exactly the same value (and supergradients) in L(). Now, assume
  * that one has a feasible solution \f$ ( \bar{w} , \bar{z} ) \f$ for (D) such
  * that \f$ \bar{w} > 0 \f$ and \f$ \bar{z} > 0 \f$: it is easy to prove
