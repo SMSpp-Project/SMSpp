@@ -64,6 +64,316 @@ void PolyhedralFunctionBlock::generate_abstract_variables(
 
  }  // end( PolyhedralFunctionBlock::generate_abstract_variables )
 
+// don't bother issuing individual Modification, since a NBModification will
+ // anyway be issued soon (if anybody is listening)
+
+ f_polyf.deserialize( group , eNoMod );
+
+ // the PolyhedralFunctionBlock is "naked": no abstract representaton
+ f_v.is_fixed( true , eNoMod );
+ f_const.clear();
+
+ // issue a NBModification, the "nuclear option"- - - - - - - - - - - - - - -
+
+ if( anyone_there() )
+  add_Modification( std::make_shared<NBModification>( this ) );
+  
+ }  // end( PolyhedralFunctionBlock::deserialize )
+
+/*--------------------------------------------------------------------------*/
+
+PolyhedralFunctionBlock::~PolyhedralFunctionBlock( )
+{
+ // first, clear() all Constraint
+ auto & sc = get_static_constraints();
+ for( Index i = get_first_static_Constraint() ; i < sc.size() ; ++i ) {
+  if( un_any_const_static( sc[ i ] ,
+			   []( FRowConstraint & cnst ) { cnst.clear(); } ,
+			   un_any_type< FRowConstraint >() ) )
+   continue;
+  if( un_any_const_static( sc[ i ] ,
+			   []( BoxConstraint & cnst ) { cnst.clear(); } ,
+			   un_any_type< BoxConstraint >() ) )
+   continue;
+  if( un_any_const_static( sc[ i ] ,
+			   []( LBConstraint & cnst ) { cnst.clear(); } ,
+			   un_any_type< LBConstraint >() ) )
+   continue;
+  if( un_any_const_static( sc[ i ] ,
+			   []( UBConstraint & cnst ) { cnst.clear(); } ,
+			   un_any_type< UBConstraint >() ) )
+   continue;
+  if( un_any_const_static( sc[ i ] ,
+			   []( NNConstraint & cnst ) { cnst.clear(); } ,
+			   un_any_type< NNConstraint >() ) )
+   continue;
+  if( un_any_const_static( sc[ i ] ,
+			   []( NPConstraint & cnst ) { cnst.clear(); } ,
+			   un_any_type< NPConstraint >() ) )
+   continue;
+  un_any_const_static( sc[ i ] , []( ZOConstraint & cnst ) { cnst.clear(); } ,
+		       un_any_type< ZOConstraint >() );
+  }
+
+ auto & dc = get_dynamic_constraints();
+ for( Index i = get_first_dynamic_Constraint() ; i < dc.size() ; ++i ) {
+  if( un_any_const_dynamic( dc[ i ] ,
+			    []( FRowConstraint & cnst ) { cnst.clear(); } ,
+			    un_any_type< FRowConstraint >() ) )
+   continue;
+  if( un_any_const_dynamic( dc[ i ] ,
+			    []( BoxConstraint & cnst ) { cnst.clear(); } ,
+			    un_any_type< BoxConstraint >() ) )
+   continue;
+  if( un_any_const_dynamic( dc[ i ] ,
+			    []( LBConstraint & cnst ) { cnst.clear(); } ,
+			    un_any_type< LBConstraint >() ) )
+   continue;
+  if( un_any_const_dynamic( dc[ i ] ,
+			    []( UBConstraint & cnst ) { cnst.clear(); } ,
+			    un_any_type< UBConstraint >() ) )
+   continue;
+  if( un_any_const_dynamic( dc[ i ] ,
+			    []( NNConstraint & cnst ) { cnst.clear(); } ,
+			    un_any_type< NNConstraint >() ) )
+   continue;
+  if( un_any_const_dynamic( dc[ i ] ,
+			    []( NPConstraint & cnst ) { cnst.clear(); } ,
+			    un_any_type< NPConstraint >() ) )
+   continue;
+  un_any_const_dynamic( dc[ i ] , []( ZOConstraint & cnst ) { cnst.clear(); } ,
+			un_any_type< ZOConstraint >() );
+  }
+
+ // then clear the Objective
+ if( ( ! is_Objective_reserved() ) && get_objective() )
+  get_objective()->clear();
+
+ // now delete all the inner Block
+ for( Index i = get_first_inner_Block() ; i < v_Block.size() ; ++i )
+  delete v_Block[ i ];
+
+ v_Block.clear();
+
+ // now delete all the Constraint
+ for( Index i = get_first_static_Constraint() ; i < sc.size() ; ++i ) {
+  if( un_any_thing( FRowConstraint , sc[ i ] , { delete & var; } ) )
+   continue;
+  if( un_any_thing( BoxConstraint , sc[ i ] , { delete & var; } ) )
+   continue;
+  if( un_any_thing( LBConstraint , sc[ i ] , { delete & var; } ) )
+   continue;
+  if( un_any_thing( UBConstraint , sc[ i ] , { delete & var; } ) )
+   continue;
+  if( un_any_thing( NNConstraint , sc[ i ] , { delete & var; } ) )
+   continue;
+  if( un_any_thing( NPConstraint , sc[ i ] , { delete & var; } ) )
+   continue;
+  un_any_thing( ZOConstraint , sc[ i ] , { delete & var; } );
+  }
+
+ for( Index i = get_first_dynamic_Constraint() ; i < dc.size() ; ++i ) {
+  if( un_any_thing( std::list<FRowConstraint> , dc[ i ] , { delete & var; } ) )
+   continue;
+  if( un_any_thing( std::list<BoxConstraint> , dc[ i ] , { delete & var; } ) )
+   continue;
+  if( un_any_thing( std::list<LBConstraint> , dc[ i ] , { delete & var; } ) )
+   continue;
+  if( un_any_thing( std::list<UBConstraint> , dc[ i ] , { delete & var; } ) )
+   continue;
+  if( un_any_thing( std::list<NNConstraint> , dc[ i ] , { delete & var; } ) )
+   continue;
+  if( un_any_thing( std::list<NPConstraint> , dc[ i ] , { delete & var; } ) )
+   continue;
+  un_any_thing( std::list<ZOConstraint> , dc[ i ] , { delete & var; } );
+  }
+
+ // now delete all the Variable
+ auto & sv = get_static_variables();
+ for( Index i = get_first_static_Variable() ; i < sv.size() ; ++i )
+  un_any_thing( ColVariable , sv[ i ] , { delete & var; } );
+
+ auto & dv = get_dynamic_variables();
+ for( Index i = get_first_dynamic_Variable() ; i < dv.size() ; ++i )
+  un_any_thing( std::list<ColVariable> , dv[ i ] , { delete & var; } );
+
+ // now delete the Objective
+ if( ! is_Objective_reserved() )
+  delete get_objective();
+
+ }  // end( ~PolyhedralFunctionBlock )
+
+/*--------------------------------------------------------------------------*/
+
+bool PolyhedralFunctionBlock::is_feasible( bool useabstract , Configuration *fsbc )
+{
+ if( ! useabstract )
+  return( false );
+
+ // compute the accuracy parameter- - - - - - - - - - - - - - - - - - - - - -
+ double eps = 0;
+ auto tfsbc = dynamic_cast<SimpleConfiguration<double> *>( fsbc );
+
+ if( ( ! tfsbc ) && f_BlockConfig &&
+     f_BlockConfig->f_is_feasible_Configuration )
+  tfsbc = dynamic_cast<SimpleConfiguration<double> *>(
+			         f_BlockConfig->f_is_feasible_Configuration );
+ if( tfsbc )
+  eps = tfsbc->f_value;
+
+ bool feas = true;
+
+ // the static Constraints of the Block - - - - - - - - - - - - - - - - - - -
+ auto & sc = get_static_constraints();
+ for( Index i = get_first_static_Constraint() ; i < sc.size() ; ++i ) {
+  if( un_any_const_static( sc[ i ] , [ & feas , eps ]( FRowConstraint & cnst )
+			             { feas = ( cnst.rel_viol() <= eps ); } ,
+			   un_any_type< FRowConstraint >() ) ) {
+   if( ! feas )
+    return( false );
+   continue;
+   }
+  if( un_any_const_static( sc[ i ] , [ & feas , eps ]( BoxConstraint & cnst )
+			             { feas = ( cnst.rel_viol() <= eps ); } ,
+			   un_any_type< BoxConstraint >() ) ) {
+   if( ! feas )
+    return( false );
+   continue;
+   }
+  if( un_any_const_static( sc[ i ] , [ & feas , eps ]( LBConstraint & cnst )
+			             { feas = ( cnst.rel_viol() <= eps ); } ,
+			   un_any_type< LBConstraint >() ) ) {
+   if( ! feas )
+    return( false );
+   continue;
+   }
+  if( un_any_const_static( sc[ i ] , [ & feas , eps ]( UBConstraint & cnst )
+			             { feas = ( cnst.rel_viol() <= eps ); } ,
+			   un_any_type< UBConstraint >() ) ) {
+   if( ! feas )
+    return( false );
+   continue;
+   }
+  if( un_any_const_static( sc[ i ] , [ & feas , eps ]( NNConstraint & cnst )
+			             { feas = ( cnst.rel_viol() <= eps ); } ,
+			   un_any_type< NNConstraint >() ) ) {
+   if( ! feas )
+    return( false );
+   continue;
+   }
+  if( un_any_const_static( sc[ i ] , [ & feas , eps ]( NPConstraint & cnst )
+			             { feas = ( cnst.rel_viol() <= eps ); } ,
+			   un_any_type< NPConstraint >() ) ) {
+   if( ! feas )
+    return( false );
+   continue;
+   }
+  if( un_any_const_static( sc[ i ] , [ & feas , eps ]( ZOConstraint & cnst )
+			             { feas = ( cnst.rel_viol() <= eps ); } ,
+			   un_any_type< ZOConstraint >() ) ) {
+   if( ! feas )
+    return( false );
+   continue;
+   }
+  throw( logic_error(
+	"some static Constraint not FRowConstraint or :OneVarConstraint" ) );
+  }
+
+ // the static Variables of the Block - - - - - - - - - - - - - - - - - - - -
+ auto & sv = get_static_variables();
+ for( Index i = get_first_static_Variable() ; i < sv.size() ; ++i )
+ {
+  if( un_any_const_static( sv[ i ] , [ & feas , eps ]( ColVariable & var )
+			             { feas = var.is_feasible( eps ); } ,
+			   un_any_type< ColVariable >() ) ) {
+   if( ! feas )
+    return( false );
+   continue;
+   }
+  throw( logic_error( "some static Variable not ColVariable" ) );
+  }
+
+ // the dynamic Constraints of the Block-  - - - - - - - - - - - - - - - - - -
+ auto & dc = get_dynamic_constraints();
+ for( Index i = get_first_dynamic_Constraint() ; i < dc.size() ; ++i ) {
+  if( un_any_const_dynamic( dc[ i ] , [ & feas , eps ]( FRowConstraint & cnst )
+			              { feas = ( cnst.rel_viol() <= eps ); } ,
+			    un_any_type< FRowConstraint >() ) ) {
+   if( ! feas )
+    return( false );
+   continue;
+   }
+  if( un_any_const_dynamic( dc[ i ] , [ & feas , eps ]( BoxConstraint & cnst )
+			              { feas = ( cnst.rel_viol() <= eps ); } ,
+			   un_any_type< BoxConstraint >() ) ) {
+   if( ! feas )
+    return( false );
+   continue;
+   }
+  if( un_any_const_dynamic( dc[ i ] , [ & feas , eps ]( LBConstraint & cnst )
+			              { feas = ( cnst.rel_viol() <= eps ); } ,
+			   un_any_type< LBConstraint >() ) ) {
+   if( ! feas )
+    return( false );
+   continue;
+   }
+  if( un_any_const_dynamic( dc[ i ], [ & feas , eps ]( UBConstraint & cnst )
+			             { feas = ( cnst.rel_viol() <= eps ); } ,
+			   un_any_type< UBConstraint >() ) ) {
+   if( ! feas )
+    return( false );
+   continue;
+   }
+  if( un_any_const_dynamic( dc[ i ] , [ & feas , eps ]( NNConstraint & cnst )
+			              { feas = ( cnst.rel_viol() <= eps ); } ,
+			   un_any_type< NNConstraint >() ) ) {
+   if( ! feas )
+    return( false );
+   continue;
+   }
+  if( un_any_const_dynamic( dc[ i ] , [ & feas , eps ]( NPConstraint & cnst )
+			              { feas = ( cnst.rel_viol() <= eps ); } ,
+			   un_any_type< NPConstraint >() ) ) {
+   if( ! feas )
+    return( false );
+   continue;
+   }
+  if( un_any_const_dynamic( dc[ i ] , [ & feas , eps ]( ZOConstraint & cnst )
+			              { feas = ( cnst.rel_viol() <= eps ); } ,
+			   un_any_type< ZOConstraint >() ) ) {
+   if( ! feas )
+    return( false );
+   continue;
+   }
+  throw( logic_error(
+       "some dynamic Constraint not FRowConstraint or :OneVarConstraint" ) );
+  }
+
+ // the dynamic Variables of the Block- - - - - - - - - - - - - - - - - - - -
+ auto & dv = get_dynamic_variables();
+ for( Index i = get_first_dynamic_Variable() ; i < dv.size() ; ++i )
+ {
+  if( un_any_const_dynamic( dv[ i ] , [ & feas, eps ]( ColVariable & var )
+			              { feas = var.is_feasible( eps ); } ,
+			    un_any_type< ColVariable >() ) ) {
+   if( ! feas )
+    return( false );
+   continue;
+   }
+  throw( logic_error( "some dynamic Variable not ColVariable" ) );
+  }
+
+ // the inner Blocks - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ for( Index i = get_first_inner_Block() ; i < v_Block.size() ; ++i )
+  if( ! v_Block[ i ]->is_feasible( true ) )
+   return( false );
+
+ return( true );
+
+ }  // end( PolyhedralFunctionBlock::is_feasible )
+>>>>>>> dual
+
 /*--------------------------------------------------------------------------*/
 
 

@@ -151,7 +151,11 @@ class PolyhedralFunctionBlock : public AbstractBlock {
 
  PolyhedralFunctionBlock( Block * father = nullptr )
   : AbstractBlock( father ) , f_rep( false ) ,
-    f_polyf( {} , {} , {} , true , this ) {}
+    f_polyf( {} , {} , {} , true , this ) , f_v( this ) , f_const() 
+ {
+  f_v.is_fixed( true , eNoMod );
+  // this indicates that the linearized representation has not been built yet
+  }
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize the current PolyhedralFunctionBlock out of netCDF::NcGroup
@@ -163,7 +167,11 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   *   PolyhedralFunction::serialize() for details;
   *
   * - any other data necessary to represent the "arbitrary" part of the
-  *   AbstractBlock, see AbstractBlock::deserialize() for details. */
+  *   AbstractBlock, see AbstractBlock::deserialize() for details.
+  *
+
+
+ */
 
  void deserialize( netCDF::NcGroup & group ) override
  {
@@ -489,7 +497,20 @@ class PolyhedralFunctionBlock : public AbstractBlock {
 /*--------------------------------------------------------------------------*/
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
 /*--------------------------------------------------------------------------*/
+/* These fields are private because PolyhedralFunctionBlock ha unique
+ * jurisdiction on the PolyhedralFunction and its representation. Further
+ * derved classes may do whatever they want with "the rest" of the "abstract"
+ * representation, but they are not supposed to mess up with that part. */
 
+ bool f_rep;                  ///< which of the two representations is used
+ 
+ PolyhedralFunction f_polyf;  ///< the PolyhedralFunction
+
+ ColVariable f_v;        ///< the v variable in the linearized representation
+
+ std::list< FRowConstraint > f_const;
+                         ///< the constraints in the linearized representation
+ 
  SMSpp_insert_in_factory_h;
 
 /*--------------------------------------------------------------------------*/
