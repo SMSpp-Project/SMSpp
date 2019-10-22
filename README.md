@@ -1,20 +1,17 @@
-The "core" SMS++ {#mainpage}
-================
+# The "core" SMS++
 
 ![To boldly model (and solve) what no one has modeled (and solved) before](./doxygen/SMSpp_logo_mid_noback.png)
 
-Introduction
-------------
+## Introduction
 
 This is a the splash page of the documentation of the "core" SMS++, a set of
 C++ classes intended to provide a system for modeling complex,
 block-structured mathematical models (in particular, but not exclusively,
 single-real-objective optimization problems), and solving them via
-sophisticated, structure-exploiting algorithms (in praticular, but not
+sophisticated, structure-exploiting algorithms (in particular, but not
 exclusively, decomposition approaches and structured Interior-Point methods).
 
-A General Description of SMS++
-------------------------------
+## A General Description of SMS++
 
 Current systems for modeling mathematical models typically falls into two
 opposite approaches:
@@ -30,7 +27,7 @@ opposite approaches:
   available in the model, making it almost unreachable from the underlying
   solver. Some extensions have been proposed for specific forms of structure,
   mainly the block one, e.g. in the [Structured Modeling Language
-  (SML)](https://www.maths.ed.ac.uk/ERGO/sml). An alternativa approach has
+  (SML)](https://www.maths.ed.ac.uk/ERGO/sml). An alternative approach has
   been to re-construct the structure backwards from the "flat" model, as
   [Generic Column Generation (GCG)](http://www.or.rwth-aachen.de/gcg) does.
 
@@ -43,10 +40,10 @@ opposite approaches:
   [SCIP](http://scip.zib.de), offer one or more APIs, usually for
   different languages (among which, surely C/C++). This allows to directly
   address all the structure-exploiting features of the solver, if any, but
-  directly explosed the user to its complexity and idiosyncrasies.
+  directly exposed the user to its complexity and idiosyncrasies.
 
 - A somewhat "in the middle" approach is that of *modeling systems embedded
-  in general purpose languages*, such as 
+  in general purpose languages*, such as
   [FlopC++](https://projects.coin-or.org/FlopC++) and
   [COIN-Reharse](https://github.com/coin-or/Rehearse) for C++,
   [PuLP](https://pythonhosted.org/PuLP) and
@@ -173,7 +170,7 @@ SMS++ currently supports the following general mechanisms:
 
 - The solution status of a Block (the value of its Variable) can be saved
   in appropriate objects derived from the base Solution class, and then
-  read back from these in the Blocl. The Solution objects can possibly save
+  read back from these in the Block. The Solution objects can possibly save
   any subset of the information (as dictated by a Configuration object) and
   dual solution if available. A very general ColVariableSolution object is
   provided for doing this only using the "abstract representation" for
@@ -189,103 +186,101 @@ ThinComputeInterface). However, it is hopefully structured in such a way
 that these aspects can be added later with relatively minimal disruption
 of the current interface.
 
-
-Software Dependencies
-=====================
+## Software Dependencies
 
 SMS++ requires a modern (at least C++-14 compliant) C++ compiler. It relies
-on a few boost libraries
+on a few [Boost](https://www.boost.org) libraries, in particular:
 
-    https://www.boost.org
-
-in particular:
-
-- boost::any for vectors and lists of "any" kind of Constraint and
+- `boost::any` for vectors and lists of "any" kind of Constraint and
   Variable (although this may in the future be substituted with std::any)
 
-- boost::multi_array for multi-dimensional arrays of stuff
+- `boost::multi_array` for multi-dimensional arrays of stuff
 
-- boost::bind, boost::function, boost::functional::factory, and
-  boost::functional::forward_adapter for a factory construct
+- `boost::bind`, `boost::function`, `boost::functional::factory`, and
+  `boost::functional::forward_adapter` for a factory construct
 
-It also relies on Eigen
+It also relies on [Eigen](http://eigen.tuxfamily.org) for sparse vectors and
+matrices, although the use is so sparse right now (pun intended) that it is not
+completely sure the dependency will be maintained.
 
-    http://eigen.tuxfamily.org
-
-for sparse vectors and matrices, although the use is so sparse right now
-(pun intended) that it is not completely sure the dependency will be
-mantained.
-
-Finally, it relies on the C++ interface to NetCDF
-
-    https://www.unidata.ucar.edu/software/netcdf
-
+Finally, it relies on the C++ interface to [netCDF](https://www.unidata.ucar.edu/software/netcdf)
 for efficient serialization and de-serialization of Block and Configuration
 objects on self-describing, machine-independent data files.
 
-Optionally, SMS++ relies on CMake for building and installing.
+Optionally, SMS++ relies on [CMake](https://cmake.org) for building and installing.
 
-Download and build
-==================
+## Build and install
 
-- Clone the project from the repository:
+- Clone the project from the repository and navigate inside its main directory.
 
-      $ git clone https://gitlab.com/frangio68/sms_plus_plus
+- If you installed the requirements you should be fine. Configure the project with:
+```sh
+mkdir build
+cd build
+cmake ..
+```
 
-- Navigate inside the project directory:
+  If you can't or wont install the required libraries, you will need to specify
+  their custom path in the [`CMakeCustom.txt`](CMakeCustom.txt), e.g.:
+```cmake
+...
+# Boost main directory
+set(BOOST_ROOT  "/my/custom/path/to/boost/")
+...
+```
 
-      $ cd sms_plus_plus
-
-- Now configure the project.
-  If you installed the requirements using either your OS's package manager
-  (e. g. `apt-get` under Ubuntu or Homebrew under macOS), or
-  their own CMake configuration script, you should be fine.
-  If you can't or wont install the required libraries, you will need to
-  specify the path where to find them (See troubleshooting).
-  
-      $ mkdir build
-      $ cd build
-      $ cmake ..
+  See [`CMakeCustom.txt`](CMakeCustom.txt) for other ways to customize the configuration of SMS++ projects.
 
 - You can now build the library:
-
-      $ make
+```sh
+make
+```
 
 - Optionally, you can install the library with:
-
-      $ make install
+```sh
+sudo make install
+```
 
 - After the library is configured and built, you can use it in your CMake project with:
+```cmake
+find_package(SMSpp)
+target_link_libraries(<my_target> SMS++::SMSpp)
+```
 
-      find_package(SMSpp)
-      target_link_libraries(<my_target> SMS++::SMSpp)
-      
-Troubleshooting
-===============
+### Run Google Tests
+
+If `enable_testing()` is not commented in the customization file, some simple Google Tests will
+be built with the library. You can run them with the following command from the `build` directory:
+```sh
+ctest
+```
+
+## Troubleshooting
+
 During CMake configuration, you may encounter one or more of the following errors:
 
 - `No CMAKE_CXX_COMPILER could be found.`
-   
+
    This usually means that your C++ compiler is not installed.
    Make sure that either `g++` or `clang` is installed properly.
-   
+
    If the error persists you can set either the environment variable `CXX`
    or the CMake cache entry `CMAKE_CXX_COMPILER` to the full path
    to the compiler, or to the compiler name if it is in the `PATH`.
 
 - `Unable to find the requested Boost libraries.`
-   
+
    CMake was not able to locate your Boost installation,
-   so make sure that you install Boost using your OS's package manager.
-   
-   If you can't or won't install Boost (or if the error persists),
-   you can either set `BOOST_ROOT` to the root directory containing Boost.
+   so make sure that it is installed. If you can't or won't install Boost,
+   you can either set `BOOST_ROOT` to the root directory containing Boost in the
+   customization file or run the configuration with:
+   ```sh
+   cmake .. -DBOOST_ROOT="/my/custom/path/to/boost/"
+   ```
 
-Legal Stuff
-===========
+## Legal Stuff
 
-Standard Disclaimer
--------------------
+### Standard Disclaimer
 
 The code is currently provided free of charge for academic purposes only.
 As such, it is provided "as is", without any explicit or implicit warranty
@@ -295,11 +290,10 @@ any damage or loss that anybody could suffer for having used it. More
 details about the non-warranty attached to this code are available in the
 license description file.
 
-License
--------
+### License
 
 This code is provided free of charge for academic purposes under the
-"academic license": see the file doc/academicl.txt for further details. Because
+"academic license": see the file[`doc/academicl.txt`](doc/academicl.txt) for further details. Because
 the code is currently in the early stages of its development we prefer a
 stricter licensing regime w.r.t. LGPL in order to discourage too early
 fragmentation of the code. Thus, you can make changes, but we strongly suggest
@@ -310,36 +304,31 @@ incorporate them in the standard release. Yet, it is foreseen that the license
 will be moved to LGPL as soon as the code is deemed stable enough to be widely
 distributed.
 
-Version
-=======
+## Version
 
 - Current version of SMS++ is: 0.10
 
 - Current date is:             14 - Nov - 2018
 
-Authors
-=======
+## Authors
 
-Current Lead Authors
---------------------
+### Current Lead Authors
 
 	Antonio Frangioni
 	Operations Research Group
 	Dipartimento di Informatica
-	Universita' di Pisa
- 
+	Università di Pisa
+
 	Rafael Durbano Lobato
  	Department of Applied Mathematics
 	State University of Campinas, Brazil
 
-Previous Lead Authors and Contributors
---------------------------------------
+### Previous Lead Authors and Contributors
 
 	Kostas Tavlaridis-Gyparakis
 	Operations Research Group
 	Dipartimento di Informatica
-	Universita' di Pisa
+	Università di Pisa
 
 	Utz-Uwe Haus
 	Cray EMEA Research Lab
-
