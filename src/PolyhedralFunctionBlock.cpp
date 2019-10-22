@@ -51,21 +51,19 @@ SMSpp_insert_in_factory_cpp_1( PolyhedralFunctionBlock );
 
 void PolyhedralFunctionBlock::deserialize( netCDF::NcGroup & group )
 {
- if( ! f_polyf )
+ // don't bother issuing individual Modification, since a NBModification will
+ // anyway be issued soon (if anybody is listening)
 
- 
+ f_polyf.deserialize( group , eNoMod );
 
- auto nibs = nib.getSize();
+ // the PolyhedralFunctionBlock is "naked": no abstract representaton
+ f_v.is_fixed( true , eNoMod );
+ f_const.clear();
 
- if( v_Block.size() < nibs )
-  v_Block.resize( nibs , nullptr );
-  
- for( Index i = get_first_inner_Block() ; i < nibs ; ++i ) {
-  auto bi = group.getGroup( "Block_" + std::to_string( i ) );
-  if( bi.isNull() )
-   throw( std::invalid_argument( "inner Block not found" ) );
-  v_Block[ i ] = new_Block( bi );
-  }
+ // issue a NBModification, the "nuclear option"- - - - - - - - - - - - - - -
+
+ if( anyone_there() )
+  add_Modification( std::make_shared<NBModification>( this ) );
   
  }  // end( PolyhedralFunctionBlock::deserialize )
 

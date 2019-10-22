@@ -1022,7 +1022,8 @@ class Block : public Observer {
   * implementation just (checks if type and name() match, and) scans all the
   * child NcGroup of the current NcGroup, assumes that each one of them is a
   * Block group and de-serializes a sub-Block of the Block out of it, in
-  * left-to-right order. */
+  * left-to-right order. After that, a NBModification is issued (if there
+  * is anybody "listening", which one does not really expect there is). */
 
  virtual void deserialize( netCDF::NcGroup & group )
  {
@@ -1034,6 +1035,10 @@ class Block : public Observer {
 
   for( auto it = ng.begin() ; it != ng.end() ; ++it )
    v_Block.push_back( new_Block( it->second , this ) );
+
+  // issue a NBModification, the "nuclear option"
+  if( anyone_there() )
+   add_Modification( std::make_shared<NBModification>( this ) );
   }
 
 /*--------------------------------------------------------------------------*/
