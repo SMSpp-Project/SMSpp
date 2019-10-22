@@ -13,7 +13,7 @@ For a more detailed description of SMS++ see [the Wiki pages](https://gitlab.com
 ## Getting started
 
 These instructions will let you build and install SMS++ on your system.
-If you encounter issues, see the troubleshooting section [here](https://gitlab.com/frangio68/sms_plus_plus/wikis/troubleshooting.md).
+If you encounter issues, see the troubleshooting section [here](https://gitlab.com/frangio68/sms_plus_plus/wikis/troubleshooting).
 
 ### Requirements
 
@@ -50,7 +50,7 @@ cmake ..
 ```
 
   If you can't or wont install the required libraries, you will need to specify
-  their custom path, see [here](https://gitlab.com/frangio68/sms_plus_plus/wikis/custom.md).
+  their custom path, see [here](https://gitlab.com/frangio68/sms_plus_plus/wikis/custom).
 
 - Build the library with:
 ```sh
