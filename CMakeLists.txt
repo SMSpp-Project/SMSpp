@@ -30,7 +30,7 @@ find_package(Eigen3 REQUIRED)
 find_package(netCDF REQUIRED)
 
 # ----- Library ------------------------------------------------------------- #
-add_library(SMSpp STATIC)
+add_library(SMSpp)
 target_compile_features(SMSpp PUBLIC cxx_std_17)
 
 target_sources(SMSpp PRIVATE
