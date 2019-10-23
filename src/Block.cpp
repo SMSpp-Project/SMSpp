@@ -910,6 +910,8 @@ void BlockConfig::serialize( netCDF::NcGroup & group ) const
 {
  Configuration::serialize( group );
 
+ group.putAtt( "name" , f_name );
+
  if( f_static_constraints_Configuration ) {
   auto cg = group.addGroup( "static_constraints" );
   f_static_constraints_Configuration->serialize( cg );
