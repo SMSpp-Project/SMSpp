@@ -1,9 +1,21 @@
-image: alpine:latest
+image: alpine
+
+before_script:
+  - apk update
+  - apk add doxygen
+## Uncomment the following line if you use graphviz dot graphs
+#- apk add ttf-freefont graphviz
+
+test:
+  script:
+    - doxygen doxygen/Doxyfile
+  except:
+    - master
 
 pages:
-  stage: deploy
   script:
-    - echo 'Nothing to do...'
+    - doxygen doxygen/Doxyfile
+    - mv doc/html/ public/
   artifacts:
     paths:
       - public
