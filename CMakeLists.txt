@@ -147,3 +147,5 @@ endif ()
 if (CMAKE_TESTING_ENABLED)
     add_subdirectory(test)
 endif()
+
+add_subdirectory(tools)
