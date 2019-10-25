@@ -8,6 +8,9 @@ fetchcontent_declare(
 
 fetchcontent_getproperties(googletest)
 if (NOT googletest_POPULATED)
+    if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+        set(CMAKE_MACOSX_RPATH 1)
+    endif ()
     fetchcontent_populate(googletest)
     add_subdirectory(${googletest_SOURCE_DIR} ${googletest_BINARY_DIR})
 endif ()
@@ -21,7 +24,3 @@ add_test(
         COMMAND AbstractBlock_test
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
-
-
-#add_executable(SMS++_test main.cpp)
-#target_link_libraries(SMS++_test SMS++ netcdf netcdf-cxx4)
