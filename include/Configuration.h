@@ -659,8 +659,12 @@ class SimpleConfiguration : public Configuration
  SimpleConfiguration( void ) : Configuration() { }
 
  /// constructor taking the value as input
- SimpleConfiguration( SimpleConfiguration_value_type &initval ) :
+ explicit SimpleConfiguration(const SimpleConfiguration_value_type &initval ) :
  Configuration() { f_value = initval; }
+
+ /// constructor taking the value as input
+ explicit SimpleConfiguration( const SimpleConfiguration_value_type && initval ) :
+  Configuration() { f_value = initval; }
 
  /// copy constructor: does what it says on the tin
  SimpleConfiguration( const SimpleConfiguration &old ) : Configuration() {
