@@ -129,13 +129,14 @@ namespace SMSpp_di_unipi_it
  *                     \min \{ f( x ) + ( z - w ) g( x ) : x \in X \} :
  *                     w \ge 0  ,  z \ge 0 \}
  * \f]
- * The above formula already makes it immediately apparent that the Lagrangian
- * function actually depends on the difference \f$ z - w \f$; that is, any
- * choice of the two Lagrangian multipliers that have the same difference
- * provides exactly the same value (and supergradients) in L(). Now, assume
- * that one has a feasible solution \f$ ( \bar{w} , \bar{z} ) \f$ for (D) such
- * that \f$ \bar{w} > 0 \f$ and \f$ \bar{z} > 0 \f$: it is easy to prove
- * that it cannot be an optimal solution for (D). Indeed, define
+ * The above formula already makes it immediately apparent that the
+ * minimization problem that underlies the Lagrangian function actually
+ * depends on the difference \f$ z - w \f$; that is, any choice of the two
+ * Lagrangian multipliers that have the same difference provides exactly the
+ * same value (and supergradients) in L(). Now, assume that one has a feasible
+ * solution \f$ ( \bar{w} , \bar{z} ) \f$ for (D) such that \f$ \bar{w} > 0
+ * \f$ and \f$ \bar{z} > 0 \f$: it is easy to prove that it cannot be an
+ * optimal solution for (D). Indeed, define
  * \f$ ( w' = \max \{ 0 , \bar{w} - \bar{z} \} ,
  *       z' = \max \{ 0 , \bar{z} - \bar{w} \} ) \f$. It is immediate to
  * check that \f$ ( w' , z' ) \ge 0 \f$ (is feasible), and that
