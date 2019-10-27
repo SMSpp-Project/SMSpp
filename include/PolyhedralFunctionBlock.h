@@ -175,7 +175,19 @@ class PolyhedralFunctionBlock : public AbstractBlock {
 
  void deserialize( netCDF::NcGroup & group ) override
  {
-  f_polyf.deserialize( group );
+  // don't bother issuing individual Modification, since a NBModification will
+  // anyway be issued soon (if anybody is listening)
+
+  f_polyf.deserialize( group , eNoMod );
+
+  // the PolyhedralFunctionBlock is "naked": no abstract representaton
+  f_v.is_fixed( true , eNoMod );
+  f_const.clear();
+
+  // issue a NBModification, the "nuclear option" - - - - - - - - - - - - - -
+
+  if( anyone_there() )
+   add_Modification( std::make_shared<NBModification>( this ) );
   }
 
 /*--------------------------------------------------------------------------*/

@@ -50,35 +50,20 @@ SMSpp_insert_in_factory_cpp_1( PolyhedralFunctionBlock );
 /*--------------------------------------------------------------------------*/
 
 void PolyhedralFunctionBlock::generate_abstract_variables(
-						       Configuration *stvv  )
+						        Configuration * stvv )
 {
  int wsol = 0;
- auto tsolc = dynamic_cast<SimpleConfiguration<int> *>( solc );
+ auto tstvv = dynamic_cast<SimpleConfiguration<int> *>( stvv );
 
- if( ( ! tsolc ) && f_BlockConfig && f_BlockConfig->f_solution_Configuration )
-  tsolc = dynamic_cast<SimpleConfiguration<int> *>(
+ if( ( ! tstvv ) && f_BlockConfig && f_BlockConfig->f_solution_Configuration )
+  tstvv = dynamic_cast<SimpleConfiguration<int> *>(
 			            f_BlockConfig->f_solution_Configuration );
- if( tsolc )
-  wsol = tsolc->f_value;
+ if( tstvv )
+  wsol = tstvv->f_value;
 
-
+ f_rep = ( f_value != 0 );
+ 
  }  // end( PolyhedralFunctionBlock::generate_abstract_variables )
-
-// don't bother issuing individual Modification, since a NBModification will
- // anyway be issued soon (if anybody is listening)
-
- f_polyf.deserialize( group , eNoMod );
-
- // the PolyhedralFunctionBlock is "naked": no abstract representaton
- f_v.is_fixed( true , eNoMod );
- f_const.clear();
-
- // issue a NBModification, the "nuclear option"- - - - - - - - - - - - - - -
-
- if( anyone_there() )
-  add_Modification( std::make_shared<NBModification>( this ) );
-  
- }  // end( PolyhedralFunctionBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
 

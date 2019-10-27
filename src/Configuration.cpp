@@ -4,9 +4,9 @@
 /** @file
  * Implementation of the Configuration class.
  *
- * \version 0.10
+ * \version 0.11
  *
- * \date 16 - 09 - 2018
+ * \date 27 - 10 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n

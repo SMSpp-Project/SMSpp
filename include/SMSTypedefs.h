@@ -19,9 +19,9 @@
  * - some templates to simplify handling serialization and deserialization
  *   to/from a netCDF file;
  *
- * \version 0.12
+ * \version 0.13
  *
- * \date 05 - 09 - 2019
+ * \date 27 - 10 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -282,20 +282,27 @@ namespace SMSpp_di_unipi_it
  * define a static member _initializer that is initialized in whatever object
  * the other macro SMSpp_insert_in_factory_cpp() is put as soon as the program
  * starts; when the constructor is called, it will register the class in the
- * f_factory of the appropriate base class.
+ * f_factory of the appropriate base class, as well as calling the
+ * static_initialization() method of the class (useful for any other static
+ * initialization, such as registering methods in the methods factory).
  *
- * It also defines the private_name() method. */
+ * It also defines the private_name() method and the _private_name() static
+ * method which is the implementation of private_name() (but it is static,
+ * and therefore can be called in initialization statements, whereas
+ * private_name() is virtual and therefore it can not). */
 
 #define SMSpp_insert_in_factory_h \
  static class _init { \
   public: \
   _init( void ); \
   } _initializer; \
-  \
- virtual const std::string & private_name( void ) const override
+ \
+ const std::string & private_name( void ) const override; \
+ \
+ static const std::string & _private_name( void )
 
 /*--------------------------------------------------------------------------*/
-/* These macros do four things:
+/* These macros do five things:
  *
  * 1) the actual implementation of the ClassName::_init::_init( void )
  *    constructor, within which:
@@ -304,15 +311,59 @@ namespace SMSpp_di_unipi_it
  *
  *    1.2) the static_initialization() method of the class is invoked;
  *
- * 2) the actual declaration of the ClassName::_initializer static object,
+ * 2) the actual declaration of the ClassName::_initializer static object;
  *
- * 3) the actual implementation of ClassName::private_name().
+ * 3) the actual implementation of the static ClassName::_private_name();
+ *
+ * 4) the actual implementation of virtual ClassName::private_name(), itself
+ *    using ClassName::_private_name().
+ *
+ * The approach can be applied to any class that:
+ *
+ * - has one and only one "f_factory" field, typically defined in the base
+ *   class and visible to each of its derived classes;
+ *
+ * - has one static_initialization() method (that can be defined in the base
+ *   class and do nothing if it is not needed).
  *
  * Note the use of the "Stringification" operator "#" when converting the
  * macro parameter ClassName to its string representation.
  *
- * Note: the approach requires that there is only one "f_factory" field,
- * coming from the base class, visible to each of its derived classes.
+ * IMPORTANT NOTE: The string reported by [_]private_name(), which is the same
+ *                 that is used to index the factory, is *stripped of any
+ * whitespace*. The reason is that it can have to be read from a std::stream,
+ * and there whitespaces are separators. This means that template classes may
+ * find themselves having "incorrect" names; something like
+ * myBlock< std::vector< int > > gets name "myBlock<std::vector<int>>", which
+ * is formally incorrect due to the final ">>" (a space is strictly needed
+ * there when the name is seen by the compiler). But this is of no import
+ * since the string is only used at runtime, and therefore it needs not be
+ * correct from the compiler standpoint.
+ *
+ * IMPORTANT NOTE: Due to the fact that the ClassName is used as an argument
+ *                 of the macros,
+ *
+ *     THE NAME GIVEN TO THE CLASS MUST NOT CONTAIN ANY ","
+ *
+ * This creates issues again with template classes, because something like
+ *
+ *      myBlock< std::pair< int , int > > CANNOT BE USED
+ *
+ * Names whose "natural" form contain a comma (typically, some but not all
+ * of the template ones) will have to be mangled so as to *not* contain it.
+ * The typical way is to resort to a using declaration, i.e.,
+ *
+ *      using myBlock_i_i = myBlock< std::pair< int , int > >;
+ *      SMSpp_insert_in_factory_cpp_1_t( myBlock_i_i );
+ *
+ * This implies that when such a Block is required from the factory, one
+ *
+ *      MUST NECESSARILY USE new_Block( "myBlock_i_i" ) and
+ *
+ *      CANNOT USE new_Block( "myBlock<std::pair<int,int>>" )
+ *
+ * as the latter will not work. Similarly, the name of the Block in any
+ * netCDF of txt file will have to be "myBlock_i_i".
  *
  * The alert reader may wonder why the ugly two-step mechanism to define the
  * object inserted in the factory in the "_1" version. This is due to the
@@ -336,62 +387,114 @@ namespace SMSpp_di_unipi_it
  *   template<>
  *   int A<5>::a{};
  *
- * cue the funny "{}". */
+ * cue the funny "{}".
+ *
+ * Finally, we remark that stripping the class name from whitespaces is done
+ * during the initialization of the static const std::string my_name variable
+ * of _private_name() by using a lambda that is defined and immediately
+ * called on #ClassName. This operation hence happens *at runtime*, although
+ * only once the first time that _private_name() is called (which is
+ * immedately as the class is registered in the factory). This is slightly
+ * inefficient since the stripping should rather reasonably happen at compile
+ * time; as C++-20 arrives most of std::algorithms will be constextr-able
+ * and therefore this will hopefully be possible. */
 
 #define SMSpp_insert_in_factory_cpp_0( ClassName ) \
- const std::string & ClassName::private_name( void ) const { \
-  static const std::string my_name( #ClassName ); \
+ const std::string & ClassName::_private_name( void ) { \
+  static const std::string my_name( \
+   [] ( std::string && str ) -> std::string && { \
+    str.erase( std::remove_if( str.begin() , str.end() , ::isspace ) , \
+	       str.end() );	\
+    return( std::move( str ) ); \
+    } ( std::move( std::string( #ClassName ) ) ) ); \
   return( my_name ); \
   } \
     \
- ClassName::_init::_init( void ) {				\
-  f_factory()[ #ClassName ] = boost::factory<ClassName*>();	\
-  ClassName::static_initialization();                           \
+ const std::string & ClassName::private_name( void ) const { \
+  return( ClassName::_private_name() );	\
+  } \
+    \
+ ClassName::_init::_init( void ) {    \
+  f_factory()[ ClassName::_private_name() ] = \
+   boost::factory< ClassName * >();   \
+  ClassName::static_initialization(); \
   } \
     \
  ClassName::_init ClassName::_initializer
 
-#define SMSpp_insert_in_factory_cpp_1( ClassName )	\
- const std::string & ClassName::private_name( void ) const { \
-  static const std::string my_name( #ClassName ); \
+#define SMSpp_insert_in_factory_cpp_1( ClassName ) \
+ const std::string & ClassName::_private_name( void ) { \
+  static const std::string my_name( \
+   [] ( std::string && str ) -> std::string && { \
+    str.erase( std::remove_if( str.begin() , str.end() , ::isspace ) , \
+	       str.end() );	\
+    return( std::move( str ) ); \
+    } ( std::move( std::string( #ClassName ) ) ) ); \
   return( my_name ); \
   } \
     \
+ const std::string & ClassName::private_name( void ) const { \
+  return( ClassName::_private_name() );	\
+  } \
+    \
  ClassName::_init::_init( void ) { \
-  auto f = boost::factory<ClassName*>(); \
-  auto f2 = boost::forward_adapter<decltype(f)>( f ); \
-  f_factory()[ #ClassName ] = boost::bind<ClassName*>(f2,_1);	\
-  ClassName::static_initialization();                           \
+  auto f = boost::factory< ClassName * >(); \
+  auto f2 = boost::forward_adapter< decltype( f ) >( f ); \
+  f_factory()[ ClassName::_private_name() ] = \
+   boost::bind<ClassName*>( f2 , _1 );        \
+  ClassName::static_initialization();         \
   } \
     \
  ClassName::_init ClassName::_initializer
 
 #define SMSpp_insert_in_factory_cpp_0_t( ClassName ) \
  template<> \
- const std::string & ClassName::private_name( void ) const {	\
-  static const std::string my_name( #ClassName ); \
+ const std::string & ClassName::_private_name( void ) {	\
+  static const std::string my_name( \
+   [] ( std::string && str ) -> std::string && { \
+    str.erase( std::remove_if( str.begin() , str.end() , ::isspace ) , \
+	       str.end() );	\
+    return( std::move( str ) ); \
+    } ( std::move( std::string( #ClassName ) ) ) ); \
   return( my_name ); \
   } \
     \
+ template<> \
+ const std::string & ClassName::private_name( void ) const { \
+  return( ClassName::_private_name() );	\
+  } \
+    \
  template<> ClassName::_init::_init( void ) { \
-  f_factory()[ #ClassName ] = boost::factory<ClassName*>();	\
-  ClassName::static_initialization();                           \
+  f_factory()[ ClassName::_private_name() ] = \
+   boost::factory< ClassName * >();           \
+  ClassName::static_initialization();         \
   } \
     \
  template<> ClassName::_init ClassName::_initializer{}
 
 #define SMSpp_insert_in_factory_cpp_1_t( ClassName ) \
  template<> \
- const std::string & ClassName::private_name( void ) const { \
-  static const std::string my_name( #ClassName ); \
+ const std::string & ClassName::_private_name( void ) {	\
+  static const std::string my_name( \
+   [] ( std::string && str ) -> std::string && { \
+    str.erase( std::remove_if( str.begin() , str.end() , ::isspace ) , \
+	       str.end() );	\
+    return( std::move( str ) ); \
+    } ( std::move( std::string( #ClassName ) ) ) ); \
   return( my_name ); \
+  } \
+    \
+ template<> \
+ const std::string & ClassName::private_name( void ) const { \
+  return( ClassName::_private_name() );	\
   } \
     \
  template<> ClassName::_init::_init( void ) { \
   auto f = boost::factory<ClassName*>(); \
-  auto f2 = boost::forward_adapter<decltype(f)>( f ); \
-  f_factory()[ #ClassName ] = boost::bind<ClassName*>(f2,_1);	\
-  ClassName::static_initialization();                           \
+  auto f2 = boost::forward_adapter< decltype( f ) >( f ); \
+  f_factory()[ ClassName::_private_name() ] = \
+   boost::bind<ClassName*>( f2 , _1 );        \
+  ClassName::static_initialization();         \
   } \
     \
  template<> ClassName::_init ClassName::_initializer{}
