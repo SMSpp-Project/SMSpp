@@ -782,8 +782,7 @@ void BlockConfig::print( std::ostream &output ) const
 
 /*--------------------------------------------------------------------------*/
 
-void BlockConfig::load( std::istream &input )
-{
+void BlockConfig::load( std::istream & input ) {
  input >> eatcomments;
  if( input.peek() == input.widen( '*' ) )
   f_name.erase();
@@ -791,118 +790,138 @@ void BlockConfig::load( std::istream &input )
   input >> f_name;
 
  input >> eatcomments;
- if( input.peek() == input.widen( '*' ) )
+ if( input.peek() == input.widen( '*' ) ) {
   f_static_constraints_Configuration = nullptr;
- else {
+  input.ignore( std::numeric_limits< std::streamsize >::max(),
+                input.widen( '\n' ) );
+ } else {
   std::string cname;
   input >> cname;
   f_static_constraints_Configuration =
-                                    Configuration::new_Configuration( cname );
+   Configuration::new_Configuration( cname );
   input >> *f_static_constraints_Configuration;
-  }
+ }
 
  input >> eatcomments;
- if( input.peek() == input.widen( '*' ) )
+ if( input.peek() == input.widen( '*' ) ) {
   f_dynamic_constraints_Configuration = nullptr;
- else {
+  input.ignore( std::numeric_limits< std::streamsize >::max(),
+                input.widen( '\n' ) );
+ } else {
   std::string cname;
   input >> cname;
   f_dynamic_constraints_Configuration =
-                                    Configuration::new_Configuration( cname );
+   Configuration::new_Configuration( cname );
   input >> *f_dynamic_constraints_Configuration;
-  }
+ }
 
  input >> eatcomments;
- if( input.peek() == input.widen( '*' ) )
+ if( input.peek() == input.widen( '*' ) ) {
   f_static_variables_Configuration = nullptr;
- else {
+  input.ignore( std::numeric_limits< std::streamsize >::max(),
+                input.widen( '\n' ) );
+ } else {
   std::string cname;
   input >> cname;
   f_static_variables_Configuration =
-                                    Configuration::new_Configuration( cname );
+   Configuration::new_Configuration( cname );
   input >> *f_static_variables_Configuration;
-  }
+ }
 
  input >> eatcomments;
- if( input.peek() == input.widen( '*' ) )
+ if( input.peek() == input.widen( '*' ) ) {
   f_dynamic_variables_Configuration = nullptr;
- else {
+  input.ignore( std::numeric_limits< std::streamsize >::max(),
+                input.widen( '\n' ) );
+ } else {
   std::string cname;
   input >> cname;
   f_dynamic_variables_Configuration =
-                                    Configuration::new_Configuration( cname );
+   Configuration::new_Configuration( cname );
   input >> *f_dynamic_variables_Configuration;
-  }
+ }
 
  input >> eatcomments;
- if( input.peek() == input.widen( '*' ) )
+ if( input.peek() == input.widen( '*' ) ) {
   f_objective_Configuration = nullptr;
- else {
+  input.ignore( std::numeric_limits< std::streamsize >::max(),
+                input.widen( '\n' ) );
+ } else {
   std::string cname;
   input >> cname;
   f_objective_Configuration = Configuration::new_Configuration( cname );
   input >> *f_objective_Configuration;
-  }
+ }
 
  input >> eatcomments;
- if( input.peek() == input.widen( '*' ) )
+ if( input.peek() == input.widen( '*' ) ) {
   f_is_feasible_Configuration = nullptr;
- else {
+  input.ignore( std::numeric_limits< std::streamsize >::max(),
+                input.widen( '\n' ) );
+ } else {
   std::string cname;
   input >> cname;
   f_is_feasible_Configuration = Configuration::new_Configuration( cname );
   input >> *f_is_feasible_Configuration;
-  }
+ }
 
  input >> eatcomments;
- if( input.peek() == input.widen( '*' ) )
+ if( input.peek() == input.widen( '*' ) ) {
   f_is_optimal_Configuration = nullptr;
- else {
+  input.ignore( std::numeric_limits< std::streamsize >::max(),
+                input.widen( '\n' ) );
+ } else {
   std::string cname;
   input >> cname;
   f_is_optimal_Configuration = Configuration::new_Configuration( cname );
   input >> *f_is_optimal_Configuration;
-  }
+ }
 
  input >> eatcomments;
- if( input.peek() == input.widen( '*' ) )
+ if( input.peek() == input.widen( '*' ) ) {
   f_solution_Configuration = nullptr;
- else {
+  input.ignore( std::numeric_limits< std::streamsize >::max(),
+                input.widen( '\n' ) );
+ } else {
   std::string cname;
   input >> cname;
   f_solution_Configuration = Configuration::new_Configuration( cname );
   input >> *f_solution_Configuration;
-  }
+ }
 
  input >> eatcomments;
- if( input.peek() == input.widen( '*' ) )
+ if( input.peek() == input.widen( '*' ) ) {
   f_extra_Configuration = nullptr;
- else {
+  input.ignore( std::numeric_limits< std::streamsize >::max(),
+                input.widen( '\n' ) );
+ } else {
   std::string cname;
   input >> cname;
   f_extra_Configuration = Configuration::new_Configuration( cname );
   input >> *f_extra_Configuration;
-  }
+ }
 
  int k;
  input >> eatcomments >> k;
  v_sub_BlockConfig.resize( k );
- for( int i = 0 ; i < k ; ++i ) {
+ for( int i = 0; i < k; ++i ) {
   input >> eatcomments;
-  if( input.peek() == input.widen( '*' ) )
+  if( input.peek() == input.widen( '*' ) ) {
    v_sub_BlockConfig[ i ] = nullptr;
-  else {
+   input.ignore( std::numeric_limits< std::streamsize >::max(),
+                 input.widen( '\n' ) );
+  } else {
    std::string cname;
    input >> cname;
-   Configuration *tmpc = Configuration::new_Configuration( cname );
-   BlockConfig *tmpbc = dynamic_cast<BlockConfig *>( tmpc );
-   if( ! tmpbc )
-    throw( invalid_argument( "not a BlockConfig object" ) );
+   Configuration * tmpc = Configuration::new_Configuration( cname );
+   BlockConfig * tmpbc = dynamic_cast<BlockConfig *>( tmpc );
+   if( !tmpbc )
+    throw ( invalid_argument( "not a BlockConfig object" ) );
    v_sub_BlockConfig[ i ] = tmpbc;
    input >> *tmpbc;
-   }
   }
- }  // end( BlockConfig::load )
+ }
+}  // end( BlockConfig::load )
 
 /*--------------------------------------------------------------------------*/
 

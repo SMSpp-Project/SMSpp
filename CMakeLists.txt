@@ -142,9 +142,7 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     export(PACKAGE SMSpp)
 endif ()
 
-# ----- Subdirectories ------------------------------------------------------ #
+# ----- Unit testing -------------------------------------------------------- #
 if (CMAKE_TESTING_ENABLED)
     add_subdirectory(test)
 endif()
-
-#add_subdirectory(tools)

@@ -132,13 +132,13 @@ namespace SMSpp_di_unipi_it
  *                     w \ge 0  ,  z \ge 0 \}
  * \f]
  * The above formula already makes it immediately apparent that the
- * Lagrangian function actually depends on the difference \f$ z - w \f$;
- * that is, any choice of \f$ z \f$ and \f$ w \f$ that have the same
- * difference provides exactly the same value of the minimization problem
- * (the Lagrangian relaxation) in the computation of \f$ L() \f$. Besides,
- * the set of optimal solutions is the same, and so is the set of
- * supergradients of (the concave function) \f$ L() \f$. Of course, due to
- * the term  \f$  w l - z  u \f$ in the objective, and the fact that
+ * minimization problem that underlies the Lagrangian function actually
+ * depends on the difference \f$ z - w \f$; that is, any choice of \f$ z \f$
+ * and \f$ w \f$ that have the same difference provides exactly the same value
+ * of the minimization problem (the Lagrangian relaxation) in the computation
+ * of \f$ L() \f$. Besides, the set of optimal solutions is the same, and so is
+ * the set of supergradients of (the concave function) \f$ L() \f$. Of course,
+ * due to the term \f$  w l - z  u \f$ in the objective, and the fact that
  * \f$  l <  u \f$, different choices of \f$ z \f$ and \f$ w\f$ with the
  * same difference do have an impact on the value of \f$ L() \f$, but a
  * very predictable one. Indeed, assume that one has a feasible solution
