@@ -2002,7 +2002,7 @@ inline void deserialize( const netCDF::NcGroup & group ,
 template<class T, std::size_t N>
 inline void deserialize( const netCDF::NcGroup & group ,
                          const std::string & var_name ,
-                         boost::multi_array<T , N> array ,
+                         boost::multi_array<T , N> & array ,
                          const bool optional = true ,
                          const bool allow_scalar_var = false ) {
 
