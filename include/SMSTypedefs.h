@@ -1997,10 +1997,12 @@ inline void deserialize( const netCDF::NcGroup & group ,
  * this means that if the netCDF variable is a scalar, then the given
  * boost::multi_array \p array will have a single element (the origin) whose
  * value will be that of the netCDF variable.
+ *
+ * @return true if var_name was found in group, false otherwise.
  */
 
 template<class T, std::size_t N>
-inline void deserialize( const netCDF::NcGroup & group ,
+inline bool deserialize( const netCDF::NcGroup & group ,
                          const std::string & var_name ,
                          boost::multi_array<T , N> & array ,
                          const bool optional = true ,
@@ -2014,7 +2016,7 @@ inline void deserialize( const netCDF::NcGroup & group ,
     if( optional ) {
       std::vector<index> new_sizes( N , 0 );
       array.reshape( new_sizes );
-      return;
+      return false;
     }
 
     throw( std::invalid_argument( "deserialize(): " + var_name +
@@ -2027,7 +2029,7 @@ inline void deserialize( const netCDF::NcGroup & group ,
       std::vector<index> new_sizes( N , 1 );
       array.reshape( new_sizes );
       ncVar.getVar( array.origin() );
-      return;
+      return true;
     }
 
     throw( std::invalid_argument
@@ -2043,6 +2045,7 @@ inline void deserialize( const netCDF::NcGroup & group ,
   std::vector<std::size_t> start( sizes_dimensions.size() , 0 );
 
   ncVar.getVar( start , sizes_dimensions , array.data() );
+  return true;
 }
 
 /*--------------------------------------------------------------------------*/
