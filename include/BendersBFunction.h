@@ -7,7 +7,7 @@
  *
  * \version 0.01
  *
- * \date 25 - 10 - 2019
+ * \date 28 - 10 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -33,6 +33,7 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include "Block.h"
 #include "C05Function.h"
 #include "CDASolver.h"
 #include "ColVariable.h"
@@ -1212,7 +1213,8 @@ class BendersBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- virtual void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
+ virtual void add_Modification( sp_Mod mod , Observer::ChnlName chnl = 0 )
+  override;
 
 /**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR Saving THE DATA OF THE BendersBFunction ---------*/
@@ -1220,7 +1222,7 @@ class BendersBFunction : public C05Function , public Block {
 /** @name Saving the data of the BendersBFunction
  *  @{ */
 
- virtual void serialize( netCDF::NcGroup& group ) const override;
+ virtual void serialize( netCDF::NcGroup & group ) const override;
 
 /**@} ----------------------------------------------------------------------*/
 /*------- METHODS DESCRIBING THE BEHAVIOR OF THE BendersBFunction ----------*/
@@ -1275,10 +1277,7 @@ class BendersBFunction : public C05Function , public Block {
   * returns true.
   */
 
- virtual bool is_convex( void ) const override {
-  if( v_Block.empty() ) return false;
-  return( v_Block[ 0 ]->get_objective_sense() == Objective::eMin );
- }
+ virtual bool is_convex( void ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns true only if this BendersBFunction is concave
@@ -1288,11 +1287,7 @@ class BendersBFunction : public C05Function , public Block {
   * it returns true.
   */
 
- virtual bool is_concave( void ) const override {
-  if( v_Block.empty() )
-   return false;
-  return( v_Block[ 0 ]->get_objective_sense() == Objective::eMax );
- }
+ virtual bool is_concave( void ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns true only if this BendersBFunction is linear
@@ -1601,27 +1596,132 @@ class BendersBFunction : public C05Function , public Block {
   /** Resize the global pool to have the given \p size. It is important to
    * notice that
    *
-   *         IF F
+   *         IF THE SIZE OF THE POOL IS BEING DECREASED, ANY LINEARIZATION
+   *         WHOSE name IS GREATER THAN OR EQUAL TO THE GIVEN NEW size IS
+   *         DESTROYED.
    *
    * @param size The size of the global pool.
    */
   void resize( Index size );
 
+  /// returns the the size of the global pool
   Index size() const {
    return solutions.size();
   }
 
-  void store( Solution * solution , Index name );
+  /// stores the given linearization constant and solution in the global pool
+  /** This function stores the given linearization constant and solution into
+   * the global pool under the given \p name. If the given \p name is invalid,
+   * an exception is thrown.
+   *
+   * @param linearization_constant the value of the linearization constant.
+   *
+   * @param solution a pointer to the Solution that must be stored.
+   *
+   * @param name the name under which the linearization constant and the
+   *        pointer to the Solution will be stored.
+   */
+  void store( FunctionValue linearization_constant , Solution * solution ,
+              Index name );
 
+  /// returns a pointer to the Solution stored under the given name
+  /** This function returns a pointer to the Solution that is stored under the
+   * given \p name. If the given \p name is invalid, an exception is thrown.
+   *
+   * @param name the name of the desired Solution.
+   *
+   * @return a pointer to the Solution that is stored under the given \p name.
+   */
   Solution * get_solution( Index name ) const {
    if( name < solutions.size() )
     return solutions[ name ];
-   return nullptr;
+   throw( std::invalid_argument( "GlobalPool::get_solution: linearization "
+                                 "with name " + std::to_string( name ) +
+                                 " does not exist." ) );
   }
 
+  /// returns the linearization constant stored under the given name
+  /** This function returns the value of the linearization constant that is
+   * stored under the given \p name. If the given \p name is invalid, an
+   * exception is thrown.
+   *
+   * @param name the name of the desired constant.
+   *
+   * @return the value of the linearization constant that is stored under the
+   *         given \p name.
+   */
+  FunctionValue get_linearization_constant( Index name ) const {
+   if( name < size() )
+    return linearization_constants[ name ];
+   throw( std::invalid_argument( "GlobalPool::get_linearization_constant: "
+                                 "linearization with name " +
+                                 std::to_string( name ) + " does not exist." ) );
+  }
+
+  /// sets the linearization constant under the given name
+  /** This function sets the value of the linearization constant under the
+   * given \p name. If the given \p name is invalid, an exception is thrown.
+   *
+   * @param constant the value of the linearization constant to be stored.
+   *
+   * @param name the name under which the constant will be stored.
+   */
+  void set_linearization_constant( FunctionValue constant , Index name ) {
+   if( name >= size() )
+    throw( std::invalid_argument( "GlobalPool::set_linearization_constant: "
+                                  "linearization with name " +
+                                  std::to_string( name ) +
+                                  " does not exist." ) );
+
+   linearization_constants[ name ] = constant;
+  }
+
+  /// invalidates all linearizations
+  /** This function invalidates all linearizations, by setting NaN to each
+   * linearization constant currently stored.
+   */
   void invalidate() {
    linearization_constants.assign( linearization_constants.size() , NaN );
   }
+
+  /// stores a combination of the linearizations that are already stored
+  /** This method creates a linear combination of a given set of
+   * linearizations, with given \p coefficients, and stores it into the global
+   * pool of linearizations with the given \p name (which must be an integer
+   * between 0 and size() - 1). If \p coefficients is empty, an exception is
+   * thrown. If any of the names in the given \p coefficients is invalid, an
+   * exception is thrown. If the given name is invalid, an exception is
+   * thrown.
+   *
+   * @param coefficients the LinearCombination containing the names of the
+   *        linearizations and their respective coefficients in the
+   *        combination.
+   *
+   * @param name the name under which the combination of linearizations will
+   *        be stored.
+   */
+  void store_combination_of_linearizations( LinearCombination & coefficients ,
+                                            const Index name );
+
+  /// renames a linearization
+  /** This methods renames the linearization currently stored under \p
+   * current_name. If any of \p current_name or \p new_name is an invalid
+   * name, an exception is thrown.
+   *
+   * @param current_name the current name of the linearization that will be
+   *        renamed.
+   *
+   * @param new_name the new name of the linearization.
+   */
+  void rename_linearization( const Index current_name , const Index new_name );
+
+  /// deletes the linearization currently stored under the given name
+  /** This method deletes the linearization currently stored under the given
+   * \p name. If the given \p name is invalid, an exception is thrown.
+   *
+   * @param name the name of the linearization to be deleted.
+   */
+  void delete_linearization( const Index name );
 
  private:
   std::vector<FunctionValue> linearization_constants;
