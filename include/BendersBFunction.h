@@ -37,7 +37,6 @@
 #include "C05Function.h"
 #include "CDASolver.h"
 #include "ColVariable.h"
-#include "Variable.h"
 #include <limits>
 
 /*--------------------------------------------------------------------------*/
@@ -1327,24 +1326,23 @@ class BendersBFunction : public C05Function , public Block {
 
  void set_important_linearization( LinearCombination && coefficients ,
 				   Index name ) override final {
-  important_linearization_lin_comb = std::move( coefficients );
-  important_linearization_name = name;
+  global_pool.set_important_linearization( std::move( coefficients ), name );
  }
 
 /*--------------------------------------------------------------------------*/
  /// return the name of "the important linearization"
 
  Index get_important_linearization_name( void ) override final {
-  return( important_linearization_name );
-  }
+  return global_pool.get_important_linearization_name();
+ }
 
 /*--------------------------------------------------------------------------*/
  /// return the combination used to form "the important linearization"
 
  c_LinearCombination & get_important_linearization_coefficients( void )
   override final {
-  return( important_linearization_lin_comb );
-  }
+  return global_pool.get_important_linearization_coefficients();
+ }
 
 /*-------------------------------------------------------------------------*/
  /// rename a linearization that is stored in the global pool
@@ -1458,11 +1456,8 @@ class BendersBFunction : public C05Function , public Block {
  bool constraints_are_updated;
  ///< indicates whether the constraints of the sub-Block are updated
 
- LinearCombination important_linearization_lin_comb;
- ///< the linear combination of the important linearization
-
- Index important_linearization_name;
- ///< the name of the important linearization
+ int solver_status = 0;
+ ///< the most recent status returned by the Solver of the sub-Block
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -1659,6 +1654,8 @@ class BendersBFunction : public C05Function , public Block {
 
   static constexpr auto NaN = std::numeric_limits<FunctionValue>::quiet_NaN();
 
+/*--------------------------------------------------------------------------*/
+
   // resizes the global pool
   /** Resize the global pool to have the given \p size. It is important to
    * notice that
@@ -1672,11 +1669,15 @@ class BendersBFunction : public C05Function , public Block {
 
   void resize( Index size );
 
+/*--------------------------------------------------------------------------*/
+
   /// returns the the size of the global pool
 
   Index size() const {
    return solutions.size();
   }
+
+/*--------------------------------------------------------------------------*/
 
   /// stores the given linearization constant and solution in the global pool
   /** This function stores the given linearization constant and solution into
@@ -1711,6 +1712,8 @@ class BendersBFunction : public C05Function , public Block {
                                  " does not exist." ) );
   }
 
+/*--------------------------------------------------------------------------*/
+
   /// returns the linearization constant stored under the given name
   /** This function returns the value of the linearization constant that is
    * stored under the given \p name. If the given \p name is invalid, an
@@ -1729,6 +1732,8 @@ class BendersBFunction : public C05Function , public Block {
                                  "linearization with name " +
                                  std::to_string( name ) + " does not exist." ) );
   }
+
+/*--------------------------------------------------------------------------*/
 
   /// sets the linearization constant under the given name
   /** This function sets the value of the linearization constant under the
@@ -1749,6 +1754,8 @@ class BendersBFunction : public C05Function , public Block {
    linearization_constants[ name ] = constant;
   }
 
+/*--------------------------------------------------------------------------*/
+
   /// invalidates all linearizations
   /** This function invalidates all linearizations, by setting NaN to each
    * linearization constant currently stored.
@@ -1757,6 +1764,42 @@ class BendersBFunction : public C05Function , public Block {
   void invalidate() {
    linearization_constants.assign( linearization_constants.size() , NaN );
   }
+
+/*--------------------------------------------------------------------------*/
+
+  /// specify which linearization is "the important one"
+  /** This method sets the linearization with the given name as "the important
+   * one".
+   *
+   * @param coefficients a LinearCombination that may define the important
+   *        linearization.
+   *
+   * @param name the name of the important linearization.
+   */
+
+  void set_important_linearization( LinearCombination && coefficients ,
+                                    Index name ) {
+   important_linearization_lin_comb = std::move( coefficients );
+   important_linearization_name = name;
+  }
+
+/*--------------------------------------------------------------------------*/
+
+  /// return the name of "the important linearization"
+
+  Index get_important_linearization_name( void ) {
+   return( important_linearization_name );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+  /// return the combination used to form "the important linearization"
+
+  c_LinearCombination & get_important_linearization_coefficients( void ) {
+   return( important_linearization_lin_comb );
+  }
+
+/*--------------------------------------------------------------------------*/
 
   /// stores a combination of the linearizations that are already stored
   /** This method creates a linear combination of a given set of
@@ -1778,6 +1821,8 @@ class BendersBFunction : public C05Function , public Block {
   void store_combination_of_linearizations( LinearCombination & coefficients ,
                                             const Index name );
 
+/*--------------------------------------------------------------------------*/
+
   /// renames a linearization
   /** This methods renames the linearization currently stored under \p
    * current_name. If any of \p current_name or \p new_name is an invalid
@@ -1798,11 +1843,30 @@ class BendersBFunction : public C05Function , public Block {
    * @param name the name of the linearization to be deleted.
    */
 
+/*--------------------------------------------------------------------------*/
+
+  /// deletes the linearization with the given name
+  /** This function deletes the linearization with the given \p name,
+   * destroying the Solution associated with it. If the given \p name is
+   * invalid, an exception is thrown.
+   *
+   * @param name the name of the linearization to be deleted.
+   */
   void delete_linearization( const Index name );
 
  private:
+
   std::vector<FunctionValue> linearization_constants;
+  ///< linearization constants
+
   std::vector<Solution *> solutions;
+  ///< pointers to the Solutions
+
+  LinearCombination important_linearization_lin_comb;
+  ///< the linear combination of the important linearization
+
+  Index important_linearization_name;
+  ///< the name of the important linearization
  };
 
 /*--------------------------------------------------------------------------*/
