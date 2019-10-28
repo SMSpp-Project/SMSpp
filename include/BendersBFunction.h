@@ -37,6 +37,7 @@
 #include "C05Function.h"
 #include "CDASolver.h"
 #include "ColVariable.h"
+#include "Variable.h"
 #include <limits>
 
 /*--------------------------------------------------------------------------*/
@@ -46,6 +47,9 @@
 /// namespace for the Structured Modeling System++ (SMS++)
 namespace SMSpp_di_unipi_it
 {
+
+ class RowConstraint;      // forward declaration of RowConstraint
+ class Solution;           // forward declaration of Solution
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
@@ -78,7 +82,7 @@ namespace SMSpp_di_unipi_it
  *    pointer to a RowConstraint of Block B and a ConstraintSide, where I =
  *    {1, ..., m}.
  *
- *    Problem (B) would tipically be associated with an original problem
+ *    Problem (B) would typically be associated with an original problem
  *
  *     (O)    min { d(x) + c(y) : g <= Fx + Ey <= h, x \in X, y \in Y }
  *
@@ -137,9 +141,6 @@ namespace SMSpp_di_unipi_it
  */
 
 class BendersBFunction : public C05Function , public Block {
-
- class RowConstraint;       // forward declaration of RowConstraint
- class Solution;            // forward declaration of Solution
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
@@ -377,7 +378,7 @@ class BendersBFunction : public C05Function , public Block {
   * deserialize() before or after set_variables(). More specifically, the
   * difference is between calling the method when the current set of "active"
   * Variable is empty, or not. Indeed, in the former case the number of
-  * "active" Variabble is dictated by the data found in the netCDF::NcGroup;
+  * "active" Variable is dictated by the data found in the netCDF::NcGroup;
   * calling set_variables() afterwards with a vector of different size will
   * fail. Symmetrically, if the set of "active" Variable is not empty when
   * this method is called, finding non-conforming data (a matrix A with a
@@ -828,7 +829,7 @@ class BendersBFunction : public C05Function , public Block {
   *        Indeed, the check is costly, and the BendersBFunction does not
   *        really have a functional issue with repeated ColVariable. The
   *        real issue rather comes whenever the BendersBFunction is used
-  *        within a Constraint or Objective that need to register istelf
+  *        within a Constraint or Objective that need to register itself
   *        among the "active" Variable of the BendersBFunction; this
   *        process is not structured to work with multiple copies of the same
   *        "active" Variable. Thus, a BendersBFunction used within such an
@@ -849,7 +850,7 @@ class BendersBFunction : public C05Function , public Block {
   *        0 as expected) is issued, as described in Observer::make_par().
   *
   * As the && tells, nx and nA become "property" of the BendersBFunction
-  * object, altough this likely only happens if A is currently "empty of
+  * object, although this likely only happens if A is currently "empty of
   * columns" (say, only the rows have been defined, or all previous columns
   * have been deleted). */
 
@@ -1035,7 +1036,7 @@ class BendersBFunction : public C05Function , public Block {
   *        then the function has necessarily decreased, hence the shift is
   *        -INFshift. Otherwise the value has changed "unpredictably" and the
   *        shift is NANshift (unless all the values are equal, in which case
-  *        the function value has not chsanged and the method does
+  *        the function value has not changed and the method does
   *        nothing). */
 
  void modify_constants( c_RealVector & nb , Range range ,
@@ -1070,7 +1071,7 @@ class BendersBFunction : public C05Function , public Block {
   *        then the function has necessarily decreased, hence the shift is
   *        -INFshift. Otherwise the value has changed "unpredictably" and the
   *        shift is NANshift (unless all the values are equal, in which case
-  *        the function value has not chsanged and the method does
+  *        the function value has not changed and the method does
   *        nothing). */
 
  void modify_constants( c_RealVector & nb , Subset && rows ,
@@ -1410,7 +1411,7 @@ class BendersBFunction : public C05Function , public Block {
  /// returns a (const reference) to the current b vector in the mapping
 
  const RealVector & get_b( void ) const { return( v_b ); }
- 
+
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1436,6 +1437,7 @@ class BendersBFunction : public C05Function , public Block {
 
  /// load the BendersBFunction out of an istream
  /** This method loads the BendersBFunction out of an istream. */
+
  virtual void load( std::istream &input ) override final;
 
 /*--------------------------------------------------------------------------*/
@@ -1486,6 +1488,7 @@ class BendersBFunction : public C05Function , public Block {
   *
   * then a nullptr is returned. Otherwise, a pointer of type \p T is returned.
   */
+
  template<class T = Solver>
  inline T * get_solver() const {
   if( v_Block.empty() )
@@ -1579,6 +1582,70 @@ class BendersBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
+ /// update the RowConstraint of the sub-Block
+ /** This function updates the RowConstraint of the sub-Block to reflect the
+  * current mapping and values of the x variables.
+  */
+
+ void update_constraints();
+
+ /*--------------------------------------------------------------------------*/
+
+ /// write the Solution with the given name in the sub-Block
+ /** If <tt>name == Inf<Index>()</tt>, this function writes the dual solution
+  * associated with the last computed linearization in the sub-Block. If
+  * <tt>name != Inf<Index>()</tt>, then it writes the Solution that is stored
+  * in the global pool under the given \p name in the sub-Block. In the last
+  * case, if the given \p name is invalid or the Solution is not present in
+  * the global pool, an exception is thrown.
+  *
+  * @param name the name of the solution to be written
+  */
+
+ void prepare_dual_solution( Index name );
+
+/*--------------------------------------------------------------------------*/
+
+ /// write the Solution with the given name in the sub-Block
+ /** This function writes the Solution stored in the global pool under the
+  * given \p name in the sub-Block. If the given \p name is invalid or the
+  * Solution is not present, an exception is thrown.
+  *
+  * @param name the name under which the Solution is stored in the global
+  *        pool.
+  */
+
+ void write_dual_solution( Index name );
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the dual value associated with the given RowConstraint
+ /** This function returns the dual value associated with the given \p
+  * constraint and its specific \c side.
+  *
+  * @param constraint a pointer to the RowConstraint.
+  *
+  * @param side the side of the RowConstraint.
+  *
+  * @return the dual value associated with the given \p constraint and \p side.
+  */
+
+ FunctionValue get_dual_value( const RowConstraint * constraint ,
+                               const ConstraintSide & side );
+
+/*--------------------------------------------------------------------------*/
+
+ /// compute the linearization constant
+ /** Compute the linearization constant considering the dual solution
+  * currently stored in the sub-Block.
+  *
+  * @return the computed linearization constant.
+  */
+
+ FunctionValue compute_linearization_constant();
+
+/*--------------------------------------------------------------------------*/
+
  SMSpp_insert_in_factory_h; // insert BendersBFunction in the Block factory
 
 /*--------------------------------------------------------------------------*/
@@ -1602,9 +1669,11 @@ class BendersBFunction : public C05Function , public Block {
    *
    * @param size The size of the global pool.
    */
+
   void resize( Index size );
 
   /// returns the the size of the global pool
+
   Index size() const {
    return solutions.size();
   }
@@ -1621,6 +1690,7 @@ class BendersBFunction : public C05Function , public Block {
    * @param name the name under which the linearization constant and the
    *        pointer to the Solution will be stored.
    */
+
   void store( FunctionValue linearization_constant , Solution * solution ,
               Index name );
 
@@ -1632,6 +1702,7 @@ class BendersBFunction : public C05Function , public Block {
    *
    * @return a pointer to the Solution that is stored under the given \p name.
    */
+
   Solution * get_solution( Index name ) const {
    if( name < solutions.size() )
     return solutions[ name ];
@@ -1650,6 +1721,7 @@ class BendersBFunction : public C05Function , public Block {
    * @return the value of the linearization constant that is stored under the
    *         given \p name.
    */
+
   FunctionValue get_linearization_constant( Index name ) const {
    if( name < size() )
     return linearization_constants[ name ];
@@ -1666,6 +1738,7 @@ class BendersBFunction : public C05Function , public Block {
    *
    * @param name the name under which the constant will be stored.
    */
+
   void set_linearization_constant( FunctionValue constant , Index name ) {
    if( name >= size() )
     throw( std::invalid_argument( "GlobalPool::set_linearization_constant: "
@@ -1680,6 +1753,7 @@ class BendersBFunction : public C05Function , public Block {
   /** This function invalidates all linearizations, by setting NaN to each
    * linearization constant currently stored.
    */
+
   void invalidate() {
    linearization_constants.assign( linearization_constants.size() , NaN );
   }
@@ -1700,6 +1774,7 @@ class BendersBFunction : public C05Function , public Block {
    * @param name the name under which the combination of linearizations will
    *        be stored.
    */
+
   void store_combination_of_linearizations( LinearCombination & coefficients ,
                                             const Index name );
 
@@ -1713,6 +1788,7 @@ class BendersBFunction : public C05Function , public Block {
    *
    * @param new_name the new name of the linearization.
    */
+
   void rename_linearization( const Index current_name , const Index new_name );
 
   /// deletes the linearization currently stored under the given name
@@ -1721,6 +1797,7 @@ class BendersBFunction : public C05Function , public Block {
    *
    * @param name the name of the linearization to be deleted.
    */
+
   void delete_linearization( const Index name );
 
  private:
