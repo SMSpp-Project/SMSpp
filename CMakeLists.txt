@@ -90,7 +90,7 @@ install(DIRECTORY include/
 install(EXPORT SMSpp-targets
         FILE SMSppTargets.cmake
         NAMESPACE SMS++::
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SMS++)
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SMSpp)
 
 # Generate package version file
 include(CMakePackageConfigHelpers)
@@ -103,20 +103,20 @@ write_basic_package_version_file(
 configure_package_config_file(
         ${CMAKE_CURRENT_LIST_DIR}/cmake/SMSppConfig.cmake.in
         ${CMAKE_CURRENT_BINARY_DIR}/SMSppConfig.cmake
-        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SMS++)
+        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SMSpp)
 
 # Install package version and configuration files
 install(FILES
         ${CMAKE_CURRENT_BINARY_DIR}/SMSppConfig.cmake
         ${CMAKE_CURRENT_BINARY_DIR}/SMSppConfigVersion.cmake
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SMS++)
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SMSpp)
 
 # Shipping custom find modules should not be encouraged because third
 # party developers should provide them.
 # We ship FindnetCDF because the provided one has shortcomings.
 install(FILES
         ${CMAKE_CURRENT_LIST_DIR}/cmake/FindnetCDF.cmake
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SMS++)
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SMSpp)
 
 # ----- Export from the build tree ------------------------------------------ #
 # This is needed so other projects can find the library in a local build.
