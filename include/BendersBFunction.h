@@ -7,7 +7,7 @@
  *
  * \version 0.01
  *
- * \date 28 - 10 - 2019
+ * \date 29 - 10 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -346,7 +346,8 @@ class BendersBFunction : public C05Function , public Block {
                    RealVector && b = {} ,
                    v_ConstraintSpecifier && constraints = {} ,
                    Observer * const observer = nullptr )
-   : C05Function( observer ) , constraints_are_updated( false )
+  : C05Function( observer ) , constraints_are_updated( false ) ,
+    solver_status ( 0 ) , diagonal_linearization_required( false )
  {
 
   if( ! inner_block )
@@ -1453,11 +1454,14 @@ class BendersBFunction : public C05Function , public Block {
  v_ConstraintSpecifier v_constraints;
  ///< the pointers to RowConstraint and their respective affected sides
 
- bool constraints_are_updated;
+ bool constraints_are_updated = false;
  ///< indicates whether the constraints of the sub-Block are updated
 
  int solver_status = 0;
  ///< the most recent status returned by the Solver of the sub-Block
+
+ bool diagonal_linearization_required = false;
+ ///< indicates whether a diagonal linearization is required
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -1656,6 +1660,14 @@ class BendersBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
+  GlobalPool() = default;
+
+/*--------------------------------------------------------------------------*/
+
+  ~GlobalPool();
+
+/*--------------------------------------------------------------------------*/
+
   // resizes the global pool
   /** Resize the global pool to have the given \p size. It is important to
    * notice that
@@ -1682,7 +1694,8 @@ class BendersBFunction : public C05Function , public Block {
   /// stores the given linearization constant and solution in the global pool
   /** This function stores the given linearization constant and solution into
    * the global pool under the given \p name. If the given \p name is invalid,
-   * an exception is thrown.
+   * an exception is thrown. If a Solution is currently stored under the given
+   * \p name, this Solution is destroyed.
    *
    * @param linearization_constant the value of the linearization constant.
    *
@@ -1773,6 +1786,21 @@ class BendersBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
+  /// resets all the linearization constants
+  /** This function resets all linearizations, by setting Inf to each
+   * linearization constant currently stored. This means that any
+   * linearization previously computed may no longer be valid, but dual
+   * solutions are still feasible and the linearizations can be recomputed
+   * from them.
+   */
+
+  void reset_linearization_constants() {
+   linearization_constants.assign( linearization_constants.size() ,
+                                   Inf<FunctionValue>() );
+  }
+
+/*--------------------------------------------------------------------------*/
+
   /// specify which linearization is "the important one"
   /** This method sets the linearization with the given name as "the important
    * one".
@@ -1859,6 +1887,8 @@ class BendersBFunction : public C05Function , public Block {
    * @param name the name of the linearization to be deleted.
    */
   void delete_linearization( const Index name );
+
+/*--------------------------------------------------------------------------*/
 
  private:
 
