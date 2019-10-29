@@ -404,8 +404,7 @@ class BendersBFunction : public C05Function , public Block {
   *        since the method is mostly thought to be used during initialization
   *        when "no one is listening". */
 
- virtual void deserialize( netCDF::NcGroup & group ,
-                           c_ModParam issueMod = eNoMod );
+ void deserialize( netCDF::NcGroup & group , c_ModParam issueMod = eNoMod );
 
 /*--------------------------------------------------------------------------*/
  /// destructor of BendersBFunction
@@ -1601,7 +1600,7 @@ class BendersBFunction : public C05Function , public Block {
   * @param name the name of the solution to be written
   */
 
- void prepare_dual_solution( Index name );
+ void write_dual_solution( Index name );
 
 /*--------------------------------------------------------------------------*/
 
@@ -1614,7 +1613,7 @@ class BendersBFunction : public C05Function , public Block {
   *        pool.
   */
 
- void write_dual_solution( Index name );
+ void write_dual_solution_from_global_pool( Index name );
 
 /*--------------------------------------------------------------------------*/
 
