@@ -1728,9 +1728,9 @@ class BendersBFunction : public C05Function , public Block {
   FunctionValue get_linearization_constant( Index name ) const {
    if( name < size() )
     return linearization_constants[ name ];
-   throw( std::invalid_argument( "GlobalPool::get_linearization_constant: "
-                                 "linearization with name " +
-                                 std::to_string( name ) + " does not exist." ) );
+   throw( std::invalid_argument( "GlobalPool::get_linearization_constant: linea"
+                                 "rization with name " + std::to_string( name )
+                                 + " does not exist." ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1758,7 +1758,13 @@ class BendersBFunction : public C05Function , public Block {
 
   /// invalidates all linearizations
   /** This function invalidates all linearizations, by setting NaN to each
-   * linearization constant currently stored.
+   * linearization constant currently stored. This means that any
+   * linearization previously computed may no longer be valid. Moreover, it
+   * tells that the dual solutions that are currently stored may not be
+   * feasible (and, therefore, the recalculation of the linearizations based
+   * on these dual solutions may not provide valid linearizations. The dual
+   * solutions, however, remain stored in this global pool. If they should be
+   * destroyed, explicity calls to delete_linearization() must be made.
    */
 
   void invalidate() {
@@ -1877,6 +1883,346 @@ class BendersBFunction : public C05Function , public Block {
  ///< global pool of linearizations
 
  };  // end( class( BendersBFunction ) )
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- CLASS BendersBFunctionMod ------------------------*/
+/*--------------------------------------------------------------------------*/
+/// class to describe modifications specific to a BendersBFunction
+/** Derived class from C05FunctionMod to describe modifications to a
+ * BendersBFunction. This obviously "keeps the same interface" as
+ * C05FunctionMod, so that it can be used by Solver and/or Block just relying
+ * on the C05Function interface, but it also adds BendersBFunction-specific
+ * information, so that Solver and/or Block can actually react in
+ * BendersBFunction-specific if they want to.
+ *
+ * This base class actually has *no* BendersBFunction-specific information,
+ * besides being of a specific type. */
+
+class BendersBFunctionMod : public C05FunctionMod {
+
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*---------------------------- PUBLIC TYPES --------------------------------*/
+
+  /// Definition of the possibles types of BendersBFunctionMod
+  /** This enum specifies what kind of assumption can be made about any
+   * previously produced linearization. Note that the enum is *not* useful for
+   * all derived classes, in particular for BendersBFunctionModAddd that only
+   * encodes for a single type of operation, but it is still defined here to
+   * avoid being defined identically multiple times. */
+  enum benders_function_mod_type {
+   ModifyRows = C05FunctionModLastParam,///< modify a set of rows (both A and b)
+   ModifyCnst ,                         ///< modify a set of constants (b only)
+   DeleteRows ,                         ///< delete a set of rows
+   BendersBFunctionModLastParam
+   ///< First allowed parameter value for derived classes
+   /**< Convenience value for easily allow derived classes to extend
+    * the set of types of modifications. */
+   };
+
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
+ /// constructor: identical to that of C05FunctionMod
+ /** Constructor: takes a pointer to the affected C05Function, the type of the
+  * Modification, the value of the shift, and the "concerns Block" value. No
+  * other BendersBFunction-specific information is needed. */
+
+ BendersBFunctionMod( C05Function * f , int type ,
+                      FunctionValue shift = NaNshift , bool cB = true )
+  : C05FunctionMod( f , type , shift , cB ) { }
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+
+ virtual ~BendersBFunctionMod() { }  ///< destructor: does nothing
+
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+  /// print the BendersBFunctionMod
+
+  virtual inline void print( std::ostream &output ) const override
+  {
+   output << "BendersBFunctionMod[";
+   if( concerns_Block() )
+    output << "t";
+   else
+    output << "f";
+   output << "] on BendersBFunction [" << &f_function << " ]: ";
+   switch( f_type ) {
+    case( AlphaChanged ): output << "all the \alpha"; break;
+    case( AllEntriesChanged ): output << "all the g"; break;
+    default: output << "both \alpha and g";
+    }
+   output << " have changed ==> f-values changed";
+   if( std::isnan( f_shift ) )
+    output << "(+-)";
+   else
+    if( f_shift >= INFshift )
+     output << "(+)";
+    else
+     if( f_shift <= -INFshift )
+      output << "(-)";
+     else
+      output << " by " << f_shift;
+   output << std::endl;
+   }
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( BendersBFunctionMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*---------------------- CLASS BendersBFunctionModAddd ---------------------*/
+/*--------------------------------------------------------------------------*/
+/// class to describe modification specific to a BendersBFunction: add rows
+/** Derived class from BendersBFunctionMod to describe a very specific
+ * modification to a BendersBFunction: add some new rows. The
+ * BendersBFunction-specific information is therefore the number of added
+ * rows. */
+
+class BendersBFunctionModAddd : public BendersBFunctionMod {
+
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
+ /// constructor: like that of BendersBFunctionMod + the added rows
+ /** Constructor: takes a pointer \p f to the affected C05Function, the \p
+  * type of the Modification, the number \p ar of added rows, the value of the
+  * \p shift, and the "concerns Block" \p cb value. */
+
+ explicit BendersBFunctionModAddd( C05Function * f , int type , Index ar ,
+                                   FunctionValue shift = NaNshift ,
+                                   bool cB = true )
+  : BendersBFunctionMod( f , type , shift , cB ) , f_addedrows( ar ) { }
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+
+ virtual ~BendersBFunctionModAddd() = default;  ///< default destructor
+
+/*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+
+ /// accessor to the number of added rows
+
+ Index addedrows( void ) const { return( f_addedrows ); }
+
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ /// print the BendersBFunctionModAddd
+
+  virtual inline void print( std::ostream &output ) const override
+  {
+   output << "BendersBFunctionModAddd[";
+   if( concerns_Block() )
+    output << "t";
+   else
+    output << "f";
+   output << "] on BendersBFunction [" << &f_function << " ]: added "
+	  << f_addedrows << " rows" << std::endl;
+   }
+
+/*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
+
+  Index f_addedrows;  ///< number of added rows
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( BendersBFunctionModAddd ) )
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- CLASS BendersBFunctionModRngd ----------------------*/
+/*--------------------------------------------------------------------------*/
+/// class to describe range modification specific to a BendersBFunction
+/** Derived class from BendersBFunctionMod to describe all modifications to a
+ * BendersBFunction that involve a Range set of rows:
+ *
+ * - modify_row[s]
+ * - modify_constant[s]
+ * - delete_row[s]
+ *
+ * For all these, the Range of the affected rows is provided, as well as the
+ * exact type of operation. */
+
+class BendersBFunctionModRngd : public BendersBFunctionMod {
+
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
+ /// constructor: like that of BendersBFunctionMod + the Range of affected rows
+ /** Constructor: takes a pointer to the affected C05Function, the type of the
+  * C05FunctionMod, the type of the BendersBFunctionMod, the Range of
+  * concerned rows, the value of the shift, and the "concerns Block" value.
+  */
+
+ explicit BendersBFunctionModRngd( C05Function * f , int type ,
+                                   int bftype , c_Range & range ,
+                                   FunctionValue shift = NaNshift ,
+                                   bool cB = true )
+  : BendersBFunctionMod( f , type , shift , cB ) , f_BFtype( bftype ) ,
+    f_range( range ) { }
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+
+ virtual ~BendersBFunctionModRngd() = default;  ///< default destructor
+
+/*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+
+ /// accessor to the specific sub-type of BendersBFunctionMod
+
+ int BFtype( void ) { return( f_BFtype ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// accessor to the range of the affected rows
+
+ c_Range & range( void ) { return( f_range ); }
+
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ /// print the BendersBFunctionModRngd
+
+ virtual inline void print( std::ostream &output ) const override
+ {
+  output << "BendersBFunctionModRngd[";
+  if( concerns_Block() )
+   output << "t";
+  else
+   output << "f";
+  output << "] on BendersBFunction [" << &f_function << " ]: ";
+  if( f_BFtype == ModifyCnst )
+   output << " constants";
+  else
+   output << " rows";
+  output << " [ " << f_range.first << " , " << f_range.second << " )";
+  if( f_BFtype == DeleteRows )
+   output << " deleted";
+  else
+   output << " modified";
+  output << std::endl;
+  }
+
+/*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
+
+ int f_BFtype;    ///< the exact BendersBFunction-specific operation
+
+ Range f_range;   ///< the set of affected rows
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( BendersBFunctionModRngd ) )
+
+/*--------------------------------------------------------------------------*/
+/*---------------------- CLASS BendersBFunctionModSbst ---------------------*/
+/*--------------------------------------------------------------------------*/
+/// class to describe subset modification specific to a BendersBFunction
+/** Derived class from BendersBFunctionMod to describe all modifications to
+ * a BendersBFunction that involve an arbitrary set of rows:
+ *
+ * - modify_row[s]
+ * - modify_constant[s]
+ * - delete_row[s]
+ *
+ * For all these, the Subset of the affected rows is provided, as well as
+ * the exact type of operation. */
+
+class BendersBFunctionModSbst : public BendersBFunctionMod {
+
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
+ /// constructor: like that of BendersBFunctionMod + the affected rows
+ /** Constructor: takes a pointer to the affected C05Function, the type of the
+  * C05FunctionMod, the type of the BendersBFunctionMod, the Subset of
+  * concerned rows, whether or not the subset is ordered, the value of the
+  * shift, and the "concerns Block" value. As the && tells, the rows
+  * parameter becomes property of the BendersBFunctionModRng. */
+
+ explicit BendersBFunctionModSbst( C05Function * f , int type , int bftype ,
+                                   Subset && rows , bool ordered = false ,
+                                   FunctionValue shift = NaNshift ,
+                                   bool cB = true )
+  : BendersBFunctionMod( f , type , shift , cB ) , f_BFtype( bftype ) ,
+    v_rows( std::move( rows ) ) , f_ordered( ordered ) { }
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+
+ virtual ~BendersBFunctionModSbst() = default;  ///< default destructor
+
+/*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+
+ /// accessor to the specific sub-type of BendersBFunctionMod
+
+ int BFtype( void ) { return( f_BFtype ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// accessor to the subset of the deleted Variable
+
+ c_Subset & rows( void ) { return( v_rows ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// accessor to the ordered status
+
+ bool ordered( void ) { return( f_ordered ); }
+
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ /// print the BendersBFunctionModSbst
+
+ virtual inline void print( std::ostream &output ) const override
+ {
+  output << "BendersBFunctionModSbst[";
+  if( concerns_Block() )
+   output << "t";
+  else
+   output << "f";
+  output << "] on BendersBFunction [" << &f_function << " ]: "
+	 << v_rows.size();
+  if( f_ordered )
+   output << " (ordered)";
+  if( f_BFtype == ModifyCnst )
+   output << " constants";
+   else
+    output << " rows";
+  if( f_BFtype == DeleteRows )
+   output << " deleted";
+  else
+   output << " modified";
+  output << std::endl;
+  }
+
+/*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
+
+ int f_BFtype;    ///< the exact BendersBFunction-specific operation
+
+ Subset v_rows;   ///< the set of affected rows
+
+ bool f_ordered;  ///< true if v_subset is ordered
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( BendersBFunctionModSbst ) )
+
+/*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 
 /** @} end( group( BendersBFun_CLASSES ) ) ---------------------------------*/
 /*--------------------------------------------------------------------------*/
