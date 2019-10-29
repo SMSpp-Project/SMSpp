@@ -188,7 +188,7 @@ void ColVariableSolution::initialize_dynamic_variable_values
            } , read ) ) )
 
       throw std::logic_error
-        ( std::string( "ColVariableSolutionTestBlock::"
+        ( std::string( "ColVariableSolution::"
                        "initialize_dynamic_variable_values: "
                        "invalid variable group: " ) +
           variable_groups[i].type().name() );
