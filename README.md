@@ -8,12 +8,14 @@ single-real-objective optimization problems), and solving them via
 sophisticated, structure-exploiting algorithms (in particular, but not
 exclusively, decomposition approaches and structured Interior-Point methods).
 
-For a more detailed description of SMS++ see [the Wiki pages](https://gitlab.com/frangio68/sms_plus_plus/wikis/home).
+For a more detailed description of SMS++ see
+[the Wiki pages](https://gitlab.com/smspp/smspp/wikis/home).
 
 ## Getting started
 
 These instructions will let you build and install SMS++ on your system.
-If you encounter issues, see the troubleshooting section [here](https://gitlab.com/frangio68/sms_plus_plus/wikis/troubleshooting).
+If you encounter issues, see the troubleshooting
+section [here](https://gitlab.com/smspp/smspp/wikis/troubleshooting).
 
 ### Requirements
 
@@ -21,8 +23,10 @@ If you encounter issues, see the troubleshooting section [here](https://gitlab.c
 - [Eigen](http://eigen.tuxfamily.org)
 - [netCDF](https://www.unidata.ucar.edu/software/netcdf)
 
+For further details on software dependencies, see
+[this page](https://gitlab.com/smspp/smspp/wikis/requirements).
 If you can't or wont install the required libraries, you will need to specify
-their custom path, see [here](https://gitlab.com/frangio68/sms_plus_plus/wikis/custom).
+their custom path, see [here](https://gitlab.com/smspp/smspp/wikis/custom).
 
 ### Build and install
 
