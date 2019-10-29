@@ -114,8 +114,10 @@ install(FILES
 # Shipping custom find modules should not be encouraged because third
 # party developers should provide them.
 # We ship FindnetCDF because the provided one has shortcomings.
+# We also ship FindEigen3 to support Eigen install-less usage.
 install(FILES
         ${CMAKE_CURRENT_LIST_DIR}/cmake/FindnetCDF.cmake
+        ${CMAKE_CURRENT_LIST_DIR}/cmake/FindEigen3.cmake
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SMSpp)
 
 # ----- Export from the build tree ------------------------------------------ #
