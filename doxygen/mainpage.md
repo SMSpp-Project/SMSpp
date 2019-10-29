@@ -1,6 +1,4 @@
-# SMS++
-
-![To boldly model (and solve) what no one has modeled (and solved) before](doxygen/SMSpp_logo_mid_noback.png)
+# SMS++ library API reference
 
 SMS++ is a set of C++ classes intended to provide a system for modeling complex,
 block-structured mathematical models (in particular, but not exclusively,
