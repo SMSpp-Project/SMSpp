@@ -12,11 +12,12 @@ std::string sconf_file{};
 
 void print_help() {
  // http://docopt.org
- std::cout << "Usage: block_solver <file>" << std::endl
+ std::cout << "Usage: block_solver [options] <nc4-file>" << std::endl
            << std::endl
-           << "-b <file>, --blockconf <file>   Block configuration." << std::endl
-           << "-s <file>, --solverconf <file>  Solver configuration." << std::endl
-           << "-h, --help                       Print this help." << std::endl;
+           << "Options:" << std::endl
+           << "  -b <file>, --blockcfg <file>   Block configuration." << std::endl
+           << "  -s <file>, --solvercfg <file>  Solver configuration." << std::endl
+           << "  -h, --help                     Print this help." << std::endl;
 }
 
 void process_args( int argc, char ** argv ) {
@@ -28,10 +29,10 @@ void process_args( int argc, char ** argv ) {
 
  const char * const short_opts = "b:s:h";
  const option long_opts[] = {
-  { "blockconf",  required_argument, nullptr, 'b' },
-  { "solverconf", required_argument, nullptr, 's' },
-  { "help",       no_argument,       nullptr, 'h' },
-  { nullptr,      no_argument,       nullptr, 0 }
+  { "blockcfg",  required_argument, nullptr, 'b' },
+  { "solvercfg", required_argument, nullptr, 's' },
+  { "help",      no_argument,       nullptr, 'h' },
+  { nullptr,     no_argument,       nullptr, 0 }
  };
 
  // Options
@@ -45,6 +46,7 @@ void process_args( int argc, char ** argv ) {
   switch( opt ) {
    case 'b':
     bconf_file = std::string( optarg );
+    break;
    case 's':
     sconf_file = std::string( optarg );
     break;
@@ -100,14 +102,6 @@ int main( int argc, char ** argv ) {
     auto gb = p.second.getGroup( "Block" );
     auto block = Block::new_Block( gb );
 
-    // Generate abstract representation
-    int tmp = 15;
-    SimpleConfiguration< int > myconfig( tmp );
-
-    block->generate_abstract_variables( &myconfig );
-    block->generate_abstract_constraints( nullptr );
-    block->generate_objective( nullptr );
-
     // Configure block
     auto bgc = p.second.getGroup( "BlockConfig" );
     auto b_config = static_cast<BlockConfig *>(BlockConfig::new_Configuration( bgc ));
@@ -118,22 +112,26 @@ int main( int argc, char ** argv ) {
     auto b_solver = static_cast<BlockSolverConfig *>(BlockSolverConfig::new_Configuration( bgs ));
     block->set_SolverConfig( b_solver );
 
+    std::cout << "Problem: " << p.first << std::endl;
+
     // Solve
     auto solver = block->get_registered_solvers().front();
-    auto status = solver->compute();
-    auto ub = solver->get_ub();
-    auto lb = solver->get_lb();
-
-    std::cout << "Problem: " << p.first << std::endl;
-    std::cout << "Status = " << status << std::endl;
-    std::cout << "Upper bound = " << ub << std::endl;
-    std::cout << "Lower bound = " << lb << std::endl;
+    if( solver ) {
+     auto status = solver->compute();
+     auto ub = solver->get_ub();
+     auto lb = solver->get_lb();
+     std::cout << "Status = " << status << std::endl;
+     std::cout << "Upper bound = " << ub << std::endl;
+     std::cout << "Lower bound = " << lb << std::endl;
+    } else {
+     std::cout << "No solvers configured for this problem" << std::endl;
+    }
    }
    break;
   }
 
   case eBlockFile: {
-   std::cout << filename << " is a block file, using Block/Solver configurations..." << std::endl;
+   std::cout << filename << " is a block file" << std::endl;
 
    std::multimap< std::string, netCDF::NcGroup > blocks = f.getGroups();
    // for each problem descriptor:
@@ -142,36 +140,57 @@ int main( int argc, char ** argv ) {
     // Deserialize block
     auto block = Block::new_Block( b.second );
 
-    // Generate abstract representation
-    int tmp = 15;
-    SimpleConfiguration< int > myconfig( tmp );
-
-    block->generate_abstract_variables( &myconfig );
-    block->generate_abstract_constraints( nullptr );
-    block->generate_objective( nullptr );
-
     // Configure block
     auto b_config = new BlockConfig;
-    std::ifstream bcf( bconf_file );
-    bcf >> *b_config;
+    std::ifstream bcf;
+    bcf.open( bconf_file, std::ifstream::in );
+
+    if( bcf ) {
+     std::cout << "Using Block configuration in " << bconf_file << std::endl;
+     try {
+      bcf >> *b_config;
+     } catch( const std::exception& e ) {
+      std::cerr << "Block configuration not valid: " << e.what() << std::endl;
+      exit( 1 );
+     }
+    } else {
+     std::cout << "Block configuration not provided" << std::endl;
+    }
     block->set_BlockConfig( b_config );
 
     // Configure solver
-    auto b_solver = new BlockSolverConfig;
-    std::ifstream scf( sconf_file );
-    scf >> *b_config;
-    block->set_SolverConfig( b_solver );
+    auto s_config = new BlockSolverConfig;
+    std::ifstream scf;
+    scf.open( sconf_file, std::ifstream::in );
+
+    if( scf ) {
+     std::cout << "Using Solver configuration in " << sconf_file << std::endl;
+     try {
+      scf >> *s_config;
+     } catch( ... ) {
+      std::cout << "Solver configuration not valid" << std::endl;
+      exit( 1 );
+     }
+    } else {
+     std::cout << "Solver configuration not provided" << std::endl;
+    }
+
+    block->set_SolverConfig( s_config );
 
     // Solve
     auto solver = block->get_registered_solvers().front();
-    auto status = solver->compute();
-    auto ub = solver->get_ub();
-    auto lb = solver->get_lb();
+    if( solver ) {
+     auto status = solver->compute();
+     auto ub = solver->get_ub();
+     auto lb = solver->get_lb();
 
-    std::cout << "Block: " << b.first << std::endl;
-    std::cout << "Status = " << status << std::endl;
-    std::cout << "Upper bound = " << ub << std::endl;
-    std::cout << "Lower bound = " << lb << std::endl;
+     std::cout << "Block: " << b.first << std::endl;
+     std::cout << "Status = " << status << std::endl;
+     std::cout << "Upper bound = " << ub << std::endl;
+     std::cout << "Lower bound = " << lb << std::endl;
+    } else {
+     std::cout << "No solvers configured for this problem" << std::endl;
+    }
    }
 
    break;

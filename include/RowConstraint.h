@@ -102,8 +102,10 @@ namespace SMSpp_di_unipi_it
  *     WITH THE UPPER BOUND CONSTRAINT IS ALWAYS 0
  *
  * This is of course true if one of the two bounds is infinite, as the
- * corresponding Lagrangian multiplier is simply not defined. To see that we
- * can actually assume this without loss of generality, consider the
+ * corresponding Lagrangian multiplier is simply not defined. Also, if
+ * LHS == RHS then this is actually *one* (equality) constraint, and
+ * therefore obviously has one Lagrangian multiplier. To see that we can
+ * actually assume this "without loss of generality", consider the
  * following very general optimization problem
  * \f[
  *   (P) \quad \min \{ f( x ) : l \le g( x ) \le u , x \in X \}
@@ -131,12 +133,18 @@ namespace SMSpp_di_unipi_it
  * \f]
  * The above formula already makes it immediately apparent that the
  * minimization problem that underlies the Lagrangian function actually
- * depends on the difference \f$ z - w \f$; that is, any choice of the two
- * Lagrangian multipliers that have the same difference provides exactly the
- * same value (and supergradients) in L(). Now, assume that one has a feasible
- * solution \f$ ( \bar{w} , \bar{z} ) \f$ for (D) such that \f$ \bar{w} > 0
- * \f$ and \f$ \bar{z} > 0 \f$: it is easy to prove that it cannot be an
- * optimal solution for (D). Indeed, define
+ * depends on the difference \f$ z - w \f$; that is, any choice of \f$ z \f$
+ * and \f$ w \f$ that have the same difference provides exactly the same value
+ * of the minimization problem (the Lagrangian relaxation) in the computation
+ * of \f$ L() \f$. Besides, the set of optimal solutions is the same, and so is
+ * the set of supergradients of (the concave function) \f$ L() \f$. Of course,
+ * due to the term \f$  w l - z  u \f$ in the objective, and the fact that
+ * \f$  l <  u \f$, different choices of \f$ z \f$ and \f$ w\f$ with the
+ * same difference do have an impact on the value of \f$ L() \f$, but a
+ * very predictable one. Indeed, assume that one has a feasible solution
+ * \f$ ( \bar{w} , \bar{z} ) \f$ for (D) such that \f$ \bar{w} > 0 \f$ and
+ * \f$ \bar{z} > 0 \f$: it is easy to prove that it cannot be an optimal
+ * solution for (D). In fact, define
  * \f$ ( w' = \max \{ 0 , \bar{w} - \bar{z} \} ,
  *       z' = \max \{ 0 , \bar{z} - \bar{w} \} ) \f$. It is immediate to
  * check that \f$ ( w' , z' ) \ge 0 \f$ (is feasible), and that
@@ -164,12 +172,12 @@ namespace SMSpp_di_unipi_it
  *     ALL DUAL SOLUTIONS STORED IN A RowConstraint ARE "NON DOMINATED"
  *     ONES WITH THE ABOVE PROPERTY
  *
- * This is not really "without loss of generality", but arguably worse
- * dual solutions should never be preferred to better ones. Besides, the
+ * This is not really "without loss of generality", but arguably worse dual
+ * solutions should never be preferred to better ones. Besides, the
  * transformation between \f$ ( \bar{w} , \bar{z} ) \f$ and
  * \f$ ( w' , z' ) \f$ is so trivial that, even if a Solver naturally
  * produces the former, it is perfectly reasonable to ask it to produce the
- * latter as well.
+ * latter instead.
  *
  * The same arguments can be immediately extended to the case where (P) has
  * any number of ranged constraints.
@@ -207,11 +215,15 @@ namespace SMSpp_di_unipi_it
  *   L( w , z ) = z u - w l +
  *                \min \{ f( x ) + ( w - z ) g( x ) : x \in X \}  ,
  * \f]
- * The transformation from \f$ ( \bar{w} , \bar{z} ) \f$ to
- * \f$ ( w' , z' ) \f$ remains the same, but now the coefficient of
- * \f$ g( x ) \f$ in \f$ L() \f$ is rather \f$ w - z \f$; hence, it is more
- * natural in this case to assume that that is the value stored in
- * \c d_value, which leads to the opposite standard:
+ * This is of course if one insists that \f$ z \ge 0 \f$ and \f$ w \ge 0 \f$;
+ * it would be perfectly possible to rather have  \f$ z \le 0 \f$ and
+ * \f$ w \ge 0 \f$ (either in the maximizaton case, or always), but the
+ * non-negative version is usually preferred, so this is what we use. The
+ * transformation from \f$ ( \bar{w} , \bar{z} ) \f$ to \f$ ( w' , z' ) \f$
+ * remains the same, but now the coefficient of \f$ g( x ) \f$ in
+ * \f$ L() \f$ is rather \f$ w - z \f$; hence, it is more natural in this
+ * case to assume that that is the value stored in \c d_value, which leads
+ * to the opposite standard:
  *
  * - if d_value > 0, \f$ w > 0 \f$ and \f$ z = 0 \f$
  *
@@ -224,16 +236,17 @@ namespace SMSpp_di_unipi_it
  *     MUST RESPECT THE CONVENTION STATED ABOVE.
  *
  * This means, in particular, that the dual value stored here may differ in
- * sign from the value of the dual variable considered by a particular Solver.
+ * sign from the value of the dual variable "naturally produced" by a
+ * particular Solver, but this is not a real issue implementation-wise.
  *
- * On top of this the basic ConstraintMod, other modifications are possible
- * for this kind of Constraint, namely
+ * On top of the basic ConstraintMod, other modifications are possible for
+ * this kind of Constraint, namely
  *
  * - changing the LHS/RHS.
  *
  * Yet, note that the base class does not explicitly store LHS and RHS values
  * in order to allow more flexibility for derived classes to do that as they
- * see better fit (for instance, not storing them at all if they are fixed).
+ * better see fit (for instance, not storing them at all if they are fixed).
  * Thus, the methods for setting and changing these values (which are the
  * ones to throw these Modification) are pure virtual. */
 

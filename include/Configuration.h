@@ -658,16 +658,16 @@ class SimpleConfiguration : public Configuration
  /// void constructor (the value is not initialized)
  SimpleConfiguration( void ) : Configuration() { }
 
- /// constructor taking the value as input
- explicit SimpleConfiguration(const SimpleConfiguration_value_type &initval ) :
- Configuration() { f_value = initval; }
+ /// constructor taking the value (&) as input
+ explicit SimpleConfiguration( const SimpleConfiguration_value_type & initval )
+  : Configuration() { f_value = initval; }
 
- /// constructor taking the value as input
- explicit SimpleConfiguration( const SimpleConfiguration_value_type && initval ) :
-  Configuration() { f_value = initval; }
+ /// move constructor taking the value (&&) as input
+ explicit SimpleConfiguration( SimpleConfiguration_value_type && initval )
+  : Configuration() { f_value = initval; }
 
  /// copy constructor: does what it says on the tin
- SimpleConfiguration( const SimpleConfiguration &old ) : Configuration() {
+ SimpleConfiguration( const SimpleConfiguration & old ) : Configuration() {
   f_value = old.f_value;
   }
   
@@ -696,10 +696,8 @@ class SimpleConfiguration : public Configuration
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 
  /// printing out the value of this SimpleConfiguration
- virtual void print( std::ostream &output ) const override
- {
-  output << f_value;
-  }
+
+ void print( std::ostream &output ) const override { output << f_value; }
 
 /*--------------------------------------------------------------------------*/
  /// load this SimpleConfiguration out of an istream
@@ -710,7 +708,7 @@ class SimpleConfiguration : public Configuration
   * - load an object of type SimpleConfiguration_value_type
   */
 
- virtual void load( std::istream &input ) override
+ void load( std::istream &input ) override
  {
   input >> eatcomments >> f_value;
   }
@@ -723,12 +721,15 @@ class SimpleConfiguration : public Configuration
 
  /* manual expansion of SMSpp_insert_in_factory_h to avoid including the
   * whole of SMSTypedefs.h. */
+
  static class _init {
  public:
   _init( void );
   } _initializer;
 
- virtual const std::string & private_name( void ) const override;
+ const std::string & private_name( void ) const override;
+
+ static const std::string & _private_name( void );
 
 /*--------------------------------------------------------------------------*/
 
