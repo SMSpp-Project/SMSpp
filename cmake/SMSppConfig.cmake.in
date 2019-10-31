@@ -23,7 +23,7 @@ list(APPEND CMAKE_MODULE_PATH ${SMSpp_CMAKE_DIR})
 
 find_dependency(Boost REQUIRED)
 find_dependency(Eigen3 REQUIRED)
-find_dependency(netCDF REQUIRED)
+find_dependency(netCDFCxx REQUIRED)
 
 list(REMOVE_AT CMAKE_MODULE_PATH -1)
 
