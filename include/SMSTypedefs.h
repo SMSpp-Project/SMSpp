@@ -1692,23 +1692,27 @@ std::istream &operator>>( std::istream &is , std::list<T> &l )
  *
  * @param[in] optional This parameter informs whether the dimension is
  * optional. This means that if the dimension is not present in the given
- * NcGroup and \p optional is false, then an exception is thrown. */
+ * NcGroup and \p optional is false, then an exception is thrown.
+ *
+ * @return true if the desired dimension was deserialized; false, otherwise.
+ */
 
 template<class T>
-inline void deserialize_dim( const netCDF::NcGroup & group ,
+inline bool deserialize_dim( const netCDF::NcGroup & group ,
                              const std::string & dim_name , T & data ,
                              const bool optional = true ) {
   netCDF::NcDim ncDim = group.getDim( dim_name );
 
   if( ncDim.isNull() ) {
     if( optional )
-      return;
+      return false;
     throw( std::invalid_argument( "deserialize_dim(): " + dim_name +
                                   " is not present in group '" +
                                   group.getName() + "'." ) );
   }
 
   data = ncDim.getSize();
+  return true;
 }
 
 /*--------------------------------------------------------------------------*/
@@ -1778,10 +1782,12 @@ get_sizes_dimensions( const netCDF::NcVar & var ) {
  * vector \p data is resized to 1 and the value of the netCDF variable is
  * stored in the first position of \p data (notice that, in this case, the
  * given vector \p sizes is completely ignored).
+ *
+ * @return true if the desired variable was deserialized; false, otherwise.
  */
 
 template<class T>
-inline void deserialize( const netCDF::NcGroup & group ,
+inline bool deserialize( const netCDF::NcGroup & group ,
                          const std::string & var_name ,
                          const std::vector<std::size_t> & sizes ,
                          std::vector<T> & data ,
@@ -1792,14 +1798,14 @@ inline void deserialize( const netCDF::NcGroup & group ,
                                      std::multiplies<std::size_t>() );
   if( total_size == 0 ) {
     data.resize( 0 );
-    return;
+    return false;
   }
 
   auto ncVar = group.getVar( var_name );
   if( ncVar.isNull() ) {
     if( optional ) {
       data.resize( 0 );
-      return;
+      return false;
     }
 
     throw( std::invalid_argument( "deserialize(): " + var_name +
@@ -1821,7 +1827,7 @@ inline void deserialize( const netCDF::NcGroup & group ,
   if( ncVar.getDimCount() == 0 ) {
     data.resize( 1 );
     ncVar.getVar( & data[ 0 ] );
-    return;
+    return true;
   }
 
   auto var_sizes = get_sizes_dimensions( ncVar );
@@ -1837,6 +1843,8 @@ inline void deserialize( const netCDF::NcGroup & group ,
   std::vector<std::size_t> start( sizes.size() , 0 );
 
   ncVar.getVar( start , sizes , data.data() );
+
+  return true;
 }
 
 /*--------------------------------------------------------------------------*/
@@ -1879,17 +1887,19 @@ inline void deserialize( const netCDF::NcGroup & group ,
  * vector \p data is resized to 1 and the value of the netCDF variable is
  * stored in the first position of \p data (notice that, in this case, the
  * given vector \p sizes is completely ignored).
+ *
+ * @return true if the desired variable was deserialized; false, otherwise.
  */
 
 template<class T>
-inline void deserialize( const netCDF::NcGroup & group ,
+inline bool deserialize( const netCDF::NcGroup & group ,
                          const std::string & var_name ,
                          const std::size_t & size ,
                          std::vector<T> & data ,
                          const bool optional = true ,
                          const bool allow_scalar_var = false ) {
-  deserialize( group , var_name , std::vector<size_t> { size } , data ,
-               optional , allow_scalar_var );
+  return deserialize( group , var_name , std::vector<size_t> { size } , data ,
+                      optional , allow_scalar_var );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -1921,10 +1931,12 @@ inline void deserialize( const netCDF::NcGroup & group ,
  * @param[in] optional This parameter informs whether the variable is
  * optional. This means that if the variable is not present in the given
  * NcGroup and \p optional is false, an exception is thrown.
+ *
+ * @return true if the desired variable was deserialized; false, otherwise.
  */
 
 template<class T>
-inline void deserialize( const netCDF::NcGroup & group ,
+inline bool deserialize( const netCDF::NcGroup & group ,
                          const std::string & var_name ,
                          std::vector<T> & data ,
                          const bool optional = true ) {
@@ -1933,7 +1945,7 @@ inline void deserialize( const netCDF::NcGroup & group ,
   if( ncVar.isNull() ) {
     if( optional ) {
       data.resize( 0 );
-      return;
+      return false;
     }
     throw( std::invalid_argument
            ( "deserialize(): " + var_name + " is not present in group '" +
@@ -1948,7 +1960,7 @@ inline void deserialize( const netCDF::NcGroup & group ,
 
   if( total_size == 0 ) {
     data.resize( 0 );
-    return;
+    return false;
   }
 
   data.resize( total_size );
@@ -1956,6 +1968,8 @@ inline void deserialize( const netCDF::NcGroup & group ,
   std::vector<std::size_t> start( sizes_dimensions.size() , 0 );
 
   ncVar.getVar( start , sizes_dimensions , data.data() );
+
+  return true;
 }
 
 /*--------------------------------------------------------------------------*/
@@ -1998,7 +2012,7 @@ inline void deserialize( const netCDF::NcGroup & group ,
  * boost::multi_array \p array will have a single element (the origin) whose
  * value will be that of the netCDF variable.
  *
- * @return true if var_name was found in group, false otherwise.
+ * @return true if the desired variable was deserialized; false, otherwise.
  */
 
 template<class T, std::size_t N>
@@ -2072,10 +2086,12 @@ inline bool deserialize( const netCDF::NcGroup & group ,
  * @param[in] optional This parameter informs whether the variable is
  * optional. This means that if the variable is not present in the given
  * NcGroup and \p optional is false, an exception is thrown.
+ *
+ * @return true if the desired variable was deserialized; false, otherwise.
  */
 
 template<class T>
-void deserialize( const netCDF::NcGroup & group , const std::string & var_name ,
+bool deserialize( const netCDF::NcGroup & group , const std::string & var_name ,
                   T * data , const bool optional = true ) {
 
   auto ncVar = group.getVar( var_name );
@@ -2085,9 +2101,10 @@ void deserialize( const netCDF::NcGroup & group , const std::string & var_name ,
              ( "deserialize(): " + var_name + " is not present in group '" +
                group.getName() + "'." ) );
     }
-    return;
+    return false;
   }
   ncVar.getVar( data );
+  return true;
 }
 
 /*--------------------------------------------------------------------------*/
