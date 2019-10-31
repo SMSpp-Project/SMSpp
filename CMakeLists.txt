@@ -11,18 +11,30 @@ cmake_minimum_required(VERSION 3.8...3.15)
 project(SMS++ VERSION 1.0.0 LANGUAGES CXX)
 
 # ----- Requirements -------------------------------------------------------- #
-# find_package() is used to find libraries and automatically configure them.
-# It requires either a package configuration module (***Config.cmake) or a
-# find module (Find***.cmake), usually provided by libraries.
+if (EXISTS ${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 
-# We can provide a settings file with -DSETTINGS="filename"
-if ((CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME) AND SETTINGS)
-    message(STATUS "Using CMake custom settings in ${SETTINGS}")
-    include(${SETTINGS} OPTIONAL)
-endif ()
+    # Automated dependencies with Conan
+    include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
+    conan_basic_setup()
 
-# This is to use the find modules we provide
-list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindnetCDFCxx.cmake
+                   ${CMAKE_CURRENT_BINARY_DIR}/FindnetCDFCxx.cmake
+                   COPYONLY)
+
+    list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_CURRENT_BINARY_DIR})
+
+else ()
+
+    # Standalone configuration
+    # We can provide a settings file with -DSETTINGS="filename"
+    if ((CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME) AND SETTINGS)
+        message(STATUS "Using CMake custom settings in ${SETTINGS}")
+        include(${SETTINGS} OPTIONAL)
+    endif ()
+
+    # This is to use the find modules we provide
+    list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+endif()
 
 find_package(Boost 1.71.0 REQUIRED)
 find_package(Eigen3 REQUIRED)
