@@ -298,7 +298,7 @@ class BendersBFunction : public C05Function , public Block {
   };
 
 /**@} ----------------------------------------------------------------------*/
-/*-0----------- CONSTRUCTING AND DESTRUCTING BendersBFunction --------------*/
+/*------------- CONSTRUCTING AND DESTRUCTING BendersBFunction --------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructing and destructing BendersBFunction
  *  @{ */
@@ -1221,6 +1221,30 @@ class BendersBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 /** @name Saving the data of the BendersBFunction
  *  @{ */
+
+/*--------------------------------------------------------------------------*/
+ /// serialize a BendersBFunction into a netCDF::NcGroup
+ /** Serialize a BendersBFunction into a netCDF::NcGroup, with the following
+  * format:
+  *
+  * - The dimension "BendersBFunction_NumVar" containing the number of columns
+  *   of the A matrix, i.e., the number of active variables.
+  *
+  * - The dimension "BendersBFunction_NumRow" containing the number of rows of
+  *   the A matrix. The dimension is optional; if it is not provided then 0
+  *   (no rows) is assumed.
+  *
+  * - The variable "BendersBFunction_A", of type double and indexed over both
+  *   the dimensions NumRow and NumVar (in this order); it contains the
+  *   (row-major) representation of the matrix A. The variable is only
+  *   optional if NumRow == 0.
+  *
+  * - The variable "BendersBFunction_b", of type double and indexed over the
+  *   dimension NumRow, which contains the vector b. The variable is only
+  *   optional if NumRow == 0.
+  *
+  * TODO: active Variables and vector of ConstraintSpecifier.
+  */
 
  virtual void serialize( netCDF::NcGroup & group ) const override;
 

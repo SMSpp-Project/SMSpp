@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 29 - 10 - 2019
+ * \date 01 - 11 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -54,12 +54,61 @@ SMSpp_insert_in_factory_cpp_1( BendersBFunction );
 /*---------------------------------TODO-------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+
+void BendersBFunction::load( std::istream &input ) {
+ throw( std::logic_error( "BendersBFunction::load(): not implemented yet." ) );
+}
+
+/*--------------------------------------------------------------------------*/
+/*------------- CONSTRUCTING AND DESTRUCTING BendersBFunction --------------*/
+/*--------------------------------------------------------------------------*/
+
 void BendersBFunction::deserialize( netCDF::NcGroup & group ,
-                                    c_ModParam issueMod ) {}
-void BendersBFunction::serialize( netCDF::NcGroup & group ) const {}
-void BendersBFunction::add_Modification( sp_Mod mod ,
-                                         Observer::ChnlName chnl ) {}
-void BendersBFunction::load( std::istream &input ) {}
+                                    c_ModParam issueMod ) {
+
+ c_Index nvar = get_num_active_var(); // TODO should we deserialize the set of
+                                      // active Variable?
+
+ auto nv = group.getDim( "BendersBFunction_NumVar" );
+ if( nv.isNull() )
+  throw( std::logic_error( "BendersBFunction::deserialize: BendersBFunction_"
+                           "NumVar dimension is required." ) );
+ if( nv.getSize() != nvar )
+  throw( std::invalid_argument( "BendersBFunction::deserialize: matrix A has a "
+                                "wrong number of columns in the given "
+                                "netCDF::NcGroup." ) );
+
+ MultiVector tA;
+ RealVector tb;
+
+ netCDF::NcDim nr = group.getDim( "BendersBFunction_NumRow" );
+ if( ( ! nr.isNull() ) && ( nr.getSize() ) ) {
+   netCDF::NcVar ncdA = group.getVar( "BendersBFunction_A" );
+   if( ncdA.isNull() )
+    throw( std::logic_error( "BendersBFunction::deserialize: "
+                             "BendersBFunction_A not found" ) );
+
+   netCDF::NcVar ncdb = group.getVar( "BendersBFunction_b" );
+   if( ncdb.isNull() )
+    throw( std::logic_error( "BendersBFunction::deserialize: "
+                             "BendersBFunction_b not found" ) );
+
+  tA.resize( nr.getSize() );
+  for( Index i = 0 ; i < tA.size() ; ++i ) {
+   tA[ i ].resize( nvar );
+   ncdA.getVar( { i , 0 } , { 1 , nvar } , tA[ i ].data() );
+   }
+
+  tb.resize( nr.getSize() );
+  ncdb.getVar( tb.data() );
+  }
+
+ // TODO deserialize the vector of ConstraintSpecifier
+
+ // set_mapping( std::move( tA ) , std::move( tb ) ,
+ //              std::move( constraints ) , issueMod );
+
+ }  // end( BendersBFunction::deserialize )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -915,6 +964,25 @@ void BendersBFunction::delete_rows( c_ModParam issueMod )
                                Observer::par2chnl( issueMod ) );
 
  }  // end( BendersBFunction::delete_rows( all ) )
+
+/*--------------------------------------------------------------------------*/
+/*-------------------- Methods for handling Modification -------------------*/
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::add_Modification( sp_Mod mod ,
+                                         Observer::ChnlName chnl ) {
+ // TODO
+ throw( std::logic_error( "BendersBFunction::load(): not implemented yet." ) );
+}
+
+/*--------------------------------------------------------------------------*/
+/*------------ METHODS FOR Saving THE DATA OF THE BendersBFunction ---------*/
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::serialize( netCDF::NcGroup & group ) const {
+
+
+}
 
 /*--------------------------------------------------------------------------*/
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF THE BendersBFunction --------*/
