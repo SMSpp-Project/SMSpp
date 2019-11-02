@@ -5,9 +5,9 @@
  * Header file for the class LagBFunction, which
  * implements C05Function and Block with a Lagrangian function.
  *
- * \version 0.06
+ * \version 0.07
  *
- * \date 22 - 05 - 2019
+ * \date 01 - 11 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -277,12 +277,11 @@ class LagBFunction : public C05Function , public Block {
  using c_Range = ThinVarDepInterface::c_Range;
  using Subset = ThinVarDepInterface::Subset;
  using c_Subset = ThinVarDepInterface::c_Subset;
+ using v_coeff_pair = LinearFunction::v_coeff_pair;
 
- typedef std::pair< ColVariable * , Function * > dual_pair;
- ///< a constraint and its dual variable
-
- typedef std::vector< dual_pair > v_dual_pair;
- ///< a vector of dual_pair
+ ///< a vector of dual_pair (a constraint and its dual variable)
+ using dual_pair = std::pair< ColVariable * , Function * >;
+ using  v_dual_pair = std::vector< dual_pair > ;
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
@@ -299,7 +298,7 @@ class LagBFunction : public C05Function , public Block {
  typedef std::pair< LinearFunction::Coefficient , LinearFunction::v_coeff_pair > col_pair;
  ///< a pair to represent c_i and < y_i , A_i >
 
- typedef std::map< ColVariable * , col_pair > m_column;
+ typedef std::vector< col_pair > m_column;
  ///< a map of col_pair
 
  /*--------------------------------------------------------------------------*/
@@ -475,10 +474,12 @@ class LagBFunction : public C05Function , public Block {
   * In addition, since c(x) of (obj_B) is stored in a *sparse* format,
   * the LagBFunction has to add -to the *active* variable set of (obj_B)-
   * the Variable with coefficient zero which are involved in the definition
-  * of the relaxed constraints (RCs).  */
+  * of the relaxed constraints (RCs).
+  *
+  * This function must be called after set_inner_block, the sub-Block has been
+  * already defined. */
 
- void set_dual_pairs( v_dual_pair && v_lag_pairs ,
- 		 const bool static_is_ordered = false , c_ModParam issueMod = eModBlck );
+ void set_dual_pairs( v_dual_pair && lp , c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
 
@@ -559,13 +560,17 @@ class LagBFunction : public C05Function , public Block {
    * the Variable with coefficient zero which are involved in the definition
    * of the relaxed constraints (RCs).  */
 
- void add_dual_pairs( v_dual_pair && v_lag_pair ,
-		      const bool static_is_ordered = false ,
-		      c_ModParam issueMod = eNoBlck );
+ void add_dual_pairs( v_dual_pair && lp, c_ModParam issueMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
  void remove_variable( Index i , c_ModParam issueMod = eModBlck ) override;
+
+ void remove_variables( Range range = std::make_pair( 0 , Inf<Index>() ) ,
+                         c_ModParam issueMod = eModBlck );
+
+ void remove_variables( Subset && nms , bool ordered = false ,
+			c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
 
@@ -640,15 +645,6 @@ class LagBFunction : public C05Function , public Block {
 
  virtual void rename_linearization( const Index current_name ,
  				    const Index new_name ) override;
-
-/*--------------------------------------------------------------------------*/
-
- Index get_Amat_nzelements( void );
-
-/*--------------------------------------------------------------------------*/
-
- void get_Amat_desc( int *Abeg , int *Aind , double *Aval , const int strt ,
-		 int stp );
 
 /*--------------------------------------------------------------------------*/
  /// compute the Function
@@ -753,7 +749,7 @@ class LagBFunction : public C05Function , public Block {
  * @{ */
 
  Index get_num_active_var( void ) const override final {
-  return( lag_p.size() );
+  return( LagPairs.size() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -768,31 +764,31 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  Variable *get_active_var( const Index i ) const override final {
-  return( ( lag_p.begin() + i )->first );
+  return( ( LagPairs.begin() + i )->first );
   }
 
 /*--------------------------------------------------------------------------*/
 
  v_iterator * v_begin( void ) override final {
-  return( new LagBFunction::v_iterator( lag_p.begin() ) );
+  return( new LagBFunction::v_iterator( LagPairs.begin() ) );
   }
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
  v_const_iterator * v_begin( void ) const override final {
-  return( new LagBFunction::v_const_iterator( lag_p.begin() ) );
+  return( new LagBFunction::v_const_iterator( LagPairs.begin() ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
  v_iterator * v_end( void ) override final {
-  return( new LagBFunction::v_iterator( lag_p.end() ) );
+  return( new LagBFunction::v_iterator( LagPairs.end() ) );
   }
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
  v_const_iterator * v_end( void ) const override final {
-  return( new LagBFunction::v_const_iterator( lag_p.end() ) );
+  return( new LagBFunction::v_const_iterator( LagPairs.end() ) );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -824,13 +820,13 @@ class LagBFunction : public C05Function , public Block {
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
- v_dual_pair lag_p;
+ v_dual_pair LagPairs;
  ///< vector of Lagrangian dual pairs
 
  v_linearization_tuple g_pool;
  ///< global pool
 
- m_column LagMatrix;
+ m_column CostMatrix;
  ///< the matrix < x , <c,yA> > used to update the Lagrangian cost vector
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
@@ -879,19 +875,16 @@ class LagBFunction : public C05Function , public Block {
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
-   Vec_p_Var add_columns( v_dual_pair & v_lag_pair );
-   Vec_p_Var update_columns( v_dual_pair & v_lag_pair );
-   void rm_columns( Vec_p_Var & vars );
+   void initialize_cost_matrix( void );
+
+   Subset add_columns( v_dual_pair & v_lag_pair );
+   Subset update_columns( v_dual_pair & v_lag_pair );
+   void rm_columns( c_Subset & subset );
+   void rm_columns( c_Range & range );
 
 /*--------------------------------------------------------------------------*/
 
-   void issue_add_variables_modification( v_dual_pair & pairs ,
-   					c_ModParam issueMod );
-
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
-
-   void fix_sblock_objective( );
-   void set_original_costs( c_Vec_p_Var & xvar = {} );
+   void set_original_costs( c_Subset & subset = {} );
    void compute_Lagrangian_costs( );
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
