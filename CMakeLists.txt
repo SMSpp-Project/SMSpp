@@ -7,34 +7,16 @@
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #
 cmake_minimum_required(VERSION 3.8...3.15)
-# TODO: set proper version
-project(SMS++ VERSION 1.0.0 LANGUAGES CXX)
+project(SMS++ VERSION 0.1.0 LANGUAGES CXX)
+
+# ----- Settings ------------------------------------------------------------ #
+if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+    enable_testing()
+endif()
 
 # ----- Requirements -------------------------------------------------------- #
-if (EXISTS ${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
-
-    # Automated dependencies with Conan
-    include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
-    conan_basic_setup()
-
-    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindnetCDFCxx.cmake
-                   ${CMAKE_CURRENT_BINARY_DIR}/FindnetCDFCxx.cmake
-                   COPYONLY)
-
-    list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_CURRENT_BINARY_DIR})
-
-else ()
-
-    # Standalone configuration
-    # We can provide a settings file with -DSETTINGS="filename"
-    if ((CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME) AND SETTINGS)
-        message(STATUS "Using CMake custom settings in ${SETTINGS}")
-        include(${SETTINGS} OPTIONAL)
-    endif ()
-
-    # This is to use the find modules we provide
-    list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
-endif()
+# This is to use the find modules we provide
+list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 find_package(Boost 1.71.0 REQUIRED)
 find_package(Eigen3 REQUIRED)
