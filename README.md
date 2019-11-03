@@ -21,7 +21,7 @@ section [here](https://gitlab.com/smspp/smspp/wikis/troubleshooting).
 
 - [Boost](https://www.boost.org)
 - [Eigen](http://eigen.tuxfamily.org)
-- [netCDF](https://www.unidata.ucar.edu/software/netcdf)
+- [netCDF-C++](https://www.unidata.ucar.edu/software/netcdf)
 
 For further details on software dependencies, see
 [this page](https://gitlab.com/smspp/smspp/wikis/requirements).
