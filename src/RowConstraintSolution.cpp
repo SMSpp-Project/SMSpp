@@ -286,7 +286,7 @@ bool un_static( const boost::any & constraint_group ,
 }
 
 /*--------------------------------------------------------------------------*/
- 
+
 template<class T>
 bool un_static( const boost::any & constraint_group ,
                 boost::any & static_constraint_dual_value ,

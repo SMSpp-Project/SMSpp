@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 01 - 11 - 2019
+ * \date 03 - 11 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -29,8 +29,10 @@
 /*--------------------------------------------------------------------------*/
 
 #include "BendersBFunction.h"
+#include "FRowConstraint.h"
 #include "Objective.h"
 #include "Observer.h"
+#include "OneVarConstraint.h"
 #include "RowConstraint.h"
 #include "SMSTypedefs.h"
 #include "Solution.h"
@@ -971,8 +973,82 @@ void BendersBFunction::delete_rows( c_ModParam issueMod )
 
 void BendersBFunction::add_Modification( sp_Mod mod ,
                                          Observer::ChnlName chnl ) {
+
  // TODO
- throw( std::logic_error( "BendersBFunction::load(): not implemented yet." ) );
+
+ if( const auto tmod = std::dynamic_pointer_cast<GroupModification>( mod ) ) {
+  for( const auto & submod : tmod->v_sub_Modifications )
+   this->add_Modification( submod , chnl );
+ }
+ else if( const auto tmod = std::dynamic_pointer_cast<FunctionMod>( mod ) ) {
+
+ }
+ else if( const auto tmod = std::dynamic_pointer_cast<ConstraintMod>( mod ) ) {
+
+  if( tmod->type() == ConstraintMod::eRelaxConst ) {
+  }
+  else if( tmod->type() == ConstraintMod::eEnforceConst ) {
+  }
+  else if( const auto tmod = std::dynamic_pointer_cast<RowConstraintMod>( mod ) ) {
+   switch( tmod->type() ) {
+   case( RowConstraintMod::eChgRHS ):
+   case( RowConstraintMod::eChgLHS ):
+   case( RowConstraintMod::eChgBTS ):
+   default:
+    // unknown modification
+    if( f_Observer )
+     f_Observer->add_Modification( mod , chnl );
+   }
+  }
+  else if( const auto tmod = std::dynamic_pointer_cast<FRowConstraintMod>( mod ) ) {
+   if( tmod->type() == FRowConstraintMod::eFunctionChanged ) {
+    // Pointer to the Function has changed
+   }
+   else {
+    // unkown modification
+   }
+  }
+  else if( const auto tmod = std::dynamic_pointer_cast<OneVarConstraintMod>( mod ) ) {
+   switch( tmod->type() ) {
+   case( OneVarConstraintMod::eVariableChanged ):
+    // Pointer to the Variable of the OneVarConstraintMod has changed
+   case( RowConstraintMod::eChgRHS ):
+   case( RowConstraintMod::eChgLHS ):
+   case( RowConstraintMod::eChgBTS ):
+   default:
+    // unknown modification
+    if( f_Observer )
+     f_Observer->add_Modification( mod , chnl );
+   }
+  }
+  else {
+   // unkown modification
+  }
+ } // end ConstraintMod
+
+ else if( const auto tmod = std::dynamic_pointer_cast<ObjectiveMod>( mod ) ) {
+
+  if( tmod->type() == ObjectiveMod::eSetMin ) {
+  }
+  else if( tmod->type() == ObjectiveMod::eSetMin ) {
+  }
+  else {
+   // unkown modification
+  }
+ } // end ObjectiveMod
+ else if( const auto tmod = std::dynamic_pointer_cast<VariableMod>( mod ) ) {
+  // the type of a Variable has changed
+
+  // This BendersBFunction may be affected, since the feasible set of the
+  // sub-Block may have changed.
+ }
+ else if( const auto tmod = std::dynamic_pointer_cast<BlockModAD>( mod ) ) {
+ }
+ else if( const auto tmod = std::dynamic_pointer_cast<BlockMod>( mod ) ) {
+ }
+ else {
+  // unkown modification
+ }
 }
 
 /*--------------------------------------------------------------------------*/
@@ -980,8 +1056,9 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
 /*--------------------------------------------------------------------------*/
 
 void BendersBFunction::serialize( netCDF::NcGroup & group ) const {
-
-
+ // TODO
+ throw( std::logic_error( "BendersBFunction::serialize(): "
+                          "not implemented yet." ) );
 }
 
 /*--------------------------------------------------------------------------*/
