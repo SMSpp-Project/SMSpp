@@ -42,6 +42,7 @@ target_sources(SMSpp PRIVATE
                src/DQuadFunction.cpp
                src/FRealObjective.cpp
                src/FRowConstraint.cpp
+               src/Function.cpp
                src/LagBFunction.cpp
                src/LinearFunction.cpp
                src/Objective.cpp

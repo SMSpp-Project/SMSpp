@@ -34,9 +34,9 @@
  * having a GroupModification may in principle considerably simplify the
  * handling.
  *
- * \version 0.30
+ * \version 0.40
  *
- * \date 07 - 06 - 2019
+ * \date 31 - 10 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -307,19 +307,23 @@ namespace SMSpp_di_unipi_it
  *
  * 6. Note, however, that the "asynchronicity" of Modification *only applies
  *    to Solver*. An AMod triggered by a change in an element of the AR
- *    should reasonably *immediately reach the :Block*. Thus, the processing
- *    of AMod from :Block to keep the PR in synch with the AR can reasonably
- *    assume that the Modification "has just been issued", and therefore that
- *    the state of the (AR of the) :Block is the one implied by the
- *    Modification (say, if a Variable has just been removed from the set of
- *    those active in a ThinVarDepInterface, it should not be found there).
- *    As a partial exception to this rule, if a Modification is contained in
- *    a GroupModification then it only "reaches" the :Block once the channel
- *    is closed, so there is some scope for "delay" from the moment the
- *    Modification is issued and the one it reaches the :Block. However, it
- *    is expected that GroupModification represent "small" groups of
- *    logically-related Modification, so changes in the state of the :Block
- *    should be "few" and, well, logically-related between themselves.
+ *    *immediately* reaches the :Block. Thus, the processing of AMod from
+ *    :Block to keep the PR in synch with the AR can assume that the
+ *    Modification has just been issued, and therefore that the state of the
+ *    :Block is the one implied by the Modification (say, if a Variable has
+ *    just been removed from the set of those active in a
+ *    ThinVarDepInterface, it should not be found there). Note that there
+ *    could be an exception to this rule: a Modification could be contained
+ *    in a GroupModification, that only "reaches" the :Block once the channel
+ *    is closed. This would provide scope for some delay between the moment
+ *    the Modification is issued and the one it reaches the :Block. However,
+ *    a proper implementation of Block::add_Modification() [see] implies that
+ *    the very :Block to which the elements being modified belong gets the
+ *    Modification *before* it can be packed into a GroupModification. This is
+ *    precisely the :Block that has to react to AMod, and therefore precisely
+ *    the :Block that may contain complex logic to do that; the assumption
+ *    that AMod are received *immediately* may considerably simplify that
+ *    logic.
  *
  * 7. All the above conceptually requires that
  *
@@ -327,7 +331,7 @@ namespace SMSpp_di_unipi_it
  *
  *    The lists of Modification in Solver should be strictly accessed FIFO.
  *    For GroupModification, which is actually a tree, this translates to
- *    depth-first left-to-right transversal: 1) the Modification in the
+±!~D *    depth-first left-to-right transversal: 1) the Modification in the
  *    STL container are accessed in the natural order, and 2) once a
  *    sub-GroupModification of a GroupModification is entered, no other
  *    Modification of the original GroupModification is processed until all
@@ -345,8 +349,14 @@ namespace SMSpp_di_unipi_it
  *    to deal with the "complex" cases (cf. points 4. and 5.), so any logic
  *    doing that will have to be very cerefully considered.
  *
- * The only common aspect to all Modifications is that all can be printed,
- * and have to report if the :Block should process them. */
+ * The only common aspects to all Modifications are that:
+ *
+ * - they can be printed;
+ *
+ * - they have to report if the :Block should process them;
+ *
+ * - they can provide a pointer to the Block they were originated from.
+ */
 
 class Modification {
 
@@ -359,6 +369,20 @@ class Modification {
  Modification( void ) { }            ///< constructor: does nothing
 
  virtual ~Modification() = default;  ///< destructor: does nothing
+
+/*--------------------------------------------------------------------------*/
+ /// returns the Block this Modification was originated from
+ /** Each Modification is ultimately originated from within some Block; since
+  * the Modification has to contain information (typically, a pointer) capable
+  * of uniquely identifying the part of the Block it refers to, it can also
+  * uniquely identify the Block itself. However, according to the specific
+  * type of Modification (i.e., the part of the Block it refers to), it may be
+  * necessary to jump some hops before being able to reconstruct what the
+  * Block exactly was. This pure virtual method provides a uniform interface
+  * so that this can be immediately asked to any Modification, whatever its
+  * type. */
+
+ virtual Block * get_Block( void ) const = 0;
 
 /*--------------------------------------------------------------------------*/
  /// returns true if the :Block needs to process this Modification
@@ -439,21 +463,21 @@ class AModification : public Modification {
  /** Constructor of the class; it takes and sets the value to be returned by
   * concerns_Block() (true by default). */
  
- AModification( const bool cB = true ) : f_concerns_Block( cB ) { }
+ AModification( bool cB = true ) : f_concerns_Block( cB ) { }
 
  virtual ~AModification() = default;  ///< destructor: does nothing
 
 /*--------------------------------------------------------------------------*/
  /// returns the value stored in the f_concerns_Block field
 
- virtual bool concerns_Block( void ) const override {
+ bool concerns_Block( void ) const override {
   return( f_concerns_Block );
   }
  
 /*--------------------------------------------------------------------------*/
  /// method to set the value returned by concerns_Block( void )
 
- virtual void concerns_Block( const bool cB ) override {
+ void concerns_Block( const bool cB ) override {
   f_concerns_Block = cB;
   }
 
@@ -543,13 +567,15 @@ class NBModification : public NModification
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
  /// constructor: takes the Block
+
  NBModification( Block *fblock ) : NModification() , f_Block( fblock ) { }
 
  virtual ~NBModification() = default;   ///< destructor, does nothing
 
-/*--------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
+/*--------------------------------------------------------------------------*/
+ /// returns the Block this Modification was originated from
 
- Block *f_Block;  ///< reference to the block to which the Modification refers
+ Block * get_Block( void ) const override { return( f_Block ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -557,9 +583,14 @@ class NBModification : public NModification
 
 /*-------------------------- PROTECTED METHODS -----------------------------*/
  /// print the NBModification
+
  virtual inline void print( std::ostream &output ) const override {
   output << "NBModification on Block [" << &f_Block << "]" << std::endl;
   }
+
+/*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
+
+ Block *f_Block;  ///< reference to the block to which the Modification refers
 
 /*--------------------------------------------------------------------------*/
 
@@ -595,12 +626,21 @@ class GroupModification : public AModification {
   * concerns_Block(), to be passed to the AModification destructor, and
   * (optionally) the "father" of the GroupModification. */
  
- GroupModification( const bool cB = true ,
-		    GroupModification * father = nullptr )
+ GroupModification( bool cB = true , GroupModification * father = nullptr )
   : AModification( cB ) , f_father( father ) { }
 
  ///< destructor: does nothing
  virtual ~GroupModification() = default;
+
+/*--------------------------------------------------------------------------*/
+ /// returns the Block this Modification was originated from
+ /** One expects that all the Modification in the same GroupModification
+  * refer to the same Block, hence GroupModification returns the Block of
+  * the first one of them (if any, nullptr otherwise). */
+
+ Block * get_Block( void ) const override {
+  return( v_sub_Modifications.empty() ?
+	  nullptr : v_sub_Modifications.front()->get_Block() ); }
 
 /*--------------------- PUBLIC FIELDS OF THE CLASS -------------------------*/
 

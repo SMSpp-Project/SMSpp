@@ -18,6 +18,151 @@
 	back and forth between the original Block and its Lagrangian
 	Function/Dual.
 
+2018-07-20 [medium-high] Block and Solver specify which kinds of Modification
+	   they care about, and Modification expose both their "kind" and
+	   what sort of effect they have on the whole problem
+
+	We introduce in Observer the type
+
+ using ModConcern = unsigned short int;
+
+        to encode for a bit-wise representation of what a Modification changes,
+	as dicteted by the following enum:
+
+ enum Modification_changes {
+  eModNothing     =   0;
+
+  eModStatAbstVar =   1;
+  eModDyncAbstVar =   2;
+  eModStatPhysVar =   4;
+  eModDyncPhysVar =   8;
+  eModStatAbstCns =  16;
+  eModDyncAbstCns =  32;
+  eModStatPhysCns =  64;
+  eModDyncPhysCns = 128;
+  eModAbstObj     = 256;
+  eModPhysObj     = 512;
+
+  eModAbst        = 307;
+  eModPhys        = 716;
+
+  eModAnything    = 1023;
+
+  eFsblRegnInc    = 1024;
+  eFsblRegnDec    = 2048;
+  eObjcFnctInc    = 4096;
+  eObjcFnctDec    = 8192;
+
+  };
+
+	The anyone_there( void ) method of Observer becomes
+
+ virtual bool anyone_there( ModConcern what_for = eModAnything ) const = 0;
+
+        that has to return true if anyone is listening to "that particular
+	type of Modification" (default, anything). Correspondingly,
+
+ inline bool issue_mod( ModParam issueMod , ModConcern what_for )
+
+ inline bool issue_pmod( c_ModParam issueMod , ModConcern what_for )
+
+        now call anyone_there( what_for ).
+	
+        Solver has a method
+
+ virtual ModConcern concerned_by( void ) const {
+  return( Observer::eModAnything );
+  }
+
+        that declares which kind of Modifications it is interested in. Block
+	has exactly the same
+
+ virtual ModConcern concerned_by( void ) const { return( eModNothing ); }
+
+        that tells *whch Modifications the Block itself wants to see anyway*.
+	Typically these are those of objects in its abstract representation
+	whose abstract Modification have to be monitored to change the
+	physical representation as well. This may be "nothing", for instance
+	if the abstract representation has not been constructed (which
+	means that concerned_by() can change when generate_abstract_* are
+	called, triggering new calls to anyone_there(), see below), or if
+	there is no physical representation at all.
+
+	Also, anyone_there( bool ) becomes
+
+ void set_anyone_there( ModConcern concerned_by );
+
+	Block computes the logical "or" of:
+
+        - the codes returned by Solver::concerned_by() of its attached Solver
+
+	- the code returned by its own (virtual) Block::concerned_by()
+
+	- the code passed from is father using anyone_there()
+
+	and passes it to its sons using set_anyone_there(). It uses a field
+	f_concerned_by to store the result, and f_father_concerned_by to
+	store what was passed via set_anyone_there(); each time something
+	changes (a Solver is attached/detached, set_anyone_there() is called)
+	it recomputes f_concerned_by, if it changes calls set_anyone_there().
+
+	Before issuing any Modification, the issuer has to call
+	anyone_there( my_what_for ) to see if there is anyone interested in
+	that particular kind of Modification. Note that an abstract
+	Modification reaching a Block may trigger changes in the corresponding
+	physical representation of the Block, but not necessarily trigger a
+	physical Modification if there is no interested Solver in such a thing.
+
+	Modification object exposes a similarly bit-coded integer:
+
+ virtual ModConcern changes( void ) const = 0;
+
+        Possibly, specific MyModification also have
+
+ static constexpr I_change = ... ;
+
+        so that
+
+ ModConcern changes( void ) const override {
+  return( MyModification::I_change );
+  }
+
+        and the call to issue_[p]mod() can be generically made as
+
+ issue_[p]mod( ... , MyModification::I_change & eModAnything )
+
+        which automates the process somewhat. When the Modification is
+	handled in Block, mod->changes() is checked against
+	Solver::concerned_by() before being passed to any Solver, and
+	against Block::concerned_by() before being passed to the father.
+	The check is "mod->changes() & ...concerned_by()", in the sense
+	that at least one bit has to agree.
+
+        The "& eModAnything" in issue_[p]mod() above is	because the
+	higher-order bits of changes() are reserved for a related but
+	different aim: generically indicating what is the expected effect
+	of the Modifiction on the problem. Note that eFsblRegnInc and
+	eFsblRegnDec can both be set to 1, meaning "no idea what the
+	change actually was", and similarly for eObjcFnctInc and
+	eObjcFnctDec.
+
+        There are specific issues for FunctionMod, since the Function is
+	used inside a FRowConstraint or FRealObjective.
+
+	First, FRowConstraint and FRealObjective need to "intercept"
+	FunctionVarMod to update the list of "active" Variable; hence,
+	FunctionVarMod have to declare themselves of type eModDyncAbstVar,
+	and F...::anyone_there( aw ) whill have to check aw with the |=
+	between f_block->anyone_there( aw ) and eModDyncAbstVar.
+
+	Then, eFsblRegn[Inc/Dec] and eObjcFnct[Inc/Dec] make no sense for
+	a Function. However, FunctionMod[Vars]->shift() tells if the
+	Function has changed monotonically, which allows to properly
+	set eFsblRegn[Inc/Dec] and eObjcFnct[Inc/Dec]. This, however,
+	means that the fields will have to be set-able even after that
+	the Modification has been constructed, unlike most other ones.
+
+
 2019-08-26 [medium-high] implement [de]serialize() in ColVariableSolution
 
 	the name says it all
@@ -154,28 +299,30 @@
 
 2019-02-21 [low] MultiVariable, MultiConstraint, MultiObjective, MultiFunction
 
-	We could implement a template class MultiColVariable<T> : ColVariable that
-	corresponds to "a T of ColVariable". Its value would be a T<double>. This
-	may fit in very well with DenseLinear and MultiVarConstraint. The advantage
-	is to avoid replication of the Block pointer and of the f_state field,
-	as well as decreasing a lot the total number of Variable in a Block. The
-	serious disadvantage is that the thing can only be fixed or unfixed whole
-	(which may sometimes be an advantage), and that the MultiColVariable<T>
+	We could implement a template class MultiColVariable<T> : ColVariable
+	that corresponds to "a T of ColVariable". Its value would be a
+	T<double>. This may fit in very well with DenseLinear and
+	MultiVarConstraint. The advantage is to avoid replication of the
+	Block pointer and of the f_state field, as well as decreasing a lot
+	the total number of Variable in a Block. The serious disadvantage is
+	that the thing can only be fixed or unfixed whole (which may
+	sometimes be an advantage), and that the MultiColVariable<T>
 	could be active in many Constraint ... unless we have things like
-	MultiVarConstraint that may represent a bunch of constraints in a compact
-	way, doubling down on the advantages.
+	MultiVarConstraint that may represent a bunch of constraints in a
+	compact way, doubling down on the advantages.
 
 	Note that it could be left to the Configuration in
-	generate_abstract_variables() and generate_abstract_constraints() [...]
-	if one uses a MultiColVariable<T> or a T<ColVariable>, which may allow to
-	reap the advantages if there is, say, no need to fixing variables
-	individually, while having the standard fallback if this is necessary.
+	generate_abstract_variables() and generate_abstract_constraints()
+	[...] if one uses a MultiColVariable<T> or a T<ColVariable>, which
+	may allow to reap the advantages if there is, say, no need to fixing
+	variables individually, while having the standard fallback if this is
+	necessary.
 
-	Similar MultiConstraint<T>, MultiObjective<T> and MultiFunction<T> may make
-	sense, but details should be examined.
+	Similar MultiConstraint<T>, MultiObjective<T> and MultiFunction<T>
+	may make sense, but details should be examined.
 
-	IMPORTANT: THIS DOES NOT CHANGE THE TOP STRUCTURE. These are just new types
-	of Variable, and one can still do a
+	IMPORTANT: THIS DOES NOT CHANGE THE TOP STRUCTURE. These are just new
+	types of Variable, and one can still do a
 	boost::multi_array< MultiColVariable< std::vector > >.
 
 
@@ -243,31 +390,6 @@
            map_back_modifications() methods.
 
 
-2018-07-20 [low] Solver specifies which kinds of Modifications it cares about
-
-        A Solver declares which kind of Modifications it is interested in. It will
-	return a bit-coded integer value that specifies "what is impacted by the
-	modification", say:
-	- bit 0: static abstract variables
-	- bit 1: dynamic abstract variables
-	- bit 2: static abstract constraints
-	- bit 3: dynamic abstract constraints
-	- bit 4: abstract objective function
-	- bit 5: static physical variables
-	- bit 6: dynamic physical variables
-	- bit 7: static physical constraints
-	- bit 8: dynamic physical constraints
-	- ...
-	Any Modification object exposes a similarly bit-coded integer. Any Block
-	computes the logical "or" of the codes of the interested Solver, *adding
-	it the bits corresponding to the Modifications the Block itself wants to
-	see anyway*, i.e., those of abstract objects that possibly have to be
-	turned into physical modifications. Note that an abstract modification
-	reaching a Block may trigger changes in the corresponding physical fields
-	of the Block, but not necessarily trigger a physical Modification if there
-	is no interested Solver in such a thing.
-
-
 2018-09-07 [low] Solver specifies which kinds of Modifications it cares about
 
 	An even more detailed version of the previous one: both Solver
@@ -278,17 +400,6 @@
 	the set of the father is added, and then all this is sent to
 	the sons.
 
-
-2019-02-21 [very low] boost::stable_vector
-
-	The reason why in SMS++ we use std::list for dynamic stuff is that they
-	are stable. However, there are alternative stable containers, such as
-
-	https://www.boost.org/doc/libs/1_57_0/doc/html/container/non_standard_containers.html#container.non_standard_containers.stable_vector
-
-	It would indeed be possible to replace std::list with boost::stable_vector
-	in all parts dealing with dynamic stuff. Not clear under which conditions,
-	if any, this would be advantageous.
 
 
 ################################################################################

@@ -84,9 +84,9 @@
  * specific for each Block and R3 Block of its, and the base class provides
  * no general mechanism for it (besides the interface).
  *
- * \version 0.31
+ * \version 0.32
  *
- * \date 24 - 09 - 2019
+ * \date 31 - 10 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -3830,12 +3830,22 @@ class Block : public Observer {
 /** @name Methods describing the behavior of an Observer
  *  @{ */
 
+ /// returns the Block that this Observer is
+ /** A Block is an Observer, so the Block that this Observer belongs to is
+  * itself. However, note that const-ness has to be casted away from "this",
+  * which is const in a const method. */
+
+ Block * get_Block( void ) const override {
+  return( const_cast< Block * >( this ) );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns true if there is any Solver "listening to this Block"
  /** Returns true if there is any Solver "listening to this Block", which
   * means either registered to this Bock or registered to any ancestor
   * (father, father of father, ...) of this Block. */
 
- virtual bool anyone_there( void ) const override {
+ bool anyone_there( void ) const override {
   return( f_at || ( ! v_Solver.empty() ) );
   }
 
@@ -4436,13 +4446,14 @@ class Block : public Observer {
 
 /*--------------------------------------------------------------------------*/
  /// register a new ("class member") function in the methods factory
- /** This template function registers a class member function in the appropriate
-  * methods factory, and associates it with the given \p name. It has a template
-  * parameter and a variadic parameter pack. The template parameter \p dBlock is
-  * the class (derived from Block) of which the function is a member. The
-  * parameter pack \p Args specifies the parameter type list (actually, part of
-  * it, without considering the two c_ModParam parameters) of the function by
-  * means of MemberFunctionType< dBlock , Args... >.
+ /** This template function registers a class member function in the
+  * appropriate methods factory, and associates it with the given \p name. It
+  * has a template parameter and a variadic parameter pack. The template
+  * parameter \p dBlock is the class (derived from Block) of which the
+  * function is a member. The parameter pack \p Args specifies the parameter
+  * type list (actually, part of it, without considering the two c_ModParam
+  * parameters) of the function by means of
+  * MemberFunctionType< dBlock , Args... >.
   *
   * This function serves as a wrapper for the "general" register_method< F >()
   * which has a single template parameter corresponding to the type F of
@@ -4451,17 +4462,17 @@ class Block : public Observer {
   * which just static_cast<> the Block * argument to a dBlock *, and
   * then invokes \p function.
   *
-  * @param name The name that will identify the given \p function in the methods
-  *             factory; as the "&&" tells, the std::string becomes "property"
-  *             of the methods factory.
+  * @param name The name that will identify the given \p function in the
+  *             methods factory; as the "&&" tells, the std::string becomes
+  *             "property" of the Block.
   *
-  * @param function The pointer to the class member function whose adapter
-  *                 function is to be added to the corresponding methods
-  *                 factory. */
+  * @param fnct The pointer to the class member function whose adapter
+  *             function is to be added to the corresponding methods factory.
+  */
 
  template< class dBlock , typename ... Args >
  static void register_method( std::string && name ,
-                              MemberFunctionType< dBlock , Args... > function )
+                              MemberFunctionType< dBlock , Args... > fnct )
  {
   // ensure dBlock derives from Block
   static_assert( std::is_base_of< Block , dBlock >::value ,
@@ -4469,11 +4480,11 @@ class Block : public Observer {
 
   register_method( std::move( name ) ,
 		   new FunctionType< Args... >(
-		       [ function ]( Block * blck , Args&&... args ,
-				     c_ModParam issuePMod ,
-				     c_ModParam issueAMod )
+		       [ fnct ]( Block * blck , Args&&... args ,
+				 c_ModParam issuePMod ,
+				 c_ModParam issueAMod )
 		       {
-			std::invoke( function ,
+			std::invoke( fnct ,
 				     static_cast< dBlock * >( blck ) ,
 				     std::forward< Args >( args )... ,
 				     issuePMod , issueAMod );
@@ -4482,47 +4493,46 @@ class Block : public Observer {
 
 /*--------------------------------------------------------------------------*/
  /// register a new function in the methods factory
- /** This template function registers a class member function in the appropriate
-  * methods factory, and associates it with the given \p name. It has a single
-  * template parameter, the \p dBlock class (derived from Block) of which the
-  * function is a member.
+ /** This template function registers a class member function in the
+  * appropriate methods factory, and associates it with the given \p name. It
+  * has a single template parameter, the \p dBlock class (derived from Block)
+  * of which the function is a member.
   *
   * This function serves as a wrapper for the "general" register_method< F >()
   * which has a single template parameter corresponding to the type F of the
   * function to be inserted in the methods factory. Indeed, what this version
   * does is to create an adapter function which just static_cast<> the Block *
   * argument to a dBlock *, and then invokes \p function. However, the type of
-  * the adapter function is now specified by means of the third parameter, which
-  * is dummy arg_packer_helper<Args...>. This is intended to be used with
-  * existing parameter type list-specifying types, such as in MS_rngd::args() or
-  * MS_int_sbst::args(), although there is nothing preventing from defining new
-  * ones.
+  * the adapter function is now specified by means of the third parameter,
+  * which is dummy arg_packer_helper<Args...>. This is intended to be used
+  * with existing parameter type list-specifying types, such as in
+  * MS_rngd::args() or MS_int_sbst::args(), although there is nothing
+  * preventing from defining new ones.
   *
-  * @param name The name that will identify the given \p function in the methods
-  *             factory; as the "&&" tells, the std::string becomes "property"
-  *             of the methods factory.
+  * @param name The name that will identify the given \p function in the
+  *             methods factory; as the "&&" tells, the std::string becomes
+  *             "property" of the Block
   *
-  * @param function The pointer to the class member function whose adapter
-  *                 function is to be added to the corresponding methods
-  *                 factory.
+  * @param fnct The pointer to the class member function whose adapter
+  *             function is to be added to the corresponding methods factory.
   *
   * @param void Dummy arg_packer_helper<Args...> parameter to specify the
   *             parameter type list of the function to be registered. */
 
  template< class dBlock , typename ... Args >
  static void register_method( std::string && name ,
-			      MemberFunctionType< dBlock , Args... > function ,
+			      MemberFunctionType< dBlock , Args... > fnct ,
 			      arg_packer_helper<Args...> )
  {
-  register_method< dBlock , Args... >( std::move( name ) , function );
+  register_method< dBlock , Args... >( std::move( name ) , fnct );
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the function associated with the given name in the methods factory
+ /// returns the function with the given name in the methods factory
  /** This function returns a pointer to the function associated with the given
-  * \p name in the methods factory specified by the template function type F. If
-  * there is no function associated with the given \p name in that factory, this
-  * function returns nullptr.
+  * \p name in the methods factory specified by the template function type F.
+  * If there is no function associated with the given \p name in that
+  * factory, this method returns nullptr.
   *
   * Suppose, for example, that the methods factory has a function associated
   * with the name "NetworkBlock::set_arc_weight" that has the typical "double,
@@ -4536,10 +4546,10 @@ class Block : public Observer {
   *     std::invoke( *mthd , NB , iter , range , issuePMod , issueAMod );
   *
   * where NB is a pointer to a NetworkBlock object (assuming the function
-  * obtained from the methods factory is associated with this class, as it is a
-  * good practice, considering the name of the function), iter is an iterator of
-  * type #MF_dbl_it, range is a #Range, and issuePMod and issueAMod are the last
-  * two parameters of the function.
+  * obtained from the methods factory is associated with this class, as it is
+  * a good practice, considering the name of the function), iter is an
+  * iterator of type #MF_dbl_it, range is a #Range, and issuePMod and
+  * issueAMod are the last two parameters of the function.
   *
   * @param name The name associated with the function. */
 
@@ -4550,11 +4560,12 @@ class Block : public Observer {
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the function associated with the given name in the methods factory
- /** This template function returns a pointer to the adapter function associated
-  * with the given \p name in the methods factory corresponding to the function
+ /// returns the function with the given name in the methods factory
+ /** This template function returns a pointer to the adapter function with
+  * the given \p name in the methods factory corresponding to the function
   * type F implied by the variadic template parameter Args. Basically, this
-  * function is equivalent to get_method< F > with F == FunctionType< Args... >.
+  * function is equivalent to get_method< F > with
+  * F == FunctionType< Args... >.
   *
   * Suppose, for example, that the methods factory has a function associated
   * with the name "NetworkBlock::set_arc_weight" that has the typical "double,
@@ -4607,8 +4618,8 @@ class Block : public Observer {
   *
   * @param name The name associated with the function.
   *
-  * @param void Dummy arg_packer_helper<Args...> parameter to specify parameter
-  *             type list of the function to be retrieved. */
+  * @param void Dummy arg_packer_helper<Args...> parameter to specify
+  *             parameter type list of the function to be retrieved. */
 
  template< typename... Args >
  static const FunctionType< Args... > * get_method_fs(
@@ -4619,47 +4630,46 @@ class Block : public Observer {
 
 /*--------------------------------------------------------------------------*/
  /// returns the name that is associated with the given function
- /** This template function returns (a reference to) the name that is associated
-  * with the given (pointer to a) function in the methods factory specified by
-  * the template function type F. If the given function is not present in that
-  * methods factory, a (reference to a)n empty string is returned.
+ /** This template function returns (a reference to) the name that is
+  * associated with the given (pointer to a) function in the methods factory
+  * specified by the template function type F. If the given function is not
+  * present in that methods factory, a (reference to a)n empty string is
+  * returned.
   *
-  * @param function A pointer to the function whose associated name is desired.
-  */
+  * @param fnct A pointer to the function whose associated name is desired. */
 
  template< class F >
- static const std::string & get_method_name( const F * function )
+ static const std::string & get_method_name( const F * fnct )
  {
   static const std::string empty;
-  auto it = methods< F >().right.find( function );
+  auto it = methods< F >().right.find( fnct );
   return( it != methods< F >().right.end() ? it->second : empty );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the name that is associated with the given function
- /** This template function returns (a reference to) the name that is associated
-  * with the given (pointer to a) function in the methods factory corresponding
-  * to the function type F implied by the variadic template parameter
-  * Args. Basically, this function is equivalent to get_method_name< F > with
-  * F == FunctionType< Args... >.
+ /** This template function returns (a reference to) the name that is
+  * associated with the given (pointer to a) function in the methods factory
+  * corresponding to the function type F implied by the variadic template
+  * parameter Args. Basically, this function is equivalent to
+  * get_method_name< F > with F == FunctionType< Args... >.
   *
-  * @param function A pointer to the function whose associated name is desired.
-  */
+  * @param fnct A pointer to the function whose associated name is desired. */
 
  template< typename... Args >
  static const std::string & get_method_name_fs(
-			       const FunctionType< Args... > * function )
+			               const FunctionType< Args... > * fnct )
  {
-  return get_method_name< FunctionType< Args... > >( function );
+  return get_method_name< FunctionType< Args... > >( fnct );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the name that is associated with the given function
- /** This template function returns (a reference to) the name that is associated
-  * with the given (pointer to a) function in the methods factory implied by the
-  * second dummy parameter.
+ /** This template function returns (a reference to) the name that is
+  * associated with the given (pointer to a) function in the methods factory
+  * implied by the second dummy parameter.
   *
-  * @param function A pointer to the function whose associated name is desired.
+  * @param fnct A pointer to the function whose associated name is desired.
   *
   * @param void Dummy arg_packer_helper<Args...> parameter to specify the
   *             parameter type list of the function whose associated name is
@@ -4667,10 +4677,10 @@ class Block : public Observer {
 
  template< typename... Args >
  static const std::string & get_method_name_fs(
-			       const FunctionType< Args... > * function ,
-			       arg_packer_helper<Args...> )
+			               const FunctionType< Args... > * fnct ,
+			               arg_packer_helper<Args...> )
  {
-  return get_method_name< FunctionType< Args... > >( function );
+  return get_method_name< FunctionType< Args... > >( fnct );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -5460,7 +5470,8 @@ class BlockMod : public AModification
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
 
  /// constructor: takes the Block and the "concerns" value
- BlockMod( Block *fblock , const bool cB = false )
+
+ BlockMod( Block *fblock , bool cB = false )
   : AModification( cB ) , f_Block( fblock ) { }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
@@ -5468,9 +5479,10 @@ class BlockMod : public AModification
  virtual ~BlockMod() = default;   ///< destructor, does nothing
 
 /*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+
  /// accessor to the pointer to the Block to which the Modification refers
 
- Block * get_Block( void ) { return( f_Block ); }
+ Block * get_Block( void ) const override  { return( f_Block ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -5521,7 +5533,7 @@ class BlockModAD : public AModification
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor, taking the "concerns" value
 
- BlockModAD( bool cB = false ) : AModification( cB ) {}
+ BlockModAD( bool cB = false ) : AModification( cB ) { }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
@@ -5529,17 +5541,12 @@ class BlockModAD : public AModification
 
 /*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
- /// returns the pointer to the enclosing Block
-
- virtual Block * get_Block( void ) = 0;
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns true is a Variable is involved, false if a Constraint is involved
  /** Returns true is a Variable is involved, false if a Constraint is
   * involved. The method is pure virtual and it is actually implemented by
   * derived classes. */
 
- virtual bool is_variable( void ) = 0;
+ virtual bool is_variable( void ) const = 0;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns true if < something > is added, false if it is removed
@@ -5547,7 +5554,7 @@ class BlockModAD : public AModification
   * method is pure virtual and it is actually implemented by derived classes.
  */
 
- virtual bool is_added( void ) = 0;
+ virtual bool is_added( void ) const = 0;
 
 /*--------------------------------------------------------------------------*/
 
@@ -5605,7 +5612,7 @@ class BlockModAdd : public BlockModAD
 
 /*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
- virtual Block * get_Block( void ) override final {
+ Block * get_Block( void ) const override final {
   return( add_vec[ 0 ]->get_Block() );
   }
 
@@ -5613,22 +5620,22 @@ class BlockModAdd : public BlockModAD
 
  /// accessor to (the reference to) the affected list of Constraint/Variable
 
- std::list<ConstOrVar> & whc( void ) { return( whc_list ); }
+ std::list<ConstOrVar> & whc( void ) const { return( whc_list ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to the array of the added/removed Constraint/Variable 
 
- const std::vector<ConstOrVar *> & added( void ) { return( add_vec ); }
+ const std::vector<ConstOrVar *> & added( void ) const { return( add_vec ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual bool is_variable( void ) override final {
+ bool is_variable( void ) const override final {
   return( std::is_base_of< Variable , ConstOrVar >::value );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual bool is_added( void ) override final { return( true ); }
+ virtual bool is_added( void ) const override final { return( true ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -5724,7 +5731,7 @@ class BlockModRmv : public BlockModAD
 
 /*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
- virtual Block * get_Block( void ) override final {
+ Block * get_Block( void ) const override final {
   return( rmvd_list.front().get_Block() );
   }
 
@@ -5732,22 +5739,22 @@ class BlockModRmv : public BlockModAD
 
  /// accessor to (the reference to) the affected list of Constraint/Variable
 
- std::list< ConstOrVar > & whc( void ) { return( whc_list ); }
+ std::list< ConstOrVar > & whc( void ) const { return( whc_list ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to the array of iterators identifying the stuff to be removed
 
-const std::list< ConstOrVar > & removed( void ) { return( rmvd_list ); }
+const std::list< ConstOrVar > & removed( void ) const { return( rmvd_list ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual bool is_variable( void ) override final {
+ bool is_variable( void ) const override final {
   return( std::is_base_of< Variable , ConstOrVar >::value );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual bool is_added( void ) override final { return( false ); }
+ bool is_added( void ) const override final { return( false ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 

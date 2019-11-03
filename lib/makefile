@@ -44,6 +44,7 @@ SMS++OBJ = $(SMS++SDR)obj/AbstractBlock.o \
 	$(SMS++SDR)obj/DQuadFunction.o \
 	$(SMS++SDR)obj/FRealObjective.o \
 	$(SMS++SDR)obj/FRowConstraint.o \
+	$(SMS++SDR)obj/Function.o \
 	$(SMS++SDR)obj/LinearFunction.o \
 	$(SMS++SDR)obj/Objective.o \
 	$(SMS++SDR)obj/OneVarConstraint.o \
@@ -154,6 +155,13 @@ $(SMS++SDR)obj/FRowConstraint.o: $(SMS++SDR)src/FRowConstraint.cpp \
 	$(SMS++SDR)include/Constraint.h $(SMS++SDR)include/Variable.h \
 	$(SMS++SDR)include/ThinVarDepInterface.h
 	$(CC) -c $(SMS++SDR)src/FRowConstraint.cpp -o $@ $(SMS++INC) $(SW)
+
+$(SMS++SDR)obj/Function.o: $(SMS++SDR)src/Function.cpp \
+	$(SMS++SDR)include/Function.h $(SMS++SDR)include/Modification.h \
+	$(SMS++SDR)include/Observer.h \
+	$(SMS++SDR)include/ThinComputeInterface.h \
+	$(SMS++SDR)include/ThinVarDepInterface.h
+	$(CC) -c $(SMS++SDR)src/Function.cpp -o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)obj/LagBFunction.o: $(SMS++SDR)src/LagBFunction.cpp \
 	$(SMS++SDR)include/LinearFunction.h $(SMS++SDR)include/C15Function.h \

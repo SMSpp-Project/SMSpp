@@ -396,7 +396,7 @@ namespace SMSpp_di_unipi_it
  * only once the first time that _private_name() is called (which is
  * immedately as the class is registered in the factory). This is slightly
  * inefficient since the stripping should rather reasonably happen at compile
- * time; as C++-20 arrives most of std::algorithms will be constextr-able
+ * time; as C++-20 arrives most of std::algorithms will be constexpr-able
  * and therefore this will hopefully be possible. */
 
 #define SMSpp_insert_in_factory_cpp_0( ClassName ) \

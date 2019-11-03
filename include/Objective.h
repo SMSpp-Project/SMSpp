@@ -12,9 +12,9 @@
  * depends on a set of "active" Variable, it implements the
  * ThinVarDepInterface paradigm.
  *
- * \version 0.30
+ * \version 0.31
  *
- * \date 14 - 08 - 2018
+ * \date 31 - 10 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -439,11 +439,23 @@ class ObjectiveMod : public AModification {
 
  virtual ~ObjectiveMod() { }  ///< destructor: does nothing
 
-/*---------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
+/*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
- Objective *f_of;   ///< pointer to the Objective where the change occurs
+ /// returns the Block to which the Objective belongs
 
- int f_type;        ///< type of Modification
+ Block * get_Block( void ) const override {
+  return( f_of->get_Block() );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// accessor to (the pointer to) the affected Objective
+
+ Objective * of( void ) const { return( f_of ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// accessor to type of Modificatiom
+
+ int type( void ) const { return( f_type ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -452,7 +464,7 @@ class ObjectiveMod : public AModification {
 /*-------------------------- PROTECTED METHODS -----------------------------*/
  /// print the ObjectiveMod
 
- virtual inline void print( std::ostream &output ) const {
+ void print( std::ostream &output ) const override {
   output << "ObjectiveMod[";
   if( concerns_Block() )
    output << "t";
@@ -464,6 +476,12 @@ class ObjectiveMod : public AModification {
   else
    output << "maximization" << std::endl;
   }
+
+/*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
+
+ Objective *f_of;   ///< pointer to the Objective where the change occurs
+
+ int f_type;        ///< type of Modification
 
 /*--------------------------------------------------------------------------*/
 

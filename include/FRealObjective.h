@@ -5,9 +5,9 @@
  * Header file for the FRealObjective class, which is a RealObjective whose
  * value if computed by an externally-provided Function object.
 
- * \version 0.30
+ * \version 0.31
  *
- * \date 14 - 10 - 2019
+ * \date 31 - 10 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -188,6 +188,18 @@ class FRealObjective : public RealObjective , Observer {
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the FRealObjective
  *  @{ */
+
+ /// returns the Block to which this Observer belongs/
+ /** FRealObjective is an Observer, and it belongs to the Block to which it
+  * belongs as a Constraint. However, note that FRealObjective::get_Block()
+  * is virtual while Constraint::get_Block() is not, hence the former has to
+  * be explicitly implemented in terms of the latter. */
+
+ Block * get_Block( void ) const override {
+  return( Objective::get_Block() );
+  }
+
+/*--------------------------------------------------------------------------*/
 
   /// returns the pointer to the Function in this FRealObjective
   Function *get_function( void ) const { return( f_function ); }

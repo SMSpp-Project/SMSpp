@@ -70,14 +70,22 @@ namespace SMSpp_di_unipi_it
  *
  * Indeed, having a PolyhedralFunction as objective is equivalent to the
  * linear program
- *
- *     min v : v >= a_i x + b_i     i = 1, ..., m
- *
- * in the convex case, and
- *
- *     max v : v <= a_i x + b_i     i = 1, ..., m
- *
- * in the concave one, where
+ * \$[
+ *     \min \{ v : v >= a_i x + b_i \}    \qquad     i = 0, ... , m - 1
+ * \$]
+ * in the convex case, as this corresponds to
+ * \$[
+ *     pf( x ) = max \{ a_i x + b_i : i = 0, ... , m - 1 \}
+ * \$]
+ * (pointwise maximum of a finite set of linear functions), and
+ * \$[
+ *     max \{ v : v <= a_i x + b_i \}     \qquad     i = 0, ... , m - 1
+ * \$]
+ * in the concave one, as this corresponds to
+ * \$[
+ *     pf( x ) = min \{ a_i x + b_i : i = 0, ... , m - 1 \}
+ * \$]
+ * (pointwise minimum of a finite set of linear functions). Note that above
  *
  *     x IS FIXED AND v IS THE ONLY Variable
  *
@@ -92,7 +100,7 @@ namespace SMSpp_di_unipi_it
  * x ColVariable can be in the "arbitrary part" of the AbstractBlock (from
  * which PolyhedralFunctionBlock derives). However, the point is that
  *
- *     THE x ColVariable ARE NOT MANAGED By THE PolyhedralFunctionBlock,
+ *     THE x ColVariable ARE NOT MANAGED BY THE PolyhedralFunctionBlock,
  *     THIS BEING DEMANDED TO SOMETHING ELSE (see set_PolyhedralFunction())
  *
  * Thus, the "natural representation" and its "linearized representation"
@@ -135,6 +143,28 @@ class PolyhedralFunctionBlock : public AbstractBlock {
  public:
 
 /*--------------------------------------------------------------------------*/
+/*---------------------------- PUBLIC TYPES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Public Types
+    @{ */
+
+ using RealVector = PolyhedralFunction::RealVector;
+ ///< "import" RealVector from PolyhedralFunction
+
+ using c_RealVector = const RealVector;   ///< a const RealVector
+
+ using MultiVector = PolyhedralFunction::MultiVector;
+ ///< "import" MultiVector from PolyhedralFunction
+
+ using c_MultiVector = const MultiVector;   ///< a const MultiVector
+
+ using VarVector = PolyhedralFunction::VarVector;
+ ///< "import" MultiVector from PolyhedralFunction
+
+ using c_VarVector = const VarVector;
+ ///< a const version of the x variables upon which the function depends
+
+/*--------------------------------------------------------------------------*/
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------- CONSTRUCTING AND DESTRUCTING PolyhedralFunctionBlock -----------*/
@@ -150,12 +180,8 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   * an "empty" PolyhedralFunction to start with. */
 
  PolyhedralFunctionBlock( Block * father = nullptr )
-  : AbstractBlock( father ) , f_rep( false ) ,
-    f_polyf( {} , {} , {} , true , this ) , f_v( this ) , f_const() 
- {
-  f_v.is_fixed( true , eNoMod );
-  // this indicates that the linearized representation has not been built yet
-  }
+  : AbstractBlock( father ) , f_rep( 0 ) ,
+    f_polyf( {} , {} , {} , true , this ) , f_v( this ) , f_const() {}
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize the current PolyhedralFunctionBlock out of netCDF::NcGroup
@@ -167,22 +193,21 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   *   PolyhedralFunction::serialize() for details;
   *
   * - any other data necessary to represent the "arbitrary" part of the
-  *   AbstractBlock, see AbstractBlock::deserialize() for details.
-  *
-
-
- */
+  *   AbstractBlock, see AbstractBlock::deserialize() for details. */
 
  void deserialize( netCDF::NcGroup & group ) override
  {
+  // have the PolyhedralFunction do all the dirty work for us
   // don't bother issuing individual Modification, since a NBModification will
   // anyway be issued soon (if anybody is listening)
-
   f_polyf.deserialize( group , eNoMod );
 
   // the PolyhedralFunctionBlock is "naked": no abstract representaton
-  f_v.is_fixed( true , eNoMod );
+  f_rep = 0;
   f_const.clear();
+
+  // call the base class method
+  AbstractBlock::deserialize( group );
 
   // issue a NBModification, the "nuclear option" - - - - - - - - - - - - - -
 
@@ -253,7 +278,11 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   * If f_rep == false, the PolyhedralFunctionBlock has no extra Variable, be
   * them static or dynamic. If f_rep == true, the first group of static
   * Variable contains a single ColVariable (v), and there are no extra
-  * dyanmic Variable. */
+  * dyanmic Variable.
+  *
+  * Note that if further derived classes add some other structure, their
+  * version of this method will have to call the method of this class
+  * first, because it uses (if any) the *first* group of static Variable. */
 
  void generate_abstract_variables( Configuration *stvv = nullptr ) override;
 
@@ -280,7 +309,12 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   * inequalities v >= [<=] a_i x + b_i. Note that the "verse" of the
   * Constraint depend on PolyhedralFunction->is_convex(); if it is true than
   * the inequalities are ">=" (the LHS is -INF and the RHS is b_i), otherwise
-  * they are "<=" (the LHS b_i and the RHS is INF). */
+  * they are "<=" (the LHS b_i and the RHS is INF).
+  *
+  * Note that if further derived classes add some other structure, their
+  * version of this method will have to call the method of this class
+  * first, because it uses (if any) the *first* group of dynamic Constraint.
+  */
 
  void generate_abstract_constraints( Configuration *stcc = nullptr ) override;
 
@@ -318,21 +352,27 @@ class PolyhedralFunctionBlock : public AbstractBlock {
  PolyhedralFunction & get_PolyhedralFunction( void ) { return( f_polyf ); }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the index of the first group of "available" dynamic Constraint
+ /** This method returns the index of the first group of dynamic Constraint in
+  * the "arbitrary" part of the PolyhedralFunctionBlock. This depends on
+  * whether the "natural representation" or the "linearized representation"
+  * is used; in the former case there are no dynamic constraints, in the
+  * latter there is one group (the box constraints over x). */
 
- // Index get_first_static_Constraint( void ) const override { return( 0 ); }
+ Index get_first_static_Constraint( void ) const override{
+  return( f_rep & 1 ? 1 : 0 );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the index of the first group of "available" dynamic Constraint
  /** This method returns the index of the first group of dynamic Constraint in
   * the "arbitrary" part of the PolyhedralFunctionBlock. This depends on
   * whether the "natural representation" or the "linearized representation"
-  * is used. Note that, instead, get_first_static_Constraint() need not be
-  * re-defined, as the PolyhedralFunctionBlock never has any group of
-  * static Constraint (in its "specific part", the "arbitrary part" clearly
-  * being completely free to have any number of these). */
+  * is used; in the former case there are no dynamic constraints, in the
+  * latter there is one group (the constraints defining the function). */
 
  Index get_first_dynamic_Constraint( void ) const override {
-  return( f_rep ? 1 : 0 );
+  return( f_rep & 1 ? 1 : 0 );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -346,7 +386,7 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   * being completely free to have any number of these). */
 
  Index get_first_static_Variable( void ) const override {
-  return( f_rep ? 1 : 0 );
+  return( f_rep & 1 ? 1 : 0 );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -386,7 +426,20 @@ class PolyhedralFunctionBlock : public AbstractBlock {
 /** @name Methods for handling Modification
  *  @{ */
 
- /// adding a new Modification to the PolyhedralFunctionBlock
+/// returns true if any Solver is "listening to this PolyhedralFunctionBlock"
+ /** Returns true if there is any Solver "listening to this
+  * PolyhedralFunctionBlock", or if the PolyhedralFunctionBlock has to
+  * "listen" anyway because the "linearized" representation is constructed,
+  * and therefore "abstract" Modification have to be generated anyway to
+  * keep the two representations in sync. Note that the "natural"
+  * representation has no such issues, the Modification can just be passed
+  * up to the father [Abstract]Block. */
+
+ bool anyone_there( void ) const override {
+  return( f_rep & 1 ? true : AbstractBlock::anyone_there() );
+  }
+
+/*--------------------------------------------------------------------------*/ / /// adding a new Modification to the PolyhedralFunctionBlock
  /** Method for handling Modification.
   *
   * The version of PolyhedralFunctionBlock has to do two "opposite" things:
@@ -431,12 +484,56 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   *       itself *is* supported, and it indeed results in a GroupModification
   *       that changes the LinearFunction inside the FRowConstraint.
   *
-  * Any other Modification reaching the PolyhedralFunctionBlock will be
-  * passed up to AbstractBlock::add_Modification() without further action,
-  * since it may be about "the rest" of the AbstractBlock that
-  * PolyhedralFunctionBlock does not handle. */
+  * Note that while PolyhedralFunctionBlock regards itself as "leaf" Block,
+  * i.e., it does not handle any sub-Block, these may actually can be there;
+  * but if thet are, they must be handled either by AbstractBlock (which does
+  * nothing about their Modification), or by whatever derived class from
+  * PolyhedralFunctionBlock actually have defined them. Hence,
+  *
+  *     PolyhedralFunctionBlock WILL IGNORE ANY Modification IT DOES NOT
+  *     UNDERSTAND, AS WELL AS ANY IT DOES BUT WHICH IS NOT COMING FROM
+  *     ANY OF ITS ELEMENTS
+  *
+  * Derived classes may then have to define their own add_Modification() to
+  * work, which is fine because it will be called instead of
+  * PolyhedralFunctionBlock::add_Modification(), which they then can call
+  * for all the Modification they themselves don't handle. */
 
  void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
+ {
+  //!! std::cout << *mod << std::endl;
+
+  // if the "natural" representation is used, or it comes from a sub-Block,
+  // or it does not concern the Block any longer
+  if( ( ! ( f_rep & 1 ) ) || ( mod->get_Block() != this ) ||
+      ( ! mod->concerns_Block() ) ) {
+   AbstractBlock::add_Modification( mod , chnl );  // just pass it up
+   return;
+   }
+
+  // now check if the Modification comes from the PolyhedralFunction; if
+  // so it will generate a (bunch of) Modification(s) in the "linearized"
+  // representation, but *this Modification will disappear*
+
+  const auto tmod = std::dynamic_pointer_cast<FunctionMod>( mod );
+  if( tmod && ( tmod->function() == & f_polyf ) ) {
+   guts_of_add_Modification_PF( mod );
+   return;
+   }
+
+  // this Modification comes from some other part of the abstract
+  // representation of the PolyhedralFunctionBlock, possibly (but not
+  // surely) the "linearized" one, deal with it
+
+  mod->concerns_Block( false );
+  guts_of_add_Modification_LR( mod );
+
+  // finally, pass is up, but only if there really is someone "listening"
+  // which may not be, because anyone_there() returns true anyway
+
+  if( f_Block && f_Block->anyone_there() )
+   AbstractBlock::add_Modification( mod , chnl );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*--- METHODS FOR LOADING, PRINTING & SAVING THE PolyhedralFunctionBlock ---*/
@@ -450,7 +547,14 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   * to do basically all the work, and then calling the method of the base
   * class to do the rest. */
 
- void serialize( netCDF::NcGroup & group ) const override;
+ void serialize( netCDF::NcGroup & group ) const override
+ {
+  // call the base class method
+  AbstractBlock::serialize( group );
+
+  // have the PolyhedralFunction do all the dirty work for us
+  f_polyf.serialize( group );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -486,10 +590,6 @@ class PolyhedralFunctionBlock : public AbstractBlock {
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
- bool f_rep;                  ///< which of the two representations is used
- 
- PolyhedralFunction f_polyf;  ///< the PolyhedralFunction
-
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -503,8 +603,14 @@ class PolyhedralFunctionBlock : public AbstractBlock {
  // clears all the abstract representaton, but not f_polyf
  void guts_of_destructor( void );
 
- // deals with the abstract Modification
- void guts_of_add_Modification( sp_Mod mod );
+ // deals with abstract Modification arising from the PolyhedralFunction
+ void guts_of_add_Modification_PF( sp_Mod mod );
+
+ // deals with abstract Modification arising anywhere else
+ void guts_of_add_Modification_LR( std::dynamic_pointer<FunctionMod> mod );
+
+ // constructs the i-th constraint of the linearized representation
+ void ConstructLPConstraint( Index i , FRowConstraint & ci );
 
 /*--------------------------------------------------------------------------*/
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
@@ -514,15 +620,23 @@ class PolyhedralFunctionBlock : public AbstractBlock {
  * derved classes may do whatever they want with "the rest" of the "abstract"
  * representation, but they are not supposed to mess up with that part. */
 
- bool f_rep;                  ///< which of the two representations is used
- 
+ char f_rep;                  ///< how the representation is constructed
+                              /**< This field is coded bit-wise:
+			       * bit 0: 1 if the linearized is used
+			       * bit 1: 1 if the variable are constructed
+			       * bit 2: 1 if the constraint are constructed
+			       * bit 3: 1 if the objective is constructed
+			       */
+
  PolyhedralFunction f_polyf;  ///< the PolyhedralFunction
 
  ColVariable f_v;        ///< the v variable in the linearized representation
 
  std::list< FRowConstraint > f_const;
                          ///< the constraints in the linearized representation
- 
+
+ BoxConstraint f_bcv;    ///< the box constraint on v
+
  SMSpp_insert_in_factory_h;
 
 /*--------------------------------------------------------------------------*/

@@ -377,6 +377,8 @@ Solution * AbstractBlock::get_Solution( Configuration *solc , bool emptys )
 
 void AbstractBlock::serialize( netCDF::NcGroup & group ) const
 {
+ group.putAtt( "type" , name() );
+
  auto & sc = get_static_constraints();
  auto & sv = get_static_variables();
  auto & dc = get_dynamic_constraints();
@@ -404,9 +406,9 @@ void AbstractBlock::serialize( netCDF::NcGroup & group ) const
 
 /*--------------------------------------------------------------------------*/
 
-void AbstractBlock::print( std::ostream &output ) const
+void AbstractBlock::print( std::ostream & output ) const
 {
- output << std::endl << "Block with: ";
+ output << std::endl << "AbstractBlock with: ";
  output << std::endl << get_static_variables().size()
 	             << " types of static Variables, "
                      << get_dynamic_variables().size()
