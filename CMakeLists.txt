@@ -7,26 +7,20 @@
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #
 cmake_minimum_required(VERSION 3.8...3.15)
-# TODO: set proper version
-project(SMS++ VERSION 1.0.0 LANGUAGES CXX)
+project(SMS++ VERSION 0.1.0 LANGUAGES CXX)
+
+# ----- Settings ------------------------------------------------------------ #
+if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+    enable_testing()
+endif()
 
 # ----- Requirements -------------------------------------------------------- #
-# find_package() is used to find libraries and automatically configure them.
-# It requires either a package configuration module (***Config.cmake) or a
-# find module (Find***.cmake), usually provided by libraries.
-
-# We can provide a settings file with -DSETTINGS="filename"
-if ((CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME) AND SETTINGS)
-    message(STATUS "Using CMake custom settings in ${SETTINGS}")
-    include(${SETTINGS} OPTIONAL)
-endif ()
-
 # This is to use the find modules we provide
 list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 find_package(Boost 1.71.0 REQUIRED)
 find_package(Eigen3 REQUIRED)
-find_package(netCDF REQUIRED)
+find_package(netCDFCxx REQUIRED)
 
 # ----- Library ------------------------------------------------------------- #
 add_library(SMSpp)
@@ -67,7 +61,7 @@ target_include_directories(
 target_link_libraries(SMSpp PUBLIC
                       Boost::boost
                       Eigen3::Eigen
-                      NetCDF::NetCDFCxx)
+                      netCDF::netCDFCxx)
 
 # Alias for testing
 add_library(SMS++::SMSpp ALIAS SMSpp)
@@ -115,10 +109,10 @@ install(FILES
 
 # Shipping custom find modules should not be encouraged because third
 # party developers should provide them.
-# We ship FindnetCDF because the provided one has shortcomings.
+# We ship FindnetCDFCxx because the provided one has shortcomings.
 # We also ship FindEigen3 to support Eigen install-less usage.
 install(FILES
-        ${CMAKE_CURRENT_LIST_DIR}/cmake/FindnetCDF.cmake
+        ${CMAKE_CURRENT_LIST_DIR}/cmake/FindnetCDFCxx.cmake
         ${CMAKE_CURRENT_LIST_DIR}/cmake/FindEigen3.cmake
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SMSpp)
 
@@ -138,8 +132,8 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
                    ${CMAKE_CURRENT_BINARY_DIR}/FindEigen3.cmake
                    COPYONLY)
 
-    configure_file(${CMAKE_CURRENT_LIST_DIR}/cmake/FindnetCDF.cmake
-                   ${CMAKE_CURRENT_BINARY_DIR}/FindnetCDF.cmake
+    configure_file(${CMAKE_CURRENT_LIST_DIR}/cmake/FindnetCDFCxx.cmake
+                   ${CMAKE_CURRENT_BINARY_DIR}/FindnetCDFCxx.cmake
                    COPYONLY)
 
     # Register package in user's package registry (~/.cmake/registry)
