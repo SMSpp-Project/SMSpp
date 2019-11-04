@@ -331,7 +331,7 @@ namespace SMSpp_di_unipi_it
  *
  *    The lists of Modification in Solver should be strictly accessed FIFO.
  *    For GroupModification, which is actually a tree, this translates to
-±!~D *    depth-first left-to-right transversal: 1) the Modification in the
+ *    depth-first left-to-right transversal: 1) the Modification in the
  *    STL container are accessed in the natural order, and 2) once a
  *    sub-GroupModification of a GroupModification is entered, no other
  *    Modification of the original GroupModification is processed until all

@@ -24,8 +24,11 @@
 /*--------------------------------------------------------------------------*/
 
 #include "SMSTypedefs.h"
+
 #include "Observer.h"
+
 #include "PolyhedralFunction.h"
+
 #include <math.h>
 
 /*--------------------------------------------------------------------------*/
@@ -53,7 +56,7 @@ void PolyhedralFunction::deserialize( netCDF::NcGroup & group ,
  RealVector tb;
 
  netCDF::NcDim nr = group.getDim( "PolyFunction_NumRow" );
- if( ( ! nv.isNull() ) && ( nv.getSize() ) ) {
+ if( ( ! nr.isNull() ) && ( nr.getSize() ) ) {
    netCDF::NcVar ncdA = group.getVar( "PolyFunction_A" );
    if( ncdA.isNull() )
     throw( std::logic_error( "PolyFunction_A not found" ) );
@@ -62,13 +65,13 @@ void PolyhedralFunction::deserialize( netCDF::NcGroup & group ,
    if( ncdb.isNull() )
     throw( std::logic_error( "PolyFunction_b not found" ) );
 
-  tA.resize( nv.getSize() );
+  tA.resize( nr.getSize() );
   for( Index i = 0 ; i < tA.size() ; ++i ) {
    tA[ i ].resize( nvar );
    ncdA.getVar( { i , 0 } , { 1 , nvar } , tA[ i ].data() );
    }
 
-  tb.resize( nv.getSize() );
+  tb.resize( nr.getSize() );
   ncdb.getVar( tb.data() );
   }
 
@@ -437,7 +440,7 @@ void PolyhedralFunction::get_linearization_coefficients( SparseVector & g ,
 
 /*--------------------------------------------------------------------------*/
 
-void PolyhedralFunction::serialize( netCDF::NcGroup & group )
+void PolyhedralFunction::serialize( netCDF::NcGroup & group ) const
 {
  c_Index nvar = get_num_active_var();
 

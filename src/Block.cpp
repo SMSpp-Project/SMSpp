@@ -208,6 +208,9 @@ void Block::nest_channel( c_ChnlName chnl , GroupModification * gmpmod ,
 
 void Block::un_nest_channel( c_ChnlName chnl )
 {
+ if( ! chnl )
+  throw( std::invalid_argument( "cannot un-nest default channel" ) );
+
  if( ( chnl > v_current_GroupMod.size() ) ||
      ( v_current_GroupMod[ chnl - 1 ] == nullptr ) )
   throw( std::invalid_argument( "wrong channel name" ) );
@@ -223,6 +226,9 @@ void Block::un_nest_channel( c_ChnlName chnl )
 
 void Block::close_channel( c_ChnlName chnl )
 {
+ if( ! chnl )
+  throw( std::invalid_argument( "cannot close default channel" ) );
+
  if( ( chnl > v_current_GroupMod.size() ) ||
      ( v_current_GroupMod[ chnl - 1 ] == nullptr ) )
   throw( std::invalid_argument( "wrong channel name" ) );

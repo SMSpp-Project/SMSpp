@@ -542,6 +542,14 @@ class PolyhedralFunction : public C05Function {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// returns true if a finite lower/upper (if convex/concave) bound is set
+
+ bool is_bound_set( void ) const {
+  return( f_is_convex ? v_b.back() > -Inf<FunctionValue>()
+		      : v_b.back() <  Inf<FunctionValue>() );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns a (global) Lipschitz constant for the PolyhedralFunction
 
  FunctionValue get_Lipschitz_constant( void ) override final
@@ -727,7 +735,7 @@ class PolyhedralFunction : public C05Function {
   *   provided it means that no finite lower (upper) bound exist, i.e., the
   *   lower (upper) bound is -(+) Inf<FunctionValue>(). */
  
- void serialize( netCDF::NcGroup & group );
+ void serialize( netCDF::NcGroup & group ) const;
 
 /*--------------------------------------------------------------------------*/
  /// returns a (const reference) to the current A matrix in the mapping
@@ -1464,21 +1472,14 @@ class PolyhedralFunction : public C05Function {
 
 /*--------------------------------------------------------------------------*/
 
- bool is_f_computed( void ) {
+ bool is_f_computed( void ) const {
   return( f_is_convex ? f_value <  Inf<FunctionValue>()
 		      : f_value > -Inf<FunctionValue>() );
   }
 
 /*--------------------------------------------------------------------------*/
 
- bool is_bound_set( void ) {
-  return( f_is_convex ? v_b.back() > -Inf<FunctionValue>()
-		      : v_b.back() <  Inf<FunctionValue>() );
-  }
-
-/*--------------------------------------------------------------------------*/
-
- FunctionValue get_default_bound( void ) {
+ FunctionValue get_default_bound( void ) const {
   return( f_is_convex ? -Inf<FunctionValue>() : Inf<FunctionValue>() );
   }
 

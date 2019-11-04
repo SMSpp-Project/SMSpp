@@ -18,7 +18,7 @@
 	back and forth between the original Block and its Lagrangian
 	Function/Dual.
 
-2018-07-20 [medium-high] Block and Solver specify which kinds of Modification
+2019-11-01 [medium-high] Block and Solver specify which kinds of Modification
 	   they care about, and Modification expose both their "kind" and
 	   what sort of effect they have on the whole problem
 

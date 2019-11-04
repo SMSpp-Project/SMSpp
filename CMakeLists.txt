@@ -48,6 +48,7 @@ target_sources(SMSpp PRIVATE
                src/Objective.cpp
                src/OneVarConstraint.cpp
                src/PolyhedralFunction.cpp
+               src/PolyhedralFunctionBlock.cpp
                src/Solver.cpp
                src/ThinComputeInterface.cpp
                src/Variable.cpp)
