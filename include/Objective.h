@@ -14,7 +14,7 @@
  *
  * \version 0.30
  *
- * \date 14 - 08 - 2018
+ * \date 03 - 11 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -192,7 +192,7 @@ class Objective : public ThinComputeInterface , public ThinVarDepInterface {
   * described in Observer::make_par(). */
 
  virtual void set_sense( int new_sense , c_ModParam issueMod = eModBlck );
- 
+
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE DATA OF THE Objective --------------*/
 /*--------------------------------------------------------------------------*/
@@ -316,7 +316,7 @@ class Objective : public ThinComputeInterface , public ThinVarDepInterface {
 /// an Objective that is a function between Variable and the reals
 /** The class RealObjective quickly specializes the more general Objective to
  * the case where the objective function is a function between Variable (of
- * any possinle type) and the reals. 
+ * any possinle type) and the reals.
  * More specifically, a type "OFValue" is defined, which is bound by default
  * to doubles, to hold the type of the objective function return value.
  * Changing this type here is possible but it changes it to the whole SMS++
@@ -365,7 +365,7 @@ class RealObjective : public Objective {
  /// returns the (real) value of the Objective
  /** Pure virtual method that returns the (real) value of the Objective given
   * the values of the Variables it depends onto. More specifically, the
-  * method has to return the value that the Objective *had* at the last time 
+  * method has to return the value that the Objective *had* at the last time
   * in which compute() has been called. It is an error to call this method if
   * compute() has never been called, although implementations are allowed not
   * to check this and return any random response: is the users'
@@ -425,7 +425,7 @@ class ObjectiveMod : public AModification {
   };
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
- /// Constructor: takes a Objective * and the type of Modification 
+ /// Constructor: takes a Objective * and the type of Modification
  /** Cconstructor: takes a pointer to the affected Objective and the type of
   * the Modification. Note that while the enum of_mod_type is provided to
   * encode the possible values of modification, the field f_type is of type
@@ -439,11 +439,16 @@ class ObjectiveMod : public AModification {
 
  virtual ~ObjectiveMod() { }  ///< destructor: does nothing
 
-/*---------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
+/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
- Objective *f_of;   ///< pointer to the Objective where the change occurs
+ /// accessor to (the pointer to) the affected Objective
 
- int f_type;        ///< type of Modification
+ Objective * constraint( void ) { return( f_of ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// accessor to the type of Modification
+
+ int type( void ) { return( f_type ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -457,7 +462,7 @@ class ObjectiveMod : public AModification {
   if( concerns_Block() )
    output << "t";
   else
-   output << "f";  
+   output << "f";
   output << "] of Objective [" << &f_of << " ] : changing sense to ";
   if( f_type == eSetMin )
    output << "minimization" << std::endl;
@@ -465,11 +470,17 @@ class ObjectiveMod : public AModification {
    output << "maximization" << std::endl;
   }
 
+/*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
+
+ Objective *f_of;   ///< pointer to the Objective where the change occurs
+
+ int f_type;        ///< type of Modification
+
 /*--------------------------------------------------------------------------*/
 
   };  // end( class( ObjectiveMod ) )
 
-/** @} end( group( Objective_CLASSES ) ) */ 
+/** @} end( group( Objective_CLASSES ) ) */
 /*--------------------------------------------------------------------------*/
 /*---------------------- Objective-RELATED TYPES ---------------------------*/
 /*--------------------------------------------------------------------------*/
