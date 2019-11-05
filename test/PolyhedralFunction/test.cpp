@@ -35,7 +35,9 @@
 #include <iomanip>
 
 #include "AbstractBlock.h"
+
 #include "BundleSolver.h"
+
 #include "CPXMILPSolver.h"
 
 #include "PolyhedralFunction.h"
@@ -81,17 +83,17 @@ using namespace SMSpp_di_unipi_it;
 /*-------------------------------- TYPES -----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-using Index =  Block::Index;
-using c_Index =  Block::c_Index;
+using Index = Block::Index;
+using c_Index = Block::c_Index;
 
-using Range =  Block::Range;
-using c_Range =  Block::c_Range;
+using Range = Block::Range;
+using c_Range = Block::c_Range;
 
-using Subset =  Block::Subset;
-using c_Subset =  Block::c_Subset;
+using Subset = Block::Subset;
+using c_Subset = Block::c_Subset;
 
-using FunctionValue =  Function::FunctionValue;
-using c_FunctionValue =  Function::c_FunctionValue;
+using FunctionValue = Function::FunctionValue;
+using c_FunctionValue = Function::c_FunctionValue;
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CONSTANTS --------------------------------*/

@@ -508,7 +508,11 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   * PolyhedralFunctionBlock::add_Modification(), which they then can call
   * (or the two separate guts_of_add_Modification_PF() and
   * guts_of_add_Modification_LR() if more appropriate) for all the
-  * Modification they themselves don't handle. */
+  * Modification they themselves don't handle.
+  *
+  * Note: any Modification resulting from processing mod will be sent to the
+  *       same channel (chnl); if that's a GroupModification and chnl is not
+  *       the default one, it will be nested. */
 
  void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override
  {
@@ -528,7 +532,7 @@ class PolyhedralFunctionBlock : public AbstractBlock {
 
   const auto tmod = std::dynamic_pointer_cast<FunctionMod>( mod );
   if( tmod && ( tmod->function() == & f_polyf ) ) {
-   guts_of_add_Modification_PF( tmod );
+   guts_of_add_Modification_PF( tmod , chnl );
    return;
    }
 
@@ -537,7 +541,7 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   // surely) the "linearized" one: deal with it
 
   mod->concerns_Block( false );  // but recall it's been done already
-  guts_of_add_Modification_LR( mod );
+  guts_of_add_Modification_LR( mod , chnl );
 
   // finally, pass is up, but only if there really is someone "listening",
   // which may not be, because anyone_there() returns true anyway
@@ -622,7 +626,8 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   * This assumption drastically simplifies some of the logic here. Hence,
   * derived classes must ensure they do not mess up with this property. */
 
- void guts_of_add_Modification_PF( std::shared_ptr< FunctionMod > mod );
+ void guts_of_add_Modification_PF( std::shared_ptr< FunctionMod > mod ,
+				   ChnlName chnl );
 
 /*--------------------------------------------------------------------------*/
  /// process a Modification produced by the "linearized" representation
@@ -667,7 +672,7 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   * This assumption drastically simplifies some of the logic here. Hence,
   * derived classes must ensure they do not mess up with this property. */
 
- void guts_of_add_Modification_LR( sp_Mod mod );
+ void guts_of_add_Modification_LR( sp_Mod mod , ChnlName chnl );
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
@@ -688,6 +693,18 @@ class PolyhedralFunctionBlock : public AbstractBlock {
 
  // constructs the i-th constraint of the linearized representation
  void ConstructLPConstraint( Index i , FRowConstraint & ci );
+
+ // either open or nest a new channel, or do nothing
+ ChnlName open_or_nest( bool cond , ChnlName chnl )
+ {
+  if( cond ) {
+   if( chnl )
+    nest_channel( chnl , nullptr , eNoBlck );
+   else
+    return( open_channel( nullptr , eNoBlck ) );
+   }
+  return( chnl );
+  }
 
 /*--------------------------------------------------------------------------*/
 /*---------------------------- PRIVATE FIELDS ------------------------------*/

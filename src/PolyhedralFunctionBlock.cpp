@@ -217,7 +217,7 @@ void PolyhedralFunctionBlock::guts_of_destructor( void )
 /*--------------------------------------------------------------------------*/
 
 void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
-				         std::shared_ptr< FunctionMod > mod )
+			  std::shared_ptr< FunctionMod > mod , ChnlName chnl )
 {
  // process a FunctionMod produced by the PolyhedralFunction- - - - - - - - -
  /* This requires to patiently sift through the possible Modification types
@@ -234,8 +234,9 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
    c_Index nav = f_polyf.get_num_active_var();
 
    // open a new GroupModification, not concerning PolyhedralFunctionBlock
-   auto chnl = f_const.size() > 1 ? open_channel( nullptr , eNoBlck ) : 0;
-   auto par = make_par( eNoBlck , chnl );
+   bool newchnl = f_const.size() > 1;
+   auto ichnl = open_or_nest( newchnl , chnl );
+   auto par = make_par( eNoBlck , ichnl );
 
    Index i = 0;
    for( auto & ci : f_const ) {
@@ -250,10 +251,14 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
      add_variables( std::move( vars ) , par );
     }
 
-   if( chnl )
-    close_channel( chnl );
-   return;
+   if( newchnl ) {
+    if( chnl )
+     un_nest_channel( ichnl );
+    else
+     close_channel( ichnl );
+    }
    }
+  return;
   }
 
  // C05FunctionModVarsRngd- - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -265,15 +270,20 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
    rng.second++;  // of the PolyhedralFunction
 
    // open a new GroupModification, not concerning PolyhedralFunctionBlock
-   auto chnl = f_const.size() > 1 ? open_channel( nullptr , eNoBlck ) : 0;
-   auto par = make_par( eNoBlck , chnl );
+   bool newchnl = f_const.size() > 1;
+   auto ichnl = open_or_nest( newchnl , chnl );
+   auto par = make_par( eNoBlck , ichnl );
 
    for( auto & ci : f_const )
     static_cast< LinearFunction * >( ci.get_function() )->
      remove_variables( rng , par );
 
-   if( chnl )
-    close_channel( chnl );
+   if( newchnl ) {
+    if( chnl )
+     un_nest_channel( ichnl );
+    else
+     close_channel( ichnl );
+    }
    return;
    }
   }
@@ -290,15 +300,20 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
     std::sort( sbst.begin() , sbst.end() );
 
    // open a new GroupModification, not concerning PolyhedralFunctionBlock
-   auto chnl = f_const.size() > 1 ? open_channel( nullptr , eNoBlck ) : 0;
-   auto par = make_par( eNoBlck , chnl );
+   bool newchnl = f_const.size() > 1;
+   auto ichnl = open_or_nest( newchnl , chnl );
+   auto par = make_par( eNoBlck , ichnl );
 
    for( auto & ci : f_const )
     static_cast< LinearFunction * >( ci.get_function() )->
      remove_variables( std::move( Subset( sbst ) ) , true , par );
 
-   if( chnl )
-    close_channel( chnl );
+   if( newchnl ) {
+    if( chnl )
+     un_nest_channel( ichnl );
+    else
+     close_channel( ichnl );
+    }
    return;
    }
   }
@@ -313,19 +328,22 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
 
    if( strt == stop ) {  // special case: the lower/upper bound
     if( f_polyf.is_convex() )  // convex ==> lower bound
-     f_bcv.set_lhs( f_polyf.get_lower_estimate() , eNoBlck );
+     f_bcv.set_lhs( f_polyf.get_lower_estimate() ,
+		    make_par( eNoBlck , chnl ) );
     else                       // concave ==> upper bound
-     f_bcv.set_rhs( f_polyf.get_upper_estimate() , eNoBlck );
+     f_bcv.set_rhs( f_polyf.get_upper_estimate() ,
+		    make_par( eNoBlck , chnl ) );
     return;
     }
 
    // open a new GroupModification, not concerning PolyhedralFunctionBlock
    // unless it's deleting or only one row and *not* also its constant
-   auto chnl = ( ( tmod->PFtype() != PolyhedralFunctionMod::DeleteRows ) &&
-		 ( ( stop > strt + 1 ) ||
-		   ( tmod->PFtype() != PolyhedralFunctionMod::ModifyCnst ) ) )
-               ? open_channel( nullptr , eNoBlck ) : 0;
-   auto par = make_par( eNoBlck , chnl );
+   bool newchnl = ( tmod->PFtype() != PolyhedralFunctionMod::DeleteRows ) &&
+                    ( ( stop > strt + 1 ) ||
+		      ( tmod->PFtype() == PolyhedralFunctionMod::ModifyCnst )
+		      );
+   auto ichnl = open_or_nest( newchnl , chnl );
+   auto par = make_par( eNoBlck , ichnl );
 
    auto cit = std::next( f_const.begin() , strt );
    if( tmod->PFtype() == PolyhedralFunctionMod::DeleteRows ) {
@@ -357,8 +375,12 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
       for( Index i = strt ; i < stop ; )
        cit->set_rhs( f_polyf.get_b()[ i++ ] , par );
 
-   if( chnl )
-    close_channel( chnl );
+   if( newchnl ) {
+    if( chnl )
+     un_nest_channel( ichnl );
+    else
+     close_channel( ichnl );
+    }
    return;
    }
   }
@@ -371,11 +393,12 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
 
    // open a new GroupModification, not concerning PolyhedralFunctionBlock
    // unless it's deleting or only one row and *not* also its constant
-   auto chnl = ( ( tmod->PFtype() != PolyhedralFunctionMod::DeleteRows ) &&
-		 ( ( tmod->rows().size() > 1 ) ||
-		   ( tmod->PFtype() != PolyhedralFunctionMod::ModifyCnst ) ) )
-               ? open_channel( nullptr , eNoBlck ) : 0;
-   auto par = make_par( eNoBlck , chnl );
+   bool newchnl = ( tmod->PFtype() != PolyhedralFunctionMod::DeleteRows ) &&
+                    ( ( tmod->rows().size() > 1 ) ||
+		      ( tmod->PFtype() == PolyhedralFunctionMod::ModifyCnst )
+		      );
+   auto ichnl = open_or_nest( newchnl , chnl );
+   auto par = make_par( eNoBlck , ichnl );
 
    Index prev = 0;
    auto cit = f_const.begin();
@@ -418,8 +441,12 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
       prev = *(rit++);
       }
  
-   if( chnl )
-    close_channel( chnl );
+   if( newchnl ) {
+    if( chnl )
+     un_nest_channel( ichnl );
+    else
+     close_channel( ichnl );
+    }
    return;
    }
   }
@@ -435,7 +462,7 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
    for( Index i = nr - tmod->addedrows() ; i < nr ; )
     ConstructLPConstraint( i++ , *(cit++) );
 
-   add_dynamic_constraints( f_const , newc , eNoBlck );
+   add_dynamic_constraints( f_const , newc , make_par( eNoBlck , chnl ) );
    return;
    }
   }
@@ -448,8 +475,8 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
     throw( std::logic_error( "wrong C05FunctionMod in PolyhedralFunction" ) );
 
    // open a new GroupModification, not concerning PolyhedralFunctionBlock
-   auto chnl = open_channel( nullptr , eNoBlck );
-   auto par = make_par( eNoBlck , chnl );
+   auto ichnl = open_or_nest( true , chnl );
+   auto par = make_par( eNoBlck , ichnl );
    Index i = 0;
 
    if( f_polyf.is_convex() ) {
@@ -481,7 +508,10 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
      }
     }
 
-   close_channel( chnl );
+   if( chnl )
+    un_nest_channel( ichnl );
+   else
+    close_channel( ichnl );
    return;
    }
   }
@@ -514,7 +544,8 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
 
 /*--------------------------------------------------------------------------*/
 
-void PolyhedralFunctionBlock::guts_of_add_Modification_LR( sp_Mod mod )
+void PolyhedralFunctionBlock::guts_of_add_Modification_LR( sp_Mod mod ,
+							   ChnlName chnl )
 {
  // process a Modification produced by the "linearized" representation - - - -
  /* This requires to patiently sift through the possible Modification types
@@ -549,7 +580,8 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( sp_Mod mod )
 		    "wrong RowConstraintMod in PolyhedralFunctionBlock" ) );
 
     f_polyf.modify_bound( f_polyf.is_convex() ? f_bcv.get_lhs()
-			                      : f_bcv.get_rhs() , eNoBlck );
+			                      : f_bcv.get_rhs() ,
+			  make_par( eNoBlck , chnl ) );
     return;
     }
 
@@ -573,7 +605,7 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( sp_Mod mod )
 
    f_polyf.modify_constant( i , f_polyf.is_convex() ? ci->get_lhs()
 			                            : ci->get_rhs() ,
-			    eNoBlck );
+			    make_par( eNoBlck , chnl ) );
    return;
    }
   }
@@ -606,7 +638,8 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( sp_Mod mod )
    for( Index j = 0 ; j < tmod->delta().size() ; ++j )
     ai[ tmod->range().first + j - 1 ] += tmod->delta()[ j ];
 
-   f_polyf.modify_row( i , std::move( ai ) , f_polyf.get_b()[ i ] , eNoBlck );
+   f_polyf.modify_row( i , std::move( ai ) , f_polyf.get_b()[ i ] ,
+		       make_par( eNoBlck , chnl ) );
    return;
    }
   }
@@ -628,7 +661,8 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( sp_Mod mod )
    for( Index j = 0 ; j < tmod->subset().size() ; ++j )
     ai[ tmod->subset()[ j ] - 1 ] += tmod->delta()[ j ];
 
-   f_polyf.modify_row( i , std::move( ai ) , f_polyf.get_b()[ i ] , eNoBlck );
+   f_polyf.modify_row( i , std::move( ai ) , f_polyf.get_b()[ i ] ,
+		       make_par( eNoBlck , chnl ) );
    return;
    }
   }
