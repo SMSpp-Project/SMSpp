@@ -1,7 +1,0 @@
-[requires]
-boost/[>= 1.71.0]@conan/stable
-eigen/[>= 3.3.7]@conan/stable
-netcdf-cxx/[>= 4.3.1]@smspp/testing
-
-[generators]
-cmake
