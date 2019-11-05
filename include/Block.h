@@ -5541,8 +5541,8 @@ class BlockModAD : public AModification
 
 /*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
- /// returns true is a Variable is involved, false if a Constraint is involved
- /** Returns true is a Variable is involved, false if a Constraint is
+ /// returns true if a Variable is involved, false if a Constraint is involved
+ /** Returns true if a Variable is involved, false if a Constraint is
   * involved. The method is pure virtual and it is actually implemented by
   * derived classes. */
 
