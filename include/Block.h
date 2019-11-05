@@ -19,7 +19,7 @@
  * A Block can be attached to any number of Solver [see Solver.h], that can
  * then be used to solve the corresponding mathematical model.
  *
- * Variable and Constraint in a Block can be arranged in any number of 
+ * Variable and Constraint in a Block can be arranged in any number of
  * "sets", or "groups", each of which can be a multi-dimensional array with
  * (in principle) an arbitrary number of dimensions. The idea is that a model
  * with a specific  structure (say, a Knapsack, a Traveling Salesman Problem,
@@ -86,7 +86,7 @@
  *
  * \version 0.32
  *
- * \date 31 - 10 - 2019
+ * \date 05 - 11 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -316,7 +316,7 @@ namespace SMSpp_di_unipi_it
  * has to "reflect" the changes to the "abstract" representation into ones to
  * the "physical" one (if any). Note that this may not be possible, or be too
  * difficult so that the :Block may not support it: which "abstract"
- * Modification (changes in the :Block issued by directly accessing the 
+ * Modification (changes in the :Block issued by directly accessing the
  * "abstract" representation) are supported is entirely a :Block decision.
  *
  * This underlines how there are two different mechanisms to change the data
@@ -418,7 +418,7 @@ namespace SMSpp_di_unipi_it
  * keep as the objective function of each sub-Block only the terms of the
  * "total" objective function that only depend on variables of the given
  * sub-Block; if there is none, the objective function of the sub-Block can
- * be set as null (constantly 0). This indeed makes good sense, as if the 
+ * be set as null (constantly 0). This indeed makes good sense, as if the
  * objective function contains a term (say) f( x , y ) where x belongs to one
  * sub-Block and y to a different one, then it is more natural (although
  * not strictly necessary) to define it in the father Block rather than in
@@ -615,7 +615,7 @@ class Block : public Observer {
  *
  * - Subset, an arbitrary subset of indices (currently a simple
  *   std::vector< Index >, although this may change) together with a
- *   [const] iteratior [c_]Subset_it in it;
+ *   [const] iterator [c_]Subset_it in it;
  *
  * - MF_dbl_it, a const_iterator into a std::vector< double >;
  *
@@ -706,13 +706,13 @@ class Block : public Observer {
 
  /// type for ( int , subset ) functions
  using MS_int_sbst = arg_packer< MF_int_it , Subset && , const bool >;
- 
+
 /**@} ----------------------------------------------------------------------*/
 /*------------------------------- FRIENDS ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
  // currently, none
- 
+
 /*--------------------------------------------------------------------------*/
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -758,7 +758,7 @@ class Block : public Observer {
   * (instance) data, and therefore it has to be explicitly initialized with
   * any of the corresponding methods (operator>>, serialize(), anything that
   * the specific :Block class provides) before it can be used.
-  * 
+  *
   * For this to work, each :Block has to:
   *
   * - add the line
@@ -858,7 +858,7 @@ class Block : public Observer {
   *   sub-Block of the Block and sub-Configuration of the Configuration
   *   (if any) are assumed each to be contained into a child of the group
   *   containing the original :Block / :Configuration, recursively.
-  * 
+  *
   * - eBlockFile: the file (which is also a group) has any number of child
   *   groups with names "Block_0", "Block_1", ... Each child group contains
   *   the serialization of a :Block (the string attribute "type" and all the
@@ -903,7 +903,7 @@ class Block : public Observer {
     return( nullptr );
 
    netCDF::NcGroup bg;
- 
+
    if( type == eProbFile ) {
     netCDF::NcGroup dg = f.getGroup( "Prob_" + std::to_string( idx ) );
     if( dg.isNull() )
@@ -1330,7 +1330,7 @@ class Block : public Observer {
   * Variable at all, and for which all the sub-Block either have the same
   * property or are only to be called with the default configuration set by
   * the BlockConfig. Note that if the BlockConfig is not set (nullptr) or the
-  * corresponding field is not set (nullptr), this is assumed to mean 
+  * corresponding field is not set (nullptr), this is assumed to mean
   * "price-in all the dynamic Variable that you have, if any", which is fine
   * if the pricing process actually has no parameters (say, a single class of
   * dynamic variables with an easy exact pricing algorithm). Thus, the
@@ -1439,7 +1439,7 @@ class Block : public Observer {
   * the base Configuration class does not have direct support for the fact
   * that a Configuration contains a sub-Configuration for each specific
   * sub-Block of a Block. */
- 
+
  virtual void generate_abstract_constraints( Configuration *stcc = nullptr ) {
   for( auto blck : v_Block )
    blck->generate_abstract_constraints();
@@ -1615,7 +1615,7 @@ class Block : public Observer {
   * always be the same.
   *
   * The method works by dispatching the private virtual method private_name().
-  * The latter is automatically implemented by the 
+  * The latter is automatically implemented by the
   * SMSpp_insert_in_factory_cpp_* macros [see SMSTypedefs.h], hence this
   * comes at no cost since these have to be called somewhere to ensure that
   * any :Block will be added to the factory. Actually, since
@@ -1628,7 +1628,7 @@ class Block : public Observer {
  inline const std::string & name( void ) const {
   return( private_name() );
   }
- 
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// getting the "father" Block of this Block
 
@@ -1693,7 +1693,7 @@ class Block : public Observer {
   return( obj );
   }
 
- 
+
 /*--------------------------------------------------------------------------*/
  /// getting the current sense of the Objective
  /** Getting the current sense (minimization or maximization) of the
@@ -1746,7 +1746,7 @@ class Block : public Observer {
   *
   * although note that for both things one has to "trust the Block" that the
   * returned value is correct. If the sense of the [Real]Objective rather is
-  * "minimization" and the Block returns a *finite* globally valid upper bound: 
+  * "minimization" and the Block returns a *finite* globally valid upper bound:
   *
   * - this is a certificate that the problem is *not empty*;
   *
@@ -1805,7 +1805,7 @@ class Block : public Observer {
   *
   *     (D')   min { f(y) : y \in Y' }
   *
-  * For instance, one may know a compact box Y' = [ l , u ] such that 
+  * For instance, one may know a compact box Y' = [ l , u ] such that
   * l <= y <= u for all y \in Y. Now, let us assume that we can find a
   * *globally valid* finite *upper* bound v on (D') (note that this is a
   * minimization problem, so this is a bound on how *bad* a solution of (D)
@@ -1868,7 +1868,7 @@ class Block : public Observer {
   * there is little harm in calling it frequently. When a change in the Block
   * happens, the Block can simply properly set the value; if the method is
   * called (which it may not) the computation is done, otherwise effort is
-  * saved. 
+  * saved.
   *
   * As far as what "frequently" should mean, this is surely "at least each
   * time a Modification is issued, unless it is one of the few Modification
@@ -1912,7 +1912,7 @@ class Block : public Observer {
   *     solution;
   *
   *   while if the sense of the [Real]Objective rather is "maximization" and
-  *   the Block returns a *finite* globally valid lower bound: 
+  *   the Block returns a *finite* globally valid lower bound:
   *
   *   - this is a certificate that the problem is *not empty*;
   *
@@ -2067,7 +2067,7 @@ class Block : public Observer {
                                  " is not of required type" ) );
   return( cnst );
   }
- 
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// template method to get the a (static) std::vector< Constraint >
  /** This method, template over the class Cnst (which must derive from
@@ -2090,7 +2090,7 @@ class Block : public Observer {
                                  "required type" ) );
   return( cnst );
   }
- 
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// template method to get the a (static) boost::multi_array< Cnst , K >
  /** This method, template over the class Cnst (which must derive from
@@ -2114,7 +2114,7 @@ class Block : public Observer {
                                  "required type" ) );
   return( cnst );
   }
- 
+
 /*--------------------------------------------------------------------------*/
  /// reading the *static* Variable of the Block
  /** Method for reading the *static* Variable of the Block. It returns a
@@ -2201,7 +2201,7 @@ class Block : public Observer {
                                  "required type" ) );
   return( var );
   }
- 
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// template method to get the a (static) std::vector< Variable >
  /** This method, template over the class Var (which must derive from
@@ -2224,7 +2224,7 @@ class Block : public Observer {
                                  " is not of required type" ) );
   return( var );
   }
- 
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// template method to get the a (static) boost::multi_array< Var , K >
  /** This method, template over the class Var (which must derive from
@@ -2248,7 +2248,7 @@ class Block : public Observer {
                                  " is not of required type" ) );
   return( var );
   }
- 
+
 /*--------------------------------------------------------------------------*/
  /// reading the *dynamic* Constraint of the Block
  /** Method for reading the *dynamic* Constraint of the Block. It returns a
@@ -2331,7 +2331,7 @@ class Block : public Observer {
   * method more than once, as the "separators" doing the actual generation
   * may use different information (typically, the current value of the
   * Variable) and/or have resource constraints that can be reset by calling
-  * the method again. Yet, new Constraint generated by 
+  * the method again. Yet, new Constraint generated by
   * generate_dynamic_constraints() will trigger an appropriate Modification,
   * which means that there should be no need to call this method again in
   * order to "incorporate" this new information. */
@@ -2362,7 +2362,7 @@ class Block : public Observer {
                                  " is not of required type" ) );
   return( cnst );
   }
- 
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// template method to get the a dynamic std::vector< std::list< Cnst > >
  /** This method, template over the class Cnst (which must derive from
@@ -2388,7 +2388,7 @@ class Block : public Observer {
                                  " is not of required type" ) );
   return( cnst );
   }
- 
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to get the a dynamic boost::multi_array< std::list< Cnst > , K >
  /** This method, template over the class Cnst (which must derive from
@@ -2414,7 +2414,7 @@ class Block : public Observer {
                                   " is not of required type" ) );
   return( cnst );
   }
- 
+
 /*--------------------------------------------------------------------------*/
  /// reading the *dynamic* Variable of the Block
  /** Method for reading the *dynamic* Variable of the Block. It returns a
@@ -2529,7 +2529,7 @@ class Block : public Observer {
                                  " is not of required type" ) );
   return( var );
   }
- 
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// template method to get the a dynamic std::vector< std::list< Var > >
  /** This method, template over the class Var (which must derive from
@@ -2554,7 +2554,7 @@ class Block : public Observer {
                                  " is not of required type" ) );
   return( var );
   }
- 
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to get the a dynamic boost::multi_array< std::list< Var > , K >
  /** This method, template over the class Var (which must derive from
@@ -2580,7 +2580,7 @@ class Block : public Observer {
                                   " is not of required type" ) );
   return( var );
   }
- 
+
 /*--------------------------------------------------------------------------*/
  /// getting the static Constraints' names
  /** Returns a const reference to the vector storing the names of the
@@ -2813,7 +2813,7 @@ class Block : public Observer {
   * remove_dynamic_constraints()), removing a dynamic Variable from a Block
   * is a complex task. Besides this Block issuing a BlockModRmv stating that
   * this Variable has been removed, other Modification are in principle
-  * issued. For each "stuff" in which the Variable is active, 
+  * issued. For each "stuff" in which the Variable is active,
   * ThinVarDepInterface::remove_variable() will be called, and this in
   * principle issues a Modification on its own. The further parameter
   * issueindMod is provided to control this, with the usual format described
@@ -2869,7 +2869,7 @@ class Block : public Observer {
   * described in Observer::make_par(). */
 
  void set_objective( Objective * newOF , c_ModParam issueMod = eModBlck );
- 
+
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- Methods for checking the Block ---------------------*/
 /*--------------------------------------------------------------------------*/
@@ -3032,7 +3032,7 @@ class Block : public Observer {
   * SimpleConfiguration<double> specifying, say, the maximum relative
   * violation that a simple single numerical Constraint can have, or any
   * arbitrarily complex Configuration specifying different thresholds for
-  * different groups of Constraint of the Block (say, via 
+  * different groups of Constraint of the Block (say, via
   * SimpleConfiguration<std::vector<double> >), and arbitrarily complex
   * sub-Configurations (recursively) for the sub-Block of the Block. Also,
   * the parameter can be used to specify that only "a part" of the
@@ -3904,7 +3904,7 @@ class Block : public Observer {
   *
   * - THE STATE OF THE DATA STRUCTURE IN THE :Block WHEN IT HANDLES THE
   *   "ABSTRACT" Modification IS PRECISELY THE ONE IN WHICH THE
-  *   Modification WAS ISSUED: NO COMPLCATED OPERATIONS (Variable AND/OR
+  *   Modification WAS ISSUED: NO COMPLICATED OPERATIONS (Variable AND/OR
   *   Constraint BEING ADDED/REMOVED ...) CAN HAVE BEEN PERFORMED IN THE
   *   MEANTIME
   *
@@ -3979,7 +3979,7 @@ class Block : public Observer {
   * with the Block. If oldSolver is not among the registered solvers, then
   * nothing is done (and no warning is issued); otherwise the vector of
   * registered Solver is shortened by one, and the remaining solvers (if any)
-  * are shifted in the obvious way. Note that the Block calls 
+  * are shifted in the obvious way. Note that the Block calls
   * Solver::set_Block( nullptr ) to the Solver that is un-registered, which is
   * why the converse is not done (see Solver.h). Note that the method is
   * virtual because derived classes may have to do more. */
@@ -4066,7 +4066,7 @@ class Block : public Observer {
   * Note that the vector of SolverConfig * is allowed to be shorter than that
   * of names, in which case all the missing entries are treated as nullptr.
   * It is also allowed to be longer, in which case all the extra entries are
-  * ignored. 
+  * ignored.
   *
   * The BlockSolverConfig also has a field f_diff that indicates whether it
   * has to be interpreted in "differential mode". The behaviour of this
@@ -4233,7 +4233,7 @@ class Block : public Observer {
  *
  * - Subset, an arbitrary subset of indices (currently a simple
  *   std::vector< Index >, although this may change) together with a
- *   [const] iteratior [c_]Subset_it in it;
+ *   [const] iterator [c_]Subset_it in it;
  *
  * - MF_dbl_it, a const_iterator into a std::vector< double >;
  *
@@ -4280,7 +4280,7 @@ class Block : public Observer {
  *     MS[_D]_S::args()
  *
  * parameter (don't ask why the "args", that's pretty weird template wizardry)
- * specifiying the type of function to be inserted in the methods factory.
+ * specifying the type of function to be inserted in the methods factory.
  *
  * The rationale for defining these types is twofold:
  *
@@ -4289,7 +4289,7 @@ class Block : public Observer {
  *   bit easier to use;
  *
  * - gently nudge the user into adopting, as far as possible, these six
- *   parameter type lists for (as many as posisble of) the data-changing
+ *   parameter type lists for (as many as possible of) the data-changing
  *   functions of her :Block; this makes it straightforward to then register
  *   them in the methods factories, which greatly increases the value of the
  *   mechanism.
@@ -4341,7 +4341,7 @@ class Block : public Observer {
  * A user who would like to have a function in the methods factory for setting
  * the weight of subsets of arcs could implement the following functions:
  *
- *     void set_weight_range( Block * block , MF_dbl_it begin , 
+ *     void set_weight_range( Block * block , MF_dbl_it begin ,
  *                            Range range ,
  *                            c_ModParam issuePMod = eNoBlc ,
  *                            c_ModParam issueAMod = eModBlck ) {
@@ -4351,7 +4351,7 @@ class Block : public Observer {
  *                                                             issueAMod );
  *      }
  *
- *     void set_weight_subset( Block * block , MF_dbl_it begin , 
+ *     void set_weight_subset( Block * block , MF_dbl_it begin ,
  *                             Subset && sbst , const bool ordered = false ,
  *                             c_ModParam issuePMod = eNoBlc ,
  *                             c_ModParam issueAMod = eModBlck ) {
@@ -4399,7 +4399,7 @@ class Block : public Observer {
  * So, while one would expect that most of the registration work is done by
  * the :Block owner in static_initialization() once and for all, the
  * possibility is always left open that some registration may happen outside
- * it. 
+ * it.
  *  @{ */
 
  /// register a new function in the methods factory
@@ -4779,7 +4779,7 @@ class Block : public Observer {
   const int idx = f.getGroupCount();
 
   netCDF::NcGroup bg;
- 
+
   if( type == eProbFile ) {
    netCDF::NcGroup dg = f.addGroup( "Prob_" + std::to_string( idx ) );
    bg = dg.addGroup( "Block" );
@@ -5556,12 +5556,41 @@ class BlockModAD : public AModification
 
  virtual bool is_added( void ) const = 0;
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// stores the pointers to the affected Variable into the given vector
+ /** If this BlockModAD is related to Variable, then this function stores the
+  * pointers of the affected Variable in the given \p variables vector. The \p
+  * variables vector is resized to the number of affected Variable. If this
+  * BlockModAD is not related to Variable, an exception is thrown.
+  *
+  * @param variables the vector in which the pointers to the affected Variable
+  *        will be stored.
+  */
+
+ virtual void get_variables( std::vector< const Variable * > & variables )
+  const = 0;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// stores the pointers to the affected Constraint into the given vector
+ /** If this BlockModAD is related to Constraint, then this function stores
+  * the pointers of the affected Constraint in the given \p constraints
+  * vector. The \p constraints vector is resized to the number of affected
+  * Constraint. If this BlockModAD is not related to Constraint, an exception
+  * is thrown.
+  *
+  * @param constraints the vector in which the pointers to the affected
+  *        Constraint will be stored.
+  */
+
+ virtual void get_constraints( std::vector< const Constraint * > & constraints )
+  const = 0;
+
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( BlockModAdd ) )
+ };  // end( class( BlockModAD ) )
 
 /*--------------------------------------------------------------------------*/
-/*-------------------------- CLASS BlockModAD ------------------------------*/
+/*-------------------------- CLASS BlockModAdd -----------------------------*/
 /*--------------------------------------------------------------------------*/
 /// derived class from Modification for adding stuff to a Block
 /** Derived class from BlockModAD to describe modifications to a Block
@@ -5623,7 +5652,8 @@ class BlockModAdd : public BlockModAD
  std::list<ConstOrVar> & whc( void ) const { return( whc_list ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// accessor to the array of the added/removed Constraint/Variable 
+
+ /// accessor to the array of the added Constraint/Variable
 
  const std::vector<ConstOrVar *> & added( void ) const { return( add_vec ); }
 
@@ -5636,6 +5666,28 @@ class BlockModAdd : public BlockModAD
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  virtual bool is_added( void ) const override final { return( true ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ virtual void get_variables( std::vector< const Variable * > & variables )
+  const override {
+  if( ! is_variable() )
+   throw( std::logic_error( "BlockModAdd::get_variables: this BlockModAdd is "
+                            "related to Constraint." ) );
+  if constexpr( std::is_base_of< Variable , ConstOrVar >::value )
+   variables.assign( add_vec.cbegin() , add_vec.cend() );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ virtual void get_constraints( std::vector< const Constraint * > & constraints )
+  const override {
+  if( is_variable() )
+   throw( std::logic_error( "BlockModAdd::get_constraints: this BlockModAdd is "
+                            "related to Variable." ) );
+  if constexpr( std::is_base_of< Constraint , ConstOrVar >::value )
+   constraints.assign( add_vec.cbegin() , add_vec.cend() );
+  }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -5742,9 +5794,10 @@ class BlockModRmv : public BlockModAD
  std::list< ConstOrVar > & whc( void ) const { return( whc_list ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// accessor to the array of iterators identifying the stuff to be removed
 
-const std::list< ConstOrVar > & removed( void ) const { return( rmvd_list ); }
+ /// accessor to the list of the removed Constraint/Variable
+
+ const std::list< ConstOrVar > & removed( void ) const { return( rmvd_list ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -5755,6 +5808,38 @@ const std::list< ConstOrVar > & removed( void ) const { return( rmvd_list ); }
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  bool is_added( void ) const override final { return( false ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ virtual void get_variables( std::vector< const Variable * > & variables )
+  const override {
+  if( ! is_variable() )
+   throw( std::logic_error( "BlockModRmv::get_variables: this BlockModRmv is "
+                            "related to Constraint." ) );
+  if constexpr( std::is_base_of< Variable , ConstOrVar >::value ) {
+   variables.resize( rmvd_list.size() );
+   auto it = variables.begin();
+   auto it2 = rmvd_list.begin();
+   while( it != variables.end() )
+    *it++ = &*it2++;
+   }
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ virtual void get_constraints( std::vector< const Constraint * > & constraints )
+  const override {
+  if( is_variable() )
+   throw( std::logic_error( "BlockModRmv::get_constraints: this BlockModRmv is "
+                            "related to Variable." ) );
+  if constexpr( std::is_base_of< Constraint , ConstOrVar >::value ) {
+   constraints.resize( rmvd_list.size() );
+   auto it = constraints.begin();
+   auto it2 = rmvd_list.begin();
+   while( it != constraints.end() )
+    *it++ = &*it2++;
+   }
+  }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -5945,7 +6030,7 @@ class BlockConfig : public Configuration
  /** Extends Configuration::serialize( netCDF::NcGroup ) to the specific
   * format of a BlockConfig. See BlockConfig::deserialize( netCDF::NcGroup )
   * for details of the format of the created netCDF group. */
- 
+
  virtual void serialize( netCDF::NcGroup & group ) const override;
 
 /*--------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
@@ -5973,7 +6058,7 @@ class BlockConfig : public Configuration
 
  /// the vector of sub-BlockConfig for each of the sub-Block
  std::vector<BlockConfig *> v_sub_BlockConfig;
- 
+
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
  protected:
@@ -6149,7 +6234,7 @@ class BlockSolverConfig : public Configuration
   * format of a BlockSolverConfig. See
   * BlockSolverConfig::deserialize( netCDF::NcGroup ) for details of the
   * format of the created netCDF group. */
- 
+
  virtual void serialize( netCDF::NcGroup & group ) const override;
 
 /*--------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
@@ -6158,7 +6243,7 @@ class BlockSolverConfig : public Configuration
 
  /// the names of all Solver of the father Block
  std::vector<std::string> v_SolverNames;
- 
+
  /// (pointer to) the ComputeConfig of all Solver of the father Block
  std::vector<ComputeConfig *> v_SolverConfigs;
 
@@ -6295,7 +6380,7 @@ void Block::add_dynamic_variables( std::list< Var > &list ,
  else
   for( auto & el : newlist )    // all the new Variable
    el.set_Block( this );        // now belong to this Block
- 
+
  list.splice( list.end() , newlist );  // add them at the end
 
  }  // end( Block::add_dynamic_variables( Var ) )
@@ -6328,7 +6413,7 @@ void Block::remove_dynamic_constraints( std::list< Const > &list ,
   // the actual Constraints objects is not changed
   for( auto el : rmvd )
    removed.splice( removed.end() , list , el );
-  
+
   // now issue the BlockModRmv
   add_Modification( std::make_shared< BlockModRmv< Const > >( list ,
 						      std::move( removed ) ,
@@ -6399,7 +6484,7 @@ void Block::remove_dynamic_variables( std::list< Var > &list ,
   // actual Variable objects is not changed
   for( auto el : rmvd )
    removed.splice( removed.end() , list , el );
-  
+
   // now issue the BlockModRmv
   add_Modification( std::make_shared< BlockModRmv< Var > >( list ,
 						      std::move( removed ) ,
