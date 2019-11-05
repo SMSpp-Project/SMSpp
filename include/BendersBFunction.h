@@ -7,7 +7,7 @@
  *
  * \version 0.01
  *
- * \date 29 - 10 - 2019
+ * \date 05 - 11 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -504,7 +504,7 @@ class BendersBFunction : public C05Function , public Block {
                                  "attached to it." ) );
   }
 
- /*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
  /// set a given integer (int) numerical parameter
  /** Set a given integer (int) numerical parameter. BendersBFunction takes
   * care of the following parameters:
@@ -650,7 +650,7 @@ class BendersBFunction : public C05Function , public Block {
   return C05Function::get_int_par( par );
  }
 
- /*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
  /// get a specific float (double) numerical parameter
  /** Get a specific float (double) numerical parameter. BendersBFunction takes
   * care of the following parameters:
@@ -759,7 +759,7 @@ class BendersBFunction : public C05Function , public Block {
 /** @name Methods for modifying the BendersBFunction
  *  @{ */
 
- /*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
  /// sets the mapping used to update the constraints of the sub-Block
  /** This method sets the (linear) mapping M describing how the set of
   * Constraint of the inner Block is affected by the values of the active
@@ -1493,6 +1493,18 @@ class BendersBFunction : public C05Function , public Block {
  private:
 
 /*--------------------------------------------------------------------------*/
+/*---------------------- PRIVATE TYPES OF THE CLASS ------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ /// private enum for describing the behaviour of a function when it changes
+ enum function_value_behaviour {
+  unchanged ,
+  increase ,
+  decrease ,
+  unknown
+  };
+
+/*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1611,7 +1623,7 @@ class BendersBFunction : public C05Function , public Block {
 
  void update_constraints();
 
- /*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 
  /// write the Solution with the given name in the sub-Block
  /** If <tt>name == Inf<Index>()</tt>, this function writes the dual solution
@@ -1665,6 +1677,23 @@ class BendersBFunction : public C05Function , public Block {
   */
 
  FunctionValue compute_linearization_constant();
+
+/*--------------------------------------------------------------------------*/
+
+ /// sends a nuclear modification, invalidates the global pool
+ /** Besides sending a "nuclear modification" for Function, it also invalidates
+  * the global pool and declares that the Constraint of the sub-Block are not
+  * updated.
+  *
+  * @param chnl the name of the channel to which the Modification should be
+  *        sent.
+  */
+ void send_nuclear_modification( const Observer::ChnlName chnl );
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the behaviour of this Function considering the given Modification
+ function_value_behaviour get_behaviour( std::shared_ptr<BlockModAD> mod );
 
 /*--------------------------------------------------------------------------*/
 

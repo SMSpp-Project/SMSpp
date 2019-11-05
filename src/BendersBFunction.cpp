@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 03 - 11 - 2019
+ * \date 05 - 11 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -529,7 +529,7 @@ void BendersBFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
  f_Observer->add_Modification( std::make_shared<BendersBFunctionModSbst>(
                              this , C05FunctionMod::AllLinearizationChanged ,
                              BendersBFunctionMod::ModifyRows ,
-                             std::move( rows ) , true ,
+                             std::move( rows ) , ordered ,
                              C05FunctionMod::NaNshift ,
                              Observer::par2concern( issueMod ) ) ,
                                 Observer::par2chnl( issueMod ) );
@@ -953,7 +953,6 @@ void BendersBFunction::delete_rows( c_ModParam issueMod )
  v_b.clear();
 
  global_pool.invalidate();
-
  constraints_are_updated = false;
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
@@ -971,6 +970,78 @@ void BendersBFunction::delete_rows( c_ModParam issueMod )
 /*-------------------- Methods for handling Modification -------------------*/
 /*--------------------------------------------------------------------------*/
 
+BendersBFunction::function_value_behaviour
+BendersBFunction::get_behaviour( std::shared_ptr<BlockModAD> mod ) {
+
+ auto behaviour = function_value_behaviour::unchanged;
+
+ std::vector< const Constraint * > affected_constraints;
+ mod->get_constraints( affected_constraints );
+
+ for( auto constraint : affected_constraints ) {
+  for( const auto constraint_specifier : v_constraints ) {
+
+   // Check whether the removed Constraint is still present in this
+   // BendersBFunction.
+   if( constraint_specifier.first == constraint )
+    throw( std::logic_error( "BendersBFunction::add_Modification(): "
+                             "Some Constraint of the sub-Block was removed "
+                             "from its own Block without firstly being "
+                             "removed from this BendersBFunction." ) );
+
+   if( behaviour == unknown )
+    continue; // We already know that the behaviour is unknow. Now, we only
+              // check consistency, i.e., if this BendersBFunction has some of
+              // the removed Constraints.
+
+   auto block = constraint->get_Block();
+   if( block->get_objective_sense() == Objective::eMin ) {
+    if( mod->is_added() ) { // constraint was added: value increases
+     if( behaviour == function_value_behaviour::decrease )
+      behaviour = function_value_behaviour::unknown;
+     else
+      behaviour = function_value_behaviour::increase;
+    }
+    else { // constraint was removed: value decreases
+     if( behaviour == function_value_behaviour::increase )
+      behaviour = function_value_behaviour::unknown;
+     else
+      behaviour = function_value_behaviour::decrease;
+    }
+   }
+   else { // maximization problem
+    if( mod->is_added() ) { // constraint was added: value decreases
+     if( behaviour == function_value_behaviour::increase )
+      behaviour = function_value_behaviour::unknown;
+     else
+      behaviour = function_value_behaviour::decrease;
+    }
+    else { // constraint was removed: value increases
+     if( behaviour == function_value_behaviour::decrease )
+      behaviour = function_value_behaviour::unknown;
+     else
+      behaviour = function_value_behaviour::increase;
+    }
+   }
+  }
+ }
+ return behaviour;
+}
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::send_nuclear_modification
+( const Observer::ChnlName chnl ) {
+ // "nuclear modification" for Function: everything changed
+ global_pool.invalidate();
+ constraints_are_updated = false;
+ if( f_Observer )
+  f_Observer->add_Modification
+   ( std::make_shared<FunctionMod>( this , FunctionMod::NaNshift ) , chnl );
+}
+
+/*--------------------------------------------------------------------------*/
+
 void BendersBFunction::add_Modification( sp_Mod mod ,
                                          Observer::ChnlName chnl ) {
 
@@ -981,6 +1052,9 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
    this->add_Modification( submod , chnl );
  }
  else if( const auto tmod = std::dynamic_pointer_cast<FunctionMod>( mod ) ) {
+
+ }
+ else if( const auto tmod = std::dynamic_pointer_cast<FunctionModVars>( mod ) ) {
 
  }
  else if( const auto tmod = std::dynamic_pointer_cast<ConstraintMod>( mod ) ) {
@@ -996,8 +1070,7 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
    case( RowConstraintMod::eChgBTS ):
    default:
     // unknown modification
-    if( f_Observer )
-     f_Observer->add_Modification( mod , chnl );
+    send_nuclear_modification( chnl );
    }
   }
   else if( const auto tmod = std::dynamic_pointer_cast<FRowConstraintMod>( mod ) ) {
@@ -1006,6 +1079,7 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
    }
    else {
     // unkown modification
+    send_nuclear_modification( chnl );
    }
   }
   else if( const auto tmod = std::dynamic_pointer_cast<OneVarConstraintMod>( mod ) ) {
@@ -1017,8 +1091,7 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
    case( RowConstraintMod::eChgBTS ):
    default:
     // unknown modification
-    if( f_Observer )
-     f_Observer->add_Modification( mod , chnl );
+    send_nuclear_modification( chnl );
    }
   }
   else {
@@ -1034,6 +1107,7 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
   }
   else {
    // unkown modification
+   send_nuclear_modification( chnl );
   }
  } // end ObjectiveMod
  else if( const auto tmod = std::dynamic_pointer_cast<VariableMod>( mod ) ) {
@@ -1043,11 +1117,35 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
   // sub-Block may have changed.
  }
  else if( const auto tmod = std::dynamic_pointer_cast<BlockModAD>( mod ) ) {
+  if( tmod->is_variable() ) {
+   // Variables were added or removed. This BendersBFunction may change
+   // unpredictably.
+   send_nuclear_modification( chnl );
+  }
+  else {
+   // Constraints were added or removed. Check how the behaviour of this
+   // BendersBFunction changes.
+
+   auto behaviour = get_behaviour( tmod );
+   if( behaviour == function_value_behaviour::unknown )
+    send_nuclear_modification( chnl );
+   else if( behaviour == function_value_behaviour::increase && f_Observer )
+    f_Observer->add_Modification
+     ( std::make_shared<FunctionMod>( this , Inf<FunctionValue>() ) , chnl );
+   else if( behaviour == function_value_behaviour::decrease && f_Observer )
+    f_Observer->add_Modification
+     ( std::make_shared<FunctionMod>( this , - Inf<FunctionValue>() ) , chnl );
+  }
  }
  else if( const auto tmod = std::dynamic_pointer_cast<BlockMod>( mod ) ) {
+  send_nuclear_modification( chnl );
+ }
+ else if( const auto tmod = std::dynamic_pointer_cast<NModification>( mod ) ) {
+  send_nuclear_modification( chnl );
  }
  else {
   // unkown modification
+  send_nuclear_modification( chnl );
  }
 }
 
