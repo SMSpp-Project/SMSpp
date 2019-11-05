@@ -1212,7 +1212,7 @@ class PolyhedralFunction : public C05Function {
   *        nothing). */  
 
  void modify_constants( c_RealVector & nb , Subset && rows ,
-			bool ordered , c_ModParam issueMod );
+			bool ordered , c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify only the constant term of one row of the linear mapping
