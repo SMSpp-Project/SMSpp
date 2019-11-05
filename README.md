@@ -58,8 +58,9 @@ See [`tools/README.md`](tools/README.md) for details on how to build and use the
 
 ## Running the tests
 
-By default, some simple unit tests are built with the library.
-To run them, launch `ctest` from the build directory.
+Some simple unit tests will be built with the library,
+to run them, launch `ctest` from the build directory.
+To disable them, configure the library with the option `-DBUILD_TESTING=OFF`.
 
 ## Contributing
 

@@ -10,9 +10,7 @@ cmake_minimum_required(VERSION 3.8...3.15)
 project(SMS++ VERSION 0.1.0 LANGUAGES CXX)
 
 # ----- Settings ------------------------------------------------------------ #
-if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
-    enable_testing()
-endif()
+include(CTest)
 
 # ----- Requirements -------------------------------------------------------- #
 # This is to use the find modules we provide
@@ -116,8 +114,7 @@ install(FILES
 # This is needed so other projects can find the library in a local build.
 # It does not affect installation.
 
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(CMAKE_EXPORT_PACKAGE_REGISTRY ON)
+if (CMAKE_EXPORT_PACKAGE_REGISTRY)
 
     export(EXPORT SMSpp-targets
            FILE ${CMAKE_CURRENT_BINARY_DIR}/SMSppTargets.cmake
@@ -137,6 +134,6 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif ()
 
 # ----- Unit testing -------------------------------------------------------- #
-if (CMAKE_TESTING_ENABLED)
+if (BUILD_TESTING)
     add_subdirectory(test)
 endif()
