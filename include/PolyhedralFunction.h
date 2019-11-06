@@ -342,8 +342,8 @@ class PolyhedralFunction : public C05Function {
  {
   v_ord.resize( 1 );
   v_ord[ 0 ] = 0;
-  set_PolyhedralFunction( std::move( A ) , std::move( b ) , is_convex ,
-			  eNoMod );
+  set_PolyhedralFunction( std::move( x ) , std::move( A ) , std::move( b ) ,
+			  is_convex , eNoMod );
   }
 
 /*--------------------------------------------------------------------------*/

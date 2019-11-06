@@ -516,7 +516,7 @@ void PolyhedralFunction::set_PolyhedralFunction( MultiVector && A ,
 						 c_ModParam issueMod )
 {
  if( ! A.empty() )
-  if( v_x.size() != v_A[ 0 ].size() )
+  if( v_x.size() != A[ 0 ].size() )
    throw( std::invalid_argument( "A and x must have the same columns" ) );
 
  f_is_convex = is_convex;

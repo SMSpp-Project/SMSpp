@@ -5567,7 +5567,7 @@ class BlockModAD : public AModification
   *        will be stored.
   */
 
- virtual void get_variables( std::vector< const Variable * > & variables )
+ virtual void get_variables( std::vector< Variable * > & variables )
   const = 0;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -5582,7 +5582,7 @@ class BlockModAD : public AModification
   *        Constraint will be stored.
   */
 
- virtual void get_constraints( std::vector< const Constraint * > & constraints )
+ virtual void get_constraints( std::vector< Constraint * > & constraints )
   const = 0;
 
 /*--------------------------------------------------------------------------*/
@@ -5669,7 +5669,7 @@ class BlockModAdd : public BlockModAD
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual void get_variables( std::vector< const Variable * > & variables )
+ virtual void get_variables( std::vector< Variable * > & variables )
   const override {
   if( ! is_variable() )
    throw( std::logic_error( "BlockModAdd::get_variables: this BlockModAdd is "
@@ -5680,7 +5680,7 @@ class BlockModAdd : public BlockModAD
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual void get_constraints( std::vector< const Constraint * > & constraints )
+ virtual void get_constraints( std::vector< Constraint * > & constraints )
   const override {
   if( is_variable() )
    throw( std::logic_error( "BlockModAdd::get_constraints: this BlockModAdd is "
@@ -5811,7 +5811,7 @@ class BlockModRmv : public BlockModAD
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual void get_variables( std::vector< const Variable * > & variables )
+ virtual void get_variables( std::vector< Variable * > & variables )
   const override {
   if( ! is_variable() )
    throw( std::logic_error( "BlockModRmv::get_variables: this BlockModRmv is "
@@ -5821,13 +5821,13 @@ class BlockModRmv : public BlockModAD
    auto it = variables.begin();
    auto it2 = rmvd_list.begin();
    while( it != variables.end() )
-    *it++ = &*it2++;
+    *it++ = const_cast< ConstOrVar * >( &*it2++ );
    }
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual void get_constraints( std::vector< const Constraint * > & constraints )
+ virtual void get_constraints( std::vector< Constraint * > & constraints )
   const override {
   if( is_variable() )
    throw( std::logic_error( "BlockModRmv::get_constraints: this BlockModRmv is "
@@ -5837,7 +5837,7 @@ class BlockModRmv : public BlockModAD
    auto it = constraints.begin();
    auto it2 = rmvd_list.begin();
    while( it != constraints.end() )
-    *it++ = &*it2++;
+    *it++ = const_cast< ConstOrVar * >( &*it2++ );
    }
   }
 
