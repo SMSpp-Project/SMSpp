@@ -7,7 +7,7 @@
  *
  * \version 0.01
  *
- * \date 05 - 11 - 2019
+ * \date 06 - 11 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -37,6 +37,7 @@
 #include "C05Function.h"
 #include "CDASolver.h"
 #include "ColVariable.h"
+#include "Objective.h"
 #include <limits>
 
 /*--------------------------------------------------------------------------*/
@@ -47,6 +48,7 @@
 namespace SMSpp_di_unipi_it
 {
 
+ class ConstraintMod;      // forward declaration of ConstraintMod
  class RowConstraint;      // forward declaration of RowConstraint
  class Solution;           // forward declaration of Solution
 
@@ -1688,12 +1690,56 @@ class BendersBFunction : public C05Function , public Block {
   * @param chnl the name of the channel to which the Modification should be
   *        sent.
   */
+
  void send_nuclear_modification( const Observer::ChnlName chnl );
 
 /*--------------------------------------------------------------------------*/
 
  /// returns the behaviour of this Function considering the given Modification
- function_value_behaviour get_behaviour( std::shared_ptr<BlockModAD> mod );
+
+ function_value_behaviour get_behaviour( std::shared_ptr<BlockModAD> mod )
+  const;
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the behaviour of this Function considering the given Modification
+
+ function_value_behaviour get_behaviour( std::shared_ptr<ConstraintMod> mod )
+  const;
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the behaviour of this Function considering the given Modification
+ /** Returns the behaviour of this BendersBFunction considering that some
+  * Constraint was added or enforced (if \p added_or_enforced_constraint is
+  * true) or removed or relaxed (if \p added_or_enforced_constraint is false)
+  * in some sub-Block whose Objective has the given \p sense.
+  *
+  * @param sense the sense of the Objective of the Block to which the
+  *        Constraint belongs.
+  *
+  * @param added_or_enforced_constraint if true, indicates that the Constraint
+  *        was added or enforced; if false, indicates that the Constraint
+  *        was removed or relaxed.
+  */
+
+ function_value_behaviour get_behaviour( Objective::of_type sense ,
+                                         bool added_or_enforced_constraint )
+  const;
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns true if the given Constraint is handled by this BendersBFunction
+ /** Returns true if and only if the Constraint pointed by the given pointer
+  * is handled by this BendersBFunction.
+  *
+  * @param constraint the pointer to the Constraint.
+  *
+  * @return true if the given Constraint is handled by this BendersBFunction;
+  *         false otherwise.
+  */
+
+ bool has_constraint( Constraint * constraint ) const;
 
 /*--------------------------------------------------------------------------*/
 
