@@ -86,7 +86,7 @@
  *
  * \version 0.32
  *
- * \date 05 - 11 - 2019
+ * \date 06 - 11 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -5541,8 +5541,8 @@ class BlockModAD : public AModification
 
 /*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
- /// returns true is a Variable is involved, false if a Constraint is involved
- /** Returns true is a Variable is involved, false if a Constraint is
+ /// returns true if a Variable is involved, false if a Constraint is involved
+ /** Returns true if a Variable is involved, false if a Constraint is
   * involved. The method is pure virtual and it is actually implemented by
   * derived classes. */
 
@@ -5561,28 +5561,29 @@ class BlockModAD : public AModification
  /** If this BlockModAD is related to Variable, then this function stores the
   * pointers of the affected Variable in the given \p variables vector. The \p
   * variables vector is resized to the number of affected Variable. If this
-  * BlockModAD is not related to Variable, an exception is thrown.
+  * BlockModAD is not related to Variable, the elements of the given vector
+  * are erased from it and the size of the vector becomes zero.
   *
   * @param variables the vector in which the pointers to the affected Variable
   *        will be stored.
   */
 
- virtual void get_variables( std::vector< Variable * > & variables )
-  const = 0;
+ virtual void get_elements( std::vector< Variable * > & variables ) const = 0;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// stores the pointers to the affected Constraint into the given vector
  /** If this BlockModAD is related to Constraint, then this function stores
   * the pointers of the affected Constraint in the given \p constraints
   * vector. The \p constraints vector is resized to the number of affected
-  * Constraint. If this BlockModAD is not related to Constraint, an exception
-  * is thrown.
+  * Constraint. If this BlockModAD is not related to Constraint, the elements
+  * of the given vector are erased from it and the size of the vector becomes
+  * zero.
   *
   * @param constraints the vector in which the pointers to the affected
   *        Constraint will be stored.
   */
 
- virtual void get_constraints( std::vector< Constraint * > & constraints )
+ virtual void get_elements( std::vector< Constraint * > & constraints )
   const = 0;
 
 /*--------------------------------------------------------------------------*/
@@ -5669,24 +5670,16 @@ class BlockModAdd : public BlockModAD
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual void get_variables( std::vector< Variable * > & variables )
+ virtual void get_elements( std::vector< Variable * > & variables )
   const override {
-  if( ! is_variable() )
-   throw( std::logic_error( "BlockModAdd::get_variables: this BlockModAdd is "
-                            "related to Constraint." ) );
-  if constexpr( std::is_base_of< Variable , ConstOrVar >::value )
-   variables.assign( add_vec.cbegin() , add_vec.cend() );
+  get_elements_( variables );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual void get_constraints( std::vector< Constraint * > & constraints )
+ virtual void get_elements( std::vector< Constraint * > & constraints )
   const override {
-  if( is_variable() )
-   throw( std::logic_error( "BlockModAdd::get_constraints: this BlockModAdd is "
-                            "related to Variable." ) );
-  if constexpr( std::is_base_of< Constraint , ConstOrVar >::value )
-   constraints.assign( add_vec.cbegin() , add_vec.cend() );
+  get_elements_( constraints );
   }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
@@ -5715,6 +5708,20 @@ class BlockModAdd : public BlockModAD
  std::list< ConstOrVar > & whc_list;   ///< reference to the affected list
 
  std::vector< ConstOrVar * > add_vec;  ///< vector of pointers to added stuff
+
+/*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
+
+ private:
+
+/*--------------------------- PRIVATE METHODS ------------------------------*/
+
+ template<class T>
+ void get_elements_( std::vector< T * > & elements ) const {
+  if constexpr( std::is_base_of< T , ConstOrVar >::value )
+   elements.assign( add_vec.cbegin() , add_vec.cend() );
+  else
+   elements.clear();
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -5811,34 +5818,16 @@ class BlockModRmv : public BlockModAD
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual void get_variables( std::vector< Variable * > & variables )
+ virtual void get_elements( std::vector< Variable * > & variables )
   const override {
-  if( ! is_variable() )
-   throw( std::logic_error( "BlockModRmv::get_variables: this BlockModRmv is "
-                            "related to Constraint." ) );
-  if constexpr( std::is_base_of< Variable , ConstOrVar >::value ) {
-   variables.resize( rmvd_list.size() );
-   auto it = variables.begin();
-   auto it2 = rmvd_list.begin();
-   while( it != variables.end() )
-    *it++ = const_cast< ConstOrVar * >( &*it2++ );
-   }
+  get_elements_( variables );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual void get_constraints( std::vector< Constraint * > & constraints )
+ virtual void get_elements( std::vector< Constraint * > & constraints )
   const override {
-  if( is_variable() )
-   throw( std::logic_error( "BlockModRmv::get_constraints: this BlockModRmv is "
-                            "related to Variable." ) );
-  if constexpr( std::is_base_of< Constraint , ConstOrVar >::value ) {
-   constraints.resize( rmvd_list.size() );
-   auto it = constraints.begin();
-   auto it2 = rmvd_list.begin();
-   while( it != constraints.end() )
-    *it++ = const_cast< ConstOrVar * >( &*it2++ );
-   }
+  get_elements_( constraints );
   }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
@@ -5867,6 +5856,25 @@ class BlockModRmv : public BlockModAD
  std::list< ConstOrVar > & whc_list;     ///< reference to the affected list
 
  std::list< ConstOrVar > rmvd_list;      ///< list of removed stuff
+
+/*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
+
+ private:
+
+/*--------------------------- PRIVATE METHODS ------------------------------*/
+
+ template<class T>
+ void get_elements_( std::vector< T * > & elements ) const {
+  if constexpr( std::is_base_of< T , ConstOrVar >::value ) {
+   elements.resize( rmvd_list.size() );
+   auto it = elements.begin();
+   auto it2 = rmvd_list.begin();
+   while( it != elements.end() )
+    *it++ = const_cast< ConstOrVar * >( &*it2++ );
+   }
+  else
+   elements.clear();
+  }
 
 /*--------------------------------------------------------------------------*/
 
