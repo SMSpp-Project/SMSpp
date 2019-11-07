@@ -973,17 +973,79 @@ void BendersBFunction::delete_rows( c_ModParam issueMod )
 void BendersBFunction::add_Modification( sp_Mod mod ,
                                          Observer::ChnlName chnl ) {
 
- // TODO
-
  if( const auto tmod = std::dynamic_pointer_cast<GroupModification>( mod ) ) {
   for( const auto & submod : tmod->v_sub_Modifications )
    this->add_Modification( submod , chnl );
  }
  else if( const auto tmod = std::dynamic_pointer_cast<FunctionMod>( mod ) ) {
 
+  auto observer = tmod->function()->get_Observer();
+
+  if( const auto constraint = dynamic_cast<Constraint *>( observer ) ) {
+   if( this->has_constraint( constraint ) )
+    send_nuclear_modification( chnl );
+   else {
+    /* Dual solutions are still feasible and linearizations are still
+     * valid. However, the value of this BendersBFunction changes
+     * unpredictably. */
+    if( f_Observer )
+     f_Observer->add_Modification
+      ( std::make_shared<FunctionMod>( this , FunctionMod::NaNshift ) , chnl );
+   }
+  }
+  else if( const auto objective = dynamic_cast<Objective *>( observer ) ) {
+   /* Dual solutions may become infeasible and the value of this
+    * BendersBFunction may change unpredictably. */
+   send_nuclear_modification( chnl );
+  }
+  else {
+   // unknown Observer
+   send_nuclear_modification( chnl );
+  }
  }
  else if( const auto tmod = std::dynamic_pointer_cast<FunctionModVars>( mod ) ) {
 
+  auto observer = tmod->function()->get_Observer();
+
+  if( const auto constraint = dynamic_cast<Constraint *>( observer ) ) {
+   if( this->has_constraint( constraint ) ) {
+    // The Constraint is being handled by this BendersBFunction.
+    if( tmod->added() ) {
+     /* Variables were added to the Constraint. Dual solutions may become
+      * infeasible and the value of this BendersBFunction may change
+      * unpredictably. */
+     send_nuclear_modification( chnl );
+    }
+    else {
+     /* Variables were removed from the Constraint. Dual solutions are still
+      * feasible but the value of this BendersBFunction may change
+      * unpredictably. */
+     if( f_Observer )
+      f_Observer->add_Modification
+       ( std::make_shared<FunctionMod>( this , FunctionMod::NaNshift ) , chnl );
+    }
+   }
+   else {
+    // The Constraint is not being handled by this BendersBFunction.
+    /* Dual solutions are still feasible and linearizations are still
+     * valid. However, the value of this BendersBFunction may change
+     * unpredictably. */
+    if( f_Observer )
+     f_Observer->add_Modification
+      ( std::make_shared<FunctionMod>( this , FunctionMod::NaNshift ) , chnl );
+   }
+  }
+  else if( const auto objective = dynamic_cast<Objective *>( observer ) ) {
+   // The Function belongs to an Objective.
+   /* Variables were added to the Constraint. Dual solutions may become
+    * infeasible and the value of this BendersBFunction may change
+    * unpredictably. */
+   send_nuclear_modification( chnl );
+  }
+  else {
+   // unknown Observer
+   send_nuclear_modification( chnl );
+  }
  }
  else if( const auto tmod = std::dynamic_pointer_cast<ConstraintMod>( mod ) ) {
 
@@ -1043,7 +1105,7 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
        ( std::make_shared<FunctionMod>( this , FunctionMod::NaNshift ) , chnl );
    }
    else {
-    // unkown modification
+    // unknown modification
     send_nuclear_modification( chnl );
    }
   }
@@ -1069,7 +1131,7 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
    }
   }
   else {
-   // unkown modification
+   // unknown modification
    send_nuclear_modification( chnl );
   }
  } // end ConstraintMod
@@ -1124,7 +1186,7 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
  }
 
  else {
-  // unkown modification
+  // unknown modification
   send_nuclear_modification( chnl );
  }
 }
@@ -1651,7 +1713,7 @@ BendersBFunction::get_behaviour( std::shared_ptr<BlockModAD> mod ) const {
                              "removed from this BendersBFunction." ) );
 
    if( behaviour == function_value_behaviour::unknown )
-    continue; // We already know that the behaviour is unknow. Now, we only
+    continue; // We already know that the behaviour is unknown. Now, we only
               // check consistency, i.e., if this BendersBFunction has some of
               // the removed Constraints.
 
@@ -1710,8 +1772,8 @@ bool BendersBFunction::has_constraint( Constraint * constraint ) const {
  for( const auto & constraint_specifier : v_constraints ) {
   if( constraint == constraint_specifier.first )
    return true;
-  return false;
  }
+ return false;
 }
 
 /*--------------------------------------------------------------------------*/
@@ -1734,7 +1796,7 @@ void BendersBFunction::GlobalPool::resize( Index size ) {
 void BendersBFunction::GlobalPool::store( FunctionValue linearization_constant ,
                                           Solution * solution , Index name ) {
  if( name >= size() )
-  throw( std::invalid_argument( "BenderdBFunction::GlobalPool::store: "
+  throw( std::invalid_argument( "BendersBFunction::GlobalPool::store: "
                                 "invalid linearization name." ) );
  delete solutions[ name ];
  solutions[ name ] = solution;
