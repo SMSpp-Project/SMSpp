@@ -493,16 +493,20 @@ class BendersBFunction : public C05Function , public Block {
   */
  void set_inner_block( Block * block , bool destroy_previous_block = true ) {
 
+  if( block && ! get_solver<CDASolver>() )
+   throw( std::invalid_argument( "BendersBFunction::set_inner_block: "
+                                 "the given Block must have a CDASolver "
+                                 "attached to it." ) );
+
   if( destroy_previous_block && ! v_Block.empty() )
    delete v_Block[ 0 ];
 
   v_Block.resize( 1 );
   v_Block[ 0 ] = block;
 
-  if( block && ! get_solver<CDASolver>() )
-   throw( std::invalid_argument( "BendersBFunction::set_inner_block: "
-                                 "the given Block must have a CDASolver "
-                                 "attached to it." ) );
+  if( block )
+   block->set_f_Block( this );
+
   }
 
 /*--------------------------------------------------------------------------*/
