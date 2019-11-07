@@ -704,11 +704,16 @@ void BendersBFunction::modify_constant( c_Index i , c_FunctionValue bi ,
 /*--------------------------------------------------------------------------*/
 
 void BendersBFunction::add_rows( MultiVector && nA , c_RealVector & nb ,
+                                 const v_ConstraintSpecifier & nc ,
                                  c_ModParam issueMod )
 {
  const auto k = nA.size();
  if( k != nb.size() )
   throw( std::invalid_argument( "BendersBFunction::add_rows: nA and nb must "
+                                "have the same size." ) );
+
+ if( k != nc.size() )
+  throw( std::invalid_argument( "BendersBFunction::add_rows: nA and nc must "
                                 "have the same size." ) );
 
  const auto n = v_x.size();
@@ -717,10 +722,18 @@ void BendersBFunction::add_rows( MultiVector && nA , c_RealVector & nb ,
    throw( std::invalid_argument( "BendersBFunction::add_rows: some row of nA "
                                  "has a wrong size." ) );
 
+ for( const auto & c : nc )
+  if( c.first == nullptr )
+   throw( std::invalid_argument( "BendersBFunction::add_rows: the pointer to "
+                                 "the RowConstraint in the ConstraintSpecifier "
+                                 "must be non-null." ) );
+
  v_A.insert( v_A.end() , std::make_move_iterator( nA.begin() ) ,
                          std::make_move_iterator( nA.end() ) );
 
  v_b.insert( v_b.end() , nb.begin(), nb.end() );
+
+ v_constraints.insert( v_constraints.end() , nc.begin(), nc.end() );
 
  constraints_are_updated = false;
 
@@ -755,14 +768,20 @@ void BendersBFunction::add_rows( MultiVector && nA , c_RealVector & nb ,
 /*--------------------------------------------------------------------------*/
 
 void BendersBFunction::add_row( RealVector && Ai , FunctionValue bi ,
-                                c_ModParam issueMod )
+                                ConstraintSpecifier ci , c_ModParam issueMod )
 {
  if( Ai.size() != v_x.size() )
   throw( std::invalid_argument( "BendersBFunction::add_row: given row Ai "
                                 "has wrong size." ) );
 
+ if( ci.first == nullptr )
+  throw( std::invalid_argument( "BendersBFunction::add_row: the pointer to "
+                                "the RowConstraint in the ConstraintSpecifier "
+                                "must be non-null." ) );
+
  v_A.push_back( std::move( Ai ) );
  v_b.push_back( bi );
+ v_constraints.push_back( ci );
 
  constraints_are_updated = false;
 
@@ -825,6 +844,9 @@ void BendersBFunction::delete_rows( Range range , c_ModParam issueMod )
 
  v_b.erase( v_b.begin() + range.first , v_b.begin() + range.second );
 
+ v_constraints.erase( v_constraints.begin() + range.first ,
+                      v_constraints.begin() + range.second );
+
  constraints_are_updated = false;
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
@@ -873,6 +895,7 @@ void BendersBFunction::delete_rows( Subset && rows , bool ordered ,
 
   v_A[ idx ].clear();
   v_b[ idx ] = std::numeric_limits< FunctionValue >::quiet_NaN();
+  v_constraints[ idx ].first = nullptr;
   }
 
  // kill stuff in v_A[]
@@ -885,6 +908,13 @@ void BendersBFunction::delete_rows( Subset && rows , bool ordered ,
                             []( FunctionValue bi ) { return( std::isnan( bi ) );
                             } ) ,
             v_b.end() );
+
+ // kill stuff in v_constraints[]
+ v_constraints.erase
+  ( std::remove_if( v_constraints.begin() + rows.front() , v_constraints.end() ,
+                    []( ConstraintSpecifier & ci ) {
+                     return( ci.first == nullptr ); } ) ,
+    v_constraints.end() );
 
  if( mod_type == C05FunctionMod::AllLinearizationChanged )
   global_pool.reset_linearization_constants();
@@ -926,8 +956,9 @@ void BendersBFunction::delete_row( c_Index i , c_ModParam issueMod )
   global_pool.reset_linearization_constants();
  }
 
- v_A.erase( v_A.begin() + i );      // kill i in v_A[]
- v_b.erase( v_b.begin() + i );      // kill i in v_b[]
+ v_A.erase( v_A.begin() + i );                     // kill i in v_A[]
+ v_b.erase( v_b.begin() + i );                     // kill i in v_b[]
+ v_constraints.erase( v_constraints.begin() + i ); // kill i in v_constraints[]
 
  constraints_are_updated = false;
 
@@ -951,6 +982,7 @@ void BendersBFunction::delete_rows( c_ModParam issueMod )
 {
  v_A.clear();   // delete original rows
  v_b.clear();
+ v_constraints.clear();
 
  global_pool.invalidate();
  constraints_are_updated = false;

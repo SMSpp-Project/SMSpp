@@ -7,7 +7,7 @@
  *
  * \version 0.01
  *
- * \date 06 - 11 - 2019
+ * \date 07 - 11 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -340,7 +340,6 @@ class BendersBFunction : public C05Function , public Block {
   *
   * As the && implies, \p x, \p A, \p b, and \p constraints become property of
   * the BendersBFunction object.
-  *
   */
 
  BendersBFunction( Block * inner_block ,
@@ -856,7 +855,7 @@ class BendersBFunction : public C05Function , public Block {
   * have been deleted). */
 
  void add_variables( VarVector && nx , MultiVector && nA = {} ,
-		     c_ModParam issueMod = eModBlck );
+                     c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// add one single new Variable to the BendersBFunction
@@ -881,7 +880,7 @@ class BendersBFunction : public C05Function , public Block {
   *        Observer::make_par(). */
 
  void add_variable( ColVariable * const var , c_RealVector & Aj = {} ,
-		    c_ModParam issueMod = eModBlck );
+                    c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// remove the i-th active Variable
@@ -926,7 +925,7 @@ class BendersBFunction : public C05Function , public Block {
   *        as described in Observer::make_par(). */
 
  virtual void remove_variables( Subset & nms , const bool ordered = false ,
-				c_ModParam issueMod = eModBlck );
+                                c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// modify a range of rows of the linear mapping
@@ -955,7 +954,7 @@ class BendersBFunction : public C05Function , public Block {
   *        ModifyRows. */
 
  void modify_rows( MultiVector && nA , c_RealVector & nb , Range range ,
-		   c_ModParam issueMod = eModBlck );
+                   c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// modify a subset of rows of the linear mapping
@@ -988,7 +987,7 @@ class BendersBFunction : public C05Function , public Block {
   *        ModifyRows. */
 
  void modify_rows( MultiVector && nA , c_RealVector & nb , Subset && rows ,
-		   bool ordered = false , c_ModParam issueMod = eModBlck );
+                   bool ordered = false , c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify one single row of the linear mapping
@@ -1012,7 +1011,7 @@ class BendersBFunction : public C05Function , public Block {
   *        ModifyRows. */
 
  void modify_row( c_Index i , RealVector && Ai , c_FunctionValue bi ,
-		  c_ModParam issueMod = eModBlck );
+                  c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// modify only the constant term of a range of rows of the linear mapping
@@ -1041,7 +1040,7 @@ class BendersBFunction : public C05Function , public Block {
   *        nothing). */
 
  void modify_constants( c_RealVector & nb , Range range ,
-			c_ModParam issueMod = eModBlck );
+                        c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// modify only the constant term of a subset of rows of the linear mapping
@@ -1076,7 +1075,7 @@ class BendersBFunction : public C05Function , public Block {
   *        nothing). */
 
  void modify_constants( c_RealVector & nb , Subset && rows ,
-			bool ordered , c_ModParam issueMod );
+                        bool ordered , c_ModParam issueMod );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify only the constant term of one row of the linear mapping
@@ -1097,7 +1096,7 @@ class BendersBFunction : public C05Function , public Block {
   *        shift is either +INFshift or -INFshift accordingly. */
 
  void modify_constant( Index i , FunctionValue bi ,
-		       c_ModParam issueMod = eModBlck );
+                       c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// add some rows to the linear mapping in the BendersBFunction
@@ -1117,12 +1116,17 @@ class BendersBFunction : public C05Function , public Block {
   *        is, \p nb[ i ] is the constant factor of the i-th given row of the
   *        linear mapping);
   *
+  * @param nc a vector of ConstraintSpecifier. The i-th element of this vector
+  *        includes the pointer to the RowConstraint and the side associated
+  *        with the given i-th row.
+  *
   * @param issueMod decides if and how the BendersBFunctionModAdd is issued,
   *        as described in Observer::make_par().
   */
 
  void add_rows( MultiVector && nA , c_RealVector & nb ,
-		c_ModParam issueMod = eModBlck );
+                const v_ConstraintSpecifier & nc ,
+                c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// add one single new row to the linear mapping
@@ -1135,12 +1139,14 @@ class BendersBFunction : public C05Function , public Block {
   *
   * @param bi is the constant term of the new row in the mapping;
   *
+  * @param ci is the ConstraintSpecifier for the new row.
+  *
   * @param issueMod decides if and how the BendersBFunctionModAdd is issued,
   *        as described in Observer::make_par().
   */
 
- void add_row( RealVector && Ai , FunctionValue bi ,
-	       c_ModParam issueMod = eModBlck );
+ void add_row( RealVector && Ai , FunctionValue bi , ConstraintSpecifier ci ,
+               c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// deletes a range of rows from the linear mapping in the BendersBFunction
@@ -1183,7 +1189,7 @@ class BendersBFunction : public C05Function , public Block {
   * (cf. delete_rows( all )). */
 
  void delete_rows( Subset && rows , bool ordered = false ,
-		   c_ModParam issueMod = eModBlck );
+                   c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// deletes one single existing row from the linear mapping
@@ -1344,14 +1350,14 @@ class BendersBFunction : public C05Function , public Block {
  /// stores a combination of the given linearizations
 
  void store_combination_of_linearizations( LinearCombination & coefficients ,
-					   const Index name )
+                                           const Index name )
   override final;
 
 /*--------------------------------------------------------------------------*/
  /// specify which linearization is "the important one"
 
  void set_important_linearization( LinearCombination && coefficients ,
-				   Index name ) override final {
+                                   Index name ) override final {
   global_pool.set_important_linearization( std::move( coefficients ), name );
  }
 
@@ -1370,11 +1376,11 @@ class BendersBFunction : public C05Function , public Block {
   return global_pool.get_important_linearization_coefficients();
  }
 
-/*-------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
  /// rename a linearization that is stored in the global pool
 
  void rename_linearization( const Index current_name ,
-			    const Index new_name ) override final;
+                            const Index new_name ) override final;
 
 /*--------------------------------------------------------------------------*/
  /// delete the given linearization from the global pool of linearizations
@@ -1384,27 +1390,27 @@ class BendersBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  void get_linearization_coefficients( FunctionValue * g ,
-			   Range range = std::make_pair( 0 , Inf<Index>() ) ,
-				      Index name = Inf<Index>() ) override;
+                           Range range = std::make_pair( 0 , Inf<Index>() ) ,
+                                      Index name = Inf<Index>() ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  void get_linearization_coefficients( SparseVector & g ,
-			   Range range = std::make_pair( 0 , Inf<Index>() ) ,
-				      Index name = Inf<Index>() ) override;
+                           Range range = std::make_pair( 0 , Inf<Index>() ) ,
+                                      Index name = Inf<Index>() ) override;
 
 /*--------------------------------------------------------------------------*/
 
  void get_linearization_coefficients( FunctionValue * g , c_Subset & subset  ,
-				      const bool ordered = false ,
-				      Index name = Inf<Index>() ) override;
+                                      const bool ordered = false ,
+                                      Index name = Inf<Index>() ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  void get_linearization_coefficients( SparseVector & g ,
-				      c_Subset & subset ,
-				      const bool ordered = false ,
-				      Index name = Inf<Index>() ) override;
+                                      c_Subset & subset ,
+                                      const bool ordered = false ,
+                                      Index name = Inf<Index>() ) override;
 
 /*--------------------------------------------------------------------------*/
  /// return the constant term of a linearization
@@ -1455,7 +1461,7 @@ class BendersBFunction : public C05Function , public Block {
 
  virtual void print( std::ostream &output ) const override {
   output << "BendersBFunction [" << this << "]"
-	 << " with " << get_num_active_var() << " active variables and a"
+         << " with " << get_num_active_var() << " active variables and a"
          << " mapping with " << get_b().size() << " rows.";
   }
 
@@ -2154,7 +2160,7 @@ class BendersBFunctionModAddd : public BendersBFunctionMod {
    else
     output << "f";
    output << "] on BendersBFunction [" << &f_function << " ]: added "
-	  << f_addedrows << " rows" << std::endl;
+          << f_addedrows << " rows" << std::endl;
    }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
@@ -2323,7 +2329,7 @@ class BendersBFunctionModSbst : public BendersBFunctionMod {
   else
    output << "f";
   output << "] on BendersBFunction [" << &f_function << " ]: "
-	 << v_rows.size();
+         << v_rows.size();
   if( f_ordered )
    output << " (ordered)";
   if( f_BFtype == ModifyCnst )
