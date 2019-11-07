@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 06 - 11 - 2019
+ * \date 07 - 11 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -993,13 +993,14 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
       ( std::make_shared<FunctionMod>( this , FunctionMod::NaNshift ) , chnl );
    }
   }
-  else if( const auto objective = dynamic_cast<Objective *>( observer ) ) {
-   /* Dual solutions may become infeasible and the value of this
-    * BendersBFunction may change unpredictably. */
-   send_nuclear_modification( chnl );
-  }
   else {
-   // unknown Observer
+   /* Send a "nuclear Function Modification" considering the Observer is:
+   *
+   * - An Objective. Dual solutions may become infeasible and the value of
+   *   this BendersBFunction may change unpredictably.
+   *
+   * - Unknown.
+   */
    send_nuclear_modification( chnl );
   }
  }
@@ -1035,15 +1036,15 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
       ( std::make_shared<FunctionMod>( this , FunctionMod::NaNshift ) , chnl );
    }
   }
-  else if( const auto objective = dynamic_cast<Objective *>( observer ) ) {
-   // The Function belongs to an Objective.
-   /* Variables were added to the Constraint. Dual solutions may become
-    * infeasible and the value of this BendersBFunction may change
-    * unpredictably. */
-   send_nuclear_modification( chnl );
-  }
   else {
-   // unknown Observer
+   /* Send a "nuclear Function Modification" considering the Observer is:
+    *
+    * - An Objective. Variables were added to the Constraint. Dual solutions
+    *   may become infeasible and the value of this BendersBFunction may
+    *   change unpredictably.
+    *
+    * - Unknown.
+    */
    send_nuclear_modification( chnl );
   }
  }
@@ -1089,7 +1090,9 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
     send_nuclear_modification( chnl );
    }
   }
-  else if( const auto tmod = std::dynamic_pointer_cast<FRowConstraintMod>( mod ) ) {
+  else if( const auto tmod =
+           std::dynamic_pointer_cast<FRowConstraintMod>( mod ) ) {
+
    if( tmod->type() == FRowConstraintMod::eFunctionChanged ) {
     // Pointer to the Function has changed
     if( this->has_constraint( tmod->constraint() ) )
@@ -1109,7 +1112,9 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
     send_nuclear_modification( chnl );
    }
   }
-  else if( const auto tmod = std::dynamic_pointer_cast<OneVarConstraintMod>( mod ) ) {
+  else if( const auto tmod =
+           std::dynamic_pointer_cast<OneVarConstraintMod>( mod ) ) {
+
    if( tmod->type() == OneVarConstraintMod::eVariableChanged ) {
     // Pointer to the Variable of a OneVarConstraint has changed.
     if( this->has_constraint( tmod->constraint() ) )
@@ -1166,27 +1171,27 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
   }
  }
 
- else if( const auto tmod = std::dynamic_pointer_cast<VariableMod>( mod ) ) {
-  /* The type of a Variable has changed. Dual solutions may become infeasible
-   * and the value of this BendersBFunction may change unpredictably. */
-  send_nuclear_modification( chnl );
- }
-
- else if( const auto tmod = std::dynamic_pointer_cast<ObjectiveMod>( mod ) ) {
-  // An Objective has changed. This BendersBFunction may change unpredictably.
-  send_nuclear_modification( chnl );
- }
-
- else if( const auto tmod = std::dynamic_pointer_cast<BlockMod>( mod ) ) {
-  send_nuclear_modification( chnl );
- }
-
- else if( const auto tmod = std::dynamic_pointer_cast<NModification>( mod ) ) {
-  send_nuclear_modification( chnl );
- }
-
  else {
-  // unknown modification
+  /* Send a "nuclear Function Modification" considering the Modification is:
+   *
+   * - VariableMod
+   *
+   *   The type of a Variable has changed. Dual solutions may become
+   *   infeasible and the value of this BendersBFunction may change
+   *   unpredictably.
+   *
+   * - ObjectiveMod
+   *
+   *   An Objective has changed. Dual solutions may become infeasible and this
+   *   BendersBFunction may change unpredictably.
+   *
+   * - BlockMod
+   *
+   * - NModification
+   *
+   * - Unknown modification
+   */
+
   send_nuclear_modification( chnl );
  }
 }
