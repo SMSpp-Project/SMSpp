@@ -1233,9 +1233,25 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
 /*--------------------------------------------------------------------------*/
 
 void BendersBFunction::serialize( netCDF::NcGroup & group ) const {
- // TODO
- throw( std::logic_error( "BendersBFunction::serialize(): "
-                          "not implemented yet." ) );
+
+ c_Index nvar = get_num_active_var();
+
+ netCDF::NcDim nv = group.addDim( "BendersBFunction_NumVar" , nvar );
+
+ if( v_A.size() ) {
+  netCDF::NcDim nr = group.addDim( "BendersBFunction_NumRow" , v_A.size() );
+
+  auto ncdA = group.addVar( "BendersBFunction_A" , netCDF::NcDouble() ,
+			    { nr , nv } );
+
+  for( Index i = 0 ; i < v_A.size() ; ++i )
+   ncdA.putVar( { i , 0 } , { 1 , nvar } , v_A[ i ].data() );
+
+  ( group.addVar( "BendersBFunction_b" , netCDF::NcDouble() , nr ) ).putVar(
+				      { 0 } , { v_A.size() } , v_b.data() );
+  }
+
+ // TODO serialize the vector of ConstraintSpecifier
 }
 
 /*--------------------------------------------------------------------------*/
