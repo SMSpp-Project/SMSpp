@@ -24,8 +24,11 @@
 /*--------------------------------------------------------------------------*/
 
 #include "SMSTypedefs.h"
+
 #include "Observer.h"
+
 #include "PolyhedralFunction.h"
+
 #include <math.h>
 
 /*--------------------------------------------------------------------------*/
@@ -53,7 +56,7 @@ void PolyhedralFunction::deserialize( netCDF::NcGroup & group ,
  RealVector tb;
 
  netCDF::NcDim nr = group.getDim( "PolyFunction_NumRow" );
- if( ( ! nv.isNull() ) && ( nv.getSize() ) ) {
+ if( ( ! nr.isNull() ) && ( nr.getSize() ) ) {
    netCDF::NcVar ncdA = group.getVar( "PolyFunction_A" );
    if( ncdA.isNull() )
     throw( std::logic_error( "PolyFunction_A not found" ) );
@@ -62,13 +65,13 @@ void PolyhedralFunction::deserialize( netCDF::NcGroup & group ,
    if( ncdb.isNull() )
     throw( std::logic_error( "PolyFunction_b not found" ) );
 
-  tA.resize( nv.getSize() );
+  tA.resize( nr.getSize() );
   for( Index i = 0 ; i < tA.size() ; ++i ) {
    tA[ i ].resize( nvar );
    ncdA.getVar( { i , 0 } , { 1 , nvar } , tA[ i ].data() );
    }
 
-  tb.resize( nv.getSize() );
+  tb.resize( nr.getSize() );
   ncdb.getVar( tb.data() );
   }
 
@@ -437,7 +440,7 @@ void PolyhedralFunction::get_linearization_coefficients( SparseVector & g ,
 
 /*--------------------------------------------------------------------------*/
 
-void PolyhedralFunction::serialize( netCDF::NcGroup & group )
+void PolyhedralFunction::serialize( netCDF::NcGroup & group ) const
 {
  c_Index nvar = get_num_active_var();
 
@@ -513,7 +516,7 @@ void PolyhedralFunction::set_PolyhedralFunction( MultiVector && A ,
 						 c_ModParam issueMod )
 {
  if( ! A.empty() )
-  if( v_x.size() != v_A[ 0 ].size() )
+  if( v_x.size() != A[ 0 ].size() )
    throw( std::invalid_argument( "A and x must have the same columns" ) );
 
  f_is_convex = is_convex;
@@ -844,12 +847,11 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;                  // noone is there: all done
 
- // issue the PolyhedralFunctionModSbst; note that rows is ordered
+ // issue the PolyhedralFunctionModSbst
  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModSbst>(
 			     this , C05FunctionMod::AllLinearizationChanged ,
 			     PolyhedralFunctionMod::ModifyRows ,
-			     std::move( rows ) , true ,
-			     C05FunctionMod::NaNshift ,
+			     std::move( rows ) , C05FunctionMod::NaNshift ,
 			     Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
 
@@ -958,9 +960,13 @@ void PolyhedralFunction::modify_constants( c_RealVector & nb ,
  if( nb.size() != rows.size() )
   throw( std::invalid_argument( "rows and nb sizes do not match" ) );
 
- for( auto i : rows )
-  if( i >= v_A.size() )
-   throw( std::invalid_argument( "wrong row name" ) );
+ // ordering is not very useful, if not for making it easy to check for
+ // wrong row names; yet, so PolyhedralFunctionModSbst always has ordered rows
+ if( ! ordered )
+  std::sort( rows.begin() , rows.end() );
+
+ if( rows.back() >= v_A.size() )
+  throw( std::invalid_argument( "wrong row name" ) );
 
  // first check if actually something has changed
  FunctionValue shift = 0;
@@ -996,11 +1002,11 @@ void PolyhedralFunction::modify_constants( c_RealVector & nb ,
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;                  // noone is there: all done
 
- // issue the PolyhedralFunctionModSbst: note that ordered is unmodified
+ // issue the PolyhedralFunctionModSbst
  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModSbst>(
 			              this , C05FunctionMod::AlphaChanged ,
 			              PolyhedralFunctionMod::ModifyCnst ,
-			              std::move( rows ) , ordered , shift ,
+			              std::move( rows ) , shift ,
 				      Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
 
@@ -1282,13 +1288,13 @@ void PolyhedralFunction::delete_rows( Subset && rows , bool ordered ,
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;                  // noone is there: all done
 
- // issue the PolyhedralFunctionModSbst; nms is ordered
+ // issue the PolyhedralFunctionModSbst
  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModSbst>(
 				this ,
 			        stgchgd ? C05FunctionMod::AlphaChanged
 					: C05FunctionMod::NothingChanged ,
 				PolyhedralFunctionMod::DeleteRows ,
-				std::move( rows ) , true ,
+				std::move( rows ) , 
 				f_is_convex ? - FunctionMod::INFshift
 				            : + FunctionMod::INFshift ,
 				Observer::par2concern( issueMod ) ) ,

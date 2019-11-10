@@ -35,7 +35,9 @@
 #include <iomanip>
 
 #include "AbstractBlock.h"
+
 #include "BundleSolver.h"
+
 #include "CPXMILPSolver.h"
 
 #include "PolyhedralFunction.h"
@@ -81,17 +83,17 @@ using namespace SMSpp_di_unipi_it;
 /*-------------------------------- TYPES -----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-using Index =  Block::Index;
-using c_Index =  Block::c_Index;
+using Index = Block::Index;
+using c_Index = Block::c_Index;
 
-using Range =  Block::Range;
-using c_Range =  Block::c_Range;
+using Range = Block::Range;
+using c_Range = Block::c_Range;
 
-using Subset =  Block::Subset;
-using c_Subset =  Block::c_Subset;
+using Subset = Block::Subset;
+using c_Subset = Block::c_Subset;
 
-using FunctionValue =  Function::FunctionValue;
-using c_FunctionValue =  Function::c_FunctionValue;
+using FunctionValue = Function::FunctionValue;
+using c_FunctionValue = Function::c_FunctionValue;
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CONSTANTS --------------------------------*/
@@ -186,7 +188,7 @@ static void GenerateAb( Index nr , Index nc )
  // square sub-system A_B x = b_B. We want x^* to be "well scaled", i.e.,
  // the entries to be ~= 1 (in absolute value). The average of each row A_i
  // is 0, the maximum (and minimum) expected value is something like
- // scale * nvars / 2. So we take each b_j in +- scale * nvars / 4
+ // scale * nvar / 2. So we take each b_j in +- scale * nvar / 4
 
  GenerateA( nr , nc );
  Generateb( nr );
@@ -198,19 +200,19 @@ static void GenerateLB( void )
 {
  // rationale: we expect the solution x^* to have entries ~= 1 (in absolute
  // value, and the coefficients of A are <= scale (in absolute value), so
- // the LHS should be at most around - scale * nvars; the RHS can add it
- // a further - scale * nvars / 4, so we expect - (5/4) * scale * nvars to
+ // the LHS should be at most around - scale * nvar; the RHS can add it
+ // a further - scale * nvar / 4, so we expect - (5/4) * scale * nvar to
  // be a "natural" LB. We therefore set the LB to a mean of 1/2 of that
  // (tight) 33% of the time, a mean of 2 times that (loose) 33% of the time,
  // and -INF the rest
 
  if( drand48() <= 0.333 ) {  // "tight" LB
-  LB = - drand48() * 5 * scale * nvars / 4;
+  LB = - drand48() * 5 * scale * nvar / 4;
   return;
   }
 
  if( drand48() <= 0.333 ) {  // "loose" LB
-  LB = - drand48() * 5 * scale * nvars;
+  LB = - drand48() * 5 * scale * nvar;
   return;
   }
 
@@ -246,26 +248,27 @@ static void ConstructLPConstraint( c_Index i , FRowConstraint & ci ,
  // note: constraints are constructed dense (elements == 0, which are
  //       anyway quite unlikely, are ignored) to make things simpler
  //
- // note: variable x[ i ] is given index i, variable v is the last
+ // note: variable x[ i ] is given index i + 1, variable v has index 0
 
  ci.set_lhs( b[ i ] );
  ci.set_rhs( INF );
  LinearFunction::v_coeff_pair vars( nvar + 1 );
  Index j = 0;
 
- // static x
+ // first, v
+ vars[ j ] = std::make_pair( vLP , 1 );
+
+ // then, static x
  for( ; j < nsvar ; ++j )
-  vars[ j ] = std::make_pair( &((*xLP)[ j ] ) , - A[ i ][ j ] );
+  vars[ j + 1 ] = std::make_pair( &((*xLP)[ j ] ) , - A[ i ][ j ] );
 
  #if DYNAMIC_VARS > 0
-  // dynamic x
+  // finally, dynamic x
   auto xLPdit = xLPd.begin();
   for( ; j < nvar ; ++j , ++xLPdit )
-   vars[ j ] = std::make_pair( &(*xLPdit) , - A[ i ][ j ] );
+   vars[ j + 1 ] = std::make_pair( &(*xLPdit) , - A[ i ][ j ] );
  #endif
 
- // lastly, v
- vars[ j ] = std::make_pair( vLP , 1 );
 
  ci.set_function( new LinearFunction( std::move( vars ) ) );
  if( setblock )
@@ -454,7 +457,7 @@ int main( int argc , char **argv )
 
  // constructing the data of the problem- - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- // construct the matrix m x nvars matrix A and the m-vector b
+ // construct the matrix m x nvar matrix A and the m-vector b
  
  GenerateAb( m , nvar );
  GenerateLB();
@@ -497,11 +500,7 @@ int main( int argc , char **argv )
    ConstructLPConstraint( i++ , *(ALPit++) );
 
   // construct the static lower bound Constraint
-  auto LBc = new FRowConstraint;
-  LBc->set_lhs( LB );
-  LBc->set_rhs( INF );
-  LBc->set_function( new LinearFunction( { std::make_pair( vLP , 1 ) } ) );
-  LBc->set_Block( LPBlock );
+  auto LBc = new BoxConstraint( LPBlock , vLP , LB );
 
   // construct the Objective
   auto objLP = new FRealObjective();
@@ -514,7 +513,7 @@ int main( int argc , char **argv )
   #endif
   LPBlock->add_static_variable( *xLP );
   LPBlock->add_dynamic_constraint( *ALP );
-  LPBlock->add_static_constraint( LBc );
+  LPBlock->add_static_constraint( *LBc );
   LPBlock->set_objective( objLP );
   }
 
@@ -594,7 +593,7 @@ int main( int argc , char **argv )
   // add rows - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   if( ( wchg & 1 ) && ( drand48() <= p_change ) ) {
-   Index tochange = max( Index( 1 ) , Index( drand48() * n_change ) );
+   Index tochange = Index( drand48() * n_change );
    if( tochange ) {
 
     LOG1( "added " << tochange << " rows - " );
@@ -638,11 +637,15 @@ int main( int argc , char **argv )
   // delete rows- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   if( ( wchg & 2 ) && ( drand48() <= p_change ) ) {
-   Index tochange = min( m - 1 , max( Index( 1 ) ,
-				      Index( drand48() * n_change ) ) );
+   Index tochange = min( m - 1 , Index( drand48() * n_change ) );
+   auto cnst = LPBlock->get_dynamic_constraint< FRowConstraint >( 0 );
    if( tochange ) {
     LOG1( "deleted " << tochange << " rows" );
 
+    auto PF = dynamic_cast< PolyhedralFunction * >(
+	       NDOBlock->get_objective< FRealObjective >()->get_function() );
+    PANIC( PF );
+    
     // in 50% of the cases do a ranged change, in the others a sparse change
     if( drand48() <= 0.5 ) {
      LOG1( "(r) - " );
@@ -651,7 +654,6 @@ int main( int argc , char **argv )
      Index stp = strt + tochange;
 
      // remove them from the LP
-     auto cnst = LPBlock->get_dynamic_constraint< FRowConstraint >( 0 );
      auto cit = std::next( cnst->begin() , strt );
      if( tochange == 1 )
       LPBlock->remove_dynamic_constraint( *cnst , cit );
@@ -664,10 +666,6 @@ int main( int argc , char **argv )
       }
  
      // remove them from the NDO
-     auto PF = dynamic_cast< PolyhedralFunction * >(
-	       NDOBlock->get_objective< FRealObjective >()->get_function() );
-     PANIC( PF );
-     
      if( tochange == 1 )
       PF->delete_row( strt );
      else
@@ -678,7 +676,6 @@ int main( int argc , char **argv )
      Subset nms = GenerateRand( tochange , m );
 
      // remove them from the LP
-     auto cnst = LPBlock->get_dynamic_constraint< FRowConstraint >( 0 );
      if( tochange == 1 )
       LPBlock->remove_dynamic_constraint( *cnst , std::next( cnst->begin() ,
 							     nms[ 0 ] ) );
@@ -695,10 +692,6 @@ int main( int argc , char **argv )
       }
     
      // remove them from the NDO
-     auto PF = dynamic_cast< PolyhedralFunction * >(
-	       NDOBlock->get_objective< FRealObjective >()->get_function() );
-     PANIC( PF );
-     
      if( tochange == 1 )
       PF->delete_row( nms[ 0 ] );
      else
@@ -718,9 +711,13 @@ int main( int argc , char **argv )
   // modify rows- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   if( ( wchg & 4 ) && ( drand48() <= p_change ) ) {
-   Index tochange = max( Index( 1 ) , Index( drand48() * n_change ) );
+   Index tochange = Index( drand48() * n_change );
    if( tochange ) {
     LOG1( "modified " << tochange << " rows" );
+
+    auto PF = dynamic_cast< PolyhedralFunction * >(
+	       NDOBlock->get_objective< FRealObjective >()->get_function() );
+    PANIC( PF );
 
     GenerateAb( tochange , nvar );
 
@@ -739,17 +736,13 @@ int main( int argc , char **argv )
      #endif
      auto cnst = LPBlock->get_dynamic_constraint< FRowConstraint >( 0 );
 
-     auto cit = cnst->begin() + strt;
+     auto cit = std::next( cnst->begin() , strt );
      for( Index i = 0 ; i < tochange ; )
       ConstructLPConstraint( i++ , *(cit++) );
 
      // modify them in the NDO
-     auto PF = dynamic_cast< PolyhedralFunction * >(
-	       NDOBlock->get_objective< FRealObjective >()->get_function() );
-     PANIC( PF );
-     
      if( tochange == 1 )
-      PF->modify_row( nms[ 0 ] , std::move( A[ 0 ] ) , b[ 0 ] );
+      PF->modify_row( strt , std::move( A[ 0 ] ) , b[ 0 ] );
      else
       PF->modify_rows( std::move( A ) , b , Range( strt , stp ) );
      }
@@ -774,10 +767,6 @@ int main( int argc , char **argv )
       }
 
      // modify them in the NDO
-     auto PF = dynamic_cast< PolyhedralFunction * >(
-	       NDOBlock->get_objective< FRealObjective >()->get_function() );
-     PANIC( PF );
-     
      if( tochange == 1 )
       PF->modify_row( nms[ 0 ] , std::move( A[ 0 ] ) , b[ 0 ] );
      else
@@ -789,12 +778,16 @@ int main( int argc , char **argv )
   // modify constants - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   if( ( wchg & 8 ) && ( drand48() <= p_change ) ) {
-   Index tochange = max( Index( 1 ) , Index( drand48() * n_change ) );
+   Index tochange = Index( drand48() * n_change );
    if( tochange ) {
     LOG1( "modified " << tochange << " constants" );
 
     Generateb( tochange );
 
+    auto PF = dynamic_cast< PolyhedralFunction * >(
+	       NDOBlock->get_objective< FRealObjective >()->get_function() );
+    PANIC( PF );
+     
     // in 50% of the cases do a ranged change, in the others a sparse change
     if( drand48() <= 0.5 ) {
      LOG1( "(r) - " );
@@ -805,19 +798,15 @@ int main( int argc , char **argv )
      // change them in the LP
      auto cnst = LPBlock->get_dynamic_constraint< FRowConstraint >( 0 );
 
-     auto cit = cnst->begin() + strt;
+     auto cit = std::next( cnst->begin() , strt );
      for( Index i = 0 ; i < tochange ; )
-      (*cit).set_lhs( b[ i++ ] );
+      (*(cit++)).set_lhs( b[ i++ ] );
 
      // modify them in the NDO
-     auto PF = dynamic_cast< PolyhedralFunction * >(
-	       NDOBlock->get_objective< FRealObjective >()->get_function() );
-     PANIC( PF );
-     
      if( tochange == 1 )
       PF->modify_constant( strt , b[ 0 ] );
      else
-      PF->modify_constants( Range( strt , stp ) , b );
+      PF->modify_constants( b , Range( strt , stp ) );
      }
     else {
      LOG1( "(s) - " );
@@ -835,14 +824,10 @@ int main( int argc , char **argv )
       }
 
      // modify them in the NDO
-     auto PF = dynamic_cast< PolyhedralFunction * >(
-	       NDOBlock->get_objective< FRealObjective >()->get_function() );
-     PANIC( PF );
-     
      if( tochange == 1 )
       PF->modify_constant( nms[ 0 ] , b[ 0 ] );
      else
-      PF->modify_constants( std::move( nms ) , b );
+      PF->modify_constants( b , std::move( nms ) , true );
      }
     }
    }
@@ -853,10 +838,10 @@ int main( int argc , char **argv )
 
    LOG1( "modified bound - " );
 
-   GenerateLB( tochange );
+   GenerateLB();
 
    // change it in the LP
-   auto cnst = LPBlock->get_static_constraint< FRowConstraint >( 0 );
+   auto cnst = LPBlock->get_static_constraint< BoxConstraint >( 0 );
    cnst->set_lhs( LB );
 
    // modify it in the NDO
@@ -871,7 +856,7 @@ int main( int argc , char **argv )
 
   #if DYNAMIC_VARS > 0
   if( ( wchg & 32 ) && ( drand48() <= p_change ) ) {
-   Index tochange = max( Index( 1 ) , Index( drand48() * n_change ) );
+   Index tochange = Index( drand48() * n_change );
    if( tochange ) {
     LOG1( "added " << tochange << " variables - " );
 
@@ -947,8 +932,7 @@ int main( int argc , char **argv )
   // remove variables - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   if( ( wchg & 64 ) && ( drand48() <= p_change ) ) {
-   Index tochange = min( ndvar ,
-			 max( Index( 1 ) , Index( drand48() * n_change ) ) );
+   Index tochange = min( ndvar , Index( drand48() * n_change ) );
    if( tochange ) {
     LOG1( "removed " << tochange << " variables" );
 
@@ -968,7 +952,7 @@ int main( int argc , char **argv )
        auto fi = dynamic_cast< LinearFunction * >(
 					       (cnst_it++)->get_function() );
        PANIC( fi );
-       fi->remove_variable( strt );
+       fi->remove_variable( strt + 1 );
        }
 
       auto vp = &(*std::next( *xLPd() , strt ));
@@ -979,7 +963,7 @@ int main( int argc , char **argv )
        auto fi = dynamic_cast< LinearFunction * >(
 					       (cnst_it++)->get_function() );
        PANIC( fi );
-       fi->remove_variables( Range( strt , stp ) ) , true );
+       fi->remove_variables( Range( strt + 1 , stp + 1 ) ) , true );
        }
 
       std::vector< std::list< ColVariable >::iterator > itrs( tochange );
@@ -1027,7 +1011,7 @@ int main( int argc , char **argv )
        auto fi = dynamic_cast< LinearFunction * >(
 					       (cnst_it++)->get_function() );
        PANIC( fi );
-       fi->remove_variable( nms[ 0 ] );
+       fi->remove_variable( nms[ 0 ] + 1 );
        }
 
       auto vp = &(*std::next( xLPd->begin() , nms[ 0 ] ));
@@ -1038,7 +1022,10 @@ int main( int argc , char **argv )
        auto fi = dynamic_cast< LinearFunction * >(
 					       (cnst_it++)->get_function() );
        PANIC( fi );
-       fi->remove_variables( Subset( nms ) , true );
+       Subset nms1( nms );
+       for( auto & n1i : nms1 )
+	++n1i;
+       fi->remove_variables( std::move( nms1 ) , true );
        }
 
       std::vector< std::list< ColVariable >::iterator > itrs( tochange );
@@ -1094,7 +1081,6 @@ int main( int argc , char **argv )
     }
    }
 
-  
   #endif  // DYNAMIC_VARS > 0
 
   // if verbose, print out stuff- - - - - - - - - - - - - - - - - - - - - - -

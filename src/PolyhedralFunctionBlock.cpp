@@ -25,12 +25,6 @@
 
 #include "PolyhedralFunctionBlock.h"
 
-#include "ColVariable.h"
-
-#include "FRowConstraint.h"
-
-#include "FRealObjective.h"
-
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -52,6 +46,9 @@ SMSpp_insert_in_factory_cpp_1( PolyhedralFunctionBlock );
 void PolyhedralFunctionBlock::generate_abstract_variables(
 						        Configuration * stvv )
 {
+ if( f_rep & 2 )  // done already
+  return;         // nothing else to do
+
  int wsol = 0;
  auto tstvv = dynamic_cast<SimpleConfiguration<int> *>( stvv );
 
@@ -61,492 +58,126 @@ void PolyhedralFunctionBlock::generate_abstract_variables(
  if( tstvv )
   wsol = tstvv->f_value;
 
- f_rep = ( f_value != 0 );
- 
+ if( wsol )
+  f_rep |= 1;
+
+ if( f_rep & 1 )  // use linearized representation
+  add_static_variable( f_v );
+
+ f_rep |= 2;
+
  }  // end( PolyhedralFunctionBlock::generate_abstract_variables )
 
 /*--------------------------------------------------------------------------*/
 
-PolyhedralFunctionBlock::~PolyhedralFunctionBlock( )
+void PolyhedralFunctionBlock::generate_abstract_constraints(
+						        Configuration * stcc )
 {
- // first, clear() all Constraint
- auto & sc = get_static_constraints();
- for( Index i = get_first_static_Constraint() ; i < sc.size() ; ++i ) {
-  if( un_any_const_static( sc[ i ] ,
-			   []( FRowConstraint & cnst ) { cnst.clear(); } ,
-			   un_any_type< FRowConstraint >() ) )
-   continue;
-  if( un_any_const_static( sc[ i ] ,
-			   []( BoxConstraint & cnst ) { cnst.clear(); } ,
-			   un_any_type< BoxConstraint >() ) )
-   continue;
-  if( un_any_const_static( sc[ i ] ,
-			   []( LBConstraint & cnst ) { cnst.clear(); } ,
-			   un_any_type< LBConstraint >() ) )
-   continue;
-  if( un_any_const_static( sc[ i ] ,
-			   []( UBConstraint & cnst ) { cnst.clear(); } ,
-			   un_any_type< UBConstraint >() ) )
-   continue;
-  if( un_any_const_static( sc[ i ] ,
-			   []( NNConstraint & cnst ) { cnst.clear(); } ,
-			   un_any_type< NNConstraint >() ) )
-   continue;
-  if( un_any_const_static( sc[ i ] ,
-			   []( NPConstraint & cnst ) { cnst.clear(); } ,
-			   un_any_type< NPConstraint >() ) )
-   continue;
-  un_any_const_static( sc[ i ] , []( ZOConstraint & cnst ) { cnst.clear(); } ,
-		       un_any_type< ZOConstraint >() );
+ if( f_rep & 4 )  // done already
+  return;         // nothing else to do
+
+ if( ! ( f_rep & 2 ) )  // variables not constructed
+  throw( std::logic_error( "Variable must be generated before Constraint" ) );
+
+ if( f_rep & 1 ) {  // use linearized representation
+  // add the bounds on v
+  f_bcv.set_rhs( f_polyf.get_upper_estimate() , eNoMod );
+  f_bcv.set_lhs( f_polyf.get_lower_estimate() , eNoMod );
+  f_bcv.set_Block( this );
+
+  add_static_constraint( f_bcv );
+
+  // add the linear constraints
+  f_const.resize( f_polyf.get_A().size() );
+  auto cit = f_const.begin();
+  for( Index i = 0 ; i < f_polyf.get_A().size() ; )
+   ConstructLPConstraint( i++ , *(cit++) );
+
+  add_dynamic_constraint( f_const );
   }
 
- auto & dc = get_dynamic_constraints();
- for( Index i = get_first_dynamic_Constraint() ; i < dc.size() ; ++i ) {
-  if( un_any_const_dynamic( dc[ i ] ,
-			    []( FRowConstraint & cnst ) { cnst.clear(); } ,
-			    un_any_type< FRowConstraint >() ) )
-   continue;
-  if( un_any_const_dynamic( dc[ i ] ,
-			    []( BoxConstraint & cnst ) { cnst.clear(); } ,
-			    un_any_type< BoxConstraint >() ) )
-   continue;
-  if( un_any_const_dynamic( dc[ i ] ,
-			    []( LBConstraint & cnst ) { cnst.clear(); } ,
-			    un_any_type< LBConstraint >() ) )
-   continue;
-  if( un_any_const_dynamic( dc[ i ] ,
-			    []( UBConstraint & cnst ) { cnst.clear(); } ,
-			    un_any_type< UBConstraint >() ) )
-   continue;
-  if( un_any_const_dynamic( dc[ i ] ,
-			    []( NNConstraint & cnst ) { cnst.clear(); } ,
-			    un_any_type< NNConstraint >() ) )
-   continue;
-  if( un_any_const_dynamic( dc[ i ] ,
-			    []( NPConstraint & cnst ) { cnst.clear(); } ,
-			    un_any_type< NPConstraint >() ) )
-   continue;
-  un_any_const_dynamic( dc[ i ] , []( ZOConstraint & cnst ) { cnst.clear(); } ,
-			un_any_type< ZOConstraint >() );
-  }
+ f_rep |= 4;
 
- // then clear the Objective
- if( ( ! is_Objective_reserved() ) && get_objective() )
-  get_objective()->clear();
-
- // now delete all the inner Block
- for( Index i = get_first_inner_Block() ; i < v_Block.size() ; ++i )
-  delete v_Block[ i ];
-
- v_Block.clear();
-
- // now delete all the Constraint
- for( Index i = get_first_static_Constraint() ; i < sc.size() ; ++i ) {
-  if( un_any_thing( FRowConstraint , sc[ i ] , { delete & var; } ) )
-   continue;
-  if( un_any_thing( BoxConstraint , sc[ i ] , { delete & var; } ) )
-   continue;
-  if( un_any_thing( LBConstraint , sc[ i ] , { delete & var; } ) )
-   continue;
-  if( un_any_thing( UBConstraint , sc[ i ] , { delete & var; } ) )
-   continue;
-  if( un_any_thing( NNConstraint , sc[ i ] , { delete & var; } ) )
-   continue;
-  if( un_any_thing( NPConstraint , sc[ i ] , { delete & var; } ) )
-   continue;
-  un_any_thing( ZOConstraint , sc[ i ] , { delete & var; } );
-  }
-
- for( Index i = get_first_dynamic_Constraint() ; i < dc.size() ; ++i ) {
-  if( un_any_thing( std::list<FRowConstraint> , dc[ i ] , { delete & var; } ) )
-   continue;
-  if( un_any_thing( std::list<BoxConstraint> , dc[ i ] , { delete & var; } ) )
-   continue;
-  if( un_any_thing( std::list<LBConstraint> , dc[ i ] , { delete & var; } ) )
-   continue;
-  if( un_any_thing( std::list<UBConstraint> , dc[ i ] , { delete & var; } ) )
-   continue;
-  if( un_any_thing( std::list<NNConstraint> , dc[ i ] , { delete & var; } ) )
-   continue;
-  if( un_any_thing( std::list<NPConstraint> , dc[ i ] , { delete & var; } ) )
-   continue;
-  un_any_thing( std::list<ZOConstraint> , dc[ i ] , { delete & var; } );
-  }
-
- // now delete all the Variable
- auto & sv = get_static_variables();
- for( Index i = get_first_static_Variable() ; i < sv.size() ; ++i )
-  un_any_thing( ColVariable , sv[ i ] , { delete & var; } );
-
- auto & dv = get_dynamic_variables();
- for( Index i = get_first_dynamic_Variable() ; i < dv.size() ; ++i )
-  un_any_thing( std::list<ColVariable> , dv[ i ] , { delete & var; } );
-
- // now delete the Objective
- if( ! is_Objective_reserved() )
-  delete get_objective();
-
- }  // end( ~PolyhedralFunctionBlock )
+ }  // end( PolyhedralFunctionBlock::generate_abstract_constraints )
 
 /*--------------------------------------------------------------------------*/
 
-bool PolyhedralFunctionBlock::is_feasible( bool useabstract , Configuration *fsbc )
+void PolyhedralFunctionBlock::generate_objective( Configuration * objc )
 {
- if( ! useabstract )
-  return( false );
+ if( f_rep & 8 )  // done already
+  return;         // nothing else to do
 
- // compute the accuracy parameter- - - - - - - - - - - - - - - - - - - - - -
- double eps = 0;
- auto tfsbc = dynamic_cast<SimpleConfiguration<double> *>( fsbc );
+ if( ! ( f_rep & 2 ) )  // variables not constructed
+  throw( std::logic_error( "Variable must be generated before Objective" ) );
 
- if( ( ! tfsbc ) && f_BlockConfig &&
-     f_BlockConfig->f_is_feasible_Configuration )
-  tfsbc = dynamic_cast<SimpleConfiguration<double> *>(
-			         f_BlockConfig->f_is_feasible_Configuration );
- if( tfsbc )
-  eps = tfsbc->f_value;
+ auto obj = new FRealObjective();
+ obj->set_sense( f_polyf.is_convex() ? FRealObjective::eMax :
+		                       FRealObjective::eMin , eNoMod );
 
- bool feas = true;
+ if( f_rep & 1 )  // use linearized representation
+  obj->set_function( new LinearFunction( { std::make_pair( & f_v , 1 ) } ) );
+ else             // use natural representation
+  obj->set_function( & f_polyf );
 
- // the static Constraints of the Block - - - - - - - - - - - - - - - - - - -
- auto & sc = get_static_constraints();
- for( Index i = get_first_static_Constraint() ; i < sc.size() ; ++i ) {
-  if( un_any_const_static( sc[ i ] , [ & feas , eps ]( FRowConstraint & cnst )
-			             { feas = ( cnst.rel_viol() <= eps ); } ,
-			   un_any_type< FRowConstraint >() ) ) {
-   if( ! feas )
-    return( false );
-   continue;
-   }
-  if( un_any_const_static( sc[ i ] , [ & feas , eps ]( BoxConstraint & cnst )
-			             { feas = ( cnst.rel_viol() <= eps ); } ,
-			   un_any_type< BoxConstraint >() ) ) {
-   if( ! feas )
-    return( false );
-   continue;
-   }
-  if( un_any_const_static( sc[ i ] , [ & feas , eps ]( LBConstraint & cnst )
-			             { feas = ( cnst.rel_viol() <= eps ); } ,
-			   un_any_type< LBConstraint >() ) ) {
-   if( ! feas )
-    return( false );
-   continue;
-   }
-  if( un_any_const_static( sc[ i ] , [ & feas , eps ]( UBConstraint & cnst )
-			             { feas = ( cnst.rel_viol() <= eps ); } ,
-			   un_any_type< UBConstraint >() ) ) {
-   if( ! feas )
-    return( false );
-   continue;
-   }
-  if( un_any_const_static( sc[ i ] , [ & feas , eps ]( NNConstraint & cnst )
-			             { feas = ( cnst.rel_viol() <= eps ); } ,
-			   un_any_type< NNConstraint >() ) ) {
-   if( ! feas )
-    return( false );
-   continue;
-   }
-  if( un_any_const_static( sc[ i ] , [ & feas , eps ]( NPConstraint & cnst )
-			             { feas = ( cnst.rel_viol() <= eps ); } ,
-			   un_any_type< NPConstraint >() ) ) {
-   if( ! feas )
-    return( false );
-   continue;
-   }
-  if( un_any_const_static( sc[ i ] , [ & feas , eps ]( ZOConstraint & cnst )
-			             { feas = ( cnst.rel_viol() <= eps ); } ,
-			   un_any_type< ZOConstraint >() ) ) {
-   if( ! feas )
-    return( false );
-   continue;
-   }
-  throw( logic_error(
-	"some static Constraint not FRowConstraint or :OneVarConstraint" ) );
-  }
+ set_objective( obj );
 
- // the static Variables of the Block - - - - - - - - - - - - - - - - - - - -
- auto & sv = get_static_variables();
- for( Index i = get_first_static_Variable() ; i < sv.size() ; ++i )
- {
-  if( un_any_const_static( sv[ i ] , [ & feas , eps ]( ColVariable & var )
-			             { feas = var.is_feasible( eps ); } ,
-			   un_any_type< ColVariable >() ) ) {
-   if( ! feas )
-    return( false );
-   continue;
-   }
-  throw( logic_error( "some static Variable not ColVariable" ) );
-  }
+ f_rep |= 8;
 
- // the dynamic Constraints of the Block-  - - - - - - - - - - - - - - - - - -
- auto & dc = get_dynamic_constraints();
- for( Index i = get_first_dynamic_Constraint() ; i < dc.size() ; ++i ) {
-  if( un_any_const_dynamic( dc[ i ] , [ & feas , eps ]( FRowConstraint & cnst )
-			              { feas = ( cnst.rel_viol() <= eps ); } ,
-			    un_any_type< FRowConstraint >() ) ) {
-   if( ! feas )
-    return( false );
-   continue;
-   }
-  if( un_any_const_dynamic( dc[ i ] , [ & feas , eps ]( BoxConstraint & cnst )
-			              { feas = ( cnst.rel_viol() <= eps ); } ,
-			   un_any_type< BoxConstraint >() ) ) {
-   if( ! feas )
-    return( false );
-   continue;
-   }
-  if( un_any_const_dynamic( dc[ i ] , [ & feas , eps ]( LBConstraint & cnst )
-			              { feas = ( cnst.rel_viol() <= eps ); } ,
-			   un_any_type< LBConstraint >() ) ) {
-   if( ! feas )
-    return( false );
-   continue;
-   }
-  if( un_any_const_dynamic( dc[ i ], [ & feas , eps ]( UBConstraint & cnst )
-			             { feas = ( cnst.rel_viol() <= eps ); } ,
-			   un_any_type< UBConstraint >() ) ) {
-   if( ! feas )
-    return( false );
-   continue;
-   }
-  if( un_any_const_dynamic( dc[ i ] , [ & feas , eps ]( NNConstraint & cnst )
-			              { feas = ( cnst.rel_viol() <= eps ); } ,
-			   un_any_type< NNConstraint >() ) ) {
-   if( ! feas )
-    return( false );
-   continue;
-   }
-  if( un_any_const_dynamic( dc[ i ] , [ & feas , eps ]( NPConstraint & cnst )
-			              { feas = ( cnst.rel_viol() <= eps ); } ,
-			   un_any_type< NPConstraint >() ) ) {
-   if( ! feas )
-    return( false );
-   continue;
-   }
-  if( un_any_const_dynamic( dc[ i ] , [ & feas , eps ]( ZOConstraint & cnst )
-			              { feas = ( cnst.rel_viol() <= eps ); } ,
-			   un_any_type< ZOConstraint >() ) ) {
-   if( ! feas )
-    return( false );
-   continue;
-   }
-  throw( logic_error(
-       "some dynamic Constraint not FRowConstraint or :OneVarConstraint" ) );
-  }
-
- // the dynamic Variables of the Block- - - - - - - - - - - - - - - - - - - -
- auto & dv = get_dynamic_variables();
- for( Index i = get_first_dynamic_Variable() ; i < dv.size() ; ++i )
- {
-  if( un_any_const_dynamic( dv[ i ] , [ & feas, eps ]( ColVariable & var )
-			              { feas = var.is_feasible( eps ); } ,
-			    un_any_type< ColVariable >() ) ) {
-   if( ! feas )
-    return( false );
-   continue;
-   }
-  throw( logic_error( "some dynamic Variable not ColVariable" ) );
-  }
-
- // the inner Blocks - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- for( Index i = get_first_inner_Block() ; i < v_Block.size() ; ++i )
-  if( ! v_Block[ i ]->is_feasible( true ) )
-   return( false );
-
- return( true );
-
- }  // end( PolyhedralFunctionBlock::is_feasible )
->>>>>>> dual
+ }  // end( PolyhedralFunctionBlock::generate_objective )
 
 /*--------------------------------------------------------------------------*/
-
-
+/*------- Methods for reading the data of the PolyhedralFunctionBlock ------*/
 /*--------------------------------------------------------------------------*/
 
-void PolyhedralFunctionBlock::serialize( netCDF::NcGroup & group ) const
-{
- auto & sc = get_static_constraints();
- auto & sv = get_static_variables();
- auto & dc = get_dynamic_constraints();
- auto & dv = get_dynamic_variables();
-
- if( ( sc.size() > get_first_static_Constraint() ) ||
-     ( dc.size() > get_first_dynamic_Constraint() ) ||
-     ( sv.size() > get_first_static_Variable() ) ||
-     ( dv.size() > get_first_dynamic_Variable() ) ||
-     ( ! is_Objective_reserved() ) )
-  throw( std::logic_error(
-		   "AbstractBlock::serialize not fully implemented yet" ) );
-
- group.putAtt( "type" , name() );
-
- if( v_Block.size() > get_first_inner_Block() ) {
-  group.addDim( "NumberInnerBlock" , v_Block.size() );
-
-  for( Index i = get_first_inner_Block() ; i < v_Block.size() ; ++i ) {
-   auto gi = group.addGroup( "Block_" + std::to_string( i ) );
-   v_Block[ i ]->serialize( gi );
-   }
-  }
- }  // end( PolyhedralFunctionBlock::serialize )
-
+/*--------------------------------------------------------------------------*/
+/*-------------------- Methods for handling Modification -------------------*/
 /*--------------------------------------------------------------------------*/
 
-void PolyhedralFunctionBlock::print( ostream &output ) const
+/*--------------------------------------------------------------------------*/
+/*--- METHODS FOR LOADING, PRINTING & SAVING THE PolyhedralFunctionBlock ---*/
+/*--------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------*/
+/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunctionBlock::print( std::ostream & output ) const
 {
- output << endl << "Block with: ";
- output << endl << get_static_variables().size()
-	        << " types of static Variables, "
-                << get_dynamic_variables().size()
-	        << " types of dynamic Variables, "
-        << endl << get_static_constraints().size()
-	        << " types of static Constraints, "
-	        << get_dynamic_constraints().size()
-	        << " types of dynamic Constraints, "
-        << endl << v_Block.size() << " inner Blocks" << endl;
+ output << std::endl << "PolyhedralFunctionBlock[";
+ if( f_rep & 1 )
+  output << "l/";
+ else
+  output << "n/";
+ if( f_polyf.is_convex() )
+  output << "cvx";
+ else
+  output << "cnc";
+ output << "] with PolyhedralFunction( " << f_polyf.get_num_active_var()
+	<< ", " << f_polyf.get_A().size() << " )" << std::endl;
 
  if( verbosity_lvl == Block::medium || verbosity_lvl == Block::high ) {
-  // the static Constraints of the Block- - - - - - - - - - - - - - - - - - -
-  output << "Static Constraints:" << endl;
-  auto & sc = get_static_constraints();
-  for( unsigned int i = get_first_static_Constraint() ; i < sc.size() ; ++i ) {
-   output << i;
-   if( ( ! get_s_const_name().empty() ) &&
-       ( ! get_s_const_name()[ i ].empty() ) )
-    output << " (" << get_s_const_name()[ i ] << "): ";
-   else
-    output << ": ";
-
-   if( un_any_const_static( sc[ i ] , [ &output ]( FRowConstraint & cnst )
-		                                 { output << cnst << endl; } ,
-			    un_any_type< FRowConstraint >() ) )
-    continue;
-   if( un_any_const_static( sc[ i ] , [ &output ]( BoxConstraint & cnst )
-		                                 { output << cnst << endl; } ,
-			    un_any_type< BoxConstraint >() ) )
-    continue;
-   if( un_any_const_static( sc[ i ] , [ &output ]( LBConstraint & cnst )
-		                                 { output << cnst << endl; } ,
-			    un_any_type< LBConstraint >() ) )
-    continue;
-   if( un_any_const_static( sc[ i ] , [ &output ]( UBConstraint & cnst )
-		                                 { output << cnst << endl; } ,
-			    un_any_type< UBConstraint >() ) )
-    continue;
-   if( un_any_const_static( sc[ i ] , [ &output ]( NNConstraint & cnst )
-		                                 { output << cnst << endl; } ,
-			    un_any_type< NNConstraint >() ) )
-    continue;
-   if( un_any_const_static( sc[ i ] , [ &output ]( NPConstraint & cnst )
-		                                 { output << cnst << endl; } ,
-			    un_any_type< NPConstraint >() ) )
-    continue;
-   if( un_any_const_static( sc[ i ] , [ &output ]( ZOConstraint & cnst )
-		                                 { output << cnst << endl; } ,
-			    un_any_type< ZOConstraint >() ) )
-    continue;
-   throw( logic_error(
-        "some static Constraint not FRowConstraint or :OneVarConstraint" ) );
+  for( Index i = 0 ; i < f_polyf.get_A().size()  ; ++i ) {
+   output << "A[ " << i << " ] = [ ";
+   for( Index j = 0 ; j < f_polyf.get_num_active_var() ; ++j )
+    output << f_polyf.get_A()[ i ][ j ] << " ";
+   output << "], b[ " << i << " ] = " << f_polyf.get_b()[ i ] << std::endl;
    }
 
-  // the static Variables of the Block- - - - - - - - - - - - - - - - - - - -
-  output << "Static Variables:" << endl;
-  auto & sv = get_static_variables();
-  for( unsigned int i = get_first_static_Variable() ; i < sv.size() ; ++i ) {
-   output << i;
-   if( ( ! get_s_var_name().empty() ) &&
-       ( ! get_s_var_name()[ i ].empty() ) )
-    output << " (" << get_s_var_name()[ i ] << "): ";
+  /*!! can't do as get_global_*_bound() are not const
+  if( f_polyf.is_bound_set() ) {
+   if( f_polyf.is_convex() )
+    output << "LB = " << f_polyf.get_global_lower_bound();
    else
-    output << ": ";
+    output << "UB = " << f_polyf.get_global_upper_bound();
 
-   if( un_any_const_static( sv[ i ] , [ &output ]( ColVariable & var )
-		                                 { output << var << endl; } ,
-			    un_any_type< ColVariable >() ) )
-    continue;
-   throw( logic_error( "some static Variable not ColVariable" ) );
+   output << std::endl;
    }
-
-  // the dynamic Constraints of the Block- - - - - - - - - - - - - - - - - -
-  output << "Dynamic Constraints:" << endl;
-  auto & dc = get_dynamic_constraints();
-  for( unsigned int i = get_first_dynamic_Constraint() ; i < dc.size() ; ++i ) {
-   output << i;
-   if( ( ! get_d_const_name().empty() ) &&
-       ( ! get_d_const_name()[ i ].empty() ) )
-    output << " (" << get_d_const_name()[ i ] << "): ";
-   else
-    output << ": ";
-
-   if( un_any_const_dynamic( dc[ i ] ,
-			     [ &output ]( FRowConstraint & cnst )
-		                        { output << cnst << endl; } ,
-			     un_any_type< FRowConstraint >() ) )
-    continue;
-   if( un_any_const_dynamic( dc[ i ] ,
-			     [ &output ]( BoxConstraint & cnst )
-		                        { output << cnst << endl; } ,
-			     un_any_type< BoxConstraint >() ) )
-    continue;
-   if( un_any_const_dynamic( dc[ i ] ,
-			     [ &output ]( LBConstraint & cnst )
-		                        { output << cnst << endl; } ,
-			     un_any_type< LBConstraint >() ) )
-    continue;
-   if( un_any_const_dynamic( dc[ i ] ,
-			     [ &output ]( UBConstraint & cnst )
-			                { output << cnst << endl; } ,
-			     un_any_type< UBConstraint >() ) )
-    continue;
-   if( un_any_const_dynamic( dc[ i ] ,
-			     [ &output ]( NNConstraint & cnst )
-			                { output << cnst << endl; } ,
-			     un_any_type< NNConstraint >() ) )
-    continue;
-   if( un_any_const_dynamic( dc[ i ] ,
-			     [ &output ]( NPConstraint & cnst )
-			                { output << cnst << endl; } ,
-			     un_any_type< NPConstraint >() ) )
-    continue;
-   if( un_any_const_dynamic( dc[ i ] ,
-			     [ &output ]( ZOConstraint & cnst )
-			                { output << cnst << endl; } ,
-			     un_any_type< ZOConstraint >() ) )
-    continue;
-   throw( logic_error(
-       "some dynamic Constraint not FRowConstraint or :OneVarConstraint" ) );
-   }
-
-  // the dynamic Variables of the Block - - - - - - - - - - - - - - - - - - -
-  output << "Dynamic Variables:" << endl;
-  auto & dv = get_dynamic_variables();
-  for( unsigned int i = get_first_dynamic_Variable() ; i < dv.size() ; ++i ) {
-   output << i;
-   if( ( ! get_d_var_name().empty() ) &&
-       ( ! get_d_var_name()[ i ].empty() ) )
-    output << " (" << get_d_var_name()[ i ] << "): ";
-   else
-    output << ": ";
-
-   if( un_any_const_dynamic( dv[ i ] , [ &output ]( ColVariable & var )
-		                                  { output << var << endl; } ,
-			     un_any_type< ColVariable >() ) )
-    continue;
-   throw( logic_error( "some dynamic Variable not ColVariable" ) );
-   }
-
-  // the Objective of the Block - - - - - - - - - - - - - - - - - - - - - - -
-  if( ! is_Objective_reserved() )
-   output << "Objective:" << *get_objective() << endl;
-
-  // the inner Blocks - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  output  << endl << "Nested Blocks:" << endl;
-  for( Index i = get_first_inner_Block() ; i < v_Block.size() ; ++i )
-   output << *v_Block[ i ];
+   !!*/
   }
- }  // end( PolyhedralFunctionBlock::print )
 
+ AbstractBlock::print( output );
+
+ }  // end( PolyhedralFunctionBlock::print )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- PRIVATE METHODS ------------------------------*/
@@ -554,131 +185,557 @@ void PolyhedralFunctionBlock::print( ostream &output ) const
 
 void PolyhedralFunctionBlock::guts_of_destructor( void )
 {
- // first, clear() all Constraint
- auto & sc = get_static_constraints();
- for( Index i = get_first_static_Constraint() ; i < sc.size() ; ++i ) {
-  if( un_any_const_static( sc[ i ] ,
-			   []( FRowConstraint & cnst ) { cnst.clear(); } ,
-			   un_any_type< FRowConstraint >() ) )
-   continue;
-  if( un_any_const_static( sc[ i ] ,
-			   []( BoxConstraint & cnst ) { cnst.clear(); } ,
-			   un_any_type< BoxConstraint >() ) )
-   continue;
-  if( un_any_const_static( sc[ i ] ,
-			   []( LBConstraint & cnst ) { cnst.clear(); } ,
-			   un_any_type< LBConstraint >() ) )
-   continue;
-  if( un_any_const_static( sc[ i ] ,
-			   []( UBConstraint & cnst ) { cnst.clear(); } ,
-			   un_any_type< UBConstraint >() ) )
-   continue;
-  if( un_any_const_static( sc[ i ] ,
-			   []( NNConstraint & cnst ) { cnst.clear(); } ,
-			   un_any_type< NNConstraint >() ) )
-   continue;
-  if( un_any_const_static( sc[ i ] ,
-			   []( NPConstraint & cnst ) { cnst.clear(); } ,
-			   un_any_type< NPConstraint >() ) )
-   continue;
-  un_any_const_static( sc[ i ] , []( ZOConstraint & cnst ) { cnst.clear(); } ,
-		       un_any_type< ZOConstraint >() );
+ // clear the Objective (if any)
+ auto obj = static_cast< FRealObjective * >( get_objective() );
+ if( obj )
+  obj->clear();
+
+ if( f_rep & 1 ) {  // use linearized representation
+  // first clear() all the constraints
+  for( auto & ci : f_const )
+   ci.clear();
+
+  f_bcv.clear();
+
+  // then nothing, they will be deleted when f_const/f_bcv are
+
+  // ensure that the LinearFunction inside the Objective is deleted
+  if( obj )
+   obj->set_function( nullptr , eNoMod , true );
+  }
+ else {             // use natural representation
+  // ensure that the PolyhedrakFunction inside the Objective is NOT deleted
+  if( obj )
+   obj->set_function( nullptr , eNoMod , false );
   }
 
- auto & dc = get_dynamic_constraints();
- for( Index i = get_first_dynamic_Constraint() ; i < dc.size() ; ++i ) {
-  if( un_any_const_dynamic( dc[ i ] ,
-			    []( FRowConstraint & cnst ) { cnst.clear(); } ,
-			    un_any_type< FRowConstraint >() ) )
-   continue;
-  if( un_any_const_dynamic( dc[ i ] ,
-			    []( BoxConstraint & cnst ) { cnst.clear(); } ,
-			    un_any_type< BoxConstraint >() ) )
-   continue;
-  if( un_any_const_dynamic( dc[ i ] ,
-			    []( LBConstraint & cnst ) { cnst.clear(); } ,
-			    un_any_type< LBConstraint >() ) )
-   continue;
-  if( un_any_const_dynamic( dc[ i ] ,
-			    []( UBConstraint & cnst ) { cnst.clear(); } ,
-			    un_any_type< UBConstraint >() ) )
-   continue;
-  if( un_any_const_dynamic( dc[ i ] ,
-			    []( NNConstraint & cnst ) { cnst.clear(); } ,
-			    un_any_type< NNConstraint >() ) )
-   continue;
-  if( un_any_const_dynamic( dc[ i ] ,
-			    []( NPConstraint & cnst ) { cnst.clear(); } ,
-			    un_any_type< NPConstraint >() ) )
-   continue;
-  un_any_const_dynamic( dc[ i ] , []( ZOConstraint & cnst ) { cnst.clear(); } ,
-			un_any_type< ZOConstraint >() );
-  }
-
- // then clear the Objective
- if( ( ! is_Objective_reserved() ) && get_objective() )
-  get_objective()->clear();
-
- // now delete all the inner Block
- for( Index i = get_first_inner_Block() ; i < v_Block.size() ; ++i )
-  delete v_Block[ i ];
-
- v_Block.clear();
-
- // now delete all the Constraint
- for( Index i = get_first_static_Constraint() ; i < sc.size() ; ++i ) {
-  if( un_any_thing( FRowConstraint , sc[ i ] , { delete & var; } ) )
-   continue;
-  if( un_any_thing( BoxConstraint , sc[ i ] , { delete & var; } ) )
-   continue;
-  if( un_any_thing( LBConstraint , sc[ i ] , { delete & var; } ) )
-   continue;
-  if( un_any_thing( UBConstraint , sc[ i ] , { delete & var; } ) )
-   continue;
-  if( un_any_thing( NNConstraint , sc[ i ] , { delete & var; } ) )
-   continue;
-  if( un_any_thing( NPConstraint , sc[ i ] , { delete & var; } ) )
-   continue;
-  un_any_thing( ZOConstraint , sc[ i ] , { delete & var; } );
-  }
-
- for( Index i = get_first_dynamic_Constraint() ; i < dc.size() ; ++i ) {
-  if( un_any_thing( std::list<FRowConstraint> , dc[ i ] , { delete & var; } ) )
-   continue;
-  if( un_any_thing( std::list<BoxConstraint> , dc[ i ] , { delete & var; } ) )
-   continue;
-  if( un_any_thing( std::list<LBConstraint> , dc[ i ] , { delete & var; } ) )
-   continue;
-  if( un_any_thing( std::list<UBConstraint> , dc[ i ] , { delete & var; } ) )
-   continue;
-  if( un_any_thing( std::list<NNConstraint> , dc[ i ] , { delete & var; } ) )
-   continue;
-  if( un_any_thing( std::list<NPConstraint> , dc[ i ] , { delete & var; } ) )
-   continue;
-  un_any_thing( std::list<ZOConstraint> , dc[ i ] , { delete & var; } );
-  }
-
- // now delete all the Variable
- auto & sv = get_static_variables();
- for( Index i = get_first_static_Variable() ; i < sv.size() ; ++i )
-  un_any_thing( ColVariable , sv[ i ] , { delete & var; } );
-
- auto & dv = get_dynamic_variables();
- for( Index i = get_first_dynamic_Variable() ; i < dv.size() ; ++i )
-  un_any_thing( std::list<ColVariable> , dv[ i ] , { delete & var; } );
-
- // now delete the Objective
- if( ! is_Objective_reserved() )
-  delete get_objective();
+ // finally delete the Objective
+ delete obj;
 
  }  // end( PolyhedralFunctionBlock::guts_of_destructor )
 
 /*--------------------------------------------------------------------------*/
 
-void PolyhedralFunctionBlock::guts_of_add_Modification( sp_Mod mod )
+void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
+			  std::shared_ptr< FunctionMod > mod , ChnlName chnl )
 {
+ // process a FunctionMod produced by the PolyhedralFunction- - - - - - - - -
+ /* This requires to patiently sift through the possible Modification types
+  * (but only those derived from FunctionMod) to find what this Modification
+  * exactly, is and appropriately mirror the changes to the PolyhedralFunction
+  * (which in this case counts as the "physical representation") into the
+  * "abstract" one, i.e., performing the corresponding changes on the LP. */
 
- }  // end( PolyhedralFunctionBlock::guts_of_add_Modification )
+ // C05FunctionModVarsAddd- - - - - - - - - - - - - - - - - - - - - - - - - -
+ {
+  const auto tmod = std::dynamic_pointer_cast<C05FunctionModVarsAddd>( mod );
+  if( tmod ) {  // this is "add Variables"
+   c_Index frst = tmod->first();
+   c_Index nav = f_polyf.get_num_active_var();
+
+   // open a new GroupModification, not concerning PolyhedralFunctionBlock
+   bool newchnl = f_const.size() > 1;
+   auto ichnl = open_or_nest( newchnl , chnl );
+   auto par = make_par( eNoBlck , ichnl );
+
+   Index i = 0;
+   for( auto & ci : f_const ) {
+    LinearFunction::v_coeff_pair vars( nav - frst );
+    auto vit = vars.begin();
+    auto Aiit = f_polyf.get_A()[ i++ ].begin(); 
+    for( Index j = frst ; j < nav ; ++j )
+     *(vit++) = std::make_pair( static_cast< ColVariable * >(
+					     f_polyf.get_active_var( j ) ) ,
+				- *(Aiit++) );
+    static_cast< LinearFunction * >( ci.get_function() )->
+     add_variables( std::move( vars ) , par );
+    }
+
+   if( newchnl ) {
+    if( chnl )
+     un_nest_channel( ichnl );
+    else
+     close_channel( ichnl );
+    }
+   }
+  return;
+  }
+
+ // C05FunctionModVarsRngd- - - - - - - - - - - - - - - - - - - - - - - - - -
+ {
+  const auto tmod = std::dynamic_pointer_cast<C05FunctionModVarsRngd>( mod );
+  if( tmod ) {  // this is "remove Variables, ranged"
+   auto rng = tmod->range();
+   rng.first++;   // variables names in the constraints are +1 w.r.t. those
+   rng.second++;  // of the PolyhedralFunction
+
+   // open a new GroupModification, not concerning PolyhedralFunctionBlock
+   bool newchnl = f_const.size() > 1;
+   auto ichnl = open_or_nest( newchnl , chnl );
+   auto par = make_par( eNoBlck , ichnl );
+
+   for( auto & ci : f_const )
+    static_cast< LinearFunction * >( ci.get_function() )->
+     remove_variables( rng , par );
+
+   if( newchnl ) {
+    if( chnl )
+     un_nest_channel( ichnl );
+    else
+     close_channel( ichnl );
+    }
+   return;
+   }
+  }
+
+ // C05FunctionModVarsSbst- - - - - - - - - - - - - - - - - - - - - - - - - -
+ {
+  const auto tmod = std::dynamic_pointer_cast<C05FunctionModVarsSbst>( mod );
+  if( tmod ) {  // this is "remove Variables, subset"
+   Subset sbst( tmod->subset() );
+   for( auto & si : sbst )  // variables names in the constraints are +1
+    si++;                   // w.r.t. those of the PolyhedralFunction
+
+   if( ! tmod->ordered() )
+    std::sort( sbst.begin() , sbst.end() );
+
+   // open a new GroupModification, not concerning PolyhedralFunctionBlock
+   bool newchnl = f_const.size() > 1;
+   auto ichnl = open_or_nest( newchnl , chnl );
+   auto par = make_par( eNoBlck , ichnl );
+
+   for( auto & ci : f_const )
+    static_cast< LinearFunction * >( ci.get_function() )->
+     remove_variables( std::move( Subset( sbst ) ) , true , par );
+
+   if( newchnl ) {
+    if( chnl )
+     un_nest_channel( ichnl );
+    else
+     close_channel( ichnl );
+    }
+   return;
+   }
+  }
+
+ // PolyhedralFunctionModRngd - - - - - - - - - - - - - - - - - - - - - - - -
+ {
+  const auto tmod = std::dynamic_pointer_cast<PolyhedralFunctionModRngd>( mod
+									  );
+  if( tmod ) {  // this is "modify/delete a range of rows"
+   Index strt = tmod->range().first;
+   Index stop = tmod->range().second;
+
+   if( strt == stop ) {  // special case: the lower/upper bound
+    if( f_polyf.is_convex() )  // convex ==> lower bound
+     f_bcv.set_lhs( f_polyf.get_lower_estimate() ,
+		    make_par( eNoBlck , chnl ) );
+    else                       // concave ==> upper bound
+     f_bcv.set_rhs( f_polyf.get_upper_estimate() ,
+		    make_par( eNoBlck , chnl ) );
+    return;
+    }
+
+   // open a new GroupModification, not concerning PolyhedralFunctionBlock
+   // unless it's deleting or only one row and *not* also its constant
+   bool newchnl = ( tmod->PFtype() != PolyhedralFunctionMod::DeleteRows ) &&
+                    ( ( stop > strt + 1 ) ||
+		      ( tmod->PFtype() == PolyhedralFunctionMod::ModifyCnst )
+		      );
+   auto ichnl = open_or_nest( newchnl , chnl );
+   auto par = make_par( eNoBlck , ichnl );
+
+   auto cit = std::next( f_const.begin() , strt );
+   if( tmod->PFtype() == PolyhedralFunctionMod::DeleteRows ) {
+    // delete rows
+    std::vector< std::list< FRowConstraint >::iterator > rmvd( stop - strt );
+    for( auto & ri : rmvd )
+     ri = cit++;
+    remove_dynamic_constraints( f_const , rmvd , par );
+    }
+   else
+    if( tmod->PFtype() == PolyhedralFunctionMod::ModifyRows ) {
+     // modify rows & constants
+     Range rng = Range( 1 , f_polyf.get_num_active_var() + 1 );
+     for( Index i = strt ; i < stop ; ) {
+      static_cast< LinearFunction * >( cit->get_function() )->
+       modify_coefficients( std::move( RealVector( f_polyf.get_A()[ i ] ) ) ,
+			    rng , par );
+      if( f_polyf.is_convex() )
+       (cit++)->set_lhs( f_polyf.get_b()[ i++ ] , par );
+      else
+       (cit++)->set_rhs( f_polyf.get_b()[ i++ ] , par );
+      }
+     }
+    else  // modify constants only
+     if( f_polyf.is_convex() )
+      for( Index i = strt ; i < stop ; )
+       cit->set_lhs( f_polyf.get_b()[ i++ ] , par );
+     else
+      for( Index i = strt ; i < stop ; )
+       cit->set_rhs( f_polyf.get_b()[ i++ ] , par );
+
+   if( newchnl ) {
+    if( chnl )
+     un_nest_channel( ichnl );
+    else
+     close_channel( ichnl );
+    }
+   return;
+   }
+  }
+
+ // PolyhedralFunctionModSbst - - - - - - - - - - - - - - - - - - - - - - - -
+ {
+  const auto tmod = std::dynamic_pointer_cast<PolyhedralFunctionModSbst>( mod
+									  );
+  if( tmod ) {  // this is "modify/delete a subset of rows"
+
+   // open a new GroupModification, not concerning PolyhedralFunctionBlock
+   // unless it's deleting or only one row and *not* also its constant
+   bool newchnl = ( tmod->PFtype() != PolyhedralFunctionMod::DeleteRows ) &&
+                    ( ( tmod->rows().size() > 1 ) ||
+		      ( tmod->PFtype() == PolyhedralFunctionMod::ModifyCnst )
+		      );
+   auto ichnl = open_or_nest( newchnl , chnl );
+   auto par = make_par( eNoBlck , ichnl );
+
+   Index prev = 0;
+   auto cit = f_const.begin();
+   auto rit = tmod->rows().begin();
+   if( tmod->PFtype() == PolyhedralFunctionMod::DeleteRows ) {
+    // delete rows
+    std::vector< std::list< FRowConstraint >::iterator > rmvd(
+						      tmod->rows().size() );
+    auto rmvdit = rmvd.begin();
+    for( ; rit != tmod->rows().end() ; ) {
+     cit = std::next( cit , *rit - prev );
+     *(rmvdit++) = cit;
+     prev = *(rit++);
+     }
+    remove_dynamic_constraints( f_const , rmvd , par );
+    }
+   else
+    if( tmod->PFtype() == PolyhedralFunctionMod::ModifyRows ) {
+     // modify rows & constants
+     Range rng = Range( 1 , f_polyf.get_num_active_var() + 1 );
+     for( ; rit != tmod->rows().end() ; ) {
+      cit = std::next( cit , *rit - prev );
+      static_cast< LinearFunction * >( cit->get_function() )->
+       modify_coefficients(
+	    std::move( RealVector( f_polyf.get_A()[ *rit ] ) ) , rng , par );
+      if( f_polyf.is_convex() )
+       cit->set_lhs( f_polyf.get_b()[ *rit ] , par );
+      else
+       cit->set_rhs( f_polyf.get_b()[ *rit ] , par );
+      prev = *(rit++);
+      }
+     }
+    else  // modify constants only
+     for( ; rit != tmod->rows().end() ; ) {
+      cit = std::next( cit , *rit - prev );
+      if( f_polyf.is_convex() )
+       cit->set_lhs( f_polyf.get_b()[ *rit ] , par );
+      else
+       cit->set_rhs( f_polyf.get_b()[ *rit ] , par );
+      prev = *(rit++);
+      }
+ 
+   if( newchnl ) {
+    if( chnl )
+     un_nest_channel( ichnl );
+    else
+     close_channel( ichnl );
+    }
+   return;
+   }
+  }
+
+ // PolyhedralFunctionModAddd - - - - - - - - - - - - - - - - - - - - - - - -
+ {
+  const auto tmod = std::dynamic_pointer_cast<PolyhedralFunctionModAddd>( mod
+									  );
+  if( tmod ) {  // this is "add new rows"
+   Index nr = f_polyf.get_A().size();
+   std::list< FRowConstraint > newc( tmod->addedrows() );
+   auto cit = newc.begin();
+   for( Index i = nr - tmod->addedrows() ; i < nr ; )
+    ConstructLPConstraint( i++ , *(cit++) );
+
+   add_dynamic_constraints( f_const , newc , make_par( eNoBlck , chnl ) );
+   return;
+   }
+  }
+
+ // C05FunctionMod- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ {
+  const auto tmod = std::dynamic_pointer_cast<C05FunctionMod>( mod );
+  if( tmod ) {  // this is a change of the "verse" of the PolyhedralFunction
+   if( tmod->type() != C05FunctionMod::NothingChanged )
+    throw( std::logic_error( "wrong C05FunctionMod in PolyhedralFunction" ) );
+
+   // open a new GroupModification, not concerning PolyhedralFunctionBlock
+   auto ichnl = open_or_nest( true , chnl );
+   auto par = make_par( eNoBlck , ichnl );
+   Index i = 0;
+
+   if( f_polyf.is_convex() ) {
+    // change the "verse" of the objective accordingly
+    get_objective()->set_sense( Objective::eMin , par );
+
+    // set upper/lower bound on v
+    f_bcv.set_lhs( f_polyf.get_lower_estimate() , par );
+    f_bcv.set_rhs( Inf< Function::FunctionValue >() , par );
+
+    // properly set the lhs/rhs of the constraints
+    for( auto & ci : f_const ) {
+     ci.set_lhs( f_polyf.get_b()[ i++ ] , par );
+     ci.set_rhs( Inf< Function::FunctionValue >() , par );
+     }
+    }
+   else {
+    // change the "verse" of the objective accordingly
+    get_objective()->set_sense( Objective::eMax , par );
+
+    // properly set upper/lower bound on v
+    f_bcv.set_lhs( - Inf< Function::FunctionValue >() , par );
+    f_bcv.set_rhs( f_polyf.get_upper_estimate() , par );
+
+    // properly set the lhs/rhs of the constraints
+    for( auto & ci : f_const ) {
+     ci.set_lhs( - Inf< Function::FunctionValue >() , par );
+     ci.set_rhs( f_polyf.get_b()[ i++ ] , par );
+     }
+    }
+
+   if( chnl )
+    un_nest_channel( ichnl );
+   else
+    close_channel( ichnl );
+   return;
+   }
+  }
+
+ // FunctionMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // if all else fails, this must be a "simple" FunctionMod, whose
+ // meaning is "everything is changed", hence change everything
+
+ assert( std::isnan( mod->shift() ) );
+
+ // set upper/lower bound on v
+ f_bcv.set_rhs( f_polyf.get_upper_estimate() , eNoMod );
+ f_bcv.set_lhs( f_polyf.get_lower_estimate() , eNoMod );
+
+ // clear out the linear constraints
+ for( auto & ci : f_const )
+  ci.clear();
+ f_const.clear();
+
+ // now add the linear constraints back again
+ f_const.resize( f_polyf.get_A().size() );
+ auto cit = f_const.begin();
+ for( Index i = 0 ; i < f_polyf.get_A().size() ; )
+  ConstructLPConstraint( i++ , *(cit++) );
+ 
+ // finally issue a NBModification
+ AbstractBlock::add_Modification( std::make_shared<NBModification>( this ) );
+
+ }  // end( PolyhedralFunctionBlock::guts_of_add_Modification_PF )
+
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunctionBlock::guts_of_add_Modification_LR( sp_Mod mod ,
+							   ChnlName chnl )
+{
+ // process a Modification produced by the "linearized" representation - - - -
+ /* This requires to patiently sift through the possible Modification types
+  * find what this Modification exactly, is and appropriately mirror the
+  * changes of the "abstract" representation into the PolyhedralFunction
+  * (which in this case counts as the "physical" one). Note, however, that
+  *
+  *     SOME Modification OF THE LP ARE NOT SUPPORTED SINCE THEY WOULD
+  *     LEAVE THE PolyhedralFunction IN AN INCONSISTENT STATE
+  */
+
+ // ObjectiveMod- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ {
+  const auto tmod = std::dynamic_pointer_cast<ObjectiveMod>( mod );
+  if( tmod )
+   throw( std::logic_error(
+		   "ObjectiveMod not allowed in PolyhedralFunctionBlock" ) );
+  }
+
+ // RowConstraintMod- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ {
+  const auto tmod = std::dynamic_pointer_cast<RowConstraintMod>( mod );
+  if( tmod ) {
+   // first check if it's about the box constraint on v
+   if( & f_bcv == tmod->constraint() ) {
+    if( ( tmod->type() == RowConstraintMod::eChgBTS ) ||
+	( ( tmod->type() == RowConstraintMod::eChgRHS ) &&
+	  f_polyf.is_convex() ) ||
+	( ( tmod->type() == RowConstraintMod::eChgLHS ) &&
+	  ( ! f_polyf.is_convex() ) ) )
+     throw( std::logic_error(
+		    "wrong RowConstraintMod in PolyhedralFunctionBlock" ) );
+
+    f_polyf.modify_bound( f_polyf.is_convex() ? f_bcv.get_lhs()
+			                      : f_bcv.get_rhs() ,
+			  make_par( eNoBlck , chnl ) );
+    return;
+    }
+
+   // now check if it's about one linear constraint
+   Index i = 0;
+   auto ci = f_const.begin();
+   for( ; ci != f_const.end() ; ++ci , ++i )
+    if( & (*ci) == tmod->constraint() )
+     break;
+
+   if( ci == f_const.end() )  // that's not in the linearized representation
+    return;                   // none of my business
+
+   if( ( tmod->type() == RowConstraintMod::eChgBTS ) ||
+       ( ( tmod->type() == RowConstraintMod::eChgRHS ) &&
+	 f_polyf.is_convex() ) ||
+       ( ( tmod->type() == RowConstraintMod::eChgLHS ) &&
+	 ( ! f_polyf.is_convex() ) ) )
+    throw( std::logic_error(
+		    "wrong RowConstraintMod in PolyhedralFunctionBlock" ) );
+
+   f_polyf.modify_constant( i , f_polyf.is_convex() ? ci->get_lhs()
+			                            : ci->get_rhs() ,
+			    make_par( eNoBlck , chnl ) );
+   return;
+   }
+  }
+
+ // VariableMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ {
+  const auto tmod = std::dynamic_pointer_cast<VariableMod>( mod );
+  if( tmod ) {
+   if( tmod->variable() == & f_v )
+    throw( std::logic_error(
+		          "wrong VariableMod in PolyhedralFunctionBlock" ) );
+   return;  // if it's not about v, none of my business
+   }
+  }
+
+ // C05FunctionModLinRngd - - - - - - - - - - - - - - - - - - - - - - - - - -
+ {
+  const auto tmod = std::dynamic_pointer_cast<C05FunctionModLinRngd>( mod );
+  if( tmod ) {
+   Index i = 0;
+   auto ci = f_const.begin();
+   for( ; ci != f_const.end() ; ++ci , ++i )
+    if( ci->get_function() == tmod->function() )
+     break;
+
+   if( ci == f_const.end() )  // that's not in the linearized representation
+    return;                   // none of my business
+
+   RealVector ai( f_polyf.get_A()[ i ] );
+   for( Index j = 0 ; j < tmod->delta().size() ; ++j )
+    ai[ tmod->range().first + j - 1 ] += tmod->delta()[ j ];
+
+   f_polyf.modify_row( i , std::move( ai ) , f_polyf.get_b()[ i ] ,
+		       make_par( eNoBlck , chnl ) );
+   return;
+   }
+  }
+
+ // C05FunctionModLinSbst - - - - - - - - - - - - - - - - - - - - - - - - - -
+ {
+  const auto tmod = std::dynamic_pointer_cast<C05FunctionModLinSbst>( mod );
+  if( tmod ) {
+   Index i = 0;
+   auto ci = f_const.begin();
+   for( ; ci != f_const.end() ; ++ci , ++i )
+    if( ci->get_function() == tmod->function() )
+     break;
+
+   if( ci == f_const.end() )  // that's not in the linearized representation
+    return;                   // none of my business
+
+   RealVector ai( f_polyf.get_A()[ i ] );
+   for( Index j = 0 ; j < tmod->subset().size() ; ++j )
+    ai[ tmod->subset()[ j ] - 1 ] += tmod->delta()[ j ];
+
+   f_polyf.modify_row( i , std::move( ai ) , f_polyf.get_b()[ i ] ,
+		       make_par( eNoBlck , chnl ) );
+   return;
+   }
+  }
+
+ // FunctionModVars - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // any addition/removal of Variables in the linearized representation is bad
+ {
+  const auto tmod = std::dynamic_pointer_cast<FunctionModVars>( mod );
+  if( tmod ) {
+   auto ci = f_const.begin();
+   for( ; ci != f_const.end() ; ++ci )
+    if( ci->get_function() == tmod->function() )
+     break;
+
+   if( ci != f_const.end() )  // it's in the linearized representation
+    throw( std::logic_error(
+	             "wrong FunctionModVars in PolyhedralFunctionBlock" ) );
+ 
+   return;  // else, none of my business
+   }
+  }
+
+ // FunctionMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // that's changing the constant, not good either
+ {
+  const auto tmod = std::dynamic_pointer_cast<FunctionMod>( mod );
+  if( tmod ) {
+   auto ci = f_const.begin();
+   for( ; ci != f_const.end() ; ++ci )
+    if( ci->get_function() == tmod->function() )
+     break;
+
+   if( ci != f_const.end() )  // it's in the linearized representation
+    throw( std::logic_error(
+			  "wrong FunctionMod in PolyhedralFunctionBlock" ) );
+ 
+   return;  // else, none of my business
+   }
+  }
+ }  // end( PolyhedralFunctionBlock::guts_of_add_Modification_LR )
+
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunctionBlock::ConstructLPConstraint( Index i ,
+						     FRowConstraint & ci )
+{
+ // if the PolyhedralFunction is convex, then the constraint is
+ // b_i <= v - A_i x <= INF, otherwise it is - INF <= v - A_i x <= b_i
+ ci.set_lhs( f_polyf.is_convex() ? f_polyf.get_b()[ i ]
+	                         : - Inf< Function::FunctionValue >() ,
+	     eNoMod );
+ ci.set_rhs( f_polyf.is_convex() ? Inf< Function::FunctionValue >()
+	                         : f_polyf.get_b()[ i ] ,
+	     eNoMod );
+
+ const auto nv = f_polyf.get_num_active_var();
+ LinearFunction::v_coeff_pair vars( nv + 1 );
+ auto vit = vars.begin();
+
+ // v is the *first* Variable of the LinearFunction, since it is the only
+ // one that "never moves"; as a consequence, x[ i ] is the (i+1)-th active
+ // Variable in each constraint
+ *(vit++) = std::make_pair( & f_v , 1 );
+
+ auto Aiit = f_polyf.get_A()[ i ].begin(); 
+ for( Index j = 0 ; j < nv ; ++j )
+  *(vit++) = std::make_pair( static_cast< ColVariable * >(
+					      f_polyf.get_active_var( j ) ) ,
+			     - *(Aiit++) );
+
+ ci.set_function( new LinearFunction( std::move( vars ) ) , eNoMod );
+
+ }  // end( PolyhedralFunctionBlock::ConstructLPConstraint )
 
 /*--------------------------------------------------------------------------*/
 /*--------------- End File PolyhedralFunctionBlock.cpp ---------------------*/

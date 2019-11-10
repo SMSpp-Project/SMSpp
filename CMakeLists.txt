@@ -10,9 +10,7 @@ cmake_minimum_required(VERSION 3.8...3.15)
 project(SMS++ VERSION 0.1.0 LANGUAGES CXX)
 
 # ----- Settings ------------------------------------------------------------ #
-if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
-    enable_testing()
-endif()
+include(CTest)
 
 # ----- Requirements -------------------------------------------------------- #
 # This is to use the find modules we provide
@@ -37,12 +35,14 @@ target_sources(SMSpp PRIVATE
                src/DQuadFunction.cpp
                src/FRealObjective.cpp
                src/FRowConstraint.cpp
+               src/Function.cpp
                src/LagBFunction.cpp
                src/LinearFunction.cpp
                src/Objective.cpp
                src/OneVarConstraint.cpp
                src/PolyhedralFunction.cpp
                src/RowConstraintSolution.cpp
+               src/PolyhedralFunctionBlock.cpp
                src/Solver.cpp
                src/ThinComputeInterface.cpp
                src/Variable.cpp)
@@ -110,18 +110,15 @@ install(FILES
 # Shipping custom find modules should not be encouraged because third
 # party developers should provide them.
 # We ship FindnetCDFCxx because the provided one has shortcomings.
-# We also ship FindEigen3 to support Eigen install-less usage.
 install(FILES
         ${CMAKE_CURRENT_LIST_DIR}/cmake/FindnetCDFCxx.cmake
-        ${CMAKE_CURRENT_LIST_DIR}/cmake/FindEigen3.cmake
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SMSpp)
 
 # ----- Export from the build tree ------------------------------------------ #
 # This is needed so other projects can find the library in a local build.
 # It does not affect installation.
 
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(CMAKE_EXPORT_PACKAGE_REGISTRY ON)
+if (CMAKE_EXPORT_PACKAGE_REGISTRY)
 
     export(EXPORT SMSpp-targets
            FILE ${CMAKE_CURRENT_BINARY_DIR}/SMSppTargets.cmake
@@ -141,6 +138,6 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif ()
 
 # ----- Unit testing -------------------------------------------------------- #
-if (CMAKE_TESTING_ENABLED)
+if (BUILD_TESTING)
     add_subdirectory(test)
 endif()
