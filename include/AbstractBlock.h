@@ -194,10 +194,7 @@ class AbstractBlock : public Block {
   *      OR, BETTER, WILL HANDLE WHEN THIS METHOD WILL BE IMPLEMENTED
   *
   * the "arbitrary" part, i.e., that after the "reserved" one as dictated
-  * by the get_first_*_*() methods. This in particular means that derived
-  * classes will have to read their data first, at least enough that these
-  * methods give the right answer, before calling the AbstractBlock version
-  * of the method.
+  * by the get_first_*_*() methods.
   *
   * In the current, partial implementation of the method, besides the
   * mandatory "type" attribute of any :Block, the group should contain the

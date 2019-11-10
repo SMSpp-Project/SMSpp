@@ -158,9 +158,9 @@ void FRealObjective::add_Modification( sp_Mod mod , c_ChnlName chnl )
 
  guts_of_aM( mod );  // now the actual call to the "guts of"
 
- // finally, dispatch to add_Modification() of the Block (if any)- - - - - - -
+ // finally, dispatch to add_Modification() of the Block - - - - - - - - - - -
 
- if( f_Block )
+ if( f_Block && f_Block->anyone_there() )  // ... if any, and listening
   f_Block->add_Modification( mod , chnl );
 
  }  // end( FRealObjective::add_Modification )

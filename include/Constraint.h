@@ -12,9 +12,9 @@
  * depends on a set of "active" Variable, it implements the
  * ThinVarDepInterface paradigm.
  *
- * \version 0.30
+ * \version 0.31
  *
- * \date 15 - 08 - 2018
+ * \date 31 - 10 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -326,8 +326,7 @@ class ConstraintMod : public AModification
   * order to allow derived classes to "extend" the set of possible types of
   * modifications. */
 
- ConstraintMod( Constraint *cnst , int mod = eRelaxConst ,
-		const bool cB = true )
+ ConstraintMod( Constraint *cnst , int mod = eRelaxConst , bool cB = true )
   : AModification( cB ) , f_constraint( cnst ) , f_type( mod ) { }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
@@ -336,6 +335,13 @@ class ConstraintMod : public AModification
 
 /*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
+ /// returns the Block to which the Constraint belongs
+
+ Block * get_Block( void ) const override  {
+  return( f_constraint->get_Block() );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to (the pointer to) the affected Constraint
 
  Constraint * constraint( void ) { return( f_constraint ); }
@@ -352,7 +358,7 @@ class ConstraintMod : public AModification
 /*-------------------------- PROTECTED METHODS -----------------------------*/
  /// print the ConstraintMod
 
- virtual inline void print( std::ostream &output ) const {
+ void print( std::ostream &output ) const override {
   output << "ConstraintMod[";
   if( concerns_Block() )
    output << "t]:";

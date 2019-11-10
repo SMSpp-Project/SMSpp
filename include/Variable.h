@@ -7,9 +7,9 @@
  * assumptions are made about what form the variable actually has, this
  * being demanded to derived classes.
  *
- * \version 0.20
+ * \version 0.21
  *
- * \date 19 - 02 - 2019
+ * \date 31 - 10 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -403,7 +403,7 @@ class VariableMod : public AModification {
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: takes the new state of the Variable and a pointer to it
 
- VariableMod( Variable *var , const bool cB = true )
+ VariableMod( Variable *var , bool cB = true )
   : AModification( cB ) , f_variable( var ) {}
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
@@ -412,6 +412,13 @@ class VariableMod : public AModification {
 
 /*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
+ /// returns the Block to which the Variable belongs
+
+ Block * get_Block( void ) const override {
+  return( f_variable->get_Block() );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to (the pointer to) the affected Variable
 
  Variable * variable( void ) { return( f_variable ); }
@@ -423,7 +430,7 @@ class VariableMod : public AModification {
 /*-------------------------- PROTECTED METHODS -----------------------------*/
  /// print the VariableMod
 
- virtual inline void print( std::ostream &output ) const {
+ void print( std::ostream &output ) const override {
   output << "VariableMod[";
   if( concerns_Block() )
    output << "t";

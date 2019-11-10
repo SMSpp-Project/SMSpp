@@ -11,9 +11,9 @@
  * paradigm. Also, since a Function depends on a set of "active" Variable, it
  * implements the ThinVarDepInterface paradigm.
  *
- * \version 0.40
+ * \version 0.41
  *
- * \date 08 - 10 - 2019
+ * \date 31 - 10 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -828,6 +828,11 @@ public:
  
 /*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
+ /// returns the Block to which the Observer of the Function belongs
+
+ Block * get_Block( void ) const override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to (the pointer to) the affected Constraint
 
  Function * function( void ) { return( f_function ); }
@@ -1112,6 +1117,11 @@ public:
 
 /*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
+ /// returns the Block to which the Observer of the Function belongs
+
+ Block * get_Block( void ) const override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to (the pointer to) the affected Constraint
 
  Function * function( void ) { return( f_function ); }

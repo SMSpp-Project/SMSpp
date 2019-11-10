@@ -6,9 +6,9 @@
  * which is a class that defines a row constraint in terms of an
  * externally-provided Function object.
  *
- * \version 0.30
+ * \version 0.31
  *
- * \date 14 - 03 - 2019
+ * \date 31 - 10 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -246,6 +246,18 @@ class FRowConstraint : public RowConstraint , Observer {
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the FRowConstraint
  *  @{ */
+
+ /// returns the Block to which this Observer belongs/
+ /** FRowConstraint is an Observer, and it belongs to the Block to which it
+  * belongs as a Constraint. However, note that FRowConstraint::get_Block()
+  * is virtual while Constraint::get_Block() is not, hence the former has to
+  * be explicitly implemented in terms of the latter. */
+
+ Block * get_Block( void ) const override {
+  return( Constraint::get_Block() );
+  }
+
+/*--------------------------------------------------------------------------*/
 
  ///< method to get a pointer to the Function of the FRowConstraint
  Function * get_function( void ) const { return( f_function ); }

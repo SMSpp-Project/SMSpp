@@ -12,7 +12,7 @@
  * depends on a set of "active" Variable, it implements the
  * ThinVarDepInterface paradigm.
  *
- * \version 0.30
+ * \version 0.31
  *
  * \date 03 - 11 - 2019
  *
@@ -439,16 +439,23 @@ class ObjectiveMod : public AModification {
 
  virtual ~ObjectiveMod() { }  ///< destructor: does nothing
 
-/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
- /// accessor to (the pointer to) the affected Objective
+ /// returns the Block to which the Objective belongs
 
- Objective * constraint( void ) { return( f_of ); }
+ Block * get_Block( void ) const override {
+  return( f_of->get_Block() );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// accessor to the type of Modification
+ /// accessor to (the pointer to) the affected Objective
 
- int type( void ) { return( f_type ); }
+ Objective * of( void ) const { return( f_of ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// accessor to type of Modificatiom
+
+ int type( void ) const { return( f_type ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -457,7 +464,7 @@ class ObjectiveMod : public AModification {
 /*-------------------------- PROTECTED METHODS -----------------------------*/
  /// print the ObjectiveMod
 
- virtual inline void print( std::ostream &output ) const {
+ void print( std::ostream &output ) const override {
   output << "ObjectiveMod[";
   if( concerns_Block() )
    output << "t";

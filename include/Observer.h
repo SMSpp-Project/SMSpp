@@ -132,6 +132,14 @@ class Observer {
 /** @name Methods describing the behavior of an Observer
  *  @{ */
 
+ /// returns the Block to which this Observer belongs, or is
+ /** Any Observer either is a Block, or belongs to one. This method has to
+  * return a pointer to such Block. */
+
+ virtual Block * get_Block( void ) const = 0;
+
+/*--------------------------------------------------------------------------*/
+ 
  /// returns true if there is "anybody listening to Modification"
  /** Returns true if there is "anybody listening to Modification". In case of
   * a Block, this typically means that there is some Solver "listening to

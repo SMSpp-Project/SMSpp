@@ -51,33 +51,39 @@ namespace SMSpp_di_unipi_it
  * maximum (or minimum) of a "small" number of explicitly provided affine
  * forms. In other words, if the PolyhedralFunction depends on a set of n
  * ColVariable, its input data is a m \times n matrix A and a m \times 1
- * vector b (with m given and small), so that
- *
- *   f(x) =  max \{ A_i x + b_i , i = 0, ..., m - 1 \}
- *
- * (in which case it is convex, exchange "max" with "min" to make it concave).
- * A "special", all-0 linearization (i.e., 0 x + b_m) is separately handled
- * with a dedicated mechanism. This could be explicitly represented as "any
- * one" of the linearizations that just so happened to have A_i == 0, but the
+ * vector b (with m given and "small"), so that
+ * \$[
+ *     pf( x ) = max \{ a_i x + b_i : i = 0, ... , m - 1 \}
+ * \$]
+ * in the convex case (pointwise maximum of linear functions), and
+ * \$[
+ *     pf( x ) = min \{ a_i x + b_i : i = 0, ... , m - 1 \}
+ * \$]
+ * in the concave one (pointwise minimum of linear functions). A "special",
+ * all-0 linearization (i.e., \$f 0 x + b_m \$f) is separately handled with a
+ * dedicated mechanism. This could be explicitly represented as "any one" of
+ * the linearizations that just so happened to have \$f A_i = 0 \$f, but the
  * dedicated mechanism both saves a tiny bit of memory, and especially
  * provides a finite lower (if the function is convex, upper otherwise) bound
  * on the value of the function everywhere that can be returned by
  *  get_global_[lower/upper]_bound().
  *
  * The function is anyhow finite-valued everywhere, and each of the pairs
- * ( A_i , b_i ) define one of the possible diagonal linearizations
- * (comprised the "flat" all-0 one associated with the lower/upper bound b_m,
- * is defined); thus far vertical linearizations are not handled, but adding
- * them would not be too much of an issue. The only exception is when m is 0,
- * in which case the function evaluates to - \infinity (in the convex case,
- * + \infinity on the concave one).
+ * \$f ( A_i , b_i ) \$f define one of the possible diagonal linearizations
+ * (comprised the "flat" all-0 one associated with the lower/upper bound
+ * \$f b_m \$f, if defined); thus far vertical linearizations are not handled,
+ * but adding them would not be too much of an issue. The only exception is
+ * when \$f m = 0 \$f and \$f b_m = - \infty \$f (in the convex case), in
+ * which case the function evaluates to \$f - \infty \$f (\$f + \infty \$f in
+ * the concave one with the obvious change).
  *
  * When the function is evaluated, all the m ( + 1 if the lower/upper bound is
- * defined) linearizations enter the local pool in order of their value v_i =
- * A_i x + b_i (non-increasing in the convex case, non-decreasing in the
- * concave one), and are reported in that order. The global pool is just a
- * subset of the fixed index set 0, ..., m - 1 (, m if the lower/upper bound
- * is defined), *except if aggregate linearizations are defined*. 
+ * defined) linearizations enter the local pool in order of their value
+ * \$f v_i = A_i x + b_i \$f (non-increasing in the convex case,
+ * non-decreasing in the concave one), and are reported in that order. The
+ * global pool is just a subset of the fixed index set 0, ..., m - 1 (, m if
+ * the lower/upper bound is defined), *except if aggregate linearizations are
+ * defined*. 
  *
  * PolyhedralFunction handles all possible changes in its input data:
  *
@@ -151,7 +157,8 @@ namespace SMSpp_di_unipi_it
  *   = any aggregated linearization is present in the global pool.
  *
  *   Otherwise no linearization is affected, and the PolyhedralFunctionMod*
- *   will have type() = C05FunctionMod::NothingChanged. */
+ *   will have type() = C05FunctionMod::NothingChanged. In all cases, the
+ *   PolyhedralFunctionMod* will have PFtype() == DeleteRows. */
 
 class PolyhedralFunction : public C05Function {
 
@@ -335,8 +342,8 @@ class PolyhedralFunction : public C05Function {
  {
   v_ord.resize( 1 );
   v_ord[ 0 ] = 0;
-  set_PolyhedralFunction( std::move( A ) , std::move( b ) , is_convex ,
-			  eNoMod );
+  set_PolyhedralFunction( std::move( x ) , std::move( A ) , std::move( b ) ,
+			  is_convex , eNoMod );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -535,6 +542,14 @@ class PolyhedralFunction : public C05Function {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// returns true if a finite lower/upper (if convex/concave) bound is set
+
+ bool is_bound_set( void ) const {
+  return( f_is_convex ? v_b.back() > -Inf<FunctionValue>()
+		      : v_b.back() <  Inf<FunctionValue>() );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns a (global) Lipschitz constant for the PolyhedralFunction
 
  FunctionValue get_Lipschitz_constant( void ) override final
@@ -720,7 +735,7 @@ class PolyhedralFunction : public C05Function {
   *   provided it means that no finite lower (upper) bound exist, i.e., the
   *   lower (upper) bound is -(+) Inf<FunctionValue>(). */
  
- void serialize( netCDF::NcGroup & group );
+ void serialize( netCDF::NcGroup & group ) const;
 
 /*--------------------------------------------------------------------------*/
  /// returns a (const reference) to the current A matrix in the mapping
@@ -1197,7 +1212,7 @@ class PolyhedralFunction : public C05Function {
   *        nothing). */  
 
  void modify_constants( c_RealVector & nb , Subset && rows ,
-			bool ordered , c_ModParam issueMod );
+			bool ordered , c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify only the constant term of one row of the linear mapping
@@ -1457,21 +1472,14 @@ class PolyhedralFunction : public C05Function {
 
 /*--------------------------------------------------------------------------*/
 
- bool is_f_computed( void ) {
+ bool is_f_computed( void ) const {
   return( f_is_convex ? f_value <  Inf<FunctionValue>()
 		      : f_value > -Inf<FunctionValue>() );
   }
 
 /*--------------------------------------------------------------------------*/
 
- bool is_bound_set( void ) {
-  return( f_is_convex ? v_b.back() > -Inf<FunctionValue>()
-		      : v_b.back() <  Inf<FunctionValue>() );
-  }
-
-/*--------------------------------------------------------------------------*/
-
- FunctionValue get_default_bound( void ) {
+ FunctionValue get_default_bound( void ) const {
   return( f_is_convex ? -Inf<FunctionValue>() : Inf<FunctionValue>() );
   }
 
@@ -1835,16 +1843,17 @@ class PolyhedralFunctionModSbst : public PolyhedralFunctionMod {
  /// constructor: like that of PolyhedralFunctionMod + the added rows
  /** Constructor: takes a pointer to the affected C05Function, the type of the
   * C05FunctionMod, the type of the PolyhedralFunctionMod, the Subset of
-  * concerned rows, whether or not the subset is ordered, the value of the
-  * shift, and the "concerns Block" value. As the && tells, the rows
-  * parameter becomes property of the PolyhedralFunctionModRng. */
+  * concerned rows (which is *always* expected to be ordered in increasing
+  * sense), the value of the shift, and the "concerns Block" value. As the &&
+  * tells, the rows parameter becomes property of the
+  * PolyhedralFunctionModRng. */
 
  explicit PolyhedralFunctionModSbst( C05Function * f , int type , int pftype ,
-				     Subset && rows , bool ordered = false ,
+				     Subset && rows ,
 				     FunctionValue shift = NaNshift ,
 				     bool cB = true )
   : PolyhedralFunctionMod( f , type , shift , cB ) , f_PFtype( pftype ) ,
-    v_rows( std::move( rows ) ) , f_ordered( ordered ) { }
+    v_rows( std::move( rows ) ) { }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
@@ -1860,11 +1869,6 @@ class PolyhedralFunctionModSbst : public PolyhedralFunctionMod {
  /// accessor to the subset of the deleted Variable
 
  c_Subset & rows( void ) { return( v_rows ); }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// accessor to the ordered status
-
- bool ordered( void ) { return( f_ordered ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1883,8 +1887,6 @@ class PolyhedralFunctionModSbst : public PolyhedralFunctionMod {
    output << "f";
   output << "] on PolyhedralFunction [" << &f_function << " ]: "
 	 << v_rows.size();
-  if( f_ordered )
-   output << " (ordered)";
   if( f_PFtype == ModifyCnst )
    output << " constants";
    else
@@ -1901,8 +1903,6 @@ class PolyhedralFunctionModSbst : public PolyhedralFunctionMod {
  int f_PFtype;    ///< the exact PolyhedralFunction-specific operation
 
  Subset v_rows;   ///< the set of affected rows
-
- bool f_ordered;  ///< true if v_subset is ordered
 
 /*--------------------------------------------------------------------------*/
 
