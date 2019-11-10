@@ -342,8 +342,9 @@ class PolyhedralFunction : public C05Function {
  {
   v_ord.resize( 1 );
   v_ord[ 0 ] = 0;
-  set_PolyhedralFunction( std::move( x ) , std::move( A ) , std::move( b ) ,
-			  is_convex , eNoMod );
+  set_variables( std::move( x ) );
+  set_PolyhedralFunction( std::move( A ) , std::move( b ) , is_convex ,
+			  eNoMod );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -837,66 +838,14 @@ class PolyhedralFunction : public C05Function {
 /** @name Methods for modifying the PolyhedralFunction
  *  @{ */
 
-/*--------------------------------------------------------------------------*/
-  /// completely resets the PolyhedralFunction
- /** Completely resets the PolyhedralFunction, with entirely new data and a
-  * new set of active variables. This is basically the constructor.
-  *
-  * @param x a n-vector of pointers to ColVariable representing the x variable
-  *        vector in the definition of the function. Note that the order of
-  *        the variables in x is crucial, since the correspondence with A is
-  *        positional (see below), and the order dictates the index of the
-  *        "active" Variable: after the call, x[ 0 ] == get_active_var( 0 ),
-  *        x[ 1 ] = get_active_var( 1 ), ...
-  *
-  * @param A a m-vector of n-vectors of FunctionValue representing the A
-  *        matrix in the definition of the function; the correspondence
-  *        between A[][] and x[] is positional, i.e., entry A[ i ][ j ] is
-  *        (obviously) meant to be the coefficient of variable *x[ j ] (i.e.,
-  *        get_active_var( j )) for the i-th row;
-  *
-  * @param b a k-vector of FunctionValue representing the b vector in the
-  *        definition of the function (that is, b[ i ] is the constant factor
-  *        of the i-th linear form); note that both k == m and k == m + 1 is
-  *        possible: in the latter case, b[ m ] is taken to be the value of
-  *        the global [lower/upper] bound on the function value, i.e., the
-  *        constant coefficient associated with the all-0 row;
-  *
-  * @param is_convex a boolean indicating whether the function has to be
-  *        defined as the maximization of the provided linear (affine)
-  *        functions, and therefore is a convex function, or as the
-  *        minimization and therefore it is a concave function.
-  *
-  * @param issueMod which decides if and how the FunctionMod (with shift()
-  *        == FunctionMod::NaNshift, i.e., "everything changed") is issued,
-  *        as described in Observer::make_par().
-  *
-  * This completely resets the PolyhedralFunction, which means that all data
-  * is supposed to be provided, and that the data sizes must agree. Ways to
-  * "partly" reset the PolyhedralFunction are provided by other overloaded
-  * versions of this method.
-  *
-  * As the && implies, A, b and x become property of the PolyhedralFunction
-  * object. */
-
- void set_PolyhedralFunction( VarVector && x , MultiVector && A ,
-			      RealVector && b , bool is_convex = true ,
-			      c_ModParam issueMod = eModBlck )
- {
-  set_variables( std::move( x ) );
-  set_PolyhedralFunction( std::move( A ) , std::move( b ) , is_convex ,
-			  issueMod );
-  }
-
-/*--------------------------------------------------------------------------*/
  /// completely resets the PolyhedralFunction with entirely new data
  /** Completely resets the PolyhedralFunction with entirely new data,
   * but leaving the current set of n = get_num_active_var() input Variable:
   *
   * @param A a m-vector of n-vectors of FunctionValue representing the A
   *        matrix in the definition of the function; entry A[ i ][ j ] is
-  *        (obviously) meant to be the coefficient of variable get_active_var(
-  *        j ) for the i-th row;
+  *        (obviously) meant to be the coefficient of variable
+  *        get_active_var( j ) for the i-th row;
   *
   * @param b a k-vector of FunctionValue representing the b vector in the
   *        definition of the function (that is, b[ i ] is the constant factor
