@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 07 - 11 - 2019
+ * \date 10 - 11 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -71,11 +71,13 @@ void BendersBFunction::deserialize( netCDF::NcGroup & group ,
  c_Index nvar = get_num_active_var(); // TODO should we deserialize the set of
                                       // active Variable?
 
- auto nv = group.getDim( "BendersBFunction_NumVar" );
- if( nv.isNull() )
-  throw( std::logic_error( "BendersBFunction::deserialize: BendersBFunction_"
+ auto ncDim_NumVar = group.getDim( "NumVar" );
+
+ if( ncDim_NumVar.isNull() )
+  throw( std::logic_error( "BendersBFunction::deserialize: "
                            "NumVar dimension is required." ) );
- if( nv.getSize() != nvar )
+
+ if( ncDim_NumVar.getSize() != nvar )
   throw( std::invalid_argument( "BendersBFunction::deserialize: matrix A has a "
                                 "wrong number of columns in the given "
                                 "netCDF::NcGroup." ) );
@@ -83,34 +85,78 @@ void BendersBFunction::deserialize( netCDF::NcGroup & group ,
  MultiVector tA;
  RealVector tb;
 
- netCDF::NcDim nr = group.getDim( "BendersBFunction_NumRow" );
- if( ( ! nr.isNull() ) && ( nr.getSize() ) ) {
-   netCDF::NcVar ncdA = group.getVar( "BendersBFunction_A" );
-   if( ncdA.isNull() )
-    throw( std::logic_error( "BendersBFunction::deserialize: "
-                             "BendersBFunction_A not found" ) );
+ netCDF::NcDim ncDim_NumRow = group.getDim( "NumRow" );
+ if( ( ! ncDim_NumRow.isNull() ) && ( ncDim_NumRow.getSize() ) ) {
+   netCDF::NcVar ncVar_A = group.getVar( "A" );
+   if( ncVar_A.isNull() )
+    throw( std::logic_error( "BendersBFunction::deserialize: A not found" ) );
 
-   netCDF::NcVar ncdb = group.getVar( "BendersBFunction_b" );
-   if( ncdb.isNull() )
-    throw( std::logic_error( "BendersBFunction::deserialize: "
-                             "BendersBFunction_b not found" ) );
+   netCDF::NcVar ncVar_b = group.getVar( "b" );
+   if( ncVar_b.isNull() )
+    throw( std::logic_error( "BendersBFunction::deserialize: b not found" ) );
 
-  tA.resize( nr.getSize() );
+  tA.resize( ncDim_NumRow.getSize() );
   for( Index i = 0 ; i < tA.size() ; ++i ) {
    tA[ i ].resize( nvar );
-   ncdA.getVar( { i , 0 } , { 1 , nvar } , tA[ i ].data() );
+   ncVar_A.getVar( { i , 0 } , { 1 , nvar } , tA[ i ].data() );
    }
 
-  tb.resize( nr.getSize() );
-  ncdb.getVar( tb.data() );
+  tb.resize( ncDim_NumRow.getSize() );
+  ncVar_b.getVar( tb.data() );
   }
 
- // TODO deserialize the vector of ConstraintSpecifier
+ auto inner_block_group = group.getGroup( "InnerBlock" );
+ if( ! inner_block_group.isNull() ) {
 
- // set_mapping( std::move( tA ) , std::move( tb ) ,
- //              std::move( constraints ) , issueMod );
+  auto inner_block = get_inner_block();
 
- }  // end( BendersBFunction::deserialize )
+  if( ! inner_block ) {
+   auto class_name_attribute = inner_block_group.getAtt( "Type" );
+
+   if( class_name_attribute.isNull() )
+    throw ( std::invalid_argument( "BendersBFunction::deserialize: Type "
+                                   "attribute is not present in the "
+                                   "InnerBlock group." ) );
+
+   std::string class_name;
+   class_name_attribute.getValues( class_name );
+   inner_block = new_Block( class_name, this );
+  }
+
+  set_inner_block( inner_block );
+  inner_block->deserialize( inner_block_group );
+ }
+
+ std::vector<ConstraintSpecifier> constraints;
+ constraints.reserve( tA.size() );
+
+ for( Index i = 0 ; i < tA.size() ; ++i ) {
+
+  auto cs_group_name = "ConstraintSpecifier_" + std::to_string( i );
+  auto cs_group = group.getGroup( cs_group_name );
+  if( cs_group.isNull() )
+   throw ( std::invalid_argument( "BendersBFunction::deserialize: Group " +
+                                  cs_group_name + " is not present." ) );
+
+  //auto path = ::deserialize_path( cs_group , "Path" );
+  //auto constraint = ::get_constraint( get_inner_block() , path );
+  auto constraint = nullptr;
+
+  ConstraintSide side;
+  ::deserialize( cs_group , "Side" , & side , false );
+
+  constraints.push_back( ConstraintSpecifier( constraint , side ) );
+ }
+
+ set_mapping( std::move( tA ) , std::move( tb ) ,
+              std::move( constraints ) , issueMod );
+
+ for( Index i = 0 ; i < ncDim_NumVar.getSize() ; ++i ) {
+  //auto path = ::deserialize_path( group , "Variable_" + std::to_string( i ) );
+  //auto variable = ::get_variable( get_inner_block() , path );
+ }
+
+}  // end( BendersBFunction::deserialize )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -1236,22 +1282,45 @@ void BendersBFunction::serialize( netCDF::NcGroup & group ) const {
 
  c_Index nvar = get_num_active_var();
 
- netCDF::NcDim nv = group.addDim( "BendersBFunction_NumVar" , nvar );
+ auto NcDim_NumVar = group.addDim( "NumVar" , nvar );
 
  if( v_A.size() ) {
-  netCDF::NcDim nr = group.addDim( "BendersBFunction_NumRow" , v_A.size() );
+  auto NcDim_NumRow = group.addDim( "NumRow" , v_A.size() );
 
-  auto ncdA = group.addVar( "BendersBFunction_A" , netCDF::NcDouble() ,
-			    { nr , nv } );
+  auto NcVar_A = group.addVar( "A" , netCDF::NcDouble() ,
+			    { NcDim_NumRow , NcDim_NumVar } );
 
   for( Index i = 0 ; i < v_A.size() ; ++i )
-   ncdA.putVar( { i , 0 } , { 1 , nvar } , v_A[ i ].data() );
+   NcVar_A.putVar( { i , 0 } , { 1 , nvar } , v_A[ i ].data() );
 
-  ( group.addVar( "BendersBFunction_b" , netCDF::NcDouble() , nr ) ).putVar(
-				      { 0 } , { v_A.size() } , v_b.data() );
-  }
+ ::serialize( group , "b" , netCDF::NcDouble() ,
+              NcDim_NumRow , v_b );
+ }
 
  // TODO serialize the vector of ConstraintSpecifier
+
+ for( Index i = 0 ; i < v_constraints.size() ; ++i ) {
+  auto cs_group = group.addGroup( "ConstraintSpecifier_" +
+                                  std::to_string( i ) );
+  auto constraint = v_constraints[ i ].first;
+  /*
+  auto path = get_path( constraint , constraint->get_Block() ,
+                        this->get_inner_block() );
+  ::serialize( cs_group , "Path" , path );
+  */
+  ::serialize( cs_group, "Side", netCDF::NcByte(), v_constraints[ i ].second );
+ }
+
+ for( Index i = 0 ; i < nvar ; ++i ) {
+  auto variable = get_active_var( i );
+  /*
+  auto path = ::get_path( variable , variable->get_Block() ,
+                          this->get_inner_block() );
+  ::serialize( group , "Variable_" + std::to_string( i ) , path );
+  */
+ }
+
+
 }
 
 /*--------------------------------------------------------------------------*/
