@@ -4141,7 +4141,12 @@ class Block : public Observer {
   * method, instead, the Solver are directly constructed (using the Solver
   * factory) inside the Block, and correspondingly each Solver that gets
   * un-registered is also immediately deleted. Mixing the two styles of
-  * managing Solver is therefore tricky and cautions should be exercised. */
+  * managing Solver is therefore tricky and caution should be exercised.
+  *
+  * Finally, note that the BlockSolverConfig pointed by svcc is not changed
+  * by the call, and it is *not* retained by the Block. This means that it
+  * can (and should) be deleted after the call (provided it is not useful
+  * later). */
 
  virtual void set_SolverConfig( BlockSolverConfig * svcc = nullptr );
 

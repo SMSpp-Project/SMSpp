@@ -557,10 +557,23 @@ int main( int argc , char **argv )
 
  // attach the Solver to the Block- - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // do this by reading appropriate BlockSolverConfig from files and use
+ // set_SolverConfig()
 
  LPBlock->register_Solver( Solver::new_Solver( "CPXMILPSolver" ) );
 
- NDOBlock->register_Solver( Solver::new_Solver( "BundleSolver" ) );
+ ifstream BundleParFile( "BundlePar.txt" );
+ if( ! BundleParFile.is_open() ) {
+  cerr << "Error: cannot open file BundlePar.txt" << endl;
+  return( 1 );
+  }
+
+ BlockSolverConfig * bsc = new BlockSolverConfig;
+ BundleParFile >> *( bsc );
+ BundleParFile.close();
+
+ NDOBlock->set_SolverConfig( bsc );
+ delete bsc;
 
  #if( LOG_LEVEL >= 2 )
   ((LPBlock->get_registered_solvers()).front())->set_par(

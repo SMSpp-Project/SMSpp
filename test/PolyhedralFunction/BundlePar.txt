@@ -1,0 +1,76 @@
+# BlockSolverConfig - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+0  # configuration is not a "differential" one
+
+1  # number of the names of Solver
+BundleSolver # name of Solver
+
+1
+ComputeConfig # description of the :ComputeConfig object  - - - - - - - - - 
+
+0  # f_diff, all the parameters that are *not* specified has to be set to 
+   # the default value
+
+18 # the dimension "num_int_par" 
+
+intMaxIter 100    # MaxIter, max number of iterations for each call
+intLogVerb 2      # LogVerb, 
+
+intBPar1   20     # discard items when they have been useless for <this> iterations
+intBPar6   0      # second parameter for dynamic max n. of items per iteration
+intMnSSC   0      # min number of consecutive SS with the same t for a t increase
+intMnNSC   3      # min number of consecutive NS with the same t for a t decrease
+inttSPar1  12     # long-term t-strategy (0 = none, 4 = soft, 8 = hard, 12 = balancing)
+
+intMaxNrEvls  2   # maximum number of function evaluations at each iteration 
+intKpBstL  0      # true if LmbdBst has to be kept, false otherwise
+
+intMPName  0      # true if MP solver is a QPPenalty, otherwise MP is a OSiMPSolver
+                  # QPPenalty's parameters : - - - - - -
+                  
+intMPlvl   2      # log verbosity of Master Problem
+                  
+intQPmp1   0	  # MxAdd, how many variables can be added to the base at each
+      	          # iteration in BMinQuad (0 = at will)
+intQPmp2   0      # MxRmv, how many variables can be removed from the base at each
+      	          # iteration in BMinQuad (0 = at will)
+                  # OSiMPSolver's parameters : - - - - - -
+intOSImp1  4      # CPLEX algorithm
+intOSImp2  0      # pre-processing (reduction)
+intOSImp3  1      # threads
+intOSImp4  3      # stabilization
+intOSImp5  1      # OsiCpxSolverInterface
+
+19 # the dimension "num_dbl_par" 
+
+dblRelAcc  1e-8   # RelAcc
+dblRAccSol 1e-8   # precision required to the MP Solver (optimality)
+dblFAccSol 1e-8   # precision required to the MP Solver (feasibility)
+
+dbltStar   1e2    # stopping parameter
+dblEInit   0.1    # initial precision to the C05Function
+dblBPar3   1      # max n. of items to fetch from Fi() at each iteration
+dblBPar4   1      # BPar4,
+dblBPar5   4      # first parameter for dynamic max n. of items per iteration
+dblm1      -0.1   # parameter: SS if improvement >= | m1 | * ( predicted improvement )
+dblm3      0.9    # parameter: if Alfa1 >= m3 * Sigma, decrease t
+dblmxIncr  10     # max increase of t
+dblmnIncr  1.5    # min increase of t (each time it is increased)
+dblmxDecr  0.1    # max decrease of t
+dblmnDecr  0.66   # min decrease of t (each time it is decreased)
+dbltMaior  1e+6   # maximum value for t
+dbltMinor  1e-4   # minimum value for t
+dbltInit   1      # initial value for t
+dbltSPar2  0.001  # parameter for the long-term t-strategy
+
+dblQPmp1   0.01   # cut-off factor for pricing in MinQuad
+        
+0 # the dimension "num_str_par" 
+
+* # pointer to the "extra" Configuration of BundleSolver (none)
+
+0 # dimension "n_BlockSolverConfig"
+
+# - - - - - - - - - - - - - - - END  test.lukfi - - - - - - - - - - - - - - -
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
