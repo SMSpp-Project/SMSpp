@@ -100,6 +100,7 @@ using c_FunctionValue = Function::c_FunctionValue;
 /*--------------------------------------------------------------------------*/
 
 const double scale = 10;
+const char *const logF = "log.bn";
 
 const FunctionValue INF = SMSpp_di_unipi_it::Inf< FunctionValue >();
 
@@ -568,6 +569,11 @@ int main( int argc , char **argv )
   return( 1 );
   }
 
+ auto PF = dynamic_cast< PolyhedralFunction * >(
+	       NDOBlock->get_objective< FRealObjective >()->get_function() );
+ PANIC( PF );
+ PF->set_par( C05Function::intGPMaxSz , 400 );
+
  BlockSolverConfig * bsc = new BlockSolverConfig;
  BundleParFile >> *( bsc );
  BundleParFile.close();
@@ -575,10 +581,20 @@ int main( int argc , char **argv )
  NDOBlock->set_SolverConfig( bsc );
  delete bsc;
 
+ Solver * slvr = (LPBlock->get_registered_solvers()).front();
+
  #if( LOG_LEVEL >= 2 )
-  ((LPBlock->get_registered_solvers()).front())->set_par(
-			      CPXMILPSolver::strOutputFile , "LPBlock.lp" );
+  slvr->set_par( CPXMILPSolver::strOutputFile , "LPBlock.lp" );
  #endif
+
+ // open log-file - - - - - - - - - - -  - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ ofstream LOGFile( logF , ofstream::out );
+ if( ! LOGFile.is_open() )
+  cerr << "Warning: cannot open log file """ << logF << """" << endl;
+ else
+  slvr->set_log( &LOGFile );
 
  // first solver call - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

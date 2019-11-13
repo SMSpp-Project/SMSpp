@@ -12,12 +12,11 @@ ComputeConfig # description of the :ComputeConfig object  - - - - - - - - -
 0  # f_diff, all the parameters that are *not* specified has to be set to 
    # the default value
 
-19 # the dimension "num_int_par" 
+18 # the dimension "num_int_par" 
 
 intMaxIter 100    # MaxIter, max number of iterations for each call
 intLogVerb 2      # LogVerb, 
 
-intGPMaxSz 400    # GPMaxSz
 intBPar1   20     # discard items when they have been useless for <this> iterations
 intBPar6   0      # second parameter for dynamic max n. of items per iteration
 intMnSSC   0      # min number of consecutive SS with the same t for a t increase
