@@ -581,11 +581,7 @@ int main( int argc , char **argv )
  NDOBlock->set_SolverConfig( bsc );
  delete bsc;
 
- Solver * slvr = (LPBlock->get_registered_solvers()).front();
-
- #if( LOG_LEVEL >= 2 )
-  slvr->set_par( CPXMILPSolver::strOutputFile , "LPBlock.lp" );
- #endif
+ Solver * slvr = (NDOBlock->get_registered_solvers()).front();
 
  // open log-file - - - - - - - - - - -  - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -595,6 +591,11 @@ int main( int argc , char **argv )
   cerr << "Warning: cannot open log file """ << logF << """" << endl;
  else
   slvr->set_log( &LOGFile );
+
+ #if( LOG_LEVEL >= 2 )
+  ((LPBlock->get_registered_solvers()).front())->set_par(
+	      CPXMILPSolver::strOutputFile , "LPBlock.lp" );
+ #endif
 
  // first solver call - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
