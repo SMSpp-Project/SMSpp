@@ -44,7 +44,7 @@ intOSImp5  1      # OsiCpxSolverInterface
 
 19 # the dimension "num_dbl_par" 
 
-dblRelAcc  1e-8   # RelAcc
+dblRelAcc  1e-9   # RelAcc
 dblRAccSol 1e-8   # precision required to the MP Solver (optimality)
 dblFAccSol 1e-8   # precision required to the MP Solver (feasibility)
 
