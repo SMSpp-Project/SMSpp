@@ -624,7 +624,7 @@ bool un_any_static( boost::any & any , F f , un_any_type<T> ) {
  }
 
 template<typename T , class F>
-bool un_any_static( boost::any , F , un_any_type<T> , un_any_int<9> )
+bool un_any_static( boost::any & , F , un_any_type<T> , un_any_int<9> )
 {
  return( false );
  }
@@ -644,6 +644,7 @@ bool un_any_static( boost::any & any , F f , un_any_type<T> ,
  }
 
 /*--------------------------------------------------------------------------*/
+
 /** The template function
  *
  *   bool un_any_static_2( boost::any & any1 , boost::any & any2 ,
@@ -729,7 +730,7 @@ bool un_any_static_2( const boost::any & any1 , const boost::any & any2 ,
  }
 
 template<typename T , typename U , class F>
-bool un_any_static_2( const boost::any , const boost::any , F ,
+bool un_any_static_2( const boost::any & , const boost::any & , F ,
 		      un_any_type<T> , un_any_type<U> , un_any_int<9> )
 {
  return( false );
@@ -928,7 +929,7 @@ bool un_any_const_static( const boost::any & any , F f , un_any_type<T> ) {
  }
 
 template<typename T , class F>
-bool un_any_const_static( const boost::any , F , un_any_type<T> ,
+bool un_any_const_static( const boost::any & , F , un_any_type<T> ,
 			  un_any_int<9> )
 {
  return( false );
@@ -998,7 +999,7 @@ bool un_any_dynamic( boost::any & any , F f , un_any_type<T> ) {
  }
 
 template<typename T , class F>
-bool un_any_dynamic( boost::any , F , un_any_type<T> , un_any_int<9> )
+bool un_any_dynamic( boost::any & , F , un_any_type<T> , un_any_int<9> )
 {
  return( false );
  }
@@ -1096,7 +1097,7 @@ bool un_any_dynamic_2( const boost::any & any1 , const boost::any & any2 ,
  }
 
 template<typename T , typename U , class F>
-bool un_any_dynamic_2( const boost::any , const boost::any , F ,
+bool un_any_dynamic_2( const boost::any & , const boost::any & , F ,
                        un_any_type<T> , un_any_type<U> , un_any_int<9> )
 {
  return( false );
@@ -1295,7 +1296,7 @@ bool un_any_const_dynamic( const boost::any & any , F f , un_any_type<T> ) {
  }
 
 template<typename T , class F>
-bool un_any_const_dynamic( const boost::any , F , un_any_type<T> ,
+bool un_any_const_dynamic( const boost::any & , F , un_any_type<T> ,
 			   un_any_int<9> )
 {
  return( false );
