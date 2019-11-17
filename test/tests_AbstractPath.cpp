@@ -2,11 +2,11 @@
 /*---------------------- File tests_AbstractPath.cpp -----------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Main for testing AbstractPath
+ * Implementation of the tests for AbstractPath.
  *
  * \version 0.10
  *
- * \date 16 - 11 - 2019
+ * \date 17 - 11 - 2019
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -20,7 +20,6 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#include <iostream>
 #include <random>
 #include <utility>
 
@@ -28,12 +27,9 @@
 #include "AbstractPath.h"
 #include "Block.h"
 #include "BendersBFunction.h"
-#include "Constraint.h"
 #include "FRealObjective.h"
 #include "FRowConstraint.h"
 #include "LagBFunction.h"
-#include "OneVarConstraint.h"
-#include "RowConstraint.h"
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------------- USING -----------------------------------*/
@@ -47,6 +43,20 @@ using namespace SMSpp_di_unipi_it;
 
 using Int = std::size_t;
 
+/*--------------------------------------------------------------------------*/
+/*----------------------------- TYPES TRAITS -------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+template< class T >
+struct has_function :
+ std::bool_constant< std::is_base_of_v< FRealObjective , T > ||
+                     std::is_base_of_v< FRowConstraint , T > >{};
+
+template< class T >
+inline constexpr bool has_function_v = has_function< T >::value;
+
+/*--------------------------------------------------------------------------*/
+/*-------------------------------- CLASSES ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 class IElementGenerator {
@@ -124,6 +134,39 @@ private:
 
 /*--------------------------------------------------------------------------*/
 
+class IFunctionGenerator {
+public:
+ virtual ~IFunctionGenerator() {}
+ virtual Int gen_function_type() = 0;
+};
+
+/*--------------------------------------------------------------------------*/
+
+template< class Generator = std::mt19937 , class S = Int >
+class FunctionGenerator final : public IFunctionGenerator {
+
+public:
+
+ using Interval = std::pair< Int , Int >;
+
+ FunctionGenerator( Interval function_type , S seed ) :
+  function_type_dist( function_type.first , function_type.second ) ,
+  generator ( seed ) {}
+
+ ~FunctionGenerator() {}
+
+ virtual Int gen_function_type() override {
+  return function_type_dist( generator );
+ }
+
+private:
+
+ std::uniform_int_distribution< Int > function_type_dist;
+ Generator generator;
+};
+
+/*--------------------------------------------------------------------------*/
+
 class IBlockGenerator {
 public:
  virtual ~IBlockGenerator() {}
@@ -166,16 +209,31 @@ public:
   delete static_variable_generator;
   delete dynamic_constraint_generator;
   delete dynamic_variable_generator;
+  delete function_generator;
   delete block_generator;
  }
+
+ AbstractBlockRandomNumberGenerator() = default;
+
+ AbstractBlockRandomNumberGenerator
+ ( const AbstractBlockRandomNumberGenerator & ) = delete;
+
+ AbstractBlockRandomNumberGenerator & operator=
+ ( const AbstractBlockRandomNumberGenerator & ) = delete;
+
+ AbstractBlockRandomNumberGenerator
+ ( AbstractBlockRandomNumberGenerator && ) = delete;
+
+ AbstractBlockRandomNumberGenerator & operator=
+ ( AbstractBlockRandomNumberGenerator && ) = delete;
 
  IElementGenerator * static_constraint_generator;
  IElementGenerator * static_variable_generator;
  IElementGenerator * dynamic_constraint_generator;
  IElementGenerator * dynamic_variable_generator;
+ IFunctionGenerator * function_generator;
  IBlockGenerator * block_generator;
 };
-
 
 /*--------------------------------------------------------------------------*/
 
@@ -183,7 +241,8 @@ class AbstractBlockGenerator final {
 
 public:
 
- enum GroupType { eSingle , eVector , eMultiArray };
+ enum GroupType { eSingleton , eVector , eMultiArray };
+ enum FunctionType { eLinear , eBenders , eLag };
 
  AbstractBlockGenerator( AbstractBlockRandomNumberGenerator * generator ) {
   this->generator = generator;
@@ -191,94 +250,143 @@ public:
 
  AbstractBlock * generate( int depth ) {
   auto block = new AbstractBlock();
-
-  block->set_objective( new FRealObjective() );
-
-  generate_elements( block );
-
+  generate_objective( block );
+  generate_groups( block );
   if( depth > 0 )
    generate_nested_blocks( block , depth - 1 );
   return block;
  }
 
- void generate_elements( AbstractBlock * block ) {
-  generate_elements< ColVariable , false >
+private:
+
+ template< class T >
+ typename std::enable_if_t< ! has_function_v< T > >
+ generate_function( T * ) {}
+
+ template< class T >
+ typename std::enable_if_t< has_function_v< T > >
+ generate_function( T * t ) {
+  Function * function = nullptr;
+  switch( generator->function_generator->gen_function_type() ) {
+   case( eLinear ):
+    function = new LinearFunction();
+    break;
+   case( eBenders ):
+    function = new BendersBFunction( nullptr );
+    break;
+   case( eLag ):
+    function = new LagBFunction();
+    break;
+  }
+  t->set_function( function );
+ }
+
+ template < template < class , class > class C ,
+            class T , class A = std::allocator< T > >
+ typename std::enable_if_t< ! has_function_v< T > >
+ generate_functions( const C< T , A > & ) {}
+
+ template <template < class , class > class C ,
+           class T , class A = std::allocator< T > >
+ typename std::enable_if_t< has_function_v< T > >
+ generate_functions( const C< T , A > & c ) {
+  for( auto & e : c )
+   generate_function( const_cast< T * >( & e ) );
+ }
+
+ void generate_objective( AbstractBlock * block ) {
+  auto objective = new FRealObjective();
+  generate_function( objective );
+  block->set_objective( objective );
+ }
+
+ void generate_groups( AbstractBlock * block ) {
+  generate_groups< ColVariable , false >
    ( [ block ]( auto * e ) { block->add_static_variable( * e ); } ,
      generator->static_variable_generator );
 
-
-  generate_elements< std::list< ColVariable > , true >
+  generate_groups< std::list< ColVariable > , true >
    ( [ block ]( auto * e ) { block->add_dynamic_variable( * e ); } ,
      generator->dynamic_variable_generator );
 
-  generate_elements< FRowConstraint , false >
+  generate_groups< FRowConstraint , false >
    ( [ block ]( auto * e ) { block->add_static_constraint( * e ); } ,
      generator->static_constraint_generator  );
 
-  generate_elements< std::list< FRowConstraint > , true >
+  generate_groups< std::list< FRowConstraint > , true >
    ( [ block ]( auto * e ) { block->add_dynamic_constraint( * e ); } ,
      generator->dynamic_constraint_generator  );
  }
 
  template< class T , bool dynamic , class F >
- void generate_elements( F add , IElementGenerator * generator ) {
-
-  int num_groups = generator->gen_num_groups();
-
+ void generate_groups( const F & add , IElementGenerator * generator ) {
+  auto num_groups = generator->gen_num_groups();
   for( int i = 0 ; i < num_groups ; ++i ) {
+   auto group_type = GroupType( generator->gen_group_type() % 3 );
+   generate_group< T , dynamic , F >( group_type , add , generator );
+  }
+ }
 
-   auto group_type = generator->gen_group_type() % 3;
+ template< class T , bool dynamic , class F >
+ void generate_group( const GroupType group_type , const F & add ,
+                      IElementGenerator * generator ) {
+  switch( group_type ) {
+   case( eSingleton ):
+    generate_singleton_group< T , dynamic , F >( add , generator );
+    break;
 
-   switch( group_type ) {
+   case( eVector ):
+    generate_vector_group< T , dynamic , F >( add , generator );
+    break;
 
-    case( eSingle ): {
-
-     auto t = new T();
-
-     if constexpr( dynamic ) {
-      auto num_elements = generator->gen_list_size();
-      t->resize( num_elements );
-     }
-
-     add( t );
-     break;
-    }
-
-    case( eVector ): {
-
-     auto size = generator->gen_vector_size();
-     auto vector = new std::vector< T >( size );
-
-     if constexpr( dynamic ) {
-       for( auto & e : * vector ) {
-        auto num_elements = generator->gen_list_size();
-        e.resize( num_elements );
-       }
-     }
-
-     add( vector );
-     break;
-    }
-
-    case( eMultiArray ): {
-     auto k = generator->gen_multi_array_num_dim();
-     switch( k ) {
-      case(1): add( create_multi_array< T , dynamic , 1 >( generator ) ); break;
-      case(2): add( create_multi_array< T , dynamic , 2 >( generator ) ); break;
-      case(3): add( create_multi_array< T , dynamic , 3 >( generator ) ); break;
-      case(4): add( create_multi_array< T , dynamic , 4 >( generator ) ); break;
-      case(5): add( create_multi_array< T , dynamic , 5 >( generator ) ); break;
-      case(6): add( create_multi_array< T , dynamic , 6 >( generator ) ); break;
-      case(7): add( create_multi_array< T , dynamic , 7 >( generator ) ); break;
-      default: add( create_multi_array< T , dynamic , 8 >( generator ) ); break;
-     }
+   case( eMultiArray ): {
+    auto k = generator->gen_multi_array_num_dim();
+    switch( k ) {
+     case(1): add( create_multi_array< T , dynamic , 1 >( generator ) ); break;
+     case(2): add( create_multi_array< T , dynamic , 2 >( generator ) ); break;
+     case(3): add( create_multi_array< T , dynamic , 3 >( generator ) ); break;
+     case(4): add( create_multi_array< T , dynamic , 4 >( generator ) ); break;
+     case(5): add( create_multi_array< T , dynamic , 5 >( generator ) ); break;
+     case(6): add( create_multi_array< T , dynamic , 6 >( generator ) ); break;
+     case(7): add( create_multi_array< T , dynamic , 7 >( generator ) ); break;
+     default: add( create_multi_array< T , dynamic , 8 >( generator ) ); break;
     }
    }
   }
  }
 
+ template< class T , bool dynamic , class F >
+ void generate_singleton_group( const F & add ,
+                                IElementGenerator * generator ) {
+  auto t = new T();
+  if constexpr( dynamic ) {
+   auto num_elements = generator->gen_list_size();
+   t->resize( num_elements );
+   generate_functions( * t );
+  }
+  else
+   generate_function( t );
+  add( t );
+ }
+
+ template< class T , bool dynamic , class F >
+ void generate_vector_group( const F & add , IElementGenerator * generator ) {
+  auto size = generator->gen_vector_size();
+  auto vector = new std::vector< T >( size );
+  if constexpr( dynamic ) {
+   for( auto & e : * vector ) {
+    auto num_elements = generator->gen_list_size();
+    e.resize( num_elements );
+    generate_functions( e );
+   }
+  }
+  else
+   generate_functions( * vector );
+  add( vector );
+ }
+
  template< class T , bool dynamic , std::size_t K >
- static boost::multi_array< T , K > * create_multi_array
+ boost::multi_array< T , K > * create_multi_array
  ( IElementGenerator * generator ) {
   using array_type = typename boost::multi_array< T , K >;
   boost::array< typename array_type::index , K > shape;
@@ -292,6 +400,14 @@ public:
         i < multi_array->num_elements() ; ++i ) {
     auto num_elements = generator->gen_list_size();
     p[ i ].resize( num_elements );
+    generate_functions( p[ i ] );
+   }
+  }
+  else if constexpr( has_function_v< T > ) {
+   const auto p = multi_array->data();
+   for( boost::multi_array_types::size_type i = 0 ;
+        i < multi_array->num_elements() ; ++i ) {
+    generate_function( & p[ i ] );
    }
   }
   return multi_array;
@@ -308,8 +424,6 @@ public:
   }
  }
 
-private:
-
  AbstractBlockRandomNumberGenerator * generator;
 
 };
@@ -325,9 +439,8 @@ void test_paths( Block * block , Block * reference_block ) {
           ( group ,
             [ reference_block ]( ColVariable & v ) {
              auto path = AbstractPath::build_path( & v , reference_block );
-             auto e = AbstractPath::get_element< Variable >( reference_block ,
-                                                             path );
-             assert( e == & v);
+             assert( & v == AbstractPath::get_element< Variable >
+                     ( path , reference_block ) );
             } ,
             un_any_type< ColVariable >() ) );
 
@@ -335,10 +448,18 @@ void test_paths( Block * block , Block * reference_block ) {
   assert( un_any_const_static
           ( group ,
             [ reference_block ]( FRowConstraint & v ) {
+             {
              auto path = AbstractPath::build_path( & v , reference_block );
-             auto e = AbstractPath::get_element< Constraint >( reference_block ,
-                                                               path );
-             assert( e == & v);
+             assert( & v == AbstractPath::get_element< Constraint >
+                     ( path , reference_block ) );
+             }
+
+             {
+             auto function = v.get_function();
+             auto path = AbstractPath::build_path( function , reference_block );
+             assert( function == AbstractPath::get_element< Function >
+                     ( path , reference_block ) );
+             }
             } ,
             un_any_type< FRowConstraint >() ) );
 
@@ -347,9 +468,8 @@ void test_paths( Block * block , Block * reference_block ) {
           ( group ,
             [ reference_block ]( ColVariable & v ) {
              auto path = AbstractPath::build_path( & v , reference_block );
-             auto e = AbstractPath::get_element< Variable >( reference_block ,
-                                                             path );
-             assert( e == & v);
+             assert( & v == AbstractPath::get_element< Variable >
+                     ( path , reference_block ) );
             } ,
             un_any_type< ColVariable >() ) );
 
@@ -357,30 +477,52 @@ void test_paths( Block * block , Block * reference_block ) {
   assert( un_any_const_dynamic
           ( group ,
             [ reference_block ]( FRowConstraint & v ) {
+             {
              auto path = AbstractPath::build_path( & v , reference_block );
-             auto e = AbstractPath::get_element< Constraint >( reference_block ,
-                                                               path );
-             assert( e == & v);
+             assert( & v == AbstractPath::get_element< Constraint >
+                     ( path , reference_block ) );
+             }
+
+             {
+             auto function = v.get_function();
+             auto path = AbstractPath::build_path( function , reference_block );
+             assert( function == AbstractPath::get_element< Function >
+                     ( path , reference_block ) );
+             }
             } ,
             un_any_type< FRowConstraint >() ) );
-
 
  {
   auto objective = block->get_objective();
   auto path = AbstractPath::build_path( objective , reference_block );
-  auto e = AbstractPath::get_element< Objective >( reference_block , path );
+  auto e = AbstractPath::get_element< Objective >( path , reference_block );
   assert( objective == e );
  }
- 
+
+ {
+  Function * function = nullptr;
+  auto objective = static_cast< FRealObjective * >( block->get_objective() );
+  if( objective ) {
+   function = objective->get_function();
+  }
+  auto path = AbstractPath::build_path( function , reference_block );
+  auto e = AbstractPath::get_element< Function >( path , reference_block );
+  assert( function == e );
+ }
+
+ {
+  auto path = AbstractPath::build_path( block , reference_block );
+  const auto retrieved_block = AbstractPath::get_element< Block >
+   ( path , reference_block );
+  assert( retrieved_block == block );
+ }
+
  for( const auto nested_block : block->get_nested_Blocks() ) {
   auto path = AbstractPath::build_path( nested_block , reference_block );
   const auto retrieved_block = AbstractPath::get_element< Block >
-   ( reference_block , path );
+   ( path , reference_block );
   assert( retrieved_block == nested_block );
  }
-
- // TODO Test with Functions. In particular, with BendersBFunction and
- // LagBFunction.
 }
 
 /*--------------------------------------------------------------------------*/
@@ -393,37 +535,78 @@ void test( Block * block , Block * reference_block ) {
 
 /*--------------------------------------------------------------------------*/
 
-int main( int argc, char ** argv ) {
+void test_everyone_has_function( Block * block ) {
+
+ for( const auto & group : block->get_static_constraints() )
+  assert( un_any_const_static
+          ( group ,
+            []( FRowConstraint & v ) {
+             assert( v.get_function() != nullptr );
+            } ,
+            un_any_type< FRowConstraint >() ) );
+
+ for( const auto & group : block->get_dynamic_constraints() )
+  assert( un_any_const_dynamic
+          ( group ,
+            []( FRowConstraint & v ) {
+             assert( v.get_function() != nullptr );
+            } ,
+            un_any_type< FRowConstraint >() ) );
+
+
+ {
+  Function * function = nullptr;
+  auto objective = static_cast< FRealObjective * >( block->get_objective() );
+  if( objective ) {
+   assert( objective->get_function() != nullptr );
+  }
+ }
+
+ for( const auto nested_block : block->get_nested_Blocks() )
+  test_everyone_has_function( nested_block );
+}
+
+/*--------------------------------------------------------------------------*/
+
+void simple_full_test() {
 
  AbstractBlockRandomNumberGenerator generator;
 
  using Interval = ElementGenerator<>::Interval;
 
  generator.static_constraint_generator =
-  new ElementGenerator( { 5 , 10 } , { 0 , 2 } , { 5 , 10 } , { 2 , 4 } ,
-                        { 3 , 6 } , { 5 , 10 } , 0 );
+  new ElementGenerator( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 4 } ,
+                        { 3 , 6 } , { 4 , 7 } , 0 );
 
  generator.static_variable_generator =
-  new ElementGenerator( { 5 , 10 } , { 0 , 2 } , { 5 , 10 } , { 2 , 4 } ,
-                        { 3 , 6 } , { 5 , 10 } , 2 );
+  new ElementGenerator( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 4 } ,
+                        { 3 , 6 } , { 4 , 7 } , 2 );
 
  generator.dynamic_constraint_generator =
-  new ElementGenerator( { 5 , 10 } , { 0 , 2 } , { 5 , 10 } , { 2 , 4 } ,
-                        { 3 , 6 } , { 5 , 10 } , 3 );
+  new ElementGenerator( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 4 } ,
+                        { 3 , 6 } , { 4 , 7 } , 3 );
 
  generator.dynamic_variable_generator =
-  new ElementGenerator( { 5 , 10 } , { 0 , 2 } , { 5 , 10 } , { 2 , 4 } ,
-                        { 3 , 6 } , { 5 , 10 } , 4 );
+  new ElementGenerator( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 4 } ,
+                        { 3 , 6 } , { 4 , 7 } , 4 );
 
- generator.block_generator = new BlockGenerator( { 4 , 7 } , 5 );
+ // TODO test with Benders and LagBFunction
+ generator.function_generator = new FunctionGenerator( { 0 , 0 } , 5 );
+
+ generator.block_generator = new BlockGenerator( { 4 , 7 } , 6 );
 
  AbstractBlockGenerator ab_generator( & generator );
  auto block = ab_generator.generate( 3 );
 
+ test_everyone_has_function( block );
+
  test( block , block );
 
  delete block;
+}
 
+int main( int argc, char ** argv ) {
+ simple_full_test();
  return 0;
 }
 
