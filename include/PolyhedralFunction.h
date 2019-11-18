@@ -1403,7 +1403,7 @@ class PolyhedralFunction : public C05Function {
    }
   v_A = std::move( A );
   v_b = std::move( b );
-  if( A.size() == b.size() )
+  if( v_A.size() == v_b.size() )
    v_b.push_back( get_default_bound() );
 
   f_next = f_imp = 0;
