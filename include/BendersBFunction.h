@@ -7,7 +7,7 @@
  *
  * \version 0.01
  *
- * \date 07 - 11 - 2019
+ * \date 18 - 11 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -419,6 +419,7 @@ class BendersBFunction : public C05Function , public Block {
  virtual ~BendersBFunction( void ) {
   if( ! v_Block.empty() )
    delete v_Block[ 0 ];
+  v_Block.clear();
  }
 
 /*--------------------------------------------------------------------------*/
@@ -493,7 +494,7 @@ class BendersBFunction : public C05Function , public Block {
   */
  void set_inner_block( Block * block , bool destroy_previous_block = true ) {
 
-  if( block && ! get_solver<CDASolver>() )
+  if( block && ! get_solver<CDASolver>( block ) )
    throw( std::invalid_argument( "BendersBFunction::set_inner_block: "
                                  "the given Block must have a CDASolver "
                                  "attached to it." ) );
@@ -501,13 +502,12 @@ class BendersBFunction : public C05Function , public Block {
   if( destroy_previous_block && ! v_Block.empty() )
    delete v_Block[ 0 ];
 
-  v_Block.resize( 1 );
-  v_Block[ 0 ] = block;
+  v_Block.clear();
+  v_Block.push_back( block );
 
   if( block )
    block->set_f_Block( this );
-
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// set a given integer (int) numerical parameter
@@ -1239,23 +1239,38 @@ class BendersBFunction : public C05Function , public Block {
  /** Serialize a BendersBFunction into a netCDF::NcGroup, with the following
   * format:
   *
-  * - The dimension "BendersBFunction_NumVar" containing the number of columns
-  *   of the A matrix, i.e., the number of active variables.
+  * - The dimension "NumVar" containing the number of columns of the A matrix,
+  *   i.e., the number of active variables.
   *
-  * - The dimension "BendersBFunction_NumRow" containing the number of rows of
-  *   the A matrix. The dimension is optional; if it is not provided then 0
-  *   (no rows) is assumed.
+  * - The dimension "NumRow" containing the number of rows of the A
+  *   matrix. The dimension is optional; if it is not provided then 0 (no
+  *   rows) is assumed.
   *
-  * - The variable "BendersBFunction_A", of type double and indexed over both
-  *   the dimensions NumRow and NumVar (in this order); it contains the
-  *   (row-major) representation of the matrix A. The variable is only
-  *   optional if NumRow == 0.
+  * - The variable "A", of type double and indexed over both the dimensions
+  *   NumRow and NumVar (in this order); it contains the (row-major)
+  *   representation of the matrix A. The variable is only optional if NumRow
+  *   == 0.
   *
-  * - The variable "BendersBFunction_b", of type double and indexed over the
-  *   dimension NumRow, which contains the vector b. The variable is only
-  *   optional if NumRow == 0.
+  * - The variable "b", of type double and indexed over the dimension NumRow,
+  *   which contains the vector b. The variable is only optional if NumRow ==
+  *   0.
   *
-  * TODO: active Variables and vector of ConstraintSpecifier.
+  * - The sub-group "InnerBlock", which contains the variable "Type" which is
+  *   the name of the type of the inner block.
+  *
+  * - The sub-group "ConstraintSpecifier_i", for each i in {1, ..., m}, where
+  *   m is the number of rows of the A matrix. The group ConstraintSpecifier_i
+  *   contains:
+  *
+  *   - The variable "Side", indicating which side of the Constraint is
+  *     affected. The possible values are 0 for the left-hand (or lower bound)
+  *     side, 1 for the right-hand (or upper bound) side, and 2 for both side.
+  *
+  *   - The sub-group "Path", containing the path to that Constraint.
+  *
+  * - The sub-group "Variable_i", for each i in {1, ..., n}, where n is the
+  *   number of active Variable of this BendersBFunction, which contains the
+  *   path to the i-th active Variable.
   */
 
  virtual void serialize( netCDF::NcGroup & group ) const override;
@@ -1430,7 +1445,7 @@ class BendersBFunction : public C05Function , public Block {
   * sub-Block, a \c nullptr is returned.
   */
 
- Block * get_inner_block() {
+ Block * get_inner_block() const {
   if( v_Block.empty() )
    return nullptr;
   return v_Block[ 0 ];
@@ -1544,6 +1559,17 @@ class BendersBFunction : public C05Function , public Block {
    return nullptr;
 
   return dynamic_cast< T * >( v_Block[ 0 ]->get_registered_solvers().back() );
+ }
+
+ template<class T = Solver>
+ inline static T * get_solver( Block * block ) {
+  if( ! block )
+   return nullptr;
+
+  if( block->get_registered_solvers().empty() )
+   return nullptr;
+
+  return dynamic_cast< T * >( block->get_registered_solvers().back() );
  }
 
 /*--------------------------------------------------------------------------*/
