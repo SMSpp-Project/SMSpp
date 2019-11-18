@@ -122,7 +122,7 @@ public:
   virtual ~ColVariableSolution();  ///< destructor
 
 /**@} ----------------------------------------------------------------------*/
-/*------------- METHODS DESCRIBING THE BEHAVIOR OF AN OBSERVER -------------*/
+/*-------- METHODS DESCRIBING THE BEHAVIOR OF A ColVariableSolution --------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a ColVariableSolution
  *  @{ */
@@ -131,13 +131,13 @@ public:
   /** This method reads the solution of the given Block and stores it in this
    * ColVariableSolution. For this method to be used, it is required that:
    *
-   * 1) the abstract representation of the Variables of the Block have been
+   * 1) the abstract representation of the Variables of the Block has been
    *    generated; and
    *
    * 2) this ColVariableSolution has been initialized to represent a solution
    *    of the given Block. This should normally mean that this
    *    ColVariableSolution was obtained from a call to the method
-   *    get_solution() of the Block associated with this ColVariableSolution.
+   *    get_Solution() of the Block associated with this ColVariableSolution.
    */
 
   virtual void read( const Block * const block ) override;
@@ -148,13 +148,13 @@ public:
    * ColVariableSolution on the given Block. For this method to be used, it
    * is required that:
    *
-   * 1) the abstract representation of the Variables of the Block have been
+   * 1) the abstract representation of the Variables of the Block has been
    *    generated; and
    *
    * 2) this ColVariableSolution has been initialized to represent a solution
    *    of the given Block. This should normally mean that this
    *    ColVariableSolution was obtained from a call to the method
-   *    get_solution() of the Block associated with this ColVariableSolution.
+   *    get_Solution() of the Block associated with this ColVariableSolution.
    */
 
   virtual void write( Block * const block ) override;
@@ -174,12 +174,12 @@ public:
   *   then ...
   */
 
-   virtual void serialize( netCDF::NcGroup & group )  override final;
+   virtual void serialize( netCDF::NcGroup & group ) override final;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
   /// returns a scaled version of this ColVariableSolution
   /** This method constructs and returns a scaled version of this
-   * ColVariableSolution. The newly ColVariableSolution Solution will have the
+   * ColVariableSolution. The new ColVariableSolution will have the
    * same structure of this ColVariableSolution. This means that the newly
    * created ColVariableSolution will be equal to this ColVariableSolution
    * except for the value of the Variables. For each Variable whose value "v"

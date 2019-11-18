@@ -8,7 +8,7 @@
  *
  * \version 0.31
  *
- * \date 31 - 10 - 2019
+ * \date 18 - 11 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -26,7 +26,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __FRowConstraint
- #define __FRowConstraint
+#define __FRowConstraint
                       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
@@ -86,7 +86,7 @@ namespace SMSpp_di_unipi_it
  * mechanism allowing a finer control on which Modification are "listened to".
  */
 
-class FRowConstraint : public RowConstraint , Observer {
+class FRowConstraint : public RowConstraint , public Observer {
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/

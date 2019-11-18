@@ -235,7 +235,7 @@ class Solution {
  /// adds a scaled version of the given Solution to this Solution
  /** This method adds a scaled version of the given Solution (see scale()) to
   * this Solution. A Solution object can be "configured" to take only a
-  * specific part of the Block solution status: this means that even of the
+  * specific part of the Block solution status: this means that even if the
   * Solution object pointed by solution has "more information" than the
   * current one, only the relevant part will be extracted and summed to that
   * of the current one, so that "the original configuration is preserved"

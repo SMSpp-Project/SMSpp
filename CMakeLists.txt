@@ -27,6 +27,7 @@ target_compile_features(SMSpp PUBLIC cxx_std_17)
 target_sources(SMSpp PRIVATE
                src/AbstractBlock.cpp
                src/Block.cpp
+               src/BendersBFunction.cpp
                src/ColVariable.cpp
                src/ColVariableSolution.cpp
                src/Configuration.cpp
@@ -40,6 +41,7 @@ target_sources(SMSpp PRIVATE
                src/Objective.cpp
                src/OneVarConstraint.cpp
                src/PolyhedralFunction.cpp
+               src/RowConstraintSolution.cpp
                src/PolyhedralFunctionBlock.cpp
                src/Solver.cpp
                src/ThinComputeInterface.cpp

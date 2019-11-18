@@ -24,3 +24,13 @@ add_test(
         COMMAND AbstractBlock_test
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
+
+# ----- AbstractPath_test ----------------------------------------------- #
+add_executable(AbstractPath_test tests_AbstractPath.cpp)
+target_link_libraries(AbstractPath_test PRIVATE SMS++::SMSpp gtest)
+
+add_test(
+        NAME AbstractPath_test
+        COMMAND AbstractPath_test
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+)

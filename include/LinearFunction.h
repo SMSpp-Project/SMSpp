@@ -631,7 +631,7 @@ class LinearFunction : public C15Function {
  /** Method that sets the new value to the constant term of this linear
   * (actually, affine) Function to constant_term.
   *
-  * The parameter issueMod decides if and how the LinearFunctionMod is issued,
+  * The parameter issueMod decides if and how the FunctionMod is issued,
   * as described in Observer::make_par(). */
 
  void set_constant_term( FunctionValue constant_term ,
