@@ -100,6 +100,7 @@ using c_FunctionValue = Function::c_FunctionValue;
 /*--------------------------------------------------------------------------*/
 
 const double scale = 10;
+const char *const logF = "log.bn";
 
 const FunctionValue INF = SMSpp_di_unipi_it::Inf< FunctionValue >();
 
@@ -557,14 +558,43 @@ int main( int argc , char **argv )
 
  // attach the Solver to the Block- - - - - - - - - - - - - - - - - - - - - -
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // do this by reading appropriate BlockSolverConfig from files and use
+ // set_SolverConfig()
 
  LPBlock->register_Solver( Solver::new_Solver( "CPXMILPSolver" ) );
 
- NDOBlock->register_Solver( Solver::new_Solver( "BundleSolver" ) );
+ ifstream BundleParFile( "BundlePar.txt" );
+ if( ! BundleParFile.is_open() ) {
+  cerr << "Error: cannot open file BundlePar.txt" << endl;
+  return( 1 );
+  }
+
+ auto PF = dynamic_cast< PolyhedralFunction * >(
+	       NDOBlock->get_objective< FRealObjective >()->get_function() );
+ PANIC( PF );
+ PF->set_par( C05Function::intGPMaxSz , 400 );
+
+ BlockSolverConfig * bsc = new BlockSolverConfig;
+ BundleParFile >> *( bsc );
+ BundleParFile.close();
+
+ NDOBlock->set_SolverConfig( bsc );
+ delete bsc;
+
+ Solver * slvr = (NDOBlock->get_registered_solvers()).front();
+
+ // open log-file - - - - - - - - - - -  - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ ofstream LOGFile( logF , ofstream::out );
+ if( ! LOGFile.is_open() )
+  cerr << "Warning: cannot open log file """ << logF << """" << endl;
+ else
+  slvr->set_log( &LOGFile );
 
  #if( LOG_LEVEL >= 2 )
   ((LPBlock->get_registered_solvers()).front())->set_par(
-			      CPXMILPSolver::strOutputFile , "LPBlock.lp" );
+	      CPXMILPSolver::strOutputFile , "LPBlock.lp" );
  #endif
 
  // first solver call - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
