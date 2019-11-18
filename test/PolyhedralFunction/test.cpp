@@ -48,10 +48,10 @@
 /*-------------------------------- MACROS ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#define LOG_LEVEL 2
+#define LOG_LEVEL 1
 // 0 = only pass/fail
 // 1 = result of each test
-// 2 = print data
+// 2 = print data + solver log
 
 #if( LOG_LEVEL >= 1 )
  #define LOG1( x ) cout << x
@@ -313,7 +313,7 @@ static bool SolveBoth( void )
    auto foLP = slvrLP->get_ub();
    auto foNDO = slvrNDO->get_ub();
    if( abs( foLP - foNDO )
-       <= 1e-9 *  max( double( 1 ) , abs( max( foLP , foNDO ) ) ) ) {
+       <= 2e-8 * max( double( 1 ) , abs( max( foLP , foNDO ) ) ) ) {
     LOG1( "OK(f)" << endl );
     return( true );
     }
@@ -328,26 +328,26 @@ static bool SolveBoth( void )
    if( slvrNDO->get_ub() <= lb * ( 1 + 1e-9 ) ) {
     LOG1( "OK(?lb?)" << endl );
     lb *= 2;
-    return( false );
+    return( true );
     }
    }
 
   if( ( rtrnLP == Solver::kInfeasible ) &&
       ( rtrnNDO == Solver::kInfeasible ) ) {
     LOG1( "OK(?e?)" << endl );
-    return( false );
+    return( true );
     }
 
   if( ( rtrnLP == Solver::kUnbounded ) &&
       ( rtrnNDO == Solver::kUnbounded ) ) {
     LOG1( "OK(u)" << endl );
-    return( false );
+    return( true );
     }
 
   #if( LOG_LEVEL >= 1 )
    cout << " ~ LPBlock = ";
    if( ( rtrnLP >= Solver::kOK ) && ( rtrnLP < Solver::kError ) )
-    cout << slvrLP->get_ub() << endl;
+    cout << slvrLP->get_ub();
    else
     if( rtrnLP == Solver::kInfeasible )
      cout << "    +INF(?)";
@@ -554,6 +554,12 @@ int main( int argc , char **argv )
    NDOBlock->add_dynamic_variable( *xNDOd );
   #endif
   NDOBlock->set_objective( objNDO );
+
+  // set lower bound, be it "hard" or "conditional"
+  if( LB > - INF )
+   NDOBlock->set_valid_lower_bound( LB );
+  else
+   NDOBlock->set_valid_lower_bound( lb , true );
   }
 
  // attach the Solver to the Block- - - - - - - - - - - - - - - - - - - - - -
@@ -563,38 +569,33 @@ int main( int argc , char **argv )
 
  LPBlock->register_Solver( Solver::new_Solver( "CPXMILPSolver" ) );
 
- ifstream BundleParFile( "BundlePar.txt" );
- if( ! BundleParFile.is_open() ) {
-  cerr << "Error: cannot open file BundlePar.txt" << endl;
-  return( 1 );
+ {
+  ifstream BundleParFile( "BundlePar.txt" );
+  if( ! BundleParFile.is_open() ) {
+   cerr << "Error: cannot open file BundlePar.txt" << endl;
+   return( 1 );
+   }
+
+  BlockSolverConfig * bsc = new BlockSolverConfig;
+  BundleParFile >> *( bsc );
+  BundleParFile.close();
+
+  NDOBlock->set_SolverConfig( bsc );
+  delete bsc;
   }
-
- auto PF = dynamic_cast< PolyhedralFunction * >(
-	       NDOBlock->get_objective< FRealObjective >()->get_function() );
- PANIC( PF );
- PF->set_par( C05Function::intGPMaxSz , 400 );
-
- BlockSolverConfig * bsc = new BlockSolverConfig;
- BundleParFile >> *( bsc );
- BundleParFile.close();
-
- NDOBlock->set_SolverConfig( bsc );
- delete bsc;
-
- Solver * slvr = (NDOBlock->get_registered_solvers()).front();
 
  // open log-file - - - - - - - - - - -  - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- ofstream LOGFile( logF , ofstream::out );
- if( ! LOGFile.is_open() )
-  cerr << "Warning: cannot open log file """ << logF << """" << endl;
- else
-  slvr->set_log( &LOGFile );
-
  #if( LOG_LEVEL >= 2 )
+  ofstream LOGFile( logF , ofstream::out );
+  if( ! LOGFile.is_open() )
+   cerr << "Warning: cannot open log file """ << logF << """" << endl;
+  else
+   ((NDOBlock->get_registered_solvers()).front())->set_log( &LOGFile );
+
   ((LPBlock->get_registered_solvers()).front())->set_par(
-	      CPXMILPSolver::strOutputFile , "LPBlock.lp" );
+	                      CPXMILPSolver::strOutputFile , "LPBlock.lp" );
  #endif
 
  // first solver call - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
@@ -865,7 +866,6 @@ int main( int argc , char **argv )
   // modify bound - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
   if( ( wchg & 16 ) && ( drand48() <= p_change ) ) {
-
    LOG1( "modified bound - " );
 
    GenerateLB();
@@ -880,6 +880,12 @@ int main( int argc , char **argv )
    PANIC( PF );
 
    PF->modify_bound( LB );
+
+   // set lower bound, be it "hard" or "conditional"
+   if( LB > - INF )
+    NDOBlock->set_valid_lower_bound( LB );
+   else
+    NDOBlock->set_valid_lower_bound( lb , true );
    }
 
  // add variables- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
