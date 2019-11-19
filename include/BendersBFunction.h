@@ -27,7 +27,7 @@
 
 #ifndef __BendersBFunction
 #define __BendersBFunction
-/* self-identification: #endif at the end of the file */
+                      /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/

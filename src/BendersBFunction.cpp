@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 18 - 11 - 2019
+ * \date 19 - 11 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -28,6 +28,7 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include "AbstractPath.h"
 #include "BendersBFunction.h"
 #include "FRowConstraint.h"
 #include "Objective.h"
@@ -55,7 +56,6 @@ SMSpp_insert_in_factory_cpp_1( BendersBFunction );
 /*--------------------------------------------------------------------------*/
 /*---------------------------------TODO-------------------------------------*/
 /*--------------------------------------------------------------------------*/
-
 
 void BendersBFunction::load( std::istream &input ) {
  throw( std::logic_error( "BendersBFunction::load(): not implemented yet." ) );
@@ -134,26 +134,30 @@ void BendersBFunction::deserialize( netCDF::NcGroup & group ,
   auto cs_group_name = "ConstraintSpecifier_" + std::to_string( i );
   auto cs_group = group.getGroup( cs_group_name );
   if( cs_group.isNull() )
-   throw ( std::invalid_argument( "BendersBFunction::deserialize: Group " +
-                                  cs_group_name + " is not present." ) );
+   throw ( std::invalid_argument( "BendersBFunction::deserialize: Group '" +
+                                  cs_group_name + "' is not present." ) );
 
-  //auto path = ::deserialize_path( cs_group , "Path" );
-  //auto constraint = ::get_constraint( get_inner_block() , path );
-  auto constraint = nullptr;
+  auto path_group = cs_group.getGroup( "Path" );
+  if( path_group.isNull() )
+   throw ( std::invalid_argument( "BendersBFunction::deserialize: Group "
+                                  "'Path' is not present." ) );
 
   ConstraintSide side;
   ::deserialize( cs_group , "Side" , & side , false );
+
+  auto path = AbstractPath::deserialize( path_group );
+  auto constraint = AbstractPath::get_element< RowConstraint >
+   ( path , get_inner_block() );
+
+  if( ! constraint )
+   throw ( std::invalid_argument( "BendersBFunction::deserialize: Constraint " +
+                                  std::to_string( i ) + " was not found." ) );
 
   constraints.push_back( ConstraintSpecifier( constraint , side ) );
  }
 
  set_mapping( std::move( tA ) , std::move( tb ) ,
               std::move( constraints ) , issueMod );
-
- for( Index i = 0 ; i < ncDim_NumVar.getSize() ; ++i ) {
-  //auto path = ::deserialize_path( group , "Variable_" + std::to_string( i ) );
-  //auto variable = ::get_variable( get_inner_block() , path );
- }
 
 }  // end( BendersBFunction::deserialize )
 
@@ -1275,17 +1279,13 @@ void BendersBFunction::serialize( netCDF::NcGroup & group ) const {
               NcDim_NumRow , v_b );
  }
 
- // TODO serialize the vector of ConstraintSpecifier
-
  for( Index i = 0 ; i < v_constraints.size() ; ++i ) {
   auto cs_group = group.addGroup( "ConstraintSpecifier_" +
                                   std::to_string( i ) );
-  auto constraint = v_constraints[ i ].first;
-  /*
-  auto path = get_path( constraint , constraint->get_Block() ,
-                        this->get_inner_block() );
-  ::serialize( cs_group , "Path" , path );
-  */
+  auto path_group = cs_group.addGroup( "Path" );
+  auto path = AbstractPath::build_path< Constraint >
+   ( v_constraints[ i ].first , get_inner_block() );
+  AbstractPath::serialize( path , path_group );
   ::serialize( cs_group, "Side", netCDF::NcByte(), v_constraints[ i ].second );
  }
 }
