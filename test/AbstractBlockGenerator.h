@@ -273,8 +273,8 @@ class AbstractBlockGenerator final {
 
 public:
 
- enum GroupType { eSingleton , eVector , eMultiArray };
- enum FunctionType { eLinear , eBenders , eLag };
+ enum GroupType { eSingleton = 0 , eVector = 1 , eMultiArray = 2 };
+ enum FunctionType { eLinear = 0 , eBenders = 1 , eLag = 2 };
 
 /*--------------------------------------------------------------------------*/
 
@@ -285,6 +285,7 @@ public:
 /*--------------------------------------------------------------------------*/
 
  AbstractBlock * generate( int depth ) {
+  // TODO Generate inner-blocks for BendersBFunction and LagBFunction
   auto block = new AbstractBlock();
   generate_objective( block );
   generate_groups( block );
@@ -306,7 +307,18 @@ private:
  generate_function( T * t ) {
   if( ! generator || ! generator->function_generator ) return;
   Function * function = nullptr;
-  switch( generator->function_generator->gen_function_type() ) {
+  auto function_type = generator->function_generator->gen_function_type();
+  if constexpr( ! std::is_base_of_v< FRealObjective , T > ) {
+   if( function_type == eLag ) {
+    // The Observer of a LagBFunction must be an FRealObjective. So, we try to
+    // use a different function.
+    for( int i = 0 ; i < 100 && function_type == eLag ; ++i )
+     function_type = generator->function_generator->gen_function_type();
+    if( function_type == eLag )
+     function_type = - 1; // Use a null function
+   }
+  }
+  switch( function_type ) {
    case( eLinear ):
     function = new LinearFunction();
     break;
@@ -314,7 +326,7 @@ private:
     function = new BendersBFunction( nullptr );
     break;
    case( eLag ):
-    function = new LagBFunction();
+    function = new LagBFunction( nullptr , t );
     break;
   }
   t->set_function( function );

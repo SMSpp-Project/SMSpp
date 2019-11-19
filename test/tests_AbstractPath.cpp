@@ -192,8 +192,8 @@ void simple_full_test() {
   new ElementGenerator( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 4 } ,
                         { 3 , 6 } , { 4 , 7 } , 4 );
 
- // TODO test with Benders and LagBFunction
- generator.function_generator = new FunctionGenerator( { 0 , 0 } , 5 );
+ // TODO Test with LagBFunction
+ generator.function_generator = new FunctionGenerator( { 0 , 1 } , 5 );
 
  generator.block_generator = new BlockGenerator( { 4 , 7 } , 6 );
 
