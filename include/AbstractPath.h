@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 17 - 11 - 2019
+ * \date 19 - 11 - 2019
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -23,16 +23,6 @@
 #define __AbstractPath
                       /* self-identification: #endif at the end of the file */
 
-/* The following are the types derived from Constraint and Variable. At the
- * end of this file, both Constraint_Derived_Classes and
- * Variable_Derived_Classes are undefined (#undef).
- */
-#define Constraint_Derived_Classes FRowConstraint , BoxConstraint , \
-  ZOConstraint , NPConstraint , NNConstraint , UBConstraint , \
-  LBConstraint , UB0Constraint , LB0Constraint
-
-#define Variable_Derived_Classes ColVariable
-
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -46,10 +36,26 @@
 #include "LagBFunction.h"
 #include "OneVarConstraint.h"
 #include "RowConstraint.h"
+#include "SMSTypedefs.h"
 
 #include <cstddef>
 #include <iterator>
+#include "netcdf"
 #include <vector>
+
+/*--------------------------------------------------------------------------*/
+/*--------------------------- OTHER DEFINITIONS ----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/* The following are the types derived from Constraint and Variable. At the
+ * end of this file, both Constraint_Derived_Classes and
+ * Variable_Derived_Classes are undefined (#undef).
+ */
+#define Constraint_Derived_Classes FRowConstraint , BoxConstraint , \
+  ZOConstraint , NPConstraint , NNConstraint , UBConstraint , \
+  LBConstraint , UB0Constraint , LB0Constraint
+
+#define Variable_Derived_Classes ColVariable
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -81,7 +87,7 @@ class AbstractPath {
 /** @name Private Types
     @{ */
 
- using Index = std::size_t;
+ using Index = unsigned int;
 
 /**@}-----------------------------------------------------------------------*/
 /*-------------------------- PRIVATE CLASSES -------------------------------*/
@@ -583,8 +589,7 @@ public:
    path.nodes.back().type = Node::eVariable;
   }
   else if constexpr( std::is_base_of_v< Objective , T > ) {
-   path.nodes.emplace_back();
-   path.nodes.back().type = Node::eObjective;
+   path.nodes.emplace_back().type = Node::eObjective;
   }
   else if constexpr( std::is_base_of_v< Function , T > ) {
    auto observer = t->get_Observer();
@@ -593,17 +598,16 @@ public:
     path.nodes.back().type = Node::eConstraint;
    }
    else if( dynamic_cast< FRealObjective * >( observer ) ) {
-    path.nodes.emplace_back();
-    path.nodes.back().type = Node::eObjective;
+    path.nodes.emplace_back().type = Node::eObjective;
    }
    else
     throw( std::logic_error( "build_path: Unknown Observer of "
                              "given Function." ) );
   }
   else if constexpr( std::is_base_of_v< Block , T > ) {
-   path.nodes.emplace_back();
-   path.nodes.back().type = Node::eBlock;
-   path.nodes.back().index = get_block_index( t );
+   auto & node = path.nodes.emplace_back();
+   node.type = Node::eBlock;
+   node.index = get_block_index( t );
    if( t == reference_block )
     return path;
   }
@@ -627,9 +631,9 @@ public:
 
    if( index < Inf<Index>() ) {
     // block has a father Block
-    path.nodes.emplace_back();
-    path.nodes.back().type = Node::eBlock;
-    path.nodes.back().index = index;
+    auto & node = path.nodes.emplace_back();
+    node.type = Node::eBlock;
+    node.index = index;
     block = block->get_f_Block();
    }
 
@@ -652,8 +656,7 @@ public:
      block = frc->get_Block();
     }
     else if( const auto fro = dynamic_cast< FRealObjective * >( observer ) ) {
-     path.nodes.emplace_back();
-     path.nodes.back().type = Node::eObjective;
+     path.nodes.emplace_back().type = Node::eObjective;
      block = fro->get_Block();
     }
     else
@@ -724,13 +727,13 @@ public:
 
   if constexpr( std::is_base_of_v< Constraint , T > ) {
    assert( node.type == Node::eConstraint );
-   return get_element< Constraint >( block , node.is_static , node.index ,
-                                   node.element_index );
+   return get_element< T >( block , node.is_static , node.index ,
+                            node.element_index );
   }
   else if constexpr( std::is_base_of_v< Variable , T > ) {
    assert( node.type == Node::eVariable );
-   return get_element< Variable >( block , node.is_static , node.index ,
-                                   node.element_index );
+   return get_element< T >( block , node.is_static , node.index ,
+                            node.element_index );
   }
   else if constexpr( std::is_base_of_v< Objective , T > ) {
     assert( node.type == Node::eObjective );
@@ -772,11 +775,68 @@ public:
    return nullptr;
  }
 
-};
+/*--------------------------------------------------------------------------*/
+
+ static void serialize( const AbstractPath & path , netCDF::NcGroup & group ) {
+  Index i = 0;
+  for( const auto & node : path.nodes ) {
+   auto node_group = group.addGroup( "Node_" + std::to_string( i++ ) );
+   SMSpp_di_unipi_it::serialize( node_group , "Type" ,
+                                 netCDF::NcChar() , node.type );
+   switch( node.type ) {
+    case( Node::eBlock ):
+     SMSpp_di_unipi_it::serialize( node_group , "Index" ,
+                                   netCDF::NcUint64() , node.index );
+     break;
+    case( Node::eConstraint ):
+    case( Node::eVariable ):
+     SMSpp_di_unipi_it::serialize( node_group , "Index" ,
+                                   netCDF::NcUint64() , node.index );
+     SMSpp_di_unipi_it::serialize( node_group , "ElementIndex" ,
+                                   netCDF::NcUint64() , node.element_index );
+     SMSpp_di_unipi_it::serialize( node_group , "Static" ,
+                                   netCDF::NcUbyte() , node.is_static );
+     break;
+   }
+  }
+ }
 
 /*--------------------------------------------------------------------------*/
 
-}  /* namespace SMSpp_di_unipi_it */
+ static AbstractPath deserialize( const netCDF::NcGroup & group ) {
+
+  AbstractPath path;
+
+  for( Index i = 0 ; i < group.getGroupCount() ; ++i ) {
+   auto node_group = group.getGroup( "Node_" + std::to_string( i ) );
+   auto & node = path.nodes.emplace_back();
+   SMSpp_di_unipi_it::deserialize( node_group , "Type" , & node.type , false );
+   switch( node.type ) {
+    case( Node::eBlock ):
+     SMSpp_di_unipi_it::deserialize( node_group , "Index" ,
+                                     & node.index , false );
+     break;
+    case( Node::eConstraint ):
+    case( Node::eVariable ):
+     SMSpp_di_unipi_it::deserialize( node_group , "Index" ,
+                                     & node.index , false );
+     SMSpp_di_unipi_it::deserialize( node_group , "ElementIndex" ,
+                                     & node.element_index , false );
+     SMSpp_di_unipi_it::deserialize( node_group , "Static" ,
+                                     & node.is_static , false );
+     break;
+   }
+  }
+  return path;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+};  // end( class( AbstractPath ) )
+
+/*--------------------------------------------------------------------------*/
+
+}  // end( namespace SMSpp_di_unipi_it )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
