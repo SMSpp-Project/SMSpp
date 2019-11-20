@@ -340,9 +340,11 @@ class BendersBFunction : public C05Function , public Block {
   *
   * As the && implies, \p x, \p A, \p b, and \p constraints become property of
   * the BendersBFunction object.
-  */
+  *
+  * All inputs have a default (nullptr, {}, {}, {}, {}, and nullptr,
+  * respectively) so that this can be used as the void constructor. */
 
- BendersBFunction( Block * inner_block ,
+ BendersBFunction( Block * inner_block = nullptr ,
                    VarVector && x = {} , MultiVector && A = {} ,
                    RealVector && b = {} ,
                    v_ConstraintSpecifier && constraints = {} ,
@@ -350,16 +352,11 @@ class BendersBFunction : public C05Function , public Block {
   : C05Function( observer ) , constraints_are_updated( false ) ,
     solver_status ( 0 ) , diagonal_linearization_required( false )
  {
-
-  if( ! inner_block )
-   throw( std::invalid_argument( "BendersBFunction: the given Block must "
-                                 "be non-null." ) );
-
   set_inner_block( inner_block );
   set_variables( std::move( x ) );
   set_mapping( std::move( A ) , std::move( b ) , std::move( constraints ) ,
                eNoMod );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a BendersBFunction out of netCDF::NcGroup
@@ -493,12 +490,6 @@ class BendersBFunction : public C05Function , public Block {
   *        its allocated memory is released.
   */
  void set_inner_block( Block * block , bool destroy_previous_block = true ) {
-
-  if( block && ! get_solver<CDASolver>( block ) )
-   throw( std::invalid_argument( "BendersBFunction::set_inner_block: "
-                                 "the given Block must have a CDASolver "
-                                 "attached to it." ) );
-
   if( destroy_previous_block && ! v_Block.empty() )
    delete v_Block[ 0 ];
 

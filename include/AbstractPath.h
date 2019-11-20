@@ -109,217 +109,149 @@ class AbstractPath {
 /*----------------------------- PRIVATE METHODS ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
- template<typename S , class T>
- static Index get_static_index( const S * , const boost::any & ,
-                                un_any_type<T> , un_any_int<9> ) {
+ template< class S , class T , unsigned long K >
+ static Index get_static_index_( const S * s ,
+                                 const boost::multi_array< T , K > & var ) {
+  const auto p = var.data();
+  if( ( s >= & p[ 0 ] ) && ( s <= & p[ var.num_elements() - 1 ] ) )
+   return( static_cast< const T * >( s ) - & p[ 0 ] );
   return( Inf<Index>() );
  }
 
- template<typename S , class T , unsigned short K>
- static Index get_static_index( const S * s , const boost::any & any ,
-                                un_any_type<T> , un_any_int<K> ) {
-  if( any.type() == typeid( boost::multi_array< T , K > * ) ) {
-   const auto & var = * boost::any_cast< boost::multi_array<T , K> * >( any );
-   const auto p = var.data();
-   if( ( s >= & p[ 0 ] ) && ( s <= & p[ var.num_elements() - 1 ] ) )
-    return( static_cast< const T * >( s ) - & p[ 0 ] );
-   return( Inf<Index>() );
-  }
-  else
-   return( get_static_index( s , any , un_any_type<T>() ,
-                             un_any_int<K + 1>() ) );
+ template< class S , class T >
+ static Index get_static_index_( const S * s , const std::vector< T > & var ) {
+  if( ( s >= & var.front() ) && ( s <= & var.back() ) )
+   return( static_cast< const T * >( s ) - & var.front() );
+  return( Inf<Index>() );
  }
 
- template<typename S , typename T >
+ template< class S , class T >
  static std::enable_if_t< std::is_base_of_v< S , T > ||
                           std::is_base_of_v< T , S > , Index >
- get_static_index( const S * s , const boost::any & any ,
-                   un_any_type<T> ) {
-
-  if( any.type() == typeid( T * ) ) {
-   auto t = boost::any_cast< T * >( any );
-   if( s == t )
-    return 0;
-   return( Inf<Index>() );
-  }
-  else if( any.type() == typeid( std::vector<T> * ) ) {
-   const auto & var = * boost::any_cast< std::vector<T> * >( any );
-   if( ( s >= & var.front() ) && ( s <= & var.back() ) )
-    return( static_cast< const T * >( s ) - & var.front() );
-   return( Inf<Index>() );
-  }
-  else
-   return( get_static_index( s , any , un_any_type<T>() , un_any_int<2>() ) );
+ get_static_index_( const S * s , const T & var ) {
+  if( s == & var )
+   return 0;
+  return( Inf<Index>() );
  }
 
 /*--------------------------------------------------------------------------*/
 
- template<typename S , class T>
- static Index get_dynamic_index( const S * , const boost::any ,
-                                 un_any_type<T> , un_any_int<9> ) {
-  return( false );
- }
-
- template<typename S , class T , unsigned short K>
- static Index get_dynamic_index( const S * s , const boost::any & any ,
-                                 un_any_type<T> , un_any_int<K> ) {
-  if( any.type() == typeid( boost::multi_array< std::list<T> , K > * ) ) {
-   auto & var =
-    * boost::any_cast< boost::multi_array<std::list<T> , K> * >( any );
-   std::list<T> * p = var.data();
-   Index index = 0;
-   for( boost::multi_array_types::size_type i = var.num_elements() ; i-- ;
-        ++p ) {
-    for( const auto & ell : *p ) {
-     if( s == & ell )
-      return( index );
-     ++index;
-    }
+ template< class S , class T , unsigned long K >
+ static Index get_dynamic_index_
+ ( const S * s , const boost::multi_array< std::list<T> , K > & var ) {
+  auto p = var.data();
+  Index index = 0;
+  for( boost::multi_array_types::size_type i = var.num_elements() ;
+       i-- ; ++p ) {
+   for( const auto & ell : *p ) {
+    if( s == & ell )
+     return( index );
+    ++index;
    }
-   return( Inf<Index>() );
   }
-  else
-   return( get_dynamic_index( s , any , un_any_type<T>() ,
-                              un_any_int<K + 1>() ) );
+  return( Inf<Index>() );
  }
 
- template<typename S , typename T>
- static Index get_dynamic_index( const S * s , const boost::any & any ,
-                                 un_any_type<T> ) {
-  if( any.type() == typeid( std::list< T > * ) ) {
-
-   const auto list = boost::any_cast< std::list< T > * >( any );
-   Index index = 0;
-   for( auto it = list->cbegin(); it != list->end() ; ++it , ++index )
+ template< class S , class T >
+ static Index get_dynamic_index_
+ ( const S * s , const std::vector< std::list<T> > & var ) {
+  Index index = 0;
+  for( typename std::vector< std::list<T> >::size_type i = 0 ;
+       i < var.size() ; ++i ) {
+   for( auto it = var[ i ].cbegin(); it != var[ i ].cend() ; ++it , ++index )
     if( s == &*it )
      return( index );
-   return( Inf<Index>() );
   }
-  else if( any.type() == typeid( std::vector< std::list<T> > * ) ) {
-   const auto & vec = * boost::any_cast< std::vector< std::list<T> > * >( any );
-   Index index = 0;
-   for( typename std::vector<std::list<T> >::size_type i = 0 ;
-        i < vec.size() ; ++i ) {
-    for( auto it = vec[ i ].cbegin(); it != vec[ i ].cend() ; ++it , ++index )
-     if( s == &*it )
-      return( index );
-   }
-   return( Inf<Index>() );
-  }
-  else
-   return( get_dynamic_index( s , any , un_any_type<T>() , un_any_int<2>() ) );
+  return( Inf<Index>() );
+ }
+
+ template< class S , class T >
+ static Index get_dynamic_index_( const S * s , const std::list< T > & list ) {
+  Index index = 0;
+  for( auto it = list.cbegin(); it != list.end() ; ++it , ++index )
+   if( s == &*it )
+    return( index );
+  return( Inf<Index>() );
  }
 
 /*--------------------------------------------------------------------------*/
 
- template< typename T >
- static T * get_static_element( const boost::any , un_any_type<T> ,
-                                un_any_int<9> , Index ) {
-  return( nullptr );
- }
-
- template< typename T , unsigned short K >
- static T * get_static_element( const boost::any & any , un_any_type<T> ,
-                                un_any_int<K> , Index index ) {
-  if( any.type() == typeid( boost::multi_array< T , K > * ) ) {
-   auto & array = * boost::any_cast< boost::multi_array<T , K> * >( any );
-   if( index >= array.num_elements() )
-    return nullptr;
-   return & array.data()[ index ];
-  }
-  else
-   return( get_static_element( any , un_any_type<T>() , un_any_int<K + 1>() ,
-                               index ) );
- }
-
- template< typename T >
- static T * get_static_element( const boost::any & any , un_any_type<T> ,
-                                Index index ) {
-  if( any.type() == typeid( T * ) ) {
-   assert( index == 0 );
-   return boost::any_cast< T * >( any );
-  }
-  else if( any.type() == typeid( std::vector<T> * ) ) {
-   auto & vec = * boost::any_cast< std::vector<T> * >( any );
-   if( index >= vec.size() )
-    return nullptr;
-   return & vec[ index ];
-  }
-  else
-   return( get_static_element( any , un_any_type<T>() , un_any_int<2>() ,
-                               index ) );
- }
-
-/*--------------------------------------------------------------------------*/
-
- template< typename T >
- static T * get_dynamic_element( const boost::any , un_any_type<T> ,
-                                 un_any_int<9> , Index ) {
-  return( nullptr );
- }
-
- template< typename T , unsigned short K >
- static T * get_dynamic_element( const boost::any & any ,
-                                 un_any_type<T> , un_any_int<K> , Index index ) {
-  if( any.type() == typeid( boost::multi_array< std::list<T> , K > * ) ) {
-   auto & multi_array =
-    * boost::any_cast< boost::multi_array< std::list<T> , K > * >( any );
-   Index past_size = 0;
-   for( auto list = multi_array.origin();
-        list < ( multi_array.origin() + multi_array.num_elements() ); ++list )  {
-    if( index < past_size + list->size() ) {
-     auto it = list->begin();
-     for( ; past_size < index ; ++past_size , ++it );
-     return &*it;
-    }
-    past_size += list->size();
-   }
-   return nullptr;
-  }
-  else
-   return( get_dynamic_element( any , un_any_type<T>() , un_any_int<K + 1>() ,
-                                index ) );
- }
-
- template< typename T >
- static T * get_dynamic_element( const boost::any & any , un_any_type<T> ,
+ template< typename T , unsigned long K >
+ static T * get_static_element_( const boost::multi_array<T , K> & array ,
                                  Index index ) {
-  if( any.type() == typeid( std::list<T> * ) ) {
-   auto list = boost::any_cast< std::list<T> * >( any );
-   auto it = list->begin();
-   for( Index i = 0 ; i < index && it != list->cend(); ++i , ++it );
-   assert( it != list->end() );
-   return &*it;
-  }
-  else if( any.type() == typeid( std::vector< std::list<T> > * ) ) {
-   const auto lists = boost::any_cast< std::vector< std::list<T> > * >( any );
-   Index past_size = 0;
-   for( auto & list : * lists ) {
-    if( past_size + list.size() > index ) {
-     auto it = list.begin();
-     for( ; past_size < index ; ++it , ++past_size );
-     return &*it;
-    }
-    past_size += list.size();
-   }
+  if( index >= array.num_elements() )
    return nullptr;
+  return const_cast< T *>( & array.data()[ index ] );
+ }
+
+ template< typename T >
+ static T * get_static_element_( const std::vector< T > & vec , Index index ) {
+  if( index >= vec.size() )
+   return nullptr;
+  return const_cast< T *>( & vec[ index ] );
+ }
+
+ template< typename T >
+ static T * get_static_element_( const T & t , Index index ) {
+  assert( index == 0 );
+  return const_cast< T *>( & t );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ template< typename T , unsigned long K >
+ static T * get_dynamic_element_
+ ( const boost::multi_array< std::list<T> , K > & multi_array , Index index ) {
+  Index past_size = 0;
+  for( auto list = multi_array.origin();
+       list < ( multi_array.origin() + multi_array.num_elements() ); ++list )  {
+   if( index < past_size + list->size() ) {
+    auto it = list->begin();
+    for( ; past_size < index ; ++past_size , ++it );
+    return const_cast< T * >( &*it );
+   }
+   past_size += list->size();
   }
-  else
-   return( get_dynamic_element( any , un_any_type<T>() , un_any_int<2>() ,
-                                index ) );
+  return nullptr;
+ }
+
+ template< typename T >
+ static T * get_dynamic_element_( const std::vector< std::list<T> > & lists ,
+                                  Index index ) {
+  Index past_size = 0;
+  for( auto & list : lists ) {
+   if( past_size + list.size() > index ) {
+    auto it = list.begin();
+    for( ; past_size < index ; ++it , ++past_size );
+    return const_cast< T * >( &*it );
+   }
+   past_size += list.size();
+  }
+  return nullptr;
+ }
+
+ template< typename T >
+ static T * get_dynamic_element_( const std::list<T> & list , Index index ) {
+  auto it = list.begin();
+  for( Index i = 0 ; i < index && it != list.cend(); ++i , ++it );
+  if( it != list.end() )
+   return const_cast< T * >( &*it );
+  return nullptr;
  }
 
 /*--------------------------------------------------------------------------*/
 
  template<class S , class T , class... Rest>
  static S * get_static_element( const boost::any & group , Index index ) {
-  if constexpr( std::is_base_of_v< S , T > || std::is_base_of_v< T , S > ) {
-    auto element = get_static_element( group , un_any_type<T>() , index );
-    if( element )
-     return element;
-   }
+  if constexpr( std::is_base_of_v< S , T > ) {
+   S * element = nullptr;
+   bool group_found = un_any_thing
+    ( T , group , { element = get_static_element_( var , index ); } );
+   if( group_found )
+    return element;
+  }
   else if constexpr( sizeof...(Rest) != 0 )
-                    return get_static_element<S , Rest...>( group , index );
+   return get_static_element<S , Rest...>( group , index );
   return nullptr;
  }
 
@@ -327,13 +259,16 @@ class AbstractPath {
 
  template<class S , class T , class... Rest>
  static S * get_dynamic_element( const boost::any & group , Index index ) {
-  if constexpr( std::is_base_of_v< S , T > || std::is_base_of_v< T , S > ) {
-    auto element = get_dynamic_element( group , un_any_type<T>() , index );
-    if( element )
-     return element;
-   }
+  if constexpr( std::is_base_of_v< S , T > ) {
+   S * element = nullptr;
+   bool group_found = un_any_thing
+    ( std::list<T> , group ,
+      { element = get_dynamic_element_( var , index ); } );
+   if( group_found )
+    return element;
+  }
   else if constexpr( sizeof...(Rest) != 0 )
-                    return get_dynamic_element<S , Rest...>( group , index );
+   return get_dynamic_element<S , Rest...>( group , index );
   return nullptr;
  }
 
@@ -386,13 +321,13 @@ class AbstractPath {
   auto group = get_group<T>( block , group_index , is_static );
   constexpr bool is_variable = std::is_base_of_v< Variable , T >;
   if constexpr ( is_variable ) {
-    if( is_static )
-     return get_static_element< T , Variable_Derived_Classes >
-      ( group , element_index );
-    else
-     return get_dynamic_element< T , Variable_Derived_Classes >
-      ( group , element_index );
-   }
+   if( is_static )
+    return get_static_element< T , Variable_Derived_Classes >
+     ( group , element_index );
+   else
+    return get_dynamic_element< T , Variable_Derived_Classes >
+     ( group , element_index );
+  }
   else {
    if( is_static )
     return get_static_element< T , Constraint_Derived_Classes >
@@ -407,13 +342,15 @@ class AbstractPath {
 
  template<class S , class T , class... Rest>
  static Index get_static_index( const S * s , const boost::any & group ) {
-  if constexpr( std::is_base_of_v< S , T > || std::is_base_of_v< T , S > ) {
-    auto index = get_static_index( s , group , un_any_type<T>() );
-    if( index < Inf<Index>()  )
-     return index;
-   }
+  if constexpr( std::is_base_of_v< S , T > ) {
+   Index index = Inf<Index>();
+   bool group_found =
+    un_any_thing( T , group , { index = get_static_index_( s , var ); } );
+   if( group_found && index < Inf<Index>()  )
+    return index;
+  }
   else if constexpr( sizeof...(Rest) != 0 )
-                    return get_static_index<S , Rest...>( s , group );
+   return get_static_index<S , Rest...>( s , group );
   return Inf<Index>();
  }
 
@@ -421,13 +358,15 @@ class AbstractPath {
 
  template<class S , class T , class... Rest>
  static Index get_dynamic_index( const S * s , const boost::any & group ) {
-  if constexpr( std::is_base_of_v< S , T > || std::is_base_of_v< T , S > ) {
-    auto index = get_dynamic_index( s , group , un_any_type<T>() );
-    if( index < Inf<Index>() )
-     return index;
-   }
+  if constexpr( std::is_base_of_v< S , T > ) {
+   Index index = Inf<Index>();
+   bool group_found = un_any_thing
+    ( std::list<T> , group , { index = get_dynamic_index_( s , var ); } );
+   if( group_found && index < Inf<Index>()  )
+    return index;
+  }
   else if constexpr( sizeof...(Rest) != 0 )
-                    return get_dynamic_index<S , Rest...>( s , group );
+   return get_dynamic_index<S , Rest...>( s , group );
   return Inf<Index>();
  }
 
@@ -445,13 +384,13 @@ class AbstractPath {
    Index index;
 
    if constexpr ( is_variable ) {
-     if( is_static )
-      index = get_static_index< T , Variable_Derived_Classes >
-       ( t , groups[ group_index ] );
-     else
-      index = get_dynamic_index< T , Variable_Derived_Classes >
-       ( t , groups[ group_index ] );
-    }
+    if( is_static )
+     index = get_static_index< T , Variable_Derived_Classes >
+      ( t , groups[ group_index ] );
+    else
+     index = get_dynamic_index< T , Variable_Derived_Classes >
+      ( t , groups[ group_index ] );
+   }
    else {
     if( is_static )
      index = get_static_index< T , Constraint_Derived_Classes >
@@ -736,29 +675,29 @@ public:
                             node.element_index );
   }
   else if constexpr( std::is_base_of_v< Objective , T > ) {
-    assert( node.type == Node::eObjective );
-    return block->get_objective();
+   assert( node.type == Node::eObjective );
+   return block->get_objective();
   }
   else if constexpr( std::is_base_of_v< Function , T > ) {
-    if( node.type == Node::eConstraint ) {
-     // It must be an FRowConstraint
-     auto constraint = get_element< FRowConstraint >
-      ( block , node.is_static , node.index , node.element_index );
-     if( ! constraint )
-      return nullptr;
-     else
-      return constraint->get_function();
-    }
-    else if( node.type == Node::eObjective ) {
-     // It must be an FRealObjective
-     auto objective = dynamic_cast< FRealObjective * >( block->get_objective() );
-     if( ! objective )
-      return nullptr;
-     else
-      return objective->get_function();
-    }
-    else
+   if( node.type == Node::eConstraint ) {
+    // It must be an FRowConstraint
+    auto constraint = get_element< FRowConstraint >
+     ( block , node.is_static , node.index , node.element_index );
+    if( ! constraint )
      return nullptr;
+    else
+     return constraint->get_function();
+   }
+   else if( node.type == Node::eObjective ) {
+    // It must be an FRealObjective
+    auto objective = dynamic_cast< FRealObjective * >( block->get_objective() );
+    if( ! objective )
+     return nullptr;
+    else
+     return objective->get_function();
+   }
+   else
+    return nullptr;
   }
   else if constexpr( std::is_base_of_v< Block , T > ) {
    assert( node.type == Node::eBlock );
