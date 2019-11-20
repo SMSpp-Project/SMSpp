@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 19 - 11 - 2019
+ * \date 20 - 11 - 2019
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -177,7 +177,7 @@ void simple_full_test() {
  using Interval = ElementGenerator<>::Interval;
 
  generator.static_constraint_generator =
-  new ElementGenerator( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 4 } ,
+  new ElementGenerator( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 3 } ,
                         { 3 , 6 } , { 4 , 7 } , 0 );
 
  generator.static_variable_generator =
@@ -185,20 +185,19 @@ void simple_full_test() {
                         { 3 , 6 } , { 4 , 7 } , 2 );
 
  generator.dynamic_constraint_generator =
-  new ElementGenerator( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 4 } ,
+  new ElementGenerator( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 3 } ,
                         { 3 , 6 } , { 4 , 7 } , 3 );
 
  generator.dynamic_variable_generator =
   new ElementGenerator( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 4 } ,
                         { 3 , 6 } , { 4 , 7 } , 4 );
 
- // TODO Test with LagBFunction
- generator.function_generator = new FunctionGenerator( { 0 , 1 } , 5 );
+ generator.function_generator = new FunctionGenerator( { 0 , 2 } , 5 );
 
  generator.block_generator = new BlockGenerator( { 4 , 7 } , 6 );
 
  AbstractBlockGenerator ab_generator( & generator );
- auto block = ab_generator.generate( 3 );
+ auto block = ab_generator.generate( 2 );
 
  test_everyone_has_function( block );
 

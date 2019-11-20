@@ -7,7 +7,7 @@
  *
  * \version 0.10
  *
- * \date 19 - 11 - 2019
+ * \date 20 - 11 - 2019
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -285,10 +285,16 @@ public:
 /*--------------------------------------------------------------------------*/
 
  AbstractBlock * generate( int depth ) {
-  // TODO Generate inner-blocks for BendersBFunction and LagBFunction
   auto block = new AbstractBlock();
-  generate_objective( block );
-  generate_groups( block );
+  generate( block , depth );
+  return block;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ void * generate( AbstractBlock * block , int depth ) {
+  generate_objective( block , std::max( 0 , depth - 1 ) );
+  generate_groups( block , std::max( 0 , depth - 1 ) );
   if( depth > 0 )
    generate_nested_blocks( block , depth - 1 );
   return block;
@@ -300,34 +306,50 @@ private:
 
  template< class T >
  typename std::enable_if_t< ! has_function_v< T > >
- generate_function( T * ) {}
+ generate_function( T * , int ) {}
 
  template< class T >
  typename std::enable_if_t< has_function_v< T > >
- generate_function( T * t ) {
+ generate_function( T * t , int depth ) {
   if( ! generator || ! generator->function_generator ) return;
   Function * function = nullptr;
   auto function_type = generator->function_generator->gen_function_type();
   if constexpr( ! std::is_base_of_v< FRealObjective , T > ) {
    if( function_type == eLag ) {
     // The Observer of a LagBFunction must be an FRealObjective. So, we try to
-    // use a different function.
+    // use a different function for the given T element.
     for( int i = 0 ; i < 100 && function_type == eLag ; ++i )
      function_type = generator->function_generator->gen_function_type();
     if( function_type == eLag )
-     function_type = - 1; // Use a null function
+     function_type = eLinear; // Use a LinearFunction
    }
   }
   switch( function_type ) {
    case( eLinear ):
     function = new LinearFunction();
     break;
-   case( eBenders ):
-    function = new BendersBFunction( nullptr );
+   case( eBenders ): {
+    function = new BendersBFunction();
+    if( depth > 0 ) {
+     auto block = new AbstractBlock( t->get_Block() );
+     static_cast<BendersBFunction *>( function )->set_inner_block( block );
+     generate( block , depth );
+    }
     break;
-   case( eLag ):
-    function = new LagBFunction( nullptr , t );
+   }
+   case( eLag ): {
+    if( depth > 0 ) {
+     function = new LagBFunction( nullptr , t );
+     auto block = new AbstractBlock( t->get_Block() );
+     block->set_objective( new FRealObjective( block , new LinearFunction() ) );
+     static_cast<LagBFunction *>( function )->set_inner_block( block );
+     generate( block , depth );
+    }
+    else {
+     function = new LinearFunction();
+    }
     break;
+   }
   }
   t->set_function( function );
  }
@@ -337,53 +359,56 @@ private:
  template < template < class , class > class C ,
             class T , class A = std::allocator< T > >
  typename std::enable_if_t< ! has_function_v< T > >
- generate_functions( const C< T , A > & ) {}
+ generate_functions( const C< T , A > & , int ) {}
 
  template <template < class , class > class C ,
            class T , class A = std::allocator< T > >
  typename std::enable_if_t< has_function_v< T > >
- generate_functions( const C< T , A > & c ) {
+ generate_functions( const C< T , A > & c , int depth ) {
   for( auto & e : c )
-   generate_function( const_cast< T * >( & e ) );
+   generate_function( const_cast< T * >( & e ) , depth );
  }
 
 /*--------------------------------------------------------------------------*/
 
- void generate_objective( AbstractBlock * block ) {
-  auto objective = new FRealObjective();
-  generate_function( objective );
-  block->set_objective( objective );
+ void generate_objective( AbstractBlock * block , int depth ) {
+  if( ! block->get_objective() ) {
+   auto objective = new FRealObjective( block );
+   generate_function( objective , depth );
+   block->set_objective( objective );
+  }
  }
 
 /*--------------------------------------------------------------------------*/
 
- void generate_groups( AbstractBlock * block ) {
+ void generate_groups( AbstractBlock * block , int depth ) {
   generate_groups< ColVariable , false >
    ( [ block ]( auto * e ) { block->add_static_variable( * e ); } ,
-     generator->static_variable_generator );
+     generator->static_variable_generator , depth );
 
   generate_groups< std::list< ColVariable > , true >
    ( [ block ]( auto * e ) { block->add_dynamic_variable( * e ); } ,
-     generator->dynamic_variable_generator );
+     generator->dynamic_variable_generator , depth );
 
   generate_groups< FRowConstraint , false >
    ( [ block ]( auto * e ) { block->add_static_constraint( * e ); } ,
-     generator->static_constraint_generator  );
+     generator->static_constraint_generator , depth );
 
   generate_groups< std::list< FRowConstraint > , true >
    ( [ block ]( auto * e ) { block->add_dynamic_constraint( * e ); } ,
-     generator->dynamic_constraint_generator  );
+     generator->dynamic_constraint_generator , depth );
  }
 
 /*--------------------------------------------------------------------------*/
 
  template< class T , bool dynamic , class F >
- void generate_groups( const F & add , IElementGenerator * generator ) {
+ void generate_groups( const F & add , IElementGenerator * generator ,
+                       int depth ) {
   if( ! generator ) return;
   auto num_groups = generator->gen_num_groups();
   for( int i = 0 ; i < num_groups ; ++i ) {
-   auto group_type = GroupType( generator->gen_group_type() % 3 );
-   generate_group< T , dynamic , F >( group_type , add , generator );
+   auto group_type = GroupType( generator->gen_group_type() );
+   generate_group< T , dynamic , F >( group_type , add , generator , depth );
   }
  }
 
@@ -391,28 +416,44 @@ private:
 
  template< class T , bool dynamic , class F >
  void generate_group( const GroupType group_type , const F & add ,
-                      IElementGenerator * generator ) {
+                      IElementGenerator * generator , int depth ) {
   if( ! generator ) return;
   switch( group_type ) {
    case( eSingleton ):
-    generate_singleton_group< T , dynamic , F >( add , generator );
+    generate_singleton_group< T , dynamic , F >( add , generator , depth );
     break;
 
    case( eVector ):
-    generate_vector_group< T , dynamic , F >( add , generator );
+    generate_vector_group< T , dynamic , F >( add , generator , depth );
     break;
 
    case( eMultiArray ): {
     auto k = generator->gen_multi_array_num_dim();
     switch( k ) {
-     case(1): add( create_multi_array< T , dynamic , 1 >( generator ) ); break;
-     case(2): add( create_multi_array< T , dynamic , 2 >( generator ) ); break;
-     case(3): add( create_multi_array< T , dynamic , 3 >( generator ) ); break;
-     case(4): add( create_multi_array< T , dynamic , 4 >( generator ) ); break;
-     case(5): add( create_multi_array< T , dynamic , 5 >( generator ) ); break;
-     case(6): add( create_multi_array< T , dynamic , 6 >( generator ) ); break;
-     case(7): add( create_multi_array< T , dynamic , 7 >( generator ) ); break;
-     default: add( create_multi_array< T , dynamic , 8 >( generator ) ); break;
+     case(1):
+      generate_multi_array_group< T , dynamic , 1 >( generator , add , depth );
+      break;
+     case(2):
+      generate_multi_array_group< T , dynamic , 2 >( generator , add , depth );
+      break;
+     case(3):
+      generate_multi_array_group< T , dynamic , 3 >( generator , add , depth );
+      break;
+     case(4):
+      generate_multi_array_group< T , dynamic , 4 >( generator , add , depth );
+      break;
+     case(5):
+      generate_multi_array_group< T , dynamic , 5 >( generator , add , depth );
+      break;
+     case(6):
+      generate_multi_array_group< T , dynamic , 6 >( generator , add , depth );
+      break;
+     case(7):
+      generate_multi_array_group< T , dynamic , 7 >( generator , add , depth );
+      break;
+     default:
+      generate_multi_array_group< T , dynamic , 8 >( generator , add , depth );
+      break;
     }
    }
   }
@@ -422,23 +463,26 @@ private:
 
  template< class T , bool dynamic , class F >
  void generate_singleton_group( const F & add ,
-                                IElementGenerator * generator ) {
+                                IElementGenerator * generator , int depth ) {
   if( ! generator ) return;
   auto t = new T();
   if constexpr( dynamic ) {
    auto num_elements = generator->gen_list_size();
    t->resize( num_elements );
-   generate_functions( * t );
+   add( t );
+   generate_functions( * t , depth );
   }
-  else
-   generate_function( t );
-  add( t );
+  else {
+   add( t );
+   generate_function( t , depth );
+  }
  }
 
 /*--------------------------------------------------------------------------*/
 
  template< class T , bool dynamic , class F >
- void generate_vector_group( const F & add , IElementGenerator * generator ) {
+ void generate_vector_group( const F & add , IElementGenerator * generator ,
+                             int depth ) {
   if( ! generator ) return;
   auto size = generator->gen_vector_size();
   auto vector = new std::vector< T >( size );
@@ -446,27 +490,27 @@ private:
    for( auto & e : * vector ) {
     auto num_elements = generator->gen_list_size();
     e.resize( num_elements );
-    generate_functions( e );
+   }
+   add( vector );
+   for( auto & e : * vector ) {
+    generate_functions( e , depth );
    }
   }
-  else
-   generate_functions( * vector );
-  add( vector );
+  else {
+   add( vector );
+   generate_functions( * vector , depth );
+  }
  }
 
 /*--------------------------------------------------------------------------*/
 
- template< class T , bool dynamic , std::size_t K >
- boost::multi_array< T , K > * create_multi_array
- ( IElementGenerator * generator ) {
+ template< class T , bool dynamic , std::size_t K , class F >
+ void generate_multi_array_group( IElementGenerator * generator ,
+                                  const F & add , int depth ) {
   using array_type = typename boost::multi_array< T , K >;
   boost::array< typename array_type::index , K > shape;
 
-  if( ! generator ) {
-   for( std::size_t i = 0 ; i < K ; ++i )
-    shape[ i ] = 0;
-   return new array_type( shape );
-  }
+  if( ! generator ) return;
 
   for( std::size_t i = 0 ; i < K ; ++i )
    shape[ i ] = generator->gen_multi_array_extent();
@@ -478,17 +522,23 @@ private:
         i < multi_array->num_elements() ; ++i ) {
     auto num_elements = generator->gen_list_size();
     p[ i ].resize( num_elements );
-    generate_functions( p[ i ] );
    }
-  }
-  else if constexpr( has_function_v< T > ) {
-   const auto p = multi_array->data();
+   add( multi_array );
    for( boost::multi_array_types::size_type i = 0 ;
         i < multi_array->num_elements() ; ++i ) {
-    generate_function( & p[ i ] );
+    generate_functions( p[ i ] , depth );
    }
   }
-  return multi_array;
+  else {
+   add( multi_array );
+   if constexpr( has_function_v< T > ) {
+    const auto p = multi_array->data();
+    for( boost::multi_array_types::size_type i = 0 ;
+         i < multi_array->num_elements() ; ++i ) {
+     generate_function( & p[ i ] , depth );
+    }
+   }
+  }
  }
 
 /*--------------------------------------------------------------------------*/
