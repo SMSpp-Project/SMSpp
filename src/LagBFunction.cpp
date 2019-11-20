@@ -116,7 +116,7 @@ void LagBFunction::set_inner_block( Block* innerblock ) {
  if( v_Block.size() )
   v_Block.clear();
 
- v_Block[0] = innerblock;
+ v_Block.push_back( innerblock );
 
  // set the objective : the Lagrangian function (obj_B) is the objective of
  // sub-block (B)
