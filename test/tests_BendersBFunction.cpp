@@ -40,8 +40,8 @@ using namespace SMSpp_di_unipi_it::tests;
 /*------------------------------ FUNCTIONS ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-double solve( std::string file_name ) {
- auto block = build_CWL_block( file_name , true );
+double solve( std::string file_name , bool continuous_relaxation ) {
+ auto block = build_CWL_block( file_name , continuous_relaxation );
  auto solver = new CPXMILPSolver();
  block->register_Solver( solver );
  auto status = solver->compute( true );
@@ -54,18 +54,22 @@ double solve( std::string file_name ) {
 
 void compare( std::string data_dir_path ) {
 
+ bool continuous_relaxation = true;
+
  for( const auto & file : std::filesystem::directory_iterator( data_dir_path ) ) {
   auto file_name = file.path();
-  auto solution_value = solve( file_name );
+  auto solution_value = solve( file_name , continuous_relaxation );
   auto cwl_mcf_value = cwl_mcf( file_name );
   auto diff = std::abs( solution_value - cwl_mcf_value );
   auto max_diff = std::max( 1.0e-6 , 1.0e-6 *
                             std::min( abs( solution_value ),
                                       abs( cwl_mcf_value ) ) );
-
   if( diff > max_diff )
    std::cout << "Solution value difference for instance " <<
     file_name << ": "  << diff << std::endl;
+
+  auto benders_decomposition = build_CWL_block_with_Benders_decomposition
+   ( file_name , continuous_relaxation );
  }
 }
 
