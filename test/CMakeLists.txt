@@ -1,3 +1,6 @@
+# ----- Requirements -------------------------------------------------------- #
+find_package(MILPSolver REQUIRED)
+
 # ----- Fetch GoogleTest ---------------------------------------------------- #
 include(FetchContent)
 fetchcontent_declare(
@@ -27,10 +30,22 @@ add_test(
 
 # ----- AbstractPath_test ----------------------------------------------- #
 add_executable(AbstractPath_test tests_AbstractPath.cpp)
-target_link_libraries(AbstractPath_test PRIVATE SMS++::SMSpp gtest)
+target_link_libraries(AbstractPath_test PRIVATE SMS++::SMSpp)
 
 add_test(
         NAME AbstractPath_test
         COMMAND AbstractPath_test
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+# ----- BendersBFunction_test ----------------------------------------------- #
+add_executable(BendersBFunction_test tests_BendersBFunction.cpp
+               cwl-mcf/cwl-mcf.cpp cwl-mcf/MCFSimplex.C)
+target_link_libraries(BendersBFunction_test PRIVATE SMS++::SMSpp
+                      SMS++::MILPSolver)
+
+add_test(
+        NAME BendersBFunction_test
+        COMMAND BendersBFunction_test
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
