@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 19 - 11 - 2019
+ * \date 21 - 11 - 2019
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -746,7 +746,8 @@ public:
 
   AbstractPath path;
 
-  for( Index i = 0 ; i < group.getGroupCount() ; ++i ) {
+  auto group_count = group.getGroupCount();
+  for( decltype( group_count ) i = 0 ; i < group_count ; ++i ) {
    auto node_group = group.getGroup( "Node_" + std::to_string( i ) );
    auto & node = path.nodes.emplace_back();
    SMSpp_di_unipi_it::deserialize( node_group , "Type" , & node.type , false );

@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 19 - 11 - 2019
+ * \date 21 - 11 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1109,9 +1109,6 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
   }
  }
  else if( const auto tmod = std::dynamic_pointer_cast<ConstraintMod>( mod ) ) {
-
-  auto block = tmod->constraint()->get_Block();
-  auto behaviour = function_value_behaviour::unchanged;
 
   if( tmod->type() == ConstraintMod::eRelaxConst ||
       tmod->type() == ConstraintMod::eEnforceConst ) {
