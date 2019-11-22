@@ -107,7 +107,6 @@ CWLInstance read_cwl_instance( std::string file_name ) {
 AbstractBlock * build_CWL_block( std::string file_name ,
                                  bool continuous_relaxation = false ) {
 
-
  auto instance = read_cwl_instance( file_name );
 
  auto block = new AbstractBlock();
@@ -251,6 +250,7 @@ BendersBFunction * build_Benders_function( const CWLInstance & instance ,
  // BendersBFunction
 
  auto benders_function = new BendersBFunction();
+
  benders_function->set_inner_block( block );
  benders_function->set_variables( std::move( y ) );
 
@@ -262,7 +262,6 @@ BendersBFunction * build_Benders_function( const CWLInstance & instance ,
    Ai[ i ] = instance.capacity[ i ];
    benders_function->add_row( std::move( Ai ) , 0 , cs );
   }
-  block->add_static_constraint( * capacity_constraints );
  }
 
  return benders_function;
@@ -324,11 +323,9 @@ AbstractBlock * build_CWL_block_with_Benders_decomposition
                                                  continuous_relaxation , y );
  auto benders_function = build_Benders_function( instance , std::move( y ) ,
                                                  inner_block_solver );
-
- auto nested_blocks = master_block->access_nested_Blocks();
+ auto & nested_blocks = master_block->access_nested_Blocks();
  assert( nested_blocks.empty() );
- nested_blocks.push_back( new AbstractBlock() );
- nested_blocks[ 0 ]->set_f_Block( master_block );
+ nested_blocks.push_back( new AbstractBlock( master_block ) );
  auto objective = new FRealObjective( nested_blocks[ 0 ] , benders_function );
  nested_blocks[ 0 ]->set_objective( objective );
 

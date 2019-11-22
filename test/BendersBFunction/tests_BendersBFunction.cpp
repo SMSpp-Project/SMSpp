@@ -47,8 +47,8 @@ double solve( std::string file_name , bool continuous_relaxation ) {
  auto status = solver->compute( true );
  if( status != ThinComputeInterface::kOK )
   std::cout << "Problem not solved for instance " << file_name << std::endl;
- auto objective = static_cast< FRealObjective * >( block->get_objective() );
- auto solution_value = objective->get_function()->get_value();
+ auto solution_value = solver->get_var_value();
+ delete block;
  return solution_value;
 }
 
@@ -71,6 +71,7 @@ void compare( std::string data_dir_path ) {
   auto inner_block_solver = new CPXMILPSolver();
   auto benders_decomposition = build_CWL_block_with_Benders_decomposition
    ( file_name , continuous_relaxation , inner_block_solver );
+  delete benders_decomposition;
  }
 }
 
