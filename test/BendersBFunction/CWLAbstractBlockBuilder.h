@@ -7,7 +7,7 @@
  *
  * \version 0.10
  *
- * \date 21 - 11 - 2019
+ * \date 22 - 11 - 2019
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -186,7 +186,8 @@ AbstractBlock * build_CWL_block( std::string file_name ,
 /*--------------------------------------------------------------------------*/
 
 BendersBFunction * build_Benders_function( const CWLInstance & instance ,
-                                           std::vector< ColVariable * > && y ) {
+                                           std::vector< ColVariable * > && y ,
+                                           Solver * solver ) {
 
  auto block = new AbstractBlock();
 
@@ -244,6 +245,8 @@ BendersBFunction * build_Benders_function( const CWLInstance & instance ,
   objective->set_sense( Objective::eMin );
   block->set_objective( objective );
  }
+
+ block->register_Solver( solver );
 
  // BendersBFunction
 
@@ -312,13 +315,15 @@ AbstractBlock * build_Benders_master_block
 /*--------------------------------------------------------------------------*/
 
 AbstractBlock * build_CWL_block_with_Benders_decomposition
-( std::string file_name , bool continuous_relaxation = false ) {
+( std::string file_name , bool continuous_relaxation = false ,
+  Solver * inner_block_solver = nullptr) {
 
  auto instance = read_cwl_instance( file_name );
  std::vector< ColVariable * > y;
  auto master_block = build_Benders_master_block( instance ,
                                                  continuous_relaxation , y );
- auto benders_function = build_Benders_function( instance , std::move( y ) );
+ auto benders_function = build_Benders_function( instance , std::move( y ) ,
+                                                 inner_block_solver );
 
  auto nested_blocks = master_block->access_nested_Blocks();
  assert( nested_blocks.empty() );

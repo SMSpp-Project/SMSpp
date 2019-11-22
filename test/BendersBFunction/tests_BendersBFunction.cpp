@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 21 - 11 - 2019
+ * \date 22 - 11 - 2019
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -68,8 +68,9 @@ void compare( std::string data_dir_path ) {
    std::cout << "Solution value difference for instance " <<
     file_name << ": "  << diff << std::endl;
 
+  auto inner_block_solver = new CPXMILPSolver();
   auto benders_decomposition = build_CWL_block_with_Benders_decomposition
-   ( file_name , continuous_relaxation );
+   ( file_name , continuous_relaxation , inner_block_solver );
  }
 }
 
