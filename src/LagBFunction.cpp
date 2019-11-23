@@ -8,7 +8,7 @@
  *
  * \version 0.07
  *
- * \date 01 - 11 - 2019
+ * \date 20 - 11 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -116,7 +116,7 @@ void LagBFunction::set_inner_block( Block* innerblock ) {
  if( v_Block.size() )
   v_Block.clear();
 
- v_Block[0] = innerblock;
+ v_Block.push_back( innerblock );
 
  // set the objective : the Lagrangian function (obj_B) is the objective of
  // sub-block (B)
@@ -1500,6 +1500,13 @@ void LagBFunction::guts_of_destructor( )
  for( auto tpl : g_pool )
   delete[] std::get<0>(tpl);
  g_pool.clear();
+
+ // delete the inner Block - - - - - - - - - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ if( ! v_Block.empty() )
+  delete v_Block[ 0 ];
+ v_Block.clear();
 
  } // end ( LagBFunction::guts_of_destructor() ) - - - - - - - - - - - - - - -
 

@@ -7,7 +7,7 @@
  *
  * \version 0.07
  *
- * \date 01 - 11 - 2019
+ * \date 20 - 11 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -534,8 +534,7 @@ class LagBFunction : public C05Function , public Block {
 
  virtual void register_Observer( Observer * const observer = nullptr ) override
  {
-  auto TVDIO = dynamic_cast<FRealObjective *>( f_Observer );
-  if( ! TVDIO )
+  if( observer && ! dynamic_cast<FRealObjective *>( observer ) )
    throw( std::logic_error(
 	       "the Observer of a LagBFunction must be a FRealObjective" ) );
 
