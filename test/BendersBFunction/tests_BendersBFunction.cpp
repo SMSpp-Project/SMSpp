@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 22 - 11 - 2019
+ * \date 26 - 11 - 2019
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -21,6 +21,7 @@
 /*--------------------------------------------------------------------------*/
 
 #include "AbstractBlock.h"
+#include "BundleSolver.h"
 #include "CPXMILPSolver.h"
 #include "CWLAbstractBlockBuilder.h"
 
@@ -39,6 +40,36 @@ using namespace SMSpp_di_unipi_it::tests;
 /*--------------------------------------------------------------------------*/
 /*------------------------------ FUNCTIONS ---------------------------------*/
 /*--------------------------------------------------------------------------*/
+
+double solve_with_bundle( std::string file_name , bool continuous_relaxation ) {
+ auto inner_block_solver = new CPXMILPSolver();
+ auto block = build_CWL_block_with_Benders_decomposition
+   ( file_name , continuous_relaxation , inner_block_solver );
+
+ {
+  std::ifstream BundleParFile( "BundlePar.txt" );
+  if( ! BundleParFile.is_open() ) {
+   cerr << "Error: cannot open file BundlePar.txt" << endl;
+   return( 1 );
+   }
+
+  BlockSolverConfig * bsc = new BlockSolverConfig;
+  BundleParFile >> *( bsc );
+  BundleParFile.close();
+
+  block->set_SolverConfig( bsc );
+  delete bsc;
+ }
+
+ auto solver = block->get_registered_solvers().front();
+ auto status = solver->compute( true );
+ if( status != ThinComputeInterface::kOK )
+  std::cout << "Problem not solved for instance " << file_name << std::endl;
+ auto solution_value = solver->get_var_value();
+ std::cout << solution_value << std::endl;
+ delete block;
+ return solution_value;
+}
 
 double solve( std::string file_name , bool continuous_relaxation ) {
  auto block = build_CWL_block( file_name , continuous_relaxation );
@@ -67,11 +98,6 @@ void compare( std::string data_dir_path ) {
   if( diff > max_diff )
    std::cout << "Solution value difference for instance " <<
     file_name << ": "  << diff << std::endl;
-
-  auto inner_block_solver = new CPXMILPSolver();
-  auto benders_decomposition = build_CWL_block_with_Benders_decomposition
-   ( file_name , continuous_relaxation , inner_block_solver );
-  delete benders_decomposition;
  }
 }
 

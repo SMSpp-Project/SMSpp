@@ -7,7 +7,7 @@
  *
  * \version 0.10
  *
- * \date 22 - 11 - 2019
+ * \date 26 - 11 - 2019
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -37,6 +37,12 @@
 
 // namespace for the tests of the Structured Modeling System++ (SMS++)
 namespace SMSpp_di_unipi_it { namespace tests {
+
+/*--------------------------------------------------------------------------*/
+/*--------------------------------- TYPES ----------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+enum DecompositionType { eNone , eCustomer , eLocation };
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------------- CLASSES ---------------------------------*/
@@ -116,6 +122,7 @@ AbstractBlock * build_CWL_block( std::string file_name ,
  auto y = new std::vector< ColVariable >( instance.num_locations );
  for( auto & y_i : * y ) {
   y_i.is_unitary( true );
+  y_i.is_positive( true );
   if( ! continuous_relaxation )
    y_i.is_integer( true );
  }
@@ -180,6 +187,197 @@ AbstractBlock * build_CWL_block( std::string file_name ,
  }
 
  return block;
+}
+
+
+/*--------------------------------------------------------------------------*/
+
+AbstractBlock * build_customer_Block( const CWLInstance & instance , int j ) {
+
+ auto block = new AbstractBlock();
+
+ // Variables
+
+ auto x = new std::vector< ColVariable >( instance.num_locations );
+ for( auto & x_i : * x )
+  x_i.is_positive( true );
+
+ block->add_static_variable( * x );
+
+ // Constraint
+
+ {
+  auto demand_fulfillment = new FRowConstraint();
+  auto function = new LinearFunction();
+  for( int i = 0 ; i < instance.num_locations ; ++i ) {
+   function->add_variable( & ( * x )[ i ] , 1 );
+  }
+  demand_fulfillment->set_function( function );
+  demand_fulfillment->set_both( 1 );
+  block->add_static_constraint( * demand_fulfillment );
+ }
+
+ // Objective function
+
+ {
+  auto function = new LinearFunction();
+  for( int i = 0 ; i < instance.num_locations ; ++i )
+   function->add_variable( & ( * x )[ i ] , instance.cost[ i ][ j ] );
+  auto objective = new FRealObjective( block , function );
+  objective->set_sense( Objective::eMin );
+  block->set_objective( objective );
+ }
+
+ return block;
+
+}
+
+/*--------------------------------------------------------------------------*/
+
+BendersBFunction * build_decomposition_by_customer
+( const CWLInstance & instance , std::vector< ColVariable * > && y ) {
+
+ auto block = new AbstractBlock();
+
+ auto & nested_Blocks = block->access_nested_Blocks();
+ nested_Blocks.reserve( instance.num_customers );
+ for( int j = 0 ; j < instance.num_customers ; ++j ) {
+  auto customer_block = build_customer_Block( instance , j );
+  customer_block->register_Solver( new CPXMILPSolver() );
+  nested_Blocks.push_back( customer_block );
+ }
+
+ // Constraints
+
+ auto capacity_constraints =
+  new std::vector< FRowConstraint >( instance.num_locations );
+ {
+  for( int i = 0 ; i < instance.num_locations ; ++i ) {
+   auto function = new LinearFunction();
+   for( int j = 0 ; j < instance.num_customers ; ++j ) {
+    auto & x = * nested_Blocks[ j ]->get_static_variable_v< ColVariable >( 0 );
+    function->add_variable( & x[ i ] , instance.demand[ j ] );
+   }
+   ( * capacity_constraints )[ i ].set_function( function );
+   ( * capacity_constraints )[ i ].set_rhs( 0 );
+  }
+  block->add_static_constraint( * capacity_constraints );
+ }
+
+ // BendersBFunction
+
+ auto benders_function = new BendersBFunction();
+
+ benders_function->set_inner_block( block );
+ benders_function->set_variables( std::move( y ) );
+
+ {
+  for( int i = 0 ; i < instance.num_locations ; ++i ) {
+   auto cs = BendersBFunction::ConstraintSpecifier
+    ( & ( * capacity_constraints )[ i ] , BendersBFunction::eRHS );
+   std::vector< double > Ai( instance.num_locations , 0 );
+   Ai[ i ] = instance.capacity[ i ];
+   benders_function->add_row( std::move( Ai ) , 0 , cs );
+  }
+ }
+
+ return benders_function;
+}
+
+/*--------------------------------------------------------------------------*/
+
+AbstractBlock * build_location_Block( const CWLInstance & instance , int i ) {
+
+ auto block = new AbstractBlock();
+
+ // Variables
+
+ auto x = new std::vector< ColVariable >( instance.num_customers );
+ for( auto & x_j : * x )
+  x_j.is_positive( true );
+
+ block->add_static_variable( * x );
+
+ // Constraint
+
+ {
+  auto capacity_constraint = new FRowConstraint();
+  auto function = new LinearFunction();
+  for( int j = 0 ; j < instance.num_customers ; ++j ) {
+   function->add_variable( & ( * x )[ j ] , instance.demand[ j ] );
+  }
+  capacity_constraint->set_function( function );
+  capacity_constraint->set_rhs( 0 );
+  block->add_static_constraint( * capacity_constraint );
+ }
+
+ // Objective function
+
+ {
+  auto function = new LinearFunction();
+  for( int j = 0 ; j < instance.num_customers ; ++j )
+   function->add_variable( & ( * x )[ j ] , instance.cost[ i ][ j ] );
+  auto objective = new FRealObjective( block , function );
+  objective->set_sense( Objective::eMin );
+  block->set_objective( objective );
+ }
+
+ return block;
+
+}
+
+/*--------------------------------------------------------------------------*/
+
+BendersBFunction * build_decomposition_by_location
+( const CWLInstance & instance , std::vector< ColVariable * > && y ) {
+
+ auto block = new AbstractBlock();
+
+ auto & nested_Blocks = block->access_nested_Blocks();
+ nested_Blocks.reserve( instance.num_locations );
+ for( int i = 0 ; i < instance.num_locations ; ++i ) {
+  auto location_block = build_location_Block( instance , i );
+  location_block->register_Solver( new CPXMILPSolver() );
+  nested_Blocks.push_back( location_block );
+ }
+
+ // Constraints
+
+ {
+  auto demand_fulfillment =
+   new std::vector< FRowConstraint >( instance.num_customers );
+  for( int j = 0 ; j < instance.num_customers ; ++j ) {
+   auto function = new LinearFunction();
+   auto & x = * nested_Blocks[ j ]->get_static_variable_v< ColVariable >( 0 );
+   for( int i = 0 ; i < instance.num_locations ; ++i ) {
+    function->add_variable( & x[ i ] , 1 );
+   }
+   ( * demand_fulfillment )[ j ].set_function( function );
+   ( * demand_fulfillment )[ j ].set_both( 1 );
+  }
+  block->add_static_constraint( * demand_fulfillment );
+ }
+
+ // BendersBFunction
+
+ auto benders_function = new BendersBFunction();
+
+ benders_function->set_inner_block( block );
+ benders_function->set_variables( std::move( y ) );
+
+ {
+  for( int i = 0 ; i < instance.num_locations ; ++i ) {
+   auto capacity_constraint =
+    nested_Blocks[ i ]->get_static_constraint< FRowConstraint >( 0 );
+   auto cs = BendersBFunction::ConstraintSpecifier
+    ( capacity_constraint , BendersBFunction::eRHS );
+   std::vector< double > Ai( instance.num_locations , 0 );
+   Ai[ i ] = instance.capacity[ i ];
+   benders_function->add_row( std::move( Ai ) , 0 , cs );
+  }
+ }
+
+ return benders_function;
 }
 
 /*--------------------------------------------------------------------------*/
@@ -269,6 +467,27 @@ BendersBFunction * build_Benders_function( const CWLInstance & instance ,
 
 /*--------------------------------------------------------------------------*/
 
+BendersBFunction * build_Benders_function
+( const CWLInstance & instance , std::vector< ColVariable * > && y ,
+  Solver * solver , DecompositionType decomposition_type ) {
+
+ if( decomposition_type == eNone ) {
+  return build_Benders_function( instance , std::move( y ) , solver );
+ }
+ else if( decomposition_type == eCustomer ) {
+  return build_decomposition_by_customer( instance , std::move( y ) );
+ }
+ else if( decomposition_type == eLocation ) {
+  return build_decomposition_by_location( instance , std::move( y ) );
+ }
+ else {
+  throw std::invalid_argument( "build_Benders_function: invalid decomposition "
+                               "type: " + std::to_string( decomposition_type ) );
+ }
+}
+
+/*--------------------------------------------------------------------------*/
+
 AbstractBlock * build_Benders_master_block
 ( const CWLInstance & instance , bool continuous_relaxation ,
   std::vector< ColVariable * > & p_y ) {
@@ -282,6 +501,7 @@ AbstractBlock * build_Benders_master_block
  auto y = new std::vector< ColVariable >( instance.num_locations );
  for( auto & y_i : * y ) {
   y_i.is_unitary( true );
+  y_i.is_positive( true );
   p_y.push_back( & y_i );
   if( ! continuous_relaxation )
    y_i.is_integer( true );
@@ -289,18 +509,10 @@ AbstractBlock * build_Benders_master_block
 
  block->add_static_variable( * y );
 
- auto z = new ColVariable();
- block->add_static_variable( * z );
-
- // Constraints
-
- block->add_dynamic_constraint( * new std::list< FRowConstraint > );
-
  // Objective function
 
  {
   auto function = new LinearFunction();
-  function->add_variable( z , 1 );
   for( int i = 0 ; i < instance.num_locations ; ++i )
    function->add_variable( & ( * y )[ i ] , instance.fixed_cost[ i ] );
   auto objective = new FRealObjective( block , function );
