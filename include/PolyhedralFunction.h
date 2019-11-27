@@ -694,7 +694,7 @@ class PolyhedralFunction : public C05Function {
   if( v_glob[ name ] == Inf<Index>() )
    // there is no item with such a name, which may mean that it was there
    // once but it has been deleted: the linearization is invalid
-   return( Inf<FunctionValue>() );
+   return( std::numeric_limits<FunctionValue>::quiet_NaN() );
 
   if( v_glob[ name ] < v_b.size() )
    return( v_b[ v_glob[ name ] ] );
