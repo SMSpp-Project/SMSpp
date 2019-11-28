@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 21 - 11 - 2019
+ * \date 28 - 11 - 2019
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -21,6 +21,7 @@
 /*--------------------------------------------------------------------------*/
 
 #include "AbstractBlock.h"
+#include "BundleSolver.h"
 #include "CPXMILPSolver.h"
 #include "CWLAbstractBlockBuilder.h"
 
@@ -40,6 +41,40 @@ using namespace SMSpp_di_unipi_it::tests;
 /*------------------------------ FUNCTIONS ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+void set_bundle_config( const std::string & config_file_path ,
+                        Block * block ) {
+ std::ifstream BundleParFile( config_file_path );
+ if( ! BundleParFile.is_open() ) {
+  throw std::invalid_argument( "Error: cannot open file " + config_file_path );
+ }
+
+ BlockSolverConfig * bsc = new BlockSolverConfig;
+ BundleParFile >> *( bsc );
+ BundleParFile.close();
+
+ block->set_SolverConfig( bsc );
+ delete bsc;
+}
+
+/*--------------------------------------------------------------------------*/
+
+double solve_with_bundle( std::string file_name , bool continuous_relaxation ) {
+ auto inner_block_solver = new CPXMILPSolver();
+ auto block = build_CWL_block_with_Benders_decomposition
+   ( file_name , continuous_relaxation , inner_block_solver );
+
+ set_bundle_config( "BundlePar.txt" , block );
+
+ auto solver = block->get_registered_solvers().front();
+ auto status = solver->compute( true );
+ if( status != ThinComputeInterface::kOK )
+  std::cout << "Problem not solved for instance " << file_name << std::endl;
+ auto solution_value = solver->get_var_value();
+ std::cout << solution_value << std::endl;
+ delete block;
+ return solution_value;
+}
+
 double solve( std::string file_name , bool continuous_relaxation ) {
  auto block = build_CWL_block( file_name , continuous_relaxation );
  auto solver = new CPXMILPSolver();
@@ -47,8 +82,8 @@ double solve( std::string file_name , bool continuous_relaxation ) {
  auto status = solver->compute( true );
  if( status != ThinComputeInterface::kOK )
   std::cout << "Problem not solved for instance " << file_name << std::endl;
- auto objective = static_cast< FRealObjective * >( block->get_objective() );
- auto solution_value = objective->get_function()->get_value();
+ auto solution_value = solver->get_var_value();
+ delete block;
  return solution_value;
 }
 
@@ -56,7 +91,8 @@ void compare( std::string data_dir_path ) {
 
  bool continuous_relaxation = true;
 
- for( const auto & file : std::filesystem::directory_iterator( data_dir_path ) ) {
+ for( const auto & file :
+       std::filesystem::directory_iterator( data_dir_path ) ) {
   auto file_name = file.path();
   auto solution_value = solve( file_name , continuous_relaxation );
   auto cwl_mcf_value = cwl_mcf( file_name );
@@ -67,9 +103,6 @@ void compare( std::string data_dir_path ) {
   if( diff > max_diff )
    std::cout << "Solution value difference for instance " <<
     file_name << ": "  << diff << std::endl;
-
-  auto benders_decomposition = build_CWL_block_with_Benders_decomposition
-   ( file_name , continuous_relaxation );
  }
 }
 

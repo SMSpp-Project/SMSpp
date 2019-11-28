@@ -9,7 +9,7 @@
  *
  * \version 0.31
  *
- * \date 18 - 07 - 2019
+ * \date 28 - 11 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1059,14 +1059,16 @@ class C05Function : public Function {
   * concept is completely ignored because, say, the Function is a linear one
   * and therefore all linearizations are the same).
   *
-  * Note that the method can be queried, after that an appropriate 
+  * Note that the method can be queried, after that an appropriate
   * Modification has been issued [see C05FunctionMod*], to get the *new* value
   * of \alpha for each of the linearizations stored in the global pool, which
   * may allow reoptimization to be performed. In this case, a linearization
-  * may have become invalid: this is signaled by returning
-  * Inf<FunctionValue>() as the corresponding \alpha, which should prompt the
-  * linearization to be removed from the global pool (but at least it should
-  * warn whatever algorithm is using the Function not to use it any longer). 
+  * may have become invalid: this is signaled by returning NaN (e.g. as what
+  * is reported by std::numeric_limits::quiet_NaN<FunctionValue>() or by
+  * std::numeric_limits::signaling_NaN<FunctionValue>()) as the corresponding
+  * \alpha, which should prompt the linearization to be removed from the
+  * global pool (but at least it should warn whatever algorithm is using the
+  * Function not to use it any longer).
   */
 
  virtual FunctionValue get_linearization_constant(
