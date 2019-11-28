@@ -1275,7 +1275,7 @@ class C05Function : public Function {
  * \alpha = c u_i does not change, but in the second the original
  * linearization (even the g part) can no longer be used, as it is no longer
  * valid. This can be handled by having get_linearization_constant()
- * returning Inf<FunctionValue>() for the corresponding \alpha.
+ * returning NaN for the corresponding \alpha.
  *
  * Note that one would expect that the change in the \alpha implies a change
  * in the values of the Function as well. If and how this actually happens
