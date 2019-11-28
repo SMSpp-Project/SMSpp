@@ -135,7 +135,7 @@ AbstractBlock * build_CWL_block( std::string file_name ,
  auto x = new array_type( shape );
 
  auto p_x = x->data();
- for( int k = 0 ; k < x->num_elements() ; ++k , ++p_x )
+ for( array_type::size_type k = 0 ; k < x->num_elements() ; ++k , ++p_x )
   p_x->is_positive( true );
 
  block->add_static_variable( * x );
@@ -396,7 +396,7 @@ BendersBFunction * build_Benders_function( const CWLInstance & instance ,
  auto x = new array_type( shape );
 
  auto p_x = x->data();
- for( int k = 0 ; k < x->num_elements() ; ++k , ++p_x )
+ for( array_type::size_type k = 0 ; k < x->num_elements() ; ++k , ++p_x )
   p_x->is_positive( true );
 
  block->add_static_variable( * x );
