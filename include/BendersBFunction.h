@@ -7,7 +7,7 @@
  *
  * \version 0.01
  *
- * \date 18 - 11 - 2019
+ * \date 02 - 12 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -187,6 +187,7 @@ class BendersBFunction : public C05Function , public Block {
 
  using c_MultiVector = const MultiVector;   ///< a const MultiVector
 
+ // TODO It should be a vector of const ColVariable *
  using VarVector = std::vector< ColVariable * >;
  ///< representing the x variables upon which the function depends
 
@@ -1257,11 +1258,10 @@ class BendersBFunction : public C05Function , public Block {
   *     affected. The possible values are 0 for the left-hand (or lower bound)
   *     side, 1 for the right-hand (or upper bound) side, and 2 for both side.
   *
-  *   - The sub-group "Path", containing the path to that Constraint.
+  *   - The sub-group "Path", containing the AbstractPath to that Constraint.
   *
-  * - The sub-group "Variable_i", for each i in {1, ..., n}, where n is the
-  *   number of active Variable of this BendersBFunction, which contains the
-  *   path to the i-th active Variable.
+  * - The sub-group "InnerBlock", containing the description of the inner
+  *   Block.
   */
 
  virtual void serialize( netCDF::NcGroup & group ) const override;

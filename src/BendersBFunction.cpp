@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 21 - 11 - 2019
+ * \date 02 - 12 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -106,24 +106,12 @@ void BendersBFunction::deserialize( netCDF::NcGroup & group ,
 
  auto inner_block_group = group.getGroup( "InnerBlock" );
  if( ! inner_block_group.isNull() ) {
-
-  auto inner_block = get_inner_block();
-
-  if( ! inner_block ) {
-   auto class_name_attribute = inner_block_group.getAtt( "Type" );
-
-   if( class_name_attribute.isNull() )
-    throw ( std::invalid_argument( "BendersBFunction::deserialize: Type "
-                                   "attribute is not present in the "
-                                   "InnerBlock group." ) );
-
-   std::string class_name;
-   class_name_attribute.getValues( class_name );
-   inner_block = new_Block( class_name, this );
-  }
-
+  auto inner_block = new_Block( inner_block_group, this );
+  if( ! inner_block )
+   throw std::logic_error( "BendersBFunction::deserialize: the 'InnerBlock' "
+                           "group is present but its description is "
+                           "incomplete." );
   set_inner_block( inner_block );
-  inner_block->deserialize( inner_block_group );
  }
 
  std::vector<ConstraintSpecifier> constraints;
@@ -1285,6 +1273,9 @@ void BendersBFunction::serialize( netCDF::NcGroup & group ) const {
   AbstractPath::serialize( path , path_group );
   ::serialize( cs_group, "Side", netCDF::NcByte(), v_constraints[ i ].second );
  }
+
+ auto inner_block_group = group.addGroup( "InnerBlock" );
+ get_inner_block()->serialize( inner_block_group );
 }
 
 /*--------------------------------------------------------------------------*/
