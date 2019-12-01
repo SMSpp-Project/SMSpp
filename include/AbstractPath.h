@@ -2,11 +2,14 @@
 /*-------------------------- File AbstractPath.h ---------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Header file for the AbstractPath class,
+ * Header file for the AbstractPath class, which represent a path from a Block
+ * to one of its elements: a Block, a Constraint, a Variable, an Objective, or
+ * a Function. The element can directly belong to the Block itself (even be
+ * the Block itself) or belong to any of its sons, recursively.
  *
  * \version 0.10
  *
- * \date 30 - 11 - 2019
+ * \date 01 - 12 - 2019
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -69,8 +72,106 @@ namespace SMSpp_di_unipi_it
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-///
-/**
+/// A path from a Block to one of its elements
+/** The AbstractPath represents a path from a Block, here referred to as the
+ * reference Block, to one of its elements (the target element): a Block, a
+ * Constraint, a Variable, an Objective, or a Function. The target element can
+ * directly belong to the reference Block itself (even be the reference Block
+ * itself) or belong to any of its sons, recursively. The reference Block is
+ * not explicitly represented in the path. In fact, the representation of the
+ * path is independent from the reference Block. For the path to be
+ * meaningful, the reference Block should be clear from the context. The
+ * reference Block must be available when the path is constructed and when the
+ * target element is retrieved. Furthermore, the type of the target element
+ * cannot always be inferred from the path. The type of the target element,
+ * therefore, must also be known from the context.
+ *
+ * The AbstractPath is particularly useful for the serialization and
+ * deserialization of pointers to objects. If an object stores pointers to
+ * other objects (for example, a Function has a set of pointers to Variable,
+ * others have pointers to Block), these pointers can be serialized and
+ * deserialized, making the construction of the object easier. The fact that
+ * the representation of the path is independent from the reference Block also
+ * facilitates its serialization and deserialization. Another advantage of
+ * this independence from the reference Block is that the same path can be
+ * used to target different objects.
+ *
+ * The path is defined as a sequence of nodes, each one represented by a Node
+ * object. Each node has one of the following types: 'B', 'C', 'V', or
+ * 'O'. These types indicate that the node is associated with a Block, a
+ * Constraint, a Variable, and a Object, respectively. Notice that there is no
+ * node associated with a Function, but this does not prevent one from
+ * constructing a path to a Function. Although the nodes in the path are
+ * arranged in the natural order, i.e., the first node is the origin of the
+ * path and the last one is the destination, it is easier to understand the
+ * path if we look at it backwards.
+ *
+ * Consider the path from some reference Block to some Variable. The last node
+ * in this path necessarily has the 'V' type, indicating this is a path to a
+ * Variable. This Variable belongs to some Block and is either static or
+ * dynamic. This last node has all information needed to retrieve this
+ * Variable from its father Block: a boolean indicating whether the Variable
+ * is static or dynamic, the index of the group to which it belongs, and the
+ * index of the Variable within that group.
+ *
+ * Note: The index of a Variable (or Constraint) within a group is a single
+ *       number and may not be entirely obvious which number it should be
+ *       (specially for multi-dimensional arrays and (multi-dimensional)
+ *       arrays of lists). Please refer to the comments of the deserialize()
+ *       function for an explanation of the index of a Variable (or
+ *       Constraint) within a group.
+ *
+ * A 'V' node is always preceded by a 'B' node, unless it is the only node in
+ * the path. If the path has only a single node, which is a 'V' node, then the
+ * Variable this path refers to is defined in the reference Block. In other
+ * words, if the target Variable of the path belongs to the reference Block,
+ * then the path is formed by a single node whose type is 'V'.
+ *
+ * A 'B' node is associated with a Block and may contain the index of this
+ * Block in the vector of nested Blocks of its father Block. There are two
+ * cases in which this node does not have this index. In each of these cases,
+ * the index has the value +Inf. These cases are:
+ *
+ * 1. The node is associated with the reference Block. Since the reference
+ *    Block is the root of the three that contains the path, no allusion to
+ *    the father of the reference Block must be made.
+ *
+ * 2. The Block with which the node is associated does not have a father
+ *    Block. In this case, if the Block is not the reference Block, then it
+ *    must be the inner Block of a BendersBFunction or that of a LagBFunction.
+ *
+ * If the index of a 'B' node is not +Inf, then this node is necessarily
+ * preceded by another 'B' node, which is associated with the father of that
+ * Block. It this index is +Inf then this Block is an inner Block of a
+ * Function (a BendersBFunction or a LagBFunction). This Function either
+ * belongs to an FRealObjective or an FRowConstraint, so that the previous
+ * node in the path has either type 'O' or 'C'.
+ *
+ * An 'O' node, which is associated with an Objective, is either preceded by
+ * a 'B' node (which is associated with the Block that owns that Objective) or
+ * is the only node in the path. If it is the last node in the path, then the
+ * target element is either this Objective or the Function in that Objective
+ * (in which case that Objective is an FRealObjective). The type of the target
+ * element must be known from the context. If this is not the last node in the
+ * path, then the type of the next node in the path is 'B' and it is
+ * associated with the inner Block of either a BendersBFunction or a
+ * LagBFunction which is the Function of that Objective (and thus that
+ * Objective is actually an FRealObjective).
+ *
+ * Finally, a 'C' node, which is associated with a Constraint, has
+ * characteristics pertaining both the 'V' and the 'O' nodes. Like the 'V'
+ * node, it has a boolean indicating whether it is static or not, the index of
+ * the group to which it belongs, and the index of the Constraint within that
+ * group (exactly as defined for Variables). Like an 'O' node, a 'C' node is
+ * either preceded by a 'B' node (which is associated with the Block that
+ * owns that Constraint) or is the only node in the path. If it is the last
+ * node in the path, then the target element is either this Constraint or the
+ * Function in that Constraint (in which case that Constraint is an
+ * FRowConstraint). The type of the target element must be known from the
+ * context. If this is not the last node in the path, then the type of the
+ * next node in the path is 'B' and it is associated with the inner Block of
+ * either a BendersBFunction or a LagBFunction which is the Function of that
+ * Constraint (and thus that Constraint is actually an FRowConstraint).
  */
 
 class AbstractPath {
@@ -95,6 +196,15 @@ class AbstractPath {
 /** @name Private Classes
     @{ */
 
+ /// Node represents a node in the path
+ /** This class is used to represent a node in the path. A Node can be of
+  * four types, defined by the NodeType enum:
+  *
+  * 1. 'B', a Block
+  * 2. 'C', a Constraint
+  * 3. 'V', a Variable
+  * 4. 'O', an Objective.
+  */
  class Node {
  public:
   enum NodeType { eBlock = 'B' , eConstraint = 'C' ,
