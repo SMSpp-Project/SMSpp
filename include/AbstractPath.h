@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 21 - 11 - 2019
+ * \date 30 - 11 - 2019
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -99,10 +99,23 @@ class AbstractPath {
  public:
   enum NodeType { eBlock = 'B' , eConstraint = 'C' ,
                   eVariable = 'V' , eObjective = 'O' };
+
+  Node() : type( 'N' ) , is_static( true ) , index( Inf<Index>() ) ,
+   element_index( Inf<Index>() ) {}
+
   char type;
   bool is_static;
   Index index;
   Index element_index;
+
+  bool operator==( const Node & node ) const {
+   return ( type == node.type ) && ( is_static == node.is_static ) &&
+    ( index == node.index ) && ( element_index == node.element_index );
+  }
+
+  bool operator!=( const Node & node ) const {
+   return ! ( * this == node );
+  }
  };
 
 /**@} ----------------------------------------------------------------------*/
@@ -546,9 +559,11 @@ public:
   else if constexpr( std::is_base_of_v< Block , T > ) {
    auto & node = path.nodes.emplace_back();
    node.type = Node::eBlock;
-   node.index = get_block_index( t );
-   if( t == reference_block )
+   if( t == reference_block ) {
+    node.index = Inf<Index>();
     return path;
+   }
+   node.index = get_block_index( t );
   }
 
   Block * block;
@@ -623,6 +638,7 @@ public:
    // Intermediate nodes can be: Block, Constraint, or Objective.
 
    if( node.type == Node::eBlock ) {
+    assert( node.index < block->get_nested_Blocks().size() );
     block = block->get_nested_Blocks()[ node.index ];
    }
    else if( node.type == Node::eConstraint ) {
@@ -660,7 +676,9 @@ public:
    }
    else // not found
     return nullptr;
-  }
+  } // end for
+
+  // Now, we analyse the last node in the path.
 
   const auto & node = path.nodes.back();
 
@@ -729,7 +747,7 @@ public:
      break;
     case( Node::eConstraint ):
     case( Node::eVariable ):
-     SMSpp_di_unipi_it::serialize( node_group , "Index" ,
+     SMSpp_di_unipi_it::serialize( node_group , "GroupIndex" ,
                                    netCDF::NcUint64() , node.index );
      SMSpp_di_unipi_it::serialize( node_group , "ElementIndex" ,
                                    netCDF::NcUint64() , node.element_index );
@@ -742,6 +760,109 @@ public:
 
 /*--------------------------------------------------------------------------*/
 
+ /// deserializes an AbstractPath from a netCDF::NcGroup and returns it
+ /**
+  * This function constructs and returns an AbstractPath by deserializing it
+  * from the given \p group. This \p group has a variable of type
+  * netCDF::NcUint64() whose name is "NumNodes" that contains the number N of
+  * nodes in the path.
+  *
+  *          ALL INDICES MENTIONED HERE BELONG TO ZERO-BASED NUMBERED
+  *          SEQUENCE, I.E., SEQUENCES WHOSE FIRST ELEMENT IS 0.
+  *
+  * This \p group also has N sub-groups. The i-th sub-group, for i in {0, ...,
+  * N-1}, has name Node_i and represents the i-th Node in the path. Each of
+  * these sub-groups has a variable of type netCDF::NcChar() named "Type"
+  * which stores the type of the Node, i.e., a NodeType. The value of the
+  * variable "Type" may be any of the following letters:
+  *
+  * - 'O', if the node is associated with an Objective.
+  *
+  * - 'B', if the node is associated with a Block;
+  *
+  * - 'C', if the node is associated with a Constraint;
+  *
+  * - 'V', if the node is associated with a Variable;
+  *
+  * A group whose "Type" is 'O', i.e., representing a Node associated with an
+  * Objective, has no other variable. If it is the last node in the path, then
+  * the path refers to an Objective. Otherwise, the next node in the path must
+  * be of type 'B'.
+  *
+  * A group whose "Type" is 'B', i.e., representing a Node associated with a
+  * Block B, may have an additional variable of type netCDF::NcUint64() whose
+  * name is "Index". If such a group does not represent the last node in the
+  * path (i.e., it is the last group named "Node_N"), this variable must be
+  * present. In this case, this variable is the index of the sub-Block of
+  * Block B which is the next node in the path. If such a group represents the
+  * last node in the path (i.e., its name is "Node_N"), then the destination
+  * of the path is a Block which must be
+  *
+  * - the Block B itself if the variable "Index" is not present;
+  *
+  * - the j-th sub-Block of Block B, where j is the value of the variable
+  *   "Index".
+  *
+  * A group whose type is 'C' or 'V', representing a Constraint or a Variable,
+  * respectively, necessarily has the variables named "GroupIndex",
+  * "ElementIndex", and "Static". The "Static" variable has type
+  * netCDF::NcUbyte(). If the value of the variable "Static" is 1, it means
+  * that the element this nodes represents (either a Constraint or a Variable)
+  * is static. If the value of this variable is 0, then the element is
+  * dynamic. The variable "GroupIndex" stores the index of the (static or
+  * dynamic) group to which the element belongs. The variable "ElementIndex"
+  * is the index of the element in that group.
+  *
+  * A static group can be one of three types:
+  *
+  * 1. It is a single Constraint/Variable;
+  *
+  * 2. It is a vector of Constraint/Variable;
+  *
+  * 3. It is a multi array of Constraint/Variable.
+  *
+  * In the first case, in which the group is a single Constraint/Variable, the
+  * value of the "ElementIndex" variable is 0. In the second case, in which
+  * the group is a vector of Constraint/Variable, the value of the
+  * "ElementIndex" variable is the index of the element in that vector. In the
+  * last case, in which the group is a multi array of of Constraint/Variable,
+  * the value of the "ElementIndex" variable is the index of the element in
+  * the vectorized multi array in row-major layout. For instance, if the multi
+  * array has two dimensions with sizes m and n, respectively, then the
+  * element at position (i, j) would have an element index equal to n * i + j
+  * (recall the indices start from 0). In general, for a multi array with k
+  * dimensions with sizes (n_0, ..., n_{k-1}), the element at position
+  * (i_0, ..., i_{k-1}) would have an element index equal to
+  *
+  * \[
+  *    \sum_{p = 0}^{k-1} ( \prod_{q = p + 1}^{k-1} n_q ) i_p.
+  * \]
+  *
+  * A dynamic group can be one of three types:
+  *
+  * 1. It is list of Constraint/Variable;
+  *
+  * 2. It is a vector of lists of Constraint/Variable;
+  *
+  * 3. It is a multi array of lists of Constraint/Variable.
+  *
+  * In the first case, in which the group is a list of Constraint/Variable,
+  * the value of the "ElementIndex" variable is the index of the element in
+  * that list. In the second case, in which the group is a vector of lists of
+  * Constraint/Variable, the value of the "ElementIndex" variable for an
+  * element at position j of the k-th list of the vector is given by
+  *
+  * \[
+  *    j + \sum_{i = 0}^{k-1} s_i
+  * \]
+  *
+  * where s_i is the number of elements in the i-th list of the vector. The
+  * last case is analogous.
+  *
+  * @param group The netCDF::NcGroup containing the path.
+  *
+  * @return The AbstractPath corresponding to the given group.
+  */
  static AbstractPath deserialize( const netCDF::NcGroup & group ) {
 
   AbstractPath path;
@@ -753,12 +874,18 @@ public:
    SMSpp_di_unipi_it::deserialize( node_group , "Type" , & node.type , false );
    switch( node.type ) {
     case( Node::eBlock ):
-     SMSpp_di_unipi_it::deserialize( node_group , "Index" ,
-                                     & node.index , false );
+     if( i < group_count - 1 )
+      SMSpp_di_unipi_it::deserialize( node_group , "Index" ,
+                                      & node.index , false );
+     else {
+      if( ! SMSpp_di_unipi_it::deserialize( node_group , "Index" ,
+                                            & node.index , true ) )
+       node.index = Inf< Index >();
+     }
      break;
     case( Node::eConstraint ):
     case( Node::eVariable ):
-     SMSpp_di_unipi_it::deserialize( node_group , "Index" ,
+     SMSpp_di_unipi_it::deserialize( node_group , "GroupIndex" ,
                                      & node.index , false );
      SMSpp_di_unipi_it::deserialize( node_group , "ElementIndex" ,
                                      & node.element_index , false );
@@ -771,6 +898,18 @@ public:
  }
 
 /*--------------------------------------------------------------------------*/
+
+ bool operator==( const AbstractPath & path ) const {
+  if( nodes.size() != path.nodes.size() )
+   return false;
+
+  for( decltype( nodes )::size_type i = 0 ; i < nodes.size() ; ++ i ) {
+   if( nodes[ i ] != path.nodes[ i ] )
+    return false;
+  }
+
+  return true;
+ }
 
 };  // end( class( AbstractPath ) )
 
