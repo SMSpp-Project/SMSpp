@@ -172,6 +172,8 @@ namespace SMSpp_di_unipi_it
  * next node in the path is 'B' and it is associated with the inner Block of
  * either a BendersBFunction or a LagBFunction which is the Function of that
  * Constraint (and thus that Constraint is actually an FRowConstraint).
+ *
+ * To help understand how a path is defined, we present some examples. TODO
  */
 
 class AbstractPath {
@@ -625,6 +627,17 @@ protected:
 
 public:
 
+ /// constructs an AbstractPath for the given element
+ /** This function constructs and AbstractPath for the given target element \p
+  * t with respect to the given reference Block \p reference_block.
+  *
+  * @param t The pointer to the target element.
+  *
+  * @param reference_block The pointer to the reference Block.
+  *
+  * @return Returns the AbstractPath for the given target element \p t with
+  *         respect to the given \p reference_block.
+  */
  template<class T>
  static AbstractPath build_path( const T * t ,
                                  const Block * reference_block ) {
@@ -734,6 +747,18 @@ public:
 
 /*--------------------------------------------------------------------------*/
 
+ /// returns a pointer to the target element of the given AbstractPath
+ /** This function returns a pointer to the object of type T that is the
+  * target element of the given \p path with respect to the given \p reference
+  * Block.
+  *
+  * @param path The AbstractPath to the target element with respect to the
+  *        given \p reference Block.
+  *
+  * @param reference The pointer to the reference Block.
+  *
+  * @param The pointer to the target element.
+  */
  template<class T>
  static T * get_element( const AbstractPath & path , Block * reference ) {
 
@@ -844,6 +869,14 @@ public:
 
 /*--------------------------------------------------------------------------*/
 
+ /// serializes the given AbstractPath into the given netCDF::NcGroup
+ /** This function serializes the given AbstractPath into the given
+  * netCDF::NcGroup.
+  *
+  * @param path The AbstractPath to be serialized.
+  *
+  * @param group The group in which the path will be serialized.
+  */
  static void serialize( const AbstractPath & path , netCDF::NcGroup & group ) {
   Index i = 0;
   for( const auto & node : path.nodes ) {
