@@ -1,0 +1,92 @@
+/*--------------------------------------------------------------------------*/
+/*------------------------ File BendersBlock.cpp ------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @file
+ * Implementation of the BendersBlock class.
+ *
+ * \version 0.1
+ *
+ * \date 02 - 12 - 2019
+ *
+ * \author Rafael Durbano Lobato \n
+ *         Operations Research Group \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * Copyright &copy; by Rafael Durbano Lobato
+ */
+/*--------------------------------------------------------------------------*/
+/*---------------------------- IMPLEMENTATION ------------------------------*/
+/*--------------------------------------------------------------------------*/
+/*------------------------------ INCLUDES ----------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+#include "BendersBlock.h"
+
+/*--------------------------------------------------------------------------*/
+/*------------------------- NAMESPACE AND USING ----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+using namespace SMSpp_di_unipi_it;
+
+/*--------------------------------------------------------------------------*/
+/*----------------------------- STATIC MEMBERS -----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+SMSpp_insert_in_factory_cpp_1( BendersBlock );
+
+/*--------------------------------------------------------------------------*/
+/*-------------------------- METHODS of BendersBlock -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------*/
+/*--------------- CONSTRUCTING AND DESTRUCTING BendersBlock ----------------*/
+/*--------------------------------------------------------------------------*/
+
+void BendersBlock::deserialize( netCDF::NcGroup & group ) {
+
+ auto ncDim_NumVar = group.getDim( "NumVar" );
+
+ if( ncDim_NumVar.isNull() )
+  throw( std::logic_error( "BendersBlock::deserialize: "
+                           "NumVar dimension is required." ) );
+
+ variables.resize( ncDim_NumVar.getSize() );
+
+ auto benders_function_group = group.getGroup( "BendersBFunction" );
+ if( benders_function_group.isNull() )
+  throw( std::logic_error( "BendersBlock::deserialize: "
+                           "'BendersBFunction' sub-group is required." ) );
+
+ auto benders_function = new BendersBFunction();
+ set_function( benders_function );
+
+ std::vector< ColVariable * > p_variables;
+ p_variables.reserve( variables.size() );
+ for( auto & variable : variables )
+  p_variables.push_back( & variable );
+
+ benders_function->set_variables( std::move( p_variables ) );
+
+ benders_function->deserialize( benders_function_group );
+}
+
+/*--------------------------------------------------------------------------*/
+/*-------------- METHODS FOR Saving THE DATA OF THE BendersBlock -----------*/
+/*--------------------------------------------------------------------------*/
+
+void BendersBlock::serialize( netCDF::NcGroup & group ) const {
+ group.addDim( "NumVar" , variables.size() );
+
+ auto benders_function = objective.get_function();
+
+ if( benders_function ) {
+  auto benders_function_group = group.addGroup( "BendersBFunction" );
+  static_cast< BendersBFunction * >( benders_function )->
+   serialize( benders_function_group );
+ }
+}
+
+/*--------------------------------------------------------------------------*/
+/*---------------------- End File BendersBlock.cpp -------------------------*/
+/*--------------------------------------------------------------------------*/
