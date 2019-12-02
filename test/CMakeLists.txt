@@ -1,5 +1,6 @@
-# ----- Requirements -------------------------------------------------------- #
-find_package(MILPSolver REQUIRED)
+# --------------------------------------------------------------------------- #
+#    CMake file for unit tests                                                #
+# --------------------------------------------------------------------------- #
 
 # ----- Fetch GoogleTest ---------------------------------------------------- #
 include(FetchContent)
@@ -25,15 +26,22 @@ target_link_libraries(AbstractBlock_test PRIVATE SMS++::SMSpp gtest)
 add_test(
         NAME AbstractBlock_test
         COMMAND AbstractBlock_test
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-# ----- AbstractPath_test ----------------------------------------------- #
+# ----- AbstractPath_test --------------------------------------------------- #
 add_executable(AbstractPath_test tests_AbstractPath.cpp)
 target_link_libraries(AbstractPath_test PRIVATE SMS++::SMSpp)
 
 add_test(
         NAME AbstractPath_test
         COMMAND AbstractPath_test
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+# ----- Legacy test --------------------------------------------------------- #
+add_executable(FakeBlock_test main.cpp)
+target_link_libraries(FakeBlock_test PRIVATE SMS++::SMSpp)
+
+add_test(
+        NAME FakeBlock_test
+        COMMAND FakeBlock_test
 )

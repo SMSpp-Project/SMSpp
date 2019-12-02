@@ -51,11 +51,6 @@ find_package(SMSpp)
 target_link_libraries(<my_target> SMS++::SMSpp)
 ```
 
-### Tools and examples
-
-We provide some tools and examples in the [`tools`](tools) directory.
-See [`tools/README.md`](tools/README.md) for details on how to build and use them.
-
 ## Running the tests
 
 Some simple unit tests will be built with the library,
