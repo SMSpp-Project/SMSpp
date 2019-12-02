@@ -394,10 +394,10 @@ class BendersBFunction : public C05Function , public Block {
   * Observer (although it is expected to be used before that), it is also
   * necessary to specify if and how a Modification is issued.
   *
-  * @param group, a netCDF::NcGroup holding the data in the format described
+  * @param group a netCDF::NcGroup holding the data in the format described
   *        in the comments to deserialize();
   *
-  * @param issueMod, which decides if and how the FunctionMod (with shift()
+  * @param issueMod which decides if and how the FunctionMod (with shift()
   *        == FunctionMod::NaNshift, i.e., "everything changed") is issued,
   *        as described in Observer::make_par(). The default is eNoMod,
   *        since the method is mostly thought to be used during initialization

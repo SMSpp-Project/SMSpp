@@ -71,7 +71,6 @@ namespace SMSpp_di_unipi_it
  * to some reference Block. For this reason, the serialize() and deserialize()
  * functions have a parameter which is a pointer to the reference Block:
  *
- *
  *  virtual void serialize( netCDF::NcGroup & group ,
  *                          Block * block_reference = nullptr ) const;
  *
@@ -88,14 +87,6 @@ class IDataMapping {
 public:
 
 /*--------------------------------------------------------------------------*/
-/*---------------------------- PUBLIC TYPES --------------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Public Types
- *  @{ */
-
-
-
-/**@} ----------------------------------------------------------------------*/
 /*-------------- CONSTRUCTING AND DESTRUCTING IDataMapping -----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructing and destructing IDataMapping
@@ -114,13 +105,7 @@ public:
  virtual void deserialize( const netCDF::NcGroup & group ,
                            Block * block_reference = nullptr ) = 0;
 
-/**@} ----------------------------------------------------------------------*/
-/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Other initializations
- *  @{ */
-
-/**@} ----------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF THE IDataMapping ----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of the IDataMapping
@@ -321,7 +306,7 @@ public:
   this->serialize( group , "SetTo" , set_to );
  }
 
-/*--------------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE DataMapping --------------*/
 /*--------------------------------------------------------------------------*/
 
