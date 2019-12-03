@@ -2,10 +2,10 @@
 /*------------------------ File DataMapping.h ------------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Header file for the abstract class IDataMapping that defines an interface
+ * Header file for the abstract class DataMapping that defines an interface
  * for all class that implements a mechanism for mapping some data into the
- * data of some object. A concrete class called DataMapping is also defined
- * for some common kinds of data mapping.
+ * data of some object. A concrete class called SimpleDataMapping is also
+ * defined for some common kinds of data mapping.
  *
  * \version 0.1
  *
@@ -48,12 +48,12 @@ namespace SMSpp_di_unipi_it
  *  @{ */
 
 /*--------------------------------------------------------------------------*/
-/*------------------------ CLASS IDataMapping ------------------------------*/
+/*------------------------- CLASS DataMapping ------------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-/// IDataMapping defines an interface for all types of data mappings.
-/** IDataMapping defines an interface for all types of data mappings. The idea
+/// DataMapping defines an interface for all types of data mappings.
+/** DataMapping defines an interface for all types of data mappings. The idea
  * of a data mapping is to map the data given by a vector of double into the
  * data of some object. It has three pure virtual functions. The first one is
  * set_data(), which has the following signature:
@@ -64,8 +64,8 @@ namespace SMSpp_di_unipi_it
  *
  * The idea of this function is that the values of some data of an object can
  * be modified considering the given "data" parameter. The other two functions
- * are for serializing and deserializing an IDataMapping. Typically, an
- * IDataMapping could be used to set the data of a Block. In this case, a
+ * are for serializing and deserializing an DataMapping. Typically, an
+ * DataMapping could be used to set the data of a Block. In this case, a
  * pointer to that Block must be available. Pointers to a Block can be
  * serialized and deserialized considering its AbstractPath, which is relative
  * to some reference Block. For this reason, the serialize() and deserialize()
@@ -78,7 +78,7 @@ namespace SMSpp_di_unipi_it
  *                            Block * block_reference = nullptr );
  */
 
-class IDataMapping {
+class DataMapping {
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
@@ -87,18 +87,18 @@ class IDataMapping {
 public:
 
 /*--------------------------------------------------------------------------*/
-/*-------------- CONSTRUCTING AND DESTRUCTING IDataMapping -----------------*/
+/*--------------- CONSTRUCTING AND DESTRUCTING DataMapping -----------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Constructing and destructing IDataMapping
+/** @name Constructing and destructing DataMapping
  *  @{ */
 
  /// constructor
- IDataMapping() = default;
+ DataMapping() = default;
 
 /*--------------------------------------------------------------------------*/
 
  /// destructor
- virtual ~IDataMapping() {}
+ virtual ~DataMapping() {}
 
 /*--------------------------------------------------------------------------*/
 
@@ -106,14 +106,14 @@ public:
                            Block * block_reference = nullptr ) = 0;
 
 /*--------------------------------------------------------------------------*/
-/*----------- METHODS DESCRIBING THE BEHAVIOR OF THE IDataMapping ----------*/
+/*------------ METHODS DESCRIBING THE BEHAVIOR OF THE DataMapping ----------*/
 /*--------------------------------------------------------------------------*/
-/** @name Methods describing the behavior of the IDataMapping
+/** @name Methods describing the behavior of the DataMapping
  *  @{ */
 
  /// sets the value of the associated data
  /** This function sets the value of the data associated with this
-  * IDataMapping.
+  * DataMapping.
   *
   * @param data a (const) reference to the vector that stores the value of the
   *        data that will be set.
@@ -136,18 +136,18 @@ public:
 
 /**@} ----------------------------------------------------------------------*/
 
-};  // end( class( IDataMapping ) )
+};  // end( class( DataMapping ) )
 
 /*--------------------------------------------------------------------------*/
-/*-------------------------- CLASS DataMapping -----------------------------*/
+/*------------------------ CLASS SimpleDataMapping -------------------------*/
 /*--------------------------------------------------------------------------*/
-/*--------------------------- GENERAL NOTES --------------------------------*/
+/*----------------------------- GENERAL NOTES ------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-/// DataMapping derives from IDataMapping
+/// SimpleDataMapping derives from DataMapping
 /**
- * DataMapping is a template class that derives from IDataMapping and has the
- * following template parameters:
+ * SimpleDataMapping is a template class that derives from DataMapping and has
+ * the following template parameters:
  *
  * - SetFrom: This is the type of the set that selects the appropriate data
  *            from data vector. It must be either Block::Range or Block::Set.
@@ -161,15 +161,15 @@ public:
  *
  * - Caller: This is the type of the caller object. By default, it is Block.
  *
- * The function of the caller object that this DataMapping is associated with
- * is defined to have the following type:
+ * The function of the caller object that this SimpleDataMapping is associated
+ * with is defined to have the following type:
  *
  *   Block::FunctionType< std::vector< DataType > , SetTo >
  */
 
 template< class SetFrom = Block::Range , class SetTo = Block::Range ,
           class DataType = double , class Caller = Block >
-class DataMapping : public IDataMapping {
+class SimpleDataMapping : public DataMapping {
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
@@ -186,13 +186,14 @@ public:
  using F = Block::FunctionType< std::vector< DataType > , SetTo >;
 
 /**@} ----------------------------------------------------------------------*/
-/*--------------- CONSTRUCTING AND DESTRUCTING DataMapping -----------------*/
+/*------------ CONSTRUCTING AND DESTRUCTING SimpleDataMapping --------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Constructing and destructing DataMapping
+/** @name Constructing and destructing SimpleDataMapping
  *  @{ */
 
- /// constructor of DataMapping
- /** The constructor of DataMapping must receive the following parameters:
+ /// constructor of SimpleDataMapping
+ /** The constructor of SimpleDataMapping must receive the following
+  * parameters:
   *
   * @param function The pointer to the to be invoked.
   *
@@ -206,7 +207,7 @@ public:
   *
   * @param set_to The set specifying which part of the data that will change.
   */
- DataMapping( const F * function = nullptr , Caller * caller = nullptr ,
+ SimpleDataMapping( const F * function = nullptr , Caller * caller = nullptr ,
               const SetFrom & set_from = {} , const SetTo & set_to = {} ) :
   function( function ), caller( caller ), set_from( set_from ),
   set_to( set_to ) { }
@@ -214,21 +215,33 @@ public:
 /*--------------------------------------------------------------------------*/
 
  /// destructor
- virtual ~DataMapping() {}
+ virtual ~SimpleDataMapping() {}
 
 /*--------------------------------------------------------------------------*/
 
- /// deserialize a DataMapping from a netCDF::NcGroup
- /** Deserialize a DataMapping from a netCDF::NcGroup, with the following
-  * format:
+ /// deserialize a SimpleDataMapping from a netCDF::NcGroup
+ /** Deserialize a SimpleDataMapping from a netCDF::NcGroup, with the
+  * following format:
   *
-  * - The variable "FunctionName" contains the name of the function.
+  * - The variable "FunctionName", whose type is netCDF::NcString, contains
+  *   the name of the function as it is registered in the methods factory..
   *
   * - The group "Path" contains the AbstractPath to the caller.
   *
   * - The group "SetFrom" contains the description of the set SetFrom.
   *
   * - The group "SetTo" contains the description of the set SetTo.
+  *
+  * - The variable "TemplateParameterTypes", whose type is netCDF::NcString,
+  *   is a string with three characters that indicate the types of the
+  *   template parameters of this class. The first and second characters
+  *   indicate the type of the SetFrom and SetTo template parameters. Each of
+  *   these two first characters can be either 'R', indicating the set has
+  *   type Block::Range, or 'S', indicating the set has type
+  *   Block::Subset. The third character indicates the type of the data that
+  *   this SimpleDataMapping sets. This character can be either 'I',
+  *   indicating the type of the data is int, or 'D', indicating the type of
+  *   the data is double.
   *
   * If a set (SetFrom or SetTo) is a Block::Subset, then the corresponding
   * group has a netCDF dimension called "Size" and a one-dimensional variable
@@ -257,9 +270,9 @@ public:
   if constexpr( std::is_base_of_v< Block , Caller > ) {
    const auto path_group = group.getGroup( "Path" );
    if( path_group.isNull() )
-    throw std::invalid_argument( "DataMapping::deserialize: group named 'Path' "
-                                 "containing the path to the Block must be "
-                                 "present." );
+    throw std::invalid_argument
+     ( "SimpleDataMapping::deserialize: group named 'Path' containing "
+       "the path to the Block must be present." );
    const auto path = AbstractPath::deserialize( path_group );
    caller = AbstractPath::get_element< Block >( path , block_reference );
   }
@@ -269,23 +282,23 @@ public:
  }
 
 /**@} ----------------------------------------------------------------------*/
-/*----------- METHODS DESCRIBING THE BEHAVIOR OF THE DataMapping -----------*/
+/*-------- METHODS DESCRIBING THE BEHAVIOR OF THE SimpleDataMapping --------*/
 /*--------------------------------------------------------------------------*/
-/** @name Methods describing the behavior of the DataMapping
+/** @name Methods describing the behavior of the SimpleDataMapping
  *  @{ */
 
  virtual void set_data( const std::vector< double > & data ,
-                         c_ModParam issueMod = eModBlck ,
-                         c_ModParam issueAMod = eModBlck ) const override {
+                        c_ModParam issueMod = eModBlck ,
+                        c_ModParam issueAMod = eModBlck ) const override {
   auto sub_data = extract< DataType >( data, set_from );
   std::invoke( * function , caller , sub_data , set_to , issueMod , issueAMod );
  }
 
 /*--------------------------------------------------------------------------*/
 
- /// serialize a DataMapping into a netCDF::NcGroup
- /** Serialize a DataMapping into a netCDF::NcGroup. The format is specified
-  * in the comments of the deserialize() method.
+ /// serialize a SimpleDataMapping into a netCDF::NcGroup
+ /** Serialize a SimpleDataMapping into a netCDF::NcGroup. The format is
+  * specified in the comments of the deserialize() method.
   */
 
  virtual void serialize( netCDF::NcGroup & group ,
@@ -304,15 +317,22 @@ public:
 
   this->serialize( group , "SetFrom" , set_from );
   this->serialize( group , "SetTo" , set_to );
+
+  constexpr char template_parameter_types[3] =
+   { get_id< SetFrom >() , get_id< SetTo >() , get_id< DataType >() };
+
+  ::SMSpp_di_unipi_it::serialize< std::string >
+    ( group , "TemplateParameterTypes " , netCDF::NcString() ,
+      template_parameter_types );
  }
 
 /**@} ----------------------------------------------------------------------*/
-/*----------- METHODS FOR READING THE DATA OF THE DataMapping --------------*/
+/*-------- METHODS FOR READING THE DATA OF THE SimpleDataMapping -----------*/
 /*--------------------------------------------------------------------------*/
 
- /// returns a pointer to the function that is associated with this DataMapping
+ /// returns a pointer to the function
  /** Returns a pointer to the function that is associated with this
-  * DataMapping.
+  * SimpleDataMapping.
   */
 
  const F * get_function() const {
@@ -323,12 +343,45 @@ public:
 
  /// returns a pointer to the caller of the function
  /** Returns a pointer to the caller of the function that is associated with
-  * this DataMapping.
+  * this SimpleDataMapping.
   */
 
  Caller * get_caller() const {
   return caller;
  }
+
+/*--------------------------------------------------------------------------*/
+/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+protected:
+
+/*--------------------------------------------------------------------------*/
+/*------------------------- PROTECTED METHODS ------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ template< class T >
+ static constexpr char get_id();
+
+/*--------------------------------------------------------------------------*/
+
+ template<>
+ static constexpr char get_id< Block::Range >() { return 'R'; }
+
+/*--------------------------------------------------------------------------*/
+
+ template<>
+ static constexpr char get_id< Block::Subset >() { return 'S'; }
+
+/*--------------------------------------------------------------------------*/
+
+ template<>
+ static constexpr char get_id< double >() { return 'D'; }
+
+/*--------------------------------------------------------------------------*/
+
+ template<>
+ static constexpr char get_id< int >() { return 'I'; }
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -420,7 +473,7 @@ private:
   if( range_group.isNull() ) {
    if( ! optional ) {
     throw( std::invalid_argument
-           ( "DataMapping::deserialize(): group " + group_name +
+           ( "SimpleDataMapping::deserialize(): group " + group_name +
              " is not present in group '" + group.getName() + "'." ) );
    }
    return false;
@@ -430,7 +483,7 @@ private:
    auto ncVar = range_group.getVar( "First" );
    if( ncVar.isNull() ) {
     throw( std::invalid_argument
-           ( "DataMapping::deserialize(): variable 'First' is not "
+           ( "SimpleDataMapping::deserialize(): variable 'First' is not "
              "present in group '" + group_name + "'." ) );
    }
    ncVar.getVar( & range.first );
@@ -459,7 +512,7 @@ private:
   if( subset_group.isNull() ) {
    if( ! optional ) {
     throw( std::invalid_argument
-           ( "DataMapping::deserialize(): group " + group_name +
+           ( "SimpleDataMapping::deserialize(): group " + group_name +
              " is not present in group '" + group.getName() + "'." ) );
    }
    return false;
@@ -509,7 +562,7 @@ private:
  /// The set that must be passed as argument to the function being invoked
  SetTo set_to;
 
-};  // end( class( DataMapping ) )
+};  // end( class( SimpleDataMapping ) )
 
 /** @} end( group( DataMapping_CLASSES ) ) ---------------------------------*/
 /*--------------------------------------------------------------------------*/
