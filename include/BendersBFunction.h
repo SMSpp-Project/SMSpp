@@ -395,7 +395,7 @@ class BendersBFunction : public C05Function , public Block {
   * necessary to specify if and how a Modification is issued.
   *
   * @param group a netCDF::NcGroup holding the data in the format described
-  *        in the comments to deserialize();
+  *        in the comments to serialize();
   *
   * @param issueMod which decides if and how the FunctionMod (with shift()
   *        == FunctionMod::NaNshift, i.e., "everything changed") is issued,
@@ -491,6 +491,10 @@ class BendersBFunction : public C05Function , public Block {
   *        its allocated memory is released.
   */
  void set_inner_block( Block * block , bool destroy_previous_block = true ) {
+  if( ( ! v_Block.empty() ) && block == v_Block[ 0 ] &&
+      ( ! destroy_previous_block ) )
+   return; // the given Block is already here; silently return
+
   if( destroy_previous_block && ! v_Block.empty() )
    delete v_Block[ 0 ];
 
@@ -499,6 +503,8 @@ class BendersBFunction : public C05Function , public Block {
 
   if( block )
    block->set_f_Block( this );
+
+  send_nuclear_modification();
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1247,9 +1253,6 @@ class BendersBFunction : public C05Function , public Block {
   *   which contains the vector b. The variable is only optional if NumRow ==
   *   0.
   *
-  * - The sub-group "InnerBlock", which contains the variable "Type" which is
-  *   the name of the type of the inner block.
-  *
   * - The sub-group "ConstraintSpecifier_i", for each i in {1, ..., m}, where
   *   m is the number of rows of the A matrix. The group ConstraintSpecifier_i
   *   contains:
@@ -1718,7 +1721,7 @@ class BendersBFunction : public C05Function , public Block {
   *        sent.
   */
 
- void send_nuclear_modification( const Observer::ChnlName chnl );
+ void send_nuclear_modification( const Observer::ChnlName chnl = 0 );
 
 /*--------------------------------------------------------------------------*/
 
