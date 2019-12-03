@@ -3,9 +3,34 @@
 /*--------------------------------------------------------------------------*/
 /** @file
  * Header file for the AbstractPath class, which represent a path from a Block
- * to one of its elements: a Block, a Constraint, a Variable, an Objective, or
- * a Function. The element can directly belong to the Block itself (even be
- * the Block itself) or belong to any of its sons, recursively.
+ * to one of the elements of its "abstract" representation: a Block (which
+ * is actually also an element of the "physical" representation), a
+ * Constraint, a Variable, an Objective, or a Function. The element can
+ * directly belong to the Block itself (even be the Block itself) or belong
+ * to any of its sub-Block, recursively.
+ *
+ * Since AbstractPath has to scan the "abstract" representation to work, it
+ * has to boost::any_cast<> (in particular, Constraint and Variable), and
+ * therefore it has to have a list of the kind of types thay they may have.
+ * Hence, this class at any point in time works only with a specific subset
+ * of those classes, and if new types need be handled than the class has to
+ * be manually updated. This is made a bit easier by the two macros
+ *
+ *     Constraint_Derived_Classes
+ *     Variable_Derived_Classes
+ *
+ * defined in this header file (and immediately un-defined at the end).
+ *
+ * Also, AbstractPath has a specific management for:
+ *
+ * - Function that appear in the Constraint and Objective, i.e.,
+ *   FRealObjective and FRowConstraint;
+ *
+ * - Function that have a Block (are a Block), i.e., BendersBFunction and
+ *   LagBFunction.
+ *
+ * Again, should more type of this kind of stuff be defined that needs
+ * handling, this class would have to properly manually extended.
  *
  * \version 0.10
  *
@@ -16,7 +41,7 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Rafael Durbano Lobato
+ * Copyright &copy; by Rafael Durbano Lobato, Antonio Frangioni
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
@@ -89,26 +114,52 @@ namespace SMSpp_di_unipi_it
  * The AbstractPath is particularly useful for the serialization and
  * deserialization of pointers to objects. If an object stores pointers to
  * other objects (for example, a Function has a set of pointers to Variable,
- * others have pointers to Block), these pointers can be serialized and
- * deserialized, making the construction of the object easier. The fact that
- * the representation of the path is independent from the reference Block also
- * facilitates its serialization and deserialization. Another advantage of
- * this independence from the reference Block is that the same path can be
- * used to target different objects.
+ * others have pointers to Block), these pointers cannot be serialized and
+ * deserialized as such. Rather, an "abstract representation" of these
+ * pointers have to be serialized, from which the pointers can be
+ * reconstruced at deserialization time; this is the facility that
+ * AbstractPath offers. The fact that the representation of the path is
+ * independent from the reference Block facilitates its serialization and
+ * deserialization, and makes it possible to use the same path to target
+ * different objects (say, two Constraint "in the same position" in two
+ * "twin" Block can be represented by the same AbstractPath).
+ *
+ * Since AbstractPath has to scan the "abstract" representation to work, it
+ * has to boost::any_cast<> (in particular, Constraint and Variable), and
+ * therefore it has to have a list of the kind of types thay they may have.
+ * Hence, this class at any point in time works only with a specific subset
+ * of those classes, and if new types need be handled than the class has to
+ * be manually updated. This is made a bit easier by the two macros
+ *
+ *     Constraint_Derived_Classes
+ *     Variable_Derived_Classes
+ *
+ * defined in this header file (and immediately un-defined at the end).
+ *
+ * Also, AbstractPath has a specific management for:
+ *
+ * - Function that appear in the Constraint and Objective, i.e.,
+ *   FRealObjective and FRowConstraint;
+ *
+ * - Function that have a Block (are a Block), i.e., BendersBFunction and
+ *   LagBFunction.
+ *
+ * Again, should more type of this kind of stuff be defined that needs
+ * handling, this class would have to properly manually extended.
  *
  * The path is defined as a sequence of nodes, each one represented by a Node
  * object. Each node has one of the following types: 'B', 'C', 'V', or
  * 'O'. These types indicate that the node is associated with a Block, a
- * Constraint, a Variable, and a Object, respectively. Notice that there is no
- * node associated with a Function, but this does not prevent one from
+ * Constraint, a Variable, and a Objective, respectively. Notice that there
+ * is no node associated with a Function, but this does not prevent one from
  * constructing a path to a Function. Although the nodes in the path are
- * arranged in the natural order, i.e., the first node is the origin of the
- * path and the last one is the destination, it is easier to understand the
- * path if we look at it backwards.
+ * stored in forward order, i.e., the first node is the origin of the path
+ * and the last one is the destination, it is easier to understand the path
+ * if we look at it backwards.
  *
  * Consider the path from some reference Block to some Variable. The last node
  * in this path necessarily has the 'V' type, indicating this is a path to a
- * Variable. This Variable belongs to some Block and is either static or
+ * Variable. This Variable belongs to some Block and it is either static or
  * dynamic. This last node has all information needed to retrieve this
  * Variable from its father Block: a boolean indicating whether the Variable
  * is static or dynamic, the index of the group to which it belongs, and the
@@ -118,7 +169,7 @@ namespace SMSpp_di_unipi_it
  *       number and may not be entirely obvious which number it should be
  *       (specially for multi-dimensional arrays and (multi-dimensional)
  *       arrays of lists). Please refer to the comments of the deserialize()
- *       function for an explanation of the index of a Variable (or
+ *       method for an explanation of the index of a Variable (or
  *       Constraint) within a group.
  *
  * A 'V' node is always preceded by a 'B' node, unless it is the only node in
@@ -139,13 +190,14 @@ namespace SMSpp_di_unipi_it
  * 2. The Block with which the node is associated does not have a father
  *    Block. In this case, if the Block is not the reference Block, then it
  *    must be the inner Block of a BendersBFunction or that of a LagBFunction.
+ *    The idea is that the BendersBFunction or LagBFunction then appear as
+ *    the Function in a FRealObjective or FRowConstraint, which belong to a
+ *    Block, and therefore the path can "go up from there; in this case
+ *    the previous node in the path has either type 'O' or 'C'.
  *
  * If the index of a 'B' node is not +Inf, then this node is necessarily
  * preceded by another 'B' node, which is associated with the father of that
- * Block. It this index is +Inf then this Block is an inner Block of a
- * Function (a BendersBFunction or a LagBFunction). This Function either
- * belongs to an FRealObjective or an FRowConstraint, so that the previous
- * node in the path has either type 'O' or 'C'.
+ * Block.
  *
  * An 'O' node, which is associated with an Objective, is either preceded by
  * a 'B' node (which is associated with the Block that owns that Objective) or
@@ -190,7 +242,7 @@ class AbstractPath {
 /** @name Private Types
     @{ */
 
- using Index = unsigned int;
+ using Index = Block::Index;
 
 /**@}-----------------------------------------------------------------------*/
 /*-------------------------- PRIVATE CLASSES -------------------------------*/
@@ -902,10 +954,8 @@ public:
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// deserializes an AbstractPath from a netCDF::NcGroup and returns it
- /**
-  * This function constructs and returns an AbstractPath by deserializing it
+ /** This function constructs and returns an AbstractPath by deserializing it
   * from the given \p group. This \p group has a variable of type
   * netCDF::NcUint64() whose name is "NumNodes" that contains the number N of
   * nodes in the path.
