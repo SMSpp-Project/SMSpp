@@ -7,7 +7,7 @@
  *
  * \version 0.01
  *
- * \date 02 - 12 - 2019
+ * \date 05 - 12 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -64,7 +64,7 @@ namespace SMSpp_di_unipi_it
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /// a Benders Function
-/**< The class BendersBFunction is a convenience class implementing the
+/** The class BendersBFunction is a convenience class implementing the
  * "abstract" concept of a Benders Function of "any" Block. BendersBFunction
  * derives from *both* C05Function and Block.
  *
@@ -137,8 +137,13 @@ namespace SMSpp_di_unipi_it
  *        i \in I such that S_i == eBoth, there must not exist j \in I such
  *        that C_i == C_j.
  *
- * Note that the BendersBFunction is not supposed to have any Variable other
- * than "x" or Constraint (besides those defined in the sub-Block B).
+ *    We stress that the i-th active Variable of this BendersBFunction is
+ *    associated with the i-th column of the mapping matrix A. In other words,
+ *    the i-th active Variable serves as the coefficient of the i-th column of
+ *    the A matrix in the mapping M.
+ *
+ * Note that the BendersBFunction is not supposed to have any Variable or
+ * Constraint (besides those defined in its only inner Block B).
  */
 
 class BendersBFunction : public C05Function , public Block {
@@ -177,6 +182,12 @@ class BendersBFunction : public C05Function , public Block {
   eBoth = 2    ///< both sides of a RowConstraint
   };
 
+ using ConstraintVector = std::vector< RowConstraint * >;
+ ///< a vector of pointers to RowConstraint
+
+ using ConstraintSideVector = std::vector< ConstraintSide >;
+ ///< a vector of ConstraintSide
+
  using RealVector = std::vector < FunctionValue >;
  ///< a real n-vector, useful for both the rows of A and b
 
@@ -193,12 +204,6 @@ class BendersBFunction : public C05Function , public Block {
 
  using c_VarVector = const VarVector;
  ///< a const version of the x variables upon which the function depends
-
- using ConstraintSpecifier = std::pair< RowConstraint * , ConstraintSide >;
- ///< associates a ConstraintSide with a RowConstraint
-
- using v_ConstraintSpecifier = std::vector< ConstraintSpecifier >;
- ///< a vector of ConstraintSpecifier
 
 /*--------------------------------------------------------------------------*/
  /// virtualized concrete iterator
@@ -334,21 +339,27 @@ class BendersBFunction : public C05Function , public Block {
   * @param b an m-vector of Function::FunctionValue representing the b vector
   *        in the definition of the linear mapping;
   *
-  * @param constraints the set of (pointers to) affected RowConstraint
-  *        together with the information about which sides are affected.
+  * @param constraints the vector of (pointers to) affected RowConstraint.
+  *
+  * @param sides the vector containing the affected sides of the affected
+  *        RowConstraint. There is a correspondence between the vectors \p
+  *        sides and \p constraints: \p sides[i] is associated with \p
+  *        constraints[i]. Of course, \p sides and \p constraints must have
+  *        the same size.
   *
   * @param observer a pointer to the Observer of this BendersBFunction.
   *
   * As the && implies, \p x, \p A, \p b, and \p constraints become property of
   * the BendersBFunction object.
   *
-  * All inputs have a default (nullptr, {}, {}, {}, {}, and nullptr,
+  * All inputs have a default (nullptr, {}, {}, {}, {}, {}, and nullptr,
   * respectively) so that this can be used as the void constructor. */
 
  BendersBFunction( Block * inner_block = nullptr ,
                    VarVector && x = {} , MultiVector && A = {} ,
                    RealVector && b = {} ,
-                   v_ConstraintSpecifier && constraints = {} ,
+                   ConstraintVector && constraints = {} ,
+                   ConstraintSideVector && sides = {} ,
                    Observer * const observer = nullptr )
   : C05Function( observer ) , constraints_are_updated( false ) ,
     solver_status ( 0 ) , diagonal_linearization_required( false )
@@ -356,7 +367,7 @@ class BendersBFunction : public C05Function , public Block {
   set_inner_block( inner_block );
   set_variables( std::move( x ) );
   set_mapping( std::move( A ) , std::move( b ) , std::move( constraints ) ,
-               eNoMod );
+               std::move( sides ) , eNoMod );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -524,7 +535,9 @@ class BendersBFunction : public C05Function , public Block {
   * causes the corresponding parameter of the CDASolver of the sub-Block to be
   * overwritten. The setting of these two parameters only take effect if this
   * BendersBFunction has a sub-Block and this sub-Block has a CDASolver
-  * attached to it.
+  * attached to it. If the inner Block of this BendersBFunction has not yet
+  * been constructed or it has no CDASolver attached to it, attempting setting
+  * any of these three parameters will raise an exception.
   *
   * @param par The parameter to be set.
   *
@@ -795,9 +808,14 @@ class BendersBFunction : public C05Function , public Block {
   *
   * @param b The vector b in the linear mapping.
   *
-  * @param constraints The vector of pairs containing the set of RowConstraint
-  *        affected by the values of x and the respective affected sides.
-
+  * @param constraints the vector of (pointers to) affected RowConstraint.
+  *
+  * @param sides the vector containing the affected sides of the affected
+  *        RowConstraint. There is a correspondence between the vectors \p
+  *        side and \p constraints: \p sides[i] is associated with \p
+  *        constraints[i]. Of course, \p sides and \p constraints must have
+  *        the same size.
+  *
   * @param issueMod It indicates if and how the FunctionMod (with f_shift ==
   *        FunctionMod::NaNshift, i.e., "everything changed") is issued, as
   *        described in Observer::make_par().
@@ -806,7 +824,8 @@ class BendersBFunction : public C05Function , public Block {
   * object. */
 
  void set_mapping( MultiVector && A , RealVector && b ,
-                   v_ConstraintSpecifier && constraints ,
+                   ConstraintVector && constraints ,
+                   ConstraintSideVector && sides ,
                    c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -1118,16 +1137,22 @@ class BendersBFunction : public C05Function , public Block {
   *        is, \p nb[ i ] is the constant factor of the i-th given row of the
   *        linear mapping);
   *
-  * @param nc a vector of ConstraintSpecifier. The i-th element of this vector
-  *        includes the pointer to the RowConstraint and the side associated
-  *        with the given i-th row.
+  * @param nc the i-th element of this vector includes the pointer to the
+  *        RowConstraint associated with the given i-th row.
+  *
+  * @param ns the vector containing the affected sides of the affected
+  *        RowConstraint. There is a correspondence between the vectors \p ns
+  *        and \p nc: \p ns[i] is associated with \p nc[i], i.e., ns[i] is the
+  *        affected side of the nc[i] RowConstraint. Of course, ns and nc must
+  *        have the same size.
   *
   * @param issueMod decides if and how the BendersBFunctionModAdd is issued,
   *        as described in Observer::make_par().
   */
 
  void add_rows( MultiVector && nA , c_RealVector & nb ,
-                const v_ConstraintSpecifier & nc ,
+                const ConstraintVector & nc ,
+                const ConstraintSideVector & ns ,
                 c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -1141,14 +1166,16 @@ class BendersBFunction : public C05Function , public Block {
   *
   * @param bi is the constant term of the new row in the mapping;
   *
-  * @param ci is the ConstraintSpecifier for the new row.
+  * @param ci is the pointer to the RowConstraint for the new row.
+  *
+  * @param si is the ConstraintSide for the new row.
   *
   * @param issueMod decides if and how the BendersBFunctionModAdd is issued,
   *        as described in Observer::make_par().
   */
 
- void add_row( RealVector && Ai , FunctionValue bi , ConstraintSpecifier ci ,
-               c_ModParam issueMod = eModBlck );
+ void add_row( RealVector && Ai , FunctionValue bi , RowConstraint * ci ,
+               ConstraintSide si , c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// deletes a range of rows from the linear mapping in the BendersBFunction
@@ -1253,15 +1280,19 @@ class BendersBFunction : public C05Function , public Block {
   *   which contains the vector b. The variable is only optional if NumRow ==
   *   0.
   *
-  * - The sub-group "ConstraintSpecifier_i", for each i in {1, ..., m}, where
-  *   m is the number of rows of the A matrix. The group ConstraintSpecifier_i
-  *   contains:
+  * - The variable "ConstraintSide", of type netCDF::NcByte() and indexed over
+  *   the dimension NumRow, indicating, at position i, which side of the i-th
+  *   Constraint is affected. The possible values are 0 for the left-hand (or
+  *   lower bound) side, 1 for the right-hand (or upper bound) side, and 2 for
+  *   both sides.
   *
-  *   - The variable "Side", indicating which side of the Constraint is
-  *     affected. The possible values are 0 for the left-hand (or lower bound)
-  *     side, 1 for the right-hand (or upper bound) side, and 2 for both side.
-  *
-  *   - The sub-group "Path", containing the AbstractPath to that Constraint.
+  * - All the variables necessary to describe a vector of AbstractPath as
+  *   described in the comments of AbstractPath::deserialize(). The number of
+  *   AbstractPath must be equal to the number of rows of the A matrix and,
+  *   therefore, the dimension associated with the number of AbstractPath is
+  *   NumRow. The i-th AbstractPath in this vector must be the path to the
+  *   i-th affected RowConstraint (which is associated with the i-th row of
+  *   the A matrix).
   *
   * - The sub-group "InnerBlock", containing the description of the inner
   *   Block.
@@ -1495,8 +1526,14 @@ class BendersBFunction : public C05Function , public Block {
 
  RealVector v_b;      ///< the b vector of the mapping A x + b
 
- v_ConstraintSpecifier v_constraints;
- ///< the pointers to RowConstraint and their respective affected sides
+ ConstraintVector v_constraints;
+ ///< the pointers to RowConstraint
+
+ ConstraintSideVector v_sides;
+ ///< the affected sides of the affected RowConstraint
+ /**< The affected sides of the affected RowConstraint. There is a
+  * correspondence between the vectors v_side and v_constraints: v_sides[i] is
+  * associated with v_constraints[i]. */
 
  bool constraints_are_updated = false;
  ///< indicates whether the constraints of the sub-Block are updated
