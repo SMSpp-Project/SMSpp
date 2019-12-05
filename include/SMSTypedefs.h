@@ -21,7 +21,7 @@
  *
  * \version 0.13
  *
- * \date 27 - 10 - 2019
+ * \date 05 - 12 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1795,6 +1795,11 @@ inline bool deserialize( const netCDF::NcGroup & group ,
                          const bool optional = true ,
                          const bool allow_scalar_var = false ) {
 
+  if( sizes.empty() ) {
+    data.resize( 0 );
+    return false;
+  }
+
   auto total_size = std::accumulate( begin( sizes ) , end( sizes ) , 1 ,
                                      std::multiplies<std::size_t>() );
   if( total_size == 0 ) {
@@ -1954,6 +1959,11 @@ inline bool deserialize( const netCDF::NcGroup & group ,
   }
 
   auto sizes_dimensions = get_sizes_dimensions( ncVar );
+
+  if( sizes_dimensions.empty() ) {
+    data.resize( 0 );
+    return false;
+  }
 
   auto total_size = std::accumulate
     ( begin( sizes_dimensions ) , end( sizes_dimensions ) , 1 ,
