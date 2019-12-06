@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 05 - 12 - 2019
+ * \date 06 - 12 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -84,35 +84,53 @@ void BendersBFunction::deserialize( netCDF::NcGroup & group ,
  MultiVector tA;
  RealVector tb;
 
- netCDF::NcDim ncDim_NumRow = group.getDim( "NumRow" );
+ auto ncDim_NumRow = group.getDim( "NumRow" );
  if( ( ! ncDim_NumRow.isNull() ) && ( ncDim_NumRow.getSize() ) ) {
-   netCDF::NcVar ncVar_A = group.getVar( "A" );
-   if( ncVar_A.isNull() )
-    throw( std::logic_error( "BendersBFunction::deserialize: A not found" ) );
+  netCDF::NcVar ncVar_A = group.getVar( "A" );
+  if( ncVar_A.isNull() )
+   throw( std::logic_error( "BendersBFunction::deserialize: A not found" ) );
 
-   netCDF::NcVar ncVar_b = group.getVar( "b" );
-   if( ncVar_b.isNull() )
-    throw( std::logic_error( "BendersBFunction::deserialize: b not found" ) );
+  netCDF::NcVar ncVar_b = group.getVar( "b" );
+  if( ncVar_b.isNull() )
+   throw( std::logic_error( "BendersBFunction::deserialize: b not found" ) );
 
-  tA.resize( ncDim_NumRow.getSize() );
+  auto nrow = ncDim_NumRow.getSize();
+
+  tA.resize( nrow );
   for( Index i = 0 ; i < tA.size() ; ++i ) {
-   tA[ i ].resize( nvar );
-   ncVar_A.getVar( { i , 0 } , { 1 , nvar } , tA[ i ].data() );
-   }
+   tA[ i ].resize( nvar , 0 );
+  }
 
-  bool sparse;
-  if( sparse ) {
-   // TODO
-   }
-  else {
-   for( Index i = 0 ; i < tA.size() ; ++i ) {
+  tb.resize( nrow );
+  ncVar_b.getVar( tb.data() );
+
+  auto ncDim_NumNonZero = group.getDim( "NumNonzero" );
+
+  if( ncDim_NumNonZero.isNull() ) {
+   // A is given in dense format
+   for( Index i = 0 ; i < tA.size() ; ++i )
     ncVar_A.getVar( { i , 0 } , { 1 , nvar } , tA[ i ].data() );
+  }
+  else {
+   // A is given in sparse row-major format
+   auto nnz = ncDim_NumNonZero.getSize();
+
+   std::vector< Index > num_nonzero_at_row;
+   ::deserialize( group , "NumNonzeroAtRow" , nrow ,
+                  num_nonzero_at_row , false , false );
+
+   std::vector< Index > column;
+   ::deserialize( group , "Column" , nnz , column , false , false );
+
+   Index k = 0;
+   for( Index i = 0 ; i < nrow ; ++i ) {
+    for( Index l = 0 ; l < num_nonzero_at_row[ i ] ; ++l , ++k ) {
+     auto j = column[ k ];
+     ncVar_A.getVar( { k } , & v_A[ i ][ j ] );
     }
    }
-
-  tb.resize( ncDim_NumRow.getSize() );
-  ncVar_b.getVar( tb.data() );
   }
+ }
 
  auto inner_block_group = group.getGroup( "InnerBlock" );
  if( ! inner_block_group.isNull() ) {
@@ -1294,14 +1312,21 @@ void BendersBFunction::serialize( netCDF::NcGroup & group ) const {
   auto NcVar_A = group.addVar( "A" , netCDF::NcDouble() ,
 			    { NcDim_NumRow , NcDim_NumVar } );
 
-  for( Index i = 0 ; i < v_A.size() ; ++i )
-   NcVar_A.putVar( { i , 0 } , { 1 , nvar } , v_A[ i ].data() );
+  BendersBFunction::SparseMatrix< FunctionValue > sparse_A( v_A.size() );
+  if( is_A_sparse( sparse_A ) ) {
+   // Store A in sparse format
+   sparse_A.serialize( group , NcDim_NumRow );
+  }
+  else {
+   // Store A in dense format
+   for( Index i = 0 ; i < v_A.size() ; ++i )
+    NcVar_A.putVar( { i , 0 } , { 1 , nvar } , v_A[ i ].data() );
+  }
 
- ::serialize( group , "b" , netCDF::NcDouble() ,
-              NcDim_NumRow , v_b );
+  ::serialize( group , "b" , netCDF::NcDouble() , NcDim_NumRow , v_b );
 
- ::serialize( group , "ConstraintSide" , netCDF::NcByte() ,
-              NcDim_NumRow , v_sides );
+  ::serialize( group , "ConstraintSide" , netCDF::NcByte() ,
+               NcDim_NumRow , v_sides );
  }
 
  std::vector< AbstractPath > paths;
@@ -1865,6 +1890,32 @@ bool BendersBFunction::has_constraint( Constraint * constraint ) const {
  }
  return false;
 }  // end( BendersBFunction::has_constraint )
+
+/*--------------------------------------------------------------------------*/
+
+template< class T >
+bool BendersBFunction::is_A_sparse( SparseMatrix<T> & matrix ) const {
+ matrix.clear();
+ if( v_A.empty() ) {
+  return true;
+ }
+ Index nnz = 0;
+ auto max_nnz_for_sparsity = ( v_A.size() * v_A[ 0 ].size() ) / 4;
+ matrix.reserve( max_nnz_for_sparsity );
+ for( Index i = 0 ; i < v_A.size() ; ++i ) {
+  for( Index j = 0 ; j < v_A[ i ].size() ; ++j ) {
+   if( v_A[ i ][ j ] != T( 0 ) ) {
+    ++nnz;
+    matrix.insert( i , j , v_A[ i ][ j ] );
+    if( nnz > max_nnz_for_sparsity ) {
+     matrix.clear();
+     return false;
+    }
+   }
+  }
+ }
+ return true;
+}  // end( BendersBFunction::is_A_sparse )
 
 /*--------------------------------------------------------------------------*/
 /*----------------------------- GLOBALPOOL ---------------------------------*/
