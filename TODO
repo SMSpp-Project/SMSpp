@@ -138,10 +138,10 @@
 	The check is "mod->changes() & ...concerned_by()", in the sense
 	that at least one bit has to agree.
 
-        The "& eModAnything" in issue_[p]mod() above is	because the
+	The "& eModAnything" in issue_[p]mod() above is because the
 	higher-order bits of changes() are reserved for a related but
 	different aim: generically indicating what is the expected effect
-	of the Modifiction on the problem. Note that eFsblRegnInc and
+	of the Modification on the problem. Note that eFsblRegnInc and
 	eFsblRegnDec can both be set to 1, meaning "no idea what the
 	change actually was", and similarly for eObjcFnctInc and
 	eObjcFnctDec.
@@ -152,7 +152,7 @@
 	First, FRowConstraint and FRealObjective need to "intercept"
 	FunctionVarMod to update the list of "active" Variable; hence,
 	FunctionVarMod have to declare themselves of type eModDyncAbstVar,
-	and F...::anyone_there( aw ) whill have to check aw with the |=
+	and F...::anyone_there( aw ) will have to check aw with the |=
 	between f_block->anyone_there( aw ) and eModDyncAbstVar.
 
 	Then, eFsblRegn[Inc/Dec] and eObjcFnct[Inc/Dec] make no sense for
@@ -180,7 +180,7 @@
 
            Solution * get_solution( Configuration * )
 
-        in the Solver. The defaul implementation will be to lock the Block,
+        in the Solver. The default implementation will be to lock the Block,
 	call the standard get_solution() to write solution information in
 	the Block, ask the Block to produce a Solution, unlock the Block,
 	give the Solution back. However, a Solver that knows how the
@@ -219,7 +219,7 @@
 	their standard way to describe sets of (indices) of Variable. We
 	could define a class VariableSet that acts as a repository of indices
 	of Variable. The class would be abstract, with a few obvious
-	implementtions like std::vector<Variable *>  (or
+	implementations like std::vector<Variable *>  (or
 	template< class T> T<Variable *>) and something taking a
 	std::vector<Variable > & (or template< class T> T<Variable> & ) and
 	two iterators in it to represent a range in the vector. Also, some
@@ -237,7 +237,7 @@
 	std::vector<Variable *> is currently used, which will be quite some
 	work.
 
-	The obvious disadvantage is that of havig to jump through a virtual
+	The obvious disadvantage is that of having to jump through a virtual
 	layer each time one is iterating on some of these objects.
 
 
@@ -249,7 +249,7 @@
 
 2019-04-01 [medium] boost::stable_vector for dynamic stuff
 
-	Allow dynemic stuff to be stored in boost::stable_vector other than in
+	Allow dynamic stuff to be stored in boost::stable_vector other than in
 	std::list. This has a BIG IF: IT IS NOT CLEAR IF ONE CAN EXTRACT A
 	SLICE OF A boost::stable_vector AND TAKE IT AWAY WITHOUT CHANGING THE
 	ADDRESS OF THE ELEMENTS. This should ideally be possible, but it does
@@ -258,7 +258,7 @@
 
 2019-04-01 [medium] std::vector for dynamic stuff
 
-	Allow dynemic stuff to be stored in a std::stable_vector that has been
+	Allow dynamic stuff to be stored in a std::stable_vector that has been
 	reserve()-d. Thus, no re-allocation would happen if the std::vector()
 	is resize()-d up until its size() <= capacity(). Dynamic stuff could
 	only be added and removed at the end, but the advantage over std::list
@@ -395,10 +395,36 @@
 	An even more detailed version of the previous one: both Solver
 	and Block expose a std::set (or std::unoredered_set) of
 	std::type_info of the Modification types they "follow". At the
-	level of the single Block the unkown of the sets of the Solver
+	level of the single Block the unknown of the sets of the Solver
 	is computed, then the set of the Block itself is added, then
 	the set of the father is added, and then all this is sent to
 	the sons.
+
+
+2019-12-06 [low] Parameter in BendersBFunction to eliminate small values in A
+
+	BendersBFunction could have parameters that could be used to define
+	what a small number is. This could be used, for instance, to eliminate
+	entries of the mapping matrix A whose absolute values are small. There
+	could be two criteria for that: an absolute one and a relative
+	one. The absolute criterion would state that any number whose absolute
+	value is less than or equal to a threshold (parameter) Ta >= 0 would
+	be a small number that should be considered as zero. The relative
+	criterion could state that any number whose absolute value is less
+	than or equal to a fraction 0 <= T_r < 1 of some reference value (for
+	instance, the largest entry (in absolute value) of a row) would be a
+	small number (and therefore should be considered as zero). The default
+	values for these parameters would be zero and a number could be small
+	if it is absolutely small or relatively small.
+
+
+2019-12-06 [low] Variables in Function should be const
+
+	A Function should be dealing with pointers to const Variable, because,
+	in principle, it should only read the Variables, not modify
+	them. This, however, could prevent some unforeseen use of Function and
+	should be carefully thought. Also, it should be verified whether the
+	ThinVarDepInterface would allow this kind of change.
 
 
 
