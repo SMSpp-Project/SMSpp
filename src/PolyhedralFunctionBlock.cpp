@@ -557,6 +557,34 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( sp_Mod mod ,
   *     LEAVE THE PolyhedralFunction IN AN INCONSISTENT STATE
   */
 
+ // BlockModAdd< FRowConstraint > - - - - - - - - - - - - - - - - - - - - - -
+ // adding a dynamic constraint
+ {
+  const auto tmod =
+            std::dynamic_pointer_cast< BlockModAdd< FRowConstraint > >( mod );
+  if( tmod ) {
+   if( & tmod->whc() == & f_const ) {
+    throw( std::logic_error( "adding FRowConstraint is not handled yet" ) );
+    }
+
+   return;  // if it's not about f_const, none of my business
+   }
+  }
+
+ // BlockModRmv< FRowConstraint > - - - - - - - - - - - - - - - - - - - - - -
+ // removing a dynamic constraint
+ {
+  const auto tmod =
+            std::dynamic_pointer_cast< BlockModRmv< FRowConstraint > >( mod );
+  if( tmod ) {
+   if( & tmod->whc() == & f_const ) {
+    throw( std::logic_error( "removing FRowConstraint is not handled yet" ) );
+    }
+
+   return;  // if it's not about f_const, none of my business
+   }
+  }
+
  // ObjectiveMod- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  {
   const auto tmod = std::dynamic_pointer_cast<ObjectiveMod>( mod );

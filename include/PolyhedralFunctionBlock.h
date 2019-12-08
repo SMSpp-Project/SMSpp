@@ -333,13 +333,22 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   * is f_static_constraints_Configuration in the BlockConfig, if any.
   *
   * If f_rep == false, the PolyhedralFunctionBlock has no extra Constraint, be
-  * them static or dynamic. If f_rep == true, the first group of dynamic
-  * Constraint contains a single std::list< FRowConstraint > with
-  * LinearFunction inside (a.k.a. "linear constraint") representing the m
-  * inequalities v >= [<=] a_i x + b_i. Note that the "verse" of the
-  * Constraint depend on PolyhedralFunction->is_convex(); if it is true than
-  * the inequalities are ">=" (the LHS is -INF and the RHS is b_i), otherwise
-  * they are "<=" (the LHS b_i and the RHS is INF).
+  * them static or dynamic. If f_rep == true instead, then:
+  *
+  *  - The first group of dynamic Constraint contains a single
+  *    std::list< FRowConstraint > with LinearFunction inside (a.k.a. "linear
+  *    constraint") representing the m inequalities v >= [<=] a_i x + b_i.
+  *    Note that the "verse" of the Constraint depend on
+  *    PolyhedralFunction->is_convex(); if it is true than the inequalities
+  *    are ">=" (the LHS is -INF and the RHS is b_i), otherwise they are "<="
+  *    (the LHS b_i and the RHS is INF).
+  *
+  *  - The first group of static Constraint contains a single BoxConstraint
+  *    whose variable is "v", which serves to store the global lower/upper
+  *    bound on the function vale. This clearly depends on
+  *    PolyhedralFunction->is_convex(); if it is true, than the LHS is the
+  *    global lower bound and the RHS is INF, otherwise the LHS is - INF and
+  *    the RHS is the global upper bound.
   *
   * Note that if further derived classes add some other structure, their
   * version of this method will have to call the method of this class
