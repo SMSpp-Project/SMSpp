@@ -96,14 +96,6 @@ public:
  /// destructor
  virtual ~BendersBlock() { }
 
-/**@} ----------------------------------------------------------------------*/
-/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Other initializations
- *  @{ */
-
- virtual void load( std::istream &input ) override {}
-
 /*--------------------------------------------------------------------------*/
 
  /// deserialize a BendersBBlock out of netCDF::NcGroup
@@ -119,7 +111,11 @@ public:
 
  void deserialize( netCDF::NcGroup & group ) override;
 
+/**@} ----------------------------------------------------------------------*/
+/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
+/** @name Other initializations
+ *  @{ */
 
  /// sets the BendersBFunction of the FRealObjective of this BendersBlock
  /** This function sets the given \p function as the Function of the
@@ -171,7 +167,7 @@ public:
  /** This function returns the number of Variable of this BendersBlock.
   */
 
- Index get_number_variables() const {
+ inline Index get_number_variables() const {
   return variables.size();
  }
 
@@ -182,8 +178,33 @@ public:
   * BendersBlock.
   */
 
- const std::vector< ColVariable > & get_variables() const {
+ inline const std::vector< ColVariable > & get_variables() const {
   return variables;
+ }
+
+/**@} ----------------------------------------------------------------------*/
+/*------------ METHODS DESCRIBING THE BEHAVIOR OF A BendersBlock -----------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods describing the behavior of a BendersBlock
+ *  @{ */
+
+ template< class T >
+ void set_variable_values( const std::vector< T > & values ) {
+  assert( ( values.size() >= 0 ) &&
+          ( static_cast<decltype( variables.size() )>( values.size() ) ==
+            variables.size() ) );
+  for( Index i = 0 ; i < variables.size() ; ++i )
+   variables[ i ].set_value( values[ i ] );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ void set_variable_values( const Eigen::ArrayXd & values ) {
+  assert( ( values.size() >= 0 ) &&
+          ( static_cast<decltype( variables.size() )>( values.size() ) ==
+            variables.size() ) );
+  for( Index i = 0 ; i < variables.size() ; ++i )
+   variables[ i ].set_value( values( i ) );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -193,7 +214,13 @@ public:
 protected:
 
 /*--------------------------------------------------------------------------*/
-/*---------------------------- PROTECTED FIELDS  ---------------------------*/
+/*---------------------------- PROTECTED METHODS ---------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ virtual void load( std::istream &input ) override {}
+
+/*--------------------------------------------------------------------------*/
+/*---------------------------- PROTECTED FIELDS ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
  /// The Objective of this BendersBlock
@@ -209,7 +236,7 @@ protected:
 private:
 
 /*--------------------------------------------------------------------------*/
-/*-------------------------- PRIVATE METHODS -------------------------------*/
+/*-------------------------- PRIVATE FIELDS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
  SMSpp_insert_in_factory_h;

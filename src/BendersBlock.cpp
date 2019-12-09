@@ -6,7 +6,7 @@
  *
  * \version 0.1
  *
- * \date 02 - 12 - 2019
+ * \date 09 - 12 - 2019
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -61,12 +61,13 @@ void BendersBlock::deserialize( netCDF::NcGroup & group ) {
  auto benders_function = new BendersBFunction();
  set_function( benders_function );
 
- std::vector< ColVariable * > p_variables;
- p_variables.reserve( variables.size() );
- for( auto & variable : variables )
-  p_variables.push_back( & variable );
+ {
+  std::vector< ColVariable * > p_variables( variables.size() , nullptr );
+  for( auto & variable : variables )
+   p_variables.push_back( & variable );
 
- benders_function->set_variables( std::move( p_variables ) );
+  benders_function->set_variables( std::move( p_variables ) );
+ }
 
  benders_function->deserialize( benders_function_group );
 }
@@ -76,6 +77,9 @@ void BendersBlock::deserialize( netCDF::NcGroup & group ) {
 /*--------------------------------------------------------------------------*/
 
 void BendersBlock::serialize( netCDF::NcGroup & group ) const {
+
+ group.putAtt( "type" , "BendersBlock" );
+
  group.addDim( "NumVar" , variables.size() );
 
  auto benders_function = objective.get_function();

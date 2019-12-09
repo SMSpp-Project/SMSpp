@@ -98,6 +98,9 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
 /*--------------------------------------------------------------------------*/
 
 void StochasticBlock::serialize( netCDF::NcGroup & group ) const {
+
+ group.putAtt( "type" , "StochasticBlock" );
+
  auto inner_block = get_inner_block();
 
  if( inner_block ) {
