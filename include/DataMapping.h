@@ -9,7 +9,7 @@
  *
  * \version 0.1
  *
- * \date 03 - 12 - 2019
+ * \date 09 - 12 - 2019
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -131,6 +131,12 @@ public:
 
 /*--------------------------------------------------------------------------*/
 
+ virtual void set_data( const Eigen::ArrayXd & data ,
+                        c_ModParam issueMod = eModBlck ,
+                        c_ModParam issueAMod = eModBlck ) const = 0;
+
+/*--------------------------------------------------------------------------*/
+
  virtual void serialize( netCDF::NcGroup & group ,
                          Block * block_reference = nullptr ) const = 0;
 
@@ -224,13 +230,23 @@ public:
   * following format:
   *
   * - The variable "FunctionName", whose type is netCDF::NcString, contains
-  *   the name of the function as it is registered in the methods factory..
+  *   the name of the function as it is registered in the methods factory.
   *
-  * - The group "Path" contains the AbstractPath to the caller.
+  * - The variables necessary to describe an AbstractPath to the caller as
+  *   specified in the comments to AbstractPath::deserialize().
   *
-  * - The group "SetFrom" contains the description of the set SetFrom.
+  * - The variables necessary to describe the SetFrom set. If SetFrom is a
+  *   Range, then this set is specified by the variables "FirstFrom" and
+  *   "SecondFrom" which contain the limits of the closed-open interval
+  *   defining the Range. If SetFrom is a Subset, then this set is specified
+  *   by the dimension "SizeFrom" indicating the size of the set and the
+  *   variable "SubsetFrom" containing the elements of the set.
   *
-  * - The group "SetTo" contains the description of the set SetTo.
+  * - The variables necessary to describe the SetTo set. Its representation is
+  *   the same as that of the SetFrom set, except for the names of the
+  *   variables, which should be "FirstTo" and "SecondTo" if SetTo is a Range,
+  *   and "SubsetTo" if the set is a Subset (accompanied by the dimension
+  *   "SizeTo").
   *
   * - The variable "TemplateParameterTypes", whose type is netCDF::NcString,
   *   is a string with three characters that indicate the types of the
@@ -268,17 +284,12 @@ public:
   function = Block::get_method< F >( function_name );
 
   if constexpr( std::is_base_of_v< Block , Caller > ) {
-   const auto path_group = group.getGroup( "Path" );
-   if( path_group.isNull() )
-    throw std::invalid_argument
-     ( "SimpleDataMapping::deserialize: group named 'Path' containing "
-       "the path to the Block must be present." );
-   const auto path = AbstractPath::deserialize( path_group );
+   const auto path = AbstractPath::deserialize( group );
    caller = AbstractPath::get_element< Block >( path , block_reference );
   }
 
-  this->deserialize( group , "SetFrom" , set_from , false );
-  this->deserialize( group , "SetTo" , set_to , false );
+  this->deserialize( group , "From" , set_from , false );
+  this->deserialize( group , "To" , set_to , false );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -288,6 +299,15 @@ public:
  *  @{ */
 
  virtual void set_data( const std::vector< double > & data ,
+                        c_ModParam issueMod = eModBlck ,
+                        c_ModParam issueAMod = eModBlck ) const override {
+  auto sub_data = extract< DataType >( data, set_from );
+  std::invoke( * function , caller , sub_data , set_to , issueMod , issueAMod );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ virtual void set_data( const Eigen::ArrayXd & data ,
                         c_ModParam issueMod = eModBlck ,
                         c_ModParam issueAMod = eModBlck ) const override {
   auto sub_data = extract< DataType >( data, set_from );
@@ -309,14 +329,13 @@ public:
    ( group , "FunctionName" , netCDF::NcString() , function_name );
 
   if constexpr( std::is_base_of_v< Block , Caller > ) {
-   auto path_group = group.addGroup( "Path" );
    const auto path = AbstractPath::build_path< Caller >( caller ,
                                                          block_reference );
-   AbstractPath::serialize( path , path_group );
+   AbstractPath::serialize( path , group );
   }
 
-  this->serialize( group , "SetFrom" , set_from );
-  this->serialize( group , "SetTo" , set_to );
+  this->serialize( group , "From" , set_from );
+  this->serialize( group , "To" , set_to );
 
   constexpr char template_parameter_types[3] =
    { get_id< SetFrom >() , get_id< SetTo >() , get_id< DataType >() };
@@ -407,6 +426,20 @@ private:
 
 /*--------------------------------------------------------------------------*/
 
+ template< class S = double >
+ static std::vector< S > extract( const Eigen::ArrayXd & data ,
+                                  const Block::Range & range ) {
+  if( range.first >= range.second )
+   return {};
+  assert( range.second <= data.size() );
+  return std::vector< S >
+   ( data.data() + range.first ,
+     data.data() + std::min<decltype( data.size() )>( range.second ,
+                                                      data.size() ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
  template< class S = double , class T = double >
  static std::vector< S > extract
  ( const typename std::vector< T >::const_iterator & begin ,
@@ -419,13 +452,27 @@ private:
 /*--------------------------------------------------------------------------*/
 
  template< class S = double , class T = double >
- static std::vector< T > extract( const std::vector< T > & data ,
+ static std::vector< S > extract( const std::vector< T > & data ,
                                   const Block::Subset & subset ) {
   std::size_t size = subset.size();
   std::vector< S > output( size );
   for(std::size_t i = 0; i < size; ++i) {
    assert( subset[ i ] >= 0 && subset[ i ] < data.size() );
    output[ i ] = data[ subset[ i ] ];
+  }
+  return output;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ template< class S = double >
+ static std::vector< S > extract( const Eigen::ArrayXd & data ,
+                                  const Block::Subset & subset ) {
+  std::size_t size = subset.size();
+  std::vector< S > output( size );
+  for(std::size_t i = 0; i < size; ++i) {
+   assert( subset[ i ] >= 0 && subset[ i ] < data.size() );
+   output[ i ] = data( subset[ i ] );
   }
   return output;
  }
@@ -465,36 +512,29 @@ private:
 
 /*--------------------------------------------------------------------------*/
 
- bool deserialize( const netCDF::NcGroup & group ,
-                   const std::string & group_name , Block::Range & range ,
-                   bool optional = true ) {
-
-  auto range_group = group.getGroup( group_name );
-  if( range_group.isNull() ) {
-   if( ! optional ) {
-    throw( std::invalid_argument
-           ( "SimpleDataMapping::deserialize(): group " + group_name +
-             " is not present in group '" + group.getName() + "'." ) );
-   }
-   return false;
-  }
+ bool deserialize( const netCDF::NcGroup & group , const std::string & suffix ,
+                   Block::Range & range , bool optional = true ) {
 
   {
-   auto ncVar = range_group.getVar( "First" );
+   auto ncVar = group.getVar( "First" + suffix );
    if( ncVar.isNull() ) {
+    if( optional )
+     return false;
     throw( std::invalid_argument
-           ( "SimpleDataMapping::deserialize(): variable 'First' is not "
-             "present in group '" + group_name + "'." ) );
+           ( "SimpleDataMapping::deserialize(): variable 'First" + suffix +
+             "' is not present in group '" + group.getName() + "'." ) );
    }
    ncVar.getVar( & range.first );
   }
 
   {
-   auto ncVar = range_group.getVar( "Second" );
+   auto ncVar = group.getVar( "Second" + suffix );
    if( ncVar.isNull() ) {
+    if( optional )
+     return false;
     throw( std::invalid_argument
-           ( "deserialize(): variable 'Second' is not present in group '" +
-             group_name + "'." ) );
+           ( "deserialize(): variable 'Second" + suffix + "' is not present "
+             "in group '" + group.getName() + "'." ) );
    }
    ncVar.getVar( & range.second );
   }
@@ -504,45 +544,30 @@ private:
 
 /*--------------------------------------------------------------------------*/
 
- bool deserialize( const netCDF::NcGroup & group ,
-                   const std::string & group_name , Block::Subset & subset ,
-                   bool optional = true ) {
-
-  auto subset_group = group.getGroup( group_name );
-  if( subset_group.isNull() ) {
-   if( ! optional ) {
-    throw( std::invalid_argument
-           ( "SimpleDataMapping::deserialize(): group " + group_name +
-             " is not present in group '" + group.getName() + "'." ) );
-   }
-   return false;
-  }
-
-  auto dim = subset_group.getDim( "Size" );
-  return ::SMSpp_di_unipi_it::deserialize( subset_group , "Subset" ,
+ bool deserialize( const netCDF::NcGroup & group , const std::string & suffix ,
+                   Block::Subset & subset , bool optional = true ) {
+  return ::SMSpp_di_unipi_it::deserialize( group , "Subset" + suffix ,
                                            subset , optional );
  }
 
 /*--------------------------------------------------------------------------*/
 
  virtual void serialize( netCDF::NcGroup & group ,
-                         const std::string & group_name ,
+                         const std::string & suffix ,
                          const Block::Range & range ) const {
-  auto range_group = group.addGroup( group_name );
-  ::SMSpp_di_unipi_it::serialize( range_group , "First" ,
+  ::SMSpp_di_unipi_it::serialize( group , "First" + suffix ,
                                   netCDF::NcUint64() , range.first );
-  ::SMSpp_di_unipi_it::serialize( range_group , "Second" ,
+  ::SMSpp_di_unipi_it::serialize( group , "Second" + suffix ,
                                   netCDF::NcUint64() , range.second );
  }
 
  /*--------------------------------------------------------------------------*/
 
  virtual void serialize( netCDF::NcGroup & group ,
-                         const std::string & group_name ,
+                         const std::string & suffix ,
                          const Block::Subset & subset ) const {
-  auto range_group = group.addGroup( group_name );
   auto dim = group.addDim( "Size" , subset.size() );
-  ::SMSpp_di_unipi_it::serialize( range_group , "Subset" ,
+  ::SMSpp_di_unipi_it::serialize( group , "Subset" + suffix ,
                                   netCDF::NcUint64() , dim , subset , false );
  }
 
