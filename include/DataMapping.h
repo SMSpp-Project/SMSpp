@@ -55,16 +55,20 @@ namespace SMSpp_di_unipi_it
 /// DataMapping defines an interface for all types of data mappings.
 /** DataMapping defines an interface for all types of data mappings. The idea
  * of a data mapping is to map the data given by a vector of double into the
- * data of some object. It has three pure virtual functions. The first one is
- * set_data(), which has the following signature:
+ * data of some object. It has four pure virtual functions. The first two are
+ * set_data(), which have the following signature:
  *
  *    virtual void set_data( const std::vector< double > & data ,
  *                           c_ModParam issueMod = eModBlck ,
  *                           c_ModParam issueAMod = eModBlck ) const;
  *
- * The idea of this function is that the values of some data of an object can
+ *    virtual void set_data( const Eigen::ArrayXd & data ,
+ *                           c_ModParam issueMod = eModBlck ,
+ *                           c_ModParam issueAMod = eModBlck ) const;
+ *
+ * The idea of these functions is that the values of some data of an object can
  * be modified considering the given "data" parameter. The other two functions
- * are for serializing and deserializing an DataMapping. Typically, an
+ * are for serializing and deserializing a DataMapping. Typically, a
  * DataMapping could be used to set the data of a Block. In this case, a
  * pointer to that Block must be available. Pointers to a Block can be
  * serialized and deserialized considering its AbstractPath, which is relative
