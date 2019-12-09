@@ -1489,8 +1489,8 @@ public:
   *                   PathElementIndices[ PathStart[ k+1 ] - 1 ] )
   *
   * The description of the last path is given between the indices
-  * PathStart[PathDim - 1] and PathStart[TotalLength - 1], where "TotalLength"
-  * is a dimension containing the size of the arrays "PathNodeTypes",
+  * PathStart[PathDim - 1] and TotalLength - 1, where "TotalLength" is a
+  * dimension containing the size of the arrays "PathNodeTypes",
   * "PathGroupIndices", and "PathElementIndices" (and, therefore, these arrays
   * are indexed over "TotalLength").
   *
