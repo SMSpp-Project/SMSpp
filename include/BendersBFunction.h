@@ -7,7 +7,7 @@
  *
  * \version 0.01
  *
- * \date 06 - 12 - 2019
+ * \date 09 - 12 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1272,14 +1272,15 @@ class BendersBFunction : public C05Function , public Block {
   *   rows) is assumed.
   *
   * - The dimension "NumNonzero", of type NcUint64, containing the number of
-  *   nonzero entries in the A matrix. This variable is optional and
-  *   determines in which format the matrix A is given. If "NumNonzero" is not
-  *   present, then the A matrix is given as a dense matrix. If it is present,
-  *   then the A matrix is given in a sparse format as defined by the
-  *   variables "Row", "Column", and "A". During serialization, the following
-  *   criterion is used to decide the format in which the A matrix is
-  *   stored. If at most 25% of its elements are nonzero, it is stored in
-  *   sparse format; otherwise, it is stored in dense format.
+  *   nonzero entries in the A matrix. This dimension is optional and
+  *   determines in which format the matrix A is given. If this dimension is
+  *   present, then "NumRow" must also be. If "NumNonzero" is not present,
+  *   then the A matrix is given as a dense matrix. If it is present, then the
+  *   A matrix is given in a sparse format as defined by the variables "Row",
+  *   "Column", and "A". During serialization, the following criterion is used
+  *   to decide the format in which the A matrix is stored. If at most 25% of
+  *   its elements are nonzero, it is stored in sparse format; otherwise, it
+  *   is stored in dense format.
   *
   * - The variable "NumNonzeroAtRow", of type Uint64 and indexed over the
   *   dimension "NumRow", containing the number of nonzero elements of the A
@@ -1308,18 +1309,18 @@ class BendersBFunction : public C05Function , public Block {
   *   are given in left-to-right top-to-bottom ("row-major") order. If the
   *   dimension "NumNonzero" is not present, then "A" is indexed over both the
   *   "NumRow" and "NumVar" dimensions (in this order); it contains the
-  *   (row-major) representation of the matrix A. The variable is only
-  *   optional if NumRow == 0.
+  *   (row-major) representation of the matrix A. This variable is optional
+  *   only if NumRow == 0.
   *
   * - The variable "b", of type double and indexed over the dimension
-  *   "NumRow", which contains the vector b. The variable is only optional if
+  *   "NumRow", which contains the vector b. This variable is optional only if
   *   NumRow == 0.
   *
   * - The variable "ConstraintSide", of type Byte and indexed over the
   *   dimension "NumRow", indicating, at position i, which side of the i-th
   *   Constraint is affected. The possible values are 0 for the left-hand (or
   *   lower bound) side, 1 for the right-hand (or upper bound) side, and 2 for
-  *   both sides.
+  *   both sides. This variable is optional only if NumRow == 0.
   *
   * - All the variables necessary to describe a vector of AbstractPath as
   *   described in the comments of AbstractPath::deserialize(). The number of
@@ -1327,10 +1328,16 @@ class BendersBFunction : public C05Function , public Block {
   *   therefore, the dimension associated with the number of AbstractPath is
   *   NumRow. The i-th AbstractPath in this vector must be the path to the
   *   i-th affected RowConstraint (which is associated with the i-th row of
-  *   the A matrix).
+  *   the A matrix). These variables are optional only if NumRow == 0.
   *
-  * - The sub-group "InnerBlock", containing the description of the inner
+  * - The sub-group "Block", containing the description of the inner
   *   Block.
+  *
+  * - The sub-group "BlockConfig", containing the BlockConfig of the inner
+  *   Block.
+  *
+  * - The sub-group "BlockSolver", containing the BlockSolverConfig of the
+  *   inner Block.
   */
 
  virtual void serialize( netCDF::NcGroup & group ) const override;
@@ -1505,7 +1512,7 @@ class BendersBFunction : public C05Function , public Block {
   * sub-Block, a \c nullptr is returned.
   */
 
- Block * get_inner_block() const {
+ inline Block * get_inner_block() const {
   if( v_Block.empty() )
    return nullptr;
   return v_Block[ 0 ];
@@ -2175,10 +2182,15 @@ class BendersBFunction : public C05Function , public Block {
 /*---------------------------- PRIVATE FIELDS  -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
+ /// global pool of linearizations
  GlobalPool global_pool;
- ///< global pool of linearizations
 
- };  // end( class( BendersBFunction ) )
+ /// Names of the netCDF sub-groups
+ inline static const std::string BLOCK_NAME = "Block";
+ inline static const std::string BLOCK_CONFIG_NAME = "BlockConfig";
+ inline static const std::string BLOCK_SOLVER_CONFIG_NAME = "BlockSolver";
+
+};  // end( class( BendersBFunction ) )
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- CLASS BendersBFunctionMod ------------------------*/

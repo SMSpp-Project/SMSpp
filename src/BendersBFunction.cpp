@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 06 - 12 - 2019
+ * \date 09 - 12 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -132,13 +132,37 @@ void BendersBFunction::deserialize( netCDF::NcGroup & group ,
   }
  }
 
- auto inner_block_group = group.getGroup( "InnerBlock" );
- if( ! inner_block_group.isNull() ) {
+ auto inner_block_group = group.getGroup( BLOCK_NAME );
+ if( inner_block_group.isNull() )
+  throw std::logic_error( "BendersBFunction::deserialize: the '" +
+                          BLOCK_NAME + "' group must be present." );
+ else {
+  auto block_config_group = group.getGroup( BLOCK_CONFIG_NAME );
+  if( block_config_group.isNull() )
+   throw std::logic_error( "BendersBFunction::deserialize: the '" +
+                           BLOCK_CONFIG_NAME + "' group must be present." );
+
+  auto block_solver_config_group = group.getGroup( BLOCK_SOLVER_CONFIG_NAME );
+  if( block_solver_config_group.isNull() )
+   throw std::logic_error( "BendersBFunction::deserialize: the '" +
+                           BLOCK_SOLVER_CONFIG_NAME +
+                           "' group must be present." );
+
   auto inner_block = new_Block( inner_block_group , this );
   if( ! inner_block )
-   throw std::logic_error( "BendersBFunction::deserialize: the 'InnerBlock' "
-                           "group is present but its description is "
-                           "incomplete." );
+   throw std::logic_error( "BendersBFunction::deserialize: the '" +
+                           BLOCK_NAME + "' group is present "
+                           "but its description is incomplete." );
+
+  auto block_config = new BlockConfig();
+  block_config->deserialize( block_config_group );
+
+  auto block_solver_config = new BlockSolverConfig();
+  block_solver_config->deserialize( block_solver_config_group );
+
+  inner_block->set_BlockConfig( block_config );
+  inner_block->set_SolverConfig( block_solver_config );
+
   set_inner_block( inner_block );
  }
 
@@ -240,11 +264,6 @@ void BendersBFunction::set_mapping( MultiVector && A , RealVector && b ,
                                     ConstraintSideVector && sides ,
                                     c_ModParam issueMod ) {
 
- if( ! A.empty() )
-  if( v_x.size() != v_A[ 0 ].size() )
-   throw( std::invalid_argument( "BendersBFunction::set_mapping: A and x must "
-                                 "have the same number of columns." ) );
-
  if( constraints.size() != b.size() )
   throw( std::invalid_argument( "BendersBFunction::set_mapping: the number of "
                                 "affected constraints must be equal to the "
@@ -261,6 +280,10 @@ void BendersBFunction::set_mapping( MultiVector && A , RealVector && b ,
                                 "has " + std::to_string( b.size() ) + ", but "
                                 "they must have the same number of rows." ) );
  if( ! A.empty() ) {
+  if( v_x.size() != A[ 0 ].size() )
+   throw( std::invalid_argument( "BendersBFunction::set_mapping: A and x must "
+                                 "have the same number of columns." ) );
+
   const auto m = A[ 0 ].size();
   for( const auto & a : A )
    if( a.size() != m )
@@ -1338,8 +1361,23 @@ void BendersBFunction::serialize( netCDF::NcGroup & group ) const {
 
  AbstractPath::serialize( paths , group );
 
- auto inner_block_group = group.addGroup( "InnerBlock" );
- get_inner_block()->serialize( inner_block_group );
+ if( auto inner_block = get_inner_block() ) {
+  auto inner_block_group = group.addGroup( BLOCK_NAME );
+  inner_block->serialize( inner_block_group );
+
+  auto inner_block_config = inner_block->get_BlockConfig();
+  if( inner_block_config ) {
+   auto inner_block_config_group = group.addGroup( BLOCK_CONFIG_NAME );
+   inner_block_config->serialize( inner_block_config_group );
+  }
+
+  auto inner_block_solver_config = inner_block->get_BlockConfig();
+  if( inner_block_solver_config ) {
+   auto inner_block_solver_config_group =
+    group.addGroup( BLOCK_SOLVER_CONFIG_NAME );
+   inner_block_solver_config->serialize( inner_block_solver_config_group );
+  }
+ }
 }
 
 /*--------------------------------------------------------------------------*/
