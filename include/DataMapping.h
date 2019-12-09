@@ -593,6 +593,78 @@ private:
 
 };  // end( class( SimpleDataMapping ) )
 
+/*--------------------------------------------------------------------------*/
+/*--------------------- CLASS SimpleDataMappingFactory ---------------------*/
+/*--------------------------------------------------------------------------*/
+/*----------------------------- GENERAL NOTES ------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// class to provide a simple factory for SimpleDataMapping
+/** This class is intended to provide a simple way of constructing a
+ * SimpleDataMapping, specially when a SimpleDataMapping is needed during
+ * deserialization.
+ */
+
+class SimpleDataMappingFactory {
+
+/*--------------------------------------------------------------------------*/
+/*---------------------- PUBLIC PART OF THE CLASS --------------------------*/
+/*--------------------------------------------------------------------------*/
+
+public:
+
+/*--------------------------------------------------------------------------*/
+/*---------------------------- PUBLIC TYPES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ using Range = Block::Range;
+ using Subset = Block::Subset;
+
+/*--------------------------------------------------------------------------*/
+/*--------------------------- PUBLIC METHODS -------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------*/
+ /// constructs a SimpleDataMapping
+ /** This function constructs a SimpleDataMapping whose template arguments are
+  * given by the given \p types string. We consider a SimpleDataMapping with
+  * three template parameters: SetFrom, SetTo, and DataType. The first one is
+  * the type of the set that specifies the relevant entries of the data
+  * vector. The second one, SetTo, is the type of the set that specifies which
+  * part of the object's data that must be modified or is affected. The
+  * DataType parameter indicates the numerical type of the data that the
+  * method that modifies the object expects. The argument for each of these
+  * template parameters is given by a character. The supported sets for
+  * SetFrom and SetTo are Range and Subset. These sets are identified by the
+  * characters 'R' and 'S', respectively. The DataType can be either int or
+  * double, which are identified by the characters 'I' and 'D',
+  * respectively. For instance, to create a SimpleDataMapping having SetFrom
+  * as Range, SetTo as Subset, and DataType as double, one should pass the
+  * "RSD" string to this function. If a non-supported type is given, an
+  * exception is thrown.
+  *
+  * @param types A string indicating the template arguments of the
+  *              SimpleDataMapping.
+  *
+  * @return A pointer to the SimpleDataMapping that was constructed.
+  */
+
+ static DataMapping * new_SimpleDataMapping( const std::string & types ) {
+       if( types == "RRD" ) return new SimpleDataMapping<Range ,Range ,double>;
+  else if( types == "RRI" ) return new SimpleDataMapping<Range ,Range ,int>;
+  else if( types == "RSD" ) return new SimpleDataMapping<Range ,Subset,double>;
+  else if( types == "RSI" ) return new SimpleDataMapping<Range ,Subset,int>;
+  else if( types == "SRD" ) return new SimpleDataMapping<Subset,Range ,double>;
+  else if( types == "SRI" ) return new SimpleDataMapping<Subset,Range ,int>;
+  else if( types == "SSD" ) return new SimpleDataMapping<Subset,Subset,double>;
+  else if( types == "SSI" ) return new SimpleDataMapping<Subset,Subset,int>;
+  else
+   throw std::invalid_argument( "new_SimpleDataMapping: invalid template "
+                                "parameter types string: " + types );
+ }
+
+};  // end( class( SimpleDataMappingFactory ) )
+
 /** @} end( group( DataMapping_CLASSES ) ) ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 
