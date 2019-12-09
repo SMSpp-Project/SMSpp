@@ -67,6 +67,12 @@ void StochasticBlock::deserialize( netCDF::NcGroup & group ) {
  for( Index i = 0 ; i < num_data_mappings ; ++i ) {
   auto data_mapping_group = group.getGroup( "DataMapping_" +
                                             std::to_string( i ) );
+
+  if( data_mapping_group.isNull() )
+   throw std::logic_error( "StochasticBlock::deserialize: 'DataMapping_" +
+                           std::to_string( i ) + "' sub-group must be "
+                           "present." );
+
   std::string template_parameter_types;
   ::deserialize( data_mapping_group , "TemplateParameterTypes" ,
                  & template_parameter_types , false );
