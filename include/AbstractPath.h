@@ -34,7 +34,7 @@
  *
  * \version 0.10
  *
- * \date 07 - 12 - 2019
+ * \date 08 - 12 - 2019
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -148,19 +148,33 @@ namespace SMSpp_di_unipi_it
  * handling, this class would have to properly manually extended.
  *
  * The path is defined as a sequence of nodes, each one represented by a Node
- * object. Each node has one of the following types: 'B', 'C', 'V', or
- * 'O'. These types indicate that the node is associated with a Block, a
- * Constraint, a Variable, and a Objective, respectively. Notice that there
- * is no node associated with a Function, but this does not prevent one from
- * constructing a path to a Function. Although the nodes in the path are
- * stored in forward order, i.e., the first node is the origin of the path
- * and the last one is the destination, it is easier to understand the path
- * if we look at it backwards.
+ * object. Each node has one of the following types:
+ *
+ * - 'O', if the node is associated with an Objective.
+ *
+ * - 'B', if the node is associated with a Block;
+ *
+ * - 'C', if the node is associated with a static Constraint;
+ *
+ * - 'c', if the node is associated with a dynamic Constraint;
+ *
+ * - 'V', if the node is associated with a static Variable;
+ *
+ * - 'v', if the node is associated with a dynamic Variable;
+ *
+ * Notice that, for Constraint and Variable, an upper case letter indicates
+ * that the element is static, while a lower case letter indicates that the
+ * element is dynamic. Also notice that there is no node associated with a
+ * Function, but this does not prevent one from constructing a path to a
+ * Function. Although the nodes in the path are stored in forward order, i.e.,
+ * the first node is the origin of the path and the last one is the
+ * destination, it is easier to understand the path if we look at it
+ * backwards.
  *
  * Consider the path from some reference Block to some Variable. The last node
- * in this path necessarily has the 'V' type, indicating this is a path to a
- * Variable. This Variable belongs to some Block and it is either static or
- * dynamic. This last node has all information needed to retrieve this
+ * in this path necessarily has the 'V' or 'v' type, indicating this is a path
+ * to a Variable. This Variable belongs to some Block and it is either static
+ * or dynamic. This last node has all information needed to retrieve this
  * Variable from its father Block: a boolean indicating whether the Variable
  * is static or dynamic, the index of the group to which it belongs, and the
  * index of the Variable within that group.
@@ -172,11 +186,12 @@ namespace SMSpp_di_unipi_it
  *       method for an explanation of the index of a Variable (or
  *       Constraint) within a group.
  *
- * A 'V' node is always preceded by a 'B' node, unless it is the only node in
- * the path. If the path has only a single node, which is a 'V' node, then the
- * Variable this path refers to is defined in the reference Block. In other
- * words, if the target Variable of the path belongs to the reference Block,
- * then the path is formed by a single node whose type is 'V'.
+ * A 'V' or 'v'node is always preceded by a 'B' node, unless it is the only
+ * node in the path. If the path has only a single node, which is a 'V' or 'v'
+ * node, then the Variable this path refers to is defined in the reference
+ * Block. In other words, if the target Variable of the path belongs to the
+ * reference Block, then the path is formed by a single node whose type is
+ * either 'V' or 'v'.
  *
  * A 'B' node is associated with a Block and may contain the index of this
  * Block in the vector of nested Blocks of its father Block. There are two
@@ -190,10 +205,10 @@ namespace SMSpp_di_unipi_it
  * 2. The Block with which the node is associated does not have a father
  *    Block. In this case, if the Block is not the reference Block, then it
  *    must be the inner Block of a BendersBFunction or that of a LagBFunction.
- *    The idea is that the BendersBFunction or LagBFunction then appear as
- *    the Function in a FRealObjective or FRowConstraint, which belong to a
- *    Block, and therefore the path can "go up from there; in this case
- *    the previous node in the path has either type 'O' or 'C'.
+ *    The idea is that the BendersBFunction or LagBFunction then appear as the
+ *    Function in a FRealObjective or FRowConstraint, which belong to a Block,
+ *    and therefore the path can "go up from there; in this case the previous
+ *    node in the path has type 'O', 'C' or 'c'.
  *
  * If the index of a 'B' node is not +Inf, then this node is necessarily
  * preceded by another 'B' node, which is associated with the father of that
@@ -210,20 +225,21 @@ namespace SMSpp_di_unipi_it
  * LagBFunction which is the Function of that Objective (and thus that
  * Objective is actually an FRealObjective).
  *
- * Finally, a 'C' node, which is associated with a Constraint, has
- * characteristics pertaining both the 'V' and the 'O' nodes. Like the 'V'
- * node, it has a boolean indicating whether it is static or not, the index of
- * the group to which it belongs, and the index of the Constraint within that
- * group (exactly as defined for Variables). Like an 'O' node, a 'C' node is
- * either preceded by a 'B' node (which is associated with the Block that
- * owns that Constraint) or is the only node in the path. If it is the last
- * node in the path, then the target element is either this Constraint or the
- * Function in that Constraint (in which case that Constraint is an
- * FRowConstraint). The type of the target element must be known from the
- * context. If this is not the last node in the path, then the type of the
- * next node in the path is 'B' and it is associated with the inner Block of
- * either a BendersBFunction or a LagBFunction which is the Function of that
- * Constraint (and thus that Constraint is actually an FRowConstraint).
+ * Finally, a 'C' or 'c' node, which is associated with a Constraint, has
+ * characteristics pertaining both the 'V' (and 'v') and the 'O' nodes. Like
+ * the 'V' (and 'v') node, it has a boolean indicating whether it is static or
+ * not, the index of the group to which it belongs, and the index of the
+ * Constraint within that group (exactly as defined for Variables). Like an
+ * 'O' node, a 'C' or 'c' node is either preceded by a 'B' node (which is
+ * associated with the Block that owns that Constraint) or is the only node in
+ * the path. If it is the last node in the path, then the target element is
+ * either this Constraint or the Function in that Constraint (in which case
+ * that Constraint is an FRowConstraint). The type of the target element must
+ * be known from the context. If this is not the last node in the path, then
+ * the type of the next node in the path is 'B' and it is associated with the
+ * inner Block of either a BendersBFunction or a LagBFunction which is the
+ * Function of that Constraint (and thus that Constraint is actually an
+ * FRowConstraint).
  *
  * To help understand how a path is defined, we present some examples. TODO
  */
