@@ -9,7 +9,7 @@
  *
  * \version 0.1
  *
- * \date 02 - 12 - 2019
+ * \date 10 - 12 - 2019
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -69,13 +69,6 @@ class BendersBlock : public Block {
 public:
 
 /*--------------------------------------------------------------------------*/
-/*---------------------------- PUBLIC TYPES --------------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Public Types
- *  @{ */
-
-
-/**@} ----------------------------------------------------------------------*/
 /*--------------- CONSTRUCTING AND DESTRUCTING BendersBlock ----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructing and destructing BendersBlock
@@ -90,6 +83,7 @@ public:
  BendersBlock( Block * father = nullptr , Index num_variables = 0 ) :
   Block( father ) {
   variables.resize( num_variables );
+  set_objective( & objective , eNoMod );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -188,6 +182,15 @@ public:
 /** @name Methods describing the behavior of a BendersBlock
  *  @{ */
 
+ /// sets the values of the Variable of this BendersBlock
+ /** This function sets the values of the Variable defined in this
+  * BendersBlock according to the given \p values. The size of the \p values
+  * vector parameter must be equal to the number of Variable defined in this
+  * BendersBlock, so that the value of the i-th Variable will be values[ i ],
+  * for each i in {0, ..., get_number_variables()}.
+  *
+  * @param values The vector containing the values of the Variable.
+  */
  template< class T >
  void set_variable_values( const std::vector< T > & values ) {
   assert( ( values.size() >= 0 ) &&
@@ -199,6 +202,15 @@ public:
 
 /*--------------------------------------------------------------------------*/
 
+ /// sets the values of the Variable of this BendersBlock
+ /** This function sets the values of the Variable defined in this
+  * BendersBlock according to the given \p values. The size of the \p values
+  * array parameter must be equal to the number of Variable defined in this
+  * BendersBlock, so that the value of the i-th Variable will be values( i ),
+  * for each i in {0, ..., get_number_variables()}.
+  *
+  * @param values The Eigen::ArrayXd containing the values of the Variable.
+  */
  void set_variable_values( const Eigen::ArrayXd & values ) {
   assert( ( values.size() >= 0 ) &&
           ( static_cast<decltype( variables.size() )>( values.size() ) ==
