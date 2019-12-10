@@ -1322,13 +1322,14 @@ class BendersBFunction : public C05Function , public Block {
   *   lower bound) side, 1 for the right-hand (or upper bound) side, and 2 for
   *   both sides. This variable is optional only if NumRow == 0.
   *
-  * - All the variables necessary to describe a vector of AbstractPath as
-  *   described in the comments of AbstractPath::deserialize(). The number of
-  *   AbstractPath must be equal to the number of rows of the A matrix and,
-  *   therefore, the dimension associated with the number of AbstractPath is
-  *   NumRow. The i-th AbstractPath in this vector must be the path to the
-  *   i-th affected RowConstraint (which is associated with the i-th row of
-  *   the A matrix). These variables are optional only if NumRow == 0.
+  * - All the dimensions and variables necessary to describe a vector of
+  *   AbstractPath as described in the comments of
+  *   AbstractPath::deserialize(). The number of AbstractPath must be equal to
+  *   the number of rows of the A matrix and, therefore, the dimension
+  *   associated with the number of AbstractPath is NumRow. The i-th
+  *   AbstractPath in this vector must be the path to the i-th affected
+  *   RowConstraint (which is associated with the i-th row of the A
+  *   matrix). These variables are optional only if NumRow == 0.
   *
   * - The sub-group "Block", containing the description of the inner
   *   Block.

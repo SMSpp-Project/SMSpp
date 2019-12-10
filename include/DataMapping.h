@@ -54,7 +54,7 @@ namespace SMSpp_di_unipi_it
 /*--------------------------------------------------------------------------*/
 /// DataMapping defines an interface for all types of data mappings.
 /** DataMapping defines an interface for all types of data mappings. The idea
- * of a data mapping is to map the data given by a vector of double into the
+ * of a data mapping is to map the values given by a vector of double into the
  * data of some object. It has four pure virtual functions. The first two are
  * set_data(), which have the following signature:
  *
@@ -106,6 +106,17 @@ public:
 
 /*--------------------------------------------------------------------------*/
 
+ /// deserializes this DataMapping
+ /** This function deserializes this DataMapping out of the given NcGroup \p
+  * group.
+  *
+  * @param group The NcGroup that contains the data describing this
+  *        DataMapping.
+  *
+  * @param block_reference A pointer to the Block that may be used as
+  *        reference when deserializing an AbstractPath.
+  */
+
  virtual void deserialize( const netCDF::NcGroup & group ,
                            Block * block_reference = nullptr ) = 0;
 
@@ -135,11 +146,35 @@ public:
 
 /*--------------------------------------------------------------------------*/
 
+ /// sets the value of the associated data
+ /** This function sets the value of the data associated with this
+  * DataMapping.
+  *
+  * @param data a (const) reference to the Eigen::ArrayXd that stores the
+  *        value of the data that will be set.
+  *
+  * @param issueMod indicates if and how the a "physical" Modification should
+  *        be issued.
+  *
+  * @param issueMod indicates if and how the an "abstract" Modification should
+  *        be issued.
+  */
+
  virtual void set_data( const Eigen::ArrayXd & data ,
                         c_ModParam issueMod = eModBlck ,
                         c_ModParam issueAMod = eModBlck ) const = 0;
 
 /*--------------------------------------------------------------------------*/
+
+ /// serializes this DataMapping
+ /** This function serializes this DataMapping into the given NcGroup \p
+  * group.
+  *
+  * @param group The NcGroup in which this DataMapping will be serialized.
+  *
+  * @param block_reference A pointer to the Block that may be used as
+  *        reference when serializing an AbstractPath.
+  */
 
  virtual void serialize( netCDF::NcGroup & group ,
                          Block * block_reference = nullptr ) const = 0;
@@ -169,7 +204,8 @@ public:
  * - DataType: This is the type of the data that must be set in the caller
  *             object.
  *
- * - Caller: This is the type of the caller object. By default, it is Block.
+ * - Caller: This is the type of the caller object, which is the object that
+ *           will invoke the function. By default, Caller is Block.
  *
  * The function of the caller object that this SimpleDataMapping is associated
  * with is defined to have the following type:
@@ -219,7 +255,7 @@ public:
   */
  SimpleDataMapping( const F * function = nullptr , Caller * caller = nullptr ,
               const SetFrom & set_from = {} , const SetTo & set_to = {} ) :
-  function( function ), caller( caller ), set_from( set_from ),
+  function( function ) , caller( caller ) , set_from( set_from ) ,
   set_to( set_to ) { }
 
 /*--------------------------------------------------------------------------*/
@@ -236,8 +272,9 @@ public:
   * - The variable "FunctionName", whose type is netCDF::NcString, contains
   *   the name of the function as it is registered in the methods factory.
   *
-  * - The variables necessary to describe an AbstractPath to the caller as
-  *   specified in the comments to AbstractPath::deserialize().
+  * - All the dimensions and variables that are necessary to describe an
+  *   AbstractPath to the caller as specified in the comments to
+  *   AbstractPath::deserialize().
   *
   * - The variables necessary to describe the SetFrom set. If SetFrom is a
   *   Range, then this set is specified by the variables "FirstFrom" and
@@ -347,6 +384,18 @@ public:
   ::SMSpp_di_unipi_it::serialize< std::string >
     ( group , "TemplateParameterTypes " , netCDF::NcString() ,
       template_parameter_types );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// sets the caller of this DataMapping
+ /** Defines the given \p caller as the caller of this DataMapping.
+  *
+  * @param caller The new caller of this DataMapping.
+  */
+
+ void set_caller( Caller * caller ) {
+  this->caller = caller;
  }
 
 /**@} ----------------------------------------------------------------------*/

@@ -82,7 +82,7 @@ public:
   */
  BendersBlock( Block * father = nullptr , Index num_variables = 0 ) :
   Block( father ) {
-  variables.resize( num_variables );
+  v_variables.resize( num_variables );
   set_objective( & objective , eNoMod );
  }
 
@@ -94,10 +94,14 @@ public:
 
  /// deserialize a BendersBBlock out of netCDF::NcGroup
  /** The method takes a netCDF::NcGroup supposedly containing all the
-  * information required to deserialize the BendersBlock, i.e., the number of
-  * ColVariable of this BendersBlock into a dimension named "NumVar" and a
-  * description of the BendersBFunction into a sub-group named
-  * "BendersBFunction".
+  * information required to deserialize the BendersBlock. Besides the 'type'
+  * attribute common to all :Block, it should contain:
+  *
+  * - The number of ColVariable of this BendersBlock into a dimension named
+  *   "NumVar".
+  *
+  * - A description of the BendersBFunction into a sub-group named
+  *   "BendersBFunction".
   *
   * @param group A netCDF::NcGroup holding the data in the format described
   *        in the comments of deserialize().
@@ -162,7 +166,7 @@ public:
   */
 
  inline Index get_number_variables() const {
-  return variables.size();
+  return v_variables.size();
  }
 
 /*--------------------------------------------------------------------------*/
@@ -173,7 +177,7 @@ public:
   */
 
  inline const std::vector< ColVariable > & get_variables() const {
-  return variables;
+  return v_variables;
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -194,10 +198,10 @@ public:
  template< class T >
  void set_variable_values( const std::vector< T > & values ) {
   assert( ( values.size() >= 0 ) &&
-          ( static_cast<decltype( variables.size() )>( values.size() ) ==
-            variables.size() ) );
-  for( Index i = 0 ; i < variables.size() ; ++i )
-   variables[ i ].set_value( values[ i ] );
+          ( static_cast<decltype( v_variables.size() )>( values.size() ) ==
+            v_variables.size() ) );
+  for( Index i = 0 ; i < v_variables.size() ; ++i )
+   v_variables[ i ].set_value( values[ i ] );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -213,10 +217,10 @@ public:
   */
  void set_variable_values( const Eigen::ArrayXd & values ) {
   assert( ( values.size() >= 0 ) &&
-          ( static_cast<decltype( variables.size() )>( values.size() ) ==
-            variables.size() ) );
-  for( Index i = 0 ; i < variables.size() ; ++i )
-   variables[ i ].set_value( values( i ) );
+          ( static_cast<decltype( v_variables.size() )>( values.size() ) ==
+            v_variables.size() ) );
+  for( Index i = 0 ; i < v_variables.size() ; ++i )
+   v_variables[ i ].set_value( values( i ) );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -239,7 +243,7 @@ protected:
  FRealObjective objective;
 
  /// The Variable that are the active ones in the BendersBFunction
- std::vector< ColVariable > variables;
+ std::vector< ColVariable > v_variables;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/

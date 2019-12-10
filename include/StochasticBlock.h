@@ -8,7 +8,7 @@
  *
  * \version 0.1
  *
- * \date 09 - 12 - 2019
+ * \date 10 - 12 - 2019
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -250,13 +250,15 @@ public:
   * - For each i in { 0, ..., NumDataMappings - 1 }, the sub-group named
   *   "DataMapping_i", containing the description of the i-th DataMapping. For
   *   the time being, each provided DataMapping is expected to be a
-  *   SimpleDataMapping.
+  *   SimpleDataMapping. Moreover, the inner Block of this StochasticBlock
+  *   will serve as the reference Block for both the serialization and
+  *   deserialization of the SimpleDataMapping.
   */
 
  virtual void serialize( netCDF::NcGroup & group ) const override;
 
 /**@} ----------------------------------------------------------------------*/
-/*-------------- METHODS FOR MODIFYING THE StochasticBloc ------------------*/
+/*-------------- METHODS FOR MODIFYING THE StochasticBlock -----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for modifying the StochasticBlock
   *  @{ */

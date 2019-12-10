@@ -51,7 +51,7 @@ void BendersBlock::deserialize( netCDF::NcGroup & group ) {
   throw( std::logic_error( "BendersBlock::deserialize: "
                            "NumVar dimension is required." ) );
 
- variables.resize( ncDim_NumVar.getSize() );
+ v_variables.resize( ncDim_NumVar.getSize() );
 
  auto benders_function_group = group.getGroup( "BendersBFunction" );
  if( benders_function_group.isNull() )
@@ -62,10 +62,9 @@ void BendersBlock::deserialize( netCDF::NcGroup & group ) {
  set_function( benders_function );
 
  {
-  std::vector< ColVariable * > p_variables( variables.size() , nullptr );
-  for( auto & variable : variables )
+  std::vector< ColVariable * > p_variables( v_variables.size() , nullptr );
+  for( auto & variable : v_variables )
    p_variables.push_back( & variable );
-
   benders_function->set_variables( std::move( p_variables ) );
  }
 
@@ -80,7 +79,7 @@ void BendersBlock::serialize( netCDF::NcGroup & group ) const {
 
  group.putAtt( "type" , "BendersBlock" );
 
- group.addDim( "NumVar" , variables.size() );
+ group.addDim( "NumVar" , v_variables.size() );
 
  auto benders_function = objective.get_function();
 
