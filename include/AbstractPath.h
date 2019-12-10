@@ -29,12 +29,14 @@
  * - Function that have a Block (are a Block), i.e., BendersBFunction and
  *   LagBFunction.
  *
+ * - PolyhedralFunction, if it is part of a PolyhedralFunctionBlock.
+ *
  * Again, should more type of this kind of stuff be defined that needs
  * handling, this class would have to properly manually extended.
  *
  * \version 0.10
  *
- * \date 08 - 12 - 2019
+ * \date 10 - 12 - 2019
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -63,6 +65,7 @@
 #include "FRowConstraint.h"
 #include "LagBFunction.h"
 #include "OneVarConstraint.h"
+#include "PolyhedralFunctionBlock.h"
 #include "RowConstraint.h"
 #include "SMSTypedefs.h"
 
@@ -144,11 +147,13 @@ namespace SMSpp_di_unipi_it
  * - Function that have a Block (are a Block), i.e., BendersBFunction and
  *   LagBFunction.
  *
+ * - PolyhedralFunction, if it is part of a PolyhedralFunctionBlock.
+ *
  * Again, should more type of this kind of stuff be defined that needs
  * handling, this class would have to properly manually extended.
  *
- * The path is defined as a sequence of nodes, each one represented by a Node
- * object. Each node has one of the following types:
+ * The path is defined as a sequence of nodes. Each node has one of the
+ * following types:
  *
  * - 'O', if the node is associated with an Objective.
  *
@@ -291,13 +296,18 @@ inline static const std::string element_index_name = "PathElementIndices";
     @{ */
 
  /// Node represents a node in the path
- /** This class is used to represent a node in the path and . A Node can be of
-  * four types, defined by the NodeType enum:
+ /** This class is used to represent a node in the path. A Node can be of four
+  * main types, defined by the NodeType enum:
   *
   * 1. 'B', a Block
-  * 2. 'C', a Constraint
-  * 3. 'V', a Variable
+  * 2. 'C' or 'c', a Constraint
+  * 3. 'V' or 'v', a Variable
   * 4. 'O', an Objective.
+  *
+  * A 'C' node is associated with a static Constraint, while a 'c' node is
+  * associated with a dynamic Constraint. Likewise, a 'V' node is associated
+  * with a static Variable, while a 'v' node is associated with a dynamic
+  * Variable.
   */
  class Node {
 
@@ -1019,7 +1029,6 @@ protected:
 /*--------------------------------------------------------------------------*/
 
 public:
-
  /// returns the length of this AbstractPath
  /** This function returns the length of this AbstractPath, i.e., the number
   * of nodes in the path.
@@ -1101,11 +1110,14 @@ public:
   }
   else if constexpr( std::is_base_of_v< Function , T > ) {
    auto observer = t->get_Observer();
-   if( auto constraint = dynamic_cast< FRowConstraint * >( observer ) ) {
+   if( const auto constraint = dynamic_cast< FRowConstraint * >( observer ) ) {
     path.add_node( constraint , Node::eConstraint );
    }
    else if( dynamic_cast< FRealObjective * >( observer ) ) {
     path.add_node( Node::eObjective );
+   }
+   else if( dynamic_cast< PolyhedralFunctionBlock * >( observer ) ) {
+    path.add_node( Node::eBlock );
    }
    else
     throw( std::logic_error( "build_path: Unknown Observer of "
@@ -1265,18 +1277,25 @@ public:
     // It must be an FRowConstraint
     auto constraint = get_element< FRowConstraint >
      ( block , node.is_static() , node.group_index , node.element_index );
-    if( ! constraint )
-     return nullptr;
-    else
+    if( constraint )
      return constraint->get_function();
+    else
+     return nullptr;
    }
    else if( node.type == Node::eObjective ) {
     // It must be an FRealObjective
     auto objective = dynamic_cast< FRealObjective * >( block->get_objective() );
-    if( ! objective )
-     return nullptr;
-    else
+    if( objective )
      return objective->get_function();
+    else
+     return nullptr;
+   }
+   else if( node.type == Node::eBlock ) {
+    // It must be a PolyhedralFunctionBlock
+    if( const auto pfb = dynamic_cast< PolyhedralFunctionBlock * >( block ) )
+     return & ( pfb->get_PolyhedralFunction() );
+    else
+     return nullptr;
    }
    else
     return nullptr;
