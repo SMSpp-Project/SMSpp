@@ -9,7 +9,7 @@
  *
  * \version 0.1
  *
- * \date 09 - 12 - 2019
+ * \date 10 - 12 - 2019
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -276,14 +276,14 @@ public:
   *   AbstractPath to the caller as specified in the comments to
   *   AbstractPath::deserialize().
   *
-  * - The variables necessary to describe the SetFrom set. If SetFrom is a
+  * - All that is necessary to describe the SetFrom set. If SetFrom is a
   *   Range, then this set is specified by the variables "FirstFrom" and
   *   "SecondFrom" which contain the limits of the closed-open interval
   *   defining the Range. If SetFrom is a Subset, then this set is specified
   *   by the dimension "SizeFrom" indicating the size of the set and the
   *   variable "SubsetFrom" containing the elements of the set.
   *
-  * - The variables necessary to describe the SetTo set. Its representation is
+  * - All that is necessary to describe the SetTo set. Its representation is
   *   the same as that of the SetFrom set, except for the names of the
   *   variables, which should be "FirstTo" and "SecondTo" if SetTo is a Range,
   *   and "SubsetTo" if the set is a Subset (accompanied by the dimension
@@ -299,16 +299,6 @@ public:
   *   this SimpleDataMapping sets. This character can be either 'I',
   *   indicating the type of the data is int, or 'D', indicating the type of
   *   the data is double.
-  *
-  * If a set (SetFrom or SetTo) is a Block::Subset, then the corresponding
-  * group has a netCDF dimension called "Size" and a one-dimensional variable
-  * called "Subset" whose type is netCDF::NcUint64() and whose dimension is
-  * given by "Size". This one-dimensional variable contains the Block::Subset.
-  *
-  * If a set (SetFrom or SetTo) is a Block::Range, then the corresponding
-  * group has a netCDF dimension has two variables called "First" and "Second"
-  * whose types are netCDF::NcUint64(). These variables contain the first and
-  * the second element of a Range, respectively.
   *
   * @param group The netCDF::NcGroup from which to read the data.
   *
