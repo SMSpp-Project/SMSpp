@@ -1529,6 +1529,33 @@ class BendersBFunction : public C05Function , public Block {
 
  const RealVector & get_b( void ) const { return( v_b ); }
 
+/*--------------------------------------------------------------------------*/
+ /// returns a pointer to the Solver attached to the sub-Block (if any)
+ /** This method returns a pointer to the Solver attached to the sub-Block of
+  * this BendersBFunction. The template parameter \p T indicates the type of
+  * Solver whose pointer will be returned; its default value is Solver. If
+  *
+  * - this BendersBFunction does not have a sub-Block; or
+  *
+  * - the sub-Block of this BendersBFunction does not have a Solver attached
+  *   to it; or
+  *
+  * - the Solver attached to the sub-Block is not or does not derive from \p T
+  *
+  * then a nullptr is returned. Otherwise, a pointer of type \p T is returned.
+  */
+
+ template<class T = Solver>
+ inline T * get_solver() const {
+  if( v_Block.empty() )
+   return nullptr;
+
+  if( v_Block[ 0 ]->get_registered_solvers().empty() )
+   return nullptr;
+
+  return dynamic_cast< T * >( v_Block[ 0 ]->get_registered_solvers().back() );
+ }
+
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1914,45 +1941,6 @@ class BendersBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
-/*--------------------------------------------------------------------------*/
-
- /// returns a pointer to the Solver attached to the sub-Block (if any)
- /** This method returns a pointer to the Solver attached to the sub-Block of
-  * this BendersBFunction. The template parameter \p T indicates the type of
-  * Solver whose pointer will be returned; its default value is Solver. If
-  *
-  * - this BendersBFunction does not have a sub-Block; or
-  *
-  * - the sub-Block of this BendersBFunction does not have a Solver attached
-  *   to it; or
-  *
-  * - the Solver attached to the sub-Block is not or does not derive from \p T
-  *
-  * then a nullptr is returned. Otherwise, a pointer of type \p T is returned.
-  */
-
- template<class T = Solver>
- inline T * get_solver() const {
-  if( v_Block.empty() )
-   return nullptr;
-
-  if( v_Block[ 0 ]->get_registered_solvers().empty() )
-   return nullptr;
-
-  return dynamic_cast< T * >( v_Block[ 0 ]->get_registered_solvers().back() );
- }
-
- template<class T = Solver>
- inline static T * get_solver( Block * block ) {
-  if( ! block )
-   return nullptr;
-
-  if( block->get_registered_solvers().empty() )
-   return nullptr;
-
-  return dynamic_cast< T * >( block->get_registered_solvers().back() );
- }
-
 /*--------------------------------------------------------------------------*/
 
  /// set a given integer (int) numerical parameter of the inner Block's Solver
