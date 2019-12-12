@@ -74,10 +74,12 @@ void StochasticBlock::deserialize( netCDF::NcGroup & group ) {
                            "present." );
 
   std::string template_parameter_types;
-  ::deserialize( data_mapping_group , "TemplateParameterTypes" ,
-                 & template_parameter_types , false );
-  data_mappings.emplace_back( SimpleDataMappingFactory::new_SimpleDataMapping
-                              ( template_parameter_types ) );
+  if( ! ::deserialize( data_mapping_group , "TemplateParameterTypes" ,
+                       & template_parameter_types , true ) )
+   data_mappings.emplace_back( new SimpleDataMapping<> );
+  else
+   data_mappings.emplace_back( SimpleDataMappingFactory::new_SimpleDataMapping
+                               ( template_parameter_types ) );
   data_mappings.back()->deserialize( data_mapping_group , inner_block );
  }
 }
@@ -86,8 +88,8 @@ void StochasticBlock::deserialize( netCDF::NcGroup & group ) {
 /*-------------------- Methods for handling Modification -------------------*/
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::add_Modification( sp_Mod mod ,
-                                         Observer::ChnlName chnl ) {
+void StochasticBlock::add_Modification( sp_Mod mod ,
+                                        Observer::ChnlName chnl ) {
  // TODO
  if( anyone_there() )
   add_Modification( std::make_shared<NBModification>( this ) );

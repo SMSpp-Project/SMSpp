@@ -9,7 +9,7 @@
  *
  * \version 0.1
  *
- * \date 10 - 12 - 2019
+ * \date 12 - 12 - 2019
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -229,7 +229,11 @@ public:
 /** @name Public Types
  *  @{ */
 
- using F = Block::FunctionType< std::vector< DataType > , SetTo >;
+ using F = Block::FunctionType
+  < typename std::vector< DataType >::const_iterator , const SetTo & >;
+ using Range = Block::Range;
+ using Subset = Block::Subset;
+ using Index = Block::Index;
 
 /**@} ----------------------------------------------------------------------*/
 /*------------ CONSTRUCTING AND DESTRUCTING SimpleDataMapping --------------*/
@@ -287,18 +291,21 @@ public:
   *   the same as that of the SetFrom set, except for the names of the
   *   variables, which should be "FirstTo" and "SecondTo" if SetTo is a Range,
   *   and "SubsetTo" if the set is a Subset (accompanied by the dimension
-  *   "SizeTo").
+  *   "SizeTo"). This set is optional. If it is not provided, then the full
+  *   set of indices [ 0 , N ) is considered, where N is the size of the
+  *   SetFrom set.
   *
-  * - The variable "TemplateParameterTypes", whose type is netCDF::NcString,
-  *   is a string with three characters that indicate the types of the
-  *   template parameters of this class. The first and second characters
-  *   indicate the type of the SetFrom and SetTo template parameters. Each of
-  *   these two first characters can be either 'R', indicating the set has
-  *   type Block::Range, or 'S', indicating the set has type
-  *   Block::Subset. The third character indicates the type of the data that
-  *   this SimpleDataMapping sets. This character can be either 'I',
-  *   indicating the type of the data is int, or 'D', indicating the type of
-  *   the data is double.
+  * - The attribute "TemplateParameterTypes" is a string with three characters
+  *   that indicate the types of the template parameters of this class. The
+  *   first and second characters indicate the type of the SetFrom and SetTo
+  *   template parameters. Each of these two first characters can be either
+  *   'R', indicating the set has type Block::Range, or 'S', indicating the
+  *   set has type Block::Subset. The third character indicates the type of
+  *   the data that this SimpleDataMapping sets. This character can be either
+  *   'I', indicating the type of the data is int, or 'D', indicating the type
+  *   of the data is double. This variable is optional. If it is not present,
+  *   then "RRD" is considered, meaning that the SetFrom and SetTo sets are
+  *   Range and the type of the data is double.
   *
   * @param group The netCDF::NcGroup from which to read the data.
   *
@@ -320,7 +327,17 @@ public:
   }
 
   this->deserialize( group , "From" , set_from , false );
-  this->deserialize( group , "To" , set_to , false );
+
+  if( ! this->deserialize( group , "To" , set_to , true ) ) {
+   // SetTo was not specified. Therefore, we consider the set [0, N), where N
+   // is the size of the SetFrom set.
+   fill( set_to , cardinality( set_from ) );
+  }
+
+  if( cardinality( set_from ) != cardinality( set_to ) ) {
+   throw( std::invalid_argument( "DataMapping::deserialize: SetFrom and SetTo "
+                                 "must have the same cardinality." ) );
+  }
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -333,7 +350,8 @@ public:
                         c_ModParam issueMod = eModBlck ,
                         c_ModParam issueAMod = eModBlck ) const override {
   auto sub_data = extract< DataType >( data, set_from );
-  std::invoke( * function , caller , sub_data , set_to , issueMod , issueAMod );
+  std::invoke( * function , caller , sub_data.cbegin() ,
+               set_to , issueMod , issueAMod );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -342,7 +360,8 @@ public:
                         c_ModParam issueMod = eModBlck ,
                         c_ModParam issueAMod = eModBlck ) const override {
   auto sub_data = extract< DataType >( data, set_from );
-  std::invoke( * function , caller , sub_data , set_to , issueMod , issueAMod );
+  std::invoke( * function , caller , sub_data.cbegin() ,
+               set_to , issueMod , issueAMod );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -371,9 +390,7 @@ public:
   constexpr char template_parameter_types[3] =
    { get_id< SetFrom >() , get_id< SetTo >() , get_id< DataType >() };
 
-  ::SMSpp_di_unipi_it::serialize< std::string >
-    ( group , "TemplateParameterTypes " , netCDF::NcString() ,
-      template_parameter_types );
+  group.putAtt( "TemplateParameterTypes " , template_parameter_types );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -604,7 +621,7 @@ private:
                                   netCDF::NcUint64() , range.second );
  }
 
- /*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 
  virtual void serialize( netCDF::NcGroup & group ,
                          const std::string & suffix ,
@@ -612,6 +629,35 @@ private:
   auto dim = group.addDim( "Size" , subset.size() );
   ::SMSpp_di_unipi_it::serialize( group , "Subset" + suffix ,
                                   netCDF::NcUint64() , dim , subset , false );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ static Index cardinality( const Range & range ) {
+  if( range.second > range.first )
+   return range.second - range.first;
+  return 0;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ static Index cardinality( const Subset & subset ) {
+  return subset.size();
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ static void fill( Range & range , Index size ) {
+  range.first = 0;
+  range.second = size;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ static void fill( Subset & subset , Index size ) {
+  subset.resize( size );
+  for( Index i = 0 ; i < size ; ++i )
+   subset[ i ] = i;
  }
 
 /*--------------------------------------------------------------------------*/
