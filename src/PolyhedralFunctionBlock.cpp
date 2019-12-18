@@ -61,8 +61,11 @@ void PolyhedralFunctionBlock::generate_abstract_variables(
  if( wsol )
   f_rep |= 1;
 
- if( f_rep & 1 )  // use linearized representation
-  add_static_variable( f_v );
+ if( f_rep & 1 ) {  // use linearized representation
+  // note: the static ColVariable "v" is added "in front"
+  f_1st_stat_var = 1;
+  add_static_variable( f_v , "" , true );
+  }
 
  f_rep |= 2;
 
@@ -83,9 +86,10 @@ void PolyhedralFunctionBlock::generate_abstract_constraints(
   // add the bounds on v
   f_bcv.set_rhs( f_polyf.get_upper_estimate() , eNoMod );
   f_bcv.set_lhs( f_polyf.get_lower_estimate() , eNoMod );
-  f_bcv.set_Block( this );
 
-  add_static_constraint( f_bcv );
+  // note: the bounds on v are added "in front"
+  f_1st_stat_cnst = 1;
+  add_static_constraint( f_bcv , "" , true );
 
   // add the linear constraints
   f_const.resize( f_polyf.get_A().size() );
@@ -93,7 +97,9 @@ void PolyhedralFunctionBlock::generate_abstract_constraints(
   for( Index i = 0 ; i < f_polyf.get_A().size() ; )
    ConstructLPConstraint( i++ , *(cit++) );
 
-  add_dynamic_constraint( f_const );
+  // note: the linear constraints are added "in front"
+  f_1st_dym_cnst = 1;
+  add_dynamic_constraint( f_const , "" , true );
   }
 
  f_rep |= 4;

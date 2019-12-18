@@ -6,7 +6,7 @@
  *
  * \version 0.20
  *
- * \date 01 - 09 - 2019
+ * \date 16 - 12 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -70,7 +70,6 @@ void AbstractBlock::deserialize( netCDF::NcGroup & group )
    throw( std::invalid_argument( "inner Block not found" ) );
   v_Block[ i ] = new_Block( bi );
   }
-  
  }  // end( AbstractBlock::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -166,7 +165,8 @@ AbstractBlock::~AbstractBlock( )
   }
 
  for( Index i = get_first_dynamic_Constraint() ; i < dc.size() ; ++i ) {
-  if( un_any_thing( std::list<FRowConstraint> , dc[ i ] , { delete & var; } ) )
+  if( un_any_thing( std::list<FRowConstraint> , dc[ i ] , { delete & var; } )
+      )
    continue;
   if( un_any_thing( std::list<BoxConstraint> , dc[ i ] , { delete & var; } ) )
    continue;
@@ -191,7 +191,7 @@ AbstractBlock::~AbstractBlock( )
   un_any_thing( std::list<ColVariable> , dv[ i ] , { delete & var; } );
 
  // now delete the Objective
- if( ! is_Objective_reserved() )
+ if( ( ! is_Objective_reserved() ) && get_objective() )
   delete get_objective();
 
  }  // end( ~AbstractBlock )
@@ -289,7 +289,8 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration *fsbc )
  // the dynamic Constraints of the Block-  - - - - - - - - - - - - - - - - - -
  auto & dc = get_dynamic_constraints();
  for( Index i = get_first_dynamic_Constraint() ; i < dc.size() ; ++i ) {
-  if( un_any_const_dynamic( dc[ i ] , [ & feas , eps ]( FRowConstraint & cnst )
+  if( un_any_const_dynamic( dc[ i ] ,
+			    [ & feas , eps ]( FRowConstraint & cnst )
 			              { feas = ( cnst.rel_viol() <= eps ); } ,
 			    un_any_type< FRowConstraint >() ) ) {
    if( ! feas )
