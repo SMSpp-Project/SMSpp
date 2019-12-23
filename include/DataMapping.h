@@ -136,8 +136,8 @@ public:
   * @param issueMod indicates if and how the a "physical" Modification should
   *        be issued.
   *
-  * @param issueMod indicates if and how the an "abstract" Modification should
-  *        be issued.
+  * @param issueAMod indicates if and how the an "abstract" Modification
+  *        should be issued.
   */
 
  virtual void set_data( const std::vector< double > & data ,
@@ -156,8 +156,8 @@ public:
   * @param issueMod indicates if and how the a "physical" Modification should
   *        be issued.
   *
-  * @param issueMod indicates if and how the an "abstract" Modification should
-  *        be issued.
+  * @param issueAMod indicates if and how the an "abstract" Modification
+  *        should be issued.
   */
 
  virtual void set_data( const Eigen::ArrayXd & data ,
@@ -716,7 +716,7 @@ private:
  /// The set that must be passed as argument to the function being invoked
  SetTo set_to;
 
- // Indicates whether the SetTo set is ordered
+ /// Indicates whether the SetTo set is ordered
  bool ordered;
 
 };  // end( class( SimpleDataMapping ) )

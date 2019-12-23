@@ -1614,7 +1614,7 @@ class BendersBFunction : public C05Function , public Block {
  bool diagonal_linearization_required = false;
  ///< indicates whether a diagonal linearization is required
 
-/**@} ----------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
 /*--------------------------------------------------------------------------*/
 
