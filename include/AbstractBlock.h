@@ -110,7 +110,12 @@ namespace SMSpp_di_unipi_it
  * corresponding vector of pointers (unlike Block). Of course, changes in
  * the size of these vectors are *not* supposed to happen "in flight", i.e.,
  * when there is any Solver attached to the AbstractBlock, but only during
- * the initial construction phase.
+ * the initial construction phase. Yet, during the destructor of
+ * AbstractBlock, the corresponding Variable / Constraint / Objective have
+ * to be destroyed. This requires the( pointer to the)m to be fetched out of
+ * the corresponding std::vector< boost::any >, which can only be done by
+ * knowing their exact type; whence the need of specifying exactly which
+ * types are handled by the class.
  *
  * Note that, conversely, add_dynamic_constraint*s*() and
  * add_dynamic_variable*s*() (the methods for adding/removing stuff from an
@@ -131,34 +136,70 @@ namespace SMSpp_di_unipi_it
  * Among other things, AbstractBlock can be a useful target for the
  * construction of some R3Block for some "concrete" Block.
  *
- * However, AbstractBlock has methods that allow derived classes to specify
- * that:
+ * However, AbstractBlock also has a mechanism that allows to indicate that
+ * some static/dynamic Variable/Constraint, inner Block, and the (only)
+ * Objective, are "reserved for the derived class use". The "reserved" ones
+ * are the first groups/inner Block, and therefore they are specified by the
+ * following 6 protected fields
  *
- * - the first sv groups of static Variable;
+ * - f_1st_stat_var: the first groups of static Variable;
  *
- * - the first dv groups of dynamic Variable;
+ * - f_1st_dyn_var: the first groups of dynamic Variable;
  *
- * - the first sc groups of static Constraint;
+ * - f_1st_stat_cnst: the first groups of static Constraint;
  *
- * - the first dc groups of dynamic Constraint;
+ * - f_1st_dym_cnst: the first groups of dynamic Constraint;
  *
- * - the (only) objective;
+ * - f_res_obj: the (only) Objective;
  *
- * - the first sb inner Block;
+ * - f_1st_sub_block: the first inner Block;
  *
- * are "reserved for the derived class use". The base AbstractBlock will not
- * ever touch these elements. However, this means that all the parts that
- * are directly handled by the derived class must be completely handled by
- * it. In particular, it is expected that they are:
+ * are "reserved". These fields are set to 0/false by AbstractBlock, and
+ * therefore have to be set to the proper value (if nonzero/true) by
+ * derived classes, *before* generate_[abstract_*,objective]() are called,
+ * so that the base AbstractBlock will not ever touch these elements.
  *
- * - completely done after the AbstractBlock is out of deserialize(), so
- *   that it is then possible to add other groups of Variable / Constraint
- *   or inner Block AFTER THE ONES ALREADY THERE;
+ * One may wonder why using protected fields rather than virtual methods.
+ * The point is that this information has to be available during the
+ * destructor of AbstractBlock, but virtual functions do not properly work
+ * in there (the method of AbstractBlock is called, rather than the method
+ * of the derived class); hence, the data has to be stored in a place where it
+ * can be safely accessed by AbstractBlock. In fact, the "reserved" part of
+ * AbstractBlock (not handled by the base class) must be directly handled by
+ * the derived, which means that it must be completely destroyed in the
+ * destructor of the derived class, which by definition is executed *before*
+ * that of AbstractBlock; thus, the destructor of AbstractBlock must not
+ * touch that part, and hence it has to know what the part is.
  *
- * - completely destroyed in the destructor of the derived class, which by
- *   definition is executed *before* that of AbstractBlock; this means that
- *   deleting the "specific structure" part must not leave any loose ends
- *   in the "arbitrary" one. */
+ * It should also be noted that, to conform to the standard, the "abstract"
+ * representation of an AbstractBlock has to be constructed within
+ * generate_[abstract_*,objective](). Yet, when an AbstractBlock is
+ * deserialize()-d, its "abstract" representation is
+ *
+ *     OR, BETTER, WILL WHEN deserialize() WILL BE PROPERLY IMPLEMENTED
+ *
+ * be constructed right away. This creates a potential issue, since
+ *
+ *     WHAT GROUPS OF Variable/Constraint, sub-Block AND Objective ARE
+ *     AVAILABLE DEPEND ON HOW THE "ABSTRACT" REPRESENTATION OF THE
+ *     :AbstractBlock IS CONSTRUCTED, AND THEREFORE ON THE Configuration
+ *     PARAMETERS PASSED TO generate_[abstract_*,objective](). THUS, THE
+ *     VALUES OF f_1st_*_* AND f_res_obj ARE ONLY EXPECTED TO BE SGNIFICANT
+ *     INSIDE THE CALL TO generate_[abstract_*,objective]()
+ *
+ * This means that if AbstractBlock::generate_[abstract_*,objective]()
+ * should be called inside the generate_[abstract_*,objective]() of any
+ * derived class only after that the information on the reserved part has
+ * been constructed. However, this still creates problem is the abstract
+ * representation of the AbstractBlock actually has been loaded during
+ * deserialize(). However, the add_X_Y() and set_X_Y() methods of Block
+ * allow the derived class to "slip its group before the already present
+ * ones", and therefore the derived class can ensure that the right set of
+ * groups is reserved. Note that, unlike the std::vector< boost::any >
+ * implementing the groups that are private, the v_Block vector of the
+ * sub-Block is protected and therefore can be freely manipulated by
+ * derived classes. Yet, doing all this right is entirely the responsibility
+ * of the derived classes themselves. */
 
 class AbstractBlock : public Block {
 
@@ -180,11 +221,15 @@ class AbstractBlock : public Block {
  /** Constructor of AbstractBlock. It accepts a pointer to the father Block
   * (defaulting to nullptr, both because the root Block has no father and so
   * that this can also be used as the void constructor), passes it to the
-  * Block constructor, and does little else. */
+  * Block constructor, and does little else except initializing all the
+  * fields to default values. */
 
  AbstractBlock( Block * father = nullptr ) : Block( father ) ,
   f_ub( Inf<double>() ) , f_lb( - Inf<double>() ) ,
-  f_ub_cond( false ) , f_lb_cond( false ) {}
+  f_ub_cond( false ) , f_lb_cond( false ) ,
+  f_1st_stat_var( 0 ) , f_1st_dyn_var( 0 ) ,
+  f_1st_stat_cnst( 0 ) , f_1st_dym_cnst( 0 ) ,
+  f_res_obj( false ) , f_1st_sub_block( 0 ) {}
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize the current :AbstractBlock out of netCDF::NcGroup
@@ -280,56 +325,60 @@ class AbstractBlock : public Block {
 
  /// returns the index of the first group of "available" static Constraint
  /** This method returns the index of the first group of static Constraint in
-  * the "arbitrary" part of the AbstractBlock. The implementation in the base
-  * AbstractBlock class returns 0, i.e., there are no "reserved" static
-  * Constraint. */
+  * the "arbitrary" part of the AbstractBlock, by just returning the value of
+  * the corresponding field. Setting which, however, is responsibility of
+  * the derived classes. */
 
- virtual Index get_first_static_Constraint( void ) const { return( 0 ); }
+ Index get_first_static_Constraint( void ) const {
+  return( f_1st_stat_cnst );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the index of the first group of "available" dynamic Constraint
  /** This method returns the index of the first group of dynamic Constraint in
-  * the "arbitrary" part of the AbstractBlock. The implementation in the base
-  * AbstractBlock class returns 0, i.e., there are no "reserved" dynamic
-  * Constraint. */
+  * the "arbitrary" part of the AbstractBlock, by just returning the value of
+  * the corresponding field. Setting which, however, is responsibility of
+  * the derived classes. */
 
- virtual Index get_first_dynamic_Constraint( void ) const { return( 0 ); }
+ Index get_first_dynamic_Constraint( void ) const {
+  return( f_1st_dym_cnst );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the index of the first group of "available" static Variable
  /** This method returns the index of the first group of static Variable in
-  * the "arbitrary" part of the AbstractBlock. The implementation in the base
-  * AbstractBlock class returns 0, i.e., there are no "reserved" static
-  * Variable. */
+  * the "arbitrary" part of the AbstractBlock, by just returning the value of
+  * the corresponding field. Setting which, however, is responsibility of
+  * the derived classes. */
 
- virtual Index get_first_static_Variable( void ) const { return( 0 ); }
+ Index get_first_static_Variable( void ) const { return( f_1st_stat_var ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the index of the first group of "available" dynamic Variable
  /** This method returns the index of the first group of dynamic Variable in
-  * the "arbitrary" part of the AbstractBlock. The implementation in the base
-  * AbstractBlock class returns 0, i.e., there are no "reserved" dynamic
-  * Variable. */
+  * the "arbitrary" part of the AbstractBlock, by just returning the value of
+  * the corresponding field. Setting which, however, is responsibility of
+  * the derived classes. */
 
- virtual Index get_first_dynamic_Variable( void ) const { return( 0 ); }
+ Index get_first_dynamic_Variable( void ) const { return( f_1st_dyn_var ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the index of the first "available" inner Block
  /** This method returns the index of the first inner Block in the
-  * "arbitrary" part of the AbstractBlock. The implementation in the base
-  * AbstractBlock class returns 0, i.e., there are no "reserved" inner Block.
-  */
+  * "arbitrary" part of the AbstractBlock, by just returning the value of
+  * the corresponding field. Setting which, however, is responsibility of
+  * the derived classes. */
 
- virtual Index get_first_inner_Block( void ) const { return( 0 ); }
+ Index get_first_inner_Block( void ) const { return( f_1st_sub_block ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// tells if the Objective is reserved
  /** This method returns true if the Objective is handled by the derived
-  * class, i.e., it is not in the "arbitrary" part of the AbstractBlock. The
-  * implementation in the base AbstractBlock class returns false, i.e., the
-  * Objective is in the "arbitrary" part of the AbstractBlock. */
+  * class, i.e., it is not in the "arbitrary" part of the AbstractBlock, by
+  * just returning the value of the corresponding field. Setting which,
+  * however, is responsibility of the derived classes. */
 
- virtual bool is_Objective_reserved( void ) const { return( false ); }
+ bool is_Objective_reserved( void ) const { return( f_res_obj ); }
 
 /*--------------------------------------------------------------------------*/
  /// allow unfettered access to nested Block
@@ -379,6 +428,14 @@ class AbstractBlock : public Block {
  *
  * - add_dynamic_variable (all versions)
  *
+ * - set_static_constraint (all versions)
+ *
+ * - set_static_variable (all versions)
+ *
+ * - set_dynamic_constraint (all versions)
+ *
+ * - set_dynamic_variable (all versions)
+ *
  * are made public in AbstractBlock, so that they can be used "from outside"
  * the AbstractBlock to manage its abstract representation;
  *  @{ */
@@ -400,6 +457,14 @@ class AbstractBlock : public Block {
  using Block::add_dynamic_constraint;
 
  using Block::add_dynamic_variable;
+
+ using Block::set_static_constraint;
+
+ using Block::set_static_variable;
+
+ using Block::set_dynamic_constraint;
+
+ using Block::set_dynamic_variable;
 
 /**@} ----------------------------------------------------------------------*/
 /*----------------- Methods for checking the AbstractBlock -----------------*/
@@ -429,8 +494,8 @@ class AbstractBlock : public Block {
   *
   * - otherwise, it is 0. */
 
- virtual bool is_feasible( bool useabstract = false ,
-			   Configuration *fsbc = nullptr ) override;
+ bool is_feasible( bool useabstract = false ,
+		   Configuration *fsbc = nullptr ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
@@ -444,8 +509,8 @@ class AbstractBlock : public Block {
   * AbstractBlock, the "only reasonable" Solution is a ColVariableSolution.
   */
 
- virtual Solution * get_Solution( Configuration *solc = nullptr ,
-				  bool emptys = true ) override;
+ Solution * get_Solution( Configuration *solc = nullptr ,
+			  bool emptys = true ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------- METHODS FOR LOADING, PRINTING & SAVING THE AbstractBlock --------*/
@@ -466,7 +531,7 @@ class AbstractBlock : public Block {
   * For the format of the produced netCDF::NcGroup, see
   * AbstractBlock::deserialize(). */
 
- virtual void serialize( netCDF::NcGroup & group ) const override;
+ void serialize( netCDF::NcGroup & group ) const override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -484,7 +549,7 @@ class AbstractBlock : public Block {
   * Variable and Constraint, Objective, and inner Block) and asks everyone to
   * print itself. */
 
- virtual void print( std::ostream &output ) const override;
+ void print( std::ostream &output ) const override;
 
 /*--------------------------------------------------------------------------*/
  /// load the AbstractBlock out of an istream
@@ -503,13 +568,20 @@ class AbstractBlock : public Block {
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
- double f_ub;          ///< the global upper bound
+ double f_ub;             ///< the global upper bound
+ double f_lb;             ///< the global lower bound
 
- double f_lb;          ///< the global lower bound
+ bool f_ub_cond;          ///< wether f_ub is only conditionally valid
+ bool f_lb_cond;          ///< wether f_lb is only conditionally valid
 
- bool f_ub_cond;       ///< wether f_ub is only conditionally valid
+ Index f_1st_stat_var;    ///< the first available group of static Variable
+ Index f_1st_dyn_var;     ///< the first available group of dynamic Variable
+ Index f_1st_stat_cnst;   ///< the first available group of static Constraint
+ Index f_1st_dym_cnst;    ///< the first available group of dynamic Constraint
 
- bool f_lb_cond;       ///< wether f_lb is only conditionally valid
+ bool f_res_obj;          ///< if the Objective is not available
+
+ Index f_1st_sub_block;   ///< the first available inner Block;
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/

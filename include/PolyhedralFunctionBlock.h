@@ -8,9 +8,9 @@
  * kind of Variable and Constraint (provided these are handled by the base
  * AbstractBlock class).
  *
- * \version 0.10
+ * \version 0.20
  *
- * \date 07 - 10 - 2019
+ * \date 16 - 12 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -207,11 +207,15 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   * father Block (defaulting to nullptr, both because the root Block has no
   * father and so that this can also be used as the void constructor),
   * passes it to the Block constructor, and does little else. It constructs
-  * an "empty" PolyhedralFunction to start with. */
+  * an "empty" PolyhedralFunction to start with.
+  *
+  * Note that in either representation the objective is "reserved". */
 
  PolyhedralFunctionBlock( Block * father = nullptr )
   : AbstractBlock( father ) , f_rep( 0 ) ,
-    f_polyf( {} , {} , {} , true , this ) , f_v( this ) , f_const() {}
+    f_polyf( {} , {} , {} , true , this ) , f_v() , f_const() {
+  f_res_obj = false;
+  }
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize the current PolyhedralFunctionBlock out of netCDF::NcGroup
@@ -308,7 +312,11 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   * If f_rep == false, the PolyhedralFunctionBlock has no extra Variable, be
   * them static or dynamic. If f_rep == true, the first group of static
   * Variable contains a single ColVariable (v), and there are no extra
-  * dyanmic Variable.
+  * dyanmic Variable. Note that "v" is added "in front", so that even if
+  * the AbstractBlock has constructed some "abstract" representation
+  * already (say, in deserialize()), "v" is still the first group of static
+  * ColVariable. Classes derived from PolyhedralFunctionBlock will have to
+  * be careful about this.
   *
   * Note that if further derived classes add some other structure, their
   * version of this method will have to call the method of this class
@@ -333,18 +341,28 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   * is f_static_constraints_Configuration in the BlockConfig, if any.
   *
   * If f_rep == false, the PolyhedralFunctionBlock has no extra Constraint, be
-  * them static or dynamic. If f_rep == true, the first group of dynamic
-  * Constraint contains a single std::list< FRowConstraint > with
-  * LinearFunction inside (a.k.a. "linear constraint") representing the m
-  * inequalities v >= [<=] a_i x + b_i. Note that the "verse" of the
-  * Constraint depend on PolyhedralFunction->is_convex(); if it is true than
-  * the inequalities are ">=" (the LHS is -INF and the RHS is b_i), otherwise
-  * they are "<=" (the LHS b_i and the RHS is INF).
+  * them static or dynamic. If f_rep == true instead, then:
   *
-  * Note that if further derived classes add some other structure, their
-  * version of this method will have to call the method of this class
-  * first, because it uses (if any) the *first* group of dynamic Constraint.
-  */
+  *  - The first group of dynamic Constraint contains a single
+  *    std::list< FRowConstraint > with LinearFunction inside (a.k.a. "linear
+  *    constraint") representing the m inequalities v >= [<=] a_i x + b_i.
+  *    Note that the "verse" of the Constraint depend on
+  *    PolyhedralFunction->is_convex(); if it is true than the inequalities
+  *    are ">=" (the LHS is -INF and the RHS is b_i), otherwise they are "<="
+  *    (the LHS b_i and the RHS is INF).
+  *
+  *  - The first group of static Constraint contains a single BoxConstraint
+  *    whose variable is "v", which serves to store the global lower/upper
+  *    bound on the function vale. This clearly depends on
+  *    PolyhedralFunction->is_convex(); if it is true, than the LHS is the
+  *    global lower bound and the RHS is INF, otherwise the LHS is - INF and
+  *    the RHS is the global upper bound.
+  *
+  * Note that both groups of Constraint are added "in front" of their 
+  * corresponding vector, so that even if the AbstractBlock has constructed
+  * some "abstract" representation already (say, in deserialize()), they 
+  * still are the first group of dynamic/static Constraint. Classes derived
+  * from PolyhedralFunctionBlock will have to be careful about this. */
 
  void generate_abstract_constraints( Configuration *stcc = nullptr ) override;
 
@@ -380,53 +398,6 @@ class PolyhedralFunctionBlock : public AbstractBlock {
  *  @{ */
 
  PolyhedralFunction & get_PolyhedralFunction( void ) { return( f_polyf ); }
-
-/*--------------------------------------------------------------------------*/
- /// returns the index of the first group of "available" dynamic Constraint
- /** This method returns the index of the first group of dynamic Constraint in
-  * the "arbitrary" part of the PolyhedralFunctionBlock. This depends on
-  * whether the "natural representation" or the "linearized representation"
-  * is used; in the former case there are no dynamic constraints, in the
-  * latter there is one group (the box constraints over x). */
-
- Index get_first_static_Constraint( void ) const override{
-  return( f_rep & 1 ? 1 : 0 );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// returns the index of the first group of "available" dynamic Constraint
- /** This method returns the index of the first group of dynamic Constraint in
-  * the "arbitrary" part of the PolyhedralFunctionBlock. This depends on
-  * whether the "natural representation" or the "linearized representation"
-  * is used; in the former case there are no dynamic constraints, in the
-  * latter there is one group (the constraints defining the function). */
-
- Index get_first_dynamic_Constraint( void ) const override {
-  return( f_rep & 1 ? 1 : 0 );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// returns the index of the first group of "available" static Variable
- /** This method returns the index of the first group of static Variable in
-  * the "arbitrary" part of the PolyhedralFunctionBlock. This depends on
-  * whether the "natural representation" or the "linearized representation"
-  * is used. Note that, instead, get_first_dynamic_Variable() need not be
-  * re-defined, as the PolyhedralFunctionBlock never has any group of
-  * dynamic Variable (in its "specific part", the "arbitrary part" clearly
-  * being completely free to have any number of these). */
-
- Index get_first_static_Variable( void ) const override {
-  return( f_rep & 1 ? 1 : 0 );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
- // Index get_first_dynamic_Variable( void ) const override { return( 0 ); }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// tells if the Objective is reserved, which it *is*
-
- bool is_Objective_reserved( void ) const override { return( true ); }
 
 /*--------------------------------------------------------------------------*/
 

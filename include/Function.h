@@ -668,7 +668,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
 /*----------- METHODS FOR LOADING, PRINTING & SAVING THE Function ----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for printing the Function
- */
+ *  @{ */
 
  /// friend operator<<(), dispatching to virtual protected print()
  /** Not really a method, but a friend operator<<() that just dispatches the

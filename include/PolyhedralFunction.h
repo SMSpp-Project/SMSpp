@@ -864,8 +864,14 @@ class PolyhedralFunction : public C05Function {
   *        as described in Observer::make_par().
   *
   * This completely resets the PolyhedralFunction, save that it remains
-  * defined on the very same variable space, which means that n (the number
-  * of columns in A) must be equal to get_num_active_var().
+  * defined on the very same variable space, which means that
+  *
+  *     n (THE NUMBER OF COLUMNS IN A) MUST BE EQUAL TO get_num_active_var(),
+  *     EXCEPT IN THE CASE WHERE get_num_active_var() == 0, WHICH MEANS THAT
+  *     set_variables() WILL BE CALLES *AFTER* THIS METHOD (AND THEN,
+  *     CLEARLY, THE NUMBER OF Variable WILL HAVE TO BE COMPATIBLE WITH
+  *     THE SIZE OF A AS SET HERE), OR IN THE CASE WHERE A IS empty(), WHICH
+  *     MEANS THAT THE MAPPING IS COMPLETELY RESET (LEAVING THE SAME Variable
   *
   * As the && implies, A and b become property of the PolyhedralFunction
   * object. */

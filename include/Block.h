@@ -84,9 +84,9 @@
  * specific for each Block and R3 Block of its, and the base class provides
  * no general mechanism for it (besides the interface).
  *
- * \version 0.32
+ * \version 0.33
  *
- * \date 06 - 11 - 2019
+ * \date 16 - 12 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -4887,8 +4887,37 @@ class Block : public Observer {
  * accept an optional string to be put in the proper v_X_Y_names vector as an
  * arbitrary name for the new stuff; the v_X_Y_names vectors are protected,
  * so derived classes can mess up with them later at their leisure).
- * For sake of consistency, set_Block(this) is called on every new added
- * element; users may set another block later at their own risk.
+ *
+ * There are two forms of the methods, for each of four combinations of
+ *  X = "s" or "d" and Y = "Constraint" and "Variable":
+ *
+ * - add_X_Y( stuff [ , name , front ] ) that adds a new position to the
+ *   corresponding vector of boost::any and puts a pointer to "stuff" there,
+ *   (checking if the type is right), adds a new position to the corresponding
+ *   std::vector< std::string > of names and puts "name" (if any) there;
+ *   the optional parameter front tells, if false (default value), that the
+ *   new position is added at the back of the std::vector-s, while if true
+ *   that the new position is added at the front. Note that a form of the
+ *   methods exist with "no stuff" (i.e., add_X_Y( [ name , front ] )) that
+ *   just creates an empty slot in the vector of boost::any.
+ *
+ * - set_X_Y( Index , stuff [ , name ] ) that puts "stuff" in the position
+ *   "Index" of the corresponding vector of boost::any (assumed existing,
+ *   otherwise exception is thrown), and of course "name" (if any) in the
+ *   same position to the corresponding std::vector< std::string > of names.
+ *   Note that the current content of both vectors in that position is
+ *   overwritten without any check, so it's the caller responsibility to
+ *   ensure that nothing bad happens (like, erasing the only existing
+ *   pointer to some stuff that was previously there before having deleted
+ *   the stuff).
+ *   
+ * The methods will allow derived classes some flexibility in the order in
+ * which the "abstract" representation is constructed, in particular for the
+ * case in which this happens in different steps (say, a :Block class does
+ * a part of it, but a further derived class does another part).
+ *
+ * For sake of consistency, set_Block( this ) is called on every new added
+ * element; users may set another Block later at their own risk.
  * @{ */
 
  /// removes any existing static Constraint; to be used with care
@@ -4934,17 +4963,26 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
  /// empty slot
 
- void add_static_constraint( const std::string & name = "" )
+ void add_static_constraint( std::string && name = "" ,
+			     bool front = false )
  {
-  v_s_Constraint.push_back( boost::any() );
-  v_s_Constraint_names.emplace_back( name );
+  if( front ) {
+   v_s_Constraint.insert( v_s_Constraint.begin() , boost::any() );
+   v_s_Constraint_names.insert( v_s_Constraint_names.begin() ,
+				std::move( name ) );
+   }
+  else {
+   v_s_Constraint.push_back( boost::any() );
+   v_s_Constraint_names.emplace_back( std::move( name ) );
+   }
   }
 
 /*--------------------------------------------------------------------------*/
  /// single object of class (derived from) Constraint
 
  template< class Const >
- void add_static_constraint( Const & newc , const std::string & name = "" )
+ void add_static_constraint( Const & newc , std::string && name = "" ,
+			     bool front = false  )
  {
   // ensure derived classes insert a derivate of Constraint
   static_assert( std::is_base_of< Constraint, Const >::value,
@@ -4952,8 +4990,34 @@ class Block : public Observer {
 
   newc.set_Block( this );
   Const * cnewc = &newc;
-  v_s_Constraint.push_back( cnewc );
-  v_s_Constraint_names.emplace_back( name );
+  if( front ) {
+   v_s_Constraint.insert( v_s_Constraint.begin() , cnewc );
+   v_s_Constraint_names.insert( v_s_Constraint_names.begin() ,
+				std::move( name ) );
+   }
+  else {
+   v_s_Constraint.push_back( cnewc );
+   v_s_Constraint_names.emplace_back( std::move( name ) );
+   }
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// single object of class (derived from) Constraint
+
+ template< class Const >
+ void set_static_constraint( Index i , Const & newc ,
+			     std::string && name = "" )
+ {
+  // ensure derived classes insert a derivate of Constraint
+  static_assert( std::is_base_of< Constraint, Const >::value,
+                 "add_static_constraint: newc must inherit from Constraint" );
+  if( i >= v_s_Constraint.size() )
+   throw( std::invalid_argument( "wrong index into v_s_Constraint" ) );
+
+  newc.set_Block( this );
+  Const * cnewc = &newc;
+  v_s_Constraint[ i ] = cnewc;
+  v_s_Constraint_names[ i ] = std::move( name );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -4961,17 +5025,45 @@ class Block : public Observer {
 
  template< class Const >
  void add_static_constraint( std::vector< Const > & newc ,
-                             const std::string & name = "" )
+                             std::string && name = "" ,
+			     bool front = false  )
  {
   static_assert( std::is_base_of< Constraint, Const >::value,
                  "add_static_constraint: newc must inherit from Constraint" );
 
-  for( auto & i: newc )
-   i.set_Block( this );
+  for( auto & c : newc )
+   c.set_Block( this );
 
   std::vector< Const > * cnewc = &newc;
-  v_s_Constraint.push_back( cnewc );
-  v_s_Constraint_names.emplace_back( name );
+  if( front ) {
+   v_s_Constraint.insert( v_s_Constraint.begin() , cnewc );
+   v_s_Constraint_names.insert( v_s_Constraint_names.begin() ,
+				std::move( name ) );
+   }
+  else {
+   v_s_Constraint.push_back( cnewc );
+   v_s_Constraint_names.emplace_back( std::move( name ) );
+   }
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// std::vector of (derived class from) Constraint
+
+ template< class Const >
+ void set_static_constraint( Index i , std::vector< Const > & newc ,
+                             std::string && name = "" )
+ {
+  static_assert( std::is_base_of< Constraint, Const >::value,
+                 "add_static_constraint: newc must inherit from Constraint" );
+  if( i >= v_s_Constraint.size() )
+   throw( std::invalid_argument( "wrong index into v_s_Constraint" ) );
+
+  for( auto & c : newc )
+   c.set_Block( this );
+
+  std::vector< Const > * cnewc = &newc;
+  v_s_Constraint[ i ] = cnewc;
+  v_s_Constraint_names[ i ] = std::move( name );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -4979,33 +5071,70 @@ class Block : public Observer {
 
  template< class Const, unsigned long K >
  void add_static_constraint( boost::multi_array< Const , K > & newc ,
-                             const std::string & name = "" )
+                             std::string && name = "" ,
+			     bool front = false  )
  {
   static_assert( std::is_base_of< Constraint, Const >::value,
                  "add_static_constraint: newc must inherit from Constraint" );
 
-  for( auto i = newc.data(); i < ( newc.data() + newc.num_elements() ); ++i )
-   i->set_Block( this );
+  for( auto & c : newc )
+   c.set_Block( this );
 
   boost::multi_array< Const, K > * cnewc = &newc;
-  v_s_Constraint.push_back( cnewc );
-  v_s_Constraint_names.emplace_back( name );
+  if( front ) {
+   v_s_Constraint.insert( v_s_Constraint.begin() , cnewc );
+   v_s_Constraint_names.insert( v_s_Constraint_names.begin() ,
+				std::move( name ) );
+   }
+  else {
+   v_s_Constraint.push_back( cnewc );
+   v_s_Constraint_names.emplace_back( std::move( name ) );
+   }
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// boost::multi_array<K> of (...) Constraint
+
+ template< class Const, unsigned long K >
+ void set_static_constraint( Index i ,
+			     boost::multi_array< Const , K > & newc ,
+                             std::string && name = "" )
+ {
+  static_assert( std::is_base_of< Constraint, Const >::value,
+                 "add_static_constraint: newc must inherit from Constraint" );
+  if( i >= v_s_Constraint.size() )
+   throw( std::invalid_argument( "wrong index into v_s_Constraint" ) );
+
+  for( auto & c : newc )
+   c.set_Block( this );
+
+  boost::multi_array< Const, K > * cnewc = &newc;
+  v_s_Constraint[ i ] = cnewc;
+  v_s_Constraint_names[ i ] = std::move( name );
   }
 
 /*--------------------------------------------------------------------------*/
  /// empty slot
 
- void add_static_variable( const std::string & name = "" )
+ void add_static_variable( std::string && name = "" , bool front = false )
  {
-  v_s_Variable.push_back( boost::any() );
-  v_s_Variable_names.emplace_back( name );
+  if( front ) {
+   v_s_Variable.insert( v_s_Variable.begin() , boost::any() );
+   v_s_Variable_names.insert( v_s_Variable_names.begin() ,
+			      std::move( name ) );
+   }
+  else {
+   v_s_Variable.push_back( boost::any() );
+   v_s_Variable_names.emplace_back( std::move( name ) );
+   }
   }
 
 /*--------------------------------------------------------------------------*/
  /// single object of class (derived from) Variable
 
  template< class Var >
- void add_static_variable( Var & newv , const std::string & name = "" )
+ void add_static_variable( Var & newv , std::string && name = "" ,
+			   bool front = false )
  {
   // ensure derived classes insert a derivate of Variable
   static_assert( std::is_base_of< Variable, Var >::value,
@@ -5013,8 +5142,34 @@ class Block : public Observer {
 
   newv.set_Block( this );
   Var * cnewv = &newv;
-  v_s_Variable.push_back( cnewv );
-  v_s_Variable_names.emplace_back( name );
+  if( front ) {
+   v_s_Variable.insert( v_s_Variable.begin() , cnewv );
+   v_s_Variable_names.insert( v_s_Variable_names.begin() ,
+			      std::move( name ) );
+   }
+  else {
+   v_s_Variable.push_back( cnewv );
+   v_s_Variable_names.emplace_back( std::move( name ) );
+   }
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// single object of class (derived from) Variable
+
+ template< class Var >
+ void set_static_variable( Index i , Var & newv ,
+			   std::string && name = "" )
+ {
+  // ensure derived classes insert a derivate of Variable
+  static_assert( std::is_base_of< Variable, Var >::value,
+                 "add_static_variable: newv must inherit from Variable" );
+  if( i >= v_s_Variable.size() )
+   throw( std::invalid_argument( "wrong index into v_s_Variable" ) );
+
+  newv.set_Block( this );
+  Var * cnewv = &newv;
+  v_s_Variable[ i ] = cnewv;
+  v_s_Variable_names[ i ] = std::move( name );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -5022,17 +5177,44 @@ class Block : public Observer {
 
  template< class Var >
  void add_static_variable( std::vector< Var > & newv ,
-                           const std::string & name = "" )
+                           std::string && name = "" , bool front = false )
  {
   static_assert( std::is_base_of< Variable, Var >::value,
                  "add_static_variable: newv must inherit from Variable" );
 
-  for( auto & i : newv )
-   i.set_Block( this );
+  for( auto & v : newv )
+   v.set_Block( this );
 
   std::vector< Var > * cnewv = &newv;
-  v_s_Variable.push_back( cnewv );
-  v_s_Variable_names.emplace_back( name );
+  if( front ) {
+   v_s_Variable.insert( v_s_Variable.begin() , cnewv );
+   v_s_Variable_names.insert( v_s_Variable_names.begin() ,
+			      std::move( name ) );
+   }
+  else {
+   v_s_Variable.push_back( cnewv );
+   v_s_Variable_names.emplace_back( std::move( name ) );
+   }
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// std::vector of (derived class from) Variable
+
+ template< class Var >
+ void set_static_variable( Index i , std::vector< Var > & newv ,
+                           std::string && name = "" )
+ {
+  static_assert( std::is_base_of< Variable, Var >::value,
+                 "add_static_variable: newv must inherit from Variable" );
+  if( i >= v_s_Variable.size() )
+   throw( std::invalid_argument( "wrong index into v_s_Variable" ) );
+
+  for( auto & v : newv )
+   v.set_Block( this );
+
+  std::vector< Var > * cnewv = &newv;
+  v_s_Variable[ i ] = cnewv;
+  v_s_Variable_names[ i ] = std::move( name );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -5040,26 +5222,60 @@ class Block : public Observer {
 
  template< class Var, unsigned long K >
  void add_static_variable( boost::multi_array< Var , K > & newv ,
-                           const std::string & name = "" )
+                           std::string && name = "" , bool front = false )
  {
   static_assert( std::is_base_of< Variable, Var >::value,
                  "add_static_variable: newv must inherit from Variable" );
 
-  for( auto i = newv.data(); i < ( newv.data() + newv.num_elements() ); ++i )
-   i->set_Block( this );
+  for( auto & v : newv )
+   v.set_Block( this );
 
   boost::multi_array< Var, K > * cnewv = &newv;
-  v_s_Variable.push_back( cnewv );
-  v_s_Variable_names.emplace_back( name );
+  if( front ) {
+   v_s_Variable.insert( v_s_Variable.begin() , cnewv );
+   v_s_Variable_names.insert( v_s_Variable_names.begin() ,
+			      std::move( name ) );
+   }
+  else {
+   v_s_Variable.push_back( cnewv );
+   v_s_Variable_names.emplace_back( std::move( name ) );
+   }
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// boost::multi_array<K> of (...) Variable
+
+ template< class Var, unsigned long K >
+ void set_static_variable( Index i , boost::multi_array< Var , K > & newv ,
+                           std::string && name = "" )
+ {
+  static_assert( std::is_base_of< Variable, Var >::value,
+                 "add_static_variable: newv must inherit from Variable" );
+  if( i >= v_s_Variable.size() )
+   throw( std::invalid_argument( "wrong index into v_s_Variable" ) );
+
+  for( auto & v : newv )
+   v.set_Block( this );
+
+  boost::multi_array< Var, K > * cnewv = &newv;
+  v_s_Variable[ i ] = cnewv;
+  v_s_Variable_names[ i ] = std::move( name );
   }
 
 /*--------------------------------------------------------------------------*/
  /// empty slot
 
- void add_dynamic_constraint( const std::string & name = "" )
+ void add_dynamic_constraint( std::string && name = "" , bool front = false )
  {
-  v_d_Constraint.push_back( boost::any() );
-  v_d_Constraint_names.emplace_back( name );
+  if( front ) {
+   v_d_Constraint.insert( v_d_Constraint.begin() , boost::any() );
+   v_d_Constraint_names.insert( v_d_Constraint_names.begin() ,
+				std::move( name ) );
+   }
+  else {
+   v_d_Constraint.push_back( boost::any() );
+   v_d_Constraint_names.emplace_back( std::move( name ) );
+   }
   }
 
 /*--------------------------------------------------------------------------*/
@@ -5067,18 +5283,46 @@ class Block : public Observer {
 
  template< class Const >
  void add_dynamic_constraint( std::list< Const > & newc ,
-                              const std::string & name = "" )
+                              std::string && name = "" , bool front = false )
  {
   // ensure derived classes insert a derivate of Constraint
   static_assert( std::is_base_of< Constraint, Const >::value,
                "add_dynamic_constraint: newc must inherit from Constraint" );
 
-  for( auto & i : newc )
-   i.set_Block( this );
+  for( auto & c : newc )
+   c.set_Block( this );
 
   std::list< Const > * cnewc = &newc;
-  v_d_Constraint.push_back( cnewc );
-  v_d_Constraint_names.emplace_back( name );
+  if( front ) {
+   v_d_Constraint.insert( v_d_Constraint.begin() , cnewc );
+   v_d_Constraint_names.insert( v_d_Constraint_names.begin() ,
+				std::move( name ) );
+   }
+  else {
+   v_d_Constraint.push_back( cnewc );
+   v_d_Constraint_names.emplace_back( std::move( name ) );
+   }
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// std::list of (derived class from) Constraint
+
+ template< class Const >
+ void set_dynamic_constraint( Index i , std::list< Const > & newc ,
+                              std::string && name = "" )
+ {
+  // ensure derived classes insert a derivate of Constraint
+  static_assert( std::is_base_of< Constraint, Const >::value,
+               "add_dynamic_constraint: newc must inherit from Constraint" );
+  if( i >= v_d_Constraint.size() )
+   throw( std::invalid_argument( "wrong index into v_d_Constraint" ) );
+
+  for( auto & c : newc )
+   c.set_Block( this );
+
+  std::list< Const > * cnewc = &newc;
+  v_d_Constraint[ i ] = cnewc;
+  v_d_Constraint_names[ i ] = std::move( name );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -5086,18 +5330,47 @@ class Block : public Observer {
 
  template< class Const >
  void add_dynamic_constraint( std::vector< std::list< Const > > & newc ,
-                              const std::string & name = "" )
+                              std::string && name = "" , bool front = false )
  {
   static_assert( std::is_base_of< Constraint, Const >::value,
                "add_dynamic_constraint: newc must inherit from Constraint" );
 
-  for( auto & i : newc )
-   for( auto & j : i )
+  for( auto & c : newc )
+   for( auto & j : c )
     j.set_Block( this );
 
   std::vector< std::list< Const > > * cnewc = &newc;
-  v_d_Constraint.push_back( cnewc );
-  v_d_Constraint_names.emplace_back( name );
+  if( front ) {
+   v_d_Constraint.insert( v_d_Constraint.begin() , cnewc );
+   v_d_Constraint_names.insert( v_d_Constraint_names.begin() ,
+				std::move( name ) );
+   }
+  else {
+   v_d_Constraint.push_back( cnewc );
+   v_d_Constraint_names.emplace_back( std::move( name ) );
+   }
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// std::vector of std::list of (...) Constraint
+
+ template< class Const >
+ void set_dynamic_constraint( Index i ,
+			      std::vector< std::list< Const > > & newc ,
+                              std::string && name = "" )
+ {
+  static_assert( std::is_base_of< Constraint, Const >::value,
+               "add_dynamic_constraint: newc must inherit from Constraint" );
+  if( i >= v_d_Constraint.size() )
+   throw( std::invalid_argument( "wrong index into v_d_Constraint" ) );
+
+  for( auto & c : newc )
+   for( auto & j : c )
+    j.set_Block( this );
+
+  std::vector< std::list< Const > > * cnewc = &newc;
+  v_d_Constraint[ i ] = cnewc;
+  v_d_Constraint_names[ i ] = std::move( name );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -5105,27 +5378,64 @@ class Block : public Observer {
 
  template< class Const, unsigned long K >
  void add_dynamic_constraint( boost::multi_array< std::list< Const > , K >
-                              & newc , const std::string & name = "" )
+                              & newc , std::string && name = "" ,
+			      bool front = false )
  {
   static_assert( std::is_base_of< Constraint, Const >::value,
                "add_dynamic_constraint: newc must inherit from Constraint" );
 
-  for( auto i = newc.data(); i < ( newc.data() + newc.num_elements() ); ++i )
-   for( auto & j : *i )
+  for( auto & c : newc )
+   for( auto & j : c )
     j.set_Block( this );
 
   boost::multi_array< std::list< Const >, K > * cnewc = &newc;
-  v_d_Constraint.push_back( cnewc );
-  v_d_Constraint_names.emplace_back( name );
+  if( front ) {
+   v_d_Constraint.insert( v_d_Constraint.begin() , cnewc );
+   v_d_Constraint_names.insert( v_d_Constraint_names.begin() ,
+				std::move( name ) );
+   }
+  else {
+   v_d_Constraint.push_back( cnewc );
+   v_d_Constraint_names.emplace_back( std::move( name ) );
+   }
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// boost::multi_array<K> of std::list of (...) Constraint
+
+ template< class Const, unsigned long K >
+ void set_dynamic_constraint( Index i ,
+			      boost::multi_array< std::list< Const > , K >
+                              & newc , std::string && name = "" )
+ {
+  static_assert( std::is_base_of< Constraint, Const >::value,
+               "add_dynamic_constraint: newc must inherit from Constraint" );
+  if( i >= v_d_Constraint.size() )
+   throw( std::invalid_argument( "wrong index into v_d_Constraint" ) );
+
+  for( auto & c : newc )
+   for( auto & j : c )
+    j.set_Block( this );
+
+  boost::multi_array< std::list< Const >, K > * cnewc = &newc;
+  v_d_Constraint[ i ] = cnewc;
+  v_d_Constraint_names[ i ] = std::move( name );
   }
 
 /*--------------------------------------------------------------------------*/
  /// empty slot
 
- void add_dynamic_variable( const std::string& name = "" )
+ void add_dynamic_variable( std::string && name = "" , bool front = false )
  {
-  v_d_Variable.push_back( boost::any() );
-  v_d_Variable_names.emplace_back( name );
+  if( front ) {
+   v_d_Variable.insert( v_d_Variable.begin() , boost::any() );
+   v_d_Variable_names.insert( v_d_Variable_names.begin() ,
+			      std::move( name ) );
+   }
+  else {
+   v_d_Variable.push_back( boost::any() );
+   v_d_Variable_names.emplace_back( std::move( name ) );
+   }
   }
 
 /*--------------------------------------------------------------------------*/
@@ -5133,18 +5443,46 @@ class Block : public Observer {
 
  template< class Var >
  void add_dynamic_variable( std::list< Var > & newv ,
-                            const std::string & name = "" )
+                            std::string && name = "" , bool front = false )
  {
   // ensure derived classes insert a derivate of Variable
   static_assert( std::is_base_of< Variable, Var >::value,
                  "add_dynamic_variable: newv must inherit from Variable" );
 
-  for( auto & i : newv )
-   i.set_Block( this );
+  for( auto & v : newv )
+   v.set_Block( this );
 
   std::list< Var > * cnewv = &newv;
-  v_d_Variable.push_back( cnewv );
-  v_d_Variable_names.emplace_back( name );
+  if( front ) {
+   v_d_Variable.insert( v_d_Variable.begin() , cnewv );
+   v_d_Variable_names.insert( v_d_Variable_names.begin() ,
+			      std::move( name ) );
+   }
+  else {
+   v_d_Variable.push_back( cnewv );
+   v_d_Variable_names.emplace_back( std::move( name ) );
+   }
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// std::list of (derived class from) Variable
+
+ template< class Var >
+ void set_dynamic_variable( Index i , std::list< Var > & newv ,
+                            std::string && name = "" )
+ {
+  // ensure derived classes insert a derivate of Variable
+  static_assert( std::is_base_of< Variable, Var >::value,
+                 "add_dynamic_variable: newv must inherit from Variable" );
+  if( i >= v_d_Variable.size() )
+   throw( std::invalid_argument( "wrong index into v_d_Variable" ) );
+
+  for( auto & v : newv )
+   v.set_Block( this );
+
+  std::list< Var > * cnewv = &newv;
+  v_d_Variable[ i ] = cnewv;
+  v_d_Variable_names[ i ] = std::move( name );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -5152,18 +5490,46 @@ class Block : public Observer {
 
  template< class Var >
  void add_dynamic_variable( std::vector< std::list< Var > > & newv ,
-                            const std::string & name = "" )
+                            std::string && name = "" , bool front = false )
  {
   static_assert( std::is_base_of< Variable, Var >::value,
                  "add_dynamic_variable: newv must inherit from Variable" );
 
-  for( auto & i : newv )
-   for( auto & j : i )
+  for( auto & v : newv )
+   for( auto & j : v )
     j.set_Block( this );
 
   std::vector< std::list< Var > > * cnewv = &newv;
-  v_d_Variable.push_back( cnewv );
-  v_d_Variable_names.emplace_back( name );
+  if( front ) {
+   v_d_Variable.insert( v_d_Variable.begin() , cnewv );
+   v_d_Variable_names.insert( v_d_Variable_names.begin() ,
+			      std::move( name ) );
+   }
+  else {
+   v_d_Variable.push_back( cnewv );
+   v_d_Variable_names.emplace_back( std::move( name ) );
+   }
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// std::vector of std::list of (...) Variable
+
+ template< class Var >
+ void set_dynamic_variable( Index i , std::vector< std::list< Var > > & newv ,
+                            std::string && name = "" )
+ {
+  static_assert( std::is_base_of< Variable, Var >::value,
+                 "add_dynamic_variable: newv must inherit from Variable" );
+  if( i >= v_d_Variable.size() )
+   throw( std::invalid_argument( "wrong index into v_d_Variable" ) );
+
+  for( auto & v : newv )
+   for( auto & j : v )
+    j.set_Block( this );
+
+  std::vector< std::list< Var > > * cnewv = &newv;
+  v_d_Variable[ i ] = cnewv;
+  v_d_Variable_names[ i ] = std::move( name );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -5171,18 +5537,48 @@ class Block : public Observer {
 
  template< class Var, unsigned long K >
  void add_dynamic_variable( boost::multi_array< std::list< Var > , K >
-			    & newv , const std::string & name = "" )
+			    & newv , std::string && name = "" ,
+			    bool front = false )
  {
   static_assert( std::is_base_of< Variable, Var >::value,
                  "add_dynamic_variable: newv must inherit from Variable" );
 
-  for( auto i = newv.data(); i < ( newv.data() + newv.num_elements() ); ++i )
-   for( auto & j: *i )
+  for( auto & v : newv )
+   for( auto & j : v )
     j.set_Block( this );
 
   boost::multi_array< std::list< Var >, K > * cnewv = &newv;
-  v_d_Variable.push_back( cnewv );
-  v_d_Variable_names.emplace_back( name );
+  if( front ) {
+   v_d_Variable.insert( v_d_Variable.begin() , cnewv );
+   v_d_Variable_names.insert( v_d_Variable_names.begin() ,
+			      std::move( name ) );
+   }
+  else {
+   v_d_Variable.push_back( cnewv );
+   v_d_Variable_names.emplace_back( std::move( name ) );
+   }
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// boost::multi_array<K> of std::list of (...) Variable
+
+ template< class Var, unsigned long K >
+ void set_dynamic_variable( Index i ,
+			    boost::multi_array< std::list< Var > , K >
+			    & newv , std::string && name = "" )
+ {
+  static_assert( std::is_base_of< Variable, Var >::value,
+                 "add_dynamic_variable: newv must inherit from Variable" );
+  if( i >= v_d_Variable.size() )
+   throw( std::invalid_argument( "wrong index into v_d_Variable" ) );
+
+  for( auto & v : newv )
+   for( auto & j : v )
+    j.set_Block( this );
+
+  boost::multi_array< std::list< Var >, K > * cnewv = &newv;
+  v_d_Variable[ i ] = cnewv;
+  v_d_Variable_names[ i ] = std::move( name );
   }
 
 /**@} ----------------------------------------------------------------------*/
