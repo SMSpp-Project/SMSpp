@@ -9,7 +9,7 @@
  *
  * \version 0.1
  *
- * \date 12 - 12 - 2019
+ * \date 23 - 12 - 2019
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -229,11 +229,15 @@ public:
 /** @name Public Types
  *  @{ */
 
- using F = Block::FunctionType
-  < typename std::vector< DataType >::const_iterator , const SetTo & >;
+ using Index = Block::Index;
  using Range = Block::Range;
  using Subset = Block::Subset;
- using Index = Block::Index;
+
+ using F = std::conditional_t< std::is_same_v< SetTo , Subset > ,
+    Block::FunctionType< typename std::vector< DataType >::const_iterator ,
+                         SetTo && , bool > ,
+    Block::FunctionType< typename std::vector< DataType >::const_iterator ,
+                         const SetTo & > >;
 
 /**@} ----------------------------------------------------------------------*/
 /*------------ CONSTRUCTING AND DESTRUCTING SimpleDataMapping --------------*/
@@ -260,7 +264,14 @@ public:
  SimpleDataMapping( const F * function = nullptr , Caller * caller = nullptr ,
               const SetFrom & set_from = {} , const SetTo & set_to = {} ) :
   function( function ) , caller( caller ) , set_from( set_from ) ,
-  set_to( set_to ) { }
+  set_to( set_to ) {
+
+  ordered = true;
+
+  if constexpr( std::is_same_v< SetTo , Subset > ) {
+   ordered = std::is_sorted( std::begin( set_to ), std::end( set_to ) );
+  }
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -328,10 +339,28 @@ public:
 
   this->deserialize( group , "From" , set_from , false );
 
+  ordered = true;
   if( ! this->deserialize( group , "To" , set_to , true ) ) {
    // SetTo was not specified. Therefore, we consider the set [0, N), where N
    // is the size of the SetFrom set.
    fill( set_to , cardinality( set_from ) );
+  }
+  else if constexpr( std::is_same_v< SetTo , Subset > ) {
+   ordered = std::is_sorted( std::begin( set_to ), std::end( set_to ) );
+   if constexpr( std::is_same_v< SetFrom , Subset > ) {
+     // Both SetFrom and SetTo are Subset. So, we can reorder them if we wish.
+
+     // If SetFrom is a Range and SetTo is an unordered Subset, then
+     // reordering SetTo means reordering Range (which is not possible; the
+     // Range would have to became a Subset, which is also not possible). So,
+     // it is possible to sort set_from and set_to only when they are both
+     // Subset.
+    if( ! ordered ) {
+     // TODO Should we sort the Subsets? Maybe not if one expects the same
+     // Subsets when the DataMapping is serialized. This could be an option of
+     // DataMapping.
+    }
+   }
   }
 
   if( cardinality( set_from ) != cardinality( set_to ) ) {
@@ -350,8 +379,14 @@ public:
                         c_ModParam issueMod = eModBlck ,
                         c_ModParam issueAMod = eModBlck ) const override {
   auto sub_data = extract< DataType >( data, set_from );
-  std::invoke( * function , caller , sub_data.cbegin() ,
-               set_to , issueMod , issueAMod );
+
+  if constexpr( std::is_same_v< SetTo , Subset > )
+   std::invoke( * function , caller , sub_data.cbegin() ,
+                Subset( set_to ) , ordered , issueMod , issueAMod );
+  else
+   std::invoke( * function , caller , sub_data.cbegin() ,
+                set_to , issueMod , issueAMod );
+
  }
 
 /*--------------------------------------------------------------------------*/
@@ -360,8 +395,13 @@ public:
                         c_ModParam issueMod = eModBlck ,
                         c_ModParam issueAMod = eModBlck ) const override {
   auto sub_data = extract< DataType >( data, set_from );
-  std::invoke( * function , caller , sub_data.cbegin() ,
-               set_to , issueMod , issueAMod );
+
+  if constexpr( std::is_same_v< SetTo , Subset > )
+   std::invoke( * function , caller , sub_data.cbegin() ,
+                Subset( set_to ) , ordered , issueMod , issueAMod );
+  else
+   std::invoke( * function , caller , sub_data.cbegin() ,
+                set_to , issueMod , issueAMod );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -675,6 +715,9 @@ private:
 
  /// The set that must be passed as argument to the function being invoked
  SetTo set_to;
+
+ // Indicates whether the SetTo set is ordered
+ bool ordered;
 
 };  // end( class( SimpleDataMapping ) )
 
