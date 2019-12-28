@@ -84,8 +84,10 @@ void PolyhedralFunctionBlock::generate_abstract_constraints(
 
  if( f_rep & 1 ) {  // use linearized representation
   // add the bounds on v
-  f_bcv.set_rhs( f_polyf.get_upper_estimate() , eNoMod );
-  f_bcv.set_lhs( f_polyf.get_lower_estimate() , eNoMod );
+  f_bcv.set_variable( &f_v );
+  f_bcv.set_rhs( f_polyf.get_global_upper_bound() , eNoMod );
+  f_bcv.set_lhs( f_polyf.get_global_lower_bound() , eNoMod );
+  
 
   // note: the bounds on v are added "in front"
   f_1st_stat_cnst = 1;
@@ -116,9 +118,11 @@ void PolyhedralFunctionBlock::generate_objective( Configuration * objc )
  if( ! ( f_rep & 2 ) )  // variables not constructed
   throw( std::logic_error( "Variable must be generated before Objective" ) );
 
+ f_res_obj = true;  // in either representation the objective is "reserved"
+
  auto obj = new FRealObjective();
- obj->set_sense( f_polyf.is_convex() ? FRealObjective::eMax :
-		                       FRealObjective::eMin , eNoMod );
+ obj->set_sense( f_polyf.is_convex() ? FRealObjective::eMin :
+		                       FRealObjective::eMax , eNoMod );
 
  if( f_rep & 1 )  // use linearized representation
   obj->set_function( new LinearFunction( { std::make_pair( & f_v , 1 ) } ) );

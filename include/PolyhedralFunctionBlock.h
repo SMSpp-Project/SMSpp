@@ -207,15 +207,11 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   * father Block (defaulting to nullptr, both because the root Block has no
   * father and so that this can also be used as the void constructor),
   * passes it to the Block constructor, and does little else. It constructs
-  * an "empty" PolyhedralFunction to start with.
-  *
-  * Note that in either representation the objective is "reserved". */
+  * an "empty" PolyhedralFunction to start with. */
 
  PolyhedralFunctionBlock( Block * father = nullptr )
   : AbstractBlock( father ) , f_rep( 0 ) ,
-    f_polyf( {} , {} , {} , true , this ) , f_v() , f_const() {
-  f_res_obj = false;
-  }
+    f_polyf( {} , {} , {} , true , this ) , f_v() , f_const() { }
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize the current PolyhedralFunctionBlock out of netCDF::NcGroup
