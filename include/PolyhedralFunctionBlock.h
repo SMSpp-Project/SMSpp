@@ -413,7 +413,7 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   if( conditional )
    return( AbstractBlock::get_valid_lower_bound( true ) );
   else
-   return( std::max( AbstractBlock::get_valid_upper_bound( false ) ,
+   return( std::max( AbstractBlock::get_valid_lower_bound( false ) ,
 		     f_polyf.get_global_lower_bound() ) );
   }
 
