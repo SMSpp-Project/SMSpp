@@ -3432,11 +3432,13 @@ class Block : public Observer {
   * map_forward_Modification()], if the original Block supports it.
   *
   * The method is given an extremely lazy default implementation refusing to
-  * produce any kind of R3 Block, comprised the "copy" one. */
+  * produce any kind of R3 Block, comprised the "copy" one. Thus, the caller
+  * should always check the returned argument for non-nullptr-dness to
+  * ensure that the :Block was actually able to produce the required R3 one. */
 
  virtual Block * get_R3_Block( Configuration *r3bc = nullptr )
  {
-  throw( std::invalid_argument( "R3 Block type not supported" ) );
+  return( nullptr );
   }
 
 /*--------------------------------------------------------------------------*/
