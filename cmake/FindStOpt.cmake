@@ -22,7 +22,7 @@ include(FindPackageHandleStandardArgs)
 find_package(Eigen3 REQUIRED)
 find_package(BZip2 REQUIRED)
 find_package(ZLIB REQUIRED)
-find_package(Boost REQUIRED)
+find_package(Boost REQUIRED COMPONENTS system timer)
 
 # ----- geners -------------------------------------------------------------- #
 
@@ -36,7 +36,7 @@ mark_as_advanced(geners_INCLUDE_DIR)
 # Find library
 find_library(geners_LIBRARY
              NAMES geners
-             HINTS ${StOpt_LIB}}
+             HINTS ${STOPT_LIB}
              DOC "geners library")
 mark_as_advanced(geners_LIBRARY)
 
@@ -70,7 +70,7 @@ mark_as_advanced(StOpt_INCLUDE_DIR)
 # Find library
 find_library(StOpt_LIBRARY
              NAMES StOpt
-             HINTS ${StOpt_LIB}
+             HINTS ${STOPT_LIB}
              DOC "StOpt library")
 mark_as_advanced(StOpt_LIBRARY)
 
@@ -89,7 +89,7 @@ if (StOpt_FOUND)
                 StOpt::StOpt PROPERTIES
                 IMPORTED_LOCATION "${StOpt_LIBRARY}"
                 INTERFACE_INCLUDE_DIRECTORIES "${StOpt_INCLUDE_DIR}"
-                INTERFACE_LINK_LIBRARIES "StOpt::geners;Eigen3::Eigen;BZip2::BZip2;ZLIB::ZLIB;Boost::boost")
+                INTERFACE_LINK_LIBRARIES "StOpt::geners;Eigen3::Eigen;BZip2::BZip2;ZLIB::ZLIB;Boost::system;Boost::timer")
     endif ()
 endif ()
 
