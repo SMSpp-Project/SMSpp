@@ -191,7 +191,7 @@ namespace SMSpp_di_unipi_it
  *       method for an explanation of the index of a Variable (or
  *       Constraint) within a group.
  *
- * A 'V' or 'v'node is always preceded by a 'B' node, unless it is the only
+ * A 'V' or 'v' node is always preceded by a 'B' node, unless it is the only
  * node in the path. If the path has only a single node, which is a 'V' or 'v'
  * node, then the Variable this path refers to is defined in the reference
  * Block. In other words, if the target Variable of the path belongs to the
@@ -212,7 +212,7 @@ namespace SMSpp_di_unipi_it
  *    must be the inner Block of a BendersBFunction or that of a LagBFunction.
  *    The idea is that the BendersBFunction or LagBFunction then appear as the
  *    Function in a FRealObjective or FRowConstraint, which belong to a Block,
- *    and therefore the path can "go up from there; in this case the previous
+ *    and therefore the path can "go up" from there; in this case the previous
  *    node in the path has type 'O', 'C' or 'c'.
  *
  * If the index of a 'B' node is not +Inf, then this node is necessarily
@@ -508,7 +508,7 @@ inline static const std::string element_index_name = "PathElementIndices";
   * @param netCDFvars The struct containing the netCDF dimensions and
   *        variables described the AbstractPath.
   *
-  * @return The AbstractPath with index \p path_index..
+  * @return The AbstractPath with index \p path_index.
   */
 
  static AbstractPath deserialize( Index path_index ,
@@ -1371,7 +1371,7 @@ public:
   * "TotalLength" that contains the number N of nodes in the path.
   *
   *          ALL INDICES MENTIONED HERE BELONG TO ZERO-BASED NUMBERED
-  *          SEQUENCE, I.E., SEQUENCES WHOSE FIRST ELEMENT IS 0.
+  *          SEQUENCES, I.E., SEQUENCES WHOSE FIRST ELEMENT IS 0.
   *
   * This \p group also has three one-dimensional arrays, whose dimensions are
   * N, that store the types of the nodes, the group indices, and the element
@@ -1387,7 +1387,7 @@ public:
   * element_index is netCDF::NcUint64(). The type of a node may be indicated
   * by any of the following letters:
   *
-  * - 'O', if the node is associated with an Objective.
+  * - 'O', if the node is associated with an Objective;
   *
   * - 'B', if the node is associated with a Block;
   *
@@ -1397,7 +1397,7 @@ public:
   *
   * - 'V', if the node is associated with a static Variable;
   *
-  * - 'v', if the node is associated with a dynamic Variable;
+  * - 'v', if the node is associated with a dynamic Variable.
   *
   * Notice that, for Constraint and Variable, an upper case letter indicates
   * that the element is static, while a lower case letter indicates that the
@@ -1410,11 +1410,11 @@ public:
   * be of type 'B'.
   *
   * For node whose type is 'B', i.e., representing a Node associated with a
-  * Block B, the values stored in the variable element_index is
-  * meaningless. If this is the i-th node in the path with i < n - 1, i.e., it
+  * Block B, the values stored in the variable element_index are
+  * meaningless. If this is the i-th node in the path with i < N - 1, i.e., it
   * is not the last node of the path, the value stored in group_index[i] is
   * the index of the sub-Block of Block B which is the next node in the
-  * path. If i = n-1, i.e., it is the last node in the path, then the
+  * path. If i = N-1, i.e., it is the last node in the path, then the
   * destination of the path is a Block which must be
   *
   * - the Block B itself if group_index[i] = +Inf;
@@ -1432,19 +1432,20 @@ public:
   *
   * 2. It is a vector of Constraint/Variable;
   *
-  * 3. It is a multi array of Constraint/Variable.
+  * 3. It is a multidimensional array of Constraint/Variable.
   *
   * In the first case, in which the group is a single Constraint/Variable, the
-  * value of element_index[i] is 0. In the second case, in which the group
-  * is a vector of Constraint/Variable, element_index[i] is the index of the
-  * element in that vector. In the last case, in which the group is a multi
-  * array of of Constraint/Variable, element_index[i] is the index of the
-  * element in the vectorized multi array in row-major layout. For instance,
-  * if the multi array has two dimensions with sizes m and n, respectively,
-  * then the element at position (p, q) would have an element index equal to
-  * "n * p + q" (recall the indices start from 0). In general, for a multi
-  * array with k dimensions with sizes (n_0, ..., n_{k-1}), the element at
-  * position (i_0, ..., i_{k-1}) would have an element index equal to
+  * value of element_index[i] is 0. In the second case, in which the group is
+  * a vector of Constraint/Variable, element_index[i] is the index of the
+  * element in that vector. In the last case, in which the group is a
+  * multidimensional array of Constraint/Variable, element_index[i] is the
+  * index of the element in the vectorized multidimensional array in row-major
+  * layout. For instance, if the multidimensional array has two dimensions
+  * with sizes m and n, respectively, then the element at position (p, q)
+  * would have an element index equal to "n * p + q" (recall the indices start
+  * from 0). In general, for a multidimensional array with k dimensions with
+  * sizes (n_0, ..., n_{k-1}), the element at position (i_0, ..., i_{k-1})
+  * would have an element index equal to
   *
   * \[
   *    \sum_{r = 0}^{k-1} ( \prod_{s = r + 1}^{k-1} n_s ) i_r.
@@ -1456,7 +1457,7 @@ public:
   *
   * 2. It is a vector of lists of Constraint/Variable;
   *
-  * 3. It is a multi array of lists of Constraint/Variable.
+  * 3. It is a multidimensional array of lists of Constraint/Variable.
   *
   * In the first case, in which the group is a list of Constraint/Variable,
   * element_index[i] is the index of the element in that list. In the second
@@ -1492,9 +1493,9 @@ public:
   * AbstractPath starts. Then there are the one-dimensional arrays
   * "PathNodeTypes", "PathGroupIndices", and "PathElementIndices", which store
   * the types of nodes in the paths, the group indices, and the element
-  * indices. The description of the k-th AbstractPath, for k < PathDim - 1 is
-  * given in those arrays between the indices PathStart[k] and PathStart[k+1],
-  * i.e., in
+  * indices, respectively. The description of the k-th AbstractPath, for k <
+  * PathDim - 1 is given in those arrays between the indices PathStart[k] and
+  * PathStart[k+1], i.e., in
   *
   * ( PathNodeTypes[ PathStart[ k ] ] , ... ,
   *                   PathNodeTypes[ PathStart[ k+1 ] - 1 ] )

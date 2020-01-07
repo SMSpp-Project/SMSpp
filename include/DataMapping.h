@@ -9,7 +9,7 @@
  *
  * \version 0.1
  *
- * \date 23 - 12 - 2019
+ * \date 07 - 01 - 2020
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -54,9 +54,10 @@ namespace SMSpp_di_unipi_it
 /*--------------------------------------------------------------------------*/
 /// DataMapping defines an interface for all types of data mappings.
 /** DataMapping defines an interface for all types of data mappings. The idea
- * of a data mapping is to map the values given by a vector of double into the
- * data of some object. It has four pure virtual functions. The first two are
- * set_data(), which have the following signature:
+ * of a data mapping is to allow, in particular, to map the values given by a
+ * vector of double into the data of some object. It has four pure virtual
+ * functions. The first two are set_data(), which have the following
+ * signature:
  *
  *    virtual void set_data( const std::vector< double > & data ,
  *                           c_ModParam issueMod = eModBlck ,
@@ -191,26 +192,93 @@ public:
 
 /// SimpleDataMapping derives from DataMapping
 /**
- * SimpleDataMapping is a template class that derives from DataMapping and has
- * the following template parameters:
+ * SimpleDataMapping is a template class that derives from DataMapping and is
+ * used to define some common kinds of data mapping. We define two vectors:
+ * the large one and the small one. The large vector refers to the vector that
+ * is given as input to the set_data() method. This is the vector containing
+ * all the data that can be used by the SimpleDataMapping. The small vector is
+ * a vector formed by a subset of the elements of the large vector. This is
+ * the vector that will effectively be used to perform some computation. This
+ * computation is typically the task of changing the data of some object based
+ * on this small vector. There is a mapping defined by the SetFrom set that
+ * specifies which elements of the large vector are used to compose the small
+ * vector. This SetFrom set contains the indices of these elements in the
+ * large vector. The small vector is the one that will typically impact the
+ * data of some object. The SetTo set can be used to specify which part of
+ * this data is affected.
+ *
+ * As an example, consider the case in which the large vector contains data
+ * related to costs and capacities of arcs of a network. Suppose this network
+ * is represented by a class Network. A SimpleDataMapping could be used to set
+ * the capacities of the arcs of a Network object considering the data
+ * provided by this large vector. Some elements of this large vector would be
+ * extracted and form a small vector containing the capacities of some
+ * arcs. The indices of the elements that are extracted from the large vector
+ * are specified by the SetFrom set. This set could be, for instance, the set
+ * {0, 3, 8, 11}. This means that the elements at positions 0, 3, 8, and 11 in
+ * the large vector are selected to form a small vector with four
+ * elements. This small vector would then be used to change the capacities of
+ * some arcs of the Network object. The arcs whose capacities would be
+ * modified could be specified by the SetTo set. This could be the set [2, 6),
+ * for instance, stating that the arcs with indices 2, 3, 4, and 5 would have
+ * their capacities changed according to the small vector.
+ *
+ * Besides the SetFrom and SetTo sets, the SimpleDataMapping also has a
+ * pointer to a function, which is invoked within the set_data() method. This
+ * is a function that receives, in particular, a pointer to a Block, the small
+ * vector, and the SetTo set. If the SetTo set is a Block::Subset, then the
+ * type of this function is
+ *
+ *    Block::FunctionType< typename std::vector< DataType >::const_iterator ,
+ *                         SetTo && , bool >
+ *
+ * If the SetTo set is a Block::Range, then the type of this function is
+ *
+ *    Block::FunctionType< typename std::vector< DataType >::const_iterator ,
+ *                         const SetTo & >
+ *
+ * Please refer to the definition of Block::FunctionType for completely
+ * understanding the type of this function.
+ *
+ * In the network example above, this function could be, for instance,
+ *
+ * void set_capacities( Network * network ,
+ *                      std::vector<double>::const_iterator capacities ,
+ *                      const Range & indices ,
+ *                      c_ModParam , c_ModParam );
+ *
+ * Ignoring the details of the type of this function, this is a function that
+ * receives a pointer to a Network object, a vector of capacities, and a Range
+ * of indices. This function could be responsible for changing the capacities
+ * of the arcs (of the given Network object) specified by the "indices"
+ * parameter according to the given capacities.
+ *
+ * As you can see, the function associated with a SimpleDataMapping receives a
+ * pointer to a Block as its first parameter. This is a pointer to the caller
+ * object; the object that "invokes" the function.
+ *
+ * Finally, the SimpleDataMapping is also determined by the type of the data
+ * of the small vector, the DataType.
+ *
+ * Notice that a SimpleDataMapping is general enough in the sense that it is
+ * not only meant to change the data of some object, but perform arbitrary
+ * computation defined by the function associated with this SimpleDataMapping.
+ *
+ * In summary, a SimpleDataMapping has the following template parameters:
  *
  * - SetFrom: This is the type of the set that selects the appropriate data
- *            from data vector. It must be either Block::Range or Block::Set.
+ *            from data vector. It must be either Block::Range or
+ *            Block::Subset.
  *
  * - SetTo: This is the type of the set that indicates which part of the data
- *          of the caller object must be set. It must be either Block::Range
- *          or Block::Set.
+ *          of the caller object that is affected. It must be either
+ *          Block::Range or Block::Set.
  *
- * - DataType: This is the type of the data that must be set in the caller
- *             object.
+ * - DataType: This is the type of the data of the "small" vector (typically
+ *             the type of the data that will be set in the caller object).
  *
  * - Caller: This is the type of the caller object, which is the object that
- *           will invoke the function. By default, Caller is Block.
- *
- * The function of the caller object that this SimpleDataMapping is associated
- * with is defined to have the following type:
- *
- *   Block::FunctionType< std::vector< DataType > , SetTo >
+ *           will "invoke" the function. By default, Caller is Block.
  */
 
 template< class SetFrom = Block::Range , class SetTo = Block::Range ,
@@ -367,6 +435,72 @@ public:
    throw( std::invalid_argument( "DataMapping::deserialize: SetFrom and SetTo "
                                  "must have the same cardinality." ) );
   }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// deserializes a vector of SimpleDataMapping
+ /** This function deserializes a vector of SimpleDataMapping and returns
+  * it. A vector of SimpleDataMapping is specified as follows.
+  *
+  * - The "NumberDataMappings" dimension indicates the number of
+  *   SimpleDataMapping that is present in the vector of SimpleDataMapping.
+  *
+  * - The one-dimensional variable "DataType" indexed over the
+  *   "NumberDataMappings" dimension is an array of type char that specifies
+  *   the type of the data that is associated with each SimpleDataMapping of
+  *   the vector. This is the type of the data that can be set by the
+  *   SimpleDataMapping (i.e., the DataType template parameter of
+  *   SimpleDataMapping). This variable is optional. If it is not present,
+  *   then the data type associated with each SimpleDataMapping in this vector
+  *   is assumed to be double. If it is present then, for each i in {0, ...,
+  *   NumberDataMappings-1}, DataType[ i ] is the type of the data associated
+  *   with the i-th SimpleDataMapping and can be either 'I' or 'D', indicating
+  *   that the type of the data is int or double, respectively.
+  *
+  * - The one-dimensional variable "SetSize" is an array of size (2 *
+  *   NumberDataMappings) and indicates the size of the sets that define each
+  *   SimpleDataMapping (the "SetFrom" and "SetTo" sets). This variable is
+  *   optional. If it is not present, then all sets are assumed to be
+  *   Range. If it is present, then SetSize[ 2i + k ] is the size of the
+  *   SetFrom set of the i-th SimpleDataMapping if k = 0 or the size of the
+  *   SetTo set of the i-th SimpleDataMapping if k = 1. If SetSize[ j ] == 0,
+  *   then the corresponding set is a Range. Otherwise, the corresponding set
+  *   is a Subset of size SetSize[ j ].
+  *
+  * - The one-dimensional variable "SetElements" is an array containing the
+  *   concatenation of the representations of the sets SetFrom and SetTo. A
+  *   Subset is represented by a sequence of indices (which are the elements
+  *   of the Subset); while a Range is represented by two indices a and b such
+  *   that the Range set is given by the integers in the closed-open interval
+  *   [a, b). If we let SetFrom_i and SetTo_i denote the representations of
+  *   the SetFrom and SetTo sets of the i-th SimpleDataMapping, then
+  *   "SetElements" is the array
+  *
+  *   ( SetFrom_0 , SetTo_0 , SetFrom_1 , SetTo_1 , ..., SetFrom_N, SetTo_N )
+  *
+  *   where N = NumberDataMappings - 1.
+  *
+  * - The one-dimensional variable "FunctionName" of type string and indexed
+  *   over "NumberDataMappings" contains the names of the functions associated
+  *   with each SimpleDataMapping. FunctionName[ i ] gives the name of the
+  *   function (as registered in the methods factory) associated with the i-th
+  *   SimpleDataMapping.
+  *
+  * - A sub-group called "AbstractPath", containing a vector of AbstractPath
+  *   with the paths to the Block. The i-th path in this vector of
+  *   AbstractPath is the path to the Block associated with the i-th
+  *   SimpleDataMapping.
+  *
+  * @param group The NcGroup that contains the description of the
+  *              SimpleDataMappings to be deserialized.
+  *
+  * @return A vector with the SimpleDataMapping.
+  */
+
+ static void vector_deserialize( const netCDF::NcGroup & group ,
+             std::vector< std::unique_ptr< DataMapping > > & data_mappings ) {
+  // TODO
  }
 
 /**@} ----------------------------------------------------------------------*/
