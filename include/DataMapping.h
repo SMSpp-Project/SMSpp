@@ -9,7 +9,7 @@
  *
  * \version 0.1
  *
- * \date 07 - 01 - 2020
+ * \date 09 - 01 - 2020
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -361,10 +361,13 @@ public:
   *
   * - All that is necessary to describe the SetFrom set. If SetFrom is a
   *   Range, then this set is specified by the variables "FirstFrom" and
-  *   "SecondFrom" which contain the limits of the closed-open interval
-  *   defining the Range. If SetFrom is a Subset, then this set is specified
-  *   by the dimension "SizeFrom" indicating the size of the set and the
-  *   variable "SubsetFrom" containing the elements of the set.
+  *   "SecondFrom", both of type netCDF::NcUint64, which contain the limits of
+  *   the closed-open interval defining the Range. So, if the Range is the set
+  *   [a, b), then FirstFrom must contain "a" and SecondFrom must contain
+  *   "b". If SetFrom is a Subset, then this set is specified by the dimension
+  *   "SizeFrom" indicating the size of the set and the one-dimensional
+  *   variable "SubsetFrom", of type netCDF::NcUint64 and indexed over
+  *   "SizeFrom", containing the elements of the set.
   *
   * - All that is necessary to describe the SetTo set. Its representation is
   *   the same as that of the SetFrom set, except for the names of the
@@ -447,45 +450,45 @@ public:
   *   SimpleDataMapping that is present in the vector of SimpleDataMapping.
   *
   * - The one-dimensional variable "DataType" indexed over the
-  *   "NumberDataMappings" dimension is an array of type char that specifies
-  *   the type of the data that is associated with each SimpleDataMapping of
-  *   the vector. This is the type of the data that can be set by the
-  *   SimpleDataMapping (i.e., the DataType template parameter of
-  *   SimpleDataMapping). This variable is optional. If it is not present,
+  *   "NumberDataMappings" dimension is an array of type netCDF::NcChar that
+  *   specifies the type of the data that is associated with each
+  *   SimpleDataMapping of the vector. This is the type of the data that can
+  *   be set by the SimpleDataMapping (i.e., the DataType template parameter
+  *   of SimpleDataMapping). This variable is optional. If it is not present,
   *   then the data type associated with each SimpleDataMapping in this vector
   *   is assumed to be double. If it is present then, for each i in {0, ...,
   *   NumberDataMappings-1}, DataType[ i ] is the type of the data associated
   *   with the i-th SimpleDataMapping and can be either 'I' or 'D', indicating
   *   that the type of the data is int or double, respectively.
   *
-  * - The one-dimensional variable "SetSize" is an array of size (2 *
-  *   NumberDataMappings) and indicates the size of the sets that define each
-  *   SimpleDataMapping (the "SetFrom" and "SetTo" sets). This variable is
-  *   optional. If it is not present, then all sets are assumed to be
-  *   Range. If it is present, then SetSize[ 2i + k ] is the size of the
-  *   SetFrom set of the i-th SimpleDataMapping if k = 0 or the size of the
-  *   SetTo set of the i-th SimpleDataMapping if k = 1. If SetSize[ j ] == 0,
-  *   then the corresponding set is a Range. Otherwise, the corresponding set
-  *   is a Subset of size SetSize[ j ].
+  * - The one-dimensional variable "SetSize" is an array of type
+  *   netCDF::NcUint64 with size (2 * NumberDataMappings) and indicates the
+  *   size of the sets that define each SimpleDataMapping (the "SetFrom" and
+  *   "SetTo" sets). This variable is optional. If it is not present, then all
+  *   sets are assumed to be Range. If it is present, then SetSize[ 2i + k ]
+  *   is the size of the SetFrom set of the i-th SimpleDataMapping if k = 0 or
+  *   the size of the SetTo set of the i-th SimpleDataMapping if k = 1. If
+  *   SetSize[ j ] == 0, then the corresponding set is a Range. Otherwise, the
+  *   corresponding set is a Subset of size SetSize[ j ].
   *
-  * - The one-dimensional variable "SetElements" is an array containing the
-  *   concatenation of the representations of the sets SetFrom and SetTo. A
-  *   Subset is represented by a sequence of indices (which are the elements
-  *   of the Subset); while a Range is represented by two indices a and b such
-  *   that the Range set is given by the integers in the closed-open interval
-  *   [a, b). If we let SetFrom_i and SetTo_i denote the representations of
-  *   the SetFrom and SetTo sets of the i-th SimpleDataMapping, then
-  *   "SetElements" is the array
+  * - The one-dimensional variable "SetElements", of type netCDF::NcUint64, is
+  *   an array containing the concatenation of the representations of the sets
+  *   SetFrom and SetTo. A Subset is represented by a sequence of indices
+  *   (which are the elements of the Subset); while a Range is represented by
+  *   two indices a and b such that the Range set is given by the integers in
+  *   the closed-open interval [a, b). If we let SetFrom_i and SetTo_i denote
+  *   the representations of the SetFrom and SetTo sets of the i-th
+  *   SimpleDataMapping, then "SetElements" is the array
   *
   *   ( SetFrom_0 , SetTo_0 , SetFrom_1 , SetTo_1 , ..., SetFrom_N, SetTo_N )
   *
   *   where N = NumberDataMappings - 1.
   *
-  * - The one-dimensional variable "FunctionName" of type string and indexed
-  *   over "NumberDataMappings" contains the names of the functions associated
-  *   with each SimpleDataMapping. FunctionName[ i ] gives the name of the
-  *   function (as registered in the methods factory) associated with the i-th
-  *   SimpleDataMapping.
+  * - The one-dimensional variable "FunctionName" of type netCDF::NcString and
+  *   indexed over "NumberDataMappings" contains the names of the functions
+  *   associated with each SimpleDataMapping. FunctionName[ i ] gives the name
+  *   of the function (as registered in the methods factory) associated with
+  *   the i-th SimpleDataMapping.
   *
   * - A sub-group called "AbstractPath", containing a vector of AbstractPath
   *   with the paths to the Block. The i-th path in this vector of
@@ -502,6 +505,7 @@ public:
              std::vector< std::unique_ptr< DataMapping > > & data_mappings ) {
   // TODO
  }
+
 
 /**@} ----------------------------------------------------------------------*/
 /*-------- METHODS DESCRIBING THE BEHAVIOR OF THE SimpleDataMapping --------*/
@@ -800,7 +804,7 @@ private:
  virtual void serialize( netCDF::NcGroup & group ,
                          const std::string & suffix ,
                          const Block::Subset & subset ) const {
-  auto dim = group.addDim( "Size" , subset.size() );
+  auto dim = group.addDim( "Size" + suffix , subset.size() );
   ::SMSpp_di_unipi_it::serialize( group , "Subset" + suffix ,
                                   netCDF::NcUint64() , dim , subset , false );
  }

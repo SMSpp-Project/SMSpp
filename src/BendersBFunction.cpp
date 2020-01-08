@@ -1742,6 +1742,8 @@ Function::FunctionValue BendersBFunction::compute_linearization_constant() {
   }
  }
 
+ // TODO add the term associated with the PolyhedralFunction
+
  return constant;
 }  // end( BendersBFunction::compute_linearization_constant )
 

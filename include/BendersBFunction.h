@@ -7,7 +7,7 @@
  *
  * \version 0.01
  *
- * \date 09 - 12 - 2019
+ * \date 09 - 01 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -72,28 +72,28 @@ namespace SMSpp_di_unipi_it
  *
  * 1) A "base" Block B, representing an optimization problem of the form
  *
- *     (B)    min { c(y) : w <= Ey <= z, y \in Y },
+ *        (B)    min { c(y) : w <= E(y) <= z, y \in Y },
  *
- *    where E is a matrix and w and z are vectors of appropriate sizes, and Y
- *    is a convex set. This will be the one, and only, sub-Block of
+ *    where c, w, and z are vectors of appropriate sizes, E is a function of
+ *    y, and Y is a convex set. This will be the one, and only, sub-Block of
  *    BendersBFunction (when "seen" as a Block).
  *
  * 2) A matrix A with m rows and n columns, a vector b with m rows, and a
  *    vector of pairs [ ( C_i , S_i ) ]_{i \in I}, each pair being formed by a
- *    pointer to a RowConstraint of Block B and a ConstraintSide, where I =
+ *    pointer to a RowConstraint of Block B and a #ConstraintSide, where I =
  *    {1, ..., m}.
  *
  *    Problem (B) would typically be associated with an original problem
  *
- *     (O)    min { d(x) + c(y) : g <= Fx + Ey <= h, x \in X, y \in Y }
+ *        (O)    min { d(x) + c(y) : g <= Fx + E(y) <= h, x \in X, y \in Y }
  *
  *    defined in terms of variables x and y. By reformulating problem (O) as
  *
- *     (O')   min { d(x) + phi(x) : x \in X },
+ *        (O')   min { d(x) + phi(x) : x \in X },
  *
  *    where
  *
- *     (P)    phi(x) = min { c(y) : (g - Fx) <= Ey <= (h - Fx), y \in Y },
+ *        (P)    phi(x) = min { c(y) : (g - Fx) <= E(y) <= (h - Fx), y \in Y },
  *
  *    we see that (P) assumes the form of (B) with w = g - Fx and z = h -
  *    Fx. The BendersBFunction represents the function phi whose underlying
@@ -110,7 +110,7 @@ namespace SMSpp_di_unipi_it
  *    the matrix A and the vector b such that M(x) = Ax + b. The i-th
  *    component of this mapping, M_i(x) = [ Ax + b ]_i, is associated with the
  *    left- or right-hand side (or both) of the RowConstraint of Block B
- *    pointed by C_i. The ConstraintSide S_i indicates which sides of the
+ *    pointed by C_i. The #ConstraintSide S_i indicates which sides of the
  *    RowConstraint (pointed by) C_i are affected, as follows:
  *
  *    - If S_i = eLHS, then M_i(x) gives the value of the left-hand side of
@@ -177,9 +177,9 @@ class BendersBFunction : public C05Function , public Block {
  /** Public enum representing the sides of a RowConstraint. */
 
  enum ConstraintSide {
-  eLHS =  0 ,  ///< the left-hand side of a RowConstraint
-  eRHS =  1 ,  ///< the right-hand side of a RowConstraint
-  eBoth = 2    ///< both sides of a RowConstraint
+  eLHS =  'L' ,  ///< the left-hand side of a RowConstraint
+  eRHS =  'R' ,  ///< the right-hand side of a RowConstraint
+  eBoth = 'B'    ///< both sides of a RowConstraint
   };
 
  using ConstraintVector = std::vector< RowConstraint * >;
@@ -1168,7 +1168,7 @@ class BendersBFunction : public C05Function , public Block {
   *
   * @param ci is the pointer to the RowConstraint for the new row.
   *
-  * @param si is the ConstraintSide for the new row.
+  * @param si is the #ConstraintSide for the new row.
   *
   * @param issueMod decides if and how the BendersBFunctionModAdd is issued,
   *        as described in Observer::make_par().
@@ -1271,10 +1271,10 @@ class BendersBFunction : public C05Function , public Block {
   *   matrix. The dimension is optional; if it is not provided then 0 (no
   *   rows) is assumed.
   *
-  * - The dimension "NumNonzero", of type NcUint64, containing the number of
-  *   nonzero entries in the A matrix. This dimension is optional and
-  *   determines in which format the matrix A is given. If this dimension is
-  *   present, then "NumRow" must also be. If "NumNonzero" is not present,
+  * - The dimension "NumNonzero", of type netCDF::NcUint64, containing the
+  *   number of nonzero entries in the A matrix. This dimension is optional
+  *   and determines in which format the matrix A is given. If this dimension
+  *   is present, then "NumRow" must also be. If "NumNonzero" is not present,
   *   then the A matrix is given as a dense matrix. If it is present, then the
   *   A matrix is given in a sparse format as defined by the variables "Row",
   *   "Column", and "A". During serialization, the following criterion is used
@@ -1282,17 +1282,17 @@ class BendersBFunction : public C05Function , public Block {
   *   its elements are nonzero, it is stored in sparse format; otherwise, it
   *   is stored in dense format.
   *
-  * - The variable "NumNonzeroAtRow", of type Uint64 and indexed over the
-  *   dimension "NumRow", containing the number of nonzero elements of the A
-  *   matrix in each row. This variable is mandatory if the dimension
+  * - The variable "NumNonzeroAtRow", of type netCDF::NcUint64 and indexed
+  *   over the dimension "NumRow", containing the number of nonzero elements
+  *   of the A matrix in each row. This variable is mandatory if the dimension
   *   "NumNonzero" is present. If "NumNonzero" is not present, then this
   *   variable is ignored. For each i in {0, ..., NumRow-1},
   *   NumNonzeroAtRow[i] is the number of nonzero elements in the i-th row of
   *   the A matrix.
   *
-  * - The variable "Column", of type Uint64 and indexed over the dimension
-  *   "NumNonzero", containing the column indices of the entries of the
-  *   matrix. This variable is mandatory if the dimension "NumNonzero" is
+  * - The variable "Column", of type netCDF::NcUint64 and indexed over the
+  *   dimension "NumNonzero", containing the column indices of the entries of
+  *   the matrix. This variable is mandatory if the dimension "NumNonzero" is
   *   present. If "NumNonzero" is not present, then this variable is
   *   ignored. For each k in {0, ..., NumNonzero-1}, Column[k] is the column
   *   index of the k-th nonzero entry of the A matrix, whose value is given by
@@ -1300,27 +1300,28 @@ class BendersBFunction : public C05Function , public Block {
   *   (i,j) and (p,q) are the entries of the k-th and l-th nonzero elements of
   *   A, respectively, with k < l, then i <= p.
   *
-  * - The variable "A", of type Double. This variable stores the values of the
-  *   elements of the A matrix of the mapping. If the dimension "NumNonzero"
-  *   is present, then this variable is indexed over this dimension and
-  *   contains the values of the (potentially) nonzero entries of the
-  *   matrix. In this case, A[k] is the value of the k-th nonzero entry, whose
-  *   column index is given by Column[k]. The nonzero elements of the matrix
-  *   are given in left-to-right top-to-bottom ("row-major") order. If the
-  *   dimension "NumNonzero" is not present, then "A" is indexed over both the
-  *   "NumRow" and "NumVar" dimensions (in this order); it contains the
-  *   (row-major) representation of the matrix A. This variable is optional
-  *   only if NumRow == 0.
+  * - The variable "A", of type netCDF::NcDouble. This variable stores the
+  *   values of the elements of the A matrix of the mapping. If the dimension
+  *   "NumNonzero" is present, then this variable is indexed over this
+  *   dimension and contains the values of the (potentially) nonzero entries
+  *   of the matrix. In this case, A[k] is the value of the k-th nonzero
+  *   entry, whose column index is given by Column[k]. The nonzero elements of
+  *   the matrix are given in left-to-right top-to-bottom ("row-major")
+  *   order. If the dimension "NumNonzero" is not present, then "A" is indexed
+  *   over both the "NumRow" and "NumVar" dimensions (in this order); it
+  *   contains the (row-major) representation of the matrix A. This variable
+  *   is optional only if NumRow == 0.
   *
-  * - The variable "b", of type double and indexed over the dimension
-  *   "NumRow", which contains the vector b. This variable is optional only if
-  *   NumRow == 0.
+  * - The variable "b", of type netCDF::NcDouble and indexed over the
+  *   dimension "NumRow", which contains the vector b. This variable is
+  *   optional only if NumRow == 0.
   *
-  * - The variable "ConstraintSide", of type Byte and indexed over the
-  *   dimension "NumRow", indicating, at position i, which side of the i-th
-  *   Constraint is affected. The possible values are 0 for the left-hand (or
-  *   lower bound) side, 1 for the right-hand (or upper bound) side, and 2 for
-  *   both sides. This variable is optional only if NumRow == 0.
+  * - The variable "ConstraintSide", of type netCDF::NcChar and indexed over
+  *   the dimension "NumRow", indicating, at position i, which side of the
+  *   i-th Constraint is affected. The possible values are 'L' for the
+  *   left-hand (or lower bound) side, 'R' for the right-hand (or upper bound)
+  *   side, and 'B' for both sides. This variable is optional only if NumRow
+  *   == 0.
   *
   * - All the dimensions and variables necessary to describe a vector of
   *   AbstractPath as described in the comments of
@@ -1332,10 +1333,10 @@ class BendersBFunction : public C05Function , public Block {
   *   matrix). These variables are optional only if NumRow == 0.
   *
   * - The sub-group "Block", containing the description of the inner
-  *   Block.
+  *   Block. The inner Block must have a CDASolver attached to it.
   *
   * - The sub-group "BlockConfig", containing the BlockConfig of the inner
-  *   Block.
+  *   Block. This sub-group is optional.
   *
   * - The sub-group "BlockSolver", containing the BlockSolverConfig of the
   *   inner Block.

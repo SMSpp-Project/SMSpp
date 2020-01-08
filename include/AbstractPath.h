@@ -180,8 +180,8 @@ namespace SMSpp_di_unipi_it
  * in this path necessarily has the 'V' or 'v' type, indicating this is a path
  * to a Variable. This Variable belongs to some Block and it is either static
  * or dynamic. This last node has all information needed to retrieve this
- * Variable from its father Block: a boolean indicating whether the Variable
- * is static or dynamic, the index of the group to which it belongs, and the
+ * Variable from its father Block: an indication of whether the Variable is
+ * static or dynamic, the index of the group to which it belongs, and the
  * index of the Variable within that group.
  *
  * Note: The index of a Variable (or Constraint) within a group is a single
@@ -232,7 +232,7 @@ namespace SMSpp_di_unipi_it
  *
  * Finally, a 'C' or 'c' node, which is associated with a Constraint, has
  * characteristics pertaining both the 'V' (and 'v') and the 'O' nodes. Like
- * the 'V' (and 'v') node, it has a boolean indicating whether it is static or
+ * the 'V' (and 'v') node, it has an indication of whether it is static or
  * not, the index of the group to which it belongs, and the index of the
  * Constraint within that group (exactly as defined for Variables). Like an
  * 'O' node, a 'C' or 'c' node is either preceded by a 'B' node (which is
