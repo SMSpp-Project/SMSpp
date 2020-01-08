@@ -229,7 +229,7 @@ class AbstractBlock : public Block {
   f_ub_cond( false ) , f_lb_cond( false ) ,
   f_1st_stat_var( 0 ) , f_1st_dyn_var( 0 ) ,
   f_1st_stat_cnst( 0 ) , f_1st_dym_cnst( 0 ) ,
-  f_res_obj( false ) , f_1st_sub_block( 0 ) {}
+  f_res_obj( false ) , f_1st_sub_block( 0 ) { }
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize the current :AbstractBlock out of netCDF::NcGroup
