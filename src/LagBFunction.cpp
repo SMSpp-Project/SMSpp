@@ -985,7 +985,39 @@ ComputeConfig * LagBFunction::get_ComputeConfig( bool all ,
 
  return( ccfg );
 
- } // end( LagBFunction::get_ComputeConfig() )  - - - - - - - - - - - - - - - -
+ } // end( LagBFunction::get_ComputeConfig() )  - - - - - - - - - - - - - - -
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+int LagBFunction::get_NzMat( void ) {
+
+ Index count = 0;
+ for( Index j = 0 ; j < CostMatrix.size() ; j++ )
+  for( auto it = CostMatrix[j].second.begin() ; it != CostMatrix[j].second.end()  ; )
+   count += CostMatrix[j].second.size();
+
+ return( count );
+ } // end( LagBFunction::get_NzMat() )  - - - - - - - - - - - - - - - - - - -
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+void LagBFunction::get_MatDesc( int *Abeg , int *Aind , double *Aval , const int strt ,
+		   int stp ) {
+
+ Index count = 0;
+ for( Index j = 0 ; j < CostMatrix.size() ; j++ ) {
+  Abeg[ j ] = count;
+  for( auto it = CostMatrix[j].second.begin() ; it != CostMatrix[j].second.end()  ; ) {
+   Index xIdx = is_active( it->first );
+   if( xIdx >= strt && xIdx < stp ) {
+	Aind[ count ] = xIdx;
+	Aval[ count++ ] = it->second;
+    }
+   }
+  }
+ Abeg[ CostMatrix.size() ] = count;
+
+ } // end( LagBFunction::get_MatDesc() )  - - - - - - - - - - - - - - - - - -
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -1314,7 +1346,7 @@ LagBFunction::Subset LagBFunction::update_columns( v_dual_pair & v_LagPairsair )
 
   }
 
- // save the original coefficients c_j of he variables x_j which no
+ // save the original coefficients c_j of the variables x_j which no
  // longer are active in (RCs), write them in (obj_B).  - - - - - - - - - -
 
  lf_obj->modify_coefficients( std::move(NCoef) , std::move(nms) );
