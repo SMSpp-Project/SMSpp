@@ -232,7 +232,7 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
  // process a FunctionMod produced by the PolyhedralFunction- - - - - - - - -
  /* This requires to patiently sift through the possible Modification types
   * (but only those derived from FunctionMod) to find what this Modification
-  * exactly, is and appropriately mirror the changes to the PolyhedralFunction
+  * exactly is, and appropriately mirror the changes to the PolyhedralFunction
   * (which in this case counts as the "physical representation") into the
   * "abstract" one, i.e., performing the corresponding changes on the LP. */
 
@@ -267,8 +267,8 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
     else
      close_channel( ichnl );
     }
+   return;
    }
-  return;
   }
 
  // C05FunctionModVarsRngd- - - - - - - - - - - - - - - - - - - - - - - - - -
