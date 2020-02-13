@@ -9,10 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.1] - 2020-02-10
 ### Fixed
 - Compilation error in unit tests.
-## [0.1] - 2020-02-10
+## [0.1.0] - 2020-02-10
 ### Added
 - First test release.
 
 [Unreleased]: https://gitlab.com/smspp/smspp/-/compare/0.1.1...develop
-[0.1.1]: https://gitlab.com/smspp/smspp/-/compare/0.1...0.1.1
-[0.1]: https://gitlab.com/smspp/smspp/-/tags/0.1
+[0.1.1]: https://gitlab.com/smspp/smspp/-/compare/0.1.0...0.1.1
+[0.1.0]: https://gitlab.com/smspp/smspp/-/tags/0.1.0
