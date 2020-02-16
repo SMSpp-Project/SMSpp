@@ -31,6 +31,7 @@ their custom path, see [here](https://gitlab.com/smspp/smspp/wikis/custom).
 ### Build and install
 
 Configure and build the library with:
+
 ```sh
 mkdir build
 cd build
@@ -39,6 +40,7 @@ make
 ```
 
 Optionally, install the library in the system with:
+
 ```sh
 sudo make install
 ```
@@ -46,6 +48,7 @@ sudo make install
 ## Usage
 
 After the library is configured and built, you can use it in your CMake project with:
+
 ```cmake
 find_package(SMSpp)
 target_link_libraries(<my_target> SMS++::SMSpp)
@@ -57,11 +60,9 @@ Some simple unit tests will be built with the library,
 to run them, launch `ctest` from the build directory.
 To disable them, configure the library with the option `-DBUILD_TESTING=OFF`.
 
-
 ## Contributing
 
 This section is not ready yet.
-
 
 ## Authors
 
@@ -86,8 +87,8 @@ This section is not ready yet.
 - **Utz-Uwe Haus**  
   Cray EMEA Research Lab
 
-
 ## License
 
 This code is provided free of charge under the [GNU Lesser General Public
-License version 3.0](https://opensource.org/licenses/lgpl-3.0.html).
+License version 3.0](https://opensource.org/licenses/lgpl-3.0.html) -
+see the [LICENSE](LICENSE) file for details.
