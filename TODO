@@ -33,28 +33,31 @@
 	as dicteted by the following enum:
 
  enum Modification_changes {
-  eModNothing     =   0;
+  eModNothing      =     0;
 
-  eModStatAbstVar =   1;
-  eModDyncAbstVar =   2;
-  eModStatPhysVar =   4;
-  eModDyncPhysVar =   8;
-  eModStatAbstCns =  16;
-  eModDyncAbstCns =  32;
-  eModStatPhysCns =  64;
-  eModDyncPhysCns = 128;
-  eModAbstObj     = 256;
-  eModPhysObj     = 512;
+  eModStatAbstVar  =     1;
+  eModDyncAbstVar  =     2;
+  eModStatPhysVar  =     4;
+  eModDyncPhysVar  =     8;
+  eModStatAbstCns  =    16;
+  eModDyncAbstCns  =    32;
+  eModStatPhysCns  =    64;
+  eModDyncPhysCns  =   128;
+  eModAbstObj      =   256;
+  eModPhysObj      =   512;
 
-  eModAbst        = 307;
-  eModPhys        = 716;
+  eModAbst         =   307;
+  eModPhys         =   716;
 
-  eModAnything    = 1023;
+  eModAnything     =  1023;
 
-  eFsblRegnInc    = 1024;
-  eFsblRegnDec    = 2048;
-  eObjcFnctInc    = 4096;
-  eObjcFnctDec    = 8192;
+  eFsblRegnInc     =  1024;
+  eFsblRegnDec     =  2048;
+  eDualFsblRegnInc =  4096;
+  eDualFsblRegnDec =  8192;
+  
+  eObjcFnctInc     = 16384;
+  eObjcFnctDec     = 32768;
 
   };
 
@@ -146,8 +149,8 @@
 	different aim: generically indicating what is the expected effect
 	of the Modification on the problem. Note that eFsblRegnInc and
 	eFsblRegnDec can both be set to 1, meaning "no idea what the
-	change actually was", and similarly for eObjcFnctInc and
-	eObjcFnctDec.
+	change actually was", and similarly for eDualFsblRegnInc and
+	ePrimalFsblRegnDec, and  eObjcFnctInc and eObjcFnctDec.
 
         There are specific issues for FunctionMod, since the Function is
 	used inside a FRowConstraint or FRealObjective.
