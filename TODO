@@ -1,22 +1,25 @@
-2018-03-22 [high] LagrangianBlock, LagrangianFunction
+2020-02-17 [high] LagrangianDualBlock, BendersDecompositionBlock
 
-	SMS++ is motivated by decomposition: we should verify that it
-	is indeed possible to simplify the development of decomposition
-	algorithms, starting from Lagrangian ones. The best would be to
-	have a C05Function::LagrangianFunction that has a Block with a
-	Solver attached and a bunch of free-floating functions (cf.
-	Observers) and implements the C05Function with all its methods and
-	modifications.
+	SMS++ is motivated by decomposition, and it offers LagBFunction and
+	BendersBFunction to handle a large part of the complications about
+	transforming an optimization problem into a C05Function (Lagrangian
+	or value one). However, the step from a :Block with appropriate
+	structure and the corresponding collection of C05Functions still
+	have to be done manually. LagrangianDualBlock and
+	BendersDecompositionBlock should automate this. The idea is that
+	they take an inner :Block with appropriate structure and "hyjack"
+	its sons, storing them into appropriate LagBFunction or
+	BendersBFunction that are then stuffed into newly constructed
+	AbstractBlock and put as its sons. The original :Block may *not*
+	be destroied but rather kept, with its sons now referring to the
+	LagrangianDualBlock / BendersDecompositionBlock as their father,
+	but the original :Block "still believing" they are its sons. This
+	may allow a user having a reference to the original :Block to keep
+	working with it and keeping using it without even realising that its
+	Lagrangian Dual / Benders Reformulation are being solved instead.
+	This is a possible alternative to having the :Block to manually
+	produce an appropriately structured R3Block of its.
 
-	Then, it seems it would make sense to have LagrangianBlock
-	defining the Lagrangian multipliers (with the corresponding
-	constraints, e.g. non-negativity, if needed) and having a bunch
-	of LagrangianFunctions to represent the Lagrangian Dual of
-	something, although I'm not 100% sure it is really needed.
-	One good reason for doing this is, if possible, to implement once
-	and for all at least some of the methods for passing information
-	back and forth between the original Block and its Lagrangian
-	Function/Dual.
 
 2019-11-01 [medium-high] Block and Solver specify which kinds of Modification
 	   they care about, and Modification expose both their "kind" and
@@ -163,9 +166,23 @@
 	the Modification has been constructed, unlike most other ones.
 
 
+2020-02-17 [medium-high] Using "names" in AbstractPath
+
+	Allow to specify names (= strings) in AbstractPath rather than
+	indices to indicate specific Block or groups of Constraint/Variable.
+	This may require to move the f_name field of BlockConfiguration into
+	Block and define appropriate get_string_name() and set_string_name()
+	methods. Then, in the vector form of AbstractPath one could have
+	*both* a vector of indices and one of names, with the assumption
+	that if either one is complete the other can be avoided, and that if
+	both are present then string names (if not "") take precedence over
+	indices.
+
+
 2019-08-26 [medium-high] implement [de]serialize() in ColVariableSolution
 
 	the name says it all
+
 
 2019-08-29 [medium-high] implement [de]serialize() in AbstractBlock
 
@@ -173,6 +190,7 @@
 	"true" models, this is needed. It is not simple, but it makes
 	AbstractBlock a lot more valuable since you don't always have to
 	build it up programmatically.
+
 
 2019-08-26 [medium-high] the Solver can return a Solution without the Block
 
