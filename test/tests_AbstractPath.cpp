@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 30 - 11 - 2019
+ * \date 17 - 02 - 2020
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -145,14 +145,65 @@ void test_paths( Block * block , Block * reference_block ) {
   assert( retrieved_block == nested_block );
   test_serialization( path );
  }
+
+ if( const auto pfb = dynamic_cast< PolyhedralFunctionBlock * >( block ) ) {
+  const auto & function = pfb->get_PolyhedralFunction();
+  auto path = AbstractPath::build_path( & function , reference_block );
+  const auto retrieved_function = AbstractPath::get_element< Function >
+   ( path , reference_block );
+  assert( retrieved_function == & function );
+  test_serialization( path );
+ }
+}
+
+/*--------------------------------------------------------------------------*/
+
+std::set< std::pair< Block * , Block * > > visited_blocks;
+
+bool visited( Block * block , Block * reference_block ) {
+ if( visited_blocks.find( std::make_pair( block , reference_block ) ) !=
+     visited_blocks.end() )
+  return true;
+ visited_blocks.insert( std::make_pair( block , reference_block ) );
+ return false;
 }
 
 /*--------------------------------------------------------------------------*/
 
 void test( Block * block , Block * reference_block ) {
+ if( visited( block , reference_block ) )
+  return;
+
  test_paths( block , reference_block );
+
+ if( const auto objective =
+     dynamic_cast< FRealObjective * >( block->get_objective() ) ) {
+  if( const auto function =
+      dynamic_cast< BendersBFunction * >( objective->get_function() ) ) {
+   if( const auto inner_block = function->get_inner_block() ) {
+    test( inner_block , reference_block );
+    test( inner_block , inner_block );
+    if( reference_block != block ) {
+     test( inner_block , block );
+    }
+   }
+  }
+  else if( const auto function =
+           dynamic_cast< LagBFunction * >( objective->get_function() ) ) {
+   if( const auto inner_block = function->get_inner_block() ) {
+    test( inner_block , reference_block );
+    test( inner_block , inner_block );
+    if( reference_block != block ) {
+     test( inner_block , block );
+    }
+   }
+  }
+ }
+
  for( const auto nested_block : block->get_nested_Blocks() ) {
   test( nested_block , reference_block );
+  if( block != reference_block )
+   test( nested_block , block );
   test( nested_block , nested_block );
  }
 }
@@ -177,9 +228,7 @@ void test_everyone_has_function( Block * block ) {
             } ,
             un_any_type< FRowConstraint >() ) );
 
-
  {
-  Function * function = nullptr;
   auto objective = static_cast< FRealObjective * >( block->get_objective() );
   if( objective ) {
    assert( objective->get_function() != nullptr );
@@ -192,11 +241,39 @@ void test_everyone_has_function( Block * block ) {
 
 /*--------------------------------------------------------------------------*/
 
+void print_tree( Block * block , std::string spaces = "" ) {
+ std::cout << block << std::endl;
+
+ if( const auto objective = dynamic_cast< FRealObjective * >( block->get_objective() ) ) {
+  if( const auto function = dynamic_cast< BendersBFunction * >( objective->get_function() ) ) {
+   if( const auto inner_block = function->get_inner_block() ) {
+    std::cout << spaces << "-> BendersBFunction " << function << std::endl;
+    std::cout << spaces + "   " << "-> ";
+    print_tree( inner_block , spaces + "   "  + "   " );
+   }
+  }
+  else if( const auto function = dynamic_cast< LagBFunction * >( objective->get_function() ) )
+   if( const auto inner_block = function->get_inner_block() ) {
+    std::cout << spaces << "-> LagBFunction " << function << std::endl;
+    std::cout << spaces + "   " << "-> ";
+    print_tree( inner_block , spaces + "   "  + "   " );
+   }
+ }
+
+ auto & nested_blocks = block->get_nested_Blocks();
+ if( ! nested_blocks.empty() ) {
+  for( auto son : nested_blocks ) {
+   std::cout << spaces << "-> ";
+   print_tree( son , spaces + "   " );
+  }
+ }
+}
+
+/*--------------------------------------------------------------------------*/
+
 void simple_full_test() {
 
  AbstractBlockRandomNumberGenerator generator;
-
- using Interval = ElementGenerator<>::Interval;
 
  generator.static_constraint_generator =
   new ElementGenerator( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 3 } ,
@@ -216,7 +293,8 @@ void simple_full_test() {
 
  generator.function_generator = new FunctionGenerator( { 0 , 2 } , 5 );
 
- generator.block_generator = new BlockGenerator( { 4 , 7 } , 6 );
+ generator.num_nested_block_generator =
+  new NumNestedBlockGenerator( { 4 , 7 } , 6 );
 
  AbstractBlockGenerator ab_generator( & generator );
  auto block = ab_generator.generate( 2 );
@@ -230,7 +308,7 @@ void simple_full_test() {
 
 /*--------------------------------------------------------------------------*/
 
-int main( int argc, char ** argv ) {
+int main() {
  simple_full_test();
  return 0;
 }

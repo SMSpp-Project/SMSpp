@@ -7,7 +7,7 @@
  *
  * \version 0.10
  *
- * \date 20 - 11 - 2019
+ * \date 17 - 02 - 2020
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -180,28 +180,28 @@ private:
 /*------------------------ CLASS IBlockGenerator ---------------------------*/
 /*--------------------------------------------------------------------------*/
 
-class IBlockGenerator {
+class INumNestedBlockGenerator {
 public:
- virtual ~IBlockGenerator() {}
+ virtual ~INumNestedBlockGenerator() {}
  virtual Int gen_num_nested_blocks() = 0;
 };
 
 /*--------------------------------------------------------------------------*/
-/*------------------------ CLASS BlockGenerator ----------------------------*/
+/*-------------------- CLASS NumNestedBlockGenerator -----------------------*/
 /*--------------------------------------------------------------------------*/
 
 template< class Generator = std::mt19937 , class S = Int >
-class BlockGenerator final : public IBlockGenerator {
+class NumNestedBlockGenerator final : public INumNestedBlockGenerator {
 
 public:
 
  using Interval = std::pair< Int , Int >;
 
- BlockGenerator( Interval num_nested_blocks , S seed ) :
+ NumNestedBlockGenerator( Interval num_nested_blocks , S seed ) :
   num_nested_blocks_dist( num_nested_blocks.first , num_nested_blocks.second ) ,
   generator ( seed ) {}
 
- ~BlockGenerator() {}
+ ~NumNestedBlockGenerator() {}
 
  virtual Int gen_num_nested_blocks() override {
   return num_nested_blocks_dist( generator );
@@ -227,13 +227,13 @@ public:
    IElementGenerator * dynamic_constraint_generator = nullptr ,
    IElementGenerator * dynamic_variable_generator = nullptr ,
    IFunctionGenerator * function_generator = nullptr ,
-   IBlockGenerator * block_generator = nullptr ) {
+   INumNestedBlockGenerator * num_nested_block_generator = nullptr ) {
   this->static_constraint_generator = static_constraint_generator;
   this->static_variable_generator = static_variable_generator;
   this->dynamic_constraint_generator = dynamic_constraint_generator;
   this->dynamic_variable_generator = dynamic_variable_generator;
   this->function_generator = function_generator;
-  this->block_generator = block_generator;
+  this->num_nested_block_generator = num_nested_block_generator;
  }
 
  ~AbstractBlockRandomNumberGenerator() {
@@ -242,7 +242,7 @@ public:
   delete dynamic_constraint_generator;
   delete dynamic_variable_generator;
   delete function_generator;
-  delete block_generator;
+  delete num_nested_block_generator;
  }
 
  AbstractBlockRandomNumberGenerator
@@ -262,7 +262,7 @@ public:
  IElementGenerator * dynamic_constraint_generator;
  IElementGenerator * dynamic_variable_generator;
  IFunctionGenerator * function_generator;
- IBlockGenerator * block_generator;
+ INumNestedBlockGenerator * num_nested_block_generator;
 };
 
 /*--------------------------------------------------------------------------*/
@@ -315,12 +315,13 @@ private:
   Function * function = nullptr;
   auto function_type = generator->function_generator->gen_function_type();
   if constexpr( ! std::is_base_of_v< FRealObjective , T > ) {
-   if( function_type == eLag ) {
+   if( function_type == eLag || function_type == eBenders ) {
     // The Observer of a LagBFunction must be an FRealObjective. So, we try to
     // use a different function for the given T element.
-    for( int i = 0 ; i < 100 && function_type == eLag ; ++i )
+    for( int i = 0 ; i < 100 && (function_type == eLag ||
+                                 function_type == eBenders) ; ++i )
      function_type = generator->function_generator->gen_function_type();
-    if( function_type == eLag )
+    if( function_type == eLag || function_type == eBenders )
      function_type = eLinear; // Use a LinearFunction
    }
   }
@@ -329,20 +330,25 @@ private:
     function = new LinearFunction();
     break;
    case( eBenders ): {
-    function = new BendersBFunction();
     if( depth > 0 ) {
-     auto block = new AbstractBlock( t->get_Block() );
+     function = new BendersBFunction();
+     auto block = new AbstractBlock();
      static_cast<BendersBFunction *>( function )->set_inner_block( block );
      generate( block , depth );
     }
+    else {
+     function = new LinearFunction();
+    }
+
     break;
    }
    case( eLag ): {
     if( depth > 0 ) {
      function = new LagBFunction( nullptr , t );
-     auto block = new AbstractBlock( t->get_Block() );
+     auto block = new AbstractBlock();
      block->set_objective( new FRealObjective( block , new LinearFunction() ) );
      static_cast<LagBFunction *>( function )->set_inner_block( block );
+     block->set_f_Block( static_cast<LagBFunction *>( function ) );
      generate( block , depth );
     }
     else {
@@ -356,13 +362,13 @@ private:
 
 /*--------------------------------------------------------------------------*/
 
- template < template < class , class > class C ,
-            class T , class A = std::allocator< T > >
+ template< template < class , class > class C ,
+           class T , class A = std::allocator< T > >
  typename std::enable_if_t< ! has_function_v< T > >
  generate_functions( const C< T , A > & , int ) {}
 
- template <template < class , class > class C ,
-           class T , class A = std::allocator< T > >
+ template<template < class , class > class C ,
+          class T , class A = std::allocator< T > >
  typename std::enable_if_t< has_function_v< T > >
  generate_functions( const C< T , A > & c , int depth ) {
   for( auto & e : c )
@@ -406,7 +412,7 @@ private:
                        int depth ) {
   if( ! generator ) return;
   auto num_groups = generator->gen_num_groups();
-  for( int i = 0 ; i < num_groups ; ++i ) {
+  for( decltype( num_groups ) i = 0 ; i < num_groups ; ++i ) {
    auto group_type = GroupType( generator->gen_group_type() );
    generate_group< T , dynamic , F >( group_type , add , generator , depth );
   }
@@ -544,11 +550,12 @@ private:
 /*--------------------------------------------------------------------------*/
 
  void generate_nested_blocks( AbstractBlock * block , int depth ) {
-  if( ! generator || ! generator->block_generator ) return;
+  if( ! generator || ! generator->num_nested_block_generator ) return;
   auto & v_Block = block->access_nested_Blocks();
-  auto num_nested_blocks = generator->block_generator->gen_num_nested_blocks();
+  auto num_nested_blocks = generator->num_nested_block_generator->
+   gen_num_nested_blocks();
   v_Block.reserve( num_nested_blocks );
-  for( int i = 0 ; i < num_nested_blocks ; ++i ) {
+  for( decltype( num_nested_blocks ) i = 0 ; i < num_nested_blocks ; ++i ) {
    auto nested_block = generate( depth );
    nested_block->set_f_Block( block );
    v_Block.push_back( nested_block );
