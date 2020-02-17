@@ -701,7 +701,7 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- Block* get_inner_block( void );
+ Block* get_inner_block( void ) const;
 
 /*--------------------------------------------------------------------------*/
 
