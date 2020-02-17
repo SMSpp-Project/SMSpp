@@ -36,7 +36,7 @@
  *
  * \version 0.10
  *
- * \date 10 - 12 - 2019
+ * \date 17 - 02 - 2020
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -120,7 +120,7 @@ namespace SMSpp_di_unipi_it
  * others have pointers to Block), these pointers cannot be serialized and
  * deserialized as such. Rather, an "abstract representation" of these
  * pointers has to be serialized, from which the pointers can be
- * reconstruced at deserialization time; this is the facility that
+ * reconstructed at deserialization time; this is the facility that
  * AbstractPath offers. The fact that the representation of the path is
  * independent from the reference Block facilitates its serialization and
  * deserialization, and makes it possible to use the same path to target
@@ -199,21 +199,14 @@ namespace SMSpp_di_unipi_it
  * either 'V' or 'v'.
  *
  * A 'B' node is associated with a Block and may contain the index of this
- * Block in the vector of nested Blocks of its father Block. There are two
- * cases in which this node does not have this index. In each of these cases,
- * the index has the value +Inf. These cases are:
- *
- * 1. The node is associated with the reference Block. Since the reference
- *    Block is the root of the three that contains the path, no allusion to
- *    the father of the reference Block must be made.
- *
- * 2. The Block with which the node is associated does not have a father
- *    Block. In this case, if the Block is not the reference Block, then it
- *    must be the inner Block of a BendersBFunction or that of a LagBFunction.
- *    The idea is that the BendersBFunction or LagBFunction then appear as the
- *    Function in a FRealObjective or FRowConstraint, which belong to a Block,
- *    and therefore the path can "go up" from there; in this case the previous
- *    node in the path has type 'O', 'C' or 'c'.
+ * Block in the vector of nested Blocks of its father Block. There is one case
+ * in which this node does not have this index, which is when the node is
+ * associated with the reference Block. Since the reference Block is the root
+ * of the three that contains the path, no allusion to the father of the
+ * reference Block must be made. In this case, the index has the value
+ * +Inf. If the index of a `B' node is not +Inf, then this node is necessarily
+ * preceded by another `B' node, which is associated with the father of that
+ * Block.
  *
  * If the index of a 'B' node is not +Inf, then this node is necessarily
  * preceded by another 'B' node, which is associated with the father of that
@@ -271,23 +264,23 @@ class AbstractPath {
 /** @name Private Static Fields
     @{ */
 
-/// Name of the netCDF dimension that stores the number of nodes in the path
-inline static const std::string path_dim_name = "PathDim";
+ /// Name of the netCDF dimension that stores the number of nodes in the path
+ inline static const std::string path_dim_name = "PathDim";
 
-/// Name of the netCDF dimension that stores the sum of the lengths of the paths
-inline static const std::string path_total_length_dim_name = "PathTotalLength";
+ /// Name of the netCDF dimension that stores the sum of the lengths of the paths
+ inline static const std::string path_total_length_dim_name = "PathTotalLength";
 
-/// Name of the netCDF variable that stores the starting positions of each path
-inline static const std::string path_start_name = "PathStart";
+ /// Name of the netCDF variable that stores the starting positions of each path
+ inline static const std::string path_start_name = "PathStart";
 
-/// Name of the netCDF variable that stores the array of types of nodes
-inline static const std::string node_type_name = "PathNodeTypes";
+ /// Name of the netCDF variable that stores the array of types of nodes
+ inline static const std::string node_type_name = "PathNodeTypes";
 
-/// Name of the netCDF variable that stores the array with group indices
-inline static const std::string group_index_name = "PathGroupIndices";
+ /// Name of the netCDF variable that stores the array with group indices
+ inline static const std::string group_index_name = "PathGroupIndices";
 
-/// Name of the netCDF variable that stores the array of element indices
-inline static const std::string element_index_name = "PathElementIndices";
+ /// Name of the netCDF variable that stores the array of element indices
+ inline static const std::string element_index_name = "PathElementIndices";
 
 /**@}-----------------------------------------------------------------------*/
 /*-------------------------- PRIVATE CLASSES -------------------------------*/
@@ -1092,7 +1085,7 @@ public:
                  std::is_base_of_v< Objective , T > ||
                  std::is_base_of_v< Variable , T > ,
                  "build_path: the element type must be one of: "
-                 "Block, Constraint, Function, Objective, Variable. " );
+                 "Block, Constraint, Function, Objective, Variable." );
 
   AbstractPath path;
 
@@ -1117,7 +1110,8 @@ public:
     path.add_node( Node::eObjective );
    }
    else if( dynamic_cast< PolyhedralFunctionBlock * >( observer ) ) {
-    path.add_node( Node::eBlock );
+    if( observer == reference_block )
+     path.add_node( Node::eBlock );
    }
    else
     throw( std::logic_error( "build_path: Unknown Observer of "
@@ -1221,12 +1215,15 @@ public:
     auto constraint = get_element< Constraint >
      ( block , node.is_static() , node.group_index , node.element_index );
 
-    if( const auto frowc = dynamic_cast<const FRowConstraint *>( constraint ) ) {
+    if( const auto frowc =
+        dynamic_cast< const FRowConstraint * >( constraint ) ) {
      auto function = frowc->get_function();
 
-     if( const auto benders = dynamic_cast<const BendersBFunction *>( function ) )
+     if( const auto benders =
+         dynamic_cast< const BendersBFunction * >( function ) )
       block = benders->get_inner_block();
-     else if( auto lag = dynamic_cast< LagBFunction  *>( function ) )
+     else if( auto lag =
+              dynamic_cast< LagBFunction * >( function ) )
       block = lag->get_inner_block();
      else // not found
       return nullptr;
@@ -1239,11 +1236,9 @@ public:
 
     if( const auto fro = dynamic_cast< const FRealObjective * >( objective ) ) {
      auto function = fro->get_function();
-
-     if( const auto benders = dynamic_cast<const BendersBFunction *>( function ) )
-      block = benders->get_inner_block();
-     else if( auto lag = dynamic_cast< LagBFunction * >( function ) )
-      block = lag->get_inner_block();
+     if( dynamic_cast< BendersBFunction * >( function ) ||
+         dynamic_cast< LagBFunction * >( function ) )
+      block = dynamic_cast< Block * >( function );
      else // not found
       return nullptr;
     }
@@ -1292,7 +1287,13 @@ public:
    }
    else if( node.type == Node::eBlock ) {
     // It must be a PolyhedralFunctionBlock
-    if( const auto pfb = dynamic_cast< PolyhedralFunctionBlock * >( block ) )
+    PolyhedralFunctionBlock * pfb = nullptr;
+    if( node.group_index == Inf< Index >() )
+     pfb = dynamic_cast< PolyhedralFunctionBlock * >( block );
+    else
+     pfb = dynamic_cast< PolyhedralFunctionBlock * >
+       ( block->get_nested_Blocks()[ node.group_index ] );
+    if( pfb )
      return & ( pfb->get_PolyhedralFunction() );
     else
      return nullptr;
@@ -1548,6 +1549,18 @@ public:
   }
 
   return true;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ void print() const {
+  for( Index i = 0 ; i < this->length() ; ++i ) {
+   std::cout << node_types[ i ] << "( " << group_indices[ i ] << " , " <<
+    element_indices[ i ] << " )";
+   if( i < this->length() - 1 )
+    std::cout << " -> ";
+  }
+  std::cout << std::endl;
  }
 
 };  // end( class( AbstractPath ) )
