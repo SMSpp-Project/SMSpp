@@ -9,7 +9,7 @@
  *
  * \version 0.1
  *
- * \date 09 - 01 - 2020
+ * \date 17 - 02 - 2020
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -352,42 +352,33 @@ public:
  /** Deserialize a SimpleDataMapping from a netCDF::NcGroup, with the
   * following format:
   *
-  * - The variable "FunctionName", whose type is netCDF::NcString, contains
+  * - The one-dimensional variable "SetSize", an array of type
+  *   netCDF::NcUint64 with two elements indicating the sizes (or types) of
+  *   the "SetFrom" and "SetTo" sets. SetSize[0] indicates the size (or type)
+  *   of the "SetFrom" set and SetSize[1] indicates the size (or type) of the
+  *   "SetTo" set. For each i in {0,1}, if SetSize[i] == 0, then the
+  *   corresponding set is a Range. Otherwise, if SetSize[i] != 0, then the
+  *   corresponding set is a Subset whose size is SetSize[i]. Notice,
+  *   therefore, that SetSize[i] is not the size of the corresponding set when
+  *   SetSize[i] == 0. In this case, it only indicates that the set is a
+  *   Range, whose size (and elements) can be determined by the "SetElements"
+  *   variable. This variable is optional. If it is not provided, then the
+  *   "SetFrom" and "SetTo" sets are assumed to be Range.
+  *
+  * - The one-dimensional variable "SetElements", of type netCDF::NcUint64,
+  *   containing the concatenation of the representations of the sets
+  *   "SetFrom" and "SetTo". A Subset is represented by a sequence of indices
+  *   (which are the elements of the Subset); while a Range is represented by
+  *   two indices "a" and "b" such that the Range set is given by the integers
+  *   in the closed-open interval [a, b). For instance, if "SetFrom" is the
+  *   Subset {3, 6, 8} and "SetTo" is the Range [2, 5), then "SetElements"
+  *   would be the array (3, 6, 8, 2, 5).
+  *
+  * - The variable "FunctionName", whose type is netCDF::NcString, containing
   *   the name of the function as it is registered in the methods factory.
   *
-  * - All the dimensions and variables that are necessary to describe an
-  *   AbstractPath to the caller as specified in the comments to
-  *   AbstractPath::deserialize().
-  *
-  * - All that is necessary to describe the SetFrom set. If SetFrom is a
-  *   Range, then this set is specified by the variables "FirstFrom" and
-  *   "SecondFrom", both of type netCDF::NcUint64, which contain the limits of
-  *   the closed-open interval defining the Range. So, if the Range is the set
-  *   [a, b), then FirstFrom must contain "a" and SecondFrom must contain
-  *   "b". If SetFrom is a Subset, then this set is specified by the dimension
-  *   "SizeFrom" indicating the size of the set and the one-dimensional
-  *   variable "SubsetFrom", of type netCDF::NcUint64 and indexed over
-  *   "SizeFrom", containing the elements of the set.
-  *
-  * - All that is necessary to describe the SetTo set. Its representation is
-  *   the same as that of the SetFrom set, except for the names of the
-  *   variables, which should be "FirstTo" and "SecondTo" if SetTo is a Range,
-  *   and "SubsetTo" if the set is a Subset (accompanied by the dimension
-  *   "SizeTo"). This set is optional. If it is not provided, then the full
-  *   set of indices [ 0 , N ) is considered, where N is the size of the
-  *   SetFrom set.
-  *
-  * - The attribute "TemplateParameterTypes" is a string with three characters
-  *   that indicate the types of the template parameters of this class. The
-  *   first and second characters indicate the type of the SetFrom and SetTo
-  *   template parameters. Each of these two first characters can be either
-  *   'R', indicating the set has type Block::Range, or 'S', indicating the
-  *   set has type Block::Subset. The third character indicates the type of
-  *   the data that this SimpleDataMapping sets. This character can be either
-  *   'I', indicating the type of the data is int, or 'D', indicating the type
-  *   of the data is double. This variable is optional. If it is not present,
-  *   then "RRD" is considered, meaning that the SetFrom and SetTo sets are
-  *   Range and the type of the data is double.
+  * - The group "AbstractPath" containing the description of the AbstractPath
+  *   representing the path to the caller object.
   *
   * @param group The netCDF::NcGroup from which to read the data.
   *
@@ -398,45 +389,81 @@ public:
  virtual void deserialize( const netCDF::NcGroup & group ,
                            Block * block_reference ) override {
 
+  // FunctionName
+
   std::string function_name;
   ::SMSpp_di_unipi_it::deserialize< std::string >( group , "FunctionName" ,
                                                    & function_name , false );
   function = Block::get_method< F >( function_name );
 
-  if constexpr( std::is_base_of_v< Block , Caller > ) {
-   const auto path = AbstractPath::deserialize( group );
-   caller = AbstractPath::get_element< Block >( path , block_reference );
+  // AbstractPath
+
+  {
+   auto path_group = group.getGroup( "AbstractPath" );
+   if( path_group.isNull() )
+    std::logic_error( "SimpleDataMapping::deserialize: group 'AbstractPath' "
+                      "was not found." );
+
+   const auto path = AbstractPath::deserialize( path_group );
+
+   if constexpr( std::is_base_of_v< Function , Caller > )
+                caller = AbstractPath::get_element< Function >( path , block_reference );
+   else
+    caller = AbstractPath::get_element< Caller >( path , block_reference );
   }
 
-  this->deserialize( group , "From" , set_from , false );
+  // SetFrom and SetTo
 
-  ordered = true;
-  if( ! this->deserialize( group , "To" , set_to , true ) ) {
-   // SetTo was not specified. Therefore, we consider the set [0, N), where N
-   // is the size of the SetFrom set.
-   fill( set_to , cardinality( set_from ) );
-  }
-  else if constexpr( std::is_same_v< SetTo , Subset > ) {
-   ordered = std::is_sorted( std::begin( set_to ), std::end( set_to ) );
-   if constexpr( std::is_same_v< SetFrom , Subset > ) {
-     // Both SetFrom and SetTo are Subset. So, we can reorder them if we wish.
+  {
+   std::vector< Index > set_size;
+   ::SMSpp_di_unipi_it::deserialize( group , "SetSize" , set_size , false );
 
-     // If SetFrom is a Range and SetTo is an unordered Subset, then
-     // reordering SetTo means reordering Range (which is not possible; the
-     // Range would have to became a Subset, which is also not possible). So,
-     // it is possible to sort set_from and set_to only when they are both
-     // Subset.
-    if( ! ordered ) {
-     // TODO Should we sort the Subsets? Maybe not if one expects the same
-     // Subsets when the DataMapping is serialized. This could be an option of
-     // DataMapping.
-    }
+   if( set_size.size() != 2 )
+    throw( std::logic_error( "SimpleDataMapping::deserialize: array 'SetSize' "
+                             "must have size 2." ) );
+
+   std::vector< Index > set_elements;
+   ::SMSpp_di_unipi_it::deserialize( group , "SetElements" , set_elements , false );
+
+   Index next_index = 0;
+   if constexpr( std::is_same_v< SetFrom , Range > ) {
+    if( set_elements.size() < 3 )
+     throw( std::logic_error( "SimpleDataMapping::deserialize: invalid "
+                              "'SetElements' array." ) );
+    set_from = Range( set_elements[ 0 ] , set_elements[ 1 ] );
+    next_index = 2;
+   }
+   else {
+    if( set_elements.size() < set_size[ 0 ] + 1 )
+     throw( std::logic_error( "SimpleDataMapping::deserialize: invalid "
+                              "'SetElements' array." ) );
+    set_from.resize( set_size[ 0 ] );
+    for( Index i = 0; i < set_size[ 0 ]; ++i )
+     set_from[ i ] = set_elements[ i ];
+    next_index = set_size[ 0 ];
+   }
+
+   ordered = true;
+   if constexpr( std::is_same_v< SetTo , Range > ) {
+    if( set_elements.size() < next_index + 2 )
+     throw( std::logic_error( "SimpleDataMapping::deserialize: invalid "
+                              "'SetElements' array." ) );
+    set_to = Range( set_elements[ next_index ] , set_elements[ next_index + 1 ] );
+   }
+   else {
+    if( set_elements.size() < next_index + set_size[ 1 ] )
+     throw( std::logic_error( "SimpleDataMapping::deserialize: invalid "
+                              "'SetElements' array." ) );
+    set_to.resize( set_size[ 1 ] );
+    for( Index i = 0; i < set_size[ 1 ]; ++i )
+     set_to[ i ] = set_elements[ next_index + i ];
+    ordered = std::is_sorted( std::begin( set_to ), std::end( set_to ) );
    }
   }
 
   if( cardinality( set_from ) != cardinality( set_to ) ) {
-   throw( std::invalid_argument( "DataMapping::deserialize: SetFrom and SetTo "
-                                 "must have the same cardinality." ) );
+   throw( std::logic_error( "SimpleDataMapping::deserialize: 'SetFrom' and "
+                            "'SetTo' must have the same cardinality." ) );
   }
  }
 
@@ -552,23 +579,81 @@ public:
  virtual void serialize( netCDF::NcGroup & group ,
                          Block * block_reference ) const override {
 
+  // FunctionName
+
   auto function_name = Block::get_method_name( function );
   ::SMSpp_di_unipi_it::serialize< std::string >
    ( group , "FunctionName" , netCDF::NcString() , function_name );
 
-  if constexpr( std::is_base_of_v< Block , Caller > ) {
+  // AbstractPath
+
+  if constexpr( std::is_base_of_v< Function , Caller > ) {
+   const auto path = AbstractPath::build_path< Function >( caller ,
+                                                           block_reference );
+   auto path_group = group.addGroup( "AbstractPath" );
+   AbstractPath::serialize( path , path_group );
+  }
+  else {
    const auto path = AbstractPath::build_path< Caller >( caller ,
                                                          block_reference );
-   AbstractPath::serialize( path , group );
+   auto path_group = group.addGroup( "AbstractPath" );
+   AbstractPath::serialize( path , path_group );
   }
 
-  this->serialize( group , "From" , set_from );
-  this->serialize( group , "To" , set_to );
+  // SetFrom and SetTo
 
-  constexpr char template_parameter_types[3] =
-   { get_id< SetFrom >() , get_id< SetTo >() , get_id< DataType >() };
+  Index set_elements_size = 0;
+  std::vector< Index > set_size( 2 );
+  if constexpr( std::is_same_v< Range , SetFrom > ) {
+   set_size[ 0 ] = 0;
+   set_elements_size = 2;
+  }
+  else {
+   set_size[ 0 ] = set_from.size();
+   set_elements_size = set_from.size();
+  }
 
-  group.putAtt( "TemplateParameterTypes " , template_parameter_types );
+  if constexpr( std::is_same_v< Range , SetTo > ) {
+   set_size[ 1 ] = 0;
+   set_elements_size += 2;
+  }
+  else {
+   set_size[ 1 ] = set_to.size();
+   set_elements_size += set_to.size();
+  }
+
+  auto SetSize_dim = group.addDim( "SetSize_dim" , set_size.size() );
+
+  ::SMSpp_di_unipi_it::serialize( group , "SetSize" , netCDF::NcUint64() ,
+                                  SetSize_dim , set_size , false );
+
+  std::vector< Index > set_elements( set_elements_size );
+  Index next_index = 0;
+  if constexpr( std::is_same_v< Range , SetFrom > ) {
+   set_elements[ 0 ] = set_from.first;
+   set_elements[ 1 ] = set_from.second;
+   next_index = 2;
+  }
+  else {
+   for( Index i = 0; i < set_from.size(); ++i )
+    set_elements[ i ] = set_from[ i ];
+   next_index = set_from.size();
+  }
+
+  if constexpr( std::is_same_v< Range , SetTo > ) {
+   set_elements[ next_index ] = set_to.first;
+   set_elements[ next_index + 1 ] = set_to.second;
+  }
+  else {
+   for( Index i = 0; i < set_to.size(); ++i )
+    set_elements[ next_index + i ] = set_to[ i ];
+  }
+
+  auto SetElements_dim = group.addDim( "SetElements_dim" ,
+                                       set_elements.size() );
+
+  ::SMSpp_di_unipi_it::serialize( group , "SetElements" , netCDF::NcUint64() ,
+                                  SetElements_dim , set_elements , false );
  }
 
 /*--------------------------------------------------------------------------*/
