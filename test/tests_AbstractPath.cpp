@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 20 - 11 - 2019
+ * \date 30 - 11 - 2019
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -34,6 +34,16 @@ using namespace SMSpp_di_unipi_it::tests;
 /*------------------------------ FUNCTIONS ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+void test_serialization( const AbstractPath & path ) {
+ netCDF::NcFile ncFile( "ncfile_path_test.txt" , netCDF::NcFile::replace );
+ auto group = ncFile.addGroup("Path");
+ AbstractPath::serialize( path , group );
+ const auto deserialized_path = AbstractPath::deserialize( group );
+ assert( path == deserialized_path );
+}
+
+/*--------------------------------------------------------------------------*/
+
 void test_paths( Block * block , Block * reference_block ) {
 
  for( const auto & group : block->get_static_variables() )
@@ -43,6 +53,7 @@ void test_paths( Block * block , Block * reference_block ) {
              auto path = AbstractPath::build_path( & v , reference_block );
              assert( & v == AbstractPath::get_element< Variable >
                      ( path , reference_block ) );
+             test_serialization( path );
             } ,
             un_any_type< ColVariable >() ) );
 
@@ -54,6 +65,7 @@ void test_paths( Block * block , Block * reference_block ) {
              auto path = AbstractPath::build_path( & v , reference_block );
              assert( & v == AbstractPath::get_element< Constraint >
                      ( path , reference_block ) );
+             test_serialization( path );
              }
 
              {
@@ -61,6 +73,7 @@ void test_paths( Block * block , Block * reference_block ) {
              auto path = AbstractPath::build_path( function , reference_block );
              assert( function == AbstractPath::get_element< Function >
                      ( path , reference_block ) );
+             test_serialization( path );
              }
             } ,
             un_any_type< FRowConstraint >() ) );
@@ -72,6 +85,7 @@ void test_paths( Block * block , Block * reference_block ) {
              auto path = AbstractPath::build_path( & v , reference_block );
              assert( & v == AbstractPath::get_element< Variable >
                      ( path , reference_block ) );
+             test_serialization( path );
             } ,
             un_any_type< ColVariable >() ) );
 
@@ -83,6 +97,7 @@ void test_paths( Block * block , Block * reference_block ) {
              auto path = AbstractPath::build_path( & v , reference_block );
              assert( & v == AbstractPath::get_element< Constraint >
                      ( path , reference_block ) );
+             test_serialization( path );
              }
 
              {
@@ -90,6 +105,7 @@ void test_paths( Block * block , Block * reference_block ) {
              auto path = AbstractPath::build_path( function , reference_block );
              assert( function == AbstractPath::get_element< Function >
                      ( path , reference_block ) );
+             test_serialization( path );
              }
             } ,
             un_any_type< FRowConstraint >() ) );
@@ -99,6 +115,7 @@ void test_paths( Block * block , Block * reference_block ) {
   auto path = AbstractPath::build_path( objective , reference_block );
   auto e = AbstractPath::get_element< Objective >( path , reference_block );
   assert( objective == e );
+  test_serialization( path );
  }
 
  {
@@ -110,6 +127,7 @@ void test_paths( Block * block , Block * reference_block ) {
   auto path = AbstractPath::build_path( function , reference_block );
   auto e = AbstractPath::get_element< Function >( path , reference_block );
   assert( function == e );
+  test_serialization( path );
  }
 
  {
@@ -117,6 +135,7 @@ void test_paths( Block * block , Block * reference_block ) {
   const auto retrieved_block = AbstractPath::get_element< Block >
    ( path , reference_block );
   assert( retrieved_block == block );
+  test_serialization( path );
  }
 
  for( const auto nested_block : block->get_nested_Blocks() ) {
@@ -124,6 +143,7 @@ void test_paths( Block * block , Block * reference_block ) {
   const auto retrieved_block = AbstractPath::get_element< Block >
    ( path , reference_block );
   assert( retrieved_block == nested_block );
+  test_serialization( path );
  }
 }
 
@@ -131,8 +151,10 @@ void test_paths( Block * block , Block * reference_block ) {
 
 void test( Block * block , Block * reference_block ) {
  test_paths( block , reference_block );
- for( const auto nested_block : block->get_nested_Blocks() )
+ for( const auto nested_block : block->get_nested_Blocks() ) {
   test( nested_block , reference_block );
+  test( nested_block , nested_block );
+ }
 }
 
 /*--------------------------------------------------------------------------*/
