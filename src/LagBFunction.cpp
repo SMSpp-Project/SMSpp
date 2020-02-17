@@ -962,8 +962,7 @@ Function::FunctionValue LagBFunction::get_linearization_constant(
 
 /*--------------------------------------------------------------------------*/
 
-Block* LagBFunction::get_inner_block( void ) {
-
+Block* LagBFunction::get_inner_block( void ) const {
  return( v_Block[0] );
  }
 
