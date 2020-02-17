@@ -1222,8 +1222,8 @@ public:
      if( const auto benders =
          dynamic_cast< const BendersBFunction * >( function ) )
       block = benders->get_inner_block();
-     else if( auto lag =
-              dynamic_cast< LagBFunction * >( function ) )
+     else if( const auto lag =
+              dynamic_cast< const LagBFunction * >( function ) )
       block = lag->get_inner_block();
      else // not found
       return nullptr;
