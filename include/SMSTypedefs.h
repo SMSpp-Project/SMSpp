@@ -2040,7 +2040,7 @@ inline bool deserialize( const netCDF::NcGroup & group ,
 
     if( optional ) {
       std::vector<index> new_sizes( N , 0 );
-      array.reshape( new_sizes );
+      array.resize( new_sizes );
       return false;
     }
 
@@ -2052,7 +2052,7 @@ inline bool deserialize( const netCDF::NcGroup & group ,
   if( ncVar.getDimCount() == 0 ) {
     if( allow_scalar_var ) {
       std::vector<index> new_sizes( N , 1 );
-      array.reshape( new_sizes );
+      array.resize( new_sizes );
       ncVar.getVar( array.origin() );
       return true;
     }
@@ -2064,8 +2064,10 @@ inline bool deserialize( const netCDF::NcGroup & group ,
   }
 
   auto sizes_dimensions = get_sizes_dimensions( ncVar );
-
-  array.reshape( sizes_dimensions );
+  if ( sizes_dimensions.size() < array.num_dimensions() ) {
+   sizes_dimensions.resize(array.num_dimensions(), 1);
+  }
+  array.resize( sizes_dimensions );
 
   std::vector<std::size_t> start( sizes_dimensions.size() , 0 );
 

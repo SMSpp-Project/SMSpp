@@ -86,7 +86,7 @@
  *
  * \version 0.33
  *
- * \date 16 - 12 - 2019
+ * \date 09 - 01 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -4601,7 +4601,7 @@ class Block : public Observer {
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the functionassociated with the given name in the methods factory
+ /// returns the function associated with the given name in the methods factory
  /** This function returns a pointer to the adapter function associated with
   * the given \p name in the methods factory implied by the second dummy
   * parameter.
@@ -5074,13 +5074,13 @@ class Block : public Observer {
  template< class Const, unsigned long K >
  void add_static_constraint( boost::multi_array< Const , K > & newc ,
                              std::string && name = "" ,
-			     bool front = false  )
+			     bool front = false )
  {
   static_assert( std::is_base_of< Constraint, Const >::value,
                  "add_static_constraint: newc must inherit from Constraint" );
 
-  for( auto & c : newc )
-   c.set_Block( this );
+  for( auto i = newc.data() ; i < ( newc.data() + newc.num_elements() ) ; ++i )
+   i->set_Block( this );
 
   boost::multi_array< Const, K > * cnewc = &newc;
   if( front ) {
@@ -5229,8 +5229,8 @@ class Block : public Observer {
   static_assert( std::is_base_of< Variable, Var >::value,
                  "add_static_variable: newv must inherit from Variable" );
 
-  for( auto & v : newv )
-   v.set_Block( this );
+  for( auto i = newv.data() ; i < ( newv.data() + newv.num_elements() ) ; ++i )
+   i->set_Block( this );
 
   boost::multi_array< Var, K > * cnewv = &newv;
   if( front ) {
@@ -5386,8 +5386,8 @@ class Block : public Observer {
   static_assert( std::is_base_of< Constraint, Const >::value,
                "add_dynamic_constraint: newc must inherit from Constraint" );
 
-  for( auto & c : newc )
-   for( auto & j : c )
+  for( auto i = newc.data() ; i < ( newc.data() + newc.num_elements() ) ; ++i )
+   for( auto & j : *i )
     j.set_Block( this );
 
   boost::multi_array< std::list< Const >, K > * cnewc = &newc;
@@ -5545,8 +5545,8 @@ class Block : public Observer {
   static_assert( std::is_base_of< Variable, Var >::value,
                  "add_dynamic_variable: newv must inherit from Variable" );
 
-  for( auto & v : newv )
-   for( auto & j : v )
+  for( auto i = newv.data() ; i < ( newv.data() + newv.num_elements() ) ; ++i )
+   for( auto & j : *i )
     j.set_Block( this );
 
   boost::multi_array< std::list< Var >, K > * cnewv = &newv;

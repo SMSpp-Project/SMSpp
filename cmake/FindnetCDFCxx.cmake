@@ -52,6 +52,6 @@ if (netCDFCxx_FOUND)
                 netCDF::netCDFCxx PROPERTIES
                 IMPORTED_LOCATION "${netCDFCxx_LIBRARY}"
                 INTERFACE_INCLUDE_DIRECTORIES "${netCDFCxx_INCLUDE_DIR}"
-                INTERFACE_LINK_LIBRARIES "netcdf")
+                INTERFACE_LINK_LIBRARIES "netCDF::netcdf")
     endif ()
 endif ()

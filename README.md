@@ -31,6 +31,7 @@ their custom path, see [here](https://gitlab.com/smspp/smspp/wikis/custom).
 ### Build and install
 
 Configure and build the library with:
+
 ```sh
 mkdir build
 cd build
@@ -39,6 +40,7 @@ make
 ```
 
 Optionally, install the library in the system with:
+
 ```sh
 sudo make install
 ```
@@ -46,6 +48,7 @@ sudo make install
 ## Usage
 
 After the library is configured and built, you can use it in your CMake project with:
+
 ```cmake
 find_package(SMSpp)
 target_link_libraries(<my_target> SMS++::SMSpp)
@@ -59,7 +62,7 @@ To disable them, configure the library with the option `-DBUILD_TESTING=OFF`.
 
 ## Contributing
 
-This section is not ready yet (see license below).
+This section is not ready yet.
 
 ## Authors
 
@@ -86,24 +89,6 @@ This section is not ready yet (see license below).
 
 ## License
 
-This code is provided free of charge for academic purposes under the
-"academic license": see the file[`doc/academicl.txt`](doc/academicl.txt) for further details. Because
-the code is currently in the early stages of its development we prefer a
-stricter licensing regime w.r.t. LGPL in order to discourage too early
-fragmentation of the code. Thus, you can make changes, but we strongly suggest
-that you do not distribute any modified version (although you are legally
-allowed to within the terms of the license) without prior agreement with the
-original developers; if your changes make good sense, please allow us to
-incorporate them in the standard release. Yet, it is foreseen that the license
-will be moved to LGPL as soon as the code is deemed stable enough to be widely
-distributed.
-
-## Disclaimer
-
-The code is currently provided free of charge for academic purposes only.
-As such, it is provided "*as is*", without any explicit or implicit warranty
-that it will properly behave or it will suit your needs. The Authors of
-the code cannot be considered liable, either directly or indirectly, for
-any damage or loss that anybody could suffer for having used it. More
-details about the non-warranty attached to this code are available in the
-license description file.
+This code is provided free of charge under the [GNU Lesser General Public
+License version 3.0](https://opensource.org/licenses/lgpl-3.0.html) -
+see the [LICENSE](LICENSE) file for details.
