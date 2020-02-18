@@ -185,27 +185,116 @@ public:
 };  // end( class( DataMapping ) )
 
 /*--------------------------------------------------------------------------*/
+/*---------------------- CLASS SimpleDataMappingBase -----------------------*/
+/*--------------------------------------------------------------------------*/
+/*----------------------------- GENERAL NOTES ------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// SimpleDataMappingBase derives from DataMapping
+/**
+ * SimpleDataMappingBase is a class intended to be the base class for all
+ * SimpleDataMapping. It provides (pure virtual) function for setting the
+ * SetFrom and SetTo sets, the caller object, and the function associated with
+ * the SimpleDataMapping. See SimpleDataMapping for details.
+ */
+
+class SimpleDataMappingBase : public DataMapping {
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+public:
+
+/*--------------------------------------------------------------------------*/
+/*---------------------------- PUBLIC TYPES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Public Types
+ *  @{ */
+
+ using Index = Block::Index;
+
+/**@} ----------------------------------------------------------------------*/
+/*-------- METHODS DESCRIBING THE BEHAVIOR OF THE SimpleDataMapping --------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods describing the behavior of the SimpleDataMappingBase
+ *  @{ */
+
+ /** This function sets the elements of the SetFrom set. It receives the \p
+  * set_elements vector containing the elements defining the SetFrom set. If
+  * the SetFrom set is a Range, let say representing the interval [a, b), then
+  * \p set_elements must have "a" as its first element and "b" as its second
+  * element. If SetFrom set is a Subset, then \p set_elements contains the
+  * elements of the Subset.
+  *
+  * @param set_elements The vector containing the elements defining the
+  *        SetFrom set.
+  */
+ virtual void set_set_from( const std::vector< Index > & set_elements ) = 0;
+
+/*--------------------------------------------------------------------------*/
+
+ /** This function sets the elements of the SetTo set. It receives the \p
+  * set_elements vector containing the elements defining the SetTo set. If the
+  * SetTo set is a Range, let say representing the interval [a, b), then \p
+  * set_elements must have "a" as its first element and "b" as its second
+  * element. If SetTo set is a Subset, then \p set_elements contains the
+  * elements of the Subset.
+  *
+  * @param set_elements The vector containing the elements defining the
+  *        SetTo set.
+  */
+ virtual void set_set_to( const std::vector< Index > & set_elements ) = 0;
+
+/*--------------------------------------------------------------------------*/
+
+/** This function sets the caller object based on the given AbstractPath.
+ *
+ * @param path The AbstractPath from the reference Block to the caller
+ *        object.
+ *
+ * @param block_reference A pointer to the Block that serves as the reference
+ *        Block in the path to the caller object.
+ */
+ virtual void set_caller( const AbstractPath & path ,
+                          Block * block_reference ) = 0;
+
+/*--------------------------------------------------------------------------*/
+
+/** It sets the function associated with this SimpleDataMappingBase. The
+ * function is retrieved from the methods factory based on its name.
+ *
+ * @param function_name The name of the function as registered in the methods
+ *        factory.
+ */
+ virtual void set_function( const std::string & function_name ) = 0;
+
+/**@} ----------------------------------------------------------------------*/
+
+};  // end( class( SimpleDataMappingBase ) )
+
+/*--------------------------------------------------------------------------*/
 /*------------------------ CLASS SimpleDataMapping -------------------------*/
 /*--------------------------------------------------------------------------*/
 /*----------------------------- GENERAL NOTES ------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-/// SimpleDataMapping derives from DataMapping
+/// SimpleDataMapping derives from SimpleDataMappingBase
 /**
- * SimpleDataMapping is a template class that derives from DataMapping and is
- * used to define some common kinds of data mapping. We define two vectors:
- * the large one and the small one. The large vector refers to the vector that
- * is given as input to the set_data() method. This is the vector containing
- * all the data that can be used by the SimpleDataMapping. The small vector is
- * a vector formed by a subset of the elements of the large vector. This is
- * the vector that will effectively be used to perform some computation. This
- * computation is typically the task of changing the data of some object based
- * on this small vector. There is a mapping defined by the SetFrom set that
- * specifies which elements of the large vector are used to compose the small
- * vector. This SetFrom set contains the indices of these elements in the
- * large vector. The small vector is the one that will typically impact the
- * data of some object. The SetTo set can be used to specify which part of
- * this data is affected.
+ * SimpleDataMapping is a template class that derives from
+ * SimpleDataMappingBase and is used to define some common kinds of data
+ * mapping. We define two vectors: the large one and the small one. The large
+ * vector refers to the vector that is given as input to the set_data()
+ * method. This is the vector containing all the data that can be used by the
+ * SimpleDataMapping. The small vector is a vector formed by a subset of the
+ * elements of the large vector. This is the vector that will effectively be
+ * used to perform some computation. This computation is typically the task of
+ * changing the data of some object based on this small vector. There is a
+ * mapping defined by the SetFrom set that specifies which elements of the
+ * large vector are used to compose the small vector. This SetFrom set
+ * contains the indices of these elements in the large vector. The small
+ * vector is the one that will typically impact the data of some object. The
+ * SetTo set can be used to specify which part of this data is affected.
  *
  * As an example, consider the case in which the large vector contains data
  * related to costs and capacities of arcs of a network. Suppose this network
@@ -283,7 +372,7 @@ public:
 
 template< class SetFrom = Block::Range , class SetTo = Block::Range ,
           class DataType = double , class Caller = Block >
-class SimpleDataMapping : public DataMapping {
+class SimpleDataMapping : public SimpleDataMappingBase {
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
@@ -297,7 +386,6 @@ public:
 /** @name Public Types
  *  @{ */
 
- using Index = Block::Index;
  using Range = Block::Range;
  using Subset = Block::Subset;
 
@@ -635,6 +723,50 @@ public:
   this->caller = caller;
  }
 
+/*--------------------------------------------------------------------------*/
+
+ virtual void set_set_from( const std::vector< Index > & set_elements )
+  override {
+  if constexpr( std::is_base_of_v< Range , SetFrom > ) {
+   if( set_elements.size() < 2 )
+    throw( std::invalid_argument
+           ( "SimpleDataMapping::set_set_from(): the size of 'set_elements' "
+             "must be at least two.") );
+   set_from = Range( set_elements[ 0 ] , set_elements[ 1 ] );
+  }
+  else {
+   set_from = Subset( set_elements );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ virtual void set_set_to( const std::vector< Index > & set_elements ) override {
+  if constexpr( std::is_base_of_v< Range , SetTo > ) {
+   if( set_elements.size() < 2 )
+    throw( std::invalid_argument
+           ( "SimpleDataMapping::set_set_to(): the size of 'set_elements' "
+             "must be at least two.") );
+   set_to = Range( set_elements[ 0 ] , set_elements[ 1 ] );
+  }
+  else {
+   set_to = Subset( set_elements );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ virtual void set_caller( const AbstractPath & path , Block * block_reference )
+  override {
+  caller = AbstractPath::get_element< Caller >( path , block_reference );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ virtual void set_function( const std::string & function_name ) override {
+  function = Block::get_method< F >( function_name );
+ }
+
 /**@} ----------------------------------------------------------------------*/
 /*-------- METHODS FOR READING THE DATA OF THE SimpleDataMapping -----------*/
 /*--------------------------------------------------------------------------*/
@@ -935,6 +1067,7 @@ public:
 /*---------------------------- PUBLIC TYPES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+ using Index = Block::Index;
  using Range = Block::Range;
  using Subset = Block::Subset;
 
@@ -983,7 +1116,8 @@ public:
   * @return A pointer to the SimpleDataMapping that was constructed.
   */
 
- static DataMapping * new_SimpleDataMapping( const std::string & types ) {
+ static SimpleDataMappingBase * new_SimpleDataMapping
+ ( const std::string & types ) {
 
   if( types.size() == 4 && types[ 3 ] == 'F' ) {
    const auto t = types.substr( 0, 3 );
@@ -1094,12 +1228,128 @@ public:
   * @param group The NcGroup that contains the description of the
   *              SimpleDataMappings to be deserialized.
   *
-  * @return A vector with the SimpleDataMapping.
+  * @param data_mappings The vector to which the pointers to the
+  *        SimpleDataMapping will be added.
+  *
+  * @param block_reference The pointer to the reference Block that is used for
+  *        obtaining the pointer to the caller together with its AbstractPath.
   */
 
- static void vector_deserialize( const netCDF::NcGroup & group ,
-             std::vector< std::unique_ptr< DataMapping > > & data_mappings ) {
-  // TODO
+ static void vector_deserialize
+ ( const netCDF::NcGroup & group ,
+   std::vector< std::unique_ptr< DataMapping > > & data_mappings ,
+   Block * block_reference ) {
+
+  Index num_data_mappings;
+  ::SMSpp_di_unipi_it::deserialize_dim( group , "NumberDataMappings" ,
+                                        num_data_mappings , false );
+
+  auto data_type_var = group.getVar( "DataType" );
+  if( ! data_type_var.isNull() &&
+      ( data_type_var.getDimCount() != 1 ||
+        data_type_var.getDim( 0 ).getSize() != num_data_mappings ) )
+    throw( std::invalid_argument
+           ( "SimpleDataMappingFactory::vector_deserialize: 'DataType' must"
+             " be a one-dimensional array with size 'NumberDataMappings'." ) );
+
+  auto caller_type_var = group.getVar( "Caller" );
+  if( ! caller_type_var.isNull() &&
+      ( caller_type_var.getDimCount() != 1 ||
+        caller_type_var.getDim( 0 ).getSize() != num_data_mappings ) )
+    throw( std::invalid_argument
+           ( "SimpleDataMappingFactory::vector_deserialize: 'Caller' must"
+             " be a one-dimensional array with size 'NumberDataMappings'." ) );
+
+  auto function_name_var = group.getVar( "FunctionName" );
+  if( function_name_var.isNull() || function_name_var.getDimCount() != 1 ||
+      function_name_var.getDim( 0 ).getSize() != num_data_mappings )
+    throw( std::invalid_argument
+           ( "SimpleDataMappingFactory::vector_deserialize: 'FunctionName' must"
+             " be a one-dimensional array with size 'NumberDataMappings'." ) );
+
+  auto set_size_var = group.getVar( "SetSize" );
+  if( ! set_size_var.isNull() ) {
+   if( set_size_var.getDimCount() != 1 )
+    throw( std::invalid_argument
+           ( "SimpleDataMappingFactory::vector_deserialize: 'SetSize' must be "
+             "a one-dimensional array." ) );
+
+   if( set_size_var.getDim( 0 ).getSize() != 2 * num_data_mappings )
+    throw( std::invalid_argument
+           ( "SimpleDataMappingFactory::vector_deserialize: 'SetSize' must be "
+             "a one-dimensional array with size 2*NumberDataMappings." ) );
+  }
+
+  auto set_elements_var = group.getVar( "SetElements" );
+  if( set_elements_var.isNull() ) {
+   throw( std::invalid_argument( "SimpleDataMappingFactory::vector_deserialize:"
+                                 " 'SetElements' is not present." ) );
+  }
+
+  auto path_group = group.getGroup( "AbstractPath" );
+  if( path_group.isNull() )
+   throw( std::invalid_argument
+          ( "SimpleDataMappingFactory::vector_deserialize: group 'AbstractPath'"
+            " is not present." ) );
+
+  auto paths =  AbstractPath::vector_deserialize( path_group );
+
+  if( paths.size() != num_data_mappings )
+   throw( std::invalid_argument
+          ( "SimpleDataMappingFactory::vector_deserialize: group 'AbstractPath'"
+            " must contain 'NumberDataMappings' paths." ) );
+
+  Index next_index = 0;
+  for( Index i = 0 ; i < num_data_mappings ; ++i ) {
+
+   char set_from_type, set_to_type;
+   std::vector< Index > set_from, set_to;
+   {
+    Index set_from_size , set_to_size;
+    get_sets_type( set_size_var , set_from_type, set_to_type ,
+                   set_from_size , set_to_size , i );
+
+    if( set_from_size == 0 )
+     set_from.resize( 2 );
+    else
+     set_from.resize( set_from_size );
+
+    if( set_to_size == 0 )
+     set_to.resize( 2 );
+    else
+     set_to.resize( set_to_size );
+   }
+
+   set_elements_var.getVar( { next_index } , { set_from.size() } ,
+                            set_from.data() );
+   next_index += set_from.size();
+
+   set_elements_var.getVar( { next_index } , { set_to.size() } ,
+                            set_to.data() );
+   next_index += set_to.size();
+
+   // DataType
+   char data_type;
+   data_type_var.getVar( { i } , { 1 } , & data_type );
+
+   // Caller type
+   char caller_type;
+   caller_type_var.getVar( { i } , { 1 } , & caller_type );
+
+   // FunctionName
+   std::string function_name;
+   function_name_var.getVar( { i } , { 1 } , & function_name );
+
+   auto data_mapping = new_SimpleDataMapping( { set_from_type , set_to_type ,
+                                                data_type , caller_type } );
+
+   data_mapping->set_set_from( set_from );
+   data_mapping->set_set_to( set_to );
+   data_mapping->set_function( function_name );
+   data_mapping->set_caller( paths[ i ] , block_reference );
+
+   data_mappings.emplace_back( data_mapping );
+  }
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1162,7 +1412,7 @@ private:
  static void get_sets_type( const netCDF::NcGroup & group ,
                             char & set_from_type , char & set_to_type ) {
 
-  std::vector< Block::Index > set_size;
+  std::vector< Index > set_size;
   ::SMSpp_di_unipi_it::deserialize( group , "SetSize" , set_size , false );
 
   if( set_size.size() != 2 )
@@ -1172,6 +1422,24 @@ private:
   set_from_type = set_size[ 0 ] > 0 ? 'S' : 'R';
   set_to_type   = set_size[ 1 ] > 0 ? 'S' : 'R';
  }
+
+/*--------------------------------------------------------------------------*/
+
+ static void get_sets_type( const netCDF::NcVar & set_size_var ,
+                            char & set_from_type , char & set_to_type ,
+                            Index & set_from_size , Index & set_to_size ,
+                            const Index index ) {
+  std::vector< Index > set_size( 2 );
+  set_size_var.getVar( { 2 * index } , { 2 } , set_size.data() );
+
+  set_from_type = set_size[ 0 ] > 0 ? 'S' : 'R';
+  set_to_type   = set_size[ 1 ] > 0 ? 'S' : 'R';
+
+  set_from_size = set_size[ 0 ];
+  set_to_size   = set_size[ 1 ];
+ }
+
+/*--------------------------------------------------------------------------*/
 
 };  // end( class( SimpleDataMappingFactory ) )
 
