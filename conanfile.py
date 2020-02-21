@@ -8,7 +8,7 @@ class SmsppConan(ConanFile):
     topics = ("conan", "smspp")
     url = "https://gitlab.com/smspp/smspp"
     homepage = "https://gitlab.com/smspp/smspp"
-    license = "<Put the package license here>"  # TODO
+    license = "GPL-3.0-only"
     generators = "cmake"
 
     settings = "os", "arch", "compiler", "build_type"
