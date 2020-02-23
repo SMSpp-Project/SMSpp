@@ -38,6 +38,9 @@ class SmsppConan(ConanFile):
             '''conan_basic_setup()'''
         )
 
+    def configure(self):
+        self.options["boost"].header_only = True
+
     def _configure_cmake(self):
         cmake = CMake(self)
         cmake.definitions["BUILD_TESTING"] = False
