@@ -37,7 +37,7 @@
 #include "RowConstraint.h"
 #include "SMSTypedefs.h"
 #include "Solution.h"
-#include <math.h>
+#include <cmath>
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -1007,7 +1007,8 @@ void BendersBFunction::delete_rows( Subset && rows , bool ordered ,
  v_sides.erase
   ( std::remove_if( v_sides.begin() + rows.front() , v_sides.end() ,
                     []( ConstraintSide si ) {
-                     return( std::isnan( si ) ); } ) ,
+                     return( std::isnan< typename std::underlying_type
+                             < ConstraintSide >::type >( si ) ); } ) ,
     v_sides.end() );
 
  if( mod_type == C05FunctionMod::AllLinearizationChanged )
