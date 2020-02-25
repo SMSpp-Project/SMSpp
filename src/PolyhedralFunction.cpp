@@ -263,7 +263,7 @@ void PolyhedralFunction::rename_linearization( const Index current_name ,
 
  if( current_name >= v_glob.size() )
   throw( std::invalid_argument( "invalid global pool current_name" ) );
- if( v_glob[ current_name ] == Inf<Index>() )
+ if( v_glob[ current_name ] == Inf<int>() )
   throw( std::invalid_argument( "no current_name in global pool " ) );
  if( new_name >= v_glob.size() )
   throw( std::invalid_argument( "invalid global pool new_name" ) );
@@ -271,7 +271,7 @@ void PolyhedralFunction::rename_linearization( const Index current_name ,
  PolyhedralFunction::delete_linearization( new_name );
 
  v_glob[ new_name ] = v_glob[ current_name ];
- v_glob[ current_name ] = Inf<Index>();
+ v_glob[ current_name ] = Inf<int>();
  
  }  // end( PolyhedralFunction::rename_linearization )
 
@@ -282,7 +282,7 @@ void PolyhedralFunction::delete_linearization( const Index name )
  if( name >= v_glob.size() )
   throw( std::invalid_argument( "invalid global pool name" ) );
 
- if( v_glob[ name ] == Inf<Index>() )  // no item with that name
+ if( v_glob[ name ] == Inf<int>() )  // no item with that name
   return;                              // cowardly and silently return
 
  if( v_glob[ name ] < 0 ) {            // it is an aggregated item
@@ -298,7 +298,7 @@ void PolyhedralFunction::delete_linearization( const Index name )
    }
   }
 
- v_glob[ name ] = Inf<Index>();        // mark the item as deleted
+ v_glob[ name ] = Inf<int>();        // mark the item as deleted
 
  }  // end( PolyhedralFunction::delete_linearization )
 
@@ -1193,13 +1193,13 @@ void PolyhedralFunction::delete_rows( Range range , c_ModParam issueMod )
  // now search and mark as deleted the rows in the global pool
  for( auto & gn : v_glob ) {
   if( gn < 0 ) {       // an aggregated one
-   gn = Inf<Index>();  // kill it for sure
+   gn = Inf<int>();  // kill it for sure
    continue;
    }
 
   // look it up to see if it is one of the deleted ones
   if( ( gn >= range.first ) && ( gn < range.second ) ) {
-   gn = Inf<Index>();
+   gn = Inf<int>();
    stgchgd = true;
    }
   }
@@ -1274,14 +1274,14 @@ void PolyhedralFunction::delete_rows( Subset && rows , bool ordered ,
  // now search and mark as deleted the rows in the global pool
  for( auto & gn : v_glob ) {
   if( gn < 0 ) {       // an aggregated one
-   gn = Inf<Index>();  // kill it for sure
+   gn = Inf<int>();  // kill it for sure
    continue;
    }
 
   // look it up to see if it is one of the deleted ones
   auto it = std::lower_bound( rows.begin() , rows.end() , gn );
   if( ( it != rows.end() ) && ( *it == gn ) ) {
-   gn = Inf<Index>();
+   gn = Inf<int>();
    stgchgd = true;
    }
   }
@@ -1332,7 +1332,7 @@ void PolyhedralFunction::delete_row( c_Index i , c_ModParam issueMod )
   // now search and mark as deleted the row in the global pool
   for( auto & gi : v_glob ) {
    if( gi == i ) {
-    gi = Inf<Index>();
+    gi = Inf<int>();
     stgchgd = true;
     break;
     }
