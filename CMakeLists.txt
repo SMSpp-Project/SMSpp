@@ -32,6 +32,7 @@ target_sources(SMSpp PRIVATE
                src/ColVariableSolution.cpp
                src/Configuration.cpp
                src/Constraint.cpp
+               src/DataMapping.cpp
                src/DQuadFunction.cpp
                src/FRealObjective.cpp
                src/FRowConstraint.cpp
