@@ -176,7 +176,7 @@ class BendersBFunction : public C05Function , public Block {
  /// public enum representing the sides of a RowConstraint
  /** Public enum representing the sides of a RowConstraint. */
 
- enum ConstraintSide {
+ enum ConstraintSide : char {
   eLHS =  'L' ,  ///< the left-hand side of a RowConstraint
   eRHS =  'R' ,  ///< the right-hand side of a RowConstraint
   eBoth = 'B'    ///< both sides of a RowConstraint

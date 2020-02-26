@@ -248,10 +248,10 @@ class AbstractPath {
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 
- private:
+private:
 
 /*--------------------------------------------------------------------------*/
-/*---------------------------- PRIVATE TYPES -------------------------------*/
+/*----------------------------- PRIVATE TYPES ------------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Private Types
     @{ */
@@ -380,226 +380,8 @@ class AbstractPath {
 
  };
 
-/*--------------------------------------------------------------------------*/
-
- /// APnetCDF is a struct to store netCDF dimensions and variables of path
- /** This struct is used simply to store the netCDF dimensions and variables
-  * used to represent an AbstractPath or a vector of AbstractPath.
-  */
- struct APnetCDF {
-
-  /// Number of paths
-  Index NumPaths;
-
-  /// Optional dimension indicating the number of paths
-  netCDF::NcDim PathDim;
-
-  /// PathStart[i] = the index where the i-th path starts
-  netCDF::NcVar PathStart;
-
-  /// Sum of the lengths of all paths
-  netCDF::NcDim PathTotalLength;
-
-  /// Variable storing the types of the nodes
-  netCDF::NcVar PathNodeTypes;
-
-  /// Variable storing the group indices
-  netCDF::NcVar PathGroupIndices;
-
-  /// Variable storing the element indices
-  netCDF::NcVar PathElementIndices;
- };
-
 /**@} ----------------------------------------------------------------------*/
 /*----------------------------- PRIVATE METHODS ----------------------------*/
-/*--------------------------------------------------------------------------*/
-
- static APnetCDF pre_deserialize( const netCDF::NcGroup & group ) {
-  APnetCDF netCDFvars;
-  netCDFvars.NumPaths = 1;
-  netCDFvars.PathDim = group.getDim( path_dim_name );
-  netCDFvars.PathStart = group.getVar( path_start_name );
-  netCDFvars.PathNodeTypes = group.getVar( node_type_name );
-  netCDFvars.PathGroupIndices = group.getVar( group_index_name );
-  netCDFvars.PathElementIndices = group.getVar( element_index_name );
-
-  /* The dimension PathDim is optional. If it is not present, then there is
-   * only one path and PathStart is ignored. If PathDim is present, then it
-   * indicates the number of paths and PathStart must be present and indexed
-   * over PathDim. PathStart[i] is the index where the i-th path starts, for i
-   * in {0, ..., PathDim - 1}.
-   */
-
-  if( ! netCDFvars.PathDim.isNull() ) {
-   netCDFvars.NumPaths = netCDFvars.PathDim.getSize();
-
-   if( netCDFvars.PathStart.isNull() )
-    throw( std::invalid_argument( "AbstractPath::pre_deserialize: variable " +
-                                  path_start_name + " is not present in the "
-                                  "given group. " ) );
-
-   if( netCDFvars.PathStart.getDimCount() != 1 ||
-       netCDFvars.PathStart.getDim( 0 ) != netCDFvars.PathDim )
-    throw( std::invalid_argument( "AbstractPath::pre_deserialize: variable " +
-                                  path_start_name + " must be index over "
-                                  "dimension " + path_dim_name + "." ) );
-  }
-
-  if( netCDFvars.PathNodeTypes.isNull() ||
-      netCDFvars.PathGroupIndices.isNull() ||
-      netCDFvars.PathElementIndices.isNull() )
-   throw( std::invalid_argument( "AbstractPath::pre_deserialize: variables " +
-                                 node_type_name + ", " + group_index_name + ", "
-                                 "and " + element_index_name + " must all be "
-                                 "present in the given NcGroup." ) );
-
-  if( netCDFvars.PathNodeTypes.getDimCount() != 1 ||
-      netCDFvars.PathGroupIndices.getDimCount() != 1 ||
-      netCDFvars.PathElementIndices.getDimCount() != 1 )
-   throw( std::invalid_argument( "AbstractPath::pre_deserialize: variables " +
-                                 node_type_name + ", " + group_index_name + ", "
-                                 "and " + element_index_name + " must have "
-                                 "a single dimension." ) );
-
-  if( netCDFvars.PathNodeTypes.getDimCount() != 1 ||
-      netCDFvars.PathGroupIndices.getDimCount() != 1 ||
-      netCDFvars.PathElementIndices.getDimCount() != 1 )
-   throw( std::invalid_argument( "AbstractPath::pre_deserialize: variables " +
-                                 node_type_name + ", " + group_index_name + ", "
-                                 "and " + element_index_name + " must have "
-                                 "a single dimension." ) );
-
-  if( ( netCDFvars.PathNodeTypes.getDim( 0 ) !=
-        netCDFvars.PathGroupIndices.getDim( 0 ) ) ||
-      ( netCDFvars.PathNodeTypes.getDim( 0 ) !=
-        netCDFvars.PathElementIndices.getDim( 0 ) ) )
-   throw( std::invalid_argument( "AbstractPath::pre_deserialize: variables " +
-                                 node_type_name + ", " + group_index_name + ", "
-                                 "and " + element_index_name + " must be "
-                                 "indexed over the same dimension." ) );
-
-  return netCDFvars;
- }
-
-/*--------------------------------------------------------------------------*/
-
- /// deserialize the AbstractPath with given index
- /** This function deserializes the AbstractPath whose index is \p path_index
-  * from the given netCDF dimensions and variables in \p netCDFvars. The
-  * variables in \p netCDFvars may contain the description of a single
-  * AbstractPath or a vector of AbstractPath. If the dimension "PathDim" is
-  * not present, then \p netCDFvars contains the description of a single
-  * AbstractPath. In this case, \p path_index must be 0; otherwise, an
-  * exception is thrown. If the dimension "PathDim" is present, then it
-  * indicates the number N of stored AbstractPath. The value for \p path_index
-  * must be between 0 and N - 1; otherwise, an exception is thrown. Please
-  * refer to the comments of the other deserialize() function for a
-  * description of the format of an AbstractPath.
-  *
-  * @param path_index Index of the AbstractPath to be deserialized.
-  *
-  * @param netCDFvars The struct containing the netCDF dimensions and
-  *        variables described the AbstractPath.
-  *
-  * @return The AbstractPath with index \p path_index.
-  */
-
- static AbstractPath deserialize( Index path_index ,
-                                  const APnetCDF & netCDFvars ) {
-
-  Index path_start = 0;
-  Index path_end = netCDFvars.PathNodeTypes.getDim( 0 ).getSize();
-
-  if( ! netCDFvars.PathDim.isNull() ) { // a vector of AbstractPath
-   if( path_index >= netCDFvars.PathDim.getSize() )
-    throw( std::invalid_argument( "AbstractPath::deserialize: AbstractPath "
-                                  "number " + std::to_string( path_index ) +
-                                  " is not present in the given NcGroup." ) );
-
-   netCDFvars.PathStart.getVar( { path_index } , & path_start );
-
-   if( path_index < netCDFvars.PathDim.getSize() - 1 )
-    netCDFvars.PathStart.getVar( { path_index + 1 } , & path_end );
-
-
-   if( path_start > path_end )
-    throw( std::invalid_argument( "AbstractPath::deserialize: invalid "
-                                  "PathStart index." ) );
-  }
-  else if( path_index != 0 ) {
-   // There is only one path. So the path index must be 0.
-   throw( std::invalid_argument( "AbstractPath::deserialize: invalid path "
-                                 "index " + std::to_string( path_index ) + "."
-                                 "Given NcGroup has a single AbstractPath." ) );
-  }
-
-  const auto num_nodes = path_end - path_start;
-
-  AbstractPath path;
-  path.node_types.resize( num_nodes );
-  path.group_indices.resize( num_nodes );
-  path.element_indices.resize( num_nodes );
-
-  netCDFvars.PathNodeTypes.getVar( { path_start } , { num_nodes } ,
-                                   path.node_types.data() );
-  netCDFvars.PathGroupIndices.getVar( { path_start } , { num_nodes } ,
-                                      path.group_indices.data() );
-  netCDFvars.PathElementIndices.getVar( { path_start } , { num_nodes } ,
-                                        path.element_indices.data() );
-  return path;
- }
-
-/*--------------------------------------------------------------------------*/
-
- static void pre_serialize( const std::vector< AbstractPath > & paths ,
-                            APnetCDF & netCDFvars ,
-                            netCDF::NcGroup & group ) {
-
-  netCDFvars.NumPaths = paths.size();
-  netCDFvars.PathDim = group.addDim( path_dim_name , netCDFvars.NumPaths );
-  netCDFvars.PathStart = group.addVar( path_start_name , netCDF::NcUint64() ,
-                                       netCDFvars.PathDim );
-
-  Index total_length = 0;
-  for( Index i = 0 ; i < paths.size() ; ++i ) {
-   netCDFvars.PathStart.putVar( { i } , total_length );
-   total_length += paths[ i ].length();
-  }
-
-  netCDFvars.PathTotalLength = group.addDim( path_total_length_dim_name ,
-                                             total_length );
-
-  netCDFvars.PathNodeTypes = group.addVar( node_type_name , netCDF::NcChar() ,
-                                           netCDFvars.PathTotalLength );
-
-  netCDFvars.PathGroupIndices = group.addVar( group_index_name ,
-                                              netCDF::NcUint64() ,
-                                              netCDFvars.PathTotalLength );
-
-  netCDFvars.PathElementIndices = group.addVar( element_index_name ,
-                                                netCDF::NcUint64() ,
-                                                netCDFvars.PathTotalLength );
- }
-
-/*--------------------------------------------------------------------------*/
-
- static void serialize
- ( const AbstractPath & path , const Index path_index ,
-   APnetCDF & netCDFvars ) {
-
-  const auto num_nodes = path.length();
-
-  Index path_start;
-  netCDFvars.PathStart.getVar( { path_index } , & path_start );
-
-  netCDFvars.PathNodeTypes.putVar( { path_start } , { num_nodes } ,
-                                   path.node_types.data() );
-  netCDFvars.PathGroupIndices.putVar( { path_start } , { num_nodes } ,
-                                      path.group_indices.data() );
-  netCDFvars.PathElementIndices.putVar( { path_start } , { num_nodes } ,
-                                        path.element_indices.data() );
- }
-
 /*--------------------------------------------------------------------------*/
 
  template< class S , class T , unsigned long K >
@@ -1022,6 +804,47 @@ protected:
 /*--------------------------------------------------------------------------*/
 
 public:
+
+/*--------------------------------------------------------------------------*/
+/*--------------------------- PUBLIC CLASSES -------------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Public Classes
+    @{ */
+
+ /// APnetCDF is a struct to store netCDF dimensions and variables of path
+ /** This struct is used simply to store the netCDF dimensions and variables
+  * used to represent an AbstractPath or a vector of AbstractPath.
+  */
+ struct APnetCDF {
+
+  /// Number of paths
+  Index NumPaths;
+
+  /// Optional dimension indicating the number of paths
+  netCDF::NcDim PathDim;
+
+  /// PathStart[i] = the index where the i-th path starts
+  netCDF::NcVar PathStart;
+
+  /// Sum of the lengths of all paths
+  netCDF::NcDim PathTotalLength;
+
+  /// Variable storing the types of the nodes
+  netCDF::NcVar PathNodeTypes;
+
+  /// Variable storing the group indices
+  netCDF::NcVar PathGroupIndices;
+
+  /// Variable storing the element indices
+  netCDF::NcVar PathElementIndices;
+ };
+
+/**@}-----------------------------------------------------------------------*/
+/*--------------------------- PUBLIC CLASSES -------------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Public Methods
+    @{ */
+
  /// returns the length of this AbstractPath
  /** This function returns the length of this AbstractPath, i.e., the number
   * of nodes in the path.
@@ -1273,7 +1096,7 @@ public:
     auto constraint = get_element< FRowConstraint >
      ( block , node.is_static() , node.group_index , node.element_index );
     if( constraint )
-     return constraint->get_function();
+     return dynamic_cast< T * >( constraint->get_function() );
     else
      return nullptr;
    }
@@ -1281,7 +1104,7 @@ public:
     // It must be an FRealObjective
     auto objective = dynamic_cast< FRealObjective * >( block->get_objective() );
     if( objective )
-     return objective->get_function();
+     return dynamic_cast< T * >( objective->get_function() );
     else
      return nullptr;
    }
@@ -1294,7 +1117,7 @@ public:
      pfb = dynamic_cast< PolyhedralFunctionBlock * >
        ( block->get_nested_Blocks()[ node.group_index ] );
     if( pfb )
-     return & ( pfb->get_PolyhedralFunction() );
+     return dynamic_cast< T * >( & ( pfb->get_PolyhedralFunction() ) );
     else
      return nullptr;
    }
@@ -1350,7 +1173,7 @@ public:
   * description of the format used to represent a vector of AbstractPath in
   * netCDF.
   *
-  * param paths The vector of AbstractPath to be serialized.
+  * @param paths The vector of AbstractPath to be serialized.
   *
   * @param group The netCDF::NcGroup in which the vector of AbstractPath will
   *        be stored.
@@ -1535,6 +1358,216 @@ public:
   return paths;
  }
 
+ static APnetCDF pre_deserialize( const netCDF::NcGroup & group ) {
+  APnetCDF netCDFvars;
+  netCDFvars.NumPaths = 1;
+  netCDFvars.PathDim = group.getDim( path_dim_name );
+  netCDFvars.PathStart = group.getVar( path_start_name );
+  netCDFvars.PathNodeTypes = group.getVar( node_type_name );
+  netCDFvars.PathGroupIndices = group.getVar( group_index_name );
+  netCDFvars.PathElementIndices = group.getVar( element_index_name );
+
+  /* The dimension PathDim is optional. If it is not present, then there is
+   * only one path and PathStart is ignored. If PathDim is present, then it
+   * indicates the number of paths and PathStart must be present and indexed
+   * over PathDim. PathStart[i] is the index where the i-th path starts, for i
+   * in {0, ..., PathDim - 1}.
+   */
+
+  if( ! netCDFvars.PathDim.isNull() ) {
+   netCDFvars.NumPaths = netCDFvars.PathDim.getSize();
+
+   if( netCDFvars.PathStart.isNull() )
+    throw( std::invalid_argument( "AbstractPath::pre_deserialize: variable " +
+                                  path_start_name + " is not present in the "
+                                  "given group. " ) );
+
+   if( netCDFvars.PathStart.getDimCount() != 1 ||
+       netCDFvars.PathStart.getDim( 0 ) != netCDFvars.PathDim )
+    throw( std::invalid_argument( "AbstractPath::pre_deserialize: variable " +
+                                  path_start_name + " must be index over "
+                                  "dimension " + path_dim_name + "." ) );
+  }
+
+  if( netCDFvars.PathNodeTypes.isNull() ||
+      netCDFvars.PathGroupIndices.isNull() ||
+      netCDFvars.PathElementIndices.isNull() )
+   throw( std::invalid_argument( "AbstractPath::pre_deserialize: variables " +
+                                 node_type_name + ", " + group_index_name + ", "
+                                 "and " + element_index_name + " must all be "
+                                 "present in the given NcGroup." ) );
+
+  if( netCDFvars.PathNodeTypes.getDimCount() != 1 ||
+      netCDFvars.PathGroupIndices.getDimCount() != 1 ||
+      netCDFvars.PathElementIndices.getDimCount() != 1 )
+   throw( std::invalid_argument( "AbstractPath::pre_deserialize: variables " +
+                                 node_type_name + ", " + group_index_name + ", "
+                                 "and " + element_index_name + " must have "
+                                 "a single dimension." ) );
+
+  if( netCDFvars.PathNodeTypes.getDimCount() != 1 ||
+      netCDFvars.PathGroupIndices.getDimCount() != 1 ||
+      netCDFvars.PathElementIndices.getDimCount() != 1 )
+   throw( std::invalid_argument( "AbstractPath::pre_deserialize: variables " +
+                                 node_type_name + ", " + group_index_name + ", "
+                                 "and " + element_index_name + " must have "
+                                 "a single dimension." ) );
+
+  if( ( netCDFvars.PathNodeTypes.getDim( 0 ) !=
+        netCDFvars.PathGroupIndices.getDim( 0 ) ) ||
+      ( netCDFvars.PathNodeTypes.getDim( 0 ) !=
+        netCDFvars.PathElementIndices.getDim( 0 ) ) )
+   throw( std::invalid_argument( "AbstractPath::pre_deserialize: variables " +
+                                 node_type_name + ", " + group_index_name + ", "
+                                 "and " + element_index_name + " must be "
+                                 "indexed over the same dimension." ) );
+
+  return netCDFvars;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// deserialize the AbstractPath with given index
+ /** This function deserializes the AbstractPath whose index is \p path_index
+  * from the given netCDF dimensions and variables in \p netCDFvars. The
+  * variables in \p netCDFvars may contain the description of a single
+  * AbstractPath or a vector of AbstractPath. If the dimension "PathDim" is
+  * not present, then \p netCDFvars contains the description of a single
+  * AbstractPath. In this case, \p path_index must be 0; otherwise, an
+  * exception is thrown. If the dimension "PathDim" is present, then it
+  * indicates the number N of stored AbstractPath. The value for \p path_index
+  * must be between 0 and N - 1; otherwise, an exception is thrown. Please
+  * refer to the comments of the other deserialize() function for a
+  * description of the format of an AbstractPath.
+  *
+  * @param path_index Index of the AbstractPath to be deserialized.
+  *
+  * @param netCDFvars The struct containing the netCDF dimensions and
+  *        variables describing the vector of AbstractPath.
+  *
+  * @return The AbstractPath with index \p path_index.
+  */
+
+ static AbstractPath deserialize( Index path_index ,
+                                  const APnetCDF & netCDFvars ) {
+
+  Index path_start = 0;
+  Index path_end = netCDFvars.PathNodeTypes.getDim( 0 ).getSize();
+
+  if( ! netCDFvars.PathDim.isNull() ) { // a vector of AbstractPath
+   if( path_index >= netCDFvars.PathDim.getSize() )
+    throw( std::invalid_argument( "AbstractPath::deserialize: AbstractPath "
+                                  "number " + std::to_string( path_index ) +
+                                  " is not present in the given NcGroup." ) );
+
+   netCDFvars.PathStart.getVar( { path_index } , & path_start );
+
+   if( path_index < netCDFvars.PathDim.getSize() - 1 )
+    netCDFvars.PathStart.getVar( { path_index + 1 } , & path_end );
+
+
+   if( path_start > path_end )
+    throw( std::invalid_argument( "AbstractPath::deserialize: invalid "
+                                  "PathStart index." ) );
+  }
+  else if( path_index != 0 ) {
+   // There is only one path. So the path index must be 0.
+   throw( std::invalid_argument( "AbstractPath::deserialize: invalid path "
+                                 "index " + std::to_string( path_index ) + "."
+                                 "Given NcGroup has a single AbstractPath." ) );
+  }
+
+  const auto num_nodes = path_end - path_start;
+
+  AbstractPath path;
+  path.node_types.resize( num_nodes );
+  path.group_indices.resize( num_nodes );
+  path.element_indices.resize( num_nodes );
+
+  netCDFvars.PathNodeTypes.getVar( { path_start } , { num_nodes } ,
+                                   path.node_types.data() );
+  netCDFvars.PathGroupIndices.getVar( { path_start } , { num_nodes } ,
+                                      path.group_indices.data() );
+  netCDFvars.PathElementIndices.getVar( { path_start } , { num_nodes } ,
+                                        path.element_indices.data() );
+  return path;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ static void pre_serialize( const std::vector< AbstractPath > & paths ,
+                            APnetCDF & netCDFvars ,
+                            netCDF::NcGroup & group ) {
+
+  netCDFvars.NumPaths = paths.size();
+  netCDFvars.PathDim = group.addDim( path_dim_name , netCDFvars.NumPaths );
+  netCDFvars.PathStart = group.addVar( path_start_name , netCDF::NcUint64() ,
+                                       netCDFvars.PathDim );
+
+  Index total_length = 0;
+  for( Index i = 0 ; i < paths.size() ; ++i ) {
+   netCDFvars.PathStart.putVar( { i } , total_length );
+   total_length += paths[ i ].length();
+  }
+
+  netCDFvars.PathTotalLength = group.addDim( path_total_length_dim_name ,
+                                             total_length );
+
+  netCDFvars.PathNodeTypes = group.addVar( node_type_name , netCDF::NcChar() ,
+                                           netCDFvars.PathTotalLength );
+
+  netCDFvars.PathGroupIndices = group.addVar( group_index_name ,
+                                              netCDF::NcUint64() ,
+                                              netCDFvars.PathTotalLength );
+
+  netCDFvars.PathElementIndices = group.addVar( element_index_name ,
+                                                netCDF::NcUint64() ,
+                                                netCDFvars.PathTotalLength );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ static void pre_serialize( Index number_paths , APnetCDF & netCDFvars ,
+                            netCDF::NcGroup & group ) {
+
+  netCDFvars.NumPaths = number_paths;
+  netCDFvars.PathDim = group.addDim( path_dim_name , netCDFvars.NumPaths );
+  netCDFvars.PathStart = group.addVar( path_start_name , netCDF::NcUint64() ,
+                                       netCDFvars.PathDim );
+
+  netCDFvars.PathTotalLength = group.addDim( path_total_length_dim_name );
+
+  netCDFvars.PathNodeTypes = group.addVar( node_type_name , netCDF::NcChar() ,
+                                           netCDFvars.PathTotalLength );
+
+  netCDFvars.PathGroupIndices = group.addVar( group_index_name ,
+                                              netCDF::NcUint64() ,
+                                              netCDFvars.PathTotalLength );
+
+  netCDFvars.PathElementIndices = group.addVar( element_index_name ,
+                                                netCDF::NcUint64() ,
+                                                netCDFvars.PathTotalLength );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ static void serialize
+ ( const AbstractPath & path , const Index path_index ,
+   APnetCDF & netCDFvars ) {
+
+  const auto num_nodes = path.length();
+
+  Index path_start;
+  netCDFvars.PathStart.getVar( { path_index } , & path_start );
+
+  netCDFvars.PathNodeTypes.putVar( { path_start } , { num_nodes } ,
+                                   path.node_types.data() );
+  netCDFvars.PathGroupIndices.putVar( { path_start } , { num_nodes } ,
+                                      path.group_indices.data() );
+  netCDFvars.PathElementIndices.putVar( { path_start } , { num_nodes } ,
+                                        path.element_indices.data() );
+ }
+
 /*--------------------------------------------------------------------------*/
 
  bool operator==( const AbstractPath & path ) const {
@@ -1562,6 +1595,10 @@ public:
   }
   std::cout << std::endl;
  }
+
+/**@}-----------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 
 };  // end( class( AbstractPath ) )
 
