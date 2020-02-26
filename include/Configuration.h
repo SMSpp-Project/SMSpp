@@ -361,7 +361,7 @@ class Configuration
   * (unless the programmer purposely defines private_name() without calling
   * the macro, which seems rather pointless). */
 
- inline const std::string & name( void ) const {
+ inline const std::string & classname( void ) const {
   return( private_name() );
   }
 
@@ -477,18 +477,18 @@ class Configuration
   *
   * All the information required to de-serialize the Configuration need be
   * saved in the provided netCDF NcGroup, which is assumed to be "empty",
-  * starting with the "type" attribute that has to contain the name() of the
-  * Configuration. Although each :Configuration is completely free to
+  * starting with the "type" attribute that has to contain the classname() of
+  * the Configuration. Although each :Configuration is completely free to
   * organize the netCDF NcGroup as it best sees fit, the idea is that is the
   * Configuration has any sub-Configuration these should be saved into child
   * groups of the current group.
   *
-  * The method of the base class just creates and fills the "name" attribute
-  * (with the right name, thanks to the name() method). */
+  * The method of the base class just creates and fills the "type" attribute
+  * (with the right name, thanks to the classname() method). */
 
  virtual void serialize( netCDF::NcGroup & group ) const
  {
-  group.putAtt( "type" , name() );
+  group.putAtt( "type" , classname() );
   }
 
 /**@} ----------------------------------------------------------------------*/

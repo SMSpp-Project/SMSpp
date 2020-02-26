@@ -1225,7 +1225,7 @@ public:
   * the programmer purposely defines private_name() without calling the macro,
   * which seems rather pointless). */
 
- inline const std::string & name( void ) {
+ inline const std::string & classname( void ) {
   return( private_name() );
   }
  

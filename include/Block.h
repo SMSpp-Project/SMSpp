@@ -852,10 +852,10 @@ class Block : public Observer {
   *   :BlockConfig of the same :Block, and the third the serialization of a
   *   :BlockSolverConfig of the same :Block, although any of the three can
   *   in principle be empty. If any of the child is not empty, it must
-  *   necessarily contain a string attribute "type" containing the name() of
-  *   the corresponding :Block / :Configuration class, plus of course all the
-  *   information necessary to reconstruct the specific instance. Note that
-  *   sub-Block of the Block and sub-Configuration of the Configuration
+  *   necessarily contain a string attribute "type" containing the classname()
+  *   of the corresponding :Block / :Configuration class, plus of course all
+  *   the information necessary to reconstruct the specific instance. Note
+  *   that sub-Block of the Block and sub-Configuration of the Configuration
   *   (if any) are assumed each to be contained into a child of the group
   *   containing the original :Block / :Configuration, recursively.
   *
@@ -977,9 +977,22 @@ class Block : public Observer {
  /// de-serialize the current :Block out of netCDF::NcGroup
  /** Fourth and final level de-serialization method: takes a netCDF::NcGroup
   * supposedly containing all the information required to de-serialize the
-  * Block, starting with the "type" attribute that has to contain the name()
-  * of the current Block (and exception should clearly be thrown if this does
-  * not happen), and initialize the current Block out of it.
+  * Block, and initialize the current Block out of it.
+  *
+  * The format of a group containing a :Block must be the following:
+  *
+  * - the mandatory string attribute "type" that contains the classname() of
+  *   the :Block, which is actually useful at the higher levels of the
+  *   deserialize() hierarchy where the :Block has already to be constructed,
+  *   rather than at this point where it clearly already has;
+  *
+  * - the optional string attribute "name" that contains the name() of this
+  *   particular instance of :Block (typically of no algorithmic value, but
+  *   potentially very useful to more easily keeping track of what the
+  *   different parts of a Block mean); if "name" is not present, an empty
+  *   name() results.
+  *
+  * - whatever other information is required by the specific :Block.
   *
   *      THIS IS THE METHOD TO BE IMPLEMENTED BY DERIVED CLASSES
   *
@@ -1018,23 +1031,65 @@ class Block : public Observer {
   * BlockSolverConfig), but de-serializing the Configuration and applying
   * them is still the user's responsibility.
   *
-  * To tally with Block::serialize( netCDF::NcGroup ), the base class
-  * implementation just (checks if type and name() match, and) scans all the
-  * child NcGroup of the current NcGroup, assumes that each one of them is a
-  * Block group and de-serializes a sub-Block of the Block out of it, in
-  * left-to-right order. After that, a NBModification is issued (if there
-  * is anybody "listening", which one does not really expect there is). */
+  * The method of the base class actually ignores the "type" attribute, on
+  * the grounds that that is thought to be used as input to the factory to
+  * create the object (as in new_Block( netCDF::NcGroup )); once the :Block
+  * has been constructed, which has necessarily already happened when this
+  * method is called, the value is irrelevant (one could only check if
+  * "type" agrees with classname() and throw exception otherwise). So, what
+  * the method currently does is just to handle the optional "name"
+  * attribute. It does *not* handle the sub-Block, because there can
+  * hardly be any reasonably general way in which they can be structured
+  * (there can be different groups of sub-Block with different properties).
+  * By not even trying, we can leave in this method only things that are
+  * sensible for each and every :Block. Because of this
+  *
+  *     THE deserialize() METHOD OF ANY :Block SHOULD CALL
+  *     Block::deserialize()
+  *
+  * While this currently does so little that one might well be tempted to
+  * skip the call and just copy the three lines of code, enforcing this
+  * standard is forward-looking since in this way any future revision of the
+  * base Block class may add other mandatory/optional fields: as soon as they
+  * are managed by the (revised) method of the base class, they would then be
+  * automatically dealt with by the derived classes without them even knowing
+  * it happened.
+  *
+  * An added bonus is that
+  *
+  *     Block::deserialize() ISSUES THE NBModification
+  *
+  * and therefore by calling it one is also relieved from the need of doing
+  * it explicitly. Note, however, that
+  *
+  *      THE NBModification SHOULD BE ISSUED AT THE END OF THE CALL, AND
+  *      THEREFORE THE CALL TO Block::deserialize() SHOULD BE AT THE END
+  *
+  * This is due to the rule n. 2 of Modification: when one is issued, the
+  * change must have happened already.
+  *
+  * This is usually not a big deal, except in a case: that where a one has
+  * Block2 deriving from Block1 deriving from Block. Here,
+  * Block2::deserialize() may need something done in Block1::deserialize()
+  * to work, but when Block1::deserialize() calls Block::deserialize() the
+  * NBModification is issued.
+  *
+  * The solution to this is that any :Block that expects to be further derived
+  * should provide a guts_of_deserialization() method that does all the work
+  * without calling Block::deserialize(), so that it can be called by the
+  * methods of the derived classes.
+  *
+  * A different case is that of an "abstract" :Block, that *must*
+  * necessarily be derived from. In this case deserialize() in the base class
+  * should not call Block::deserialize(), leaving this to derived ones. */
 
  virtual void deserialize( netCDF::NcGroup & group )
  {
-  for( auto sblck : v_Block )
-   delete sblck;
-
-  v_Block.clear();
-  std::multimap< std::string , netCDF::NcGroup > ng = group.getGroups();
-
-  for( auto it = ng.begin() ; it != ng.end() ; ++it )
-   v_Block.push_back( new_Block( it->second , this ) );
+  netCDF::NcGroupAtt gname = group.getAtt( "name" );
+  if( gname.isNull() )
+   f_name.clear();
+  else
+   gname.getValues( f_name );
 
   // issue a NBModification, the "nuclear option"
   if( anyone_there() )
@@ -1065,6 +1120,13 @@ class Block : public Observer {
 
  /// setting the "father" Block of this Block
  virtual void set_f_Block( p_Block new_f_Block ) { f_Block = new_f_Block; }
+
+/*--------------------------------------------------------------------------*/
+ /// setting the string name of the Block
+ /** Sets the string name of the Block. As the && tells, the string becomes
+  * property of the Block. */
+
+ virtual void set_name( std::string && name ) { f_name = std::move( name ); }
 
 /*--------------------------------------------------------------------------*/
  /// setting the verbosity level
@@ -1625,9 +1687,14 @@ class Block : public Observer {
   * the programmer purposely defines private_name() without calling the macro,
   * which seems rather pointless). */
 
- inline const std::string & name( void ) const {
+ inline const std::string & classname( void ) const {
   return( private_name() );
   }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// getting the string name of this Block
+
+ inline const std::string & name( void ) const { return( f_name ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// getting the "father" Block of this Block
@@ -4158,17 +4225,17 @@ class Block : public Observer {
 /** @name Methods for handling the methods factory
  *
  * The "methods factory" (more properly, methods factor*ies*) is a powerful
- * general concept that allows to interact with a :Block (mainly in the sense of
- * changing its data) whose type is not known at compile time, and yet calling
- * member functions of the specialized interface of the :Block.
+ * general concept that allows to interact with a :Block (mainly in the sense
+ * of changing its data) whose type is not known at compile time, and yet
+ * calling member functions of the specialized interface of the :Block.
  *
- * This is done by constructing a (bi-directional) map between names and pointer
- * to functions that could interact with a :Block (for example, changing its
- * data). In this way a pointer can be retrieved via its name (a std::string
- * that can be read at runtime, e.g. by some Configuration object) and the
- * corresponding specialized function of the :Block can be invoked (for
- * instance, to change its data), even if the type of the :Block is not known at
- * compile time.
+ * This is done by constructing a (bi-directional) map between names and
+ * pointer to functions that could interact with a :Block (for example,
+ * changing its data). In this way a pointer can be retrieved via its name
+ * (a std::string that can be read at runtime, e.g. by some :Configuration
+ * object) and the corresponding specialized function of the :Block can be
+ * invoked (for instance, to change its data), even if the type of the
+ * :Block is not known at compile time.
  *
  * This of course requires fixing the type of the functions. Actually, the
  * mechanism is flexible in that
@@ -4185,12 +4252,12 @@ class Block : public Observer {
  *
  * However, the issue is that
  *
- *      POINTERS IN THE MAPPING SHOULD NOT BE TO ACTUAL POINTERS TO CLASS MEMBER
- *      FUNCTIONS IF THE METHODS FACTORY HAS TO BE EMPLOYED WITHOUT KNOWLEDGE OF
- *      THE SPECIFIC :Block INVOLVED (WHICH IS ITS DEFINING USE CASE). THIS IS
- *      BECAUSE THE FUNCTION CANNOT THEN HAVE A POINTER TO A SPECIFIC DERIVED
- *      CLASS FROM Block, AND THEREFORE IT MUST HAVE A POINTER TO THE BASE Block
- *      CLASS.
+ *      POINTERS IN THE MAPPING SHOULD NOT BE TO ACTUAL POINTERS TO CLASS
+ *      MEMBEr FUNCTIONS IF THE METHODS FACTORY HAS TO BE EMPLOYED WITHOUT
+ *      KNOWLEDGE OF THE SPECIFIC :Block INVOLVED (WHICH IS ITS DEFINING USE
+ *      CASE). THIS IS BECAUSE THE FUNCTION CANNOT THEN HAVE A POINTER TO A
+ *      SPECIFIC DERIVED CLASS FROM Block, AND THEREFORE IT MUST HAVE A
+ *      POINTER TO THE BASE Block CLASS.
  *
  * This is not so say that constructing methods factories holding actual class
  * member functions is not possible, but any such factory would be tied to a
@@ -4221,16 +4288,17 @@ class Block : public Observer {
  *
  *     register_method< dBlock , Args >()
  *
- * is called. The adapter function simply static_cast< dBlock >()-s the Block *
- * and invokes the given function. Similarly, get_method_fs< dBlock , Args >()
- * and get_method_name_fs< dBlock , Args >() are provided to search into the
+ * is called. The adapter function simply static_cast< dBlock >()-s the
+ * Block * and invokes the given function. Similarly,
+ * get_method_fs< dBlock , Args >() and
+ * get_method_name_fs< dBlock , Args >() are provided to search into the
  * corresponding FunctionType< Args > methods factories.
  *
  * A further level of support comes by defining some "general parameter type
  * lists" that functions in the methods factory should have. These should be
  * many enough to offer a reasonable flexibility, but on the other hand few
- * enough so that each methods factory is hopefully populated enough so that the
- * mechanism can be used often. For this purpose the following types are
+ * enough so that each methods factory is hopefully populated enough so that
+ * the mechanism can be used often. For this purpose the following types are
  * defined:
  *
  * - Index, an index into any internal data structure;
@@ -4246,9 +4314,10 @@ class Block : public Observer {
  *
  * - MF_int_it, a const_iterator into a std::vector< int >;
  *
- * These are thought to form the basis of "most" data-changing member functions
- * in any :Block class. In particular, six parameter type lists are defined
- * based on these, which have the form (clearly compatible with the above types)
+ * These are thought to form the basis of "most" data-changing member
+ * functions in any :Block class. In particular, six parameter type lists
+ * are defined based on these, which have the form (clearly compatible with
+ * the above types)
  *
  *     my_method_name( [ < data > , ] < slice > , c_ModParam , c_ModParam )
  *
@@ -4334,12 +4403,12 @@ class Block : public Observer {
  * Indeed, the above discussion clearly reveals that there is actually no need
  * for the functions in the :Block to have any of the pre-set parameter type
  * lists in order for them to be used in the methods factory. Indeed, even if
- * they do, an adapter function need to be written anyway (although this can be,
- * and is, done automatically). More in general, adapter functions can be
- * written to use existing :Block functions (or, conceivably, friend functions)
- * to perform changes that can be added to the methods factory. For instance,
- * assume that our fictional NetworkBlock class can only change the weight of a
- * single arc at a time via the function
+ * they do, an adapter function need to be written anyway (although this can
+ * be, and is, done automatically). More in general, adapter functions can be
+ * written to use existing :Block functions (or, conceivably, friend
+ * functions) to perform changes that can be added to the methods factory.
+ * For instance, assume that our fictional NetworkBlock class can only change
+ * the weight of a single arc at a time via the function
  *
  *     void set_arc_weight( Index arc , double weight ,
  *                          c_ModParam issuePMod = eNoBlck ,
@@ -4363,7 +4432,8 @@ class Block : public Observer {
  *                             c_ModParam issuePMod = eNoBlc ,
  *                             c_ModParam issueAMod = eModBlck ) {
  *      for( auto i : sbst )
- *       static_cast<NetworkBlock *>( block )->set_arc_weight( i , *(begin++) ,
+ *       static_cast<NetworkBlock *>( block )->set_arc_weight( i ,
+ *                                                             *(begin++) ,
  *                                                             issuePMod ,
  *                                                             issueAMod );
  *      }
@@ -4389,12 +4459,12 @@ class Block : public Observer {
  * capabilities, but this would increase the number of different methods
  * factories, possibly decreasing their utility.
  *
- * The typical place in which these calls to register_method() should be put is
- * in the protected static_initialization() function of the :Block. However,
- * somehow counter-intuitively, these member functions are public, which means
- * that anyone with access to a :Block can register "its functions" (actually,
- * adapter functions calling them) in the methods factory. This allows to handle
- * cases where:
+ * The typical place in which these calls to register_method() should be put
+ * is in the protected static_initialization() function of the :Block.
+ * However, somehow counter-intuitively, these member functions are public,
+ * which means that anyone with access to a :Block can register "its
+ * functions" (actually, adapter functions calling them) in the methods
+ * factory. This allows to handle cases where:
  *
  * - the :Block owner couldn't be bothered to do the registration herself, but
  *   some user needs it;
@@ -4412,14 +4482,15 @@ class Block : public Observer {
  /// register a new function in the methods factory
  /** This function registers the given \p function in the appropriate methods
   * factory specified by the template function type F, and associates it with
-  * the given \p name. If the methods factory already has a function associated
-  * with the given \p name, the currently present function is replaced by the
-  * new one. Note that it is in principle possible to make a factory for actual
-  * member functions of a :Block (say, F being like "void ( NetworkBlock::* ) (
-  * ... )"). This entails knowing a-priori that the Block that will be used is a
-  * :Block (say, a NetworkBlock) or some of its further derived classes. Such an
-  * occurrence is less likely to be useful than that of having F being, say, a
-  * FunctionType< Set > so as to allow any :Block, but it is still feasible.
+  * the given \p name. If the methods factory already has a function
+  * associated with the given \p name, the currently present function is
+  * replaced by the new one. Note that it is in principle possible to make a
+  * factory for actual member functions of a :Block (say, F being like
+  * "void ( NetworkBlock::* ) ( ... )"). This entails knowing a-priori that
+  * the Block that will be used is a :Block (say, a NetworkBlock) or some of
+  * its further derived classes. Such an occurrence is less likely to be
+  * useful than that of having F being, say, a FunctionType< Set > so as to
+  * allow any :Block, but it is still feasible.
   *
   * Although the name of the function can be arbitrarily chosen, it is
   * recommended to follow the pattern "ClassName::function_name" (insomuch as
@@ -4428,9 +4499,9 @@ class Block : public Observer {
   * collisions and make it easier for the user to identify the available
   * functions.
   *
-  * @param name The name that will identify the given \p function in the methods
-  *             factory; as the "&&" tells, the std::string becomes "property"
-  *             of the methods factory.
+  * @param name The name that will identify the given \p function in the
+  *             methods factory; as the "&&" tells, the std::string becomes
+  *             "property" of the methods factory.
   *
   * @param function The (pointer to the) function to be added to the
   *                 corresponding methods factory. */
@@ -4830,32 +4901,29 @@ class Block : public Observer {
   *   saving their current state is required this can (and it is better)
   *   done separately.
   *
-  * The method of the base class just creates and fills the "name" attribute
-  * (with the right name, thanks to the name() method) and then proceeds at
-  * saving all its sub-Block in newly created child NcGroup with names
-  * "sub-Block_0", "sub-Block_1", ... where the index of the sub-Block is its
-  * position in the array returned by get_nested_Blocks(). This can be used by
-  * actual :Block if they are OK with the order of construction of the
-  * sub-Block *and* the vector returned by get_nested_Blocks(), i.e., the
-  * "abstract representation" of the sub-Block, is also the "physical one"
-  * (i.e., there is no distinct "physical representation" of the sub-Block).
-  * If this is done, possibly Block::serialize( netCDF::NcGroup ) should be
-  * called *after* the father :Block has already loaded all its information
-  * into the ("father") NcGroup, if the sub-Block are going to use it
-  * (possibly reaching the "father" NcGroup via getParentGroup()). At any
-  * rate, the implementation of Block::serialize( netCDF::NcGroup ) provides
-  * a clean blueprint of how this can be done by specific :Block. */
+  * The method of the base class just creates and fills the "type" attribute
+  * (with the right name, thanks to the classname() method) and the optional
+  * "name" attribute. It does *not* handle the sub-Block, because there can
+  * hardly be any reasonably general way in which they can be structured
+  * (there can be different groups of sub-Block with different properties).
+  * By not even trying, we can leave in this method only things that are
+  * sensible for each and every :Block. Because of this
+  *
+  *     THE serialize() METHOD OF ANY :Block SHOULD CALL Block::serialize()
+  *
+  * While this currently does so little that one might well be tempted to
+  * skip the call and just copy the three lines of code, enforcing this
+  * standard is forward-looking since in this way any future revision of the
+  * base Block class may add other mandatory/optional fields: as soon as they
+  * are managed by the (revised) method of the base class, they would then be
+  * automatically dealt with by the derived classes without them even knowing
+  * it happened. */
 
  virtual void serialize( netCDF::NcGroup & group ) const
  {
-  group.putAtt( "type" , name() );
-
-  c_Vec_Block & nb = get_nested_Blocks();
-
-  for( size_t i = 0 ; i < nb.size() ; ++i ) {
-   auto gi = group.addGroup( "sub-Block_" + std::to_string( i ) );
-   nb[ i ]->serialize( gi );
-   }
+  group.putAtt( "type" , classname() );
+  if( ! f_name.empty() )
+   group.putAtt( "name" , f_name );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -5745,6 +5813,8 @@ class Block : public Observer {
 
  verbosity_type verbosity_lvl;  ///< the verbosity level of the Block
 
+ std::string f_name;            ///< the string name of the Block
+ 
  Vec_string v_s_Constraint_names;   ///< the names of the static Constraints
  /**< vector to store the name of the different types of static constraints of
   * the Block. v_s_Constraint_names[ i ] (if nonempty) is the name of the set
@@ -6290,7 +6360,6 @@ class BlockModRmv : public BlockModAD
 /** Derived class from Configuration to describe all the parameters that a
  *  Block may have, which are:
  *
- * - the name of the Block;
  * - the Configuration for static Constraint;
  * - the Configuration for dynamic Constraint;
  * - the Configuration for static Variable;
@@ -6346,8 +6415,6 @@ class BlockConfig : public Configuration
  /** Extends Configuration::deserialize( netCDF::NcGroup ) to the specific
   * format of a BlockConfig. Besides the mandatory "type" attribute of any
   * :Configuration, the group should contain the following:
-  *
-  * - the attribute "name" of string type containing the name of the Block;
   *
   * - the group "static_constraints" containing a Configuration object for
   *   the static Constraint of the Block;
@@ -6446,8 +6513,6 @@ class BlockConfig : public Configuration
 
 /*--------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
 
- std::string f_name;  /// the name of the Block
-
  /// the Configuration for generate_abstract_constraints()
  Configuration *f_static_constraints_Configuration;
  /// the Configuration for generate_dynamic_constraints()
@@ -6482,8 +6547,6 @@ class BlockConfig : public Configuration
 /*--------------------------------------------------------------------------*/
  /// load this BlockConfig out of an istream
  /** Load this BlockConfig out of an istream, with the following format:
-  *
-  * name of the Block: a string, '*' means empty
   *
   * for all of:  static constraints Configuration ,
   *              dynamic constraints Configuration ,
@@ -6582,9 +6645,9 @@ class BlockSolverConfig : public Configuration
   * - the variable "SolverNames", of type string and indexed over the
   *   dimension "n_SolverConfig"; the i-th entry of the variable is assumed
   *   to contain the classname of a :Solver object to be attached to the
-  *   Block (this must be exact, e.g., as returned by the protected virtual
-  *   method name(), since it is used in the factory when creating the
-  *   object;
+  *   Block (this must be exact, i.e., exactly as returned by the protected
+  *   virtual method Solver::classname(), since it is used in the factory when
+  *   creating the object;
   *
   * - with n being the size of n_SolverConfig, n groups, with name
   *   "SolverConfig_<i>" for all i = 0, ..., n - 1, containing each the
