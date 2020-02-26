@@ -838,9 +838,10 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
  if( nA.size() != rows.size() )
   throw( std::invalid_argument( "rows and nA sizes do not match" ) );
 
+ if( rows.back() >= v_b.size() )
+  throw( std::invalid_argument( "wrong row names" ) );
+
  for( Index i = 0 ; i < rows.size() ; ++i ) {
-  if( rows[ i ] >= v_A.size() )
-   throw( std::invalid_argument( "wrong row name" ) );
   if( nA[ i ].size() != v_x.size() )
    throw( std::invalid_argument( "wrong row size" ) );
 
