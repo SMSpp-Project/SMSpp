@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 25 - 02 - 2020
+ * \date 26 - 02 - 2020
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -49,16 +49,20 @@ void SimpleDataMappingBase::deserialize
  Index set_elements_start_index = 0;
  for( Index i = 0 ; i < num_data_mappings ; ++i ) {
 
-  char set_from_type, set_to_type;
-  get_sets_type( sdmb_netCDF.SetSize , set_from_type, set_to_type , i );
+  auto set_from_type = get_id< Block::Range >();
+  auto set_to_type = get_id< Block::Range >();
+  if( ! sdmb_netCDF.SetSize.isNull() )
+   get_sets_type( sdmb_netCDF.SetSize , set_from_type, set_to_type , i );
 
   // DataType
-  char data_type;
-  sdmb_netCDF.DataType.getVar( { i } , { 1 } , & data_type );
+  auto data_type = get_id< double >();
+  if( ! sdmb_netCDF.DataType.isNull() )
+   sdmb_netCDF.DataType.getVar( { i } , { 1 } , & data_type );
 
   // Caller type
-  char caller_type;
-  sdmb_netCDF.Caller.getVar( { i } , { 1 } , & caller_type );
+  char caller_type = 'B';
+  if( ! sdmb_netCDF.Caller.isNull() )
+   sdmb_netCDF.Caller.getVar( { i } , { 1 } , & caller_type );
 
   auto data_mapping = SimpleDataMappingFactory::new_SimpleDataMapping
    ( { set_from_type , set_to_type , data_type , caller_type } );

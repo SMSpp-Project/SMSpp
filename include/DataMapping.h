@@ -9,7 +9,7 @@
  *
  * \version 0.1
  *
- * \date 25 - 02 - 2020
+ * \date 26 - 02 - 2020
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -404,7 +404,8 @@ public:
   *   SimpleDataMappingBase.
   *
   * - The "SetSize_dim" dimension has size 2*NumberDataMappings and is the
-  *   dimension of the "SetSize" variable (see below).
+  *   dimension of the "SetSize" variable (see below). This dimension is
+  *   optional.
   *
   * - The "SetElements_dim" dimension is the unlimited dimension of the
   *   "SetElements" variable (see below).
@@ -423,15 +424,15 @@ public:
   *   int or double, respectively.
   *
   * - The one-dimensional variable "SetSize" is an array of type
-  *   netCDF::NcUint64 with size (2 * NumberDataMappings) and indicates the
-  *   size of the sets that define each SimpleDataMappingBase (the "SetFrom"
-  *   and "SetTo" sets). This variable is optional. If it is not present, then
-  *   all sets are assumed to be Range. If it is present, then SetSize[ 2i + k
-  *   ] is the size of the SetFrom set of the i-th SimpleDataMappingBase if k
-  *   = 0 or the size of the SetTo set of the i-th SimpleDataMappingBase if k
-  *   = 1. If SetSize[ j ] == 0, then the corresponding set is a
-  *   Range. Otherwise, the corresponding set is a Subset of size SetSize[ j
-  *   ].
+  *   netCDF::NcUint64 indexed over the "SetSize_dim" dimension and indicates
+  *   the size of the sets that define each SimpleDataMappingBase (the
+  *   "SetFrom" and "SetTo" sets). This variable is optional. If it is not
+  *   present, then all sets are assumed to be Range. If it is present, then
+  *   SetSize[ 2i + k ] is the size of the SetFrom set of the i-th
+  *   SimpleDataMappingBase if k = 0 or the size of the SetTo set of the i-th
+  *   SimpleDataMappingBase if k = 1. If SetSize[ j ] == 0, then the
+  *   corresponding set is a Range. Otherwise, the corresponding set is a
+  *   Subset of size SetSize[ j ].
   *
   * - The one-dimensional variable "SetElements", of type netCDF::NcUint64, is
   *   an array containing the concatenation of the representations of the sets
@@ -488,6 +489,31 @@ public:
   }
  }
 
+/*--------------------------------------------------------------------------*/
+
+ template< class T >
+ static constexpr char get_id();
+
+/*--------------------------------------------------------------------------*/
+
+ template<>
+ constexpr char get_id< Block::Range >() { return 'R'; }
+
+/*--------------------------------------------------------------------------*/
+
+ template<>
+ constexpr char get_id< Block::Subset >() { return 'S'; }
+
+/*--------------------------------------------------------------------------*/
+
+ template<>
+ constexpr char get_id< double >() { return 'D'; }
+
+/*--------------------------------------------------------------------------*/
+
+ template<>
+ constexpr char get_id< int >() { return 'I'; }
+
 /**@} ----------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -517,15 +543,15 @@ private:
   auto num_data_mappings = sdmb_netCDF.NumberDataMappings.getSize();
   if( num_data_mappings > 1 ) {
 
-   if( sdmb_netCDF.DataType.isNull() ||
-       sdmb_netCDF.DataType.getDimCount() != 1 ||
-       sdmb_netCDF.DataType.getDim( 0 ).getSize() != num_data_mappings )
+   if( ! sdmb_netCDF.DataType.isNull() &&
+       ( sdmb_netCDF.DataType.getDimCount() != 1 ||
+         sdmb_netCDF.DataType.getDim( 0 ).getSize() != num_data_mappings ) )
     throw( std::logic_error( "SimpleDataMappingBase::pre_deserialize: invalid "
                            "'" + DataType_name + "' array." ) );
 
-   if( sdmb_netCDF.Caller.isNull() ||
-       sdmb_netCDF.Caller.getDimCount() != 1 ||
-       sdmb_netCDF.Caller.getDim( 0 ).getSize() != num_data_mappings )
+   if( ! sdmb_netCDF.Caller.isNull() &&
+       ( sdmb_netCDF.Caller.getDimCount() != 1 ||
+         sdmb_netCDF.Caller.getDim( 0 ).getSize() != num_data_mappings ) )
     throw( std::logic_error( "SimpleDataMappingBase::pre_deserialize: invalid "
                            "'" + Caller_name + "' array." ) );
 
@@ -804,12 +830,13 @@ public:
   // SetFrom and SetTo
 
   {
-   std::vector< Index > set_size;
-   ::SMSpp_di_unipi_it::deserialize( group , SetSize_name , set_size , false );
-
-   if( set_size.size() != 2 )
-    throw( std::logic_error( "SimpleDataMapping::deserialize: array '" +
-                             SetSize_name + "' must have size 2." ) );
+   std::vector< Index > set_size = { 0 , 0 };
+   if( ::SMSpp_di_unipi_it::deserialize( group , SetSize_name ,
+                                         set_size , true ) ) {
+    if( set_size.size() != 2 )
+     throw( std::logic_error( "SimpleDataMapping::deserialize: array '" +
+                              SetSize_name + "' must have size 2." ) );
+   }
 
    std::vector< Index > set_elements;
    ::SMSpp_di_unipi_it::deserialize( group , SetElements_name ,
@@ -892,9 +919,9 @@ public:
 
   Index next_index = set_elements_start_index;
 
-  std::vector< Index > set_size( 2 );
-  sdmb_netCDF.SetSize.getVar( { next_index } , { 2 } ,
-                              set_size.data() );
+  std::vector< Index > set_size = { 0 , 0 };
+  if( ! sdmb_netCDF.SetSize.isNull() )
+   sdmb_netCDF.SetSize.getVar( { next_index } , { 2 } , set_size.data() );
 
   if constexpr( std::is_same_v< SetFrom , Range > ) {
    if( set_elements_size < next_index + 3 )
@@ -1060,7 +1087,7 @@ public:
   * format:
   *
   * - The "SetSize_dim" dimension, which contains the size of the "SetSize"
-  *   variable (see below).
+  *   variable (see below). This dimension is optional.
   *
   * - The one-dimensional variable "SetSize", an array of type
   *   netCDF::NcUint64 with two elements indicating the sizes (or types) of
@@ -1210,41 +1237,6 @@ public:
   ::SMSpp_di_unipi_it::serialize( group , Caller_name , netCDF::NcChar() ,
                                   caller_type );
  }
-
-/**@} ----------------------------------------------------------------------*/
-/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
-/*--------------------------------------------------------------------------*/
-
-protected:
-
-/*--------------------------------------------------------------------------*/
-/*------------------------- PROTECTED METHODS ------------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Protected Methods
- *  @{ */
-
- template< class T >
- static constexpr char get_id();
-
-/*--------------------------------------------------------------------------*/
-
- template<>
- static constexpr char get_id< Block::Range >() { return 'R'; }
-
-/*--------------------------------------------------------------------------*/
-
- template<>
- static constexpr char get_id< Block::Subset >() { return 'S'; }
-
-/*--------------------------------------------------------------------------*/
-
- template<>
- static constexpr char get_id< double >() { return 'D'; }
-
-/*--------------------------------------------------------------------------*/
-
- template<>
- static constexpr char get_id< int >() { return 'I'; }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -1534,7 +1526,7 @@ public:
   char data_type;
   if( ! ::SMSpp_di_unipi_it::deserialize( group , "DataType" ,
                                           & data_type , true ) )
-   data_type = 'D';
+   data_type = SimpleDataMappingBase::get_id< double >();
 
   // Caller type
 
@@ -1567,15 +1559,21 @@ private:
  static void get_sets_type( const netCDF::NcGroup & group ,
                             char & set_from_type , char & set_to_type ) {
 
-  std::vector< Index > set_size;
-  ::SMSpp_di_unipi_it::deserialize( group , "SetSize" , set_size , false );
+  std::vector< Index > set_size = { 0 , 0 };
+  if( ::SMSpp_di_unipi_it::deserialize( group , "SetSize" ,
+                                        set_size , true ) ) {
+   if( set_size.size() != 2 )
+    throw( std::logic_error( "SimpleDataMappingFactory::get_sets_type: array "
+                             "'SetSize' must have size 2." ) );
+  }
 
-  if( set_size.size() != 2 )
-   throw( std::logic_error( "SimpleDataMappingFactory::get_sets_type: array "
-                            "'SetSize' must have size 2." ) );
+  set_from_type = set_size[ 0 ] > 0 ?
+   SimpleDataMappingBase::get_id< Block::Subset >() :
+   SimpleDataMappingBase::get_id< Block::Range >();
 
-  set_from_type = set_size[ 0 ] > 0 ? 'S' : 'R';
-  set_to_type   = set_size[ 1 ] > 0 ? 'S' : 'R';
+  set_to_type   = set_size[ 1 ] > 0 ?
+   SimpleDataMappingBase::get_id< Block::Subset >() :
+   SimpleDataMappingBase::get_id< Block::Range >();
  }
 
 /*--------------------------------------------------------------------------*/
