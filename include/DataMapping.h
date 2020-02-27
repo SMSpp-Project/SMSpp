@@ -285,6 +285,16 @@ public:
 /** @name Constructing and destructing SimpleDataMappingBase
  *  @{ */
 
+ /// constructor
+ SimpleDataMappingBase() = default;
+
+/*--------------------------------------------------------------------------*/
+
+ /// destructor
+ virtual ~SimpleDataMappingBase() {}
+
+/*--------------------------------------------------------------------------*/
+
  using DataMapping::deserialize;
 
 /*--------------------------------------------------------------------------*/
@@ -401,7 +411,9 @@ public:
   *
   * - The "NumberDataMappings" dimension indicates the number of
   *   SimpleDataMappingBase that is present in the vector of
-  *   SimpleDataMappingBase.
+  *   SimpleDataMappingBase. This dimension is optional. If it is not
+  *   provided, then NumberDataMappings = 0 is assumed and every element in
+  *   this group is ignored.
   *
   * - The "SetSize_dim" dimension has size 2*NumberDataMappings and is the
   *   dimension of the "SetSize" variable (see below). This dimension is
@@ -531,6 +543,11 @@ private:
   SDMBnetCDF sdmb_netCDF;
 
   sdmb_netCDF.NumberDataMappings = group.getDim( NumberDataMappings_name );
+
+  if( sdmb_netCDF.NumberDataMappings.isNull() ) {
+   return sdmb_netCDF;
+  }
+
   sdmb_netCDF.DataType = group.getVar( DataType_name );
   sdmb_netCDF.Caller = group.getVar( Caller_name );
   sdmb_netCDF.FunctionName = group.getVar( FunctionName_name );
@@ -541,7 +558,8 @@ private:
    ( sdmb_netCDF.AbstractPath );
 
   auto num_data_mappings = sdmb_netCDF.NumberDataMappings.getSize();
-  if( num_data_mappings > 1 ) {
+
+  if( num_data_mappings > 0 ) {
 
    if( ! sdmb_netCDF.DataType.isNull() &&
        ( sdmb_netCDF.DataType.getDimCount() != 1 ||
