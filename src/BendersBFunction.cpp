@@ -59,7 +59,7 @@ SMSpp_insert_in_factory_cpp_1( BendersBFunction );
 
 void BendersBFunction::load( std::istream &input ) {
  throw( std::logic_error( "BendersBFunction::load(): not implemented yet." ) );
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 /*------------- CONSTRUCTING AND DESTRUCTING BendersBFunction --------------*/
