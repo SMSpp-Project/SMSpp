@@ -336,8 +336,6 @@ void Block::add_to_BlockConfig( BlockConfig *aBC , const bool safe )
 
  // add the individual fields of aBC to the corresponding ones of the
  // f_BlockConfig
- if( aBC->f_name.size() )
-  f_BlockConfig->f_name = aBC->f_name;
 
  if( aBC->f_static_constraints_Configuration ) {
   delete f_BlockConfig->f_static_constraints_Configuration;

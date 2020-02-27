@@ -1031,13 +1031,23 @@ class Block : public Observer {
   * BlockSolverConfig), but de-serializing the Configuration and applying
   * them is still the user's responsibility.
   *
-  * The method of the base class actually ignores the "type" attribute, on
-  * the grounds that that is thought to be used as input to the factory to
+  * The method of the base class actually ignores the "type" attribute. This
+  * is done because "type" is thought to be used as input to the factory to
   * create the object (as in new_Block( netCDF::NcGroup )); once the :Block
   * has been constructed, which has necessarily already happened when this
-  * method is called, the value is irrelevant (one could only check if
-  * "type" agrees with classname() and throw exception otherwise). So, what
-  * the method currently does is just to handle the optional "name"
+  * method is called, the value is irrelevant. The only thing that could be
+  * done with the value inside this method would be to check if "type" agrees
+  * with classname() and throw exception otherwise. Kowever, derived classes
+  * are free to do that if they so choose. Indeed, note that a potential
+  * issue would seem to be the case where Block2 could derive from Block1;
+  * then, Block2::deserialize() would typically call Block1::deserialize()
+  * (or a "guts_of_" version of it, see below) to do the part pertaining to
+  * Block1. Block1::deserialize() can actually check if "type" agrees with
+  * classname(), since classname() is virtual: even called inside
+  * Block1::deserialize() it would return Block2::classname(), and therefore
+  * the check would pass.
+  *
+  * So, what the method currently does is just to handle the optional "name"
   * attribute. It does *not* handle the sub-Block, because there can
   * hardly be any reasonably general way in which they can be structured
   * (there can be different groups of sub-Block with different properties).

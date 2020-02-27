@@ -388,7 +388,10 @@ class BendersBFunction : public C05Function , public Block {
   *
   * Usually [de]serialization is done by Block, but BendersBFunction is a
   * complex enough object so that having its own ready-made [de]serialization
-  * procedure may make sense. However, because this method can then
+  * procedure may make sense. Besides, it *is* a Block, and  therefore the
+  * netCDF::NcGroup will have to have contain whatever is managed by the
+  * serialize() method of the base Block class in addition to the
+  * BendersBFunction-specific data. However, because this method can then
   * conceivably be called when the BendersBFunction is attached to an
   * Observer (although it is expected to be used before that), it is also
   * necessary to specify if and how a Modification is issued.
@@ -1227,8 +1230,11 @@ class BendersBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
  /// serialize a BendersBFunction into a netCDF::NcGroup
- /** Serialize a BendersBFunction into a netCDF::NcGroup, with the following
-  * format:
+ /** Serialize a BendersBFunction into a netCDF::NcGroup. Note that,
+  * BendersBFunction being both a Function and a Block, the netCDF::NcGroup
+  * will have to have the "standard format of a :Block", meaning whatever is
+  * managed by the serialize() method of the base Block class, plus the
+  * BendersBFunction-specific data with the following format:
   *
   * - The dimension "NumVar" containing the number of columns of the A matrix,
   *   i.e., the number of active variables.
@@ -1246,8 +1252,8 @@ class BendersBFunction : public C05Function , public Block {
   *   which contains the vector b. The variable is only optional if NumRow ==
   *   0.
   *
-  * - The sub-group "InnerBlock", which contains the variable "Type" which is
-  *   the name of the type of the inner block.
+  * - The sub-group "InnerBlock", which contains a complete description of
+  *   the inner block.
   *
   * - The sub-group "ConstraintSpecifier_i", for each i in {1, ..., m}, where
   *   m is the number of rows of the A matrix. The group ConstraintSpecifier_i

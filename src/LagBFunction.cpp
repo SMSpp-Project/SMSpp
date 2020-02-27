@@ -332,6 +332,12 @@ void LagBFunction::deserialize( netCDF::NcGroup & group )
   throw( std::logic_error( "the group B is null" ) );
 
  v_Block.push_back( new_Block( sb , this ) );
+
+ // call the method of Block- - - - - - - - - - - - - - - - - - - - - - - - -
+ // inside this the NBModification, the "nuclear option",  is issued
+
+ Block::deserialize( group );
+
  } // end ( LagBFunction::deserialize )  - - - - - - - - - - - - - - - - - - -
 
 /*--------------------------------------------------------------------------*/
@@ -538,14 +544,17 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
 
  }  // end( LagBFunction::add_Modification() ) - - - - - - - - - - - - - - - -
 
-
 /*--------------------------------------------------------------------------*/
 /*---------- METHODS FOR Loading/Saving THE DATA OF THE LagBFunction -------*/
 /*--------------------------------------------------------------------------*/
 
 void LagBFunction::serialize( netCDF::NcGroup & group ) const
 {
- group.putAtt( "type" , "LagBFunction" );
+ // call the method of Block- - - - - - - - - - - - - - - - - - - - - - - - -
+
+ Block::serialize( group );
+
+ // now the LagBFunction data - - - - - - - - - - - - - - - - - - - - - - - -
 
  if( v_Block.size() != 1 )
   throw( std::invalid_argument( "it is expected 1 sub-block " ) );
