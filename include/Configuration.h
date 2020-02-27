@@ -334,7 +334,7 @@ class Configuration
 
    std::string cfgtype;
    gtype.getValues( cfgtype );
-   if( cfgtype != name() )
+   if( cfgtype != classname() )
     throw( std::invalid_argument( "wrong Config type in netCDF group" ) );
   #endif
   }

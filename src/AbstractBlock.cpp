@@ -52,28 +52,6 @@ SMSpp_insert_in_factory_cpp_1( AbstractBlock );
 /*---------------------- METHODS of AbstractBlock --------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void AbstractBlock::deserialize( netCDF::NcGroup & group )
-{
- // deserialize the "abstract only inner Block"
- netCDF::NcDim nib = group.getDim( "NumberInnerBlock" );
- if( nib.isNull() )
-  return;
-
- auto nibs = nib.getSize();
-
- if( v_Block.size() < nibs )
-  v_Block.resize( nibs , nullptr );
-  
- for( Index i = get_first_inner_Block() ; i < nibs ; ++i ) {
-  auto bi = group.getGroup( "Block_" + std::to_string( i ) );
-  if( bi.isNull() )
-   throw( std::invalid_argument( "inner Block not found" ) );
-  v_Block[ i ] = new_Block( bi );
-  }
- }  // end( AbstractBlock::deserialize )
-
-/*--------------------------------------------------------------------------*/
-
 AbstractBlock::~AbstractBlock( )
 {
  // first, clear() all Constraint
@@ -378,7 +356,11 @@ Solution * AbstractBlock::get_Solution( Configuration *solc , bool emptys )
 
 void AbstractBlock::serialize( netCDF::NcGroup & group ) const
 {
- group.putAtt( "type" , name() );
+ // call the method of Block- - - - - - - - - - - - - - - - - - - - - - - - -
+
+ Block::serialize( group );
+
+ // now the AbstractBlock data- - - - - - - - - - - - - - - - - - - - - - - -
 
  auto & sc = get_static_constraints();
  auto & sv = get_static_variables();
@@ -560,6 +542,28 @@ void AbstractBlock::print( std::ostream & output ) const
    output << *v_Block[ i ];
   }
  }  // end( AbstractBlock::print )
+
+/*--------------------------------------------------------------------------*/
+
+void AbstractBlock::guts_of_deserialize( netCDF::NcGroup & group )
+{
+ // deserialize the "abstract only inner Block"
+ netCDF::NcDim nib = group.getDim( "NumberInnerBlock" );
+ if( nib.isNull() )
+  return;
+
+ auto nibs = nib.getSize();
+
+ if( v_Block.size() < nibs )
+  v_Block.resize( nibs , nullptr );
+  
+ for( Index i = get_first_inner_Block() ; i < nibs ; ++i ) {
+  auto bi = group.getGroup( "Block_" + std::to_string( i ) );
+  if( bi.isNull() )
+   throw( std::invalid_argument( "inner Block not found" ) );
+  v_Block[ i ] = new_Block( bi );
+  }
+ }  // end( AbstractBlock::guts_of_deserialize )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- End File AbstractBlock.cpp --------------------------*/
