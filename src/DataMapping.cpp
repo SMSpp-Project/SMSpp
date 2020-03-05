@@ -42,9 +42,10 @@ void SimpleDataMappingBase::deserialize
 
  auto sdmb_netCDF = pre_deserialize( group );
 
- Index num_data_mappings = 1;
- if( ! sdmb_netCDF.NumberDataMappings.isNull() )
-  num_data_mappings = sdmb_netCDF.NumberDataMappings.getSize();
+ if( sdmb_netCDF.NumberDataMappings.isNull() )
+  return;
+
+ auto num_data_mappings = sdmb_netCDF.NumberDataMappings.getSize();
 
  Index set_elements_start_index = 0;
  for( Index i = 0 ; i < num_data_mappings ; ++i ) {
