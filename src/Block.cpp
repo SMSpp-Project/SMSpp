@@ -76,7 +76,7 @@ BlockSolverConfig * Block::get_SolverConfig( BlockSolverConfig * svcc )
 
  auto lsit = ls.begin();
  for( c_Lst_Solver::size_type i = 0 ; i < ls.size() ; ++i , ++lsit ) {
-  scfg->v_SolverNames[ i ] = (*lsit)->name();
+  scfg->v_SolverNames[ i ] = (*lsit)->classname();
   scfg->v_SolverConfigs[ i ] = (*lsit)->get_ComputeConfig();
   }
 
@@ -336,8 +336,6 @@ void Block::add_to_BlockConfig( BlockConfig *aBC , const bool safe )
 
  // add the individual fields of aBC to the corresponding ones of the
  // f_BlockConfig
- if( aBC->f_name.size() )
-  f_BlockConfig->f_name = aBC->f_name;
 
  if( aBC->f_static_constraints_Configuration ) {
   delete f_BlockConfig->f_static_constraints_Configuration;
@@ -666,8 +664,6 @@ void Block::remove_variable_from_stuff( Variable * const variable ,
 
 BlockConfig::BlockConfig( const BlockConfig &old ) : Configuration()
 {
- f_name = old.f_name;
-
  f_static_constraints_Configuration =
                               old.f_static_constraints_Configuration->clone();
  f_dynamic_constraints_Configuration =
@@ -757,10 +753,7 @@ void BlockConfig::serialize( netCDF::NcFile & f , const int type ) const
 
 void BlockConfig::print( std::ostream &output ) const
 {
- output << "BlockConfig" << std::endl;
- if( ! f_name.empty() )
-  output << "[" << f_name << "]";
- output << ": ";
+ output << "BlockConfig: " << std::endl;
  if( f_static_constraints_Configuration )
   output << *f_static_constraints_Configuration;
  if( f_dynamic_constraints_Configuration )
@@ -789,12 +782,6 @@ void BlockConfig::print( std::ostream &output ) const
 /*--------------------------------------------------------------------------*/
 
 void BlockConfig::load( std::istream & input ) {
- input >> eatcomments;
- if( input.peek() == input.widen( '*' ) )
-  f_name.erase();
- else
-  input >> f_name;
-
  input >> eatcomments;
  if( input.peek() == input.widen( '*' ) ) {
   f_static_constraints_Configuration = nullptr;
@@ -935,8 +922,6 @@ void BlockConfig::serialize( netCDF::NcGroup & group ) const
 {
  Configuration::serialize( group );
 
- group.putAtt( "name" , f_name );
-
  if( f_static_constraints_Configuration ) {
   auto cg = group.addGroup( "static_constraints" );
   f_static_constraints_Configuration->serialize( cg );
@@ -1003,12 +988,6 @@ void BlockConfig::deserialize( netCDF::NcGroup & group )
      f_is_optimal_Configuration || f_solution_Configuration ||
      f_extra_Configuration || v_sub_BlockConfig.size() )
   throw( std::logic_error( "deserializing a non-empty BlockConfig" ) );
-
- netCDF::NcGroupAtt name = group.getAtt( "name" );
- if( name.isNull() )
-  throw( std::invalid_argument( "missing name in netCDF group" ) );
-
- name.getValues( f_name );
 
  auto cg = group.getGroup( "static_constraints" );
  f_static_constraints_Configuration = new_Configuration( cg );

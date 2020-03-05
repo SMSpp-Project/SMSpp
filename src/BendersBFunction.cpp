@@ -59,7 +59,7 @@ SMSpp_insert_in_factory_cpp_1( BendersBFunction );
 
 void BendersBFunction::load( std::istream &input ) {
  throw( std::logic_error( "BendersBFunction::load(): not implemented yet." ) );
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 /*------------- CONSTRUCTING AND DESTRUCTING BendersBFunction --------------*/
@@ -1098,13 +1098,19 @@ void BendersBFunction::delete_rows( c_ModParam issueMod ) {
 /*--------------------------------------------------------------------------*/
 
 void BendersBFunction::add_Modification( sp_Mod mod ,
-                                         Observer::ChnlName chnl ) {
+                                         Observer::ChnlName chnl )
+{
+ // GroupModification - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  if( const auto tmod = std::dynamic_pointer_cast<GroupModification>( mod ) ) {
   for( const auto & submod : tmod->v_sub_Modifications )
    this->add_Modification( submod , chnl );
- }
- else if( const auto tmod = std::dynamic_pointer_cast<FunctionMod>( mod ) ) {
+  return;
+  }
+
+ // FunctionMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ if( const auto tmod = std::dynamic_pointer_cast<FunctionMod>( mod ) ) {
 
   auto observer = tmod->function()->get_Observer();
 
@@ -1118,8 +1124,8 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
     if( f_Observer )
      f_Observer->add_Modification
       ( std::make_shared<FunctionMod>( this , FunctionMod::NaNshift ) , chnl );
+    }
    }
-  }
   else {
    /* Send a "nuclear Function Modification" considering the Observer is:
    *
@@ -1129,9 +1135,13 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
    * - Unknown.
    */
    send_nuclear_modification( chnl );
+   }
+  return;
   }
- }
- else if( const auto tmod = std::dynamic_pointer_cast<FunctionModVars>( mod ) ) {
+
+ // FunctionModVars - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ if( const auto tmod = std::dynamic_pointer_cast<FunctionModVars>( mod ) ) {
 
   auto observer = tmod->function()->get_Observer();
 
@@ -1143,7 +1153,7 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
       * infeasible and the value of this BendersBFunction may change
       * unpredictably. */
      send_nuclear_modification( chnl );
-    }
+     }
     else {
      /* Variables were removed from the Constraint. Dual solutions are still
       * feasible but the value of this BendersBFunction may change
@@ -1151,8 +1161,8 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
      if( f_Observer )
       f_Observer->add_Modification
        ( std::make_shared<FunctionMod>( this , FunctionMod::NaNshift ) , chnl );
+     }
     }
-   }
    else {
     // The Constraint is not being handled by this BendersBFunction.
     /* Dual solutions are still feasible and linearizations are still
@@ -1161,8 +1171,8 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
     if( f_Observer )
      f_Observer->add_Modification
       ( std::make_shared<FunctionMod>( this , FunctionMod::NaNshift ) , chnl );
+    }
    }
-  }
   else {
    /* Send a "nuclear Function Modification" considering the Observer is:
     *
@@ -1173,9 +1183,13 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
     * - Unknown.
     */
    send_nuclear_modification( chnl );
+   }
+  return;
   }
- }
- else if( const auto tmod = std::dynamic_pointer_cast<ConstraintMod>( mod ) ) {
+
+ // ConstraintMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ if( const auto tmod = std::dynamic_pointer_cast<ConstraintMod>( mod ) ) {
 
   if( tmod->type() == ConstraintMod::eRelaxConst ||
       tmod->type() == ConstraintMod::eEnforceConst ) {
@@ -1183,40 +1197,46 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
    auto behaviour = get_behaviour( tmod );
    if( behaviour == function_value_behaviour::unknown )
     send_nuclear_modification( chnl );
-   else if( behaviour == function_value_behaviour::increase && f_Observer )
-    f_Observer->add_Modification
-     ( std::make_shared<FunctionMod>( this , Inf<FunctionValue>() ) , chnl );
-   else if( behaviour == function_value_behaviour::decrease && f_Observer )
-    f_Observer->add_Modification
-     ( std::make_shared<FunctionMod>( this , - Inf<FunctionValue>() ) , chnl );
-  }
-  else if( const auto tmod =
-           std::dynamic_pointer_cast<RowConstraintMod>( mod ) ) {
+   else
+    if( behaviour == function_value_behaviour::increase && f_Observer )
+     f_Observer->add_Modification(
+	       std::make_shared<FunctionMod>( this , Inf<FunctionValue>() ) ,
+	       chnl );
+    else
+     if( behaviour == function_value_behaviour::decrease && f_Observer )
+      f_Observer->add_Modification(
+	     std::make_shared<FunctionMod>( this , - Inf<FunctionValue>() ) ,
+	     chnl );
+   return;
+   }
 
+  // actually a RowConstraintMod
+
+  if( const auto tmod = std::dynamic_pointer_cast<RowConstraintMod>( mod ) ) {
    switch( tmod->type() ) {
-   case( RowConstraintMod::eChgRHS ):
-   case( RowConstraintMod::eChgLHS ):
-   case( RowConstraintMod::eChgBTS ): {
-    if( this->has_constraint( tmod->constraint() ) ) {
-     /* Dual solution is still feasible and linearizations are still
-      * valid. But since this Constraint is being handled by this
-      * BendersBFunction, it must be updated. */
-     constraints_are_updated = false;
-    }
-    else {
-     // This BendersBFunction may change unpredictably.
+    case( RowConstraintMod::eChgRHS ):
+    case( RowConstraintMod::eChgLHS ):
+    case( RowConstraintMod::eChgBTS ): {
+     if( this->has_constraint( tmod->constraint() ) ) {
+      /* Dual solution is still feasible and linearizations are still
+       * valid. But since this Constraint is being handled by this
+       * BendersBFunction, it must be updated. */
+      constraints_are_updated = false;
+      }
+     else  // this BendersBFunction may change unpredictably.
+      send_nuclear_modification( chnl );
+
+     return;
+     }
+    default:  // unknown modification
      send_nuclear_modification( chnl );
     }
-    return;
+   return;
    }
-   default:
-    // unknown modification
-    send_nuclear_modification( chnl );
-   }
-  }
-  else if( const auto tmod =
-           std::dynamic_pointer_cast<FRowConstraintMod>( mod ) ) {
+ 
+  // actually a FRowConstraintMod
 
+  if( const auto tmod = std::dynamic_pointer_cast<FRowConstraintMod>( mod ) ) {
    if( tmod->type() == FRowConstraintMod::eFunctionChanged ) {
     // Pointer to the Function has changed
     if( this->has_constraint( tmod->constraint() ) )
@@ -1228,44 +1248,45 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
       * valid. However, the value of this BendersBFunction changes
       * unpredictably. */
      if( f_Observer )
-      f_Observer->add_Modification
-       ( std::make_shared<FunctionMod>( this , FunctionMod::NaNshift ) , chnl );
-   }
-   else {
-    // unknown modification
+      f_Observer->add_Modification(
+		std::make_shared<FunctionMod>( this , FunctionMod::NaNshift ) ,
+		chnl );
+    }
+   else  // unknown modification
     send_nuclear_modification( chnl );
+
+   return;
    }
-  }
-  else if( const auto tmod =
-           std::dynamic_pointer_cast<OneVarConstraintMod>( mod ) ) {
+
+  // actually a OneVarConstraintMod
+
+  if( const auto tmod =
+                    std::dynamic_pointer_cast<OneVarConstraintMod>( mod ) ) {
 
    if( tmod->type() == OneVarConstraintMod::eVariableChanged ) {
     // Pointer to the Variable of a OneVarConstraint has changed.
-    if( this->has_constraint( tmod->constraint() ) )
-     /* Dual solutions may become infeasible and the value of this
-      * BendersBFunction changes unpredictably. */
-     send_nuclear_modification( chnl );
-    else
+    if( ! this->has_constraint( tmod->constraint() ) ) {
      /* Dual solutions are still feasible and linearizations are still
       * valid. However, the value of this BendersBFunction changes
       * unpredictably. */
      if( f_Observer )
-      f_Observer->add_Modification
-       ( std::make_shared<FunctionMod>( this , FunctionMod::NaNshift ) , chnl );
+      f_Observer->add_Modification(
+	       std::make_shared<FunctionMod>( this , FunctionMod::NaNshift ) ,
+	       chnl );
+     return;
+     }
+    }
    }
-   else {
-    // unknown modification
-    send_nuclear_modification( chnl );
-    return;
-   }
-  }
-  else {
-   // unknown modification
-   send_nuclear_modification( chnl );
-  }
- } // end ConstraintMod
 
- else if( const auto tmod = std::dynamic_pointer_cast<BlockModAD>( mod ) ) {
+  // unknown modification
+  send_nuclear_modification( chnl );
+  return;
+
+  }  // end ConstraintMod - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ // BlockModAD- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ if( const auto tmod = std::dynamic_pointer_cast<BlockModAD>( mod ) ) {
   if( tmod->is_variable() ) {
    if( tmod->is_added() )
     // Variables were added. This BendersBFunction may change unpredictably.
@@ -1274,9 +1295,10 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
     /* Variables were removed. Dual solutions are still feasible. But the
      * value of this BendersBFunction may change unpredictably. */
     if( f_Observer )
-     f_Observer->add_Modification
-      ( std::make_shared<FunctionMod>( this , FunctionMod::NaNshift ) , chnl );
-  }
+     f_Observer->add_Modification(
+	       std::make_shared<FunctionMod>( this , FunctionMod::NaNshift ) ,
+	       chnl );
+   }
   else {
    /* Constraints were added or removed. Since these Constraints must not be
     * any of those handled by this BendersBFunction, dual solutions are still
@@ -1286,17 +1308,23 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
    auto behaviour = get_behaviour( tmod );
    if( behaviour == function_value_behaviour::unknown )
     send_nuclear_modification( chnl );
-   else if( behaviour == function_value_behaviour::increase && f_Observer )
-    f_Observer->add_Modification
-     ( std::make_shared<FunctionMod>( this , Inf<FunctionValue>() ) , chnl );
-   else if( behaviour == function_value_behaviour::decrease && f_Observer )
-    f_Observer->add_Modification
-     ( std::make_shared<FunctionMod>( this , - Inf<FunctionValue>() ) , chnl );
-  }
- }
+   else
+    if( behaviour == function_value_behaviour::increase && f_Observer )
+    f_Observer->add_Modification(
+		std::make_shared<FunctionMod>( this , Inf<FunctionValue>() ) ,
+		chnl );
+    else
+     if( behaviour == function_value_behaviour::decrease && f_Observer )
+      f_Observer->add_Modification(
+	      std::make_shared<FunctionMod>( this , - Inf<FunctionValue>() ) ,
+	      chnl );
+   }
 
- else {
-  /* Send a "nuclear Function Modification" considering the Modification is:
+  return;
+  }
+
+ /* If all else fails, send a "nuclear Function Modification" considering the 
+  * Modification is:
    *
    * - VariableMod
    *
@@ -1316,9 +1344,9 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
    * - Unknown modification
    */
 
-  send_nuclear_modification( chnl );
- }
-}
+ send_nuclear_modification( chnl );
+
+ }  // end( BendersBFunction::add_Modification )
 
 /*--------------------------------------------------------------------------*/
 /*------------ METHODS FOR Saving THE DATA OF THE BendersBFunction ---------*/
