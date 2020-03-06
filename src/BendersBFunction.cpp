@@ -199,6 +199,8 @@ void BendersBFunction::deserialize( netCDF::NcGroup & group ,
  set_mapping( std::move( tA ) , std::move( tb ) ,
               std::move( constraints ) , std::move( sides ) , issueMod );
 
+ Block::deserialize( group );
+
 }  // end( BendersBFunction::deserialize )
 
 /*--------------------------------------------------------------------------*/
@@ -1353,6 +1355,8 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
 /*--------------------------------------------------------------------------*/
 
 void BendersBFunction::serialize( netCDF::NcGroup & group ) const {
+
+ Block::serialize( group );
 
  c_Index nvar = get_num_active_var();
 

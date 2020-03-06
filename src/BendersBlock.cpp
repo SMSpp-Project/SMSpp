@@ -69,6 +69,8 @@ void BendersBlock::deserialize( netCDF::NcGroup & group ) {
  }
 
  benders_function->deserialize( benders_function_group );
+
+ Block::deserialize( group );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -76,6 +78,8 @@ void BendersBlock::deserialize( netCDF::NcGroup & group ) {
 /*--------------------------------------------------------------------------*/
 
 void BendersBlock::serialize( netCDF::NcGroup & group ) const {
+
+ Block::serialize( group );
 
  group.putAtt( "type" , "BendersBlock" );
 
