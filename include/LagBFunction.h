@@ -549,10 +549,10 @@ class LagBFunction : public C05Function , public Block {
 
  /// add a bunch of *dynamic* Lagrangian pairs <y, g(x)>,
  /** This method adds a bunch of Lagrangian pairs. The part of cost vector
-   * c of (obj_B) -not already saved- will be stored in LagMatrix. The evaluation
-   * of the Lagrangian function l(y) requires the vector c -stored in (B)- to be
-   * replaced by c^y = c + yA, and consequently the original vector c would be
-   * unavailable from (B).
+   * c of (obj_B) -not already saved- will be stored in LagMatrix.
+   * The evaluation of the Lagrangian function l(y) requires the vector c
+   * -stored in (B)- to be replaced by c^y = c + yA, and consequently the
+   * original vector c would be unavailable from (B).
    *
    * In addition, since c(x) of (obj_B) is stored in a *sparse* format,
    * the LagBFunction has to add -to the *active* variable set of (obj_B)-
@@ -580,6 +580,16 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 /** @name Saving the data of the LagBFunction
  *  @{ */
+
+ /// serialize a LagBFunction into a netCDF::NcGroup
+ /** Serialize a LagBFunction into a netCDF::NcGroup. Note that, LagBFunction
+  * being both a Function and a Block, the netCDF::NcGroup will have to have
+  * the "standard format of a :Block", meaning whatever is managed by the
+  * serialize() method of the base Block class, plus the
+  * LagBFunction-specific data with the following format:
+  *
+  *     TO BE DONE
+  */
 
  virtual void serialize( netCDF::NcGroup& group ) const override final;
 
@@ -701,7 +711,7 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- Block* get_inner_block( void );
+ Block* get_inner_block( void ) const;
 
 /*--------------------------------------------------------------------------*/
 

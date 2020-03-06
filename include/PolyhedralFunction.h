@@ -6,9 +6,9 @@
  * concave) C05Function defined by the maximum (or minimum) of a "small"
  * number of explicitly provided affine forms.
  *
- * \version 0.20
+ * \version 0.21
  *
- * \date 30 - 09 - 2019
+ * \date 24 - 02 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -476,7 +476,7 @@ class PolyhedralFunction : public C05Function {
    case( intGPMaxSz ):
     if( value < 0 )
      throw( std::invalid_argument( "intGPMaxSz must be non-negative" ) );
-    v_glob.resize( value , Inf<Index>() );
+    v_glob.resize( value , Inf<int>() );
     break;
    default: Function::set_par( par , value );
    }
@@ -691,15 +691,15 @@ class PolyhedralFunction : public C05Function {
   if( name >= v_glob.size() )
    return( v_b[ v_ord[ f_next ] ] );
 
-  if( v_glob[ name ] == Inf<Index>() )
+  if( v_glob[ name ] == Inf<int>() )
    // there is no item with such a name, which may mean that it was there
    // once but it has been deleted: the linearization is invalid
    return( std::numeric_limits<FunctionValue>::quiet_NaN() );
 
-  if( v_glob[ name ] < v_b.size() )
+  if( v_glob[ name ] >= 0 )
    return( v_b[ v_glob[ name ] ] );
   else
-   return( v_ab[ v_glob[ name ] - v_b.size() ] );
+   return( v_ab[ - v_glob[ name ] - 1 ] );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1476,10 +1476,10 @@ class PolyhedralFunction : public C05Function {
    if( pos == v_A.size() )
     return( nullptr );                        // bound == all-0 row
    else
-    if( pos < v_A.size() )                    // ordinary row
+    if( pos >= 0 )                            // ordinary row
      return( v_A[ pos ].data() );
     else                                      // aggregated row
-     return( v_aA[ pos - v_b.size() ].data() );
+     return( v_aA[ - pos - 1 ].data() );
   }
  }
 
@@ -1512,16 +1512,16 @@ class PolyhedralFunction : public C05Function {
  
  Subset v_ord;         ///< the ordering of linearizations
 
- Subset v_glob;        ///< the global pool
+ std::vector<int> v_glob;  ///< the global pool, a vector of *signed* ints
                        /**< h = v_glob[ i ] contains the place where the i-th
-			* item of the global pool is stored; if h < v_b.size()
-			* then it's an original linearization and it's found
+			* item of the global pool is stored; if h >= 0 then
+			* it's an original linearization and it's found
 			* in v_A[ h ] and v_b[ h ] (except if h == v_b.size()
 			* - 1, in which case the constant term is still in
 			* v_b[ h ] but the coefficients are all-0), otherwise
-			* it's an aggregated one and it's found in v_aA[ k ]
-			* and v_ab[ k ] for k = h - v_b.size(). If
-			* h = Inf<Index>() there is no item with this name. */
+			* it's an aggregated one and it's found in
+			* v_aA[ - h - 1 ]  and v_ab[ - h - 1 ]. If
+			* h = Inf<int>() there is no item with this name. */
 
  Index f_imp;                ///< the important linearization
 

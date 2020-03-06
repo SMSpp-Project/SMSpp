@@ -7,7 +7,7 @@
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #
 cmake_minimum_required(VERSION 3.8...3.15)
-project(SMS++ VERSION 0.1.0 LANGUAGES CXX)
+project(SMS++ VERSION 0.2.0 LANGUAGES CXX)
 
 # ----- Settings ------------------------------------------------------------ #
 include(CTest)
@@ -32,6 +32,7 @@ target_sources(SMSpp PRIVATE
                src/ColVariableSolution.cpp
                src/Configuration.cpp
                src/Constraint.cpp
+               src/DataMapping.cpp
                src/DQuadFunction.cpp
                src/FRealObjective.cpp
                src/FRowConstraint.cpp

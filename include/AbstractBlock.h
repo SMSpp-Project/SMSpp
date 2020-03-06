@@ -241,9 +241,9 @@ class AbstractBlock : public Block {
   * the "arbitrary" part, i.e., that after the "reserved" one as dictated
   * by the get_first_*_*() methods.
   *
-  * In the current, partial implementation of the method, besides the
-  * mandatory "type" attribute of any :Block, the group should contain the
-  * following:
+  * In the current, partial implementation of the method, besides what is
+  * managed by the serialize() method of the base Block class, the group
+  * should contain the following:
   *
   * - the dimension "NumberInnerBlock", containing the number of the
   *   inner Block. The dimension is optional, it is is not provided 0 is
@@ -253,9 +253,19 @@ class AbstractBlock : public Block {
   *   > get_first_inner_Block(), then the groups "Block_<i>", for i = 0,. ...
   *   get_first_inner_Block() - 1; each one must contain the deserialization
   *   of the i-th inner Block.
-  */
+  *
+  * The method dispatches the protected guts_of_deserialize(), and then the
+  * method of the base class, in this order. This is done so that the
+  * necessary NBModification is issued last, while allowing derived classes
+  * to call the (equivalent to) AbstractBlock::deserialize() at any point in
+  * their deserialize() is they so need; see comments to
+  * Block::deserialize() for a complete discussion. */
 
- virtual void deserialize( netCDF::NcGroup & group ) override;
+ virtual void deserialize( netCDF::NcGroup & group ) override
+ {
+  guts_of_deserialize( group );
+  Block::deserialize( group );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// destructor of AbstractBlock, destroys the abstract representation
@@ -519,7 +529,8 @@ class AbstractBlock : public Block {
  * @{ */
 
  /// serialize the AbstractBlock (recursively) to a netCDF NcGroup
-  /** The AbstractBlock serializes itself out of a netCDF::NcGroup. The
+ /** The AbstractBlock serializes itself out of a netCDF::NcGroup. Besides
+  * what is managed by the serialize() method of the base Block class, the
   * method of the base AbstractBlock class only handles
   *
   *      OR, BETTER, WILL HANDLE WHEN THIS METHOD WILL BE IMPLEMENTED
@@ -564,6 +575,11 @@ class AbstractBlock : public Block {
   throw( std::logic_error( "AbstractBlock::load not implemented yet" ) );
   }
 
+/*--------------------------------------------------------------------------*/
+ /// do all the dirty work for deserialize()
+
+ void guts_of_deserialize( netCDF::NcGroup & group );
+ 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/

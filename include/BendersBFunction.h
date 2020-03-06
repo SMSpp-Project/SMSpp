@@ -7,7 +7,7 @@
  *
  * \version 0.01
  *
- * \date 18 - 11 - 2019
+ * \date 09 - 01 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -64,7 +64,7 @@ namespace SMSpp_di_unipi_it
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /// a Benders Function
-/**< The class BendersBFunction is a convenience class implementing the
+/** The class BendersBFunction is a convenience class implementing the
  * "abstract" concept of a Benders Function of "any" Block. BendersBFunction
  * derives from *both* C05Function and Block.
  *
@@ -72,28 +72,28 @@ namespace SMSpp_di_unipi_it
  *
  * 1) A "base" Block B, representing an optimization problem of the form
  *
- *     (B)    min { c(y) : w <= Ey <= z, y \in Y },
+ *        (B)    min { c(y) : w <= E(y) <= z, y \in Y },
  *
- *    where E is a matrix and w and z are vectors of appropriate sizes, and Y
- *    is a convex set. This will be the one, and only, sub-Block of
+ *    where c, w, and z are vectors of appropriate sizes, E is a function of
+ *    y, and Y is a convex set. This will be the one, and only, sub-Block of
  *    BendersBFunction (when "seen" as a Block).
  *
  * 2) A matrix A with m rows and n columns, a vector b with m rows, and a
  *    vector of pairs [ ( C_i , S_i ) ]_{i \in I}, each pair being formed by a
- *    pointer to a RowConstraint of Block B and a ConstraintSide, where I =
+ *    pointer to a RowConstraint of Block B and a #ConstraintSide, where I =
  *    {1, ..., m}.
  *
  *    Problem (B) would typically be associated with an original problem
  *
- *     (O)    min { d(x) + c(y) : g <= Fx + Ey <= h, x \in X, y \in Y }
+ *        (O)    min { d(x) + c(y) : g <= Fx + E(y) <= h, x \in X, y \in Y }
  *
  *    defined in terms of variables x and y. By reformulating problem (O) as
  *
- *     (O')   min { d(x) + phi(x) : x \in X },
+ *        (O')   min { d(x) + phi(x) : x \in X },
  *
  *    where
  *
- *     (P)    phi(x) = min { c(y) : (g - Fx) <= Ey <= (h - Fx), y \in Y },
+ *        (P)    phi(x) = min { c(y) : (g - Fx) <= E(y) <= (h - Fx), y \in Y },
  *
  *    we see that (P) assumes the form of (B) with w = g - Fx and z = h -
  *    Fx. The BendersBFunction represents the function phi whose underlying
@@ -110,7 +110,7 @@ namespace SMSpp_di_unipi_it
  *    the matrix A and the vector b such that M(x) = Ax + b. The i-th
  *    component of this mapping, M_i(x) = [ Ax + b ]_i, is associated with the
  *    left- or right-hand side (or both) of the RowConstraint of Block B
- *    pointed by C_i. The ConstraintSide S_i indicates which sides of the
+ *    pointed by C_i. The #ConstraintSide S_i indicates which sides of the
  *    RowConstraint (pointed by) C_i are affected, as follows:
  *
  *    - If S_i = eLHS, then M_i(x) gives the value of the left-hand side of
@@ -137,8 +137,13 @@ namespace SMSpp_di_unipi_it
  *        i \in I such that S_i == eBoth, there must not exist j \in I such
  *        that C_i == C_j.
  *
- * Note that the BendersBFunction is not supposed to have any Variable other
- * than "x" or Constraint (besides those defined in the sub-Block B).
+ *    We stress that the i-th active Variable of this BendersBFunction is
+ *    associated with the i-th column of the mapping matrix A. In other words,
+ *    the i-th active Variable serves as the coefficient of the i-th column of
+ *    the A matrix in the mapping M.
+ *
+ * Note that the BendersBFunction is not supposed to have any Variable or
+ * Constraint (besides those defined in its only inner Block B).
  */
 
 class BendersBFunction : public C05Function , public Block {
@@ -171,11 +176,17 @@ class BendersBFunction : public C05Function , public Block {
  /// public enum representing the sides of a RowConstraint
  /** Public enum representing the sides of a RowConstraint. */
 
- enum ConstraintSide {
-  eLHS =  0 ,  ///< the left-hand side of a RowConstraint
-  eRHS =  1 ,  ///< the right-hand side of a RowConstraint
-  eBoth = 2    ///< both sides of a RowConstraint
+ enum ConstraintSide : char {
+  eLHS =  'L' ,  ///< the left-hand side of a RowConstraint
+  eRHS =  'R' ,  ///< the right-hand side of a RowConstraint
+  eBoth = 'B'    ///< both sides of a RowConstraint
   };
+
+ using ConstraintVector = std::vector< RowConstraint * >;
+ ///< a vector of pointers to RowConstraint
+
+ using ConstraintSideVector = std::vector< ConstraintSide >;
+ ///< a vector of ConstraintSide
 
  using RealVector = std::vector < FunctionValue >;
  ///< a real n-vector, useful for both the rows of A and b
@@ -187,17 +198,12 @@ class BendersBFunction : public C05Function , public Block {
 
  using c_MultiVector = const MultiVector;   ///< a const MultiVector
 
+ // TODO It should be a vector of const ColVariable *
  using VarVector = std::vector< ColVariable * >;
  ///< representing the x variables upon which the function depends
 
  using c_VarVector = const VarVector;
  ///< a const version of the x variables upon which the function depends
-
- using ConstraintSpecifier = std::pair< RowConstraint * , ConstraintSide >;
- ///< associates a ConstraintSide with a RowConstraint
-
- using v_ConstraintSpecifier = std::vector< ConstraintSpecifier >;
- ///< a vector of ConstraintSpecifier
 
 /*--------------------------------------------------------------------------*/
  /// virtualized concrete iterator
@@ -333,21 +339,27 @@ class BendersBFunction : public C05Function , public Block {
   * @param b an m-vector of Function::FunctionValue representing the b vector
   *        in the definition of the linear mapping;
   *
-  * @param constraints the set of (pointers to) affected RowConstraint
-  *        together with the information about which sides are affected.
+  * @param constraints the vector of (pointers to) affected RowConstraint.
+  *
+  * @param sides the vector containing the affected sides of the affected
+  *        RowConstraint. There is a correspondence between the vectors \p
+  *        sides and \p constraints: \p sides[i] is associated with \p
+  *        constraints[i]. Of course, \p sides and \p constraints must have
+  *        the same size.
   *
   * @param observer a pointer to the Observer of this BendersBFunction.
   *
   * As the && implies, \p x, \p A, \p b, and \p constraints become property of
   * the BendersBFunction object.
   *
-  * All inputs have a default (nullptr, {}, {}, {}, {}, and nullptr,
+  * All inputs have a default (nullptr, {}, {}, {}, {}, {}, and nullptr,
   * respectively) so that this can be used as the void constructor. */
 
  BendersBFunction( Block * inner_block = nullptr ,
                    VarVector && x = {} , MultiVector && A = {} ,
                    RealVector && b = {} ,
-                   v_ConstraintSpecifier && constraints = {} ,
+                   ConstraintVector && constraints = {} ,
+                   ConstraintSideVector && sides = {} ,
                    Observer * const observer = nullptr )
   : C05Function( observer ) , constraints_are_updated( false ) ,
     solver_status ( 0 ) , diagonal_linearization_required( false )
@@ -355,7 +367,7 @@ class BendersBFunction : public C05Function , public Block {
   set_inner_block( inner_block );
   set_variables( std::move( x ) );
   set_mapping( std::move( A ) , std::move( b ) , std::move( constraints ) ,
-               eNoMod );
+               std::move( sides ) , eNoMod );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -388,15 +400,18 @@ class BendersBFunction : public C05Function , public Block {
   *
   * Usually [de]serialization is done by Block, but BendersBFunction is a
   * complex enough object so that having its own ready-made [de]serialization
-  * procedure may make sense. However, because this method can then
+  * procedure may make sense. Besides, it *is* a Block, and  therefore the
+  * netCDF::NcGroup will have to have contain whatever is managed by the
+  * serialize() method of the base Block class in addition to the
+  * BendersBFunction-specific data. However, because this method can then
   * conceivably be called when the BendersBFunction is attached to an
   * Observer (although it is expected to be used before that), it is also
   * necessary to specify if and how a Modification is issued.
   *
-  * @param group, a netCDF::NcGroup holding the data in the format described
-  *        in the comments to deserialize();
+  * @param group a netCDF::NcGroup holding the data in the format described
+  *        in the comments to serialize();
   *
-  * @param issueMod, which decides if and how the FunctionMod (with shift()
+  * @param issueMod which decides if and how the FunctionMod (with shift()
   *        == FunctionMod::NaNshift, i.e., "everything changed") is issued,
   *        as described in Observer::make_par(). The default is eNoMod,
   *        since the method is mostly thought to be used during initialization
@@ -490,6 +505,10 @@ class BendersBFunction : public C05Function , public Block {
   *        its allocated memory is released.
   */
  void set_inner_block( Block * block , bool destroy_previous_block = true ) {
+  if( ( ! v_Block.empty() ) && block == v_Block[ 0 ] &&
+      ( ! destroy_previous_block ) )
+   return; // the given Block is already here; silently return
+
   if( destroy_previous_block && ! v_Block.empty() )
    delete v_Block[ 0 ];
 
@@ -498,6 +517,8 @@ class BendersBFunction : public C05Function , public Block {
 
   if( block )
    block->set_f_Block( this );
+
+  send_nuclear_modification();
  }
 
 /*--------------------------------------------------------------------------*/
@@ -517,7 +538,9 @@ class BendersBFunction : public C05Function , public Block {
   * causes the corresponding parameter of the CDASolver of the sub-Block to be
   * overwritten. The setting of these two parameters only take effect if this
   * BendersBFunction has a sub-Block and this sub-Block has a CDASolver
-  * attached to it.
+  * attached to it. If the inner Block of this BendersBFunction has not yet
+  * been constructed or it has no CDASolver attached to it, attempting setting
+  * any of these three parameters will raise an exception.
   *
   * @param par The parameter to be set.
   *
@@ -788,9 +811,14 @@ class BendersBFunction : public C05Function , public Block {
   *
   * @param b The vector b in the linear mapping.
   *
-  * @param constraints The vector of pairs containing the set of RowConstraint
-  *        affected by the values of x and the respective affected sides.
-
+  * @param constraints the vector of (pointers to) affected RowConstraint.
+  *
+  * @param sides the vector containing the affected sides of the affected
+  *        RowConstraint. There is a correspondence between the vectors \p
+  *        side and \p constraints: \p sides[i] is associated with \p
+  *        constraints[i]. Of course, \p sides and \p constraints must have
+  *        the same size.
+  *
   * @param issueMod It indicates if and how the FunctionMod (with f_shift ==
   *        FunctionMod::NaNshift, i.e., "everything changed") is issued, as
   *        described in Observer::make_par().
@@ -799,7 +827,8 @@ class BendersBFunction : public C05Function , public Block {
   * object. */
 
  void set_mapping( MultiVector && A , RealVector && b ,
-                   v_ConstraintSpecifier && constraints ,
+                   ConstraintVector && constraints ,
+                   ConstraintSideVector && sides ,
                    c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -1111,16 +1140,22 @@ class BendersBFunction : public C05Function , public Block {
   *        is, \p nb[ i ] is the constant factor of the i-th given row of the
   *        linear mapping);
   *
-  * @param nc a vector of ConstraintSpecifier. The i-th element of this vector
-  *        includes the pointer to the RowConstraint and the side associated
-  *        with the given i-th row.
+  * @param nc the i-th element of this vector includes the pointer to the
+  *        RowConstraint associated with the given i-th row.
+  *
+  * @param ns the vector containing the affected sides of the affected
+  *        RowConstraint. There is a correspondence between the vectors \p ns
+  *        and \p nc: \p ns[i] is associated with \p nc[i], i.e., ns[i] is the
+  *        affected side of the nc[i] RowConstraint. Of course, ns and nc must
+  *        have the same size.
   *
   * @param issueMod decides if and how the BendersBFunctionModAdd is issued,
   *        as described in Observer::make_par().
   */
 
  void add_rows( MultiVector && nA , c_RealVector & nb ,
-                const v_ConstraintSpecifier & nc ,
+                const ConstraintVector & nc ,
+                const ConstraintSideVector & ns ,
                 c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -1134,14 +1169,16 @@ class BendersBFunction : public C05Function , public Block {
   *
   * @param bi is the constant term of the new row in the mapping;
   *
-  * @param ci is the ConstraintSpecifier for the new row.
+  * @param ci is the pointer to the RowConstraint for the new row.
+  *
+  * @param si is the #ConstraintSide for the new row.
   *
   * @param issueMod decides if and how the BendersBFunctionModAdd is issued,
   *        as described in Observer::make_par().
   */
 
- void add_row( RealVector && Ai , FunctionValue bi , ConstraintSpecifier ci ,
-               c_ModParam issueMod = eModBlck );
+ void add_row( RealVector && Ai , FunctionValue bi , RowConstraint * ci ,
+               ConstraintSide si , c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// deletes a range of rows from the linear mapping in the BendersBFunction
@@ -1227,8 +1264,11 @@ class BendersBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
  /// serialize a BendersBFunction into a netCDF::NcGroup
- /** Serialize a BendersBFunction into a netCDF::NcGroup, with the following
-  * format:
+ /** Serialize a BendersBFunction into a netCDF::NcGroup. Note that,
+  * BendersBFunction being both a Function and a Block, the netCDF::NcGroup
+  * will have to have the "standard format of a :Block", meaning whatever is
+  * managed by the serialize() method of the base Block class, plus the
+  * BendersBFunction-specific data with the following format:
   *
   * - The dimension "NumVar" containing the number of columns of the A matrix,
   *   i.e., the number of active variables.
@@ -1237,31 +1277,75 @@ class BendersBFunction : public C05Function , public Block {
   *   matrix. The dimension is optional; if it is not provided then 0 (no
   *   rows) is assumed.
   *
-  * - The variable "A", of type double and indexed over both the dimensions
-  *   NumRow and NumVar (in this order); it contains the (row-major)
-  *   representation of the matrix A. The variable is only optional if NumRow
+  * - The dimension "NumNonzero", of type netCDF::NcUint64, containing the
+  *   number of nonzero entries in the A matrix. This dimension is optional
+  *   and determines in which format the matrix A is given. If this dimension
+  *   is present, then "NumRow" must also be. If "NumNonzero" is not present,
+  *   then the A matrix is given as a dense matrix. If it is present, then the
+  *   A matrix is given in a sparse format as defined by the variables "Row",
+  *   "Column", and "A". During serialization, the following criterion is used
+  *   to decide the format in which the A matrix is stored. If at most 25% of
+  *   its elements are nonzero, it is stored in sparse format; otherwise, it
+  *   is stored in dense format.
+  *
+  * - The variable "NumNonzeroAtRow", of type netCDF::NcUint64 and indexed
+  *   over the dimension "NumRow", containing the number of nonzero elements
+  *   of the A matrix in each row. This variable is mandatory if the dimension
+  *   "NumNonzero" is present. If "NumNonzero" is not present, then this
+  *   variable is ignored. For each i in {0, ..., NumRow-1},
+  *   NumNonzeroAtRow[i] is the number of nonzero elements in the i-th row of
+  *   the A matrix.
+  *
+  * - The variable "Column", of type netCDF::NcUint64 and indexed over the
+  *   dimension "NumNonzero", containing the column indices of the entries of
+  *   the matrix. This variable is mandatory if the dimension "NumNonzero" is
+  *   present. If "NumNonzero" is not present, then this variable is
+  *   ignored. For each k in {0, ..., NumNonzero-1}, Column[k] is the column
+  *   index of the k-th nonzero entry of the A matrix, whose value is given by
+  *   A[k]. "Column" stores the column indices in row-major order, that is, if
+  *   (i,j) and (p,q) are the entries of the k-th and l-th nonzero elements of
+  *   A, respectively, with k < l, then i <= p.
+  *
+  * - The variable "A", of type netCDF::NcDouble. This variable stores the
+  *   values of the elements of the A matrix of the mapping. If the dimension
+  *   "NumNonzero" is present, then this variable is indexed over this
+  *   dimension and contains the values of the (potentially) nonzero entries
+  *   of the matrix. In this case, A[k] is the value of the k-th nonzero
+  *   entry, whose column index is given by Column[k]. The nonzero elements of
+  *   the matrix are given in left-to-right top-to-bottom ("row-major")
+  *   order. If the dimension "NumNonzero" is not present, then "A" is indexed
+  *   over both the "NumRow" and "NumVar" dimensions (in this order); it
+  *   contains the (row-major) representation of the matrix A. This variable
+  *   is optional only if NumRow == 0.
+  *
+  * - The variable "b", of type netCDF::NcDouble and indexed over the
+  *   dimension "NumRow", which contains the vector b. This variable is
+  *   optional only if NumRow == 0.
+  *
+  * - The variable "ConstraintSide", of type netCDF::NcChar and indexed over
+  *   the dimension "NumRow", indicating, at position i, which side of the
+  *   i-th Constraint is affected. The possible values are 'L' for the
+  *   left-hand (or lower bound) side, 'R' for the right-hand (or upper bound)
+  *   side, and 'B' for both sides. This variable is optional only if NumRow
   *   == 0.
   *
-  * - The variable "b", of type double and indexed over the dimension NumRow,
-  *   which contains the vector b. The variable is only optional if NumRow ==
-  *   0.
+  * - All the dimensions and variables necessary to describe a vector of
+  *   AbstractPath as described in the comments of
+  *   AbstractPath::deserialize(). The number of AbstractPath must be equal to
+  *   the number of rows of the A matrix and, therefore, the dimension
+  *   associated with the number of AbstractPath is NumRow. The i-th
+  *   AbstractPath in this vector must be the path to the i-th affected
+  *   RowConstraint (which is associated with the i-th row of the A
+  *   matrix). These variables are optional only if NumRow == 0.
   *
-  * - The sub-group "InnerBlock", which contains the variable "Type" which is
-  *   the name of the type of the inner block.
+  * - The sub-group "Block", containing the description of the inner
+  *   Block. The inner Block must have a CDASolver attached to it.
   *
-  * - The sub-group "ConstraintSpecifier_i", for each i in {1, ..., m}, where
-  *   m is the number of rows of the A matrix. The group ConstraintSpecifier_i
-  *   contains:
+  * - The sub-group "BlockConfig", containing the BlockConfig of the inner
+  *   Block. This sub-group is optional.
   *
-  *   - The variable "Side", indicating which side of the Constraint is
-  *     affected. The possible values are 0 for the left-hand (or lower bound)
-  *     side, 1 for the right-hand (or upper bound) side, and 2 for both side.
-  *
-  *   - The sub-group "Path", containing the path to that Constraint.
-  *
-  * - The sub-group "Variable_i", for each i in {1, ..., n}, where n is the
-  *   number of active Variable of this BendersBFunction, which contains the
-  *   path to the i-th active Variable.
+  * - The sub-group "BlockSolver", containing the BlockSolverConfig of the
+  *   inner Block.
   */
 
  virtual void serialize( netCDF::NcGroup & group ) const override;
@@ -1436,7 +1520,7 @@ class BendersBFunction : public C05Function , public Block {
   * sub-Block, a \c nullptr is returned.
   */
 
- Block * get_inner_block() const {
+ inline Block * get_inner_block() const {
   if( v_Block.empty() )
    return nullptr;
   return v_Block[ 0 ];
@@ -1451,6 +1535,33 @@ class BendersBFunction : public C05Function , public Block {
  /// returns a (const reference) to the current b vector in the mapping
 
  const RealVector & get_b( void ) const { return( v_b ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns a pointer to the Solver attached to the sub-Block (if any)
+ /** This method returns a pointer to the Solver attached to the sub-Block of
+  * this BendersBFunction. The template parameter \p T indicates the type of
+  * Solver whose pointer will be returned; its default value is Solver. If
+  *
+  * - this BendersBFunction does not have a sub-Block; or
+  *
+  * - the sub-Block of this BendersBFunction does not have a Solver attached
+  *   to it; or
+  *
+  * - the Solver attached to the sub-Block is not or does not derive from \p T
+  *
+  * then a nullptr is returned. Otherwise, a pointer of type \p T is returned.
+  */
+
+ template<class T = Solver>
+ inline T * get_solver() const {
+  if( v_Block.empty() )
+   return nullptr;
+
+  if( v_Block[ 0 ]->get_registered_solvers().empty() )
+   return nullptr;
+
+  return dynamic_cast< T * >( v_Block[ 0 ]->get_registered_solvers().back() );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -1492,8 +1603,14 @@ class BendersBFunction : public C05Function , public Block {
 
  RealVector v_b;      ///< the b vector of the mapping A x + b
 
- v_ConstraintSpecifier v_constraints;
- ///< the pointers to RowConstraint and their respective affected sides
+ ConstraintVector v_constraints;
+ ///< the pointers to RowConstraint
+
+ ConstraintSideVector v_sides;
+ ///< the affected sides of the affected RowConstraint
+ /**< The affected sides of the affected RowConstraint. There is a
+  * correspondence between the vectors v_side and v_constraints: v_sides[i] is
+  * associated with v_constraints[i]. */
 
  bool constraints_are_updated = false;
  ///< indicates whether the constraints of the sub-Block are updated
@@ -1504,7 +1621,7 @@ class BendersBFunction : public C05Function , public Block {
  bool diagonal_linearization_required = false;
  ///< indicates whether a diagonal linearization is required
 
-/**@} ----------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1521,256 +1638,6 @@ class BendersBFunction : public C05Function , public Block {
   decrease ,
   unknown
   };
-
-/*--------------------------------------------------------------------------*/
-/*-------------------------- PRIVATE METHODS -------------------------------*/
-/*--------------------------------------------------------------------------*/
-
- /// returns a pointer to the Solver attached to the sub-Block (if any)
- /** This method returns a pointer to the Solver attached to the sub-Block of
-  * this BendersBFunction. The template parameter \p T indicates the type of
-  * Solver whose pointer will be returned; its default value is Solver. If
-  *
-  * - this BendersBFunction does not have a sub-Block; or
-  *
-  * - the sub-Block of this BendersBFunction does not have a Solver attached
-  *   to it; or
-  *
-  * - the Solver attached to the sub-Block is not or does not derive from \p T
-  *
-  * then a nullptr is returned. Otherwise, a pointer of type \p T is returned.
-  */
-
- template<class T = Solver>
- inline T * get_solver() const {
-  if( v_Block.empty() )
-   return nullptr;
-
-  if( v_Block[ 0 ]->get_registered_solvers().empty() )
-   return nullptr;
-
-  return dynamic_cast< T * >( v_Block[ 0 ]->get_registered_solvers().back() );
- }
-
- template<class T = Solver>
- inline static T * get_solver( Block * block ) {
-  if( ! block )
-   return nullptr;
-
-  if( block->get_registered_solvers().empty() )
-   return nullptr;
-
-  return dynamic_cast< T * >( block->get_registered_solvers().back() );
- }
-
-/*--------------------------------------------------------------------------*/
-
- /// set a given integer (int) numerical parameter of the inner Block's Solver
- /** Set a given integer (int) numerical parameter of the Solver of the inner
-  * Block.
-  *
-  * @param par The parameter whose value must be set.
-  *
-  * @param value The value of the parameter.
-  */
-
- void set_solver_par( const idx_type par , const int value ) {
-  auto solver = get_solver<CDASolver>();
-  if( ! solver )
-   throw( std::invalid_argument( "BendersBFunction::set_solver_par: the inner "
-                                 "Block must have a CDASolver attached "
-                                 "to it." ) );
-  solver->set_par( par , value );
- }
-
-/*--------------------------------------------------------------------------*/
-
- /// set a given float (double) numerical parameter of the inner Block's Solver
- /** Set a given float (double) numerical parameter of the Solver of the inner
-  * Block.
-  *
-  * @param par The parameter whose value must be set.
-  *
-  * @param value The value of the parameter.
-  */
-
- void set_solver_par( const idx_type par , const double value ) {
-  auto solver = get_solver<CDASolver>();
-  if( ! solver )
-   throw( std::invalid_argument( "BendersBFunction::set_solver_par: the inner "
-                                 "Block must have a CDASolver attached "
-                                 "to it." ) );
-  solver->set_par( par , value );
- }
-
-/*--------------------------------------------------------------------------*/
-
- /// get a specific integer numerical parameter of the inner Block's Solver
- /** Get a specific integer (int) numerical parameter of the Solver of the
-  * inner Block.
-  *
-  * @param par The parameter whose value is desired.
-  *
-  * @return The value of the parameter.
-  */
-
- inline int get_solver_int_par( const idx_type par ) const {
-  auto solver = get_solver<CDASolver>();
-  if( ! solver )
-   throw( std::invalid_argument( "BendersBFunction::get_solver_int_par: the "
-                                 "inner Block must have a CDASolver attached "
-                                 "to it." ) );
-  return solver->get_int_par( par );
- }
-
-/*--------------------------------------------------------------------------*/
-
- /// get a specific double  numerical parameter of the inner Block's Solver
- /** Get a specific float (double) numerical parameter of the Solver of the
-  * inner Block.
-  *
-  * @param par The parameter whose value is desired.
-  *
-  * @return The value of the parameter.
-  */
-
- inline double get_solver_dbl_par( const idx_type par ) const {
-  auto solver = get_solver<CDASolver>();
-  if( ! solver )
-   throw( std::invalid_argument( "BendersBFunction::get_solver_dbl_par: the "
-                                 "inner Block must have a CDASolver attached "
-                                 "to it." ) );
-  return solver->get_dbl_par( par );
- }
-
-/*--------------------------------------------------------------------------*/
-
- /// update the RowConstraint of the sub-Block
- /** This function updates the RowConstraint of the sub-Block to reflect the
-  * current mapping and values of the x variables.
-  */
-
- void update_constraints();
-
-/*--------------------------------------------------------------------------*/
-
- /// write the Solution with the given name in the sub-Block
- /** If <tt>name == Inf<Index>()</tt>, this function writes the dual solution
-  * associated with the last computed linearization in the sub-Block. If
-  * <tt>name != Inf<Index>()</tt>, then it writes the Solution that is stored
-  * in the global pool under the given \p name in the sub-Block. In the last
-  * case, if the given \p name is invalid or the Solution is not present in
-  * the global pool, an exception is thrown.
-  *
-  * @param name the name of the solution to be written
-  */
-
- void write_dual_solution( Index name );
-
-/*--------------------------------------------------------------------------*/
-
- /// write the Solution with the given name in the sub-Block
- /** This function writes the Solution stored in the global pool under the
-  * given \p name in the sub-Block. If the given \p name is invalid or the
-  * Solution is not present, an exception is thrown.
-  *
-  * @param name the name under which the Solution is stored in the global
-  *        pool.
-  */
-
- void write_dual_solution_from_global_pool( Index name );
-
-/*--------------------------------------------------------------------------*/
-
- /// returns the dual value associated with the given RowConstraint
- /** This function returns the dual value associated with the given \p
-  * constraint and its specific \c side.
-  *
-  * @param constraint a pointer to the RowConstraint.
-  *
-  * @param side the side of the RowConstraint.
-  *
-  * @return the dual value associated with the given \p constraint and \p side.
-  */
-
- FunctionValue get_dual_value( const RowConstraint * constraint ,
-                               const ConstraintSide & side );
-
-/*--------------------------------------------------------------------------*/
-
- /// compute the linearization constant
- /** Compute the linearization constant considering the dual solution
-  * currently stored in the sub-Block.
-  *
-  * @return the computed linearization constant.
-  */
-
- FunctionValue compute_linearization_constant();
-
-/*--------------------------------------------------------------------------*/
-
- /// sends a nuclear modification, invalidates the global pool
- /** Besides sending a "nuclear modification" for Function, it also invalidates
-  * the global pool and declares that the Constraint of the sub-Block are not
-  * updated.
-  *
-  * @param chnl the name of the channel to which the Modification should be
-  *        sent.
-  */
-
- void send_nuclear_modification( const Observer::ChnlName chnl );
-
-/*--------------------------------------------------------------------------*/
-
- /// returns the behaviour of this Function considering the given Modification
-
- function_value_behaviour get_behaviour( std::shared_ptr<BlockModAD> mod )
-  const;
-
-/*--------------------------------------------------------------------------*/
-
- /// returns the behaviour of this Function considering the given Modification
-
- function_value_behaviour get_behaviour( std::shared_ptr<ConstraintMod> mod )
-  const;
-
-/*--------------------------------------------------------------------------*/
-
- /// returns the behaviour of this Function considering the given Modification
- /** Returns the behaviour of this BendersBFunction considering that some
-  * Constraint was added or enforced (if \p added_or_enforced_constraint is
-  * true) or removed or relaxed (if \p added_or_enforced_constraint is false)
-  * in some sub-Block whose Objective has the given \p sense.
-  *
-  * @param sense the sense of the Objective of the Block to which the
-  *        Constraint belongs.
-  *
-  * @param added_or_enforced_constraint if true, indicates that the Constraint
-  *        was added or enforced; if false, indicates that the Constraint
-  *        was removed or relaxed.
-  */
-
- function_value_behaviour get_behaviour( Objective::of_type sense ,
-                                         bool added_or_enforced_constraint )
-  const;
-
-/*--------------------------------------------------------------------------*/
-
- /// returns true if the given Constraint is handled by this BendersBFunction
- /** Returns true if and only if the Constraint pointed by the given pointer
-  * is handled by this BendersBFunction.
-  *
-  * @param constraint the pointer to the Constraint.
-  *
-  * @return true if the given Constraint is handled by this BendersBFunction;
-  *         false otherwise.
-  */
-
- bool has_constraint( Constraint * constraint ) const;
-
-/*--------------------------------------------------------------------------*/
-
- SMSpp_insert_in_factory_h; // insert BendersBFunction in the Block factory
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE CLASSES -------------------------------*/
@@ -2031,13 +1898,295 @@ class BendersBFunction : public C05Function , public Block {
  };
 
 /*--------------------------------------------------------------------------*/
+
+ /// convenience class used to serialize the A matrix in sparse format
+ template< class T >
+ class SparseMatrix {
+ public:
+
+  using Index = BendersBFunction::Index;
+
+  SparseMatrix( Index num_rows ) {
+   nnz_at_row.resize( num_rows , 0 );
+  }
+
+  void reserve( Index size ) {
+   nnz_at_row.reserve( size );
+   column.reserve( size );
+   values.reserve( size );
+  }
+
+  void clear() {
+   nnz_at_row.clear();
+   column.clear();
+   values.clear();
+  }
+
+  void insert( Index i , Index j , T value ) {
+   ++nnz_at_row[ i ];
+   column.push_back( j );
+   values.push_back( value );
+  }
+
+  void serialize( netCDF::NcGroup & group , netCDF::NcDim & row_dim ) const {
+   auto nnz_dim = group.addDim( "NumNonzero" , column.size() );
+   SMSpp_di_unipi_it::serialize( group , "NumNonzeroAtRow" , netCDF::NcUint64() ,
+                                 row_dim , nnz_at_row );
+   SMSpp_di_unipi_it::serialize( group , "Column" , netCDF::NcUint64() , nnz_dim , column );
+   SMSpp_di_unipi_it::serialize( group , "A" , netCDF::NcDouble() , nnz_dim , values );
+  }
+
+  inline Index get_nnz() const {
+   return column.size();
+  }
+
+ private:
+  std::vector< Index > nnz_at_row;
+  std::vector< Index > column;
+  std::vector< T > values;
+ };
+
+/*--------------------------------------------------------------------------*/
+/*-------------------------- PRIVATE METHODS -------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ /// set a given integer (int) numerical parameter of the inner Block's Solver
+ /** Set a given integer (int) numerical parameter of the Solver of the inner
+  * Block.
+  *
+  * @param par The parameter whose value must be set.
+  *
+  * @param value The value of the parameter.
+  */
+
+ void set_solver_par( const idx_type par , const int value ) {
+  auto solver = get_solver<CDASolver>();
+  if( ! solver )
+   throw( std::invalid_argument( "BendersBFunction::set_solver_par: the inner "
+                                 "Block must have a CDASolver attached "
+                                 "to it." ) );
+  solver->set_par( par , value );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// set a given float (double) numerical parameter of the inner Block's Solver
+ /** Set a given float (double) numerical parameter of the Solver of the inner
+  * Block.
+  *
+  * @param par The parameter whose value must be set.
+  *
+  * @param value The value of the parameter.
+  */
+
+ void set_solver_par( const idx_type par , const double value ) {
+  auto solver = get_solver<CDASolver>();
+  if( ! solver )
+   throw( std::invalid_argument( "BendersBFunction::set_solver_par: the inner "
+                                 "Block must have a CDASolver attached "
+                                 "to it." ) );
+  solver->set_par( par , value );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// get a specific integer numerical parameter of the inner Block's Solver
+ /** Get a specific integer (int) numerical parameter of the Solver of the
+  * inner Block.
+  *
+  * @param par The parameter whose value is desired.
+  *
+  * @return The value of the parameter.
+  */
+
+ inline int get_solver_int_par( const idx_type par ) const {
+  auto solver = get_solver<CDASolver>();
+  if( ! solver )
+   throw( std::invalid_argument( "BendersBFunction::get_solver_int_par: the "
+                                 "inner Block must have a CDASolver attached "
+                                 "to it." ) );
+  return solver->get_int_par( par );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// get a specific double  numerical parameter of the inner Block's Solver
+ /** Get a specific float (double) numerical parameter of the Solver of the
+  * inner Block.
+  *
+  * @param par The parameter whose value is desired.
+  *
+  * @return The value of the parameter.
+  */
+
+ inline double get_solver_dbl_par( const idx_type par ) const {
+  auto solver = get_solver<CDASolver>();
+  if( ! solver )
+   throw( std::invalid_argument( "BendersBFunction::get_solver_dbl_par: the "
+                                 "inner Block must have a CDASolver attached "
+                                 "to it." ) );
+  return solver->get_dbl_par( par );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// update the RowConstraint of the sub-Block
+ /** This function updates the RowConstraint of the sub-Block to reflect the
+  * current mapping and values of the x variables.
+  */
+
+ void update_constraints();
+
+/*--------------------------------------------------------------------------*/
+
+ /// write the Solution with the given name in the sub-Block
+ /** If <tt>name == Inf<Index>()</tt>, this function writes the dual solution
+  * associated with the last computed linearization in the sub-Block. If
+  * <tt>name != Inf<Index>()</tt>, then it writes the Solution that is stored
+  * in the global pool under the given \p name in the sub-Block. In the last
+  * case, if the given \p name is invalid or the Solution is not present in
+  * the global pool, an exception is thrown.
+  *
+  * @param name the name of the solution to be written
+  */
+
+ void write_dual_solution( Index name );
+
+/*--------------------------------------------------------------------------*/
+
+ /// write the Solution with the given name in the sub-Block
+ /** This function writes the Solution stored in the global pool under the
+  * given \p name in the sub-Block. If the given \p name is invalid or the
+  * Solution is not present, an exception is thrown.
+  *
+  * @param name the name under which the Solution is stored in the global
+  *        pool.
+  */
+
+ void write_dual_solution_from_global_pool( Index name );
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the dual value associated with the given RowConstraint
+ /** This function returns the dual value associated with the given \p
+  * constraint and its specific \c side.
+  *
+  * @param constraint a pointer to the RowConstraint.
+  *
+  * @param side the side of the RowConstraint.
+  *
+  * @return the dual value associated with the given \p constraint and \p side.
+  */
+
+ FunctionValue get_dual_value( const RowConstraint * constraint ,
+                               const ConstraintSide & side );
+
+/*--------------------------------------------------------------------------*/
+
+ /// compute the linearization constant
+ /** Compute the linearization constant considering the dual solution
+  * currently stored in the sub-Block.
+  *
+  * @return the computed linearization constant.
+  */
+
+ FunctionValue compute_linearization_constant();
+
+/*--------------------------------------------------------------------------*/
+
+ /// sends a nuclear modification, invalidates the global pool
+ /** Besides sending a "nuclear modification" for Function, it also invalidates
+  * the global pool and declares that the Constraint of the sub-Block are not
+  * updated.
+  *
+  * @param chnl the name of the channel to which the Modification should be
+  *        sent.
+  */
+
+ void send_nuclear_modification( const Observer::ChnlName chnl = 0 );
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the behaviour of this Function considering the given Modification
+
+ function_value_behaviour get_behaviour( std::shared_ptr<BlockModAD> mod )
+  const;
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the behaviour of this Function considering the given Modification
+
+ function_value_behaviour get_behaviour( std::shared_ptr<ConstraintMod> mod )
+  const;
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the behaviour of this Function considering the given Modification
+ /** Returns the behaviour of this BendersBFunction considering that some
+  * Constraint was added or enforced (if \p added_or_enforced_constraint is
+  * true) or removed or relaxed (if \p added_or_enforced_constraint is false)
+  * in some sub-Block whose Objective has the given \p sense.
+  *
+  * @param sense the sense of the Objective of the Block to which the
+  *        Constraint belongs.
+  *
+  * @param added_or_enforced_constraint if true, indicates that the Constraint
+  *        was added or enforced; if false, indicates that the Constraint
+  *        was removed or relaxed.
+  */
+
+ function_value_behaviour get_behaviour( Objective::of_type sense ,
+                                         bool added_or_enforced_constraint )
+  const;
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns true if the given Constraint is handled by this BendersBFunction
+ /** Returns true if and only if the Constraint pointed by the given pointer
+  * is handled by this BendersBFunction.
+  *
+  * @param constraint the pointer to the Constraint.
+  *
+  * @return true if the given Constraint is handled by this BendersBFunction;
+  *         false otherwise.
+  */
+
+ bool has_constraint( Constraint * constraint ) const;
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns true if and only if the A matrix is sparse
+ /** This function returns true if and only if the A matrix stored in v_A is
+  * sparse. This matrix is considered sparse if at most a quarter of its
+  * elements is nonzero. If it is sparse, then its sparse representation is
+  * stored in the given SparseMatrix \p matrix. If it is not sparse, then the
+  * given \p matrix will become empty.
+  *
+  * @param matrix The SparseMatrix that will contain the sparse representation
+  *        of the A matrix in case it turns out to be sparse.
+  *
+  * @return true if and ony if A is sparse.
+  */
+ template< class T >
+ bool is_A_sparse( SparseMatrix<T> & matrix ) const;
+
+/*--------------------------------------------------------------------------*/
+
+ SMSpp_insert_in_factory_h; // insert BendersBFunction in the Block factory
+
+/*--------------------------------------------------------------------------*/
 /*---------------------------- PRIVATE FIELDS  -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
+ /// global pool of linearizations
  GlobalPool global_pool;
- ///< global pool of linearizations
 
- };  // end( class( BendersBFunction ) )
+ /// Names of the netCDF sub-groups
+ inline static const std::string BLOCK_NAME = "Block";
+ inline static const std::string BLOCK_CONFIG_NAME = "BlockConfig";
+ inline static const std::string BLOCK_SOLVER_CONFIG_NAME = "BlockSolver";
+
+};  // end( class( BendersBFunction ) )
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- CLASS BendersBFunctionMod ------------------------*/

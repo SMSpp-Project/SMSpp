@@ -216,8 +216,8 @@ class PolyhedralFunctionBlock : public AbstractBlock {
 /*--------------------------------------------------------------------------*/
  /// de-serialize the current PolyhedralFunctionBlock out of netCDF::NcGroup
  /** The PolyhedralFunctionBlock de-serializes itself out of a
-  * netCDF::NcGroup. Besides the mandatory "type" attribute of any :Block,
-  * the group should contain the following:
+  * netCDF::NcGroup. Besides what is managed by the serialize() method of
+  * the base Block class, the group should contain the following:
   *
   * - all the data necessary to describe a PolyhedralFunction; see
   *   PolyhedralFunction::serialize() for details;
@@ -236,13 +236,13 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   f_rep = 0;
   f_const.clear();
 
-  // call the base class method
-  AbstractBlock::deserialize( group );
+  // call the (guts_of version of the) base class method
+  AbstractBlock::guts_of_deserialize( group );
 
-  // issue a NBModification, the "nuclear option" - - - - - - - - - - - - - -
+  // call the method of Block
+  // inside this the NBModification, the "nuclear option",  is issued
 
-  if( anyone_there() )
-   add_Modification( std::make_shared<NBModification>( this ) );
+  Block::deserialize( group );
   }
 
 /*--------------------------------------------------------------------------*/
