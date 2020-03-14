@@ -28,6 +28,7 @@ target_sources(SMSpp PRIVATE
                src/AbstractBlock.cpp
                src/Block.cpp
                src/BendersBFunction.cpp
+               src/BendersBlock.cpp
                src/ColVariable.cpp
                src/ColVariableSolution.cpp
                src/Configuration.cpp
