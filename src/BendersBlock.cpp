@@ -6,7 +6,7 @@
  *
  * \version 0.1
  *
- * \date 09 - 12 - 2019
+ * \date 13 - 03 - 2020
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -62,7 +62,8 @@ void BendersBlock::deserialize( netCDF::NcGroup & group ) {
  set_function( benders_function );
 
  {
-  std::vector< ColVariable * > p_variables( v_variables.size() , nullptr );
+  std::vector< ColVariable * > p_variables;
+  p_variables.reserve( v_variables.size() );
   for( auto & variable : v_variables )
    p_variables.push_back( & variable );
   benders_function->set_variables( std::move( p_variables ) );

@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 09 - 12 - 2019
+ * \date 13 - 03 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -77,22 +77,16 @@ void BendersBFunction::deserialize( netCDF::NcGroup & group ,
                            "NumVar dimension is required." ) );
 
  if( ncDim_NumVar.getSize() != nvar )
-  throw( std::invalid_argument( "BendersBFunction::deserialize: matrix A has a "
-                                "wrong number of columns in the given "
+  throw( std::invalid_argument( "BendersBFunction::deserialize: matrix A has "
+                                "a wrong number of columns in the given "
                                 "netCDF::NcGroup." ) );
 
  MultiVector tA;
  RealVector tb;
 
  auto ncDim_NumRow = group.getDim( "NumRow" );
- if( ( ! ncDim_NumRow.isNull() ) && ( ncDim_NumRow.getSize() ) ) {
-  netCDF::NcVar ncVar_A = group.getVar( "A" );
-  if( ncVar_A.isNull() )
-   throw( std::logic_error( "BendersBFunction::deserialize: A not found" ) );
 
-  netCDF::NcVar ncVar_b = group.getVar( "b" );
-  if( ncVar_b.isNull() )
-   throw( std::logic_error( "BendersBFunction::deserialize: b not found" ) );
+ if( ( ! ncDim_NumRow.isNull() ) && ( ncDim_NumRow.getSize() != 0 ) ) {
 
   auto nrow = ncDim_NumRow.getSize();
 
@@ -101,32 +95,82 @@ void BendersBFunction::deserialize( netCDF::NcGroup & group ,
    tA[ i ].resize( nvar , 0 );
   }
 
-  tb.resize( nrow );
-  ncVar_b.getVar( tb.data() );
+  if( ! ::deserialize( group , "b" , nrow , tb , true , false ) ) {
+   tb.resize( nrow );
+   tb.assign( tb.size() , 0 );
+  }
 
   auto ncDim_NumNonZero = group.getDim( "NumNonzero" );
 
   if( ncDim_NumNonZero.isNull() ) {
    // A is given in dense format
+
+   netCDF::NcVar ncVar_A = group.getVar( "A" );
+   if( ncVar_A.isNull() )
+    throw( std::logic_error( "BendersBFunction::deserialize: The 'A' matrix "
+                             "was not found." ) );
+
+   if( ncVar_A.getDimCount() != 2 )
+    throw( std::logic_error( "BendersBFunction::deserialize: The 'A' matrix "
+                             "must be given as a two-dimensional array." ) );
+
+   auto A_dims = ncVar_A.getDims();
+
+   if( A_dims[ 0 ].getSize() != nrow || A_dims[ 1 ].getSize() != nvar )
+    throw( std::logic_error( "BendersBFunction::deserialize: The 'A' matrix "
+                             "must have 'NumRow' rows and 'NumVar' columns." ) );
+
    for( Index i = 0 ; i < tA.size() ; ++i )
     ncVar_A.getVar( { i , 0 } , { 1 , nvar } , tA[ i ].data() );
   }
   else {
-   // A is given in sparse row-major format
+
    auto nnz = ncDim_NumNonZero.getSize();
 
-   std::vector< Index > num_nonzero_at_row;
-   ::deserialize( group , "NumNonzeroAtRow" , nrow ,
-                  num_nonzero_at_row , false , false );
+   if( group.getVar( "NumNonzeroAtRow" ).isNull() ) {
+    // A is the identity matrix
 
-   std::vector< Index > column;
-   ::deserialize( group , "Column" , nnz , column , false , false );
+    if( ( nrow != nvar ) && ( nrow != nnz ) )
+     throw( std::logic_error( "BendersBFunction::deserialize: The 'A' matrix "
+                              "is given as the identity matrix but either "
+                              "'NumRow' != 'NumVar' or 'NumRow' != "
+                              "'NumNonzero'." ) );
 
-   Index k = 0;
-   for( Index i = 0 ; i < nrow ; ++i ) {
-    for( Index l = 0 ; l < num_nonzero_at_row[ i ] ; ++l , ++k ) {
-     auto j = column[ k ];
-     ncVar_A.getVar( { k } , & v_A[ i ][ j ] );
+    for( Index i = 0 ; i < tA.size() ; ++i ) {
+     tA[ i ][ i ] = 1;
+    }
+   }
+   else {
+
+    // A is given in sparse row-major format
+
+    std::vector< Index > num_nonzero_at_row;
+    ::deserialize( group , "NumNonzeroAtRow" , nrow , num_nonzero_at_row ,
+                   false , false );
+
+    std::vector< Index > column;
+    ::deserialize( group , "Column" , nnz , column , false , false );
+
+    netCDF::NcVar ncVar_A = group.getVar( "A" );
+    if( ncVar_A.isNull() )
+     throw( std::logic_error( "BendersBFunction::deserialize: The 'A' matrix "
+                              "was not found." ) );
+
+    if( ncVar_A.getDimCount() != 1 )
+     throw( std::logic_error( "BendersBFunction::deserialize: The 'A' variable "
+                              "was expected to be a one-dimensional array." ) );
+
+    if( ncVar_A.getDims()[ 0 ].getSize() != nnz )
+     throw( std::logic_error( "BendersBFunction::deserialize: The 'A' variable "
+                              "was expected to be indexed over the 'NumNonzero' "
+                              "dimension." ) );
+
+    Index k = 0;
+    for( Index i = 0 ; i < nrow ; ++i ) {
+     for( Index l = 0 ; l < num_nonzero_at_row[ i ] ; ++l , ++k ) {
+      auto j = column[ k ];
+      ncVar_A.getVar( { k } , & v_A[ i ][ j ] );
+     }
     }
    }
   }
@@ -136,38 +180,44 @@ void BendersBFunction::deserialize( netCDF::NcGroup & group ,
  if( inner_block_group.isNull() )
   throw std::logic_error( "BendersBFunction::deserialize: the '" +
                           BLOCK_NAME + "' group must be present." );
- else {
-  auto block_config_group = group.getGroup( BLOCK_CONFIG_NAME );
-  if( block_config_group.isNull() )
-   throw std::logic_error( "BendersBFunction::deserialize: the '" +
-                           BLOCK_CONFIG_NAME + "' group must be present." );
 
-  auto block_solver_config_group = group.getGroup( BLOCK_SOLVER_CONFIG_NAME );
-  if( block_solver_config_group.isNull() )
-   throw std::logic_error( "BendersBFunction::deserialize: the '" +
-                           BLOCK_SOLVER_CONFIG_NAME +
-                           "' group must be present." );
+ /*
+ auto block_config_group = group.getGroup( BLOCK_CONFIG_NAME );
+ if( block_config_group.isNull() )
+  throw std::logic_error( "BendersBFunction::deserialize: the '" +
+                          BLOCK_CONFIG_NAME + "' group must be present." );
 
-  auto inner_block = new_Block( inner_block_group , this );
-  if( ! inner_block )
-   throw std::logic_error( "BendersBFunction::deserialize: the '" +
-                           BLOCK_NAME + "' group is present "
-                           "but its description is incomplete." );
+ auto block_solver_config_group = group.getGroup( BLOCK_SOLVER_CONFIG_NAME );
+ if( block_solver_config_group.isNull() )
+  throw std::logic_error( "BendersBFunction::deserialize: the '" +
+                          BLOCK_SOLVER_CONFIG_NAME +
+                          "' group must be present." );
+ */
 
-  auto block_config = new BlockConfig();
-  block_config->deserialize( block_config_group );
+ auto inner_block = new_Block( inner_block_group , this );
+ if( ! inner_block )
+  throw std::logic_error( "BendersBFunction::deserialize: the '" +
+                          BLOCK_NAME + "' group is present "
+                          "but its description is incomplete." );
 
-  auto block_solver_config = new BlockSolverConfig();
-  block_solver_config->deserialize( block_solver_config_group );
+ set_inner_block( inner_block );
 
-  inner_block->set_BlockConfig( block_config );
-  inner_block->set_SolverConfig( block_solver_config );
+ /*
+ auto block_config = new BlockConfig();
+ block_config->deserialize( block_config_group );
 
-  set_inner_block( inner_block );
- }
+ auto block_solver_config = new BlockSolverConfig();
+ block_solver_config->deserialize( block_solver_config_group );
+
+ inner_block->set_BlockConfig( block_config );
+ inner_block->set_SolverConfig( block_solver_config );
+ */
 
  std::vector< ConstraintSide > sides;
- ::deserialize( group , "ConstraintSide" , sides , false );
+ if( ! ::deserialize( group , "ConstraintSide" , tb.size() , sides , true ) ) {
+  sides.resize( tb.size() );
+  sides.assign( sides.size() , eBoth );
+ }
 
  if( tA.size() != sides.size() )
   throw ( std::invalid_argument( "BendersBFunction::deserialize: The size of "
@@ -1235,7 +1285,7 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
     }
    return;
    }
- 
+
   // actually a FRowConstraintMod
 
   if( const auto tmod = std::dynamic_pointer_cast<FRowConstraintMod>( mod ) ) {
@@ -1325,7 +1375,7 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
   return;
   }
 
- /* If all else fails, send a "nuclear Function Modification" considering the 
+ /* If all else fails, send a "nuclear Function Modification" considering the
   * Modification is:
    *
    * - VariableMod
