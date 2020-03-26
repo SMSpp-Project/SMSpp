@@ -9,7 +9,7 @@
  *
  * \version 0.1
  *
- * \date 10 - 12 - 2019
+ * \date 25 - 03 - 2020
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -88,7 +88,9 @@ public:
 
 /*--------------------------------------------------------------------------*/
  /// destructor
- virtual ~BendersBlock() { }
+ virtual ~BendersBlock() {
+  objective.clear();
+ }
 
 /*--------------------------------------------------------------------------*/
 
