@@ -36,7 +36,7 @@
  *
  * \version 0.10
  *
- * \date 17 - 02 - 2020
+ * \date 16 - 03 - 2020
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -1350,8 +1350,10 @@ public:
 
  static std::vector< AbstractPath > vector_deserialize
  ( const netCDF::NcGroup & group ) {
-  const auto netCDFvars = pre_deserialize( group );
   std::vector< AbstractPath > paths;
+  if( group.isNull() )
+   return paths;
+  const auto netCDFvars = pre_deserialize( group );
   paths.reserve( netCDFvars.NumPaths );
   for( Index i = 0 ; i < netCDFvars.NumPaths ; ++i )
    paths.push_back( deserialize( i , netCDFvars ) );
@@ -1390,24 +1392,16 @@ public:
   }
 
   if( netCDFvars.PathNodeTypes.isNull() ||
-      netCDFvars.PathGroupIndices.isNull() ||
-      netCDFvars.PathElementIndices.isNull() )
+      netCDFvars.PathGroupIndices.isNull() )
    throw( std::invalid_argument( "AbstractPath::pre_deserialize: variables " +
-                                 node_type_name + ", " + group_index_name + ", "
-                                 "and " + element_index_name + " must all be "
-                                 "present in the given NcGroup." ) );
+                                 node_type_name + " and " + group_index_name +
+                                 " must all be present in the "
+                                 "given NcGroup." ) );
 
   if( netCDFvars.PathNodeTypes.getDimCount() != 1 ||
       netCDFvars.PathGroupIndices.getDimCount() != 1 ||
-      netCDFvars.PathElementIndices.getDimCount() != 1 )
-   throw( std::invalid_argument( "AbstractPath::pre_deserialize: variables " +
-                                 node_type_name + ", " + group_index_name + ", "
-                                 "and " + element_index_name + " must have "
-                                 "a single dimension." ) );
-
-  if( netCDFvars.PathNodeTypes.getDimCount() != 1 ||
-      netCDFvars.PathGroupIndices.getDimCount() != 1 ||
-      netCDFvars.PathElementIndices.getDimCount() != 1 )
+      ( ! netCDFvars.PathElementIndices.isNull() &&
+        netCDFvars.PathElementIndices.getDimCount() != 1 ) )
    throw( std::invalid_argument( "AbstractPath::pre_deserialize: variables " +
                                  node_type_name + ", " + group_index_name + ", "
                                  "and " + element_index_name + " must have "
@@ -1415,7 +1409,8 @@ public:
 
   if( ( netCDFvars.PathNodeTypes.getDim( 0 ) !=
         netCDFvars.PathGroupIndices.getDim( 0 ) ) ||
-      ( netCDFvars.PathNodeTypes.getDim( 0 ) !=
+      ( ! netCDFvars.PathElementIndices.isNull() &&
+        netCDFvars.PathNodeTypes.getDim( 0 ) !=
         netCDFvars.PathElementIndices.getDim( 0 ) ) )
    throw( std::invalid_argument( "AbstractPath::pre_deserialize: variables " +
                                  node_type_name + ", " + group_index_name + ", "
@@ -1488,8 +1483,16 @@ public:
                                    path.node_types.data() );
   netCDFvars.PathGroupIndices.getVar( { path_start } , { num_nodes } ,
                                       path.group_indices.data() );
-  netCDFvars.PathElementIndices.getVar( { path_start } , { num_nodes } ,
-                                        path.element_indices.data() );
+
+  if( ! netCDFvars.PathElementIndices.isNull() ) {
+   netCDFvars.PathElementIndices.getVar( { path_start } , { num_nodes } ,
+                                         path.element_indices.data() );
+  }
+  else {
+   path.element_indices.resize( num_nodes );
+   path.element_indices.assign( path.element_indices.size() , Inf<Index>() );
+  }
+
   return path;
  }
 
