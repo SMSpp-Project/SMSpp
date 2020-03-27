@@ -6,7 +6,7 @@
  *
  * \version 0.1
  *
- * \date 13 - 03 - 2020
+ * \date 26 - 03 - 2020
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -52,6 +52,8 @@ void BendersBlock::deserialize( netCDF::NcGroup & group ) {
                            "NumVar dimension is required." ) );
 
  v_variables.resize( ncDim_NumVar.getSize() );
+ for( auto & variable : v_variables )
+  variable.set_Block( this );
 
  auto benders_function_group = group.getGroup( "BendersBFunction" );
  if( benders_function_group.isNull() )
@@ -59,7 +61,6 @@ void BendersBlock::deserialize( netCDF::NcGroup & group ) {
                            "'BendersBFunction' sub-group is required." ) );
 
  auto benders_function = new BendersBFunction();
- set_function( benders_function );
 
  {
   std::vector< ColVariable * > p_variables;
@@ -70,6 +71,8 @@ void BendersBlock::deserialize( netCDF::NcGroup & group ) {
  }
 
  benders_function->deserialize( benders_function_group );
+ set_function( benders_function );
+ benders_function->set_f_Block( this );
 
  Block::deserialize( group );
 }

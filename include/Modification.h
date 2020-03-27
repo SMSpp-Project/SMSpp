@@ -723,7 +723,7 @@ class GroupModification : public AModification {
 
  enum amododification_type {
   eDryRun  = 0 ,  ///< dont't do the change, hence issue no Modification
-  eNoMod   = 1 ,  ///< du the change but issue no Modification at all
+  eNoMod   = 1 ,  ///< do the change but issue no Modification at all
   eNoBlck  = 2 ,  ///< issue the Modification, but concerns_Block() == false
   eModBlck = 3    ///< issue the Modification, and concerns_Block() == true
   };

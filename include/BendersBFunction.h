@@ -7,7 +7,7 @@
  *
  * \version 0.01
  *
- * \date 09 - 01 - 2020
+ * \date 27 - 03 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1270,82 +1270,84 @@ class BendersBFunction : public C05Function , public Block {
   * managed by the serialize() method of the base Block class, plus the
   * BendersBFunction-specific data with the following format:
   *
-  * - The dimension "NumVar" containing the number of columns of the A matrix,
-  *   i.e., the number of active variables.
+  * The dimension "NumVar" containing the number of columns of the A matrix,
+  * i.e., the number of active variables.
   *
-  * - The dimension "NumRow" containing the number of rows of the A
-  *   matrix. The dimension is optional; if it is not provided then 0 (no
-  *   rows) is assumed.
+  * The dimension "NumRow"containing the number of rows of the A matrix. This
+  * dimension is optional; if it is not provided then 0 (no rows) is assumed.
   *
-  * - The dimension "NumNonzero", of type netCDF::NcUint64, containing the
-  *   number of nonzero entries in the A matrix. This dimension is optional
-  *   and determines in which format the matrix A is given. If this dimension
-  *   is present, then "NumRow" must also be. If "NumNonzero" is not present,
-  *   then the A matrix is given as a dense matrix. If it is present, then the
-  *   A matrix is given in a sparse format as defined by the variables "Row",
-  *   "Column", and "A". During serialization, the following criterion is used
-  *   to decide the format in which the A matrix is stored. If at most 25% of
-  *   its elements are nonzero, it is stored in sparse format; otherwise, it
-  *   is stored in dense format.
+  * The dimension "NumNonzero", of type netCDF::NcUint, containing the number
+  * of nonzero entries in the A matrix. This dimension is optional and
+  * determines in which format the matrix A is given. If this dimension is
+  * present, then "NumRow"must also be. If "NumNonzero" is not present, then
+  * the A matrix is given as a dense matrix. If it is present, then the A
+  * matrix is given in a sparse format as defined by the variables "Row",
+  * "Column", and "A". During serialization, the following criterion is used
+  * to decide the format in which the A matrix is stored. If at most 25% of
+  * its elements are nonzero, it is stored in sparse format; otherwise, it is
+  * stored in dense format.
   *
-  * - The variable "NumNonzeroAtRow", of type netCDF::NcUint64 and indexed
-  *   over the dimension "NumRow", containing the number of nonzero elements
-  *   of the A matrix in each row. This variable is mandatory if the dimension
-  *   "NumNonzero" is present. If "NumNonzero" is not present, then this
-  *   variable is ignored. For each i in {0, ..., NumRow-1},
-  *   NumNonzeroAtRow[i] is the number of nonzero elements in the i-th row of
-  *   the A matrix.
+  * The variable "NumNonzeroAtRow", of type netCDF::NcUint and indexed over
+  * the dimension "NumRow", containing the number of nonzero elements of the A
+  * matrix in each row.  If the dimension "NumNonzero" is not present, then
+  * this variable is ignored.  If "NumNonzero"is present, then
+  * "NumNonzeroAtRow"is optional only if "NumVar", "NumRow", and
+  * "NumNonzero"are equal. In this case, if "NumNonzeroAtRow"is not provided,
+  * then the A matrix is assumed to be the identity matrix. If "NumVar",
+  * "NumRow", and "NumNonzero"are not all equal, then "NumNonzeroAtRow"must be
+  * provided. For each i in {0, ..., NumRow-1}, NumNonzeroAtRow[i] is the
+  * number of nonzero elements in the i-th row of the A matrix.
   *
-  * - The variable "Column", of type netCDF::NcUint64 and indexed over the
-  *   dimension "NumNonzero", containing the column indices of the entries of
-  *   the matrix. This variable is mandatory if the dimension "NumNonzero" is
-  *   present. If "NumNonzero" is not present, then this variable is
-  *   ignored. For each k in {0, ..., NumNonzero-1}, Column[k] is the column
-  *   index of the k-th nonzero entry of the A matrix, whose value is given by
-  *   A[k]. "Column" stores the column indices in row-major order, that is, if
-  *   (i,j) and (p,q) are the entries of the k-th and l-th nonzero elements of
-  *   A, respectively, with k < l, then i <= p.
+  * The variable "Column", of type netCDF::NcUint and indexed over the
+  * dimension "NumNonzero", containing the column indices of the entries of
+  * the matrix. If "NumNonzero"or "NumNonzeroAtRow"is not present, then this
+  * variable is ignored. For each k in {0, ..., NumNonzero-1}, Column[k] is
+  * the column index of the k-th nonzero entry of the A matrix, whose value is
+  * given by A[k]. "Column"stores the column indices in row-major order, that
+  * is, if (i,j) and (p,q) are the entries of the k-th and l-th nonzero
+  * elements of A, respectively, with k < l, then i <= p.
   *
-  * - The variable "A", of type netCDF::NcDouble. This variable stores the
-  *   values of the elements of the A matrix of the mapping. If the dimension
-  *   "NumNonzero" is present, then this variable is indexed over this
-  *   dimension and contains the values of the (potentially) nonzero entries
-  *   of the matrix. In this case, A[k] is the value of the k-th nonzero
-  *   entry, whose column index is given by Column[k]. The nonzero elements of
-  *   the matrix are given in left-to-right top-to-bottom ("row-major")
-  *   order. If the dimension "NumNonzero" is not present, then "A" is indexed
-  *   over both the "NumRow" and "NumVar" dimensions (in this order); it
-  *   contains the (row-major) representation of the matrix A. This variable
-  *   is optional only if NumRow == 0.
+  * The variable "A", of type netCDF::NcDouble. This variable stores the
+  * values of the elements of the A matrix of the mapping. If the dimension
+  * "NumNonzero"is provided but the variable "NumNonzeroAtRow"is not, then the
+  * A matrix is assumed to be the identity matrix and the variable "A"is
+  * ignored. If both the dimension "NumNonzero"and the variable
+  * "NumNonzeroAtRow"are provided, then the "A"variable is indexed over the
+  * "NumNonzero" dimension and contains the values of the (potentially)
+  * nonzero entries of the matrix. In this case, A[k] is the value of the k-th
+  * nonzero entry, whose column index is given by Column[k]. The nonzero
+  * elements of the matrix are given in left-to-right top-to-bottom
+  * (``row-major'') order. If the dimension "NumNonzero"is not present, then
+  * "A"is indexed over both the "NumRow"and "NumVar"dimensions (in this
+  * order); it contains the (row-major) representation of the matrix A. This
+  * variable is optional only if NumRow == 0.
   *
-  * - The variable "b", of type netCDF::NcDouble and indexed over the
-  *   dimension "NumRow", which contains the vector b. This variable is
-  *   optional only if NumRow == 0.
+  * The variable "b", of type netCDF::NcDouble and indexed over the dimension
+  * "NumRow", which contains the vector b. This variable is optional. If it is
+  * not provided, then we assume b[i] = 0 for each i in {0, ..., NumRow - 1}.
   *
-  * - The variable "ConstraintSide", of type netCDF::NcChar and indexed over
-  *   the dimension "NumRow", indicating, at position i, which side of the
-  *   i-th Constraint is affected. The possible values are 'L' for the
-  *   left-hand (or lower bound) side, 'R' for the right-hand (or upper bound)
-  *   side, and 'B' for both sides. This variable is optional only if NumRow
-  *   == 0.
+  * The variable "ConstraintSide", of type netCDF::NcChar and indexed over the
+  * dimension "NumRow", indicating, at position i, which side of the i-th
+  * Constraint is affected. The possible values are `L' for the left-hand (or
+  * lower bound) side, `R' for the right-hand (or upper bound) side, and `B'
+  * for both sides. This variable is optional. If it is not provided, then all
+  * entries of this array are assumed to be `B'.
   *
-  * - All the dimensions and variables necessary to describe a vector of
-  *   AbstractPath as described in the comments of
-  *   AbstractPath::deserialize(). The number of AbstractPath must be equal to
-  *   the number of rows of the A matrix and, therefore, the dimension
-  *   associated with the number of AbstractPath is NumRow. The i-th
-  *   AbstractPath in this vector must be the path to the i-th affected
-  *   RowConstraint (which is associated with the i-th row of the A
-  *   matrix). These variables are optional only if NumRow == 0.
+  * The group "AbstractPath" containing the description of a vector of
+  * AbstractPath to the affected RowConstraints. The number of AbstractPath in
+  * that vector must be equal to the number of rows of the A matrix and,
+  * therefore, the dimension associated with the number of AbstractPath is
+  * "NumRow". The i-th AbstractPath in this vector must be the path to the
+  * i-th affected RowConstraint (which is associated with the i-th row of the
+  * A matrix). This group is optional only if NumRow == 0.
   *
-  * - The sub-group "Block", containing the description of the inner
-  *   Block. The inner Block must have a CDASolver attached to it.
+  * The group "Block", containing the description of the inner Block.
   *
-  * - The sub-group "BlockConfig", containing the BlockConfig of the inner
-  *   Block. This sub-group is optional.
+  * The group "BlockConfig", containing the BlockConfig of the inner
+  * Block. This group is optional.
   *
-  * - The sub-group "BlockSolver", containing the BlockSolverConfig of the
-  *   inner Block.
+  * The group "BlockSolver", containing the BlockSolverConfig of the inner
+  * Block.
   */
 
  virtual void serialize( netCDF::NcGroup & group ) const override;
