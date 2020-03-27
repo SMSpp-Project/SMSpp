@@ -492,7 +492,7 @@ class ThinVarDepInterface {
  /** Pure virtual method that returns:
   *
   * - if this ThinVarDepInterface depends on the given Variable, the index i
-  *   in 0, ..., get_num_active_var() such that the given Variable is the
+  *   in 0, ..., get_num_active_var() - 1 such that the given Variable is the
   *   i-th "active" variable;
   *
   * - otherwise, any number >= get_num_active_var() (say, Inf<Index>()).
