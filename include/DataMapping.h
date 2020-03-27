@@ -9,7 +9,7 @@
  *
  * \version 0.1
  *
- * \date 26 - 02 - 2020
+ * \date 27 - 03 - 2020
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -922,8 +922,10 @@ public:
 
   // FunctionName
 
-  std::string function_name;
-  sdmb_netCDF.FunctionName.getVar( { index } , { 1 } , & function_name );
+  auto fname = new char[ 1000 ];
+  sdmb_netCDF.FunctionName.getVar( { index } , { 1 } , & fname );
+  std::string function_name( fname );
+  delete[] fname;
   function = Block::get_method< F >( function_name );
 
   // AbstractPath
@@ -939,7 +941,7 @@ public:
 
   std::vector< Index > set_size = { 0 , 0 };
   if( ! sdmb_netCDF.SetSize.isNull() )
-   sdmb_netCDF.SetSize.getVar( { next_index } , { 2 } , set_size.data() );
+   sdmb_netCDF.SetSize.getVar( { 2 * index } , { 2 } , set_size.data() );
 
   if constexpr( std::is_same_v< SetFrom , Range > ) {
    if( set_elements_size < next_index + 3 )
@@ -952,10 +954,10 @@ public:
    next_index += 2;
   }
   else {
-   if( set_elements_size < set_size[ 2 * index ] + 1 )
+   if( set_elements_size < set_size[ 0 ] + 1 )
     throw( std::logic_error( "SimpleDataMapping::deserialize: invalid "
                              "'" + SetElements_name + "' array." ) );
-   set_from.resize( set_size[ 2 * index ] );
+   set_from.resize( set_size[ 0 ] );
    sdmb_netCDF.SetElements.getVar( { next_index } , { set_from.size() } ,
                                    set_from.data() );
    next_index += set_from.size();
@@ -973,10 +975,10 @@ public:
    next_index += 2;
   }
   else {
-   if( set_elements_size < next_index + set_size[ 2 * index + 1 ] )
+   if( set_elements_size < next_index + set_size[ 1 ] )
     throw( std::logic_error( "SimpleDataMapping::deserialize: invalid "
                              "'" + SetElements_name + "' array." ) );
-   set_to.resize( set_size[ 2 * index + 1 ] );
+   set_to.resize( set_size[ 1 ] );
    sdmb_netCDF.SetElements.getVar( { next_index } , { set_to.size() } ,
                                    set_to.data() );
    ordered = std::is_sorted( std::begin( set_to ), std::end( set_to ) );
