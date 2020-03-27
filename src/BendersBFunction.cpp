@@ -181,7 +181,7 @@ void BendersBFunction::deserialize( netCDF::NcGroup & group ,
   throw std::logic_error( "BendersBFunction::deserialize: the '" +
                           BLOCK_NAME + "' group must be present." );
 
- /*
+
  auto block_config_group = group.getGroup( BLOCK_CONFIG_NAME );
  if( block_config_group.isNull() )
   throw std::logic_error( "BendersBFunction::deserialize: the '" +
@@ -192,7 +192,6 @@ void BendersBFunction::deserialize( netCDF::NcGroup & group ,
   throw std::logic_error( "BendersBFunction::deserialize: the '" +
                           BLOCK_SOLVER_CONFIG_NAME +
                           "' group must be present." );
- */
 
  auto inner_block = new_Block( inner_block_group , this );
  if( ! inner_block )
@@ -202,7 +201,9 @@ void BendersBFunction::deserialize( netCDF::NcGroup & group ,
 
  set_inner_block( inner_block );
 
- /*
+ inner_block->generate_abstract_variables();
+ inner_block->generate_abstract_constraints();
+
  auto block_config = new BlockConfig();
  block_config->deserialize( block_config_group );
 
@@ -211,7 +212,6 @@ void BendersBFunction::deserialize( netCDF::NcGroup & group ,
 
  inner_block->set_BlockConfig( block_config );
  inner_block->set_SolverConfig( block_solver_config );
- */
 
  std::vector< ConstraintSide > sides;
  if( ! ::deserialize( group , "ConstraintSide" , tb.size() , sides , true ) ) {
@@ -224,7 +224,15 @@ void BendersBFunction::deserialize( netCDF::NcGroup & group ,
                                  "the 'ConstraintSide' vector  must be equal "
                                  "to the number of rows of the A matrix." ) );
 
- auto paths = AbstractPath::vector_deserialize( group );
+ auto path_group = group.getGroup( "AbstractPath" );
+
+ std::vector< AbstractPath > paths;
+
+ if( ! path_group.isNull() )
+  paths = AbstractPath::vector_deserialize( path_group );
+ else if( sides.size() > 0 )
+  throw ( std::invalid_argument( "BendersBFunction::deserialize: The group "
+                                 "'AbstractPath' was not found." ) );
 
  if( paths.size() != sides.size() )
   throw ( std::invalid_argument( "BendersBFunction::deserialize: The number of "
