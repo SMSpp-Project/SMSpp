@@ -214,7 +214,7 @@ public:
 
  kInfeasible ,   ///< the model is provably infeasible
                  /**< Means that the problem does not have any optimal
-		 * solution because it does not have any solution at all, and
+		  * solution because it does not have any solution at all, and
  * the Solver is able to *prove* that this is true. Note that this means that
  * the Solver has some "certificate of infeasibility", which may be of extreme
  * interest for the user. However, the actual form of the certificate (a ray
@@ -232,11 +232,11 @@ public:
  * it is allowed to operate [see SetPar() and the corresponding dblMaxTime
  * value] is elapsed. Note that calling compute() again resets the time
  * counter, allowing the Solver to proceed further in the solution process.
- * An *exact* Solver  should always eventually return kOK/kUnbounded/
- * kInfeasible given enough time (although "enough" can be longer than the
- * thermal death of the universe) given enough resources, unless an error
- * occurs, but not all problems are decidable and therefore allow an extact
- * Solver. */
+ * An *exact* Solver should always eventually return one among kOK, kUnbounded
+ * and kInfeasible given enough time (although "enough" can be longer than the
+ * thermal death of the universe), unless an error occurs, but not all problems
+ * are even decidable and therefore allow an extact Solver. Besides, non-exact
+ * Solver also make full sense in many cases. */
 
  kStopIter ,   ///< stopped because of iteration limit
                /**< The Solver didn't manage to either obtain any feasible
@@ -617,7 +617,114 @@ public:
   }
 
 /**@} ----------------------------------------------------------------------*/
-/*--------------------- METHODS FOR SOLVING THE MODEL ----------------------*/
+/*---------------------- METHODS FOR EVENTS HANDLING -----------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Set event handlers
+ *
+ * Unlike the base ThinComputeInterface, Solver has a working implementation
+ * of the set_event_handler() and reset_event_handler() methods, based on a
+ * minimal set of fields of the class. Although this may be redundant for
+ * Solver that want to implement the mechanism in a different way, the
+ * overhead should be small enough so that the convenience of possibly
+ * requiring (almost) no code from derived classes to handle the mechanism
+ * should justify it.
+ *
+ * All that a derived class need to do is to to implement the method
+ * max_event_number(), besides of course
+ *
+ *     ACTUALLY PROPERLY HANDLING THE EVENTS INSIDE compute()
+ *
+ * This just requires something like
+ *
+ *     for( auto ev : v_events[ type ] )
+ *      switch( ev() ) {
+ *       case( eContinue ): break; 
+ *       case(    ...    ): < properly perform the requested action >
+ *       ...
+ *       }
+ *
+ * in the appropriate places of compute(), depending on type.
+ *
+ * Note that max_event_number() by default returns 0, which implies that the
+ * :Solver does not support *any* event. */
+
+ /// returns the maximum number of event types supported by the :Solver
+ /** Returns the maximum number of event types supported by the :Solver,
+  * which means that type in set_event_handler() and reset_event_handler()
+  * can only go from 0 to max_event_number() - 1. The method of the base
+  * class returns 0, which implies that the Solver does not support *any*
+  * event. By returning anything != 0, a :Solver can have the setting and
+  * resetting of event handlers automatically handled by the base class
+  * implementation. */
+
+ virtual EventID max_event_number( void ) const { return( 0 ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// register a new event handler, returning its id
+ /** The new event handler is added at the back of v_events[ type ]
+to these regostered for the given type. As the
+  * && tells, the event handler becomes property of the ThinComputeInterface,
+  * which is completely OK if, as one expects, it is defined via a lambda
+  * function. The method returns a unique id for the handler, which can (and
+  * must) be later used to remove the handler before it becomes invalid. Note
+  * that the handler is type-specific, i.e., two event handlers of different
+  * types can have the same id; in other words, the "real" id is the pair
+  * ( type , id ). An exception is thrown if the ThinComputeInterface is not
+  * capable of handling this type or event for whatever reason, among which
+  * that it has exhausted the available maximum number of event handlers
+  * slots for the given type. The method of the base class always throws
+  * exception. */
+
+ EventID set_event_handler( int type , EventHandler && event ) override
+ {
+  if( type >= max_event_number() )
+   throw( std::invalid_argument( "unsupported event type " +
+				 std::to_string( type ) ) );
+
+  if( v_events.empty() )
+   v_events.resize( max_event_number() );
+
+  if( v_events[ type ].size() > std::numeric_limits<EventID>::max() )
+   throw( std::invalid_argument( "too many event handlers for type" +
+				 std::to_string( type ) ) );
+
+  EventID id = v_events[ type ].size();
+  v_events[ type ].push_back( std::move( event ) );
+
+  return( id );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// unregister an existing event handler
+ /** Removes the event handler with the given id from the list of those
+  * registered for the given type. If there is no event handler with the
+  * given id for the given type, exception will be thrown. The method of the
+  * base class always throws exception. */
+
+ void reset_event_handler( int type , EventID id ) override
+ {
+  static EventHandler do_nothing = [] () { return( eContinue ); };
+
+  if( type >= max_event_number() )
+   throw( std::invalid_argument( "unsupported event type " +
+				 std::to_string( type ) ) );
+
+  if( id >= v_events[ type ].size() )
+   throw( std::invalid_argument( "incorrect event id " + std::to_string( id )
+				 + " for type " + std::to_string( type ) ) );
+
+  if( id == v_events[ type ].size() - 1 ) {
+   do
+    v_events[ type ].pop_back();
+   while( ( ! v_events[ type ].empty() ) &&
+	  ( v_events[ type ].back() == do_nothing ) );
+   }
+  else
+   v_events[ type ][ id ] = do_nothing;
+  }
+
+/**@} ----------------------------------------------------------------------*/
+/*--------------------- METHODS FOR SOLVING THE Block ----------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Solving the model encoded by the current Block
  *  @{ */
@@ -1461,6 +1568,11 @@ protected:
 
  Lst_sp_Mod v_mod;     ///< list of (shared pointers to) Modifications
 
+ std::vector< std::vector< EventHandler > > v_events;
+                       ///< container of event handlers
+                       /**< v_events[ h ][ i ] contains the event handler of
+			* ID i for the event type h. */
+ 
  const static std::vector<int> dflt_int_par;
  ///< the (static const) vector of int parameters default values
 

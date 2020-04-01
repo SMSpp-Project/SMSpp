@@ -1676,6 +1676,17 @@ class Block : public Observer {
   }
 
 /**@} ----------------------------------------------------------------------*/
+/*----------------- Methods for acquiring/releasing the Block --------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for acquiring/releasing the Block
+ *
+ * The rationale for SMS++ is to support 
+ *  @{ */
+
+
+
+
+/**@} ----------------------------------------------------------------------*/
 /*----------------- Methods for reading the data of the Block --------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for reading the data of the Block
