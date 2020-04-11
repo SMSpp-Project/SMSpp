@@ -7,7 +7,7 @@
  *
  * \version 0.01
  *
- * \date 27 - 03 - 2020
+ * \date 11 - 04 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1339,7 +1339,10 @@ class BendersBFunction : public C05Function , public Block {
   * therefore, the dimension associated with the number of AbstractPath is
   * "NumRow". The i-th AbstractPath in this vector must be the path to the
   * i-th affected RowConstraint (which is associated with the i-th row of the
-  * A matrix). This group is optional only if NumRow == 0.
+  * A matrix). This group is optional only if NumRow == 0. Each AbstractPath
+  * is taken with respect to the inner Block of this BendersBFunction (i.e.,
+  * the inner Block of this BendersBFunction must be the reference Block of
+  * the path).
   *
   * The group "Block", containing the description of the inner Block.
   *
@@ -1925,6 +1928,8 @@ class BendersBFunction : public C05Function , public Block {
   }
 
   void insert( Index i , Index j , T value ) {
+   if( nnz_at_row.size() <= i )
+    nnz_at_row.resize( i + 1 , 0 );
    ++nnz_at_row[ i ];
    column.push_back( j );
    values.push_back( value );
@@ -1932,9 +1937,9 @@ class BendersBFunction : public C05Function , public Block {
 
   void serialize( netCDF::NcGroup & group , netCDF::NcDim & row_dim ) const {
    auto nnz_dim = group.addDim( "NumNonzero" , column.size() );
-   SMSpp_di_unipi_it::serialize( group , "NumNonzeroAtRow" , netCDF::NcUint64() ,
+   SMSpp_di_unipi_it::serialize( group , "NumNonzeroAtRow" , netCDF::NcUint() ,
                                  row_dim , nnz_at_row );
-   SMSpp_di_unipi_it::serialize( group , "Column" , netCDF::NcUint64() , nnz_dim , column );
+   SMSpp_di_unipi_it::serialize( group , "Column" , netCDF::NcUint() , nnz_dim , column );
    SMSpp_di_unipi_it::serialize( group , "A" , netCDF::NcDouble() , nnz_dim , values );
   }
 
