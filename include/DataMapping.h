@@ -436,7 +436,7 @@ public:
   *   int or double, respectively.
   *
   * - The one-dimensional variable "SetSize" is an array of type
-  *   netCDF::NcUint64 indexed over the "SetSize_dim" dimension and indicates
+  *   netCDF::NcUint indexed over the "SetSize_dim" dimension and indicates
   *   the size of the sets that define each SimpleDataMappingBase (the
   *   "SetFrom" and "SetTo" sets). This variable is optional. If it is not
   *   present, then all sets are assumed to be Range. If it is present, then
@@ -446,7 +446,7 @@ public:
   *   corresponding set is a Range. Otherwise, the corresponding set is a
   *   Subset of size SetSize[ j ].
   *
-  * - The one-dimensional variable "SetElements", of type netCDF::NcUint64, is
+  * - The one-dimensional variable "SetElements", of type netCDF::NcUint, is
   *   an array containing the concatenation of the representations of the sets
   *   SetFrom and SetTo. A Subset is represented by a sequence of indices
   *   (which are the elements of the Subset); while a Range is represented by
@@ -620,12 +620,12 @@ private:
                                            sdmb_netCDF.NumberDataMappings );
 
   auto set_size_dim = group.addDim( SetSize_dim_name , 2 * num_data_mappings );
-  sdmb_netCDF.SetSize = group.addVar( SetSize_name , netCDF::NcUint64() ,
+  sdmb_netCDF.SetSize = group.addVar( SetSize_name , netCDF::NcUint() ,
                                       set_size_dim );
 
   auto set_elements_dim = group.addDim( SetElements_dim_name );
   sdmb_netCDF.SetElements = group.addVar( SetElements_name ,
-                                          netCDF::NcUint64() ,
+                                          netCDF::NcUint() ,
                                           set_elements_dim );
 
   sdmb_netCDF.AbstractPath = group.addGroup( AbstractPath_name );
@@ -1135,7 +1135,7 @@ public:
   *   variable (see below). This dimension is optional.
   *
   * - The one-dimensional variable "SetSize", an array of type
-  *   netCDF::NcUint64 with two elements indicating the sizes (or types) of
+  *   netCDF::NcUint with two elements indicating the sizes (or types) of
   *   the "SetFrom" and "SetTo" sets. SetSize[0] indicates the size (or type)
   *   of the "SetFrom" set and SetSize[1] indicates the size (or type) of the
   *   "SetTo" set. For each i in {0,1}, if SetSize[i] == 0, then the
@@ -1150,7 +1150,7 @@ public:
   * - The "SetElements_dim" dimension, containing the size of the
   *   "SetElements" variable (see below).
   *
-  * - The one-dimensional variable "SetElements", of type netCDF::NcUint64,
+  * - The one-dimensional variable "SetElements", of type netCDF::NcUint,
   *   containing the concatenation of the representations of the sets
   *   "SetFrom" and "SetTo". A Subset is represented by a sequence of indices
   *   (which are the elements of the Subset); while a Range is represented by
@@ -1236,7 +1236,7 @@ public:
 
   auto SetSize_dim = group.addDim( SetSize_dim_name , set_size.size() );
 
-  ::SMSpp_di_unipi_it::serialize( group , SetSize_name , netCDF::NcUint64() ,
+  ::SMSpp_di_unipi_it::serialize( group , SetSize_name , netCDF::NcUint() ,
                                   SetSize_dim , set_size , false );
 
   std::vector< Index > set_elements( set_elements_size );
@@ -1265,7 +1265,7 @@ public:
                                        set_elements.size() );
 
   ::SMSpp_di_unipi_it::serialize( group , SetElements_name ,
-                                  netCDF::NcUint64() , SetElements_dim ,
+                                  netCDF::NcUint() , SetElements_dim ,
                                   set_elements , false );
 
   // DataType
