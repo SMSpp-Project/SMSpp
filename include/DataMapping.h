@@ -9,7 +9,7 @@
  *
  * \version 0.1
  *
- * \date 27 - 03 - 2020
+ * \date 11 - 04 - 2020
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -670,7 +670,9 @@ private:
  * large vector are used to compose the small vector. This SetFrom set
  * contains the indices of these elements in the large vector. The small
  * vector is the one that will typically impact the data of some object. The
- * SetTo set can be used to specify which part of this data is affected.
+ * SetTo set can be used to specify which part of this data is
+ * affected. Actually, SetFrom and SetTo are ordered multisets, but we will
+ * refer to them as sets for simplicity.
  *
  * As an example, consider the case in which the large vector contains data
  * related to costs and capacities of arcs of a network. Suppose this network
@@ -687,6 +689,15 @@ private:
  * modified could be specified by the SetTo set. This could be the set [2, 6),
  * for instance, stating that the arcs with indices 2, 3, 4, and 5 would have
  * their capacities changed according to the small vector.
+ *
+ * Usually, the SetFrom and the SetTo sets will have the same cardinality, so
+ * that the i-th element of the SetFrom set will be associated with the i-th
+ * element of the SetTo set. However, the SetFrom set is also allowed to be
+ * smaller than the SetTo set. In this case, the cardinality of the SetTo set
+ * must be a positive multiple of the cardinality of the SetFrom set and the
+ * i-th element of the SetTo set will be associated with the element of the
+ * SetFrom set located at position floor(i/r), where r is the ratio of the
+ * cardinalities of the SetTo and SetFrom sets.
  *
  * Besides the SetFrom and SetTo sets, the SimpleDataMapping also has a
  * pointer to a function, which is invoked within the set_data() method. This
@@ -896,9 +907,11 @@ public:
    }
   }
 
-  if( cardinality( set_from ) != cardinality( set_to ) ) {
-   throw( std::logic_error( "SimpleDataMapping::deserialize: 'SetFrom' and "
-                            "'SetTo' must have the same cardinality." ) );
+  if( cardinality( set_to ) < cardinality( set_from ) ||
+      cardinality( set_to ) % cardinality( set_from ) != 0 ) {
+   throw( std::logic_error( "SimpleDataMapping::deserialize: the cardinality "
+                            "of 'SetTo' must be a positive multiple of the "
+                            "cardinality of 'SetFrom'." ) );
   }
  }
 
@@ -985,9 +998,11 @@ public:
    next_index += set_to.size();
   }
 
-  if( cardinality( set_from ) != cardinality( set_to ) ) {
-   throw( std::logic_error( "SimpleDataMapping::deserialize: 'SetFrom' and "
-                            "'SetTo' must have the same cardinality." ) );
+  if( cardinality( set_to ) < cardinality( set_from ) ||
+      cardinality( set_to ) % cardinality( set_from ) != 0 ) {
+   throw( std::logic_error( "SimpleDataMapping::deserialize: the cardinality "
+                            "of 'SetTo' must be a positive multiple of the "
+                            "cardinality of 'SetFrom'." ) );
   }
 
   set_elements_start_index = next_index;
@@ -1004,6 +1019,11 @@ public:
                         c_ModParam issueAMod = eModBlck ) const override {
   auto sub_data = extract< DataType >( data, set_from );
 
+  if( cardinality( set_to ) > cardinality( set_from ) ) {
+   assert( cardinality( set_to ) % cardinality( set_from ) == 0 );
+   expand( sub_data , cardinality( set_to ) );
+  }
+
   if constexpr( std::is_same_v< SetTo , Subset > )
    std::invoke( * function , caller , sub_data.cbegin() ,
                 Subset( set_to ) , ordered , issueMod , issueAMod );
@@ -1018,6 +1038,11 @@ public:
                         c_ModParam issueMod = eModBlck ,
                         c_ModParam issueAMod = eModBlck ) const override {
   auto sub_data = extract< DataType >( data, set_from );
+
+  if( cardinality( set_to ) > cardinality( set_from ) ) {
+   assert( cardinality( set_to ) % cardinality( set_from ) == 0 );
+   expand( sub_data , cardinality( set_to ) );
+  }
 
   if constexpr( std::is_same_v< SetTo , Subset > )
    std::invoke( * function , caller , sub_data.cbegin() ,
@@ -1269,6 +1294,33 @@ private:
 /*--------------------------------------------------------------------------*/
 /** @name Private Methods
  *  @{ */
+
+ template< class S >
+ static void expand( std::vector< S > & data ,
+                     const typename std::vector< S >::size_type size ) {
+  if( data.size() >= size )
+   return;
+
+  assert( size % data.size() == 0 );
+
+  if( data.size() == 1 ) {
+   data.resize( size , data[ 0 ] );
+   return;
+  }
+
+  auto original_data = data;
+  data.resize( size );
+
+  auto subvector_size = data.size() / original_data.size();
+
+  for( typename std::vector< S >::size_type i = 0 ; i < original_data.size() ;
+       ++i ) {
+   std::fill_n( data.begin() + i * subvector_size , subvector_size ,
+                original_data[ i ] );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
 
  template< class S = double , class T = double >
  static std::vector< S > extract( const std::vector< T > & data ,
