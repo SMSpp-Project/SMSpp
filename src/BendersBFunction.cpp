@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 13 - 03 - 2020
+ * \date 11 - 04 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -180,7 +180,6 @@ void BendersBFunction::deserialize( netCDF::NcGroup & group ,
  if( inner_block_group.isNull() )
   throw std::logic_error( "BendersBFunction::deserialize: the '" +
                           BLOCK_NAME + "' group must be present." );
-
 
  auto block_config_group = group.getGroup( BLOCK_CONFIG_NAME );
  if( block_config_group.isNull() )
@@ -1423,9 +1422,6 @@ void BendersBFunction::serialize( netCDF::NcGroup & group ) const {
  if( v_A.size() ) {
   auto NcDim_NumRow = group.addDim( "NumRow" , v_A.size() );
 
-  auto NcVar_A = group.addVar( "A" , netCDF::NcDouble() ,
-			    { NcDim_NumRow , NcDim_NumVar } );
-
   BendersBFunction::SparseMatrix< FunctionValue > sparse_A( v_A.size() );
   if( is_A_sparse( sparse_A ) ) {
    // Store A in sparse format
@@ -1433,6 +1429,10 @@ void BendersBFunction::serialize( netCDF::NcGroup & group ) const {
   }
   else {
    // Store A in dense format
+
+   auto NcVar_A = group.addVar( "A" , netCDF::NcDouble() ,
+                                { NcDim_NumRow , NcDim_NumVar } );
+
    for( Index i = 0 ; i < v_A.size() ; ++i )
     NcVar_A.putVar( { i , 0 } , { 1 , nvar } , v_A[ i ].data() );
   }

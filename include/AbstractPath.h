@@ -36,7 +36,7 @@
  *
  * \version 0.10
  *
- * \date 16 - 03 - 2020
+ * \date 11 - 04 - 2020
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -1159,9 +1159,9 @@ public:
   using ::SMSpp_di_unipi_it::serialize;
   serialize( group , node_type_name , netCDF::NcChar() ,
              dim , path.node_types );
-  serialize( group , group_index_name , netCDF::NcUint64() ,
+  serialize( group , group_index_name , netCDF::NcUint() ,
              dim , path.group_indices );
-  serialize( group , element_index_name , netCDF::NcUint64() ,
+  serialize( group , element_index_name , netCDF::NcUint() ,
              dim , path.element_indices );
  }
 
@@ -1208,7 +1208,7 @@ public:
   * in each of these arrays is associated with the i-th node in the path, for
   * i in {0, ..., N-1}. The type of the variable node_type is
   * netCDF::NcChar(), while the type of the variables group_index and
-  * element_index is netCDF::NcUint64(). The type of a node may be indicated
+  * element_index is netCDF::NcUint(). The type of a node may be indicated
   * by any of the following letters:
   *
   * - 'O', if the node is associated with an Objective;
@@ -1504,7 +1504,7 @@ public:
 
   netCDFvars.NumPaths = paths.size();
   netCDFvars.PathDim = group.addDim( path_dim_name , netCDFvars.NumPaths );
-  netCDFvars.PathStart = group.addVar( path_start_name , netCDF::NcUint64() ,
+  netCDFvars.PathStart = group.addVar( path_start_name , netCDF::NcUint() ,
                                        netCDFvars.PathDim );
 
   Index total_length = 0;
@@ -1520,11 +1520,11 @@ public:
                                            netCDFvars.PathTotalLength );
 
   netCDFvars.PathGroupIndices = group.addVar( group_index_name ,
-                                              netCDF::NcUint64() ,
+                                              netCDF::NcUint() ,
                                               netCDFvars.PathTotalLength );
 
   netCDFvars.PathElementIndices = group.addVar( element_index_name ,
-                                                netCDF::NcUint64() ,
+                                                netCDF::NcUint() ,
                                                 netCDFvars.PathTotalLength );
  }
 
@@ -1535,7 +1535,7 @@ public:
 
   netCDFvars.NumPaths = number_paths;
   netCDFvars.PathDim = group.addDim( path_dim_name , netCDFvars.NumPaths );
-  netCDFvars.PathStart = group.addVar( path_start_name , netCDF::NcUint64() ,
+  netCDFvars.PathStart = group.addVar( path_start_name , netCDF::NcUint() ,
                                        netCDFvars.PathDim );
 
   netCDFvars.PathTotalLength = group.addDim( path_total_length_dim_name );
@@ -1544,11 +1544,11 @@ public:
                                            netCDFvars.PathTotalLength );
 
   netCDFvars.PathGroupIndices = group.addVar( group_index_name ,
-                                              netCDF::NcUint64() ,
+                                              netCDF::NcUint() ,
                                               netCDFvars.PathTotalLength );
 
   netCDFvars.PathElementIndices = group.addVar( element_index_name ,
-                                                netCDF::NcUint64() ,
+                                                netCDF::NcUint() ,
                                                 netCDFvars.PathTotalLength );
  }
 
