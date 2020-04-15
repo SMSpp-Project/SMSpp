@@ -1205,8 +1205,205 @@ class Block : public Observer {
  *
  *  @{ */
 
+ /// returns true if the Block is already owned by owner
+ /** The method returns true if the Block is already owned by owner. Note
+  * that this method just compares the internal field with the argument,
+  * and it is therefore
+  *
+  *     DANGEROUS TO BE USED IN A CONCURRENT CONTEXT IF owner RUNS IN A
+  *     DIFFERENT THREAD THAN THE CURRENT OWNER
+  *
+  * This is because, obviously, the internal field can change at any point
+  * in time immediately after the operation and before its result can be
+  * used. However, the method
+  *
+  *     CAN TYPICALLY BE USED TO ESTABLISH THAT THE ENTITY MAKING THE CALL
+  *     IS THE CURRENT OWNER
+  *
+  * This is so if the entity making the call is single-threaded, or if the
+  * call is made by the "main thread" where the other threads do not mess up
+  * with ownership of the Block. Indeed, the main reason for the existence of
+  * this method is to cheaply solve the issue poised by calls to
+  * lock( owner ) where owner is already the current owner. The issue is that
+  * such a call is sopposed to immediately return true without doing nothing;
+  * however, in so doing it breaks the concept that each lock() should be
+  * paired with an unlock(), because the first unlock() by the owner undoes
+  * any number of previous consecutive lock() by the same entity. Therefore,
+  * if there is any doubt that the entity could already own the Block, the
+  * call scheme should be
+  *
+  *     bool owned = block->is_owned_by( me );
+  *     if( ! owned )
+  *      if( ! block->lock( me ) )
+  *       < something happens, typcally a disaster >
+  *
+  *     < block is mine, do whatever I want with it >
+  *
+  *     if( ! owned )
+  *      block->unlock();
+  *
+  * This works if "me" is sure that no other thread can "share its identity"
+  * and be concurrently trying to lock/unlock the Block. */
 
+ bool is_owned_by( void * owner ) { return( f_owner == owner ); }
 
+/*--------------------------------------------------------------------------*/
+ /// tries to lock the Block, return true on success
+ /** Attempts to acquire the lock on the Block for the entity "owner".
+  *
+  * If "owner" is already the owner, the operation surely suceeds at almost
+  * zero cost. This in particular means that
+  *
+  *     TWO LOCK OF ONE Block BY THE SAME OWNER EFFECTIVELY ARE ONE SINGLE
+  *     LOCK, AND THEREFORE THEY MUST BE UNLOCKED ONLY ONCE
+  *
+  * It is responsibility of the caller of lock() to keep track of this, and
+  * call unlock() the right number of times; see the comments to
+  * is_owned_by().
+  *
+  * If the Block is owned by an owner running in the same thread as "owner",
+  * the operation immediately fails. If, instead, the Block is owned by an
+  * owner running in a different thread than "owner", then lock() goes to
+  * sleep until the Block is unlocked by the current owner; then a race is
+  * possibly ran between interested threads to see who gets to own it first,
+  * the others being put back to sleep, and the winner lock() resumes its
+  * work at trying to lock the Block as if it were un-owned.
+  *
+  * If the Block is un-owned, the operation succeeds if also all the sub-Block
+  * can be successfully locked. This means that the operation immediately
+  * fails if the first encountered sub-Block that is already owned (the
+  * sub-Block tree being visited depth-first, left-to-right) is owned by an
+  * owner running in the same thread as "owner". In this case, all the
+  * sub-Block that had been tentatively locked during the unsuccessfull
+  * attempt are immediately unlocked. If, instead, the first already owned
+  * sub-Block is owned by an owner running in a different thread than
+  * "owner", then lock() goes to sleep until that sub-Block is unlocked by
+  * the current owner; then a race is possibly ran between interested threads
+  * to see who gets to own it first, the others being put back to sleep, and
+  * the winner lock() resumes its work at trying to finish to lock all the
+  * sub-Block. Note that the previously locked sub-Block are not unlocked
+  * while lock() sleeps. It is therefore crucial that locking is always
+  * performed in a fixed fashion: pre-visit (the father is locked before
+  * all its sons), depth-first, left-to-right traversal of the tree. This
+  * ensures that a locking sweep of the three can only be stalled by
+  * another locking of one of its sub-trees, but that the locking of the
+  * sub-tree cannot be itself stalled (if not by a locking of a
+  * sub-sub-tree). In other words, the "inner" locking sweep between all
+  * the active ones will surely suceed withouh being stalled by the others,
+  * which ensures that there will be no deadlock between concurrent locking
+  * operations.
+  *
+  * In most cases, there should be no reason for derived classes to mess
+  * up with this mechanism. However, some :Block may have nonstandard
+  * behavior, e.g. about how they store their sub-Block, and therefore for
+  * maximal flexibility this methos is virtual. */
+ 
+ virtual bool lock( void * owner ) {
+  for(;;) {  // this may have to be repeated many times
+   void * current_owner = nullptr;
+   if( f_owner.compare_exchange_strong( current_owner , owner ) ) {
+    // the Block was un-owned, we now try to own it
+    // this may still fail because in order to own a Block all of its
+    // sub-Block must also be owned: try to do that first
+
+    f_mutex.lock();  // first of all, lock the mutex: this is a bit weird
+                     // because the Block is surely "free", but it is done
+    // mmediately so that other Block willing to take ownership from
+    // different threads can sleep on the mutex even during the potentially
+    // long time its takes to (try to) lock all sub-Block
+
+    if( lock_sub_block( owner ) ) {  // if all sub-Block can be owned
+     f_owner_thread_id = std::this_thread::get_id();   // record own id
+     return( true );                                   // all done
+     }
+
+    // it was not possiblt to lock all the sub-Block;
+    f_owner = nullptr;  // release ownership of the Block
+    f_mutex.unlock();   // release the mutex
+    return( false );    // failed to lock the Block
+    }
+   else  // an owner already existed
+    if( current_owner == owner )  // but it's the would-be owner
+     return( true );              // nothing to do, it already owns the Block
+    // note: we are assuming that the current owner is not multi-threaded,
+    //       in the sense that no other thread sharing the owner identity
+    //       can be unlocking the Block in this very instant
+    // note: conversely, the current owner may have just released the lock,
+    //       another thread 
+    else {                        // the current owner is different
+     if( f_owner_thread_id == std::this_thread::get_id() )
+                                 // but it runs on the same thread
+      return( false );           // the only recourse is to fail
+     // note: clearly, it is not possible that the current owner is
+     //       releasing the Block precisely at this point, because it
+     //       runs in the very same thread, and this thread is now doing
+     //       this operation rather than unlocking the Block
+
+     // the current owner runs in a different thread
+
+     f_mutex.lock();  // first of all, lock the mutex
+                      // one expects the mutex to be locked, so that the
+                      // thread will go to sleep
+
+     // after having slept on the mutex, try to own the Block
+     current_owner = nullptr;
+     if( f_owner.compare_exchange_strong( current_owner , owner ) ) {
+      // no owner came in and beat us, the Block can be owned
+      if( lock_sub_block( owner ) ) {  // ... if all sub-Block can be owned
+       f_owner_thread_id = std::this_thread::get_id();  // record own id
+       return( true );                                  // all done
+       }
+
+      // it was not possiblt to lock all the sub-Block;
+      f_owner = nullptr;  // release ownership of the Block
+      f_mutex.unlock();   // release the mutex
+      return( false );    // failed to lock the Block
+      }
+     else {
+      // someone managed to do the atomic swap before us and it is now
+      // trying to lock the mutex to finalize locking of the sub-Block:
+      // the only solution is to give up the mutex to allow it do that,
+      // and then repeat everything (try the atomic swap, fail, go to
+      // sleep on the mutex, rinse and repeat)
+      f_mutex.unlock();
+      }
+     }
+   }  // end infinite loop
+  }  // end( lock() )
+
+/*--------------------------------------------------------------------------*/
+ /// unlock the Block
+ /** Removes the current lock on the Block, relinquishing ownership. This
+  * of course also relinquishes ownership on all the sub-Block of the Block.
+  *
+  * The unlocking is performed "in reverse" than the locking: post-visit
+  * (the father is unlocked after all the sons are), depth-first,
+  * right-to-left transversal of the Block tree.
+  *
+  *     IT IS INCORRECT TO UNLOCK A NON-LOCKED Block
+  *
+  * Also, note that
+  *
+  *     AN OWNER RE-LOCKING AN ALREADY OWNED Block IS A NO-OP, WHICH
+  *     IMPLIES THAT ANY SEQUENCE OF LOCKING A Block BY THE SAME OWNER
+  *     MUST BE UNLOCKED ONLY ONCE
+  *
+  * It is responsibility of the caller of lock()/unlock() to keep track of
+  * this, see the comments to is_owned_by().
+  *
+  * In most cases, there should be no reason for derived classes to mess
+  * up with this mechanism. However, some :Block may have nonstandard
+  * behavior, e.g. about how they store their sub-Block, and therefore for
+  * maximal flexibility this methos is virtual. */
+ 
+ virtual void unlock( void )
+ {
+  for( auto sb = v_Block.end() ; sb != v_Block.begin() ; )
+   (*(--sb))->unlock();
+
+  f_owner = nullptr;  // release ownership of the Block
+  f_mutex.unlock();   // release the mutex
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -5041,6 +5238,28 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 /*--------------------------------------------------------------------------*/
+/** @name Protected methods for locking and unlocking
+ */
+
+ bool lock_sub_block( void * owner )
+ {
+  bool success = true;
+  // visit the Block tree depth-first, left-to-right order
+  auto sb = v_Block.begin();
+  for( ; sb != v_Block.end() ; ++sb )
+   if( ! (*sb)->lock( owner ) ) {
+    success = false;
+    break;
+    }
+
+  if( ! success )   // some of the sub-Block could not be locked
+   while( sb-- != v_Block.begin() )  // reunlock the locked oned (if any)
+    (*sb)->unlock();
+
+  return( success );
+  }
+
+/**@} ----------------------------------------------------------------------*/
 /** @name Protected methods for handling the "abstract representation"
  *
  * The following methods are the only ones that derived classes can use to
@@ -5393,8 +5612,8 @@ class Block : public Observer {
   static_assert( std::is_base_of< Variable, Var >::value,
                  "add_static_variable: newv must inherit from Variable" );
 
-  for( auto i = newv.data() ; i < ( newv.data() + newv.num_elements() ) ; ++i )
-   i->set_Block( this );
+  for( auto i = newv.data() ; i < ( newv.data() + newv.num_elements() ) ; )
+   (i++)->set_Block( this );
 
   boost::multi_array< Var, K > * cnewv = &newv;
   if( front ) {
@@ -5550,7 +5769,8 @@ class Block : public Observer {
   static_assert( std::is_base_of< Constraint, Const >::value,
                "add_dynamic_constraint: newc must inherit from Constraint" );
 
-  for( auto i = newc.data() ; i < ( newc.data() + newc.num_elements() ) ; ++i )
+  for( auto i = newc.data() ; i < ( newc.data() + newc.num_elements() ) ;
+       ++i )
    for( auto & j : *i )
     j.set_Block( this );
 
@@ -5709,7 +5929,8 @@ class Block : public Observer {
   static_assert( std::is_base_of< Variable, Var >::value,
                  "add_dynamic_variable: newv must inherit from Variable" );
 
-  for( auto i = newv.data() ; i < ( newv.data() + newv.num_elements() ) ; ++i )
+  for( auto i = newv.data() ; i < ( newv.data() + newv.num_elements() ) ;
+       ++i )
    for( auto & j : *i )
     j.set_Block( this );
 
@@ -5898,6 +6119,13 @@ class Block : public Observer {
 /**@} ----------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
+
+ std::atomic< void * > f_owner;  ///< the "owner" of this Block
+
+ std::atomic< std::thread::id > f_owner_thread_id;
+                                 ///< the thread::id of the owner
+
+ std::mutex f_mutex;            ///< the std::mutex of this Block
 
  Vec_Block v_Block;
  ///< vector of pointers of the nested blocks inside the Block
