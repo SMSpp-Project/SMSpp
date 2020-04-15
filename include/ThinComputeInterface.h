@@ -553,7 +553,7 @@ public:
 /** @name Compute whatever the object is supposed to
  *  @{ */
 
- /// (try to) compute whatever the object is supposed to
+ /// (try to) compute whatever the object is supposed to, synchronously
  /** Starts or the computation process, or restarts a previously interrupted
   * computation process, and returns the status of the solver at termination.
   *
@@ -664,6 +664,21 @@ public:
   * do, but that clearly the global rule does not forbid doing. */
 
  virtual int compute( bool changedvars = true ) = 0;
+
+/*--------------------------------------------------------------------------*/
+ /// (try to) compute whatever the object is supposed to, asynchronously
+ /** This is just an one-line wrapper over compute() that runs it into a
+  * separate task and returns a std::future<int> upon which the caller can
+  * wait() for the result. Not really a significant contribution (it is not
+  * even virtual) and by no means the only way to make an asynchronous call
+  * to compute(), just a little convenience method that conveys what is
+  * perhaps the most convenient current C++ technique for asynchronous calls
+  * to compute(). */
+
+ std::future<int> compute_async( bool changedvars = true ) {
+  return( std::async( std::launch::async ,
+		      &ThinComputeInterface::compute , this , changedvars ) );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------------- METHODS FOR READING RESULTS -----------------------*/

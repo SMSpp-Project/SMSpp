@@ -1123,6 +1123,92 @@ class Block : public Observer {
   }
 
 /**@} ----------------------------------------------------------------------*/
+/*----------------- Methods for acquiring/releasing the Block --------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for acquiring/releasing the Block
+ *
+ * One of the main reasons for the existence of SMS++ is to support
+ * asynchronous operations on different parts of an optimization problem
+ * (different Block and sub-Block of a Block), and in general approaches
+ * capable of exploiting multiple available processors. The fundamental
+ * design principles of SMS++ basically mandate a shared memory (although a
+ * distributed framework could be constructed on top of SMS++); thus, access
+ * control and synchronization primitives need be provided by Block.
+ *
+ * This access control is basically structured as the classical "Big Fat
+ * Lock": before being modified, a Block need be "locked". Once the lock is
+ * acquired by any entity, only that entity is entitled to modify it. Until
+ * the entity releases the lock, no other entity can take it. This means that
+ * not only no other entity is allowed to modify the Block, but that even
+ * reading the Block data is unadvisable, in that it can be modified at any
+ * time by the other entity, which easily leads to data inconsitencies.
+ *
+ * Note that sub-Block are "a part of the Block"; this means that locking a
+ * Block implies locking all its sub-Block, recursively. In turn, this implies
+ * that locking a Block is not a "cheap" operation. Because of this, the
+ * locking and unlocking operations are *not* automatically performed by any
+ * method changing anything in the Block, but must be explicitly called before
+ * invoking any such method. The rationale for this choice is:
+ *
+ * - it dramatically simplifies the implementation of :Block, especially in
+ *   the case where a method of a derived class must call that of the base
+ *   class;
+ *
+ * - it allows to bunch a set of Block-changing operations under the same
+ *   lock/unlock stretch to improve performances;
+ *
+ * - there can be cases when one can be 100% sure that no other thread/entity
+ *   can possibly operate on the Block, either because the overall application
+ *   is rigidly single-threaded, or because the Block can only be accessed
+ *   via a rigidly controlled access point (for instance, the Block has
+ *   just been created out of a factory and there currently is only one
+ *   pointer to it that no other thread can possibly be sharing because it
+ *   is, say, a local variable in a function).
+ *
+ * Of course
+ *
+ *     EACH TIME THE Block IS LOCKED IT HAS TO BE UNLOCKED, WHICH MEANS
+ *     THAT ALL LOCK/UNLOCK STRETCHES THAT MAY THROW EXCEPTION SHOULD
+ *     BE ENCLOSED INSIDE A try - catch BLOCK, UNLESS THE EXCEPTIONS ARE
+ *     ANYWAY GOING TO BE TERMINAL ONES
+ *
+ * While all this is mostly useful for asynchronous approaches, in general
+ * even in a synchronous setting it may not be trivial to ensure that
+ * different parts of a complex solution process "agree" on what kind of
+ * changes may be allowed to a given Block at any point in time. Therefore,
+ * the lock/unlock mechanism of Block is thought to be used even in a
+ * single-threaded environment to ensure that different parts of a solution
+ * process do not overstep the boundaries of their allowed changes. To handle
+ * these aspects, the lock/unlock mechanism of Block has the following
+ * specific features:
+ *
+ * - It explicitly indicates the "owner" of the Block (under the form of a
+ *   void *). This allows the owner to cheaply check if the Block is already
+ *   locked by itself and avoid to re-lock it. This is particularly useful
+ *   in that is allows "transfer of ownership" between different entities:
+ *   the entity owning a Block can provide another entity "access right" to,
+ *   say, a sub-Block of the Block, knowing that this may produce localized
+ *   changes that it is able to manage.
+ *
+ * - It explicitly stores the thread::id of the owner. This is necessary in
+ *   that attempts to locking an already locked block need necessarily be
+ *   handled differently according to the fact that the new would-be owner
+ *   runs in a different thread than the current owner or the same one.
+ *   Indeed, if it runs in a different thread it can just "go to sleep on
+ *   the mutex" (that the Block provides) and be automatically woken up when
+ *   the current owner relinquishes the lock; in other words, the lock
+ *   operation always eventually suceeds. However, if it runs in the same
+ *   thread this cannot happen, which means that the lock operation may
+ *   have to explicitly fail.
+ *
+ * TODO: READ-LOCK AS OPPOSED TO READ-WRITE LOCK?
+ *
+ *  @{ */
+
+
+
+
+/**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -1674,17 +1760,6 @@ class Block : public Observer {
   for( auto blck : v_Block )
    blck->generate_objective();
   }
-
-/**@} ----------------------------------------------------------------------*/
-/*----------------- Methods for acquiring/releasing the Block --------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Methods for acquiring/releasing the Block
- *
- * The rationale for SMS++ is to support 
- *  @{ */
-
-
-
 
 /**@} ----------------------------------------------------------------------*/
 /*----------------- Methods for reading the data of the Block --------------*/

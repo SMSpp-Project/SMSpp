@@ -37,8 +37,8 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#include "ThinComputeInterface.h"
 #include "Modification.h"
+#include "ThinComputeInterface.h"
 
 /*--------------------------------------------------------------------------*/
 /*----------------------------- NAMESPACE ----------------------------------*/
@@ -234,9 +234,9 @@ public:
  * counter, allowing the Solver to proceed further in the solution process.
  * An *exact* Solver should always eventually return one among kOK, kUnbounded
  * and kInfeasible given enough time (although "enough" can be longer than the
- * thermal death of the universe), unless an error occurs, but not all problems
- * are even decidable and therefore allow an extact Solver. Besides, non-exact
- * Solver also make full sense in many cases. */
+ * thermal death of the universe), unless an error occurs, but not all
+ * problems are even decidable and therefore allow an extact Solver. Besides,
+ * non-exact Solver also make full sense in many cases. */
 
  kStopIter ,   ///< stopped because of iteration limit
                /**< The Solver didn't manage to either obtain any feasible
@@ -255,19 +255,34 @@ public:
  * given enough resources, unless an error occurs, but not all problems are
  * decidable and therefore allow an extact Solver. */
 
- kLowPrecision = kError + 1 , ///< a solution found but not provably optimal
-                              /**< The Solver was indeed able to obtain 
-			       * feasible solution (to within the required
- * tolerance for each Block) but *not* to reach the required accuracy, and
- * and this not for an issue relative to limits on the available resources
- * (see kStopTime and kStopIter) or for some kind of error (see kError), but
- * because the Solver is an intrinsically heuristic approach which cannot
- * guarantee to always be able to solve the model. Heuristic Solver are still
- * very useful because they can be "fast", and some kind of problems may not
- * allow for any exact solver anyway. The specific information that
- * kLowPrecision provides over kError, besides the fact that the error is not
- * due to "strange" occurrences but to the nature of the Solver, is that at
- * least one solution has been found. */
+ kStillRunning = kError + 1 ,  ///< not stopped yet
+                               /**< compute() was called again while it has
+			        * not already terminated, for instance from
+ * within an event handler. This is in general not allowed, and the only
+ * recourse is to return an error. */
+
+ kBlockLocked ,  ///< could not acquire the lock on the Block
+                 /**< compute() needed to lock the Block to work, but
+		  * acquiring the lock was unsuccessful and the Solver does
+ * not have in place any mechanism to overcome this issue. */
+
+ kLowPrecision , ///< a solution found but not provably optimal
+                 /**< The Solver was indeed able to obtain 
+		  * feasible solution (to within the required tolerance for
+ * each Block) but *not* to reach the required accuracy, and this not for an
+ * issue relative to limits on the available resources (see kStopTime and
+ * kStopIter) or for some kind of error (see kError), but because the Solver
+ * is an intrinsically heuristic approach which cannot guarantee to always be
+ * able to solve the model. Heuristic Solver are still very useful because
+ * they can be "fast", and some kind of problems may not allow for any exact
+ * solver anyway. The specific information that kLowPrecision provides over
+ * kError, besides the fact that the error is not due to "strange"
+ * occurrences but to the nature of the Solver, is that at least one solution
+ * has been found. */
+
+ kLastSolverError  ///< first allowed new error code for derived classes
+                   /**< Convenience value for easily allow derived classes
+		    * to extend the set of error codes. */
 
  };  // end( sol_type )
 
@@ -279,9 +294,9 @@ public:
   * by derived classes. */
 
  enum int_par_type_S {
- intMaxIter = 0 ,  ///< maximum iterations for the next call to solve()
+ intMaxIter = 0 ,  ///< maximum iterations for the next call to compute()
                    /**< The algorithmic parameter for setting the maximum
-		    * number of iterations that the next call to solve() is
+		    * number of iterations that the next call to compute() is
  * allowed to execute for trying to solve the Block. The concept of "what
  * exactly an iteration is" is clearly Solver-dependent, and the user of the
  * Solver need supposedly be aware of which concrete Solver it is actually
@@ -290,6 +305,26 @@ public:
  * support for this notion in the base class. More refined ones can easily
  * be added by derived classes (see intLastAlgPar and dblLastAlgPar). The
  * default is Inf<int>(). */
+
+ intMaxThread ,  ///< maximum number of threads that compute() can spawn
+                 /**< The algorithmic parameter for setting the maximum
+		  * number of threads that the next call to compute() is
+ * allowed to spawn while trying to solve the Block. Actually "thread" here
+ * is intended in a loose sense, since each :Solver will decide if and how
+ * to implememnt any asynchronous part, and hence which tools will be used
+ * to manage it. If std::asynch is used, for instance, then what is easily
+ * kept under control is the number of tasks, which may or may not coincide
+ * with the number of threads depending on the scheduler implementation.
+ * Specific :Solver requiring more fine control of these aspects can define
+ * their own specific algorithmic parameters, but the concept of "maximum
+ * allowed amount of computational resources" (as governed by a simple int)
+ * should be general enough as to warrant a parameter in the base Solver
+ * class. The default is 0, which means that compute() must only use the
+ * thread/task that is calling it. Note that this does not prevent the
+ * caller to call compute() in an asynchronous way, see e.g.
+ * ThinComputeInterface::compute_async() for an example, but in this case
+ * the responsibility of spawning (and then controlling) the new task is on
+ * the caller, while this parameter controls what happens inside compute(). */
 
  intMaxSol ,    ///< maximum number of different solutions to report
 		/**< The algorithmic parameter for setting the maximum 
@@ -496,8 +531,8 @@ public:
 /** @name Constructing and destructing Solver
  *  @{ */
 
- /// constructor: does nothing special
- Solver( void ) : f_Block( nullptr ) , f_log( nullptr ) {}
+ /// constructor: does nothing special except initializing the id
+ Solver( void ) : f_Block( nullptr ) , f_log( nullptr ) { f_id = this; }
 
 /*--------------------------------------------------------------------------*/
  /// construct a :Solver of specific type using the Solver factory
@@ -549,6 +584,78 @@ public:
  virtual ~Solver() { }
 
 /**@} ----------------------------------------------------------------------*/
+/*---------------------- LOCKING AND UNLOCKING Solver ----------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Locking and Unlocking Solver
+ *
+ * Solver are typically going to be "complex" objects, with a significant
+ * internal state that has to be protected in a multi-threaded environment.
+ * For this reason, the base Solver includes a std::recursive_mutex as a
+ * protected field, and exposes methods to lock and unlock it:
+ *
+ *     EACH TIME THAT A NON-CONST METHOD OF Solver IS CALLED, THE Solver
+ *     SHOULD FIRST BE LOCKED, AS THIS IS NOT SUPPOSED TO BE DONE
+ *     AUTOMATICALLY INSIDE THE METHODS THEMSELVES, UNLESS ONE CAN BE
+ *     SURE THAT NO OTHER THREAD CAN POSSIBLY OPERATE ON THE Solver
+ *
+ * The rationale for this choice is:
+ *
+ * - it dramatically simplifies the implementation of :Solver, especially in
+ *   the case where a method of a derived class must call that of the base
+ *   class;
+ *
+ * - since taking and releasing the lock are "costly" operations, it allows
+ *   to bunch a block of them under the same lock/unlock stretch to
+ *   improve performances;
+ *
+ * - there can be cases when one can be 100% sure that no other thread/entiy
+ *   can possibly operate on the Solver, either because the overall
+ *   application is rigidly single-threaded, or because the Solver can only
+ *   be accessed via a rigidly controlled access point (for instance, the
+ *   Solver has just been created out of a factory and there currently is
+ *   only one pointer to it that no other thread can possibly be sharing
+ *   because it is, say, a local variable in a function).
+ *
+ * Of course
+ *
+ *     EACH TIME THE Solver IS LOCKED IT HAS TO BE UNLOCKED, WHICH MEANS
+ *     THAT ALL LOCK/UNLOCK STRETCHES THAT MAY THROW EXCEPTION SHOULD
+ *     BE ENCLOSED INSIDE A try - catch BLOCK, UNLESS THE EXCEPTIONS ARE
+ *     ANYWAY GOING TO BE TERMINAL ONES
+ *
+ * The mutex is recursive so as to allow the same thread to repeatedly
+ * obtaining the lock. This has a performance cost, but it might be
+ * necessary because the usage patterns of Solver may be complex, and there
+ * may be the chance that operations on a Solver may be performed by two
+ * pieces of code that are unaware of each other.
+ *
+ * Note that this means that acquiring the lock does not imply that the
+ * Solver may not be "in use" by a different piece of code in the same thread.
+ * This is typically not a big issue for "simple" methods, such as those
+ * setting parameters (unless of course the different pieces do things that
+ * cancel out each other), that surely complete before giving back control.
+ * However, it can be an issue in particular for compute(), because the
+ * control can be "arbitrarily taken away" via event handlers (see the
+ * comments around set_event_handler()), inside which everything can happen.
+ * Thus, compute() in particular will have to protect itself against multiple
+ * invocations within the same thread.
+ *  @{ */
+
+ /// lock the Solver, waiting if the lock is taken by another thread
+
+ void lock( void ) { f_mutex.lock(); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// try to lock the Solver, returns false if the lock is taken
+
+ bool try_lock( void ) { return( f_mutex.try_lock() ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// unlock the Solver
+
+ void unlock( void ) { f_mutex.unlock(); }
+
+/**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -568,8 +675,8 @@ public:
   * Important note: the moment when the Block is passed to the Solver, the
   * Solver should in principle do all the necessary initializations, since
   * immediately afterwords compute() may be called already. However, some of
-  * the initializations could be heavily impacted by the algorithmic parameters
-  * of the Solver. This means that
+  * the initializations could be heavily impacted by the algorithmic
+  * parameters of the Solver. This means that
   *
   *     IT IS EXPECTED THAT set_ComputeConfig() SHOULD BE CALLED *BEFORE*
   *     set_Block() IS
@@ -616,6 +723,50 @@ public:
   f_log = log_stream;
   }
 
+/*--------------------------------------------------------------------------*/
+ /// set the "identity" of the Solver
+ /** Each time that a Solver needs to operate on a Block, it has to "lock and
+  * own" it. The Block stores the "identity" of its owner, so that if the
+  * same owner comes back and try to "own" it, the operation suceeds even if
+  * the Block is locked already. When a Block is "owned", all its sub-Block
+  * (recursively) are "owned" by the same entity.
+  *
+  * In general, each entity willing to "lock and own" a Block will have to
+  * provide a unique "identity", under the form of a void *. For a Solver,
+  * this is "this", i.e., the pointer to the Solver itself. There can be the
+  * case where a Solver for a Block relies on sub-Solver that solve sub-Block
+  * of the given Block. However, when the "master" Solver "owns" the Block,
+  * its sub-Solver cannot "own" the sub-Block since they are already "owned"
+  * by the "master" Solver. The "master" solver could temporarily "unlock and
+  * disown" the Block before calling any method of the sub-Solver that tries
+  * to "own" it (typically, compute()), but this opens the chance that
+  * another entity which had tried to acquire the lock may step in and get it
+  * before the sub-Solver has a chance to, which may lead to issues and
+  * possibly even deadlocks.
+  *
+  * This method allows an entity "owning" a Block (say, the above "master"
+  * Solver) to "lend its identity" to the Solver. The identity is stored in
+  * a protected field of Solver, initialized with "this" and returned by
+  * id(). Each Solver should always use id() to try to "lock and own" the
+  * Block. This method allows to change the id() ("lend another identity")
+  * of the Solver to any value; when called with nullptr argument, the id()
+  * is reset to the default "this". Note that a Solver should always lend
+  * its id() to its sub-Solver, so that "lending can be propagated downwards"
+  * along a chain of sub-Solver. However, if this is done permanently (as
+  * opposed to an on-need basis), changing or resetting the id() of a Solver
+  * may require doing the same to its sub-Solver; this is why this method is
+  * virtual.
+  *
+  * Note that the "lock and own" mechanism also protects a Block from
+  * concurrent accesses from different threads. Thus, this mechanism removes
+  * such protection in case a (say) Solver running in a thread lends its
+  * identity to a (say) sub-Solver running in a different thread. It clearly
+  * is responsibility of the entity lending the identity (which presumably
+  * knows and controls the Solver it has leant it) to handle any such issues
+  * using the appropriate synchronization tools. */
+
+ virtual void set_id( void *id = nullptr ) { f_id = id ? id : this; }
+
 /**@} ----------------------------------------------------------------------*/
 /*---------------------- METHODS FOR EVENTS HANDLING -----------------------*/
 /*--------------------------------------------------------------------------*/
@@ -661,8 +812,7 @@ public:
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// register a new event handler, returning its id
- /** The new event handler is added at the back of v_events[ type ]
-to these regostered for the given type. As the
+ /** The new event handler is added at the back of v_events[ type ]. As the
   * && tells, the event handler becomes property of the ThinComputeInterface,
   * which is completely OK if, as one expects, it is defined via a lambda
   * function. The method returns a unique id for the handler, which can (and
@@ -717,7 +867,8 @@ to these regostered for the given type. As the
    do
     v_events[ type ].pop_back();
    while( ( ! v_events[ type ].empty() ) &&
-	  ( v_events[ type ].back() == do_nothing ) );
+	  ( v_events[ type ].back().target<int ()>() ==
+	    do_nothing.target<int ()>() ) );
    }
   else
    v_events[ type ][ id ] = do_nothing;
@@ -730,7 +881,7 @@ to these regostered for the given type. As the
  *  @{ */
 
  /// (try to) solve the model encoded in the Block
- /** Starts or the solution process of the problem, or restarts a previously
+ /** Starts the solution process of the problem, or restarts a previously
   * interrupted solution process, and returns the status of the solver at
   * termination.
   *
@@ -786,9 +937,38 @@ to these regostered for the given type. As the
   * new call to compute() after a return value of kOK is interpreted as
   * "please do provide more solutions". The return value of compute() should
   * be the same (unless, for instance, a kError occurs), but the list of
-  * available solutions might be replenished. */
+  * available solutions might be replenished.
+  *
+  * Note that, being Solver usually complex objects with a significant state,
+  * two simultaneous call to compute() of the same Solver must not happen.
+  * The lock() / unlock() methods are provided precisely to ensure this in a
+  * multi-threaded environment: the Solver should be lock()-ed before
+  * compute() is called, and unlock()-ed only after termination. However,
+  * note that
+  *
+  *     THE MUTEX DOES NOT PROTECT A Solver AGAINST MULTIPLE INVOCATIONS
+  *     OF compute() FROM WITHIN THE SAME THREAD.
+  *
+  * These may conceivably happen, since the control can be "arbitrarily
+  * taken away" from compute() via event handlers (see the comments around
+  * set_event_handler()), inside which everything can happen. Thus,
+  * implementations of compute() will have to protect themselves against
+  * multiple invocations within the same thread. This is easy enough if,
+  * say, a field "f_state" is used to keep the state to be returned as in
+  * the following fragment of code
+  *
+  *     int compute( bool changedvars = true ) override {
+  *      if( f_state == kStillRunning )
+  *       return( f_state );
+  *      f_state = kStillRunning;
+  *      < do the rest of compute >
+  *      < set f_state to the right return code >
+  *      return( f_state );
+  *      }
+  *
+  * which is precisely why the kStillRunning value has been defined. */
 
- virtual int compute( bool changedvars = true ) override = 0;
+ int compute( bool changedvars = true ) override = 0;
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------------- METHODS FOR READING RESULTS -----------------------*/
@@ -1316,6 +1496,11 @@ to these regostered for the given type. As the
  virtual Block *get_Block ( void ) const { return( f_Block ); }
 
 /*--------------------------------------------------------------------------*/
+ /// getting the "identity" of this Solver
+
+ virtual void * id( void ) { return( f_id ); }
+
+/*--------------------------------------------------------------------------*/
  /// getting the classname of this Solver
  /** Given a Solver, this method returns a string with its class name; unlike
   * std::type_info.name(), there *are* guarantees, i.e., the name will
@@ -1342,28 +1527,28 @@ to these regostered for the given type. As the
 /** @name Handling the parameters of the Solver
  *  @{ */
 
- virtual idx_type get_num_int_par( void ) const override
+ idx_type get_num_int_par( void ) const override
  {
   return( idx_type( intLastAlgPar ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual idx_type get_num_dbl_par( void ) const override
+ idx_type get_num_dbl_par( void ) const override
  {
   return( idx_type( dblLastAlgPar ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual idx_type get_num_str_par( void ) const override
+ idx_type get_num_str_par( void ) const override
  {
   return( idx_type( strLastAlgPar ) );
   }
 
 /*--------------------------------------------------------------------------*/
  
- virtual int get_dflt_int_par( const idx_type par ) const override
+ int get_dflt_int_par( const idx_type par ) const override
  {
   return( par < intLastAlgPar ? dflt_int_par[ par ] :
 	  ThinComputeInterface::get_dflt_int_par( par ) );
@@ -1371,7 +1556,7 @@ to these regostered for the given type. As the
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  
- virtual double get_dflt_dbl_par( const idx_type par ) const override
+ double get_dflt_dbl_par( const idx_type par ) const override
  {
   return( par < dblLastAlgPar ? dflt_dbl_par[ par ] :
 	  ThinComputeInterface::get_dflt_dbl_par( par ) );
@@ -1379,10 +1564,12 @@ to these regostered for the given type. As the
 
 /*--------------------------------------------------------------------------*/
 
- virtual idx_type int_par_str2idx( const std::string & name ) const override
+ idx_type int_par_str2idx( const std::string & name ) const override
  {
   if( name == "intMaxIter" )
    return( intMaxIter );
+  if( name == "intMaxThread" )
+   return( intMaxThread );
   if( name == "intMaxSol" )
    return( intMaxSol );
   if( name == "intLogVerb" )
@@ -1393,7 +1580,7 @@ to these regostered for the given type. As the
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual idx_type dbl_par_str2idx( const std::string & name ) const override
+ idx_type dbl_par_str2idx( const std::string & name ) const override
  {
   // these may be many enough as to warrant using a map
   const auto it = dbl_pars_map.find( name );
@@ -1406,8 +1593,7 @@ to these regostered for the given type. As the
 
 /*--------------------------------------------------------------------------*/
 
- virtual const std::string & int_par_idx2str( const idx_type idx )
-  const override
+ const std::string & int_par_idx2str( const idx_type idx ) const override
  {
   return( idx < intLastAlgPar ? int_pars_str[ idx ] :
 	  ThinComputeInterface::int_par_idx2str( idx ) );
@@ -1415,8 +1601,7 @@ to these regostered for the given type. As the
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual const std::string & dbl_par_idx2str( const idx_type idx )
-  const override
+ const std::string & dbl_par_idx2str( const idx_type idx ) const override
  {
   return( idx < dblLastAlgPar ? dbl_pars_str[ idx ] :
 	  ThinComputeInterface::dbl_par_idx2str( idx ) );
@@ -1563,8 +1748,13 @@ protected:
 /*---------------------------- PROTECTED FIELDS  ---------------------------*/
 /*--------------------------------------------------------------------------*/
 
+ std::recursive_mutex f_mutex;  ///< the mutex for locking the Solver
+
  Block *f_Block;       ///< pointer to the Block
+
  std::ostream *f_log;  ///< pointer to the stream where the log is done
+
+ void *f_id;           ///< the "identity" of the Solver 
 
  Lst_sp_Mod v_mod;     ///< list of (shared pointers to) Modifications
 

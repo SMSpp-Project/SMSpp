@@ -50,7 +50,7 @@ SMSpp_insert_in_factory_cpp_0( FakeSolver );
 /*--------------------------------------------------------------------------*/
 // define and initialize here the vector of int parameters names
 const std::vector< std::string > Solver::int_pars_str =
-                               { "intMaxIter" , "intMaxSol" , "intLogVerb" };
+               { "intMaxIter" , "intMaxThread" , "intMaxSol" , "intLogVerb" };
 
 // define and initialize here the vector of double parameters names
 const std::vector< std::string > Solver::dbl_pars_str =
@@ -74,6 +74,7 @@ const std::map< std::string , Solver::idx_type > Solver::dbl_pars_map =
 // define and initialize here the default int parameters
 const std::vector<int> Solver::dflt_int_par =
                        { Inf<int>() ,  // intMaxIter
+			 0 ,           // intMaxThread
 			 1 ,           // intMaxSol
 			 0             // intLogVerb
                          };
