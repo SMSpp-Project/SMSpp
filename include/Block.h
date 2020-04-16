@@ -1225,7 +1225,7 @@ class Block : public Observer {
   * with ownership of the Block. Indeed, the main reason for the existence of
   * this method is to cheaply solve the issue poised by calls to
   * lock( owner ) where owner is already the current owner. The issue is that
-  * such a call is sopposed to immediately return true without doing nothing;
+  * such a call is supposed to immediately return true without doing nothing;
   * however, in so doing it breaks the concept that each lock() should be
   * paired with an unlock(), because the first unlock() by the owner undoes
   * any number of previous consecutive lock() by the same entity. Therefore,
@@ -1233,8 +1233,7 @@ class Block : public Observer {
   * call scheme should be
   *
   *     bool owned = block->is_owned_by( me );
-  *     if( ! owned )
-  *      if( ! block->lock( me ) )
+  *     if( ( ! owned ) && ( ! block->lock( me ) ) )
   *       < something happens, typcally a disaster >
   *
   *     < block is mine, do whatever I want with it >
@@ -1308,7 +1307,7 @@ class Block : public Observer {
 
     f_mutex.lock();  // first of all, lock the mutex: this is a bit weird
                      // because the Block is surely "free", but it is done
-    // mmediately so that other Block willing to take ownership from
+    // immediately so that other Block willing to take ownership from
     // different threads can sleep on the mutex even during the potentially
     // long time its takes to (try to) lock all sub-Block
 
@@ -1403,6 +1402,146 @@ class Block : public Observer {
 
   f_owner = nullptr;  // release ownership of the Block
   f_mutex.unlock();   // release the mutex
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// tries to read-lock the Block, return true on success
+ /** Attempts to acquire a read-only lock. Unlike the "normal" lock, which is
+  * read-write, any number of read-only locks can be concurrently acquired on
+  * the same Block. Consequently, the Block is not "owned" by any individual
+  * entity, but rather from an "abstract" entity indicating "a group of
+  * read-locks". A read-lock is incompatible with a read-write-lock: trying
+  * to acquire a read-lock while the Block is read-write-locked results in
+  * immediate failure if the owner of the read-write-lock runs on the same
+  * thread as the caller, and in sleeping on the mutex waiting for the
+  * current owner to release the lock. (Almost) symmetrically, trying to
+  * acquire a read-write-lock while the Block is read-locked results in
+  * immediate failure if *any* of the callers having acquired a read-lock
+  * run on the same thread as the caller, and in sleeping on the mutex
+  * waiting for all the current read-locks to be released otherwise.
+  *
+  * In most cases, there should be no reason for derived classes to mess
+  * up with this mechanism. However, some :Block may have nonstandard
+  * behavior, e.g. about how they store their sub-Block, and therefore for
+  * maximal flexibility this methos is virtual. */
+
+ virtual bool read_lock( void )
+ {
+  // this address is not supposed to be used as that of any owner, and it
+  // is used to mean "the Block is under any number of read-locks"
+  static void * const _ReadOnlyLock = & f_owner;
+  // this address is not supposed to be used as that of any owner, and it
+  // is used to mean "the Block is under any number of read-locks, and
+  // one of the read-locks is currently operating on the v_owners data
+  // structure, which means that nobody else should be even looking at it"
+  static void * const _v_ownersLock = & f_mutex;
+
+  for(;;) {  // this may have to be repeated many times
+   void * current_owner = nullptr;
+   if( f_owner.compare_exchange_strong( current_owner , _v_ownersLock ) ) {
+    // the Block was un-owned: the first read-lock has been successfully
+    // acquired, and v_owners has been "active locked" at the same time
+
+    // insert the first element in v_owners: the id of the current thread
+    // and the counter of how many readers are there in this thread (1)
+    v_owners.insert( std::make_pair< std::thread::id , unsigned short >(
+				         std::this_thread::get_id() , 1 ) );
+
+    // immediately release the active lock on v_owners
+    f_owner = _ReadOnlyLock;
+
+    f_mutex.lock();  // lock the mutex: this is a bit weird because the
+                     // Block is surely "free", but it is done
+    // immediately so that other Block willing to take a read-write lock from
+    // different threads can sleep on the mutex even during the potentially
+    // long time its takes to (try to) read-lock all sub-Block
+
+    // try to read-lock all sub-Block and return the success of the
+    // operation; upon failure, also read-unlock the Block
+    return( read_lock_sub_block() );
+    }
+   else {  // an owner already existed
+    if( ( current_owner == _ReadOnlyLock ) ||
+	( current_owner == _v_ownersLock ) ) {
+     // ... but it's another read-lock
+
+     for(;;) {  // acquire the "active lock" on v_owners
+      // here a bad thing might happen: the Block was read-locked by a
+      // single entity which was precisely in the process of releasing
+      // the last read-lock; in the picosecond between the first
+      // compare_exchange_strong() and this if, the read-lock has been
+      // released and a new read-write lock has been established, in
+      // which case the read-lock has to either fail or wait
+      current_owner = _ReadOnlyLock;
+      if( f_owner.compare_exchange_strong( current_owner , _v_ownersLock ) ) {
+       // v_owner was active-unlocked, active lock successfully acquired
+       // find the record corresponding to thread::id if there is any, or
+       // create one with count 0 (the default value of short int) otherwise,
+       // and then increase the counter
+       v_owners[ std::this_thread::get_id() ]++;
+
+       // release the active lock on v_owners
+       f_owner = _ReadOnlyLock;
+
+       // note that there is no need to lock the mutex, since it's been
+       // locked already by the first successfull read-lock
+
+       // try to read-lock all sub-Block and return the success of the
+       // operation; upon failure, also read-unlock the Block
+       return( read_lock_sub_block() );
+       }
+      else
+       if( current_owner ==  _v_ownersLock )  // v_owner was active-locked
+	continue;                             // repeat until access granted
+       else  // a different owner suceeded in sneaking in
+	break;
+      }  // end( for( ever ) )
+     } // end( if( was read-locked already ) )
+
+    // a read-write-lock is established on the Block (or was established
+    // on the fly while trying to acquire the read-lock instead)
+    // if the owner of the read-write-lock runs in this thread
+    if( f_owner_thread_id == std::this_thread::get_id() )
+     return( false );  // the only recourse is to fail
+    
+    f_mutex.lock();  // go to sleep on the mutex, which should be locked
+    // after the mutex is released, go try again your luck with the lock
+    }
+   }  // end infinite loop
+  }  // end( read-lock() )
+
+/*--------------------------------------------------------------------------*/
+ /// read-unlock the Block
+ /** Removes one of the current read-lock on the Block, possibly completely
+  * relinquishing ownership if this was the last active read-lock on the
+  * Block. This of course also removes one of the current read-lock on all
+  * the sub-Block of the Block.
+  *
+  * The unlocking is performed "in reverse" than the locking: post-visit
+  * (the father is unlocked after all the sons are), depth-first,
+  * right-to-left transversal of the Block tree.
+  *
+  *     IT IS INCORRECT TO READ-UNLOCK A NON-READ-LOCKED Block
+  *
+  * However, note that
+  *
+  *     UNLIKE READ-WRITE-LOCKS, READ-ONLY LOCKS ARE COUNTED. THIS MEANS
+  *     THAT THE SIMPLE RULE "ONE READ-UNLOCK FOR EACH READ-LOCK" DOES
+  *     APPLY IN THIS CASE
+  *
+  * In most cases, there should be no reason for derived classes to mess
+  * up with this mechanism. However, some :Block may have nonstandard
+  * behavior, e.g. about how they store their sub-Block, and therefore for
+  * maximal flexibility this methos is virtual. */
+ 
+ virtual void read_unlock( void )
+ {
+  // read-unlock all the sub-Block
+  for( auto sb = v_Block.end() ; sb != v_Block.begin() ; )
+   (*(--sb))->read_unlock();
+
+  // read-unlock the Block
+  guts_of_read_unlock();
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -5259,6 +5398,74 @@ class Block : public Observer {
   return( success );
   }
 
+/*--------------------------------------------------------------------------*/
+/* Try to read-lock all sub_Block of a Block that has already been
+ * successfully read-locked; upon success return true, upon failure
+ * read-unlock the Block and return false.
+ */
+
+ bool read_lock_sub_block( void )
+ {
+  bool success = true;
+  // visit the Block tree depth-first, left-to-right order
+  auto sb = v_Block.begin();
+  for( ; sb != v_Block.end() ; ++sb )
+   if( ! (*sb)->read_lock() ) {
+    success = false;
+    break;
+    }
+
+  if( success )     // all the sub-Block could be read-locked
+   return( true );  // return success
+
+  while( sb-- != v_Block.begin() )  // re-read-unlock the read-locked ones
+   (*sb)->read_unlock();
+
+  guts_of_read_unlock();  // read-unlock the Block
+
+  return( false );        // return failure
+  }
+
+/*--------------------------------------------------------------------------*/
+/* Read-lock the Block (which must be read-locked). */
+
+ void guts_of_read_unlock( void )
+ {
+  // this address is not supposed to be used as that of any owner, and it
+  // is used to mean "the Block is under any number of read-locks"
+  static void * const _ReadOnlyLock = & f_owner;
+  // this address is not supposed to be used as that of any owner, and it
+  // is used to mean "the Block is under any number of read-locks, and
+  // one of the read-locks is currently operating on the v_owners data
+  // structure, which means that nobody else should be even looking at it"
+  static void * const _v_ownersLock = & f_mutex;
+
+  for(;;) {  // acquire the "active lock" on v_owners
+   // note that since the Block is surely read-locked, the only possible
+   // contents of f_owner can be _v_ownersLock and _ReadOnlyLock
+   void * current_owner = _ReadOnlyLock;
+   if( f_owner.compare_exchange_strong( current_owner , _v_ownersLock ) ) {
+    // v_owner was active-unlocked, active lock successfully acquired
+    // find the record corresponding to the thread::id, it must be there
+    auto it = v_owners.find( std::this_thread::get_id() );
+    if( it == v_owners.end() )
+     throw( std::logic_error( "unbalanced read lock/unlock" ) );
+    if( ! --(it->second) ) {
+     // decrease the counter, and if it reached 0 erase the record
+     v_owners.erase( it );
+     // if there are no longer readers for the Block
+     if( v_owners.empty() ) {
+      f_owner = nullptr;  // entirely release the lock
+      f_mutex.unlock();   // release the mutex
+      }
+     }
+    // release the active lock on v_owners
+    f_owner = _ReadOnlyLock;
+    }
+   // else, v_owner was active-locked: repeat until access granted
+   }  // end( for( ever ) )
+  }  // end( guts_of_read_unlock )
+
 /**@} ----------------------------------------------------------------------*/
 /** @name Protected methods for handling the "abstract representation"
  *
@@ -6121,6 +6328,8 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
 
  std::atomic< void * > f_owner;  ///< the "owner" of this Block
+
+ std::unordered_map< std::thread::id , unsigned short > v_owners;
 
  std::atomic< std::thread::id > f_owner_thread_id;
                                  ///< the thread::id of the owner
