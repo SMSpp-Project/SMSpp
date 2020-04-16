@@ -1427,18 +1427,9 @@ class Block : public Observer {
 
  virtual bool read_lock( void )
  {
-  // this address is not supposed to be used as that of any owner, and it
-  // is used to mean "the Block is under any number of read-locks"
-  static void * const _ReadOnlyLock = & f_owner;
-  // this address is not supposed to be used as that of any owner, and it
-  // is used to mean "the Block is under any number of read-locks, and
-  // one of the read-locks is currently operating on the v_owners data
-  // structure, which means that nobody else should be even looking at it"
-  static void * const _v_ownersLock = & f_mutex;
-
   for(;;) {  // this may have to be repeated many times
    void * current_owner = nullptr;
-   if( f_owner.compare_exchange_strong( current_owner , _v_ownersLock ) ) {
+   if( f_owner.compare_exchange_strong( current_owner , v_ownersLock() ) ) {
     // the Block was un-owned: the first read-lock has been successfully
     // acquired, and v_owners has been "active locked" at the same time
 
@@ -1448,7 +1439,7 @@ class Block : public Observer {
 				         std::this_thread::get_id() , 1 ) );
 
     // immediately release the active lock on v_owners
-    f_owner = _ReadOnlyLock;
+    f_owner = ReadOnlyLock();
 
     f_mutex.lock();  // lock the mutex: this is a bit weird because the
                      // Block is surely "free", but it is done
@@ -1461,8 +1452,8 @@ class Block : public Observer {
     return( read_lock_sub_block() );
     }
    else {  // an owner already existed
-    if( ( current_owner == _ReadOnlyLock ) ||
-	( current_owner == _v_ownersLock ) ) {
+    if( ( current_owner == ReadOnlyLock() ) ||
+	( current_owner == v_ownersLock() ) ) {
      // ... but it's another read-lock
 
      for(;;) {  // acquire the "active lock" on v_owners
@@ -1472,8 +1463,9 @@ class Block : public Observer {
       // compare_exchange_strong() and this if, the read-lock has been
       // released and a new read-write lock has been established, in
       // which case the read-lock has to either fail or wait
-      current_owner = _ReadOnlyLock;
-      if( f_owner.compare_exchange_strong( current_owner , _v_ownersLock ) ) {
+      current_owner = ReadOnlyLock();
+      if( f_owner.compare_exchange_strong( current_owner , v_ownersLock() ) )
+      {
        // v_owner was active-unlocked, active lock successfully acquired
        // find the record corresponding to thread::id if there is any, or
        // create one with count 0 (the default value of short int) otherwise,
@@ -1481,7 +1473,7 @@ class Block : public Observer {
        v_owners[ std::this_thread::get_id() ]++;
 
        // release the active lock on v_owners
-       f_owner = _ReadOnlyLock;
+       f_owner = ReadOnlyLock();
 
        // note that there is no need to lock the mutex, since it's been
        // locked already by the first successfull read-lock
@@ -1491,7 +1483,7 @@ class Block : public Observer {
        return( read_lock_sub_block() );
        }
       else
-       if( current_owner ==  _v_ownersLock )  // v_owner was active-locked
+       if( current_owner ==  v_ownersLock() )  // v_owner was active-locked
 	continue;                             // repeat until access granted
        else  // a different owner suceeded in sneaking in
 	break;
@@ -5427,24 +5419,47 @@ class Block : public Observer {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// define a special owner for "locked read-only"
+ /** This address is not supposed to be used as that of any owner, and it
+  * is used to mean "the Block is under any number of read-locks".
+  *
+  * The const_cast is required to obtain a non-const void * from a field
+  * address inside a const method, since everything inside a const
+  * method (and hence their address) is const by default. It would be nice to
+  * rather return a const void *, but this is not liked by
+  * compare_exchange_strong() whose second argument is not const. */
+ 
+ void * ReadOnlyLock( void ) const {
+  return( const_cast< std::atomic< void * > * >( & f_owner ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// define a special owner for "locked read-only and working on v_owners"
+ /** This address is not supposed to be used as that of any owner, and it
+  * is used to mean "the Block is under any number of read-locks, and one of
+  * the read-locks is currently operating on the v_owners field, which means
+  * that nobody else should be even looking at it".
+  *
+  * The ugly sequence of cast is required to obtain a non-const void * from
+  * a field address inside a const method, since everything inside a const
+  * method (and hence their address) is const by default. It would be nice to
+  * rather return a const void *, but this is not liked by
+  * compare_exchange_strong() whose second argument is not const. */
+ 
+ void * v_ownersLock( void ) const {
+  return( const_cast< std::mutex * >( & f_mutex ) );
+  }
+
+/*--------------------------------------------------------------------------*/
 /* Read-lock the Block (which must be read-locked). */
 
  void guts_of_read_unlock( void )
  {
-  // this address is not supposed to be used as that of any owner, and it
-  // is used to mean "the Block is under any number of read-locks"
-  static void * const _ReadOnlyLock = & f_owner;
-  // this address is not supposed to be used as that of any owner, and it
-  // is used to mean "the Block is under any number of read-locks, and
-  // one of the read-locks is currently operating on the v_owners data
-  // structure, which means that nobody else should be even looking at it"
-  static void * const _v_ownersLock = & f_mutex;
-
   for(;;) {  // acquire the "active lock" on v_owners
    // note that since the Block is surely read-locked, the only possible
-   // contents of f_owner can be _v_ownersLock and _ReadOnlyLock
-   void * current_owner = _ReadOnlyLock;
-   if( f_owner.compare_exchange_strong( current_owner , _v_ownersLock ) ) {
+   // contents of f_owner can be v_ownersLock and ReadOnlyLock
+   void * current_owner = ReadOnlyLock();
+   if( f_owner.compare_exchange_strong( current_owner , v_ownersLock() ) ) {
     // v_owner was active-unlocked, active lock successfully acquired
     // find the record corresponding to the thread::id, it must be there
     auto it = v_owners.find( std::this_thread::get_id() );
@@ -5460,7 +5475,7 @@ class Block : public Observer {
       }
      }
     // release the active lock on v_owners
-    f_owner = _ReadOnlyLock;
+    f_owner = ReadOnlyLock();
     }
    // else, v_owner was active-locked: repeat until access granted
    }  // end( for( ever ) )
