@@ -4,9 +4,9 @@
 /** @file
  * Implementation of the PolyhedralFunction class.
  *
- * \version 0.10
+ * \version 0.25
  *
- * \date 09 - 10 - 2019
+ * \date 18 - 04 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
