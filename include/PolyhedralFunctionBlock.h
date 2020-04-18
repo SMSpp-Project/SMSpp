@@ -211,7 +211,8 @@ class PolyhedralFunctionBlock : public AbstractBlock {
 
  PolyhedralFunctionBlock( Block * father = nullptr )
   : AbstractBlock( father ) , f_rep( 0 ) ,
-    f_polyf( {} , {} , {} , true , this ) , f_v() , f_const() { }
+    f_polyf( {} , {} , {} , - Inf<Function::FunctionValue>() , true , this ) ,
+    f_v() , f_const() { }
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize the current PolyhedralFunctionBlock out of netCDF::NcGroup
