@@ -1565,12 +1565,6 @@ class PolyhedralFunction : public C05Function {
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- bool rows_changed( Range range );
-
- bool rows_changed( Subset & rows );
- 
- bool row_changed( Index i );
-
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( PolyhedralFunction ) )
