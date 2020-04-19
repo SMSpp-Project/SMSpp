@@ -462,7 +462,13 @@ class PolyhedralFunction : public C05Function {
 /*--------------------------------------------------------------------------*/
  /// set a given integer (int) numerical parameter
  /** Set a given integer (int) numerical parameter. PolyhedralFunction takes
-  * care of intLPMaxSz and intGPMaxSz, leaving all the rest to Function. */
+  * care of intLPMaxSz and intGPMaxSz, leaving all the rest to Function.
+  *
+  * note: if intGPMaxSz decreases w.r.t. the previous value, and there are
+  *       linearizations in the global pool that get eliminated because of
+  *       this, a C05FunctionMod will be issued with type AlphaChanged but
+  *       f_shift == 0 because the PolyhedralFunction did not really change,
+  *       only the stored linearizations were. */
 
  virtual void set_par( const idx_type par , const int value ) override
  {
@@ -475,11 +481,50 @@ class PolyhedralFunction : public C05Function {
      reset_v_ord();
      }
     break;
-   case( intGPMaxSz ):
+  case( intGPMaxSz ): {
     if( value < 0 )
      throw( std::invalid_argument( "intGPMaxSz must be non-negative" ) );
-    v_glob.resize( value , Inf<int>() );
+    int oldsize = v_glob.size();
+    if( oldsize == value )  // if the size is not changing
+     break;                 // nothing to do
+
+    // check if any of the linearizations that will be lost (if any) is an
+    // aggregated one and manage v_aA and v_ab accordingly
+    for( int i = value ; i < f_max_glob ; ++i )
+     if( v_glob[ i ] < 0 )          // it is an aggregated item
+      // mark its position in v_ab[] with INF to signal it's not needed
+      v_ab[ - v_glob[ i ] - 1 ] = Inf<FunctionValue>();
+
+    // until the last position is not needed, shorten v_aA[] and v_ab[]
+    while( ! v_ab.empty() ) {
+     auto last = --v_ab.end();
+     if( *last == Inf<FunctionValue>() ) {
+      v_aA.pop_back();
+      v_ab.pop_back();
+      }
+     else
+      break;
+     }
+
+    v_glob.resize( value , Inf<int>() );  // resize v_glob
+
+    if( f_max_glob >= value ) {  // some linearizatons are lost
+     f_max_glob = value ? value - 1 : 0;  // value could be 0 ...
+
+     // update f_max_glob
+     while( f_max_glob && ( v_glob[ f_max_glob ] == Inf<int>() ) )
+      --f_max_glob;
+
+     if( ! f_Observer )  // noone is there
+      break;             // all done
+
+     // issue the C05FunctionMod
+     f_Observer->add_Modification(
+	 std::make_shared<C05FunctionMod>( this ,
+					   C05FunctionMod::AlphaChanged , 0 ) );
+     }
     break;
+    }
    default: Function::set_par( par , value );
    }
   }
@@ -697,14 +742,14 @@ class PolyhedralFunction : public C05Function {
  {
   auto gn = name >= v_glob.size() ? v_ord[ f_next ] : v_glob[ name ];
 
-  if( gn < 0 )
+  if( ! gn )              // name 0
+   return( f_bound );     // == bound
+
+  if( gn < 0 )            // aggregated linearization
    return( v_ab[ - gn - 1 ] );
 
-  if( gn < v_A.size() )
-   return( v_b[ gn ] );
-
-  if( gn == v_A.size() )
-   return( f_bound );
+  if( gn <= v_A.size() )  // normal linearization
+   return( v_b[ --gn ] );
 
   // there is no item with such a name, which may mean that it was there
   // once but it has been deleted: the linearization is invalid
@@ -1365,7 +1410,7 @@ class PolyhedralFunction : public C05Function {
  /** Like delete_rows(), but just only the i-th row of the linear mapping.
   */
 
- void delete_row( c_Index i , c_ModParam issueMod = eModBlck );
+ void delete_row( Index i , c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// deletes all rows from the linear mapping in the PolyhedralFunction
@@ -1449,22 +1494,21 @@ class PolyhedralFunction : public C05Function {
 
  FunctionValue * get_ai( c_Index name )
  {
-  if( name >= v_glob.size() )
-   if( v_ord[ f_next ] < v_A.size() )
-    return( v_A[ v_ord[ f_next ] ].data() );  // ordinary row
-   else
-    return( nullptr );                        // bound == all-0 row
-  else {
-   auto pos = v_glob[ name ];
-   if( pos == v_A.size() )
-    return( nullptr );                        // bound == all-0 row
-   else
-    if( pos >= 0 )                            // ordinary row
-     return( v_A[ pos ].data() );
-    else                                      // aggregated row
-     return( v_aA[ - pos - 1 ].data() );
+  auto gn = name >= v_glob.size() ? v_ord[ f_next ] : v_glob[ name ];
+
+  if( ! gn )              // bound
+   return( nullptr );     // == all-0 row
+
+  if( gn < 0 )            // aggregated linearization
+   return( v_aA[ - gn - 1 ].data() );
+
+  if( gn <= v_A.size() )  // original linearization
+   return( v_A[ --gn ].data() );
+
+  throw( std::invalid_argument( "invalid linearization name" ) );
+
+  return( nullptr );
   }
- }
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PROTECTED FIELDS ------------------------------*/
@@ -1501,10 +1545,10 @@ class PolyhedralFunction : public C05Function {
  /**< h = v_glob[ i ] contains the place where the i-th item of the global
   * pool is stored:
   * - if h == Inf<int>() there is no item with this name
-  * - if h == v_A.size() then it's the all-0 linearization, which is not
-  *   stored anywhere, and its constant term if f_bound
-  * - if 0 <= h < v_A.size() then it's an original linearization and it's
-  *   found in v_A[ h ] and v_b[ h ];
+  * - if h == 0 then it's the all-0 linearization, which is not stored
+  *   anywhere, and its constant term f_bound
+  * - if 0 < h <= v_A.size() then it's an original linearization and it's
+  *   found in v_A[ h - 1 ] and v_b[ h - 1 ];
   * - if h < 0 then it's an aggregated one and it's found in v_aA[ - h - 1 ]
   *   and v_ab[ - h - 1 ]. */
 
