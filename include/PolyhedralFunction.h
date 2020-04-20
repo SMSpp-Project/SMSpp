@@ -1521,10 +1521,6 @@ class PolyhedralFunction : public C05Function {
  MultiVector v_A;     ///< the A matrix of A x + b
  
  RealVector v_b;      ///< the b vector of A x + b
-                      /**< Note that v_b.size() == v_A.size() + 1; v_b.back()
-		       * contains the lower/upper bound (constant term of
-		       * the all-0 linearization) that has been set for the
-		       * function, possibly +/- INF. */
 
  FunctionValue f_bound;  ///< the global (upper or lower) bound
  
