@@ -1506,19 +1506,19 @@ void PolyhedralFunction::delete_rows( Subset && rows , bool ordered ,
  // we delete it. Otherwise, say that glob[ i ] - 1 == 6 and we find the
  // position 2: it means that glob[ i ] must be decreased by 2
  for( Index i = 0 ; i <= f_max_glob ; ++i ) {
-  if( v_glob[ i ] == Inf<int>() )   // non-existent
+  if( v_glob[ i ] == Inf<int>() )       // non-existent
    continue;
-  if( v_glob[ i ] < 0 )             // an aggregated one
-   v_glob[ i ] = Inf<int>();        // kill it for sure
+  if( v_glob[ i ] < 0 )                 // an aggregated one
+   v_glob[ i ] = Inf<int>();            // kill it for sure
   else
-   if( v_glob[ i ] > rows.back() )  // > than any of the deleted
-    v_glob[ i ] -= rows.size();     // decreased by # of deleted
+   if( v_glob[ i ] > rows.back() + 1 )  // > than any of the deleted
+    v_glob[ i ] -= rows.size();         // decreased by # of deleted
    else
     if( v_glob[ i ] > rows.front() ) {
      auto it = std::lower_bound( rows.begin() , rows.end() , v_glob[ i ] - 1 );
-     if( *it == v_glob[ i ] - 1 ) {  // one of the deleted
-      v_glob[ i ] = Inf<int>();      // kill it
-      stgchgd = true;                // something changed
+     if( *it == v_glob[ i ] - 1 ) {     // one of the deleted
+      v_glob[ i ] = Inf<int>();         // kill it
+      stgchgd = true;                   // something changed
       }
      else
       v_glob[ i ] -= std::distance( rows.begin() , it );
