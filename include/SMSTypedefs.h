@@ -1561,7 +1561,7 @@ std::ostream &operator<<( std::ostream &os , const std::list<T> &l )
 {
  auto it = l.begin();
  for( unsigned int i = 0 ; i < l.size() ; ++i , ++it ) {
-  os << i << " ) = " << *it << std::endl;
+  os << i << " ) = " << *it;
   }
 
  return os;
@@ -1574,7 +1574,7 @@ std::ostream &operator<<( std::ostream &os , const std::list<T *> &l )
 {
  auto it = l.begin();
  for( unsigned int i = 0 ; i < l.size() ; ++i , ++it ) {
-  os << i << " ) = " << **it << std::endl;
+  os << i << " ) = " << **it;
   }
 
  return os;

@@ -6183,7 +6183,9 @@ class BlockModAdd : public BlockModAD
    output << " Variable";
   else
    output << " Constraint";
-  output << " from list" << whc_list << std::endl;
+  if ( add_vec.size() > 1 )
+   output << "s";
+  output << " to list:" << std::endl << whc_list << std::endl;
   }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
@@ -6331,7 +6333,9 @@ class BlockModRmv : public BlockModAD
    output << " Variable";
   else
    output << " Constraint";
-  output << " from list" << whc_list << std::endl;
+  if ( rmvd_list.size() > 1 )
+   output << "s";
+  output << " from list" << std::endl << whc_list << std::endl;
   }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
