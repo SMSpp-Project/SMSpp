@@ -519,9 +519,8 @@ class PolyhedralFunction : public C05Function {
       break;             // all done
 
      // issue the C05FunctionMod
-     f_Observer->add_Modification(
-	 std::make_shared<C05FunctionMod>( this ,
-					   C05FunctionMod::AlphaChanged , 0 ) );
+     f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+		       C05FunctionMod::AlphaChanged , Subset( {} ) , 0 ) );
      }
     break;
     }
@@ -651,20 +650,15 @@ class PolyhedralFunction : public C05Function {
 /*--------------------------------------------------------------------------*/
  /// store a linearization in the global pool 
 
- void store_linearization( const Index name ) override final {
-  if( name >= v_glob.size() )
-   throw( std::invalid_argument( "invalid global pool name" ) );
-
-  v_glob[ name ] = v_ord[ f_next ];
-  if( name > f_max_glob )  // update f_max_glob
-   f_max_glob = name;
-  }
+ void store_linearization( const Index name ,
+			   c_ModParam issueMod = eModBlck ) override final;
 
 /*--------------------------------------------------------------------------*/
  /// stores a combination of the given linearizations
 
  void store_combination_of_linearizations( LinearCombination & coefficients ,
-					   const Index name )
+					   const Index name ,
+					   c_ModParam issueMod = eModBlck )
   override final;
 
 /*--------------------------------------------------------------------------*/
@@ -702,12 +696,14 @@ class PolyhedralFunction : public C05Function {
  /// rename a linearization that is stored in the global pool
 
  void rename_linearization( const Index current_name ,
-			    const Index new_name ) override final;
+			    const Index new_name  ,
+			    c_ModParam issueMod = eModBlck ) override final;
 
 /*--------------------------------------------------------------------------*/
  /// delete the given linearization from the global pool of linearizations
 
- void delete_linearization( const Index name ) override final;
+ void delete_linearization( const Index name ,
+			    c_ModParam issueMod = eModBlck ) override final;
 
 /*--------------------------------------------------------------------------*/
 
@@ -1613,8 +1609,9 @@ class PolyhedralFunctionMod : public C05FunctionMod {
   * other PolyhedralFunction-specific information is needed. */
 
  PolyhedralFunctionMod( C05Function * f , int type ,
+			Subset && which = {} ,
 			FunctionValue shift = NaNshift , bool cB = true )
-  : C05FunctionMod( f , type , shift , cB ) { }
+  : C05FunctionMod( f , type , std::move( which ) , shift , cB ) { }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
@@ -1625,34 +1622,18 @@ class PolyhedralFunctionMod : public C05FunctionMod {
  protected:
 
 /*-------------------------- PROTECTED METHODS -----------------------------*/
-  /// print the PolyhedralFunctionMod
+ /// print the PolyhedralFunctionMod
 
-  virtual inline void print( std::ostream &output ) const override
-  {
-   output << "PolyhedralFunctionMod[";
-   if( concerns_Block() )
-    output << "t";
-   else
-    output << "f";
-   output << "] on PolyhedralFunction [" << &f_function << " ]: ";
-   switch( f_type ) {
-    case( AlphaChanged ): output << "all the \alpha"; break;
-    case( AllEntriesChanged ): output << "all the g"; break;
-    default: output << "both \alpha and g";
-    }
-   output << " have changed ==> f-values changed";
-   if( std::isnan( f_shift ) )
-    output << "(+-)";
-   else
-    if( f_shift >= INFshift )
-     output << "(+)";
-    else
-     if( f_shift <= -INFshift )
-      output << "(-)";
-     else
-      output << " by " << f_shift;
-   output << std::endl;
-   }
+ virtual inline void print( std::ostream &output ) const override
+ {
+  output << "PolyhedralFunctionMod[";
+  if( concerns_Block() )
+   output << "t";
+  else
+   output << "f";
+  output << "] on PolyhedralFunction [" << &f_function << " ]: ";
+  guts_of_print( output );
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -1675,14 +1656,17 @@ class PolyhedralFunctionModAddd : public PolyhedralFunctionMod {
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: like that of PolyhedralFunctionMod + the added rows
- /** Constructor: takes a pointer to the affected C05Function, the type of the
-  * Modificationt, the number of added rows, the value of the shif, and the
-  * "concerns Block" value. */
+ /** Constructor: takes a pointer to the affected C05Function, the number of
+  * added rows, the value of the shift, and the "concerns Block" value. Note
+  * that the type of the Modification and set of changed rows are set by
+  * default by C05FunctionMod::NothingChanged and {}, hence need not be
+  * provided. */
 
- explicit PolyhedralFunctionModAddd( C05Function * f , int type , Index ar ,
+ explicit PolyhedralFunctionModAddd( C05Function * f , Index ar ,
 				     FunctionValue shift = NaNshift ,
 				     bool cB = true )
-  : PolyhedralFunctionMod( f , type , shift , cB ) , f_addedrows( ar ) { }
+  : PolyhedralFunctionMod( f , C05FunctionMod::NothingChanged ,
+			   Subset( {} ) , shift , cB ) , f_addedrows( ar ) {}
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
@@ -1750,10 +1734,11 @@ class PolyhedralFunctionModRngd : public PolyhedralFunctionMod {
 
  explicit PolyhedralFunctionModRngd( C05Function * f , int type ,
 				     int pftype , c_Range & range ,
+				     Subset && which = {} ,
 				     FunctionValue shift = NaNshift ,
 				     bool cB = true )
-  : PolyhedralFunctionMod( f , type , shift , cB ) , f_PFtype( pftype ) ,
-    f_range( range ) { }
+  : PolyhedralFunctionMod( f , type , std::move( which ) , shift , cB ) ,
+    f_PFtype( pftype ) , f_range( range ) { }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
@@ -1829,7 +1814,7 @@ class PolyhedralFunctionModSbst : public PolyhedralFunctionMod {
  public:
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
- /// constructor: like that of PolyhedralFunctionMod + the added rows
+ /// constructor: like that of PolyhedralFunctionMod + the modified rows
  /** Constructor: takes a pointer to the affected C05Function, the type of the
   * C05FunctionMod, the type of the PolyhedralFunctionMod, the Subset of
   * concerned rows (which is *always* expected to be ordered in increasing
@@ -1838,11 +1823,11 @@ class PolyhedralFunctionModSbst : public PolyhedralFunctionMod {
   * PolyhedralFunctionModRng. */
 
  explicit PolyhedralFunctionModSbst( C05Function * f , int type , int pftype ,
-				     Subset && rows ,
+				     Subset && rows , Subset && which = {} , 
 				     FunctionValue shift = NaNshift ,
 				     bool cB = true )
-  : PolyhedralFunctionMod( f , type , shift , cB ) , f_PFtype( pftype ) ,
-    v_rows( std::move( rows ) ) { }
+  : PolyhedralFunctionMod( f , type , std::move( which ) , shift , cB ) ,
+    f_PFtype( pftype ) , v_rows( std::move( rows ) ) { }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
@@ -1855,7 +1840,7 @@ class PolyhedralFunctionModSbst : public PolyhedralFunctionMod {
  int PFtype( void ) { return( f_PFtype ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// accessor to the subset of the deleted Variable
+ /// accessor to the subset of the modified rows
 
  c_Subset & rows( void ) { return( v_rows ); }
 

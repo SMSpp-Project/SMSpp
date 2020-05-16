@@ -10,9 +10,9 @@
  * optimal ones, or proving that there is none. Since doing this has to be
  * expected to costly, the class implements the ThinComputeInterface paradigm.
  *
- * \version 0.22
+ * \version 0.40
  *
- * \date 16 - 08 - 2019
+ * \date 27 - 04 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -532,7 +532,8 @@ public:
  *  @{ */
 
  /// constructor: does nothing special except initializing the id
- Solver( void ) : f_Block( nullptr ) , f_log( nullptr ) { f_id = this; }
+ Solver( void ) : f_Block( nullptr ) , f_log( nullptr ) , f_no_Mod( false )
+  { f_id = this; f_mod_lock.clear(); }
 
 /*--------------------------------------------------------------------------*/
  /// construct a :Solver of specific type using the Solver factory
@@ -1667,16 +1668,116 @@ public:
   * an appropriate flag should be set so that the Solver knows that it has to
   * react in a "nonstandard" way. This is, however, left to specific :Solver,
   * while the simple reaction is directly implemented in the method of the
-  * base Solver class. */
+  * base Solver class.
+  *
+  * There is another case in which Modification are treated in a non-standard
+  * way: they can be plainly ignored if inhibit_Modification( true ) has been
+  * called (and inhibit_Modification( false ) has not been called since). The
+  * rationale for this is that
+  *
+  *     A Solver CAN ITSELF CHANGE THE Block FOR ALGORITHMIC PURPOSES
+  *
+  * (think adding dynamic Variable / Constraint, in case this is not done by
+  * the Block itself via generate_dynamic_*()). In this case, having the
+  * corresponding Modification received by the Solver would be wasteful and
+  * confusing. This should therefore be avoided, and there are two different
+  * ways in which this can be achieved:
+  *
+  * - The Solver avoids any Modification to be issued. This, however, is
+  *   only possible if:
+  *   
+  *   - the Solver is the only one attached to the Block, but this is not
+  *     easy to check;
+  *
+  *   - the Solver pledges to undo all the changes it did before releasing
+  *     the lock on the Block, so that any other Solver attached to it
+  *     does not have to react to changes that "have never happened".
+  *
+  *    Clearly, these are rather restrictive conditions.
+  *
+  * - The Solver allows modifications to be issued, but ignores the
+  *   Modification it itself caused.
+  *
+  * This is what inhibit_Modification() provides. Note that this inhibits
+  * *any* Modification to be received, and hence one may be worried that
+  *
+  *     THE Solver MAY MISS OUT ON SOME MODIFICATION "NOT OF ITS OWN" THAT 
+  *     GET ISSUED IN THE MEANTIME, BUT THIS CANNOT HAPPEN IF THE Solver
+  *     BEHAVES "SINGLE THREADED" IN THIS RESPECT
+  *
+  * The point is that any operation that changes the Block (and therefore
+  * issues Modification) need be called with the Block under lock(). This
+  * implies that the Block must be locked by the Solver itself when the
+  * changes are done, which in turns implies that no other Solver / thread
+  * can be issuing other Modification on the same Block in the meantime
+  * (note that locking a Block also locks all its sub-Block, and that
+  * Modification travel "upwards" on the Block tree, so that other Solver
+  * / threads working on the sub-Block cannot cause Modification to be
+  * issued, either). Also Solver need be locked when performing
+  * status-changing operations, so the operation is safe
+  *
+  *     UNLESS THE Solver ITSELF IS MULTI-THREADED
+  *
+  * A specific case in which this may happen is when a Solver for a Block
+  * uses sub-Solver for the sub-Block, in which case it can "borrow them its
+  * identity" (cf. set_id()) and allow them to (possibly, concurrently)
+  * operate on the sub-Block on its behalf while keeping the ownership of
+  * the Block. In this case, Modification to sub-Block may in principle be
+  * issued when the "main" solver is "not listening", and therefore be lost.
+  *
+  *     IT IS THE Solver RESPONSIBILITY TO HANDLE THESE CASES
+  *
+  * (basically, some form of synchronization with the Solver threads will
+  * be required).
+  *
+  * The base Solver class provides a std::list of smart pointers to
+  * Modification where the Modification are stored. In the implementation of
+  * the method in the base class, the std::list is protected from concurrent
+  * access via a std::atomic_flag. This implies active wait is involved, but
+  * operations on the std::list are very quick.
+  *
+  * Actually, it can be argued that the std::atomic_flag is not even needed,
+  * because Modification should only happen when a Block is locked, and
+  * therefore the Block lock should also work as a lock for the std::list.
+  * However, there is nothing guaranteeing that the entity having locked the
+  * Block is not itself multi-threaded. In particular, Block ownership can
+  * be "lent" to other entities, and therefore it is possible that, say,
+  * different threads could be concurrently working on different sub-Block of
+  * a given block. Therefore, it is in general possible that the std::list of
+  * Modification to a given Solver is concurrently accessed by different
+  * threads, say making changes to sub-Block of the Block the Solver is
+  * attached to. Since the active wait on the std::atomic_flag should be
+  * quite cheap, the mechanism is added to the base Solver class so that all
+  * derived classes can rely on this being handled already. */
 
  virtual void add_Modification( sp_Mod &mod ) {
+  if( f_no_Mod )
+   return;
+
+  while( f_mod_lock.test_and_set( std::memory_order_acquire ) )
+   ;  // try to acquire lock, spin on failure
+
   const auto tmod = std::dynamic_pointer_cast<NBModification>( mod );
   if( tmod )
    v_mod.clear();
 
   v_mod.push_back( mod );
+
+  f_mod_lock.clear( std::memory_order_release );  // release lock
   }
 
+/*--------------------------------------------------------------------------*/
+ /// temporarily inhibits the Solver to receive Modification
+ /** inhibit_Modification( true ) makes the Solver temporarily ignore any
+  * Modification from the Block, the idea being that these are Modification
+  * corresponding to changes made by itself; see the comments to
+  * add_Modification() for details.  inhibit_Modification( false ) restores
+  * the usual storing of any received Modification.
+  *
+  * There should be no reason why derived classes should mess up with this
+  * mechanism, but the method is virtual for extra flexibility. */
+
+ virtual void inhibit_Modification( bool do_it = true ) { f_no_Mod = do_it; }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
@@ -1756,7 +1857,11 @@ protected:
 
  void *f_id;           ///< the "identity" of the Solver 
 
- Lst_sp_Mod v_mod;     ///< list of (shared pointers to) Modifications
+ bool f_no_Mod;        ///< if Solver should ignore (its own) Modification
+
+ std::atomic_flag f_mod_lock;  ///< active lock for v_mod
+ 
+ Lst_sp_Mod v_mod;     ///< list of (shared pointers to) Modification
 
  std::vector< std::vector< EventHandler > > v_events;
                        ///< container of event handlers

@@ -1549,6 +1549,13 @@ class Block : public Observer {
   * same thread as the caller, and in sleeping on the mutex waiting for all
   * the current read-locks to be released otherwise.
   *
+  * Note that the current implementation of the method does active wait on
+  * the f_owner field, a std::atomic< void * >. This is sensible under the
+  * assumption that std::atomic< void * >{}.is_lock_free() == true, which
+  * should happen in most systems. A more sophisticated implementation
+  * would require a std::atomic_flag added to the class and used instead
+  * whenever std::atomic< void * >{}.is_lock_free() == false.
+  *
   * In most cases, there should be no reason for derived classes to mess
   * up with this mechanism. However, some :Block may have nonstandard
   * behavior, e.g. about how they store their sub-Block, and therefore for
