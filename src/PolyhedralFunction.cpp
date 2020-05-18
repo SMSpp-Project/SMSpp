@@ -365,7 +365,7 @@ void PolyhedralFunction::delete_linearization( const Index name ,
   return;
   
  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionMod>( this ,
-				      C05FunctionMod::GlobalPoolRenamed ,
+				      C05FunctionMod::GlobalPoolRemoved ,
 				      Subset( { name } ) , 0 ,
 				      Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );

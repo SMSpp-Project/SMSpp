@@ -1153,7 +1153,7 @@ class Block : public Observer {
  * - it dramatically simplifies the implementation of :Block, especially in
  *   the case where a method of a derived class must call that of the base
  *   class;
- *
+таpи *
  * - it allows to bunch a set of Block-changing operations under the same
  *   lock/unlock stretch to improve performances;
  *
@@ -1169,8 +1169,7 @@ class Block : public Observer {
  *
  *     EACH TIME THE Block IS LOCKED IT HAS TO BE UNLOCKED, WHICH MEANS
  *     THAT ALL LOCK/UNLOCK STRETCHES THAT MAY THROW EXCEPTION SHOULD
- *     BE ENCLOSED INSIDE A try - catch BLOCK, UNLESS THE EXCEPTIONS ARE
- *     ANYWAY GOING TO BE TERMINAL ONES
+ *     BE ENCLOSED INSIDE A try - catch BLOCK OR ANALOGOUS CONSTRUCT
  *
  * While all this is mostly useful for asynchronous approaches, in general
  * even in a synchronous setting it may not be trivial to ensure that
@@ -1325,8 +1324,8 @@ class Block : public Observer {
   *
   * If, instead, owner's thread is different from the one calling lock(),
   * then lock() goes to sleep until the Block is unlocked by the current
-  * owner; then a race is possibly ran between interested threads to see who
-  * gets to own it first, the others being put back to sleep.
+  * owner; then, one of the interested threads gets to own the lock, the
+  * others being kept sleeping.
   *
   * If the Block is un-owned, the operation succeeds if also all the sub-Block
   * can be successfully locked. This means that the operation immediately
