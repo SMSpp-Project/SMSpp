@@ -1153,7 +1153,7 @@ class Block : public Observer {
  * - it dramatically simplifies the implementation of :Block, especially in
  *   the case where a method of a derived class must call that of the base
  *   class;
-таpи *
+ *
  * - it allows to bunch a set of Block-changing operations under the same
  *   lock/unlock stretch to improve performances;
  *
@@ -1272,7 +1272,7 @@ class Block : public Observer {
   *     < block is mine, do whatever I want with it >
   *
   *     if( ! owned )
-  *      block->unlock();
+  *      block->unlock( me );
   *
   * This works if "me" is sure that no other thread can "share its identity"
   * and be concurrently trying to lock/unlock the Block. */
@@ -5628,6 +5628,7 @@ class Block : public Observer {
      if( v_owners.empty() ) {
       f_owner = nullptr;  // entirely release the lock
       f_mutex.unlock();   // release the mutex
+      break;
       }
      }
     // release the active lock on v_owners
