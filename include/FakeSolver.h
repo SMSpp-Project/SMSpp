@@ -108,16 +108,30 @@ public:
  virtual void get_var_solution( Configuration *solc = nullptr ) override {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
- /// provide unfettered access to the list of Modificatiomn
+ /// provide unfettered access to the list of Modification
  /** This method returns a non-const reference to the data structure holding
   * the list of Modification of the FakeSolver. By means of that reference the
   * user has unfettered access to that, and she's responsible for clearing it
-  * once it has done with the Modification whatever she wants to. */
+  * once it has done with the Modification whatever she wants to.
+  *
+  * Because this is done externally, methods are provided to expose the
+  * internal atomic flag that is supposed to protect the list. */
 
- Lst_sp_Mod & get_Modification_list( void )
- {
-  return( v_mod );
+ Lst_sp_Mod & get_Modification_list( void ) { return( v_mod ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// ensure that the list of Modification is locked, only return when it is
+
+ void lock_Modification_list( void ) {
+  while( f_mod_lock.test_and_set( std::memory_order_acquire ) )
+   ;  // try to acquire lock, spin on failure
+  }
+ 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// release the lock on the list of Modification
+
+ void unlock_Modification_list( void ) {
+  f_mod_lock.clear( std::memory_order_release );  // release lock
   }
 
 /*--------------------------------------------------------------------------*/
