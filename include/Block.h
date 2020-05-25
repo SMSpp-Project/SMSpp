@@ -5632,6 +5632,7 @@ class Block : public Observer {
      }
     // release the active lock on v_owners
     f_owner = ReadOnlyLock();
+    break;
     }
    // else, v_owner was active-locked: repeat until access granted
    }  // end( for( ever ) )
