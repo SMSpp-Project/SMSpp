@@ -1798,6 +1798,42 @@ protected:
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 /*--------------------------------------------------------------------------*/
+/** @name Protected method for the Modification queue
+ *
+ * Since the Modification queue is "protected" by the f_mod_lock atomic flag,
+ * these methods are provided for convenience to derived classes to retrieve
+ * and delete the front() sp_Mod in the queue. This is enough for "simple"
+ * handling of the Modification queue that just looks at them in the natural
+ * order; derived classes requiring more complicated logic will hava to
+ * implement it themselves.
+ * @{ */
+
+ /// returns the front sp_Mod on the Modification queue, nullptr if empty
+ 
+ sp_Mod front( void ) {
+  while( f_mod_lock.test_and_set( std::memory_order_acquire ) )
+   ;  // try to acquire lock, spin on failure
+
+  auto mod = v_mod.empty() ? sp_Mod() : v_mod.front();
+
+  f_mod_lock.clear( std::memory_order_release );  // release lock
+
+  return( mod );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// removes the front sp_Mod from the Modification queue
+
+ void pop_front( void ) {
+  while( f_mod_lock.test_and_set( std::memory_order_acquire ) )
+   ;  // try to acquire lock, spin on failure
+
+  v_mod.pop_front();  // remove the first Modification
+
+  f_mod_lock.clear( std::memory_order_release );  // release lock
+  }
+
+/**@} ----------------------------------------------------------------------*/
 /** @name Protected methods for handling static fields
  *
  * These methods allow derived classes to partake into static initialization
