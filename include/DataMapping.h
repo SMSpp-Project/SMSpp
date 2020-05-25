@@ -9,7 +9,7 @@
  *
  * \version 0.1
  *
- * \date 11 - 04 - 2020
+ * \date 25 - 05 - 2020
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -780,7 +780,7 @@ public:
     Block::FunctionType< typename std::vector< DataType >::const_iterator ,
                          SetTo && , bool > ,
     Block::FunctionType< typename std::vector< DataType >::const_iterator ,
-                         const SetTo & > >;
+                         SetTo > >;
 
 /**@} ----------------------------------------------------------------------*/
 /*------------ CONSTRUCTING AND DESTRUCTING SimpleDataMapping --------------*/
