@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 11 - 04 - 2020
+ * \date 25 - 05 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -718,20 +718,19 @@ void BendersBFunction::modify_row( c_Index i , RealVector && Ai ,
 
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::modify_constants( c_RealVector & nb , Range range ,
-                                         c_ModParam issueMod ) {
- range.second = std::min( range.second , Index( v_x.size() ) );
+void BendersBFunction::modify_constants
+( std::vector< double >::const_iterator nb , Range range ,
+  c_ModParam issuePMod , c_ModParam issueAMod ) {
+
+ range.second = std::min( range.second , Index( v_b.size() ) );
  if( range.second <= range.first )
   return;
 
- if( nb.size() != range.second - range.first )
-  throw( std::invalid_argument( "BendersBFunction::modify_constants: range "
-                                "and nb sizes do not match." ) );
-
  bool changed = false;
- for( Index i = 0 ; i < nb.size() ; ++i ) {
-  if( v_b[ range.first + i ] != nb[ i ] ) {
-   v_b[ range.first + i ] = nb[ i ];
+ for( Index i = 0 ; i < range.second - range.first ; ++i ) {
+  const auto new_b = * ( nb + i );
+  if( v_b[ range.first + i ] != new_b ) {
+   v_b[ range.first + i ] = new_b;
    changed = true;
   }
  }
@@ -746,7 +745,7 @@ void BendersBFunction::modify_constants( c_RealVector & nb , Range range ,
 
  global_pool.reset_linearization_constants();
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueAMod ) ) )
   return;                  // noone is there: all done
 
  // issue the BendersBFunctionModRngd
@@ -754,22 +753,26 @@ void BendersBFunction::modify_constants( c_RealVector & nb , Range range ,
                                       this , C05FunctionMod::AlphaChanged ,
                                       BendersBFunctionMod::ModifyCnst ,
                                       range , C05FunctionMod::NaNshift ,
-                                      Observer::par2concern( issueMod ) ) ,
-                                Observer::par2chnl( issueMod ) );
+                                      Observer::par2concern( issueAMod ) ) ,
+                                Observer::par2chnl( issueAMod ) );
 
 }  // end( BendersBFunction::modify_constants( range ) )
 
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::modify_constants( c_RealVector & nb ,
-                                         Subset && rows , bool ordered ,
+void BendersBFunction::modify_constants( c_RealVector & nb , Range range ,
                                          c_ModParam issueMod ) {
+ modify_constants( nb.cbegin() , range , issueMod , issueMod );
+}  // end( BendersBFunction::modify_constants( range ) )
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::modify_constants
+( std::vector< double >::const_iterator nb , Subset && rows , bool ordered ,
+  c_ModParam issuePMod , c_ModParam issueAMod ) {
+
  if( rows.empty() )  // actually nothing to modify
   return;            // cowardly (and silently) return
-
- if( nb.size() != rows.size() )
-  throw( std::invalid_argument( "BendersBFunction::modify_constants: rows and "
-                                "nb sizes do not match." ) );
 
  for( const auto i : rows )
   if( i >= v_A.size() )
@@ -778,8 +781,9 @@ void BendersBFunction::modify_constants( c_RealVector & nb ,
 
  bool changed = false;
  for( Index i = 0 ; i < rows.size() ; ++i ) {
-  if( v_b[ rows[ i ] ] != nb[ i ] ) {
-   v_b[ rows[ i ] ] = nb[ i ];
+  const auto new_b = * ( nb + i );
+  if( v_b[ rows[ i ] ] != new_b ) {
+   v_b[ rows[ i ] ] = new_b;
    changed = true;
   }
  }
@@ -794,7 +798,7 @@ void BendersBFunction::modify_constants( c_RealVector & nb ,
 
  global_pool.reset_linearization_constants();
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueAMod ) ) )
   return;                  // noone is there: all done
 
  // issue the BendersBFunctionModSbst: note that ordered is unmodified
@@ -803,9 +807,17 @@ void BendersBFunction::modify_constants( c_RealVector & nb ,
                                       BendersBFunctionMod::ModifyCnst ,
                                       std::move( rows ) , ordered ,
                                       C05FunctionMod::NaNshift ,
-                                      Observer::par2concern( issueMod ) ) ,
-                                Observer::par2chnl( issueMod ) );
+                                      Observer::par2concern( issueAMod ) ) ,
+                                Observer::par2chnl( issueAMod ) );
 
+}  // end( BendersBFunction::modify_constants )
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::modify_constants
+( c_RealVector & nb , Subset && rows , bool ordered , c_ModParam issueMod ) {
+ modify_constants( nb.cbegin() , std::move( rows ) , ordered ,
+                   issueMod , issueMod );
 }  // end( BendersBFunction::modify_constants )
 
 /*--------------------------------------------------------------------------*/
@@ -1680,7 +1692,7 @@ void BendersBFunction::get_linearization_coefficients( FunctionValue * g ,
 void BendersBFunction::get_linearization_coefficients( SparseVector & g ,
                                                        Range range ,
                                                        Index name ) {
- range.second = std::min( range.second , Index( v_x.size() ) );
+ range.second = std::min( range.second , Index( v_constraints.size() ) );
  if( range.second <= range.first )
   return;
 

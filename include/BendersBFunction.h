@@ -7,7 +7,7 @@
  *
  * \version 0.01
  *
- * \date 11 - 04 - 2020
+ * \date 25 - 05 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1041,20 +1041,20 @@ class BendersBFunction : public C05Function , public Block {
  /// modify only the constant term of a range of rows of the linear mapping
  /** Like modify_rows( range ), but modify the constant terms only.
   *
-  * @param range contains the indices of the rows to be modified, hence
-  *        <tt>range.second < get_b().size()</tt>;
-  *
   * @param nb a vector of Function::FunctionValue with <tt>nb.size() ==
   *        range.second - range.first</tt>: entry \p nb[ i ] is (obviously)
   *        meant to be the new value of the constant term for row
   *        <tt>range.first + i</tt>;
+  *
+  * @param range contains the indices of the rows to be modified, hence
+  *        <tt>range.second <= get_b().size()</tt>;
   *
   * @param issueMod decides if and how the BendersBFunctionModRngd is issued,
   *        as described in Observer::make_par(). Note that type() ==
   *        AlphaChanged (all the alphas may have changed, although actually
   *        only a subset of them has) and PFtype() == ModifyCnst. As for
   *        shift(), however, the value of the function *may* change in a very
-  *        predictable way: if the new value of the constant if > than the
+  *        predictable way: if the new value of the constant is > than the
   *        current value for *all* rows, then the function has necessarily
   *        increased, hence the shift is +INFshift. If it is < for *all* rows,
   *        then the function has necessarily decreased, hence the shift is
@@ -1089,7 +1089,7 @@ class BendersBFunction : public C05Function , public Block {
   *        AlphaChanged (all the alphas may have changed, although actually
   *        only a subset of them has) and PFtype() == ModifyCnst. As for
   *        shift(), however, the value of the function *may* change in a very
-  *        predictable way: if the new value of the constant if > than the
+  *        predictable way: if the new value of the constant is > than the
   *        current value for *all* rows, then the function has necessarily
   *        increased, hence the shift is +INFshift. If it is < for *all* rows,
   *        then the function has necessarily decreased, hence the shift is
@@ -1100,6 +1100,83 @@ class BendersBFunction : public C05Function , public Block {
 
  void modify_constants( c_RealVector & nb , Subset && rows ,
                         bool ordered , c_ModParam issueMod );
+
+/*--------------------------------------------------------------------------*/
+ /// modify only the constant term of a range of rows of the linear mapping
+ /** Like modify_rows( range ), but modify the constant terms only.
+  *
+  * @param nb an iterator to a vector of double containing the new values of
+  *        the constants. This iterator must have at least <tt>range.second -
+  *        range.first</tt> valid successors (including \p nb itself).  For
+  *        each i in [range.first, range.second), the i-th successor of \p nb
+  *        provides the new value of the constant term for row <tt>range.first
+  *        + i</tt>;
+  *
+  * @param range contains the indices of the rows whose constants will be
+  *        modified, hence <tt>range.second <= get_b().size()</tt>;
+  *
+  * @param issuePMod this paramater is ignored as this function does not issue
+  *        any physical modifications.
+  *
+  * @param issueAMod decides if and how the BendersBFunctionModRngd is issued,
+  *        as described in Observer::make_par(). Note that type() ==
+  *        AlphaChanged (all the alphas may have changed, although actually
+  *        only a subset of them has) and PFtype() == ModifyCnst. As for
+  *        shift(), however, the value of the function *may* change in a very
+  *        predictable way: if the new value of the constant is > than the
+  *        current value for *all* rows, then the function has necessarily
+  *        increased, hence the shift is +INFshift. If it is < for *all* rows,
+  *        then the function has necessarily decreased, hence the shift is
+  *        -INFshift. Otherwise the value has changed "unpredictably" and the
+  *        shift is NANshift (unless all the values are equal, in which case
+  *        the function value has not changed and the method does nothing). */
+
+ void modify_constants( std::vector< double >::const_iterator nb ,
+                        Range range = Range( 0, Inf< Index >() ) ,
+                        c_ModParam issuePMod = eNoBlck ,
+                        c_ModParam issueAMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// modify only the constant term of a subset of rows of the linear mapping
+ /** Like modify_rows( subset ), but modify the constant terms only.
+  *
+  * @param nb an iterator to a vector of double containing the new values of
+  *        the constants. This iterator must have at least
+  *        <tt>rows.size()</tt> valid successors (including \p nb itself).
+  *        For each i in {0, ..., rows.size()-1}, the i-th successor of \p nb
+  *        provides the new value of the constant term for \p rows[ i ] of the
+  *        linear mapping;
+  *
+  * @param rows contains the indices of the rows to be modified; all entries
+  *        must therefore be numbers in 0, ..., get_A().size() - 1; as the &&
+  *        tells, the vector becomes property of the BendersBFunction, to be
+  *        dispatched to the issued BendersBFunctionModSbst (if any);
+  *
+  * @param ordered tells if \p rows is already ordered by increasing index
+  *        (if not it may be ordered inside, after all it becomes property
+  *        of the BendersBFunction);
+  *
+  * @param issuePMod this paramater is ignored as this function does not issue
+  *        any physical modifications.
+  *
+  * @param issueAMod decides if and how the BendersBFunctionModSbst is issued,
+  *        as described in Observer::make_par(). Note that type() ==
+  *        AlphaChanged (all the alphas may have changed, although actually
+  *        only a subset of them has) and PFtype() == ModifyCnst. As for
+  *        shift(), however, the value of the function *may* change in a very
+  *        predictable way: if the new value of the constant is > than the
+  *        current value for *all* rows, then the function has necessarily
+  *        increased, hence the shift is +INFshift. If it is < for *all* rows,
+  *        then the function has necessarily decreased, hence the shift is
+  *        -INFshift. Otherwise the value has changed "unpredictably" and the
+  *        shift is NANshift (unless all the values are equal, in which case
+  *        the function value has not changed and the method does
+  *        nothing). */
+
+ void modify_constants( std::vector< double >::const_iterator nb ,
+                        Subset && rows , bool ordered = false ,
+                        c_ModParam issuePMod = eNoBlck ,
+                        c_ModParam issueAMod = eNoBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify only the constant term of one row of the linear mapping
@@ -2176,6 +2253,18 @@ class BendersBFunction : public C05Function , public Block {
   */
  template< class T >
  bool is_A_sparse( SparseMatrix<T> & matrix ) const;
+
+/*--------------------------------------------------------------------------*/
+
+ static void static_initialization() {
+  register_method< BendersBFunction >( "BendersBFunction::modify_constants" ,
+                                       & BendersBFunction::modify_constants ,
+                                       MS_dbl_sbst::args() );
+
+  register_method< BendersBFunction >( "BendersBFunction::modify_constants" ,
+                                       & BendersBFunction::modify_constants ,
+                                       MS_dbl_rngd::args() );
+ }
 
 /*--------------------------------------------------------------------------*/
 
