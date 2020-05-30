@@ -7,7 +7,7 @@
 
  * \version 0.31
  *
- * \date 18 - 11 - 2019
+ * \date 30 - 05 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -101,7 +101,7 @@ class FRealObjective : public RealObjective , public Observer {
   * as the void constructor. */
 
  FRealObjective( Block *my_block = nullptr , Function *function = nullptr )
-  : RealObjective( my_block ) , f_function( nullptr )
+  : RealObjective( my_block ) , f_function( function )
  {
   set_function( function , eNoMod );
   }
