@@ -692,13 +692,7 @@ public:
  * Thus, ThinComputeInterface offers two skeleton methods to read the elapsed
  * running time and iteration number from the last call to compute(). Among
  * other possible uses, these can be useful to event handlers (see
- * set_event_handler())
-
-The computation can be a long and complex process. Although some control
- *  on it (say, its maximum time) is already allowed by the parameters, a
- *  more fine-grained and ultimately interactive control may be needed. This
- *  is what event handlers provide.
- *
+ * set_event_handler()).
  *  
  *  @{ */
 

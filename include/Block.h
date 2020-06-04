@@ -1350,15 +1350,26 @@ class Block : public Observer {
   * operations. This always work provided that
   *
   *     AN ENTITY OWNING A sub-Block NEVER TRIES TO OWN A Block THAT
-  *     INCLUDES IT
+  *     INCLUDES IT, AND NO ENTITY EVER TRIES TO OWN TWO DIFFERENT
+  *     Block.
   *
   * Indeed, consider the case of two Block Father --> Son, where Son is
-  * already owned by an entity, while a different one (running on a 
-  * different thread) is trying to lock Father. This lock attempt will stall
-  * waiting from Son to be unlocked. However, if the owner of Son also
-  * tries to lock Father, this will also stall and a deadlock will ensue.
-  * Since lock operations naturally travel "downward" on a tree, the
-  * lock attempts must always proceed top-down.
+  * already owned by an entity, while a different one (running on a different
+  * thread) is trying to lock Father. This lock attempt will stall waiting
+  * for Son to be unlocked. However, if the owner of Son also tries to lock
+  * Father, this will also stall and a deadlock will ensue. Since lock
+  * operations naturally travel "downward" on a tree, the lock attempts must
+  * always proceed top-down. Obviously, if an entity is trying to own two
+  * different Block, say B1 and B2 in this order, any other entity trying to
+  * own B2 and B1 (in this order) may deadlock. If this can happen, an 
+  * additional ad-hoc synchronization layer will be needed. Yet, note that
+  *
+  *     NO ADDITIONAL MECHANISM IS REQUIRED IF B1 AND B2 ARE BOTH DESCENDANTS
+  *     OF THE SAME BLOCK B, AND BOTH ENTITIES TRY TO OWN B DIRECTLY
+  *
+  * In fact, one of the two will surely suceed. Hence, it is always safe to
+  * lock a subset of Block by locking their (say) nearest common ancestor, if
+  * any exists.
   *
   * In most cases, there should be no reason for derived classes to mess
   * up with this mechanism. However, some :Block may have nonstandard
@@ -1454,11 +1465,11 @@ class Block : public Observer {
 
      f_mutex.lock();  // first of all, lock the mutex
                       // one expects the mutex to be locked, so that the
-                      // thread will go to sleep; if a race condition
-     // happened whereby the entity having taken ownership of the Block
-     // has not suceeded to lock the mutex already, the next step of
-     // trying to get ownership of the Block will fail immediately, the
-     // mutex will be released and a new attempt will be made
+                      // thread will go to sleep; in the weird case where
+     // the entity having taken ownership of the Block has not suceeded to
+     // lock the mutex already, the next step of trying to get ownership of
+     // the Block will fail immediately, the mutex will be released and a
+     // new attempt will be made
 
      // (possibly) after having slept on the mutex, try to own the Block
      current_owner = nullptr;
@@ -6502,7 +6513,7 @@ class Block : public Observer {
 
  std::atomic< void * > f_owner;  ///< the "owner" of this Block
 
- std::unordered_map< std::thread::id , unsigned short > v_owners;
+ std::map< std::thread::id , unsigned short > v_owners;
 
  std::atomic< std::thread::id > f_owner_thread_id;
                                  ///< the thread::id of the owner

@@ -1478,11 +1478,13 @@ class C05FunctionMod : public FunctionMod {
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: takes the type of Modification and a C05Function pointer
  /** Constructor: takes a pointer to the affected C05Function, the type of the
-  * Modification, the value of the shift, and the "concerns Block" value.
-  * Note that while the enum c05function_mod_type is provided to encode the
-  * possible values of modification, the field f_type is of type "int", and
-  * therefore so is the parameter of the constructor, in order to allow
-  * derived classes to "extend" the set of possible types of modifications. */
+  * Modification, the Subset of affected linearizations, ordered in increasing
+  * sense (if empty, it means "all of them"), the value of the shift, and the
+  * "concerns Block" value. Note that while the enum c05function_mod_type is
+  * provided to encode the possible values of modification, the field f_type
+  * is of type "int", and therefore so is the parameter of the constructor, in
+  * order to allow derived classes to "extend" the set of possible types of
+  * modifications. */
 
  C05FunctionMod( C05Function * f , int type , Subset && which = {} ,
 		 FunctionValue shift = NaNshift , bool cB = true )
