@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 25 - 05 - 2020
+ * \date 11 - 06 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -181,17 +181,6 @@ void BendersBFunction::deserialize( netCDF::NcGroup & group ,
   throw std::logic_error( "BendersBFunction::deserialize: the '" +
                           BLOCK_NAME + "' group must be present." );
 
- auto block_config_group = group.getGroup( BLOCK_CONFIG_NAME );
- if( block_config_group.isNull() )
-  throw std::logic_error( "BendersBFunction::deserialize: the '" +
-                          BLOCK_CONFIG_NAME + "' group must be present." );
-
- auto block_solver_config_group = group.getGroup( BLOCK_SOLVER_CONFIG_NAME );
- if( block_solver_config_group.isNull() )
-  throw std::logic_error( "BendersBFunction::deserialize: the '" +
-                          BLOCK_SOLVER_CONFIG_NAME +
-                          "' group must be present." );
-
  auto inner_block = new_Block( inner_block_group , this );
  if( ! inner_block )
   throw std::logic_error( "BendersBFunction::deserialize: the '" +
@@ -202,15 +191,6 @@ void BendersBFunction::deserialize( netCDF::NcGroup & group ,
 
  inner_block->generate_abstract_variables();
  inner_block->generate_abstract_constraints();
-
- auto block_config = new BlockConfig();
- block_config->deserialize( block_config_group );
-
- auto block_solver_config = new BlockSolverConfig();
- block_solver_config->deserialize( block_solver_config_group );
-
- inner_block->set_BlockConfig( block_config );
- inner_block->set_SolverConfig( block_solver_config );
 
  std::vector< ConstraintSide > sides;
  if( ! ::deserialize( group , "ConstraintSide" , tb.size() , sides , true ) ) {
@@ -795,15 +775,24 @@ void BendersBFunction::modify_constants
                                       BendersBFunctionMod::ModifyCnst ,
                                       range , Subset( {} ) ,
                                       C05FunctionMod::NaNshift ,
-                                      Observer::par2concern( issueMod ) ) ,
-                                Observer::par2chnl( issueMod ) );
+                                      Observer::par2concern( issueAMod ) ) ,
+                                Observer::par2chnl( issueAMod ) );
 
 }  // end( BendersBFunction::modify_constants( range ) )
 
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::modify_constants( c_RealVector & nb , Subset && rows ,
-                                         bool ordered , c_ModParam issueMod ) {
+void BendersBFunction::modify_constants( c_RealVector & nb , Range range ,
+                                         c_ModParam issueMod ) {
+ modify_constants( nb.cbegin() , range , issueMod , issueMod );
+}  // end( BendersBFunction::modify_constants( range ) )
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::modify_constants
+( std::vector< double >::const_iterator nb , Subset && rows , bool ordered ,
+  c_ModParam issuePMod , c_ModParam issueAMod ) {
+
  if( rows.empty() )  // actually nothing to modify
   return;            // cowardly (and silently) return
 
@@ -874,6 +863,9 @@ void BendersBFunction::modify_constant( c_Index i , c_FunctionValue bi ,
  // still valid and only the linearization constants must be recomputed.
 
  global_pool.reset_linearization_constants();
+
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+  return;                  // noone is there: all done
 
  // issue the BendersBFunctionModRngd
  f_Observer->add_Modification( std::make_shared<BendersBFunctionModRngd>(
@@ -1502,19 +1494,6 @@ void BendersBFunction::serialize( netCDF::NcGroup & group ) const {
  if( auto inner_block = get_inner_block() ) {
   auto inner_block_group = group.addGroup( BLOCK_NAME );
   inner_block->serialize( inner_block_group );
-
-  auto inner_block_config = inner_block->get_BlockConfig();
-  if( inner_block_config ) {
-   auto inner_block_config_group = group.addGroup( BLOCK_CONFIG_NAME );
-   inner_block_config->serialize( inner_block_config_group );
-  }
-
-  auto inner_block_solver_config = inner_block->get_BlockConfig();
-  if( inner_block_solver_config ) {
-   auto inner_block_solver_config_group =
-    group.addGroup( BLOCK_SOLVER_CONFIG_NAME );
-   inner_block_solver_config->serialize( inner_block_solver_config_group );
-  }
  }
 }
 
