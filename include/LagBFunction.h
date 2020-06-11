@@ -591,7 +591,7 @@ class LagBFunction : public C05Function , public Block {
   *     TO BE DONE
   */
 
- virtual void serialize( netCDF::NcGroup& group ) const override final;
+ void serialize( netCDF::NcGroup& group ) const override final;
 
 /**@} ----------------------------------------------------------------------*/
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF THE LagBFunction ------------*/
@@ -599,24 +599,23 @@ class LagBFunction : public C05Function , public Block {
 /** @name Methods describing the behavior of the LagBFunction
  *  @{ */
 
- virtual bool has_linearization( const bool diagonal = true ) override final;
+ bool has_linearization( bool diagonal = true ) override final;
 
 /*--------------------------------------------------------------------------*/
 
- virtual bool compute_new_linearization( const bool diagonal = true ) override final;
+ bool compute_new_linearization( bool diagonal = true ) override final;
 
 /*--------------------------------------------------------------------------*/
 
- virtual void store_linearization( const Index name ) override final;
-
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
-
- virtual void delete_linearization( const Index name ) override final;
+ void store_linearization( Index name ,
+			   c_ModParam issueMod = eModBlck  ) override final;
 
 /*--------------------------------------------------------------------------*/
 
- virtual void store_combination_of_linearizations(
-	  LinearCombination & coefficients , const Index name ) override;
+ void store_combination_of_linearizations( LinearCombination & coefficients ,
+					   Index name  ,
+					   c_ModParam issueMod = eModBlck )
+  override final;
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
  /// set the important linearization
@@ -627,33 +626,32 @@ class LagBFunction : public C05Function , public Block {
   * This method also writes the solution relative to the important linearizaiton
   * into the sub-Block (B).  */
 
- virtual void set_important_linearization( LinearCombination && coefficients ,
-		 Index name ) override;
+ void set_important_linearization( LinearCombination && coefficients ,
+				   Index name ) override;
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
  /// get the name of the important linearization
  /** This method reads the name of the important linearization */
 
- virtual Index get_important_linearization_name( void ) override
- {
-  return( zName );
-  }
+ Index get_important_linearization_name( void ) override { return( zName ); }
 
  /*--------------------------------------------------------------------------*/
  /// get the name of the important linearization
   /** This method retrieves the linear combination used to form the important
    * linearization */
 
- virtual c_LinearCombination &
-                     get_important_linearization_coefficients( void ) override
- {
-  return( zLC );
-  }
+ c_LinearCombination & get_important_linearization_coefficients( void )
+  override final { return( zLC ); }
 
 /*--------------------------------------------------------------------------*/
 
- virtual void rename_linearization( const Index current_name ,
- 				    const Index new_name ) override;
+ void rename_linearization( Index current_name , Index new_name ,
+			    c_ModParam issueMod = eModBlck ) override final;
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+
+ void delete_linearization( Index name ,
+			    c_ModParam issueMod = eModBlck ) override final;
 
 /*--------------------------------------------------------------------------*/
  /// compute the Function

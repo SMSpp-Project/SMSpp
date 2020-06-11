@@ -81,7 +81,7 @@ namespace SMSpp_di_unipi_it
  * 2) A matrix A with m rows and n columns, a vector b with m rows, and a
  *    vector of pairs [ ( C_i , S_i ) ]_{i \in I}, each pair being formed by a
  *    pointer to a RowConstraint of Block B and a #ConstraintSide, where I =
- *    {1, ..., m}.
+ *    {0, ..., m-1}.
  *
  *    Problem (B) would typically be associated with an original problem
  *
@@ -98,12 +98,12 @@ namespace SMSpp_di_unipi_it
  *    we see that (P) assumes the form of (B) with w = g - Fx and z = h -
  *    Fx. The BendersBFunction represents the function phi whose underlying
  *    optimization problem is given by (B). The variables x are the active
- *    Variables of this BendersBFunction. As can be seen in (P), the left- and
- *    right-hand sides of (some or all) the constraints may depend on x. The
- *    Block B, however, does not depend on x. In order to have the left- and
- *    right-hand sides of the constraints in (B) dependent on x, we consider
- *    the mappings "x -> g - Fx" and "x -> h - Fx", which are used to update
- *    the left- and right-hand sides w and z of the constraints in (B)
+ *    Variables of this BendersBFunction. As it can be seen in (P), the left-
+ *    and right-hand sides of (some or all) the constraints may depend on
+ *    x. The Block B, however, does not depend on x. In order to have the
+ *    left- and right-hand sides of the constraints in (B) dependent on x, we
+ *    consider the mappings "x -> g - Fx" and "x -> h - Fx", which are used to
+ *    update the left- and right-hand sides w and z of the constraints in (B)
  *    according to the values of the variables x.
  *
  *    These mappings are bunched together into a single mapping M defined by
@@ -120,7 +120,7 @@ namespace SMSpp_di_unipi_it
  *      the RowConstraint (pointed by) C_i.
  *
  *    - If S_i = eBoth, then M_i(x) gives the value of both the left- and
- *      right-hand side of the RowConstraint (pointed by) C_i. This is the
+ *      right-hand sides of the RowConstraint (pointed by) C_i. This is the
  *      case, for example, of an equality constraint, in which the left- and
  *      right-hand sides are equal.
  *
@@ -133,9 +133,9 @@ namespace SMSpp_di_unipi_it
  *
  *        The vector of pairs [ ( C_i , S_i ) ]_{i \in I} must not contain
  *        duplicate entries (i.e., there must not exist indices i, j \in I
- *        such that i != j, C_i = C_j and S_i = S_j). Moreover, if there is
+ *        such that i != j, C_i == C_j and S_i == S_j). Moreover, if there is
  *        i \in I such that S_i == eBoth, there must not exist j \in I such
- *        that C_i == C_j.
+ *        that i != j and C_i == C_j.
  *
  *    We stress that the i-th active Variable of this BendersBFunction is
  *    associated with the i-th column of the mapping matrix A. In other words,
@@ -547,28 +547,7 @@ class BendersBFunction : public C05Function , public Block {
   * @return The value of the parameter.
   */
 
- virtual void set_par( const idx_type par , const int value ) override {
-  switch( par ) {
-   case( intMaxIter ):
-    set_solver_par( Solver::intMaxIter , value );
-    break;
-
-   case( intLPMaxSz ):
-    if( value < 1 )
-     throw( std::invalid_argument( "BendersBFunction::set_par: intLPMaxSz "
-                                   "must be non-negative" ) );
-    set_solver_par( CDASolver::intMaxDSol , value );
-    break;
-
-   case( intGPMaxSz ):
-    if( value < 0 )
-     throw( std::invalid_argument( "BendersBFunction::set_par: intGPMaxSz "
-                                   "must be non-negative" ) );
-    global_pool.resize( value );
-    break;
-   default: C05Function::set_par( par , value );
-   }
-  }
+ virtual void set_par( const idx_type par , const int value ) override;
 
 /*--------------------------------------------------------------------------*/
  /// set a given float (double) numerical parameter
@@ -1520,13 +1499,15 @@ class BendersBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
  /// store a linearization in the global pool
 
- void store_linearization( const Index name ) override final;
+ void store_linearization( const Index name , c_ModParam issueMod = eModBlck )
+  override final;
 
 /*--------------------------------------------------------------------------*/
  /// stores a combination of the given linearizations
 
  void store_combination_of_linearizations( LinearCombination & coefficients ,
-                                           const Index name )
+                                           const Index name ,
+                                           c_ModParam issueMod = eModBlck )
   override final;
 
 /*--------------------------------------------------------------------------*/
@@ -1555,13 +1536,14 @@ class BendersBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
  /// rename a linearization that is stored in the global pool
 
- void rename_linearization( const Index current_name ,
-                            const Index new_name ) override final;
+ void rename_linearization( const Index current_name , const Index new_name ,
+                            c_ModParam issueMod = eModBlck ) override final;
 
 /*--------------------------------------------------------------------------*/
  /// delete the given linearization from the global pool of linearizations
 
- void delete_linearization( const Index name ) override final;
+ void delete_linearization( const Index name ,
+                            c_ModParam issueMod = eModBlck ) override final;
 
 /*--------------------------------------------------------------------------*/
 
@@ -2325,12 +2307,13 @@ class BendersBFunctionMod : public C05FunctionMod {
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: identical to that of C05FunctionMod
  /** Constructor: takes a pointer to the affected C05Function, the type of the
-  * Modification, the value of the shift, and the "concerns Block" value. No
-  * other BendersBFunction-specific information is needed. */
+  * Modification, which linearizations have changed, the value of the shift,
+  * and the "concerns Block" value. No other BendersBFunction-specific
+  * information is needed. */
 
- BendersBFunctionMod( C05Function * f , int type ,
+ BendersBFunctionMod( C05Function * f , int type , Subset && which = {} ,
                       FunctionValue shift = NaNshift , bool cB = true )
-  : C05FunctionMod( f , type , shift , cB ) { }
+  : C05FunctionMod( f , type , std::move( which ) , shift , cB ) { }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
@@ -2343,32 +2326,50 @@ class BendersBFunctionMod : public C05FunctionMod {
 /*-------------------------- PROTECTED METHODS -----------------------------*/
   /// print the BendersBFunctionMod
 
-  virtual inline void print( std::ostream &output ) const override
-  {
-   output << "BendersBFunctionMod[";
-   if( concerns_Block() )
-    output << "t";
+ virtual inline void print( std::ostream &output ) const override
+ {
+  output << "BendersBFunctionMod[";
+  if( concerns_Block() )
+   output << "t";
+  else
+   output << "f";
+  output << "] on BendersBFunction [" << &f_function << " ]: ";
+  if( f_type == NothingChanged )
+   output << "nothing changed";
+  else {
+   if( f_type <= AllLinearizationChanged ) {
+    if( v_which.empty() )
+     output << "in all";
+    else
+     output << "in " << v_which.size();
+    output << " linearizations ";
+   }
    else
-    output << "f";
-   output << "] on BendersBFunction [" << &f_function << " ]: ";
+    output << v_which.size();
    switch( f_type ) {
     case( AlphaChanged ): output << "all the \alpha"; break;
     case( AllEntriesChanged ): output << "all the g"; break;
-    default: output << "both \alpha and g";
-    }
-   output << " have changed ==> f-values changed";
+    case( AllLinearizationChanged ):
+     output << "both \alpha and g have changed"; break;
+    case( GlobalPoolAdded ): output << " linearizations added"; break;
+    case( GlobalPoolRemoved ): output << " linearizations removed"; break;
+    case( GlobalPoolRenamed ): output << " linearizations renamed"; break;
+    default: output << " unknown operation (?)";
+   }
+  }
+  if( f_shift ) {
+   output << ", f-values changed";
    if( std::isnan( f_shift ) )
     output << "(+-)";
+   else if( f_shift >= INFshift )
+    output << "(+)";
+   else if( f_shift <= -INFshift )
+    output << "(-)";
    else
-    if( f_shift >= INFshift )
-     output << "(+)";
-    else
-     if( f_shift <= -INFshift )
-      output << "(-)";
-     else
-      output << " by " << f_shift;
-   output << std::endl;
-   }
+    output << " by " << f_shift;
+  }
+  output << std::endl;
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -2398,7 +2399,8 @@ class BendersBFunctionModAddd : public BendersBFunctionMod {
  explicit BendersBFunctionModAddd( C05Function * f , int type , Index ar ,
                                    FunctionValue shift = NaNshift ,
                                    bool cB = true )
-  : BendersBFunctionMod( f , type , shift , cB ) , f_addedrows( ar ) { }
+  : BendersBFunctionMod( f , type , Subset( {} ) , shift , cB ) ,
+    f_addedrows( ar ) { }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
@@ -2461,15 +2463,17 @@ class BendersBFunctionModRngd : public BendersBFunctionMod {
  /// constructor: like that of BendersBFunctionMod + the Range of affected rows
  /** Constructor: takes a pointer to the affected C05Function, the type of the
   * C05FunctionMod, the type of the BendersBFunctionMod, the Range of
-  * concerned rows, the value of the shift, and the "concerns Block" value.
+  * concerned rows, which linearizations have changed, the value of the shift,
+  * and the "concerns Block" value.
   */
 
  explicit BendersBFunctionModRngd( C05Function * f , int type ,
                                    int bftype , c_Range & range ,
+                                   Subset && which = {} ,
                                    FunctionValue shift = NaNshift ,
                                    bool cB = true )
-  : BendersBFunctionMod( f , type , shift , cB ) , f_BFtype( bftype ) ,
-    f_range( range ) { }
+  : BendersBFunctionMod( f , type , std::move( which ) , shift , cB ) ,
+    f_BFtype( bftype ) , f_range( range ) { }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
@@ -2548,16 +2552,18 @@ class BendersBFunctionModSbst : public BendersBFunctionMod {
  /// constructor: like that of BendersBFunctionMod + the affected rows
  /** Constructor: takes a pointer to the affected C05Function, the type of the
   * C05FunctionMod, the type of the BendersBFunctionMod, the Subset of
-  * concerned rows, whether or not the subset is ordered, the value of the
-  * shift, and the "concerns Block" value. As the && tells, the rows
-  * parameter becomes property of the BendersBFunctionModRng. */
+  * concerned rows, whether or not the subset is ordered, which linearizations
+  * have changed, the value of the shift, and the "concerns Block" value. As
+  * the && tells, the rows parameter becomes property of the
+  * BendersBFunctionModRng. */
 
  explicit BendersBFunctionModSbst( C05Function * f , int type , int bftype ,
                                    Subset && rows , bool ordered = false ,
+                                   Subset && which = {} ,
                                    FunctionValue shift = NaNshift ,
                                    bool cB = true )
-  : BendersBFunctionMod( f , type , shift , cB ) , f_BFtype( bftype ) ,
-    v_rows( std::move( rows ) ) , f_ordered( ordered ) { }
+  : BendersBFunctionMod( f , type , std::move( which ) , shift , cB ) ,
+    f_BFtype( bftype ) , v_rows( std::move( rows ) ) , f_ordered( ordered ) { }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 

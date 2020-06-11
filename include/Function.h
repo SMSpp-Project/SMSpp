@@ -182,9 +182,30 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
  * sense to offer support for this notion in the base class. The default is
  * Inf<int>() = no limits. */
 
+ intMaxThread ,  ///< maximum number of threads that compute() can spawn
+                 /**< The algorithmic parameter for setting the maximum
+		  * number of threads that the next call to compute() is
+ * allowed to spawn while computinf the function. Actually "thread" here
+ * is intended in a loose sense, since each :Function will decide if and how
+ * to implememnt any asynchronous part, and hence which tools will be used
+ * to manage it. If std::asynch is used, for instance, then what is easily
+ * kept under control is the number of tasks, which may or may not coincide
+ * with the number of threads depending on the scheduler implementation.
+ * Specific :Function requiring more fine control of these aspects can define
+ * their own specific algorithmic parameters, but the concept of "maximum
+ * allowed amount of computational resources" (as governed by a simple int)
+ * should be general enough as to warrant a parameter in the base Function
+ * class. The default is 0, which means that compute() must only use the
+ * thread/task that is calling it. Note that this does not prevent the
+ * caller to call compute() in an asynchronous way, see e.g.
+ * ThinComputeInterface::compute_async() for an example, but in this case
+ * the responsibility of spawning (and then controlling) the new task is on
+ * the caller, while this parameter controls what happens inside compute(). */
+
  intLastParFun   ///< first allowed new int parameter for derived classes
                  /**< Convenience value for easily allow derived classes
 		  * to extend the set of int algorithmic parameters. */
+
  };  // end( int_par_type_F )
 
 /*--------------------------------------------------------------------------*/
@@ -564,31 +585,33 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
 /** @name Handling the parameters of the Function
  *  @{ */
 
- virtual idx_type get_num_int_par( void ) const override
+ idx_type get_num_int_par( void ) const override
  {
   return( idx_type( intLastParFun ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual idx_type get_num_dbl_par( void ) const override
+ idx_type get_num_dbl_par( void ) const override
  {
   return( idx_type( dblLastParFun ) );
   }
 
 /*--------------------------------------------------------------------------*/
  
- virtual int get_dflt_int_par( const idx_type par ) const override
+ int get_dflt_int_par( const idx_type par ) const override
  {
   if( par == intMaxIter )
    return( std::numeric_limits<int>::infinity() );
-  else
-   return( ThinComputeInterface::get_dflt_int_par( par ) );
+  if( par == intMaxThread )
+   return( 0 );
+
+  return( ThinComputeInterface::get_dflt_int_par( par ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  
- virtual double get_dflt_dbl_par( const idx_type par ) const override
+ double get_dflt_dbl_par( const idx_type par ) const override
  {
   switch( par ) {
    case( dblMaxTime ):  return( std::numeric_limits<double>::infinity() );
@@ -602,17 +625,19 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
 
 /*--------------------------------------------------------------------------*/
 
- virtual idx_type int_par_str2idx( const std::string & name ) const override
+ idx_type int_par_str2idx( const std::string & name ) const override
  {
   if( name == "intMaxIter" )
    return( intMaxIter );
-  else
-   return( ThinComputeInterface::int_par_str2idx( name ) );
+  if( name == "intMaxThread" )
+   return( intMaxThread );
+
+  return( ThinComputeInterface::int_par_str2idx( name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual idx_type dbl_par_str2idx( const std::string & name ) const override
+ idx_type dbl_par_str2idx( const std::string & name ) const override
  {
   if( name == "dblMaxTime" )
    return( dblMaxTime );
@@ -630,24 +655,25 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
 
 /*--------------------------------------------------------------------------*/
 
- virtual const std::string & int_par_idx2str( const idx_type idx )
-  const override
+ const std::string & int_par_idx2str( const idx_type idx ) const override
  {
-  static const std::string par = "intMaxIter";
+  static const std::string mi = "intMaxIter";
+  static const std::string mt = "intMaxThread";
   if( idx == intMaxIter )
-   return( par );
-  else
-   return( ThinComputeInterface::int_par_idx2str( idx ) );
+   return( mi );
+  if( idx == intMaxThread )
+   return( mt );
+
+  return( ThinComputeInterface::int_par_idx2str( idx ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual const std::string & dbl_par_idx2str( const idx_type idx )
-  const override
+ const std::string & dbl_par_idx2str( const idx_type idx ) const override
  {
   static const std::vector< std::string > pars =
    { "dblMaxTime" , "dblRelAcc" , "dblAbsAcc" , "dblUpCutOff" , "dblLwCutOff"
-   };
+     };
 
   if( ( idx >= dblMaxTime ) && ( idx <= dblLwCutOff ) )
    return( pars[ idx ] );

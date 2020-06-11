@@ -126,16 +126,26 @@ public:
 /** @name Public Types
  *  @{ */
 
- typedef unsigned short int idx_type;  ///< the type of parameters indices
+ using idx_type = unsigned short int;  ///< the type of parameters indices
  
 /*--------------------------------------------------------------------------*/
-
  /// public enum for the possible return values of compute()
 
  enum compute_type {
- kUnEval = 0 ,   ///< compute() has not been called yet
+ kUnEval = 3 ,   ///< compute() has not been called yet
+                 /**< Any return value between 0 and kUnEval (extremes
+		  * included) means that the process of compute() has not
+ * finished yet. This may mean a few different things (which is why kUnEval
+ * is not 0), like "compute() has not been called", "compute() is actually
+ * running right now", or "compute() had been called and it did finish, but
+ * the thing that had to be compute()-d changed in the meantime" (like,
+ * this was solving a Block that has undergone come change). The specific
+ * values are left to derived classes, but the general gist is that any
+ * value <= kUnEval means that the solution process has not yet reached a
+ * state where a solution can be declared (or such a state has been lost for
+ * some reason. */
 
- kOK = 7 ,       ///< successful compute()
+ kOK = 10 ,      ///< successful compute()
                  /**< Any return value between kUnEval (excluded) and kOK
 		  * (included) means that the object ran smoothly, obtaining
  * the desired answer within the allowed limits on the available computational
@@ -145,7 +155,7 @@ public:
  * optimality, or conclusively shown to be empty, or conclusively shown to be
  * unbounded. */
 
- kError = 15 ,   ///< compute() stopped because of unrecoverable error
+ kError = 18 ,   ///< compute() stopped because of unrecoverable error
                  /**< Any return value >= kError means that the object was
 		  * forced to stop due to some error, e.g. of numerical nature
  * or because of lack of some crucial resource (say, memory). The error is of
@@ -159,22 +169,161 @@ public:
  *
  * Note that this leaves out all return values comprised between kOK and
  * kError, extremes excluded. These are left for "recoverable error states"
- * where the object were not able to conclusively obtain all of the desired
+ * where compute() was not able to conclusively obtain all of the desired
  * answer (although it may have already obtained a part of it), but this was
  * due to some reason that forced it to stop early on, such as a limit imposed
  * on the available computational resources. By relaxing the limit, which may
- * be as simple as calling compute() again, the object may further proceed in
+ * be as simple as calling compute() again, compute() may further proceed in
  * the computation process, possibly providing a kOK-type answer. */
+
+ };  // end( compute_type )
+
+/*--------------------------------------------------------------------------*/
+ /// the type of an event handler
+ /** An event is some occurrence happening inside compute() to which the
+  * caller may want to promptly react, before termination of the call. In
+  * order to achieve that, the caller may register event handlers with the
+  * ThinComputeInterface. An event handler, as defined by the EventHandler
+  * type, is a [std::]function taking no input and returning an int that
+  * tells the ThinComputeInterface which action it has to take after the
+  * event (see action_type). Each ThinComputeInterface will support a set of
+  * different types of events (see event_type), and will call all the event
+  * handlers registered under a certain event type when the corresponding
+  * condition occurs. Note that the return type is int rather than action_type
+  * to allow derived classes to extend the typer of actions they sypport. */
+
+ using EventHandler = std::function< int ( void ) >;
+
+/*--------------------------------------------------------------------------*/
+ /// the type of the internal ID of an event handler
+ /** When an event handler is registered into a ThinComputeInterface, it gets
+  * a unique ID that can be, and should, used later on to un-register it. One
+  * does not expect more than 65536 event handlers being registered to any
+  * sentible ThinComputeInterface, but should it be so, the definition of
+  * EventID could be changed accordingly. */
+
+ using EventID = unsigned short int;
+
+/*--------------------------------------------------------------------------*/
+ /// public enum for the possible types of events
+ /**
+  */
+
+ enum event_type {
+ eBeforeTermination = 0 ,   ///< event to be called just prior to terminating
+                            /**< Type of events that will be called right
+			     * before compute() terminates. This is provided
+ * in particular to handle cases such as a computation entailing the solution
+ * of an optimization problem whose model is dynamically generated (say, row
+ * and/or column generation). In such a case the optimality conditions may
+ * have been satisfied for the current partial model (master problem) which
+ * would lead compute() to terminate; before doing this, these events are
+ * invoked, which allows to trigger the generation of new rows and/or columns
+ * (separation, pricing). The event can then return eForceContinue [see] to
+ * instruct compute() to incorporate the new information into the model 
+ * (provided, of course, that this makes any sense for the compute() at hand)
+ * and check the stopping conditions again. */
+
+ eEverykIteration   = 1 ,   ///< events to be called every k iterations
+
+ eEveryTTime        = 2 ,
+
+ e_last_event_type  = 4     ///< conveniemce value to define new events
+                            /**< conveniemce value to allow derived classes
+			     * to "extend" event_type and define new
+ * class-specific events that their compute() can support. */
+ 
+ };  // end( compute_type )
+
+/*--------------------------------------------------------------------------*/
+ /// public enum for the possible types of actions in response to events
+ /** This public enum provides values that describe general actions that an
+  * implementation of compute() is supposed to being instructed to perform
+  * by the return value of the event handler. */
+
+ enum action_type {
+ eForceContinue = 0 ,   ///< force compute() to continue even if it would stop
+                        /**< If compute() was going to stop because it
+			 * considered the computation to be over, force it
+ * to reconsider this. A typical case in which this can happen is if the
+ * computation entails the solution of an optimization problem whose model
+ * is dynamically generated (say, row and/or column generation). In such a
+ * case the optimality conditions may have been satisfied for the current
+ * partial model (master problem), but the event may have triggered the
+ * generation of new rows and/or columns (separation, pricing). This return
+ * value instructs compute() to check if this has happened (provided, of
+ * course, that this makes any sense for the compute() at hand). */
+
+ eContinue = kUnEval ,   ///< continue compute()
+                         /**< If the event handler returns any value
+			  * comprised between 0 and eContinue (extremes
+ * included, then compute() will continue. In particular, eContinue means
+ * "business as usual", while values < eContinue may give specific
+ * instructions (cf. e.g. eForceContinue). eContinue is taken equal to
+ * kUnEval to simplify handling of return errors between the event handler
+ * and compute(), see eStopOK and eStopError for details. */
+
+ eStopOK = kOK ,         ///< force compute() to stop returning success
+                         /**< If the event handler returns any value
+			  * comprised between eContinue (excluded) and
+ * eStopOK (included), compute() should immediately stop (some delay is
+ * possible if required by the implementation) because the event has
+ * detected that whatever needed to be compute()-d, has already been
+ * satsfactorily compute()-d. eStopOK is taken equal to kOK, so that
+ * 
+ *     compute() WILL RETURN AS ITS STATUS PRECISELY THE VALUE
+ *     RETURNED BY THE EVENT HANDLER
+ *
+ * This allows the event handler to more finely specify "what kind of good
+ * stop has occurred", in case compute() supports more than one (say,
+ * compute() requires solving a Block which may have an optimal solution, or
+ * be empty, or be unbounded). The event handler needs to know which compute()
+ * it is handling, and therefore ensure that the return value is valid for
+ * that compute(). Furthermore, obviously the event handler has to force
+ * this termination "for good reasons", possibly providing to compute() the
+ * extra information it needs to properly function after termination (say,
+ * compute() requires solving a Block, and the event handler has can detect
+ * termination early by ab ad-hoc computation of a dual solution; then, the
+ * dual solution will have to be provided to compute() if it can be required
+ * by the user after compute() terminates.) */
+
+ eStopError = kError     ///< force compute() to stop returning error
+                         /**< If the event handler returns any value
+			  * > eStopOK, then compute() should immediately
+ * stop (some delay is possible if required by the implementation) because
+ * the event has detected that whatever needed to be compute()-d can or need
+ * no longer be computed, say because some required computational resource
+ * (that compute() does not directly knows of or controls) is terminated.
+ * In this case
+ * 
+ *     compute() WILL RETURN AS ITS STATUS PRECISELY THE VALUE
+ *     RETURNED BY THE EVENT HANDLER
+ *
+ * This allows the event handler to more finely specify "what kind of bad
+ * stop has occurred", in case compute() supports more than one. In
+ * particular, values >= eStopError (which is taken equal to kError) are meant
+ * to represent "irrecoverable" errors, from which compute() is not likely to
+ * be able to ever recover. Instead, values between eStopOK and eStopError,
+ * extremes excluded, are left for "recoverable error states" where compute()
+ * was not able to conclusively obtain all of the desired answer (although it
+ * may have already obtained a part of it), but this was due to some reason
+ * that forced it to stop early on, such as a limit imposed on the available
+ * computational resources. By relaxing the limit, which may be as simple as
+ * calling compute() again, compute() may further proceed in the computation
+ * process, possibly finally providing a "good" answer. The event handler
+ * needs to know which compute() it is handling, and therefore ensure that
+ * the return value is valid for that compute(). */
 
  };  // end( compute_type )
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- CONSTRUCTING AND DESTRUCTING ThinComputeInterface ------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Constructing and destructing Block
+/** @name Constructing and destructing ThinComputeInterface
  *  @{ */
 
  /// constructor: does nothing, the class is thin
+
  ThinComputeInterface( void ) {}
 
 /*--------------------------------------------------------------------------*/
@@ -262,12 +411,149 @@ public:
  virtual void set_ComputeConfig( ComputeConfig *scfg = nullptr );
 
 /**@} ----------------------------------------------------------------------*/
+/*---------------------- METHODS FOR EVENTS HANDLING -----------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Set event handlers
+ *
+ *  The computation can be a long and complex process. Although some control
+ *  on it (say, its maximum time) is already allowed by the parameters, a
+ *  more fine-grained and ultimately interactive control may be needed. This
+ *  is what event handlers provide.
+ *
+ * An event is some occurrence happening inside compute() to which the caller
+ * may want to promptly react "immediately", i.e., before termination of the
+ * call. In order to achieve that, the caller may register event handlers
+ * with the ThinComputeInterface. An event handler, as defined by the
+ * EventHandler type, is a std::function taking no input and returning an int
+ * that tells the ThinComputeInterface which action it has to take after the
+ * event (see action_type). Each ThinComputeInterface will support a set of
+ * different types of events (see event_type), and will call all the event
+ * handlers registered under a certain event type when the corresponding
+ * condition occurs.
+ *
+ * Note that each ThinComputeInterface defines its own set of events, and
+ * can throw exception if required to handle events it does not support.
+ * Indeed, a ThinComputeInterface can be "so light" (a linear function ...)
+ * that events are not really a sensible option, which is why the default
+ * implementation of set_event_handler() unconditionally throws exception.
+ *
+ * The interface of event handlers may seem excessively threadbare; in
+ * particular, the event handler does not apparently even know "which
+ * ThinComputeInterface originated it". However, the typical usage pattern
+ * of event handlers is via lambdas, which cleanly solve the issue. That is,
+ * assume for instance that a callback foo( ThinComputeInterface * tci ) is
+ * available that one just want to call: it is easy to embed the information
+ * of the ThinComputeInterface * the callback is registered to (say, mytci)
+ * into the std::function by
+ *
+ *     mytci->set_event_handler( mytype ,
+ *                               [ mytci ] () { return( foo( mytci ) ); } );
+ *
+ * Note that this works also if foo() is, say, a member of the class where
+ * the call occurs, without requiring the use of std::bind, provided that
+ * this is explicitly added to the capture list. Also, note that the thusly
+ * defined lambda is a temporary whose lifetime does not extend beyond the
+ * end of the call to set_event_handler(). However, this is not an issue
+ * because the std::function that is created is then (allegedly) moved into
+ * the internal data structures of the ThinComputeInterface. This would not
+ * be possible by using a function pointer instead, as it would point to a
+ * soon-to-be temporary object. Besides, while there is a standard conversion
+ * between a lambda which *does not capture any context* to a function
+ * pointer, this does not work when the capture list is nonempty.
+ *
+ * The drawback is that calling a std::function incurs into a (hopefully,
+ * minimal) overhead w.r.t. calling a function pointer, but this seems to be
+ * largely justified by the increased functionality of the solution. However,
+ * this also implies that
+ *
+ *     EVENT HANDLERS SHOULD NOT BE CALLED IN THE TIGHTEST LOOPS Of compute()
+ *
+ * which does not seem to be too harsh a requirement.
+ *
+ * By being provided with, among any other information, a pointer to the
+ * ThinComputeInterface, the event handler can access all its public
+ * interface and therefore fetch from it all the information it needs to
+ * process the event. This will typically be :ThinComputeInterface-specific,
+ * although a skeleton interface is defined in ThinComputeInterface already
+ * for some very general concept that many ThinComputeInterface will probably
+ * support. An important note should also be made in this respect:
+ *
+ *     THE EVENT HANDLER WILL BE EXECUTED IN THE (MAIN) THREAD EXECUTING
+ *     compute(), WHICH THEREFORE WILL "NOT BE RUNNING" WHILE THE EVENT
+ *     HANDLER IS BEING EXECUTED
+ *
+ * This is of course a general statement, which will be true for any
+ * completely serial compute(), but may not be so for a compute() that is
+ * itself multi-threaded. However, the design principle is that
+ *
+ *     EVERY METHOD IN THE PUBLIC INTERFACE OF THE ThinComputeInterface
+ *     IS CALLABLE BY AN EVENT HANDLER UNLESS EXPLICTLY DECLARED OTHERWISE
+ *
+ * That is, each :ThinComputeInterface will have to specify, possibly
+ * separately for each type of event it supports, if some methods of its
+ * public interface are not available to be called by the event handler
+ * (maybe because the :ThinComputeInterface is multi-threaded and it cannot
+ * or does not want to handle the necessary synchronization), with the
+ * default being that if nothing is said then all of them can. Of course, a
+ * :ThinComputeInterface is allowed to rather specify a very small set of
+ * methods that can be called, which is OK provided it is explicitly done.
+ *
+ * It should be obvious, but let us explicitly remark that
+ *
+ *     IF THE EVENT HANDLER CAN BECOME INVALID, SAY BECAUSE THE OBJECT
+ *     WHOSE foo() METHOD IS INVOKED GOES OUT OF EXISTENCE, IT MUST BE
+ *     UNREGISTERED FROM THE ThinComputeInterface BEFORE THIS HAPPENS
+ *
+ * This is of course different from the fact that the EventHandler object
+ * itself becomes invalid; that the latter does not happen will be guaranteed
+ * by the ThinComputeInterface, but it is the caller's responsibility to
+ * ensure that any information that the event handler relies onto (apart of
+ * course from the ThinComputeInterface *, if any) will still be correct each
+ * time that the event handler is invoked. This is why reset_event_handler()
+ * and the handler id concept are provided.
+ *
+ *  @{ */
+
+ /// register a new event handler, returning its id
+ /** Adds a new event handler to these regostered for the given type. As the
+  * && tells, the event handler becomes property of the ThinComputeInterface,
+  * which is completely OK if, as one expects, it is defined via a lambda
+  * function. The method returns a unique id for the handler, which can (and
+  * must) be later used to remove the handler before it becomes invalid. Note
+  * that the handler is type-specific, i.e., two event handlers of different
+  * types can have the same id; in other words, the "real" id is the pair
+  * ( type , id ). An exception is thrown if the ThinComputeInterface is not
+  * capable of handling this type or event for whatever reason, among which
+  * that it has exhausted the available maximum number of event handlers
+  * slots for the given type. The method of the base class always throws
+  * exception. */
+
+ virtual EventID set_event_handler( int type , EventHandler && event )
+ {
+  throw( std::logic_error( "ThinComputeInterface::set_event_handler called" )
+	 );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// unregister an existing event handler
+ /** Removes the event handler with the given id from the list of those
+  * registered for the given type. If there is no event handler with the
+  * given id for the given type, exception will be thrown. The method of the
+  * base class always throws exception. */
+
+ virtual void reset_event_handler( int type , EventID id )
+ {
+  throw( std::logic_error( "ThinComputeInterface::reset_event_handler called"
+			   ) );
+  }
+
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- METHODS FOR DOING THE COMPUTATION -------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Compute whatever the object is supposed to
  *  @{ */
 
- /// (try to) compute whatever the object is supposed to
+ /// (try to) compute whatever the object is supposed to, synchronously
  /** Starts or the computation process, or restarts a previously interrupted
   * computation process, and returns the status of the solver at termination.
   *
@@ -378,6 +664,38 @@ public:
   * do, but that clearly the global rule does not forbid doing. */
 
  virtual int compute( bool changedvars = true ) = 0;
+
+/*--------------------------------------------------------------------------*/
+ /// (try to) compute whatever the object is supposed to, asynchronously
+ /** This is just an one-line wrapper over compute() that runs it into a
+  * separate task and returns a std::future<int> upon which the caller can
+  * wait() for the result. Not really a significant contribution (it is not
+  * even virtual) and by no means the only way to make an asynchronous call
+  * to compute(), just a little convenience method that conveys what is
+  * perhaps the most convenient current C++ technique for asynchronous calls
+  * to compute(). */
+
+ std::future<int> compute_async( bool changedvars = true ) {
+  return( std::async( std::launch::async ,
+		      &ThinComputeInterface::compute , this , changedvars ) );
+  }
+
+/**@} ----------------------------------------------------------------------*/
+/*---------------------- METHODS FOR READING RESULTS -----------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Reading results
+ *
+ * Since ThinComputeInterface is a very "abstract" interface, which is
+ * independent from what is actually computed, there can hardly be methods for
+ * reading the results. However, a common aspect from all compute() is that
+ * they take time; also, most of them will be complex, iterative processes.
+ * Thus, ThinComputeInterface offers two skeleton methods to read the elapsed
+ * running time and iteration number from the last call to compute(). Among
+ * other possible uses, these can be useful to event handlers (see
+ * set_event_handler()).
+ *  
+ *  @{ */
+
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/

@@ -197,9 +197,10 @@ class C15FunctionMod : public C05FunctionMod {
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
 
  C15FunctionMod( C15Function * const f , const int mod ,
+		 Subset && which = {} ,
 		 Function::FunctionValue shift = 0 ,
 		 const bool cB = true  )
-  : C05FunctionMod( f , mod , shift , cB ) { }
+  : C05FunctionMod( f , mod , std::move( which ) , shift , cB ) { }
 
  ///< constructor: takes the type of Modification and a C15Function pointer
  /**< constructor: takes the type of the Modification and a pointer to

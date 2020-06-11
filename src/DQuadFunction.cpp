@@ -354,7 +354,7 @@ void DQuadFunction::modify_term( Index i , Coefficient lin_coeff ,
  f_Observer->add_Modification( std::make_shared< C05FunctionModRngd >( this ,
                             C05FunctionMod::AllLinearizationChanged ,
 			    Vec_p_Var( { std::get< 0 >( v_triples[ i ] ) } ) ,
-                            std::make_pair( i , i + 1 ) ,
+			    std::make_pair( i , i + 1 ) , Subset( {}  ) ,
 			    FunctionMod::NaNshift ,
 			    Observer::par2concern( issueMod ) ),
 			       Observer::par2chnl( issueMod ) );
@@ -416,7 +416,8 @@ void DQuadFunction::modify_terms( c_v_coeff_it NQuadCoef ,
   f_Observer->add_Modification( std::make_shared< C05FunctionModSbst >( this ,
                                      C05FunctionMod::AllLinearizationChanged ,
                                      std::move( vp ) , std::move( nms ) ,
-				     ordered , FunctionMod::NaNshift ,
+				     ordered , Subset( {} ) ,
+				     FunctionMod::NaNshift ,
 				     Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
 
@@ -508,7 +509,8 @@ void DQuadFunction::modify_terms( c_v_coeff_it NQuadCoef ,
   // now issue the Modification
   f_Observer->add_Modification( std::make_shared<C05FunctionModRngd>(
 			     this , C05FunctionMod::AllLinearizationChanged ,
-			     std::move( vp ) , range , FunctionMod::NaNshift ,
+			     std::move( vp ) , range , Subset( {} ) ,
+			     FunctionMod::NaNshift ,
 			     Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
   }

@@ -642,8 +642,10 @@ bool LagBFunction::compute_new_linearization( const bool diagonal )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::store_linearization( const Index name )
+void LagBFunction::store_linearization( Index name , c_ModParam issueMod )
 {
+ // TODO: handle issueMod !!
+
  // throw exception if the solution does not exist or has been already stored
 
  if( std::isnan( LastSolution ) ||
@@ -679,22 +681,27 @@ void LagBFunction::store_linearization( const Index name )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::delete_linearization( const Index name )
+void LagBFunction::delete_linearization( Index name , c_ModParam issueMod )
 {
+ // TODO: handle issueMod !!
+
  if( name >= GPMaxSz )
-  throw( std::logic_error( "the max size of global pool has been already exceed" ) );
+  throw( std::logic_error( "max size of global pool already exceed" ) );
 
  if( std::get<0>(g_pool[ name ]) )
   delete[] std::get<0>(g_pool[ name ]);
+
  } // end LagBFunction::delete_linearization( Index )  - - - - - -
 
 /*--------------------------------------------------------------------------*/
 
 void LagBFunction::store_combination_of_linearizations(
-	  LinearCombination & coefficients , const Index name ) {
+	LinearCombination & coefficients , Index name , c_ModParam issueMod )
+{
+ // TODO: handle issueMod !!
 
  if( name >= GPMaxSz )
-  throw( std::logic_error( "the max size of global pool has been already exceed" ) );
+  throw( std::logic_error( "max size of global pool already exceed" ) );
 
  if( coefficients.empty() )
   throw( std::invalid_argument( "the convex combination is empty" ) );
@@ -722,11 +729,12 @@ void LagBFunction::store_combination_of_linearizations(
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::set_important_linearization( LinearCombination && coefficients ,
-		Index name ) {
+void LagBFunction::set_important_linearization(
+			     LinearCombination && coefficients , Index name )
+{
  // throw exception if name is greater thatn the dimension of the global pool
  if( name >= GPMaxSz )
-  throw( std::logic_error( "the max size of global pool has been already exceed" ) );
+  throw( std::logic_error( "max size of global pool already exceed" ) );
  zName = name;
  std::get<0>(g_pool[ zName ])->write( v_Block[0] );
  if( zLC.size() )
@@ -736,11 +744,13 @@ void LagBFunction::set_important_linearization( LinearCombination && coefficient
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::rename_linearization( const Index current_name ,
- 				    const Index new_name ) {
+void LagBFunction::rename_linearization( Index current_name , Index new_name ,
+					 c_ModParam issueMod )
+{
+ // TODO: handle issueMod !!
 
  if( new_name >= GPMaxSz )
-  throw( std::logic_error( "the max size of global pool has been already exceed" ) );
+  throw( std::logic_error( "max size of global pool already exceed" ) );
 
  if( std::get<0>(g_pool[ current_name ]) == nullptr )
   throw( std::logic_error( "this solution does not exist" ) );
@@ -1594,9 +1604,12 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
      // the constant terms of the linearizations have to be computed again
      //	by calling get_linearization_constant()
 
+     // TODO: check if better which is possible
      if( f_Observer )
       f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-								      C05FunctionMod::AlphaChanged , tmod->shift() , 0 ) , chnl );
+					  C05FunctionMod::AlphaChanged ,
+					  Subset( {} ) , tmod->shift() , 0 ) ,
+				    chnl );
 
      }
     else { // an unpredictable change
@@ -1612,9 +1625,12 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
      // linearizations (g, \alpha) have to be computed again by calling
      // get_linearization_constant() while the g remains unchanged
 
+     // TODO: check if better which is possible
      if( f_Observer )
       f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-    		C05FunctionMod::AlphaChanged , FunctionMod::NaNshift , 0 ) , chnl );
+				 C05FunctionMod::AlphaChanged , Subset( {} ) ,
+				 FunctionMod::NaNshift , 0 ) ,
+				    chnl );
 
      }
    else
@@ -1673,11 +1689,13 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
    	  // get_linearization_coefficients- at the index i-th, however the
    	  // Lagrangian function changes in an unpredictable  way and f_shift id
    	  // set to NaN  - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
+	  // TODO: check if a better which is possible
    	  if( f_Observer )
-   	   f_Observer->add_Modification( std::make_shared<C05FunctionModSbst>( this ,
-   	      C05FunctionModSbst::AllEntriesChanged , std::move(v_vars) ,
-		  std::move(nms) , true, FunctionMod::NaNshift , 0 ) , chnl );
+   	   f_Observer->add_Modification( std::make_shared<C05FunctionModSbst>(
+			        this , C05FunctionModSbst::AllEntriesChanged ,
+				std::move( v_vars ) , std::move( nms ) , true,
+				Subset( {} ) , FunctionMod::NaNshift , 0 ) ,
+					 chnl );
       }
      }
     else { // the changes of the constraints of (B) may violate the
@@ -1691,10 +1709,13 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
      // issue C05FunctionMod modification of the type AlphaChanged: the
      // feasible region of (B) has been changed, then the original linearizations
      // (even the g part) can no longer be used
+     // TODO: check if a better which is possible
      if( f_Observer )
       f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-    	  C05FunctionMod::AlphaChanged , FunctionMod::NaNshift ) , chnl );
-
+					      C05FunctionMod::AlphaChanged ,
+					      Subset( {} ) ,
+					      FunctionMod::NaNshift ) ,
+				    chnl );
      }
    }
   } // end FunctionMod - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1732,10 +1753,13 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
     // linearizations (g, \alpha) have to be computed again by calling
     // get_linearization_constant() while g remains unchanged
 
+    // TODO: check if a better which is possible
     if( f_Observer )
      f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-    		C05FunctionMod::AlphaChanged , FunctionMod::NaNshift , 0 ) , chnl );
-
+					      C05FunctionMod::AlphaChanged ,
+					      Subset( {} ) ,
+					      FunctionMod::NaNshift , 0 ) ,
+				   chnl );
     }
    else
     if( lfmod->get_Observer() == this ) { // the Linear Function belongs
@@ -1759,21 +1783,22 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
      // a_i has to be re-written in CostMatrix to allow LagBFunction the
      // computation of the Lagrangian costs
 
-   	 Subset nms = update_columns( vdp );
+     Subset nms = update_columns( vdp );
 
      // issue C05FunctionModSbst modification of the type AllEntriesChanged:
-   	 // the i-th entry of the linearization ( g , \alpha ) has to change,
-   	 // namely g_i must be re-computed -by calling
-   	 // get_linearization_coefficients- at the index i-th, however the
-   	 // Lagrangian function unpredictably changes and f_shift is
-   	 // set to NaN   - - - - - - - - - - - - - - - - - - - - - - - - - -
+     // the i-th entry of the linearization ( g , \alpha ) has to change,
+     // namely g_i must be re-computed -by calling
+     // get_linearization_coefficients- at the index i-th, however the
+     // Lagrangian function unpredictably changes and f_shift is
+     // set to NaN   - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-   	 if( f_Observer )
-   	  f_Observer->add_Modification( std::make_shared<C05FunctionModSbst>( this ,
-   	  C05FunctionModSbst::AllEntriesChanged , std::move(v_vars) ,
-       std::move(nms) , true, FunctionMod::NaNshift , 0 ) , chnl );
-
-
+     // TODO: check if a better which is possible
+     if( f_Observer )
+      f_Observer->add_Modification( std::make_shared<C05FunctionModSbst>( this ,
+   	           C05FunctionModSbst::AllEntriesChanged , std::move( v_vars ) ,
+		   std::move( nms ) , true , Subset( {} ) ,
+		   FunctionMod::NaNshift , 0 ) ,
+				    chnl );
      }
     else { // the changes of the constraints of (B) may violate the
      // solutions kept in the global pool, irrespectively to the fact that the
@@ -1786,10 +1811,13 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
      // issue C05FunctionMod modification of the type AlphaChanged: the
      // feasible region of (B) has been changed, then the original linearizations
      // (even the g part) can no longer be used
+     // TODO: check if a better which is possible
      if( f_Observer )
       f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-    	  C05FunctionMod::AlphaChanged , FunctionMod::NaNshift ) , chnl );
-
+					      C05FunctionMod::AlphaChanged ,
+					      Subset( {} ) ,
+					      FunctionMod::NaNshift ) ,
+				    chnl );
      }
    }
   } // end C05FunctionModLin - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1819,20 +1847,23 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
 
     Subset nms( tmod->vars().size() );
     for( Index i = 0 ; i < tmod->vars().size() ; ++i )
-	 nms[ i ] = lf_obj->is_active( LagPairs[ i ].first );
+     nms[ i ] = lf_obj->is_active( LagPairs[ i ].first );
 
-	set_original_costs( nms );
+    set_original_costs( nms );
 
-	// issue C05FunctionMod modification of the type AlphaChanged:
-	// the Lagrangian function unpredictably changes and
-	// f_shift has to be set to NaN, however the constant terms of the
-	// linearizations have to be computed again by calling
-	// get_linearization_constant()
+    // issue C05FunctionMod modification of the type AlphaChanged:
+    // the Lagrangian function unpredictably changes and
+    // f_shift has to be set to NaN, however the constant terms of the
+    // linearizations have to be computed again by calling
+    // get_linearization_constant()
 
-	if( f_Observer )
-	 f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-	    		C05FunctionMod::AlphaChanged , FunctionMod::NaNshift , 0 ) , chnl );
-
+    // TODO: check if a better which is possible
+    if( f_Observer )
+     f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+						C05FunctionMod::AlphaChanged ,
+						Subset( {} ) ,
+					        FunctionMod::NaNshift , 0 ) ,
+				   chnl );
     }
    else
     if( lfmod->get_Observer() == this ) { // if the Linear Function belongs
@@ -1866,12 +1897,14 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
      // get_linearization_coefficients- at the index i-th, however the
      // Lagrangian function unpredictably changes and f_shift is
      // set to NaN   - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // TODO: check if a better which is possible
 
      if( f_Observer )
       f_Observer->add_Modification( std::make_shared<C05FunctionModSbst>( this ,
-       	  C05FunctionModSbst::AllEntriesChanged , std::move(v_vars) ,
-          std::move(nms) , true, FunctionMod::NaNshift , 0 ) , chnl );
-
+       	           C05FunctionModSbst::AllEntriesChanged , std::move( v_vars ) ,
+		   std::move( nms ) , true , Subset( {} ) ,
+		   FunctionMod::NaNshift , 0 ) ,
+				    chnl );
      }
     else { // the changes of the constraints of (B) may violate the
        // solutions kept in the global pool,  signal
@@ -1883,10 +1916,13 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
        // issue C05FunctionMod modification of the type AlphaChanged: the
        // feasible region of (B) changed and the original linearizations
        // (even the g part) can no longer be used
+       // TODO: check if a better which is possible
        if( f_Observer )
         f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-      	  C05FunctionMod::AlphaChanged , FunctionMod::NaNshift ) , chnl );
-
+						C05FunctionMod::AlphaChanged ,
+						Subset( {} ) ,
+						FunctionMod::NaNshift ) ,
+				      chnl );
      }
    }
   } // end FunctionModVars   - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1913,10 +1949,13 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
    // issue C05FunctionMod modification of the type AlphaChanged: the
    // feasible region of (B) changed and the original linearizations
    // (even the g part) can no longer be used
+   // TODO: check if a better which is possible
    if( f_Observer )
     f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-  	  C05FunctionMod::AlphaChanged , FunctionMod::NaNshift ) , chnl );
-
+						C05FunctionMod::AlphaChanged ,
+						Subset( {} ) ,
+					        FunctionMod::NaNshift ) ,
+				  chnl );
    }
   }  // end VariableMod- - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -1940,10 +1979,14 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
     // issue C05FunctionMod modification of the type AlphaChanged: the
     // feasible region of (B) changed and the original linearizations
     // (even the g part) can no longer be used
+    // TODO: check if a better which is possible
 
     if( f_Observer )
      f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-   	      C05FunctionMod::AlphaChanged , FunctionMod::NaNshift ) , chnl );
+						C05FunctionMod::AlphaChanged ,
+						Subset( {} ) ,
+						FunctionMod::NaNshift ) ,
+				   chnl );
     }
    }
   }  // end BlockModAdd- - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1965,14 +2008,16 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
    // issue C05FunctionMod modification of the type AlphaChanged: the
    // feasible region of (B) changed and the original linearizations
    // (even the g part) can no longer be used
+    // TODO: check if a better which is possible
 
-   if( f_Observer )
-    f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-  	  C05FunctionMod::AlphaChanged , FunctionMod::NaNshift ) , chnl );
-
+    if( f_Observer )
+     f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+						C05FunctionMod::AlphaChanged ,
+						Subset( {} ) ,
+						FunctionMod::NaNshift ) ,
+				   chnl );
    }
   }  // end BlockMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
 
  }  // end( LagBFunction::guts_of_add_Modification( sp_Mod ) ) - - - - - - - -
 

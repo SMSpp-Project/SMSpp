@@ -50,30 +50,34 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#include <iostream>
-#include <list>
+// standard C++ libraries (alphabetical order)
 #include <algorithm>
+#include <fstream>
+#include <functional>
+#include <future>
+//#include <iostream>
+#include <list>
+#include <map>
 #include <memory>
+#include <mutex>
 #include <vector>
 #include <unordered_map>
-#include <map>
-#include <functional>
-#include <typeindex>
-#include <typeinfo>
-#include <list>
-#include <tuple>
-#include <iostream>
-#include <fstream>
 #include <sstream>
 #include <string>
+#include <tuple>
 #include <type_traits>
+#include <typeindex>
+#include <typeinfo>
 
+// boost libraries
 #include <boost/any.hpp>
 #include <boost/bind.hpp>
 #include "boost/function.hpp"
 #include "boost/functional/factory.hpp"
 #include "boost/functional/forward_adapter.hpp"
 #include <boost/multi_array.hpp>
+
+// NetCDF
 #include "netcdf"
 
 /*--------------------------------------------------------------------------*/

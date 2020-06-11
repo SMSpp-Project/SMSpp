@@ -278,6 +278,46 @@ void BendersBFunction::set_variables( VarVector && x ) {
 }  // end( BendersBFunction::set_variables )
 
 /*--------------------------------------------------------------------------*/
+
+void BendersBFunction::set_par( const idx_type par , const int value ) {
+ switch( par ) {
+  case( intMaxIter ):
+   set_solver_par( Solver::intMaxIter , value );
+   break;
+
+  case( intLPMaxSz ):
+   if( value < 1 )
+    throw( std::invalid_argument( "BendersBFunction::set_par: intLPMaxSz "
+                                  "must be non-negative" ) );
+   set_solver_par( CDASolver::intMaxDSol , value );
+   break;
+
+  case( intGPMaxSz ): {
+   if( value < 0 )
+    throw( std::invalid_argument( "BendersBFunction::set_par: intGPMaxSz "
+                                  "must be non-negative" ) );
+
+   auto old_size = global_pool.size();
+
+   global_pool.resize( value );
+
+   if( f_Observer && value < old_size ) {
+    // The size of the global pool is being reduced. We store in "which" the
+    // indices of the deleted linearizations.
+    Subset which( global_pool.size() - value );
+    std::iota( which.begin() , which.end() , value );
+    f_Observer->add_Modification
+     ( std::make_shared<BendersBFunctionMod>
+       ( this , C05FunctionMod::GlobalPoolRemoved , std::move( which ) , 0 ) );
+   }
+
+   break;
+  }
+  default: C05Function::set_par( par , value );
+ }
+}  // end( BendersBFunction::set_par )
+
+/*--------------------------------------------------------------------------*/
 /*---- METHODS FOR HANDLING "ACTIVE" Variable IN THE BendersBFunction ------*/
 /*--------------------------------------------------------------------------*/
 
@@ -621,7 +661,7 @@ void BendersBFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
  f_Observer->add_Modification( std::make_shared<BendersBFunctionModRngd>(
                              this , C05FunctionMod::AllLinearizationChanged ,
                              BendersBFunctionMod::ModifyRows , range ,
-                             C05FunctionMod::NaNshift ,
+                             Subset( {} ) , C05FunctionMod::NaNshift ,
                              Observer::par2concern( issueMod ) ) ,
                                 Observer::par2chnl( issueMod ) );
 
@@ -673,7 +713,7 @@ void BendersBFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
                              this , C05FunctionMod::AllLinearizationChanged ,
                              BendersBFunctionMod::ModifyRows ,
                              std::move( rows ) , ordered ,
-                             C05FunctionMod::NaNshift ,
+                             Subset( {} ) , C05FunctionMod::NaNshift ,
                              Observer::par2concern( issueMod ) ) ,
                                 Observer::par2chnl( issueMod ) );
 
@@ -710,7 +750,8 @@ void BendersBFunction::modify_row( c_Index i , RealVector && Ai ,
  f_Observer->add_Modification( std::make_shared<BendersBFunctionModRngd>(
                              this , C05FunctionMod::AllLinearizationChanged ,
                              BendersBFunctionMod::ModifyRows ,
-                             Range( i , i + 1 ) , C05FunctionMod::NaNshift ,
+                             Range( i , i + 1 ) , Subset( {} ) ,
+                             C05FunctionMod::NaNshift ,
                              Observer::par2concern( issueMod ) ) ,
                                 Observer::par2chnl( issueMod ) );
 
@@ -752,25 +793,17 @@ void BendersBFunction::modify_constants
  f_Observer->add_Modification( std::make_shared<BendersBFunctionModRngd>(
                                       this , C05FunctionMod::AlphaChanged ,
                                       BendersBFunctionMod::ModifyCnst ,
-                                      range , C05FunctionMod::NaNshift ,
-                                      Observer::par2concern( issueAMod ) ) ,
-                                Observer::par2chnl( issueAMod ) );
+                                      range , Subset( {} ) ,
+                                      C05FunctionMod::NaNshift ,
+                                      Observer::par2concern( issueMod ) ) ,
+                                Observer::par2chnl( issueMod ) );
 
 }  // end( BendersBFunction::modify_constants( range ) )
 
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::modify_constants( c_RealVector & nb , Range range ,
-                                         c_ModParam issueMod ) {
- modify_constants( nb.cbegin() , range , issueMod , issueMod );
-}  // end( BendersBFunction::modify_constants( range ) )
-
-/*--------------------------------------------------------------------------*/
-
-void BendersBFunction::modify_constants
-( std::vector< double >::const_iterator nb , Subset && rows , bool ordered ,
-  c_ModParam issuePMod , c_ModParam issueAMod ) {
-
+void BendersBFunction::modify_constants( c_RealVector & nb , Subset && rows ,
+                                         bool ordered , c_ModParam issueMod ) {
  if( rows.empty() )  // actually nothing to modify
   return;            // cowardly (and silently) return
 
@@ -806,6 +839,7 @@ void BendersBFunction::modify_constants
                                       this , C05FunctionMod::AlphaChanged ,
                                       BendersBFunctionMod::ModifyCnst ,
                                       std::move( rows ) , ordered ,
+                                      Subset( {} ) ,
                                       C05FunctionMod::NaNshift ,
                                       Observer::par2concern( issueAMod ) ) ,
                                 Observer::par2chnl( issueAMod ) );
@@ -846,6 +880,7 @@ void BendersBFunction::modify_constant( c_Index i , c_FunctionValue bi ,
                                       this , C05FunctionMod::AlphaChanged ,
                                       BendersBFunctionMod::ModifyCnst ,
                                       Range( i , i + 1 ) ,
+                                      Subset( {} ) ,
                                       C05FunctionMod::NaNshift ,
                                       Observer::par2concern( issueMod ) ) ,
                                 Observer::par2chnl( issueMod ) );
@@ -1014,7 +1049,7 @@ void BendersBFunction::delete_rows( Range range , c_ModParam issueMod ) {
  f_Observer->add_Modification( std::make_shared<BendersBFunctionModRngd>(
                                 this , mod_type ,
                                 BendersBFunctionMod::DeleteRows , range ,
-                                C05FunctionMod::NaNshift ,
+                                Subset( {} ) , C05FunctionMod::NaNshift ,
                                 Observer::par2concern( issueMod ) ) ,
                                Observer::par2chnl( issueMod ) );
 
@@ -1094,7 +1129,7 @@ void BendersBFunction::delete_rows( Subset && rows , bool ordered ,
  f_Observer->add_Modification( std::make_shared<BendersBFunctionModSbst>(
                                 this , mod_type ,
                                 BendersBFunctionMod::DeleteRows ,
-                                std::move( rows ) , true ,
+                                std::move( rows ) , true , Subset( {} ) ,
                                 C05FunctionMod::NaNshift ,
                                 Observer::par2concern( issueMod ) ) ,
                                Observer::par2chnl( issueMod ) );
@@ -1135,7 +1170,7 @@ void BendersBFunction::delete_row( c_Index i , c_ModParam issueMod ) {
  f_Observer->add_Modification( std::make_shared<BendersBFunctionModRngd>(
                                 this , mod_type ,
                                 BendersBFunctionMod::DeleteRows ,
-                                Range( i , i + 1 ) ,
+                                Range( i , i + 1 ) , Subset( {} ) ,
                                 C05FunctionMod::NaNshift ,
                                 Observer::par2concern( issueMod ) ) ,
                                Observer::par2chnl( issueMod ) );
@@ -1589,55 +1624,94 @@ Function::FunctionValue BendersBFunction::get_value( void ) const {
  * compute_new_linearization() (which returned true) can be permanently stored
  * in the global pool of linearizations by calling this method. */
 
-void BendersBFunction::store_linearization( Index name ) {
+void BendersBFunction::store_linearization( Index name , c_ModParam issueMod ) {
  if( name >= global_pool.size() )
-   throw( std::invalid_argument( "BendersBFunction::store_linearization: "
-                                 "invalid global pool name: " +
-                                 std::to_string( name ) ) );
+  throw( std::invalid_argument( "BendersBFunction::store_linearization: "
+                                "invalid global pool name: " +
+                                std::to_string( name ) ) );
 
-  auto solver = get_solver<CDASolver>();
+ auto solver = get_solver<CDASolver>();
 
-  if( ! solver )
-   throw( std::logic_error( "BendersBFunction::store_linearization: It is not "
-                            "possible to store the linearization. The sub-Block"
-                            " (if present) has no Solver attached to it." ) );
+ if( ! solver )
+  throw( std::logic_error( "BendersBFunction::store_linearization: It is not "
+                           "possible to store the linearization. The sub-Block"
+                           " (if present) has no Solver attached to it." ) );
 
-  // TODO check whether the solution has already been written into the Block
+ // TODO check whether the solution has already been written into the Block
 
-  if( diagonal_linearization_required )
-   solver->get_dual_solution();
-  else
-   solver->get_dual_direction();
+ if( diagonal_linearization_required )
+  solver->get_dual_solution();
+ else
+  solver->get_dual_direction();
 
-  Solution * solution = nullptr;
+ Solution * solution = nullptr;
 
-  if( ! solution )
-   solution = v_Block[ 0 ]->get_Solution();
-  solution->read( v_Block[ 0 ] );
+ if( ! solution )
+  solution = v_Block[ 0 ]->get_Solution();
+ solution->read( v_Block[ 0 ] );
 
-  // Lazy computation of the linearization constant
+ // Lazy computation of the linearization constant
 
-  global_pool.store( Inf<FunctionValue>() , solution , name );
+ global_pool.store( Inf<FunctionValue>() , solution , name );
+
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+  return;
+
+ f_Observer->add_Modification( std::make_shared<BendersBFunctionMod>( this ,
+				      C05FunctionMod::GlobalPoolAdded ,
+				      Subset( { name } ) , 0 ,
+				      Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
+
 } // end BendersBFunction::store_linearization( Index )
 
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::store_combination_of_linearizations(
-                        LinearCombination & coefficients , const Index name ) {
+void BendersBFunction::store_combination_of_linearizations
+( LinearCombination & coefficients , const Index name , c_ModParam issueMod ) {
  global_pool.store_combination_of_linearizations( coefficients , name );
+
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+  return;
+
+ f_Observer->add_Modification( std::make_shared<BendersBFunctionMod>( this ,
+					C05FunctionMod::GlobalPoolAdded ,
+					Subset( { name } ) , 0 ,
+					Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
+
 }  // end( BendersBFunction::store_combination_of_linearizations )
 
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::rename_linearization( const Index current_name ,
-                                             const Index new_name ) {
+void BendersBFunction::rename_linearization
+( const Index current_name , const Index new_name , c_ModParam issueMod ) {
  global_pool.rename_linearization( current_name , new_name );
+
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+  return;
+
+ f_Observer->add_Modification( std::make_shared<BendersBFunctionMod>( this ,
+				   C05FunctionMod::GlobalPoolRenamed ,
+				   Subset( { current_name , new_name } ) , 0 ,
+				   Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
 }  // end( BendersBFunction::rename_linearization )
 
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::delete_linearization( const Index name ) {
+void BendersBFunction::delete_linearization( const Index name ,
+                                             c_ModParam issueMod ) {
  global_pool.delete_linearization( name );
+
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+  return;
+
+ f_Observer->add_Modification( std::make_shared<BendersBFunctionMod>( this ,
+				      C05FunctionMod::GlobalPoolRemoved ,
+				      Subset( { name } ) , 0 ,
+				      Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
 }  // end( BendersBFunction::delete_linearization )
 
 /*--------------------------------------------------------------------------*/
