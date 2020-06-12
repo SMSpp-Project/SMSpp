@@ -36,7 +36,7 @@
  *
  * \version 0.10
  *
- * \date 11 - 04 - 2020
+ * \date 05 - 06 - 2020
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -516,39 +516,6 @@ private:
 
 /*--------------------------------------------------------------------------*/
 
- template<class S , class T , class... Rest>
- static S * get_static_element( const boost::any & group , Index index ) {
-  if constexpr( std::is_base_of_v< S , T > ) {
-   S * element = nullptr;
-   bool group_found = un_any_thing
-    ( T , group , { element = get_static_element_( var , index ); } );
-   if( group_found )
-    return element;
-  }
-  else if constexpr( sizeof...(Rest) != 0 )
-   return get_static_element<S , Rest...>( group , index );
-  return nullptr;
- }
-
-/*--------------------------------------------------------------------------*/
-
- template<class S , class T , class... Rest>
- static S * get_dynamic_element( const boost::any & group , Index index ) {
-  if constexpr( std::is_base_of_v< S , T > ) {
-   S * element = nullptr;
-   bool group_found = un_any_thing
-    ( std::list<T> , group ,
-      { element = get_dynamic_element_( var , index ); } );
-   if( group_found )
-    return element;
-  }
-  else if constexpr( sizeof...(Rest) != 0 )
-   return get_dynamic_element<S , Rest...>( group , index );
-  return nullptr;
- }
-
-/*--------------------------------------------------------------------------*/
-
  template<class T>
  static const boost::any & get_group( const Block * block , Index group_index ,
                                       bool is_static ) {
@@ -611,38 +578,6 @@ private:
     return get_dynamic_element< T , Constraint_Derived_Classes >
      ( group , element_index );
   }
- }
-
-/*--------------------------------------------------------------------------*/
-
- template<class S , class T , class... Rest>
- static Index get_static_index( const S * s , const boost::any & group ) {
-  if constexpr( std::is_base_of_v< S , T > ) {
-   Index index = Inf<Index>();
-   bool group_found =
-    un_any_thing( T , group , { index = get_static_index_( s , var ); } );
-   if( group_found && index < Inf<Index>()  )
-    return index;
-  }
-  else if constexpr( sizeof...(Rest) != 0 )
-   return get_static_index<S , Rest...>( s , group );
-  return Inf<Index>();
- }
-
-/*--------------------------------------------------------------------------*/
-
- template<class S , class T , class... Rest>
- static Index get_dynamic_index( const S * s , const boost::any & group ) {
-  if constexpr( std::is_base_of_v< S , T > ) {
-   Index index = Inf<Index>();
-   bool group_found = un_any_thing
-    ( std::list<T> , group , { index = get_dynamic_index_( s , var ); } );
-   if( group_found && index < Inf<Index>()  )
-    return index;
-  }
-  else if constexpr( sizeof...(Rest) != 0 )
-   return get_dynamic_index<S , Rest...>( s , group );
-  return Inf<Index>();
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1569,6 +1504,72 @@ public:
                                       path.group_indices.data() );
   netCDFvars.PathElementIndices.putVar( { path_start } , { num_nodes } ,
                                         path.element_indices.data() );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ template<class S , class T , class... Rest>
+ static Index get_static_index( const S * s , const boost::any & group ) {
+  if constexpr( std::is_base_of_v< S , T > ) {
+   Index index = Inf<Index>();
+   bool group_found =
+    un_any_thing( T , group , { index = get_static_index_( s , var ); } );
+   if( group_found && index < Inf<Index>()  )
+    return index;
+  }
+  else if constexpr( sizeof...(Rest) != 0 )
+   return get_static_index<S , Rest...>( s , group );
+  return Inf<Index>();
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ template<class S , class T , class... Rest>
+ static Index get_dynamic_index( const S * s , const boost::any & group ) {
+  if constexpr( std::is_base_of_v< S , T > ) {
+   Index index = Inf<Index>();
+   bool group_found = un_any_thing
+    ( std::list<T> , group , { index = get_dynamic_index_( s , var ); } );
+   if( group_found && index < Inf<Index>()  )
+    return index;
+  }
+  else if constexpr( sizeof...(Rest) != 0 )
+   return get_dynamic_index<S , Rest...>( s , group );
+  return Inf<Index>();
+ }
+
+
+/*--------------------------------------------------------------------------*/
+
+ template<class S , class T , class... Rest>
+ static S * get_static_element( const boost::any & group , Index index ) {
+  if constexpr( std::is_base_of_v< S , T > ) {
+   S * element = nullptr;
+   bool group_found = un_any_thing
+    ( T , group , { element = get_static_element_( var , index ); } );
+   if( group_found )
+    return element;
+  }
+  else if constexpr( sizeof...(Rest) != 0 )
+   return get_static_element<S , Rest...>( group , index );
+  return nullptr;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ template<class S , class T , class... Rest>
+ static S * get_dynamic_element( const boost::any & group , Index index ) {
+  if constexpr( std::is_base_of_v< S , T > ) {
+   S * element = nullptr;
+   bool group_found = un_any_thing
+    ( std::list<T> , group ,
+      { element = get_dynamic_element_( var , index ); } );
+   if( group_found )
+    return element;
+  }
+  else if constexpr( sizeof...(Rest) != 0 )
+   return get_dynamic_element<S , Rest...>( group , index );
+  return nullptr;
  }
 
 /*--------------------------------------------------------------------------*/
