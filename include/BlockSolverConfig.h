@@ -177,7 +177,7 @@ class BlockSolverConfig : public Configuration
   * any :Configuration, the group should contain the following:
   *
   * - the dimension "n_SolverConfig" containing the number of Solver that
-  *   are to be attached to this Block, and therefore the number of their
+  *   are to be attached to the Block, and therefore the number of their
   *   SolverConfig objects;
   *
   * - the variable "SolverNames", of type string and indexed over the
@@ -415,15 +415,16 @@ class BlockSolverConfig : public Configuration
  /// load this BlockSolverConfig out of an istream
  /** Load this BlockSolverConfig out of an istream, with the format:
   *
-  * a bool
+  * a binary number b to determine the value of #f_diff. If b == 0 then
+  * #f_diff = false. Otherwise, #f_diff = true.
   *
-  * number k of the names of Solver for this Block
+  * number k of the names of Solver for the Block
   *
   * for i = 1 ... k
   *  - a string containing the class type of a Solver object,
   *    '*' means none (nullptr)
   *
-  * number k of the ComputeConfig for the Solver for this Block
+  * number k of the ComputeConfig for the Solver for the Block
   *
   * for i = 1 ... k
   *  - a string containing the class type of a ComputeConfig object,
@@ -465,7 +466,7 @@ class BlockSolverConfig : public Configuration
  *
  * The RBlockSolverConfig contains the following field:
  *
- * - a vector of BlockSolverConfig for each of the sub-Block of this Block.
+ * - a vector of BlockSolverConfig for each of the sub-Block of the Block.
  *
  * The meaning of the field f_diff, inherited from BlockSolverConfig, is also
  * extended to the sub-Block: if f_diff is true, then all nullptr
@@ -705,7 +706,7 @@ class RBlockSolverConfig : public BlockSolverConfig
  /** Load this RBlockSolverConfig out of an istream. The format is defined as
   * that specified in BlockSolverConfig::load(), followed by:
   *
-  * number k of the BlockSolverConfig for the sub-Block of this Block
+  * number k of the BlockSolverConfig for the sub-Block of the Block
   *
   * for i = 1 ... k
   *  - a string containing the class type of a BlockSolverConfig object,
@@ -757,7 +758,7 @@ class RBlockSolverConfig : public BlockSolverConfig
  *   Block that needs a BlockSolverConfig alongside a vector of
  *   BlockSolverConfig for those Constraint.
  *
- * - a BlockSolverConfig for the Objective of this Block.
+ * - a BlockSolverConfig for the Objective of the Block.
  *
  * The meaning of the field f_diff, inherited from RBlockSolverConfig, is also
  * extended to these "indirect sub-Block": if f_diff is true, then all nullptr
@@ -1071,7 +1072,7 @@ class ERBlockSolverConfig : public RBlockSolverConfig
  /** Load this ERBlockSolverConfig out of an istream. The format is defined as
   * that specified in RBlockSolverConfig::load(), followed by:
   *
-  * number k of the BlockSolverConfig for the Constraint of this Block
+  * number k of the BlockSolverConfig for the Constraint of the Block
   *
   * for i = 1 ... k
   *  - two integers representing the ConstraintID for the Constraint
@@ -1080,10 +1081,10 @@ class ERBlockSolverConfig : public RBlockSolverConfig
   *  - if the above is not '*', the description of the :BlockSolverConfig
   *    object
   *
-  * a bool indicating whether the BlockSolverConfig for the Objective of this
-  * Block is provided
+  * a binary number b indicating whether a BlockSolverConfig associated with
+  * the Objective of the Block is provided
   *
-  * If the bool above is provided:
+  * If b != 0:
   *  - a string containing the class type of a BlockSolverConfig object,
   *    '*' means none (nullptr)
   *  - if the above is not '*', the description of the :BlockSolverConfig
