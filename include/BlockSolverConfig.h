@@ -114,15 +114,15 @@ class BlockSolverConfig : public Configuration
 /*--------------------------------------------------------------------------*/
  /// construcs a BlockSolverConfig out of the given netCDF \p group
  /** It construcs a BlockSolverConfig out of the given netCDF \p group. Please
-  * refer to the deserialize() method for the format of a netCDF::ncGroup of a
+  * refer to the deserialize() method for the format of a netCDF::NcGroup of a
   * BlockSolverConfig.
   *
-  * @param group The netCDF::ncGroup containing the description of the
+  * @param group The netCDF::NcGroup containing the description of the
   *        BlockSolverConfig.
   *
   * @param diff indicates if this configuration is a "differential" one.
   */
- BlockSolverConfig( netCDF::ncGroup & group , bool diff = true ) :
+ BlockSolverConfig( netCDF::NcGroup & group , bool diff = true ) :
   Configuration() , f_diff( diff ) {
   deserialize( group );
  }
@@ -362,6 +362,12 @@ class BlockSolverConfig : public Configuration
   v_SolverConfigs = std::move( solver_configs );
   }
 
+/*--------------------------------------------------------------------------*/
+
+ virtual void reset_Solver( Block * block ) {
+  // TODO
+  }
+
 /**@} ----------------------------------------------------------------------*/
 /*---------- Methods for reading the data of the BlockSolverConfig ---------*/
 /*--------------------------------------------------------------------------*/
@@ -495,14 +501,14 @@ class RBlockSolverConfig : public BlockSolverConfig
  /// construcs an RBlockSolverConfig out of the given netCDF \p group
  /** It construcs an RBlockSolverConfig out of the given netCDF \p
   * group. Please refer to the deserialize() method for the format of a
-  * netCDF::ncGroup of an RBlockSolverConfig.
+  * netCDF::NcGroup of an RBlockSolverConfig.
   *
-  * @param group The netCDF::ncGroup containing the description of the
+  * @param group The netCDF::NcGroup containing the description of the
   *        RBlockSolverConfig.
   *
   * @param diff indicates if this configuration is a "differential" one.
   */
- RBlockSolverConfig( netCDF::ncGroup & group , bool diff = true ) :
+ RBlockSolverConfig( netCDF::NcGroup & group , bool diff = true ) :
   BlockSolverConfig( diff ) {
   deserialize( group );
  }
@@ -789,14 +795,14 @@ class ERBlockSolverConfig : public RBlockSolverConfig
  /// construcs an ERBlockSolverConfig out of the given netCDF \p group
  /** It construcs an ERBlockSolverConfig out of the given netCDF \p
   * group. Please refer to the deserialize() method for the format of a
-  * netCDF::ncGroup of an ERBlockSolverConfig.
+  * netCDF::NcGroup of an ERBlockSolverConfig.
   *
-  * @param group The netCDF::ncGroup containing the description of the
+  * @param group The netCDF::NcGroup containing the description of the
   *        ERBlockSolverConfig.
   *
   * @param diff indicates if this configuration is a "differential" one.
   */
- ERBlockSolverConfig( netCDF::ncGroup & group , bool diff = true ) :
+ ERBlockSolverConfig( netCDF::NcGroup & group , bool diff = true ) :
   RBlockSolverConfig( diff ) {
   deserialize( group );
  }
@@ -980,12 +986,25 @@ class ERBlockSolverConfig : public RBlockSolverConfig
 
 /*--------------------------------------------------------------------------*/
 
+ /// adds a BlockSolverConfig of an "indirect sub-Block" of Constraint
+ /** This function adds a (pointer to the) BlockSolverConfig of an "indirect
+  *  sub-Block" associated with the Constraint of the Block whose
+  *  Block::ConstraintID is \p constraint_id.
+  */
+ void add_BlockSolverConfig_Constraint( BlockSolverConfig * bsc ,
+                                        Block::ConstraintID constraint_id ) {
+  v_BlockSolverConfig_Constraints.push_back( bsc );
+  v_ConstraintID.push_back( constraint_id );
+  }
+
+/*--------------------------------------------------------------------------*/
+
  /// sets the vector of ConstraintID indicating the "indirect sub-Block"
  /** This function sets the vector of ConstraintID, which indicates the set of
   * Constraint of the Block that have a BlockSolverConfig for their inner
   * Block.
   */
- void set_ConstraintID( std::vector<ConstraintID> && constraint_id ) {
+ void set_ConstraintID( std::vector<Block::ConstraintID> && constraint_id ) {
   v_ConstraintID = std::move( constraint_id );
   }
 
@@ -1022,7 +1041,7 @@ class ERBlockSolverConfig : public RBlockSolverConfig
   * of Constraint of the Block that have a BlockSolverConfig for their inner
   * Block.
   */
- const std::vector<ConstraintID> & get_ConstraintID( void ) const {
+ const std::vector<Block::ConstraintID> & get_ConstraintID( void ) const {
   return v_ConstraintID;
   }
 
