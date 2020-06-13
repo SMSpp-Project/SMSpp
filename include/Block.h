@@ -86,7 +86,7 @@
  *
  * \version 0.33
  *
- * \date 09 - 01 - 2020
+ * \date 13 - 06 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -140,8 +140,6 @@ namespace SMSpp_di_unipi_it
  class Solution;            // forward definition of Solution
 
  class BlockConfig;         // forward definition of BlockConfig
-
- class BlockSolverConfig;   // forward definition of BlockSolverConfig
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- Block-RELATED TYPES ----------------------------*/
@@ -553,9 +551,6 @@ namespace SMSpp_di_unipi_it
  * - changing all the relevant parameters governing the Block behaviour in
  *   one blow by means of a single BlockConfig object;
  *
- * - changing all the attached Solver and their algorithmic configurations in
- *   one blow by means of a single BlockSolverConfig object;
- *
  * - printing the model in a human-readable form;
  *
  * - to help in the above, allow Variable and Constraint to be given
@@ -708,6 +703,84 @@ class Block : public Observer {
  using MS_int_sbst = arg_packer< MF_int_it , Subset && , const bool >;
 
 /**@} ----------------------------------------------------------------------*/
+
+ /// ConstraintID identifies a Constraint within a Block
+ /** A single Constraint of a Block can be identified by three pieces of
+  * information: whether it is a static or a dynamic Constraint, the index of
+  * the group to which is belongs, and the index of the Constraint in its
+  * group. The first information can be encoded in the second one if we
+  * redefine the index of the i-th dynamic group to be
+  *
+  *   i + number_static_constraint_groups.
+  *
+  * Let the pair (i, j) be a ConstraintID. If
+  *
+  *   i < number_static_constraint_groups,
+  *
+  * then it refers to a static Constraint, located at position j of the i-th
+  * static group. If
+  *
+  *   i >= number_static_constraint_groups,
+  *
+  * then it refers to a dynamic Constraint, located at position j of the
+  * dynamic group whose index is
+  *
+  *   i - number_static_constraint_groups.
+  *
+  * We now explain how the index of a Constraint within a group can be
+  * determined, as it may not be obvious for multidimensional groups. It is
+  * important to notice that all indices mentioned here belong to zero-based
+  * numbered sequences, i.e., sequences whose first element is 0.
+  *
+  * A static group of Constraint can be one of three types:
+  *
+  * 1. It is a single Constraint;
+  *
+  * 2. It is a vector of Constraint;
+  *
+  * 3. It is a multidimensional array of Constraint.
+  *
+  * In the first case, in which the group is a single Constraint, the index of
+  * the Constraint is 0. In the second case, in which the group is a vector of
+  * Constraint, the index of the Constraint is simply its position in that
+  * vector. In the last case, in which the group is a multidimensional array
+  * of Constraint, the index of the Constraint is its position in the
+  * vectorized multidimensional array in row-major layout. For instance, if
+  * the multidimensional array has two dimensions with sizes m and n,
+  * respectively, then the Constraint at position (p, q) would have an index
+  * equal to "n * p + q" (recall the indices start from 0). In general, for a
+  * multidimensional array with k dimensions with sizes (n_0, ..., n_{k-1}),
+  * the Constraint at position (i_0, ..., i_{k-1}) would have an index equal
+  * to
+  *
+  * \[
+  *    \sum_{r = 0}^{k-1} ( \prod_{s = r + 1}^{k-1} n_s ) i_r.
+  * \]
+  *
+  * A dynamic group of Constraint can be one of three types:
+  *
+  * 1. It is list of Constraint;
+  *
+  * 2. It is a vector of lists of Constraint;
+  *
+  * 3. It is a multidimensional array of lists of Constraint.
+  *
+  * In the first case, in which the group is a list of Constraint, the index
+  * of the Constraint is its position in that list. In the second case, in
+  * which the group is a vector of lists of Constraint, for a Constraint at
+  * position j of the k-th list of the vector, its index is given by
+  *
+  * \[
+  *    j + \sum_{t = 0}^{k-1} s_t
+  * \]
+  *
+  * where s_t is the number of Constraint in the t-th list of the vector. The
+  * last case is analogous.
+  */
+
+ using ConstraintID = std::pair< Index , Index >;
+
+/*--------------------------------------------------------------------------*/
 /*------------------------------- FRIENDS ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -809,9 +882,8 @@ class Block : public Observer {
   * Note that the :Block returned my this method is clearly not "empty", as
   * opposed as :Block fresh out of the factory (see new_Block()), but is it
   * "un-configured": the "abstract representation" is not constructed (unless
-  * the :Block does this by its own volition), both the BlockConfig and the
-  * BlockSolverConfig are not set, and (therefore) there are no Solver
-  * attached. */
+  * the :Block does this by its own volition), the BlockConfig is not set, and
+  * (therefore) there are no Solver attached. */
 
  static Block * deserialize( const char * filename )
  {
@@ -1108,16 +1180,12 @@ class Block : public Observer {
 
 /*--------------------------------------------------------------------------*/
  /// destructor of Block: it is virtual
- /** Destructor of Block: it invokes set_BlockConfig() and set_SolverConfig()
-  * to clean up the configuration of the Block and all Solver attached to it
-  * (and recursively for its sub-Block), hence if there is any Solver that
-  * has to survive the Block it has to be manually unregistered from the
-  * Block before the latter is deleted. It also cleans up any currently
-  * open GroupModification. */
+ /** Destructor of Block: it invokes set_BlockConfig() to clean up the
+  * configuration of the Block. It also cleans up any currently open
+  * GroupModification. */
 
  virtual ~Block() {
   set_BlockConfig();
-  set_SolverConfig();
   for( auto ptr : v_current_GroupMod )
    delete ptr;
   }
@@ -2287,27 +2355,6 @@ class Block : public Observer {
  const BlockConfig * get_BlockConfig( void ) {
   return( f_BlockConfig );
   }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// getting the BlockSolverConfig of this Block
- /**< This method gets information about the current set of Solver attached to
-  * the Block (and its sub-Block, recursively) under the form of a single
-  * BlockSolverConfig object.
-  *
-  * If a non-null svcc is provided, then the pointed object (that is assumed
-  * to be "empty") is "filled" with the data of the current configuration,
-  * and returned. Otherwise, a new BlockSolverConfig object is created,
-  * filled and returned. This is done to allow :Block to return objects of a
-  * class derived from BlockSolverConfig containing information about specific
-  * parts of their Solver configuration that are not present in the base
-  * BlockSolverConfig class, filling only that part and then using method of
-  * the base Block class to fill-in the standard part. However, the "final
-  * user" should not bother and assume that the :Block will ultimately
-  * produce the right kind of object, thereby leaving the parameter to its
-  * nullptr default value. */
-
- virtual BlockSolverConfig *  get_SolverConfig(
-	                                BlockSolverConfig * svcc = nullptr );
 
 /*--------------------------------------------------------------------------*/
  /// getting the pointer to the current Objective
@@ -4695,107 +4742,6 @@ class Block : public Observer {
   replace_Solver( newSolver , v_Solver.erase( it , it ) );
   // cast away const-ness and call the protected version
   }
-
-/*--------------------------------------------------------------------------*/
- /// create and set all the Solver attached to this Block (and its sub-Block)
- /** Method for creating, configuring and registering all the Solver that
-  * the Block may need.
-  *
-  * The method uses a BlockSolverConfig, that holds:
-  *
-  * - a std::vector<std::string> containing the class names of the required
-  *   :Solver;
-  * - a std::vector<SolverConfig *> containing the corresponding algorithmic
-  *   parameters;
-  * - a std::vector<BlockSolverConfig *> containing the same information for
-  *  each of the sub-Block of this Block;
-  *
-  * Note that the vector of SolverConfig * is allowed to be shorter than that
-  * of names, in which case all the missing entries are treated as nullptr.
-  * It is also allowed to be longer, in which case all the extra entries are
-  * ignored.
-  *
-  * The BlockSolverConfig also has a field f_diff that indicates whether it
-  * has to be interpreted in "differential mode". The behaviour of this
-  * method is the following:
-  *
-  * - First, the list of Solver registered to this Block is scanned, and for
-  *   each of them the corresponding elements in the BlockSolverConfig are
-  *   examined. Then:
-  *   = If f_diff == true
-  *     * if the name of the Solver is empty then the Solver is left there,
-  *       otherwise the existing solver is un-registered and deleted and a
-  *       new solver is created and registered in that position
-  *     * if the corresponding SolverConfig * is null then nothing is done,
-  *       otherwise the SolverConfig * is passed to the Solver
-  *   = If f_diff == false
-  *     the existing solver is un-registered and deleted, then
-  *     * if the name of the Solver is empty then the vector of registered
-  *       Solver is shortened by one (any SolverConfig is ignored)
-  *     * otherwise a new solver is created and registered in that position,
-  *       and the corresponding SolverConfig is passed to it.
-  *   Note that this would seem to not allow completely resetting the
-  *   configuration of some existing Solver without changing it, but this is
-  *   not true: it is sufficient to pass it a SolverConfig object (hence, not
-  *   nullptr) which is "empty" (no parameter set) but with its f_diff field
-  *   == false [see SolverConfig].
-  *
-  * - After the end of the list of currently registered Solver is reached (if
-  *   ever), the behaviour is instead independent on the value of f_diff
-  *   (adding to nothing is setting). If the name of the Solver is empty then
-  *   the entry of the vector is ignored, otherwise a new solver is created
-  *   and registered in that position (at the end) and the corresponding
-  *   SolverConfig is passed to it (unless it is nullptr, because setting a
-  *   nullptr configuration to a newly minted solver is useless).
-  *
-  * After this is done for this Block, the method is called recursively on
-  * each sub-Block. Here, again, f_diff dictates how "void" information is
-  * treated:
-  *
-  * - if f_diff == true and some BlockSolverConfig * is nullptr, then the
-  *   corresponding sub-Block is ignored; if the vector of BlockSolverConfig
-  *   is shorter than the number of sub-Block, all the non-specified ones are
-  *   left unchanged;
-  *
-  * - if f_diff == false and some BlockSolverConfig * is nullptr, then
-  *   set_SolverConfig( nullptr ) is called for the corresponding sub-Block;
-  *   if the vector of BlockSolverConfig is shorter than the number of
-  *   sub-Block, set_SolverConfig( nullptr ) is called for all the
-  *   non-specified ones.
-  *
-  * Since a call to set_SolverConfig( nullptr ) would not make sense if the
-  * "empty" SolverConfig were intended in the differential sense (it would do
-  * nothing), when svcc == nullptr the field f_diff should be interpreted as
-  * false. Hence, calling set_SolverConfig() will unregister and delete all
-  * Solver attached to this Block and to each of its sub-Block.
-  *
-  * Important note: the moment when the Block is passed to the Solver, the
-  * Solver should in principle do all the necessary initializations, since
-  * immediately afterwords compute() may be called already. However, some
-  * of the initializations could be heavily impacted by the algorithmic
-  * parameters of the Solver. This means that
-  *
-  *     IT IS EXPECTED THAT, IN A Solver, set_ComputeConfig() SHOULD BE
-  *     CALLED *BEFORE* set_Block() IS
-  *
-  * This is in fact how this is done here inside.
-  *
-  * Note an important difference between this method and register_Solver(),
-  * unregister_Solver() and replace_Solver(): in the latter the new solver
-  * have to be already constructed outside of Block, and the ones that get
-  * un-registered are *not* deleted, which therefore has to be done by
-  * whomever created them in the first place outside the Block. In this
-  * method, instead, the Solver are directly constructed (using the Solver
-  * factory) inside the Block, and correspondingly each Solver that gets
-  * un-registered is also immediately deleted. Mixing the two styles of
-  * managing Solver is therefore tricky and caution should be exercised.
-  *
-  * Finally, note that the BlockSolverConfig pointed by svcc is not changed
-  * by the call, and it is *not* retained by the Block. This means that it
-  * can (and should) be deleted after the call (provided it is not useful
-  * later). */
-
- virtual void set_SolverConfig( BlockSolverConfig * svcc = nullptr );
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------- Methods for handling the methods factory -----------------*/
@@ -7307,194 +7253,6 @@ class BlockConfig : public Configuration
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( BlockConfig ) )
-
-/*--------------------------------------------------------------------------*/
-/*----------------------- CLASS BlockSolverConfig --------------------------*/
-/*--------------------------------------------------------------------------*/
-/// derived class from Configuration for configuring the Solver of the Block
-/** Derived class from Configuration to configure in one all the Solver of
- * a given Block, comprised those of the sub-Block (recursively), each with
- * all its algorithmic parameters.
- *
- * It contains three fields:
- * - a vector of strings containing the names of Solver to be attached to
- *   the Block;
- * - a vector of ComputeConfig* for these same Solver
- * - a vector of BlockSolverConfig for each of the sub-Block of this Block.
- *
- * It also contains a bool field f_diff which, if true, tells that the
- * BlockSolverConfig has to be "interpreted in a differential sense": this
- * means that all Solver whose name is not specified (empty string) must be
- * left in their current state, all nullptr ComputeConfig correspond to not
- * changing the configuration of the Solver, and all nullptr
- * BlockSolverConfig correspond to not changing any of the configurations of
- * any of the Solver attached to the corresponding sub-Block. */
-
-class BlockSolverConfig : public Configuration
-{
-
-/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
-
- public:
-
-/*---------------------------- CONSTRUCTOR ---------------------------------*/
- /// constructor: initializes everything to "nothing happens"
- BlockSolverConfig( void ) : Configuration() , f_diff( true ) { }
-
-/*--------------------------------------------------------------------------*/
- /// copy constructor: does what it says on the tin
- BlockSolverConfig( const BlockSolverConfig &old );
-
-/*--------------------------------------------------------------------------*/
- /// extends Configuration::deserialize( netCDF::NcFile ) to eProbFile
- /** Since a BlockSolverConfig knows it is a BlockSolverConfig, it "knows its
-  * place" in an eProbFile netCDF SMS++ file. */
-
- static BlockSolverConfig * deserialize( netCDF::NcFile & f ,
-					 const unsigned int idx = 0 );
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// extends Configuration::deserialize( netCDF::NcGroup )
- /** Extends Configuration::deserialize( netCDF::NcGroup ) to the specific
-  * format of a BlockSolverConfig. Besides the mandatory "type" attribute of
-  * any :Configuration, the group should contain the following:
-  *
-  * - the dimension "n_SolverConfig" containing the number of Solver that
-  *   are to be attached to this Block, and therefore the number of their
-  *   SolverConfig objects;
-  *
-  * - the variable "SolverNames", of type string and indexed over the
-  *   dimension "n_SolverConfig"; the i-th entry of the variable is assumed
-  *   to contain the classname of a :Solver object to be attached to the
-  *   Block (this must be exact, i.e., exactly as returned by the protected
-  *   virtual method Solver::classname(), since it is used in the factory when
-  *   creating the object;
-  *
-  * - with n being the size of n_SolverConfig, n groups, with name
-  *   "SolverConfig_<i>" for all i = 0, ..., n - 1, containing each the
-  *   description of a ComputeConfig object for the i-th :Solver;
-  *
-  * - the dimension "n_BlockSolverConfig" containing containing the number
-  *   of BlockSolverConfig descriptions for the sub-Block of the current
-  *   Block;
-  *
-  * - with m being the size of n_BlockSolverConfig, m groups, with name
-  *   "BlockSolverConfig_<i>}" for all i = 0, \ldots, m - 1, containing each
-  *   the description of a BlockSolverConfig for one of the sub-Block of the
-  *   current Block.
-  *
-  * Of all these, only the "n_SolverConfig" and "n_BlockSolverConfig"
-  * dimensions and the "SolverNames" variable are mandatory; the individual
-  * groups may not exist if the corresponding dimension is 0. Note that that
-  * the matching between the sub-BlockSolverConfig and the sub-Block is
-  * positional: the BlockSolverConfig found in the group
-  * "BlockSolverConfig_<i>" is that for the i-th sub-Block. Note that the
-  * vector of sub-BlockSolverConfig is allowed to be of different size than
-  * the number of sub-Block; if it is larger any extra BlockSolverConfig is
-  * simply ignored, if it shorted then all missing sub-BlockConfig are
-  * treated as nullptr (default configuration). */
-
- virtual void deserialize( netCDF::NcGroup & group ) override;
-
-/*------------------------------ DESTRUCTOR --------------------------------*/
- /// destructor
-
- virtual ~BlockSolverConfig()
- {
-  for( auto sBSC : v_BlockSolverConfigs )
-   delete sBSC;
-
-  for( auto sSC : v_SolverConfigs )
-   delete sSC;
-  }
-
-/*------------------------------- CLONE -----------------------------------*/
-
- virtual BlockSolverConfig * clone( void ) const override
- {
-  return( new BlockSolverConfig( *this ) );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// "extends" Configuration::serialize( netCDF::NcFile , type ) to eProbFile
- /** Since a BlockSolverConfig knows it is a BlockSolverConfig, it "knows its
-  * place" in an eProbFile netCDF SMS++ file. */
-
- virtual void serialize( netCDF::NcFile & f , const int type )
-  const override;
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// extends Configuration::serialize( netCDF::NcGroup )
- /** Extends Configuration::serialize( netCDF::NcGroup ) to the specific
-  * format of a BlockSolverConfig. See
-  * BlockSolverConfig::deserialize( netCDF::NcGroup ) for details of the
-  * format of the created netCDF group. */
-
- virtual void serialize( netCDF::NcGroup & group ) const override;
-
-/*--------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
-
- bool f_diff;  ///< tells is the configuration is a "differential" one
-
- /// the names of all Solver of the father Block
- std::vector<std::string> v_SolverNames;
-
- /// (pointer to) the ComputeConfig of all Solver of the father Block
- std::vector<ComputeConfig *> v_SolverConfigs;
-
- /// the vector of (pointer to) the sub-SolverConfig for each sub-Block
- std::vector<BlockSolverConfig *> v_BlockSolverConfigs;
-
-/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
-
- protected:
-
-/*-------------------------- PROTECTED METHODS -----------------------------*/
-
- /// print the BlockSolverConfig
- virtual void print( std::ostream &output ) const override;
-
-/*--------------------------------------------------------------------------*/
- /// load this BlockSolverConfig out of an istream
- /** Load this BlockSolverConfig out of an istream, with the format:
-  *
-  * a bool
-  *
-  * number k of the names of Solver for this Block
-  *
-  * for i = 1 ... k
-  *  - a string containing the class type of a Solver object,
-  *    '*' means none (nullptr)
-  *
-  * number k of the ComputeConfig for the Solver for this Block
-  *
-  * for i = 1 ... k
-  *  - a string containing the class type of a ComputeConfig object,
-  *    '*' means none (nullptr)
-  *  - if the above is not '*', the description of the :ComputeConfig object
-  *
-  * number k of the BlockSolverConfig for the sub-Block of this Block
-  *
-  * for i = 1 ... k
-  *  - a string containing the class type of a BlockSolverConfig object,
-  *    '*' means none (nullptr)
-  *  - if the above is not '*', the description of the :BlockSolverConfig
-  *    object
-  */
-
- virtual void load( std::istream &input ) override;
-
-/*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
-
- private:
-
-/*---------------------------- PRIVATE FIELDS ------------------------------*/
-
- SMSpp_insert_in_factory_h;
-
-/*--------------------------------------------------------------------------*/
-
- };  // end( class( BlockSolverConfig ) )
 
 /** @}  end( group( Block_CLASSES ) ) */
 /*--------------------------------------------------------------------------*/
