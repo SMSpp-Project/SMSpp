@@ -2,17 +2,27 @@
 /*---------------------- File BlockSolverConfig.h --------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Header file for the BlockSolverConfig class, derived from Configuration, to
- * configure in one all the Solver of a given Block. It also includes the
- * class RBlockSolverConfig ("recursive" BlockSolverConfig) to configure all
- * sub-Block (recursively) of a given Block and the ERBlockSolverConfig
- * ("extended" RBlockSolverConfig) to configure all "indirect sub-Block"
- * (Block that may be part of the Objective or Constraint) of a given Block,
- * each with all its algorithmic parameters.
+ * Header file for the *BlockSolverConfig classes, derived from Configuration,
+ * which arw intended as a useful tools to configure in one blow all the
+ * Solver of a given Block. Three classes are defined:
+ *
+ * - BlockSolverConfig : Configuration, used to only configure the Solver
+ *   directly registered to the Block;
+ *
+ * - RBlockSolverConfig : BlockSolverConfig ("recursive" BlockSolverConfig),
+ *   which also configure (potentially) all sub-Block (recursively) of the
+ *   given Block;
+ *
+ * - ERBlockSolverConfig : RBlockSolverConfig ("extended" RBlockSolverConfig),
+ *   which also configure all "indirect sub-Block" (Block that may be part of
+ *   the Objective or Constraint) of a given Block. In the current
+ *   implementatin, these are the inner Block of of either a LagBFunction or
+ *   a BendersBFunction occurring as the Function in either a FRealObjective
+ *   or a FRowConstraint.
  *
  * \version 0.33
  *
- * \date 12 - 06 - 2020
+ * \date 14 - 06 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -43,8 +53,6 @@
 #include "SMSTypedefs.h"
 #include "Solver.h"
 
-#include "netcdf"
-
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -64,25 +72,61 @@ namespace SMSpp_di_unipi_it
 /*------------------------------- CLASSES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @defgroup BlockSolverConfig_CLASSES Classes in BlockSolverConfig.h
- *  @{ */
+ *
+ * Three *BlockSolverConfig classes are defined that allow to handle more and
+ * more complex cases, at the cost of more memory, a more complex input, and
+ * potentially a higher computational cost for some operations:
+ *
+ * - BlockSolverConfig : Configuration, used to only configure the Solver
+ *   directly registered to the Block;
+ *
+ * - RBlockSolverConfig : BlockSolverConfig ("recursive" BlockSolverConfig),
+ *   which also configure (potentially) all sub-Block (recursively) of the
+ *   given Block;
+ *
+ * - ERBlockSolverConfig : RBlockSolverConfig ("extended" RBlockSolverConfig),
+ *   which also configure all "indirect sub-Block" (Block that may be part of
+ *   the Objective or Constraint) of a given Block. In the current
+ *   implementatin, these are the inner Block of of either a LagBFunction or
+ *   a BendersBFunction occurring as the Function in either a FRealObjective
+ *   or a FRowConstraint.
+ *
+ * Basically, ERBlockSolverConfig is the "complete" class that covers all the
+ * bases, whereas the other two classes are cheaper and simpler versions for
+ * when the full-fledged generality of ERBlockSolverConfig is not needed.
+ * @{ */
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- CLASS BlockSolverConfig --------------------------*/
 /*--------------------------------------------------------------------------*/
 /// derived class from Configuration for configuring the Solver of the Block
-/** Derived class from Configuration to configure in one all the Solver of a
- * given Block, each with all its algorithmic parameters.
+/** Derived class from Configuration to configure in one blow all the Solver
+ * *directly registered with* a given Block, each with all its algorithmic
+ * parameters.
  *
  * The BlockSolverConfig contains the following fields:
+ *
  * - a vector of strings containing the names of Solver to be attached to
  *   the Block;
- * - a vector of ComputeConfig* for these same Solver
  *
- * It also contains a bool field f_diff which, if true, tells that the
- * BlockSolverConfig has to be "interpreted in a differential sense": this
- * means that all Solver whose name is not specified (empty string) must be
- * left in their current state, all nullptr ComputeConfig correspond to not
- * changing the configuration of the Solver. */
+ * - a vector of ComputeConfig* for these same Solver.
+ *
+ * Crucially, a BlockSolverConfig can be used in two different ways:
+ * "setting mode" and "differential mode". How the current object has to be
+ * interpreted is specified by the field #f_diff. A full description of the
+ * difference between the two modes is provided in the comments to the
+ * apply() method; however, the general gist is that in "setting mode"
+ * (#f_diff == false) the Solver previously registered with the Block are
+ * un-registered and destroyed, and/or their current algorithmic parameters
+ * are completely reset with those in the provided ComputeConfig. Instead,
+ * in "differential mode" (#f_diff == true), all Solver whose name is not
+ * specified (empty string) are left in their current state, and all nullptr
+ * ComputeConfig correspond to not changing the configuration of the Solver.
+ * Note that ComputeConfig objects themselves have a #f_diff field with the
+ * same meaning, which means that a BlockSolverConfig in "differential mode"
+ * coupled with ComputeConfig objects themselves in "differential mode" can
+ * change any specific subset of the algorithmic parameters of the Solver
+ * registered with the Block without affecting any of the other ones. */
 
 class BlockSolverConfig : public Configuration
 {
@@ -109,6 +153,7 @@ class BlockSolverConfig : public Configuration
   *
   * @param diff indicates if this configuration is a "differential" one.
   */
+
  BlockSolverConfig( bool diff = true ) : Configuration() , f_diff( diff ) { }
 
 /*--------------------------------------------------------------------------*/
@@ -122,10 +167,9 @@ class BlockSolverConfig : public Configuration
   *
   * @param diff indicates if this configuration is a "differential" one.
   */
+
  BlockSolverConfig( netCDF::NcGroup & group , bool diff = true ) :
-  Configuration() , f_diff( diff ) {
-  deserialize( group );
- }
+  Configuration() , f_diff( diff ) {  deserialize( group ); }
 
 /*--------------------------------------------------------------------------*/
  /// construcs a BlockSolverConfig out of an istream
