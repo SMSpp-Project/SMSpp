@@ -459,15 +459,20 @@ void BlockSolverConfig::deserialize( netCDF::NcGroup & group )
 
 void BlockSolverConfig::get( Block * block , bool clear ) {
 
- if( ! block )
-  return;
-
- c_Lst_Solver & ls = block->get_registered_solvers();
-
  if( clear ) {
   this->clear();
   return;
   }
+
+ for( auto sSC : v_SolverConfigs )
+  delete sSC;
+
+ if( ! block ) {
+  v_SolverConfigs.clear();
+  return;
+  }
+
+ c_Lst_Solver & ls = block->get_registered_solvers();
 
  v_SolverNames.resize( ls.size() );
  v_SolverConfigs.resize( ls.size() );
@@ -705,8 +710,13 @@ void RBlockSolverConfig::deserialize( netCDF::NcGroup & group )
 
 void RBlockSolverConfig::get( Block * block , bool clear ) {
 
- if( ! block )
+ for( auto sBSC : v_BlockSolverConfigs )
+  delete sBSC;
+
+ if( ! block ) {
+  v_BlockSolverConfigs.clear();
   return;
+  }
 
  BlockSolverConfig::get( block , clear );
 
@@ -902,8 +912,14 @@ void ERBlockSolverConfig::deserialize( netCDF::NcGroup & group )
 
 void ERBlockSolverConfig::get( Block * block , bool clear ) {
 
- if( ! block )
+ for( auto sBSCC : v_BlockSolverConfig_Constraints )
+  delete sBSCC;
+ delete f_BlockSolverConfig_Objective;
+
+ if( ! block ) {
+  v_BlockSolverConfig_Constraints.clear();
   return;
+  }
 
  RBlockSolverConfig::get( block , clear );
 
@@ -912,8 +928,6 @@ void ERBlockSolverConfig::get( Block * block , bool clear ) {
  extract_BlockSolverConfig_Constraint( block , this , clear );
 
  // BlockSolverConfig for Objective
-
- delete f_BlockSolverConfig_Objective;
 
  f_BlockSolverConfig_Objective =
   extract_BlockSolverConfig( block->get_objective() , clear );
