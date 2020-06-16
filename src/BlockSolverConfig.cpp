@@ -2,11 +2,12 @@
 /*---------------------- File BlockSolverConfig.cpp ------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Implementation of the BlockSolverConfig class.
+ * Implementation of the BlockSolverConfig, RBlockSolverConfig, and
+ * ERBlockSolverConfig classes.
  *
  * \version 0.10
  *
- * \date 12 - 06 - 2020
+ * \date 16 - 06 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -225,23 +226,28 @@ Block * get_indirect_sub_Block( const Block * const block ,
  *
  * @return A pointer to the BlockSolverConfig associated with the given
  *         element (if there is one); or nullptr otherwise.
+ *
+ * @param clear It indicates whether a "clear" BlockSolverConfig must be
+ *        constructed.
  */
-template< class S , class T >
-static std::enable_if_t< std::is_base_of_v< T , FRowConstraint > ||
-                         std::is_base_of_v< T , FRealObjective > ,
-                         S *  >
-extract_BlockSolverConfig( const T * const element ) {
- auto function = element->get_function();
- if( auto f = dynamic_cast<BendersBFunction *>( function ) )
-  //return BlockSolverConfig::get( f->get_inner_block() );
-  //return S::get( f->get_inner_block() );
-  return nullptr; // TODO
- else if( auto f = dynamic_cast<LagBFunction *>( function ) )
-  //return BlockSolverConfig::get( f->get_inner_block() );
-  //return S::get( f->get_inner_block() );
-  return nullptr; // TODO
- else
-  return nullptr;
+template< class S = ERBlockSolverConfig , class T >
+static std::enable_if_t< std::is_base_of_v< BlockSolverConfig , S > &&
+                         ( std::is_base_of_v< FRowConstraint , T > ||
+                           std::is_base_of_v< FRealObjective , T > ) ,
+                         S * >
+extract_BlockSolverConfig( const T * const element , bool clear ) {
+ if( element )
+  if( auto block = get_indirect_sub_Block( element->get_function() ) )
+   return new S( block , false , clear );
+ return nullptr;
+}
+
+/*--------------------------------------------------------------------------*/
+
+template< class S = ERBlockSolverConfig >
+S * extract_BlockSolverConfig( Objective * objective , bool clear ) {
+ return extract_BlockSolverConfig< S >
+  ( dynamic_cast<FRealObjective *>( objective ) , clear );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -277,18 +283,24 @@ Block::Index get_index( const T * element , const boost::any & group ,
  *
  * @param bsc A pointer to the BlockSolverConfig in which the
  *        BlockSolverConfig associated with Constraints will be written.
+ *
+ * @param clear It indicates whether a "clear" BlockSolverConfig must be
+ *        constructed for the inner Block of the Constraint.
  */
-void get_BlockSolverConfig_Constraint( const Block * const block ,
-                                       ERBlockSolverConfig * bsc ) {
+void extract_BlockSolverConfig_Constraint
+( const Block * const block , ERBlockSolverConfig * bsc , bool clear ) {
 
  auto base_lambda = [ bsc ]( const auto & group , const auto group_index ,
                              const auto block , const auto num_static_groups ,
-                             const auto is_static ) {
+                             const auto is_static , const auto clear ) {
   return
-   [ bsc , & group , group_index , block , num_static_groups , is_static ]
-   ( FRowConstraint & constraint ) {
-    auto sub_bsc = new ERBlockSolverConfig;// auto sub_bsc = extract_BlockSolverConfig( & constraint ); // TODO
-    if( ! sub_bsc ) return;
+   [ bsc , & group , group_index , block , num_static_groups ,
+     is_static , clear ] ( FRowConstraint & constraint ) {
+
+    auto sub_bsc = extract_BlockSolverConfig( & constraint , clear );
+
+    if( ! sub_bsc )
+     return;
 
     auto constraint_index = get_index( & constraint , group , is_static );
 
@@ -299,6 +311,7 @@ void get_BlockSolverConfig_Constraint( const Block * const block ,
       ( is_static ? "static" : "dynamic" ) << " group " +
       std::to_string( group_index ) + " of Block " <<
       static_cast<const void*>( block ) << " was not found";
+     delete bsc;
      throw( std::logic_error( message.str() ) );
     }
 
@@ -319,7 +332,7 @@ void get_BlockSolverConfig_Constraint( const Block * const block ,
 
  for( const auto & group : static_constraints ) {
   auto lambda = base_lambda( group , group_index , block ,
-                             num_static_groups , true );
+                             num_static_groups , true , clear );
   un_any_const_static( group , lambda , un_any_type<FRowConstraint>() );
   ++group_index;
  }
@@ -330,7 +343,7 @@ void get_BlockSolverConfig_Constraint( const Block * const block ,
  group_index = 0;
  for( const auto & group : dynamic_constraints ) {
   auto lambda = base_lambda( group , group_index , block ,
-                             num_static_groups , false );
+                             num_static_groups , false , clear );
   un_any_const_static( group , lambda , un_any_type<FRowConstraint>() );
   ++group_index;
  }
@@ -413,6 +426,15 @@ void BlockSolverConfig::deserialize( netCDF::NcGroup & group )
 
  Configuration::deserialize( group );
 
+ netCDF::NcGroupAtt diff = group.getAtt( "diff" );
+ if( diff.isNull() )
+  f_diff = false;
+ else {
+  int diffint;
+  diff.getValues( &diffint );
+  f_diff = diffint > 0;
+ }
+
  size_t slvsize = ( group.getDim( "n_SolverConfig" ) ).getSize();
 
  v_SolverNames.resize( slvsize );
@@ -435,12 +457,17 @@ void BlockSolverConfig::deserialize( netCDF::NcGroup & group )
 /*----------------- OTHER INITIALIZATIONS BlockSolverConfig ----------------*/
 /*--------------------------------------------------------------------------*/
 
-void BlockSolverConfig::get( Block * block ) {
+void BlockSolverConfig::get( Block * block , bool clear ) {
 
  if( ! block )
   return;
 
  c_Lst_Solver & ls = block->get_registered_solvers();
+
+ if( clear ) {
+  this->clear();
+  return;
+  }
 
  v_SolverNames.resize( ls.size() );
  v_SolverConfigs.resize( ls.size() );
@@ -461,7 +488,7 @@ void BlockSolverConfig::apply( Block * block ) const
  if( ! block )
   return;
 
- // set the configurations for the Solver of this Block ----------------------
+ // set the configurations for the Solver of the Block -----------------------
  //---------------------------------------------------------------------------
  auto & solvers = block->get_registered_solvers();
  auto sit = solvers.begin();
@@ -538,6 +565,18 @@ void BlockSolverConfig::apply( Block * block ) const
  }  // end( BlockSolverConfig::apply )
 
 /*--------------------------------------------------------------------------*/
+
+void BlockSolverConfig::reset_Solver( Block * block ) const {
+ // unregister Solver in reverse order
+ auto & solvers = block->get_registered_solvers();
+ for( auto it = solvers.rbegin() ; it != solvers.rend() ; ++it ) {
+  Solver *oldS = *it;
+  block->unregister_Solver( --(it.base()) );  // convert backward into forward
+  delete oldS;
+  }
+ }  // end( BlockSolverConfig::reset_Solver )
+
+/*--------------------------------------------------------------------------*/
 /*------ METHODS FOR LOADING, PRINTING & SAVING THE BlockSolverConfig ------*/
 /*--------------------------------------------------------------------------*/
 
@@ -560,6 +599,8 @@ void BlockSolverConfig::serialize( netCDF::NcFile & f , const int type )
 void BlockSolverConfig::serialize( netCDF::NcGroup & group ) const
 {
  Configuration::serialize( group );
+
+ group.putAtt( "diff" , netCDF::NcInt() , int( f_diff ) );
 
  netCDF::NcDim sd = group.addDim( "n_SolverConfig" , v_SolverConfigs.size() );
 
@@ -662,22 +703,20 @@ void RBlockSolverConfig::deserialize( netCDF::NcGroup & group )
 /*----------------- OTHER INITIALIZATIONS RBlockSolverConfig ---------------*/
 /*--------------------------------------------------------------------------*/
 
-void RBlockSolverConfig::get( Block * block ) {
+void RBlockSolverConfig::get( Block * block , bool clear ) {
 
  if( ! block )
   return;
 
- BlockSolverConfig::get( block );
+ BlockSolverConfig::get( block , clear );
 
- c_Vec_Block & nb = block->get_nested_Blocks();
- v_BlockSolverConfigs.resize( nb.size() );
+ auto & nested_blocks = block->get_nested_Blocks();
+ v_BlockSolverConfigs.resize( nested_blocks.size() );
 
- auto nbit = nb.begin();
- for( c_Vec_Block::size_type i = 0 ; i < nb.size() ; ) {
-  // v_BlockSolverConfigs[ i++ ] = BlockSolverConfig::get(*(nbit++));
-  // TODO
-  }
-
+ auto nbit = nested_blocks.begin();
+ for( c_Vec_Block::size_type i = 0 ; i < nested_blocks.size() ; ++i )
+  v_BlockSolverConfigs[ i ] = new ERBlockSolverConfig( *(nbit++) ,
+                                                       false , clear );
  }  // end( RBlockSolverConfig::get )
 
 /*--------------------------------------------------------------------------*/
@@ -689,7 +728,7 @@ void RBlockSolverConfig::apply( Block * block ) const
  if( ! block )
   return;
 
- // set the configurations for the Solver of this Block ----------------------
+ // set the configurations for the Solver of the Block -----------------------
  //---------------------------------------------------------------------------
 
  BlockSolverConfig::apply( block );
@@ -700,31 +739,33 @@ void RBlockSolverConfig::apply( Block * block ) const
  auto bit = nb.begin();
  auto bsit = v_BlockSolverConfigs.begin();
 
- if( f_diff ) {  // differential mode ----------------------------------
-  // only set non-nullptr configurations, hence only up until the list of
-  // BlockSolverConfigs ends
-  for( ; ( bit != nb.end() ) &&
-         ( bsit != v_BlockSolverConfigs.end() ) ;
-         ++bit , ++bsit )
-   if( *bsit )
-    ( *bsit )->apply( *bit );
-  }
- else {                // setting mode ---------------------------------------
-  // process the list of BlockSolverConfigs, don't mind of nullptr
-  for( ; ( bit != nb.end() ) &&
-         ( bsit != v_BlockSolverConfigs.end() ) ;
-         ++bit , ++bsit )
-   if( *bsit )
-    ( *bsit )->apply( *bit );
-   else
-    ; // (*bit)->reset_Solver(); // TODO
-
-  // after the list ends, the remaining configurations are nullptr
-  for( ; bit != nb.end() ; ++bit )
-   ; // (*bit)->reset_Solver(); // TODO
-  }                    // end setting mode -----------------------------------
-
+ // only set non-nullptr configurations, hence only up until the list of
+ // BlockSolverConfigs ends
+ for( ; ( bit != nb.end() ) &&
+        ( bsit != v_BlockSolverConfigs.end() ) ;
+        ++bit , ++bsit )
+  if( *bsit )
+   ( *bsit )->apply( *bit );
  }  // end( RBlockSolverConfig::apply )
+
+/*--------------------------------------------------------------------------*/
+
+void RBlockSolverConfig::reset_Solver( Block * block ) const {
+ BlockSolverConfig::reset_Solver( block );
+
+ // reset all Solver in all sub-Block
+ const auto & blocks = block->get_nested_Blocks();
+ auto block_it = blocks.cbegin();
+ auto config_it = v_BlockSolverConfigs.cbegin();
+ assert( v_BlockSolverConfigs.size() <= blocks.size() );
+
+ for( ; ( block_it != blocks.cend() ) &&
+       ( config_it != v_BlockSolverConfigs.cend() ) ;
+      ++block_it , ++config_it ) {
+  if( *config_it )
+   ( *config_it )->reset_Solver( *block_it );
+  }
+ }  // end( RBlockSolverConfig::reset_Solver )
 
 /*--------------------------------------------------------------------------*/
 /*------ METHODS FOR LOADING, PRINTING & SAVING THE RBlockSolverConfig -----*/
@@ -762,7 +803,7 @@ void RBlockSolverConfig::print( std::ostream &output ) const
 void RBlockSolverConfig::load( std::istream &input )
 {
 
- RBlockSolverConfig::load( input );
+ BlockSolverConfig::load( input );
 
  // BlockSolverConfig for sub-Block
 
@@ -859,33 +900,32 @@ void ERBlockSolverConfig::deserialize( netCDF::NcGroup & group )
 /*---------------- OTHER INITIALIZATIONS ERBlockSolverConfig ---------------*/
 /*--------------------------------------------------------------------------*/
 
-void ERBlockSolverConfig::get( Block * block ) {
+void ERBlockSolverConfig::get( Block * block , bool clear ) {
 
  if( ! block )
   return;
 
- RBlockSolverConfig::get( block );
+ RBlockSolverConfig::get( block , clear );
 
  // BlockSolverConfig Constraint
 
- get_BlockSolverConfig_Constraint( block , this );
+ extract_BlockSolverConfig_Constraint( block , this , clear );
 
  // BlockSolverConfig for Objective
 
- auto objective = dynamic_cast<FRealObjective *>( block->get_objective() );
- f_BlockSolverConfig_Objective = nullptr;
- if( objective ) {
-  //  f_BlockSolverConfig_Objective = extract_BlockSolverConfig( objective );
-  // TODO
-  }
+ delete f_BlockSolverConfig_Objective;
+
+ f_BlockSolverConfig_Objective =
+  extract_BlockSolverConfig( block->get_objective() , clear );
+
  }  // end( ERBlockSolverConfig::get )
 
 /*--------------------------------------------------------------------------*/
 /*------- METHODS DESCRIBING THE BEHAVIOR OF THE ERBlockSolverConfig -------*/
 /*--------------------------------------------------------------------------*/
 
-void ERBlockSolverConfig::apply( Block * block ) const
-{
+void ERBlockSolverConfig::apply( Block * block ) const {
+
  if( ! block )
   return;
 
@@ -894,51 +934,54 @@ void ERBlockSolverConfig::apply( Block * block ) const
  // set the configurations for the Block associated with Constraint ----------
  //---------------------------------------------------------------------------
 
- if( f_diff ) {  // differential mode ----------------------------------
-  // only set non-nullptr configurations, hence only up until the list of
-  // BlockSolverConfig_Constraints ends
-  for( std::size_t i = 0 ; i < v_BlockSolverConfig_Constraints.size() ; ++i ) {
-   if( v_BlockSolverConfig_Constraints[ i ] )
-    v_BlockSolverConfig_Constraints[ i ]->apply
-     ( get_indirect_sub_Block( block , v_ConstraintID[ i ] ) );
-   }
+ for( std::size_t i = 0 ; i < v_BlockSolverConfig_Constraints.size() ; ++i ) {
+  if( v_BlockSolverConfig_Constraints[ i ] )
+   v_BlockSolverConfig_Constraints[ i ]->apply
+    ( get_indirect_sub_Block( block , v_ConstraintID[ i ] ) );
   }
- else {                // setting mode ---------------------------------------
-  // process the list of BlockSolverConfigs_Constraints, don't mind of nullptr
-  for( std::size_t i = 0 ; i < v_BlockSolverConfig_Constraints.size() ; ++i ) {
-   auto sub_block = get_indirect_sub_Block( block , v_ConstraintID[ i ] );
-   if( v_BlockSolverConfig_Constraints[ i ] )
-    v_BlockSolverConfig_Constraints[ i ]->apply( sub_block );
-   else
-    ; //sub_block->reset_Solver(); // TODO
-   }
-  }                    // end setting mode -----------------------------------
 
  // set the configurations for the Block associated with Objective -----------
  //---------------------------------------------------------------------------
 
- if( f_diff ) {  // differential mode ----------------------------------
-  // only set non-nullptr configuration
-  if( f_BlockSolverConfig_Objective )
-   f_BlockSolverConfig_Objective->apply( get_indirect_sub_Block( block ) );
-  }
- else {                // setting mode ---------------------------------------
-  // process the list of BlockSolverConfigs_Constraints, don't mind of nullptr
-  auto sub_block = get_indirect_sub_Block( block );
-  if( f_BlockSolverConfig_Objective )
-   f_BlockSolverConfig_Objective->apply( sub_block );
-  else
-   ; // sub_block->reset_Solver(); // TODO
-  }                    // end setting mode -----------------------------------
+ if( f_BlockSolverConfig_Objective )
+  f_BlockSolverConfig_Objective->apply( get_indirect_sub_Block( block ) );
 
- }  // end( RBlockSolverConfig::apply )
+ }  // end( ERBlockSolverConfig::apply )
+
+/*--------------------------------------------------------------------------*/
+
+void ERBlockSolverConfig::reset_Solver( Block * block ) const {
+
+ RBlockSolverConfig::reset_Solver( block );
+
+ auto id_it = v_ConstraintID.cbegin();
+ auto config_it = v_BlockSolverConfig_Constraints.cbegin();
+
+ for( ; ( id_it != v_ConstraintID.cend() ) &&
+       ( config_it != v_BlockSolverConfig_Constraints.cend() ) ;
+      ++id_it , ++config_it ) {
+
+  if( ! ( *config_it ) )
+   continue;
+
+  auto constraint = get_Constraint< FRowConstraint >( block , *id_it );
+
+  if( ! constraint )
+   throw( std::logic_error( "ERBlockSolverConfig::reset_Solver: invalid "
+                            "ConstraintID: ( " + std::to_string
+                            ( id_it->first ) + ", " + std::to_string
+                            ( id_it->second ) + ")." ) );
+
+  auto sub_Block = get_indirect_sub_Block( constraint );
+  ( *config_it )->reset_Solver( sub_Block );
+  }
+ }  // end( ERBlockSolverConfig::reset_Solver )
 
 /*--------------------------------------------------------------------------*/
 /*----- METHODS FOR LOADING, PRINTING & SAVING THE ERBlockSolverConfig -----*/
 /*--------------------------------------------------------------------------*/
 
-void ERBlockSolverConfig::serialize( netCDF::NcGroup & group ) const
-{
+void ERBlockSolverConfig::serialize( netCDF::NcGroup & group ) const {
 
  RBlockSolverConfig::serialize( group );
 
