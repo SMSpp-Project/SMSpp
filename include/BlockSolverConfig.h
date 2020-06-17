@@ -189,37 +189,32 @@ class BlockSolverConfig : public Configuration
   * "differential" one. This parameter has true as default value, so that this
   * can be used as the void constructor.
   *
-  * @param diff indicates if this configuration is a "differential" one.
-  */
+  * @param diff indicates if this configuration is a "differential" one. */
 
- BlockSolverConfig( bool diff = true ) : Configuration() , f_diff( diff ) { }
+ BlockSolverConfig( bool diff = true ) : Configuration() , f_diff( diff ) {}
 
 /*--------------------------------------------------------------------------*/
  /// constructs a BlockSolverConfig out of the given netCDF \p group
- /** It constructs a BlockSolverConfig out of the given netCDF \p group. Please
-  * refer to the deserialize() method for the format of a netCDF::NcGroup of a
-  * BlockSolverConfig.
+ /** It constructs a BlockSolverConfig out of the given netCDF \p group.
+  * Please refer to the deserialize() method for the format of the
+  * netCDF::NcGroup of a BlockSolverConfig.
   *
   * @param group The netCDF::NcGroup containing the description of the
-  *        BlockSolverConfig.
-  */
+  *        BlockSolverConfig. */
 
  BlockSolverConfig( netCDF::NcGroup & group ) : Configuration() {
   deserialize( group );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// constructs a BlockSolverConfig out of an istream
- /** It constructs a BlockSolverConfig out of the given istream \p
-  * input. Please refer to the load() method for the format of a
-  * BlockSolverConfig.
+ /** It constructs a BlockSolverConfig out of the given istream \p input.
+  * Please refer to the load() method for the format of a BlockSolverConfig.
   *
   * @param input The istream containing the description of the
-  *        BlockSolverConfig.
-  */
- BlockSolverConfig( std::istream &input ) : Configuration() {
-  load( input );
- }
+  *        BlockSolverConfig. */
+
+ BlockSolverConfig( std::istream &input ) : Configuration() { load( input ); }
 
 /*--------------------------------------------------------------------------*/
  /// constructs a BlockSolverConfig for the given Block
@@ -232,15 +227,14 @@ class BlockSolverConfig : public Configuration
   * @param diff It indicates if this configuration is a "differential" one.
   *
   * @param clear It indicates whether a "cleared" BlockSolverConfig is
-  *        desired. See BlockSolverConfig:get() for details.
-  */
+  *        desired. See BlockSolverConfig:get() for details. */
+
  BlockSolverConfig( Block * block , bool diff = false , bool clear = false ) :
-  Configuration() , f_diff( diff ) {
-  get( block , clear );
- }
+  Configuration() , f_diff( diff ) {  get( block , clear ); }
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: does what it says on the tin
+
  BlockSolverConfig( const BlockSolverConfig &old );
 
 /*--------------------------------------------------------------------------*/
@@ -279,13 +273,11 @@ class BlockSolverConfig : public Configuration
   *   "SolverConfig_<i>" for all i = 0, ..., n - 1, containing each the
   *   description of a ComputeConfig object for the i-th :Solver; these groups
   *   are optional; if "SolverConfig_<i>" is not provided, then nullptr is
-  *   considered for the i-th ComputeConfig.
-  */
+  *   considered for the i-th ComputeConfig. */
 
- virtual void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
-
  /// destructor
 
  virtual ~BlockSolverConfig()
@@ -298,7 +290,6 @@ class BlockSolverConfig : public Configuration
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
- *
  *  @{ */
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -307,19 +298,22 @@ class BlockSolverConfig : public Configuration
   * the given Block and stores in this BlockSolverConfig. This information
   * consists of the names of the Solver attached to the given Block and the
   * ComputeConfig of these Solver. The \p clear parameter indicates whether
-  * this BlockSolverConfig must be a clear one, i.e., one whose vectors of
-  * Solver names and ComputeConfig are empty. The default value of this
-  * parameter is false, in which case a full BlockSolverConfig is
-  * constructed. Passing \p clear = true is usually done when the sole purpose
-  * of using this BlockSolverConfig is to reset the Solver of a Block (usually
-  * the given Block \p block).
+  * this BlockSolverConfig must be a "cleared" one, i.e., one whose vectors
+  * of Solver names and ComputeConfig are empty. A "cleared"
+  * BlockSolverConfig is useful to delete all the Solver registered to the
+  * Block (and although a "cleared" BlockSolverConfig is quite simple, this
+  * is no longer true for "cleared" objects of the derived classes
+  * EBlockSolverConfig and ERBlockSolverConfig). Passing \p clear = true is
+  * usually done when the sole purpose of using this BlockSolverConfig is to
+  * reset the Solver of a Block (usually the given Block \p block). The
+  * default value of this parameter is false, in which case a "full"
+  * BlockSolverConfig is constructed. 
   *
   * @param block A pointer to the Block whose BlockSolverConfig must be
   *        filled.
   *
   * @param clear It indicates whether this BlockSolverConfig must be a clear
-  *        one.
-  */
+  *        one. */
 
  virtual void get( Block * block , bool clear = false );
 
@@ -339,13 +333,15 @@ class BlockSolverConfig : public Configuration
   * - First, the list of Solver registered to the given Block is scanned,
   *   and for each of them the corresponding elements in this
   *   BlockSolverConfig are examined. Then:
+  *
   *   = If #f_diff == true
   *     * if the name of the Solver in this BlockSolverConfig is empty then
   *       the Solver is left there, otherwise the existing solver is
-  *       un-registered and deleted and a new solver is created and registered
+  *       un-registered and deleted and a new Solver is created and registered
   *       in that position
   *     * if the corresponding SolverConfig * is null then nothing is done,
   *       otherwise the SolverConfig * is passed to the Solver
+  *
   *   = If #f_diff == false
   *     the existing Solver is un-registered and deleted, then
   *     * if the name of the Solver is empty in this BlockSolverConfig then
@@ -353,6 +349,7 @@ class BlockSolverConfig : public Configuration
   *       SolverConfig is ignored)
   *     * otherwise a new solver is created and registered in that position,
   *       and the corresponding SolverConfig is passed to it.
+  *
   *   Note that this would seem to not allow completely resetting the
   *   configuration of some existing Solver without changing it, but this is
   *   not true: it is sufficient to pass it a SolverConfig object (hence, not
@@ -378,40 +375,42 @@ class BlockSolverConfig : public Configuration
   *
   * This is in fact how this is done here inside.
   *
-  * Note an important difference between this method and
-  * Block::register_Solver(), Block::unregister_Solver() and
-  * Block::replace_Solver(): in the latter the new Solver have to be already
-  * constructed outside of Block, and the ones that get un-registered are
-  * *not* deleted, which therefore has to be done by whomever created them in
-  * the first place outside the Block. In this method, instead, the Solver are
-  * directly constructed (using the Solver factory) inside the Block, and
-  * correspondingly each Solver that gets un-registered is also immediately
-  * deleted. Mixing the two styles of managing Solver is therefore tricky and
-  * caution should be exercised.
+  * This method underlines the crucial difference between using a
+  * BlockSolverConfig and directly using Block::register_Solver(),
+  * Block::unregister_Solver() and Block::replace_Solver() (which this
+  * method uses on the user's behalf). In all the Block methods, it is
+  * assumed that the new Solver have to be already constructed outside of
+  * Block; consequently, the ones that get un-registered are *not* deleted,
+  * since it is expected that this is to be done by whomever created them in
+  * the first place outside the Block. BlockSolverConfig precisely provides
+  * a single entity "outside of Block" that takes care of constructing the
+  * Solver (using the Solver factory); correspondingly, each Solver that gets
+  * un-registered by a BlockSolverConfig is also immediately deleted. While
+  * the user is free to do whatever she wants, it is clear that
   *
-  * @param block A pointer to the Block that must be configured.
-  */
+  *     MIXING THE TWO STYLES OF MANAGING THE Solver, I.E., USING A
+  *     BlockSolverConfig VS DIRECTLY CALLING Block::register_Solver(),
+  *     Block::unregister_Solver() AND Block::replace_Solver(), IS CLEARLY
+  *     TRICKY AND CAUTION SHOULD BE EXERCISED.
+  *
+  * @param block A pointer to the Block that must be configured. */
 
  virtual void apply( Block * block ) const;
 
 /*--------------------------------------------------------------------------*/
-
  /// unregister and delete all the Solver attached to the given Block
  /** This method unregisters and deletes all Solver attached to the given
   * Block.
   *
-  * @param block A pointer to the Block whose Solver will be reset.
-  */
+  * @param block A pointer to the Block whose Solver will be reset. */
 
  virtual void reset_Solver( Block * block ) const;
 
 /*--------------------------------------------------------------------------*/
-
  /// clear the names of the Solver and delete all the ComputeConfig
- /** This method clears the vector holding the names of the Solver and deletes
-  * all the ComputeConfig (clearing also the vector holding the
-  * ComputeConfig).
-  */
+ /** This method clears the vector holding the names of the Solver and
+  * deletes all the ComputeConfig (clearing also the vector holding the
+  * ComputeConfig). */
 
  virtual void clear( void ) {
   v_SolverNames.clear();
@@ -426,7 +425,7 @@ class BlockSolverConfig : public Configuration
 
 /*------------------------------- CLONE -----------------------------------*/
 
- virtual BlockSolverConfig * clone( void ) const override
+ BlockSolverConfig * clone( void ) const override
  {
   return( new BlockSolverConfig( *this ) );
   }
@@ -442,8 +441,7 @@ class BlockSolverConfig : public Configuration
  /** Since a BlockSolverConfig knows it is a BlockSolverConfig, it "knows its
   * place" in an eProbFile netCDF SMS++ file. */
 
- virtual void serialize( netCDF::NcFile & f , const int type )
-  const override;
+ void serialize( netCDF::NcFile & f , const int type ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// extends Configuration::serialize( netCDF::NcGroup )
@@ -452,7 +450,7 @@ class BlockSolverConfig : public Configuration
   * BlockSolverConfig::deserialize( netCDF::NcGroup ) for details of the
   * format of the created netCDF group. */
 
- virtual void serialize( netCDF::NcGroup & group ) const override;
+ void serialize( netCDF::NcGroup & group ) const override;
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS FOR MODIFYING THE BlockSolverConfig ----------------*/
@@ -463,26 +461,24 @@ class BlockSolverConfig : public Configuration
  /// change the mode of this configuration
  /** This function changes the mode of this BlockSolverConfig. If \p diff is
   * true, then this BlockSolverConfig starts to be "interpreted in a
-  * differential sense".
-  */
+  * differential sense". */
+
  void set_diff( bool diff = true ) { f_diff = diff; }
 
 /*--------------------------------------------------------------------------*/
-
  /// sets the names of all Solver of the Block
  /** This function sets the vector containing the names of all Solver of the
-  * Block.
-  */
+  * Block. */
+
  void set_SolverNames( std::vector<std::string> && solver_names ) {
   v_SolverNames = std::move( solver_names );
   }
 
 /*--------------------------------------------------------------------------*/
-
  /// sets the (pointer to) the ComputeConfig of all Solver of the Block
  /** This function sets the vector containing the (pointer to) the
-  * ComputeConfig of all Solver of the Block.
-  */
+  * ComputeConfig of all Solver of the Block. */
+
  void set_SolverConfigs( std::vector<ComputeConfig *> && solver_configs ) {
   v_SolverConfigs = std::move( solver_configs );
   }
@@ -493,30 +489,26 @@ class BlockSolverConfig : public Configuration
 /** @name Methods for reading the data of the BlockSolverConfig
  *  @{ */
 
- /// tells if the configuration is a "differential" one
- /** This function indicates whether this configuration is a "differential"
-  * one.
-  */
- bool is_diff() const { return f_diff; }
+ /// tells if the configuration is a "differential" one (reads #f_diff)
+
+ bool is_diff( void ) const { return( f_diff ); }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the names of all Solver of the Block
  /** This function returns a const reference to the vector containing the
-  * names of all Solver of the Block.
-  */
- const std::vector<std::string> & get_SolverNames() const {
-  return v_SolverNames;
+  * names of all Solver of the Block. */
+
+ const std::vector<std::string> & get_SolverNames( void ) const {
+  return( v_SolverNames );
   }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the (pointer to) the ComputeConfig of all Solver of the Block
  /** This function returns a const reference to the vector containing the
-  * (pointer to) the ComputeConfig of all Solver of the Block.
-  */
- const std::vector<ComputeConfig *> & get_SolverConfigs() const {
-  return v_SolverConfigs;
+  * (pointer to) the ComputeConfig of all Solver of the Block. */
+
+ const std::vector<ComputeConfig *> & get_SolverConfigs( void ) const {
+  return( v_SolverConfigs );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -528,30 +520,32 @@ class BlockSolverConfig : public Configuration
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 
  /// print the BlockSolverConfig
- virtual void print( std::ostream &output ) const override;
+ void print( std::ostream &output ) const override;
 
 /*--------------------------------------------------------------------------*/
  /// load this BlockSolverConfig out of an istream
  /** Load this BlockSolverConfig out of an istream, with the format:
   *
-  * a binary number b to determine the value of #f_diff. If b == 0 then
-  * #f_diff = false. Otherwise, #f_diff = true.
+  * - a binary number b to determine the value of #f_diff. If b == 0 then
+  *   #f_diff = false, otherwise, #f_diff = true.
   *
-  * number k of the names of Solver for the Block
+  * - the number k of the names of Solver for the Block
   *
-  * for i = 1 ... k
-  *  - a string containing the class type of a Solver object,
+  * - for i = 1 ... k
+  *   = a string containing the class type of a Solver object, '*' means
+  *     none (nullptr)
+  *   (clearly, if k == 0 this is empty)
+  *
+  * - the number k of the ComputeConfig for the Solver for the Block
+  *
+  * - for i = 1 ... k
+  *   = a string containing the class type of a ComputeConfig object,
   *    '*' means none (nullptr)
-  *
-  * number k of the ComputeConfig for the Solver for the Block
-  *
-  * for i = 1 ... k
-  *  - a string containing the class type of a ComputeConfig object,
-  *    '*' means none (nullptr)
-  *  - if the above is not '*', the description of the :ComputeConfig object
+  *   = if the above is not '*', the description of the :ComputeConfig object
+  *   (clearly, if k == 0 this is empty)
   */
 
- virtual void load( std::istream &input ) override;
+ void load( std::istream &input ) override;
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
@@ -613,8 +607,8 @@ class RBlockSolverConfig : public BlockSolverConfig
   * set_SolverNames(), set_SolverConfigs(), set_BlockSolverConfigs(), and
   * set_diff().
   *
-  * @param diff indicates if this configuration is a "differential" one.
-  */
+  * @param diff indicates if this configuration is a "differential" one. */
+
  RBlockSolverConfig( bool diff = true ) : BlockSolverConfig( diff ) { }
 
 /*--------------------------------------------------------------------------*/
@@ -624,24 +618,23 @@ class RBlockSolverConfig : public BlockSolverConfig
   * netCDF::NcGroup of an RBlockSolverConfig.
   *
   * @param group The netCDF::NcGroup containing the description of the
-  *        RBlockSolverConfig.
-  */
+  *        RBlockSolverConfig. */
+
  RBlockSolverConfig( netCDF::NcGroup & group ) : BlockSolverConfig() {
   deserialize( group );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// constructs an RBlockSolverConfig out of an istream
- /** It constructs an RBlockSolverConfig out of the given istream \p
-  * input. Please refer to the load() method for the format of an
-  * RBlockSolverConfig.
+ /** It constructs an RBlockSolverConfig out of the given istream \p input.
+  * Please refer to the load() method for the format of an RBlockSolverConfig.
   *
   * @param input The istream containing the description of the
-  *        RBlockSolverConfig.
-  */
+  *        RBlockSolverConfig. */
+
  RBlockSolverConfig( std::istream &input ) : BlockSolverConfig() {
   load( input );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// constructs an RBlockSolverConfig for the given Block
@@ -654,15 +647,16 @@ class RBlockSolverConfig : public BlockSolverConfig
   * @param diff It indicates if this configuration is a "differential" one.
   *
   * @param clear It indicates whether a "cleared" RBlockSolverConfig is
-  *        desired. See RBlockSolverConfig:get() for details.
-  */
- RBlockSolverConfig( Block * block , bool diff = false , bool clear = false ) :
-  BlockSolverConfig( diff ) {
+  *        desired. See RBlockSolverConfig:get() for details. */
+
+ RBlockSolverConfig( Block * block , bool diff = false ,
+		     bool clear = false ) : BlockSolverConfig( diff ) {
   get( block , clear );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: does what it says on the tin
+
  RBlockSolverConfig( const RBlockSolverConfig &old );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -690,10 +684,9 @@ class RBlockSolverConfig : public BlockSolverConfig
   * vector of sub-BlockSolverConfig is allowed to be of different size than
   * the number of sub-Block; if it is larger any extra BlockSolverConfig is
   * simply ignored, if it shorted then all missing sub-BlockConfig are treated
-  * as nullptr (default configuration).
-  */
+  * as nullptr (default configuration). */
 
- virtual void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( netCDF::NcGroup & group ) override;
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
  /// destructor
@@ -702,7 +695,7 @@ class RBlockSolverConfig : public BlockSolverConfig
  {
   for( auto sBSC : v_BlockSolverConfigs )
    delete sBSC;
-  }
+   }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -724,10 +717,9 @@ class RBlockSolverConfig : public BlockSolverConfig
   *
   * @param clear It indicates whether this RBlockSolverConfig must be a clear
   *        one. See the comments to BlockSolverConfig::get() for the
-  *        definition of this parameter.
-  */
+  *        definition of this parameter. */
 
- virtual void get( Block * block , bool clear = false ) override;
+ void get( Block * block , bool clear = false ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------- METHODS DESCRIBING THE BEHAVIOR OF THE RBlockSolverConfig -------*/
@@ -743,31 +735,26 @@ class RBlockSolverConfig : public BlockSolverConfig
   * proceeds configuring the Solver of the sub-Block. This is done by calling
   * apply() recursively on each sub-Block.
   *
-  * @param block A pointer to the Block that must be configured.
-  */
+  * @param block A pointer to the Block that must be configured. */
 
- virtual void apply( Block * block ) const override;
+ void apply( Block * block ) const override;
 
 /*--------------------------------------------------------------------------*/
-
  /// unregister and delete all Solver attached to \p block (and its sub-Block)
  /** This method unregisters and deletes all Solver attached to the given
   * Block and to each of its sub-Block.
   *
-  * @param block A pointer to the Block whose Solver will be reset.
-  */
+  * @param block A pointer to the Block whose Solver will be reset. */
 
- virtual void reset_Solver( Block * block ) const override;
+ void reset_Solver( Block * block ) const override;
 
 /*--------------------------------------------------------------------------*/
-
  /// clear this RBlockSolverConfig
  /** This method first invokes BlockSolverConfig::clear(). Then, clear() is
   * invoked for each non-nullptr BlockSolverConfig * handled by this
-  * RBlockSolverConfig (the BlockSolverConfig for each sub-Block).
-  */
+  * RBlockSolverConfig (the BlockSolverConfig for each sub-Block). */
 
- virtual void clear( void ) override {
+ void clear( void ) override {
   BlockSolverConfig::clear();
 
   for( auto config : v_BlockSolverConfigs )
@@ -777,7 +764,7 @@ class RBlockSolverConfig : public BlockSolverConfig
 
 /*------------------------------- CLONE -----------------------------------*/
 
- virtual RBlockSolverConfig * clone( void ) const override
+ RBlockSolverConfig * clone( void ) const override
  {
   return( new RBlockSolverConfig( *this ) );
   }
@@ -795,7 +782,7 @@ class RBlockSolverConfig : public BlockSolverConfig
   * netCDF::NcGroup ) for details of the format of the created netCDF
   * group. */
 
- virtual void serialize( netCDF::NcGroup & group ) const override;
+ void serialize( netCDF::NcGroup & group ) const override;
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS FOR MODIFYING THE RBlockSolverConfig ---------------*/
@@ -805,8 +792,8 @@ class RBlockSolverConfig : public BlockSolverConfig
 
  /// sets the (pointer to) the BlockSolverConfig of each sub-Block
  /** This function sets the vector containing the (pointer to) the
-  *  BlockSolverConfig of every sub-Block.
-  */
+  *  BlockSolverConfig of every sub-Block. */
+
  void set_BlockSolverConfigs( std::vector<BlockSolverConfig *> && bsc ) {
   v_BlockSolverConfigs = std::move( bsc );
   }
@@ -819,11 +806,10 @@ class RBlockSolverConfig : public BlockSolverConfig
 
  /// returns the (pointer to) the BlockSolverConfig of every sub-Block
  /** This function returns a const reference to the vector containing the
-  * (pointer to) the BlockSolverConfig of every sub-Block.
-  */
- const std::vector<BlockSolverConfig *> & get_BlockSolverConfigs() const {
-  return v_BlockSolverConfigs;
-  }
+  * (pointer to) the BlockSolverConfig of every sub-Block. */
+
+ const std::vector<BlockSolverConfig *> & get_BlockSolverConfigs( void )
+  const { return( v_BlockSolverConfigs ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -832,25 +818,25 @@ class RBlockSolverConfig : public BlockSolverConfig
  protected:
 
 /*-------------------------- PROTECTED METHODS -----------------------------*/
-
  /// print the RBlockSolverConfig
- virtual void print( std::ostream &output ) const override;
+
+ void print( std::ostream &output ) const override;
 
 /*--------------------------------------------------------------------------*/
  /// load this RBlockSolverConfig out of an istream
  /** Load this RBlockSolverConfig out of an istream. The format is defined as
   * that specified in BlockSolverConfig::load(), followed by:
   *
-  * number k of the BlockSolverConfig for the sub-Block of the Block
+  * - the number k of the BlockSolverConfig for the sub-Block of the Block
   *
-  * for i = 1 ... k
-  *  - a string containing the class type of a BlockSolverConfig object,
-  *    '*' means none (nullptr)
-  *  - if the above is not '*', the description of the :BlockSolverConfig
-  *    object
-  */
+  * - for i = 1 ... k
+  *   = a string containing the class type of a BlockSolverConfig object,
+  *     '*' means none (nullptr)
+  *   = if the above is not '*', the description of the :BlockSolverConfig
+  *     object
+  *   (clearly, if k == 0 this is empty) */
 
- virtual void load( std::istream &input ) override;
+ void load( std::istream &input ) override;
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
@@ -874,13 +860,13 @@ class RBlockSolverConfig : public BlockSolverConfig
 /*--------------------------------------------------------------------------*/
 /// derived class from RBlockSolverConfig for configuring "indirect sub-Block"
 /** The ERBlockSolverConfig class ("extended RBlockSolverConfig") derives from
- * RBlockSolverConfig in order to also takes into consideration the
- * configuration of a set of Block that are not sub-Block of the current Block
- * but upon on which the current Block depends. Some Constraint and Objective
- * are complicated enough that they may depend on some Block. This class is
- * meant to offer support for configuring the Solver of these Block (which we
- * sometimes call "indirect sub-Block"). For instance, a Constraint (e.g. and
- * FRowConstraint ) may have a BendersBFunction or LagBFunction, which in turn
+ * RBlockSolverConfig in order to also takes into account the configuration
+ * of the "indirect syb-Block" of the Block, i.e., those that do not appear
+ * in its sub-Block list but upon on which the Block still depends. Some
+ * Constraint and Objective are complicated enough that they may depend on
+ * some Block. This class is meant to offer support for configuring the
+ * Solver of these "indirect sub-Block". For instance, a Constraint (e.g. and
+ * FRowConstraint) may have a BendersBFunction or LagBFunction, which in turn
  * has an inner Block whose Solver may have to be configured. Since not every
  * Constraint may have a "sub-Block" (or one that needs configuration), it is
  * necessary to indicate which Constraints will have an associated
@@ -898,8 +884,7 @@ class RBlockSolverConfig : public BlockSolverConfig
  * The meaning of the field f_diff, inherited from RBlockSolverConfig, is also
  * extended to these "indirect sub-Block": if f_diff is true, then all nullptr
  * BlockSolverConfig correspond to not changing any of the configurations of
- * any of the Solver attached to the corresponding "indirect sub-Block".
- */
+ * any of the Solver attached to the corresponding "indirect sub-Block". */
 
 class ERBlockSolverConfig : public RBlockSolverConfig
 {
@@ -923,8 +908,8 @@ class ERBlockSolverConfig : public RBlockSolverConfig
   * set_diff(), set_BlockSolverConfig_Constraints(), and
   * set_BlockSolverConfig_Objective().
   *
-  * @param diff indicates if this configuration is a "differential" one.
-  */
+  * @param diff indicates if this configuration is a "differential" one. */
+
  ERBlockSolverConfig( bool diff = true ) : RBlockSolverConfig( diff ) { }
 
 /*--------------------------------------------------------------------------*/
@@ -934,11 +919,11 @@ class ERBlockSolverConfig : public RBlockSolverConfig
   * netCDF::NcGroup of an ERBlockSolverConfig.
   *
   * @param group The netCDF::NcGroup containing the description of the
-  *        ERBlockSolverConfig.
-  */
+  *        ERBlockSolverConfig. */
+
  ERBlockSolverConfig( netCDF::NcGroup & group ) : RBlockSolverConfig() {
   deserialize( group );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// constructs an ERBlockSolverConfig out of an istream
@@ -947,16 +932,16 @@ class ERBlockSolverConfig : public RBlockSolverConfig
   * ERBlockSolverConfig.
   *
   * @param input The istream containing the description of the
-  *        ERBlockSolverConfig.
-  */
+  *        ERBlockSolverConfig. */
+
  ERBlockSolverConfig( std::istream &input ) : RBlockSolverConfig() {
   load( input );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// constructs an ERBlockSolverConfig for the given Block
- /** It constructs an ERBlockSolverConfig for the given \p block. It creates an
-  * empty ERBlockSolverConfig and invoke the method get().
+ /** It constructs an ERBlockSolverConfig for the given \p block. It creates
+  * an empty ERBlockSolverConfig and invoke the method get().
   *
   * @param block A pointer to the Block for which an ERBlockSolverConfig will
   *        be constructed.
@@ -964,15 +949,16 @@ class ERBlockSolverConfig : public RBlockSolverConfig
   * @param diff It indicates if this configuration is a "differential" one.
   *
   * @param clear It indicates whether a "cleared" ERBlockSolverConfig is
-  *        desired. See ERBlockSolverConfig:get() for details.
-  */
- ERBlockSolverConfig( Block * block , bool diff = false , bool clear = false ) :
-  RBlockSolverConfig( diff ) {
+  *        desired. See ERBlockSolverConfig:get() for details. */
+
+ ERBlockSolverConfig( Block * block , bool diff = false ,
+		      bool clear = false ) : RBlockSolverConfig( diff ) {
   get( block , clear );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: does what it says on the tin
+
  ERBlockSolverConfig( const ERBlockSolverConfig &old );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -1009,10 +995,9 @@ class ERBlockSolverConfig : public RBlockSolverConfig
   * - a group with name "BlockSolverConfig_Objective", containing the
   *   description of a BlockSolverConfig associated with the Objective of the
   *   current Block; this group is optional; if it is not provided, then
-  *   nullptr is considered.
-  */
+  *   nullptr is assumed. */
 
- virtual void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( netCDF::NcGroup & group ) override;
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
  /// destructor
@@ -1029,7 +1014,6 @@ class ERBlockSolverConfig : public RBlockSolverConfig
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
- *
  *  @{ */
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -1046,10 +1030,9 @@ class ERBlockSolverConfig : public RBlockSolverConfig
   *
   * @param clear It indicates whether this RBlockSolverConfig must be a clear
   *        one. See the comments to BlockSolverConfig::get() for the
-  *        definition of this parameter.
-  */
+  *        definition of this parameter. */
 
- virtual void get( Block * block , bool clear = false ) override;
+ void get( Block * block , bool clear = false ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*------- METHODS DESCRIBING THE BEHAVIOR OF THE ERBlockSolverConfig -------*/
@@ -1068,24 +1051,20 @@ class ERBlockSolverConfig : public RBlockSolverConfig
   * recursively on each "indirect sub-Block" that is considered by this
   * ERBlockSolverConfig (see get_ConstraintID()).
   *
-  * @param block A pointer to the Block that must be configured.
-  */
+  * @param block A pointer to the Block that must be configured. */
 
- virtual void apply( Block * block ) const override;
+ void apply( Block * block ) const override;
 
 /*--------------------------------------------------------------------------*/
-
  /// unregister and delete all Solver attached to \p block (and its sub-Block)
  /** This method unregisters and deletes all Solver attached to the given
   * Block and to each of its sub-Block and "indirect sub-Block".
   *
-  * @param block A pointer to the Block whose Solver will be reset.
-  */
+  * @param block A pointer to the Block whose Solver will be reset. */
 
- virtual void reset_Solver( Block * block ) const override;
+ void reset_Solver( Block * block ) const override;
 
 /*--------------------------------------------------------------------------*/
-
  /// clear this ERBlockSolverConfig
  /** This method first invokes RBlockSolverConfig::clear(). Then, clear() is
   * invoked for each non-nullptr BlockSolverConfig * handled by this
@@ -1093,7 +1072,7 @@ class ERBlockSolverConfig : public RBlockSolverConfig
   * and the BlockSolverConfig associated with the Objective).
   */
 
- virtual void clear( void ) override {
+ void clear( void ) override {
   RBlockSolverConfig::clear();
 
   for( auto config : v_BlockSolverConfig_Constraints )
@@ -1106,7 +1085,7 @@ class ERBlockSolverConfig : public RBlockSolverConfig
 
 /*------------------------------- CLONE -----------------------------------*/
 
- virtual ERBlockSolverConfig * clone( void ) const override
+ ERBlockSolverConfig * clone( void ) const override
  {
   return( new ERBlockSolverConfig( *this ) );
   }
@@ -1124,7 +1103,7 @@ class ERBlockSolverConfig : public RBlockSolverConfig
   * netCDF::NcGroup ) for details of the format of the created netCDF
   * group. */
 
- virtual void serialize( netCDF::NcGroup & group ) const override;
+ void serialize( netCDF::NcGroup & group ) const override;
 
 /**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR MODIFYING THE ERBlockSolverConfig ---------------*/
@@ -1137,20 +1116,19 @@ class ERBlockSolverConfig : public RBlockSolverConfig
   *  BlockSolverConfig of the "indirect sub-Block" associated with the
   *  Constraint of the Block. The i-th BlockSolverConfig in this vector is
   *  associated with the Constraint given by the i-th element of the
-  *  ConstraintID vector (see get_ConstraintID()).
-  */
- void set_BlockSolverConfig_Constraints
- ( std::vector<BlockSolverConfig *> && bsc ) {
+  *  ConstraintID vector (see get_ConstraintID()). */
+
+ void set_BlockSolverConfig_Constraints(
+			         std::vector<BlockSolverConfig *> && bsc ) {
   v_BlockSolverConfig_Constraints = std::move( bsc );
   }
 
 /*--------------------------------------------------------------------------*/
-
  /// adds a BlockSolverConfig of an "indirect sub-Block" of Constraint
  /** This function adds a (pointer to the) BlockSolverConfig of an "indirect
   *  sub-Block" associated with the Constraint of the Block whose
-  *  Block::ConstraintID is \p constraint_id.
-  */
+  *  Block::ConstraintID is \p constraint_id. */
+
  void add_BlockSolverConfig_Constraint( BlockSolverConfig * bsc ,
                                         Block::ConstraintID constraint_id ) {
   v_BlockSolverConfig_Constraints.push_back( bsc );
@@ -1158,22 +1136,20 @@ class ERBlockSolverConfig : public RBlockSolverConfig
   }
 
 /*--------------------------------------------------------------------------*/
-
  /// sets the vector of ConstraintID indicating the "indirect sub-Block"
  /** This function sets the vector of ConstraintID, which indicates the set of
   * Constraint of the Block that have a BlockSolverConfig for their inner
-  * Block.
-  */
+  * Block. */
+
  void set_ConstraintID( std::vector<Block::ConstraintID> && constraint_id ) {
   v_ConstraintID = std::move( constraint_id );
   }
 
 /*--------------------------------------------------------------------------*/
-
  /// sets the BlockSolverConfig of the "indirect sub-Block" of Objective
  /** This function sets the (pointer to the) BlockSolverConfig of the
-  *  "indirect sub-Block" associated with the Objective of the Block.
-  */
+  *  "indirect sub-Block" associated with the Objective of the Block. */
+
  void set_BlockSolverConfig_Objective( BlockSolverConfig * bsc ) {
   f_BlockSolverConfig_Objective = bsc;
   }
@@ -1187,32 +1163,30 @@ class ERBlockSolverConfig : public RBlockSolverConfig
  /// returns the BlockSolverConfig of "indirect sub-Block" of Constraint
  /** This function returns a const reference to the vector containing the
   *  (pointer to the) BlockSolverConfig of the "indirect sub-Block" associated
-  *  with the Constraint of the Block.
-  */
+  *  with the Constraint of the Block. */
+
  const std::vector<BlockSolverConfig *> &
- get_BlockSolverConfig_Constraints( void ) const {
-  return v_BlockSolverConfig_Constraints;
+  get_BlockSolverConfig_Constraints( void ) const {
+  return( v_BlockSolverConfig_Constraints );
   }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the vector of ConstraintID indicating the "indirect sub-Block"
  /** This function returns the vector of ConstraintID, which indicates the set
   * of Constraint of the Block that have a BlockSolverConfig for their inner
-  * Block.
-  */
+  * Block. */
+
  const std::vector<Block::ConstraintID> & get_ConstraintID( void ) const {
-  return v_ConstraintID;
+  return( v_ConstraintID );
   }
 
 /*--------------------------------------------------------------------------*/
-
  /// returns the BlockSolverConfig of the "indirect sub-Block" of Objective
  /** This function returns the (pointer to the) BlockSolverConfig of the
-  *  "indirect sub-Block" associated with the Objective of the Block.
-  */
+  *  "indirect sub-Block" associated with the Objective of the Block. */
+
  BlockSolverConfig * get_BlockSolverConfig_Objective( void ) const {
-  return f_BlockSolverConfig_Objective;
+  return( f_BlockSolverConfig_Objective );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -1222,23 +1196,24 @@ class ERBlockSolverConfig : public RBlockSolverConfig
  protected:
 
 /*-------------------------- PROTECTED METHODS -----------------------------*/
-
  /// print the ERBlockSolverConfig
- virtual void print( std::ostream &output ) const override;
+
+ void print( std::ostream &output ) const override;
 
 /*--------------------------------------------------------------------------*/
  /// load this ERBlockSolverConfig out of an istream
  /** Load this ERBlockSolverConfig out of an istream. The format is defined as
   * that specified in RBlockSolverConfig::load(), followed by:
   *
-  * number k of the BlockSolverConfig for the Constraint of the Block
+  * - the number k of the BlockSolverConfig for the Constraint of the Block
   *
-  * for i = 1 ... k
-  *  - two integers representing the ConstraintID for the Constraint
-  *  - a string containing the class type of a BlockSolverConfig object,
-  *    '*' means none (nullptr)
-  *  - if the above is not '*', the description of the :BlockSolverConfig
-  *    object
+  * - for i = 1 ... k
+  *   = two integers representing the ConstraintID for the Constraint
+  *   = a string containing the class type of a BlockSolverConfig object,
+  *     '*' means none (nullptr)
+  *   = if the above is not '*', the description of the :BlockSolverConfig
+  *     object
+  *   (clearly, if k == 0 this is empty)
   *
   * a binary number b indicating whether a BlockSolverConfig associated with
   * the Objective of the Block is provided
@@ -1247,16 +1222,16 @@ class ERBlockSolverConfig : public RBlockSolverConfig
   *  - a string containing the class type of a BlockSolverConfig object,
   *    '*' means none (nullptr)
   *  - if the above is not '*', the description of the :BlockSolverConfig
-  *    object
-  */
- virtual void load( std::istream &input ) override;
+  *    object */
+
+ void load( std::istream &input ) override;
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
  /// the vector of indices identifying the set of Constraint
  /** This vector indicates which Constraint of the Block have a
-  * BlockSolverConfig for their inner Block.
-  */
+  * BlockSolverConfig for their inner Block. */
+
  std::vector<Block::ConstraintID> v_ConstraintID;
 
  /// the vector of (pointer to the) BlockSolverConfig for Constraint
@@ -1264,9 +1239,10 @@ class ERBlockSolverConfig : public RBlockSolverConfig
   * BlockSolverConfig in this vector is that of the Block associated with the
   * Constraint identified by the i-th element in the vector v_ConstraintID.
   */
+
  std::vector<BlockSolverConfig *> v_BlockSolverConfig_Constraints;
 
- /// the (pointer to the) BlockSolverConfig for the inner Block of the Objective
+ /// the (pointer to the) BlockSolverConfig for the Objective of the Block
  BlockSolverConfig * f_BlockSolverConfig_Objective = nullptr;
 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
