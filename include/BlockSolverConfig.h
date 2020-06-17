@@ -307,12 +307,12 @@ class BlockSolverConfig : public Configuration
   * the given Block and stores in this BlockSolverConfig. This information
   * consists of the names of the Solver attached to the given Block and the
   * ComputeConfig of these Solver. The \p clear parameter indicates whether
-  * this BlockSolverConfig must be a clear one, i.e., one whose name of each
-  * Solver is the empty string and that holds no ComputeConfig. The default
-  * value of this parameter is false, in which case a full BlockSolverConfig
-  * is constructed. Passing \p clear = true is usually done when the sole
-  * purpose is to later use this BlockSolverConfig to reset the Solver of a
-  * Block (usually the given Block \p block).
+  * this BlockSolverConfig must be a clear one, i.e., one whose vectors of
+  * Solver names and ComputeConfig are empty. The default value of this
+  * parameter is false, in which case a full BlockSolverConfig is
+  * constructed. Passing \p clear = true is usually done when the sole purpose
+  * of using this BlockSolverConfig is to reset the Solver of a Block (usually
+  * the given Block \p block).
   *
   * @param block A pointer to the Block whose BlockSolverConfig must be
   *        filled.
@@ -408,13 +408,14 @@ class BlockSolverConfig : public Configuration
 /*--------------------------------------------------------------------------*/
 
  /// clear the names of the Solver and delete all the ComputeConfig
- /** This method clears the names of the Solver, i.e., the name of every
-  * Solver becomes the empty string, and deletes all the ComputeConfig.
+ /** This method clears the vector holding the names of the Solver and deletes
+  * all the ComputeConfig (clearing also the vector holding the
+  * ComputeConfig).
   */
 
  virtual void clear( void ) {
-  for( auto & name : v_SolverNames )
-   name.clear();
+  v_SolverNames.clear();
+  v_SolverNames.shrink_to_fit();
 
   for( auto sSC : v_SolverConfigs )
    delete sSC;
