@@ -263,24 +263,23 @@ class BlockSolverConfig : public Configuration
   *   from the current configuration"); this attribute is optional: if it is
   *   not provided, then diff = false is assumed;
   *
-  * - the dimension "n_SolverConfig" containing the number of Solver that
-  *   are to be attached to the Block, and therefore the number of their
-  *   SolverConfig objects;
+  * - the dimension "n_SolverConfig" containing the number of Solver that are
+  *   to be attached to the Block, and therefore the number of their
+  *   SolverConfig objects; this dimension is optional; if it is not provided,
+  *   then n_SolverConfig = 0 is considered;
   *
   * - the variable "SolverNames", of type string and indexed over the
-  *   dimension "n_SolverConfig"; the i-th entry of the variable is assumed
-  *   to contain the classname of a :Solver object to be attached to the
-  *   Block (this must be exact, i.e., exactly as returned by the protected
-  *   virtual method Solver::classname(), since it is used in the factory when
-  *   creating the object;
+  *   dimension "n_SolverConfig"; the i-th entry of the variable is assumed to
+  *   contain the classname of a :Solver object to be attached to the Block
+  *   (this must be exact, i.e., exactly as returned by the protected virtual
+  *   method Solver::classname(), since it is used in the factory when
+  *   creating the object; this variable is mandatory if n_SolverConfig > 0;
   *
   * - with n being the size of "n_SolverConfig", n groups, with name
   *   "SolverConfig_<i>" for all i = 0, ..., n - 1, containing each the
-  *   description of a ComputeConfig object for the i-th :Solver;
-  *
-  * The "n_SolverConfig" dimension and the "SolverNames" variable are
-  * mandatory; the individual groups "SolverConfig_<i>" may not exist if the
-  * "n_SolverConfig" dimension is 0.
+  *   description of a ComputeConfig object for the i-th :Solver; these groups
+  *   are optional; if "SolverConfig_<i>" is not provided, then nullptr is
+  *   considered for the i-th ComputeConfig.
   */
 
  virtual void deserialize( netCDF::NcGroup & group ) override;
@@ -674,16 +673,18 @@ class RBlockSolverConfig : public BlockSolverConfig
   *
   * - the dimension "n_BlockSolverConfig" containing the number of
   *   BlockSolverConfig descriptions for the sub-Block of the current Block;
+  *   it is optional; if it is not provided, then we assume
+  *   n_BlockSolverConfig = 0.
   *
   * - with m being the size of "n_BlockSolverConfig", m groups, with name
   *   "BlockSolverConfig_<i>" for all i = 0, ..., m - 1, containing each
   *   the description of a BlockSolverConfig for one of the sub-Block of the
   *   current Block.
   *
-  * Only the "n_BlockSolverConfig" dimension is mandatory; the individual
-  * groups "BlockSolverConfig_<i>" may not exist if the "n_BlockSolverConfig"
-  * dimension is 0. Note that the matching between the sub-BlockSolverConfig
-  * and the sub-Block is positional: the BlockSolverConfig found in the group
+  * The individual groups "BlockSolverConfig_<i>" are optional. If
+  * "BlockSolverConfig_<i>" is not provided, then nullptr is considered. Note
+  * that the matching between the sub-BlockSolverConfig and the sub-Block is
+  * positional: the BlockSolverConfig found in the group
   * "BlockSolverConfig_<i>" is that for the i-th sub-Block. Note that the
   * vector of sub-BlockSolverConfig is allowed to be of different size than
   * the number of sub-Block; if it is larger any extra BlockSolverConfig is
@@ -982,7 +983,8 @@ class ERBlockSolverConfig : public RBlockSolverConfig
   *
   * - the dimension "n_BlockSolverConfig_Constraint" containing the number of
   *   BlockSolverConfig descriptions associated with the Constraint of the
-  *   current Block;
+  *   current Block; this dimension is optional; if it is not provided, then
+  *   n_BlockSolverConfig_Constraint = 0 is assumed.
   *
   * - with p being the size of "n_BlockSolverConfig_Constraint", a
   *   one-dimensional variable called "ConstraintID", of size 2p and type
@@ -993,20 +995,20 @@ class ERBlockSolverConfig : public RBlockSolverConfig
   *   provides the index of the group to which the i-th Constraint belongs and
   *   ConstraintID[ 2i + 1 ] provides the index of the i-th Constraint (see
   *   Block::ConstraintID for the definition of an index of a Constraint);
+  *   this variable is mandatory if n_BlockSolverConfig_Constraint > 0.
   *
   * - p groups, with name "BlockSolverConfig_Constraint_<i>" for all i = 0,
   *   ..., p - 1, containing each the description of a BlockSolverConfig
   *   associated with the i-th Constraint indicated by the "ConstraintID"
   *   variable (which is given by the pair ( ConstraintID[ 2i ], ConstraintID[
-  *   2i + 1] ));
+  *   2i + 1] )); these groups are optional; if
+  *   "BlockSolverConfig_Constraint_<i>" is not provided, then nullptr is
+  *   assumed for the i-th Constraint;
   *
   * - a group with name "BlockSolverConfig_Objective", containing the
   *   description of a BlockSolverConfig associated with the Objective of the
-  *   current Block.
-  *
-  * Only the "n_BlockSolverConfig" dimension is mandatory; the individual
-  * groups "BlockSolverConfig_<i>" may not exist if the "n_BlockSolverConfig"
-  * dimension is 0.
+  *   current Block; this group is optional; if it is not provided, then
+  *   nullptr is considered.
   */
 
  virtual void deserialize( netCDF::NcGroup & group ) override;

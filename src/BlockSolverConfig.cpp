@@ -362,8 +362,11 @@ BlockSolverConfig::BlockSolverConfig( const BlockSolverConfig &old )
  v_SolverNames = old.v_SolverNames;
 
  v_SolverConfigs.resize( old.v_SolverConfigs.size() );
- for( std::size_t i = 0 ; i < v_SolverConfigs.size() ; ++i )
-  v_SolverConfigs[ i ] = old.v_SolverConfigs[ i ]->clone();
+ for( std::size_t i = 0 ; i < v_SolverConfigs.size() ; ++i ) {
+  v_SolverConfigs[ i ] = nullptr;
+  if( old.v_SolverConfigs[ i ] )
+   v_SolverConfigs[ i ] = old.v_SolverConfigs[ i ]->clone();
+  }
  }
 
 /*--------------------------------------------------------------------------*/
@@ -435,12 +438,20 @@ void BlockSolverConfig::deserialize( netCDF::NcGroup & group )
   f_diff = diffint > 0;
  }
 
- size_t slvsize = ( group.getDim( "n_SolverConfig" ) ).getSize();
+ size_t slvsize = 0;
+ auto dim = group.getDim( "n_SolverConfig" );
+ if( ! dim.isNull() )
+  slvsize = dim.getSize();
 
  v_SolverNames.resize( slvsize );
  v_SolverConfigs.resize( slvsize );
 
  netCDF::NcVar slvnms = group.getVar( "SolverNames" );
+
+ if( slvsize > 0 && slvnms.isNull() )
+  throw( std::logic_error( "BlockSolverConfig::deserialize: 'SolverNames' "
+                           "was not provided." ) );
+
  std::vector<size_t> idx( 1 );
  for( size_t i = 0 ; i < slvsize ; ++i ) {
   idx[ 0 ] = i;
@@ -448,8 +459,8 @@ void BlockSolverConfig::deserialize( netCDF::NcGroup & group )
   slvnms.getVar( idx , & str );
   v_SolverNames[ i ] = std::string( str );
   auto sc = group.getGroup( "SolverConfig_" + std::to_string( i ) );
-  v_SolverConfigs[ i ] = dynamic_cast< ComputeConfig * >(
-                                                   new_Configuration( sc ) );
+  v_SolverConfigs[ i ] = dynamic_cast< ComputeConfig * >
+   ( new_Configuration( sc ) );
   }
  }  // end( BlockSolverConfig::deserialize( group ) )
 
@@ -479,8 +490,14 @@ void BlockSolverConfig::get( Block * block , bool clear ) {
 
  auto lsit = ls.begin();
  for( c_Lst_Solver::size_type i = 0 ; i < ls.size() ; ++i , ++lsit ) {
-  v_SolverNames[ i ] = (*lsit)->classname();
-  v_SolverConfigs[ i ] = (*lsit)->get_ComputeConfig();
+  if( *lsit ) {
+   v_SolverNames[ i ] = (*lsit)->classname();
+   v_SolverConfigs[ i ] = (*lsit)->get_ComputeConfig();
+   }
+  else {
+   v_SolverNames[ i ] = "";
+   v_SolverConfigs[ i ] = nullptr;
+   }
   }
  }  // end( BlockSolverConfig::get )
 
@@ -615,8 +632,10 @@ void BlockSolverConfig::serialize( netCDF::NcGroup & group ) const
  for( size_t i = 0 ; i < v_SolverConfigs.size() ; ++i ) {
   idx[ 0 ] = i;
   slvnms.putVar( idx , v_SolverNames[ i ] );
-  auto sc = group.addGroup( "SolverConfig_" + std::to_string( i ) );
-  v_SolverConfigs[ i ]->serialize( sc );
+  if( v_SolverConfigs[ i ] ) {
+   auto sc = group.addGroup( "SolverConfig_" + std::to_string( i ) );
+   v_SolverConfigs[ i ]->serialize( sc );
+   }
   }
  }  // end( BlockSolverConfig::serialize( group ) )
 
@@ -679,8 +698,11 @@ RBlockSolverConfig::RBlockSolverConfig( const RBlockSolverConfig &old )
  : BlockSolverConfig( old ) {
 
  v_BlockSolverConfigs.resize( old.v_BlockSolverConfigs.size() );
- for( std::size_t i = 0 ; i < v_BlockSolverConfigs.size() ; ++i )
-  v_BlockSolverConfigs[ i ] = old.v_BlockSolverConfigs[ i ]->clone();
+ for( std::size_t i = 0 ; i < v_BlockSolverConfigs.size() ; ++i ) {
+  v_BlockSolverConfigs[ i ] = nullptr;
+  if( old.v_BlockSolverConfigs[ i ] )
+   v_BlockSolverConfigs[ i ] = old.v_BlockSolverConfigs[ i ]->clone();
+  }
 
  }  // end( RBlockSolverConfig::RBlockSolverConfig )
 
@@ -695,9 +717,15 @@ void RBlockSolverConfig::deserialize( netCDF::NcGroup & group )
 
  // BlockSolverConfig for sub-Block
 
- size_t blkslvsize = ( group.getDim( "n_BlockSolverConfig" ) ).getSize();
+ size_t blkslvsize = 0;
 
- for( size_t i = 0 ; i < blkslvsize ; ++i ) {
+ auto dim = group.getDim( "n_BlockSolverConfig" );
+ if( ! dim.isNull() )
+  blkslvsize = dim.getSize();
+
+ v_BlockSolverConfigs.resize( blkslvsize );
+
+ for( size_t i = 0 ; i < v_BlockSolverConfigs.size() ; ++i ) {
   auto bc = group.getGroup( "BlockSolverConfig_" + std::to_string( i ) );
   v_BlockSolverConfigs[ i ] = dynamic_cast< BlockSolverConfig * >(
                                                     new_Configuration( bc ) );
@@ -790,8 +818,10 @@ void RBlockSolverConfig::serialize( netCDF::NcGroup & group ) const
  group.addDim( "n_BlockSolverConfig" , v_BlockSolverConfigs.size() );
 
  for( size_t i = 0 ; i < v_BlockSolverConfigs.size() ; ++i ) {
-  auto bc = group.addGroup( "BlockSolverConfig_" + std::to_string( i ) );
-  v_BlockSolverConfigs[ i ]->serialize( bc );
+  if( v_BlockSolverConfigs[ i ] ) {
+   auto bc = group.addGroup( "BlockSolverConfig_" + std::to_string( i ) );
+   v_BlockSolverConfigs[ i ]->serialize( bc );
+   }
   }
 
  }  // end( RBlockSolverConfig::serialize( group ) )
@@ -854,9 +884,12 @@ ERBlockSolverConfig::ERBlockSolverConfig( const ERBlockSolverConfig &old )
 
  v_BlockSolverConfig_Constraints.resize
   ( old.v_BlockSolverConfig_Constraints.size() );
- for( std::size_t i = 0 ; i < v_BlockSolverConfig_Constraints.size() ; ++i )
-  v_BlockSolverConfig_Constraints[ i ] =
-   old.v_BlockSolverConfig_Constraints[ i ]->clone();
+ for( std::size_t i = 0 ; i < v_BlockSolverConfig_Constraints.size() ; ++i ) {
+  v_BlockSolverConfig_Constraints[ i ] = nullptr;
+  if( old.v_BlockSolverConfig_Constraints[ i ] )
+   v_BlockSolverConfig_Constraints[ i ] =
+    old.v_BlockSolverConfig_Constraints[ i ]->clone();
+  }
 
  f_BlockSolverConfig_Objective = nullptr;
  if( old.f_BlockSolverConfig_Objective )
@@ -883,7 +916,7 @@ void ERBlockSolverConfig::deserialize( netCDF::NcGroup & group )
  v_ConstraintID.resize( constrsize );
 
  std::vector<Block::Index> var_ConstraintID;
- if( ! constrdim.isNull() ) {
+ if( constrsize > 0 ) {
   ::deserialize( group , "ConstraintID" , 2 * constrsize ,
                  var_ConstraintID , false , false );
   }
@@ -1007,9 +1040,11 @@ void ERBlockSolverConfig::serialize( netCDF::NcGroup & group ) const {
                 v_BlockSolverConfig_Constraints.size() );
 
   for( size_t i = 0 ; i < v_BlockSolverConfig_Constraints.size() ; ++i ) {
-   auto bscc = group.addGroup( "BlockSolverConfig_Constraint_"
-                               + std::to_string( i ) );
-   v_BlockSolverConfig_Constraints[ i ]->serialize( bscc );
+   if( v_BlockSolverConfig_Constraints[ i ] ) {
+    auto bscc = group.addGroup( "BlockSolverConfig_Constraint_"
+                                + std::to_string( i ) );
+    v_BlockSolverConfig_Constraints[ i ]->serialize( bscc );
+    }
    }
 
   auto ConstraintID_dim = group.addDim( "ConstraintID_dim" ,
