@@ -111,27 +111,80 @@ namespace SMSpp_di_unipi_it
  * Solver attached to the Block and those attached to the sub-Block and
  * "indirect sub-Block" (recursively). By appropriate BlockSolverConfig, we
  * mean one that covers all Solver attached to the Block and to its
- * ("indirect") sub-Block, recursively.
+ * ("indirect") sub-Block, recursively. If all the Solver of the Block have
+ * been created by means of a single BlockSolverConfig, then that specific
+ * BlockSolverConfig is clearly appropriate, even if clear() has been called
+ * for it.
  *
- * If an appropriate BlockSolverConfig is not available, one can be
+ * Indeed, consider the most obvious use case: a Block is created, Solver
+ * are attached, the Block is solved, and then everything is deleted. This
+ * can be easily performed by the following pseudo-code:
+ *
+ *     Block * myBlock = < some way to create it, say a netCDF file >
+ *     BlockSolverConfig * myBSC = < some way to create it, say a netCDF file >
+ *     myBSC->apply( myBlock );
+ *     myBSC->clear();
+ *     < solve the Block with the created Solver >
+ *     myBSC->reset_Solver( myBlock );
+ *     delete myBSC;
+ *     delete myBlock;
+ *
+ * The myBSC->clear() is not mandatory, but it will free all the memory in
+ * the BlockSolverConfig that is not needed for reset_Solver() to work.
+ *
+ * Note that if myBlock has Solver attached to the sub-Block then the myBSC
+ * object needs be of class RBlockSolverConfig, and if it also has "indirect
+ * sub-Block" then it must be of class ERBlockSolverConfig (this is not
+ * difficult to do via the factory).
+ *
+ * More complex use cases will require adapting, but still BlockSolverConfig
+ * can be useful. For instance, if one needs to solve many Block with the
+ * same structure (different instances of the same problem) sequentially with
+ * the same Solver configuration, then it can define myBSC only once and use
+ * it for all the Block; only, in this case it must not be clear()-ed. Also,
+ * if some Solver have to be added/deleted during the solution process, it is
+ * possible to use myBSC to do that; by keeping myBSC "up to date" with the
+ * position of all Solver in the Block, it is possible to clear them all with
+ * a single call to reset_Solver() (note thay myBSC can also be used to change
+ * the SolverConfig of the Block, but doing so has no effect on reset_Solver()).
+ *
+ * If an appropriate, up-to-date BlockSolverConfig is not available, one can be
  * constructed as follows:
  *
- *   ERBlockSolverConfig config( block );
+ *     ERBlockSolverConfig myBSC( myBlock );
  *
  * where block is a pointer to the Block of interest. This constructs the full
- * BlockSolverConfig of the given Block. However, if the only purpose of the
- * BlockSolverConfig will be to reset the Solver of the Block (and those
+ * BlockSolverConfig of the given Block; then,
+ *
+ *     myBSC.reset_Solver( myBlock );
+ *
+ * does the trick. However, note that
+ *
+ *     CALLING ERBlockSolverConfig::get(), WHICH IS WHAT THE ABOVE CONSTRUCTOR
+ *     DOES, IS A POTENTIALLY COSTLY OPERATION BECAUSE IT ENTAILS SCANNING ALL
+ *     Constraint AND Objective OF THE Block, AND ALL ITS sub-Block
+ *     RECURSIVELY, IN ORDER TO FIND THE "INDIRECT" sub-Block.
+ *
+ * If the user is positve that the Block has no "indirect" sub-Block, then
+ * using RBlockSolverConfig is cheaper, and similarly for BlockSolverConfig
+ * if there aren't solver attached even to "normal" sub-Block.
+ *
+ * Alternatively, if myBlock is of a specific type where the "indirect"
+ * sub-Block can only be in specific locations, then the user may want to
+ * define an appropriate myRBlockSolverConfig : [R]BlockSolverConfig that
+ * caters for that specific structure.
+ *
+ * Finally, note that if the only purpose of the thusly constructed
+ * [ER]BlockSolverConfig is to reset the Solver of the Block (and those
  * attached to its sub-Block and "indirect sub-Block", recursively), then a
  * "cleared" ERBlockSolverConfig (one that contains no ComputeConfig for the
- * Solver) can be constructed:
+ * Solver) can be directly constructed by
  *
- *   ERBlockSolverConfig config( block , false , true );
+ *     ERBlockSolverConfig myBSC( block , false , true );
  *
- * Once the BlockSolverConfig is built, all the Solver attached to the Block
- * (and to its ("indirect") sub-Block, recursively) can be reset:
- *
- *   config.reset_Solver( block );
- *
+ * This is clearly smarter than constructing a "full" ERBlockSolverConfig,
+ * only to clear() it immediately afterwards. Of course, such a "cleared"
+ * ERBlockSolverConfig is likely only useful to call reset_Solver().
  * @{ */
 
 /*--------------------------------------------------------------------------*/
@@ -308,6 +361,10 @@ class BlockSolverConfig : public Configuration
   * reset the Solver of a Block (usually the given Block \p block). The
   * default value of this parameter is false, in which case a "full"
   * BlockSolverConfig is constructed. 
+  *
+  * Note that BlockSolverConfig::get() is a reasonably cheap operation,
+  * especially if clear == true, but this may not be true for all the
+  * derived classes.
   *
   * @param block A pointer to the Block whose BlockSolverConfig must be
   *        filled.
@@ -712,6 +769,10 @@ class RBlockSolverConfig : public BlockSolverConfig
   * BlockSolverConfig (see BlockSolverConfig::get()) plus the
   * BlockSolverConfig of each sub-Block of the given Block.
   *
+  * Note that BlockSolverConfig::get() is a reasonably cheap operation,
+  * especially if clear == true, except of course for the fact the the
+  * whole Block, and all its sub-Block recursively, must be scanned.
+  *
   * @param block A pointer to the Block whose RBlockSolverConfig must be
   *        filled.
   *
@@ -1024,6 +1085,17 @@ class ERBlockSolverConfig : public RBlockSolverConfig
   * supported by the RBlockSolverConfig (see RBlockSolverConfig::get()) plus
   * any BlockSolverConfig that may be associated with Constraint and/or
   * Objective of the given Block.
+  *
+  * Note that
+  *
+  *     CALLING ERBlockSolverConfig::get() IS A POTENTIALLY COSTLY OPERATION
+  *     BECAUSE IT ENTAILS SCANNING ALL Constraint AND Objective OF THE
+  *     Block, AND ALL ITS sub-Block RECURSIVELY, IN ORDER TO FIND THE
+  *     "INDIRECT" sub-Block.
+  *
+  * Also, the current implementation only supports the case where the
+  * "indirect" sub-Block are within a LagBFunction or a BendersBFunction
+  * inside a FRowConstraint or FRealObjective.
   *
   * @param block A pointer to the Block whose ERBlockSolverConfig must be
   *        filled.
