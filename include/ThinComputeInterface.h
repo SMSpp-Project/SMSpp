@@ -8,9 +8,9 @@
  * a ComputeConfig object that allows to set and get all the parameters of a
  * :ThinComputeInterface object in one blow.
  *
- * \version 0.10
+ * \version 0.11
  *
- * \date 03 - 09 - 2018
+ * \date 15 - 06 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1028,54 +1028,66 @@ class ComputeConfig : public Configuration
   * format of a ComputeConfig. Besides the mandatory "type" attribute of
   * any :Configuration, the group should contain the following:
   *
-  * - the attribute "diff" of int type containing the value for the f_diff
-  *   field of the ComputeConfig (basically, a bool telling if the
+  * - the optional attribute "diff" of int type containing the value for the
+  *   f_diff field of the ComputeConfig (basically, a bool telling if the
   *   information in it has to be taken as "the configuration to be set" or
-  *   as "the changes to be made from the current configuration");
+  *   as "the changes to be made from the current configuration"); if the
+  *   attribute is not there, f_diff == false is assumed.
   *
-  * - the dimension "num_int_par" containing the number of int parameters;
+  * - the optional dimension "num_int_par" containing the number of int
+  *   parameters; if the dimension is not provided, 0 is assumed;
   *
   * - the variable "int_par_names", of type string and indexed over the
   *   dimension "num_int_par"; the i-th entry of the variable is assumed to
   *   contain the string name of an int parameter (see int_par_idx2str());
+  *   the variable is optional if num_int_par == 0 (e.g., it not provided),
+  *   since in this case it is ignored;
   *
   * - the variable "int_par_vals", of type int and indexed over the
   *   dimension "num_int_par"; the i-th entry of the variable is assumed to
   *   contain the value of the int parameter whose string name is to be found
-  *   in the i-th entry of "int_par_names";
+  *   in the i-th entry of "int_par_names"; the variable is optional if
+  *   num_int_par == 0 (e.g., it not provided), since in this case it is
+  *   ignored;
   *
-  * - the dimension "num_dbl_par" containing the number of double parameters;
+  * - the opional dimension "num_dbl_par" containing the number of double
+  *   parameters; if the dimension is not provided, 0 is assumed;
   *
   * - the variable "dbl_par_names", of type string and indexed over the
   *   dimension "num_dbl_par"; the i-th entry of the variable is assumed to
   *   contain the string name of a double parameter (see dbl_par_idx2str());
+  *   the variable is optional if num_dbl_par == 0 (e.g., it not provided),
+  *   since in this case it is ignored;
   *
   * - the variable "dbl_par_vals", of type double and indexed over the
   *   dimension "num_dbl_par"; the i-th entry of the variable is assumed to
   *   contain the value of the double parameter whose string name is to be
-  *   found in the i-th entry of "dbl_par_names";
+  *   found in the i-th entry of "dbl_par_names"; the variable is optional if
+  *   num_dbl_par == 0 (e.g., it not provided), since in this case it is
+  *   ignored;
   *
-  * - the dimension "num_str_par" containing the number of string parameters;
+  * - the optional dimension "num_str_par" containing the number of string
+  *   parameters; if the dimension is not provided, 0 is assumed;
   *
   * - the variable "str_par_names", of type string and indexed over the
   *   dimension "num_str_par"; the i-th entry of the variable is assumed to
   *   contain the string name of a string parameter (see int_par_idx2str());
+  *   the variable is optional if num_str_par == 0 (e.g., it not provided),
+  *   since in this case it is ignored;
   *
   * - the variable "str_par_vals", of type string and indexed over the
   *   dimension "num_str_par"; the i-th entry of the variable is assumed to
   *   contain the value of the string parameter whose string name is to be
-  *   found in the i-th entry of "str_par_names";
+  *   found in the i-th entry of "str_par_names"; the variable is optional if
+  *   num_int_par == 0 (e.g., it not provided), since in this case it is
+  *   ignored;
   *
   * - the group "extra" containing a Configuration object, which has no
   *   direct use in the base ComputeConfig class, but is added so that
   *   derived classes can put there any configuration information without
   *   having to define further derived classes form ComputeConfig (which,
-  *   however, they can still do if they want).
-  *
-  * The three dimensions "num_*_par" are mandatory. If any of these is zero,
-  * the corresponding variables "*_par_names" and "*_par_vals" may not be
-  * defined. The "extra" group may not exist, in which case the corresponding
-  * Configuration object is set to a nullptr. */
+  *   however, they can still do if they want); the group is optional, if it
+  *   does not exist the corresponding Configuration * is set to nullptr. */
 
  virtual void deserialize( netCDF::NcGroup & group ) override;
 
