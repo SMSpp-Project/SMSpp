@@ -145,7 +145,7 @@ namespace SMSpp_di_unipi_it
  * if some Solver have to be added/deleted during the solution process, it is
  * possible to use myBSC to do that; by keeping myBSC "up to date" with the
  * position of all Solver in the Block, it is possible to clear them all with
- * a single call to reset_Solver() (note thay myBSC can also be used to change
+ * a single call to reset_Solver() (note that myBSC can also be used to change
  * the SolverConfig of the Block, but doing so has no effect on reset_Solver()).
  *
  * If an appropriate, up-to-date BlockSolverConfig is not available, one can be
@@ -165,7 +165,7 @@ namespace SMSpp_di_unipi_it
  *     Constraint AND Objective OF THE Block, AND ALL ITS sub-Block
  *     RECURSIVELY, IN ORDER TO FIND THE "INDIRECT" sub-Block.
  *
- * If the user is positve that the Block has no "indirect" sub-Block, then
+ * If the user is positive that the Block has no "indirect" sub-Block, then
  * using RBlockSolverConfig is cheaper, and similarly for BlockSolverConfig
  * if there aren't solver attached even to "normal" sub-Block.
  *
@@ -356,7 +356,7 @@ class BlockSolverConfig : public Configuration
   * BlockSolverConfig is useful to delete all the Solver registered to the
   * Block (and although a "cleared" BlockSolverConfig is quite simple, this
   * is no longer true for "cleared" objects of the derived classes
-  * EBlockSolverConfig and ERBlockSolverConfig). Passing \p clear = true is
+  * RBlockSolverConfig and ERBlockSolverConfig). Passing \p clear = true is
   * usually done when the sole purpose of using this BlockSolverConfig is to
   * reset the Solver of a Block (usually the given Block \p block). The
   * default value of this parameter is false, in which case a "full"
@@ -740,8 +740,8 @@ class RBlockSolverConfig : public BlockSolverConfig
   * "BlockSolverConfig_<i>" is that for the i-th sub-Block. Note that the
   * vector of sub-BlockSolverConfig is allowed to be of different size than
   * the number of sub-Block; if it is larger any extra BlockSolverConfig is
-  * simply ignored, if it shorted then all missing sub-BlockConfig are treated
-  * as nullptr (default configuration). */
+  * simply ignored, if it shorted then all missing sub-BlockSolverConfig are
+  * treated as nullptr (default configuration). */
 
  void deserialize( netCDF::NcGroup & group ) override;
 
@@ -922,7 +922,7 @@ class RBlockSolverConfig : public BlockSolverConfig
 /// derived class from RBlockSolverConfig for configuring "indirect sub-Block"
 /** The ERBlockSolverConfig class ("extended RBlockSolverConfig") derives from
  * RBlockSolverConfig in order to also takes into account the configuration
- * of the "indirect syb-Block" of the Block, i.e., those that do not appear
+ * of the "indirect sub-Block" of the Block, i.e., those that do not appear
  * in its sub-Block list but upon on which the Block still depends. Some
  * Constraint and Objective are complicated enough that they may depend on
  * some Block. This class is meant to offer support for configuring the
@@ -971,7 +971,8 @@ class ERBlockSolverConfig : public RBlockSolverConfig
   *
   * @param diff indicates if this configuration is a "differential" one. */
 
- ERBlockSolverConfig( bool diff = true ) : RBlockSolverConfig( diff ) { }
+ ERBlockSolverConfig( bool diff = true ) :
+  RBlockSolverConfig( diff ) , f_BlockSolverConfig_Objective( nullptr ) { }
 
 /*--------------------------------------------------------------------------*/
  /// constructs an ERBlockSolverConfig out of the given netCDF \p group
@@ -982,7 +983,8 @@ class ERBlockSolverConfig : public RBlockSolverConfig
   * @param group The netCDF::NcGroup containing the description of the
   *        ERBlockSolverConfig. */
 
- ERBlockSolverConfig( netCDF::NcGroup & group ) : RBlockSolverConfig() {
+ ERBlockSolverConfig( netCDF::NcGroup & group ) :
+  RBlockSolverConfig() , f_BlockSolverConfig_Objective( nullptr ) {
   deserialize( group );
   }
 
@@ -995,7 +997,8 @@ class ERBlockSolverConfig : public RBlockSolverConfig
   * @param input The istream containing the description of the
   *        ERBlockSolverConfig. */
 
- ERBlockSolverConfig( std::istream &input ) : RBlockSolverConfig() {
+ ERBlockSolverConfig( std::istream &input ) :
+  RBlockSolverConfig() , f_BlockSolverConfig_Objective( nullptr ) {
   load( input );
   }
 
@@ -1012,8 +1015,8 @@ class ERBlockSolverConfig : public RBlockSolverConfig
   * @param clear It indicates whether a "cleared" ERBlockSolverConfig is
   *        desired. See ERBlockSolverConfig:get() for details. */
 
- ERBlockSolverConfig( Block * block , bool diff = false ,
-		      bool clear = false ) : RBlockSolverConfig( diff ) {
+ ERBlockSolverConfig( Block * block , bool diff = false , bool clear = false ) :
+  RBlockSolverConfig( diff ) , f_BlockSolverConfig_Objective( nullptr ) {
   get( block , clear );
   }
 
@@ -1026,7 +1029,7 @@ class ERBlockSolverConfig : public RBlockSolverConfig
  /// extends RBlockSolverConfig::deserialize( netCDF::NcGroup )
  /** Extends RBlockSolverConfig::deserialize( netCDF::NcGroup ) to the
   * specific format of an ERBlockSolverConfig. Besides the mandatory "type"
-  * attribute of any :Configuration, and the dimensions and variables of an
+  * attribute of any :Configuration, and all that is needed to describe a
   * RBlockSolverConfig, the group should also contain the following:
   *
   * - the dimension "n_BlockSolverConfig_Constraint" containing the number of
@@ -1287,14 +1290,10 @@ class ERBlockSolverConfig : public RBlockSolverConfig
   *     object
   *   (clearly, if k == 0 this is empty)
   *
-  * a binary number b indicating whether a BlockSolverConfig associated with
-  * the Objective of the Block is provided
-  *
-  * If b != 0:
-  *  - a string containing the class type of a BlockSolverConfig object,
-  *    '*' means none (nullptr)
-  *  - if the above is not '*', the description of the :BlockSolverConfig
-  *    object */
+  * - a string containing the class type of a BlockSolverConfig object for the
+  *   Objective, '*' means none (nullptr)
+  * - if the above is not '*', the description of the :BlockSolverConfig
+  *   object for the Objective. */
 
  void load( std::istream &input ) override;
 

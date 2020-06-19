@@ -1117,25 +1117,19 @@ void ERBlockSolverConfig::load( std::istream &input )
 
  // BlockSolverConfig for Objective
 
- bool objective = false;
- input >> eatcomments >> objective;
-
- if( objective ) {
-  input >> eatcomments;
-  if( input.peek() == input.widen( '*' ) )
-   f_BlockSolverConfig_Objective = nullptr;
-  else {
-   std::string cname;
-   input >> cname;
-   Configuration *tmpc = Configuration::new_Configuration( cname );
-   BlockSolverConfig *tmpbc = dynamic_cast<BlockSolverConfig *>( tmpc );
-   if( ! tmpbc )
-    throw( std::invalid_argument( "not a BlockSolverConfig object" ) );
-   f_BlockSolverConfig_Objective = tmpbc;
-   input >> *tmpbc;
-   }
+ input >> eatcomments;
+ if( input.peek() == input.widen( '*' ) )
+  f_BlockSolverConfig_Objective = nullptr;
+ else {
+  std::string cname;
+  input >> cname;
+  Configuration *tmpc = Configuration::new_Configuration( cname );
+  BlockSolverConfig *tmpbc = dynamic_cast<BlockSolverConfig *>( tmpc );
+  if( ! tmpbc )
+   throw( std::invalid_argument( "not a BlockSolverConfig object" ) );
+  f_BlockSolverConfig_Objective = tmpbc;
+  input >> *tmpbc;
   }
-
  }  // end( ERBlockSolverConfig::load )
 
 /*--------------------------------------------------------------------------*/
