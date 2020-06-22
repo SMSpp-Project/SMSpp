@@ -893,7 +893,7 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
  if( range.second <= range.first )  // actually nothing to modify
   return;                           // cowardly (and silently) return
 
- if( range.second >= v_A.size() )
+ if( range.second > v_A.size() )
   throw( std::invalid_argument( "wrong indices in range" ) );
 
  if( nA.size() != range.second - range.first )
@@ -1098,7 +1098,7 @@ void PolyhedralFunction::modify_constants( c_RealVector & nb , Range range ,
  if( range.second <= range.first )  // actually nothing to modify
   return;                           // cowardly (and silently) return
 
- if( range.second >= v_b.size() )
+ if( range.second > v_b.size() )
   throw( std::invalid_argument( "wrong indices in range" ) );
   
  if( nb.size() != range.second - range.first )
@@ -1493,7 +1493,7 @@ void PolyhedralFunction::delete_rows( Range range , c_ModParam issueMod )
  if( range.second <= range.first )  // actually nothing to modify
   return;                           // cowardly (and silently) return
 
- if( range.second >= v_A.size() )
+ if( range.second > v_A.size() )
   throw( std::invalid_argument( "wrong indices in range" ) );
 
  if( range.second - range.first == 1 ) {
