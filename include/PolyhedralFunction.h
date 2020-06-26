@@ -661,6 +661,21 @@ class PolyhedralFunction : public C05Function {
 
 /*--------------------------------------------------------------------------*/
  /// stores a combination of the given linearizations
+ /** This method creates a linear combination of a given set of
+  * linearizations, with given coefficients, and stores it (or information
+  * allowing to compute it) into the global pool of linearizations with the
+  * given name.
+  *
+  * Note that in the current implementation of PolyhedralFunction,
+  * linearizations obtained by linear combination are "very fragile". Each
+  * time any linearization changes or is deleted, or Variable are added,
+  * understanding if a linearization obtained by linear combination is still
+  * valid, or computing its new entries, would require keeping track of the
+  * original set of linearizations that produced it, and the corresponding
+  * linear coefficients. This would be possible but it is currently not done.
+  * As a consequence, many changes in the PolyhedralFunction produce the
+  * immediate removal from the global pool of all the linearizations obtained
+  * by linear combination. */
 
  void store_combination_of_linearizations( LinearCombination & coefficients ,
 					   Index name ,
@@ -1559,6 +1574,15 @@ class PolyhedralFunction : public C05Function {
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+ void reset_aggregate_linearizations( void );
+
+ void reset_aggregate_linearizations( c_ModParam issueMod );
+
+ void update_f_max_glob( void ) {
+  while( f_max_glob && ( v_glob[ f_max_glob ] == Inf<int>() ) )
+   --f_max_glob;
+  }
+ 
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( PolyhedralFunction ) )
@@ -1610,8 +1634,7 @@ class PolyhedralFunctionMod : public C05FunctionMod {
   * Modification, the value of the shift, and the "concerns Block" value. No
   * other PolyhedralFunction-specific information is needed. */
 
- PolyhedralFunctionMod( C05Function * f , int type ,
-			Subset && which = {} ,
+ PolyhedralFunctionMod( C05Function * f , int type , Subset && which = {} ,
 			FunctionValue shift = NaNshift , bool cB = true )
   : C05FunctionMod( f , type , std::move( which ) , shift , cB ) { }
 

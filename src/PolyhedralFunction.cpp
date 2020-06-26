@@ -318,9 +318,7 @@ void PolyhedralFunction::delete_linearization( Index name ,
   }
 
  v_glob[ name ] = Inf<int>();        // mark the item as deleted
- // update f_max_glob
- while( f_max_glob && ( v_glob[ f_max_glob ] == Inf<int>() ) )
-  --f_max_glob;
+ update_f_max_glob();
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
@@ -371,9 +369,7 @@ void PolyhedralFunction:delete_linearizations( Subset && which ,
     which.resize( std::distance( which.begin() , wit ) );
    }
 
-  // update f_max_glob
-  while( f_max_glob && ( v_glob[ f_max_glob ] == Inf<int>() ) )
-   --f_max_glob;
+  update_f_max_glob();
   }
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
@@ -726,12 +722,16 @@ void PolyhedralFunction::add_variables( VarVector && nx , MultiVector && nA ,
  set_f_uncomputed();                // the function value has changed
  f_Lipschitz_constant = - Inf<FunctionValue>();  // == unknown
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
-  return;  // noone is listening: all done
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) ) {
+  reset_aggregate_linearizations();
+  return;
+  }
+
+ reset_aggregate_linearizations( issueMod );
 
  Vec_p_Var vars( nn );
  std::copy( v_x.begin() + n , v_x.end() , vars.begin() );
- 
+
  // now issue the C05FunctionModVarsAddd
  f_Observer->add_Modification( std::make_shared<C05FunctionModVarsAddd>(
 					 this , std::move( vars ) , n , 0 ,
@@ -760,8 +760,12 @@ void PolyhedralFunction::add_variable( ColVariable * const var ,
  set_f_uncomputed();                // the function value has changed
  f_Lipschitz_constant = - Inf<FunctionValue>();  // == unknown
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) ) {
+  reset_aggregate_linearizations();
   return;
+  }
+
+ reset_aggregate_linearizations( issueMod );
 
  // now issue the Modification
  // a polyhedral function is strongly quasi-additive
@@ -931,37 +935,48 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
 
  // reset all aggregated linearizations, since there is no way to know if
  // they are still valid
- bool stgchgd = ! v_aA.empty();  // if some linearization changed
-
- if( ( ! stgchgd ) &&
-     ( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) ) )
-  return;                  // noone is there: all done
-
- v_aA.clear();
- v_ab.clear();
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) ) {
+  reset_aggregate_linearizations();
+  return;
+  }
 
  Subset which;
 
  // now search if some of the changed rows are in the global pool
- for( Index i = 0 ; i <= f_max_glob ; ++i )
-  if( v_glob[ i ] < 0 ) {       // an aggregated one
-   v_glob[ i ] = Inf<int>();    // kill it for sure
-   which.push_back( i );
-   }
-  else
-   if( ( v_glob[ i ] > range.first ) && ( v_glob[ i ] <= range.second ) ) {
-    which.push_back( i );
-    stgchgd = true;
-    }
+ if( ! v_aA.empty() ) {  // meanwhile, reset aggregate linearizations
+  Subset whiche;
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
-  return;                  // noone is there: all done
+  v_aA.clear();
+  v_ab.clear();
+
+  for( Index i = 0 ; i <= f_max_glob ; ++i )
+   if( v_glob[ i ] < 0 ) {
+    v_glob[ i ] = Inf<int>();
+    whiche.push_back( i );
+    }
+   else
+    if( ( v_glob[ i ] > range.first ) && ( v_glob[ i ] <= range.second ) )
+     which.push_back( i );
+
+  update_f_max_glob();
+
+  // a separate C0FunctionMod for removals
+  f_Observer->add_Modification( std::make_shared<C0FunctionMod>( this ,
+			                 C05FunctionMod::GlobalPoolRemoved ,
+					 std::move( whiche ) , 0 ,
+				         Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
+  }
+ else  // there are no aggregate linearizations
+  for( Index i = 0 ; i <= f_max_glob ; ++i )
+   if( ( v_glob[ i ] > range.first ) && ( v_glob[ i ] <= range.second ) )
+    which.push_back( i );
 
  // issue the PolyhedralFunctionModRngd
  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModRngd>(
 			     this ,
-			     stgchgd ? C05FunctionMod::AllLinearizationChanged
-				     : C05FunctionMod::NothingChanged ,
+			     which.empty() ? C05FunctionMod::NothingChanged
+			         : C05FunctionMod::AllLinearizationChanged ,
 			     PolyhedralFunctionMod::ModifyRows , range ,
 			     std::move( which ), C05FunctionMod::NaNshift ,
 			     Observer::par2concern( issueMod ) ) ,
@@ -1003,40 +1018,57 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
 
  // reset all aggregated linearizations, since there is no way to know if
  // they are still valid
- bool stgchgd = ! v_aA.empty();  // if some linearization changed
-
- if( ( ! stgchgd ) &&
-     ( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) ) )
-  return;                  // noone is there: all done
-
- v_aA.clear();
- v_ab.clear();
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) ) {
+  reset_aggregate_linearizations();
+  return;
+  }
 
  Subset which;
 
  // now search if some of the changed rows are in the global pool
- for( Index i = 0 ; i <= f_max_glob ; ++i )
-  if( v_glob[ i ] < 0 ) {       // an aggregated one
-   v_glob[ i ] = Inf<int>();    // kill it for sure
-   which.push_back( i );
-   }
-  else
+ if( ! v_aA.empty() ) {  // meanwhile, reset aggregate linearizations
+  Subset whiche;
+
+  v_aA.clear();
+  v_ab.clear();
+
+  // now search if some of the changed rows are in the global pool
+  for( Index i = 0 ; i <= f_max_glob ; ++i )
+   if( v_glob[ i ] < 0 ) {
+    v_glob[ i ] = Inf<int>();
+    whiche.push_back( i );
+    }
+   else
+    if( v_glob[ i ] ) {        // unless it's the bound
+     auto it = std::lower_bound( rows.begin() , rows.end() ,
+				 v_glob[ i ] - 1 );
+     if( ( it != rows.end() ) && ( *it == v_glob[ i ] - 1 ) )
+      which.push_back( i );
+     }
+
+  update_f_max_glob();
+
+  // a separate C0FunctionMod for removals
+  f_Observer->add_Modification( std::make_shared<C0FunctionMod>( this ,
+			                 C05FunctionMod::GlobalPoolRemoved ,
+					 std::move( whiche ) , 0 ,
+				         Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
+  }
+ else {  // there are no aggregate linearizations
+  for( Index i = 0 ; i <= f_max_glob ; ++i )
    if( v_glob[ i ] ) {        // unless it's the bound
     auto it = std::lower_bound( rows.begin() , rows.end() , v_glob[ i ] - 1 );
-    if( ( it != rows.end() ) && ( *it == v_glob[ i ] - 1 ) ) {
+    if( ( it != rows.end() ) && ( *it == v_glob[ i ] - 1 ) )
      which.push_back( i );
-     stgchgd = true;
-     }
     }
-
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
-  return;                  // noone is there: all done
+  }
 
  // issue the PolyhedralFunctionModSbst
  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModSbst>(
 			     this ,
-			     stgchgd ? C05FunctionMod::AllLinearizationChanged
-				     : C05FunctionMod::NothingChanged ,
+			     which.empty() ? C05FunctionMod::NothingChanged
+			         : C05FunctionMod::AllLinearizationChanged ,
 			     PolyhedralFunctionMod::ModifyRows ,
 			     std::move( rows ) , std::move( which ) ,
 			     C05FunctionMod::NaNshift ,
@@ -1066,37 +1098,52 @@ void PolyhedralFunction::modify_row( c_Index i , RealVector && Ai ,
 
  // reset all aggregated linearizations, since there is no way to know if
  // they are still valid
- bool stgchgd = ! v_aA.empty();  // if some linearization changed
-
- if( ( ! stgchgd ) &&
-     ( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) ) )
-  return;                  // noone is there: all done
-
- v_aA.clear();
- v_ab.clear();
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) ) {
+  reset_aggregate_linearizations();
+  return;
+  }
 
  Subset which;
 
- // now search if the changed row is in the global pool
- for( Index j = 0 ; j <= f_max_glob ; ++j )
-  if( v_glob[ j ] < 0 ) {       // an aggregated one
-   v_glob[ j ] = Inf<int>();    // kill it for sure
-   which.push_back( j );
-   }
-  else
-   if( v_glob[ j ] == i + 1 ) {
-    which.push_back( j );
-    stgchgd = true;
-    }
+ // now search if some of the changed rows are in the global pool
+ if( ! v_aA.empty() ) {  // meanwhile, reset aggregate linearizations
+  Subset whiche;
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
-  return;                  // noone is there: all done
+  v_aA.clear();
+  v_ab.clear();
+
+  // now search if the changed row is in the global pool
+  for( Index j = 0 ; j <= f_max_glob ; ++j )
+   if( v_glob[ j ] < 0 ) {       // an aggregated one
+    v_glob[ j ] = Inf<int>();    // kill it for sure
+    which.push_back( j );
+    }
+   else
+    if( v_glob[ j ] == i + 1 ) {
+     which.push_back( j );
+     stgchgd = true;
+     }
+
+  update_f_max_glob();
+
+  // a separate C0FunctionMod for removals
+  f_Observer->add_Modification( std::make_shared<C0FunctionMod>( this ,
+			                 C05FunctionMod::GlobalPoolRemoved ,
+					 std::move( whiche ) , 0 ,
+				         Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
+  }
+ else {  // there are no aggregate linearizations
+  for( Index j = 0 ; j <= f_max_glob ; ++j )
+   if( v_glob[ j ] == i + 1 )
+    which.push_back( j );
+  }
 
  // issue the PolyhedralFunctionModRngd
  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModRngd>(
 			     this ,
-			     stgchgd ? C05FunctionMod::AllLinearizationChanged
-				     : C05FunctionMod::NothingChanged ,
+			     which.empty() ? C05FunctionMod::NothingChanged
+			         : C05FunctionMod::AllLinearizationChanged ,
 			     PolyhedralFunctionMod::ModifyRows ,
 			     Range( i , i + 1 ) , std::move( which ) ,
 			     C05FunctionMod::NaNshift ,
@@ -1152,40 +1199,53 @@ void PolyhedralFunction::modify_constants( c_RealVector & nb , Range range ,
 
  // reset all aggregated linearizations, since there is no way to know if
  // they are still valid
- bool stgchgd = ! v_aA.empty();  // if some linearization changed
-
- if( ( ! stgchgd ) &&
-     ( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) ) )
-  return;                  // noone is there: all done
-
- v_aA.clear();
- v_ab.clear();
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) ) {
+  reset_aggregate_linearizations();
+  return;
+  }
 
  Subset which;
 
- // now search if some of the changed constants are in the global pool
- for( Index i = 0 ; i <= f_max_glob ; ++i )
-  if( v_glob[ i ] < 0 ) {       // an aggregated one
-   v_glob[ i ] = Inf<int>();    // kill it for sure
-   which.push_back( i );
-   }
-  else
-   if( ( v_glob[ i ] > range.first ) && ( v_glob[ i ] <= range.second ) ) {
-    which.push_back( i );
-    stgchgd = true;
-    }
+ // now search if some of the changed rows are in the global pool
+ if( ! v_aA.empty() ) {  // meanwhile, reset aggregate linearizations
+  Subset whiche;
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
-  return;                  // noone is there: all done
+  v_aA.clear();
+  v_ab.clear();
+
+  // now search if some of the changed constants are in the global pool
+  for( Index i = 0 ; i <= f_max_glob ; ++i )
+   if( v_glob[ i ] < 0 ) {
+    v_glob[ i ] = Inf<int>();
+    whiche.push_back( i );
+    }
+   else
+    if( ( v_glob[ i ] > range.first ) && ( v_glob[ i ] <= range.second ) )
+     which.push_back( i );
+
+  update_f_max_glob();
+
+  // a separate C0FunctionMod for removals
+  f_Observer->add_Modification( std::make_shared<C0FunctionMod>( this ,
+			                 C05FunctionMod::GlobalPoolRemoved ,
+					 std::move( whiche ) , 0 ,
+				         Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
+  }
+ else {  // there are no aggregate linearizations
+  for( Index i = 0 ; i <= f_max_glob ; ++i )
+   if( ( v_glob[ i ] > range.first ) && ( v_glob[ i ] <= range.second ) )
+    which.push_back( i );
+  }
 
  // issue the PolyhedralFunctionModRngd
  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModRngd>(
-			           this ,
-				   stgchgd ? C05FunctionMod::AlphaChanged
-				           : C05FunctionMod::NothingChanged ,
-				   PolyhedralFunctionMod::ModifyCnst ,
-				   range , std::move( which ) , shift ,
-				   Observer::par2concern( issueMod ) ) ,
+			     this ,
+			     which.empty() ? C05FunctionMod::NothingChanged
+				           : C05FunctionMod::AlphaChanged ,
+			     PolyhedralFunctionMod::ModifyCnst , range ,
+			     std::move( which ) , shift ,
+			     Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
 
  }  // end( PolyhedralFunction::modify_constants( range ) )
@@ -1243,44 +1303,60 @@ void PolyhedralFunction::modify_constants( c_RealVector & nb ,
 
  // reset all aggregated linearizations, since there is no way to know if
  // they are still valid
- bool stgchgd = ! v_aA.empty();  // if some linearization changed
-
- if( ( ! stgchgd ) &&
-     ( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) ) )
-  return;                  // noone is there: all done
-
- v_aA.clear();
- v_ab.clear();
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) ) {
+  reset_aggregate_linearizations();
+  return;
+  }
 
  Subset which;
 
- // now search if some of the changed constants are in the global pool
- for( Index i = 0 ; i <= f_max_glob ; ++i )
-  if( v_glob[ i ] < 0 ) {       // an aggregated one
-   v_glob[ i ] = Inf<int>();    // kill it for sure
-   which.push_back( i );
-   }
-  else
+ // now search if some of the changed rows are in the global pool
+ if( ! v_aA.empty() ) {  // meanwhile, reset aggregate linearizations
+  Subset whiche;
+
+  v_aA.clear();
+  v_ab.clear();
+
+  // now search if some of the changed constants are in the global pool
+  for( Index i = 0 ; i <= f_max_glob ; ++i )
+   if( v_glob[ i ] < 0 ) {       // an aggregated one
+    v_glob[ i ] = Inf<int>();    // kill it for sure
+    whiche.push_back( i );
+    }
+   else
+    if( v_glob[ i ] ) {        // unless it's the bound
+     auto it = std::lower_bound( rows.begin() , rows.end() ,
+				 v_glob[ i ] - 1 );
+     if( ( it != rows.end() ) && ( *it == v_glob[ i ] - 1 ) )
+      which.push_back( i );
+     }
+
+  update_f_max_glob();
+
+  // a separate C0FunctionMod for removals
+  f_Observer->add_Modification( std::make_shared<C0FunctionMod>( this ,
+			                 C05FunctionMod::GlobalPoolRemoved ,
+					 std::move( whiche ) , 0 ,
+				         Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
+  }
+ else {  // there are no aggregate linearizations
+  for( Index i = 0 ; i <= f_max_glob ; ++i )
    if( v_glob[ i ] ) {        // unless it's the bound
     auto it = std::lower_bound( rows.begin() , rows.end() , v_glob[ i ] - 1 );
-    if( ( it != rows.end() ) && ( *it == v_glob[ i ] - 1 ) ) {
+    if( ( it != rows.end() ) && ( *it == v_glob[ i ] - 1 ) )
      which.push_back( i );
-     stgchgd = true;
-     }
     }
-
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
-  return;                  // noone is there: all done
+  }
 
  // issue the PolyhedralFunctionModSbst
  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModSbst>(
-			           this ,
-				   stgchgd ? C05FunctionMod::AlphaChanged
-				           : C05FunctionMod::NothingChanged ,
-				   PolyhedralFunctionMod::ModifyCnst ,
-				   std::move( rows ) , std::move( which ) ,
-				   shift ,
-				   Observer::par2concern( issueMod ) ) ,
+			     this ,
+			     which.empty() ? C05FunctionMod::NothingChanged
+				           : C05FunctionMod::AlphaChanged ,
+			     PolyhedralFunctionMod::ModifyCnst ,
+			     std::move( rows ) , std::move( which ) , shift ,
+			     Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
 
  }  // end( PolyhedralFunction::modify_constants )
@@ -1306,41 +1382,53 @@ void PolyhedralFunction::modify_constant( c_Index i , c_FunctionValue bi ,
 
  // reset all aggregated linearizations, since there is no way to know if
  // they are still valid
- bool stgchgd = ! v_aA.empty();  // if some linearization changed
-
- if( ( ! stgchgd ) &&
-     ( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) ) )
-  return;                  // noone is there: all done
-
- v_aA.clear();
- v_ab.clear();
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) ) {
+  reset_aggregate_linearizations();
+  return;
+  }
 
  Subset which;
 
- // now search the changed constant is in the global pool
- for( Index j = 0 ; j <= f_max_glob ; ++j )
-  if( v_glob[ j ] < 0 ) {      // an aggregated one
-   v_glob[ j ] = Inf<int>();   // kill it for sure
-   which.push_back( i );
-   }
-  else
-   if( v_glob[ j ] == i + 1 ) {
-    which.push_back( j );
-    stgchgd = true;
-    }
+ // now search if some of the changed rows are in the global pool
+ if( ! v_aA.empty() ) {  // meanwhile, reset aggregate linearizations
+  Subset whiche;
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
-  return;                  // noone is there: all done
+  v_aA.clear();
+  v_ab.clear();
+
+  // now search the changed constant is in the global pool
+  for( Index j = 0 ; j <= f_max_glob ; ++j )
+   if( v_glob[ j ] < 0 ) {
+    v_glob[ j ] = Inf<int>();
+    whiche.push_back( i );
+    }
+   else
+    if( v_glob[ j ] == i + 1 )
+     which.push_back( j );
+
+  update_f_max_glob();
+
+  // a separate C0FunctionMod for removals
+  f_Observer->add_Modification( std::make_shared<C0FunctionMod>( this ,
+			                 C05FunctionMod::GlobalPoolRemoved ,
+					 std::move( whiche ) , 0 ,
+				         Observer::par2concern( issueMod ) ) ,
+				Observer::par2chnl( issueMod ) );
+  }
+ else {  // there are no aggregate linearizations
+  for( Index j = 0 ; j <= f_max_glob ; ++j )
+   if( v_glob[ j ] == i + 1 )
+    which.push_back( j );
+  }
 
  // issue the PolyhedralFunctionModRngd
  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModRngd>(
-			           this ,
-				   stgchgd ? C05FunctionMod::AlphaChanged
-				           : C05FunctionMod::NothingChanged ,
-				   PolyhedralFunctionMod::ModifyCnst ,
-				   Range( i , i + 1 ) , std::move( which ) ,
-				   shift ,
-				   Observer::par2concern( issueMod ) ) ,
+			     this ,
+			     which.empty() ? C05FunctionMod::NothingChanged
+				           : C05FunctionMod::AlphaChanged ,
+			     PolyhedralFunctionMod::ModifyCnst ,
+			     Range( i , i + 1 ) , std::move( which ) ,
+			     shift , Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
 
  }  // end( PolyhedralFunction::modify_constant )
@@ -1367,58 +1455,75 @@ void PolyhedralFunction::modify_bound( FunctionValue newbound ,
  set_f_uncomputed();                // the function value has changed
  // but note that the Lipschitz constant obviously has not
 
- bool stgchgd = false;  // if some linearization changed
+ // reset all aggregated linearizations, since there is no way to know if
+ // they are still valid
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) ) {
+  reset_aggregate_linearizations();
+  return;
+  }
+
  Subset which;
 
  // if the bound was not set, nothing else to do: surely it is not in
  // the global pool, nor it can have contributed to exising linearizations
  if( wasset ) {
-  // reset all aggregated linearizations, since there is no way to know if
-  // they are still valid
-  bool stgchgd = ! v_aA.empty();
+  if( ! v_aA.empty() ) {  // meanwhile, reset aggregate linearizations
+   Subset whiche;
 
-  if( ( ! stgchgd ) &&
-      ( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) ) )
-   return;                  // noone is there: all done
+   v_aA.clear();
+   v_ab.clear();
 
-  v_aA.clear();
-  v_ab.clear();
-
-  if( is_bound_set() ) {  // the bound has been changed
-   // now search if the changed bound is in the global pool
-   for( Index i = 0 ; i <= f_max_glob ; ++i )
-    if( v_glob[ i ] < 0 ) {       // an aggregated one
-     v_glob[ i ] = Inf<int>();   // kill it for sure
-     which.push_back( i );
-     }
-    else
-     if( ! v_glob[ i ] ) {
-      which.push_back( i );
-      stgchgd = true;
+   if( is_bound_set() ) {  // the bound has been changed
+    // now search if the changed bound is in the global pool
+    for( Index i = 0 ; i <= f_max_glob ; ++i )
+     if( v_glob[ i ] < 0 ) {       // an aggregated one
+      v_glob[ i ] = Inf<int>();   // kill it for sure
+      whiche.push_back( i );
+      }
+     else
+      if( ! v_glob[ i ] )
+       which.push_back( i );
+    }
+   else  // the bound has been eliminated: eliminate both the it and any
+         // aggregated linearization from the global pool
+    for( Index i = 0 ; i <= f_max_glob ; ++i )
+     if( v_glob[ i ] <= 0 ) {
+      v_glob[ i ] = Inf<int>();
+      whiche.push_back( i );
       }
    }
-  else  // the bound has been eliminated: eliminate both the it and any
-        // aggregated linearization from the global pool
-   for( Index i = 0 ; i <= f_max_glob ; ++i )
-    if( v_glob[ i ] <= 0 ) {
-     v_glob[ i ] = Inf<int>();
-     which.push_back( i );
-     stgchgd = true;
-     }
+  else {  // there are no aggregate linearizations
+   if( is_bound_set() ) {  // the bound has been changed
+    for( Index j = 0 ; j <= f_max_glob ; ++j )
+     if( ! v_glob[ i ] )
+      which.push_back( i );
+    }
+   else  // the bound has been eliminated
+    for( Index i = 0 ; i <= f_max_glob ; ++i )
+     if( ! v_glob[ i ] )
+      whiche.push_back( i );
    }
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
-  return;                  // noone is there: all done
+  update_f_max_glob();
+
+  // a separate C0FunctionMod for removals (if any)
+  if( ! whiche.empty() )
+   f_Observer->add_Modification( std::make_shared<C0FunctionMod>( this ,
+			                 C05FunctionMod::GlobalPoolRemoved ,
+					 std::move( whiche ) , 0 ,
+				         Observer::par2concern( issueMod ) ) ,
+				Observer::par2chnl( issueMod ) );
+
+  }  // end( if( wasset ) )
 
  // issue the PolyhedralFunctionModRngd
  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModRngd>(
-			           this ,
-				   stgchgd ? C05FunctionMod::AlphaChanged
-				           : C05FunctionMod::NothingChanged ,
-				   PolyhedralFunctionMod::ModifyCnst ,
-				   Range( 0 , 0 ) , std::move( which ) ,
-				   shift ,
-				   Observer::par2concern( issueMod ) ) ,
+			     this ,
+			     which.empty() ? C05FunctionMod::NothingChanged
+				           : C05FunctionMod::AlphaChanged ,
+			     PolyhedralFunctionMod::ModifyCnst ,
+			     Range( 0 , 0 ) , std::move( which ) , shift ,
+			     Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
 
  }  // end( PolyhedralFunction::modify_bound )
@@ -1523,7 +1628,6 @@ void PolyhedralFunction::delete_rows( Range range , c_ModParam issueMod )
 
  // reset all aggregated linearizations, since there is no way to know if
  // they are still valid
- bool stgchgd = ! v_aA.empty();  // if some linearization changed
  v_aA.clear();
  v_ab.clear();
 
@@ -1547,13 +1651,10 @@ void PolyhedralFunction::delete_rows( Range range , c_ModParam issueMod )
     if( v_glob[ i ] > range.first ) {  // one of the deleted
      v_glob[ i ] = Inf<int>();         // kill it
      which.push_back( i );
-     stgchgd = true;                   // something changed
      }
   }
 
- // update f_max_glob
- while( f_max_glob && ( v_glob[ f_max_glob ] == Inf<int>() ) )
-  --f_max_glob;
+ update_f_max_glob();
 
  f_Lipschitz_constant = - Inf<FunctionValue>();  // == unknown
  set_f_uncomputed();      // the function value has changed
@@ -1565,14 +1666,14 @@ void PolyhedralFunction::delete_rows( Range range , c_ModParam issueMod )
 
  // issue the PolyhedralFunctionModRngd
  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModRngd>(
-				this ,
-			        stgchgd ? C05FunctionMod::AlphaChanged
-					: C05FunctionMod::NothingChanged ,
-				PolyhedralFunctionMod::DeleteRows , range ,
-				std::move( which ) ,
-				f_is_convex ? - FunctionMod::INFshift
-				            : + FunctionMod::INFshift ,
-				Observer::par2concern( issueMod ) ) ,
+			 this ,
+                         which.empty() ? C05FunctionMod::NothingChanged
+                                       : C05FunctionMod::GlobalPoolRemoved ,
+			 PolyhedralFunctionMod::DeleteRows , range ,
+			 std::move( which ) ,
+			 f_is_convex ? - FunctionMod::INFshift
+				     : + FunctionMod::INFshift ,
+			 Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 
  }  // end( PolyhedralFunction::delete_rows( range ) )
@@ -1614,7 +1715,6 @@ void PolyhedralFunction::delete_rows( Subset && rows , bool ordered ,
 
  // reset all aggregated linearizations, since there is no way to know if
  // they are still valid
- bool stgchgd = ! v_aA.empty();  // if some linearization changed
  v_aA.clear();
  v_ab.clear();
 
@@ -1640,20 +1740,18 @@ void PolyhedralFunction::delete_rows( Subset && rows , bool ordered ,
     v_glob[ i ] -= rows.size();         // decreased by # of deleted
    else
     if( v_glob[ i ] > rows.front() ) {
-     auto it = std::lower_bound( rows.begin() , rows.end() , v_glob[ i ] - 1 );
+     auto it = std::lower_bound( rows.begin() , rows.end() ,
+				 v_glob[ i ] - 1 );
      if( *it == v_glob[ i ] - 1 ) {     // one of the deleted
       v_glob[ i ] = Inf<int>();         // kill it
       which.push_back( i );
-      stgchgd = true;                   // something changed
       }
      else
       v_glob[ i ] -= std::distance( rows.begin() , it );
      }
   }
 
- // update f_max_glob
- while( f_max_glob && ( v_glob[ f_max_glob ] == Inf<int>() ) )
-  --f_max_glob;
+ update_f_max_glob();
  
  f_Lipschitz_constant = - Inf<FunctionValue>();  // == unknown
  set_f_uncomputed();      // the function value has changed
@@ -1665,14 +1763,14 @@ void PolyhedralFunction::delete_rows( Subset && rows , bool ordered ,
 
  // issue the PolyhedralFunctionModSbst
  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModSbst>(
-				this ,
-			        stgchgd ? C05FunctionMod::AlphaChanged
-					: C05FunctionMod::NothingChanged ,
-				PolyhedralFunctionMod::DeleteRows ,
-				std::move( rows ) , std::move( which ) ,
-				f_is_convex ? - FunctionMod::INFshift
-				            : + FunctionMod::INFshift ,
-				Observer::par2concern( issueMod ) ) ,
+			 this ,
+                         which.empty() ? C05FunctionMod::NothingChanged
+                                       : C05FunctionMod::GlobalPoolRemoved ,
+			 PolyhedralFunctionMod::DeleteRows ,
+			 std::move( rows ) , std::move( which ) ,
+			 f_is_convex ? - FunctionMod::INFshift
+			             : + FunctionMod::INFshift ,
+			 Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 
  }  // end( PolyhedralFunction::delete_rows( subset ) )
@@ -1689,7 +1787,6 @@ void PolyhedralFunction::delete_row( Index i , c_ModParam issueMod )
 
  // reset all aggregated linearizations, since there is no way to know if
  // they are still valid
- bool stgchgd = ! v_aA.empty();  // if some linearization changed
  v_aA.clear();
  v_ab.clear();
 
@@ -1705,7 +1802,6 @@ void PolyhedralFunction::delete_row( Index i , c_ModParam issueMod )
   if( v_glob[ j ] < 0 ) {            // an aggregated one
    v_glob[ j ] = Inf<int>();         // kill it for sure
    which.push_back( j );
-   stgchgd = true;
    }
   else
    if( v_glob[ j ] > i )
@@ -1718,9 +1814,7 @@ void PolyhedralFunction::delete_row( Index i , c_ModParam issueMod )
      }
   }
 
- // update f_max_glob
- while( f_max_glob && ( v_glob[ f_max_glob ] == Inf<int>() ) )
-  --f_max_glob;
+ update_f_max_glob();
 
  f_Lipschitz_constant = - Inf<FunctionValue>();  // == unknown
  set_f_uncomputed();      // the function value has changed
@@ -1732,14 +1826,14 @@ void PolyhedralFunction::delete_row( Index i , c_ModParam issueMod )
 
  // issue the PolyhedralFunctionModRngd
  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModRngd>(
-				this ,
-			        stgchgd ? C05FunctionMod::AlphaChanged
-					: C05FunctionMod::NothingChanged ,
-				PolyhedralFunctionMod::DeleteRows ,
-				Range( i , i + 1 ) , std::move( which ) ,
-				f_is_convex ? - FunctionMod::INFshift
-				            : + FunctionMod::INFshift ,
-				Observer::par2concern( issueMod ) ) ,
+			 this ,
+                         which.empty() ? C05FunctionMod::NothingChanged
+                                       : C05FunctionMod::GlobalPoolRemoved ,
+			 PolyhedralFunctionMod::DeleteRows ,
+			 Range( i , i + 1 ) , std::move( which ) ,
+			 f_is_convex ? - FunctionMod::INFshift
+			             : + FunctionMod::INFshift ,
+			 Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 
  }  // end( PolyhedralFunction::delete_row )
@@ -1776,6 +1870,52 @@ void PolyhedralFunction::delete_rows( c_ModParam issueMod )
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
+
+void PolyhedralFunction::reset_aggregate_linearizations( void )
+{
+ if( v_aA.empty() )
+  return;
+
+ v_aA.clear();
+ v_ab.clear();
+
+ Subset which;
+
+ for( Index i = 0 ; i <= f_max_glob ; ++i )
+  if( v_glob[ i ] < 0 )
+   v_glob[ i ] = Inf<int>();
+
+ update_f_max_glob();
+
+ }  // end( PolyhedralFunction::reset_aggregate_linearizations( void ) )
+
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunction::reset_aggregate_linearizations( c_ModParam issueMod )
+{
+ if( v_aA.empty() )
+  return;
+
+ v_aA.clear();
+ v_ab.clear();
+
+ Subset which;
+
+ for( Index i = 0 ; i <= f_max_glob ; ++i )
+  if( v_glob[ i ] < 0 ) {
+   v_glob[ i ] = Inf<int>();
+   which.push_back( i );
+   }
+
+ update_f_max_glob();
+
+ f_Observer->add_Modification( std::make_shared<C0FunctionMod>( this ,
+			                 C05FunctionMod::GlobalPoolRemoved ,
+					 std::move( which ) , 0 ,
+				         Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
+
+ }  // end( PolyhedralFunction::reset_aggregate_linearizations( c_ModParam ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------- End File PolyhedralFunction.cpp ----------------------*/
