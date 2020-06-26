@@ -547,7 +547,7 @@ class BendersBFunction : public C05Function , public Block {
   * @return The value of the parameter.
   */
 
- virtual void set_par( const idx_type par , const int value ) override;
+ void set_par( const idx_type par , const int value ) override;
 
 /*--------------------------------------------------------------------------*/
  /// set a given float (double) numerical parameter
@@ -575,7 +575,7 @@ class BendersBFunction : public C05Function , public Block {
   * @return The value of the parameter.
   */
 
- virtual void set_par( const idx_type par , const double value ) override {
+ void set_par( const idx_type par , const double value ) override {
 
   auto solver = get_solver<CDASolver>();
   if( ! solver )
@@ -636,7 +636,7 @@ class BendersBFunction : public C05Function , public Block {
   * @return The value of the required parameter.
   */
 
- virtual int get_int_par( const idx_type par ) const override {
+ int get_int_par( const idx_type par ) const override {
   switch( par ) {
    case( intMaxIter ):
     return get_solver_int_par( Solver::intMaxIter );
@@ -668,7 +668,7 @@ class BendersBFunction : public C05Function , public Block {
   * @return The value of the required parameter.
   */
 
- virtual double get_dbl_par( const idx_type par ) const override {
+ double get_dbl_par( const idx_type par ) const override {
   switch( par ) {
    case( dblMaxTime ):
     return get_solver_dbl_par( Solver::dblMaxTime );
@@ -725,29 +725,25 @@ class BendersBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- virtual v_iterator * v_begin( void ) override final
- {
+ v_iterator * v_begin( void ) override final {
   return( new BendersBFunction::v_iterator( v_x.begin() ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual v_const_iterator * v_begin( void ) const override final
- {
+ v_const_iterator * v_begin( void ) const override final {
   return( new BendersBFunction::v_const_iterator( v_x.begin() ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
- virtual v_iterator * v_end( void ) override final
- {
+ v_iterator * v_end( void ) override final {
   return( new BendersBFunction::v_iterator( v_x.end() ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual v_const_iterator * v_end( void ) const override final
- {
+ v_const_iterator * v_end( void ) const override final {
   return( new BendersBFunction::v_const_iterator( v_x.end() ) );
   }
 
@@ -1406,7 +1402,7 @@ class BendersBFunction : public C05Function , public Block {
   * - The group "Block", containing the description of the inner Block.
   */
 
- virtual void serialize( netCDF::NcGroup & group ) const override;
+ void serialize( netCDF::NcGroup & group ) const override;
 
 /**@} ----------------------------------------------------------------------*/
 /*------- METHODS DESCRIBING THE BEHAVIOR OF THE BendersBFunction ----------*/
@@ -1416,7 +1412,7 @@ class BendersBFunction : public C05Function , public Block {
 
  /// compute the BendersBFunction
 
- virtual int compute( bool changedvars = true ) override;
+ int compute( bool changedvars = true ) override;
 
 /*--------------------------------------------------------------------------*/
  /// returns the value of the BendersBFunction
@@ -1435,23 +1431,23 @@ class BendersBFunction : public C05Function , public Block {
   * have a sub-Block or its sub-Block does not have a Solver attached to it,
   * then an exception is thrown. */
 
- virtual FunctionValue get_value( void ) const override;
+ FunctionValue get_value( void ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns a lower estimate of the BendersBFunction
  /** This method simply returns get_value().  */
 
- virtual FunctionValue get_lower_estimate( void ) const override {
-  return get_value();
- }
+ FunctionValue get_lower_estimate( void ) const override {
+  return( get_value() );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns an upper estimate of the BendersBFunction
  /** This method simply returns get_value().  */
 
- virtual FunctionValue get_upper_estimate( void ) const override {
-  return get_value();
- }
+ FunctionValue get_upper_estimate( void ) const override {
+  return( get_value() );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns true only if this BendersBFunction is convex
@@ -1461,7 +1457,7 @@ class BendersBFunction : public C05Function , public Block {
   * returns true.
   */
 
- virtual bool is_convex( void ) const override;
+ bool is_convex( void ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns true only if this BendersBFunction is concave
@@ -1471,7 +1467,7 @@ class BendersBFunction : public C05Function , public Block {
   * it returns true.
   */
 
- virtual bool is_concave( void ) const override;
+ bool is_concave( void ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns true only if this BendersBFunction is linear
@@ -1480,24 +1476,37 @@ class BendersBFunction : public C05Function , public Block {
   * linear. We do not attempt to find this out and this method simply returns
   * \c false. */
 
- virtual bool is_linear( void ) const override { return( false ); }
+ bool is_linear( void ) const override { return( false ); }
 
 /*--------------------------------------------------------------------------*/
  /// tells whether a linearization is available
 
- virtual bool has_linearization( const bool diagonal = true ) override final;
+ bool has_linearization( bool diagonal = true ) override final;
 
 /*--------------------------------------------------------------------------*/
  /// compute a new linearization for this BendersBFunction
 
- virtual bool compute_new_linearization( const bool diagonal = true )
-  override final;
+ bool compute_new_linearization( bool diagonal = true ) override final;
 
 /*--------------------------------------------------------------------------*/
  /// store a linearization in the global pool
 
- void store_linearization( const Index name , c_ModParam issueMod = eModBlck )
+ void store_linearization( Index name , c_ModParam issueMod = eModBlck )
   override final;
+
+/*--------------------------------------------------------------------------*/
+
+ bool is_linearization_there( Index name ) override final {
+  //!! TO BE CHANGED
+  return( false );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ bool is_linearization_vertical( Index name ) override final {
+  //!! TO BE CHANGED
+  return( false );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// stores a combination of the given linearizations
@@ -1513,34 +1522,37 @@ class BendersBFunction : public C05Function , public Block {
  void set_important_linearization( LinearCombination && coefficients ,
                                    Index name ) override final {
   global_pool.set_important_linearization( std::move( coefficients ), name );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// return the name of "the important linearization"
 
  Index get_important_linearization_name( void ) override final {
-  return global_pool.get_important_linearization_name();
- }
+  return( global_pool.get_important_linearization_name() );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// return the combination used to form "the important linearization"
 
  c_LinearCombination & get_important_linearization_coefficients( void )
   override final {
-  return global_pool.get_important_linearization_coefficients();
- }
-
-/*--------------------------------------------------------------------------*/
- /// rename a linearization that is stored in the global pool
-
- void rename_linearization( const Index current_name , const Index new_name ,
-                            c_ModParam issueMod = eModBlck ) override final;
+  return( global_pool.get_important_linearization_coefficients() );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// delete the given linearization from the global pool of linearizations
 
- void delete_linearization( const Index name ,
+ void delete_linearization( Index name ,
                             c_ModParam issueMod = eModBlck ) override final;
+
+/*--------------------------------------------------------------------------*/
+
+ void delete_linearizations( Subset && which , bool ordered = true ,
+			     c_ModParam issueMod = eModBlck ) override final
+ {
+  //!! TO BE CHANGED
+  C05Function::delete_linearizations( which , ordered , issueMod );
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -1720,7 +1732,6 @@ class BendersBFunction : public C05Function , public Block {
   ~GlobalPool();
 
 /*--------------------------------------------------------------------------*/
-
   // resizes the global pool
   /** Resize the global pool to have the given \p size. It is important to
    * notice that
@@ -1735,15 +1746,11 @@ class BendersBFunction : public C05Function , public Block {
   void resize( Index size );
 
 /*--------------------------------------------------------------------------*/
-
   /// returns the the size of the global pool
 
-  Index size() const {
-   return solutions.size();
-  }
+  Index size() const { return( solutions.size() ); }
 
 /*--------------------------------------------------------------------------*/
-
   /// stores the given linearization constant and solution in the global pool
   /** This function stores the given linearization constant and solution into
    * the global pool under the given \p name. If the given \p name is invalid,
@@ -1779,7 +1786,6 @@ class BendersBFunction : public C05Function , public Block {
   }
 
 /*--------------------------------------------------------------------------*/
-
   /// returns the linearization constant stored under the given name
   /** This function returns the value of the linearization constant that is
    * stored under the given \p name. If the given \p name is invalid, an
@@ -1800,7 +1806,6 @@ class BendersBFunction : public C05Function , public Block {
   }
 
 /*--------------------------------------------------------------------------*/
-
   /// sets the linearization constant under the given name
   /** This function sets the value of the linearization constant under the
    * given \p name. If the given \p name is invalid, an exception is thrown.
@@ -1821,7 +1826,6 @@ class BendersBFunction : public C05Function , public Block {
   }
 
 /*--------------------------------------------------------------------------*/
-
   /// invalidates all linearizations
   /** This function invalidates all linearizations, by setting NaN to each
    * linearization constant currently stored. This means that any
@@ -1833,12 +1837,11 @@ class BendersBFunction : public C05Function , public Block {
    * destroyed, explicity calls to delete_linearization() must be made.
    */
 
-  void invalidate() {
+  void invalidate( void ) {
    linearization_constants.assign( linearization_constants.size() , NaN );
   }
 
 /*--------------------------------------------------------------------------*/
-
   /// resets all the linearization constants
   /** This function resets all linearizations, by setting Inf to each
    * linearization constant currently stored. This means that any
@@ -1847,13 +1850,12 @@ class BendersBFunction : public C05Function , public Block {
    * from them.
    */
 
-  void reset_linearization_constants() {
+  void reset_linearization_constants( void ) {
    linearization_constants.assign( linearization_constants.size() ,
                                    Inf<FunctionValue>() );
   }
 
 /*--------------------------------------------------------------------------*/
-
   /// specify which linearization is "the important one"
   /** This method sets the linearization with the given name as "the important
    * one".
@@ -1871,7 +1873,6 @@ class BendersBFunction : public C05Function , public Block {
   }
 
 /*--------------------------------------------------------------------------*/
-
   /// return the name of "the important linearization"
 
   Index get_important_linearization_name( void ) {
@@ -1879,7 +1880,6 @@ class BendersBFunction : public C05Function , public Block {
   }
 
 /*--------------------------------------------------------------------------*/
-
   /// return the combination used to form "the important linearization"
 
   c_LinearCombination & get_important_linearization_coefficients( void ) {
@@ -1887,7 +1887,6 @@ class BendersBFunction : public C05Function , public Block {
   }
 
 /*--------------------------------------------------------------------------*/
-
   /// stores a combination of the linearizations that are already stored
   /** This method creates a linear combination of a given set of
    * linearizations, with given \p coefficients, and stores it into the global
@@ -1906,32 +1905,9 @@ class BendersBFunction : public C05Function , public Block {
    */
 
   void store_combination_of_linearizations( LinearCombination & coefficients ,
-                                            const Index name );
+					    Index name );
 
 /*--------------------------------------------------------------------------*/
-
-  /// renames a linearization
-  /** This methods renames the linearization currently stored under \p
-   * current_name. If any of \p current_name or \p new_name is an invalid
-   * name, an exception is thrown.
-   *
-   * @param current_name the current name of the linearization that will be
-   *        renamed.
-   *
-   * @param new_name the new name of the linearization.
-   */
-
-  void rename_linearization( const Index current_name , const Index new_name );
-
-  /// deletes the linearization currently stored under the given name
-  /** This method deletes the linearization currently stored under the given
-   * \p name. If the given \p name is invalid, an exception is thrown.
-   *
-   * @param name the name of the linearization to be deleted.
-   */
-
-/*--------------------------------------------------------------------------*/
-
   /// deletes the linearization with the given name
   /** This function deletes the linearization with the given \p name,
    * destroying the Solution associated with it. If the given \p name is
@@ -1939,7 +1915,7 @@ class BendersBFunction : public C05Function , public Block {
    *
    * @param name the name of the linearization to be deleted.
    */
-  void delete_linearization( const Index name );
+  void delete_linearization( Index name );
 
 /*--------------------------------------------------------------------------*/
 
@@ -2348,7 +2324,6 @@ class BendersBFunctionMod : public C05FunctionMod {
      output << "both \alpha and g have changed"; break;
     case( GlobalPoolAdded ): output << " linearizations added"; break;
     case( GlobalPoolRemoved ): output << " linearizations removed"; break;
-    case( GlobalPoolRenamed ): output << " linearizations renamed"; break;
     default: output << " unknown operation (?)";
    }
   }

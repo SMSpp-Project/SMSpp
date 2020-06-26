@@ -612,6 +612,20 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
+ bool is_linearization_there( Index name ) override final {
+  //!! TO BE CHANGED
+  return( false );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ bool is_linearization_vertical( Index name ) override final {
+  //!! TO BE CHANGED
+  return( false );
+  }
+
+/*--------------------------------------------------------------------------*/
+
  void store_combination_of_linearizations( LinearCombination & coefficients ,
 					   Index name  ,
 					   c_ModParam issueMod = eModBlck )
@@ -645,13 +659,17 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- void rename_linearization( Index current_name , Index new_name ,
-			    c_ModParam issueMod = eModBlck ) override final;
-
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
-
  void delete_linearization( Index name ,
 			    c_ModParam issueMod = eModBlck ) override final;
+
+/*--------------------------------------------------------------------------*/
+
+ void delete_linearizations( Subset && which , bool ordered = true ,
+			     c_ModParam issueMod = eModBlck ) override final
+ {
+  //!! TO BE CHANGED
+  C05Function::delete_linearizations( which , ordered , issueMod );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// compute the Function

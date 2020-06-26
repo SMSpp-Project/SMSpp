@@ -629,7 +629,7 @@ class PolyhedralFunction : public C05Function {
 /*--------------------------------------------------------------------------*/
  /// tells whether a linearization is available
 
- bool has_linearization( const bool diagonal = true ) override final
+ bool has_linearization( bool diagonal = true ) override final
  {
   return( diagonal ? ( ! v_A.empty() ) || is_bound_set() : false );
   }
@@ -637,7 +637,7 @@ class PolyhedralFunction : public C05Function {
 /*--------------------------------------------------------------------------*/
  /// compute a new linearization for this PolyhedralFunction
 
- bool compute_new_linearization( const bool diagonal = true ) override final
+ bool compute_new_linearization( bool diagonal = true ) override final
  {
   if( ( ! diagonal ) || ( v_A.empty() && ( ! is_bound_set() ) ) ||
       ( f_next >= v_ord.size() - 1 ) || ( f_next >= f_loc_pool_sz - 1 ) )
@@ -650,14 +650,20 @@ class PolyhedralFunction : public C05Function {
 /*--------------------------------------------------------------------------*/
  /// store a linearization in the global pool 
 
- void store_linearization( const Index name ,
-			   c_ModParam issueMod = eModBlck ) override final;
+ void store_linearization( Index name ,  c_ModParam issueMod = eModBlck )
+  override final;
+
+/*--------------------------------------------------------------------------*/
+
+ bool is_linearization_there( Index name ) override final {
+  return( v_glob[ name ] < Inf<int>() );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// stores a combination of the given linearizations
 
  void store_combination_of_linearizations( LinearCombination & coefficients ,
-					   const Index name ,
+					   Index name ,
 					   c_ModParam issueMod = eModBlck )
   override final;
 
@@ -685,25 +691,21 @@ class PolyhedralFunction : public C05Function {
   }
 
 /*--------------------------------------------------------------------------*/
- /// return the combination used to form "the important linearization"
 
  c_LinearCombination & get_important_linearization_coefficients( void )
   override final {
   return( f_imp_coeff );
   }
 
-/*-------------------------------------------------------------------------*/
- /// rename a linearization that is stored in the global pool
+/*--------------------------------------------------------------------------*/
 
- void rename_linearization( const Index current_name ,
-			    const Index new_name  ,
+ void delete_linearization( Index name ,
 			    c_ModParam issueMod = eModBlck ) override final;
 
 /*--------------------------------------------------------------------------*/
- /// delete the given linearization from the global pool of linearizations
 
- void delete_linearization( const Index name ,
-			    c_ModParam issueMod = eModBlck ) override final;
+ void delete_linearizations( Subset && which , bool ordered = true ,
+			     c_ModParam issueMod = eModBlck ) override final;
 
 /*--------------------------------------------------------------------------*/
 

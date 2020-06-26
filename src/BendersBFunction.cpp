@@ -823,6 +823,7 @@ void BendersBFunction::modify_constants
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueAMod ) ) )
   return;                  // noone is there: all done
 
+ //!! check if C05FunctionMod::AlphaChanged is still right
  // issue the BendersBFunctionModSbst: note that ordered is unmodified
  f_Observer->add_Modification( std::make_shared<BendersBFunctionModSbst>(
                                       this , C05FunctionMod::AlphaChanged ,
@@ -867,6 +868,7 @@ void BendersBFunction::modify_constant( c_Index i , c_FunctionValue bi ,
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;                  // noone is there: all done
 
+ //!! check if C05FunctionMod::AlphaChanged is still right
  // issue the BendersBFunctionModRngd
  f_Observer->add_Modification( std::make_shared<BendersBFunctionModRngd>(
                                       this , C05FunctionMod::AlphaChanged ,
@@ -1660,22 +1662,6 @@ void BendersBFunction::store_combination_of_linearizations
 			       Observer::par2chnl( issueMod ) );
 
 }  // end( BendersBFunction::store_combination_of_linearizations )
-
-/*--------------------------------------------------------------------------*/
-
-void BendersBFunction::rename_linearization
-( const Index current_name , const Index new_name , c_ModParam issueMod ) {
- global_pool.rename_linearization( current_name , new_name );
-
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
-  return;
-
- f_Observer->add_Modification( std::make_shared<BendersBFunctionMod>( this ,
-				   C05FunctionMod::GlobalPoolRenamed ,
-				   Subset( { current_name , new_name } ) , 0 ,
-				   Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
-}  // end( BendersBFunction::rename_linearization )
 
 /*--------------------------------------------------------------------------*/
 

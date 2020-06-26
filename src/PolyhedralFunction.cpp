@@ -293,46 +293,7 @@ void PolyhedralFunction::store_combination_of_linearizations(
 
 /*--------------------------------------------------------------------------*/
 
-void PolyhedralFunction::rename_linearization( const Index current_name ,
-					       const Index new_name ,
-					       c_ModParam issueMod )
-{
- if( current_name == new_name )  // actually doing nothing
-  return;                        // cowardly (and silently) return
-
- if( current_name >= v_glob.size() )
-  throw( std::invalid_argument( "invalid global pool current_name" ) );
- if( v_glob[ current_name ] == Inf<int>() )
-  throw( std::invalid_argument( "no current_name in global pool " ) );
- if( new_name >= v_glob.size() )
-  throw( std::invalid_argument( "invalid global pool new_name" ) );
-
- PolyhedralFunction::delete_linearization( new_name );
-
- v_glob[ new_name ] = v_glob[ current_name ];
- v_glob[ current_name ] = Inf<int>();
-
- if( new_name > f_max_glob )  // update f_max_glob
-  f_max_glob = new_name;
- else
-  if( current_name == f_max_glob )
-   while( f_max_glob && ( v_glob[ f_max_glob ] == Inf<int>() ) )
-    --f_max_glob;
-
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
-  return;
-  
- f_Observer->add_Modification( std::make_shared<PolyhedralFunctionMod>( this ,
-				   C05FunctionMod::GlobalPoolRenamed ,
-				   Subset( { current_name , new_name } ) , 0 ,
-				   Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
-
- }  // end( PolyhedralFunction::rename_linearization )
-
-/*--------------------------------------------------------------------------*/
-
-void PolyhedralFunction::delete_linearization( const Index name ,
+void PolyhedralFunction::delete_linearization( Index name ,
 					       c_ModParam issueMod )
 {
  if( name >= v_glob.size() )
@@ -368,6 +329,60 @@ void PolyhedralFunction::delete_linearization( const Index name ,
 				      C05FunctionMod::GlobalPoolRemoved ,
 				      Subset( { name } ) , 0 ,
 				      Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
+
+ }  // end( PolyhedralFunction::delete_linearization )
+
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunction:delete_linearizations( Subset && which ,
+					       bool ordered ,
+					       c_ModParam issueMod )
+{
+ if( which.empty() ) {  // delete them all
+  v_glob.assign( f_max_glob , Inf<int>() );
+  f_max_glob = 0;
+  }
+ else {                 // delete the given subset
+  if( ! ordered )
+   std::sort( which.begin() , which.end() );
+
+  if( which.back() >= v_glob.size() )
+   throw( std::invalid_argument( "invalid linearization name" ) );
+
+  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) ) {
+   // no-one is watching: just delete and be done with it
+   for( auto i : which )
+    v_glob[ i ] = Inf<int>();
+   }
+  else {
+   // meanwhile, check if all the names in which actually correspond to
+   // a linearization in the global pool and discard those that do not
+   auto wit = which.begin();
+   for( auto witc = which.begin() ; witc != which.end() ; ++witc )
+    if( v_glob[ *witc ] < Inf<int>() ) {
+     v_glob[ *witc ] = Inf<int>();
+     if( wit != witc )
+      *wit = *witc;
+     ++wit;
+     }
+
+   if( wit != witc )
+    which.resize( std::distance( which.begin() , wit ) );
+   }
+
+  // update f_max_glob
+  while( f_max_glob && ( v_glob[ f_max_glob ] == Inf<int>() ) )
+   --f_max_glob;
+  }
+
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+  return;
+  
+ f_Observer->add_Modification( std::make_shared<PolyhedralFunctionMod>( this ,
+				         C05FunctionMod::GlobalPoolRemoved ,
+				         std::move( which ) , 0 ,
+				         Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 
  }  // end( PolyhedralFunction::delete_linearization )

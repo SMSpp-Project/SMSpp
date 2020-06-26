@@ -640,6 +640,28 @@ class C05Function : public Function {
 				   c_ModParam issueMod = eModBlck ) { }
 
 /*--------------------------------------------------------------------------*/
+ /// tells if there is a linearization in the global pool with that name
+ /** The method has to teturn true if \p name is the index (name) of a
+  * linearization currently in the global pool. The default implementation
+  * of the method is to always return false, which is OK for C05Function that
+  * does not store linearization at all. */
+
+ virtual bool is_linearization_there( Index name ) { return( false ); }
+
+/*--------------------------------------------------------------------------*/
+ /// tells if the linearization in the global pool with that name is vertical
+ /** The method has to teturn true if \p name is the index (name) of a
+  * vertical linearization currently in the global pool. Clearly,
+  * is_linearization_vertical( name ) == true implies
+  * is_linearization_there( name ) == true (if there is no linearization, it
+  * cannot be vertical). The default implementation of the method is to
+  * always return false, which is OK for C05Function that never produces
+  * vertical linearizations (that is, the function is real-valued, i.e., it
+  * never evaluates to +/- INF), or does not store linearization at all. */
+
+ virtual bool is_linearization_vertical( Index name ) { return( false ); }
+
+/*--------------------------------------------------------------------------*/
  /// stores a combination of the given linearizations
  /** This method creates a linear combination of a given set of
   * linearizations, with given coefficients, and stores it (or information
@@ -824,34 +846,6 @@ class C05Function : public Function {
   }
 
 /*--------------------------------------------------------------------------*/
- /// rename a linearization that is stored in the global pool
- /** This method renames a linearization that is stored in the global pool of
-  * linearizations. current_name is the current name of the linearization,
-  * and new_name is its new name; names must be integers between 0 and
-  * intGPMaxSz - 1. If there is no linearization stored with the name
-  * current_name in the global pool, an exception should be thrown (unless,
-  * for instance, the concept is completely ignored). If there is already a
-  * linearization stored with the name new_name, it will be replaced with the
-  * linearization currently named current_name.
-  *
-  * The method can be useful, e.g., to move linearizations in the initial
-  * part of the global pool, that with "small" names", before shrinking it.
-  *
-  * The method has a default empty implementation as some Function, such as
-  * linear ones, may not have to store anything.
-  *
-  * The parameter issueMod decides if and how the C05FunctionMod with
-  * type() == GlobalPoolRenamed is issued, as described in
-  * Observer::make_par(). Note that typically shift() of the modification
-  * will be == 0, in that changing the name of a linearization in the global
-  * pool does not really change the "physical representation" of the
-  * C05Function, but only its (partial) "abstract represenation" that the
-  * global pool provides. */
-
- virtual void rename_linearization( Index current_name , Index new_name ,
-				    c_ModParam issueMod = eModBlck ) { }
-
-/*--------------------------------------------------------------------------*/
  /// delete the given linearization from the global pool of linearizations
  /** This method deletes the linearization associated with the given name
   * from the global pool of linearizations. If there is no linearization
@@ -871,6 +865,59 @@ class C05Function : public Function {
  virtual void delete_linearization( Index name ,
 				    c_ModParam issueMod = eModBlck ) { }
 
+/*--------------------------------------------------------------------------*/
+ /// delete the given subset of linearizations from the global pool
+ /** Delete the linearizations whose names are contained in \p which from
+  * the global pool. If which().empty(), all the linearizations are removed
+  * (i.e., the global pool is completely flushed). If \p ordered == true
+  * then \p which which must be ordered in increasing sense. As the && tells,
+  * which becomes property of the method, typically to be dispatched to the
+  * C05FunctionMod with type() == GlobalPoolRemoved that is issued, according
+  * to the value of the parameter \p issueMod, as described in
+  * Observer::make_par(). Note that typically shift() of the Modification
+  * will be == 0, in that deleting a linearization from the global pool does
+  * not really change the "physical representation" of the C05Function, but
+  * only its (partial) "abstract represenation" that the global pool
+  * provides.
+  *
+  * This method is given a rough default implementation that just calls
+  * delete_linearization( i ) for all linearizations in the global pool.
+  * This is unlikely to be the most effective way, but at least the
+  * individual calls to not generate individual C05FunctionMod; rather, an
+  * unique one is issued at the end. */
+
+ virtual void delete_linearizations( Subset && which , bool ordered = true ,
+				     c_ModParam issueMod = eModBlck )
+ {
+  Index n = get_int_par( intGPMaxSz );
+ 
+  if( which.empty() ) {  // delete them all
+   for( Index i = 0 ; i < n ; ++i )
+    if( is_linearization_there( i ) )
+     delete_linearization( i , eNoMod );
+   }
+  else {                 // delete the given subset
+   if( ! ordered )
+    std::sort( which.begin() , which.end() );
+
+   if( which.back() >= n )
+    throw( std::invalid_argument( "invalid linearization name" ) );
+
+   for( Index i: which )
+    if( is_linearization_there( i ) )
+     delete_linearization( i , eNoMod );   
+   }
+
+  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+   return;
+  
+  f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+				      C05FunctionMod::GlobalPoolRemoved ,
+				      std::move( which ) , 0 ,
+				      Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
+  }
+ 
 /*--------------------------------------------------------------------------*/
  /// get a range of coefficients (g vector) of a linearization in an array
  /** This method retrieves a range of the vector of coefficients g that is
@@ -1357,26 +1404,21 @@ class C05Function : public Function {
  * which.empty() has to be taken to mean "possibly all, so check them all".
  *
  * A case where this happens is the Lagrangian one, where each linearization
- * is attached to one solution u_i \in U, and:
- *
- * - either the objective function c of (P) changes;
- *
- * - or U itself changes to some U' \neq U.
- *
- * In the first case, having stored u_i in the global pool it is immediate to
- * compute the new value of \alpha = c u'. In the second case, each u_i is
- * either feasible (u_i \in U') or not (u_i \notin U'). In the first case
- * \alpha = c u_i does not change, but in the second the original
- * linearization (even the g part) can no longer be used, as it is no longer
- * valid. This can be handled by having get_linearization_constant()
- * returning NaN for the corresponding \alpha.
+ * is attached to one solution u_i \in U, and the objective function c of (P)
+ * changes to some c' different from c. Having stored u_i in the global pool,
+ * it is possible to compute the new value of \alpha = c' u_i. Since the
+ * objective is real-valued (as opposed to extended-real-valued, i.e., it
+ * cannot evaluate to +INF, in fact encoding a violated constraint), every
+ * u_i that was previously feasible still is, and therefore no linearization
+ * is lost.
  *
  * Note that one would expect that the change in the \alpha implies a change
  * in the values of the Function as well. If and how this actually happens
  * is encoded in shift() with the same encoding as in the base class
- * FunctionMod. For the Lagrangian case, for instance, if the feasible region
- * U becomes smaller than the value of the problem can only reduce, whence
- * shift() == INFshift is the appropriate return value.
+ * FunctionMod. For the Lagrangian case, for instance, if u >= 0 and c' >= c
+ * then the objective value can only increase, and therefore shift() ==
+ * INFshift is the appropriate return value. If, instead, no sign pattern
+ * can be established then std::isnan( shift() ) == true should be returned.
  *
  * - AllEntriesChanged
  *
@@ -1386,8 +1428,8 @@ class C05Function : public Function {
  *
  * A case where this happens is the Lagrangian one, where each linearization
  * is attached to one solution u_i \in U, g_i = b - A u_i. If the constraint
- * A u = b change to completely unrelated (save for the size) A' u = b',
- * then all the corresponding g_i need to be recomputed, but the \alpha_i =
+ * A u = b change to completely unrelated (save for the size) A' u = b', then
+ * all the corresponding g_i need to be recomputed, but the \alpha_i =
  * c u_i remains the same. It is then possible to query the new values of the
  * linearizations that were stored in the global pool [see
  * get_linearization_coefficients()], thereby re-using all the corresponding
@@ -1430,25 +1472,44 @@ class C05Function : public Function {
  *
  * - GlobalPoolRemoved
  *
- * This type of Modification indicates that, while the C05Function has not
- * "physically changed" (which means shift() == 0 is expected), some existing
- * linearizations have been removed from "its abstract representation", i.e.,
- * the global pool. In this case, which().empty() is *not* allowed, and
- * which() has to contain the names of the linearizations that have been
- * removed. Note, however, that
+ * This type of Modification indicates that some existing linearizations
+ * have been removed from the global pool. This may either mean that the
+ * C05Function has not "physically changed" (which is encoded by shift()
+ * == 0), but some existing linearizations have been removed from "its
+ * abstract representation", or that the C05Function has indeed "physically
+ * changed" (in which case a nonzero shift() is possible) and as a consequence
+ * some linearizations had become invalid.
  *
- *     IF LINEARIZATIONS ARE REMOVED AS A CONSEQUENCE OF THE C05Function
- *     CHANGING, THEN THE ISSUED Modification SHOULD RATHER HAVE type()
- *     AlphaChanged OR AllLinearizationChanged: IT IS NOT EXPECTED THAT
- *     A SEPARATE Modification WITH type() == GlobalPoolRemoved IS ISSUED
- *     
- * - GlobalPoolRenamed
+ * A case where the latter happens is the Lagrangian one, where each
+ * linearization is attached to one solution u_i \in U, and U itself changes
+ * to some U' \neq U. Hence, each u_i is either feasible (u_i \in U') or not
+ * (u_i \notin U'). In the first case nothing has to be done, as the
+ * linearization remains valid (and its  \alpha = c u_i does not change), but
+ * in the second case the linearization it is no longer valid and has to be
+ * removed from the global pool. Note that this can easily have an effect
+ * on the function value as well: for instance, if the feasible region U
+ * becomes smaller (which is what typically happens after either branching
+ * or cutting in a Branch-and-X approach in which the Lagrangian is providing
+ * the bound), than the optimal value of the problem can only reduce, whence
+ * shift() == INFshift is the appropriate return value.
  *
- * This type of Modification indicates that, while the C05Function has not
- * "physically changed" (which means shift() == 0 is expected), one existing
- * linearizations have been renamed. In this case, which().size() == 2 must
- * happen, with which()[ 0 ] indicating the previous name of the
- * linearizations and which()[ 1 ] indicating the new name. */
+ * In this case, which().empty() is allowed, but it means *all linearization
+ * in the global pool are deleted*, and it is therefore not something to be
+ * done just because one is "lazy".
+ *
+ * Also, note that
+ *
+ *     A COMPLETE RESET OF THE GLOBAL POOL CAN BE IMPLICITLY REQUIRED BY
+ *     ANY Modification THAT SIGNAL CHANGES IN THE FUNCTION THAT ARE NOT
+ *     STRONGLY QUASI-ADDITIVE (CF. THE DISCUSSION IN C05FunctionModVars*),
+ *     AS THIS IMPLIES THAT ALL THE LINEARIZATION HAVE NECESSARILY BECOME
+ *     INVALID. THAT IS, RECEIVING A FunctionMod THAT IS *NOT* A
+ *     C05FunctionMod OR A FunctionModVars* THAT IS *NOT* A
+ *     C05FunctionModVars* ALSO IMPLIES THAT THE GLOBAL POOL NEED BE ENTIRELY
+ *     FLUSHED. IN THIS CASE, IT IS *NOT* EXPECTED THAT A SEPARATE
+ *     C05FunctionMod WITH type() == GlobalPoolRemoved AND which().empty() IS
+ *     ISSUED.
+ */
 
 class C05FunctionMod : public FunctionMod {
 
@@ -1468,7 +1529,6 @@ class C05FunctionMod : public FunctionMod {
    AllLinearizationChanged ,  ///< both \alpha and g have changed
    GlobalPoolAdded ,          ///< linearizations added to the global pool
    GlobalPoolRemoved ,        ///< linearizations removed from the global pool
-   GlobalPoolRenamed ,        ///< linearizations in  the global pool renamed
    C05FunctionModLastParam
    ///< First allowed parameter value for derived classes
    /**< Convenience value for easily allow derived classes to extend
@@ -1976,7 +2036,7 @@ class C05FunctionModSbst : public C05FunctionMod {
  *   ( g = [ g_x , g_y ] , \alpha ) =
  *         ( [ b - A \bar{u} , b' - A' \bar{u} ] , c \bar{u} )
  *
- * The new part g_y =  b' - A' \bar{u}  can be easily computed, provided
+ * The new part g_y = b' - A' \bar{u}  can be easily computed, provided
  * that the information \bar{u} is stored in the global pool, irrespectively
  * to the fact that \bar{u} was obtained or not at a point where y = 0.
  * Similarly, if constraints are removed (which is equivalent to setting the
@@ -2037,7 +2097,17 @@ class C05FunctionModSbst : public C05FunctionMod {
  * considered as completely invalid, even in their g_x part. Of course
  * this means that C05FunctionModVarsAddd have to be "catched" before
  * FunctionModVarsAddd are (since a C05FunctionModVarsAddd will obviously
- * also "register" as a FunctionModVarsAddd).
+ * also "register" as a FunctionModVarsAddd). However, if this is true then
+ * all the elements in the global pool have clearly became invalid: this
+ * need be explicitly made apparent. That is:
+ *
+ *     IF A C05Function ISSUES A FunctionModVarsAddd THAT IS *NOT* A
+ *     C05FunctionModVarsAddd, IMPLYING THAT ALL THE GLOBAL POOL HAS BECOME
+ *     INVALID, THEN IT MUST ALSO ISSUE A C05FunctionMod WITH type() ==
+ *     GlobalPoolRemoved AND which().empty() TO EXPLICITLY INDICATE THIS.
+ *     IT CAN BE EXPECTED THAT THE C05FunctionMod BE ISSUED BEFORE THE
+ *     C05FunctionModVarsAddd, AS WORKING ON AN "EMPTY" GLOBAL POOL SHOULD
+ *     BE CHEAPER.
  *
  * Issuing a C05FunctionModVarsAddd, which indicates a strongly
  * quasi-additive additions, rather signals that it is possible to update the
@@ -2154,8 +2224,8 @@ class C05FunctionModVarsAddd : public FunctionModVarsAddd
  * not add any information to it. However, by being a different class it
  * allows to encode information regarding the impact that changes in the set
  * of "active" Variable have on the *linearization*, that are specific to
- * C05Function. In particular, issuing a FunctionModVarsRngd is intended to
- * signal that the modification to the C05Function is *strongly*
+ * C05Function. In particular, issuing a C05FunctionModVarsRngd is intended
+ * to signal that the modification to the C05Function is *strongly*
  * quasi-additive; see the comments to C05FunctionModVarsAddd. If the
  * modification is *not strongly* quasi-additive, the C05Function only has
  * to rather issue a base FunctionModVarsRngd. That is, upon receiving a
@@ -2164,7 +2234,17 @@ class C05FunctionModVarsAddd : public FunctionModVarsAddd
  * y \neq 0 have to be considered as completely invalid, even in their g_x
  * part. Of course this means that C05FunctionModVarsRngd have to be
  * "catched" before FunctionModVarsRngd are (since a C05FunctionModVarsRngd
- * will obviously also "register" as a FunctionModVarsRngd). */
+ * will obviously also "register" as a FunctionModVarsRngd). However, as
+ * for adding variables
+ *
+ *     IF A C05Function ISSUES A FunctionModVarsRngd THAT IS *NOT* A
+ *     C05FunctionModVarsRngd, IMPLYING THAT ALL THE GLOBAL POOL HAS BECOME
+ *     INVALID, THEN IT MUST ALSO ISSUE A C05FunctionMod WITH type() ==
+ *     GlobalPoolRemoved AND which().empty() TO EXPLICITLY INDICATE THIS.
+ *     IT CAN BE EXPECTED THAT THE C05FunctionMod BE ISSUED BEFORE THE
+ *     FunctionModVarsRngd, AS WORKING ON AN "EMPTY" GLOBAL POOL SHOULD
+ *     BE CHEAPER.
+ */
 
 class C05FunctionModVarsRngd : public FunctionModVarsRngd {
 
@@ -2244,7 +2324,17 @@ public:
  * y \neq 0 have to be considered as completely invalid, even in their g_x
  * part. Of course this means that C05FunctionModVarsSbst have to be
  * "catched" before FunctionModVarsSbst are (since a C05FunctionModVarsSbst
- * will obviously also "register" as a FunctionModVarsSbst). */
+ * will obviously also "register" as a FunctionModVarsSbst). However, as
+ * for adding variables
+ *
+ *     IF A C05Function ISSUES A FunctionModVarsSbst THAT IS *NOT* A
+ *     C05FunctionModVarsSbst, IMPLYING THAT ALL THE GLOBAL POOL HAS BECOME
+ *     INVALID, THEN IT MUST ALSO ISSUE A C05FunctionMod WITH type() ==
+ *     GlobalPoolRemoved AND which().empty() TO EXPLICITLY INDICATE THIS.
+ *     IT CAN BE EXPECTED THAT THE C05FunctionMod BE ISSUED BEFORE THE
+ *     FunctionModVarsSbst, AS WORKING ON AN "EMPTY" GLOBAL POOL SHOULD
+ *     BE CHEAPER.
+ */
 
 class C05FunctionModVarsSbst : public FunctionModVarsSbst {
 
