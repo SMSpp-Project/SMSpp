@@ -1267,7 +1267,7 @@ class Block : public Observer {
   *
   *     bool owned = block->is_owned_by( me );
   *     if( ( ! owned ) && ( ! block->lock( me ) ) )
-  *       < something happens, typcally a disaster >
+  *      < something happens, typcally a disaster >
   *
   *     < block is mine, do whatever I want with it >
   *
@@ -1275,7 +1275,33 @@ class Block : public Observer {
   *      block->unlock( me );
   *
   * This works if "me" is sure that no other thread can "share its identity"
-  * and be concurrently trying to lock/unlock the Block. */
+  * and be concurrently trying to lock/unlock the Block.
+  *
+  * A similar use of is_owned_by() is advised even when read_lock()-ing a
+  * Block.ì, i.e.,
+  *
+  *     bool owned = block->is_owned_by( me );
+  *     if( ( ! owned ) && ( ! block->read_lock() ) )
+  *      < something happens, typcally a disaster >
+  *
+  *     < block is mine, surely at least to read >
+  *
+  *     if( ! owned )
+  *      block->read_unlock();
+  *
+  * The rationale for this is the possibility for a Solver to (be forced to)
+  * "acquire someone else's identity" [cf. Solver::set_id()]. This is tied to
+  * the fact that the entity (say, a Solver) that has locked a Block may rely
+  * on [sub-]Solver to operate on (typically, sub-Block of) it. If the entity
+  * read_lock()s the Block, then the [sub-]Solver can freely read_lock() it
+  * again with no issues. However, if the entity has write lock()d the Block,
+  * the [sub-]Solver cannot read_lock() it. It is therefore always better to
+  * check if a Block need not be lock()d, be it a read_lock() or a write
+  * lock(), because it is already owned.
+  *
+  * Of course, this puts the onus on the entity that originally write
+  * lock()d the Block not to release the lock while any of the involved
+  * [sub-]Solver need to keep it. */
 
  bool is_owned_by( void * owner ) { return( f_owner == owner ); }
 

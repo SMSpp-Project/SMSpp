@@ -1551,7 +1551,8 @@ class BendersBFunction : public C05Function , public Block {
 			     c_ModParam issueMod = eModBlck ) override final
  {
   //!! TO BE CHANGED
-  C05Function::delete_linearizations( which , ordered , issueMod );
+  C05Function::delete_linearizations( std::move( which ) , ordered ,
+				      issueMod );
   }
 
 /*--------------------------------------------------------------------------*/

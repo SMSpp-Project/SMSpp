@@ -887,36 +887,7 @@ class C05Function : public Function {
   * unique one is issued at the end. */
 
  virtual void delete_linearizations( Subset && which , bool ordered = true ,
-				     c_ModParam issueMod = eModBlck )
- {
-  Index n = get_int_par( intGPMaxSz );
- 
-  if( which.empty() ) {  // delete them all
-   for( Index i = 0 ; i < n ; ++i )
-    if( is_linearization_there( i ) )
-     delete_linearization( i , eNoMod );
-   }
-  else {                 // delete the given subset
-   if( ! ordered )
-    std::sort( which.begin() , which.end() );
-
-   if( which.back() >= n )
-    throw( std::invalid_argument( "invalid linearization name" ) );
-
-   for( Index i: which )
-    if( is_linearization_there( i ) )
-     delete_linearization( i , eNoMod );   
-   }
-
-  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
-   return;
-  
-  f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-				      C05FunctionMod::GlobalPoolRemoved ,
-				      std::move( which ) , 0 ,
-				      Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
-  }
+				     c_ModParam issueMod = eModBlck );
  
 /*--------------------------------------------------------------------------*/
  /// get a range of coefficients (g vector) of a linearization in an array
@@ -1606,7 +1577,6 @@ class C05FunctionMod : public FunctionMod {
      output << "both \alpha and g have changed"; break;
     case( GlobalPoolAdded ): output << " linearizations added"; break;
     case( GlobalPoolRemoved ): output << " linearizations removed"; break;
-    case( GlobalPoolRenamed ): output << " linearizations renamed"; break;
     default: output << " unknown operation (?)";
     }
    }

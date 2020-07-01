@@ -2173,31 +2173,6 @@ void BendersBFunction::GlobalPool::store_combination_of_linearizations(
 
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::GlobalPool::rename_linearization
-( const Index current_name , const Index new_name ) {
-
- if( current_name == new_name )  // actually doing nothing
-  return;                        // cowardly (and silently) return
-
- if( current_name >= size() )
-  throw( std::invalid_argument( "GlobalPool::rename_linearization: invalid "
-                                "linearization current_name: " +
-                                std::to_string( current_name ) ) );
-
- if( new_name >= size() )
-  throw( std::invalid_argument( "GlobalPool::rename_linearization: invalid "
-                                "linearization new_name: " +
-                                std::to_string( new_name ) ) );
-
- delete_linearization( new_name );
- solutions[ new_name ] = solutions[ current_name ];
- linearization_constants[ new_name ] = linearization_constants[ current_name ];
- linearization_constants[ current_name ] = NaN;
-
- }  // end( BendersBFunction::GlobalPool::rename_linearization )
-
-/*--------------------------------------------------------------------------*/
-
 void BendersBFunction::GlobalPool::delete_linearization( const Index name ) {
  if( name >= size() )
   throw( std::invalid_argument( "GlobalPool::delete_linearization: invalid "
