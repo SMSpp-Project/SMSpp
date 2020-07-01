@@ -1879,8 +1879,6 @@ void PolyhedralFunction::reset_aggregate_linearizations( void )
  v_aA.clear();
  v_ab.clear();
 
- Subset which;
-
  for( Index i = 0 ; i <= f_max_glob ; ++i )
   if( v_glob[ i ] < 0 )
    v_glob[ i ] = Inf<int>();

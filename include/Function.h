@@ -1180,7 +1180,7 @@ public:
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to the vector of pointers to affected Variable
 
- Vec_p_Var vars( void ) { return( v_vars ); }
+ c_Vec_p_Var & vars( void ) { return( v_vars ); }
 
  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method telling if the Variables have been added or removed

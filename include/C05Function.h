@@ -1757,7 +1757,7 @@ class C05FunctionModRngd : public C05FunctionMod
 
  /// accessor to the vector of pointers to affected Variable
 
- Vec_p_Var vars( void ) { return( v_vars ); }
+ c_Vec_p_Var & vars( void ) { return( v_vars ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to the range of the deleted Variable
@@ -1831,7 +1831,7 @@ class C05FunctionModRngd : public C05FunctionMod
  * field (akin to that of FunctionModVars), returned by vars(). Unlike for
  * C05FunctionModRngd, the Variable (whose pointer are) returned by vars()
  * can be "arbitrarily dispersed" among the active ones of the C05Function;
- * thus, the accompanying index information is now a std::vector< Index >.
+ * thus, the accompanying index information is now a Subset.
  *
  * Apart from this, this Modification behaves exactly as a C05FunctionModRngd,
  * hence see the comments to that class for further details. */
@@ -1875,7 +1875,7 @@ class C05FunctionModSbst : public C05FunctionMod {
 
  /// accessor to the vector of pointers to affected Variable
 
- Vec_p_Var vars( void ) { return( v_vars ); }
+ c_Vec_p_Var & vars( void ) { return( v_vars ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to vector of indices of affected Variable
@@ -2518,13 +2518,13 @@ class C05FunctionModLin : public FunctionMod {
 
  /// accessor to the vector of pointers to affected Variable
 
- Vec_p_Var vars( void ) { return( v_vars ); }
+ c_Vec_p_Var & vars( void ) { return( v_vars ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  /// accessor to the "delta" vector
 
- Vec_FunctionValue delta( void ) { return( v_delta ); }
+ c_Vec_FunctionValue & delta( void ) { return( v_delta ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
