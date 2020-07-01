@@ -1530,11 +1530,11 @@ class C05FunctionMod : public FunctionMod {
 
  /// accessor to the type of modification
 
- int type( void ) { return( f_type ); }
+ int type( void ) const { return( f_type ); }
 
  /// accessor to the type of modification
 
- c_Subset which( void ) { return( v_which ); }
+ c_Subset which( void ) const { return( v_which ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1727,12 +1727,12 @@ class C05FunctionModRngd : public C05FunctionMod
 
  /// accessor to the vector of pointers to affected Variable
 
- c_Vec_p_Var & vars( void ) { return( v_vars ); }
+ c_Vec_p_Var & vars( void ) const { return( v_vars ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to the range of the deleted Variable
 
- c_Range & range( void ) { return( f_range ); }
+ c_Range & range( void ) const { return( f_range ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1823,18 +1823,32 @@ class C05FunctionModSbst : public C05FunctionMod {
   * && tells, both vectors vars[] and subset[] "becomes property" of the
   * C05FunctionModSbst object. The ordered parameter tells if subset is
   * ordered by increasing Index, which may be helpful for some Block/Solver
-  * having to deal with this FunctionModVarsSbst. */
+  * having to deal with this FunctionModVarsSbst. Indeed, if subset is not
+  * "naturally" ordered, then it is ordered in the constructor. Of course,
+  * this means that vars gets re-ordered at the same time. */
 
  C05FunctionModSbst( C05Function * f , int type , Vec_p_Var && vars ,
 		     Subset && subset , bool ordered = false ,
 		     Subset && which = {} , FunctionValue shift = NaNshift ,
 		     bool cB = true )
   : C05FunctionMod( f , type , std::move( which ) , shift , cB ) ,
-    v_vars( std::move( vars ) ) , v_subset( std::move( subset ) ) ,
-    f_ordered( ordered )
+    v_vars( std::move( vars ) ) , v_subset( std::move( subset ) )
  {
   if( v_vars.size() != v_subset.size() )
    throw( std::invalid_argument( "vars and subset sizes do not match" ) );
+  if( ! ordered ) {
+   using IdxVar = std::pair< Index , Variable * >;
+   std::vector< IdxVar > tmp;
+   for( Index i = 0 ; i < v_vars.size() ; ++i )
+    tmp[ i ] = std::pair( v_subset[ i ] , v_vars[ i ] );
+   std::sort( tmp.begin() , tmp.end() ,
+	      []( IdxVar & a , IdxVar & b ) { return( a.first < b.first ); }
+	      );
+   for( Index i = 0 ; i < v_vars.size() ; ++i ) {
+    v_subset[ i ] = tmp[ i ].first;
+    v_vars[ i ] = tmp[ i ].second;
+    }
+   }
   }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
@@ -1845,17 +1859,12 @@ class C05FunctionModSbst : public C05FunctionMod {
 
  /// accessor to the vector of pointers to affected Variable
 
- c_Vec_p_Var & vars( void ) { return( v_vars ); }
+ c_Vec_p_Var & vars( void ) const { return( v_vars ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to vector of indices of affected Variable
 
- c_Subset & subset( void ) { return( v_subset ); }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// accessor to the ordered status
-
- bool ordered( void ) { return( f_ordered ); }
+ c_Subset & subset( void ) const { return( v_subset ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1907,8 +1916,6 @@ class C05FunctionModSbst : public C05FunctionMod {
  Vec_p_Var v_vars;  ///< vector of pointers to affected Variable
 
  Subset v_subset;   ///< vector of indices of the affected Variable
-
- bool f_ordered;    ///< true if v_subset is ordered
 
 /*--------------------------------------------------------------------------*/
 
@@ -2354,10 +2361,7 @@ public:
     else
      output << f_shift;
 
-  output << ") deleting " << v_subset.size();
-  if( f_ordered )
-   output << "(ordered)";
-  output << " variables" << std::endl;
+  output << ") deleting " << v_subset.size() << " variables" << std::endl;
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2488,13 +2492,13 @@ class C05FunctionModLin : public FunctionMod {
 
  /// accessor to the vector of pointers to affected Variable
 
- c_Vec_p_Var & vars( void ) { return( v_vars ); }
+ c_Vec_p_Var & vars( void ) const { return( v_vars ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  /// accessor to the "delta" vector
 
- c_Vec_FunctionValue & delta( void ) { return( v_delta ); }
+ c_Vec_FunctionValue & delta( void ) const { return( v_delta ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -2582,6 +2586,8 @@ public:
  {
   if( v_vars.size() != f_range.second - f_range.first )
    throw( std::invalid_argument( "vars and range sizes do not match" ) );
+  if( v_vars.size() != v_delta.size() )
+   throw( std::invalid_argument( "vars and delta sizes do not match" ) );
   }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
@@ -2592,7 +2598,7 @@ public:
 
  /// accessor to the range of the deleted Variable
 
- c_Range & range( void ) { return( f_range ); }
+ c_Range & range( void ) const { return( f_range ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -2651,18 +2657,36 @@ public:
   * && tells, the vector "becomes property" of the C05FunctionModLinSbst
   * object. The ordered parameter tells if subset is ordered by increasing
   * Index, which may be helpful for some Block/Solver having to deal with
-  * this FunctionModVarsSbst. */
+  * this FunctionModVarsSbst; indeed, if subset is not "naturally" ordered,
+  * it is ordered in the constructor. Of course, this means that both vars
+  * and delta get re-ordered at the same time. */
 
  C05FunctionModLinSbst( C05Function * f, Vec_FunctionValue && delta ,
 			Vec_p_Var && vars , Subset && subset ,
 			bool ordered = false ,
 			FunctionValue shift = NaNshift , bool cB = true )
   : C05FunctionModLin( f , std::move( delta ) , std::move( vars ) , shift ,
-		       cB ) , v_subset( std::move( subset ) ) ,
-    f_ordered( ordered )
+		       cB ) , v_subset( std::move( subset ) )
  {
   if( v_vars.size() != v_subset.size() )
    throw( std::invalid_argument( "vars and subset sizes do not match" ) );
+  if( v_vars.size() != v_delta.size() )
+   throw( std::invalid_argument( "vars and delta sizes do not match" ) );
+  if( ! ordered ) {
+   using IdxVar = std::tuple< Index , Variable * , FunctionValue >;
+   std::vector< IdxVar > tmp;
+   for( Index i = 0 ; i < v_vars.size() ; ++i )
+    tmp[ i ] = std::tuple( v_subset[ i ] , v_vars[ i ] , v_delta[ i ] );
+   std::sort( tmp.begin() , tmp.end() ,
+	      []( IdxVar & a , IdxVar & b ) {
+	       return( std::get<0>( a ) < std::get<0>( b ) ); }
+	      );
+   for( Index i = 0 ; i < v_vars.size() ; ++i ) {
+    v_subset[ i ] = std::get<0>( tmp[ i ] );
+    v_vars[ i ] = std::get<1>( tmp[ i ] );
+    v_delta[ i ] = std::get<2>( tmp[ i ] );
+    }
+   }
   }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
@@ -2673,12 +2697,7 @@ public:
 
  /// accessor to the subset of the affected Variable
 
- c_Subset & subset( void ) { return( v_subset ); }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// accessor to the ordered status
-
- bool ordered( void ) { return( f_ordered ); }
+ c_Subset & subset( void ) const { return( v_subset ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -2696,17 +2715,13 @@ public:
   else
    output << "f";
   output << "] on Function[" << &f_function
-	 << " ]: change in the linear part of " << v_subset.size();
-  if( f_ordered )
-   output << "(ordered)";
-  output << " variables" << std::endl;
+	 << " ]: change in the linear part of " << v_subset.size()
+	 << " variables" << std::endl;
   }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
  Subset v_subset;   ///< the subset of the removed Variable
-
- bool f_ordered;    ///< true if v_subset is ordered
 
 /*--------------------------------------------------------------------------*/
 
