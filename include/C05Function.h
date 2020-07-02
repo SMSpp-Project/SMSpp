@@ -1520,7 +1520,14 @@ class C05FunctionMod : public FunctionMod {
  C05FunctionMod( C05Function * f , int type , Subset && which = {} ,
 		 FunctionValue shift = NaNshift , bool cB = true )
   : FunctionMod( f , shift , cB ) , f_type( type ) ,
-    v_which( std::move( which ) ) { }
+    v_which( std::move( which ) )
+ {
+  #ifndef NDEBUG
+  for( Index i = 1 ; i < v_which.size() ; ++i )
+   if( v_which[ i - 1 ] >= v_which[ i ] )
+    throw( std::invalid_argument( "unordered or repeated which" ) );
+  #endif
+  }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
@@ -1849,6 +1856,11 @@ class C05FunctionModSbst : public C05FunctionMod {
     v_vars[ i ] = tmp[ i ].second;
     }
    }
+  #ifndef NDEBUG
+  for( Index i = 1 ; i < v_subset.size() ; ++i )
+   if( v_subset[ i - 1 ] >= v_subset[ i ] )
+    throw( std::invalid_argument( "unordered or repeated subset" ) );
+  #endif
   }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
@@ -2687,6 +2699,11 @@ public:
     v_delta[ i ] = std::get<2>( tmp[ i ] );
     }
    }
+  #ifndef NDEBUG
+  for( Index i = 1 ; i < v_subset.size() ; ++i )
+   if( v_subset[ i - 1 ] >= v_subset[ i ] )
+    throw( std::invalid_argument( "unordered or repeated subset" ) );
+  #endif
   }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
