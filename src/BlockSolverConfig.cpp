@@ -643,7 +643,7 @@ void BlockSolverConfig::serialize( netCDF::NcGroup & group ) const
 
 void BlockSolverConfig::print( std::ostream &output ) const
 {
- output << "BlockSolverConfig";
+ output << private_name();
  if( f_diff ) output << "[diff]";
  output << ": " << std::endl;
  for( std::size_t i = 0 ; i < v_SolverNames.size() ; ++i )

@@ -22,7 +22,7 @@
  *
  * \version 0.33
  *
- * \date 16 - 06 - 2020
+ * \date 07 - 07 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -534,9 +534,22 @@ class BlockSolverConfig : public Configuration
 /*--------------------------------------------------------------------------*/
  /// sets the (pointer to) the ComputeConfig of all Solver of the Block
  /** This function sets the vector containing the (pointer to) the
-  * ComputeConfig of all Solver of the Block. */
+  * ComputeConfig of all Solver of the Block. The vector \p solver_configs
+  * becomes property of this BlockSolverConfig. If \p deleteold is true then
+  * all ComputeConfig currently stored in this BlockSolverConfig are
+  * destroyed.
+  *
+  * @param solver_configs A vector of pointers to ComputeConfig.
+  *
+  * @param deleteold It indicates whether the currently stored ComputeConfig
+  *        (if any) must be destroyed. */
 
- void set_SolverConfigs( std::vector<ComputeConfig *> && solver_configs ) {
+ void set_SolverConfigs( std::vector<ComputeConfig *> && solver_configs ,
+                         bool deleteold = true ) {
+  if( deleteold ) {
+   for( auto sSC : v_SolverConfigs )
+    delete sSC;
+   }
   v_SolverConfigs = std::move( solver_configs );
   }
 
@@ -853,9 +866,24 @@ class RBlockSolverConfig : public BlockSolverConfig
 
  /// sets the (pointer to) the BlockSolverConfig of each sub-Block
  /** This function sets the vector containing the (pointer to) the
-  *  BlockSolverConfig of every sub-Block. */
+  * BlockSolverConfig of every sub-Block. The vector \p bsc becomes property
+  * of this RBlockSolverConfig. If \p deleteold is true, all pointers to the
+  * BlockSolverConfig of the sub-Block currently stored in this
+  * RBlockSolverConfig are deleted.
+  *
+  * @param bsc A vector of pointers to the BlockSolverConfig for the
+  *        sub-Block.
+  *
+  * @param deleteold Indicates whether the previous pointers to the
+  *        BlockSolverConfig for the Constraintsub-Block must be deleted.
+  */
 
- void set_BlockSolverConfigs( std::vector<BlockSolverConfig *> && bsc ) {
+ void set_BlockSolverConfigs( std::vector<BlockSolverConfig *> && bsc ,
+                              bool deleteold = true ) {
+  if( deleteold ) {
+   for( auto sBSC : v_BlockSolverConfigs )
+    delete sBSC;
+   }
   v_BlockSolverConfigs = std::move( bsc );
   }
 
@@ -1191,10 +1219,25 @@ class ERBlockSolverConfig : public RBlockSolverConfig
   *  BlockSolverConfig of the "indirect sub-Block" associated with the
   *  Constraint of the Block. The i-th BlockSolverConfig in this vector is
   *  associated with the Constraint given by the i-th element of the
-  *  ConstraintID vector (see get_ConstraintID()). */
+  *  ConstraintID vector (see set_ConstraintID()). The vector \p bsc becomes
+  *  property of this ERBlockSolverConfig. If \p deleteold is true, all
+  *  pointers to the BlockSolverConfig of the Constraint currently stored in
+  *  this ERBlockSolverConfig are deleted.
+  *
+  * @param bsc A vector of pointers to the BlockSolverConfig for the
+  *        Constraint.
+  *
+  * @param deleteold Indicates whether the previous pointers to the
+  *        BlockSolverConfig for the Constraint must be deleted.
+  */
 
  void set_BlockSolverConfig_Constraints(
-			         std::vector<BlockSolverConfig *> && bsc ) {
+                                  std::vector<BlockSolverConfig *> && bsc ,
+                                  bool deleteold = true ) {
+  if( deleteold ) {
+   for( auto sBSCC : v_BlockSolverConfig_Constraints )
+    delete sBSCC;
+   }
   v_BlockSolverConfig_Constraints = std::move( bsc );
   }
 
@@ -1202,7 +1245,13 @@ class ERBlockSolverConfig : public RBlockSolverConfig
  /// adds a BlockSolverConfig of an "indirect sub-Block" of Constraint
  /** This function adds a (pointer to the) BlockSolverConfig of an "indirect
   *  sub-Block" associated with the Constraint of the Block whose
-  *  Block::ConstraintID is \p constraint_id. */
+  *  Block::ConstraintID is \p constraint_id.
+  *
+  * @param bsc A pointer to the BlockSolverConfig.
+  *
+  * @param constraint_id The Block::ConstraintID that indicates the Constraint
+  *        of the Block.
+  */
 
  void add_BlockSolverConfig_Constraint( BlockSolverConfig * bsc ,
                                         Block::ConstraintID constraint_id ) {
@@ -1213,8 +1262,12 @@ class ERBlockSolverConfig : public RBlockSolverConfig
 /*--------------------------------------------------------------------------*/
  /// sets the vector of ConstraintID indicating the "indirect sub-Block"
  /** This function sets the vector of ConstraintID, which indicates the set of
-  * Constraint of the Block that have a BlockSolverConfig for their inner
-  * Block. */
+  * Constraint of the Block that have an associated BlockSolverConfig. The \p
+  * constraint_id becomes property of this ERBlockSolverConfig.
+  *
+  * @param constraint_id The vector of Block::ConstraintID indicates the
+  *        Constraint of the Block that have an associated BlockSolverConfig.
+  */
 
  void set_ConstraintID( std::vector<Block::ConstraintID> && constraint_id ) {
   v_ConstraintID = std::move( constraint_id );
@@ -1223,9 +1276,26 @@ class ERBlockSolverConfig : public RBlockSolverConfig
 /*--------------------------------------------------------------------------*/
  /// sets the BlockSolverConfig of the "indirect sub-Block" of Objective
  /** This function sets the (pointer to the) BlockSolverConfig of the
-  *  "indirect sub-Block" associated with the Objective of the Block. */
+  * "indirect sub-Block" associated with the Objective of the Block. If the
+  * given pointer is equal to the one currently stored in this
+  * ERBlockSolverConfig, a call to this function has no effect (no operation
+  * is performed; in particular, no pointer is deleted). Otherwise, if \p
+  * deleteold is true then the pointer currently stored in this
+  * ERBlockSolverConfig is deleted, destroying the previous BlockSolverConfig
+  * for the Objective.
+  *
+  * @param bsc A pointer to the BlockSolverConfig for the Objective.
+  *
+  * @param deleteold Indicates whether the previous BlockSolverConfig for the
+  *        Objective must be deleted.
+  */
 
- void set_BlockSolverConfig_Objective( BlockSolverConfig * bsc ) {
+ void set_BlockSolverConfig_Objective( BlockSolverConfig * bsc ,
+                                       bool deleteold = true ) {
+  if( f_BlockSolverConfig_Objective == bsc )
+   return;
+  if( deleteold )
+   delete f_BlockSolverConfig_Objective;
   f_BlockSolverConfig_Objective = bsc;
   }
 
@@ -1237,8 +1307,8 @@ class ERBlockSolverConfig : public RBlockSolverConfig
 
  /// returns the BlockSolverConfig of "indirect sub-Block" of Constraint
  /** This function returns a const reference to the vector containing the
-  *  (pointer to the) BlockSolverConfig of the "indirect sub-Block" associated
-  *  with the Constraint of the Block. */
+  * (pointer to the) BlockSolverConfig of the "indirect sub-Block" associated
+  * with the Constraint of the Block. */
 
  const std::vector<BlockSolverConfig *> &
   get_BlockSolverConfig_Constraints( void ) const {
@@ -1258,7 +1328,7 @@ class ERBlockSolverConfig : public RBlockSolverConfig
 /*--------------------------------------------------------------------------*/
  /// returns the BlockSolverConfig of the "indirect sub-Block" of Objective
  /** This function returns the (pointer to the) BlockSolverConfig of the
-  *  "indirect sub-Block" associated with the Objective of the Block. */
+  * "indirect sub-Block" associated with the Objective of the Block. */
 
  BlockSolverConfig * get_BlockSolverConfig_Objective( void ) const {
   return( f_BlockSolverConfig_Objective );
