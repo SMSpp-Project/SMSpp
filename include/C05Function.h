@@ -950,8 +950,8 @@ class C05Function : public Function {
   */
 
  virtual void get_linearization_coefficients( FunctionValue * g ,
-			   Range range = std::make_pair( 0 , Inf<Index>() ) ,
-					      Index name = Inf<Index>() ) = 0;
+				      Range range = Range( 0 , Inf<Index>() ) ,
+				      Index name = Inf<Index>() ) = 0;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get a range of coefficients of a linearization in a SparseVector
@@ -986,8 +986,8 @@ class C05Function : public Function {
   * implementations avoiding the copy for efficiency. */
 
  virtual void get_linearization_coefficients( SparseVector & g ,
-			   Range range = std::make_pair( 0 , Inf<Index>() ) ,
-					      Index name = Inf<Index>() )
+			            Range range = Range( 0 , Inf<Index>() ) ,
+				    Index name = Inf<Index>() )
  {
   range.second = std::min( range.second , get_num_active_var() );
   if( range.second <= range.first )  // range is empty
