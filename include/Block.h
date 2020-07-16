@@ -6993,7 +6993,7 @@ class BlockModRmv : public BlockModAD
  * this may be enough to cover many use cases without a specific :BlockConfig.
  */
 
-class BlockConfig final : public Configuration
+class BlockConfig : public Configuration
 {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/

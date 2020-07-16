@@ -101,8 +101,12 @@ class RBlockConfig : public Configuration
  /// extends BlockConfig::deserialize( netCDF::NcGroup )
  /** Extends BlockConfig::deserialize( netCDF::NcGroup ) to the specific
   * format of a RBlockConfig. Besides the mandatory "type" attribute of any
-  * :Configuration, and all that is needed to describe a BlockConfig, the
-  * group should also contain the following:
+  * :Configuration, the group should contain the following:
+  *
+  * - the group "BlockConfig" containing the description of a BlockConfig
+  *   object for the Block. This group is optional; if it is not provided,
+  *   then the pointer to the BlockConfig for the Block is considered to be a
+  *   nullptr (default configuration);
   *
   * - the dimension "n_sub_Block" containing the number of BlockConfig
   *   descriptions for the sub-Block of the current Block; this dimension is
@@ -112,8 +116,8 @@ class RBlockConfig : public Configuration
   *   "sub-BlockConfig_<i>" for all i = 0, ..., n - 1, containing each the
   *   description of a BlockConfig for one of the sub-Block of the current
   *   :Block. Each of these groups is optional. If a group is absent then the
-  *   BlockConfig for the corresponding sub-Block is considered to be a
-  *   nullptr (default configuration).
+  *   pointer to the BlockConfig for the corresponding sub-Block is considered
+  *   to be a nullptr (default configuration).
   *
   * Note that that the matching between the sub-BlockConfig and the sub-Block
   * is positional: the BlockConfig found in the group "sub-BlockConfig_<i>" is
@@ -230,8 +234,14 @@ class RBlockConfig : public Configuration
 
 /*--------------------------------------------------------------------------*/
  /// load this RBlockConfig out of an istream
- /** Load this RBlockConfig out of an istream. The format is defined as that
-  * specified in BlockConfig::load(), followed by:
+ /** Load this RBlockConfig out of an istream. The format is defined as
+  * follows:
+  *
+  * - a string containing the class type of a BlockConfig object, '*' means
+  *   none (nullptr)
+  *
+  * - if the above is not '*', the description of the :BlockConfig object for
+  *   the Block
   *
   * number k of the sub-BlockConfig objects
   *
