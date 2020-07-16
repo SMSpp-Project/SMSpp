@@ -8,7 +8,7 @@
  *
  * \version 0.07
  *
- * \date 20 - 11 - 2019
+ * \date 15 - 07 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -30,9 +30,10 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include "BlockSolverConfig.h"
+#include "LagBFunction.h"
 #include "Observer.h"
 #include "SMSTypedefs.h"
-#include "LagBFunction.h"
 #include <math.h>
 
 /*--------------------------------------------------------------------------*/
@@ -212,7 +213,7 @@ void LagBFunction::set_ComputeConfig( ComputeConfig *scfg )
  auto sc = dynamic_cast<BlockSolverConfig *>( cc->f_value.first );
  if( sc == nullptr )
   throw( std::logic_error( "the configuration is not a BlockSolverConfig" ) );
- v_Block[0]->set_SolverConfig( sc );
+ sc->apply( v_Block[0] );
 
  auto bc = dynamic_cast<BlockConfig *>( cc->f_value.second );
  if( bc == nullptr )
@@ -232,22 +233,27 @@ void LagBFunction::set_par( const idx_type par , const int value )
    if( !svcc ) {
     svcc = new BlockSolverConfig;
     ComputeConfig* cc = new ComputeConfig;
-    (svcc->v_SolverConfigs).push_back(cc);
-    svcc->v_SolverConfigs[0]->int_pars.push_back(
+    cc->int_pars.push_back(
     		 std::make_pair( int_par_idx2str(intLPMaxSz) , value ) );
+    svcc->set_SolverConfigs( { cc } );
     }
    else {
-    auto it_v = std::find_if( svcc->v_SolverConfigs[0]->int_pars.begin() ,
-    	 svcc->v_SolverConfigs[0]->int_pars.end() ,
+    auto & solver_configs = svcc->get_SolverConfigs();
+
+    if( solver_configs.empty() )
+     throw( std::logic_error( "LagBFunction::set_par: BlockSolverConfig "
+                              "has no ComputeConfig" ) );
+
+    auto & sc = solver_configs[ 0 ];
+
+    auto it_v = std::find_if( sc->int_pars.begin() , sc->int_pars.end() ,
     	 [ ]( const std::pair< std::string , int > & p ) {
     	      return( p.first == "intLPMaxSz" );  } );
 
-    if( it_v != svcc->v_SolverConfigs[0]->int_pars.end() )
+    if( it_v != sc->int_pars.end() )
      (*it_v).second = value;
     else
-     svcc->v_SolverConfigs[0]->int_pars.push_back(
-            std::make_pair( "intLPMaxSz" , value ) );
-
+     sc->int_pars.push_back( std::make_pair( "intLPMaxSz" , value ) );
     }
    }
    break;
@@ -268,27 +274,33 @@ void LagBFunction::set_par( const idx_type par , const double value )
 {
  switch( par ) {
   case( dblRAccLin ):
+
    if( RAccLin != value ) {
     RAccLin = value;
     if( !svcc ) {
      svcc = new BlockSolverConfig;
      ComputeConfig* cc = new ComputeConfig;
-     (svcc->v_SolverConfigs).push_back(cc);
-     svcc->v_SolverConfigs[0]->dbl_pars.push_back(
-    		 std::make_pair( dbl_par_idx2str(dblRAccLin) , value ) );
+     cc->dbl_pars.push_back( std::make_pair( dbl_par_idx2str( dblRAccLin ) ,
+                                             value ) );
+     svcc->set_SolverConfigs( { cc } );
      }
     else {
-     auto it_v = std::find_if( svcc->v_SolverConfigs[0]->dbl_pars.begin() ,
-    	 svcc->v_SolverConfigs[0]->dbl_pars.end() ,
+     auto & solver_configs = svcc->get_SolverConfigs();
+
+     if( solver_configs.empty() )
+      throw( std::logic_error( "LagBFunction::set_par: BlockSolverConfig "
+                               "has no ComputeConfig" ) );
+
+     auto & sc = solver_configs[ 0 ];
+
+     auto it_v = std::find_if( sc->dbl_pars.begin() , sc->dbl_pars.end() ,
     	 [ ]( const std::pair< std::string , double > & p ) {
     	      return( p.first == "dblRAccLin" );  } );
 
-     if( it_v != svcc->v_SolverConfigs[0]->dbl_pars.end() )
+     if( it_v != sc->dbl_pars.end() )
       (*it_v).second = value;
      else
-      svcc->v_SolverConfigs[0]->dbl_pars.push_back(
-            std::make_pair( "dblRAccLin" , value ) );
-
+      sc->dbl_pars.push_back( std::make_pair( "dblRAccLin" , value ) );
      }
     }
    break;
@@ -298,23 +310,29 @@ void LagBFunction::set_par( const idx_type par , const double value )
     if( !svcc ) {
      svcc = new BlockSolverConfig;
      ComputeConfig* cc = new ComputeConfig;
-     (svcc->v_SolverConfigs).push_back(cc);
-     svcc->v_SolverConfigs[0]->dbl_pars.push_back(
-     		 std::make_pair( dbl_par_idx2str(dblAAccLin) , value ) );
+     cc->dbl_pars.push_back( std::make_pair( dbl_par_idx2str( dblAAccLin ) ,
+                                             value ) );
+     svcc->set_SolverConfigs( { cc } );
      }
     else {
 
-     auto it_v = std::find_if( svcc->v_SolverConfigs[0]->dbl_pars.begin() ,
-     	 svcc->v_SolverConfigs[0]->dbl_pars.end() ,
+     auto & solver_configs = svcc->get_SolverConfigs();
+
+     if( solver_configs.empty() )
+      throw( std::logic_error( "LagBFunction::set_par: BlockSolverConfig "
+                               "has no ComputeConfig" ) );
+
+     auto & sc = solver_configs[ 0 ];
+
+
+     auto it_v = std::find_if( sc->dbl_pars.begin() , sc->dbl_pars.end() ,
      	 [ ]( const std::pair< std::string , double > & p ) {
      	      return( p.first == "dblAAccLin" );  } );
 
-     if( it_v != svcc->v_SolverConfigs[0]->dbl_pars.end() )
+     if( it_v != sc->dbl_pars.end() )
       (*it_v).second = value;
      else
-      svcc->v_SolverConfigs[0]->dbl_pars.push_back(
-             std::make_pair( "dblAAccLin" , value ) );
-
+      sc->dbl_pars.push_back( std::make_pair( "dblAAccLin" , value ) );
      }
     }
    break;
@@ -773,7 +791,7 @@ int LagBFunction::compute( bool changedvars )
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  if( svcc )
-  v_Block[0]->set_SolverConfig( svcc );
+  svcc->apply( v_Block[0] );
 
  delete svcc;
 
@@ -998,7 +1016,10 @@ ComputeConfig * LagBFunction::get_ComputeConfig( bool all ,
  if( cc == nullptr )
   throw( std::logic_error( "the configuration is not a SimpleConfiguration" ) );
 
- cc->f_value.first = v_Block[0]->get_SolverConfig();
+ auto bsc = new ERBlockSolverConfig();
+ bsc->get( v_Block[0] );
+ cc->f_value.first = bsc;
+
  cc->f_value.second = (v_Block[0]->get_BlockConfig())->clone();
 
  return( ccfg );
