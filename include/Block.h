@@ -1784,67 +1784,17 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
  /// setting the BlockConfig
  /** This method sets the BlockConfig of this Block. The BlockConfig object
-  * pointed by newBC is not copied, but it becomes property of the Block.
-  * This means that if there already is a BlockConfig of the Block, it gets
-  * deleted during the call.
-  *
-  * Since a BlockConfig has a vector of sub-BlockConfig for the sub-Block of
-  * this Block, it calls itself recursively to set them. Note that this means
-  * that there are at typically *two* "live" pointers to the same
-  * BlockConfig, one in the Block itself and one in the BlockConfig object of
-  * its father Block, if any.
-  *
-  * Hence, a call to set_BlockConfig() (with default = nullptr newBC) deletes
-  * the BlockConfig to this Block and all of its sub-Block, recursively. Note
-  * that the vector of sub-BlockConfig is allowed to be of different size
-  * than the number of sub-Block; if it is larger any extra BlockConfig is
-  * simply ignored, if it shorted then all missing sub-BlockConfig are
-  * treated as nullptr. This means that, for instance, it is possible to set
-  * the BlockConfig of the father Block while resetting that of its sub-Block
-  * by just leaving the vector of sub-BlockConfig empty.
-  *
-  * Note, however, that changing (or deleting) a BlockConfig is only
-  * automatically safe if done top-down from the "root" Block (the one having
-  * no father Block), as changing the BlockConfig of a sub-Block leaves a
-  * dangling pointer in the BlockConfig of the father Block. This is the
-  * reason for the second parameter of the method. If safe == true, the
-  * method can assume that the BlockConfig (if any) of the father Block (if
-  * any) has already been updated. If not, the method will have to climb up
-  * (provided there is anywhere to climb) and update it (provided there is
-  * anything to update). */
+  * pointed by newBC is not copied, but it becomes property of the Block. If
+  * the given pointer is equal to the one currently stored in this Block, a
+  * call to this function has no effect (no operation is performed; in
+  * particular, no pointer is deleted). Otherwise, if \p deleteold is true
+  * then the pointer currently stored in this Block is deleted, destroying the
+  * previous BlockConfig. Hence, a call to set_BlockConfig() (with default
+  * newBC = nullptr and deleteold = true) deletes the BlockConfig to this
+  * Block. */
 
  virtual void set_BlockConfig( BlockConfig *newBC = nullptr ,
-			       const bool safe = true );
-
-/*--------------------------------------------------------------------------*/
- /// incrementally changing information in the BlockConfig
- /** A BlockConfig is a complicated object; in general, one may want to just
-  * "change a few bits of it" rather than setting an entirely new
-  * BlockConfig. This is what this method is for.
-  *
-  * The trick is that the provided BlockConfig aBC is interpreted "in a
-  * differential sense". This means that every field of aBC that is "void"
-  * (either nullptr or empty) is interpreted as "leave the current value as it
-  * is", whereas a nonempty value causes the current value in the BlockConfig
-  * to be replaced with the one in aBC. Note that when pointers to object are
-  * involved, the previously pointed object is deleted and replaced with the
-  * one in aBC, i.e., those parts of aBC become "property" of the current
-  * BlockConfig of the Block. Indeed, the aBC object is "consumed" by this
-  * method; at the end, some parts of aBC will have become part of
-  * BlockConfig, and all the rest is safely disposed of. Note that if aBC (or
-  * one of its sub-BlockConfig) is going to replace a "void" (nullptr)
-  * (sub-)BlockConfig, then this is simple because "adding to void is
-  * equivalent to substituting": a non-existing BlockConfig is equivalent to
-  * one having all nullptr fields, and therefore adding aBC (...) to a "void"
-  * BlockConfig is the same as set_BlockConfig( aBC ). In this case, the
-  * whole aBC becomes property of the Block, and nothing part it is disposed
-  * of. Hence, this has the same problem as set_BlockConfig(), i.e., that if
-  * the father of this Block (if any) has a BlockConfig, then it should be
-  * updated to reflect the addition of aBC. This is why this method also has
-  * the "safe" parameter, although note that a call is surely safe if the
-  * BlockConfig of this Block is non-nullptr. */
-
- virtual void add_to_BlockConfig( BlockConfig *aBC , const bool safe = true );
+			       const bool deleteold = true );
 
 /*--------------------------------------------------------------------------*/
  /// generate the "abstract representation" of the Variable of the Block
@@ -7043,12 +6993,20 @@ class BlockModRmv : public BlockModAD
  * this may be enough to cover many use cases without a specific :BlockConfig.
  */
 
-class BlockConfig : public Configuration
+class BlockConfig final : public Configuration
 {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
  public:
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*--------------------------------------------------------------------------*/
+/*--------------- CONSTRUCTING AND DESTRUCTING BlockConfig -----------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Constructing and destructing BlockConfig
+ *  @{ */
 
 /*---------------------------- CONSTRUCTORS --------------------------------*/
  /// constructor: initializes everything to "default configuration"
@@ -7114,36 +7072,17 @@ class BlockConfig : public Configuration
   *   define further derived classes form BlockConfig (which, however, they
   *   can still do if they want);
   *
-  * - the dimension "n_sub_Block" containing the number of BlockConfig
-  *   descriptions for the sub-Block of the current Block;
-  *
-  * - with n being the size of n_sub_Block, n groups, with name
-  *   "sub-BlockConfig_<i>" for all i = 0, ..., n - 1, containing each the
-  *   description of a BlockConfig for one of the sub-Block of the current
-  *   :Block.
-  *
-  * Of all these, only the "name" attribute and the "n_sub_Block" dimension
-  * are mandatory (they must exist, although they may be empty/zero). All
-  * other groups may not exist, in which case the corresponding field of the
-  * class is filled with a nullptr, indicating that the "default"
-  * configuration (whatever that may mean for the :Block in question) have
-  * to be used. Note that that the matching between the sub-BlockConfig and
-  * the sub-Block is positional: the BlockConfig found in the group
-  * "sub-BlockConfig_<i>" is that for the i-th sub-Block. Note that the
-  * vector of sub-BlockConfig is allowed to be of different size than the
-  * number of sub-Block; if it is larger any extra BlockConfig is simply
-  * ignored, if it shorted then all missing sub-BlockConfig are treated as
-  * nullptr (default configuration). */
+  * All these groups are optional. If a group is not provided, the
+  * corresponding field of the class is filled with a nullptr, indicating that
+  * the "default" configuration (whatever that may mean for the :Block in
+  * question) has to be used. */
 
  virtual void deserialize( netCDF::NcGroup & group ) override;
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
- /// destructor: deletes all sub-BlockConfig
+ /// destructor: deletes all Configuration
  virtual ~BlockConfig()
  {
-  for( auto sBC : v_sub_BlockConfig )
-   delete sBC;
-
   delete f_extra_Configuration;
   delete f_solution_Configuration;
   delete f_is_optimal_Configuration;
@@ -7162,6 +7101,12 @@ class BlockConfig : public Configuration
   return( new BlockConfig( *this ) );
   }
 
+/**@} ----------------------------------------------------------------------*/
+/*--------- METHODS FOR LOADING, PRINTING & SAVING THE BlockConfig ---------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for loading, printing & saving the BlockConfig
+ * @{ */
+
 /*--------------------------------------------------------------------------*/
  /// extends Configuration::serialize( netCDF::NcFile , type ) to eProbFile
  /** Since a BlockConfig knows it is a BlockConfig, it "knows its place" in
@@ -7178,31 +7123,312 @@ class BlockConfig : public Configuration
 
  virtual void serialize( netCDF::NcGroup & group ) const override;
 
-/*--------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
+/**@} ----------------------------------------------------------------------*/
+/*---------------- METHODS FOR MODIFYING THE BlockConfig -------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for modifying the BlockConfig
+ *  @{ */
 
- /// the Configuration for generate_abstract_constraints()
- Configuration *f_static_constraints_Configuration;
- /// the Configuration for generate_dynamic_constraints()
- Configuration *f_dynamic_constraints_Configuration;
- /// the Configuration for generate_abstract_variables()
- Configuration *f_static_variables_Configuration;
- /// the Configuration for generate_dynamic_variables()
- Configuration *f_dynamic_variables_Configuration;
- /// the Configuration for set_objective()
- Configuration *f_objective_Configuration;
- /// the Configuration for is_feasible()
- Configuration *f_is_feasible_Configuration;
- /// the Configuration for is_optimal()
- Configuration *f_is_optimal_Configuration;
- /// the Configuration for get_Solution() and map_[back/forward]_solution
- Configuration *f_solution_Configuration;
- /// any extra Block-specific Configuration
- Configuration *f_extra_Configuration;
+ /// sets the Configuration for generate_static_constraints()
+ /** This method sets the Configuration for generate_static_constraints(). If
+  * the given pointer is equal to the one currently stored in this
+  * BlockConfig, a call to this function has no effect (no operation
+  * is performed; in particular, no pointer is deleted). Otherwise, if \p
+  * deleteold is true then the pointer currently stored in this
+  * BlockConfig is deleted, destroying the previous Configuration
+  * for generate_static_constraints().
+  *
+  * @param config A pointer to the Configuration for
+  *        generate_static_constraints().
+  *
+  * @param deleteold Indicates whether the previous Configuration for
+  *        generate_static_constraints() must be deleted.
+  */
+ void set_static_constraints_Configuration( Configuration * config = nullptr ,
+                                            bool deleteold = true ) {
+  if( config == f_static_constraints_Configuration )
+   return;
+  if( deleteold )
+   delete f_static_constraints_Configuration;
+  f_static_constraints_Configuration = config;
+  }
 
- /// the vector of sub-BlockConfig for each of the sub-Block
- std::vector<BlockConfig *> v_sub_BlockConfig;
+/*--------------------------------------------------------------------------*/
+ /// sets the Configuration for generate_dynamic_constraints()
+ /** This method sets the Configuration for generate_dynamic_constraints(). If
+  * the given pointer is equal to the one currently stored in this
+  * BlockConfig, a call to this function has no effect (no operation is
+  * performed; in particular, no pointer is deleted). Otherwise, if \p
+  * deleteold is true then the pointer currently stored in this BlockConfig is
+  * deleted, destroying the previous Configuration for
+  * generate_dynamic_constraints().
+  *
+  * @param config A pointer to the Configuration for
+  *        generate_dynamic_constraints().
+  *
+  * @param deleteold Indicates whether the previous Configuration for
+  *        generate_dynamic_constraints() must be deleted.
+  */
+ void set_dynamic_constraints_Configuration( Configuration * config = nullptr ,
+                                             bool deleteold = true )
+ {
+  if( config == f_dynamic_constraints_Configuration )
+   return;
+  if( deleteold )
+   delete f_dynamic_constraints_Configuration;
+  f_dynamic_constraints_Configuration = config;
+  }
 
-/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ /// sets the Configuration for generate_static_variables()
+ /** This method sets the Configuration for generate_static_variables(). If
+  * the given pointer is equal to the one currently stored in this
+  * BlockConfig, a call to this function has no effect (no operation is
+  * performed; in particular, no pointer is deleted). Otherwise, if \p
+  * deleteold is true then the pointer currently stored in this BlockConfig is
+  * deleted, destroying the previous Configuration for
+  * generate_static_variables().
+  *
+  * @param config A pointer to the Configuration for
+  *        generate_static_variables().
+  *
+  * @param deleteold Indicates whether the previous Configuration for
+  *        generate_static_variables() must be deleted.
+  */
+ void set_static_variables_Configuration( Configuration * config = nullptr ,
+                                          bool deleteold = true ) {
+  if( config == f_static_variables_Configuration )
+   return;
+  if( deleteold )
+   delete f_static_variables_Configuration;
+  f_static_variables_Configuration = config;
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// sets the Configuration for generate_dynamic_variables()
+ /** This method sets the Configuration for generate_dynamic_variables(). If
+  * the given pointer is equal to the one currently stored in this
+  * BlockConfig, a call to this function has no effect (no operation is
+  * performed; in particular, no pointer is deleted). Otherwise, if \p
+  * deleteold is true then the pointer currently stored in this BlockConfig is
+  * deleted, destroying the previous Configuration for
+  * generate_dynamic_variables().
+  *
+  * @param config A pointer to the Configuration for
+  *        generate_dynamic_variables().
+  *
+  * @param deleteold Indicates whether the previous Configuration for
+  *        generate_dynamic_variables() must be deleted.
+  */
+ void set_dynamic_variables_Configuration( Configuration * config = nullptr ,
+                                           bool deleteold = true ) {
+  if( config == f_dynamic_variables_Configuration )
+   return;
+  if( deleteold )
+   delete f_dynamic_variables_Configuration;
+  f_dynamic_variables_Configuration = config;
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// sets the Configuration for set_objective()
+ /** This method sets the Configuration for set_objective(). If the given
+  * pointer is equal to the one currently stored in this BlockConfig, a call
+  * to this function has no effect (no operation is performed; in particular,
+  * no pointer is deleted). Otherwise, if \p deleteold is true then the
+  * pointer currently stored in this BlockConfig is deleted, destroying the
+  * previous Configuration for set_objective().
+  *
+  * @param config A pointer to the Configuration for set_objective().
+  *
+  * @param deleteold Indicates whether the previous Configuration for
+  *        set_objective() must be deleted.
+  */
+ void set_objectve_Configuration( Configuration * config = nullptr ,
+                                  bool deleteold = true ) {
+  if( config == f_objective_Configuration )
+   return;
+  if( deleteold )
+   delete f_objective_Configuration;
+  f_objective_Configuration = config;
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// sets the Configuration for is_feasible().
+ /** This method sets the Configuration for is_feasible(). If the given
+  * pointer is equal to the one currently stored in this BlockConfig, a call
+  * to this function has no effect (no operation is performed; in particular,
+  * no pointer is deleted). Otherwise, if \p deleteold is true then the
+  * pointer currently stored in this BlockConfig is deleted, destroying the
+  * previous Configuration for is_feasible().
+  *
+  * @param config A pointer to the Configuration for is_feasible().
+  *
+  * @param deleteold Indicates whether the previous Configuration for
+  *        is_feasible() must be deleted.
+  */
+ void set_is_feasible_Configuration( Configuration * config = nullptr ,
+                                     bool deleteold = true ) {
+  if( config == f_is_feasible_Configuration )
+   return;
+  if( deleteold )
+   delete f_is_feasible_Configuration;
+  f_is_feasible_Configuration = config;
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// sets the Configuration for is_optimal().
+ /** This method sets the Configuration for is_optimal(). If the given pointer
+  * is equal to the one currently stored in this BlockConfig, a call to this
+  * function has no effect (no operation is performed; in particular, no
+  * pointer is deleted). Otherwise, if \p deleteold is true then the pointer
+  * currently stored in this BlockConfig is deleted, destroying the previous
+  * Configuration for is_optimal().
+  *
+  * @param config A pointer to the Configuration for is_optimal().
+  *
+  * @param deleteold Indicates whether the previous Configuration for
+  *        is_optimal() must be deleted.
+  */
+ void set_is_optimal_Configuration( Configuration * config = nullptr ,
+                                    bool deleteold = true ) {
+  if( config == f_is_optimal_Configuration )
+   return;
+  if( deleteold )
+   delete f_is_optimal_Configuration;
+  f_is_optimal_Configuration = config;
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// sets the Configuration for get_Solution() and map_[back/forward]_solution
+ /** This method sets the Configuration for get_Solution() and
+  * map_[back/forward]_solution. If the given pointer
+  * is equal to the one currently stored in this BlockConfig, a call to this
+  * function has no effect (no operation is performed; in particular, no
+  * pointer is deleted). Otherwise, if \p deleteold is true then the pointer
+  * currently stored in this BlockConfig is deleted, destroying the previous
+  * Configuration for get_Solution().
+  *
+  * @param config A pointer to the Configuration for get_Solution().
+  *
+  * @param deleteold Indicates whether the previous Configuration for
+  *        get_Solution() must be deleted.
+  */
+ void set_solution_Configuration( Configuration * config = nullptr ,
+                                  bool deleteold = true ) {
+  if( config == f_solution_Configuration )
+   return;
+  if( deleteold )
+   delete f_solution_Configuration;
+  f_solution_Configuration = config;
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// sets the Configuration for any extra Block-specific Configuration
+ /** This method sets the Configuration for any extra Block-specific
+  * Configuration. If the given pointer is equal to the one currently stored
+  * in this BlockConfig, a call to this function has no effect (no operation
+  * is performed; in particular, no pointer is deleted). Otherwise, if \p
+  * deleteold is true then the pointer currently stored in this BlockConfig is
+  * deleted, destroying the previous Configuration.
+  *
+  * @param config A pointer to a Configuration for any extra Block-specific
+  *        Configuration.
+  *
+  * @param deleteold Indicates whether the previous Configuration must be
+  *        deleted.
+  */
+ void set_extra_Configuration( Configuration * config = nullptr ,
+                               bool deleteold = true ) {
+  if( config == f_extra_Configuration )
+   return;
+  if( deleteold )
+   delete f_extra_Configuration;
+  f_extra_Configuration = config;
+  }
+
+/**@} ----------------------------------------------------------------------*/
+/*---------- Methods for reading the data of the BlockSolverConfig ---------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for reading the data of the BlockSolverConfig
+ *  @{ */
+
+ /// returns the Configuration for generate_static_constraints()
+ /** This method returns the Configuration for generate_static_constraints().
+  */
+ Configuration * get_static_constraints_Configuration( void ) const {
+  return( f_static_constraints_Configuration );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the Configuration for generate_dynamic_constraints()
+ /** This method returns the Configuration for generate_dynamic_constraints().
+  */
+ Configuration * get_dynamic_constraints_Configuration( void ) const {
+  return( f_dynamic_constraints_Configuration );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the Configuration for generate_static_variables()
+ /** This method returns the Configuration for generate_static_variables().
+  */
+ Configuration * get_static_variables_Configuration( void ) const {
+  return( f_static_variables_Configuration );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the Configuration for generate_dynamic_variables()
+ /** This method returns the Configuration for generate_dynamic_variables().
+  */
+ Configuration * get_dynamic_variables_Configuration( void ) const {
+  return( f_dynamic_variables_Configuration );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the Configuration for set_objective()
+ /** This method returns the Configuration for set_objective().
+  */
+ Configuration * get_objectve_Configuration( void ) const {
+  return( f_objective_Configuration );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the Configuration for is_feasible().
+ /** This method returns the Configuration for is_feasible().
+  */
+ Configuration * get_is_feasible_Configuration( void ) const {
+  return( f_is_feasible_Configuration );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the Configuration for is_optimal().
+ /** This method returns the Configuration for is_optimal().
+  */
+ Configuration * get_is_optimal_Configuration( void ) const {
+  return( f_is_optimal_Configuration );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the Configuration for get_Solution() and map_[back/forward]_solution
+ /** This method returns the Configuration for get_Solution() and
+  * map_[back/forward]_solution.
+  */
+ Configuration * get_solution_Configuration( void ) const {
+  return( f_solution_Configuration );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the Configuration for any extra Block-specific Configuration
+ /** This method returns the Configuration for any extra Block-specific
+  * Configuration.
+  */
+ Configuration * get_extra_Configuration( void ) const {
+  return( f_extra_Configuration );
+  }
+
+/**@} ----------------------------------------------------------------------*/
+/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
 
  protected:
 
@@ -7230,17 +7456,30 @@ class BlockConfig : public Configuration
   *    means none (nullptr)
   *
   * - if the above is not '*', the description of the :Configuration object
-  *
-  * number k of the sub-BlockConfig objects
-  *
-  * for i = 1 ... k
-  *  - a string containing the class type of a BlockConfig object,
-  *    '*' means none (nullptr)
-  *
-  *  - if the above is not '*', the description of the :BlockConfig object
   */
 
  virtual void load( std::istream &input ) override;
+
+/*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
+
+ /// the Configuration for generate_abstract_constraints()
+ Configuration *f_static_constraints_Configuration;
+ /// the Configuration for generate_dynamic_constraints()
+ Configuration *f_dynamic_constraints_Configuration;
+ /// the Configuration for generate_abstract_variables()
+ Configuration *f_static_variables_Configuration;
+ /// the Configuration for generate_dynamic_variables()
+ Configuration *f_dynamic_variables_Configuration;
+ /// the Configuration for set_objective()
+ Configuration *f_objective_Configuration;
+ /// the Configuration for is_feasible()
+ Configuration *f_is_feasible_Configuration;
+ /// the Configuration for is_optimal()
+ Configuration *f_is_optimal_Configuration;
+ /// the Configuration for get_Solution() and map_[back/forward]_solution
+ Configuration *f_solution_Configuration;
+ /// any extra Block-specific Configuration
+ Configuration *f_extra_Configuration;
 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 

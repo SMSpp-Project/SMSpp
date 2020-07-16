@@ -360,7 +360,7 @@ class BlockSolverConfig : public Configuration
   * usually done when the sole purpose of using this BlockSolverConfig is to
   * reset the Solver of a Block (usually the given Block \p block). The
   * default value of this parameter is false, in which case a "full"
-  * BlockSolverConfig is constructed. 
+  * BlockSolverConfig is constructed.
   *
   * Note that BlockSolverConfig::get() is a reasonably cheap operation,
   * especially if clear == true, but this may not be true for all the
