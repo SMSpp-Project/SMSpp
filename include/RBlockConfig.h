@@ -69,7 +69,7 @@ namespace SMSpp_di_unipi_it
  *
  * - a pointer to a BlockConfig
  *
- * - a vector of pointers to BlockConfig for each of the sub-Block of the
+ * - a vector of pointers to Configuration for each of the sub-Block of the
  *   Block. */
 
 class RBlockConfig : public Configuration
@@ -108,23 +108,24 @@ class RBlockConfig : public Configuration
   *   then the pointer to the BlockConfig for the Block is considered to be a
   *   nullptr (default configuration);
   *
-  * - the dimension "n_sub_Block" containing the number of BlockConfig
+  * - the dimension "n_sub_Block" containing the number of Configuration
   *   descriptions for the sub-Block of the current Block; this dimension is
   *   optional; if it is not provided, then n_sub_Block = 0 is assumed.
   *
   * - with n being the size of n_sub_Block, n groups, with name
   *   "sub-BlockConfig_<i>" for all i = 0, ..., n - 1, containing each the
-  *   description of a BlockConfig for one of the sub-Block of the current
+  *   description of a Configuration for one of the sub-Block of the current
   *   :Block. Each of these groups is optional. If a group is absent then the
-  *   pointer to the BlockConfig for the corresponding sub-Block is considered
-  *   to be a nullptr (default configuration).
+  *   pointer to the Configuration for the corresponding sub-Block is
+  *   considered to be a nullptr (default configuration).
   *
-  * Note that that the matching between the sub-BlockConfig and the sub-Block
-  * is positional: the BlockConfig found in the group "sub-BlockConfig_<i>" is
-  * that for the i-th sub-Block. Note that the vector of sub-BlockConfig is
-  * allowed to be of different size than the number of sub-Block; if it is
-  * larger any extra BlockConfig is simply ignored, if it shorted then all
-  * missing sub-BlockConfig are treated as nullptr (default configuration). */
+  * Note that that the matching between the sub-Configuration and the
+  * sub-Block is positional: the Configuration found in the group
+  * "sub-BlockConfig_<i>" is that for the i-th sub-Block. Note that the
+  * vector of sub-Configuration is allowed to be of different size than the
+  * number of sub-Block; if it is larger any extra Configuration is simply
+  * ignored, if it shorted then all missing sub-Configuration are treated as
+  * nullptr (default configuration). */
 
  virtual void deserialize( netCDF::NcGroup & group ) override;
 
@@ -164,7 +165,7 @@ class RBlockConfig : public Configuration
 /** @name Methods for modifying the RBlockConfig
  *  @{ */
 
- /// sets the (pointer to) the BlockConfig of each sub-Block
+ /// sets the (pointer to) the BlockConfig of the Block
  /** This function sets the pointer to the BlockConfig of the Block. If the
   * given pointer is equal to the one currently stored in this RBlockConfig, a
   * call to this function has no effect (no operation is performed; in
@@ -189,17 +190,18 @@ class RBlockConfig : public Configuration
 
 /*--------------------------------------------------------------------------*/
 
- /// sets the (pointer to) the BlockConfig of each sub-Block
- /** This function sets the vector containing the (pointer to) the BlockConfig
-  * of every sub-Block. If \p deleteold is true then all BlockConfig for the
-  * sub-Block currently stored in this RBlockConfig are destroyed.
+ /// sets the (pointer to) the Configuration of each sub-Block
+ /** This function sets the vector containing the (pointer to) the
+  * Configuration of every sub-Block. If \p deleteold is true then all
+  * Configuration for the sub-Block currently stored in this RBlockConfig are
+  * destroyed.
   *
-  * @param bc A vector of pointers to BlockConfig.
+  * @param bc A vector of pointers to Configuration.
   *
-  * @param deleteold It indicates whether the currently stored BlockConfig (if
-  *        any) must be destroyed. */
+  * @param deleteold It indicates whether the currently stored Configuration
+  *        for the sub-Block (if any) must be destroyed. */
 
- void set_sub_BlockConfig( std::vector<BlockConfig *> && bc ,
+ void set_sub_BlockConfig( std::vector<Configuration *> && bc ,
                            bool deleteold = true ) {
   if( deleteold ) {
    for( auto sBC : v_sub_BlockConfig )
@@ -214,11 +216,11 @@ class RBlockConfig : public Configuration
 /** @name Methods for reading the data of the RBlockConfig
  *  @{ */
 
- /// returns the (pointer to) the BlockConfig of every sub-Block
+ /// returns the (pointer to) the Configuration of every sub-Block
  /** This function returns a const reference to the vector containing the
-  * (pointer to) the BlockConfig of every sub-Block. */
+  * (pointer to) the Configuration of every sub-Block. */
 
- const std::vector<BlockConfig *> & get_sub_BlockConfig( void )
+ const std::vector<Configuration *> & get_sub_BlockConfig( void )
   const { return( v_sub_BlockConfig ); }
 
 /**@} ----------------------------------------------------------------------*/
@@ -243,13 +245,13 @@ class RBlockConfig : public Configuration
   * - if the above is not '*', the description of the :BlockConfig object for
   *   the Block
   *
-  * number k of the sub-BlockConfig objects
+  * number k of the sub-Configuration objects
   *
   * for i = 1 ... k
-  *  - a string containing the class type of a BlockConfig object,
-  *    '*' means none (nullptr)
+  *  - a string containing the class type of a Configuration object, '*' means
+  *    none (nullptr)
   *
-  *  - if the above is not '*', the description of the :BlockConfig object
+  *  - if the above is not '*', the description of the :Configuration object
   */
 
  virtual void load( std::istream &input ) override;
@@ -259,8 +261,8 @@ class RBlockConfig : public Configuration
  /// A pointer to the BlockConfig of the Block
  BlockConfig * f_BlockConfig;
 
- /// the vector of sub-BlockConfig for each of the sub-Block of the Block
- std::vector<BlockConfig *> v_sub_BlockConfig;
+ /// the vector of sub-Configuration for each of the sub-Block of the Block
+ std::vector<Configuration *> v_sub_BlockConfig;
 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 
@@ -290,16 +292,16 @@ class RBlockConfig : public Configuration
  * has an inner Block tha may have to be configured. Since not every
  * Constraint may have a "sub-Block" (or one that needs configuration), it is
  * necessary to indicate which Constraints will have an associated
- * BlockConfig. These Constraints can be indicated by means of a
+ * Configuration. These Constraints can be indicated by means of a
  * Block::ConstraintID.
  *
  * The ERBlockSolverConfig contains the following fields:
  *
  * - a vector of Block::ConstraintID indicating the set of Constraint of this
- *   Block that needs a BlockConfig alongside a vector of
- *   BlockConfig for those Constraint.
+ *   Block that needs a Configuration alongside a vector of Configuration for
+ *   those Constraint.
  *
- * - a BlockConfig for the Objective of the Block. */
+ * - a Configuration for the Objective of the Block. */
 
 class ERBlockConfig : public RBlockConfig
 {
@@ -319,7 +321,7 @@ class ERBlockConfig : public RBlockConfig
 /*---------------------------- CONSTRUCTORS --------------------------------*/
  /// constructor: creates an empty ERBlockConfig
 
- ERBlockConfig( void ) : RBlockConfig() , f_BlockConfig_Objective( nullptr ) {}
+ ERBlockConfig( void ) : RBlockConfig() , f_Config_Objective( nullptr ) {}
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: does what it says on the tin
@@ -333,31 +335,31 @@ class ERBlockConfig : public RBlockConfig
   * :Configuration, and all that is needed to describe a RBlockConfig, the
   * group should also contain the following:
   *
-  * - the dimension "n_BlockConfig_Constraint" containing the number of
-  *   BlockConfig descriptions associated with the Constraint of the current
+  * - the dimension "n_Config_Constraint" containing the number of
+  *   Configuration descriptions associated with the Constraint of the current
   *   Block; this dimension is optional; if it is not provided, then
-  *   n_BlockConfig_Constraint = 0 is assumed.
+  *   n_Config_Constraint = 0 is assumed.
   *
-  * - with p being the size of "n_BlockConfig_Constraint", a one-dimensional
+  * - with p being the size of "n_Config_Constraint", a one-dimensional
   *   variable called "ConstraintID", of size 2p and type netCDF::ncUint,
   *   containing the Block::ConstraintID of the Constraint that need a
-  *   BlockConfig: for each i = 0, ..., p - 1, the pair ( ConstraintID[ 2i ],
+  *   Configuration: for each i = 0, ..., p - 1, the pair ( ConstraintID[ 2i ],
   *   ConstraintID[ 2i + 1] ) is the ConstraintID of the i-th Constraint that
-  *   needs a BlockConfig, i.e., ConstraintID[ 2i ] provides the index of the
+  *   needs a Configuration, i.e., ConstraintID[ 2i ] provides the index of the
   *   group to which the i-th Constraint belongs and ConstraintID[ 2i + 1 ]
   *   provides the index of the i-th Constraint (see Block::ConstraintID for
   *   the definition of an index of a Constraint); this variable is mandatory
-  *   if n_BlockConfig_Constraint > 0.
+  *   if n_Config_Constraint > 0.
   *
-  * - p groups, with name "BlockConfig_Constraint_<i>" for all i = 0, ..., p -
-  *   1, containing each the description of a BlockConfig associated with the
+  * - p groups, with name "Config_Constraint_<i>" for all i = 0, ..., p - 1,
+  *   containing each the description of a Configuration associated with the
   *   i-th Constraint indicated by the "ConstraintID" variable (which is given
   *   by the pair ( ConstraintID[ 2i ], ConstraintID[ 2i + 1] )); these groups
-  *   are optional; if "BlockConfig_Constraint_<i>" is not provided, then
-  *   nullptr (default configuration) is assumed for the i-th Constraint;
+  *   are optional; if "Config_Constraint_<i>" is not provided, then nullptr
+  *   (default configuration) is assumed for the i-th Constraint;
   *
-  * - a group with name "BlockConfig_Objective", containing the description of
-  *   a BlockConfig associated with the Objective of the current Block; this
+  * - a group with name "Config_Objective", containing the description of a
+  *   Configuration associated with the Objective of the current Block; this
   *   group is optional; if it is not provided, then nullptr (default
   *   configuration) is assumed. */
 
@@ -367,10 +369,10 @@ class ERBlockConfig : public RBlockConfig
  /// destructor: deletes all sub-BlockConfig
  virtual ~ERBlockConfig()
  {
-  for( auto sBCC : v_BlockConfig_Constraints )
+  for( auto sBCC : v_Config_Constraints )
    delete sBCC;
 
-  delete f_BlockConfig_Objective;
+  delete f_Config_Objective;
   }
 
 /*------------------------------- CLONE -----------------------------------*/
@@ -400,52 +402,53 @@ class ERBlockConfig : public RBlockConfig
 /** @name Methods for modifying the ERBlockConfig
  *  @{ */
 
- /// sets the BlockConfig of the "indirect sub-Block" of Constraint
- /** This function sets the vector containing the (pointer to the) BlockConfig
-  * of the "indirect sub-Block" associated with the Constraint of the
-  * Block. The i-th BlockConfig in this vector is associated with the
+ /// sets the Configuration of the "indirect sub-Block" of Constraint
+ /** This function sets the vector containing the (pointer to the)
+  * Configuration of the "indirect sub-Block" associated with the Constraint
+  * of the Block. The i-th Configuration in this vector is associated with the
   * Constraint given by the i-th element of the ConstraintID vector (see
-  * get_ConstraintID()). If \p deleteold is true then all BlockConfig for the
-  * Constraint currently stored in this ERBlockConfig are destroyed.
+  * get_ConstraintID()). If \p deleteold is true then all Configuration for
+  * the Constraint currently stored in this ERBlockConfig are destroyed.
   *
-  * @param bc A vector of pointers to BlockConfig.
+  * @param bc A vector of pointers to Configuration.
   *
-  * @param deleteold It indicates whether the currently stored BlockConfig for
-  *        the Constraint (if any) must be destroyed. */
+  * @param deleteold It indicates whether the currently stored Configuration
+  *        for the Constraint (if any) must be destroyed. */
 
- void set_BlockConfig_Constraints( std::vector<BlockConfig *> && bc ,
-                                   bool deleteold = true ) {
+ void set_Config_Constraints( std::vector<Configuration *> && configs ,
+                              bool deleteold = true ) {
   if( deleteold ) {
-   for( auto sBCC : v_BlockConfig_Constraints )
+   for( auto sBCC : v_Config_Constraints )
     delete sBCC;
    }
-  v_BlockConfig_Constraints = std::move( bc );
+  v_Config_Constraints = std::move( configs );
   }
 
 /*--------------------------------------------------------------------------*/
- /// adds a BlockConfig of an "indirect sub-Block" of Constraint
- /** This function adds a (pointer to the) BlockConfig of an "indirect
+ /// adds a Configuration of an "indirect sub-Block" of Constraint
+ /** This function adds a (pointer to the) Configuration of an "indirect
   * sub-Block" associated with the Constraint of the Block whose
   * Block::ConstraintID is \p constraint_id. */
 
- void add_BlockConfig_Constraint( BlockConfig * bc ,
-                                  Block::ConstraintID constraint_id ) {
-  v_BlockConfig_Constraints.push_back( bc );
+ void add_Config_Constraint( Configuration * config ,
+                             Block::ConstraintID constraint_id ) {
+  v_Config_Constraints.push_back( config );
   v_ConstraintID.push_back( constraint_id );
   }
 
 /*--------------------------------------------------------------------------*/
  /// sets the vector of ConstraintID indicating the "indirect sub-Block"
  /** This function sets the vector of ConstraintID, which indicates the set of
-  * Constraint of the Block that have a BlockConfig for their inner Block. */
+  * Constraint of the Block that have a Configuration for their inner
+  * Block. */
 
  void set_ConstraintID( std::vector<Block::ConstraintID> && constraint_id ) {
   v_ConstraintID = std::move( constraint_id );
   }
 
 /*--------------------------------------------------------------------------*/
- /// sets the BlockConfig of the "indirect sub-Block" of Objective
- /** This function sets the (pointer to the) BlockConfig of the "indirect
+ /// sets the Configuration of the "indirect sub-Block" of Objective
+ /** This function sets the (pointer to the) Configuration of the "indirect
   * sub-Block" associated with the Objective of the Block. If the given
   * pointer is equal to the one currently stored in this ERBlockConfig, a call
   * to this function has no effect (no operation is performed; in particular,
@@ -458,13 +461,13 @@ class ERBlockConfig : public RBlockConfig
   * @param deleteold Indicates whether the previous Configuration for
   *        the Objective must be deleted. */
 
- void set_BlockConfig_Objective( BlockConfig * bc = nullptr ,
-                                 bool deleteold = true ) {
-  if( bc == f_BlockConfig_Objective )
+ void set_Config_Objective( Configuration * config = nullptr ,
+                            bool deleteold = true ) {
+  if( config == f_Config_Objective )
    return;
   if( deleteold )
-   delete f_BlockConfig_Objective;
-  f_BlockConfig_Objective = bc;
+   delete f_Config_Objective;
+  f_Config_Objective = config;
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -473,19 +476,19 @@ class ERBlockConfig : public RBlockConfig
 /** @name Methods for reading the data of the ERBlockConfig
  *  @{ */
 
- /// returns the BlockConfig of "indirect sub-Block" of Constraint
+ /// returns the Configuration of "indirect sub-Block" of Constraint
  /** This function returns a const reference to the vector containing the
-  * (pointer to the) BlockConfig of the "indirect sub-Block" associated with
+  * (pointer to the) Configuration of the "indirect sub-Block" associated with
   * the Constraint of the Block. */
 
- const std::vector<BlockConfig *> & get_BlockConfig_Constraints( void ) const {
-  return( v_BlockConfig_Constraints );
+ const std::vector<Configuration *> & get_Config_Constraints( void ) const {
+  return( v_Config_Constraints );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the vector of ConstraintID indicating the "indirect sub-Block"
  /** This function returns the vector of ConstraintID, which indicates the set
-  * of Constraint of the Block that have a BlockConfig for their inner
+  * of Constraint of the Block that have a Configuration for their inner
   * Block. */
 
  const std::vector<Block::ConstraintID> & get_ConstraintID( void ) const {
@@ -493,12 +496,12 @@ class ERBlockConfig : public RBlockConfig
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the BlockConfig of the "indirect sub-Block" of Objective
- /** This function returns the (pointer to the) BlockConfig of the
+ /// returns the Configuration of the "indirect sub-Block" of Objective
+ /** This function returns the (pointer to the) Configuration of the
   *  "indirect sub-Block" associated with the Objective of the Block. */
 
- BlockConfig * get_BlockConfig_Objective( void ) const {
-  return( f_BlockConfig_Objective );
+ Configuration * get_Config_Objective( void ) const {
+  return( f_Config_Objective );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -517,38 +520,38 @@ class ERBlockConfig : public RBlockConfig
  /** Load this ERBlockConfig out of an istream. The format is defined as that
   * specified in RBlockConfig::load(), followed by:
   *
-  * - the number k of the BlockConfig for the Constraint of the Block
+  * - the number k of the Configuration for the Constraint of the Block
   *
   * - for i = 1 ... k
   *   = two integers representing the ConstraintID for the Constraint
-  *   = a string containing the class type of a BlockConfig object,
+  *   = a string containing the class type of a Configuration object,
   *     '*' means none (nullptr)
-  *   = if the above is not '*', the description of the :BlockConfig
+  *   = if the above is not '*', the description of the :Configuration
   *     object
   *   (clearly, if k == 0 this is empty)
   *
-  * - a string containing the class type of a BlockConfig object for the
+  * - a string containing the class type of a Configuration object for the
   *   Objective, '*' means none (nullptr)
-  * - if the above is not '*', the description of the :BlockConfig object for
-  *   the Objective. */
+  * - if the above is not '*', the description of the :Configuration object
+  *   for the Objective. */
 
  virtual void load( std::istream &input ) override;
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
  /// the vector of indices identifying the set of Constraint
- /** This vector indicates which Constraint of the Block have a BlockConfig
+ /** This vector indicates which Constraint of the Block have a Configuration
   * for their inner Block. */
  std::vector<Block::ConstraintID> v_ConstraintID;
 
- /// the vector of (pointer to the) BlockConfig for Constraint
- /** The vector of (pointer to the) BlockConfig for Constraint. The i-th
-  * BlockConfig in this vector is that of the Block associated with the
+ /// the vector of (pointer to the) Configuration for Constraint
+ /** The vector of (pointer to the) Configuration for Constraint. The i-th
+  * Configuration in this vector is that of the Block associated with the
   * Constraint identified by the i-th element in the vector v_ConstraintID. */
- std::vector<BlockConfig *> v_BlockConfig_Constraints;
+ std::vector<Configuration *> v_Config_Constraints;
 
- /// the (pointer to the) BlockConfig for the Objective of the Block
- BlockConfig * f_BlockConfig_Objective = nullptr;
+ /// the (pointer to the) Configuration for the Objective of the Block
+ Configuration * f_Config_Objective = nullptr;
 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 
