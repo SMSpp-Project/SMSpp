@@ -254,7 +254,7 @@ class PolyhedralFunction : public C05Function {
    return( new v_const_iterator( itr_ ) );
    }
  
-  void operator++( void ) override final { (itr_)++; }
+  void operator++( void ) override final { ++(itr_); }
   reference operator*( void ) const override final { return( *((*itr_)) ); }
   pointer operator->( void ) const override final { return( (*itr_) ); }
   bool operator==( const ThinVarDepInterface::v_const_iterator & rhs )
