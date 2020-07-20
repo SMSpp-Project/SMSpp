@@ -215,19 +215,24 @@ class BendersBFunction : public C05Function , public Block {
  {
   public:
 
-  v_iterator( VarVector::iterator itr ) : itr_( itr ) { }
-  virtual v_iterator * clone( void ) override {
+  explicit v_iterator( VarVector::iterator & itr ) : itr_( itr ) {}
+  explicit v_iterator( VarVector::iterator && itr )
+   : itr_( std::move( itr ) ) {}
+
+  v_iterator * clone( void ) override final {
    return( new v_iterator( itr_ ) );
    }
 
-  virtual void operator++( void ) override final { (itr_)++; }
-  virtual reference operator*( void ) const override final {
+  void operator++( void ) override final { ++(itr_); }
+
+  reference operator*( void ) const override final {
    return( *((*itr_)) );
    }
-  virtual pointer operator->( void ) const override final {
+  pointer operator->( void ) const override final {
    return( (*itr_) );
    }
-  virtual bool operator==( const ThinVarDepInterface::v_iterator & rhs )
+
+  bool operator==( const ThinVarDepInterface::v_iterator & rhs )
    const override final {
    #ifdef NDEBUG
     auto tmp = static_cast<const BendersBFunction::v_iterator *>( & rhs );
@@ -237,7 +242,7 @@ class BendersBFunction : public C05Function , public Block {
     return( tmp ? itr_ == tmp->itr_ : false );
    #endif
    }
-  virtual bool operator!=( const ThinVarDepInterface::v_iterator & rhs )
+  bool operator!=( const ThinVarDepInterface::v_iterator & rhs )
    const override final {
    #ifdef NDEBUG
     auto tmp = static_cast<const BendersBFunction::v_iterator *>( & rhs );
@@ -263,19 +268,20 @@ class BendersBFunction : public C05Function , public Block {
  {
   public:
 
-  v_const_iterator( VarVector::const_iterator itr ) : itr_( itr ) { }
-  virtual v_const_iterator * clone( void ) override {
+  explicit v_const_iterator( VarVector::const_iterator & itr ) : itr_( itr ) {}
+  explicit v_const_iterator( VarVector::const_iterator && itr )
+   : itr_( std::move( itr ) ) {}
+
+  v_const_iterator * clone( void ) override final {
    return( new v_const_iterator( itr_ ) );
    }
 
-  virtual void operator++( void ) override final { (itr_)++; }
-  virtual reference operator*( void ) const override final {
-   return( *((*itr_)) );
-   }
-  virtual pointer operator->( void ) const override final {
-   return( (*itr_) );
-   }
-  virtual bool operator==( const ThinVarDepInterface::v_const_iterator & rhs )
+  void operator++( void ) override final { ++(itr_); }
+
+  reference operator*( void ) const override final { return( *((*itr_)) ); }
+  pointer operator->( void ) const override final { return( (*itr_) ); }
+
+  bool operator==( const ThinVarDepInterface::v_const_iterator & rhs )
    const override final {
    #ifdef NDEBUG
     auto tmp = static_cast<const BendersBFunction::v_const_iterator *>(
@@ -287,7 +293,7 @@ class BendersBFunction : public C05Function , public Block {
     return( tmp ? itr_ == tmp->itr_ : false );
    #endif
    }
-  virtual bool operator!=( const ThinVarDepInterface::v_const_iterator & rhs )
+  bool operator!=( const ThinVarDepInterface::v_const_iterator & rhs )
    const override final {
    #ifdef NDEBUG
     auto tmp = static_cast<const BendersBFunction::v_const_iterator *>(

@@ -6,9 +6,9 @@
  * base class for all objects in SMS++ (Constraint, Objective, Function, ...)
  * that depend on a set of "active" Variable.
  *
- * \version 0.11
+ * \version 0.20
  *
- * \date 16 - 08 - 2019
+ * \date 20 - 07 - 2019
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -205,8 +205,8 @@ class ThinVarDepInterface {
   * methods to it. 
   *
   * Note that iterator automatically destroys the v_iterator it depends
-  * onto; hence, copy constructor and assignment operators both have the
-  * move semantic. */
+  * onto; hence, copy constructor, copy assignment operator and post-increment
+  * operators all both use clone() to make a copy. */
 
  class iterator
  {
@@ -217,22 +217,37 @@ class ThinVarDepInterface {
   typedef Variable* pointer;
   typedef std::forward_iterator_tag iterator_category;
   typedef int difference_type;
-  
+
+  // constructor taking a v_iterator, which becomes property
   iterator( v_iterator * itr ) : itr_( itr ) { }
+  // standard copy constructor, note the clone()
   iterator( iterator & itr ) { itr_ = itr.itr_->clone(); }
+  // standard move constructor
   iterator( iterator && itr ) { itr_ = itr.itr_; itr.itr_ = nullptr; }
-  iterator & operator=( iterator & itr ) { itr_ = itr.itr_; return( *this ); }
-   iterator & operator=( iterator && itr ) {
-   itr_ = itr.itr_; itr.itr_ = nullptr; return( *this );
-   }
+
+  // destructor, deletes the virtual iterator
   ~iterator( ) { delete itr_; }
 
-  iterator operator++( void ) { itr_->operator++(); return( *this ); }
-  iterator operator++( int ) {
-   iterator i( itr_ ); itr_->operator++(); return( i );
+  // standard assignment, note the clone()
+  iterator & operator=( iterator & itr ) {
+   itr_ = itr.itr_->clone(); return( *this );
    }
+  // standard move assignment
+  iterator & operator=( iterator && itr ) {
+   itr_ = itr.itr_; itr.itr_ = nullptr; return( *this );
+   }
+
+  // pre-increment operator ++it, use this preferably
+  iterator & operator++( void ) { itr_->operator++(); return( *this ); }
+  // post-increment operator it++, avoid this if possible
+  iterator operator++( int ) {
+   // note that the copy need be disjoint, hence the clone()
+   iterator i( itr_->clone() ); itr_->operator++(); return( i );
+   }
+
   reference operator*( void ) const { return( *(*itr_) ); }
   pointer operator->( void ) const { return( itr_->operator->() ); }
+
   bool operator==( const iterator & rhs ) const {
    return( *itr_ == *(rhs.itr_) );
    }
@@ -253,8 +268,8 @@ class ThinVarDepInterface {
   * all its methods to it.
   *
   * Note that const_iterator automatically destroys the v_const_iterator it
-  * depends onto; hence, copy constructor and assignment operators both have
-  * the move semantic. */
+  * depends onto; hence, copy constructor and assignment operators both use
+  * clone() to make a copy. */
 
  class const_iterator
  {
@@ -266,25 +281,38 @@ class ThinVarDepInterface {
   typedef int difference_type;
   typedef std::forward_iterator_tag iterator_category;
 
+  // constructor taking a v_iterator, which becomes property
   const_iterator( v_const_iterator * itr ) : itr_( itr ) { }
+  // standard copy constructor, note the clone()
   const_iterator( const_iterator & itr ) { itr_ = itr.itr_->clone(); }
+  // standard move constructor
   const_iterator( const_iterator && itr ) {
    itr_ = itr.itr_; itr.itr_ = nullptr;
    }
+
+  // destructor, deletes the virtual iterator
+  ~const_iterator( ) { delete itr_; }
+  
+  // standard assignment, note the clone()
   const_iterator & operator=( const_iterator & itr ) {
-   itr_ = itr.itr_; return( *this );
+   itr_ = itr.itr_->clone(); return( *this );
    }
+  // standard move assignment
   const_iterator & operator=( const_iterator && itr ) {
    itr_ = itr.itr_; itr.itr_ = nullptr; return( *this );
    }
-  ~const_iterator( ) { delete itr_; }
 
-  const_iterator operator++( void ) { itr_->operator++(); return( *this ); }
+  // pre-increment operator ++it, use this preferably
+  const_iterator & operator++( void ) { itr_->operator++(); return( *this ); }
+  // post-increment operator it++, avoid this if possible
   const_iterator operator++( int ) {
-   const_iterator i( itr_ ); itr_->operator++(); return( i );
+   // note that the copy need be disjoint, hence the clone()
+   const_iterator i( itr_->clone() ); itr_->operator++(); return( i );
    }
+
   reference operator*( void ) const { return( *(*itr_) ); }
   pointer operator->( void ) const { return( itr_->operator->() ); }
+
   bool operator==( const const_iterator & rhs ) const {
    return( *itr_ == *(rhs.itr_) );
    }

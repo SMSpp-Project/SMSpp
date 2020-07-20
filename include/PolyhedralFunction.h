@@ -200,19 +200,17 @@ class PolyhedralFunction : public C05Function {
  {
   public:
 
-  v_iterator( VarVector::iterator itr ) : itr_( itr ) { }
-  virtual v_iterator * clone( void ) override {
+  explicit v_iterator( VarVector::iterator & itr ) : itr_( itr ) {}
+  explicit v_iterator( VarVector::iterator && itr ) :
+   itr_( std::move( itr ) ) {}
+  v_iterator * clone( void ) override final {
    return( new v_iterator( itr_ ) );
    }
 
-  virtual void operator++( void ) override final { (itr_)++; }
-  virtual reference operator*( void ) const override final {
-   return( *((*itr_)) );
-   }
-  virtual pointer operator->( void ) const override final {
-   return( (*itr_) );
-   }
-  virtual bool operator==( const ThinVarDepInterface::v_iterator & rhs )
+  void operator++( void ) override final { ++(itr_); }
+  reference operator*( void ) const override final { return( *((*itr_)) ); }
+  pointer operator->( void ) const override final { return( (*itr_) ); }
+  bool operator==( const ThinVarDepInterface::v_iterator & rhs )
    const override final {
    #ifdef NDEBUG
     auto tmp = static_cast<const PolyhedralFunction::v_iterator *>( & rhs );
@@ -222,7 +220,7 @@ class PolyhedralFunction : public C05Function {
     return( tmp ? itr_ == tmp->itr_ : false );
    #endif
    }
-  virtual bool operator!=( const ThinVarDepInterface::v_iterator & rhs )
+  bool operator!=( const ThinVarDepInterface::v_iterator & rhs )
    const override final {
    #ifdef NDEBUG
     auto tmp = static_cast<const PolyhedralFunction::v_iterator *>( & rhs );
@@ -248,31 +246,30 @@ class PolyhedralFunction : public C05Function {
  {
   public:
 
-  v_const_iterator( VarVector::const_iterator itr ) : itr_( itr ) { }
-  virtual v_const_iterator * clone( void ) override {
+  explicit v_const_iterator( VarVector::const_iterator & itr ) :
+   itr_( itr ) {}
+  explicit v_const_iterator( VarVector::const_iterator && itr ) :
+   itr_( std::move( itr ) ) {}
+  v_const_iterator * clone( void ) override final {
    return( new v_const_iterator( itr_ ) );
    }
  
-  virtual void operator++( void ) override final { (itr_)++; }
-  virtual reference operator*( void ) const override final {
-   return( *((*itr_)) );
-   }
-  virtual pointer operator->( void ) const override final {
-   return( (*itr_) );
-   }
-  virtual bool operator==( const ThinVarDepInterface::v_const_iterator & rhs )
+  void operator++( void ) override final { (itr_)++; }
+  reference operator*( void ) const override final { return( *((*itr_)) ); }
+  pointer operator->( void ) const override final { return( (*itr_) ); }
+  bool operator==( const ThinVarDepInterface::v_const_iterator & rhs )
    const override final {
    #ifdef NDEBUG
-    auto tmp = static_cast<const PolyhedralFunction::v_const_iterator *>(
+    auto tmp = static_cast< const PolyhedralFunction::v_const_iterator * >(
 								      & rhs );
     return( itr_ == tmp->itr_ );
    #else
-    auto tmp = dynamic_cast<const PolyhedralFunction::v_const_iterator *>(
+    auto tmp = dynamic_cast< const PolyhedralFunction::v_const_iterator * >(
 								      & rhs );
     return( tmp ? itr_ == tmp->itr_ : false );
    #endif
    }
-  virtual bool operator!=( const ThinVarDepInterface::v_const_iterator & rhs )
+  bool operator!=( const ThinVarDepInterface::v_const_iterator & rhs )
    const override final {
    #ifdef NDEBUG
     auto tmp = static_cast<const PolyhedralFunction::v_const_iterator *>(
@@ -408,7 +405,7 @@ class PolyhedralFunction : public C05Function {
   * to "implement iyself" should. By not having any Variable, the Observer
   * can no longer do that. */
 
- virtual void clear( void ) override { v_x.clear(); }
+ void clear( void ) override { v_x.clear(); }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -470,7 +467,7 @@ class PolyhedralFunction : public C05Function {
   *       f_shift == 0 because the PolyhedralFunction did not really change,
   *       only the stored linearizations were. */
 
- virtual void set_par( const idx_type par , const int value ) override
+ void set_par( const idx_type par , const int value ) override
  {
   switch( par ) {
    case( intLPMaxSz ):
@@ -534,7 +531,7 @@ class PolyhedralFunction : public C05Function {
   * ignores the C05Function-specific dblRAccLin and dblAAccLin, and leaves
   * all the rest to Function. */
 
- virtual void set_par( const idx_type par , const double value ) override
+ void set_par( const idx_type par , const double value ) override
  {
   switch( par ) {
    case( dblRAccLin ):
@@ -872,14 +869,15 @@ class PolyhedralFunction : public C05Function {
 
  v_iterator * v_begin( void ) override final
  {
-  return( new PolyhedralFunction::v_iterator( v_x.begin() ) );
+  return( new PolyhedralFunction::v_iterator( std::move( v_x.begin() ) ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  v_const_iterator * v_begin( void ) const override final
  {
-  return( new PolyhedralFunction::v_const_iterator( v_x.begin() ) );
+  return( new PolyhedralFunction::v_const_iterator( std::move( v_x.begin() )
+						    ) );
   }
 
 /*--------------------------------------------------------------------------*/
