@@ -243,9 +243,29 @@ void Block::set_BlockConfig( BlockConfig *newBC , const bool deleteold )
 {
  if( f_BlockConfig == newBC )
   return;
- if( deleteold )
-  delete f_BlockConfig;
- f_BlockConfig = newBC;
+
+ if( ! newBC ) {
+  if( deleteold )
+   delete f_BlockConfig;
+  f_BlockConfig = nullptr;
+  return;
+  }
+
+ if( newBC->is_diff() ) {
+  // "differential mode"
+  if( ! f_BlockConfig )
+   f_BlockConfig = newBC;
+  else {
+   newBC->move_non_null_configuration_to( f_BlockConfig , deleteold );
+   delete newBC;
+   }
+  }
+ else {
+  // "setting mode"
+  if( deleteold )
+   delete f_BlockConfig;
+  f_BlockConfig = newBC;
+  }
  }  // end( set_BlockConfig )
 
 /*--------------------------------------------------------------------------*/
@@ -366,37 +386,49 @@ void Block::remove_variable_from_stuff( Variable * const variable ,
 
 BlockConfig::BlockConfig( const BlockConfig &old ) : BlockConfig()
 {
- if( old.f_static_constraints_Configuration )
-  f_static_constraints_Configuration =
-                             old.f_static_constraints_Configuration->clone();
+ f_diff = old.f_diff;
 
- if( old.f_dynamic_constraints_Configuration )
-  f_dynamic_constraints_Configuration =
-                             old.f_dynamic_constraints_Configuration->clone();
+ auto old_it = old.v_Configuration.begin();
+ auto this_it = v_Configuration.begin();
 
- if( old.f_static_variables_Configuration )
-  f_static_variables_Configuration =
-                             old.f_static_variables_Configuration->clone();
-
- if( old.f_dynamic_variables_Configuration )
-  f_dynamic_variables_Configuration =
-                             old.f_dynamic_variables_Configuration->clone();
-
- if( old.f_objective_Configuration )
-  f_objective_Configuration = old.f_objective_Configuration->clone();
-
- if( old.f_is_feasible_Configuration )
-  f_is_feasible_Configuration = old.f_is_feasible_Configuration->clone();
-
- if( old.f_is_optimal_Configuration )
-  f_is_optimal_Configuration = old.f_is_optimal_Configuration->clone();
-
- if( old.f_solution_Configuration )
-  f_solution_Configuration = old.f_solution_Configuration->clone();
-
- if( old.f_extra_Configuration )
-  f_extra_Configuration = old.f_extra_Configuration->clone();
+ for( ; this_it != v_Configuration.end() ; ++old_it , ++this_it ) {
+  if( *old_it )
+   *this_it = (*old_it)->clone();
+  else
+   *this_it = nullptr;
+  }
  }
+
+/*--------------------------------------------------------------------------*/
+
+void BlockConfig::get( Block * block ) {
+
+ // clear this BlockConfig
+ for( auto this_it = v_Configuration.begin();
+      this_it != v_Configuration.end() ; ++this_it ) {
+  delete *this_it;
+  *this_it = nullptr;
+  }
+
+ if( ! block )
+  return;
+
+ auto block_config = block->get_BlockConfig();
+
+ if( ! block_config )
+  return;
+
+ set_diff( block_config->is_diff() );
+
+ auto bc_it = block_config->v_Configuration.begin();
+
+ // clone the Configuration from Block
+ for( auto this_it = v_Configuration.begin();
+      this_it != v_Configuration.end() ; ++bc_it , ++this_it ) {
+  if( *bc_it )
+   *this_it = ( *bc_it )->clone();
+  }
+ } // end( BlockConfig::get( block ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -468,25 +500,12 @@ void BlockConfig::serialize( netCDF::NcFile & f , const int type ) const
 
 void BlockConfig::print( std::ostream &output ) const
 {
- output << private_name() << ": " << std::endl;
- if( f_static_constraints_Configuration )
-  output << *f_static_constraints_Configuration;
- if( f_dynamic_constraints_Configuration )
-  output << *f_dynamic_constraints_Configuration;
- if( f_static_variables_Configuration )
-  output << *f_static_variables_Configuration;
- if( f_dynamic_variables_Configuration )
-  output << *f_dynamic_variables_Configuration;
- if( f_objective_Configuration )
-  output << *f_objective_Configuration;
- if( f_is_feasible_Configuration )
-   output << *f_is_feasible_Configuration;
- if( f_is_optimal_Configuration )
-  output << *f_is_optimal_Configuration;
- if( f_solution_Configuration )
-  output << *f_solution_Configuration;
- if( f_extra_Configuration )
-  output << *f_extra_Configuration;
+ output << private_name();
+ if( f_diff ) output << "[diff]";
+ output << ": " << std::endl;
+ for( auto & config : v_Configuration )
+  if( config )
+   output << *config;
  output << std::endl;
 
  }  // end( BlockConfig::print )
@@ -494,118 +513,21 @@ void BlockConfig::print( std::ostream &output ) const
 /*--------------------------------------------------------------------------*/
 
 void BlockConfig::load( std::istream & input ) {
- input >> eatcomments;
- if( input.peek() == input.widen( '*' ) ) {
-  f_static_constraints_Configuration = nullptr;
-  input.ignore( std::numeric_limits< std::streamsize >::max(),
-                input.widen( '\n' ) );
- } else {
-  std::string cname;
-  input >> cname;
-  f_static_constraints_Configuration =
-   Configuration::new_Configuration( cname );
-  input >> *f_static_constraints_Configuration;
- }
+ input >> eatcomments >> f_diff;
 
- input >> eatcomments;
- if( input.peek() == input.widen( '*' ) ) {
-  f_dynamic_constraints_Configuration = nullptr;
-  input.ignore( std::numeric_limits< std::streamsize >::max(),
-                input.widen( '\n' ) );
- } else {
-  std::string cname;
-  input >> cname;
-  f_dynamic_constraints_Configuration =
-   Configuration::new_Configuration( cname );
-  input >> *f_dynamic_constraints_Configuration;
- }
-
- input >> eatcomments;
- if( input.peek() == input.widen( '*' ) ) {
-  f_static_variables_Configuration = nullptr;
-  input.ignore( std::numeric_limits< std::streamsize >::max(),
-                input.widen( '\n' ) );
- } else {
-  std::string cname;
-  input >> cname;
-  f_static_variables_Configuration =
-   Configuration::new_Configuration( cname );
-  input >> *f_static_variables_Configuration;
- }
-
- input >> eatcomments;
- if( input.peek() == input.widen( '*' ) ) {
-  f_dynamic_variables_Configuration = nullptr;
-  input.ignore( std::numeric_limits< std::streamsize >::max(),
-                input.widen( '\n' ) );
- } else {
-  std::string cname;
-  input >> cname;
-  f_dynamic_variables_Configuration =
-   Configuration::new_Configuration( cname );
-  input >> *f_dynamic_variables_Configuration;
- }
-
- input >> eatcomments;
- if( input.peek() == input.widen( '*' ) ) {
-  f_objective_Configuration = nullptr;
-  input.ignore( std::numeric_limits< std::streamsize >::max(),
-                input.widen( '\n' ) );
- } else {
-  std::string cname;
-  input >> cname;
-  f_objective_Configuration = Configuration::new_Configuration( cname );
-  input >> *f_objective_Configuration;
- }
-
- input >> eatcomments;
- if( input.peek() == input.widen( '*' ) ) {
-  f_is_feasible_Configuration = nullptr;
-  input.ignore( std::numeric_limits< std::streamsize >::max(),
-                input.widen( '\n' ) );
- } else {
-  std::string cname;
-  input >> cname;
-  f_is_feasible_Configuration = Configuration::new_Configuration( cname );
-  input >> *f_is_feasible_Configuration;
- }
-
- input >> eatcomments;
- if( input.peek() == input.widen( '*' ) ) {
-  f_is_optimal_Configuration = nullptr;
-  input.ignore( std::numeric_limits< std::streamsize >::max(),
-                input.widen( '\n' ) );
- } else {
-  std::string cname;
-  input >> cname;
-  f_is_optimal_Configuration = Configuration::new_Configuration( cname );
-  input >> *f_is_optimal_Configuration;
- }
-
- input >> eatcomments;
- if( input.peek() == input.widen( '*' ) ) {
-  f_solution_Configuration = nullptr;
-  input.ignore( std::numeric_limits< std::streamsize >::max(),
-                input.widen( '\n' ) );
- } else {
-  std::string cname;
-  input >> cname;
-  f_solution_Configuration = Configuration::new_Configuration( cname );
-  input >> *f_solution_Configuration;
- }
-
- input >> eatcomments;
- if( input.peek() == input.widen( '*' ) ) {
-  f_extra_Configuration = nullptr;
-  input.ignore( std::numeric_limits< std::streamsize >::max(),
-                input.widen( '\n' ) );
- } else {
-  std::string cname;
-  input >> cname;
-  f_extra_Configuration = Configuration::new_Configuration( cname );
-  input >> *f_extra_Configuration;
- }
-}  // end( BlockConfig::load )
+ for( auto it = v_Configuration.begin(); it != v_Configuration.end() ; ++it ) {
+  if( input.peek() == input.widen( '*' ) ) {
+   *it = nullptr;
+   input.ignore( std::numeric_limits< std::streamsize >::max(),
+                 input.widen( '\n' ) );
+  } else {
+   std::string cname;
+   input >> cname;
+   *it = Configuration::new_Configuration( cname );
+   input >> **it;
+   }
+  }
+ }  // end( BlockConfig::load )
 
 /*--------------------------------------------------------------------------*/
 
@@ -613,49 +535,14 @@ void BlockConfig::serialize( netCDF::NcGroup & group ) const
 {
  Configuration::serialize( group );
 
- if( f_static_constraints_Configuration ) {
-  auto cg = group.addGroup( "static_constraints" );
-  f_static_constraints_Configuration->serialize( cg );
-  }
+ group.putAtt( "diff" , netCDF::NcInt() , int( f_diff ) );
 
- if( f_dynamic_constraints_Configuration ) {
-  auto cg = group.addGroup( "dynamic_constraints" );
-  f_dynamic_constraints_Configuration->serialize( cg );
-  }
-
- if( f_static_variables_Configuration ) {
-  auto cg = group.addGroup( "static_variables" );
-  f_static_variables_Configuration->serialize( cg );
-  }
-
- if( f_dynamic_variables_Configuration ) {
-  auto cg = group.addGroup( "dynamic_variables" );
-  f_dynamic_variables_Configuration->serialize( cg );
-  }
-
- if( f_objective_Configuration ) {
-  auto cg = group.addGroup( "objective" );
-  f_objective_Configuration->serialize( cg );
-  }
-
- if( f_is_feasible_Configuration ) {
-  auto cg = group.addGroup( "is_feasible" );
-  f_is_feasible_Configuration->serialize( cg );
-  }
-
- if( f_is_optimal_Configuration ) {
-  auto cg = group.addGroup( "is_optimal" );
-  f_is_optimal_Configuration->serialize( cg );
-  }
-
- if( f_solution_Configuration ) {
-  auto cg = group.addGroup( "solution" );
-  f_solution_Configuration->serialize( cg );
-  }
-
- if( f_extra_Configuration ) {
-  auto cg = group.addGroup( "extra" );
-  f_extra_Configuration->serialize( cg );
+ for( decltype( v_Configuration )::size_type i = 0 ;
+      i < v_Configuration.size() ; ++i ) {
+  if( v_Configuration[ i ] ) {
+   auto cg = group.addGroup( get_group_name( ConfigurationIndex( i ) ) );
+   v_Configuration[ i ]->serialize( cg );
+   }
   }
  }  // end( BlockConfig::serialize( group ) )
 
@@ -663,40 +550,26 @@ void BlockConfig::serialize( netCDF::NcGroup & group ) const
 
 void BlockConfig::deserialize( netCDF::NcGroup & group )
 {
- if( f_static_constraints_Configuration ||
-     f_dynamic_constraints_Configuration ||
-     f_static_variables_Configuration || f_dynamic_variables_Configuration ||
-     f_objective_Configuration || f_is_feasible_Configuration ||
-     f_is_optimal_Configuration || f_solution_Configuration ||
-     f_extra_Configuration )
-  throw( std::logic_error( "deserializing a non-empty BlockConfig" ) );
 
- auto cg = group.getGroup( "static_constraints" );
- f_static_constraints_Configuration = new_Configuration( cg );
+ netCDF::NcGroupAtt diff = group.getAtt( "diff" );
+ if( diff.isNull() )
+  f_diff = false;
+ else {
+  int diffint;
+  diff.getValues( &diffint );
+  f_diff = ( diffint > 0 );
+ }
 
- cg = group.getGroup( "dynamic_constraints" );
- f_dynamic_constraints_Configuration = new_Configuration( cg );
+ for( auto & config : v_Configuration ) {
+  if( config )
+   throw( std::logic_error( "deserializing a non-empty BlockConfig" ) );
+  }
 
- cg = group.getGroup( "static_variables" );
- f_static_variables_Configuration = new_Configuration( cg );
-
- cg = group.getGroup( "dynamic_variables" );
- f_dynamic_variables_Configuration = new_Configuration( cg );
-
- cg = group.getGroup( "objective" );
- f_objective_Configuration = new_Configuration( cg );
-
- cg = group.getGroup( "is_feasible" );
- f_is_feasible_Configuration = new_Configuration( cg );
-
- cg = group.getGroup( "is_optimal" );
- f_is_optimal_Configuration = new_Configuration( cg );
-
- cg = group.getGroup( "solution" );
- f_solution_Configuration = new_Configuration( cg );
-
- cg = group.getGroup( "extra" );
- f_extra_Configuration = new_Configuration( cg );
+ for( decltype( v_Configuration )::size_type i = 0 ;
+      i < v_Configuration.size() ; ++i ) {
+  auto cg = group.getGroup( get_group_name( ConfigurationIndex( i ) ) );
+  v_Configuration[ i ] = new_Configuration( cg );
+  }
  }  // end( BlockConfig::deserialize( group ) )
 
 /*--------------------------------------------------------------------------*/

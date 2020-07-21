@@ -153,8 +153,8 @@ namespace SMSpp_di_unipi_it
  *
  *     ERBlockSolverConfig myBSC( myBlock );
  *
- * where block is a pointer to the Block of interest. This constructs the full
- * BlockSolverConfig of the given Block; then,
+ * where myBlock is a pointer to the Block of interest. This constructs the
+ * full BlockSolverConfig of the given Block; then,
  *
  *     myBSC.reset_Solver( myBlock );
  *
@@ -305,7 +305,7 @@ class BlockSolverConfig : public Configuration
   * any :Configuration, the group should contain the following:
   *
   * - the attribute "diff" of netCDF::NcInt type containing the value for the
-  *   f_diff field (basically, a bool telling if the information in it has to
+  *   #f_diff field (basically, a bool telling if the information in it has to
   *   be taken as "the configuration to be set" or as "the changes to be made
   *   from the current configuration"); this attribute is optional: if it is
   *   not provided, then diff = false is assumed;
@@ -783,8 +783,8 @@ class RBlockSolverConfig : public BlockSolverConfig
   * BlockSolverConfig of each sub-Block of the given Block.
   *
   * Note that BlockSolverConfig::get() is a reasonably cheap operation,
-  * especially if clear == true, except of course for the fact the the
-  * whole Block, and all its sub-Block recursively, must be scanned.
+  * especially if clear == true, except of course for the fact the whole
+  * Block, and all its sub-Block recursively, must be scanned.
   *
   * @param block A pointer to the Block whose RBlockSolverConfig must be
   *        filled.

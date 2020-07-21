@@ -28,6 +28,7 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include "BlockInspection.h"
 #include "RBlockConfig.h"
 
 /*--------------------------------------------------------------------------*/
@@ -46,14 +47,131 @@ SMSpp_insert_in_factory_cpp_0( RBlockConfig );
 SMSpp_insert_in_factory_cpp_0( ERBlockConfig );
 
 /*--------------------------------------------------------------------------*/
+/*------------------------------- FUNCTIONS --------------------------------*/
+/*--------------------------------------------------------------------------*/
+// Auxiliary functions for RBlockConfig.cpp not exported as methods of
+// the class
+
+namespace {
+
+/*--------------------------------------------------------------------------*/
+
+/// returns the BlockConfig associated with the given element
+/** Returns a pointer to the BlockConfig associated with the given \p
+ * element. The given \p element must be a pointer to an object whose base
+ * class is either FRowConstraint or FRealObjective. If the function
+ * associated with this element is a BendersBFunction or a LagBFunction, then
+ * a pointer to the BlockConfig of the inner Block of that Function is
+ * returned. Otherwise, a nullptr is returned.
+ *
+ * @param element A pointer to the element whose associated BlockConfig
+ *        is desired.
+ *
+ * @return A pointer to the BlockConfig associated with the given
+ *         element (if there is one); or nullptr otherwise.
+ */
+template< class S = ERBlockConfig , class T >
+static std::enable_if_t< std::is_base_of_v< BlockConfig , S > &&
+                         ( std::is_base_of_v< FRowConstraint , T > ||
+                           std::is_base_of_v< FRealObjective , T > ) ,
+                         S * >
+extract_BlockConfig( const T * const element ) {
+ if( element )
+  if( auto block =
+      inspection::get_indirect_sub_Block( element->get_function() ) )
+   return new S( block );
+ return nullptr;
+}
+
+/*--------------------------------------------------------------------------*/
+
+template< class S = ERBlockConfig >
+S * extract_BlockConfig( Objective * objective ) {
+ return extract_BlockConfig< S >
+  ( dynamic_cast<FRealObjective *>( objective ) );
+}
+
+/*--------------------------------------------------------------------------*/
+
+/// writes in bc the BlockConfig associated with Constraint
+/** Writes in \p bc the BlockConfig associated with Constraint.
+ *
+ * @param block A pointer to the Block whose BlockConfig associated with the
+ *        Constraint will be written in \p bc.
+ *
+ * @param bc A pointer to the BlockConfig in which the BlockConfig
+ *        associated with Constraints will be written.
+ */
+void extract_BlockConfig_Constraint( const Block * const block ,
+                                     ERBlockConfig * bc ) {
+
+ auto base_lambda = [ bc ]( const auto & group , const auto group_index ,
+                            const auto block , const auto num_static_groups ,
+                            const auto is_static ) {
+  return
+   [ bc , & group , group_index , block , num_static_groups ,
+     is_static ] ( FRowConstraint & constraint ) {
+
+    auto sub_bc = extract_BlockConfig( & constraint );
+
+    if( ! sub_bc )
+     return;
+
+    auto constraint_index = inspection::get_index( & constraint ,
+                                                   group , is_static );
+
+    if( constraint_index == Inf<Block::Index>() ) {
+     std::stringstream message;
+     message << "RBlockConfig::get: index of Constraint " <<
+      static_cast<const void*>( & constraint ) << " in " <<
+      ( is_static ? "static" : "dynamic" ) << " group " +
+      std::to_string( group_index ) + " of Block " <<
+      static_cast<const void*>( block ) << " was not found";
+     throw( std::logic_error( message.str() ) );
+    }
+
+    auto constraint_id = Block::ConstraintID (
+     ( is_static ? group_index : group_index + num_static_groups ) ,
+     constraint_index );
+
+    bc->add_Config_Constraint( sub_bc , constraint_id );
+
+   };
+ };
+
+ // BlockConfig for static Constraint
+
+ const auto & static_constraints = block->get_static_constraints();
+ const auto num_static_groups = static_constraints.size();
+ auto group_index = 0;
+
+ for( const auto & group : static_constraints ) {
+  auto lambda = base_lambda( group , group_index , block ,
+                             num_static_groups , true );
+  un_any_const_static( group , lambda , un_any_type<FRowConstraint>() );
+  ++group_index;
+ }
+
+ // BlockConfig for dynamic Constraint
+
+ const auto & dynamic_constraints = block->get_dynamic_constraints();
+ group_index = 0;
+ for( const auto & group : dynamic_constraints ) {
+  auto lambda = base_lambda( group , group_index , block ,
+                             num_static_groups , false );
+  un_any_const_static( group , lambda , un_any_type<FRowConstraint>() );
+  ++group_index;
+ }
+}
+
+} // end( unnamed namespace )
+
+/*--------------------------------------------------------------------------*/
 /*------------------------- METHODS of RBlockConfig ------------------------*/
 /*--------------------------------------------------------------------------*/
 
-RBlockConfig::RBlockConfig( const RBlockConfig &old ) : Configuration()
+RBlockConfig::RBlockConfig( const RBlockConfig &old ) : BlockConfig( old )
 {
- f_BlockConfig = nullptr;
- if( old.f_BlockConfig )
-  f_BlockConfig = old.f_BlockConfig->clone();
  v_sub_BlockConfig.resize( old.v_sub_BlockConfig.size() , nullptr );
  for( std::size_t i = 0 ; i < v_sub_BlockConfig.size() ; ++i )
   if( old.v_sub_BlockConfig[ i ] )
@@ -62,10 +180,57 @@ RBlockConfig::RBlockConfig( const RBlockConfig &old ) : Configuration()
 
 /*--------------------------------------------------------------------------*/
 
+void RBlockConfig::get( Block * block ) {
+
+ BlockConfig::get( block );
+
+ for( auto & sBC : v_sub_BlockConfig )
+  delete sBC;
+
+ if( ! block ) {
+  v_sub_BlockConfig.clear();
+  return;
+  }
+
+ auto & nested_blocks = block->get_nested_Blocks();
+ v_sub_BlockConfig.resize( nested_blocks.size() );
+
+ auto nbit = nested_blocks.begin();
+ for( c_Vec_Block::size_type i = 0 ; i < nested_blocks.size() ; ++i )
+  v_sub_BlockConfig[ i ] = new ERBlockConfig( *(nbit++) );
+ }  // end( RBlockConfig::get )
+
+/*--------------------------------------------------------------------------*/
+
+void RBlockConfig::apply( Block * block , bool deleteold ) {
+
+ if( ! block )
+  return;
+
+ // set the configurations for the Block -------------------------------------
+
+ BlockConfig::apply( block , deleteold );
+
+ // set the configurations for the sub-Block ---------------------------------
+
+ auto & nb = block->get_nested_Blocks();
+ auto bit = nb.begin();
+ auto sbcit = v_sub_BlockConfig.begin();
+
+ // only set non-nullptr configurations, hence only up until the list of
+ // BlockConfigs ends
+ for( ; ( bit != nb.end() ) &&
+        ( sbcit != v_sub_BlockConfig.end() ) ;
+        ++bit , ++sbcit )
+  if( *sbcit )
+   ( *sbcit )->apply( *bit , deleteold );
+ }  // end( RBlockConfig::apply )
+
+/*--------------------------------------------------------------------------*/
+
 void RBlockConfig::print( std::ostream &output ) const
 {
- if( f_BlockConfig )
-  output << *f_BlockConfig;
+ BlockConfig::print( output );
  for( const auto cfg : v_sub_BlockConfig )
   if( cfg )
    output << *cfg;
@@ -77,21 +242,9 @@ void RBlockConfig::print( std::ostream &output ) const
 
 void RBlockConfig::load( std::istream & input ) {
 
- input >> eatcomments;
- if( input.peek() == input.widen( '*' ) ) {
-  f_BlockConfig = nullptr;
-  input.ignore( std::numeric_limits< std::streamsize >::max(),
-                input.widen( '\n' ) );
- } else {
-  std::string cname;
-  input >> cname;
-  f_BlockConfig = dynamic_cast< BlockConfig * >(
-                              Configuration::new_Configuration( cname ) );
-  if( !f_BlockConfig )
-    throw ( std::invalid_argument( "RBlockConfig::load: invalid BlockConfig "
-                                   "for the Block." ) );
-   input >> *f_BlockConfig;
- }
+ BlockConfig::load( input );
+
+ input >> eatcomments >> f_diff;
 
  int k;
  input >> eatcomments >> k;
@@ -105,7 +258,8 @@ void RBlockConfig::load( std::istream & input ) {
   } else {
    std::string cname;
    input >> cname;
-   v_sub_BlockConfig[ i ] = Configuration::new_Configuration( cname );
+   v_sub_BlockConfig[ i ] =
+    dynamic_cast< BlockConfig * >( Configuration::new_Configuration( cname ) );
    if( ! v_sub_BlockConfig[ i ] )
     throw ( std::invalid_argument( "RBlockConfig::load: invalid Configuration"
                                    " for the sub-Block " +
@@ -119,12 +273,9 @@ void RBlockConfig::load( std::istream & input ) {
 
 void RBlockConfig::serialize( netCDF::NcGroup & group ) const
 {
- Configuration::serialize( group );
+ BlockConfig::serialize( group );
 
- if( f_BlockConfig ) {
-  auto cg =  group.addGroup( "BlockConfig" );
-  f_BlockConfig->serialize( cg );
- }
+ group.putAtt( "diff" , netCDF::NcInt() , f_diff );
 
  group.addDim( "n_sub_Block" , v_sub_BlockConfig.size() );
 
@@ -141,11 +292,18 @@ void RBlockConfig::serialize( netCDF::NcGroup & group ) const
 void RBlockConfig::deserialize( netCDF::NcGroup & group )
 {
 
- if( f_BlockConfig || ! v_sub_BlockConfig.empty() )
+ if( ! v_sub_BlockConfig.empty() )
   throw( std::logic_error( "deserializing a non-empty RBlockConfig" ) );
 
- auto cg = group.getGroup( "BlockConfig" );
- f_BlockConfig = dynamic_cast< BlockConfig *> ( new_Configuration( cg ) );
+ BlockConfig::deserialize( group );
+
+ auto diff_att = group.getAtt( "diff" );
+ if( ! diff_att.isNull() )
+  diff_att.getValues( & f_diff );
+ else
+  f_diff = false;
+
+ group.addDim( "n_sub_Block" , v_sub_BlockConfig.size() );
 
  size_t size = ( group.getDim( "n_sub_Block" ) ).getSize();
 
@@ -153,7 +311,8 @@ void RBlockConfig::deserialize( netCDF::NcGroup & group )
 
  for( size_t i = 0 ; i < size ; ++i ) {
   auto cg = group.getGroup( "sub-BlockConfig_" + std::to_string( i ) );
-  v_sub_BlockConfig[ i ] = new_Configuration( cg );
+  v_sub_BlockConfig[ i ] =
+   dynamic_cast< BlockConfig * >( new_Configuration( cg ) );
   }
  }  // end( RBlockConfig::deserialize( group ) )
 
@@ -181,6 +340,61 @@ ERBlockConfig::ERBlockConfig( const ERBlockConfig &old ) : RBlockConfig( old )
  if( old.f_Config_Objective )
   f_Config_Objective = old.f_Config_Objective->clone();
  }
+
+/*--------------------------------------------------------------------------*/
+
+void ERBlockConfig::get( Block * block ) {
+
+ RBlockConfig::get( block );
+
+ for( auto sCC : v_Config_Constraints )
+  delete sCC;
+
+ delete f_Config_Objective;
+ f_Config_Objective = nullptr;
+
+ if( ! block ) {
+  v_Config_Constraints.clear();
+  return;
+  }
+
+ // BlockConfig Constraint
+
+ extract_BlockConfig_Constraint( block , this );
+
+ // BlockConfig for Objective
+
+ f_Config_Objective = extract_BlockConfig( block->get_objective() );
+
+ }  // end( ERBlockConfig::get )
+
+/*--------------------------------------------------------------------------*/
+
+void ERBlockConfig::apply( Block * block , bool deleteold ) {
+
+ if( ! block )
+  return;
+
+ RBlockConfig::apply( block , deleteold );
+
+ // set the configurations for the Block associated with Constraint ----------
+ //---------------------------------------------------------------------------
+
+ for( std::size_t i = 0 ; i < v_Config_Constraints.size() ; ++i ) {
+  if( v_Config_Constraints[ i ] )
+   v_Config_Constraints[ i ]->apply
+    ( inspection::get_indirect_sub_Block( block , v_ConstraintID[ i ] ) ,
+      deleteold );
+  }
+
+ // set the configurations for the Block associated with Objective -----------
+ //---------------------------------------------------------------------------
+
+ if( f_Config_Objective )
+  f_Config_Objective->apply( inspection::get_indirect_sub_Block( block ) ,
+                             deleteold );
+
+ }  // end( ERBlockConfig::apply )
 
 /*--------------------------------------------------------------------------*/
 
@@ -218,7 +432,8 @@ void ERBlockConfig::load( std::istream & input ) {
   else {
    std::string cname;
    input >> cname;
-   v_Config_Constraints[ i ] = Configuration::new_Configuration( cname );
+   v_Config_Constraints[ i ] =
+    dynamic_cast< BlockConfig * >( Configuration::new_Configuration( cname ) );
    if( ! v_Config_Constraints[ i ] )
     throw ( std::invalid_argument( "ERBlockConfig::load: invalid Configuration"
                                    " for the Constraint " +
@@ -235,7 +450,8 @@ void ERBlockConfig::load( std::istream & input ) {
  else {
   std::string cname;
   input >> cname;
-  f_Config_Objective = Configuration::new_Configuration( cname );
+  f_Config_Objective =
+   dynamic_cast< BlockConfig * >( Configuration::new_Configuration( cname ) );
   if( ! f_Config_Objective )
    throw ( std::invalid_argument( "ERBlockConfig::load: invalid Configuration"
                                   " for the Objective." ) );
@@ -258,9 +474,8 @@ void ERBlockConfig::serialize( netCDF::NcGroup & group ) const
 
   for( size_t i = 0 ; i < v_Config_Constraints.size() ; ++i ) {
    if( v_Config_Constraints[ i ] ) {
-    auto bscc = group.addGroup( "Config_Constraint_"
-                                + std::to_string( i ) );
-    v_Config_Constraints[ i ]->serialize( bscc );
+    auto bcc = group.addGroup( "Config_Constraint_" + std::to_string( i ) );
+    v_Config_Constraints[ i ]->serialize( bcc );
     }
    }
 
@@ -280,8 +495,8 @@ void ERBlockConfig::serialize( netCDF::NcGroup & group ) const
  // Configuration for Objective
 
  if( f_Config_Objective ) {
-  auto bscobj = group.addGroup( "Config_Objective" );
-  f_Config_Objective->serialize( bscobj );
+  auto bcobj = group.addGroup( "Config_Objective" );
+  f_Config_Objective->serialize( bcobj );
   }
  }  // end( ERBlockConfig::serialize( group ) )
 
@@ -310,18 +525,20 @@ void ERBlockConfig::deserialize( netCDF::NcGroup & group )
   }
 
  for( size_t i = 0 ; i < constrsize ; ++i ) {
-  auto bscc = group.getGroup( "Config_Constraint_" +
+  auto bcc = group.getGroup( "Config_Constraint_" +
                               std::to_string( i ) );
-  v_Config_Constraints[ i ] = new_Configuration( bscc );
+  v_Config_Constraints[ i ] =
+   dynamic_cast< BlockConfig * >( new_Configuration( bcc ) );
   v_ConstraintID[ i ] = Block::ConstraintID( var_ConstraintID[ 2 * i ] ,
                                              var_ConstraintID[ 2 * i + 1 ] );
   }
 
  // Configuration for Objective
 
- auto bscobj = group.getGroup( "Config_Objective" );
- if( ! bscobj.isNull() ) {
-  f_Config_Objective = new_Configuration( bscobj );
+ auto bcobj = group.getGroup( "Config_Objective" );
+ if( ! bcobj.isNull() ) {
+  f_Config_Objective =
+   dynamic_cast< BlockConfig * >( new_Configuration( bcobj ) );
   }
  }  // end( ERBlockConfig::deserialize( group ) )
 

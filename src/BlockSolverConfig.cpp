@@ -29,14 +29,8 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#include "AbstractPath.h"
-#include "BendersBFunction.h"
-#include "Block.h"
+#include "BlockInspection.h"
 #include "BlockSolverConfig.h"
-#include "Constraint.h"
-#include "FRowConstraint.h"
-#include "LagBFunction.h"
-#include "Objective.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -61,155 +55,7 @@ SMSpp_insert_in_factory_cpp_0( ERBlockSolverConfig );
 // Auxiliary functions for BlockSolverConfig.cpp not exported as methods of
 // the class
 
-/// returns a pointer to the element at the given index in the given group
-/** Returns a pointer to the element of type \p T located at the given
- * position \p index in the given boost::any \p group. If the element is not
- * found, nullptr is returned. The parameter \p is_static indicates whether
- * the given group must be considered static or dynamic.
- *
- * @param group A boost::any.
- *
- * @param index The index of the element in the given group.
- *
- * @param is_static Indicates whether the given group is static or dynamic.
- *
- * @return If an element of type T is found at position \p index in the given
- *         \p group, then a pointer to this element is returned. Otherwise,
- *         nullptr is returned.
- */
-template< class T >
-T * get_element( const boost::any & group , const Block::Index index ,
-                 const bool is_static ) {
- if( is_static )
-  return AbstractPath::get_static_element< T, T >( group , index );
- else
-  return AbstractPath::get_dynamic_element< T, T >( group , index );
-}
-
-/*--------------------------------------------------------------------------*/
-
-/// returns a pointer to the Constraint identified by the given \p id
-/** Returns a pointer to the Constraint identified by the given \p id in the
- * given \p block. The desired Constraint must have exactly the type T. If no
- * Constraint of type T with the given \p id is found, nullptr is returned.
- *
- * @param block The Block to which the desired Constraint belongs.
- *
- * @param id The Block::ConstraintID identifying the Constraint in the given
- *        \p block.
- *
- * @return If there is a Constraint of type T with the given \p id in the
- *         given \p Block, then a pointer to this Constraint is
- *         returned. Otherwise, nullptr is returned.
- */
-template< class T >
-T * get_Constraint( const Block * const block ,
-                    const Block::ConstraintID id ) {
- const auto & static_constraints = block->get_static_constraints();
- const auto num_static_groups = static_constraints.size();
- auto group_index = id.first;
- auto constraint_index = id.second;
-
- if( group_index < num_static_groups ) {
-  // A static Constraint
-  auto any_group = static_constraints[ group_index ];
-  return get_element< T >( any_group , constraint_index , true );
- }
- else {
-  // A dynamic Constraint
-  group_index = id.first - num_static_groups;
-  const auto & dynamic_constraints = block->get_dynamic_constraints();
-
-  if( group_index >= dynamic_constraints.size() )
-   throw( std::logic_error( "BlockSolverConfig::get_Constraint: invalid "
-                            "dynamic Constraint group index: " +
-                            std::to_string( group_index ) ) );
-
-  auto any_group = dynamic_constraints[ group_index ];
-  return get_element< T >( any_group , constraint_index , false );
- }
-}
-
-/*--------------------------------------------------------------------------*/
-
-/// returns a pointer to the inner Block associated with the given Function
-/** Returns a pointer to the inner Block associated with the given \p
- * function. The given Function is expected to be either a BendersBFunction or
- * a LagBFunction. If the given Function is not of any of these two types,
- * then nullptr is returned.
- *
- * @param function A pointer to the Function whose inner Block is desired.
- *
- * @return The inner Block associated with the given Function. If the given
- *         Function has no associated inner Block, then nullptr is returned.
- */
-Block * get_indirect_sub_Block( const Function * const function ) {
- if( ! function )
-  return nullptr;
- if( auto f = dynamic_cast< const BendersBFunction * >( function ) )
-  return f->get_inner_block();
- else if( auto f = dynamic_cast< const LagBFunction * >( function ) )
-  return f->get_inner_block();
- return nullptr;
-}
-
-/*--------------------------------------------------------------------------*/
-
-/// returns the inner Block associated with the Objective of the given Block
-/** Returns a pointer to the inner Block associated with the given Objective
- * of \p block. If the Objective of the given Block is not an FRealObjective,
- * then nullptr is returned.
- *
- * @param block A pointer to the Block containing an Objective whose
- *        associated inner Block is desired.
- *
- * @return A pointer to the inner Block associated with the Objective of the
- *         given Block. If the Objective of the given Block is not an
- *         FRealObjective, nullptr is returned.
- */
-Block * get_indirect_sub_Block( const Block * const block ) {
- if( auto objective = dynamic_cast<FRealObjective *>( block->get_objective() ) )
-  return get_indirect_sub_Block( objective->get_function() );
- return nullptr;
-}
-
-/*--------------------------------------------------------------------------*/
-
-/// returns a pointer to the inner Block associated with the given Constraint
-/** Returns a pointer to the inner Block associated with the given \p
- * constraint. If the given Constraint has no inner Block associated with it,
- * nullptr is returned.
- *
- * @param constraint A pointer to the Constraint whose associated inner Block
- *        is desired.
- *
- * @return The inner Block associated with the given Constraint. If the given
- *         Constraint has no associated inner Block, then nullptr is returned.
- */
-Block * get_indirect_sub_Block( const Constraint * const constraint ) {
- if( auto frowc = dynamic_cast< const FRowConstraint * >( constraint ) )
-  return get_indirect_sub_Block( frowc->get_function() );
- return nullptr;
-}
-
-/*--------------------------------------------------------------------------*/
-
-/// returns a pointer to the inner Block associated with the given Constraint
-/** Returns a pointer to the inner Block associated with the Constraint,
- * belonging to \p block, specified by the given ConstraintID \p id (if any).
- *
- * @param block The Block to which the Constraint belongs.
- *
- * @param id The Block::ConstraintID identifying the Constraint in the given
- *        \p block.
- *
- * @return The inner Block associated with the given Constraint.
- */
-Block * get_indirect_sub_Block( const Block * const block ,
-                                const Block::ConstraintID id ) {
- auto constraint = get_Constraint< FRowConstraint >( block , id );
- return get_indirect_sub_Block( constraint );
-}
+namespace {
 
 /*--------------------------------------------------------------------------*/
 
@@ -237,7 +83,8 @@ static std::enable_if_t< std::is_base_of_v< BlockSolverConfig , S > &&
                          S * >
 extract_BlockSolverConfig( const T * const element , bool clear ) {
  if( element )
-  if( auto block = get_indirect_sub_Block( element->get_function() ) )
+  if( auto block =
+      inspection::get_indirect_sub_Block( element->get_function() ) )
    return new S( block , false , clear );
  return nullptr;
 }
@@ -248,29 +95,6 @@ template< class S = ERBlockSolverConfig >
 S * extract_BlockSolverConfig( Objective * objective , bool clear ) {
  return extract_BlockSolverConfig< S >
   ( dynamic_cast<FRealObjective *>( objective ) , clear );
-}
-
-/*--------------------------------------------------------------------------*/
-
-/// returns the index of the given element in the given boost::any group
-/** Returns the index of the given \p element in the given boost::any \p
- * group.
- *
- * @param element A pointer to the element whose index in \p group is desired.
- *
- * @param group The group containing the element.
- *
- * @param is_static Indicates whether the given group is static or dynamic.
- *
- * @return The index of the given element in the given group.
- */
-template< class T >
-Block::Index get_index( const T * element , const boost::any & group ,
-                        const bool is_static ) {
- if( is_static )
-  return AbstractPath::get_static_index< T, T >( element , group );
- else
-  return AbstractPath::get_dynamic_index< T, T >( element , group );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -302,7 +126,8 @@ void extract_BlockSolverConfig_Constraint
     if( ! sub_bsc )
      return;
 
-    auto constraint_index = get_index( & constraint , group , is_static );
+    auto constraint_index = inspection::get_index( & constraint ,
+                                                   group , is_static );
 
     if( constraint_index == Inf<Block::Index>() ) {
      std::stringstream message;
@@ -311,7 +136,6 @@ void extract_BlockSolverConfig_Constraint
       ( is_static ? "static" : "dynamic" ) << " group " +
       std::to_string( group_index ) + " of Block " <<
       static_cast<const void*>( block ) << " was not found";
-     delete bsc;
      throw( std::logic_error( message.str() ) );
     }
 
@@ -348,6 +172,8 @@ void extract_BlockSolverConfig_Constraint
   ++group_index;
  }
 }
+
+} // end( unnamed namespace )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- METHODS of BlockSolverConfig ------------------------*/
@@ -950,6 +776,7 @@ void ERBlockSolverConfig::get( Block * block , bool clear ) {
  for( auto sBSCC : v_BlockSolverConfig_Constraints )
   delete sBSCC;
  delete f_BlockSolverConfig_Objective;
+ f_BlockSolverConfig_Objective = nullptr;
 
  if( ! block ) {
   v_BlockSolverConfig_Constraints.clear();
@@ -984,14 +811,15 @@ void ERBlockSolverConfig::apply( Block * block ) const {
  for( std::size_t i = 0 ; i < v_BlockSolverConfig_Constraints.size() ; ++i ) {
   if( v_BlockSolverConfig_Constraints[ i ] )
    v_BlockSolverConfig_Constraints[ i ]->apply
-    ( get_indirect_sub_Block( block , v_ConstraintID[ i ] ) );
+    ( inspection::get_indirect_sub_Block( block , v_ConstraintID[ i ] ) );
   }
 
  // set the configurations for the Block associated with Objective -----------
  //---------------------------------------------------------------------------
 
  if( f_BlockSolverConfig_Objective )
-  f_BlockSolverConfig_Objective->apply( get_indirect_sub_Block( block ) );
+  f_BlockSolverConfig_Objective->apply
+   ( inspection::get_indirect_sub_Block( block ) );
 
  }  // end( ERBlockSolverConfig::apply )
 
@@ -1011,7 +839,8 @@ void ERBlockSolverConfig::reset_Solver( Block * block ) const {
   if( ! ( *config_it ) )
    continue;
 
-  auto constraint = get_Constraint< FRowConstraint >( block , *id_it );
+  auto constraint = inspection::get_Constraint< FRowConstraint >( block ,
+                                                                  *id_it );
 
   if( ! constraint )
    throw( std::logic_error( "ERBlockSolverConfig::reset_Solver: invalid "
@@ -1019,7 +848,7 @@ void ERBlockSolverConfig::reset_Solver( Block * block ) const {
                             ( id_it->first ) + ", " + std::to_string
                             ( id_it->second ) + ")." ) );
 
-  auto sub_Block = get_indirect_sub_Block( constraint );
+  auto sub_Block = inspection::get_indirect_sub_Block( constraint );
   ( *config_it )->reset_Solver( sub_Block );
   }
  }  // end( ERBlockSolverConfig::reset_Solver )
