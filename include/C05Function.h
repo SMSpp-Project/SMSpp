@@ -88,7 +88,8 @@ namespace SMSpp_di_unipi_it
  * This immediately implies that
  *
  *     A LINEARIZATION CAN BE DEFINED BY A PAIR FORMED BY A REAL n-VECTOR
- *     (g in the comments) AND A SINGLE REAL SCALAR (\alpha in the comments)
+ *     (g in the comments) AND A SINGLE REAL SCALAR (\alpha in the comments),
+ *     AND THEREFORE IS A LINEAR (AFFINE) FUNCTION L(x) = g x + \alpha
  *
  * Linearization are therefore objects in the graphical space \R^{n + 1}
  * of pairs ( x , v ), where x belongs to the input space (which is assumed
@@ -399,36 +400,44 @@ class C05Function : public Function {
  /**< The parameter for setting the relative accuracy of the linearizations.
   * A linearization ( g , \alpha ) computed at the point x is "accurate" if
   * the value of the linearization coincides with the value of the function
-  * at x, i.e., \alpha = f(x). In general linearizations that are not
+  * at x, i.e., g x + \alpha = f(x). In general linearizations that are not
   * "completely accurate" can still be useful: for instance, in the Lagrangian
   * case an \eps-optimal solution to the Lagrangian problem gives rise to a
-  * valid linearization ( g , \alpha ) with \eps >= f(x) - \alpha. This can be
-  * deemed interesting if \eps is "small", but not if \eps is "large". This
+  * valid linearization ( g , \alpha ) with \eps >= f(x) - ( g x + \alpha ).
+  * Indeed, by convexity f(x) >= g x + \alpha, and the term
+  *
+  *    f(x) - ( g x + \alpha ) >= 0
+  *
+  * is called the "linearization error" of ( g , \alpha ) at x. Whenever the
+  * linearization error is <= \eps the linearization is an \eps-subgradient
+  * of f at x, and \eps-optimal solutions of the Lagrangian problem are those
+  * which characterise \eps-subgradient. Such a linearization can be deemed
+  * "interesting" if \eps is "small", but not if \eps is "large". This
   * parameter instructs the C05Function not to bother reporting (and therefore
   * storing in the "local pool") any linearization having a relative error
   * with f(x) larger than dblRAccLin. This would generally mean
   *
-  *  | f(x) - \alpha | <= dblRAccLin * max( | f(x) | , | \alpha | , 1 )
+  *  | f(x) - ( g x + \alpha )  | <= dblRAccLin * max( | f(x) | , 1 )
   *
   * except that the value f(x) may not be known exactly, with only lower
   * and/or upper bounds on it available. The actual formula therefore depends
   * on what information is actually available: for instance, in the Lagrangian
-  * case one knows that f(x) >= \alpha, and therefore typically an upper
+  * case one knows that f(x) >= g x + \alpha, and therefore typically an upper
   * estimate ub >= f(x) is used in the formula instead of f(x). The default is
   * 0, i.e., "only perfect linearizations are allowed". */
 
  dblAAccLin ,   ///< maximum absolute error in any reported solution
-		/**< Similar to dblRAccLin but for an *absolute* accuracy;
-                  * that is, a linearization is deemed acceptable if
+ /**< Similar to dblRAccLin but for an *absolute* accuracy; that is, a
+  * linearization is deemed acceptable if
   *
-  *      | f(x) - \alpha | <= dblAAccLin
+  *      | f(x) - ( g x + \alpha ) | <= dblAAccLin
   *
   * except that the value f(x) may not be known exactly, with only lower
   * and/or upper bounds on it available. The actual formula therefore depends
   * on what information is actually available: for instance, in the Lagrangian
-  * case one knows that f(x) >= \alpha, and therefore typically an upper
-  * estimate ub >= f(x) is used in the formula instead of f(x). The default is
-  * 0, i.e., "only perfect linearizations are allowed". */
+  * case one knows that f(x) >= ( g x + \alpha ), and therefore typically an
+  * upper estimate ub >= f(x) is used in the formula instead of f(x). The
+  * default is 0, i.e., "only perfect linearizations are allowed". */
 
  dblLastParC0F   ///< first allowed new double parameter for derived classes
                  /**< Convenience value for easily allow derived classes

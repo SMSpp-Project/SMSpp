@@ -747,7 +747,7 @@ class PolyhedralFunction : public C05Function {
 /*--------------------------------------------------------------------------*/
  /// return the constant term of a linearization
 
- FunctionValue get_linearization_constant( c_Index name = Inf<Index>() )
+ FunctionValue get_linearization_constant( Index name = Inf<Index>() )
   override final
  {
   auto gn = name >= v_glob.size() ? v_ord[ f_next ] : v_glob[ name ];
@@ -1051,7 +1051,7 @@ class PolyhedralFunction : public C05Function {
   *        shift() == 0 as expected) is issued, as described in
   *        Observer::make_par(). */
 
- void remove_variable( c_Index i , c_ModParam issueMod = eModBlck )
+ void remove_variable( Index i , c_ModParam issueMod = eModBlck )
   override final;
 
 /*--------------------------------------------------------------------------*/
@@ -1168,7 +1168,7 @@ class PolyhedralFunction : public C05Function {
   *        although actually only a subset of them has) and PFtype() ==
   *        ModifyRows. */  
 
- void modify_row( c_Index i , RealVector && Ai , c_FunctionValue bi ,
+ void modify_row( Index i , RealVector && Ai , c_FunctionValue bi ,
 		  c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -1503,7 +1503,7 @@ class PolyhedralFunction : public C05Function {
 
 /*--------------------------------------------------------------------------*/
 
- FunctionValue * get_ai( c_Index name )
+ FunctionValue * get_ai( Index name )
  {
   auto gn = name >= v_glob.size() ? v_ord[ f_next ] : v_glob[ name ];
 
