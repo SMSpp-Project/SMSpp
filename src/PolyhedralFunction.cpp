@@ -137,7 +137,7 @@ int PolyhedralFunction::compute( bool changedvars )
 
  if( v_ord.size() > 1 ) {
   RealVector v( v_A.size() + 1 );
-  auto ordend =  - is_bound_set() ? 1 : 0;
+  auto ordend = - is_bound_set() ? 1 : 0;
 
   auto vi = v.begin();
   *(vi++) = f_bound;  // the lower bound
@@ -1446,7 +1446,17 @@ void PolyhedralFunction::modify_bound( FunctionValue newbound ,
 
  FunctionValue shift = newbound > f_bound ?   C05FunctionMod::INFshift
                                           : - C05FunctionMod::INFshift;
- bool wasset = is_bound_set();
+
+ // note: the commented away part was written when PolyhedralFunction was
+ //       actually producing the all-0 horizontal subgradient when
+ //       computed at a global minima/maxima. now it is not, and
+ //       therefore there is no longer a need to check if it is there.
+ //       indeed, the handling of v_glob[] may be simplified for this,
+ //       but this would require a substantial intervention. we avoid
+ //       this for now due to some uncertainty as to whether the idea of
+ //       not producing the all-0 horizontal subgradient is sound
+
+ //!! bool wasset = is_bound_set();
 
  // actually change the bound
  f_bound = newbound;
@@ -1457,14 +1467,15 @@ void PolyhedralFunction::modify_bound( FunctionValue newbound ,
  // reset all aggregated linearizations, since there is no way to know if
  // they are still valid
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) ) {
-  reset_aggregate_linearizations();
+  //!! reset_aggregate_linearizations();
   return;
   }
 
- Subset which;
-
  // if the bound was not set, nothing else to do: surely it is not in
  // the global pool, nor it can have contributed to exising linearizations
+ /*!!
+ Subset which;
+
  if( wasset ) {
   Subset whiche;
 
@@ -1514,14 +1525,19 @@ void PolyhedralFunction::modify_bound( FunctionValue newbound ,
 				Observer::par2chnl( issueMod ) );
 
   }  // end( if( wasset ) )
+  !!*/
 
  // issue the PolyhedralFunctionModRngd
  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModRngd>(
-			     this ,
+			     this , C05FunctionMod::NothingChanged ,
+			     /*!!
 			     which.empty() ? C05FunctionMod::NothingChanged
 				           : C05FunctionMod::AlphaChanged ,
+					   !!*/
 			     PolyhedralFunctionMod::ModifyCnst ,
-			     Range( 0 , 0 ) , std::move( which ) , shift ,
+			     Range( 0 , 0 ) , Subset() ,
+			     //!! std::move( which ) ,
+			     shift ,
 			     Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
 

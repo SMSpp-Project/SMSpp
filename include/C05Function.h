@@ -543,8 +543,25 @@ class C05Function : public Function {
   * by-product of compute(); hence, this method is typically (but not
   * necessarily) true after the end of compute().
   *
-  * Once "the first" linearization (if ever) has been read, new ones may be
-  * produced, if the Function allows it, by means of
+  * In particular, one quite specific (but still relevant) case in which a
+  * perfectly well-behaved C05Function, say a finite-valued differentiable
+  * one producing exactly one gradient per compute() call, may refuse to
+  * produce a diagonal linearization is that of a convex [concave] function
+  * that "knows" its global minimum [maximum] value and exposes it via
+  * get_global_lower_bound() [get_global_upper_bound()]. Such a C05Function
+  * may reasonably have has_linearization() return false if compute() is
+  * evaluated at a point (approximately, considering the setting of
+  * dblRelAcc and dblRelAcc) yielding the minimum [maximum] value. Indeed,
+  * at such a point the "reasonable" linearization would be the all-0,
+  * "horizontal" [sub]gradient; this actually does not provide any more
+  * information than that provided by get_global_lower_bound() [...], i.e.,
+  * that the point is a global minimum [...]. Note that the C05Function may
+  * well rather decide to explicitly return the "horizontal" gradient, as
+  * well as produce non-horizontal approximate sub[super]gradients in the
+  * point, considering the setting of dblRAccLin and dblAAccLin.
+  *
+  * In fact, once "the first" linearization (if ever) has been read, new
+  * ones may be produced, if the C05Function does it, by means of
   * compute_new_linearization().
   *
   * The default implementation in the base class returns the same value as

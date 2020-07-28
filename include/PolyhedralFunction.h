@@ -628,7 +628,17 @@ class PolyhedralFunction : public C05Function {
 
  bool has_linearization( bool diagonal = true ) override final
  {
-  return( diagonal ? ( ! v_A.empty() ) || is_bound_set() : false );
+  // vertical linearizations are not available. also, the flat all-zero
+  // subgradient corresponding to the lower bound is never explicitly produced
+  // since there is no need for it (the lower bound already implies it). as
+  // a consequence, if there are no linearizations nothing is ever returned
+
+  if( ( ! diagonal ) || v_A.empty() )
+   return( false );
+  else
+   return( v_ord[ 0 ] != 0 );
+ 
+  //!! return( diagonal ? ( ! v_A.empty() ) || is_bound_set() : false );
   }
 
 /*--------------------------------------------------------------------------*/
