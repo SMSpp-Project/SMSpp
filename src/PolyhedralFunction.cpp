@@ -212,9 +212,11 @@ void PolyhedralFunction::store_linearization( const Index name ,
 /*--------------------------------------------------------------------------*/
 
 void PolyhedralFunction::store_combination_of_linearizations(
-	                LinearCombination & coefficients , const Index name ,
-			c_ModParam issueMod )
+					   LinearCombination & coefficients ,
+					   Index name ,	c_ModParam issueMod )
 {
+ static constexpr eps = 1e-13;  // TODO: handle this better
+
  if( name >= v_glob.size() )
   throw( std::invalid_argument( "invalid global pool name" ) );
 
@@ -225,16 +227,32 @@ void PolyhedralFunction::store_combination_of_linearizations(
  RealVector a( v_x.size() , 0 );
  FunctionValue b = 0;
 
+ FunctionValue sum = 0;
+
  for( const auto & coef : coefficients ) {
-  if( v_glob[ coef.first ] == Inf<int>() )
+  auto pos = v_glob[ coef.first ];
+
+  if( pos == Inf<int>() )
    throw( std::invalid_argument( "invalid name in coefficients" ) );
 
-  auto pos = v_glob[ coef.first ];
+  auto mult = coef.second;
+
+  if( mult < - eps )
+   throw( std::invalid_argument( "negative convex multiplier" ) );
+
+  if( mult < 0 )
+   mult = 0;
+
+  sum += mult;
+
+  /*!! this used to be necessary when PolyhedralFunction was explicitly
+       producing all-0 horizontal subgradients, but this is no longer done
 
   if( ! pos ) {                 // == bound
    b += f_bound * coef.second;  // A[ i ] is all-0
    continue;
    }
+   !!*/
 
   RealVector::iterator ait;
   if( pos > 0 ) {
@@ -249,6 +267,18 @@ void PolyhedralFunction::store_combination_of_linearizations(
 
   for( auto & ai : a )
    ai += (*(ait++)) * coef.second;
+  }
+
+ // now check that the convex multipliers really were convex
+
+ if( sum > 1 + eps * coefficients.size() )
+  throw( std::invalid_argument( "multipliers sum to > 1" ) );
+
+ if( sum < 1 - eps * coefficients.size() ) {
+  if( ! is_bound_set() )
+   throw( std::invalid_argument( "multipliers sum to < 1, and no bound" ) );
+
+  b += f_bound * ( 1 - sum );
   }
 
  // now put the vector in the right place: 
@@ -1447,16 +1477,20 @@ void PolyhedralFunction::modify_bound( FunctionValue newbound ,
  FunctionValue shift = newbound > f_bound ?   C05FunctionMod::INFshift
                                           : - C05FunctionMod::INFshift;
 
- // note: the commented away part was written when PolyhedralFunction was
- //       actually producing the all-0 horizontal subgradient when
- //       computed at a global minima/maxima. now it is not, and
- //       therefore there is no longer a need to check if it is there.
+ // note: although PolyhedralFunction is not actually producing the all-0
+ //       horizontal subgradient when computed at a global minima/maxima,
+ //       that subgradient still implicitly contributes to aggregated
+ //       linearizations if the sum is < 1. thus, if the bound changes
+ //       then also these need be reset. the commented away part was for
+ //       the case where the all-0 subgradient was actually stored, which
+ //       now it is not, and therefore there is no longer a need to check
+ //       if it is there.
  //       indeed, the handling of v_glob[] may be simplified for this,
  //       but this would require a substantial intervention. we avoid
  //       this for now due to some uncertainty as to whether the idea of
  //       not producing the all-0 horizontal subgradient is sound
 
- //!! bool wasset = is_bound_set();
+ bool wasset = is_bound_set();
 
  // actually change the bound
  f_bound = newbound;
@@ -1467,22 +1501,29 @@ void PolyhedralFunction::modify_bound( FunctionValue newbound ,
  // reset all aggregated linearizations, since there is no way to know if
  // they are still valid
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) ) {
-  //!! reset_aggregate_linearizations();
+  reset_aggregate_linearizations();
   return;
   }
 
- // if the bound was not set, nothing else to do: surely it is not in
- // the global pool, nor it can have contributed to exising linearizations
- /*!!
- Subset which;
+ // if the bound was not set, nothing else to do: surely it can not have
+ // contributed to exising linearizations
+
+ //!! Subset which;
 
  if( wasset ) {
-  Subset whiche;
-
   if( ! v_aA.empty() ) {  // meanwhile, reset aggregate linearizations
    v_aA.clear();
    v_ab.clear();
 
+   Subset whiche;
+
+   for( Index i = 0 ; i <= f_max_glob ; ++i )
+    if( v_glob[ i ] < 0 ) {     // an aggregated one
+     v_glob[ i ] = Inf<int>();  // kill it for sure
+     whiche.push_back( i );
+     }
+
+   /*!!
    if( is_bound_set() ) {  // the bound has been changed
     // now search if the changed bound is in the global pool
     for( Index i = 0 ; i <= f_max_glob ; ++i )
@@ -1513,19 +1554,19 @@ void PolyhedralFunction::modify_bound( FunctionValue newbound ,
      if( ! v_glob[ i ] )
       whiche.push_back( i );
    }
+   !!*/
 
   update_f_max_glob();
 
-  // a separate C05FunctionMod for removals (if any)
-  if( ! whiche.empty() )
+  // a separate C05FunctionMod for removals (!! if any)
+  //!! if( ! whiche.empty() )
    f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
 			                 C05FunctionMod::GlobalPoolRemoved ,
 					 std::move( whiche ) , 0 ,
 				         Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
-
+   }
   }  // end( if( wasset ) )
-  !!*/
 
  // issue the PolyhedralFunctionModRngd
  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModRngd>(

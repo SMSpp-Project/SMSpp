@@ -1502,14 +1502,14 @@ class BendersBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- bool is_linearization_there( Index name ) override final {
+ bool is_linearization_there( Index name ) const override final {
   //!! TO BE CHANGED
   return( false );
   }
 
 /*--------------------------------------------------------------------------*/
 
- bool is_linearization_vertical( Index name ) override final {
+ bool is_linearization_vertical( Index name ) const override final {
   //!! TO BE CHANGED
   return( false );
   }

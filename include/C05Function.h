@@ -672,7 +672,7 @@ class C05Function : public Function {
   * of the method is to always return false, which is OK for C05Function that
   * does not store linearization at all. */
 
- virtual bool is_linearization_there( Index name ) { return( false ); }
+ virtual bool is_linearization_there( Index name ) const { return( false ); }
 
 /*--------------------------------------------------------------------------*/
  /// tells if the linearization in the global pool with that name is vertical
@@ -685,7 +685,10 @@ class C05Function : public Function {
   * vertical linearizations (that is, the function is real-valued, i.e., it
   * never evaluates to +/- INF), or does not store linearization at all. */
 
- virtual bool is_linearization_vertical( Index name ) { return( false ); }
+ virtual bool is_linearization_vertical( Index name ) const
+ {
+  return( false );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// stores a combination of the given linearizations

@@ -662,21 +662,31 @@ class PolyhedralFunction : public C05Function {
 
 /*--------------------------------------------------------------------------*/
 
- bool is_linearization_there( Index name ) override final {
+ bool is_linearization_there( Index name ) const override final {
   return( v_glob[ name ] < Inf<int>() );
   }
 
 /*--------------------------------------------------------------------------*/
- /// stores a combination of the given linearizations
- /** This method creates a linear combination of a given set of
-  * linearizations, with given coefficients, and stores it (or information
-  * allowing to compute it) into the global pool of linearizations with the
-  * given name.
+ /// stores a convex combination of the given linearizations
+ /** This method creates a convex combination of the given set of
+  * linearizations, with the given coefficients, and stores it into the
+  * global pool of linearizations with the given name.
+  *
+  * As PolyhedralFunction only produces diagonal linearizations, all the
+  * involved linearizations are necessarily diagonal. For the resulting
+  * linearization to be valid, the coefficients must belong to the unitary
+  * simplex, i.e., be non-negative and sum to 1. However, if a valid global
+  * lower bound is present, then the coefficients can sum to a number strictly
+  * less then 1. The remainder ( 1 - sum of coefficients ) is taken as the
+  * convex multiplier of the "horizontal", all-0 subgradient corresponding to
+  * the lower bound (which that PolyhedralFunction never explicitly produces),
+  * and it is used to properly compute the constant of the newly produced
+  * linearization, as it also has the term "lower bound * that multiplier".
   *
   * Note that in the current implementation of PolyhedralFunction,
-  * linearizations obtained by linear combination are "very fragile". Each
+  * linearizations obtained by convex combination are "very fragile". Each
   * time any linearization changes or is deleted, or Variable are added,
-  * understanding if a linearization obtained by linear combination is still
+  * understanding if a linearization obtained by convex combination is still
   * valid, or computing its new entries, would require keeping track of the
   * original set of linearizations that produced it, and the corresponding
   * linear coefficients. This would be possible but it is currently not done.
