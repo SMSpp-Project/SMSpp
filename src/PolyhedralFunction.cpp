@@ -189,7 +189,7 @@ int PolyhedralFunction::compute( bool changedvars )
 
 /*--------------------------------------------------------------------------*/
 
-void PolyhedralFunction::store_linearization( const Index name ,
+void PolyhedralFunction::store_linearization( Index name ,
 					      c_ModParam issueMod )
 {
  if( name >= v_glob.size() )
@@ -215,7 +215,7 @@ void PolyhedralFunction::store_combination_of_linearizations(
 					   LinearCombination & coefficients ,
 					   Index name ,	c_ModParam issueMod )
 {
- static constexpr eps = 1e-13;  // TODO: handle this better
+ static constexpr FunctionValue eps = 1e-13;  // TODO: handle this better
 
  if( name >= v_glob.size() )
   throw( std::invalid_argument( "invalid global pool name" ) );
