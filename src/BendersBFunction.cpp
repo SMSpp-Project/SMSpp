@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 11 - 06 - 2020
+ * \date 28 - 07 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -823,7 +823,6 @@ void BendersBFunction::modify_constants
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueAMod ) ) )
   return;                  // noone is there: all done
 
- //!! check if C05FunctionMod::AlphaChanged is still right
  // issue the BendersBFunctionModSbst: note that ordered is unmodified
  f_Observer->add_Modification( std::make_shared<BendersBFunctionModSbst>(
                                       this , C05FunctionMod::AlphaChanged ,
@@ -868,7 +867,6 @@ void BendersBFunction::modify_constant( c_Index i , c_FunctionValue bi ,
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;                  // noone is there: all done
 
- //!! check if C05FunctionMod::AlphaChanged is still right
  // issue the BendersBFunctionModRngd
  f_Observer->add_Modification( std::make_shared<BendersBFunctionModRngd>(
                                       this , C05FunctionMod::AlphaChanged ,
@@ -1633,7 +1631,8 @@ void BendersBFunction::store_linearization( Index name , c_ModParam issueMod ) {
 
  // Lazy computation of the linearization constant
 
- global_pool.store( Inf<FunctionValue>() , solution , name );
+ global_pool.store( Inf<FunctionValue>() , solution , name ,
+                    diagonal_linearization_required );
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
@@ -1678,6 +1677,22 @@ void BendersBFunction::delete_linearization( const Index name ,
 				      Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 }  // end( BendersBFunction::delete_linearization )
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::delete_linearizations( Subset && which , bool ordered ,
+                                              c_ModParam issueMod ) {
+ global_pool.delete_linearizations( which , ordered );
+
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+  return;
+
+ f_Observer->add_Modification( std::make_shared<BendersBFunctionMod>( this ,
+				      C05FunctionMod::GlobalPoolRemoved ,
+				      std::move( which ) , 0 ,
+				      Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
+}
 
 /*--------------------------------------------------------------------------*/
 
@@ -2112,19 +2127,39 @@ void BendersBFunction::GlobalPool::resize( Index size ) {
  }
  solutions.resize( size , nullptr );
  linearization_constants.resize( size , NaN );
+ is_diagonal.resize( size );
 }  // end( BendersBFunction::GlobalPool::resize )
 
 /*--------------------------------------------------------------------------*/
 
 void BendersBFunction::GlobalPool::store( FunctionValue linearization_constant ,
-                                          Solution * solution , Index name ) {
+                                          Solution * solution , Index name ,
+                                          bool diagonal_linearization ) {
  if( name >= size() )
   throw( std::invalid_argument( "BendersBFunction::GlobalPool::store: "
                                 "invalid linearization name." ) );
  delete solutions[ name ];
  solutions[ name ] = solution;
  linearization_constants[ name ] = linearization_constant;
+ is_diagonal[ name ] = diagonal_linearization;
 }  // end( BendersBFunction::GlobalPool::store )
+
+/*--------------------------------------------------------------------------*/
+
+bool BendersBFunction::GlobalPool::is_linearization_there( Index name ) const {
+ if( name >= size() || std::isnan( linearization_constants[ name ] ) )
+  return false;
+ return true;
+}  // end( BendersBFunction::GlobalPool::is_linearization_there )
+
+/*--------------------------------------------------------------------------*/
+
+bool BendersBFunction::GlobalPool::is_linearization_vertical( Index name )
+ const {
+ if( name >= size() || std::isnan( linearization_constants[ name ] ) )
+  return false;
+ return( ! is_diagonal[ name ] );
+}  // end( BendersBFunction::GlobalPool::is_linearization_vertical )
 
 /*--------------------------------------------------------------------------*/
 
@@ -2142,6 +2177,13 @@ void BendersBFunction::GlobalPool::store_combination_of_linearizations(
 
  auto it = coefficients.begin();
 
+ if( it->second < 0 )
+  throw( std::invalid_argument( "BendersBFunction::GlobalPool::store_combinati"
+                                "on_of_linearizations: invalid coefficient for"
+                                " linearization with name " +
+                                std::to_string( coefficients[ 0 ].first ) +
+                                ": " + std::to_string( it->second ) ) );
+
  auto first_solution = get_solution( it->first );
  if( ! first_solution )
   throw( std::invalid_argument( "BendersBFunction::GlobalPool::store_combinati"
@@ -2153,21 +2195,54 @@ void BendersBFunction::GlobalPool::store_combination_of_linearizations(
 
  auto solution = first_solution->scale( it->second );
  auto constant = it->second * linearization_constants[ it->first ];
+ auto coeff_sum = it->second;
+ auto combining_diagonal_linearizations = is_diagonal[ it->first ];
+ constexpr FunctionValue epsilon = 1.0e-13; // TODO Obtain epsilon from
+                                            // C05Function parameters
 
  for( ++it ; it != coefficients.end() ; ++it ) {
   auto next_solution = get_solution( it->first );
-  if( ! next_solution )
+  if( ! next_solution ) {
+   delete solution;
    throw( std::invalid_argument( "BendersBFunction::store_combination_of_"
                                  "linearizations: linearization with name " +
                                  std::to_string( it->first ) +
                                  ", given in the coefficients parameter, "
                                  "does not exist." ) );
+  }
 
+  if( combining_diagonal_linearizations != is_diagonal[ it->first ] ) {
+   delete solution;
+   throw( std::invalid_argument( "BendersBFunction::GlobalPool::store_combinati"
+                                 "on_of_linearizations: mixing combinations of "
+                                 "vertical and diagonal linearizations." ) );
+  }
+
+  if( it->second < - epsilon ) {
+   delete solution;
+   throw( std::invalid_argument( "BendersBFunction::GlobalPool::store_combinati"
+                                 "on_of_linearizations: invalid coefficient for"
+                                 " linearization with name " +
+                                 std::to_string( coefficients[ 0 ].first ) +
+                                 ": " + std::to_string( it->second ) ) );
+  }
+
+  coeff_sum += it->second;
   solution->sum( next_solution , it->second );
   constant += it->second * linearization_constants[ it->first ];
  }
 
- this->store( constant, solution , name );
+ if( combining_diagonal_linearizations &&
+     std::abs( coeff_sum - 1 ) > epsilon * coefficients.size() ) {
+
+  delete solution;
+  throw( std::invalid_argument( "BendersBFunction::GlobalPool::store_combinati"
+                                "on_of_linearizations: a non-convex "
+                                "combination of diagonal linearizations has "
+                                "been provided." ) );
+ }
+
+ this->store( constant , solution , name , combining_diagonal_linearizations );
 
 }  // end( BendersBFunction::GlobalPool::store_combination_of_linearizations )
 
@@ -2183,6 +2258,30 @@ void BendersBFunction::GlobalPool::delete_linearization( const Index name ) {
  delete solutions[ name ];
  solutions[ name ] = nullptr;
 }  // end( BendersBFunction::GlobalPool::delete_linearization )
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::GlobalPool::delete_linearizations( Subset & which ,
+                                                          bool ordered )
+{
+ if( which.empty() ) {  // delete them all
+  for( Index i = 0 ; i < size() ; ++i )
+   if( is_linearization_there( i ) )
+    delete_linearization( i );
+  }
+ else {                 // delete the given subset
+  if( ! ordered )
+   std::sort( which.begin() , which.end() );
+
+  if( which.back() >= size() )
+   throw( std::invalid_argument( "BendersBFunction::GlobalPool::delete_linea"
+                                 "rizations: invalid linearization name." ) );
+
+  for( auto i : which )
+   if( is_linearization_there( i ) )
+    delete_linearization( i );
+  }
+ }
 
 /*--------------------------------------------------------------------------*/
 

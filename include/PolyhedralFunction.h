@@ -135,7 +135,7 @@ namespace SMSpp_di_unipi_it
  *   or decreased.
  *
  * - Addition of cutting planes (adding rows to A), either one or a range,
- *   which results in PolyhedralFunctionModAdd being issued; note that adding
+ *   which results in PolyhedralFunctionModAddd being issued; note that adding
  *   new rows makes a "max" (convex) function to increase in value and a
  *   "min" (concave) one to decrease in value, which means that shift() will
  *   be +-INFshift accordingly, but all existing linearization are still
@@ -1110,7 +1110,7 @@ class PolyhedralFunction : public C05Function {
  /// modify a range of rows of the linear mapping
  /** Modifies a range of rows of the linear mapping:
   *
-  * @param Range range contans the indices of the rows to be modified, hence
+  * @param Range range contains the indices of the rows to be modified, hence
   *        range.second < get_A().size();
   *
   * @param nA, a MultiVector && with nA.size() == range.second - range.first,
@@ -1137,7 +1137,7 @@ class PolyhedralFunction : public C05Function {
  /// modify a subset of rows of the linear mapping
  /** Modifies a subset of rows of the linear mapping:
   *
-  * @param Subset && rows contans the indices of the rows to be modified; all
+  * @param Subset && rows contains the indices of the rows to be modified; all
   *        entries must therefore be numbers in 0, ..., get_A().size() - 1;
   *        as the && tells, the vector becomes property of the
   *        PolyhedralFunction, to be dispatched to the issued
@@ -1195,7 +1195,7 @@ class PolyhedralFunction : public C05Function {
  /// modify only the constant term of a range of rows of the linear mapping
  /** Like modify_rows( range ), but modify the constant terms only.
   *
-  * @param Range range contans the indices of the rows to be modified, hence
+  * @param Range range contains the indices of the rows to be modified, hence
   *        range.second < get_A().size();
   * 
   * @param the RealVector & nb, a vector of FunctionValue with nb.size() ==
@@ -1207,7 +1207,7 @@ class PolyhedralFunction : public C05Function {
   *        AlphaChanged (all the alphas may have changed, although actually
   *        only a subset of them has) and PFtype() == ModifyCnst. As for
   *        shift(), however, the value of the function *may* change in a very
-  *        predictable way: if the new value of the constant if > than the
+  *        predictable way: if the new value of the constant is > than the
   *        current value for *all* rows, then the function has necessarily
   *        increased, hence the shift is +INFshift. If it is < for *all*
   *        rows, then the function has necessarily decreased, hence the shift
@@ -1223,7 +1223,7 @@ class PolyhedralFunction : public C05Function {
  /// modify only the constant term of a subset of rows of the linear mapping
  /** Like modify_rows( subset ), but modify the constant terms only.
   *
-  * @param Subset && rows contans the indices of the rows to be modified; all
+  * @param Subset && rows contains the indices of the rows to be modified; all
   *        entries must therefore be numbers in 0, ..., get_A().size() - 1;
   *        as the && tells, the vector becomes property of the
   *        PolyhedralFunction, to be dispatched to the issued
@@ -1242,7 +1242,7 @@ class PolyhedralFunction : public C05Function {
   *        AlphaChanged (all the alphas may have changed, although actually
   *        only a subset of them has) and PFtype() == ModifyCnst. As for
   *        shift(), however, the value of the function *may* change in a very
-  *        predictable way: if the new value of the constant if > than the
+  *        predictable way: if the new value of the constant is > than the
   *        current value for *all* rows, then the function has necessarily
   *        increased, hence the shift is +INFshift. If it is < for *all*
   *        rows, then the function has necessarily decreased, hence the shift
@@ -1315,7 +1315,7 @@ class PolyhedralFunction : public C05Function {
   *        vector in the definition of the function (that is, nb[ i ] is the
   *        constant factor of the i-th given linear form);
   *
-  * @param issueMod which decides if and how the PolyhedralFunctionModAdd is
+  * @param issueMod which decides if and how the PolyhedralFunctionModAddd is
   *        issued, as described in Observer::make_par().
   *
   * Note that adding new rows makes a "max" (convex) function to increase in
@@ -1338,7 +1338,7 @@ class PolyhedralFunction : public C05Function {
   *
   * @param bi is the constant term of the new row in the mapping;
   *
-  * @param issueMod which decides if and how the PolyhedralFunctionModAdd is
+  * @param issueMod which decides if and how the PolyhedralFunctionModAddd is
   *        issued, as described in Observer::make_par().
   *
   * Note that adding a new row makes a "max" (convex) function to increase in
