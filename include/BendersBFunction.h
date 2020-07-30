@@ -7,7 +7,7 @@
  *
  * \version 0.01
  *
- * \date 28 - 07 - 2020
+ * \date 30 - 07 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -183,13 +183,13 @@ namespace SMSpp_di_unipi_it
  * - Removal of rows from A and b, either one, or a range, or a subset of
  *   them, which results in any of the following Modification being issued:
  *
- *   = a BendersBFunctionModRngd with BFtype() == DeleteRows and shift() ==
+ *   - a BendersBFunctionModRngd with BFtype() == DeleteRows and shift() ==
  *     C05FunctionMod::NaNshift;
  *
- *   = a BendersBFunctionModSbst with BFtype() == DeleteRows and shift() ==
+ *   - a BendersBFunctionModSbst with BFtype() == DeleteRows and shift() ==
  *     C05FunctionMod::NaNshift;
  *
- *   = a FunctionMod with shift() == FunctionMod::NaNshift. */
+ *   - a FunctionMod with shift() == FunctionMod::NaNshift. */
 
 class BendersBFunction : public C05Function , public Block {
 
@@ -603,10 +603,11 @@ class BendersBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
  /// set a given float (double) numerical parameter
  /** Set a given float (double) numerical parameter. BendersBFunction takes
-  * care of the following parameters. Each of these parameters is associated
-  * with a parameter of the CDASolver of the sub-Block of this
-  * BendersBFunction, given between parenthesis.
+  * care of the following parameters. Except for the first parameter, each of
+  * these parameters is associated with a parameter of the CDASolver of the
+  * sub-Block of this BendersBFunction, given between parenthesis.
   *
+  * - dblAAccMlt
   * - dblMaxTime  ( Solver::dblMaxTime )
   * - dblRelAcc   ( Solver::dblRelAcc )
   * - dblAbsAcc   ( Solver::dblAbsAcc )
@@ -615,11 +616,12 @@ class BendersBFunction : public C05Function , public Block {
   * - dblRAccLin  ( CDASolver::dblRAccDSol )
   * - dblAAccLin  ( CDASolver::dblAAccDSol )
   *
-  * Setting any of these parameters causes the corresponding parameter of the
-  * CDASolver of the sub-Block to be overwritten by the given \c value. The
-  * setting of these parameters only take effect if this BendersBFunction has
-  * a sub-Block and this sub-Block has a CDASolver attached to it. Any other
-  * parameter is handled by the C05Function.
+  * Setting any of these parameters (except the first one) causes the
+  * corresponding parameter of the CDASolver of the sub-Block to be
+  * overwritten by the given \c value. The setting of these parameters only
+  * take effect if this BendersBFunction has a sub-Block and this sub-Block
+  * has a CDASolver attached to it. Any other parameter is handled by the
+  * C05Function.
   *
   * @param par The parameter to be set.
   *
@@ -634,6 +636,10 @@ class BendersBFunction : public C05Function , public Block {
                                  "must have a CDASolver attached to it." ) );
 
   switch( par ) {
+   case( dblAAccMlt ):
+    AAccMlt = value;
+    break;
+
    case( dblMaxTime ):
     solver->set_par( Solver::dblMaxTime , value );
     break;
@@ -704,6 +710,7 @@ class BendersBFunction : public C05Function , public Block {
  /** Get a specific float (double) numerical parameter. BendersBFunction takes
   * care of the following parameters:
   *
+  * - dblAAccMlt
   * - dblMaxTime
   * - dblRelAcc
   * - dblAbsAcc
@@ -721,6 +728,8 @@ class BendersBFunction : public C05Function , public Block {
 
  double get_dbl_par( const idx_type par ) const override {
   switch( par ) {
+   case( dblAAccMlt ):
+    return AAccMlt;
    case( dblMaxTime ):
     return get_solver_dbl_par( Solver::dblMaxTime );
    case( dblRelAcc ):
@@ -1558,6 +1567,30 @@ class BendersBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
  /// stores a combination of the given linearizations
+  /** This method creates a combination of the given set of linearizations,
+  * with the given coefficients, and stores it into the global pool of
+  * linearizations with the given name.
+  *
+  * BendersBFunction can produce two types of linearizations: diagonal and
+  * vertical ones. For a combination of linearizations to be valid, it must
+  * satisfy one of the following two conditions:
+  *
+  * -# It is a combination involving only vertical linearizations, and each
+  *    coefficient (multiplier) must be nonnegative (actually, greater than or
+  *    equal to - #dblAAccMlt).
+  *
+  * -# It is a combination involving at least one diagonal linearization, each
+  *    coefficient (multiplier) must be nonnegative (actually, greater than or
+  *    equal to - #dblAAccMlt), and the sum of the coefficients of the
+  *    diagonal linearizations must be approximately equal to 1:
+  *
+  *    abs( 1 - sum coefficients of diagonal linearizations ) <= K * #dblAAccMlt
+  *
+  *    where K is the number of linearizations being combined.
+  *
+  * In the first case, the resulting linearization is a vertical one, while in
+  * the second case it is a diagonal linearization. If none of the above two
+  * conditions are met, an exception is thrown. */
 
  void store_combination_of_linearizations( LinearCombination & coefficients ,
                                            const Index name ,
@@ -1596,7 +1629,7 @@ class BendersBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  void delete_linearizations( Subset && which , bool ordered = true ,
-			     c_ModParam issueMod = eModBlck ) override final;
+                             c_ModParam issueMod = eModBlck ) override final;
 
 /*--------------------------------------------------------------------------*/
 
@@ -1737,6 +1770,8 @@ class BendersBFunction : public C05Function , public Block {
 
  bool diagonal_linearization_required = false;
  ///< indicates whether a diagonal linearization is required
+
+ FunctionValue AAccMlt;  ///< maximum absolute error in the multipliers
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -1962,10 +1997,13 @@ class BendersBFunction : public C05Function , public Block {
    *
    * @param name the name under which the combination of linearizations will
    *        be stored.
+   *
+   * @param AAccMlt the maximum absolute error in the multipliers.
    */
 
   void store_combination_of_linearizations( LinearCombination & coefficients ,
-					    Index name );
+                                            const Index name ,
+                                            const FunctionValue AAccMlt );
 
 /*--------------------------------------------------------------------------*/
   /// deletes the linearization with the given name

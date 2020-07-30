@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 28 - 07 - 2020
+ * \date 30 - 07 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1649,7 +1649,8 @@ void BendersBFunction::store_linearization( Index name , c_ModParam issueMod ) {
 
 void BendersBFunction::store_combination_of_linearizations
 ( LinearCombination & coefficients , const Index name , c_ModParam issueMod ) {
- global_pool.store_combination_of_linearizations( coefficients , name );
+ global_pool.store_combination_of_linearizations( coefficients , name ,
+                                                  AAccMlt );
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
@@ -2164,7 +2165,8 @@ bool BendersBFunction::GlobalPool::is_linearization_vertical( Index name )
 /*--------------------------------------------------------------------------*/
 
 void BendersBFunction::GlobalPool::store_combination_of_linearizations(
-                        LinearCombination & coefficients , const Index name ) {
+                        LinearCombination & coefficients , const Index name ,
+                        const FunctionValue AAccMlt ) {
  if( name >= size() )
   throw( std::invalid_argument( "BendersBFunction::GlobalPool::store_combinati"
                                 "on_of_linearizations: invalid global pool "
@@ -2176,64 +2178,74 @@ void BendersBFunction::GlobalPool::store_combination_of_linearizations(
                                 "empty." ) );
 
  auto it = coefficients.begin();
+ auto linearization_name = it->first;
+ auto coeff = it->second;
 
- if( it->second < 0 )
+ if( coeff < - AAccMlt )
   throw( std::invalid_argument( "BendersBFunction::GlobalPool::store_combinati"
                                 "on_of_linearizations: invalid coefficient for"
                                 " linearization with name " +
-                                std::to_string( coefficients[ 0 ].first ) +
-                                ": " + std::to_string( it->second ) ) );
+                                std::to_string( linearization_name ) +
+                                ": " + std::to_string( coeff ) ) );
 
- auto first_solution = get_solution( it->first );
+ auto first_solution = get_solution( linearization_name );
  if( ! first_solution )
   throw( std::invalid_argument( "BendersBFunction::GlobalPool::store_combinati"
                                 "on_of_linearizations: linearization with "
                                 "name " +
-                                std::to_string( coefficients[ 0 ].first ) +
+                                std::to_string( linearization_name ) +
                                 ", given in the coefficients parameter, "
                                 "does not exist." ) );
 
- auto solution = first_solution->scale( it->second );
- auto constant = it->second * linearization_constants[ it->first ];
- auto coeff_sum = it->second;
- auto combining_diagonal_linearizations = is_diagonal[ it->first ];
- constexpr FunctionValue epsilon = 1.0e-13; // TODO Obtain epsilon from
-                                            // C05Function parameters
+ auto solution = first_solution->scale( coeff );
+ auto constant = coeff * linearization_constants[ linearization_name ];
+
+ FunctionValue coeff_sum_diagonal = 0;
+ FunctionValue coeff_sum_vertical = 0;
+ if( is_diagonal[ linearization_name ] )
+  coeff_sum_diagonal = coeff;
+ else
+  coeff_sum_vertical = coeff;
+
+ bool diagonal_linearization = false;
 
  for( ++it ; it != coefficients.end() ; ++it ) {
-  auto next_solution = get_solution( it->first );
+  linearization_name = it->first;
+  coeff = it->second;
+
+  auto next_solution = get_solution( linearization_name );
   if( ! next_solution ) {
    delete solution;
    throw( std::invalid_argument( "BendersBFunction::store_combination_of_"
                                  "linearizations: linearization with name " +
-                                 std::to_string( it->first ) +
+                                 std::to_string( linearization_name ) +
                                  ", given in the coefficients parameter, "
                                  "does not exist." ) );
   }
 
-  if( combining_diagonal_linearizations != is_diagonal[ it->first ] ) {
-   delete solution;
-   throw( std::invalid_argument( "BendersBFunction::GlobalPool::store_combinati"
-                                 "on_of_linearizations: mixing combinations of "
-                                 "vertical and diagonal linearizations." ) );
-  }
-
-  if( it->second < - epsilon ) {
+  if( coeff < - AAccMlt ) {
    delete solution;
    throw( std::invalid_argument( "BendersBFunction::GlobalPool::store_combinati"
                                  "on_of_linearizations: invalid coefficient for"
                                  " linearization with name " +
-                                 std::to_string( coefficients[ 0 ].first ) +
-                                 ": " + std::to_string( it->second ) ) );
+                                 std::to_string( linearization_name ) +
+                                 ": " + std::to_string( coeff ) ) );
   }
 
-  coeff_sum += it->second;
-  solution->sum( next_solution , it->second );
-  constant += it->second * linearization_constants[ it->first ];
+  solution->sum( next_solution , coeff );
+  constant += coeff * linearization_constants[ linearization_name ];
+
+  if( is_diagonal[ linearization_name ] ) {
+   coeff_sum_diagonal += coeff;
+   diagonal_linearization = true;
+  }
+  else
+   coeff_sum_vertical += coeff;
  }
 
- if( combining_diagonal_linearizations &&
-     std::abs( coeff_sum - 1 ) > epsilon * coefficients.size() ) {
+ if( diagonal_linearization &&
+     std::abs( FunctionValue( 1 ) - coeff_sum_diagonal ) >
+     AAccMlt * coefficients.size() ) {
 
   delete solution;
   throw( std::invalid_argument( "BendersBFunction::GlobalPool::store_combinati"
@@ -2242,7 +2254,7 @@ void BendersBFunction::GlobalPool::store_combination_of_linearizations(
                                 "been provided." ) );
  }
 
- this->store( constant , solution , name , combining_diagonal_linearizations );
+ this->store( constant , solution , name , diagonal_linearization );
 
 }  // end( BendersBFunction::GlobalPool::store_combination_of_linearizations )
 
