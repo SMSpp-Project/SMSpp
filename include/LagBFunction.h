@@ -311,19 +311,24 @@ class LagBFunction : public C05Function , public Block {
   {
    public:
 
-   v_iterator( v_dual_pair::iterator itr ) : itr_( itr ) { }
-   virtual v_iterator * clone( void ) override {
+   explicit v_iterator( v_dual_pair::iterator & itr ) : itr_( itr ) {}
+   explicit v_iterator( v_dual_pair::iterator && itr )
+    : itr_( std::move( itr ) ) {}
+
+   v_iterator * clone( void ) override final {
     return( new v_iterator( itr_ ) );
     }
 
-   virtual void operator++( void ) override final { (itr_)++; }
-   virtual reference operator*( void ) const override final {
+   void operator++( void ) override final { ++(itr_); }
+
+   reference operator*( void ) const override final {
     return( *((*itr_).first) );
     }
-   virtual pointer operator->( void ) const override final {
+   pointer operator->( void ) const override final {
     return( (*itr_).first );
     }
-   virtual bool operator==( const ThinVarDepInterface::v_iterator & rhs )
+
+   bool operator==( const ThinVarDepInterface::v_iterator & rhs )
     const override final {
     #ifdef NDEBUG
      auto tmp = static_cast<const LagBFunction::v_iterator *>( & rhs );
@@ -333,7 +338,7 @@ class LagBFunction : public C05Function , public Block {
      return( tmp ? itr_ == tmp->itr_ : false );
     #endif
     }
-   virtual bool operator!=( const ThinVarDepInterface::v_iterator & rhs )
+   bool operator!=( const ThinVarDepInterface::v_iterator & rhs )
     const override final {
     #ifdef NDEBUG
      auto tmp = static_cast<const LagBFunction::v_iterator *>( & rhs );
@@ -359,19 +364,24 @@ class LagBFunction : public C05Function , public Block {
   {
    public:
 
-   v_const_iterator( v_dual_pair::const_iterator itr ) : itr_( itr ) { }
-   virtual v_const_iterator * clone( void ) override {
+   explicit v_const_iterator( v_dual_pair::const_iterator & itr )
+    : itr_( itr ) {}
+   explicit v_const_iterator( v_dual_pair::const_iterator && itr )
+    : itr_( std::move( itr ) ) {}
+
+   v_const_iterator * clone( void ) override final {
     return( new v_const_iterator( itr_ ) );
     }
 
-   virtual void operator++( void ) override final { (itr_)++; }
-   virtual reference operator*( void ) const override final {
+   void operator++( void ) override final { (itr_)++; }
+   reference operator*( void ) const override final {
     return( *((*itr_).first) );
     }
-   virtual pointer operator->( void ) const override final {
+   pointer operator->( void ) const override final {
     return( (*itr_).first );
     }
-   virtual bool operator==( const ThinVarDepInterface::v_const_iterator & rhs )
+
+   bool operator==( const ThinVarDepInterface::v_const_iterator & rhs )
     const override final {
     #ifdef NDEBUG
      auto tmp = static_cast<const LagBFunction::v_const_iterator *>( & rhs );
@@ -382,7 +392,7 @@ class LagBFunction : public C05Function , public Block {
      return( tmp ? itr_ == tmp->itr_ : false );
     #endif
     }
-   virtual bool operator!=( const ThinVarDepInterface::v_const_iterator & rhs )
+   bool operator!=( const ThinVarDepInterface::v_const_iterator & rhs )
     const override final {
     #ifdef NDEBUG
      auto tmp = static_cast<const LagBFunction::v_const_iterator *>( & rhs );
@@ -612,6 +622,20 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
+ bool is_linearization_there( Index name ) const override final {
+  //!! TO BE CHANGED
+  return( false );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ bool is_linearization_vertical( Index name ) const override final {
+  //!! TO BE CHANGED
+  return( false );
+  }
+
+/*--------------------------------------------------------------------------*/
+
  void store_combination_of_linearizations( LinearCombination & coefficients ,
 					   Index name  ,
 					   c_ModParam issueMod = eModBlck )
@@ -645,13 +669,18 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- void rename_linearization( Index current_name , Index new_name ,
-			    c_ModParam issueMod = eModBlck ) override final;
-
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
-
  void delete_linearization( Index name ,
 			    c_ModParam issueMod = eModBlck ) override final;
+
+/*--------------------------------------------------------------------------*/
+
+ void delete_linearizations( Subset && which , bool ordered = true ,
+			     c_ModParam issueMod = eModBlck ) override final
+ {
+  //!! TO BE CHANGED
+  C05Function::delete_linearizations( std::move( which ) , ordered ,
+				      issueMod );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// compute the Function

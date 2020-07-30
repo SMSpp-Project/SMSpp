@@ -861,7 +861,7 @@ public:
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to (the pointer to) the affected Constraint
 
- Function * function( void ) { return( f_function ); }
+ Function * function( void ) const { return( f_function ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to the type of Modification
@@ -893,7 +893,7 @@ public:
  *   equal to the value that would have been returned prior to the
  *   Modification. */
 
- FunctionValue shift( void ) { return( f_shift ); }
+ FunctionValue shift( void ) const { return( f_shift ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1148,9 +1148,9 @@ public:
  Block * get_Block( void ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// accessor to (the pointer to) the affected Constraint
+ /// accessor to (the pointer to) the affected Function
 
- Function * function( void ) { return( f_function ); }
+ Function * function( void ) const { return( f_function ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// tells if the Modification was quasi-additive
@@ -1175,12 +1175,12 @@ public:
   *   value of the Function has changed "unpredictably" all over the space,
   *   the change is "downward monotone". */
 
- FunctionValue shift( void ) { return( f_shift ); }
+ FunctionValue shift( void ) const { return( f_shift ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to the vector of pointers to affected Variable
 
- Vec_p_Var vars( void ) { return( v_vars ); }
+ c_Vec_p_Var & vars( void ) const { return( v_vars ); }
 
  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method telling if the Variables have been added or removed
@@ -1308,7 +1308,7 @@ public:
 
  /// accessor to the index obtained by the first added Variable
 
- Index first( void ) { return( f_first ); }
+ Index first( void ) const { return( f_first ); }
 
  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method telling that the Variables have been added
@@ -1414,7 +1414,7 @@ public:
 
  /// accessor to the range of the deleted Variable
 
- c_Range & range( void ) { return( f_range ); }
+ c_Range & range( void ) const { return( f_range ); }
 
  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method telling that the Variables have been removed
@@ -1502,16 +1502,36 @@ public:
   * && tells, the vector "becomes property" of the FunctionModVarsSbst
   * object. The ordered parameter tells if subset is ordered by increasing
   * Index, which may be helpful for some Block/Solver having to deal with
-  * this FunctionModVarsSbst. */
+  * this FunctionModVarsSbst; indeed, if subset is not "naturally" ordered,
+  * it is ordered in the constructor. Of course, this means that vars gets
+  * re-ordered at the same time. */
 
  FunctionModVarsSbst( Function * f , Vec_p_Var && vars , Subset && subset ,
 		      bool ordered = false , FunctionValue shift = NaNshift ,
 		      bool cB = true )
   : FunctionModVars( f , std::move( vars ) , shift , cB ) ,
-    v_subset( subset ) , f_ordered( ordered )
+    v_subset( std::move( subset ) )
  {
   if( v_vars.size() != v_subset.size() )
    throw( std::invalid_argument( "vars and subset sizes do not match" ) );
+  if( ! ordered ) {
+   using IdxVar = std::pair< Index , Variable * >;
+   std::vector< IdxVar > tmp;
+   for( Index i = 0 ; i < v_vars.size() ; ++i )
+    tmp[ i ] = std::pair( v_subset[ i ] , v_vars[ i ] );
+   std::sort( tmp.begin() , tmp.end() ,
+	      []( IdxVar & a , IdxVar & b ) { return( a.first < b.first ); }
+	      );
+   for( Index i = 0 ; i < v_vars.size() ; ++i ) {
+    v_subset[ i ] = tmp[ i ].first;
+    v_vars[ i ] = tmp[ i ].second;
+    }
+   }
+  #ifndef NDEBUG
+  for( Index i = 1 ; i < v_subset.size() ; ++i )
+   if( v_subset[ i - 1 ] >= v_subset[ i ] )
+    throw( std::invalid_argument( "unordered or repeated subset" ) );
+  #endif
   }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
@@ -1522,12 +1542,7 @@ public:
 
  /// accessor to the subset of the deleted Variable
 
- c_Subset & subset( void ) { return( v_subset ); }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// accessor to the ordered status
-
- bool ordered( void ) { return( f_ordered ); }
+ c_Subset & subset( void ) const { return( v_subset ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method telling that the Variables have been removed
@@ -1561,17 +1576,12 @@ public:
     else
      output << "quasi-additively (" << f_shift << ") ";
 
-  output << "deleting " << v_subset.size();
-  if( f_ordered )
-   output << "(ordered)";
-  output << " variables" << std::endl;
+  output << "deleting " << v_subset.size() << std::endl;
   }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
  Subset v_subset;   ///< the subset of the removed Variable
-
- bool f_ordered;    ///< true if v_subset is ordered
 
 /*--------------------------------------------------------------------------*/
 

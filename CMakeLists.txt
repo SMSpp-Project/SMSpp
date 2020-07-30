@@ -27,6 +27,7 @@ target_compile_features(SMSpp PUBLIC cxx_std_17)
 target_sources(SMSpp PRIVATE
                src/AbstractBlock.cpp
                src/Block.cpp
+               src/C05Function.cpp
                src/BendersBFunction.cpp
                src/BendersBlock.cpp
                src/ColVariable.cpp

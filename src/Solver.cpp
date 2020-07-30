@@ -5,9 +5,9 @@
  * Implementation of the Solver class. It also registers FakeSolver in the
  * Solver factory.
  *
- * \version 0.20
+ * \version 0.21
  *
- * \date 24 - 07 - 2018
+ * \date 15 - 07 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -38,6 +38,14 @@
 /*--------------------------------------------------------------------------*/
 
 using namespace SMSpp_di_unipi_it;
+
+/*--------------------------------------------------------------------------*/
+/*------------------------------- FUNCTIONS --------------------------------*/
+/*--------------------------------------------------------------------------*/
+/* Used in reset_event_handler(). For some unfathomable reason need be
+ * defined as a function rather than as a Lambda. */
+
+int do_nothing( void ) { return( Solver::eContinue ); };
 
 /*--------------------------------------------------------------------------*/
 /*----------------------------- STATIC MEMBERS -----------------------------*/
@@ -108,6 +116,37 @@ void Solver::set_Block( Block *block )
  }
 
 /*--------------------------------------------------------------------------*/
+/*---------------------- METHODS FOR EVENTS HANDLING -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+void Solver::reset_event_handler( int type , EventID id )
+{
+ if( type >= max_event_number() )
+  throw( std::invalid_argument( "unsupported event type " +
+				std::to_string( type ) ) );
+
+ if( id >= v_events[ type ].size() )
+  throw( std::invalid_argument( "incorrect event id " + std::to_string( id )
+				+ " for type " + std::to_string( type ) ) );
+
+ if( id == v_events[ type ].size() - 1 ) {
+  // if the event is the last of its type, shorten the vector; moreover, if
+  // any pf the previous events is a do_nothing, keep shortening
+  do
+   v_events[ type ].pop_back();
+  while( ( ! v_events[ type ].empty() ) &&
+	 ( *( v_events[ type ].back().target<int (*)()>() ) == do_nothing ) );
+  }
+ else
+  // the event is not the last of its type: replace it with a do_nothing to
+  // avoid messing up with the id-s, which are positions in the vector
+  v_events[ type ][ id ] = do_nothing;
+
+ }  // end( Solver::reset_event_handler )
+
+/*--------------------------------------------------------------------------*/
+/*---------------------- METHODS FOR READING RESULTS -----------------------*/
+/*--------------------------------------------------------------------------*/
 
 Solver::OFValue Solver::get_var_value( void )
 {
@@ -116,6 +155,8 @@ Solver::OFValue Solver::get_var_value( void )
 	         : Objective::eMin );
  }
 
+/*--------------------------------------------------------------------------*/
+/*-------------------------- PROTECTED METHODS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
 Solver::SolverFactoryMap & Solver::f_factory( void )

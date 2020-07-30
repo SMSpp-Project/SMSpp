@@ -135,7 +135,7 @@ namespace SMSpp_di_unipi_it
  *   or decreased.
  *
  * - Addition of cutting planes (adding rows to A), either one or a range,
- *   which results in PolyhedralFunctionModAdd being issued; note that adding
+ *   which results in PolyhedralFunctionModAddd being issued; note that adding
  *   new rows makes a "max" (convex) function to increase in value and a
  *   "min" (concave) one to decrease in value, which means that shift() will
  *   be +-INFshift accordingly, but all existing linearization are still
@@ -200,19 +200,17 @@ class PolyhedralFunction : public C05Function {
  {
   public:
 
-  v_iterator( VarVector::iterator itr ) : itr_( itr ) { }
-  virtual v_iterator * clone( void ) override {
+  explicit v_iterator( VarVector::iterator & itr ) : itr_( itr ) {}
+  explicit v_iterator( VarVector::iterator && itr ) :
+   itr_( std::move( itr ) ) {}
+  v_iterator * clone( void ) override final {
    return( new v_iterator( itr_ ) );
    }
 
-  virtual void operator++( void ) override final { (itr_)++; }
-  virtual reference operator*( void ) const override final {
-   return( *((*itr_)) );
-   }
-  virtual pointer operator->( void ) const override final {
-   return( (*itr_) );
-   }
-  virtual bool operator==( const ThinVarDepInterface::v_iterator & rhs )
+  void operator++( void ) override final { ++(itr_); }
+  reference operator*( void ) const override final { return( *((*itr_)) ); }
+  pointer operator->( void ) const override final { return( (*itr_) ); }
+  bool operator==( const ThinVarDepInterface::v_iterator & rhs )
    const override final {
    #ifdef NDEBUG
     auto tmp = static_cast<const PolyhedralFunction::v_iterator *>( & rhs );
@@ -222,7 +220,7 @@ class PolyhedralFunction : public C05Function {
     return( tmp ? itr_ == tmp->itr_ : false );
    #endif
    }
-  virtual bool operator!=( const ThinVarDepInterface::v_iterator & rhs )
+  bool operator!=( const ThinVarDepInterface::v_iterator & rhs )
    const override final {
    #ifdef NDEBUG
     auto tmp = static_cast<const PolyhedralFunction::v_iterator *>( & rhs );
@@ -248,31 +246,30 @@ class PolyhedralFunction : public C05Function {
  {
   public:
 
-  v_const_iterator( VarVector::const_iterator itr ) : itr_( itr ) { }
-  virtual v_const_iterator * clone( void ) override {
+  explicit v_const_iterator( VarVector::const_iterator & itr ) :
+   itr_( itr ) {}
+  explicit v_const_iterator( VarVector::const_iterator && itr ) :
+   itr_( std::move( itr ) ) {}
+  v_const_iterator * clone( void ) override final {
    return( new v_const_iterator( itr_ ) );
    }
  
-  virtual void operator++( void ) override final { (itr_)++; }
-  virtual reference operator*( void ) const override final {
-   return( *((*itr_)) );
-   }
-  virtual pointer operator->( void ) const override final {
-   return( (*itr_) );
-   }
-  virtual bool operator==( const ThinVarDepInterface::v_const_iterator & rhs )
+  void operator++( void ) override final { ++(itr_); }
+  reference operator*( void ) const override final { return( *((*itr_)) ); }
+  pointer operator->( void ) const override final { return( (*itr_) ); }
+  bool operator==( const ThinVarDepInterface::v_const_iterator & rhs )
    const override final {
    #ifdef NDEBUG
-    auto tmp = static_cast<const PolyhedralFunction::v_const_iterator *>(
+    auto tmp = static_cast< const PolyhedralFunction::v_const_iterator * >(
 								      & rhs );
     return( itr_ == tmp->itr_ );
    #else
-    auto tmp = dynamic_cast<const PolyhedralFunction::v_const_iterator *>(
+    auto tmp = dynamic_cast< const PolyhedralFunction::v_const_iterator * >(
 								      & rhs );
     return( tmp ? itr_ == tmp->itr_ : false );
    #endif
    }
-  virtual bool operator!=( const ThinVarDepInterface::v_const_iterator & rhs )
+  bool operator!=( const ThinVarDepInterface::v_const_iterator & rhs )
    const override final {
    #ifdef NDEBUG
     auto tmp = static_cast<const PolyhedralFunction::v_const_iterator *>(
@@ -408,7 +405,7 @@ class PolyhedralFunction : public C05Function {
   * to "implement iyself" should. By not having any Variable, the Observer
   * can no longer do that. */
 
- virtual void clear( void ) override { v_x.clear(); }
+ void clear( void ) override { v_x.clear(); }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -470,7 +467,7 @@ class PolyhedralFunction : public C05Function {
   *       f_shift == 0 because the PolyhedralFunction did not really change,
   *       only the stored linearizations were. */
 
- virtual void set_par( const idx_type par , const int value ) override
+ void set_par( const idx_type par , const int value ) override
  {
   switch( par ) {
    case( intLPMaxSz ):
@@ -531,12 +528,14 @@ class PolyhedralFunction : public C05Function {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set a given float (double) numerical parameter
  /** Set a given float (double) numerical parameter. PolyhedralFunction
-  * ignores the C05Function-specific dblRAccLin and dblAAccLin, and leaves
-  * all the rest to Function. */
+  * ignores the C05Function-specific dblRAccLin and dblAAccLin, handles
+  * dblAAccMlt, and leaves all the rest to Function. */
 
- virtual void set_par( const idx_type par , const double value ) override
+ void set_par( const idx_type par , const double value ) override
  {
   switch( par ) {
+   case( dblAAccMlt ):
+    AAccMlt = value;
    case( dblRAccLin ):
    case( dblAAccLin ):
     break;
@@ -629,15 +628,25 @@ class PolyhedralFunction : public C05Function {
 /*--------------------------------------------------------------------------*/
  /// tells whether a linearization is available
 
- bool has_linearization( const bool diagonal = true ) override final
+ bool has_linearization( bool diagonal = true ) override final
  {
-  return( diagonal ? ( ! v_A.empty() ) || is_bound_set() : false );
+  // vertical linearizations are not available. also, the flat all-zero
+  // subgradient corresponding to the lower bound is never explicitly produced
+  // since there is no need for it (the lower bound already implies it). as
+  // a consequence, if there are no linearizations nothing is ever returned
+
+  if( ( ! diagonal ) || v_A.empty() )
+   return( false );
+  else
+   return( v_ord[ 0 ] != 0 );
+ 
+  //!! return( diagonal ? ( ! v_A.empty() ) || is_bound_set() : false );
   }
 
 /*--------------------------------------------------------------------------*/
  /// compute a new linearization for this PolyhedralFunction
 
- bool compute_new_linearization( const bool diagonal = true ) override final
+ bool compute_new_linearization( bool diagonal = true ) override final
  {
   if( ( ! diagonal ) || ( v_A.empty() && ( ! is_bound_set() ) ) ||
       ( f_next >= v_ord.size() - 1 ) || ( f_next >= f_loc_pool_sz - 1 ) )
@@ -650,14 +659,45 @@ class PolyhedralFunction : public C05Function {
 /*--------------------------------------------------------------------------*/
  /// store a linearization in the global pool 
 
- void store_linearization( const Index name ,
-			   c_ModParam issueMod = eModBlck ) override final;
+ void store_linearization( Index name ,  c_ModParam issueMod = eModBlck )
+  override final;
 
 /*--------------------------------------------------------------------------*/
- /// stores a combination of the given linearizations
+
+ bool is_linearization_there( Index name ) const override final {
+  return( v_glob[ name ] < Inf<int>() );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// stores a convex combination of the given linearizations
+ /** This method creates a convex combination of the given set of
+  * linearizations, with the given coefficients, and stores it into the
+  * global pool of linearizations with the given name.
+  *
+  * As PolyhedralFunction only produces diagonal linearizations, all the
+  * involved linearizations are necessarily diagonal. For the resulting
+  * linearization to be valid, the coefficients must belong to the unitary
+  * simplex, i.e., be non-negative and sum to 1. However, if a valid global
+  * lower bound is present, then the coefficients can sum to a number strictly
+  * less then 1. The remainder ( 1 - sum of coefficients ) is taken as the
+  * convex multiplier of the "horizontal", all-0 subgradient corresponding to
+  * the lower bound (which that PolyhedralFunction never explicitly produces),
+  * and it is used to properly compute the constant of the newly produced
+  * linearization, as it also has the term "lower bound * that multiplier".
+  *
+  * Note that in the current implementation of PolyhedralFunction,
+  * linearizations obtained by convex combination are "very fragile". Each
+  * time any linearization changes or is deleted, or Variable are added,
+  * understanding if a linearization obtained by convex combination is still
+  * valid, or computing its new entries, would require keeping track of the
+  * original set of linearizations that produced it, and the corresponding
+  * linear coefficients. This would be possible but it is currently not done.
+  * As a consequence, many changes in the PolyhedralFunction produce the
+  * immediate removal from the global pool of all the linearizations obtained
+  * by linear combination. */
 
  void store_combination_of_linearizations( LinearCombination & coefficients ,
-					   const Index name ,
+					   Index name ,
 					   c_ModParam issueMod = eModBlck )
   override final;
 
@@ -685,25 +725,21 @@ class PolyhedralFunction : public C05Function {
   }
 
 /*--------------------------------------------------------------------------*/
- /// return the combination used to form "the important linearization"
 
  c_LinearCombination & get_important_linearization_coefficients( void )
   override final {
   return( f_imp_coeff );
   }
 
-/*-------------------------------------------------------------------------*/
- /// rename a linearization that is stored in the global pool
+/*--------------------------------------------------------------------------*/
 
- void rename_linearization( const Index current_name ,
-			    const Index new_name  ,
+ void delete_linearization( Index name ,
 			    c_ModParam issueMod = eModBlck ) override final;
 
 /*--------------------------------------------------------------------------*/
- /// delete the given linearization from the global pool of linearizations
 
- void delete_linearization( const Index name ,
-			    c_ModParam issueMod = eModBlck ) override final;
+ void delete_linearizations( Subset && which , bool ordered = true ,
+			     c_ModParam issueMod = eModBlck ) override final;
 
 /*--------------------------------------------------------------------------*/
 
@@ -733,7 +769,7 @@ class PolyhedralFunction : public C05Function {
 /*--------------------------------------------------------------------------*/
  /// return the constant term of a linearization
 
- FunctionValue get_linearization_constant( c_Index name = Inf<Index>() )
+ FunctionValue get_linearization_constant( Index name = Inf<Index>() )
   override final
  {
   auto gn = name >= v_glob.size() ? v_ord[ f_next ] : v_glob[ name ];
@@ -855,14 +891,15 @@ class PolyhedralFunction : public C05Function {
 
  v_iterator * v_begin( void ) override final
  {
-  return( new PolyhedralFunction::v_iterator( v_x.begin() ) );
+  return( new PolyhedralFunction::v_iterator( std::move( v_x.begin() ) ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  v_const_iterator * v_begin( void ) const override final
  {
-  return( new PolyhedralFunction::v_const_iterator( v_x.begin() ) );
+  return( new PolyhedralFunction::v_const_iterator( std::move( v_x.begin() )
+						    ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1036,7 +1073,7 @@ class PolyhedralFunction : public C05Function {
   *        shift() == 0 as expected) is issued, as described in
   *        Observer::make_par(). */
 
- void remove_variable( c_Index i , c_ModParam issueMod = eModBlck )
+ void remove_variable( Index i , c_ModParam issueMod = eModBlck )
   override final;
 
 /*--------------------------------------------------------------------------*/
@@ -1075,7 +1112,7 @@ class PolyhedralFunction : public C05Function {
  /// modify a range of rows of the linear mapping
  /** Modifies a range of rows of the linear mapping:
   *
-  * @param Range range contans the indices of the rows to be modified, hence
+  * @param Range range contains the indices of the rows to be modified, hence
   *        range.second < get_A().size();
   *
   * @param nA, a MultiVector && with nA.size() == range.second - range.first,
@@ -1102,7 +1139,7 @@ class PolyhedralFunction : public C05Function {
  /// modify a subset of rows of the linear mapping
  /** Modifies a subset of rows of the linear mapping:
   *
-  * @param Subset && rows contans the indices of the rows to be modified; all
+  * @param Subset && rows contains the indices of the rows to be modified; all
   *        entries must therefore be numbers in 0, ..., get_A().size() - 1;
   *        as the && tells, the vector becomes property of the
   *        PolyhedralFunction, to be dispatched to the issued
@@ -1153,14 +1190,14 @@ class PolyhedralFunction : public C05Function {
   *        although actually only a subset of them has) and PFtype() ==
   *        ModifyRows. */  
 
- void modify_row( c_Index i , RealVector && Ai , c_FunctionValue bi ,
+ void modify_row( Index i , RealVector && Ai , c_FunctionValue bi ,
 		  c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// modify only the constant term of a range of rows of the linear mapping
  /** Like modify_rows( range ), but modify the constant terms only.
   *
-  * @param Range range contans the indices of the rows to be modified, hence
+  * @param Range range contains the indices of the rows to be modified, hence
   *        range.second < get_A().size();
   * 
   * @param the RealVector & nb, a vector of FunctionValue with nb.size() ==
@@ -1172,7 +1209,7 @@ class PolyhedralFunction : public C05Function {
   *        AlphaChanged (all the alphas may have changed, although actually
   *        only a subset of them has) and PFtype() == ModifyCnst. As for
   *        shift(), however, the value of the function *may* change in a very
-  *        predictable way: if the new value of the constant if > than the
+  *        predictable way: if the new value of the constant is > than the
   *        current value for *all* rows, then the function has necessarily
   *        increased, hence the shift is +INFshift. If it is < for *all*
   *        rows, then the function has necessarily decreased, hence the shift
@@ -1188,7 +1225,7 @@ class PolyhedralFunction : public C05Function {
  /// modify only the constant term of a subset of rows of the linear mapping
  /** Like modify_rows( subset ), but modify the constant terms only.
   *
-  * @param Subset && rows contans the indices of the rows to be modified; all
+  * @param Subset && rows contains the indices of the rows to be modified; all
   *        entries must therefore be numbers in 0, ..., get_A().size() - 1;
   *        as the && tells, the vector becomes property of the
   *        PolyhedralFunction, to be dispatched to the issued
@@ -1207,7 +1244,7 @@ class PolyhedralFunction : public C05Function {
   *        AlphaChanged (all the alphas may have changed, although actually
   *        only a subset of them has) and PFtype() == ModifyCnst. As for
   *        shift(), however, the value of the function *may* change in a very
-  *        predictable way: if the new value of the constant if > than the
+  *        predictable way: if the new value of the constant is > than the
   *        current value for *all* rows, then the function has necessarily
   *        increased, hence the shift is +INFshift. If it is < for *all*
   *        rows, then the function has necessarily decreased, hence the shift
@@ -1280,7 +1317,7 @@ class PolyhedralFunction : public C05Function {
   *        vector in the definition of the function (that is, nb[ i ] is the
   *        constant factor of the i-th given linear form);
   *
-  * @param issueMod which decides if and how the PolyhedralFunctionModAdd is
+  * @param issueMod which decides if and how the PolyhedralFunctionModAddd is
   *        issued, as described in Observer::make_par().
   *
   * Note that adding new rows makes a "max" (convex) function to increase in
@@ -1303,7 +1340,7 @@ class PolyhedralFunction : public C05Function {
   *
   * @param bi is the constant term of the new row in the mapping;
   *
-  * @param issueMod which decides if and how the PolyhedralFunctionModAdd is
+  * @param issueMod which decides if and how the PolyhedralFunctionModAddd is
   *        issued, as described in Observer::make_par().
   *
   * Note that adding a new row makes a "max" (convex) function to increase in
@@ -1488,7 +1525,7 @@ class PolyhedralFunction : public C05Function {
 
 /*--------------------------------------------------------------------------*/
 
- FunctionValue * get_ai( c_Index name )
+ FunctionValue * get_ai( Index name )
  {
   auto gn = name >= v_glob.size() ? v_ord[ f_next ] : v_glob[ name ];
 
@@ -1553,10 +1590,21 @@ class PolyhedralFunction : public C05Function {
 
  LinearCombination f_imp_coeff;  ///< coefficients of the important linear.
 
+ FunctionValue AAccMlt;  ///< maximum absolute error in the multipliers
+
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+ void reset_aggregate_linearizations( void );
+
+ void reset_aggregate_linearizations( c_ModParam issueMod );
+
+ void update_f_max_glob( void ) {
+  while( f_max_glob && ( v_glob[ f_max_glob ] == Inf<int>() ) )
+   --f_max_glob;
+  }
+ 
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( PolyhedralFunction ) )
@@ -1608,8 +1656,7 @@ class PolyhedralFunctionMod : public C05FunctionMod {
   * Modification, the value of the shift, and the "concerns Block" value. No
   * other PolyhedralFunction-specific information is needed. */
 
- PolyhedralFunctionMod( C05Function * f , int type ,
-			Subset && which = {} ,
+ PolyhedralFunctionMod( C05Function * f , int type , Subset && which = {} ,
 			FunctionValue shift = NaNshift , bool cB = true )
   : C05FunctionMod( f , type , std::move( which ) , shift , cB ) { }
 

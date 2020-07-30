@@ -88,7 +88,8 @@ namespace SMSpp_di_unipi_it
  * This immediately implies that
  *
  *     A LINEARIZATION CAN BE DEFINED BY A PAIR FORMED BY A REAL n-VECTOR
- *     (g in the comments) AND A SINGLE REAL SCALAR (\alpha in the comments)
+ *     (g in the comments) AND A SINGLE REAL SCALAR (\alpha in the comments),
+ *     AND THEREFORE IS A LINEAR (AFFINE) FUNCTION L(x) = g x + \alpha
  *
  * Linearization are therefore objects in the graphical space \R^{n + 1}
  * of pairs ( x , v ), where x belongs to the input space (which is assumed
@@ -399,36 +400,63 @@ class C05Function : public Function {
  /**< The parameter for setting the relative accuracy of the linearizations.
   * A linearization ( g , \alpha ) computed at the point x is "accurate" if
   * the value of the linearization coincides with the value of the function
-  * at x, i.e., \alpha = f(x). In general linearizations that are not
+  * at x, i.e., g x + \alpha = f(x). In general linearizations that are not
   * "completely accurate" can still be useful: for instance, in the Lagrangian
   * case an \eps-optimal solution to the Lagrangian problem gives rise to a
-  * valid linearization ( g , \alpha ) with \eps >= f(x) - \alpha. This can be
-  * deemed interesting if \eps is "small", but not if \eps is "large". This
+  * valid linearization ( g , \alpha ) with \eps >= f(x) - ( g x + \alpha ).
+  * Indeed, by convexity f(x) >= g x + \alpha, and the term
+  *
+  *    f(x) - ( g x + \alpha ) >= 0
+  *
+  * is called the "linearization error" of ( g , \alpha ) at x. Whenever the
+  * linearization error is <= \eps the linearization is an \eps-subgradient
+  * of f at x, and \eps-optimal solutions of the Lagrangian problem are those
+  * which characterise \eps-subgradient. Such a linearization can be deemed
+  * "interesting" if \eps is "small", but not if \eps is "large". This
   * parameter instructs the C05Function not to bother reporting (and therefore
   * storing in the "local pool") any linearization having a relative error
   * with f(x) larger than dblRAccLin. This would generally mean
   *
-  *  | f(x) - \alpha | <= dblRAccLin * max( | f(x) | , | \alpha | , 1 )
+  *  | f(x) - ( g x + \alpha )  | <= dblRAccLin * max( | f(x) | , 1 )
   *
   * except that the value f(x) may not be known exactly, with only lower
   * and/or upper bounds on it available. The actual formula therefore depends
   * on what information is actually available: for instance, in the Lagrangian
-  * case one knows that f(x) >= \alpha, and therefore typically an upper
+  * case one knows that f(x) >= g x + \alpha, and therefore typically an upper
   * estimate ub >= f(x) is used in the formula instead of f(x). The default is
   * 0, i.e., "only perfect linearizations are allowed". */
 
  dblAAccLin ,   ///< maximum absolute error in any reported solution
-		/**< Similar to dblRAccLin but for an *absolute* accuracy;
-                  * that is, a linearization is deemed acceptable if
+ /**< Similar to dblRAccLin but for an *absolute* accuracy; that is, a
+  * linearization is deemed acceptable if
   *
-  *      | f(x) - \alpha | <= dblAAccLin
+  *      | f(x) - ( g x + \alpha ) | <= dblAAccLin
   *
   * except that the value f(x) may not be known exactly, with only lower
   * and/or upper bounds on it available. The actual formula therefore depends
   * on what information is actually available: for instance, in the Lagrangian
-  * case one knows that f(x) >= \alpha, and therefore typically an upper
-  * estimate ub >= f(x) is used in the formula instead of f(x). The default is
-  * 0, i.e., "only perfect linearizations are allowed". */
+  * case one knows that f(x) >= ( g x + \alpha ), and therefore typically an
+  * upper estimate ub >= f(x) is used in the formula instead of f(x). The
+  * default is 0, i.e., "only perfect linearizations are allowed". */
+
+ dblAAccMlt ,   ///< maximum absolute error in the multipliers
+ /**< The multipliers used in store_combination_of_linearizations() and in
+  * set_important_linearization() are typically (a part of) the dual optimal
+  * solution of the optimization problem involving the C05Function. As such
+  * they typically have some constraint. Almost always they are bounded to be
+  * non-negative, and typically their sum has to be 1 (convex multipliers) or
+  * <= 1.
+  *
+  * This parameter controls the tolerance in these constraints. Since the
+  * unitary simplex is "well scaled" by default, the tolerance is absolute.
+  * While the specific form of the constraints is :C05Function-dependent, for
+  * the standard case of the unitary simplex the meaning should be:
+  *
+  * - each multiplier has to be >= - dblAAccMlt
+  *
+  * - abs( 1 - sum of multipliers ) <= dblAAccMlt * ( number of multipliers )
+  *
+  * The default is "small but not zero": 1e-10. */
 
  dblLastParC0F   ///< first allowed new double parameter for derived classes
                  /**< Convenience value for easily allow derived classes
@@ -465,7 +493,7 @@ class C05Function : public Function {
   * nothing needs to be done, not even checking that the parameters (which
   * the base class does not even store) are changed. */
 
- virtual void set_par( const idx_type par , const int value ) override
+ void set_par( const idx_type par , const int value ) override
  {
   switch( par ) {
    case( intLPMaxSz ):
@@ -488,11 +516,12 @@ class C05Function : public Function {
   * yet, setting any (non-negative) number allows these functions to just
   * keep doing the same, so whatever number is set can just be ignored. */
 
- virtual void set_par( const idx_type par , const double value ) override
+ void set_par( const idx_type par , const double value ) override
  {
   switch( par ) {
    case( dblRAccLin ):
    case( dblAAccLin ):
+   case( dblAAccMlt ):
     break;
    default: Function::set_par( par , value );
    }
@@ -534,8 +563,25 @@ class C05Function : public Function {
   * by-product of compute(); hence, this method is typically (but not
   * necessarily) true after the end of compute().
   *
-  * Once "the first" linearization (if ever) has been read, new ones may be
-  * produced, if the Function allows it, by means of
+  * In particular, one quite specific (but still relevant) case in which a
+  * perfectly well-behaved C05Function, say a finite-valued differentiable
+  * one producing exactly one gradient per compute() call, may refuse to
+  * produce a diagonal linearization is that of a convex [concave] function
+  * that "knows" its global minimum [maximum] value and exposes it via
+  * get_global_lower_bound() [get_global_upper_bound()]. Such a C05Function
+  * may reasonably have has_linearization() return false if compute() is
+  * evaluated at a point (approximately, considering the setting of
+  * dblRelAcc and dblRelAcc) yielding the minimum [maximum] value. Indeed,
+  * at such a point the "reasonable" linearization would be the all-0,
+  * "horizontal" [sub]gradient; this actually does not provide any more
+  * information than that provided by get_global_lower_bound() [...], i.e.,
+  * that the point is a global minimum [...]. Note that the C05Function may
+  * well rather decide to explicitly return the "horizontal" gradient, as
+  * well as produce non-horizontal approximate sub[super]gradients in the
+  * point, considering the setting of dblRAccLin and dblAAccLin.
+  *
+  * In fact, once "the first" linearization (if ever) has been read, new
+  * ones may be produced, if the C05Function does it, by means of
   * compute_new_linearization().
   *
   * The default implementation in the base class returns the same value as
@@ -638,6 +684,31 @@ class C05Function : public Function {
 
  virtual void store_linearization( Index name  ,
 				   c_ModParam issueMod = eModBlck ) { }
+
+/*--------------------------------------------------------------------------*/
+ /// tells if there is a linearization in the global pool with that name
+ /** The method has to return true if \p name is the index (name) of a
+  * linearization currently in the global pool. The default implementation
+  * of the method is to always return false, which is OK for C05Function that
+  * does not store linearization at all. */
+
+ virtual bool is_linearization_there( Index name ) const { return( false ); }
+
+/*--------------------------------------------------------------------------*/
+ /// tells if the linearization in the global pool with that name is vertical
+ /** The method has to return true if \p name is the index (name) of a
+  * vertical linearization currently in the global pool. Clearly,
+  * is_linearization_vertical( name ) == true implies
+  * is_linearization_there( name ) == true (if there is no linearization, it
+  * cannot be vertical). The default implementation of the method is to
+  * always return false, which is OK for C05Function that never produces
+  * vertical linearizations (that is, the function is real-valued, i.e., it
+  * never evaluates to +/- INF), or does not store linearization at all. */
+
+ virtual bool is_linearization_vertical( Index name ) const
+ {
+  return( false );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// stores a combination of the given linearizations
@@ -824,34 +895,6 @@ class C05Function : public Function {
   }
 
 /*--------------------------------------------------------------------------*/
- /// rename a linearization that is stored in the global pool
- /** This method renames a linearization that is stored in the global pool of
-  * linearizations. current_name is the current name of the linearization,
-  * and new_name is its new name; names must be integers between 0 and
-  * intGPMaxSz - 1. If there is no linearization stored with the name
-  * current_name in the global pool, an exception should be thrown (unless,
-  * for instance, the concept is completely ignored). If there is already a
-  * linearization stored with the name new_name, it will be replaced with the
-  * linearization currently named current_name.
-  *
-  * The method can be useful, e.g., to move linearizations in the initial
-  * part of the global pool, that with "small" names", before shrinking it.
-  *
-  * The method has a default empty implementation as some Function, such as
-  * linear ones, may not have to store anything.
-  *
-  * The parameter issueMod decides if and how the C05FunctionMod with
-  * type() == GlobalPoolRenamed is issued, as described in
-  * Observer::make_par(). Note that typically shift() of the modification
-  * will be == 0, in that changing the name of a linearization in the global
-  * pool does not really change the "physical representation" of the
-  * C05Function, but only its (partial) "abstract represenation" that the
-  * global pool provides. */
-
- virtual void rename_linearization( Index current_name , Index new_name ,
-				    c_ModParam issueMod = eModBlck ) { }
-
-/*--------------------------------------------------------------------------*/
  /// delete the given linearization from the global pool of linearizations
  /** This method deletes the linearization associated with the given name
   * from the global pool of linearizations. If there is no linearization
@@ -871,6 +914,30 @@ class C05Function : public Function {
  virtual void delete_linearization( Index name ,
 				    c_ModParam issueMod = eModBlck ) { }
 
+/*--------------------------------------------------------------------------*/
+ /// delete the given subset of linearizations from the global pool
+ /** Delete the linearizations whose names are contained in \p which from
+  * the global pool. If which().empty(), all the linearizations are removed
+  * (i.e., the global pool is completely flushed). If \p ordered == true
+  * then \p which which must be ordered in increasing sense. As the && tells,
+  * which becomes property of the method, typically to be dispatched to the
+  * C05FunctionMod with type() == GlobalPoolRemoved that is issued, according
+  * to the value of the parameter \p issueMod, as described in
+  * Observer::make_par(). Note that typically shift() of the Modification
+  * will be == 0, in that deleting a linearization from the global pool does
+  * not really change the "physical representation" of the C05Function, but
+  * only its (partial) "abstract represenation" that the global pool
+  * provides.
+  *
+  * This method is given a rough default implementation that just calls
+  * delete_linearization( i ) for all linearizations in the global pool.
+  * This is unlikely to be the most effective way, but at least the
+  * individual calls to not generate individual C05FunctionMod; rather, an
+  * unique one is issued at the end. */
+
+ virtual void delete_linearizations( Subset && which , bool ordered = true ,
+				     c_ModParam issueMod = eModBlck );
+ 
 /*--------------------------------------------------------------------------*/
  /// get a range of coefficients (g vector) of a linearization in an array
  /** This method retrieves a range of the vector of coefficients g that is
@@ -932,8 +999,8 @@ class C05Function : public Function {
   */
 
  virtual void get_linearization_coefficients( FunctionValue * g ,
-			   Range range = std::make_pair( 0 , Inf<Index>() ) ,
-					      Index name = Inf<Index>() ) = 0;
+				      Range range = Range( 0 , Inf<Index>() ) ,
+				      Index name = Inf<Index>() ) = 0;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get a range of coefficients of a linearization in a SparseVector
@@ -968,8 +1035,8 @@ class C05Function : public Function {
   * implementations avoiding the copy for efficiency. */
 
  virtual void get_linearization_coefficients( SparseVector & g ,
-			   Range range = std::make_pair( 0 , Inf<Index>() ) ,
-					      Index name = Inf<Index>() )
+			            Range range = Range( 0 , Inf<Index>() ) ,
+				    Index name = Inf<Index>() )
  {
   range.second = std::min( range.second , get_num_active_var() );
   if( range.second <= range.first )  // range is empty
@@ -1183,21 +1250,15 @@ class C05Function : public Function {
 /** @name Handling the parameters of the Function
  *  @{ */
 
- virtual idx_type get_num_int_par( void ) const override
- {
-  return( intLastParC0F );
-  }
+ idx_type get_num_int_par( void ) const override { return( intLastParC0F ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual idx_type get_num_dbl_par( void ) const override
- {
-  return( dblLastParC0F );
-  }
+ idx_type get_num_dbl_par( void ) const override { return( dblLastParC0F ); }
 
 /*--------------------------------------------------------------------------*/
  
- virtual int get_dflt_int_par( const idx_type par ) const override
+ int get_dflt_int_par( const idx_type par ) const override
  {
   if( par == intLPMaxSz )
    return( 1 );
@@ -1210,17 +1271,20 @@ class C05Function : public Function {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  
- virtual double get_dflt_dbl_par( const idx_type par ) const override
+ double get_dflt_dbl_par( const idx_type par ) const override
  {
   if( ( par == dblRAccLin ) || ( par == dblAAccLin ) )
    return( 0 );
   else
-   return( Function::get_dflt_dbl_par( par ) );
+   if( par == dblAAccMlt )
+    return( 1e-10 );
+   else
+    return( Function::get_dflt_dbl_par( par ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
- virtual idx_type int_par_str2idx( const std::string & name ) const override
+ idx_type int_par_str2idx( const std::string & name ) const override
  {
   if( name == "intLPMaxSz" )
    return( intLPMaxSz );
@@ -1232,20 +1296,21 @@ class C05Function : public Function {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual idx_type dbl_par_str2idx( const std::string & name ) const override
+ idx_type dbl_par_str2idx( const std::string & name ) const override
  {
   if( name == "dblRAccLin" )
    return( dblRAccLin );
   if( name == "dblAAccLin" )
    return( dblAAccLin );
+  if( name == "dblAAccMlt" )
+   return( dblAAccMlt );
 
   return( Function::dbl_par_str2idx( name ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
- virtual const std::string & int_par_idx2str( const idx_type idx )
-  const override
+ const std::string & int_par_idx2str( const idx_type idx ) const override
  {
   static const std::vector< std::string > pars =
    { "intLPMaxSz" , "intGPMaxSz" };
@@ -1258,11 +1323,10 @@ class C05Function : public Function {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual const std::string & dbl_par_idx2str( const idx_type idx )
-  const override
+ const std::string & dbl_par_idx2str( const idx_type idx ) const override
  {
   static const std::vector< std::string > pars =
-   { "dblRAccLin" , "dblAAccLin" };
+   { "dblRAccLin" , "dblAAccLin" , "dblAAccMlt" };
 
   if( ( idx >= dblRAccLin ) && ( idx <= dblAAccLin ) )
    return( pars[ idx - dblRAccLin ] );
@@ -1357,26 +1421,21 @@ class C05Function : public Function {
  * which.empty() has to be taken to mean "possibly all, so check them all".
  *
  * A case where this happens is the Lagrangian one, where each linearization
- * is attached to one solution u_i \in U, and:
- *
- * - either the objective function c of (P) changes;
- *
- * - or U itself changes to some U' \neq U.
- *
- * In the first case, having stored u_i in the global pool it is immediate to
- * compute the new value of \alpha = c u'. In the second case, each u_i is
- * either feasible (u_i \in U') or not (u_i \notin U'). In the first case
- * \alpha = c u_i does not change, but in the second the original
- * linearization (even the g part) can no longer be used, as it is no longer
- * valid. This can be handled by having get_linearization_constant()
- * returning NaN for the corresponding \alpha.
+ * is attached to one solution u_i \in U, and the objective function c of (P)
+ * changes to some c' different from c. Having stored u_i in the global pool,
+ * it is possible to compute the new value of \alpha = c' u_i. Since the
+ * objective is real-valued (as opposed to extended-real-valued, i.e., it
+ * cannot evaluate to +INF, in fact encoding a violated constraint), every
+ * u_i that was previously feasible still is, and therefore no linearization
+ * is lost.
  *
  * Note that one would expect that the change in the \alpha implies a change
  * in the values of the Function as well. If and how this actually happens
  * is encoded in shift() with the same encoding as in the base class
- * FunctionMod. For the Lagrangian case, for instance, if the feasible region
- * U becomes smaller than the value of the problem can only reduce, whence
- * shift() == INFshift is the appropriate return value.
+ * FunctionMod. For the Lagrangian case, for instance, if u >= 0 and c' >= c
+ * then the objective value can only increase, and therefore shift() ==
+ * INFshift is the appropriate return value. If, instead, no sign pattern
+ * can be established then std::isnan( shift() ) == true should be returned.
  *
  * - AllEntriesChanged
  *
@@ -1386,8 +1445,8 @@ class C05Function : public Function {
  *
  * A case where this happens is the Lagrangian one, where each linearization
  * is attached to one solution u_i \in U, g_i = b - A u_i. If the constraint
- * A u = b change to completely unrelated (save for the size) A' u = b',
- * then all the corresponding g_i need to be recomputed, but the \alpha_i =
+ * A u = b change to completely unrelated (save for the size) A' u = b', then
+ * all the corresponding g_i need to be recomputed, but the \alpha_i =
  * c u_i remains the same. It is then possible to query the new values of the
  * linearizations that were stored in the global pool [see
  * get_linearization_coefficients()], thereby re-using all the corresponding
@@ -1430,25 +1489,44 @@ class C05Function : public Function {
  *
  * - GlobalPoolRemoved
  *
- * This type of Modification indicates that, while the C05Function has not
- * "physically changed" (which means shift() == 0 is expected), some existing
- * linearizations have been removed from "its abstract representation", i.e.,
- * the global pool. In this case, which().empty() is *not* allowed, and
- * which() has to contain the names of the linearizations that have been
- * removed. Note, however, that
+ * This type of Modification indicates that some existing linearizations
+ * have been removed from the global pool. This may either mean that the
+ * C05Function has not "physically changed" (which is encoded by shift()
+ * == 0), but some existing linearizations have been removed from "its
+ * abstract representation", or that the C05Function has indeed "physically
+ * changed" (in which case a nonzero shift() is possible) and as a consequence
+ * some linearizations had become invalid.
  *
- *     IF LINEARIZATIONS ARE REMOVED AS A CONSEQUENCE OF THE C05Function
- *     CHANGING, THEN THE ISSUED Modification SHOULD RATHER HAVE type()
- *     AlphaChanged OR AllLinearizationChanged: IT IS NOT EXPECTED THAT
- *     A SEPARATE Modification WITH type() == GlobalPoolRemoved IS ISSUED
- *     
- * - GlobalPoolRenamed
+ * A case where the latter happens is the Lagrangian one, where each
+ * linearization is attached to one solution u_i \in U, and U itself changes
+ * to some U' \neq U. Hence, each u_i is either feasible (u_i \in U') or not
+ * (u_i \notin U'). In the first case nothing has to be done, as the
+ * linearization remains valid (and its  \alpha = c u_i does not change), but
+ * in the second case the linearization it is no longer valid and has to be
+ * removed from the global pool. Note that this can easily have an effect
+ * on the function value as well: for instance, if the feasible region U
+ * becomes smaller (which is what typically happens after either branching
+ * or cutting in a Branch-and-X approach in which the Lagrangian is providing
+ * the bound), than the optimal value of the problem can only reduce, whence
+ * shift() == INFshift is the appropriate return value.
  *
- * This type of Modification indicates that, while the C05Function has not
- * "physically changed" (which means shift() == 0 is expected), one existing
- * linearizations have been renamed. In this case, which().size() == 2 must
- * happen, with which()[ 0 ] indicating the previous name of the
- * linearizations and which()[ 1 ] indicating the new name. */
+ * In this case, which().empty() is allowed, but it means *all linearization
+ * in the global pool are deleted*, and it is therefore not something to be
+ * done just because one is "lazy".
+ *
+ * Also, note that
+ *
+ *     A COMPLETE RESET OF THE GLOBAL POOL CAN BE IMPLICITLY REQUIRED BY
+ *     ANY Modification THAT SIGNAL CHANGES IN THE FUNCTION THAT ARE NOT
+ *     STRONGLY QUASI-ADDITIVE (CF. THE DISCUSSION IN C05FunctionModVars*),
+ *     AS THIS IMPLIES THAT ALL THE LINEARIZATION HAVE NECESSARILY BECOME
+ *     INVALID. THAT IS, RECEIVING A FunctionMod THAT IS *NOT* A
+ *     C05FunctionMod OR A FunctionModVars* THAT IS *NOT* A
+ *     C05FunctionModVars* ALSO IMPLIES THAT THE GLOBAL POOL NEED BE ENTIRELY
+ *     FLUSHED. IN THIS CASE, IT IS *NOT* EXPECTED THAT A SEPARATE
+ *     C05FunctionMod WITH type() == GlobalPoolRemoved AND which().empty() IS
+ *     ISSUED.
+ */
 
 class C05FunctionMod : public FunctionMod {
 
@@ -1468,7 +1546,6 @@ class C05FunctionMod : public FunctionMod {
    AllLinearizationChanged ,  ///< both \alpha and g have changed
    GlobalPoolAdded ,          ///< linearizations added to the global pool
    GlobalPoolRemoved ,        ///< linearizations removed from the global pool
-   GlobalPoolRenamed ,        ///< linearizations in  the global pool renamed
    C05FunctionModLastParam
    ///< First allowed parameter value for derived classes
    /**< Convenience value for easily allow derived classes to extend
@@ -1489,7 +1566,14 @@ class C05FunctionMod : public FunctionMod {
  C05FunctionMod( C05Function * f , int type , Subset && which = {} ,
 		 FunctionValue shift = NaNshift , bool cB = true )
   : FunctionMod( f , shift , cB ) , f_type( type ) ,
-    v_which( std::move( which ) ) { }
+    v_which( std::move( which ) )
+ {
+  #ifndef NDEBUG
+  for( Index i = 1 ; i < v_which.size() ; ++i )
+   if( v_which[ i - 1 ] >= v_which[ i ] )
+    throw( std::invalid_argument( "unordered or repeated which" ) );
+  #endif
+  }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
@@ -1499,11 +1583,13 @@ class C05FunctionMod : public FunctionMod {
 
  /// accessor to the type of modification
 
- int type( void ) { return( f_type ); }
+ int type( void ) const { return( f_type ); }
 
- /// accessor to the type of modification
+ /// accessor to the names of the linearizations that have been affected
+ /** Returns the names of the linearizations that have been affected (added,
+  * removed, changed). */
 
- c_Subset which( void ) { return( v_which ); }
+ c_Subset which( void ) const { return( v_which ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1546,7 +1632,6 @@ class C05FunctionMod : public FunctionMod {
      output << "both \alpha and g have changed"; break;
     case( GlobalPoolAdded ): output << " linearizations added"; break;
     case( GlobalPoolRemoved ): output << " linearizations removed"; break;
-    case( GlobalPoolRenamed ): output << " linearizations renamed"; break;
     default: output << " unknown operation (?)";
     }
    }
@@ -1697,12 +1782,12 @@ class C05FunctionModRngd : public C05FunctionMod
 
  /// accessor to the vector of pointers to affected Variable
 
- Vec_p_Var vars( void ) { return( v_vars ); }
+ c_Vec_p_Var & vars( void ) const { return( v_vars ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to the range of the deleted Variable
 
- c_Range & range( void ) { return( f_range ); }
+ c_Range & range( void ) const { return( f_range ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1771,7 +1856,7 @@ class C05FunctionModRngd : public C05FunctionMod
  * field (akin to that of FunctionModVars), returned by vars(). Unlike for
  * C05FunctionModRngd, the Variable (whose pointer are) returned by vars()
  * can be "arbitrarily dispersed" among the active ones of the C05Function;
- * thus, the accompanying index information is now a std::vector< Index >.
+ * thus, the accompanying index information is now a Subset.
  *
  * Apart from this, this Modification behaves exactly as a C05FunctionModRngd,
  * hence see the comments to that class for further details. */
@@ -1793,18 +1878,37 @@ class C05FunctionModSbst : public C05FunctionMod {
   * && tells, both vectors vars[] and subset[] "becomes property" of the
   * C05FunctionModSbst object. The ordered parameter tells if subset is
   * ordered by increasing Index, which may be helpful for some Block/Solver
-  * having to deal with this FunctionModVarsSbst. */
+  * having to deal with this FunctionModVarsSbst. Indeed, if subset is not
+  * "naturally" ordered, then it is ordered in the constructor. Of course,
+  * this means that vars gets re-ordered at the same time. */
 
  C05FunctionModSbst( C05Function * f , int type , Vec_p_Var && vars ,
 		     Subset && subset , bool ordered = false ,
 		     Subset && which = {} , FunctionValue shift = NaNshift ,
 		     bool cB = true )
   : C05FunctionMod( f , type , std::move( which ) , shift , cB ) ,
-    v_vars( std::move( vars ) ) , v_subset( std::move( subset ) ) ,
-    f_ordered( ordered )
+    v_vars( std::move( vars ) ) , v_subset( std::move( subset ) )
  {
   if( v_vars.size() != v_subset.size() )
    throw( std::invalid_argument( "vars and subset sizes do not match" ) );
+  if( ! ordered ) {
+   using IdxVar = std::pair< Index , Variable * >;
+   std::vector< IdxVar > tmp;
+   for( Index i = 0 ; i < v_vars.size() ; ++i )
+    tmp[ i ] = std::pair( v_subset[ i ] , v_vars[ i ] );
+   std::sort( tmp.begin() , tmp.end() ,
+	      []( IdxVar & a , IdxVar & b ) { return( a.first < b.first ); }
+	      );
+   for( Index i = 0 ; i < v_vars.size() ; ++i ) {
+    v_subset[ i ] = tmp[ i ].first;
+    v_vars[ i ] = tmp[ i ].second;
+    }
+   }
+  #ifndef NDEBUG
+  for( Index i = 1 ; i < v_subset.size() ; ++i )
+   if( v_subset[ i - 1 ] >= v_subset[ i ] )
+    throw( std::invalid_argument( "unordered or repeated subset" ) );
+  #endif
   }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
@@ -1815,17 +1919,12 @@ class C05FunctionModSbst : public C05FunctionMod {
 
  /// accessor to the vector of pointers to affected Variable
 
- Vec_p_Var vars( void ) { return( v_vars ); }
+ c_Vec_p_Var & vars( void ) const { return( v_vars ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to vector of indices of affected Variable
 
- c_Subset & subset( void ) { return( v_subset ); }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// accessor to the ordered status
-
- bool ordered( void ) { return( f_ordered ); }
+ c_Subset & subset( void ) const { return( v_subset ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1877,8 +1976,6 @@ class C05FunctionModSbst : public C05FunctionMod {
  Vec_p_Var v_vars;  ///< vector of pointers to affected Variable
 
  Subset v_subset;   ///< vector of indices of the affected Variable
-
- bool f_ordered;    ///< true if v_subset is ordered
 
 /*--------------------------------------------------------------------------*/
 
@@ -1976,7 +2073,7 @@ class C05FunctionModSbst : public C05FunctionMod {
  *   ( g = [ g_x , g_y ] , \alpha ) =
  *         ( [ b - A \bar{u} , b' - A' \bar{u} ] , c \bar{u} )
  *
- * The new part g_y =  b' - A' \bar{u}  can be easily computed, provided
+ * The new part g_y = b' - A' \bar{u}  can be easily computed, provided
  * that the information \bar{u} is stored in the global pool, irrespectively
  * to the fact that \bar{u} was obtained or not at a point where y = 0.
  * Similarly, if constraints are removed (which is equivalent to setting the
@@ -2037,7 +2134,17 @@ class C05FunctionModSbst : public C05FunctionMod {
  * considered as completely invalid, even in their g_x part. Of course
  * this means that C05FunctionModVarsAddd have to be "catched" before
  * FunctionModVarsAddd are (since a C05FunctionModVarsAddd will obviously
- * also "register" as a FunctionModVarsAddd).
+ * also "register" as a FunctionModVarsAddd). However, if this is true then
+ * all the elements in the global pool have clearly became invalid: this
+ * need be explicitly made apparent. That is:
+ *
+ *     IF A C05Function ISSUES A FunctionModVarsAddd THAT IS *NOT* A
+ *     C05FunctionModVarsAddd, IMPLYING THAT ALL THE GLOBAL POOL HAS BECOME
+ *     INVALID, THEN IT MUST ALSO ISSUE A C05FunctionMod WITH type() ==
+ *     GlobalPoolRemoved AND which().empty() TO EXPLICITLY INDICATE THIS.
+ *     IT CAN BE EXPECTED THAT THE C05FunctionMod BE ISSUED BEFORE THE
+ *     C05FunctionModVarsAddd, AS WORKING ON AN "EMPTY" GLOBAL POOL SHOULD
+ *     BE CHEAPER.
  *
  * Issuing a C05FunctionModVarsAddd, which indicates a strongly
  * quasi-additive additions, rather signals that it is possible to update the
@@ -2154,8 +2261,8 @@ class C05FunctionModVarsAddd : public FunctionModVarsAddd
  * not add any information to it. However, by being a different class it
  * allows to encode information regarding the impact that changes in the set
  * of "active" Variable have on the *linearization*, that are specific to
- * C05Function. In particular, issuing a FunctionModVarsRngd is intended to
- * signal that the modification to the C05Function is *strongly*
+ * C05Function. In particular, issuing a C05FunctionModVarsRngd is intended
+ * to signal that the modification to the C05Function is *strongly*
  * quasi-additive; see the comments to C05FunctionModVarsAddd. If the
  * modification is *not strongly* quasi-additive, the C05Function only has
  * to rather issue a base FunctionModVarsRngd. That is, upon receiving a
@@ -2164,7 +2271,17 @@ class C05FunctionModVarsAddd : public FunctionModVarsAddd
  * y \neq 0 have to be considered as completely invalid, even in their g_x
  * part. Of course this means that C05FunctionModVarsRngd have to be
  * "catched" before FunctionModVarsRngd are (since a C05FunctionModVarsRngd
- * will obviously also "register" as a FunctionModVarsRngd). */
+ * will obviously also "register" as a FunctionModVarsRngd). However, as
+ * for adding variables
+ *
+ *     IF A C05Function ISSUES A FunctionModVarsRngd THAT IS *NOT* A
+ *     C05FunctionModVarsRngd, IMPLYING THAT ALL THE GLOBAL POOL HAS BECOME
+ *     INVALID, THEN IT MUST ALSO ISSUE A C05FunctionMod WITH type() ==
+ *     GlobalPoolRemoved AND which().empty() TO EXPLICITLY INDICATE THIS.
+ *     IT CAN BE EXPECTED THAT THE C05FunctionMod BE ISSUED BEFORE THE
+ *     FunctionModVarsRngd, AS WORKING ON AN "EMPTY" GLOBAL POOL SHOULD
+ *     BE CHEAPER.
+ */
 
 class C05FunctionModVarsRngd : public FunctionModVarsRngd {
 
@@ -2244,7 +2361,17 @@ public:
  * y \neq 0 have to be considered as completely invalid, even in their g_x
  * part. Of course this means that C05FunctionModVarsSbst have to be
  * "catched" before FunctionModVarsSbst are (since a C05FunctionModVarsSbst
- * will obviously also "register" as a FunctionModVarsSbst). */
+ * will obviously also "register" as a FunctionModVarsSbst). However, as
+ * for adding variables
+ *
+ *     IF A C05Function ISSUES A FunctionModVarsSbst THAT IS *NOT* A
+ *     C05FunctionModVarsSbst, IMPLYING THAT ALL THE GLOBAL POOL HAS BECOME
+ *     INVALID, THEN IT MUST ALSO ISSUE A C05FunctionMod WITH type() ==
+ *     GlobalPoolRemoved AND which().empty() TO EXPLICITLY INDICATE THIS.
+ *     IT CAN BE EXPECTED THAT THE C05FunctionMod BE ISSUED BEFORE THE
+ *     FunctionModVarsSbst, AS WORKING ON AN "EMPTY" GLOBAL POOL SHOULD
+ *     BE CHEAPER.
+ */
 
 class C05FunctionModVarsSbst : public FunctionModVarsSbst {
 
@@ -2294,10 +2421,7 @@ public:
     else
      output << f_shift;
 
-  output << ") deleting " << v_subset.size();
-  if( f_ordered )
-   output << "(ordered)";
-  output << " variables" << std::endl;
+  output << ") deleting " << v_subset.size() << " variables" << std::endl;
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2428,13 +2552,13 @@ class C05FunctionModLin : public FunctionMod {
 
  /// accessor to the vector of pointers to affected Variable
 
- Vec_p_Var vars( void ) { return( v_vars ); }
+ c_Vec_p_Var & vars( void ) const { return( v_vars ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  /// accessor to the "delta" vector
 
- Vec_FunctionValue delta( void ) { return( v_delta ); }
+ c_Vec_FunctionValue & delta( void ) const { return( v_delta ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -2522,6 +2646,8 @@ public:
  {
   if( v_vars.size() != f_range.second - f_range.first )
    throw( std::invalid_argument( "vars and range sizes do not match" ) );
+  if( v_vars.size() != v_delta.size() )
+   throw( std::invalid_argument( "vars and delta sizes do not match" ) );
   }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
@@ -2532,7 +2658,7 @@ public:
 
  /// accessor to the range of the deleted Variable
 
- c_Range & range( void ) { return( f_range ); }
+ c_Range & range( void ) const { return( f_range ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -2591,18 +2717,41 @@ public:
   * && tells, the vector "becomes property" of the C05FunctionModLinSbst
   * object. The ordered parameter tells if subset is ordered by increasing
   * Index, which may be helpful for some Block/Solver having to deal with
-  * this FunctionModVarsSbst. */
+  * this FunctionModVarsSbst; indeed, if subset is not "naturally" ordered,
+  * it is ordered in the constructor. Of course, this means that both vars
+  * and delta get re-ordered at the same time. */
 
  C05FunctionModLinSbst( C05Function * f, Vec_FunctionValue && delta ,
 			Vec_p_Var && vars , Subset && subset ,
 			bool ordered = false ,
 			FunctionValue shift = NaNshift , bool cB = true )
   : C05FunctionModLin( f , std::move( delta ) , std::move( vars ) , shift ,
-		       cB ) , v_subset( std::move( subset ) ) ,
-    f_ordered( ordered )
+		       cB ) , v_subset( std::move( subset ) )
  {
   if( v_vars.size() != v_subset.size() )
    throw( std::invalid_argument( "vars and subset sizes do not match" ) );
+  if( v_vars.size() != v_delta.size() )
+   throw( std::invalid_argument( "vars and delta sizes do not match" ) );
+  if( ! ordered ) {
+   using IdxVar = std::tuple< Index , Variable * , FunctionValue >;
+   std::vector< IdxVar > tmp;
+   for( Index i = 0 ; i < v_vars.size() ; ++i )
+    tmp[ i ] = std::tuple( v_subset[ i ] , v_vars[ i ] , v_delta[ i ] );
+   std::sort( tmp.begin() , tmp.end() ,
+	      []( IdxVar & a , IdxVar & b ) {
+	       return( std::get<0>( a ) < std::get<0>( b ) ); }
+	      );
+   for( Index i = 0 ; i < v_vars.size() ; ++i ) {
+    v_subset[ i ] = std::get<0>( tmp[ i ] );
+    v_vars[ i ] = std::get<1>( tmp[ i ] );
+    v_delta[ i ] = std::get<2>( tmp[ i ] );
+    }
+   }
+  #ifndef NDEBUG
+  for( Index i = 1 ; i < v_subset.size() ; ++i )
+   if( v_subset[ i - 1 ] >= v_subset[ i ] )
+    throw( std::invalid_argument( "unordered or repeated subset" ) );
+  #endif
   }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
@@ -2613,12 +2762,7 @@ public:
 
  /// accessor to the subset of the affected Variable
 
- c_Subset & subset( void ) { return( v_subset ); }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// accessor to the ordered status
-
- bool ordered( void ) { return( f_ordered ); }
+ c_Subset & subset( void ) const { return( v_subset ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -2636,17 +2780,13 @@ public:
   else
    output << "f";
   output << "] on Function[" << &f_function
-	 << " ]: change in the linear part of " << v_subset.size();
-  if( f_ordered )
-   output << "(ordered)";
-  output << " variables" << std::endl;
+	 << " ]: change in the linear part of " << v_subset.size()
+	 << " variables" << std::endl;
   }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
  Subset v_subset;   ///< the subset of the removed Variable
-
- bool f_ordered;    ///< true if v_subset is ordered
 
 /*--------------------------------------------------------------------------*/
 

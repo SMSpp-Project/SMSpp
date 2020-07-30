@@ -306,9 +306,6 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
    for( auto & si : sbst )  // variables names in the constraints are +1
     si++;                   // w.r.t. those of the PolyhedralFunction
 
-   if( ! tmod->ordered() )
-    std::sort( sbst.begin() , sbst.end() );
-
    // open a new GroupModification, not concerning PolyhedralFunctionBlock
    bool newchnl = f_const.size() > 1;
    auto ichnl = open_or_nest( newchnl , chnl );
