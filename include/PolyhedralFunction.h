@@ -845,12 +845,24 @@ class PolyhedralFunction : public C05Function {
   * takes care of intLPMaxSz and intGPMaxSz, leaving all the rest to
   * Function. */
 
- virtual int get_int_par( const idx_type par ) const override final {
+ int get_int_par( const idx_type par ) const override final {
   switch( par ) {
    case( intLPMaxSz ): return( f_loc_pool_sz );
    case( intGPMaxSz ): return( v_glob.size() );
    }
   return( Function::get_int_par( par ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// get a specific float (double) numerical parameter
+ /** Get a specific float (double) numerical parameter. PolyhedralFunction
+  * takes care of dblAAccMlt, leaving all the rest to C05Function. */
+
+ int get_dbl_par( const idx_type par ) const override final {
+  if( par == dblAAccMlt )
+   return( AAccMlt );
+  else
+   return( C05Function::get_dbl_par( par ) );
   }
 
 /**@} ----------------------------------------------------------------------*/
