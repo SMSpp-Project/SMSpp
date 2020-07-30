@@ -215,8 +215,6 @@ void PolyhedralFunction::store_combination_of_linearizations(
 					   LinearCombination & coefficients ,
 					   Index name ,	c_ModParam issueMod )
 {
- static constexpr FunctionValue eps = 1e-13;  // TODO: handle this better
-
  if( name >= v_glob.size() )
   throw( std::invalid_argument( "invalid global pool name" ) );
 
@@ -237,7 +235,7 @@ void PolyhedralFunction::store_combination_of_linearizations(
 
   auto mult = coef.second;
 
-  if( mult < - eps )
+  if( mult < - AAccMlt )
    throw( std::invalid_argument( "negative convex multiplier" ) );
 
   if( mult < 0 )
@@ -271,10 +269,10 @@ void PolyhedralFunction::store_combination_of_linearizations(
 
  // now check that the convex multipliers really were convex
 
- if( sum > 1 + eps * coefficients.size() )
+ if( sum > 1 + AAccMlt * coefficients.size() )
   throw( std::invalid_argument( "multipliers sum to > 1" ) );
 
- if( sum < 1 - eps * coefficients.size() ) {
+ if( sum < 1 - AAccMlt * coefficients.size() ) {
   if( ! is_bound_set() )
    throw( std::invalid_argument( "multipliers sum to < 1, and no bound" ) );
 

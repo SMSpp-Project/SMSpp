@@ -439,6 +439,25 @@ class C05Function : public Function {
   * upper estimate ub >= f(x) is used in the formula instead of f(x). The
   * default is 0, i.e., "only perfect linearizations are allowed". */
 
+ dblAAccMlt ,   ///< maximum absolute error in the multipliers
+ /**< The multipliers used in store_combination_of_linearizations() and in
+  * set_important_linearization() are typically (a part of) the dual optimal
+  * solution of the optimization problem involving the C05Function. As such
+  * they typically have some constraint. Almost always they are bounded to be
+  * non-negative, and typically their sum has to be 1 (convex multipliers) or
+  * <= 1.
+  *
+  * This parameter controls the tolerance in these constraints. Since the
+  * unitary simplex is "well scaled" by default, the tolerance is absolute.
+  * While the specific form of the constraints is :C05Function-dependent, for
+  * the standard case of the unitary simplex the meaning should be:
+  *
+  * - each multiplier has to be >= - dblAAccMlt
+  *
+  * - abs( 1 - sum of multipliers ) <= dblAAccMlt * ( number of multipliers )
+  *
+  * The default is "small but not zero": 1e-10. */
+
  dblLastParC0F   ///< first allowed new double parameter for derived classes
                  /**< Convenience value for easily allow derived classes
 		  * to extend the set of double algorithmic parameters. */
@@ -474,7 +493,7 @@ class C05Function : public Function {
   * nothing needs to be done, not even checking that the parameters (which
   * the base class does not even store) are changed. */
 
- virtual void set_par( const idx_type par , const int value ) override
+ void set_par( const idx_type par , const int value ) override
  {
   switch( par ) {
    case( intLPMaxSz ):
@@ -497,11 +516,12 @@ class C05Function : public Function {
   * yet, setting any (non-negative) number allows these functions to just
   * keep doing the same, so whatever number is set can just be ignored. */
 
- virtual void set_par( const idx_type par , const double value ) override
+ void set_par( const idx_type par , const double value ) override
  {
   switch( par ) {
    case( dblRAccLin ):
    case( dblAAccLin ):
+   case( dblAAccMlt ):
     break;
    default: Function::set_par( par , value );
    }
@@ -1230,21 +1250,15 @@ class C05Function : public Function {
 /** @name Handling the parameters of the Function
  *  @{ */
 
- virtual idx_type get_num_int_par( void ) const override
- {
-  return( intLastParC0F );
-  }
+ idx_type get_num_int_par( void ) const override { return( intLastParC0F ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual idx_type get_num_dbl_par( void ) const override
- {
-  return( dblLastParC0F );
-  }
+ idx_type get_num_dbl_par( void ) const override { return( dblLastParC0F ); }
 
 /*--------------------------------------------------------------------------*/
  
- virtual int get_dflt_int_par( const idx_type par ) const override
+ int get_dflt_int_par( const idx_type par ) const override
  {
   if( par == intLPMaxSz )
    return( 1 );
@@ -1257,17 +1271,20 @@ class C05Function : public Function {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  
- virtual double get_dflt_dbl_par( const idx_type par ) const override
+ double get_dflt_dbl_par( const idx_type par ) const override
  {
   if( ( par == dblRAccLin ) || ( par == dblAAccLin ) )
    return( 0 );
   else
-   return( Function::get_dflt_dbl_par( par ) );
+   if( par == dblAAccMlt )
+    return( 1e-10 );
+   else
+    return( Function::get_dflt_dbl_par( par ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
- virtual idx_type int_par_str2idx( const std::string & name ) const override
+ idx_type int_par_str2idx( const std::string & name ) const override
  {
   if( name == "intLPMaxSz" )
    return( intLPMaxSz );
@@ -1279,20 +1296,21 @@ class C05Function : public Function {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual idx_type dbl_par_str2idx( const std::string & name ) const override
+ idx_type dbl_par_str2idx( const std::string & name ) const override
  {
   if( name == "dblRAccLin" )
    return( dblRAccLin );
   if( name == "dblAAccLin" )
    return( dblAAccLin );
+  if( name == "dblAAccMlt" )
+   return( dblAAccMlt );
 
   return( Function::dbl_par_str2idx( name ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
- virtual const std::string & int_par_idx2str( const idx_type idx )
-  const override
+ const std::string & int_par_idx2str( const idx_type idx ) const override
  {
   static const std::vector< std::string > pars =
    { "intLPMaxSz" , "intGPMaxSz" };
@@ -1305,11 +1323,10 @@ class C05Function : public Function {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual const std::string & dbl_par_idx2str( const idx_type idx )
-  const override
+ const std::string & dbl_par_idx2str( const idx_type idx ) const override
  {
   static const std::vector< std::string > pars =
-   { "dblRAccLin" , "dblAAccLin" };
+   { "dblRAccLin" , "dblAAccLin" , "dblAAccMlt" };
 
   if( ( idx >= dblRAccLin ) && ( idx <= dblAAccLin ) )
    return( pars[ idx - dblRAccLin ] );

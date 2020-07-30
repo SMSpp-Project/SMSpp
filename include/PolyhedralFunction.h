@@ -528,12 +528,14 @@ class PolyhedralFunction : public C05Function {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set a given float (double) numerical parameter
  /** Set a given float (double) numerical parameter. PolyhedralFunction
-  * ignores the C05Function-specific dblRAccLin and dblAAccLin, and leaves
-  * all the rest to Function. */
+  * ignores the C05Function-specific dblRAccLin and dblAAccLin, handles
+  * dblAAccMlt, and leaves all the rest to Function. */
 
  void set_par( const idx_type par , const double value ) override
  {
   switch( par ) {
+   case( dblAAccMlt ):
+    AAccMlt = value;
    case( dblRAccLin ):
    case( dblAAccLin ):
     break;
@@ -1587,6 +1589,8 @@ class PolyhedralFunction : public C05Function {
  Index f_imp;                ///< the important linearization
 
  LinearCombination f_imp_coeff;  ///< coefficients of the important linear.
+
+ FunctionValue AAccMlt;  ///< maximum absolute error in the multipliers
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
