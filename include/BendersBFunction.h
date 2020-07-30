@@ -7,7 +7,7 @@
  *
  * \version 0.01
  *
- * \date 11 - 06 - 2020
+ * \date 28 - 07 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -144,7 +144,52 @@ namespace SMSpp_di_unipi_it
  *
  * Note that the BendersBFunction is not supposed to have any Variable or
  * Constraint (besides those defined in its only inner Block B).
- */
+ *
+ * BendersBFunction handles all possible changes in its input data:
+ *
+ * - A complete reset of all the data (A, b, constraints, sides), which
+ *   results in a FunctionMod (with shift() == FunctionMod::NaNshift, i.e.,
+ *   "everything changed") being issued.
+ *
+ * - Addition of variables (adding columns to A), either one or a range, which
+ *   results in a C05FunctionModVarsAddd being issued (since a
+ *   BendersBFunction is strongly quasi-additive, and with shift() == 0 as
+ *   expected).
+ *
+ * - Removal of variables (removing columns from A), either one, or a range,
+ *   or a subset of them, which results in either a C05FunctionModVarsRngd or
+ *   a C05FunctionModVarsSbst being issued (since a BendersBFunction is
+ *   strongly quasi-additive, and with shift() == 0 as expected).
+ *
+ * - Changes of rows in A (either one, or a range or a subset of them) and in
+ *   the corresponding elements of b, which results in either a
+ *   BendersBFunctionModRngd or a BendersBFunctionModSbst being issued, with
+ *   shift() == NANshift (the function has changed "unpredictably"), type() ==
+ *   AllLinearizationChanged (all the linearizations may have changed,
+ *   although actually only a subset of them has) and BFtype() == ModifyRows.
+ *
+ * - Changes of elements of b (either one, or a range or a subset of them)
+ *   only, which results in either a BendersBFunctionModRngd or a
+ *   BendersBFunctionModSbst being issued, with type() == AlphaChanged (all
+ *   the alphas may have changed, although actually only a subset of them
+ *   has), BFtype() == ModifyCnst, and shift() == NANshift.
+ *
+ * - Addition of rows to A and b, either one or a range, which results in
+ *   BendersBFunctionModAddd being issued with shift() == NANshift and either
+ *   type() == C05FunctionMod::AllLinearizationChanged or type() ==
+ *   C05FunctionMod::AllEntriesChanged (when the new constants b are all
+ *   zero).
+ *
+ * - Removal of rows from A and b, either one, or a range, or a subset of
+ *   them, which results in any of the following Modification being issued:
+ *
+ *   = a BendersBFunctionModRngd with BFtype() == DeleteRows and shift() ==
+ *     C05FunctionMod::NaNshift;
+ *
+ *   = a BendersBFunctionModSbst with BFtype() == DeleteRows and shift() ==
+ *     C05FunctionMod::NaNshift;
+ *
+ *   = a FunctionMod with shift() == FunctionMod::NaNshift. */
 
 class BendersBFunction : public C05Function , public Block {
 
@@ -448,7 +493,7 @@ class BendersBFunction : public C05Function , public Block {
   * "implement itself" should. By not having any Variable, the Observer can no
   * longer do that. */
 
- virtual void clear( void ) override { v_x.clear(); }
+ void clear( void ) override { v_x.clear(); }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -929,8 +974,8 @@ class BendersBFunction : public C05Function , public Block {
   *        0, since a BendersBFunction is strongly quasi-additive) is issued,
   *        as described in Observer::make_par(). */
 
- virtual void remove_variables( Subset & nms , const bool ordered = false ,
-                                c_ModParam issueMod = eModBlck );
+ void remove_variables( Subset & nms , const bool ordered = false ,
+                        c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// modify a range of rows of the linear mapping
@@ -955,7 +1000,7 @@ class BendersBFunction : public C05Function , public Block {
   *        as described in Observer::make_par(). Note that shift() == NANshift
   *        (the function has changed "unpredictably"), type() ==
   *        AllLinearizationChanged (all the linearizations may have changed,
-  *        although actually only a subset of them has) and PFtype() ==
+  *        although actually only a subset of them has) and BFtype() ==
   *        ModifyRows. */
 
  void modify_rows( MultiVector && nA , c_RealVector & nb , Range range ,
@@ -988,7 +1033,7 @@ class BendersBFunction : public C05Function , public Block {
   *        issued, as described in Observer::make_par(). Note that shift() ==
   *        NANshift (the function has changed "unpredictably"),  type() ==
   *        AllLinearizationChanged (all the linearizations may have changed,
-  *        although actually only a subset of them has) and PFtype() ==
+  *        although actually only a subset of them has) and BFtype() ==
   *        ModifyRows. */
 
  void modify_rows( MultiVector && nA , c_RealVector & nb , Subset && rows ,
@@ -1012,7 +1057,7 @@ class BendersBFunction : public C05Function , public Block {
   *        as described in Observer::make_par(). Note that shift() == NANshift
   *        (the function has changed "unpredictably"), type() ==
   *        AllLinearizationChanged (all the linearizations may have changed,
-  *        although actually only a subset of them has) and PFtype() ==
+  *        although actually only a subset of them has) and BFtype() ==
   *        ModifyRows. */
 
  void modify_row( c_Index i , RealVector && Ai , c_FunctionValue bi ,
@@ -1033,7 +1078,7 @@ class BendersBFunction : public C05Function , public Block {
   * @param issueMod decides if and how the BendersBFunctionModRngd is issued,
   *        as described in Observer::make_par(). Note that type() ==
   *        AlphaChanged (all the alphas may have changed, although actually
-  *        only a subset of them has) and PFtype() == ModifyCnst. As for
+  *        only a subset of them has) and BFtype() == ModifyCnst. As for
   *        shift(), however, the value of the function *may* change in a very
   *        predictable way: if the new value of the constant is > than the
   *        current value for *all* rows, then the function has necessarily
@@ -1068,7 +1113,7 @@ class BendersBFunction : public C05Function , public Block {
   * @param issueMod decides if and how the BendersBFunctionModSbst is issued,
   *        as described in Observer::make_par(). Note that type() ==
   *        AlphaChanged (all the alphas may have changed, although actually
-  *        only a subset of them has) and PFtype() == ModifyCnst. As for
+  *        only a subset of them has) and BFtype() == ModifyCnst. As for
   *        shift(), however, the value of the function *may* change in a very
   *        predictable way: if the new value of the constant is > than the
   *        current value for *all* rows, then the function has necessarily
@@ -1102,7 +1147,7 @@ class BendersBFunction : public C05Function , public Block {
   * @param issueAMod decides if and how the BendersBFunctionModRngd is issued,
   *        as described in Observer::make_par(). Note that type() ==
   *        AlphaChanged (all the alphas may have changed, although actually
-  *        only a subset of them has) and PFtype() == ModifyCnst. As for
+  *        only a subset of them has) and BFtype() == ModifyCnst. As for
   *        shift(), however, the value of the function *may* change in a very
   *        predictable way: if the new value of the constant is > than the
   *        current value for *all* rows, then the function has necessarily
@@ -1143,7 +1188,7 @@ class BendersBFunction : public C05Function , public Block {
   * @param issueAMod decides if and how the BendersBFunctionModSbst is issued,
   *        as described in Observer::make_par(). Note that type() ==
   *        AlphaChanged (all the alphas may have changed, although actually
-  *        only a subset of them has) and PFtype() == ModifyCnst. As for
+  *        only a subset of them has) and BFtype() == ModifyCnst. As for
   *        shift(), however, the value of the function *may* change in a very
   *        predictable way: if the new value of the constant is > than the
   *        current value for *all* rows, then the function has necessarily
@@ -1170,7 +1215,7 @@ class BendersBFunction : public C05Function , public Block {
   * @param issueMod which decides if and how the BendersBFunctionModRngd is
   *        issued, as described in Observer::make_par(). Note that type() ==
   *        AlphaChanged (all the alphas may have changed, although actually
-  *        only a subset of them has) and PFtype() == ModifyCnst. As for
+  *        only a subset of them has) and BFtype() == ModifyCnst. As for
   *        shift(), the value of the function changes in a very predictable
   *        way: if bi is > than the current value the function has
   *        necessarily increased, otherwise necessarily decreased (if it is
@@ -1311,8 +1356,7 @@ class BendersBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- virtual void add_Modification( sp_Mod mod , Observer::ChnlName chnl = 0 )
-  override;
+ void add_Modification( sp_Mod mod , Observer::ChnlName chnl = 0 ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR Saving THE DATA OF THE BendersBFunction ---------*/
@@ -1503,16 +1547,14 @@ class BendersBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  bool is_linearization_there( Index name ) const override final {
-  //!! TO BE CHANGED
-  return( false );
-  }
+  return global_pool.is_linearization_there( name );
+ }
 
 /*--------------------------------------------------------------------------*/
 
  bool is_linearization_vertical( Index name ) const override final {
-  //!! TO BE CHANGED
-  return( false );
-  }
+  return global_pool.is_linearization_vertical( name );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// stores a combination of the given linearizations
@@ -1554,12 +1596,7 @@ class BendersBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  void delete_linearizations( Subset && which , bool ordered = true ,
-			     c_ModParam issueMod = eModBlck ) override final
- {
-  //!! TO BE CHANGED
-  C05Function::delete_linearizations( std::move( which ) , ordered ,
-				      issueMod );
-  }
+			     c_ModParam issueMod = eModBlck ) override final;
 
 /*--------------------------------------------------------------------------*/
 
@@ -1660,7 +1697,7 @@ class BendersBFunction : public C05Function , public Block {
   * BendersBFunction; it is virtual so that derived classes can print their
   * specific information in the format they choose. */
 
- virtual void print( std::ostream &output ) const override {
+ void print( std::ostream &output ) const override {
   output << "BendersBFunction [" << this << "]"
          << " with " << get_num_active_var() << " active variables and a"
          << " mapping with " << get_b().size() << " rows.";
@@ -1669,7 +1706,7 @@ class BendersBFunction : public C05Function , public Block {
  /// load the BendersBFunction out of an istream
  /** This method loads the BendersBFunction out of an istream. */
 
- virtual void load( std::istream &input ) override final;
+ void load( std::istream &input ) override final;
 
 /*--------------------------------------------------------------------------*/
 
@@ -1770,11 +1807,27 @@ class BendersBFunction : public C05Function , public Block {
    *
    * @param name the name under which the linearization constant and the
    *        pointer to the Solution will be stored.
+   *
+   * @param diagonal_linearization indicates whether the linearization is a
+   *        diagonal one.
    */
 
   void store( FunctionValue linearization_constant , Solution * solution ,
-              Index name );
+              Index name , bool diagonal_linearization );
 
+/*--------------------------------------------------------------------------*/
+  /// tells if there is a linearization in this GlobalPool with the given name
+  /** This method returns true if \p name is the index (name) of a
+   * linearization currently in this GlobalPool. */
+  bool is_linearization_there( Index name ) const;
+
+/*--------------------------------------------------------------------------*/
+ /// tells if the linearization in this GlobalPool with that name is vertical
+ /** This method returns true if \p name is the index (name) of a vertical
+  * linearization currently in this GlobalPool. */
+  bool is_linearization_vertical( Index name ) const;
+
+/*--------------------------------------------------------------------------*/
   /// returns a pointer to the Solution stored under the given name
   /** This function returns a pointer to the Solution that is stored under the
    * given \p name. If the given \p name is invalid, an exception is thrown.
@@ -1882,14 +1935,14 @@ class BendersBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
   /// return the name of "the important linearization"
 
-  Index get_important_linearization_name( void ) {
+  Index get_important_linearization_name( void ) const {
    return( important_linearization_name );
   }
 
 /*--------------------------------------------------------------------------*/
   /// return the combination used to form "the important linearization"
 
-  c_LinearCombination & get_important_linearization_coefficients( void ) {
+  c_LinearCombination & get_important_linearization_coefficients( void ) const {
    return( important_linearization_lin_comb );
   }
 
@@ -1925,6 +1978,16 @@ class BendersBFunction : public C05Function , public Block {
   void delete_linearization( Index name );
 
 /*--------------------------------------------------------------------------*/
+  /// deletes the linearizations with the given names
+  /** This function deletes the linearizations with the given names given in
+   * \p which, destroying the all the Solution associated with them. If any
+   * given name is invalid, an exception is thrown.
+   *
+   * @param which the names of the linearizations that must be deleted.
+   */
+  void delete_linearizations( Subset & which , bool ordered );
+
+/*--------------------------------------------------------------------------*/
 
  private:
 
@@ -1939,6 +2002,9 @@ class BendersBFunction : public C05Function , public Block {
 
   Index important_linearization_name;
   ///< the name of the important linearization
+
+  std::vector<bool> is_diagonal;
+  ///< indicates whether a linearization is diagonal
  };
 
 /*--------------------------------------------------------------------------*/
@@ -2304,7 +2370,7 @@ class BendersBFunctionMod : public C05FunctionMod {
 /*-------------------------- PROTECTED METHODS -----------------------------*/
   /// print the BendersBFunctionMod
 
- virtual inline void print( std::ostream &output ) const override
+ inline void print( std::ostream &output ) const override
  {
   output << "BendersBFunctionMod[";
   if( concerns_Block() )
@@ -2397,7 +2463,7 @@ class BendersBFunctionModAddd : public BendersBFunctionMod {
 
  /// print the BendersBFunctionModAddd
 
-  virtual inline void print( std::ostream &output ) const override
+  inline void print( std::ostream &output ) const override
   {
    output << "BendersBFunctionModAddd[";
    if( concerns_Block() )
@@ -2475,7 +2541,7 @@ class BendersBFunctionModRngd : public BendersBFunctionMod {
 
  /// print the BendersBFunctionModRngd
 
- virtual inline void print( std::ostream &output ) const override
+ inline void print( std::ostream &output ) const override
  {
   output << "BendersBFunctionModRngd[";
   if( concerns_Block() )
@@ -2570,7 +2636,7 @@ class BendersBFunctionModSbst : public BendersBFunctionMod {
 
  /// print the BendersBFunctionModSbst
 
- virtual inline void print( std::ostream &output ) const override
+ inline void print( std::ostream &output ) const override
  {
   output << "BendersBFunctionModSbst[";
   if( concerns_Block() )

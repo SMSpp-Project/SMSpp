@@ -687,7 +687,7 @@ class C05Function : public Function {
 
 /*--------------------------------------------------------------------------*/
  /// tells if there is a linearization in the global pool with that name
- /** The method has to teturn true if \p name is the index (name) of a
+ /** The method has to return true if \p name is the index (name) of a
   * linearization currently in the global pool. The default implementation
   * of the method is to always return false, which is OK for C05Function that
   * does not store linearization at all. */
@@ -696,7 +696,7 @@ class C05Function : public Function {
 
 /*--------------------------------------------------------------------------*/
  /// tells if the linearization in the global pool with that name is vertical
- /** The method has to teturn true if \p name is the index (name) of a
+ /** The method has to return true if \p name is the index (name) of a
   * vertical linearization currently in the global pool. Clearly,
   * is_linearization_vertical( name ) == true implies
   * is_linearization_there( name ) == true (if there is no linearization, it
@@ -1585,7 +1585,9 @@ class C05FunctionMod : public FunctionMod {
 
  int type( void ) const { return( f_type ); }
 
- /// accessor to the type of modification
+ /// accessor to the names of the linearizations that have been affected
+ /** Returns the names of the linearizations that have been affected (added,
+  * removed, changed). */
 
  c_Subset which( void ) const { return( v_which ); }
 

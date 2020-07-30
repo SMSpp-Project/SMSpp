@@ -101,7 +101,7 @@ class FRealObjective : public RealObjective , public Observer {
   * as the void constructor. */
 
  FRealObjective( Block *my_block = nullptr , Function *function = nullptr )
-  : RealObjective( my_block ) , f_function( function )
+  : RealObjective( my_block ) , f_function( nullptr )
  {
   set_function( function , eNoMod );
   }
