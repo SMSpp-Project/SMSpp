@@ -238,8 +238,8 @@ void PolyhedralFunction::store_combination_of_linearizations(
   if( mult < - AAccMlt )
    throw( std::invalid_argument( "negative convex multiplier" ) );
 
-  if( mult < 0 )
-   mult = 0;
+  if( mult < 0 )  // a small mult < 0 is mult == 0
+   continue;      // which contributes nothing to the combination
 
   sum += mult;
 
@@ -255,16 +255,16 @@ void PolyhedralFunction::store_combination_of_linearizations(
   RealVector::iterator ait;
   if( pos > 0 ) {
    ait = v_A[ --pos ].begin();
-   b += v_b[ pos ] * coef.second;
+   b += v_b[ pos ] * mult;
    }
   else {
    pos = - pos - 1;
    ait = v_aA[ pos ].begin();
-   b += v_ab[ pos ] * coef.second;
+   b += v_ab[ pos ] * mult;
    }
 
   for( auto & ai : a )
-   ai += (*(ait++)) * coef.second;
+   ai += (*(ait++)) * mult;
   }
 
  // now check that the convex multipliers really were convex

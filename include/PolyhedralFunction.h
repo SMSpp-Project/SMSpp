@@ -772,7 +772,7 @@ class PolyhedralFunction : public C05Function {
  FunctionValue get_linearization_constant( Index name = Inf<Index>() )
   override final
  {
-  auto gn = name >= v_glob.size() ? v_ord[ f_next ] : v_glob[ name ];
+  int gn = name >= v_glob.size() ? v_ord[ f_next ] : v_glob[ name ];
 
   if( ! gn )              // name 0
    return( f_bound );     // == bound
@@ -1539,7 +1539,7 @@ class PolyhedralFunction : public C05Function {
 
  FunctionValue * get_ai( Index name )
  {
-  auto gn = name >= v_glob.size() ? v_ord[ f_next ] : v_glob[ name ];
+  int gn = name >= v_glob.size() ? v_ord[ f_next ] : v_glob[ name ];
 
   if( ! gn )              // bound
    return( nullptr );     // == all-0 row
