@@ -2201,11 +2201,8 @@ void BendersBFunction::GlobalPool::store_combination_of_linearizations(
  auto constant = coeff * linearization_constants[ linearization_name ];
 
  FunctionValue coeff_sum_diagonal = 0;
- FunctionValue coeff_sum_vertical = 0;
  if( is_diagonal[ linearization_name ] )
   coeff_sum_diagonal = coeff;
- else
-  coeff_sum_vertical = coeff;
 
  bool diagonal_linearization = false;
 
@@ -2239,8 +2236,6 @@ void BendersBFunction::GlobalPool::store_combination_of_linearizations(
    coeff_sum_diagonal += coeff;
    diagonal_linearization = true;
   }
-  else
-   coeff_sum_vertical += coeff;
  }
 
  if( diagonal_linearization &&
