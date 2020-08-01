@@ -195,6 +195,12 @@ void PolyhedralFunction::store_linearization( Index name ,
  if( name >= v_glob.size() )
   throw( std::invalid_argument( "invalid global pool name" ) );
 
+ if( v_glob[ name ] < 0 ) {         // it is an aggregated item
+  // mark its position in v_ab[] with INF to signal it's not needed
+  v_ab[ - v_glob[ name ] - 1 ] = Inf<FunctionValue>();
+  compact_combinations();  // then check if it has to be shortened
+  }
+ 
  v_glob[ name ] = v_ord[ f_next ];
  if( name > f_max_glob )  // update f_max_glob
   f_max_glob = name;
@@ -333,16 +339,7 @@ void PolyhedralFunction::delete_linearization( Index name ,
  if( v_glob[ name ] < 0 ) {         // it is an aggregated item
   // mark its position in v_ab[] with INF to signal it's not needed
   v_ab[ - v_glob[ name ] - 1 ] = Inf<FunctionValue>();
-  // until the last position is not needed, shorten v_aA[] and v_ab[]
-  while( ! v_ab.empty() ) {
-   auto last = --v_ab.end();
-   if( *last == Inf<FunctionValue>() ) {
-    v_aA.pop_back();
-    v_ab.pop_back();
-    }
-   else
-    break;
-   }
+  compact_combinations();  // then check if it has to be shortened
   }
 
  v_glob[ name ] = Inf<int>();        // mark the item as deleted
@@ -367,48 +364,45 @@ void PolyhedralFunction::delete_linearizations( Subset && which ,
 {
  if( which.empty() ) {  // delete them all
   v_glob.assign( f_max_glob , Inf<int>() );
+  v_aA.clear();
+  v_ab.clear();
   f_max_glob = 0;
-  }
- else {                 // delete the given subset
-  if( ! ordered )
-   std::sort( which.begin() , which.end() );
 
-  if( which.back() >= v_glob.size() )
+  if( f_Observer && f_Observer->issue_mod( issueMod ) )
+   f_Observer->add_Modification( std::make_shared<PolyhedralFunctionMod>(
+				  this , C05FunctionMod::GlobalPoolRemoved ,
+				  std::move( which ) , 0 ,
+				  Observer::par2concern( issueMod ) ) ,
+				 Observer::par2chnl( issueMod ) );
+  return;  // all done
+  }
+
+ // here, which is not empty, so we have to delete the given subset
+ if( ! ordered )
+  std::sort( which.begin() , which.end() );
+
+ if( which.back() >= v_glob.size() )
+  throw( std::invalid_argument( "invalid linearization name" ) );
+
+ for( auto i : which ) {
+  if( v_glob[ i ] == Inf<int>() )
    throw( std::invalid_argument( "invalid linearization name" ) );
 
-  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) ) {
-   // no-one is watching: just delete and be done with it
-   for( auto i : which )
-    v_glob[ i ] = Inf<int>();
-   }
-  else {
-   // meanwhile, check if all the names in which actually correspond to
-   // a linearization in the global pool and discard those that do not
-   auto wit = which.begin();
-   auto witc = which.begin();
-   for( ; witc != which.end() ; ++witc )
-    if( v_glob[ *witc ] < Inf<int>() ) {
-     v_glob[ *witc ] = Inf<int>();
-     if( wit != witc )
-      *wit = *witc;
-     ++wit;
-     }
-
-   if( wit != witc )
-    which.resize( std::distance( which.begin() , wit ) );
-   }
-
-  update_f_max_glob();
+  if( v_glob[ i ] < 0 )  // an aggregate linearization
+   v_ab[ - v_glob[ i ] - 1 ] = Inf<FunctionValue>();  // mark it for deletion
+  v_glob[ i ] = Inf<int>();
   }
 
- if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
-  return;
-  
- f_Observer->add_Modification( std::make_shared<PolyhedralFunctionMod>( this ,
+ update_f_max_glob();
+
+ compact_combinations();  // then check if v_a* have to be shortened
+
+ if( f_Observer && f_Observer->issue_mod( issueMod ) )
+  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionMod>( this ,
 				         C05FunctionMod::GlobalPoolRemoved ,
 				         std::move( which ) , 0 ,
 				         Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
+				Observer::par2chnl( issueMod ) );
 
  }  // end( PolyhedralFunction::delete_linearization )
 

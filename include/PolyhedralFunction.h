@@ -1556,6 +1556,22 @@ class PolyhedralFunction : public C05Function {
   }
 
 /*--------------------------------------------------------------------------*/
+
+ void compact_combinations( void )
+ {
+  // until the last position is not needed, shorten v_aA[] and v_ab[]
+  while( ! v_ab.empty() ) {
+   auto last = --v_ab.end();
+   if( *last == Inf<FunctionValue>() ) {
+    v_aA.pop_back();
+    v_ab.pop_back();
+    }
+   else
+    break;
+   }
+  }
+
+/*--------------------------------------------------------------------------*/
 /*-------------------------- PROTECTED FIELDS ------------------------------*/
 /*--------------------------------------------------------------------------*/
 
