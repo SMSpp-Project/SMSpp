@@ -989,12 +989,13 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
 
   update_f_max_glob();
 
-  // a separate C0FunctionMod for removals
-  f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+  // a separate C0FunctionMod for removals (if any)
+  if( ! whiche.empty() )
+   f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
 			                 C05FunctionMod::GlobalPoolRemoved ,
 					 std::move( whiche ) , 0 ,
 				         Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
+				 Observer::par2chnl( issueMod ) );
   }
  else  // there are no aggregate linearizations
   for( Index i = 0 ; i <= f_max_glob ; ++i )
@@ -1077,12 +1078,13 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
 
   update_f_max_glob();
 
-  // a separate C05FunctionMod for removals
-  f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+  // a separate C0FunctionMod for removals (if any)
+  if( ! whiche.empty() )
+   f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
 			                 C05FunctionMod::GlobalPoolRemoved ,
 					 std::move( whiche ) , 0 ,
 				         Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
+				 Observer::par2chnl( issueMod ) );
   }
  else {  // there are no aggregate linearizations
   for( Index i = 0 ; i <= f_max_glob ; ++i )
@@ -1145,7 +1147,7 @@ void PolyhedralFunction::modify_row( c_Index i , RealVector && Ai ,
   for( Index j = 0 ; j <= f_max_glob ; ++j )
    if( v_glob[ j ] < 0 ) {       // an aggregated one
     v_glob[ j ] = Inf<int>();    // kill it for sure
-    which.push_back( j );
+    whiche.push_back( j );
     }
    else
     if( v_glob[ j ] == i + 1 )
@@ -1153,12 +1155,13 @@ void PolyhedralFunction::modify_row( c_Index i , RealVector && Ai ,
  
   update_f_max_glob();
 
-  // a separate C05FunctionMod for removals
-  f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+  // a separate C0FunctionMod for removals (if any)
+  if( ! whiche.empty() )
+   f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
 			                 C05FunctionMod::GlobalPoolRemoved ,
 					 std::move( whiche ) , 0 ,
 				         Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
+				 Observer::par2chnl( issueMod ) );
   }
  else {  // there are no aggregate linearizations
   for( Index j = 0 ; j <= f_max_glob ; ++j )
@@ -1252,12 +1255,13 @@ void PolyhedralFunction::modify_constants( c_RealVector & nb , Range range ,
 
   update_f_max_glob();
 
-  // a separate C05FunctionMod for removals
-  f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+  // a separate C0FunctionMod for removals (if any)
+  if( ! whiche.empty() )
+   f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
 			                 C05FunctionMod::GlobalPoolRemoved ,
 					 std::move( whiche ) , 0 ,
 				         Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
+				 Observer::par2chnl( issueMod ) );
   }
  else {  // there are no aggregate linearizations
   for( Index i = 0 ; i <= f_max_glob ; ++i )
@@ -1360,12 +1364,13 @@ void PolyhedralFunction::modify_constants( c_RealVector & nb ,
 
   update_f_max_glob();
 
-  // a separate C05FunctionMod for removals
-  f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+  // a separate C0FunctionMod for removals (if any)
+  if( ! whiche.empty() )
+   f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
 			                 C05FunctionMod::GlobalPoolRemoved ,
 					 std::move( whiche ) , 0 ,
 				         Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
+				 Observer::par2chnl( issueMod ) );
   }
  else {  // there are no aggregate linearizations
   for( Index i = 0 ; i <= f_max_glob ; ++i )
@@ -1435,12 +1440,13 @@ void PolyhedralFunction::modify_constant( c_Index i , c_FunctionValue bi ,
 
   update_f_max_glob();
 
-  // a separate C05FunctionMod for removals
-  f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+  // a separate C0FunctionMod for removals (if any)
+  if( ! whiche.empty() )
+   f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
 			                 C05FunctionMod::GlobalPoolRemoved ,
 					 std::move( whiche ) , 0 ,
 				         Observer::par2concern( issueMod ) ) ,
-				Observer::par2chnl( issueMod ) );
+				 Observer::par2chnl( issueMod ) );
   }
  else {  // there are no aggregate linearizations
   for( Index j = 0 ; j <= f_max_glob ; ++j )
@@ -1562,8 +1568,8 @@ void PolyhedralFunction::modify_bound( FunctionValue newbound ,
 			                 C05FunctionMod::GlobalPoolRemoved ,
 					 std::move( whiche ) , 0 ,
 				         Observer::par2concern( issueMod ) ) ,
-				Observer::par2chnl( issueMod ) );
-   }
+				 Observer::par2chnl( issueMod ) );
+   }  // if( ! v_aA.empty() )
   }  // end( if( wasset ) )
 
  // issue the PolyhedralFunctionModRngd
