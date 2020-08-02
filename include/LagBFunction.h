@@ -575,11 +575,11 @@ class LagBFunction : public C05Function , public Block {
 
  void remove_variable( Index i , c_ModParam issueMod = eModBlck ) override;
 
- void remove_variables( Range range = std::make_pair( 0 , Inf<Index>() ) ,
-                         c_ModParam issueMod = eModBlck );
+ void remove_variables( Range range , c_ModParam issueMod = eModBlck )
+  override final;
 
  void remove_variables( Subset && nms , bool ordered = false ,
-			c_ModParam issueMod = eModBlck );
+			c_ModParam issueMod = eModBlck )  override final;
 
 /*--------------------------------------------------------------------------*/
 

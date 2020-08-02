@@ -785,7 +785,14 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
  *   that the value of the Function has changed "unpredictably but
  *   monotonically downwards": computing the value of the Function at any
  *   point now returns a value that is surely smaller than or equal to the
- *   value that would have been returned prior to the Modification. */
+ *   value that would have been returned prior to the Modification.
+ *
+ * Note that a FunctionMod with std::isnan( shift() ) == true is the "nuclear
+ * Modification for Function": it basically says that everything that was
+ * previously known before about the function is no longer reliable, *except
+ * for the set of "active" Variable* that has remained the same. Indeed, 
+ * changes in the set of "active" Variable have their own separate 
+ * Modification. */
 
 class FunctionMod : public AModification {
 
@@ -944,14 +951,25 @@ public:
  * derived classes may add some operation-specific information that make the
  * task easier and/or more efficient under specific scenarios.
  *
+ * Note that even in case all the Variable are reset, vars() cannot be
+ * empty(). The reason is that Function do not register/unregister itself in
+ * its "active" Variable. This has to be done by something else; but on the
+ * other hand, this something else typically relies on Funtion to keep the
+ * list. If all Variable are reset the list is gone, and therefore the
+ * something else cannot do the un-registering.
+ *
+ * In this setting, the actual set of pointers is clearly not required, and it
+ * is likely that the operation can be performed more efficiently by knowing
+ * that the Variable to be eliminated are just "everyone".
+ *
  * The FunctionModVars also tells whether the Function is "quasi-additive"
  * in the added/removed Variable, which is an important property to allow
  * re-using previously computed function values. 
  *
- * The quasi-additivity property is encoded into asingle extended-real value
+ * The quasi-additivity property is encoded into a single extended-real value
  * (possibly NaN), returned by the method shift(). Note that this is similar,
  * but not the same, to the shift() of FunctionMod (indeed, FunctionModVars
- * does *not* derive from FunctionModV). The definition is as follows.
+ * does *not* derive from FunctionMod). The definition is as follows.
  *
  * Suppose that new Variables are added to the Function. Let f_old( x ) be
  * the Function, and x its vector of "active" Variable, before the
@@ -970,7 +988,7 @@ public:
  * Function after the modification. We say that the variables y are
  * quasi-additively removed from the Function if and only if
  *
- *    f( x ) = f_old( x , 0 ) + shift()    for all x
+ *     f( x ) = f_old( x , 0 ) + shift()    for all x
  *
  * Again, the new value of the Function just a constant shift to the old value
  * of the Function (identical if shift() == 0) whenever the latter were
@@ -980,7 +998,7 @@ public:
  * Note that the property depends on the specific Variable being
  * added/removed and what how exactly "adding" and "removing" means. For
  *
- *   f_old( x , y , z ) = x y + z
+ *     f_old( x , y , z ) = x y + z
  *
  * removing z leads to f( x , y ) = x y, and this clearly is quasi-additive,
  * while removing y may lead to f( x , z ) = x + z which is not. Yet,

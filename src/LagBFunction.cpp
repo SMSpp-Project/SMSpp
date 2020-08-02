@@ -429,6 +429,8 @@ void LagBFunction::remove_variable( Index i , c_ModParam issueMod )
 
 void LagBFunction::remove_variables( Range range , c_ModParam issueMod )
 {
+ // TODO: better handling of a complete removal of Variable
+ 
  range.second = std::min( range.second , c_Index( LagPairs.size() ) );
  if( range.second <= range.first )
   return;
@@ -463,10 +465,11 @@ void LagBFunction::remove_variables( Range range , c_ModParam issueMod )
 /*--------------------------------------------------------------------------*/
 
 void LagBFunction::remove_variables( Subset && nms , bool ordered ,
-				       c_ModParam issueMod )
+				     c_ModParam issueMod )
 {
- if( nms.empty() )  // actually nothing to remove
-  return;           // cowardly (and silently) return
+ if( nms.empty() )
+  throw( std::invalid_argument(
+       "LagBFunction::remove_variables: empty nms not properly handled " ) );
 
  if( LagPairs.empty() )  // deleting from nothing
   throw( std::logic_error( "deleting from an empty set" ) );

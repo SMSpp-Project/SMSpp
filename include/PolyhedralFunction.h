@@ -174,7 +174,7 @@ class PolyhedralFunction : public C05Function {
 /** @name Public Types
     @{ */
 
- using RealVector = std::vector < FunctionValue >;
+ using RealVector = std::vector< FunctionValue >;
  ///< a real n-vector, useful for both the rows of A and b
 
  using c_RealVector = const RealVector;   ///< a const RealVector
@@ -1100,7 +1100,8 @@ class PolyhedralFunction : public C05Function {
   *        shift() == 0 as expected) is issued, as described in
   *        Observer::make_par(). */
 
- void remove_variables( Range range , c_ModParam issueMod = eModBlck );
+ void remove_variables( Range range , c_ModParam issueMod = eModBlck )
+  override final;
 
 /*--------------------------------------------------------------------------*/
  /// remove a subset of Variable
@@ -1108,6 +1109,20 @@ class PolyhedralFunction : public C05Function {
   *
   * @param nms is Subset & containing the indices of the Variable to be
   *        removed, i.e., integers between 0 and get_num_active_var() - 1;
+  *        note that Subset is non-const because if it is not ordered (see
+  *        next parameter) the method may decide to order it, and/or to
+  *        move it into the Modification that is possibly issued (see third
+  *        parameter), which means that it is in general not safe to assume
+  *        that the parameter is still available after the call. a special
+  *        setting is if
+  *
+  *     nms.empty() == true, IN WHICH CASE ALL Variable ARE ELIMINATED
+  *
+  *        note that removing a Variable causes the deletion of the
+  *        corresponding column from th current A matrix, as a consequence,
+  *
+  *     nms.empty() == true CORRESPOND TO A COMPLETE RESET OF THE A MATRIX,
+  *     BUT *NOT* OF THE b VECTOR (NOR OF THE GLOBAL BOUND, IF ANY)
   *
   * @param ordered is a bool indicating if nms[] is already ordered in
   *        increasing sense (otherwise this is done inside the method,
@@ -1117,8 +1132,8 @@ class PolyhedralFunction : public C05Function {
   *        f_shift == 0, since a PolyhedralFunction is strongly
   *        quasi-additive) is issued, as described in Observer::make_par(). */
 
- virtual void remove_variables( Subset & nms , const bool ordered = false ,
-				c_ModParam issueMod = eModBlck );
+ void remove_variables( Subset && nms , bool ordered = false ,
+			c_ModParam issueMod = eModBlck ) override final;
 
 /*--------------------------------------------------------------------------*/
  /// modify a range of rows of the linear mapping
@@ -1202,7 +1217,7 @@ class PolyhedralFunction : public C05Function {
   *        although actually only a subset of them has) and PFtype() ==
   *        ModifyRows. */  
 
- void modify_row( Index i , RealVector && Ai , c_FunctionValue bi ,
+ void modify_row( Index i , RealVector && Ai , FunctionValue bi ,
 		  c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -1266,7 +1281,8 @@ class PolyhedralFunction : public C05Function {
   *        nothing). */  
 
  void modify_constants( c_RealVector & nb , Subset && rows ,
-			bool ordered , c_ModParam issueMod = eModBlck );
+			bool ordered = false ,
+			c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify only the constant term of one row of the linear mapping

@@ -343,14 +343,41 @@ class OneVarConstraint : public RowConstraint {
 
 /*--------------------------------------------------------------------------*/
 
- void remove_variable( Index i , c_ModParam issueMod = eModBlck ) override
- {
+ void remove_variable( Index i , c_ModParam issueMod = eModBlck )
+  override final {
   if( i == 0 )
    set_variable( nullptr , issueMod );
   else
-   throw( std::invalid_argument( "wrong Variable index in OneVarConstraint"
-				 ) );
-  }
+   throw( std::invalid_argument(
+		 "OneVarConstraint:remove_variable wrong Variable index" ) );
+
+  }  // end( OneVarConstraint::remove_variable )
+
+/*--------------------------------------------------------------------------*/
+
+ void remove_variables( Range range , c_ModParam issueMod = eModBlck )
+  override final
+ {
+  if( ( range.first != 0 ) || ( range.second != 1 ) )
+   throw( std::invalid_argument(
+		"OneVarConstraint:remove_variables wrong Variable index" ) );
+
+  set_variable( nullptr , issueMod );
+
+  }  // end( OneVarConstraint::remove_variables( range ) )
+
+/*--------------------------------------------------------------------------*/
+
+ void remove_variables( Subset && nms , bool ordered = false ,
+			c_ModParam issueMod = eModBlck )  override final
+ {
+  if( ( ! nms.empty() ) && ( ( nms.size() != 1 ) || ( nms[ 0 ] != 0 ) ) )
+   throw( std::invalid_argument(
+		"OneVarConstraint:remove_variables wrong Variable index" ) );
+
+  set_variable( nullptr , issueMod );
+
+  }  // end( FRowConstraint::remove_variables( subset ) )
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/

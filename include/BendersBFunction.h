@@ -966,7 +966,8 @@ class BendersBFunction : public C05Function , public Block {
   *        BendersBFunction is strongly quasi-additive, and with shift() == 0
   *        as expected) is issued, as described in Observer::make_par(). */
 
- void remove_variables( Range range , c_ModParam issueMod = eModBlck );
+ void remove_variables( Range range , c_ModParam issueMod = eModBlck )
+  override final;
 
 /*--------------------------------------------------------------------------*/
  /// remove a subset of Variable
@@ -983,8 +984,8 @@ class BendersBFunction : public C05Function , public Block {
   *        0, since a BendersBFunction is strongly quasi-additive) is issued,
   *        as described in Observer::make_par(). */
 
- void remove_variables( Subset & nms , const bool ordered = false ,
-                        c_ModParam issueMod = eModBlck );
+ void remove_variables( Subset && nms , const bool ordered = false ,
+                        c_ModParam issueMod = eModBlck ) override final;
 
 /*--------------------------------------------------------------------------*/
  /// modify a range of rows of the linear mapping

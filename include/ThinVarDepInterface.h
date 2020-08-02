@@ -724,6 +724,88 @@ class ThinVarDepInterface {
 
  virtual void remove_variable( Index i , c_ModParam issueMod = eModBlck ) = 0;
 
+/*--------------------------------------------------------------------------*/
+ /// remove a range of Variable
+ /** Remove a range of "active" Variable.
+  *
+  * @param range contains the indices of the Variable to be deleted
+  *        (hence, range.second <= get_num_active_var());
+  *
+  * @param issueMod which decides if and how a Modification (whose specific
+  *        type depends on the :ThinVarDepInterface at hand) is issued, as
+  *        described in Observer::make_par().
+  *
+  * The method is not pure virtual in that the base class provides the obvious
+  * implementation calling remove_variable( i ) for all i in nms. However, this
+  * results in many Modification being issued instead of one, and it is
+  * generally less efficient. Yet, more efficient implementations require
+  * knowledge of the actual implementation of the set of active Variable of
+  * the ThinVarDepInterface, and therefore necessarily need be demanded to
+  * the derived classes. */
+ 
+ virtual void remove_variables( Range range , c_ModParam issueMod = eModBlck )
+ {
+  if( range.second <= range.first )  // empty range
+   return;                           // silently (and cowardly) return
+
+  if( range.second >= get_num_active_var() )
+   throw( std::invalid_argument( "remove_variables: invalid range" ) );
+
+  // note: the removal loop goes backward, since eliminating a variable
+  //       changes the "names" of all the variable with larger name
+  for( Index i = range.second ; i > range.first ; )
+   remove_variable( --i , issueMod );
+  }
+ 
+/*--------------------------------------------------------------------------*/
+ /// remove a set of variables
+ /** Remove all the Variable in the given set of indices.
+  *
+  * @param nms is Subset & containing the indices of the Variable to be
+  *        removed, i.e., integers between 0 and get_num_active_var() - 1;
+  *        note that Subset is non-const because if it is not ordered (see
+  *        next parameter) the method may decide to order it, and/or to
+  *        move it into the Modification that is possibly issued (see third
+  *        parameter), which means that it is in general not safe to assume
+  *        that the parameter is still available after the call. hence, the
+  *        paramater may as well be && (as it is). a special setting is if
+  *
+  *     nms.empty() == true, IN WHICH CASE ALL Variable ARE ELIMINATED
+  *
+  * @param ordered is a bool indicating if nms[] is already ordered in
+  *        increasing sense);
+  *
+  * @param issueMod which decides if and how a Modification (whose specific
+  *        type depends on the :ThinVarDepInterface at hand) is issued, as
+  *        described in Observer::make_par().
+  *
+  * The method is not pure virtual in that the base class provides the obvious
+  * implementation calling remove_variable( i ) for all i in nms. However, this
+  * results in many Modification being issued instead of one, and it is
+  * generally less efficient. Yet, more efficient implementations require
+  * knowledge of the actual implementation of the set of active Variable of
+  * the ThinVarDepInterface, and therefore necessarily need be demanded to
+  * the derived classes. */
+ 
+ virtual void remove_variables( Subset && nms , bool ordered = false ,
+				c_ModParam issueMod = eModBlck )
+ {
+  // note: the removal loop goes backward, since eliminating a variable
+  //       changes the "names" of all the variable with larger name;
+  //       this is why nms need be ordered (if nonempty)
+
+  if( nms.empty() )
+   for( Index i = get_num_active_var() ; i > 0 ; )
+    remove_variable( --i , issueMod );
+  else {
+   if( ! ordered )
+    std::sort( nms.begin() , nms.end() );
+
+   for( auto it = nms.rbegin() ; it != nms.rend() ; ++it )
+    remove_variable( *it , issueMod );
+   }
+  }
+ 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 

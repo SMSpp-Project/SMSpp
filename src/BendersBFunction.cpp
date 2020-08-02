@@ -479,7 +479,8 @@ void BendersBFunction::add_variable( ColVariable * const var ,
 
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::remove_variable( c_Index i , c_ModParam issueMod ) {
+void BendersBFunction::remove_variable( Index i , c_ModParam issueMod )
+{
  if( i >= v_x.size() )
   throw( std::logic_error( "BendersBFunction::remove_variable: invalid "
                            "Variable index " + std::to_string( i ) + "." ) );
@@ -506,7 +507,10 @@ void BendersBFunction::remove_variable( c_Index i , c_ModParam issueMod ) {
 
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::remove_variables( Range range , c_ModParam issueMod ) {
+void BendersBFunction::remove_variables( Range range , c_ModParam issueMod )
+{
+ // TODO: better handling of a complete removal of Variable
+ 
  range.second = std::min( range.second , Index( v_x.size() ) );
  if( range.second <= range.first )
   return;
@@ -544,7 +548,8 @@ void BendersBFunction::remove_variables( Range range , c_ModParam issueMod ) {
 
 template< class T >
 static void compact( std::vector< T > x ,
-                     const BendersBFunction::Subset & nms ) {
+                     const BendersBFunction::Subset & nms )
+{
  BendersBFunction::Index i = nms.front();
  auto xit = x.begin() + (i++);
  for( auto nit = ++(nms.begin()) ; nit != nms.end() ; ++i )
@@ -561,11 +566,12 @@ static void compact( std::vector< T > x ,
 
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::remove_variables( Subset & nms ,
-                                         const bool ordered ,
-                                         c_ModParam issueMod ) {
- if( nms.empty() )  // actually nothing to remove
-  return;           // cowardly (and silently) return
+void BendersBFunction::remove_variables( Subset && nms , bool ordered ,
+                                         c_ModParam issueMod )
+{
+ if( nms.empty() )
+  throw( std::invalid_argument(
+   "BendersBFunction::remove_variables: empty nms not properly handled " ) );
 
  if( ! ordered )
   std::sort( nms.begin() , nms.end() );

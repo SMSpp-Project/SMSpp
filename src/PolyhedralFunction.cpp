@@ -274,9 +274,10 @@ void PolyhedralFunction::store_combination_of_linearizations(
   }
 
  // now check that the convex multipliers really were convex
-
+ /**!!
  if( sum > 1 + AAccMlt * coefficients.size() )
   throw( std::invalid_argument( "multipliers sum to > 1" ) );
+  !!*/
 
  if( sum < 1 - AAccMlt * coefficients.size() ) {
   if( ! is_bound_set() )
@@ -802,7 +803,7 @@ void PolyhedralFunction::add_variable( ColVariable * const var ,
 
 /*--------------------------------------------------------------------------*/
 
-void PolyhedralFunction::remove_variable( c_Index i , c_ModParam issueMod )
+void PolyhedralFunction::remove_variable( Index i , c_ModParam issueMod )
 {
  if( v_x.size() <= i )
   throw( std::logic_error( "invalid Variable index" ) );
@@ -836,6 +837,31 @@ void PolyhedralFunction::remove_variables( Range range , c_ModParam issueMod )
  if( range.second <= range.first )
   return;
 
+ set_f_uncomputed();                // the function value has changed
+ f_Lipschitz_constant = - Inf<FunctionValue>();  // == unknown
+
+ if( ( range.first == 0 ) && ( range.second == v_x.size() ) ) {
+  // removing *all* variable
+  Vec_p_Var vars( v_x.size() );
+
+  for( Index i = 0 ; i < v_x.size() ; ++i )
+   vars[ i ] = v_x[ i ];
+
+  v_x.clear();            // clear v_x
+  for( auto & ai : v_A )  // erase all v_A
+   ai.clear();
+
+  // now issue the Modification
+  // a polyhedral function is strongly quasi-additive, and nms is ordered
+  if( f_Observer && f_Observer->issue_mod( issueMod ) )
+   f_Observer->add_Modification( std::make_shared<C05FunctionModVarsRngd>(
+				      this , std::move( vars ) , range , 0 ,
+				      Observer::par2concern( issueMod ) ) ,
+				 Observer::par2chnl( issueMod ) );
+  return;
+  }
+
+ // this is not a complete reset
  // erase the columns in v_A
  for( auto & ai : v_A )
   ai.erase( ai.begin() + range.first , ai.begin() + range.second );
@@ -888,24 +914,42 @@ static void compact( std::vector< T > x ,
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
-void PolyhedralFunction::remove_variables( Subset & nms ,
-					   const bool ordered ,
+void PolyhedralFunction::remove_variables( Subset && nms , bool ordered ,
 					   c_ModParam issueMod )
 {
- if( nms.empty() )  // actually nothing to remove
-  return;           // cowardly (and silently) return
+ set_f_uncomputed();                // the function value has changed
+ f_Lipschitz_constant = - Inf<FunctionValue>();  // == unknown
 
+ if( nms.empty() ) {      // removing *all* variable
+  Vec_p_Var vars( v_x.size() );
+
+  for( Index i = 0 ; i < v_x.size() ; ++i )
+   vars[ i ] = v_x[ i ];
+
+  v_x.clear();            // clear v_x
+  for( auto & ai : v_A )  // erase all v_A
+   ai.clear();
+
+  // now issue the Modification: note that the subset is empty
+  // a polyhedral function is strongly quasi-additive, and nms is ordered
+  if( f_Observer && f_Observer->issue_mod( issueMod ) )
+   f_Observer->add_Modification( std::make_shared<C05FunctionModVarsSbst>(
+				 this , std::move( vars ) , Subset() , true ,
+				 0 , Observer::par2concern( issueMod ) ) ,
+				 Observer::par2chnl( issueMod ) );
+  return;
+  }
+
+ // this is not a complete reset
  if( ! ordered )
   std::sort( nms.begin() , nms.end() );
 
  if( nms.back() >= v_x.size() )  // the last name is wrong
-  throw( std::invalid_argument( "wrong Variable index in nms" ) );
+  throw( std::invalid_argument(
+     "PolyhedralFunction::remove_variables: wrong Variable index in nms" ) );
 
  for( auto & ai : v_A )          // erase the columns in A
   compact( ai , nms );
-
- set_f_uncomputed();                // the function value has changed
- f_Lipschitz_constant = - Inf<FunctionValue>();  // == unknown
 
  if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
   Vec_p_Var vars( nms.size() );
@@ -1104,9 +1148,8 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
 
 /*--------------------------------------------------------------------------*/
 
-void PolyhedralFunction::modify_row( c_Index i , RealVector && Ai ,
-				     c_FunctionValue bi ,
-				     c_ModParam issueMod )
+void PolyhedralFunction::modify_row( Index i , RealVector && Ai ,
+				     FunctionValue bi , c_ModParam issueMod )
 {
  if( i >= v_A.size() )
   throw( std::invalid_argument( "wrong row name" ) );
@@ -1389,7 +1432,7 @@ void PolyhedralFunction::modify_constants( c_RealVector & nb ,
 
 /*--------------------------------------------------------------------------*/
 
-void PolyhedralFunction::modify_constant( c_Index i , c_FunctionValue bi ,
+void PolyhedralFunction::modify_constant( Index i , FunctionValue bi ,
 					  c_ModParam issueMod )
 {
  if( i >= v_A.size() )
@@ -1426,7 +1469,7 @@ void PolyhedralFunction::modify_constant( c_Index i , c_FunctionValue bi ,
   for( Index j = 0 ; j <= f_max_glob ; ++j )
    if( v_glob[ j ] < 0 ) {
     v_glob[ j ] = Inf<int>();
-    whiche.push_back( i );
+    whiche.push_back( j );
     }
    else
     if( v_glob[ j ] == i + 1 )

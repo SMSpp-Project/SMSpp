@@ -736,7 +736,7 @@ class DQuadFunction : public C15Function {
   * which is why a C05FunctionModVarsRngd is issued as opposed to a
   * FunctionModVarsRngd one. */
 
- void remove_variable( c_Index i, c_ModParam issueMod = eModBlck )
+ void remove_variable( Index i, c_ModParam issueMod = eModBlck )
   override final;
 
 /*--------------------------------------------------------------------------*/
@@ -751,14 +751,17 @@ class DQuadFunction : public C15Function {
   * C05FunctionModVarsRngd is issued as opposed to a FunctionModVarsRngd
   * one. */
 
- void remove_variables( Range range = std::make_pair( 0 , Inf<Index>() ) ,
-                        c_ModParam issueMod = eModBlck );
-
+ void remove_variables( Range range , c_ModParam issueMod = eModBlck )
+  override final;
+  
 /*--------------------------------------------------------------------------*/
  /// remove the given subset of Variable
 /** Remove all the Variable in the given set of indices. As the && tells,
   * nms becomes property of the DQuadFunction object (possibly to be
-  * immediately dispatched to the issued C05FunctionModVarSbst).
+  * immediately dispatched to the issued C05FunctionModVarSbst). a special
+  * setting is if
+  *
+  *     nms.empty() == true, IN WHICH CASE ALL Variable ARE ELIMINATED
   *
   * The parameter ordered tells if nms is ordered by increasing index. This
   * is useful for efficently deleting them; indeed, if ordered == false the
@@ -769,11 +772,10 @@ class DQuadFunction : public C15Function {
   * The parameter issueMod decides if and how the C05FunctionModVarSbst is
   * issued, as described in Observer::make_par(). Note that a linear function
   * is additive, and therefore strongly quasi-additive, which is why a
-  * C05FunctionModVarsRngd is issued as opposed to a C05FunctionModVarSbst
-  * one. */
+  * C05FunctionModVarSbst is issued as opposed to a FunctionModVarSbst one. */
 
  void remove_variables( Subset && nms , bool ordered = false ,
-			c_ModParam issueMod = eModBlck );
+			c_ModParam issueMod = eModBlck )  override final;
 
 /*--------------------------------------------------------------------------*/
  ///< sets the value of the constant term of this function.
