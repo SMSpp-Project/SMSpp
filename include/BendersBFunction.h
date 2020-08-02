@@ -971,10 +971,12 @@ class BendersBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
  /// remove a subset of Variable
- /** This method removes all the Variable in the given set of indices.
+ /** This method removes all the Variable in the given set of indices. If \p
+  * nms is empty, all Variable are removed.
   *
   * @param nms a Subset & containing the indices of the Variable to be
-  *        removed, i.e., integers between 0 and get_num_active_var() - 1.
+  *        removed, i.e., integers between 0 and get_num_active_var() - 1. If
+  *        \p nms is empty, all Variable are removed.
   *
   * @param ordered a bool indicating if \p nms[] is already ordered in
   *        increasing sense (otherwise this is done inside the method,

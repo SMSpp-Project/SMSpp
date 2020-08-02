@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 30 - 07 - 2020
+ * \date 02 - 08 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -509,17 +509,38 @@ void BendersBFunction::remove_variable( Index i , c_ModParam issueMod )
 
 void BendersBFunction::remove_variables( Range range , c_ModParam issueMod )
 {
- // TODO: better handling of a complete removal of Variable
- 
  range.second = std::min( range.second , Index( v_x.size() ) );
  if( range.second <= range.first )
   return;
 
+ constraints_are_updated = false;
+
+ if( ( range.first == 0 ) && ( range.second == Index( v_x.size() ) ) ) {
+  // removing *all* Variables
+  Vec_p_Var vars( v_x.size() );
+
+  for( decltype( v_x )::size_type i = 0 ; i < v_x.size() ; ++i )
+   vars[ i ] = v_x[ i ];
+
+  v_x.clear();            // clear v_x
+  for( auto & ai : v_A )  // erase all v_A
+   ai.clear();
+
+  // now issue the Modification
+  // a Benders function is strongly quasi-additive
+  if( f_Observer && f_Observer->issue_mod( issueMod ) )
+   f_Observer->add_Modification( std::make_shared<C05FunctionModVarsRngd>(
+				      this , std::move( vars ) , range , 0 ,
+				      Observer::par2concern( issueMod ) ) ,
+				 Observer::par2chnl( issueMod ) );
+  return;
+  }
+
+ // removing *some* Variables
+
  // erase the columns in v_A
  for( auto & ai : v_A )
   ai.erase( ai.begin() + range.first , ai.begin() + range.second );
-
- constraints_are_updated = false;
 
  // erase the elements in v_x
  const auto strtit = v_x.begin() + range.first;
@@ -569,9 +590,33 @@ static void compact( std::vector< T > x ,
 void BendersBFunction::remove_variables( Subset && nms , bool ordered ,
                                          c_ModParam issueMod )
 {
- if( nms.empty() )
-  throw( std::invalid_argument(
-   "BendersBFunction::remove_variables: empty nms not properly handled " ) );
+ if( nms.empty() ) {      // removing *all* Variables
+
+  if( v_x.empty() )       // there is no Variable to be removed
+   return;                // cowardly (and silently) return
+
+  Vec_p_Var vars( v_x.size() );
+
+  for( Index i = 0 ; i < v_x.size() ; ++i )
+   vars[ i ] = v_x[ i ];
+
+  v_x.clear();            // clear v_x
+  for( auto & ai : v_A )  // erase all v_A
+   ai.clear();
+
+  constraints_are_updated = false;
+
+  // now issue the Modification: note that the subset is empty
+  // a BendersBFunction is strongly quasi-additive, and nms is ordered
+  if( f_Observer && f_Observer->issue_mod( issueMod ) )
+   f_Observer->add_Modification( std::make_shared<C05FunctionModVarsSbst>(
+				 this , std::move( vars ) , Subset() , true ,
+				 0 , Observer::par2concern( issueMod ) ) ,
+				 Observer::par2chnl( issueMod ) );
+  return;
+ }
+
+ // removing *some* Variables
 
  if( ! ordered )
   std::sort( nms.begin() , nms.end() );
