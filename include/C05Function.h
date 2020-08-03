@@ -1889,7 +1889,7 @@ class C05FunctionModSbst : public C05FunctionMod {
   : C05FunctionMod( f , type , std::move( which ) , shift , cB ) ,
     v_vars( std::move( vars ) ) , v_subset( std::move( subset ) )
  {
-  if( v_vars.size() != v_subset.size() )
+  if( ( ! v_subset.empty() ) && ( v_vars.size() != v_subset.size() ) )
    throw( std::invalid_argument( "vars and subset sizes do not match" ) );
   if( ! ordered ) {
    using IdxVar = std::pair< Index , Variable * >;

@@ -273,17 +273,21 @@ void PolyhedralFunction::store_combination_of_linearizations(
    ai += (*(ait++)) * mult;
   }
 
- // now check that the convex multipliers really were convex
- /**!!
+ // now check that the convex multipliers really arw convex
+ /*!!
  if( sum > 1 + AAccMlt * coefficients.size() )
   throw( std::invalid_argument( "multipliers sum to > 1" ) );
   !!*/
 
  if( sum < 1 - AAccMlt * coefficients.size() ) {
+  /*!!
   if( ! is_bound_set() )
    throw( std::invalid_argument( "multipliers sum to < 1, and no bound" ) );
+  !!*/
 
-  b += f_bound * ( 1 - sum );
+  //!!
+  if( is_bound_set() )
+   b += f_bound * ( 1 - sum );
   }
 
  // now put the vector in the right place: 
@@ -920,7 +924,12 @@ void PolyhedralFunction::remove_variables( Subset && nms , bool ordered ,
  set_f_uncomputed();                // the function value has changed
  f_Lipschitz_constant = - Inf<FunctionValue>();  // == unknown
 
- if( nms.empty() ) {      // removing *all* variable
+ if( ! ordered )
+  std::sort( nms.begin() , nms.end() );
+
+ if( nms.empty() ||
+     ( ( nms.back() < v_x.size() ) && ( nms.size() == v_x.size() ) ) ) {
+  // removing *all* variable
   Vec_p_Var vars( v_x.size() );
 
   for( Index i = 0 ; i < v_x.size() ; ++i )
@@ -941,8 +950,6 @@ void PolyhedralFunction::remove_variables( Subset && nms , bool ordered ,
   }
 
  // this is not a complete reset
- if( ! ordered )
-  std::sort( nms.begin() , nms.end() );
 
  if( nms.back() >= v_x.size() )  // the last name is wrong
   throw( std::invalid_argument(
