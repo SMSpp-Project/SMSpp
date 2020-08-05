@@ -2463,6 +2463,62 @@ void serialize( netCDF::NcGroup & group , const std::string & var_name ,
     .putVar( start , dim_sizes , multi_array.data() );
 }
 
+/// Check if all the expected netCDF variables are present in a group
+/**
+ *
+ * @param group    The group to be checked
+ * @param expected The names of the expected variables
+ * @param stream   The output stream for putting out the unexpected variables
+ */
+inline void check_variables( const netCDF::NcGroup & group,
+                             const std::vector< std::string > & expected,
+                             std::ostream & stream ) {
+
+ auto vars = group.getVars();
+ for( const auto & e: expected ) {
+  auto search = vars.find( e );
+  if( search != vars.end() ) {
+   vars.erase( search );
+  }
+ }
+
+ if( !vars.empty() ) {
+  stream << "Unexpected netCDF Vars found in group: ";
+  for( const auto & v: vars ) {
+   stream << v.first << "; ";
+  }
+  stream << std::endl;
+ }
+}
+
+/// Check if all the expected netCDF dimensions are present in a group
+/**
+ *
+ * @param group    The group to be checked
+ * @param expected The names of the expected dimensions
+ * @param stream   The output stream for putting out the unexpected dimensions
+ */
+inline void check_dimensions( const netCDF::NcGroup & group,
+                              const std::vector< std::string > & expected,
+                              std::ostream & stream ) {
+
+ auto dims = group.getDims();
+ for( const auto & e: expected ) {
+  auto search = dims.find( e );
+  if( search != dims.end() ) {
+   dims.erase( search );
+  }
+ }
+
+ if( !dims.empty() ) {
+  stream << "Unexpected netCDF Dims found in group: ";
+  for( const auto & d: dims ) {
+   stream << d.first << "; ";
+  }
+  stream << std::endl;
+ }
+}
+
 /**@} ----------------------------------------------------------------------*/
 
 } // end( namespace SMS_di_unipi_it )
