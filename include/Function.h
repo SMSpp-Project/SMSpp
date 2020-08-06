@@ -1360,8 +1360,13 @@ public:
     else
      output << "quasi-additively (" << f_shift << ") ";
 
-  output << "adding variables [ " << f_first << " , "
-	 << f_first + v_vars.size() << " ]" << std::endl;
+  output << "adding variable";
+  if( v_vars.size() > 1 )
+   output << "s [ " << f_first << " , "
+	  << f_first + v_vars.size() << " )";
+  else
+   output << " " << f_first;
+  output << std::endl;
   }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
@@ -1494,7 +1499,7 @@ public:
  *     UNLESS THEY HAVE LATER BEEN RE-ADDED, IN WHCH CASE AN APPROPRIATE
  *     Modification MUST BE SITTING IN THE QUEUE AFTER THIS ONE.
  *
- * The "name == pointer" of the Variable, which is anyway returned by vars()
+  * The "name == pointer" of the Variable, which is anyway returned by vars()
  * by the base class, should in principle be sufficient alone to reconstruct
  * what the index was. However, this may require the Solver to keep some
  * internal data structure to map the Variable pointer to its index in the
@@ -1593,8 +1598,7 @@ public:
      output << "non quasi-additively (-)";
     else
      output << "quasi-additively (" << f_shift << ") ";
-
-  output << "deleting " << v_subset.size() << std::endl;
+  output << "deleting " << v_subset.size() << " variables" << std::endl;
   }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/

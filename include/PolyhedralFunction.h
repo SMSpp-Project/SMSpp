@@ -1801,14 +1801,19 @@ class PolyhedralFunctionModAddd : public PolyhedralFunctionMod {
 /*--------------------------------------------------------------------------*/
 /// class to describe range modification specific to a PolyhedralFunction
 /** Derived class from PolyhedralFunctionMod to describe all modifications to
- * a PolyhedralFunction that involve an arbitrary set of rows:
+ * a PolyhedralFunction that involve a Range of rows:
  *
  * - modify_row[s]
  * - modify_constant[s]
  * - delete_row[s]
  *
- * For all these, the Subset of the affected rows is provided, as well as
- * the exact type of operation. */
+ * For all these, the Range of the affected rows is provided, as well as
+ * the exact type of operation.
+ *
+ * This class also supports a special case: if the Range is empty (i.e.,
+ * range.second <= range.first, e.g. as in Range( 0 , 0 )), a
+ * PolyhedralFunctionModRngd of type ModifyCnst indicates the change of
+ * the global lower/upper bound. */
 
 class PolyhedralFunctionModRngd : public PolyhedralFunctionMod {
 

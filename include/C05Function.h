@@ -1874,8 +1874,8 @@ class C05FunctionModSbst : public C05FunctionMod {
   * of a std::vector< Variable * >, and their (original) indices under the
   * form of a std::vector< Index >. The indices of have the obvious positional
   * correspondence: subset[ i ] is the index that the Variable vars[ i ] had
-  * *at the moment in which the C05FunctionModSbst was issued*. As the the
-  * && tells, both vectors vars[] and subset[] "becomes property" of the
+  * *at the moment in which the C05FunctionModSbst was issued*. As the &&
+  * tells, both vectors vars[] and subset[] "becomes property" of the
   * C05FunctionModSbst object. The ordered parameter tells if subset is
   * ordered by increasing Index, which may be helpful for some Block/Solver
   * having to deal with this FunctionModVarsSbst. Indeed, if subset is not
