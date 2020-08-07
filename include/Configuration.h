@@ -365,6 +365,33 @@ class Configuration
   }
 
 /**@} ----------------------------------------------------------------------*/
+/*----------- METHODS DESCRIBING THE BEHAVIOR OF A Configuration -----------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods describing the behavior of a Configuration
+ *  @{ */
+
+ /// clear this Configuration
+ /** A Configuration is basically used to configure Block and its Solver. As a
+  * Block has a complex tree structure, it is regularly the case in which a
+  * Configuration also presents a similar tree structure, as it may commonly
+  * be used to configure not only the Block (or its Solver) but all of its
+  * sub-Block as well, recursively. If the structure of a Configuration object
+  * for a Block is unknown, its construction can therefore be a
+  * computationally expensive task, often requiring the inspection of the
+  * whole Block (its Constraint, Objective, and sub-Block, recursively). It
+  * turns out that it can be useful in some situations to have at hand a
+  * "cleared" Configuration object: one that contains its complete structure
+  * but without any other data (e.g., parameters upon which a Block or a
+  * Solver may depend). This method must "clear" this Configuration,
+  * preserving its complex structure and thus erasing any data that does not
+  * affect its structure.
+  *
+  * This method has a default empty implementation as some Configuration may
+  * not have any data to be "cleared". */
+
+ virtual void clear( void ) { }
+
+/**@} ----------------------------------------------------------------------*/
 /*-------- METHODS FOR LOADING, PRINTING & SAVING THE Configuration --------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the Configuration
@@ -670,19 +697,23 @@ class SimpleConfiguration : public Configuration
   f_value = old.f_value;
   }
   
- virtual void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( netCDF::NcGroup & group ) override;
 
  virtual ~SimpleConfiguration() { }  ///< destructor: does nothing
 
  /// clone method
- virtual SimpleConfiguration * clone( void ) const override
+ SimpleConfiguration * clone( void ) const override
  {
   return( new SimpleConfiguration( *this ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
- virtual void serialize( netCDF::NcGroup & group ) const override;
+ void serialize( netCDF::NcGroup & group ) const override;
+
+/*--------------------------------------------------------------------------*/
+
+ void clear( void ) override;
 
 /*---------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
 

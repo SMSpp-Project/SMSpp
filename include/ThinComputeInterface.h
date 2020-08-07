@@ -1018,7 +1018,7 @@ class ComputeConfig : public Configuration
 
 /*------------------------------- CLONE -----------------------------------*/
  /// clone method
- virtual ComputeConfig * clone( void ) const override {
+ ComputeConfig * clone( void ) const override {
   return( new ComputeConfig( *this ) );
   }
 
@@ -1089,7 +1089,7 @@ class ComputeConfig : public Configuration
   *   however, they can still do if they want); the group is optional, if it
   *   does not exist the corresponding Configuration * is set to nullptr. */
 
- virtual void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( netCDF::NcGroup & group ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// extends Configuration::serialize( netCDF::NcGroup )
@@ -1098,7 +1098,23 @@ class ComputeConfig : public Configuration
   * ComputeConfig::deserialize( netCDF::NcGroup ) for details of the format
   * of the created netCDF group. */
 
- virtual void serialize( netCDF::NcGroup & group ) const override;
+ void serialize( netCDF::NcGroup & group ) const override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// clears the vectors of parameters and the extra Configuration
+ /** This method clears the vectors holding the integer, double, and string
+  * parameters (#int_pars, #dbl_pars, and #str_pars). If
+  * #f_extra_Configuration is not nullptr then Configuration::clear() is
+  * invoked for #f_extra_Configuration. */
+
+ void clear( void ) override {
+  int_pars.clear();
+  dbl_pars.clear();
+  str_pars.clear();
+
+  if( f_extra_Configuration )
+   f_extra_Configuration->clear();
+  }
 
 /*--------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
 
@@ -1123,7 +1139,7 @@ class ComputeConfig : public Configuration
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 
  /// print the ComputeConfig
- virtual void print( std::ostream &output ) const override;
+ void print( std::ostream &output ) const override;
 
 /*--------------------------------------------------------------------------*/
  /// load this ComputeConfig out of an istream
@@ -1155,7 +1171,7 @@ class ComputeConfig : public Configuration
   * if the above is not '*', the description of the :Configuration object
   */
 
- virtual void load( std::istream &input ) override;
+ void load( std::istream &input ) override;
 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 

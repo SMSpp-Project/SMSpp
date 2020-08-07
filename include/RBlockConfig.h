@@ -8,7 +8,7 @@
  *
  * \version 0.33
  *
- * \date 20 - 07 - 2020
+ * \date 06 - 08 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -145,12 +145,6 @@ class RBlockConfig : public BlockConfig
   * - a description of a BlockConfig object for the Block, as described in
   *   BlockConfig::deserialize().
   *
-  * - the attribute "diff" of netCDF::NcInt type containing the value for the
-  *   f_diff field (basically, a bool telling if the information in it has to
-  *   be taken as "the configuration to be set" or as "the changes to be made
-  *   from the current configuration"); this attribute is optional: if it is
-  *   not provided, then diff = false is assumed;
-  *
   * - the dimension "n_sub_Block" containing the number of BlockConfig
   *   descriptions for the sub-Block of the current Block; this dimension is
   *   optional; if it is not provided, then n_sub_Block = 0 is assumed.
@@ -173,7 +167,7 @@ class RBlockConfig : public BlockConfig
  void deserialize( netCDF::NcGroup & group ) override;
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
- /// destructor: deletes the BlockConfig and all sub-BlockConfig
+ /// destructor: deletes all sub-BlockConfig
  virtual ~RBlockConfig()
  {
   for( auto sBC : v_sub_BlockConfig )
@@ -306,9 +300,6 @@ class RBlockConfig : public BlockConfig
  /** Load this RBlockConfig out of an istream. The format is defined as that
   * of BlockConfig (see BlockConfig::load()) followed by:
   *
-  * - a binary number b to determine the value of #f_diff. If b == 0 then
-  *   #f_diff = false, otherwise, #f_diff = true.
-  *
   * number k of the sub-BlockConfig objects
   *
   * for i = 1 ... k
@@ -336,6 +327,570 @@ class RBlockConfig : public BlockConfig
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( RBlockConfig ) )
+
+/*--------------------------------------------------------------------------*/
+/*-------------------------- CLASS CBlockConfig ----------------------------*/
+/*--------------------------------------------------------------------------*/
+/*--------------------------- GENERAL NOTES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+/// derived class from BlockConfig for configuring the Constraint of a Block
+/** The CBlockConfig class ("Constraint" BlockConfig) derives from BlockConfig
+ * and offers support for configuring the Constraint of a Block. The
+ * CBlockConfig contains the following field:
+ *
+ * - a vector of pointers to ComputeConfig for each indicated Constraint of a
+ *   Block.
+ */
+
+class CBlockConfig : public BlockConfig
+{
+
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*--------------------------------------------------------------------------*/
+/*--------------- CONSTRUCTING AND DESTRUCTING CBlockConfig ----------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Constructing and destructing CBlockConfig
+ *  @{ */
+
+/*---------------------------- CONSTRUCTORS --------------------------------*/
+ /// constructor: creates an empty CBlockConfig
+
+ CBlockConfig( bool diff = true ) : BlockConfig( diff ) {}
+
+/*--------------------------------------------------------------------------*/
+ /// constructs an CBlockConfig out of the given netCDF \p group
+ /** It constructs an CBlockConfig out of the given netCDF \p
+  * group. Please refer to the deserialize() method for the format of a
+  * netCDF::NcGroup of an CBlockConfig.
+  *
+  * @param group The netCDF::NcGroup containing the description of the
+  *        CBlockConfig. */
+
+ CBlockConfig( netCDF::NcGroup & group ) : CBlockConfig() {
+  deserialize( group );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// constructs an CBlockConfig out of an istream
+ /** It constructs an CBlockConfig out of the given istream \p
+  * input. Please refer to the load() method for the format of an
+  * CBlockConfig.
+  *
+  * @param input The istream containing the description of the
+  *        CBlockConfig. */
+
+ CBlockConfig( std::istream &input ) : CBlockConfig() {
+  load( input );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// constructs an CBlockConfig for the given Block
+ /** It constructs an CBlockConfig for the given \p block. It creates
+  * an empty CBlockConfig and invoke the method get().
+  *
+  * @param block A pointer to the Block for which an CBlockConfig will
+  *        be constructed.
+  *
+  * @param diff It indicates if this configuration is a "differential" one.
+  */
+
+ CBlockConfig( Block * block , bool diff = false ) : CBlockConfig( diff ) {
+  get( block );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// copy constructor: does what it says on the tin
+
+ CBlockConfig( const CBlockConfig &old );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// extends BlockConfig::deserialize( netCDF::NcGroup )
+ /** Extends BlockConfig::deserialize( netCDF::NcGroup ) to the specific
+  * format of a CBlockConfig. Besides the mandatory "type" attribute of any
+  * :Configuration, and all that is needed to describe a BlockConfig, the
+  * group should also contain the following:
+  *
+  * - the dimension "n_Config_Constraint" containing the number of
+  *   ComputeConfig descriptions associated with the Constraint of the current
+  *   Block; this dimension is optional; if it is not provided, then
+  *   n_Config_Constraint = 0 is assumed.
+  *
+  * - with p being the size of "n_Config_Constraint", a one-dimensional
+  *   variable called "ConstraintID", of size 2p and type netCDF::ncUint,
+  *   containing the Block::ConstraintID of the Constraint that need a
+  *   ComputeConfig: for each i = 0, ..., p - 1, the pair ( ConstraintID[ 2i
+  *   ], ConstraintID[ 2i + 1] ) is the ConstraintID of the i-th Constraint
+  *   that needs a ComputeConfig, i.e., ConstraintID[ 2i ] provides the index of
+  *   the group to which the i-th Constraint belongs and ConstraintID[ 2i + 1
+  *   ] provides the index of the i-th Constraint (see Block::ConstraintID for
+  *   the definition of an index of a Constraint); this variable is mandatory
+  *   if n_Config_Constraint > 0.
+  *
+  * - p groups, with name "Config_Constraint_<i>" for all i = 0, ..., p - 1,
+  *   containing each the description of a ComputeConfig associated with the
+  *   i-th Constraint indicated by the "ConstraintID" variable (which is given
+  *   by the pair ( ConstraintID[ 2i ], ConstraintID[ 2i + 1] )); these groups
+  *   are optional; if "Config_Constraint_<i>" is not provided, then nullptr
+  *   (default configuration) is assumed for the i-th Constraint. */
+
+ void deserialize( netCDF::NcGroup & group ) override;
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+ /// destructor: deletes all ComputeConfig of the Constraint
+ /** It deletes all ComputeConfig of the Constraint handled by this
+  * CBlockConfig. */
+ virtual ~CBlockConfig()
+ {
+  for( auto config : v_Config_Constraints )
+   delete config;
+  }
+
+/**@} ----------------------------------------------------------------------*/
+/*---------- METHODS DESCRIBING THE BEHAVIOR OF THE CBlockConfig ----------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods describing the behavior of the CBlockConfig
+ *  @{ */
+
+/*--------------------------------------------------------------------------*/
+ /// configure the given Block and its Constraint
+ /** Method for configuring the given Block and its Constraint. The
+  * configuration depends on the field #f_diff, which indicates whether it has
+  * to be interpreted in "differential mode". Please refer to
+  * Block::set_BlockConfig() for understanding how #f_diff and \p deleteold
+  * affect the configuration of a Block. The behaviour of this method is the
+  * following:
+  *
+  * First, BlockConfig::apply() is invoked. Then, set_ComputeConfig() is
+  * invoked for each Constraint of the given Block handled by this
+  * CBlockConfig.
+  *
+  * @param block A pointer to the Block that must be configured.
+  *
+  * @param deleteold Indicates whether the current BlockConfig of Block must
+  *        be deleted. */
+
+ void apply( Block * block , bool deleteold = true ) override;
+
+/*------------------------------- CLONE -----------------------------------*/
+
+ CBlockConfig * clone( void ) const override
+ {
+  return( new CBlockConfig( *this ) );
+  }
+
+/**@} ----------------------------------------------------------------------*/
+/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Other initializations
+ *  @{ */
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// getting the CBlockConfig of the given Block
+ /** This method gets information about the parameter of the given Block (and
+  * its Constraint) and stores in this CBlockConfig. This information consists
+  * of that supported by the BlockConfig (see BlockConfig::get()) plus any
+  * ComputeConfig that may be associated with the Constraint of the given
+  * Block. Any Configuration that this CBlockConfig may have at the moment
+  * this function is invoked is deleted.
+  *
+  * Note that
+  *
+  *     CALLING CBlockConfig::get() IS A POTENTIALLY COSTLY OPERATION BECAUSE
+  *     IT ENTAILS SCANNING ALL Constraint OF THE Block IN ORDER TO OBTAIN
+  *     THEIR ComputeConfig.
+  *
+  * @param block A pointer to the Block whose CBlockConfig must be filled. */
+
+ void get( Block * block ) override;
+
+/**@} ----------------------------------------------------------------------*/
+/*-------- METHODS FOR LOADING, PRINTING & SAVING THE CBlockConfig --------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for loading, printing & saving the CBlockConfig
+ *  @{ */
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// extends BlockConfig::serialize( netCDF::NcGroup )
+ /** Extends BlockConfig::serialize( netCDF::NcGroup ) to the specific format
+  * of an CBlockConfig. See CBlockConfig::deserialize( netCDF::NcGroup ) for
+  * details of the format of the created netCDF group. */
+
+ void serialize( netCDF::NcGroup & group ) const override;
+
+/**@} ----------------------------------------------------------------------*/
+/*--------------- METHODS FOR MODIFYING THE CBlockConfig ------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for modifying the CBlockConfig
+ *  @{ */
+
+ /// sets the ComputeConfig of the Constraint
+ /** This function sets the vector containing the (pointer to the)
+  * ComputeConfig of the Constraint of the Block. The i-th ComputeConfig in
+  * this vector is associated with the Constraint given by the i-th element of
+  * the ConstraintID vector (see get_ConstraintID()). If \p deleteold is true
+  * then all ComputeConfig for the Constraint currently stored in this
+  * CBlockConfig are destroyed.
+  *
+  * @param configs A vector of pointers to ComputeConfig.
+  *
+  * @param deleteold It indicates whether the currently stored ComputeConfig
+  *        for the Constraint (if any) must be destroyed. */
+
+ void set_Config_Constraints( std::vector<ComputeConfig *> && configs ,
+                              bool deleteold = true ) {
+  if( deleteold ) {
+   for( auto config : v_Config_Constraints )
+    delete config;
+   }
+  v_Config_Constraints = std::move( configs );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// adds a ComputeConfig of a Constraint
+ /** This function adds a (pointer to the) ComputeConfig of the Constraint of
+  * the Block whose Block::ConstraintID is \p constraint_id.
+  *
+  * @param config A pointer to a ComputeConfig.
+  *
+  * @param constraint_id A Block::ConstraintID indicating the Constraint of
+  *        the Block. */
+
+ void add_Config_Constraint( ComputeConfig * config ,
+                             Block::ConstraintID constraint_id ) {
+  v_Config_Constraints.push_back( config );
+  v_ConstraintID.push_back( constraint_id );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// sets the vector of ConstraintID indicating the Constraint of the Block
+ /** This function sets the vector of ConstraintID, which indicates the set of
+  * Constraint of the Block that have a ComputeConfig. */
+
+ void set_ConstraintID( std::vector<Block::ConstraintID> && constraint_id ) {
+  v_ConstraintID = std::move( constraint_id );
+  }
+
+/**@} ----------------------------------------------------------------------*/
+/*------------ Methods for reading the data of the CBlockConfig -----------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for reading the data of the CBlockConfig
+ *  @{ */
+
+ /// returns the ComputeConfig of the Constraint
+ /** This function returns a const reference to the vector containing the
+  * (pointer to the) ComputeConfig of the Constraint of the Block. */
+
+ const std::vector<ComputeConfig *> & get_Config_Constraints( void ) const {
+  return( v_Config_Constraints );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the vector of ConstraintID indicating the Constraint
+ /** This function returns the vector of ConstraintID, which indicates the set
+  * of Constraint of the Block that have a ComputeConfig. */
+
+ const std::vector<Block::ConstraintID> & get_ConstraintID( void ) const {
+  return( v_ConstraintID );
+  }
+
+/**@} ----------------------------------------------------------------------*/
+/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ /// print the CBlockConfig
+ void print( std::ostream &output ) const override;
+
+/*--------------------------------------------------------------------------*/
+ /// load this CBlockConfig out of an istream
+ /** Load this CBlockConfig out of an istream. The format is defined as that
+  * specified in BlockConfig::load(), followed by:
+  *
+  * - the number k of the ComputeConfig for the Constraint of the Block
+  *
+  * - for i = 1 ... k
+  *   - two integers representing the ConstraintID for the Constraint
+  *   - a string containing the class type of a ComputeConfig object,
+  *     '*' means none (nullptr)
+  *   - if the above is not '*', the description of the :ComputeConfig object
+  *   (clearly, if k == 0 this is empty) */
+
+ void load( std::istream &input ) override;
+
+/*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
+
+ /// the vector of indices identifying the set of Constraint
+ /** This vector indicates which Constraint of the Block have a
+  * ComputeConfig. */
+ std::vector<Block::ConstraintID> v_ConstraintID;
+
+ /// the vector of (pointer to the) ComputeConfig for Constraint
+ /** The vector of (pointer to the) ComputeConfig for Constraint. The i-th
+  * ComputeConfig in this vector is that of the Constraint identified by the
+  * i-th element in the vector v_ConstraintID. */
+ std::vector<ComputeConfig *> v_Config_Constraints;
+
+/*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
+
+ private:
+
+/*---------------------------- PRIVATE FIELDS ------------------------------*/
+
+ SMSpp_insert_in_factory_h;
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( CBlockConfig ) )
+
+/*--------------------------------------------------------------------------*/
+/*-------------------------- CLASS OBlockConfig ----------------------------*/
+/*--------------------------------------------------------------------------*/
+/*--------------------------- GENERAL NOTES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+/// derived class from BlockConfig for configuring the Constraint of a Block
+/** The OBlockConfig class ("Objective" BlockConfig) derives from BlockConfig
+ * and offers support for configuring the Objective of a Block. The
+ * OBlockConfig contains the following field:
+ *
+ * - a pointer to ComputeConfig for the Objective of the Block.
+ */
+
+class OBlockConfig : public BlockConfig
+{
+
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*--------------------------------------------------------------------------*/
+/*--------------- CONSTRUCTING AND DESTRUCTING OBlockConfig ----------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Constructing and destructing OBlockConfig
+ *  @{ */
+
+/*---------------------------- CONSTRUCTORS --------------------------------*/
+ /// constructor: creates an empty OBlockConfig
+
+ OBlockConfig( bool diff = true ) : BlockConfig( diff ) ,
+                                    f_Config_Objective( nullptr ) {}
+
+/*--------------------------------------------------------------------------*/
+ /// constructs an OBlockConfig out of the given netCDF \p group
+ /** It constructs an OBlockConfig out of the given netCDF \p
+  * group. Please refer to the deserialize() method for the format of a
+  * netCDF::NcGroup of an OBlockConfig.
+  *
+  * @param group The netCDF::NcGroup containing the description of the
+  *        OBlockConfig. */
+
+ OBlockConfig( netCDF::NcGroup & group ) : OBlockConfig() {
+  deserialize( group );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// constructs an OBlockConfig out of an istream
+ /** It constructs an OBlockConfig out of the given istream \p
+  * input. Please refer to the load() method for the format of an
+  * OBlockConfig.
+  *
+  * @param input The istream containing the description of the
+  *        OBlockConfig. */
+
+ OBlockConfig( std::istream &input ) : OBlockConfig() {
+  load( input );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// constructs an OBlockConfig for the given Block
+ /** It constructs an OBlockConfig for the given \p block. It creates
+  * an empty OBlockConfig and invoke the method get().
+  *
+  * @param block A pointer to the Block for which an OBlockConfig will
+  *        be constructed.
+  *
+  * @param diff It indicates if this configuration is a "differential" one.
+  */
+
+ OBlockConfig( Block * block , bool diff = false ) : OBlockConfig( diff ) {
+  get( block );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// copy constructor: does what it says on the tin
+
+ OBlockConfig( const OBlockConfig &old );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// extends BlockConfig::deserialize( netCDF::NcGroup )
+ /** Extends BlockConfig::deserialize( netCDF::NcGroup ) to the specific
+  * format of a OBlockConfig. Besides the mandatory "type" attribute of any
+  * :Configuration, and all that is needed to describe a BlockConfig, the
+  * group should also contain the following:
+  *
+  * - a group with name "Config_Objective", containing the description of a
+  *   ComputeConfig associated with the Objective of the current Block; this
+  *   group is optional; if it is not provided, then nullptr (default
+  *   configuration) is assumed. */
+
+ void deserialize( netCDF::NcGroup & group ) override;
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+ /// destructor: deletes the ComputeConfig of the Objective
+ /** It deletes the ComputeConfig of the Objective of the Block. */
+ virtual ~OBlockConfig()
+ {
+  delete f_Config_Objective;
+  }
+
+/**@} ----------------------------------------------------------------------*/
+/*---------- METHODS DESCRIBING THE BEHAVIOR OF THE OBlockConfig ----------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods describing the behavior of the OBlockConfig
+ *  @{ */
+
+/*--------------------------------------------------------------------------*/
+ /// configure the given Block and its Objective
+ /** Method for configuring the given Block and its Objective. The
+  * configuration depends on the field #f_diff, which indicates whether it has
+  * to be interpreted in "differential mode". Please refer to
+  * Block::set_BlockConfig() for understanding how #f_diff and \p deleteold
+  * affect the configuration of a Block. The behaviour of this method is the
+  * following:
+  *
+  * First, BlockConfig::apply() is invoked. Then, set_ComputeConfig() is
+  * invoked for the Objective of the given Block.
+  *
+  * @param block A pointer to the Block that must be configured.
+  *
+  * @param deleteold Indicates whether the current BlockConfig of Block must
+  *        be deleted. */
+
+ void apply( Block * block , bool deleteold = true ) override;
+
+/*------------------------------- CLONE -----------------------------------*/
+
+ OBlockConfig * clone( void ) const override
+ {
+  return( new OBlockConfig( *this ) );
+  }
+
+/**@} ----------------------------------------------------------------------*/
+/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Other initializations
+ *  @{ */
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// getting the OBlockConfig of the given Block
+ /** This method gets information about the parameter of the given Block (and
+  * its Objective) and stores in this OBlockConfig. This information consists
+  * of that supported by the BlockConfig (see BlockConfig::get()) plus the
+  * ComputeConfig that may be associated with the Objective of the given
+  * Block. Any Configuration that this OBlockConfig may have at the moment
+  * this function is invoked is deleted.
+  *
+  * @param block A pointer to the Block whose OBlockConfig must be filled. */
+
+ void get( Block * block ) override;
+
+/**@} ----------------------------------------------------------------------*/
+/*-------- METHODS FOR LOADING, PRINTING & SAVING THE OBlockConfig --------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for loading, printing & saving the OBlockConfig
+ *  @{ */
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// extends BlockConfig::serialize( netCDF::NcGroup )
+ /** Extends BlockConfig::serialize( netCDF::NcGroup ) to the specific format
+  * of an OBlockConfig. See OBlockConfig::deserialize( netCDF::NcGroup ) for
+  * details of the format of the created netCDF group. */
+
+ void serialize( netCDF::NcGroup & group ) const override;
+
+/**@} ----------------------------------------------------------------------*/
+/*--------------- METHODS FOR MODIFYING THE OBlockConfig ------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for modifying the OBlockConfig
+ *  @{ */
+
+ /// sets the ComputeConfig of the Objective
+ /** This function sets the pointer to the ComputeConfig of the Objective of
+  * the Block.
+  *
+  * @param config A pointer to the ComputeConfig of the Objective.
+  *
+  * @param deleteold It indicates whether the currently stored ComputeConfig
+  *        for the Objective (if any) must be destroyed. */
+
+ void set_Config_Objective( ComputeConfig * config , bool deleteold = true ) {
+  if( deleteold )
+   delete f_Config_Objective;
+  f_Config_Objective = config;
+  }
+
+/**@} ----------------------------------------------------------------------*/
+/*------------ Methods for reading the data of the OBlockConfig -----------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for reading the data of the OBlockConfig
+ *  @{ */
+
+ /// returns the ComputeConfig of the Objective
+ /** This function returns a pointer to the ComputeConfig of the Objective of
+  * the Block. */
+
+ ComputeConfig * get_Config_Objective( void ) const {
+  return( f_Config_Objective );
+  }
+
+/**@} ----------------------------------------------------------------------*/
+/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ /// print the OBlockConfig
+ void print( std::ostream &output ) const override;
+
+/*--------------------------------------------------------------------------*/
+ /// load this OBlockConfig out of an istream
+ /** Load this OBlockConfig out of an istream. The format is defined as that
+  * specified in BlockConfig::load(), followed by:
+  *
+  * - a string containing the class type of a ComputeConfig object for the
+  *   Objective, '*' means none (nullptr)
+  * - if the above is not '*', the description of the :ComputeConfig object
+  *   for the Objective. */
+
+ void load( std::istream &input ) override;
+
+/*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
+
+ /// the (pointer to the) ComputeConfig for the Objective of the Block
+ ComputeConfig * f_Config_Objective = nullptr;
+
+/*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
+
+ private:
+
+/*---------------------------- PRIVATE FIELDS ------------------------------*/
+
+ SMSpp_insert_in_factory_h;
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( OBlockConfig ) )
 
 /** @}  end( group( RBlockConfig_CLASSES ) ) */
 

@@ -107,6 +107,11 @@ void SimpleConfiguration<int>::deserialize( netCDF::NcGroup & group )
  ( group.getVar( "value" ) ).getVar( & f_value );
  }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration<int>::clear( void ) { }
+
 /*--------------------------------------------------------------------------*/
 
 template<>
@@ -124,6 +129,11 @@ void SimpleConfiguration<double>::deserialize( netCDF::NcGroup & group )
  Configuration::deserialize( group );
  ( group.getVar( "value" ) ).getVar( & f_value );
  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration<double>::clear( void ) { }
 
 /*--------------------------------------------------------------------------*/
 
@@ -146,6 +156,11 @@ void SimpleConfiguration< std::pair<int,int> >::deserialize(
  ( group.getVar( "value_f" ) ).getVar( & f_value.first );
  ( group.getVar( "value_s" ) ).getVar( & f_value.second );
  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::pair<int,int> >::clear( void ) { }
 
 /*--------------------------------------------------------------------------*/
 
@@ -170,6 +185,11 @@ void SimpleConfiguration< std::pair<double,double> >::deserialize(
  ( group.getVar( "value_s" ) ).getVar( & f_value.second );
  }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::pair<double,double> >::clear( void ) { }
+
 /*--------------------------------------------------------------------------*/
 
 template<>
@@ -192,6 +212,11 @@ void SimpleConfiguration< std::pair<int,double> >::deserialize(
  ( group.getVar( "value_s" ) ).getVar( & f_value.second );
  }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::pair<int,double> >::clear( void ) { }
+
 /*--------------------------------------------------------------------------*/
 
 template<>
@@ -213,6 +238,11 @@ void SimpleConfiguration< std::pair<double,int> >::deserialize(
  ( group.getVar( "value_f" ) ).getVar( & f_value.first );
  ( group.getVar( "value_s" ) ).getVar( & f_value.second );
  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::pair<double,int> >::clear( void ) { }
 
 /*--------------------------------------------------------------------------*/
 
@@ -245,6 +275,14 @@ void SimpleConfiguration< std::vector<int> >::deserialize(
  std::vector<size_t> start = { 0 };
  std::vector<size_t> count = { size };
  ( group.getVar( "value" ) ).getVar( start , count , f_value.data() );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::vector<int> >::clear( void )
+{
+ f_value.clear();
  }
 
 /*--------------------------------------------------------------------------*/
@@ -282,6 +320,14 @@ void SimpleConfiguration< std::vector<double> >::deserialize(
  ( group.getVar( "value" ) ).getVar( start , count , f_value.data() );
  }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::vector<double> >::clear( void )
+{
+ f_value.clear();
+ }
+
 /*--------------------------------------------------------------------------*/
 
 template<>
@@ -316,6 +362,14 @@ void SimpleConfiguration< std::list<int> >::deserialize(
   }
  }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::list<int> >::clear( void )
+{
+ f_value.clear();
+ }
+
 /*--------------------------------------------------------------------------*/
 
 template<>
@@ -348,6 +402,14 @@ void SimpleConfiguration< std::list<double> >::deserialize(
   var.getVar( { i++ } , &val );
   f_value.push_back( val );
   }
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::list<double> >::clear( void )
+{
+ f_value.clear();
  }
 
 /*--------------------------------------------------------------------------*/
@@ -393,6 +455,18 @@ void SimpleConfiguration< std::pair< Configuration * , Configuration * >
  input >> eatcomments >> name;
  f_value.second = new_Configuration( name );
  input >> *(f_value.second);
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::pair< Configuration * , Configuration * >
+			  >::clear( void )
+{
+ if( f_value.first )
+  f_value.first->clear();
+  if( f_value.second )
+  f_value.second->clear();
  }
 
 /*--------------------------------------------------------------------------*/
@@ -452,6 +526,16 @@ void SimpleConfiguration< std::vector< Configuration * >
   f_value[ i ] = new_Configuration( name );
   input >> *(f_value[ i ]);
   }
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::vector< Configuration * > >::clear( void )
+{
+ for( auto config : f_value )
+  if( config )
+   config->clear();
  }
 
 /*--------------------------------------------------------------------------*/

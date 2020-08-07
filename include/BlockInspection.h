@@ -469,21 +469,20 @@ namespace SMSpp_di_unipi_it::inspection
 
  /// returns a pointer to the Constraint identified by the given \p id
  /** Returns a pointer to the Constraint identified by the given \p id in the
-  * given \p block. The desired Constraint must have exactly the type T. If no
-  * Constraint of type T with the given \p id is found, nullptr is returned.
+  * given \p block. If no Constraint with the given \p id is found, nullptr is
+  * returned.
   *
   * @param block The Block to which the desired Constraint belongs.
   *
   * @param id The Block::ConstraintID identifying the Constraint in the given
   *        \p block.
   *
-  * @return If there is a Constraint of type T with the given \p id in the
-  *         given \p Block, then a pointer to this Constraint is
-  *         returned. Otherwise, nullptr is returned.
+  * @return If there is a Constraint with the given \p id in the given \p
+  *         Block, then a pointer to this Constraint is returned. Otherwise,
+  *         nullptr is returned.
   */
- template< class T >
- static T * get_Constraint( const Block * const block ,
-                            const Block::ConstraintID id ) {
+ static Constraint * get_Constraint( const Block * const block ,
+                                     const Block::ConstraintID id ) {
   const auto & static_constraints = block->get_static_constraints();
   const auto num_static_groups = static_constraints.size();
   auto group_index = id.first;
@@ -492,7 +491,8 @@ namespace SMSpp_di_unipi_it::inspection
   if( group_index < num_static_groups ) {
    // A static Constraint
    auto any_group = static_constraints[ group_index ];
-   return get_element< T >( any_group , constraint_index , true );
+   return get_static_element< Constraint , Constraint_Derived_Classes >
+    ( any_group , constraint_index );
   }
   else {
    // A dynamic Constraint
@@ -504,89 +504,92 @@ namespace SMSpp_di_unipi_it::inspection
                              "index: " + std::to_string( group_index ) ) );
 
    auto any_group = dynamic_constraints[ group_index ];
-   return get_element< T >( any_group , constraint_index , false );
+
+   return get_dynamic_element< Constraint , Constraint_Derived_Classes >
+    ( any_group , constraint_index );
   }
  }
 
 /*--------------------------------------------------------------------------*/
 
- /// returns a pointer to the inner Block associated with the given Function
- /** Returns a pointer to the inner Block associated with the given \p
-  * function. The given Function is expected to be either a BendersBFunction or
-  * a LagBFunction. If the given Function is not of any of these two types,
-  * then nullptr is returned.
-  *
-  * @param function A pointer to the Function whose inner Block is desired.
-  *
-  * @return The inner Block associated with the given Function. If the given
-  *         Function has no associated inner Block, then nullptr is returned.
-  */
- static Block * get_indirect_sub_Block( const Function * const function ) {
-  if( ! function )
-   return nullptr;
-  if( auto f = dynamic_cast< const BendersBFunction * >( function ) )
-   return f->get_inner_block();
-  else if( auto f = dynamic_cast< const LagBFunction * >( function ) )
-   return f->get_inner_block();
-  return nullptr;
+ template<class T , class... Rest>
+ static void fill_static_ComputeConfig
+ ( boost::any & group ,const Index group_index ,
+   std::vector<ComputeConfig *> & configs ,
+   std::vector<Block::ConstraintID> & ids  ) {
+
+  Index constraint_index = 0;
+  bool group_found = un_any_static
+   ( group , [ & ]( T & constraint ) {
+              auto config = constraint.get_ComputeConfig();
+              if( config ) {
+               configs.push_back( config );
+               ids.push_back( Block::ConstraintID( group_index , constraint_index ) );
+              }
+              ++constraint_index;
+             } , un_any_type<T>() );
+  if( group_found )
+   return;
+  else if constexpr( sizeof...(Rest) != 0 )
+   fill_static_ComputeConfig<Rest...>( group , group_index , configs , ids );
  }
 
 /*--------------------------------------------------------------------------*/
 
- /// returns the inner Block associated with the Objective of the given Block
- /** Returns a pointer to the inner Block associated with the given Objective
-  * of \p block. If the Objective of the given Block is not an FRealObjective,
-  * then nullptr is returned.
-  *
-  * @param block A pointer to the Block containing an Objective whose
-  *        associated inner Block is desired.
-  *
-  * @return A pointer to the inner Block associated with the Objective of the
-  *         given Block. If the Objective of the given Block is not an
-  *         FRealObjective, nullptr is returned.
-  */
- static Block * get_indirect_sub_Block( const Block * const block ) {
-  if( auto objective = dynamic_cast<FRealObjective *>( block->get_objective() ) )
-   return get_indirect_sub_Block( objective->get_function() );
-  return nullptr;
+ template<class T , class... Rest>
+ static void fill_dynamic_ComputeConfig
+ ( boost::any & group , const Index group_index ,
+   std::vector<ComputeConfig *> & configs ,
+   std::vector<Block::ConstraintID> & ids  ) {
+
+  Index constraint_index = 0;
+  bool group_found = un_any_dynamic
+   ( group , [ & ]( T & constraint ) {
+              auto config = constraint.get_ComputeConfig();
+              if( config ) {
+               configs.push_back( config );
+               ids.push_back( Block::ConstraintID( group_index , constraint_index ) );
+              }
+              ++constraint_index;
+             } , un_any_type<T>() );
+  if( group_found )
+   return;
+  else if constexpr( sizeof...(Rest) != 0 )
+   fill_dynamic_ComputeConfig<Rest...>( group , group_index , configs , ids );
  }
 
 /*--------------------------------------------------------------------------*/
 
- /// returns a pointer to the inner Block associated with the given Constraint
- /** Returns a pointer to the inner Block associated with the given \p
-  * constraint. If the given Constraint has no inner Block associated with it,
-  * nullptr is returned.
-  *
-  * @param constraint A pointer to the Constraint whose associated inner Block
-  *        is desired.
-  *
-  * @return The inner Block associated with the given Constraint. If the given
-  *         Constraint has no associated inner Block, then nullptr is returned.
-  */
- static Block * get_indirect_sub_Block( const Constraint * const constraint ) {
-  if( auto frowc = dynamic_cast< const FRowConstraint * >( constraint ) )
-   return get_indirect_sub_Block( frowc->get_function() );
-  return nullptr;
- }
+ /// get the ComputeConfig of the Constraint of the given Block
+ /** This method scans all Constraint of the given \p block and adds the
+  * (non-default) ComputeConfig of the Constraint to \p configs and the
+  * ConstraintID of those Constraint in \p ids. */
 
-/*--------------------------------------------------------------------------*/
+ static void fill_ComputeConfig_Constraint
+ ( Block * block , std::vector<ComputeConfig *> & configs ,
+   std::vector<Block::ConstraintID> & ids ) {
 
- /// returns a pointer to the inner Block associated with the given Constraint
- /** Returns a pointer to the inner Block associated with the Constraint,
-  * belonging to \p block, specified by the given ConstraintID \p id (if any).
-  *
-  * @param block The Block to which the Constraint belongs.
-  *
-  * @param id The Block::ConstraintID identifying the Constraint in the given
-  *        \p block.
-  *
-  * @return The inner Block associated with the given Constraint.
-  */
- static Block * get_indirect_sub_Block( const Block * const block ,
-                                        const Block::ConstraintID id ) {
-  auto constraint = get_Constraint< FRowConstraint >( block , id );
-  return get_indirect_sub_Block( constraint );
+  if( ! block )
+   return;
+
+  // Static Constraint
+  auto static_constraints = block->get_static_constraints();
+  for( Index group_index = 0 ; group_index < static_constraints.size() ;
+       ++group_index ) {
+   fill_static_ComputeConfig< Constraint_Derived_Classes >
+    ( static_constraints[ group_index ] , group_index , configs , ids );
+  }
+
+  const auto group_index_offset = static_constraints.size();
+
+  // Dynamic Constraint
+  auto dynamic_constraints = block->get_dynamic_constraints();
+  for( Index group_index = 0 ; group_index < dynamic_constraints.size() ;
+       ++group_index ) {
+   fill_dynamic_ComputeConfig< Constraint_Derived_Classes >
+    ( dynamic_constraints[ group_index ] , group_index + group_index_offset ,
+      configs , ids );
+  }
  }
 
 }  // end( namespace SMSpp_di_unipi_it::inspection )

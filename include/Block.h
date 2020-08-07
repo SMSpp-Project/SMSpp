@@ -7195,6 +7195,14 @@ class BlockConfig : public Configuration
  *  @{ */
 
 /*--------------------------------------------------------------------------*/
+ /// delete all sub-Configuration
+ /** This method deletes all sub-Configuration and does not change the value
+  * of #f_diff. */
+ void clear( void ) override {
+  delete_sub_Configuration();
+  }
+
+/*--------------------------------------------------------------------------*/
  /// configure the given Block
  /** Method for configuring the given Block. The configuration depends on the
   * field #f_diff, which indicates whether it has to be interpreted in
