@@ -96,6 +96,7 @@ SMS++H = $(SMS++SDR)include/AbstractBlock.h \
 	$(SMS++SDR)include/Solver.h \
 	$(SMS++SDR)include/ThinComputeInterface.h \
 	$(SMS++SDR)include/ThinVarDepInterface.h \
+	$(SMS++SDR)include/UpdateSolver.h \
 	$(SMS++SDR)include/Variable.h
 
 # clean - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -276,7 +277,8 @@ $(SMS++SDR)obj/PolyhedralFunctionBlock.o: $(intBlockINC) \
 	$(CC) -c $(SMS++SDR)src/PolyhedralFunctionBlock.cpp -o $@ \
 	$(SMS++INC) $(SW)
 
-#$(SMS++SDR)obj/RowConstraint.o: $(SMS++SDR)src/RowConstraint.cpp $(intBlockINC)
+#$(SMS++SDR)obj/RowConstraint.o: $(SMS++SDR)src/RowConstraint.cpp \
+#	$(intBlockINC)
 #	$(SMS++SDR)include/RowConstraint.h $(SMS++SDR)include/Constraint.h
 #	$(SMS++SDR)include/ThinVarDepInterface.h
 #	$(CC) -c $(SMS++SDR)src/RowConstraint.cpp -o $@ $(SMS++INC) $(SW)
@@ -294,7 +296,7 @@ $(SMS++SDR)obj/RowConstraintSolution.o: \
 	$(SW)
 
 $(SMS++SDR)obj/Solver.o: $(SMS++SDR)src/Solver.cpp $(intBlockINC) \
-	$(SMS++SDR)include/FakeSolver.h
+	$(SMS++SDR)include/FakeSolver.h $(SMS++SDR)include/UpdateSolver.h
 	$(CC) -c $(SMS++SDR)src/Solver.cpp -o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)obj/Variable.o: $(SMS++SDR)src/Variable.cpp \
@@ -305,6 +307,7 @@ $(SMS++SDR)obj/ThinComputeInterface.o: \
 	$(SMS++SDR)src/ThinComputeInterface.cpp \
 	$(SMS++SDR)include/ThinComputeInterface.h \
 	$(SMS++SDR)include/Configuration.h $(SMS++SDR)include/SMSTypedefs.h
-	$(CC) -c $(SMS++SDR)src/ThinComputeInterface.cpp -o $@ $(SMS++INC) $(SW)
+	$(CC) -c $(SMS++SDR)src/ThinComputeInterface.cpp -o $@ $(SMS++INC) \
+	$(SW)
 
 ########################## End of makefile ###################################

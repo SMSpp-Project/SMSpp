@@ -92,20 +92,17 @@ public:
  /** FakeSolver does not even really try to solve the Block, so all this
   * method does is to return kError. */
 
- virtual int compute( bool changedvars = true ) override
- {
-  return( kError );
-  }
+ int compute( bool changedvars = true ) override { return( kError ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------------- METHODS FOR READING RESULTS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
- virtual bool has_var_solution( void ) override { return( false ); }
+ bool has_var_solution( void ) override { return( false ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual void get_var_solution( Configuration *solc = nullptr ) override {}
+ void get_var_solution( Configuration *solc = nullptr ) override {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// provide unfettered access to the list of Modification

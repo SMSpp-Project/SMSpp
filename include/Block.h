@@ -4146,8 +4146,8 @@ class Block : public Observer {
   * The second parameter is provided for allowing the creation of R3 Blocks to
   * happen "piecemeal". The obvious use case is that of a class B1 : Block and
   * B2 : B1 where B1 provides some R3 Block, say the copy. If, as it is
-  * sensible, B2 wants to provide the same R3 Block, there must be a way for
-  * B2 to "demand to B1 the work on its part of the R3 Block", while taking
+  * sensible, B2 wants to provide the same R3 Block, it is useful for B2 to
+  * be able to "ask B1 to work on its part of the R3 Block", while taking
   * care of the B2-specific part. The idea is then that B2 can construct the
   * R3 Block (say, of class B2 in case of the copy) an use B1::get_R3_Block()
   * to have the B1-specific part managed (say, copied). Of course, B1 will
@@ -4191,15 +4191,18 @@ class Block : public Observer {
   * they may possibly be added to the R3 Block later on [see
   * map_forward_Modification()], if the original Block supports it.
   *
-  * The method is given an extremely lazy default implementation refusing to
-  * produce any kind of R3 Block, comprised the "copy" one. Thus, the caller
-  * should always check the returned argument for non-nullptr-dness to
-  * ensure that the :Block was actually able to produce the required R3 one. */
+  * The method is given a default implementation just returning the base
+  * argument. This is OK for extremely lazy Block refusing to produce any
+  * kind of R3 Block, comprised the "copy" one, as well as for Block whose
+  * derived classes take all the burden of the R3 Block construction.
+  * Anyway, it is clear that the caller should always check the returned
+  * value for non-nullptr-dness to ensure that the :Block was actually able
+  * to produce the required R3 one. */
 
  virtual Block * get_R3_Block( Configuration *r3bc = nullptr ,
 			       Block * base = nullptr )
  {
-  return( nullptr );
+  return( base );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -4444,7 +4447,22 @@ class Block : public Observer {
   * allows to check that this has happened. The default implementation of
   * the method works for "extremely lazy" Block not being willing to
   * implement any of the possible mapping, or extremely unlucky ones not
-  * having any workable one to implement. */
+  * having any workable one to implement.
+  *
+  *     IMPORTANT NOTE: MAPPING SOME Modification MAY ONLY BE POSSIBLE IF
+  *     PERFORMED "IMMEDIATELY" AFTER THE ORIGINAL Block HAS BEEN MODIFIED
+  *
+  * A case in point is if the Block has some dynamic Constraint or Variable.
+  * These can be changed, deleted and added. This kind of change may be very
+  * hard to manage if one lets Modification accumulate. For instance, a
+  * dynamic Constraint may first be modified, and then deleted. If the
+  * map_forward_Modification() corresponding to changing the constraint is
+  * called *after* that the Constraint has been deleted, the original Block
+  * no longer has any information on the Constraint, and therefore may have
+  * no way to properly implement the change. Each :Block should clearly if
+  * it supports deferred map_forward_Modification() for all the
+  * Modification it produces, or which Modification need be mapped
+  * "immediately". */
 
  virtual bool map_forward_Modification( Block *R3B , sp_Mod mod ,
 					Configuration *r3bc = nullptr ,

@@ -140,6 +140,268 @@ void PolyhedralFunctionBlock::generate_objective( Configuration * objc )
 /*--------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------*/
+/*------------------------- Methods for R3 Blocks --------------------------*/
+/*--------------------------------------------------------------------------*/
+
+Block * PolyhedralFunctionBlock::get_R3_Block( Configuration *r3bc ,
+					       Block * base )
+{
+ if( r3bc != nullptr )
+  throw( std::invalid_argument( "non-nullptr R3B Configuration" ) );
+
+ PolyhedralFunctionBlock *PFB;
+ if( base ) {
+  PFB = dynamic_cast< PolyhedralFunctionBlock * >( base );
+  if( ! PFB )
+   throw( std::invalid_argument( "base is not a PolyhedralFunctionBlock" ) );
+  }
+ else
+  PFB = new PolyhedralFunctionBlock();
+
+ PFB->f_polyf.set_PolyhedralFunction(
+		   PolyhedralFunction::MultiVector( f_polyf.get_A() ) ,
+		   PolyhedralFunction::RealVector( f_polyf.get_b() ) ,
+		   f_polyf.get_global_bound() , f_polyf.is_convex() ,
+		   eNoMod );
+ return( PFB );
+
+ }  // end( MCFBlock::get_R3_Block )
+
+/*--------------------------------------------------------------------------*/
+
+bool PolyhedralFunctionBlock::map_forward_Modification(
+			      Block *R3B , sp_Mod mod , Configuration *r3bc ,
+			      c_ModParam issuePMod , c_ModParam issueAMod )
+{
+ auto PFB = dynamic_cast< PolyhedralFunctionBlock * >( R3B );
+ if( ! PFB )
+  throw( std::invalid_argument( "R3B is not a PolyhedralFunctionBlock" ) );
+ if( r3bc != nullptr )
+  throw( std::invalid_argument( "non-nullptr R3B Configuration" ) );
+
+ /* Note that issueAMod is completely ignored because we only perform
+    physical Modification; the "translation" to "abstract" Modification, if
+    ever, will be done by PFB->add_Modification() when it receives the
+    physical one generated here. */
+
+ /* When a GroupModification is processed, if no channel is provided, then
+    one is opened. This only happens "at root", after which in guts_of_mfM()
+    whenever a GroupModification is processed, then the channel is nested.
+    Indeed, if the "root" Modification is not a GroupModification, then there
+    cannot be any GroupModification in it. */
+
+ ModParam iPM = issuePMod;
+
+ const auto tmod = std::dynamic_pointer_cast< GroupModification >( mod );
+ if( tmod ) {  // if the channels are the default ones, open new ones
+  if( ! par2chnl( issuePMod ) )
+   iPM = make_par( par2concern( issuePMod ) , PFB->open_channel() );
+  }
+
+ /* Use a Lambda to define a "guts" of the method that can be called
+    recursively without having to pass "local globals". Note the trick of
+    defining the std::function object and "passing" it to the lambda,
+    which allows recursive calls. Note the need to explicitly capture
+    "this" to use fields/methods of the class. */
+
+ std::function< bool( sp_Mod )> guts_of_mfM;
+ guts_of_mfM = [ this , & guts_of_mfM , & PFB , & iPM ]( sp_Mod mod ) {
+  // process Modification- - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  /* This requires to patiently sift through the possible Modification types
+     to find what this Modification exactly is, and call the appropriate
+     method changing the "physical representation" of PFB. */
+
+  // GroupModification - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  {
+   const auto tmod = std::dynamic_pointer_cast<GroupModification>( mod );
+   if( tmod ) {
+    PFB->nest_channel( par2chnl( iPM ) );  // nest the channel for PM
+
+    bool ok = true;
+    for( const auto & submod : tmod->v_sub_Modifications )
+     if( ! guts_of_mfM( submod ) )
+      ok = false;
+
+    PFB->un_nest_channel( par2chnl( iPM ) );  // un-nest the channel for PM
+
+    return( ok );
+    }
+   }
+
+  // PolyhedralFunctionModRngd - - - - - - - - - - - - - - - - - - - - - - - -
+  {
+   const auto tmod =
+                std::dynamic_pointer_cast< PolyhedralFunctionModRngd >( mod );
+   if( tmod ) {
+    Index n = tmod->range().second - tmod->range().first;
+    switch( tmod->PFtype() ) {
+     case( PolyhedralFunctionMod::ModifyRows ):
+      if( n == 1 )
+       PFB->f_polyf.modify_row( tmod->range().first ,
+				 PolyhedralFunction::RealVector(
+				   f_polyf.get_A()[ tmod->range().first ] ) ,
+				 f_polyf.get_b()[ tmod->range().first ] ,
+				 iPM );
+      else {
+       PolyhedralFunction::MultiVector nA( n );
+       PolyhedralFunction::RealVector nb( n );
+       Index j = 0;
+       for( Index i = tmod->range().first ; i < tmod->range().second ; ) {
+	nA[ j ] = f_polyf.get_A()[ i ];
+	nb[ j++ ] = f_polyf.get_b()[ i++ ];
+        }
+       
+       PFB->f_polyf.modify_rows( std::move( nA ) , std::move( nb ) ,
+				  tmod->range() , iPM );
+       }
+      break;
+     case( PolyhedralFunctionMod::ModifyCnst ):
+      if( n == 0 ) {
+       PFB->f_polyf.modify_bound(  f_polyf.get_global_bound() , iPM );
+       break;
+       }
+       
+      if( n == 1 )
+       PFB->f_polyf.modify_constant( tmod->range().first ,
+			    f_polyf.get_b()[ tmod->range().first ] , iPM );
+      else {
+       PolyhedralFunction::RealVector nb( n );
+       auto bit = nb.begin();
+       for( Index i = tmod->range().first ; i < tmod->range().second ; )
+	*(bit++) = f_polyf.get_b()[ i++ ];
+       
+       PFB->f_polyf.modify_constants( std::move( nb ) ,
+				       tmod->range() , iPM );
+       }
+      break;
+     case( PolyhedralFunctionMod::DeleteRows ):
+      if( n == 1 )
+       PFB->f_polyf.delete_row( tmod->range().first , iPM );
+      else
+       PFB->f_polyf.delete_rows( tmod->range() , iPM );
+      break;
+     default:
+      throw( std::invalid_argument(
+			      "unknown PolyhedralFunctionModRngd PFtype" ) );
+     }
+    return( true );
+    }
+   }
+
+  // PolyhedralFunctionModSbst - - - - - - - - - - - - - - - - - - - - - - - -
+  {
+   const auto tmod =
+                std::dynamic_pointer_cast< PolyhedralFunctionModSbst >( mod );
+   if( tmod ) {
+    Index n = tmod->rows().size();
+    switch( tmod->PFtype() ) {
+     case( PolyhedralFunctionMod::ModifyRows ):
+      if( n == 1 )
+       PFB->f_polyf.modify_row( tmod->rows()[ 0 ] ,
+				 PolyhedralFunction::RealVector(
+				    f_polyf.get_A()[ tmod->rows()[ 0 ] ] ) ,
+				 f_polyf.get_b()[ tmod->rows()[ 0 ] ] ,
+				 iPM );
+      else {
+       PolyhedralFunction::MultiVector nA( n );
+       PolyhedralFunction::RealVector nb( n );
+       Index j = 0;
+       for( auto i : tmod->rows() ) {
+	nA[ j ] = f_polyf.get_A()[ i ];
+	nb[ j++ ] = f_polyf.get_b()[ i ];
+        }
+       
+       PFB->f_polyf.modify_rows( std::move( nA ) , std::move( nb ) ,
+				 Subset( tmod->rows() ) , true , iPM );
+       }
+      break;
+     case( PolyhedralFunctionMod::ModifyCnst ):
+      if( n == 1 )
+       PFB->f_polyf.modify_constant( tmod->rows()[ 0 ] ,
+				     f_polyf.get_b()[ tmod->rows()[ 0 ] ] ,
+				     iPM );
+      else {
+       PolyhedralFunction::RealVector nb( n );
+       auto bit = nb.begin();
+       for( auto i : tmod->rows() )
+	*(bit++) = f_polyf.get_b()[ i ];
+       
+       PFB->f_polyf.modify_constants( std::move( nb ) ,
+				      Subset( tmod->rows() ) , true , iPM );
+       }
+      break;
+     case( PolyhedralFunctionMod::DeleteRows ):
+      if( n == 1 )
+       PFB->f_polyf.delete_row( tmod->rows()[ 0 ] , iPM );
+      else
+       PFB->f_polyf.delete_rows( Subset( tmod->rows() ) , true , iPM );
+      break;
+     default:
+      throw( std::invalid_argument(
+			      "unknown PolyhedralFunctionModRngd PFtype" ) );
+     }
+    return( true );
+    }
+   }
+
+  // PolyhedralFunctionModAddd - - - - - - - - - - - - - - - - - - - - - - - -
+  {
+   const auto tmod =
+                std::dynamic_pointer_cast< PolyhedralFunctionModAddd >( mod );
+   if( tmod ) {
+    }
+   }
+
+  // NBModification- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  {
+   const auto tmod = std::dynamic_pointer_cast<NBModification>( mod );
+   if( tmod ) {
+    // this is the "nuclear option": the PFBlock has been re-loaded
+    // one should check that the Block is this PFBlock, but it cannot
+    // be otherwise, can it?
+
+
+    return( true );
+    }
+   }
+
+  return( false );
+
+  };  // end( guts_of_mfM )- - - - - - - - - - - - - - - - - - - - - - - - - -
+      // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ // finally, call the "guts of"- - - - - - - - - - - - - - - - - - - - - - - -
+
+ bool ok = guts_of_mfM( mod );  // now the actual call
+
+ if( tmod )  // now close the opened channel, if any
+  if( iPM != issuePMod ) PFB->close_channel( par2chnl( iPM ) );
+
+ return( ok );
+
+ }  // end( PFBlock::map_forward_Modification )
+
+/*--------------------------------------------------------------------------*/
+
+bool PolyhedralFunctionBlock::map_back_Modification(
+			      Block *R3B , sp_Mod mod , Configuration *r3bc ,
+			      c_ModParam issuePMod , c_ModParam issueAMod )
+{
+ /* Fantastically dirty trick: because the two objects are copies, mapping
+    back a Modification to this from R3B is the same as mapping forward a
+    Modification from R3B to this. */
+
+ auto PFB = dynamic_cast< PolyhedralFunctionBlock * >( R3B );
+ if( ! PFB )
+  throw( std::invalid_argument( "R3B is not a PolyhedralFunctionBlock" ) );
+
+ return( PFB->map_forward_Modification( this , mod , r3bc , issuePMod ,
+					issueAMod ) );
+
+ }  // end( PolyhedralFunctionBlock::map_back_Modification )
+
+/*--------------------------------------------------------------------------*/
 /*-------------------- Methods for handling Modification -------------------*/
 /*--------------------------------------------------------------------------*/
 

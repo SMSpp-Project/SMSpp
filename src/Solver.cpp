@@ -33,6 +33,8 @@
 
 #include "FakeSolver.h"
 
+#include "UpdateSolver.h"
+
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -51,9 +53,14 @@ int do_nothing( void ) { return( Solver::eContinue ); };
 /*----------------------------- STATIC MEMBERS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-// register the various FakeSolver to the Solver factory
+// register FakeSolver to the Solver factory
 
 SMSpp_insert_in_factory_cpp_0( FakeSolver );
+
+/*--------------------------------------------------------------------------*/
+// register UpdateSolver to the Solver factory
+
+SMSpp_insert_in_factory_cpp_0( UpdateSolver );
 
 /*--------------------------------------------------------------------------*/
 // define and initialize here the vector of int parameters names
