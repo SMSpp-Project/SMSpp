@@ -1252,7 +1252,7 @@ void BendersBFunction::add_Modification( sp_Mod mod ,
  // GroupModification - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  if( const auto tmod = std::dynamic_pointer_cast<GroupModification>( mod ) ) {
-  for( const auto & submod : tmod->v_sub_Modifications )
+  for( const auto & submod : tmod->sub_Modifications() )
    this->add_Modification( submod , chnl );
   return;
   }

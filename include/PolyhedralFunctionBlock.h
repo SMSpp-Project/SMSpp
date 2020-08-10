@@ -478,13 +478,15 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   *
   * - C05FunctionModVarsAddd BUT THESE ARE NOT HANDLED BY THIS METHOD.
   *
-  * The rationale is that this is simply not possible, since
-  * PolyhedralFunctionBlock has no clue "where the active Variable of the
-  * PolyhedralFunction come from", and in particular the newly added
-  * Variable may not even be in the copy PolyhedralFunctionBlock. This
-  * kind of operation therefore have to be managed by
-  * map_forward_Modification() of whichever :Block contains the
-  * PolyhedralFunctionBlock.
+  *   The rationale is that this is simply not possible, since
+  *   PolyhedralFunctionBlock has no clue "where the active Variable of the
+  *   PolyhedralFunction come from", and in particular the newly added
+  *   Variable may not even be in the copy PolyhedralFunctionBlock. This
+  *   kind of operation therefore have to be managed by
+  *   map_forward_Modification() of whichever :Block contains the
+  *   PolyhedralFunctionBlock. For this reason, if a C05FunctionModVarsAddd
+  *   is received "true" is returned even if nothing is done (on the
+  *   expectation that the right thing is anyway be done elsewhere).
   *
   *     IMPORTANT NOTE: PolyhedralFunctionMod[Rngd/Sbst] AND
   *     PolyhedralFunctionModAddd ALLOW TO ADD/DELETE ROWS IN THE
@@ -513,8 +515,8 @@ class PolyhedralFunctionBlock : public AbstractBlock {
 
  bool map_forward_Modification( Block *R3B , sp_Mod mod ,
 				Configuration *r3bc = nullptr ,
-				c_ModParam issuePMod = eNoBlck ,
-				c_ModParam issueAMod = eModBlck ) override;
+				ModParam issuePMod = eNoBlck ,
+				ModParam issueAMod = eModBlck ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /** No specific Configuration is expected for PolyhedralFunctionBlock.
@@ -525,8 +527,8 @@ class PolyhedralFunctionBlock : public AbstractBlock {
 
  bool map_back_Modification( Block *R3B , sp_Mod mod ,
 			     Configuration *r3bc = nullptr ,
-			     c_ModParam issuePMod = eNoBlck ,
-			     c_ModParam issueAMod = eModBlck ) override;
+			     ModParam issuePMod = eNoBlck ,
+			     ModParam issueAMod = eModBlck ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- Methods for handling Modification -------------------*/
@@ -777,9 +779,9 @@ class PolyhedralFunctionBlock : public AbstractBlock {
  {
   if( cond ) {
    if( chnl )
-    nest_channel( chnl , nullptr , eNoBlck );
+    nest_channel( chnl , nullptr );
    else
-    return( open_channel( nullptr , eNoBlck ) );
+    return( open_channel( nullptr ) );
    }
   return( chnl );
   }

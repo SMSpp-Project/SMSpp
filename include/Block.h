@@ -4466,10 +4466,65 @@ class Block : public Observer {
 
  virtual bool map_forward_Modification( Block *R3B , sp_Mod mod ,
 					Configuration *r3bc = nullptr ,
-					c_ModParam issuePMod = eNoBlck ,
-					c_ModParam issueAMod = eModBlck )
+					ModParam issuePMod = eNoBlck ,
+					ModParam issueAMod = eModBlck )
  {
   return( false );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// maps forward a list of Modification from the original Block to a R3 Block
+ /** Maps forward an entire  list of Modification from the original Block to
+  * a R3 Block in one blow.
+  *
+  * As discussed in map_forward_Modification(), mapping Modifications is in
+  * general complex. This is so because a Block and its R3 Block can be "very
+  * different", and therefore one Modification in one can result in many
+  * Modification in the other and vice-versa. Whie GroupModification may
+  * help in this respect, it may not solve everything. Furthermore, even if
+  * there is a nice one-to-one correspondence, mapping a Modification that
+  * can have been issued "a long time ago", with many changes having possibly
+  * occurred in Block in the meantime, can already be a daunting task if the
+  * Block has any form of dynamic components that may be freely created and
+  * destroyed.
+  *
+  * A part of the complexity, in both cases, is therefore due to the myopic
+  * definition of the task: mapping *one* Modification. In general, it may
+  * be simpler to map *all the issued Modification*. Knowing the whole list
+  * allows, for instance, to traverse if backwards, and therefore be able to
+  * completely map the current status of the Block (after all the changes)
+  * to the current status of the R3 Block (before any change). Althiugh
+  * "simpler" may not be the most appropriate adjective there, knowing the
+  * full list of Modification may make it possible to deal with tasks that
+  * would otherwise not be feasible.
+  *
+  * This method allows for such an operation. It takes the same inputs as
+  * map_forward_Modification(), save that the individual (smart pointer to a)
+  * Modification is now a list of  (smart pointerd to) Modification. The
+  * assumption is that the list contains "all the Modification issued that
+  * cause the Block to be not in synch with its R3 Block", althugh individual
+  * :Block may relax this to a subset of "difficult" Modification.
+  *
+  * The method is supposed to scan throgh the list of Modification,
+  * properly reacting to those it can deal with and ignoring the others; the
+  * Modification acted upon are deleted from the list, leaving the rest.
+  *
+  * The method is given a default implementation just dumbly scanning the
+  * list top-to-bottom and calling map_forward_Modification() on each
+  * element in turn. */
+
+
+ virtual void map_forward_Modifications( Block *R3B , Lst_sp_Mod lmod ,
+					 Configuration *r3bc = nullptr ,
+					 ModParam issuePMod = eNoBlck ,
+					 ModParam issueAMod = eModBlck )
+ {
+  for( auto mit = lmod.begin() ; mit != lmod.end() ; ) {
+   auto nmit = ++mit;
+   if( map_forward_Modification( R3B , *mit , r3bc , issuePMod , issueAMod ) )
+    lmod.erase( mit );
+   mit = nmit;
+   }
   }
 
 /*--------------------------------------------------------------------------*/
@@ -4533,12 +4588,31 @@ class Block : public Observer {
 
  virtual bool map_back_Modification( Block *R3B , sp_Mod mod ,
 				     Configuration *r3bc = nullptr ,
-				     c_ModParam issuePMod = eNoBlck ,
-				     c_ModParam issueAMod = eModBlck )
+				     ModParam issuePMod = eNoBlck ,
+				     ModParam issueAMod = eModBlck )
  {
   return( false );
   }
 
+/*--------------------------------------------------------------------------*/
+ /// maps back a list of Modification from an R3 Block to the original Block
+ /** Maps bacl an entire list of Modificationfrom an R3 Block to the original
+  * Block in one blow.
+  *
+  * See the comments to map_forward_Modifications(). */
+
+ virtual void map_back_Modifications( Block *R3B , Lst_sp_Mod lmod ,
+				      Configuration *r3bc = nullptr ,
+				      ModParam issuePMod = eNoBlck ,
+				      ModParam issueAMod = eModBlck )
+ {
+  for( auto mit = lmod.begin() ; mit != lmod.end() ; ) {
+   auto nmit = ++mit;
+   if( map_back_Modification( R3B , *mit , r3bc , issuePMod , issueAMod ) )
+    lmod.erase( mit );
+   mit = nmit;
+   }
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
@@ -4696,17 +4770,16 @@ class Block : public Observer {
 
 /*--------------------------------------------------------------------------*/
 
- ChnlName open_channel( GroupModification * gmpmod = nullptr ,
-			c_ModParam issueMod = eModBlck ) override;
+ ChnlName open_channel( GroupModification * gmpmod = nullptr ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
- void nest_channel( c_ChnlName chnl , GroupModification * gmpmod = nullptr ,
-		    c_ModParam issueMod = eModBlck ) override;
+ void nest_channel( ChnlName chnl , GroupModification * gmpmod = nullptr )
+  override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
- void un_nest_channel( c_ChnlName chnl ) override;
+ void un_nest_channel( ChnlName chnl ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
@@ -4714,7 +4787,7 @@ class Block : public Observer {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
- void set_default_channel( c_ChnlName chnl = 0 ) override;
+ void set_default_channel( ChnlName chnl = 0 ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------------- Methods for handling Solver -----------------------*/
@@ -4722,12 +4795,11 @@ class Block : public Observer {
 /** @name Methods for handling Solvers
     @{ */
 
- c_Lst_Solver & get_registered_solvers( void ) const {
-  return( v_Solver );
-  }
- ///< reading the list of (pointers to) currently registered Solvers
- /**< Method for reading the list of (pointers to) the Solvers currently
+ /// reading the list of (pointers to) currently registered Solvers
+ /** Method for reading the list of (pointers to) the Solvers currently
   * registered with the Block. */
+
+ c_Lst_Solver & get_registered_solvers( void ) const { return( v_Solver ); }
 
 /*--------------------------------------------------------------------------*/
  /// adding a Solver to the set of those currently registered

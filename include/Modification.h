@@ -470,20 +470,35 @@ class AModification : public Modification {
 /*--------------------------------------------------------------------------*/
  /// returns the value stored in the f_concerns_Block field
 
- bool concerns_Block( void ) const override {
-  return( f_concerns_Block );
-  }
- 
+ bool concerns_Block( void ) const override { return( f_concerns_Block ); }
+
 /*--------------------------------------------------------------------------*/
  /// method to set the value returned by concerns_Block( void )
+ /** This method allows to set the value returned by concerns_Block( void ),
+  *
+  *      WHICH IS A VERY DELICATE OPERATION THAT NEEDS TO BE DONE WITH
+  *      EXTREME CARE. THERE IS NO REASON (I SEE NOW) WHY A :Block SHOULD
+  *      CHANGE THE VALUE FROM false TO true (THIS CAN BE DONE IN Block WHEN
+  *      HANDLING CHANNELS). THE ONLY PLACE IN WHICH THE VALUE SHOULD BE
+  *      CHANGED FROM true TO false IS INSIDE add_Modification() OF THE
+  *      :Block ISSUING THE AModification, AFTER IT HAS DONE WHAT IT
+  *      MUST TO ADJUST THE "PHYSICAL" REPRESENTATION AFTER A CHANGE IN THE
+  *      "ABSTRACT" ONE, AND PRIOR TO DISPATCHING THE AModification TO THE
+  *      Solver AND THE FATHER Block.
+  *
+  * I see no reasonable way in which this condition can be enforced, hence
+  * there is no attempt to enforce it. But concerns_Block( bool ) is a very
+  * rare method allowing to change a Modification after it is issued, which
+  * should almost never happen, and therefore it should be managed with
+  * extreme care. */
 
- void concerns_Block( const bool cB ) override {
-  f_concerns_Block = cB;
-  }
+ void concerns_Block( bool cB ) override { f_concerns_Block = cB; }
 
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 
  protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
 
 /*--------------------------- PROTECTED FIELDS -----------------------------*/
 
@@ -584,7 +599,7 @@ class NBModification : public NModification
 /*-------------------------- PROTECTED METHODS -----------------------------*/
  /// print the NBModification
 
- virtual inline void print( std::ostream &output ) const override {
+ void print( std::ostream &output ) const override {
   output << "NBModification on Block [" << &f_Block << "]" << std::endl;
   }
 
@@ -612,7 +627,13 @@ class NBModification : public NModification
  * GroupModification also has a "father" pointer that simplifies traversals
  * of the tree of GroupModification. Note that this is a raw pointer rather
  * than a smart pointer, as it is not supposed to be used for anything else
- * than traversing the data structure. */
+ * than traversing the data structure.
+ *
+ * A GroupModification derives from AModification, which means that in general
+ * it can be an "abstract" Modification. However, its concerns_Block() value
+ * is automatically set as the logical or of the concerns_Block() values of
+ * its sub-Modifications (recursively), i.e., it is true if at least one of
+ * them is true. */
 
 class GroupModification : public AModification {
 
@@ -622,14 +643,15 @@ class GroupModification : public AModification {
 
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
  /// constructor: takes the value to be returned by concerns_Block()
- /** Constructor of the class; takes the value to be returned by
-  * concerns_Block(), to be passed to the AModification destructor, and
-  * (optionally) the "father" of the GroupModification. */
+ /** Constructor of the class; takes (optionally) the "father" of the
+  * GroupModification. The concerns_Block() value is initialized to false,
+  * and (almost) automatically set to true if any of the Modification
+  * inserted in the GroupModification has concerns_Block() == true. */
  
- GroupModification( bool cB = true , GroupModification * father = nullptr )
-  : AModification( cB ) , f_father( father ) { }
+ GroupModification( GroupModification * father = nullptr )
+  : AModification( false ) , f_father( father ) { }
 
- ///< destructor: does nothing
+ /// destructor: does nothing
  virtual ~GroupModification() = default;
 
 /*--------------------------------------------------------------------------*/
@@ -640,21 +662,30 @@ class GroupModification : public AModification {
 
  Block * get_Block( void ) const override {
   return( v_sub_Modifications.empty() ?
-	  nullptr : v_sub_Modifications.front()->get_Block() ); }
+	  nullptr : v_sub_Modifications.front()->get_Block() );
+  }
 
-/*--------------------- PUBLIC FIELDS OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+ /// returns a const reference to the list of sub-Modification
 
- std::list< std::shared_ptr<Modification> > v_sub_Modifications;
- ///< the std::list of std::shared_ptr<Modification>
- /**< A GroupModification is basically just a std::list< Modifications >.
-  * Note that the field v_sub_Modifications is *not* protected and under
-  * a read-only accessor because a GroupModification, is a "dynamic" object
-  * that changes along its life (as sub_Modfication are added). This is
-  * unlike most other Modification, that are constructed in one blow and
-  * never changed afterwords. */
+ std::list< std::shared_ptr< Modification > > &
+  sub_Modifications( void ) { return( v_sub_Modifications ); }
 
- GroupModification * f_father;
- ///< pointer to the "father" GroupModification
+/*--------------------------------------------------------------------------*/
+ /// returns (a pointer to) the "father" GroupModification (may be nullptr)
+
+ GroupModification * father( void ) { return( f_father ); }
+
+/*------------------------ FRIENDS OF THE CLASS ----------------------------*/
+ /** Opening, closing, nesting and un-nesting channels, and sending a
+  * Modification to a non-default channel, requires modifying a
+  * GroupModification (say, add a new Modification to list of
+  * sub-Modification). This is something that "most entities" interacting
+  * with GroupModification should not be able to do. The methods allowing
+  * doing this are therefore made protected, but they have to be called by
+  * Block, rather than a deribed class. Hence, Block is made friend. */
+
+ friend Block;
 
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 
@@ -665,14 +696,41 @@ class GroupModification : public AModification {
  /** Method for printing the GroupModification, which basically means printing
   * all its sub-Modification. */
 
- virtual void print( std::ostream &output ) const override
+ void print( std::ostream &output ) const override
  {
-  output << "GroupModification:" << std::endl;
+  output << "GroupModification[";
+  if( concerns_Block() )
+   output << "t]:";
+  else
+   output << "f]:";
+  output << std::endl;
   for( auto mod : v_sub_Modifications )
    output << *mod << std::endl;
   }
 
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ /// add a new Modification to the v_sub_Modifications list
+
+ void add( std::shared_ptr< Modification > mod )
+ {
+  if( mod->concerns_Block() )  // if the sub-Modification concerns the Block
+   concerns_Block( true );     // then the whole GroupModification does
+  v_sub_Modifications.push_back( mod );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// sets (the pointer to) the "father" GroupModification
+
+ void set_father( GroupModification * father ) { f_father = father; }
+
 /*--------------------------- PROTECTED FIELDS -----------------------------*/
+
+ std::list< std::shared_ptr< Modification > > v_sub_Modifications;
+ ///< the std::list of std::shared_ptr< Modification >
+
+ GroupModification * f_father;
+ ///< pointer to the "father" GroupModification
 
 /*--------------------------------------------------------------------------*/
 
@@ -685,22 +743,21 @@ class GroupModification : public AModification {
 /** @defgroup Modification_TYPES Modification-related types.
  *  @{ */
 
- typedef Modification *p_Mod;
- ///< a pointer to Modification
+ using p_Mod = Modification *;  ///< a pointer to Modification
 
- typedef std::vector<p_Mod> Vec_p_Mod;
+ using Vec_p_Mod = std::vector< p_Mod >;
  ///< a vector of pointer to Modification
 
- typedef std::list<p_Mod> Lst_p_Mod;
+ using Lst_p_Mod = std::list< p_Mod >;
  ///< a vector of pointer to Modification
 
- typedef std::shared_ptr<Modification> sp_Mod;
+ using sp_Mod = std::shared_ptr< Modification >;
  ///< a shared pointer to Modification
 
- typedef std::vector<sp_Mod> Vec_sp_Mod;
+ using Vec_sp_Mod = std::vector< sp_Mod >;
  ///< a vector of shared pointer to Modification
 
- typedef std::list<sp_Mod> Lst_sp_Mod;
+ using Lst_sp_Mod = std::list< sp_Mod >;
  ///< a vector of pointer to Modification
 
 /*--------------------------------------------------------------------------*/
@@ -709,12 +766,11 @@ class GroupModification : public AModification {
   * is defined "at global scope" so that all methods of all relevant classes
   * can use a consistent interface. */
 
- typedef unsigned int ModParam;
+ using ModParam = unsigned int;
 
- typedef const ModParam c_ModParam;  ///< a const ModParam
+ using c_ModParam = const ModParam;  ///< a const ModParam
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-
  /// public enum for ways of issuing a Modification
  /** Public enum for describing if and how any method potentially issuing a
   * Modification should actually issue it. The enum is defined "at global

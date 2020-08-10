@@ -171,8 +171,11 @@ Block * PolyhedralFunctionBlock::get_R3_Block( Configuration *r3bc ,
 
 bool PolyhedralFunctionBlock::map_forward_Modification(
 			      Block *R3B , sp_Mod mod , Configuration *r3bc ,
-			      c_ModParam issuePMod , c_ModParam issueAMod )
+			      ModParam issuePMod , ModParam issueAMod )
 {
+ if( mod->concerns_Block() )  // an abstract Modification
+  return( false );            // none of my business
+
  auto PFB = dynamic_cast< PolyhedralFunctionBlock * >( R3B );
  if( ! PFB )
   throw( std::invalid_argument( "R3B is not a PolyhedralFunctionBlock" ) );
@@ -192,19 +195,13 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
 
  ModParam iPM = issuePMod;
 
- const auto tmod = std::dynamic_pointer_cast< GroupModification >( mod );
- if( tmod ) {  // if the channels are the default ones, open new ones
-  if( ! par2chnl( issuePMod ) )
-   iPM = make_par( par2concern( issuePMod ) , PFB->open_channel() );
-  }
-
  /* Use a Lambda to define a "guts" of the method that can be called
     recursively without having to pass "local globals". Note the trick of
     defining the std::function object and "passing" it to the lambda,
     which allows recursive calls. Note the need to explicitly capture
     "this" to use fields/methods of the class. */
 
- std::function< bool( sp_Mod )> guts_of_mfM;
+ std::function< bool( sp_Mod ) > guts_of_mfM;
  guts_of_mfM = [ this , & guts_of_mfM , & PFB , & iPM ]( sp_Mod mod ) {
   // process Modification- - - - - - - - - - - - - - - - - - - - - - - - - - -
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -216,14 +213,14 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
   {
    const auto tmod = std::dynamic_pointer_cast<GroupModification>( mod );
    if( tmod ) {
-    PFB->nest_channel( par2chnl( iPM ) );  // nest the channel for PM
+    PFB->nest_channel( par2chnl( iPM ) );     // nest the channel
 
     bool ok = true;
-    for( const auto & submod : tmod->v_sub_Modifications )
+    for( const auto & submod : tmod->sub_Modifications() )
      if( ! guts_of_mfM( submod ) )
       ok = false;
 
-    PFB->un_nest_channel( par2chnl( iPM ) );  // un-nest the channel for PM
+    PFB->un_nest_channel( par2chnl( iPM ) );  // un-nest the channel
 
     return( ok );
     }
@@ -234,6 +231,9 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
    const auto tmod =
                 std::dynamic_pointer_cast< PolyhedralFunctionModRngd >( mod );
    if( tmod ) {
+    if( tmod->function() != & f_polyf )  // not my PolyhedralFunction
+     return( false );                    // none of my business
+
     Index n = tmod->range().second - tmod->range().first;
     switch( tmod->PFtype() ) {
      case( PolyhedralFunctionMod::ModifyRows ):
@@ -294,6 +294,9 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
    const auto tmod =
                 std::dynamic_pointer_cast< PolyhedralFunctionModSbst >( mod );
    if( tmod ) {
+    if( tmod->function() != & f_polyf )  // not my PolyhedralFunction
+     return( false );                    // none of my business
+
     Index n = tmod->rows().size();
     switch( tmod->PFtype() ) {
      case( PolyhedralFunctionMod::ModifyRows ):
@@ -350,18 +353,77 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
    const auto tmod =
                 std::dynamic_pointer_cast< PolyhedralFunctionModAddd >( mod );
    if( tmod ) {
+    if( tmod->function() != & f_polyf )  // not my PolyhedralFunction
+     return( false );                    // none of my business
+
+    return( true );  // pretend we have done it, which is impossible
+                     // see comments for rationale
     }
    }
 
-  // NBModification- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // C05FunctionModVarsRngd- - - - - - - - - - - - - - - - - - - - - - - - - -
   {
-   const auto tmod = std::dynamic_pointer_cast<NBModification>( mod );
+   const auto tmod =
+                   std::dynamic_pointer_cast< C05FunctionModVarsRngd >( mod );
    if( tmod ) {
-    // this is the "nuclear option": the PFBlock has been re-loaded
-    // one should check that the Block is this PFBlock, but it cannot
-    // be otherwise, can it?
+    if( tmod->function() != & f_polyf )  // not my PolyhedralFunction
+     return( false );                    // none of my business
 
+    if( tmod->range().second == tmod->range().first + 1 )
+     PFB->f_polyf.remove_variable( tmod->range().first , iPM );
+    else
+     PFB->f_polyf.remove_variables( tmod->range() , iPM );
+     
+    return( true );
+    }
+   }
 
+  // C05FunctionModVarsSbst- - - - - - - - - - - - - - - - - - - - - - - - - -
+  {
+   const auto tmod =
+                   std::dynamic_pointer_cast< C05FunctionModVarsSbst >( mod );
+   if( tmod ) {
+    if( tmod->function() != & f_polyf )  // not my PolyhedralFunction
+     return( false );                    // none of my business
+
+    PFB->f_polyf.remove_variables( Subset( tmod->subset() ) , iPM );     
+    return( true );
+    }
+   }
+
+  // PolyhedralFunctionMod - - - - - - - - - - - - - - - - - - - - - - - - - -
+  {
+   const auto tmod =
+                    std::dynamic_pointer_cast< PolyhedralFunctionMod >( mod );
+   if( tmod ) {
+    if( tmod->function() != & f_polyf )  // not my PolyhedralFunction
+     return( false );                    // none of my business
+
+    if( tmod->type() != C05FunctionMod::NothingChanged )
+     throw( std::invalid_argument( "unexpected type() in C05FunctionMod" ) );
+
+    PFB->f_polyf.set_is_convex( f_polyf.is_convex() , iPM );
+     
+    return( true );
+    }
+   }
+
+  // FunctionMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  {
+   const auto tmod = std::dynamic_pointer_cast< FunctionMod >( mod );
+   if( tmod ) {
+    // "nuclear Modification for Function": everything changed
+
+    if( tmod->function() != & f_polyf )  // not my PolyhedralFunction
+     return( false );                    // none of my business
+
+    if( ! std::isnan( tmod->shift() ) )
+     throw( std::invalid_argument( "unexpected shift() in FunctionMod" ) );
+
+    PFB->f_polyf.set_PolyhedralFunction(
+		    PolyhedralFunction::MultiVector( f_polyf.get_A() ) ,
+		    PolyhedralFunction::RealVector( f_polyf.get_b() ) ,
+		    f_polyf.get_global_bound() , f_polyf.is_convex() , iPM );
     return( true );
     }
    }
@@ -372,11 +434,26 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
       // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  // finally, call the "guts of"- - - - - - - - - - - - - - - - - - - - - - - -
+ // this is done differently if mod is a GroupModification, since at the root
+ // a channel has to be opened while further down it has to be nested
 
- bool ok = guts_of_mfM( mod );  // now the actual call
+ bool ok = true;  // final return value
 
- if( tmod )  // now close the opened channel, if any
-  if( iPM != issuePMod ) PFB->close_channel( par2chnl( iPM ) );
+ const auto tmod = std::dynamic_pointer_cast< GroupModification >( mod );
+ if( tmod ) {                    // this is a GroupModification
+  if( ! par2chnl( issuePMod ) )  // and the channel is the default one
+                                 // open a new channel and use it instead
+   iPM = make_par( par2concern( issuePMod ) , PFB->open_channel() );
+
+  for( const auto & submod : tmod->sub_Modifications() )  // for each sub-Mod
+   if( ! guts_of_mfM( submod ) )                          // make the call
+    ok = false;
+
+  if( iPM != issuePMod )                   // a channel had been opened
+   PFB->close_channel( par2chnl( iPM ) );  // close it
+ }
+ else                            // any other Modification
+  ok = guts_of_mfM( mod );       // just make the call
 
  return( ok );
 
@@ -386,7 +463,7 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
 
 bool PolyhedralFunctionBlock::map_back_Modification(
 			      Block *R3B , sp_Mod mod , Configuration *r3bc ,
-			      c_ModParam issuePMod , c_ModParam issueAMod )
+			      ModParam issuePMod , ModParam issueAMod )
 {
  /* Fantastically dirty trick: because the two objects are copies, mapping
     back a Modification to this from R3B is the same as mapping forward a

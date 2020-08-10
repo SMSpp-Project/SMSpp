@@ -221,16 +221,16 @@ void FRowConstraint::add_Modification( sp_Mod mod , c_ChnlName chnl )
   
   // GroupModification - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   {
-   const auto tmod = std::dynamic_pointer_cast<GroupModification>( mod );
+   const auto tmod = std::dynamic_pointer_cast< GroupModification >( mod );
    if( tmod ) {
-    for( const auto & submod : tmod->v_sub_Modifications )
+    for( const auto & submod : tmod->sub_Modifications() )
      guts_of_aM( submod );
     }
    }
 
   // FunctionModVars - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   {
-   const auto tmod = std::dynamic_pointer_cast<FunctionModVars>( mod );
+   const auto tmod = std::dynamic_pointer_cast< FunctionModVars >( mod );
    if( ! tmod )
     return;
 
