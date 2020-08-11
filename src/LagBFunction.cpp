@@ -447,6 +447,8 @@ void LagBFunction::remove_variable( Index i , c_ModParam issueMod )
 
 void LagBFunction::remove_variables( Range range , c_ModParam issueMod )
 {
+ // TODO: better handling of a complete removal of Variable
+ 
  range.second = std::min( range.second , c_Index( LagPairs.size() ) );
  if( range.second <= range.first )
   return;
@@ -481,10 +483,11 @@ void LagBFunction::remove_variables( Range range , c_ModParam issueMod )
 /*--------------------------------------------------------------------------*/
 
 void LagBFunction::remove_variables( Subset && nms , bool ordered ,
-				       c_ModParam issueMod )
+				     c_ModParam issueMod )
 {
- if( nms.empty() )  // actually nothing to remove
-  return;           // cowardly (and silently) return
+ if( nms.empty() )
+  throw( std::invalid_argument(
+       "LagBFunction::remove_variables: empty nms not properly handled " ) );
 
  if( LagPairs.empty() )  // deleting from nothing
   throw( std::logic_error( "deleting from an empty set" ) );
@@ -759,23 +762,6 @@ void LagBFunction::set_important_linearization(
   zLC.clear();
  zLC = std::move( coefficients );
  } // end LagBFunction::set_important_linearization(  )  - - - - - - - - - - -
-
-/*--------------------------------------------------------------------------*/
-
-void LagBFunction::rename_linearization( Index current_name , Index new_name ,
-					 c_ModParam issueMod )
-{
- // TODO: handle issueMod !!
-
- if( new_name >= GPMaxSz )
-  throw( std::logic_error( "max size of global pool already exceed" ) );
-
- if( std::get<0>(g_pool[ current_name ]) == nullptr )
-  throw( std::logic_error( "this solution does not exist" ) );
-
- g_pool[ new_name ] = g_pool[ current_name ];
-
- } // end LagBFunction::rename_linearization(  )  - - - - - - - - - - - - - - -
 
 /*--------------------------------------------------------------------------*/
 
@@ -1625,6 +1611,7 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
      // the constant terms of the linearizations have to be computed again
      //	by calling get_linearization_constant()
 
+     //!! check if C05FunctionMod::AlphaChanged is still right
      // TODO: check if better which is possible
      if( f_Observer )
       f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
@@ -1646,6 +1633,7 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
      // linearizations (g, \alpha) have to be computed again by calling
      // get_linearization_constant() while the g remains unchanged
 
+     //!! check if C05FunctionMod::AlphaChanged is still right
      // TODO: check if better which is possible
      if( f_Observer )
       f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
@@ -1730,6 +1718,7 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
      // issue C05FunctionMod modification of the type AlphaChanged: the
      // feasible region of (B) has been changed, then the original linearizations
      // (even the g part) can no longer be used
+     //!! check if C05FunctionMod::AlphaChanged is still right
      // TODO: check if a better which is possible
      if( f_Observer )
       f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
@@ -1774,6 +1763,7 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
     // linearizations (g, \alpha) have to be computed again by calling
     // get_linearization_constant() while g remains unchanged
 
+     //!! check if C05FunctionMod::AlphaChanged is still right
     // TODO: check if a better which is possible
     if( f_Observer )
      f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
@@ -1832,6 +1822,7 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
      // issue C05FunctionMod modification of the type AlphaChanged: the
      // feasible region of (B) has been changed, then the original linearizations
      // (even the g part) can no longer be used
+     //!! check if C05FunctionMod::AlphaChanged is still right
      // TODO: check if a better which is possible
      if( f_Observer )
       f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
@@ -1878,6 +1869,7 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
     // linearizations have to be computed again by calling
     // get_linearization_constant()
 
+    //!! check if C05FunctionMod::AlphaChanged is still right
     // TODO: check if a better which is possible
     if( f_Observer )
      f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
@@ -1937,6 +1929,7 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
        // issue C05FunctionMod modification of the type AlphaChanged: the
        // feasible region of (B) changed and the original linearizations
        // (even the g part) can no longer be used
+       //!! check if C05FunctionMod::AlphaChanged is still right
        // TODO: check if a better which is possible
        if( f_Observer )
         f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
@@ -1970,6 +1963,7 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
    // issue C05FunctionMod modification of the type AlphaChanged: the
    // feasible region of (B) changed and the original linearizations
    // (even the g part) can no longer be used
+   //!! check if C05FunctionMod::AlphaChanged is still right
    // TODO: check if a better which is possible
    if( f_Observer )
     f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
@@ -2000,6 +1994,7 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
     // issue C05FunctionMod modification of the type AlphaChanged: the
     // feasible region of (B) changed and the original linearizations
     // (even the g part) can no longer be used
+    //!! check if C05FunctionMod::AlphaChanged is still right
     // TODO: check if a better which is possible
 
     if( f_Observer )
@@ -2029,7 +2024,8 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
    // issue C05FunctionMod modification of the type AlphaChanged: the
    // feasible region of (B) changed and the original linearizations
    // (even the g part) can no longer be used
-    // TODO: check if a better which is possible
+   //!! check if C05FunctionMod::AlphaChanged is still right
+   // TODO: check if a better which is possible
 
     if( f_Observer )
      f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,

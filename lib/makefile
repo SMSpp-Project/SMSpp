@@ -39,6 +39,7 @@ SMS++OBJ = $(SMS++SDR)obj/AbstractBlock.o \
 	$(SMS++SDR)obj/BendersBFunction.o \
 	$(SMS++SDR)obj/BendersBlock.o \
 	$(SMS++SDR)obj/Block.o \
+	$(SMS++SDR)obj/C05Function.o \
 	$(SMS++SDR)obj/ColVariable.o \
 	$(SMS++SDR)obj/ColVariableSolution.o \
 	$(SMS++SDR)obj/Configuration.o \
@@ -151,6 +152,13 @@ $(SMS++SDR)obj/Block.o: $(SMS++SDR)src/Block.cpp $(intBlockINC) \
 	$(SMS++SDR)include/Constraint.h $(SMS++SDR)include/Objective.h \
 	$(SMS++SDR)include/Variable.h
 	$(CC) -c $(SMS++SDR)src/Block.cpp -o $@ $(SMS++INC) $(SW)
+
+$(SMS++SDR)obj/C05Function.o: $(SMS++SDR)src/C05Function.cpp \
+	$(SMS++SDR)include/Function.h $(SMS++SDR)include/C05Function.h \
+	$(SMS++SDR)include/Modification.h $(SMS++SDR)include/Observer.h \
+	$(SMS++SDR)include/ThinComputeInterface.h \
+	$(SMS++SDR)include/ThinVarDepInterface.h
+	$(CC) -c $(SMS++SDR)src/C05Function.cpp -o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)obj/Configuration.o: $(SMS++SDR)src/Configuration.cpp \
 	$(SMS++SDR)include/Configuration.h $(SMS++SDR)include/SMSTypedefs.h

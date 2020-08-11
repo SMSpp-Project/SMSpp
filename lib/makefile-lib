@@ -4,14 +4,22 @@
 #                                                                            #
 #   makefile of libSMS++ - frontend for building the library                 #
 #                                                                            #
-#   Input:  $(SMS++SDR) = the directory where the core SMS++ source is       #
-#           If the variable is not defined, "../" is used since it is        #
-#           assumed that the makefile is ran in the lib/ sub-folder.         #
+#   Input:  optional: $(SMS++SDR) = the directory where the core SMS++       #
+#                     source is. If the macro is not provided "../" is used, #
+#                     since it is assumed that the "make -f makefile-lib"    #
+#                     command is issued in the lib/ folder.                  #
+#                                                                            #
+#           optional: $(CC) = the C++ compiler command. If the macro is      #
+#                     not provided, it is defined locally.                   #
+#                                                                            #
+#           optional: $(SW) = the compiler options (optimization, debug,     #
+#                     required C++ standard, ...). If the macro is not       #
+#                     provided, it is defined locally.                       #
 #                                                                            #
 #   Output: none, just the library being built                               #
 #                                                                            #
-#                                VERSION 1.00                                #
-#                               12 - 11 - 2018                               #
+#                                VERSION 2.00                                #
+#                               28 - 07 - 2020                               #
 #                                                                            #
 #                              Implementation by:                            #
 #                                                                            #
@@ -26,13 +34,20 @@ ifndef SMS++SDR
 SMS++SDR = ../
 endif
 
+ifndef CC
+# compiler
+CC = clang++
+endif
+
+ifndef SW
+# debug compiler options
+#SW = -g3 -glldb -fno-inline -std=c++17 -ferror-limit=1
+# production compiler options
+SW = -O3 -DNDEBUG -std=c++17
+endif
+
 # module name
 NAME = $(SMS++SDR)lib/libSMS++.a
-
-# debug switches
-SW = -g3 -glldb -fno-inline  -std=c++17 -ferror-limit=1
-# production switches
-#SW = -O3 -DNDEBUG -std=c++17
 
 # compiler
 CC = clang++

@@ -307,9 +307,6 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
    for( auto & si : sbst )  // variables names in the constraints are +1
     si++;                   // w.r.t. those of the PolyhedralFunction
 
-   if( ! tmod->ordered() )
-    std::sort( sbst.begin() , sbst.end() );
-
    // open a new GroupModification, not concerning PolyhedralFunctionBlock
    bool newchnl = f_const.size() > 1;
    auto ichnl = open_or_nest( newchnl , chnl );
@@ -356,15 +353,15 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
    auto ichnl = open_or_nest( newchnl , chnl );
    auto par = make_par( eNoBlck , ichnl );
 
-   auto cit = std::next( f_const.begin() , strt );
    if( tmod->PFtype() == PolyhedralFunctionMod::DeleteRows ) {
     // delete rows
-    std::vector< std::list< FRowConstraint >::iterator > rmvd( stop - strt );
-    for( auto & ri : rmvd )
-     ri = cit++;
-    remove_dynamic_constraints( f_const , rmvd , par );
+    remove_dynamic_constraints( f_const , tmod->range() , par );
     }
-   else
+   else {
+    auto cit = f_const.size() - strt < strt ?
+	       std::prev( f_const.end() , f_const.size() - strt ) :
+               std::next( f_const.begin() , strt );
+
     if( tmod->PFtype() == PolyhedralFunctionMod::ModifyRows ) {
      // modify rows & constants
      Range rng = Range( 1 , f_polyf.get_num_active_var() + 1 );
@@ -385,6 +382,7 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
      else
       for( Index i = strt ; i < stop ; )
        cit->set_rhs( f_polyf.get_b()[ i++ ] , par );
+    }
 
    if( newchnl ) {
     if( chnl )
@@ -416,15 +414,7 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
    auto rit = tmod->rows().begin();
    if( tmod->PFtype() == PolyhedralFunctionMod::DeleteRows ) {
     // delete rows
-    std::vector< std::list< FRowConstraint >::iterator > rmvd(
-						      tmod->rows().size() );
-    auto rmvdit = rmvd.begin();
-    for( ; rit != tmod->rows().end() ; ) {
-     cit = std::next( cit , *rit - prev );
-     *(rmvdit++) = cit;
-     prev = *(rit++);
-     }
-    remove_dynamic_constraints( f_const , rmvd , par );
+    remove_dynamic_constraints( f_const , Subset( tmod->rows() ) , par );
     }
    else
     if( tmod->PFtype() == PolyhedralFunctionMod::ModifyRows ) {
@@ -574,11 +564,44 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( sp_Mod mod ,
   const auto tmod =
             std::dynamic_pointer_cast< BlockModAdd< FRowConstraint > >( mod );
   if( tmod ) {
-   if( & tmod->whc() == & f_const ) {
-    throw( std::logic_error( "adding FRowConstraint is not handled yet" ) );
+   if( & tmod->whc() != & f_const )   // if it's not about f_const
+    return;                           // none of my business
+
+   const auto & arr = tmod->added();
+
+   if( arr.empty() )  // should not happen, but in case
+    return;           // nothing to do
+   PolyhedralFunction::MultiVector A( arr.size() );
+   PolyhedralFunction::RealVector b( arr.size() );
+
+   Index i = 0;
+   for( auto ci : arr ) {
+    // recover the constant = RHS (easy)
+    b[ i ] = f_polyf.is_convex() ? ci->get_lhs() : ci->get_rhs();
+
+    // now the though part: recover the linearization
+    auto lf = dynamic_cast< LinearFunction * >( ci->get_function() );
+    if( ! lf )
+     throw( std::logic_error( "FRowConstraint with no LinearFunction" ) );
+
+    const auto & coeff = lf->get_v_var();
+
+    if( coeff.size() != f_polyf.get_num_active_var() )
+     throw( std::logic_error( "incorrect LinearFunction in FRowConstraint" ) );
+
+    #ifndef NDEBUG
+    // TODO: check that the Variables actually are the same
+    #endif
+
+    for( Index j = 0 ; j < coeff.size() ; ++j )
+     A[ i ][ j ] = - coeff[ j ].second;
+
+    ++i;
     }
 
-   return;  // if it's not about f_const, none of my business
+   f_polyf.add_rows( std::move( A ) , b , make_par( eNoBlck , chnl ) );
+
+   throw( std::logic_error( "adding FRowConstraint is not handled yet" ) );
    }
   }
 
@@ -588,11 +611,19 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( sp_Mod mod ,
   const auto tmod =
             std::dynamic_pointer_cast< BlockModRmv< FRowConstraint > >( mod );
   if( tmod ) {
-   if( & tmod->whc() == & f_const ) {
-    throw( std::logic_error( "removing FRowConstraint is not handled yet" ) );
-    }
+   if( & tmod->whc() != & f_const )   // if it's not about f_const
+    return;                           // none of my business
 
-   return;  // if it's not about f_const, none of my business
+   const auto & rmvd = tmod->removed();
+   if( rmvd.empty() )  // should not happen, but in case
+    return;            // nothing to do
+   /*
+   Subset nms( rmvd.size() );
+   for( auto rit = rmvd.begin() ; rit != rmvd.end() ; ++rit ) {
+    auto it = std::find();
+    }
+   */
+   throw( std::logic_error( "removing FRowConstraint is not handled yet" ) );
    }
   }
 

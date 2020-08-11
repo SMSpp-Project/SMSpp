@@ -568,7 +568,7 @@ void DQuadFunction::modify_linear_coefficients( Vec_FunctionValue && NCoef ,
 
 /*--------------------------------------------------------------------------*/
 
-void DQuadFunction::remove_variable( c_Index i , c_ModParam issueMod )
+void DQuadFunction::remove_variable( Index i , c_ModParam issueMod )
 {
  if( v_triples.size() <= i )
   throw( std::logic_error( "less than i Variable are active" ) );
@@ -593,10 +593,30 @@ void DQuadFunction::remove_variable( c_Index i , c_ModParam issueMod )
 
 void DQuadFunction::remove_variables( Range range, c_ModParam issueMod )
 {
- range.second = std::min( range.second , c_Index( v_triples.size() ) );
+ range.second = std::min( range.second , Index( v_triples.size() ) );
  if( range.second <= range.first )
   return;
 
+ if( ( range.first == 0 ) && ( range.second == v_triples.size() ) ) {
+  // removing *all* variable
+  Vec_p_Var vars( v_triples.size() );
+
+  for( Index i = 0 ; i < v_triples.size() ; ++i )
+   vars[ i ] = std::get< 0 >( v_triples[ i ] );
+
+  v_triples.clear();
+
+  // now issue the Modification
+  // a diagonal quadratic function is additive ==> strongly quasi-additive
+  if( f_Observer && f_Observer->issue_mod( issueMod ) )
+   f_Observer->add_Modification( std::make_shared<C05FunctionModVarsRngd>(
+				      this , std::move( vars ) , range , 0 ,
+				      Observer::par2concern( issueMod ) ) ,
+				 Observer::par2chnl( issueMod ) );
+  return;
+  }
+
+ // this is not a complete reset
  const auto strtit = v_triples.begin() + range.first;
  const auto stopit = v_triples.begin() + range.second;
 
@@ -627,22 +647,36 @@ void DQuadFunction::remove_variables( Range range, c_ModParam issueMod )
 void DQuadFunction::remove_variables( Subset && nms , bool ordered ,
 				      c_ModParam issueMod )
 {
- if( nms.empty() )  // actually nothing to remove
-  return;           // cowardly (and silently) return
+ if( nms.empty() ) {      // removing *all* variable
+  Vec_p_Var vars( v_triples.size() );
 
- if( v_triples.empty() )  // deleting from nothing
-  throw( std::logic_error( "deleting from an empty set" ) );
+  for( Index i = 0 ; i < v_triples.size() ; ++i )
+   vars[ i ] = std::get< 0 >( v_triples[ i ] );
 
+  v_triples.clear();
+
+  // now issue the Modification: note that the subset is empty
+ 
+  // now issue the Modification: note that the vector of Variable * and
+  // the subset are both empty
+  // a diagonal quadratic function is additive ==> strongly quasi-additive
+  if( f_Observer && f_Observer->issue_mod( issueMod ) )
+   f_Observer->add_Modification( std::make_shared<C05FunctionModVarsSbst>(
+				 this , std::move( vars ) , Subset() , true ,
+				 0 , Observer::par2concern( issueMod ) ) ,
+				 Observer::par2chnl( issueMod ) );
+  return;
+  }
+
+ // this is not a complete reset
  if( ! ordered )
   std::sort( nms.begin() , nms.end() );
 
- auto it = nms.begin();
- if( ( *it >= v_triples.size() ) || ( nms.back() >= v_triples.size() ) )
-  throw( std::invalid_argument( "DQuadFunction::remove_variables: "
-                                "wrong index: " +
-                                std::to_string( std::max( *nms.begin() ,
-                                                          nms.back() ) ) ) );
+ if( nms.back() >= v_triples.size() )  // the last name is wrong
+  throw( std::invalid_argument(
+	  "DQuadFunction::remove_variables: wrong Variable index in nms" ) );
 
+ auto it = nms.begin();
  auto vi = *it;    // first element to be eliminated
  auto curr = v_triples.begin() + vi;   // position where to move stuff
 

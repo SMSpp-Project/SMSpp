@@ -85,6 +85,8 @@ void FRealObjective::set_function( Function * const function ,
  }  // end( FRealObjective::set_function )
 
 /*--------------------------------------------------------------------------*/
+/*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE FRealObjective -------*/
+/*--------------------------------------------------------------------------*/
 
 void FRealObjective::remove_variable( Index i , c_ModParam issueMod )
 {
@@ -92,8 +94,7 @@ void FRealObjective::remove_variable( Index i , c_ModParam issueMod )
   * has happened to the Variable of the Function and register/unregister
   * itself from them. However, in this case it knows beforehand what is
   * happening. If there is no real reason to have the Modification issued,
-  * it will instruct the Function not to and do the unregistering herein.
-  */
+  * it will instruct the Function not to and do the unregistering herein. */
 
  if( ! f_function )
   return;
@@ -107,6 +108,43 @@ void FRealObjective::remove_variable( Index i , c_ModParam issueMod )
   f_function->remove_variable( i , eNoMod );
   }
  }  // end( FRealObjective::remove_variable )
+
+/*--------------------------------------------------------------------------*/
+
+void FRealObjective::remove_variables( Range range , c_ModParam issueMod )
+{
+ if( ! f_function )
+  return;
+
+ if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
+  f_function->remove_variables( range , issueMod );
+ else {
+  // unregistration can preceed removal, since the Function completely
+  // ignores this information
+  for( Index i = range.first ; i < range.second ; )
+   f_function->get_active_var( i++ )->remove_active( this );
+  f_function->remove_variables( range , eNoMod );
+  }
+ }  // end( FRealObjective::remove_variables( range ) )
+
+/*--------------------------------------------------------------------------*/
+
+void FRealObjective::remove_variables( Subset && nms , bool ordered ,
+				       c_ModParam issueMod )
+{
+ if( ! f_function )
+  return;
+
+ if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
+  f_function->remove_variables( std::move( nms ) , ordered , issueMod );
+ else {
+  // unregistration can preceed removal, since the Function completely
+  // ignores this information
+  for( auto i : nms )
+   f_function->get_active_var( i++ )->remove_active( this );
+  f_function->remove_variables( std::move( nms ) , ordered , eNoMod );
+  }
+ }  // end( FRealObjective::remove_variables( subset ) )
 
 /*--------------------------------------------------------------------------*/
 

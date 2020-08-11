@@ -7,7 +7,7 @@
  *
  * \version 0.01
  *
- * \date 11 - 06 - 2020
+ * \date 30 - 07 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -144,7 +144,52 @@ namespace SMSpp_di_unipi_it
  *
  * Note that the BendersBFunction is not supposed to have any Variable or
  * Constraint (besides those defined in its only inner Block B).
- */
+ *
+ * BendersBFunction handles all possible changes in its input data:
+ *
+ * - A complete reset of all the data (A, b, constraints, sides), which
+ *   results in a FunctionMod (with shift() == FunctionMod::NaNshift, i.e.,
+ *   "everything changed") being issued.
+ *
+ * - Addition of variables (adding columns to A), either one or a range, which
+ *   results in a C05FunctionModVarsAddd being issued (since a
+ *   BendersBFunction is strongly quasi-additive, and with shift() == 0 as
+ *   expected).
+ *
+ * - Removal of variables (removing columns from A), either one, or a range,
+ *   or a subset of them, which results in either a C05FunctionModVarsRngd or
+ *   a C05FunctionModVarsSbst being issued (since a BendersBFunction is
+ *   strongly quasi-additive, and with shift() == 0 as expected).
+ *
+ * - Changes of rows in A (either one, or a range or a subset of them) and in
+ *   the corresponding elements of b, which results in either a
+ *   BendersBFunctionModRngd or a BendersBFunctionModSbst being issued, with
+ *   shift() == NANshift (the function has changed "unpredictably"), type() ==
+ *   AllLinearizationChanged (all the linearizations may have changed,
+ *   although actually only a subset of them has) and BFtype() == ModifyRows.
+ *
+ * - Changes of elements of b (either one, or a range or a subset of them)
+ *   only, which results in either a BendersBFunctionModRngd or a
+ *   BendersBFunctionModSbst being issued, with type() == AlphaChanged (all
+ *   the alphas may have changed, although actually only a subset of them
+ *   has), BFtype() == ModifyCnst, and shift() == NANshift.
+ *
+ * - Addition of rows to A and b, either one or a range, which results in
+ *   BendersBFunctionModAddd being issued with shift() == NANshift and either
+ *   type() == C05FunctionMod::AllLinearizationChanged or type() ==
+ *   C05FunctionMod::AllEntriesChanged (when the new constants b are all
+ *   zero).
+ *
+ * - Removal of rows from A and b, either one, or a range, or a subset of
+ *   them, which results in any of the following Modification being issued:
+ *
+ *   - a BendersBFunctionModRngd with BFtype() == DeleteRows and shift() ==
+ *     C05FunctionMod::NaNshift;
+ *
+ *   - a BendersBFunctionModSbst with BFtype() == DeleteRows and shift() ==
+ *     C05FunctionMod::NaNshift;
+ *
+ *   - a FunctionMod with shift() == FunctionMod::NaNshift. */
 
 class BendersBFunction : public C05Function , public Block {
 
@@ -215,19 +260,24 @@ class BendersBFunction : public C05Function , public Block {
  {
   public:
 
-  v_iterator( VarVector::iterator itr ) : itr_( itr ) { }
-  virtual v_iterator * clone( void ) override {
+  explicit v_iterator( VarVector::iterator & itr ) : itr_( itr ) {}
+  explicit v_iterator( VarVector::iterator && itr )
+   : itr_( std::move( itr ) ) {}
+
+  v_iterator * clone( void ) override final {
    return( new v_iterator( itr_ ) );
    }
 
-  virtual void operator++( void ) override final { (itr_)++; }
-  virtual reference operator*( void ) const override final {
+  void operator++( void ) override final { ++(itr_); }
+
+  reference operator*( void ) const override final {
    return( *((*itr_)) );
    }
-  virtual pointer operator->( void ) const override final {
+  pointer operator->( void ) const override final {
    return( (*itr_) );
    }
-  virtual bool operator==( const ThinVarDepInterface::v_iterator & rhs )
+
+  bool operator==( const ThinVarDepInterface::v_iterator & rhs )
    const override final {
    #ifdef NDEBUG
     auto tmp = static_cast<const BendersBFunction::v_iterator *>( & rhs );
@@ -237,7 +287,7 @@ class BendersBFunction : public C05Function , public Block {
     return( tmp ? itr_ == tmp->itr_ : false );
    #endif
    }
-  virtual bool operator!=( const ThinVarDepInterface::v_iterator & rhs )
+  bool operator!=( const ThinVarDepInterface::v_iterator & rhs )
    const override final {
    #ifdef NDEBUG
     auto tmp = static_cast<const BendersBFunction::v_iterator *>( & rhs );
@@ -263,19 +313,20 @@ class BendersBFunction : public C05Function , public Block {
  {
   public:
 
-  v_const_iterator( VarVector::const_iterator itr ) : itr_( itr ) { }
-  virtual v_const_iterator * clone( void ) override {
+  explicit v_const_iterator( VarVector::const_iterator & itr ) : itr_( itr ) {}
+  explicit v_const_iterator( VarVector::const_iterator && itr )
+   : itr_( std::move( itr ) ) {}
+
+  v_const_iterator * clone( void ) override final {
    return( new v_const_iterator( itr_ ) );
    }
 
-  virtual void operator++( void ) override final { (itr_)++; }
-  virtual reference operator*( void ) const override final {
-   return( *((*itr_)) );
-   }
-  virtual pointer operator->( void ) const override final {
-   return( (*itr_) );
-   }
-  virtual bool operator==( const ThinVarDepInterface::v_const_iterator & rhs )
+  void operator++( void ) override final { ++(itr_); }
+
+  reference operator*( void ) const override final { return( *((*itr_)) ); }
+  pointer operator->( void ) const override final { return( (*itr_) ); }
+
+  bool operator==( const ThinVarDepInterface::v_const_iterator & rhs )
    const override final {
    #ifdef NDEBUG
     auto tmp = static_cast<const BendersBFunction::v_const_iterator *>(
@@ -287,7 +338,7 @@ class BendersBFunction : public C05Function , public Block {
     return( tmp ? itr_ == tmp->itr_ : false );
    #endif
    }
-  virtual bool operator!=( const ThinVarDepInterface::v_const_iterator & rhs )
+  bool operator!=( const ThinVarDepInterface::v_const_iterator & rhs )
    const override final {
    #ifdef NDEBUG
     auto tmp = static_cast<const BendersBFunction::v_const_iterator *>(
@@ -442,7 +493,7 @@ class BendersBFunction : public C05Function , public Block {
   * "implement itself" should. By not having any Variable, the Observer can no
   * longer do that. */
 
- virtual void clear( void ) override { v_x.clear(); }
+ void clear( void ) override { v_x.clear(); }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -547,15 +598,16 @@ class BendersBFunction : public C05Function , public Block {
   * @return The value of the parameter.
   */
 
- virtual void set_par( const idx_type par , const int value ) override;
+ void set_par( const idx_type par , const int value ) override;
 
 /*--------------------------------------------------------------------------*/
  /// set a given float (double) numerical parameter
  /** Set a given float (double) numerical parameter. BendersBFunction takes
-  * care of the following parameters. Each of these parameters is associated
-  * with a parameter of the CDASolver of the sub-Block of this
-  * BendersBFunction, given between parenthesis.
+  * care of the following parameters. Except for the first parameter, each of
+  * these parameters is associated with a parameter of the CDASolver of the
+  * sub-Block of this BendersBFunction, given between parenthesis.
   *
+  * - dblAAccMlt
   * - dblMaxTime  ( Solver::dblMaxTime )
   * - dblRelAcc   ( Solver::dblRelAcc )
   * - dblAbsAcc   ( Solver::dblAbsAcc )
@@ -564,18 +616,19 @@ class BendersBFunction : public C05Function , public Block {
   * - dblRAccLin  ( CDASolver::dblRAccDSol )
   * - dblAAccLin  ( CDASolver::dblAAccDSol )
   *
-  * Setting any of these parameters causes the corresponding parameter of the
-  * CDASolver of the sub-Block to be overwritten by the given \c value. The
-  * setting of these parameters only take effect if this BendersBFunction has
-  * a sub-Block and this sub-Block has a CDASolver attached to it. Any other
-  * parameter is handled by the C05Function.
+  * Setting any of these parameters (except the first one) causes the
+  * corresponding parameter of the CDASolver of the sub-Block to be
+  * overwritten by the given \c value. The setting of these parameters only
+  * take effect if this BendersBFunction has a sub-Block and this sub-Block
+  * has a CDASolver attached to it. Any other parameter is handled by the
+  * C05Function.
   *
   * @param par The parameter to be set.
   *
   * @return The value of the parameter.
   */
 
- virtual void set_par( const idx_type par , const double value ) override {
+ void set_par( const idx_type par , const double value ) override {
 
   auto solver = get_solver<CDASolver>();
   if( ! solver )
@@ -583,6 +636,10 @@ class BendersBFunction : public C05Function , public Block {
                                  "must have a CDASolver attached to it." ) );
 
   switch( par ) {
+   case( dblAAccMlt ):
+    AAccMlt = value;
+    break;
+
    case( dblMaxTime ):
     solver->set_par( Solver::dblMaxTime , value );
     break;
@@ -636,7 +693,7 @@ class BendersBFunction : public C05Function , public Block {
   * @return The value of the required parameter.
   */
 
- virtual int get_int_par( const idx_type par ) const override {
+ int get_int_par( const idx_type par ) const override {
   switch( par ) {
    case( intMaxIter ):
     return get_solver_int_par( Solver::intMaxIter );
@@ -653,6 +710,7 @@ class BendersBFunction : public C05Function , public Block {
  /** Get a specific float (double) numerical parameter. BendersBFunction takes
   * care of the following parameters:
   *
+  * - dblAAccMlt
   * - dblMaxTime
   * - dblRelAcc
   * - dblAbsAcc
@@ -668,8 +726,10 @@ class BendersBFunction : public C05Function , public Block {
   * @return The value of the required parameter.
   */
 
- virtual double get_dbl_par( const idx_type par ) const override {
+ double get_dbl_par( const idx_type par ) const override {
   switch( par ) {
+   case( dblAAccMlt ):
+    return AAccMlt;
    case( dblMaxTime ):
     return get_solver_dbl_par( Solver::dblMaxTime );
    case( dblRelAcc ):
@@ -725,29 +785,25 @@ class BendersBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- virtual v_iterator * v_begin( void ) override final
- {
+ v_iterator * v_begin( void ) override final {
   return( new BendersBFunction::v_iterator( v_x.begin() ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual v_const_iterator * v_begin( void ) const override final
- {
+ v_const_iterator * v_begin( void ) const override final {
   return( new BendersBFunction::v_const_iterator( v_x.begin() ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
- virtual v_iterator * v_end( void ) override final
- {
+ v_iterator * v_end( void ) override final {
   return( new BendersBFunction::v_iterator( v_x.end() ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual v_const_iterator * v_end( void ) const override final
- {
+ v_const_iterator * v_end( void ) const override final {
   return( new BendersBFunction::v_const_iterator( v_x.end() ) );
   }
 
@@ -910,14 +966,17 @@ class BendersBFunction : public C05Function , public Block {
   *        BendersBFunction is strongly quasi-additive, and with shift() == 0
   *        as expected) is issued, as described in Observer::make_par(). */
 
- void remove_variables( Range range , c_ModParam issueMod = eModBlck );
+ void remove_variables( Range range , c_ModParam issueMod = eModBlck )
+  override final;
 
 /*--------------------------------------------------------------------------*/
  /// remove a subset of Variable
- /** This method removes all the Variable in the given set of indices.
+ /** This method removes all the Variable in the given set of indices. If \p
+  * nms is empty, all Variable are removed.
   *
   * @param nms a Subset & containing the indices of the Variable to be
-  *        removed, i.e., integers between 0 and get_num_active_var() - 1.
+  *        removed, i.e., integers between 0 and get_num_active_var() - 1. If
+  *        \p nms is empty, all Variable are removed.
   *
   * @param ordered a bool indicating if \p nms[] is already ordered in
   *        increasing sense (otherwise this is done inside the method,
@@ -927,8 +986,8 @@ class BendersBFunction : public C05Function , public Block {
   *        0, since a BendersBFunction is strongly quasi-additive) is issued,
   *        as described in Observer::make_par(). */
 
- virtual void remove_variables( Subset & nms , const bool ordered = false ,
-                                c_ModParam issueMod = eModBlck );
+ void remove_variables( Subset && nms , const bool ordered = false ,
+                        c_ModParam issueMod = eModBlck ) override final;
 
 /*--------------------------------------------------------------------------*/
  /// modify a range of rows of the linear mapping
@@ -953,7 +1012,7 @@ class BendersBFunction : public C05Function , public Block {
   *        as described in Observer::make_par(). Note that shift() == NANshift
   *        (the function has changed "unpredictably"), type() ==
   *        AllLinearizationChanged (all the linearizations may have changed,
-  *        although actually only a subset of them has) and PFtype() ==
+  *        although actually only a subset of them has) and BFtype() ==
   *        ModifyRows. */
 
  void modify_rows( MultiVector && nA , c_RealVector & nb , Range range ,
@@ -986,7 +1045,7 @@ class BendersBFunction : public C05Function , public Block {
   *        issued, as described in Observer::make_par(). Note that shift() ==
   *        NANshift (the function has changed "unpredictably"),  type() ==
   *        AllLinearizationChanged (all the linearizations may have changed,
-  *        although actually only a subset of them has) and PFtype() ==
+  *        although actually only a subset of them has) and BFtype() ==
   *        ModifyRows. */
 
  void modify_rows( MultiVector && nA , c_RealVector & nb , Subset && rows ,
@@ -1010,7 +1069,7 @@ class BendersBFunction : public C05Function , public Block {
   *        as described in Observer::make_par(). Note that shift() == NANshift
   *        (the function has changed "unpredictably"), type() ==
   *        AllLinearizationChanged (all the linearizations may have changed,
-  *        although actually only a subset of them has) and PFtype() ==
+  *        although actually only a subset of them has) and BFtype() ==
   *        ModifyRows. */
 
  void modify_row( c_Index i , RealVector && Ai , c_FunctionValue bi ,
@@ -1031,7 +1090,7 @@ class BendersBFunction : public C05Function , public Block {
   * @param issueMod decides if and how the BendersBFunctionModRngd is issued,
   *        as described in Observer::make_par(). Note that type() ==
   *        AlphaChanged (all the alphas may have changed, although actually
-  *        only a subset of them has) and PFtype() == ModifyCnst. As for
+  *        only a subset of them has) and BFtype() == ModifyCnst. As for
   *        shift(), however, the value of the function *may* change in a very
   *        predictable way: if the new value of the constant is > than the
   *        current value for *all* rows, then the function has necessarily
@@ -1066,7 +1125,7 @@ class BendersBFunction : public C05Function , public Block {
   * @param issueMod decides if and how the BendersBFunctionModSbst is issued,
   *        as described in Observer::make_par(). Note that type() ==
   *        AlphaChanged (all the alphas may have changed, although actually
-  *        only a subset of them has) and PFtype() == ModifyCnst. As for
+  *        only a subset of them has) and BFtype() == ModifyCnst. As for
   *        shift(), however, the value of the function *may* change in a very
   *        predictable way: if the new value of the constant is > than the
   *        current value for *all* rows, then the function has necessarily
@@ -1100,7 +1159,7 @@ class BendersBFunction : public C05Function , public Block {
   * @param issueAMod decides if and how the BendersBFunctionModRngd is issued,
   *        as described in Observer::make_par(). Note that type() ==
   *        AlphaChanged (all the alphas may have changed, although actually
-  *        only a subset of them has) and PFtype() == ModifyCnst. As for
+  *        only a subset of them has) and BFtype() == ModifyCnst. As for
   *        shift(), however, the value of the function *may* change in a very
   *        predictable way: if the new value of the constant is > than the
   *        current value for *all* rows, then the function has necessarily
@@ -1141,7 +1200,7 @@ class BendersBFunction : public C05Function , public Block {
   * @param issueAMod decides if and how the BendersBFunctionModSbst is issued,
   *        as described in Observer::make_par(). Note that type() ==
   *        AlphaChanged (all the alphas may have changed, although actually
-  *        only a subset of them has) and PFtype() == ModifyCnst. As for
+  *        only a subset of them has) and BFtype() == ModifyCnst. As for
   *        shift(), however, the value of the function *may* change in a very
   *        predictable way: if the new value of the constant is > than the
   *        current value for *all* rows, then the function has necessarily
@@ -1168,7 +1227,7 @@ class BendersBFunction : public C05Function , public Block {
   * @param issueMod which decides if and how the BendersBFunctionModRngd is
   *        issued, as described in Observer::make_par(). Note that type() ==
   *        AlphaChanged (all the alphas may have changed, although actually
-  *        only a subset of them has) and PFtype() == ModifyCnst. As for
+  *        only a subset of them has) and BFtype() == ModifyCnst. As for
   *        shift(), the value of the function changes in a very predictable
   *        way: if bi is > than the current value the function has
   *        necessarily increased, otherwise necessarily decreased (if it is
@@ -1309,8 +1368,7 @@ class BendersBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- virtual void add_Modification( sp_Mod mod , Observer::ChnlName chnl = 0 )
-  override;
+ void add_Modification( sp_Mod mod , Observer::ChnlName chnl = 0 ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR Saving THE DATA OF THE BendersBFunction ---------*/
@@ -1406,7 +1464,7 @@ class BendersBFunction : public C05Function , public Block {
   * - The group "Block", containing the description of the inner Block.
   */
 
- virtual void serialize( netCDF::NcGroup & group ) const override;
+ void serialize( netCDF::NcGroup & group ) const override;
 
 /**@} ----------------------------------------------------------------------*/
 /*------- METHODS DESCRIBING THE BEHAVIOR OF THE BendersBFunction ----------*/
@@ -1416,7 +1474,7 @@ class BendersBFunction : public C05Function , public Block {
 
  /// compute the BendersBFunction
 
- virtual int compute( bool changedvars = true ) override;
+ int compute( bool changedvars = true ) override;
 
 /*--------------------------------------------------------------------------*/
  /// returns the value of the BendersBFunction
@@ -1435,23 +1493,23 @@ class BendersBFunction : public C05Function , public Block {
   * have a sub-Block or its sub-Block does not have a Solver attached to it,
   * then an exception is thrown. */
 
- virtual FunctionValue get_value( void ) const override;
+ FunctionValue get_value( void ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns a lower estimate of the BendersBFunction
  /** This method simply returns get_value().  */
 
- virtual FunctionValue get_lower_estimate( void ) const override {
-  return get_value();
- }
+ FunctionValue get_lower_estimate( void ) const override {
+  return( get_value() );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns an upper estimate of the BendersBFunction
  /** This method simply returns get_value().  */
 
- virtual FunctionValue get_upper_estimate( void ) const override {
-  return get_value();
- }
+ FunctionValue get_upper_estimate( void ) const override {
+  return( get_value() );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns true only if this BendersBFunction is convex
@@ -1461,7 +1519,7 @@ class BendersBFunction : public C05Function , public Block {
   * returns true.
   */
 
- virtual bool is_convex( void ) const override;
+ bool is_convex( void ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns true only if this BendersBFunction is concave
@@ -1471,7 +1529,7 @@ class BendersBFunction : public C05Function , public Block {
   * it returns true.
   */
 
- virtual bool is_concave( void ) const override;
+ bool is_concave( void ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns true only if this BendersBFunction is linear
@@ -1480,27 +1538,62 @@ class BendersBFunction : public C05Function , public Block {
   * linear. We do not attempt to find this out and this method simply returns
   * \c false. */
 
- virtual bool is_linear( void ) const override { return( false ); }
+ bool is_linear( void ) const override { return( false ); }
 
 /*--------------------------------------------------------------------------*/
  /// tells whether a linearization is available
 
- virtual bool has_linearization( const bool diagonal = true ) override final;
+ bool has_linearization( bool diagonal = true ) override final;
 
 /*--------------------------------------------------------------------------*/
  /// compute a new linearization for this BendersBFunction
 
- virtual bool compute_new_linearization( const bool diagonal = true )
-  override final;
+ bool compute_new_linearization( bool diagonal = true ) override final;
 
 /*--------------------------------------------------------------------------*/
  /// store a linearization in the global pool
 
- void store_linearization( const Index name , c_ModParam issueMod = eModBlck )
+ void store_linearization( Index name , c_ModParam issueMod = eModBlck )
   override final;
 
 /*--------------------------------------------------------------------------*/
+
+ bool is_linearization_there( Index name ) const override final {
+  return global_pool.is_linearization_there( name );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ bool is_linearization_vertical( Index name ) const override final {
+  return global_pool.is_linearization_vertical( name );
+ }
+
+/*--------------------------------------------------------------------------*/
  /// stores a combination of the given linearizations
+  /** This method creates a combination of the given set of linearizations,
+  * with the given coefficients, and stores it into the global pool of
+  * linearizations with the given name.
+  *
+  * BendersBFunction can produce two types of linearizations: diagonal and
+  * vertical ones. For a combination of linearizations to be valid, it must
+  * satisfy one of the following two conditions:
+  *
+  * -# It is a combination involving only vertical linearizations, and each
+  *    coefficient (multiplier) must be nonnegative (actually, greater than or
+  *    equal to - #dblAAccMlt).
+  *
+  * -# It is a combination involving at least one diagonal linearization, each
+  *    coefficient (multiplier) must be nonnegative (actually, greater than or
+  *    equal to - #dblAAccMlt), and the sum of the coefficients of the
+  *    diagonal linearizations must be approximately equal to 1:
+  *
+  *    abs( 1 - sum coefficients of diagonal linearizations ) <= K * #dblAAccMlt
+  *
+  *    where K is the number of linearizations being combined.
+  *
+  * In the first case, the resulting linearization is a vertical one, while in
+  * the second case it is a diagonal linearization. If none of the above two
+  * conditions are met, an exception is thrown. */
 
  void store_combination_of_linearizations( LinearCombination & coefficients ,
                                            const Index name ,
@@ -1513,34 +1606,33 @@ class BendersBFunction : public C05Function , public Block {
  void set_important_linearization( LinearCombination && coefficients ,
                                    Index name ) override final {
   global_pool.set_important_linearization( std::move( coefficients ), name );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// return the name of "the important linearization"
 
  Index get_important_linearization_name( void ) override final {
-  return global_pool.get_important_linearization_name();
- }
+  return( global_pool.get_important_linearization_name() );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// return the combination used to form "the important linearization"
 
  c_LinearCombination & get_important_linearization_coefficients( void )
   override final {
-  return global_pool.get_important_linearization_coefficients();
- }
-
-/*--------------------------------------------------------------------------*/
- /// rename a linearization that is stored in the global pool
-
- void rename_linearization( const Index current_name , const Index new_name ,
-                            c_ModParam issueMod = eModBlck ) override final;
+  return( global_pool.get_important_linearization_coefficients() );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// delete the given linearization from the global pool of linearizations
 
- void delete_linearization( const Index name ,
+ void delete_linearization( Index name ,
                             c_ModParam issueMod = eModBlck ) override final;
+
+/*--------------------------------------------------------------------------*/
+
+ void delete_linearizations( Subset && which , bool ordered = true ,
+                             c_ModParam issueMod = eModBlck ) override final;
 
 /*--------------------------------------------------------------------------*/
 
@@ -1641,7 +1733,7 @@ class BendersBFunction : public C05Function , public Block {
   * BendersBFunction; it is virtual so that derived classes can print their
   * specific information in the format they choose. */
 
- virtual void print( std::ostream &output ) const override {
+ void print( std::ostream &output ) const override {
   output << "BendersBFunction [" << this << "]"
          << " with " << get_num_active_var() << " active variables and a"
          << " mapping with " << get_b().size() << " rows.";
@@ -1650,7 +1742,7 @@ class BendersBFunction : public C05Function , public Block {
  /// load the BendersBFunction out of an istream
  /** This method loads the BendersBFunction out of an istream. */
 
- virtual void load( std::istream &input ) override final;
+ void load( std::istream &input ) override final;
 
 /*--------------------------------------------------------------------------*/
 
@@ -1681,6 +1773,8 @@ class BendersBFunction : public C05Function , public Block {
 
  bool diagonal_linearization_required = false;
  ///< indicates whether a diagonal linearization is required
+
+ FunctionValue AAccMlt;  ///< maximum absolute error in the multipliers
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -1720,7 +1814,6 @@ class BendersBFunction : public C05Function , public Block {
   ~GlobalPool();
 
 /*--------------------------------------------------------------------------*/
-
   // resizes the global pool
   /** Resize the global pool to have the given \p size. It is important to
    * notice that
@@ -1735,15 +1828,11 @@ class BendersBFunction : public C05Function , public Block {
   void resize( Index size );
 
 /*--------------------------------------------------------------------------*/
-
   /// returns the the size of the global pool
 
-  Index size() const {
-   return solutions.size();
-  }
+  Index size() const { return( solutions.size() ); }
 
 /*--------------------------------------------------------------------------*/
-
   /// stores the given linearization constant and solution in the global pool
   /** This function stores the given linearization constant and solution into
    * the global pool under the given \p name. If the given \p name is invalid,
@@ -1756,11 +1845,27 @@ class BendersBFunction : public C05Function , public Block {
    *
    * @param name the name under which the linearization constant and the
    *        pointer to the Solution will be stored.
+   *
+   * @param diagonal_linearization indicates whether the linearization is a
+   *        diagonal one.
    */
 
   void store( FunctionValue linearization_constant , Solution * solution ,
-              Index name );
+              Index name , bool diagonal_linearization );
 
+/*--------------------------------------------------------------------------*/
+  /// tells if there is a linearization in this GlobalPool with the given name
+  /** This method returns true if \p name is the index (name) of a
+   * linearization currently in this GlobalPool. */
+  bool is_linearization_there( Index name ) const;
+
+/*--------------------------------------------------------------------------*/
+ /// tells if the linearization in this GlobalPool with that name is vertical
+ /** This method returns true if \p name is the index (name) of a vertical
+  * linearization currently in this GlobalPool. */
+  bool is_linearization_vertical( Index name ) const;
+
+/*--------------------------------------------------------------------------*/
   /// returns a pointer to the Solution stored under the given name
   /** This function returns a pointer to the Solution that is stored under the
    * given \p name. If the given \p name is invalid, an exception is thrown.
@@ -1779,7 +1884,6 @@ class BendersBFunction : public C05Function , public Block {
   }
 
 /*--------------------------------------------------------------------------*/
-
   /// returns the linearization constant stored under the given name
   /** This function returns the value of the linearization constant that is
    * stored under the given \p name. If the given \p name is invalid, an
@@ -1800,7 +1904,6 @@ class BendersBFunction : public C05Function , public Block {
   }
 
 /*--------------------------------------------------------------------------*/
-
   /// sets the linearization constant under the given name
   /** This function sets the value of the linearization constant under the
    * given \p name. If the given \p name is invalid, an exception is thrown.
@@ -1821,7 +1924,6 @@ class BendersBFunction : public C05Function , public Block {
   }
 
 /*--------------------------------------------------------------------------*/
-
   /// invalidates all linearizations
   /** This function invalidates all linearizations, by setting NaN to each
    * linearization constant currently stored. This means that any
@@ -1833,12 +1935,11 @@ class BendersBFunction : public C05Function , public Block {
    * destroyed, explicity calls to delete_linearization() must be made.
    */
 
-  void invalidate() {
+  void invalidate( void ) {
    linearization_constants.assign( linearization_constants.size() , NaN );
   }
 
 /*--------------------------------------------------------------------------*/
-
   /// resets all the linearization constants
   /** This function resets all linearizations, by setting Inf to each
    * linearization constant currently stored. This means that any
@@ -1847,13 +1948,12 @@ class BendersBFunction : public C05Function , public Block {
    * from them.
    */
 
-  void reset_linearization_constants() {
+  void reset_linearization_constants( void ) {
    linearization_constants.assign( linearization_constants.size() ,
                                    Inf<FunctionValue>() );
   }
 
 /*--------------------------------------------------------------------------*/
-
   /// specify which linearization is "the important one"
   /** This method sets the linearization with the given name as "the important
    * one".
@@ -1871,23 +1971,20 @@ class BendersBFunction : public C05Function , public Block {
   }
 
 /*--------------------------------------------------------------------------*/
-
   /// return the name of "the important linearization"
 
-  Index get_important_linearization_name( void ) {
+  Index get_important_linearization_name( void ) const {
    return( important_linearization_name );
   }
 
 /*--------------------------------------------------------------------------*/
-
   /// return the combination used to form "the important linearization"
 
-  c_LinearCombination & get_important_linearization_coefficients( void ) {
+  c_LinearCombination & get_important_linearization_coefficients( void ) const {
    return( important_linearization_lin_comb );
   }
 
 /*--------------------------------------------------------------------------*/
-
   /// stores a combination of the linearizations that are already stored
   /** This method creates a linear combination of a given set of
    * linearizations, with given \p coefficients, and stores it into the global
@@ -1903,35 +2000,15 @@ class BendersBFunction : public C05Function , public Block {
    *
    * @param name the name under which the combination of linearizations will
    *        be stored.
+   *
+   * @param AAccMlt the maximum absolute error in the multipliers.
    */
 
   void store_combination_of_linearizations( LinearCombination & coefficients ,
-                                            const Index name );
+                                            const Index name ,
+                                            const FunctionValue AAccMlt );
 
 /*--------------------------------------------------------------------------*/
-
-  /// renames a linearization
-  /** This methods renames the linearization currently stored under \p
-   * current_name. If any of \p current_name or \p new_name is an invalid
-   * name, an exception is thrown.
-   *
-   * @param current_name the current name of the linearization that will be
-   *        renamed.
-   *
-   * @param new_name the new name of the linearization.
-   */
-
-  void rename_linearization( const Index current_name , const Index new_name );
-
-  /// deletes the linearization currently stored under the given name
-  /** This method deletes the linearization currently stored under the given
-   * \p name. If the given \p name is invalid, an exception is thrown.
-   *
-   * @param name the name of the linearization to be deleted.
-   */
-
-/*--------------------------------------------------------------------------*/
-
   /// deletes the linearization with the given name
   /** This function deletes the linearization with the given \p name,
    * destroying the Solution associated with it. If the given \p name is
@@ -1939,7 +2016,17 @@ class BendersBFunction : public C05Function , public Block {
    *
    * @param name the name of the linearization to be deleted.
    */
-  void delete_linearization( const Index name );
+  void delete_linearization( Index name );
+
+/*--------------------------------------------------------------------------*/
+  /// deletes the linearizations with the given names
+  /** This function deletes the linearizations with the given names given in
+   * \p which, destroying the all the Solution associated with them. If any
+   * given name is invalid, an exception is thrown.
+   *
+   * @param which the names of the linearizations that must be deleted.
+   */
+  void delete_linearizations( Subset & which , bool ordered );
 
 /*--------------------------------------------------------------------------*/
 
@@ -1956,6 +2043,9 @@ class BendersBFunction : public C05Function , public Block {
 
   Index important_linearization_name;
   ///< the name of the important linearization
+
+  std::vector<bool> is_diagonal;
+  ///< indicates whether a linearization is diagonal
  };
 
 /*--------------------------------------------------------------------------*/
@@ -2321,7 +2411,7 @@ class BendersBFunctionMod : public C05FunctionMod {
 /*-------------------------- PROTECTED METHODS -----------------------------*/
   /// print the BendersBFunctionMod
 
- virtual inline void print( std::ostream &output ) const override
+ inline void print( std::ostream &output ) const override
  {
   output << "BendersBFunctionMod[";
   if( concerns_Block() )
@@ -2348,7 +2438,6 @@ class BendersBFunctionMod : public C05FunctionMod {
      output << "both \alpha and g have changed"; break;
     case( GlobalPoolAdded ): output << " linearizations added"; break;
     case( GlobalPoolRemoved ): output << " linearizations removed"; break;
-    case( GlobalPoolRenamed ): output << " linearizations renamed"; break;
     default: output << " unknown operation (?)";
    }
   }
@@ -2415,7 +2504,7 @@ class BendersBFunctionModAddd : public BendersBFunctionMod {
 
  /// print the BendersBFunctionModAddd
 
-  virtual inline void print( std::ostream &output ) const override
+  inline void print( std::ostream &output ) const override
   {
    output << "BendersBFunctionModAddd[";
    if( concerns_Block() )
@@ -2493,7 +2582,7 @@ class BendersBFunctionModRngd : public BendersBFunctionMod {
 
  /// print the BendersBFunctionModRngd
 
- virtual inline void print( std::ostream &output ) const override
+ inline void print( std::ostream &output ) const override
  {
   output << "BendersBFunctionModRngd[";
   if( concerns_Block() )
@@ -2588,7 +2677,7 @@ class BendersBFunctionModSbst : public BendersBFunctionMod {
 
  /// print the BendersBFunctionModSbst
 
- virtual inline void print( std::ostream &output ) const override
+ inline void print( std::ostream &output ) const override
  {
   output << "BendersBFunctionModSbst[";
   if( concerns_Block() )

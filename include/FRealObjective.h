@@ -432,8 +432,19 @@ class FRealObjective : public RealObjective , public Observer {
 
 /*--------------------------------------------------------------------------*/
 
- void remove_variable( Index i , c_ModParam issueMod = eModBlck ) override;
+ void remove_variable( Index i , c_ModParam issueMod = eModBlck )
+  override final;
 
+/*--------------------------------------------------------------------------*/
+
+ void remove_variables( Range range , c_ModParam issueMod = eModBlck )
+  override final;
+
+/*--------------------------------------------------------------------------*/
+
+ void remove_variables( Subset && nms , bool ordered = false ,
+			c_ModParam issueMod = eModBlck )  override final;
+ 
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF AN Observer -------------*/
 /*--------------------------------------------------------------------------*/

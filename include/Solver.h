@@ -10,9 +10,9 @@
  * optimal ones, or proving that there is none. Since doing this has to be
  * expected to costly, the class implements the ThinComputeInterface paradigm.
  *
- * \version 0.40
+ * \version 0.41
  *
- * \date 27 - 04 - 2020
+ * \date 15 - 07 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -852,28 +852,7 @@ public:
   * given id for the given type, exception will be thrown. The method of the
   * base class always throws exception. */
 
- void reset_event_handler( int type , EventID id ) override
- {
-  static EventHandler do_nothing = [] () { return( eContinue ); };
-
-  if( type >= max_event_number() )
-   throw( std::invalid_argument( "unsupported event type " +
-				 std::to_string( type ) ) );
-
-  if( id >= v_events[ type ].size() )
-   throw( std::invalid_argument( "incorrect event id " + std::to_string( id )
-				 + " for type " + std::to_string( type ) ) );
-
-  if( id == v_events[ type ].size() - 1 ) {
-   do
-    v_events[ type ].pop_back();
-   while( ( ! v_events[ type ].empty() ) &&
-	  ( v_events[ type ].back().target<int ()>() ==
-	    do_nothing.target<int ()>() ) );
-   }
-  else
-   v_events[ type ][ id ] = do_nothing;
-  }
+ void reset_event_handler( int type , EventID id ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SOLVING THE Block ----------------------*/
@@ -1494,6 +1473,7 @@ public:
  *  @{ */
 
  /// retrieve the Block this Solver is attached to (if any)
+
  virtual Block *get_Block ( void ) const { return( f_Block ); }
 
 /*--------------------------------------------------------------------------*/

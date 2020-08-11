@@ -669,7 +669,45 @@ class Configuration
  * deserialize() methods, as the netCDF C++ interface is not particularly
  * nice with templates. So, besides adding the specific template realization
  * to the factory, one also has to implement these two methods for it. Again,
- * in Configuration.cpp this is done for all the previous cases. */
+ * in Configuration.cpp this is done for all the previous cases.
+ *
+ * IMPORTANT NOTE: adding a specific SimpleConfiguration< something > to the
+ *                 factory requires a call to
+ *
+ *     SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< something > );
+ *
+ * This is actually a macro, and therefore it has a problem if "something"
+ * contains commas (",") as they are taken to separate macro arguments. Hence,
+ * while
+ *
+ * SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::vector< int > > );
+ *
+ * is legal,
+ *
+ * SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration<
+ *                                                  std::pair< int , int > > );
+ *
+ * is not because of the comma. This is why the following types are defined in
+ * Configuration.cpp
+ *
+ * using SimpleConfig_i_i = SimpleConfiguration< std::pair< int , int > >;
+ *
+ * using SimpleConfig_d_d = SimpleConfiguration< std::pair< double , double > >;
+ *
+ * using SimpleConfig_i_d = SimpleConfiguration< std::pair< int , double > >;
+ *
+ * using SimpleConfig_d_i = SimpleConfiguration< std::pair< double , int > >;
+ *
+ * using SimpleConfig_p_p = SimpleConfiguration<
+ *                           std::pair< Configuration * , Configuration * > >;
+ *
+ * and used to insert in the factory the corresponding classes. Hence,
+ * producing a, say, SimpleConfiguration< std::pair< int , int > > with the
+ * factory requires the call
+ *
+ *    new_Configuration( "SimpleConfig_i_i" )
+ *
+ * and similarly specifying its type in a deserialize(). */
 
 template<class SimpleConfiguration_value_type>
 class SimpleConfiguration : public Configuration

@@ -421,7 +421,7 @@ class VariableMod : public AModification {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to (the pointer to) the affected Variable
 
- Variable * variable( void ) { return( f_variable ); }
+ Variable * variable( void ) const { return( f_variable ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 

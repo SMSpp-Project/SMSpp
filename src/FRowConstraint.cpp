@@ -136,6 +136,70 @@ void FRowConstraint::set_both( c_RHSValue both_value , c_ModParam issueMod )
  }
 
 /*--------------------------------------------------------------------------*/
+/*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE FRowConstraint -------*/
+/*--------------------------------------------------------------------------*/
+
+void FRowConstraint::remove_variable( Index i , c_ModParam issueMod )
+{
+ /* FRowConstraint typically relies on FunctionModVars to know if something
+  * has happened to the Variable of the Function and register/unregister
+  * itself from them. However, in this case it knows beforehand what is
+  * happening. If there is no real reason to have the Modification issued,
+  * it will instruct the Function not to and do the unregistering herein. */
+  
+ if( ! f_function )
+  return;
+
+ if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
+  f_function->remove_variable( i , issueMod );
+ else {
+  // unregistration can preceed removal, since the Function completely
+  // ignores this information
+  f_function->get_active_var( i )->remove_active( this );
+  f_function->remove_variable( i , eNoMod );
+  }
+ }  // end( FRowConstraint::remove_variable )
+
+/*--------------------------------------------------------------------------*/
+
+void FRowConstraint::remove_variables( Range range , c_ModParam issueMod )
+{
+ if( ! f_function )
+  return;
+
+ if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
+  f_function->remove_variables( range , issueMod );
+ else {
+  // unregistration can preceed removal, since the Function completely
+  // ignores this information
+  for( Index i = range.first ; i < range.second ; )
+   f_function->get_active_var( i++ )->remove_active( this );
+  f_function->remove_variables( range , eNoMod );
+  }
+ }  // end( FRowConstraint::remove_variables( range ) )
+
+/*--------------------------------------------------------------------------*/
+
+void FRowConstraint::remove_variables( Subset && nms , bool ordered ,
+				       c_ModParam issueMod )
+{
+ if( ! f_function )
+  return;
+
+ if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
+  f_function->remove_variables( std::move( nms ) , ordered , issueMod );
+ else {
+  // unregistration can preceed removal, since the Function completely
+  // ignores this information
+  for( auto i : nms )
+   f_function->get_active_var( i++ )->remove_active( this );
+  f_function->remove_variables( std::move( nms ) , ordered , eNoMod );
+  }
+ }  // end( FRowConstraint::remove_variables( subset ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------- METHODS DESCRIBING THE BEHAVIOR OF AN Observer -------------*/
+/*--------------------------------------------------------------------------*/
 
 void FRowConstraint::add_Modification( sp_Mod mod , c_ChnlName chnl )
 {

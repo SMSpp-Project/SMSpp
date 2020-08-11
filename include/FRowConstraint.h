@@ -554,27 +554,18 @@ class FRowConstraint : public RowConstraint , public Observer {
 
 /*--------------------------------------------------------------------------*/
 
- void remove_variable( Index i , c_ModParam issueMod = eModBlck ) override
- {
-  /* FRowConstraint typically relies on FunctionModVars to know if something
-   * has happened to the Variable of the Function and register/unregister
-   * itself from them. However, in this case it knows beforehand what is
-   * happening. If there is no real reason to have the Modification issued,
-   * it will instruct the Function not to and do the unregistering herein.
-   */
-  
-  if( ! f_function )
-   return;
+ void remove_variable( Index i , c_ModParam issueMod = eModBlck )
+  override final;
 
-  if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
-   f_function->remove_variable( i , issueMod );
-  else {
-   // unregistration can preceed removal, since the Function completely
-   // ignores this information
-   f_function->get_active_var( i )->remove_active( this );
-   f_function->remove_variable( i , eNoMod );
-   }
-  }
+/*--------------------------------------------------------------------------*/
+
+ void remove_variables( Range range , c_ModParam issueMod = eModBlck )
+  override final;
+
+/*--------------------------------------------------------------------------*/
+
+ void remove_variables( Subset && nms , bool ordered = false ,
+			c_ModParam issueMod = eModBlck )  override final;
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF AN Observer -------------*/

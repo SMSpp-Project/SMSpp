@@ -910,7 +910,9 @@ public:
   *
   * If all == true, then the whole set of parameters is copied. If all ==
   * false instead (default), only the parameters that are *not* at their
-  * default value are.
+  * default value are. The f_diff field of the produced ComputeConfig is
+  * set accordingly, i.e., f_diff == true <==> all == false. If for some
+  * reason this is not the intended value it can easily be changed later.
   *
   * Although the class is thin, this method is given a working configuration
   * using the class interface; hence, derived classes correctly implementing
