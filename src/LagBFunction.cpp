@@ -1002,7 +1002,7 @@ ComputeConfig * LagBFunction::get_ComputeConfig( bool all ,
  if( cc == nullptr )
   throw( std::logic_error( "the configuration is not a SimpleConfiguration" ) );
 
- auto bsc = new ERBlockSolverConfig();
+ auto bsc = new RBlockSolverConfig();
  bsc->get( v_Block[0] );
  cc->f_value.first = bsc;
 
