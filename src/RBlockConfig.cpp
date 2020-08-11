@@ -328,7 +328,8 @@ void CBlockConfig::serialize( netCDF::NcGroup & group ) const
 
  if( ! v_Config_Constraints.empty() ) {
 
-  group.addDim( "n_Config_Constraint" , v_Config_Constraints.size() );
+  auto n_Config_Constraint = group.addDim( "n_Config_Constraint" ,
+                                           v_Config_Constraints.size() );
 
   for( size_t i = 0 ; i < v_Config_Constraints.size() ; ++i ) {
    if( v_Config_Constraints[ i ] ) {
@@ -338,16 +339,14 @@ void CBlockConfig::serialize( netCDF::NcGroup & group ) const
     }
    }
 
-  auto ConstraintID_dim = group.addDim( "ConstraintID_dim" ,
-                                        2 * v_ConstraintID.size() );
+  auto two_dim = group.addDim( "two_dim" , 2 );
 
   auto ConstraintID_var = group.addVar( "ConstraintID" , netCDF::NcUint() ,
-                                        ConstraintID_dim );
+                                        { n_Config_Constraint , two_dim } );
 
   for( size_t i = 0 ; i < v_ConstraintID.size() ; ++i ) {
-   std::vector<Block::Index> id = { v_ConstraintID[ i ].first ,
-                                    v_ConstraintID[ i ].second };
-   ConstraintID_var.putVar( { 2 * i } , { 2 } , id.data() );
+   ConstraintID_var.putVar( { i , 0 } , v_ConstraintID[ i ].first );
+   ConstraintID_var.putVar( { i , 1 } , v_ConstraintID[ i ].second );
    }
   }
  }  // end( CBlockConfig::serialize( group ) )
@@ -370,10 +369,20 @@ void CBlockConfig::deserialize( netCDF::NcGroup & group )
  v_Config_Constraints.resize( constrsize );
  v_ConstraintID.resize( constrsize );
 
- std::vector<Block::Index> var_ConstraintID;
+ auto var_ConstraintID = group.getVar( "ConstraintID" );
  if( constrsize > 0 ) {
-  ::deserialize( group , "ConstraintID" , 2 * constrsize ,
-                 var_ConstraintID , false , false );
+  if( var_ConstraintID.isNull() )
+   throw( std::invalid_argument( "CBlockConfig::deserialize: netCDF variable "
+                                 "'ConstraintID' was not provided." ) );
+  else {
+   auto dimensions = ::get_sizes_dimensions( var_ConstraintID );
+   if( dimensions.size() != 2 || dimensions[ 0 ] != constrsize
+       || dimensions[ 1 ] != 2 )
+    throw( std::invalid_argument
+           ( "CBlockConfig::deserialize: invalid dimensions of netCDF variable "
+             "'ConstraintID'. Its dimensions should be (" +
+             std::to_string( constrsize ) +  ", 2)" ) );
+   }
   }
 
  for( size_t i = 0 ; i < constrsize ; ++i ) {
@@ -381,11 +390,11 @@ void CBlockConfig::deserialize( netCDF::NcGroup & group )
                                       std::to_string( i ) );
   v_Config_Constraints[ i ] =
    dynamic_cast< ComputeConfig * >( new_Configuration( config_group ) );
-  v_ConstraintID[ i ] = Block::ConstraintID( var_ConstraintID[ 2 * i ] ,
-                                             var_ConstraintID[ 2 * i + 1 ] );
+
+  var_ConstraintID.getVar( { i , 0 } , & v_ConstraintID[ i ].first );
+  var_ConstraintID.getVar( { i , 1 } , & v_ConstraintID[ i ].second );
   }
  }  // end( CBlockConfig::deserialize( group ) )
-
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ METHODS of OBlockConfig ------------------------*/

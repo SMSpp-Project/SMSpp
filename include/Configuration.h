@@ -751,7 +751,7 @@ class SimpleConfiguration : public Configuration
 
 /*--------------------------------------------------------------------------*/
 
- void clear( void ) override;
+ void clear( void ) override { }
 
 /*---------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
 

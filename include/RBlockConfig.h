@@ -244,45 +244,13 @@ class RBlockConfig : public BlockConfig
  void serialize( netCDF::NcGroup & group ) const override;
 
 /**@} ----------------------------------------------------------------------*/
-/*---------------- METHODS FOR MODIFYING THE RBlockConfig ------------------*/
+/*--------------------- PUBLIC FIELDS OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Methods for modifying the RBlockConfig
+/** @name Public fields of the class
  *  @{ */
 
-/*--------------------------------------------------------------------------*/
- /// sets the (pointer to) the BlockConfig of each sub-Block
- /** This function sets the vector containing the (pointer to) the
-  * BlockConfig of every sub-Block. If \p deleteold is true then all
-  * BlockConfig for the sub-Block currently stored in this RBlockConfig are
-  * destroyed.
-  *
-  * @param bc A vector of pointers to BlockConfig.
-  *
-  * @param deleteold It indicates whether the currently stored BlockConfig
-  *        for the sub-Block (if any) must be destroyed. */
-
- void set_sub_BlockConfig( std::vector<BlockConfig *> && bc ,
-                           bool deleteold = true ) {
-  if( deleteold ) {
-   for( auto sBC : v_sub_BlockConfig )
-    delete sBC;
-   }
-  v_sub_BlockConfig = std::move( bc );
-  }
-
-/**@} ----------------------------------------------------------------------*/
-/*------------- Methods for reading the data of the RBlockConfig -----------*/
-/*--------------------------------------------------------------------------*/
-/** @name Methods for reading the data of the RBlockConfig
- *  @{ */
-
-/*--------------------------------------------------------------------------*/
- /// returns the (pointer to) the BlockConfig of every sub-Block
- /** This function returns a const reference to the vector containing the
-  * (pointer to) the BlockConfig of every sub-Block. */
-
- const std::vector<BlockConfig *> & get_sub_BlockConfig( void )
-  const { return( v_sub_BlockConfig ); }
+ /// the vector of sub-BlockConfig for each of the sub-Block of the Block
+ std::vector<BlockConfig *> v_sub_BlockConfig;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -310,11 +278,6 @@ class RBlockConfig : public BlockConfig
   */
 
  void load( std::istream &input ) override;
-
-/*--------------------------- PROTECTED FIELDS -----------------------------*/
-
- /// the vector of sub-BlockConfig for each of the sub-Block of the Block
- std::vector<BlockConfig *> v_sub_BlockConfig;
 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 
@@ -420,16 +383,17 @@ class CBlockConfig : public BlockConfig
   *   Block; this dimension is optional; if it is not provided, then
   *   n_Config_Constraint = 0 is assumed.
   *
-  * - with p being the size of "n_Config_Constraint", a one-dimensional
-  *   variable called "ConstraintID", of size 2p and type netCDF::ncUint,
+  * - with p being the size of "n_Config_Constraint", a two-dimensional
+  *   variable called "ConstraintID", of size p x 2 and type netCDF::ncUint,
   *   containing the Block::ConstraintID of the Constraint that need a
-  *   ComputeConfig: for each i = 0, ..., p - 1, the pair ( ConstraintID[ 2i
-  *   ], ConstraintID[ 2i + 1] ) is the ConstraintID of the i-th Constraint
-  *   that needs a ComputeConfig, i.e., ConstraintID[ 2i ] provides the index of
-  *   the group to which the i-th Constraint belongs and ConstraintID[ 2i + 1
-  *   ] provides the index of the i-th Constraint (see Block::ConstraintID for
-  *   the definition of an index of a Constraint); this variable is mandatory
-  *   if n_Config_Constraint > 0.
+  *   ComputeConfig. The i-th row of this variable contains the ConstraintID
+  *   of the i-th Constraint: for each i = 0, ..., p - 1, the pair
+  *   ( ConstraintID[ i ][ 0 ], ConstraintID[ i ][ 1 ] ) is the ConstraintID
+  *   of the i-th Constraint that needs a ComputeConfig, i.e., ConstraintID[ i
+  *   ][ 0 ] provides the index of the group to which the i-th Constraint
+  *   belongs and ConstraintID[ i ][ 1 ] provides the index of the i-th
+  *   Constraint (see Block::ConstraintID for the definition of an index of a
+  *   Constraint); this variable is mandatory if n_Config_Constraint > 0.
   *
   * - p groups, with name "Config_Constraint_<i>" for all i = 0, ..., p - 1,
   *   containing each the description of a ComputeConfig associated with the
@@ -496,7 +460,13 @@ class CBlockConfig : public BlockConfig
   * of that supported by the BlockConfig (see BlockConfig::get()) plus any
   * ComputeConfig that may be associated with the Constraint of the given
   * Block. Any Configuration that this CBlockConfig may have at the moment
-  * this function is invoked is deleted.
+  * this function is invoked is deleted. If #v_ConstraintID is not empty then
+  * its content is preserved and only the ComputeConfig associated with the
+  * Constraint (of the given \p block) specified by #v_ConstraintID are
+  * considered. If #v_ConstraintID is empty then every Constraint in the given
+  * \p block is inspected. In this case, for each Constraint of the given \p
+  * block, its ComputeConfig is stored in this CBlockConfig if it has a
+  * non-default set of parameters.
   *
   * Note that
   *
@@ -523,80 +493,21 @@ class CBlockConfig : public BlockConfig
  void serialize( netCDF::NcGroup & group ) const override;
 
 /**@} ----------------------------------------------------------------------*/
-/*--------------- METHODS FOR MODIFYING THE CBlockConfig ------------------*/
+/*--------------------- PUBLIC FIELDS OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Methods for modifying the CBlockConfig
+/** @name Public fields of the class
  *  @{ */
 
- /// sets the ComputeConfig of the Constraint
- /** This function sets the vector containing the (pointer to the)
-  * ComputeConfig of the Constraint of the Block. The i-th ComputeConfig in
-  * this vector is associated with the Constraint given by the i-th element of
-  * the ConstraintID vector (see get_ConstraintID()). If \p deleteold is true
-  * then all ComputeConfig for the Constraint currently stored in this
-  * CBlockConfig are destroyed.
-  *
-  * @param configs A vector of pointers to ComputeConfig.
-  *
-  * @param deleteold It indicates whether the currently stored ComputeConfig
-  *        for the Constraint (if any) must be destroyed. */
+ /// the vector of indices identifying the set of Constraint
+ /** This vector indicates which Constraint of the Block have a
+  * ComputeConfig. */
+ std::vector<Block::ConstraintID> v_ConstraintID;
 
- void set_Config_Constraints( std::vector<ComputeConfig *> && configs ,
-                              bool deleteold = true ) {
-  if( deleteold ) {
-   for( auto config : v_Config_Constraints )
-    delete config;
-   }
-  v_Config_Constraints = std::move( configs );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// adds a ComputeConfig of a Constraint
- /** This function adds a (pointer to the) ComputeConfig of the Constraint of
-  * the Block whose Block::ConstraintID is \p constraint_id.
-  *
-  * @param config A pointer to a ComputeConfig.
-  *
-  * @param constraint_id A Block::ConstraintID indicating the Constraint of
-  *        the Block. */
-
- void add_Config_Constraint( ComputeConfig * config ,
-                             Block::ConstraintID constraint_id ) {
-  v_Config_Constraints.push_back( config );
-  v_ConstraintID.push_back( constraint_id );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// sets the vector of ConstraintID indicating the Constraint of the Block
- /** This function sets the vector of ConstraintID, which indicates the set of
-  * Constraint of the Block that have a ComputeConfig. */
-
- void set_ConstraintID( std::vector<Block::ConstraintID> && constraint_id ) {
-  v_ConstraintID = std::move( constraint_id );
-  }
-
-/**@} ----------------------------------------------------------------------*/
-/*------------ Methods for reading the data of the CBlockConfig -----------*/
-/*--------------------------------------------------------------------------*/
-/** @name Methods for reading the data of the CBlockConfig
- *  @{ */
-
- /// returns the ComputeConfig of the Constraint
- /** This function returns a const reference to the vector containing the
-  * (pointer to the) ComputeConfig of the Constraint of the Block. */
-
- const std::vector<ComputeConfig *> & get_Config_Constraints( void ) const {
-  return( v_Config_Constraints );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the vector of ConstraintID indicating the Constraint
- /** This function returns the vector of ConstraintID, which indicates the set
-  * of Constraint of the Block that have a ComputeConfig. */
-
- const std::vector<Block::ConstraintID> & get_ConstraintID( void ) const {
-  return( v_ConstraintID );
-  }
+ /// the vector of (pointer to the) ComputeConfig for Constraint
+ /** The vector of (pointer to the) ComputeConfig for Constraint. The i-th
+  * ComputeConfig in this vector is that of the Constraint identified by the
+  * i-th element in the vector v_ConstraintID. */
+ std::vector<ComputeConfig *> v_Config_Constraints;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -624,19 +535,6 @@ class CBlockConfig : public BlockConfig
   *   (clearly, if k == 0 this is empty) */
 
  void load( std::istream &input ) override;
-
-/*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
-
- /// the vector of indices identifying the set of Constraint
- /** This vector indicates which Constraint of the Block have a
-  * ComputeConfig. */
- std::vector<Block::ConstraintID> v_ConstraintID;
-
- /// the vector of (pointer to the) ComputeConfig for Constraint
- /** The vector of (pointer to the) ComputeConfig for Constraint. The i-th
-  * ComputeConfig in this vector is that of the Constraint identified by the
-  * i-th element in the vector v_ConstraintID. */
- std::vector<ComputeConfig *> v_Config_Constraints;
 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 
