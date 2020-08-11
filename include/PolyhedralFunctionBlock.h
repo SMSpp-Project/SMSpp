@@ -606,28 +606,29 @@ class PolyhedralFunctionBlock : public AbstractBlock {
    return;
    }
 
-  // now check if the Modification comes from the PolyhedralFunction; if
-  // so it will generate a (bunch of) Modification(s) in the "linearized"
-  // representation, but *this Modification itself will disappear*
+  mod->concerns_Block( false );  // recall it's been checked already
 
-  const auto tmod = std::dynamic_pointer_cast<FunctionMod>( mod );
-  if( tmod && ( tmod->function() == & f_polyf ) ) {
+  const auto tmod = std::dynamic_pointer_cast< FunctionMod >( mod );
+  if( tmod && ( tmod->function() == & f_polyf ) )
+   // if the Modification comes from the PolyhedralFunction; it will
+   // generate a (bunch of) Modification(s) in the "linearized"
+   // representation, and this Modification itself will also remain to
+   // serves a the "physical" Modification)
    guts_of_add_Modification_PF( tmod , chnl );
-   return;
-   }
-
-  // this Modification comes from some other part of the abstract
-  // representation of the PolyhedralFunctionBlock, possibly (but not
-  // surely) the "linearized" one: deal with it
-
-  mod->concerns_Block( false );  // but recall it's been done already
-  guts_of_add_Modification_LR( mod , chnl );
+  else
+   // this Modification comes from some other part of the abstract
+   // representation of the PolyhedralFunctionBlock, possibly (but not
+   // surely) the "linearized" one: deal with it
+   guts_of_add_Modification_LR( mod , chnl );
 
   // finally, pass is up, but only if there really is someone "listening",
   // which may not be, because anyone_there() returns true anyway
   // (since f_rep & 1 == true when we get here)
-
-  if( get_f_Block() && get_f_Block()->anyone_there() )
+  // someone is listening if the PolyhedralFunctionBlock has any Solver
+  // directly attached, or it has a father Block and the father says so
+  
+  if( ( ! v_Solver.empty() ) ||
+      ( get_f_Block() && get_f_Block()->anyone_there() ) )
    AbstractBlock::add_Modification( mod , chnl );
   }
 

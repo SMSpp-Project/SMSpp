@@ -159,8 +159,8 @@ Block * PolyhedralFunctionBlock::get_R3_Block( Configuration *r3bc ,
   PFB = new PolyhedralFunctionBlock();
 
  PFB->f_polyf.set_PolyhedralFunction(
-		   PolyhedralFunction::MultiVector( f_polyf.get_A() ) ,
-		   PolyhedralFunction::RealVector( f_polyf.get_b() ) ,
+		   MultiVector( f_polyf.get_A() ) ,
+		   RealVector( f_polyf.get_b() ) ,
 		   f_polyf.get_global_bound() , f_polyf.is_convex() ,
 		   eNoMod );
  return( PFB );
@@ -226,6 +226,28 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
     }
    }
 
+  // PolyhedralFunctionModAddd- - - - - - - - - - - - - - - - - - - - - - - -
+  {
+   const auto tmod = std::dynamic_pointer_cast<PolyhedralFunctionModAddd>( mod
+									   );
+   if( tmod ) {
+    if( tmod->function() != & f_polyf )  // not my PolyhedralFunction
+     return( false );                    // none of my business
+
+    Index nr = f_polyf.get_A().size();
+    MultiVector nA( tmod->addedrows() );
+    RealVector nb( tmod->addedrows() );
+    Index j = 0;
+    for( Index i = nr - tmod->addedrows() ; i < nr ; ) {
+     nA[ j ] = f_polyf.get_A()[ i ];
+     nb[ j++ ] = f_polyf.get_b()[ i++ ];
+     }
+       
+    PFB->f_polyf.add_rows( std::move( nA ) , nb , iPM );
+    return( true );
+    }
+   }
+
   // PolyhedralFunctionModRngd - - - - - - - - - - - - - - - - - - - - - - - -
   {
    const auto tmod =
@@ -239,13 +261,13 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
      case( PolyhedralFunctionMod::ModifyRows ):
       if( n == 1 )
        PFB->f_polyf.modify_row( tmod->range().first ,
-				 PolyhedralFunction::RealVector(
+				 RealVector(
 				   f_polyf.get_A()[ tmod->range().first ] ) ,
 				 f_polyf.get_b()[ tmod->range().first ] ,
 				 iPM );
       else {
-       PolyhedralFunction::MultiVector nA( n );
-       PolyhedralFunction::RealVector nb( n );
+       MultiVector nA( n );
+       RealVector nb( n );
        Index j = 0;
        for( Index i = tmod->range().first ; i < tmod->range().second ; ) {
 	nA[ j ] = f_polyf.get_A()[ i ];
@@ -266,7 +288,7 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
        PFB->f_polyf.modify_constant( tmod->range().first ,
 			    f_polyf.get_b()[ tmod->range().first ] , iPM );
       else {
-       PolyhedralFunction::RealVector nb( n );
+       RealVector nb( n );
        auto bit = nb.begin();
        for( Index i = tmod->range().first ; i < tmod->range().second ; )
 	*(bit++) = f_polyf.get_b()[ i++ ];
@@ -302,13 +324,13 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
      case( PolyhedralFunctionMod::ModifyRows ):
       if( n == 1 )
        PFB->f_polyf.modify_row( tmod->rows()[ 0 ] ,
-				 PolyhedralFunction::RealVector(
+				 RealVector(
 				    f_polyf.get_A()[ tmod->rows()[ 0 ] ] ) ,
 				 f_polyf.get_b()[ tmod->rows()[ 0 ] ] ,
 				 iPM );
       else {
-       PolyhedralFunction::MultiVector nA( n );
-       PolyhedralFunction::RealVector nb( n );
+       MultiVector nA( n );
+       RealVector nb( n );
        Index j = 0;
        for( auto i : tmod->rows() ) {
 	nA[ j ] = f_polyf.get_A()[ i ];
@@ -325,7 +347,7 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
 				     f_polyf.get_b()[ tmod->rows()[ 0 ] ] ,
 				     iPM );
       else {
-       PolyhedralFunction::RealVector nb( n );
+       RealVector nb( n );
        auto bit = nb.begin();
        for( auto i : tmod->rows() )
 	*(bit++) = f_polyf.get_b()[ i ];
@@ -348,10 +370,10 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
     }
    }
 
-  // PolyhedralFunctionModAddd - - - - - - - - - - - - - - - - - - - - - - - -
+  // C05FunctionModVarsAddd- - - - - - - - - - - - - - - - - - - - - - - - - -
   {
    const auto tmod =
-                std::dynamic_pointer_cast< PolyhedralFunctionModAddd >( mod );
+                std::dynamic_pointer_cast< C05FunctionModVarsAddd >( mod );
    if( tmod ) {
     if( tmod->function() != & f_polyf )  // not my PolyhedralFunction
      return( false );                    // none of my business
@@ -421,8 +443,8 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
      throw( std::invalid_argument( "unexpected shift() in FunctionMod" ) );
 
     PFB->f_polyf.set_PolyhedralFunction(
-		    PolyhedralFunction::MultiVector( f_polyf.get_A() ) ,
-		    PolyhedralFunction::RealVector( f_polyf.get_b() ) ,
+		    MultiVector( f_polyf.get_A() ) ,
+		    RealVector( f_polyf.get_b() ) ,
 		    f_polyf.get_global_bound() , f_polyf.is_convex() , iPM );
     return( true );
     }
@@ -909,8 +931,8 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( sp_Mod mod ,
 
    if( arr.empty() )  // should not happen, but in case
     return;           // nothing to do
-   PolyhedralFunction::MultiVector A( arr.size() );
-   PolyhedralFunction::RealVector b( arr.size() );
+   MultiVector A( arr.size() );
+   RealVector b( arr.size() );
 
    Index i = 0;
    for( auto ci : arr ) {
