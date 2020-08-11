@@ -267,29 +267,16 @@ class Observer {
   * If the parameter gmpmod is != nullptr, then the pointed object is taken
   * as the GroupModification that is "opened". This means that the object
   * becomes "property" of the Observer; the raw pointer is later packaged in
-  * a smart pointer (when the channel is closed or flushed), so it is crucial
-  * that no copies of the raw pointer are retained. This is done in order to
-  * allow the caller to provide objects of *derived classes* from
+  * a smart pointer (when the channel is closed), so it is crucial that no
+  * copies of the raw pointer are retained. This is done in order to allow
+  * the caller to provide objects of *derived classes* from
   * GroupModification; these may contain other data that is useful to the
   * Solver / Block to process the GroupModification, and even just being of
   * a specific :GroupModification class may help. If gmpmod is == nullptr,
   * an object of the base GroupModification class is automatically
-  * constructed by the method.
-  *
-  * If gmpmod is == nullptr, the parameter issueMod decides what is the
-  * concerns_Block() value of the newly created GroupModification:
-  *
-  * - eNoBlck   the concerns_Block() value is set to false, meaning that the
-  *             Block receiving this GroupModification (when it is eventually
-  *             finalized with close_GroupModification() ) can safely ignore
-  *             it on knowledge that the corresponding change in the Block has
-  *             already happened;
-  *
-  * - eModBlck  the concerns_Block() value is set to true; this is the
-  *             default, "most conservative" setting. */
+  * constructed by the method. */
 
- virtual ChnlName open_channel( GroupModification * gmpmod = nullptr ,
-				c_ModParam issueMod = eModBlck ) = 0;
+ virtual ChnlName open_channel( GroupModification * gmpmod = nullptr ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// create a new level in the given channel
@@ -304,15 +291,14 @@ class Observer {
   * inner-inner-GroupModification is started (...), or either 
   * un_nest_channel( chnl ) or close_channel( chnl ) are called.
   *
-  * The parameters gmpmod and issueMod have the same meaning as in
-  * open_channel() and are provided for the same reason.
+  * The parameter gmpmod has the same meaning as in open_channel() and is
+  * provided for the same reason.
   *
   * Calling the method with chnl non being the name of an open channel is an
   * error and should throw exception. */
 
- virtual void nest_channel( c_ChnlName chnl ,
-			    GroupModification * gmpmod = nullptr ,
-			    c_ModParam issueMod = eModBlck ) = 0;
+ virtual void nest_channel( ChnlName chnl ,
+			    GroupModification * gmpmod = nullptr ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// push back to the previous level of a channel
@@ -325,7 +311,7 @@ class Observer {
   * "root mode" (the current GroupModification object is not contained into
   * any other GroupModification) is an error and should throw exception. */
 
- virtual void un_nest_channel( c_ChnlName chnl ) = 0;
+ virtual void un_nest_channel( ChnlName chnl ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// "close" a channel
@@ -366,7 +352,7 @@ class Observer {
   * been redirected is closed. Calling the method with chnl not the name of
   * an open channel or zero is an error and should throw exception. */
 
- virtual void set_default_channel( c_ChnlName chnl = 0 ) = 0;
+ virtual void set_default_channel( ChnlName chnl = 0 ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// method to "pack" all info about issuing Modification in one parameter

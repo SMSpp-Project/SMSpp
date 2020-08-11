@@ -588,6 +588,10 @@ class PolyhedralFunction : public C05Function {
   }
 
 /*--------------------------------------------------------------------------*/
+
+ FunctionValue get_global_bound( void ) { return( f_bound ); }
+
+/*--------------------------------------------------------------------------*/
  /// returns true if a finite lower/upper (if convex/concave) bound is set
 
  bool is_bound_set( void ) const {
@@ -1128,8 +1132,8 @@ class PolyhedralFunction : public C05Function {
   *        increasing sense (otherwise this is done inside the method,
   *        which is why nms[] is not const);
   *
-  * @param issueMod which decides if and how the C05FunctionModVars (with
-  *        f_shift == 0, since a PolyhedralFunction is strongly
+  * @param issueMod which decides if and how the C05FunctionModVarsSbst
+  *        (with f_shift == 0, since a PolyhedralFunction is strongly
   *        quasi-additive) is issued, as described in Observer::make_par(). */
 
  void remove_variables( Subset && nms , bool ordered = false ,
@@ -1715,7 +1719,7 @@ class PolyhedralFunctionMod : public C05FunctionMod {
 /*-------------------------- PROTECTED METHODS -----------------------------*/
  /// print the PolyhedralFunctionMod
 
- virtual inline void print( std::ostream &output ) const override
+ void print( std::ostream &output ) const override
  {
   output << "PolyhedralFunctionMod[";
   if( concerns_Block() )

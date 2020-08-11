@@ -168,16 +168,16 @@ void FRealObjective::add_Modification( sp_Mod mod , c_ChnlName chnl )
   
   // GroupModification - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   {
-   const auto tmod = std::dynamic_pointer_cast<GroupModification>( mod );
+   const auto tmod = std::dynamic_pointer_cast< GroupModification >( mod );
    if( tmod ) {
-    for( const auto & submod : tmod->v_sub_Modifications )
+    for( const auto & submod : tmod->sub_Modifications() )
      guts_of_aM( submod );
     }
    }
 
   // FunctionModVars - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   {
-   const auto tmod = std::dynamic_pointer_cast<FunctionModVars>( mod );
+   const auto tmod = std::dynamic_pointer_cast< FunctionModVars >( mod );
    if( ! tmod )
     return;
 
@@ -206,27 +206,25 @@ void FRealObjective::add_Modification( sp_Mod mod , c_ChnlName chnl )
 /*--------------------------------------------------------------------------*/
 /// just dispatch to open_channel() of the Block (if any)
 
-Observer::ChnlName FRealObjective::open_channel( GroupModification * gmpmod ,
-                                                 c_ModParam issueMod )
+Observer::ChnlName FRealObjective::open_channel( GroupModification * gmpmod )
 {
- return( f_Block ? f_Block->open_channel( gmpmod , issueMod ) : 0 );
+ return( f_Block ? f_Block->open_channel( gmpmod ) : 0 );
  }
 
 /*--------------------------------------------------------------------------*/
 /// just dispatch to nest_channel() of the Block (if any)
 
-void FRealObjective::nest_channel( c_ChnlName chnl ,
-                                   GroupModification * gmpmod ,
-                                   c_ModParam issueMod )
+void FRealObjective::nest_channel( ChnlName chnl ,
+				   GroupModification * gmpmod )
 {
  if( f_Block )
-  f_Block->nest_channel( chnl , gmpmod , issueMod );
+  f_Block->nest_channel( chnl , gmpmod );
  }
 
 /*--------------------------------------------------------------------------*/
 /// just dispatch to un_nest_channel() of the Block (if any)
 
-void FRealObjective::un_nest_channel( c_ChnlName chnl )
+void FRealObjective::un_nest_channel( ChnlName chnl )
 {
  if( f_Block )
   f_Block->un_nest_channel( chnl );
@@ -235,7 +233,7 @@ void FRealObjective::un_nest_channel( c_ChnlName chnl )
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 /// just dispatch to close_channel() of the Block (if any)
 
-void FRealObjective::close_channel( c_ChnlName chnl )
+void FRealObjective::close_channel( ChnlName chnl )
 {
  if( f_Block )
   f_Block->close_channel( chnl );
@@ -244,7 +242,7 @@ void FRealObjective::close_channel( c_ChnlName chnl )
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 /// just dispatch to set_default_channel() of the Block (if any)
 
-void FRealObjective::set_default_channel( c_ChnlName chnl )
+void FRealObjective::set_default_channel( ChnlName chnl )
 {
  if( f_Block )
   f_Block->set_default_channel( chnl );

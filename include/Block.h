@@ -4162,8 +4162,8 @@ class Block : public Observer {
   * The second parameter is provided for allowing the creation of R3 Blocks to
   * happen "piecemeal". The obvious use case is that of a class B1 : Block and
   * B2 : B1 where B1 provides some R3 Block, say the copy. If, as it is
-  * sensible, B2 wants to provide the same R3 Block, there must be a way for
-  * B2 to "demand to B1 the work on its part of the R3 Block", while taking
+  * sensible, B2 wants to provide the same R3 Block, it is useful for B2 to
+  * be able to "ask B1 to work on its part of the R3 Block", while taking
   * care of the B2-specific part. The idea is then that B2 can construct the
   * R3 Block (say, of class B2 in case of the copy) an use B1::get_R3_Block()
   * to have the B1-specific part managed (say, copied). Of course, B1 will
@@ -4207,15 +4207,18 @@ class Block : public Observer {
   * they may possibly be added to the R3 Block later on [see
   * map_forward_Modification()], if the original Block supports it.
   *
-  * The method is given an extremely lazy default implementation refusing to
-  * produce any kind of R3 Block, comprised the "copy" one. Thus, the caller
-  * should always check the returned argument for non-nullptr-dness to
-  * ensure that the :Block was actually able to produce the required R3 one. */
+  * The method is given a default implementation just returning the base
+  * argument. This is OK for extremely lazy Block refusing to produce any
+  * kind of R3 Block, comprised the "copy" one, as well as for Block whose
+  * derived classes take all the burden of the R3 Block construction.
+  * Anyway, it is clear that the caller should always check the returned
+  * value for non-nullptr-dness to ensure that the :Block was actually able
+  * to produce the required R3 one. */
 
  virtual Block * get_R3_Block( Configuration *r3bc = nullptr ,
 			       Block * base = nullptr )
  {
-  return( nullptr );
+  return( base );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -4460,14 +4463,84 @@ class Block : public Observer {
   * allows to check that this has happened. The default implementation of
   * the method works for "extremely lazy" Block not being willing to
   * implement any of the possible mapping, or extremely unlucky ones not
-  * having any workable one to implement. */
+  * having any workable one to implement.
+  *
+  *     IMPORTANT NOTE: MAPPING SOME Modification MAY ONLY BE POSSIBLE IF
+  *     PERFORMED "IMMEDIATELY" AFTER THE ORIGINAL Block HAS BEEN MODIFIED
+  *
+  * A case in point is if the Block has some dynamic Constraint or Variable.
+  * These can be changed, deleted and added. This kind of change may be very
+  * hard to manage if one lets Modification accumulate. For instance, a
+  * dynamic Constraint may first be modified, and then deleted. If the
+  * map_forward_Modification() corresponding to changing the constraint is
+  * called *after* that the Constraint has been deleted, the original Block
+  * no longer has any information on the Constraint, and therefore may have
+  * no way to properly implement the change. Each :Block should clearly if
+  * it supports deferred map_forward_Modification() for all the
+  * Modification it produces, or which Modification need be mapped
+  * "immediately". */
 
  virtual bool map_forward_Modification( Block *R3B , sp_Mod mod ,
 					Configuration *r3bc = nullptr ,
-					c_ModParam issuePMod = eNoBlck ,
-					c_ModParam issueAMod = eModBlck )
+					ModParam issuePMod = eNoBlck ,
+					ModParam issueAMod = eModBlck )
  {
   return( false );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// maps forward a list of Modification from the original Block to a R3 Block
+ /** Maps forward an entire  list of Modification from the original Block to
+  * a R3 Block in one blow.
+  *
+  * As discussed in map_forward_Modification(), mapping Modifications is in
+  * general complex. This is so because a Block and its R3 Block can be "very
+  * different", and therefore one Modification in one can result in many
+  * Modification in the other and vice-versa. Whie GroupModification may
+  * help in this respect, it may not solve everything. Furthermore, even if
+  * there is a nice one-to-one correspondence, mapping a Modification that
+  * can have been issued "a long time ago", with many changes having possibly
+  * occurred in Block in the meantime, can already be a daunting task if the
+  * Block has any form of dynamic components that may be freely created and
+  * destroyed.
+  *
+  * A part of the complexity, in both cases, is therefore due to the myopic
+  * definition of the task: mapping *one* Modification. In general, it may
+  * be simpler to map *all the issued Modification*. Knowing the whole list
+  * allows, for instance, to traverse if backwards, and therefore be able to
+  * completely map the current status of the Block (after all the changes)
+  * to the current status of the R3 Block (before any change). Althiugh
+  * "simpler" may not be the most appropriate adjective there, knowing the
+  * full list of Modification may make it possible to deal with tasks that
+  * would otherwise not be feasible.
+  *
+  * This method allows for such an operation. It takes the same inputs as
+  * map_forward_Modification(), save that the individual (smart pointer to a)
+  * Modification is now a list of  (smart pointerd to) Modification. The
+  * assumption is that the list contains "all the Modification issued that
+  * cause the Block to be not in synch with its R3 Block", althugh individual
+  * :Block may relax this to a subset of "difficult" Modification.
+  *
+  * The method is supposed to scan throgh the list of Modification,
+  * properly reacting to those it can deal with and ignoring the others; the
+  * Modification acted upon are deleted from the list, leaving the rest.
+  *
+  * The method is given a default implementation just dumbly scanning the
+  * list top-to-bottom and calling map_forward_Modification() on each
+  * element in turn. */
+
+
+ virtual void map_forward_Modifications( Block *R3B , Lst_sp_Mod lmod ,
+					 Configuration *r3bc = nullptr ,
+					 ModParam issuePMod = eNoBlck ,
+					 ModParam issueAMod = eModBlck )
+ {
+  for( auto mit = lmod.begin() ; mit != lmod.end() ; ) {
+   auto nmit = ++mit;
+   if( map_forward_Modification( R3B , *mit , r3bc , issuePMod , issueAMod ) )
+    lmod.erase( mit );
+   mit = nmit;
+   }
   }
 
 /*--------------------------------------------------------------------------*/
@@ -4531,12 +4604,31 @@ class Block : public Observer {
 
  virtual bool map_back_Modification( Block *R3B , sp_Mod mod ,
 				     Configuration *r3bc = nullptr ,
-				     c_ModParam issuePMod = eNoBlck ,
-				     c_ModParam issueAMod = eModBlck )
+				     ModParam issuePMod = eNoBlck ,
+				     ModParam issueAMod = eModBlck )
  {
   return( false );
   }
 
+/*--------------------------------------------------------------------------*/
+ /// maps back a list of Modification from an R3 Block to the original Block
+ /** Maps bacl an entire list of Modificationfrom an R3 Block to the original
+  * Block in one blow.
+  *
+  * See the comments to map_forward_Modifications(). */
+
+ virtual void map_back_Modifications( Block *R3B , Lst_sp_Mod lmod ,
+				      Configuration *r3bc = nullptr ,
+				      ModParam issuePMod = eNoBlck ,
+				      ModParam issueAMod = eModBlck )
+ {
+  for( auto mit = lmod.begin() ; mit != lmod.end() ; ) {
+   auto nmit = ++mit;
+   if( map_back_Modification( R3B , *mit , r3bc , issuePMod , issueAMod ) )
+    lmod.erase( mit );
+   mit = nmit;
+   }
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
@@ -4694,17 +4786,16 @@ class Block : public Observer {
 
 /*--------------------------------------------------------------------------*/
 
- ChnlName open_channel( GroupModification * gmpmod = nullptr ,
-			c_ModParam issueMod = eModBlck ) override;
+ ChnlName open_channel( GroupModification * gmpmod = nullptr ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
- void nest_channel( c_ChnlName chnl , GroupModification * gmpmod = nullptr ,
-		    c_ModParam issueMod = eModBlck ) override;
+ void nest_channel( ChnlName chnl , GroupModification * gmpmod = nullptr )
+  override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
- void un_nest_channel( c_ChnlName chnl ) override;
+ void un_nest_channel( ChnlName chnl ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
@@ -4712,7 +4803,7 @@ class Block : public Observer {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
- void set_default_channel( c_ChnlName chnl = 0 ) override;
+ void set_default_channel( ChnlName chnl = 0 ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------------- Methods for handling Solver -----------------------*/
@@ -4720,12 +4811,11 @@ class Block : public Observer {
 /** @name Methods for handling Solvers
     @{ */
 
- c_Lst_Solver & get_registered_solvers( void ) const {
-  return( v_Solver );
-  }
- ///< reading the list of (pointers to) currently registered Solvers
- /**< Method for reading the list of (pointers to) the Solvers currently
+ /// reading the list of (pointers to) currently registered Solvers
+ /** Method for reading the list of (pointers to) the Solvers currently
   * registered with the Block. */
+
+ c_Lst_Solver & get_registered_solvers( void ) const { return( v_Solver ); }
 
 /*--------------------------------------------------------------------------*/
  /// adding a Solver to the set of those currently registered

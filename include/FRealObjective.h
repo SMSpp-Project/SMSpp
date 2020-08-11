@@ -464,7 +464,7 @@ class FRealObjective : public RealObjective , public Observer {
   * some mechanism allowing a finer control on which Modification are
   * "listened to". */
 
- virtual bool anyone_there( void ) const override {
+ bool anyone_there( void ) const override {
   // return( f_Block ? f_Block->anyone_there() : false );
   return( true );
   }
@@ -477,35 +477,33 @@ class FRealObjective : public RealObjective , public Observer {
   * anyone_there(), and in case register/unregister itself with the
   * added/removed Variable. */
 
- virtual void add_Modification( sp_Mod mod , ChnlName chnl = 0  ) override;
+ void add_Modification( sp_Mod mod , ChnlName chnl = 0  ) override;
 
 /*--------------------------------------------------------------------------*/
  /// just dispatch to open_channel() of the Block (if any)
 
- virtual ChnlName open_channel( GroupModification * gmpmod = nullptr ,
-				c_ModParam issueMod = eModBlck ) override;
+ ChnlName open_channel( GroupModification * gmpmod = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
  /// just dispatch to nest_channel() of the Block (if any)
 
- virtual void nest_channel( c_ChnlName chnl ,
-			    GroupModification * gmpmod = nullptr ,
-			    c_ModParam issueMod = eModBlck )  override;
+ void nest_channel( ChnlName chnl ,
+		    GroupModification * gmpmod = nullptr )  override;
 
 /*--------------------------------------------------------------------------*/
  /// just dispatch to un_nest_channel() of the Block (if any)
 
- virtual void un_nest_channel( c_ChnlName chnl ) override;
+ void un_nest_channel( ChnlName chnl ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
  /// just dispatch to close_channel() of the Block (if any)
 
- virtual void close_channel( c_ChnlName chnl ) override;
+ void close_channel( ChnlName chnl ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
  /// just dispatch to set_default_channel() of the Block (if any)
 
- virtual void set_default_channel( c_ChnlName chnl = 0 ) override;
+ void set_default_channel( ChnlName chnl = 0 ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/

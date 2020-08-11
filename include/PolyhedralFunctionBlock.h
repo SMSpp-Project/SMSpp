@@ -419,6 +419,118 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   }
 
 /**@} ----------------------------------------------------------------------*/
+/*------------------------- Methods for R3 Blocks --------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for R3 Blocks
+ *  @{ */
+
+ /// gets an R3 Block of PolyhedralFunctionBlock, currently only the copy one
+ /** Gets an R3 Block of the PolyhedralFunctionBlock. The list of currently
+  * supported R3 Block is:
+  *
+  * - r3bc == nullptr: the copy (a PolyhedralFunctionBlock identical to this)
+  *
+  *   IMPORTANT NOTE: the copy R3 Block created in this way is not fully
+  *                   functional because the active Variable of the
+  *                   PolyhderalFunction have not been set. This is
+  *                   something that is supposed to be done "externally",
+  *                   outside of the PolyhedralFunctionBlock, and therefore
+  *                   there is no way it can be done here.
+  */
+
+ Block * get_R3_Block( Configuration *r3bc = nullptr ,
+		       Block * base = nullptr ) override;
+
+/*--------------------------------------------------------------------------*/
+ /** No specific Configuration is expected for PolyhedralFunctionBlock.
+  *
+  * IMPORTANT NOTE: map_forward_Modification() only maps "physical"
+  * Modification. The point is that if any part of the "abstract
+  * representation" of PolyhedralFunctionBlock is changed, the corresponding
+  * "abstract" Modification is intercepted in add_Modification() and a
+  * "physical" Modification is also issued. Hence, for any change in
+  * PolyhedralFunctionBlock there will always be both Modification "in
+  * flight", and therefore there is no need (and good reasons not) to map
+  * both.
+  *
+  * In particular, the method handles the following Modification:
+  *
+  * - GroupModification
+  *
+  * - PolyhedralFunctionModRngd
+  *
+  * - PolyhedralFunctionModSbst
+  *
+  * - PolyhedralFunctionModAddd
+  *
+  * - C05FunctionModVarsRng (with shift() == 0)
+  *
+  * - C05FunctionModVarsSbst (with shift() == 0)
+  *
+  * - PolyhedralFunctionMod with type() == C05FunctionMod::NothingChanged,
+  *   i.e., the "sign" of the PolyhedralFunction has changed
+  *
+  * -  FunctionMod with f_shift == FunctionMod::NaNshift, i.e., "everything
+  *    changed"
+  *
+  * Any other Modification is ignored (and false is returned). In particular,
+  * note that the PolyhedralFunction does issue
+  *
+  * - C05FunctionModVarsAddd BUT THESE ARE NOT HANDLED BY THIS METHOD.
+  *
+  *   The rationale is that this is simply not possible, since
+  *   PolyhedralFunctionBlock has no clue "where the active Variable of the
+  *   PolyhedralFunction come from", and in particular the newly added
+  *   Variable may not even be in the copy PolyhedralFunctionBlock. This
+  *   kind of operation therefore have to be managed by
+  *   map_forward_Modification() of whichever :Block contains the
+  *   PolyhedralFunctionBlock. For this reason, if a C05FunctionModVarsAddd
+  *   is received "true" is returned even if nothing is done (on the
+  *   expectation that the right thing is anyway be done elsewhere).
+  *
+  *     IMPORTANT NOTE: PolyhedralFunctionMod[Rngd/Sbst] AND
+  *     PolyhedralFunctionModAddd ALLOW TO ADD/DELETE ROWS IN THE
+  *     PolyhedralFunction, WHICH ALSO CHANGES THE "NAMES" OF EXISTING ROWS,
+  *     AND C05FunctionModVars[Rng/Sbst] ALLOW TO DELETE Variables, WHICH
+  *     CHANGES THE "NAMES" OF THE REMAINING ONES. PolyhedralFunctionBlock
+  *     IMPLEMENTS map_forward_Modification() IN A WAY THAT IS ONLY
+  *     GUARANTEED TO BE CORRECT IF:
+  *
+  *     = EITHER THE SET OF ROWS AND Variable ARE NEVER CHANGED;
+  *
+  *     = OR THE Modification ARE MAPPED IMMEDIATELY AFTER THEY ARE ISSUED.
+  *
+  * This is because otherwise PolyhedralFunctionBlock should have to
+  * understand whether the set of row/Variable "names" in the Modification
+  * is still correct and do something in case it is not, which is too complex
+  * to do at the moment.
+  *
+  * Note that for GroupModification, true is returned only if all the
+  * inner Modification of the GroupModification return true.
+  *
+  * Note that if the issueAMod param is eModBlck, then it is "downgraded" to
+  * eNoBlck: the method directly does "physical" changes, hence there is no
+  * reason for it to issue "abstract" Modification with concerns_Block() ==
+  * true. */
+
+ bool map_forward_Modification( Block *R3B , sp_Mod mod ,
+				Configuration *r3bc = nullptr ,
+				ModParam issuePMod = eNoBlck ,
+				ModParam issueAMod = eModBlck ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /** No specific Configuration is expected for PolyhedralFunctionBlock.
+  *
+  * The current implementation of map_back_Modification() actually uses
+  * map_forward_Modification() in reverse, so see the comments to the latter
+  * method. */
+
+ bool map_back_Modification( Block *R3B , sp_Mod mod ,
+			     Configuration *r3bc = nullptr ,
+			     ModParam issuePMod = eNoBlck ,
+			     ModParam issueAMod = eModBlck ) override;
+
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- Methods for handling Modification -------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling Modification
@@ -494,28 +606,29 @@ class PolyhedralFunctionBlock : public AbstractBlock {
    return;
    }
 
-  // now check if the Modification comes from the PolyhedralFunction; if
-  // so it will generate a (bunch of) Modification(s) in the "linearized"
-  // representation, but *this Modification itself will disappear*
+  mod->concerns_Block( false );  // recall it's been checked already
 
-  const auto tmod = std::dynamic_pointer_cast<FunctionMod>( mod );
-  if( tmod && ( tmod->function() == & f_polyf ) ) {
+  const auto tmod = std::dynamic_pointer_cast< FunctionMod >( mod );
+  if( tmod && ( tmod->function() == & f_polyf ) )
+   // if the Modification comes from the PolyhedralFunction; it will
+   // generate a (bunch of) Modification(s) in the "linearized"
+   // representation, and this Modification itself will also remain to
+   // serves a the "physical" Modification)
    guts_of_add_Modification_PF( tmod , chnl );
-   return;
-   }
-
-  // this Modification comes from some other part of the abstract
-  // representation of the PolyhedralFunctionBlock, possibly (but not
-  // surely) the "linearized" one: deal with it
-
-  mod->concerns_Block( false );  // but recall it's been done already
-  guts_of_add_Modification_LR( mod , chnl );
+  else
+   // this Modification comes from some other part of the abstract
+   // representation of the PolyhedralFunctionBlock, possibly (but not
+   // surely) the "linearized" one: deal with it
+   guts_of_add_Modification_LR( mod , chnl );
 
   // finally, pass is up, but only if there really is someone "listening",
   // which may not be, because anyone_there() returns true anyway
   // (since f_rep & 1 == true when we get here)
-
-  if( get_f_Block() && get_f_Block()->anyone_there() )
+  // someone is listening if the PolyhedralFunctionBlock has any Solver
+  // directly attached, or it has a father Block and the father says so
+  
+  if( ( ! v_Solver.empty() ) ||
+      ( get_f_Block() && get_f_Block()->anyone_there() ) )
    AbstractBlock::add_Modification( mod , chnl );
   }
 
@@ -667,9 +780,9 @@ class PolyhedralFunctionBlock : public AbstractBlock {
  {
   if( cond ) {
    if( chnl )
-    nest_channel( chnl , nullptr , eNoBlck );
+    nest_channel( chnl , nullptr );
    else
-    return( open_channel( nullptr , eNoBlck ) );
+    return( open_channel( nullptr ) );
    }
   return( chnl );
   }

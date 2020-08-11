@@ -599,32 +599,30 @@ class FRowConstraint : public RowConstraint , public Observer {
   * anyone_there(), and in case register/unregister itself with the
   * added/removed Variable. */
 
- virtual void add_Modification( sp_Mod mod , c_ChnlName chnl = 0 ) override;
+ void add_Modification( sp_Mod mod , c_ChnlName chnl = 0 ) override;
 
 /*--------------------------------------------------------------------------*/
  /// just dispatch to open_channel() of the Block (if any)
 
- virtual ChnlName open_channel( GroupModification * gmpmod = nullptr ,
-				c_ModParam issueMod = eModBlck ) override
+ ChnlName open_channel( GroupModification * gmpmod = nullptr ) override
  {
-  return( f_Block ? f_Block->open_channel( gmpmod , issueMod ) : 0 );
+  return( f_Block ? f_Block->open_channel( gmpmod ) : 0 );
   }
 
 /*--------------------------------------------------------------------------*/
  /// just dispatch to nest_channel() of the Block (if any)
 
- virtual void nest_channel( c_ChnlName chnl ,
-			    GroupModification * gmpmod = nullptr ,
-			    c_ModParam issueMod = eModBlck )  override
+ void nest_channel( ChnlName chnl , GroupModification * gmpmod = nullptr )
+  override
  {
   if( f_Block )
-   f_Block->nest_channel( chnl , gmpmod , issueMod );
+   f_Block->nest_channel( chnl , gmpmod );
   }
 
 /*--------------------------------------------------------------------------*/
  /// just dispatch to un_nest_channel() of the Block (if any)
 
- virtual void un_nest_channel( c_ChnlName chnl )  override {
+ void un_nest_channel( ChnlName chnl ) override {
   if( f_Block )
    f_Block->un_nest_channel( chnl );
   }
@@ -632,7 +630,7 @@ class FRowConstraint : public RowConstraint , public Observer {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
  /// just dispatch to close_channel() of the Block (if any)
 
- virtual void close_channel( c_ChnlName chnl ) override {
+ void close_channel( ChnlName chnl ) override {
   if( f_Block )
    f_Block->close_channel( chnl );
   }
@@ -640,7 +638,7 @@ class FRowConstraint : public RowConstraint , public Observer {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
  /// just dispatch to set_default_channel() of the Block (if any)
 
- virtual void set_default_channel( c_ChnlName chnl = 0 ) override {
+ void set_default_channel( ChnlName chnl = 0 ) override {
   if( f_Block )
    f_Block->set_default_channel( chnl );
   }

@@ -134,16 +134,15 @@ void Block::add_Modification( sp_Mod mod , ChnlName chnl )
 
 /*--------------------------------------------------------------------------*/
 
-Observer::ChnlName Block::open_channel( GroupModification * gmpmod ,
-					c_ModParam issueMod )
+Observer::ChnlName Block::open_channel( GroupModification * gmpmod )
 {
  if( ! gmpmod )
-  gmpmod = new GroupModification( Observer::par2concern( issueMod ) );
+  gmpmod = new GroupModification();
 
  auto it = std::find( v_current_GroupMod.begin() ,
 		      v_current_GroupMod.end() , nullptr );
  ChnlName chnl;
- if( it >= v_current_GroupMod.end() ) {
+ if( it == v_current_GroupMod.end() ) {
   v_current_GroupMod.push_back( gmpmod );
   chnl = v_current_GroupMod.size();
   }
@@ -158,19 +157,23 @@ Observer::ChnlName Block::open_channel( GroupModification * gmpmod ,
 
 /*--------------------------------------------------------------------------*/
 
-void Block::nest_channel( c_ChnlName chnl , GroupModification * gmpmod ,
-			  c_ModParam issueMod )
+void Block::nest_channel( c_ChnlName chnl , GroupModification * gmpmod )
 {
  if( ( ! chnl ) || ( chnl > v_current_GroupMod.size() ) ||
      ( v_current_GroupMod[ chnl - 1 ] == nullptr ) )
   throw( std::invalid_argument( "wrong channel name" ) );
 
+ // if a GroupModification is not provided, create one
  if( ! gmpmod )
-  gmpmod = new GroupModification( Observer::par2concern( issueMod ) );
+  gmpmod = new GroupModification();
 
- gmpmod->f_father = v_current_GroupMod[ chnl - 1 ];
- v_current_GroupMod[ chnl - 1 ]->v_sub_Modifications.push_back(
-			       std::shared_ptr<GroupModification>( gmpmod ) );
+ // set the father of the GroupModification to the current channel
+ gmpmod->set_father( v_current_GroupMod[ chnl - 1 ] );
+
+ // add the new GroupModification to the current channel
+ v_current_GroupMod[ chnl - 1 ]->add( std::shared_ptr< GroupModification >(
+								   gmpmod ) );
+ // the current channel becomes the new GroupModification
  v_current_GroupMod[ chnl - 1 ] = gmpmod;
 
  }  // end( Block::nest_channel )
@@ -186,16 +189,24 @@ void Block::un_nest_channel( c_ChnlName chnl )
      ( v_current_GroupMod[ chnl - 1 ] == nullptr ) )
   throw( std::invalid_argument( "wrong channel name" ) );
 
- if( ! v_current_GroupMod[ chnl - 1 ]->f_father )
+ // the father of the current GroupModification
+ auto father = v_current_GroupMod[ chnl - 1 ]->father();
+ if( ! father )
   throw( std::invalid_argument( "channel is at root level" ) );
 
- v_current_GroupMod[ chnl - 1 ] = v_current_GroupMod[ chnl - 1 ]->f_father;
+ // if concerns_Block() of the current GroupModification is true, ensure
+ // that the concerns_Block() of father is also true
+ if( v_current_GroupMod[ chnl - 1 ]->concerns_Block() )
+  father->concerns_Block( true );
+
+ // move back the channel to being the father
+ v_current_GroupMod[ chnl - 1 ] = father;
 
  }  // end( Block::un_nest_channel )
 
 /*--------------------------------------------------------------------------*/
 
-void Block::close_channel( c_ChnlName chnl )
+void Block::close_channel( ChnlName chnl )
 {
  if( ! chnl )
   throw( std::invalid_argument( "cannot close default channel" ) );
@@ -204,7 +215,7 @@ void Block::close_channel( c_ChnlName chnl )
      ( v_current_GroupMod[ chnl - 1 ] == nullptr ) )
   throw( std::invalid_argument( "wrong channel name" ) );
 
- Block::add_Modification( std::shared_ptr<GroupModification>(
+ Block::add_Modification( std::shared_ptr< GroupModification >(
 				          v_current_GroupMod[ chnl - 1 ] ) );
  // there is no longer an "open" chnl GroupModification
  v_current_GroupMod[ chnl - 1 ] = nullptr;
@@ -226,7 +237,7 @@ void Block::close_channel( c_ChnlName chnl )
 
 /*--------------------------------------------------------------------------*/
 
-void Block::set_default_channel( c_ChnlName chnl )
+void Block::set_default_channel( ChnlName chnl )
 {
  if( ( ! chnl ) || ( chnl > v_current_GroupMod.size() ) ||
      ( v_current_GroupMod[ chnl - 1 ] == nullptr ) )
