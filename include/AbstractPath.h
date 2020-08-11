@@ -366,12 +366,15 @@ private:
 
  template<class T>
  void add_node( const T * t , Node::NodeType type ) {
-  auto triple = inspection::get_element_index( t );
-  if( std::get< 0 >( triple ) < Inf<Index>() ) {
-   group_indices.push_back( std::get< 0 >( triple ) );
-   element_indices.push_back( std::get< 1 >( triple ) );
+  const auto triple = inspection::get_element_index( t );
+  const auto group_index = std::get< 1 >( triple );
+  if( group_index < Inf<Index>() ) {
+   group_indices.push_back( group_index );
 
-   auto is_static = std::get< 2 >( triple );
+   const auto element_index = std::get< 2 >( triple );
+   element_indices.push_back( element_index );
+
+   const auto is_static = std::get< 0 >( triple );
    if( is_static )
     type = Node::to_static( type );
    else

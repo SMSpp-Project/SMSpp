@@ -3,6 +3,28 @@
 /*--------------------------------------------------------------------------*/
 /** @file
  *
+ * This file defines the namespace "inspection" within
+ * "SMSpp_di_unipi_it". This namespace contains a number of functions that are
+ * useful for inspecting and obtaining information from a Block. In
+ * particular, it provides functions that scan the "abstract" representation
+ * of a Block to retrieve, for instance
+ *
+ * - a Constraint or a Variable given their location in their Block;
+ *
+ * - the location of a Constraint or a Variable in their Block.
+ *
+ * For the scan of the "abstract" representation to work, it is necessary to
+ * boost::any_cast<> (in particular, Constraint and Variable), and therefore
+ * it has to have a list of the kind of types thay they may have. Hence, some
+ * functions at any point in time works only with a specific subset of those
+ * classes, and if new types need be handled then the class has to be manually
+ * updated. This is made a bit easier by the two macros
+ *
+ *     Constraint_Derived_Classes
+ *     Variable_Derived_Classes
+ *
+ * defined in this header file (and immediately un-defined at the end).
+ *
  * \version 0.10
  *
  * \date 18 - 07 - 2020
@@ -164,7 +186,7 @@ namespace SMSpp_di_unipi_it::inspection
 
  template< typename T >
  static T * get_dynamic_element_( const std::vector< std::list<T> > & lists ,
-                           Index index ) {
+                                  Index index ) {
   Index past_size = 0;
   for( auto & list : lists ) {
    if( past_size + list.size() > index ) {
@@ -218,7 +240,7 @@ namespace SMSpp_di_unipi_it::inspection
   return Inf<Index>();
  }
 
- /*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 
 /// returns the index of the given element in the given boost::any group
 /** Returns the index of the given \p element in the given boost::any \p
@@ -278,7 +300,7 @@ namespace SMSpp_di_unipi_it::inspection
 
  template<class T>
  static const boost::any & get_group( const Block * block , Index group_index ,
-                               bool is_static ) {
+                                      bool is_static ) {
   if( std::is_base_of_v< Constraint , T > ) {
    if( is_static ) {
     const auto & group = block->get_static_constraints();
@@ -316,6 +338,23 @@ namespace SMSpp_di_unipi_it::inspection
  }
 
 /*--------------------------------------------------------------------------*/
+
+ /// returns a pointer to the element of the \p block at the specified position
+ /** This function returns a pointer to the element of the given Block located
+  * at the specified position. If no such an element is found, nullptr is
+  * returned. \p T must be the type of a Constraint or a Variable.
+  *
+  * @param block A pointer to a Block.
+  *
+  * @param is_static Indicates whether the element is static.
+  *
+  * @param group_index The index of the group to which the element belongs.
+  *
+  * @param element_index The index of the desired element within its group.
+  *
+  * @return If an element of type \p T (or derived from \p T) is found at the
+  *         specified location, a pointer to this element is
+  *         returned. Otherwise, nullptr is returned. */
 
  template<class T>
  static T * get_element( const Block * block , bool is_static ,
@@ -414,18 +453,49 @@ namespace SMSpp_di_unipi_it::inspection
 
 /*--------------------------------------------------------------------------*/
 
+ /** This function returns information about the position of the given \p
+  * element in its father Block. The given \p element must be either a pointer
+  * to a Constraint or a pointer to a Variable. The information returned by
+  * this function consists of the following:
+  *
+  * - The first element of the tuple indicates whether the given \p element
+  *   belongs to a static group (i.e., it indicates whether it is a static
+  *   Variable or static Constraint).
+  *
+  * - The second element of the tuple contains the index of the group to which
+  *   the given \p element belongs.
+  *
+  * - The third element ot the tuple is the index of the given \p element in
+  *   its group.
+  *
+  * @param element A pointer to a Constraint or to a Variable.
+  *
+  * @return A tuple containing the location of the given element in its father
+  *         Block. */
+
  template<class T>
- static std::tuple< Index , Index , bool > get_element_index( T * t ) {
-  auto index_pair = get_static_element_index( t );
+ static std::tuple< bool , Index , Index > get_element_index( T * element ) {
+  auto index_pair = get_static_element_index( element );
   if( index_pair.first < Inf<Index>() )
-   return std::make_tuple( index_pair.first , index_pair.second , true );
+   return std::make_tuple( true , index_pair.first , index_pair.second );
   else {
-   index_pair = get_dynamic_element_index( t );
-   return std::make_tuple( index_pair.first , index_pair.second , false );
+   index_pair = get_dynamic_element_index( element );
+   return std::make_tuple( false , index_pair.first , index_pair.second );
   }
  }
 
 /*--------------------------------------------------------------------------*/
+
+ /// returns the index of the given Block in the list of sub-Block of its father
+ /** This function returns the index of the given Block in the list of
+  * sub-Block of its father (if any). If the given Block has no father Block,
+  * Inf<Index>() is returned.
+  *
+  * @param block a A pointer to a Block.
+  *
+  * @return The index of the given Block in the list of sub-Block of its
+  *         father. If the given Block has no father, Inf<Index>() is
+  *         returned. */
 
  static Index get_block_index( const Block * block ) {
   auto father = block->get_f_Block();
@@ -563,7 +633,22 @@ namespace SMSpp_di_unipi_it::inspection
  /// get the ComputeConfig of the Constraint of the given Block
  /** This method scans all Constraint of the given \p block and adds the
   * (non-default) ComputeConfig of the Constraint to \p configs and the
-  * ConstraintID of those Constraint in \p ids. */
+  * ConstraintID of those Constraint to \p ids. The correspondence between \p
+  * configs and \p ids is positional: the i-th ConstraintID in \p ids
+  * identifies the Constraint whose ComputeConfig is the i-th element of \p
+  * configs. It is important to notice that both \p configs and \p ids are not
+  * cleared before the pointers to the ComputeConfig are obtained. That is,
+  * this function preserves the initial contents of the given vectors and may
+  * only add elements to them.
+  *
+  * @param block A pointer to a Block.
+  *
+  * @param configs A vector of pointers to ComputeConfig. All ComputeConfig
+  *        extracted from the Constraint of the given Block will be added to
+  *        this vector.
+  *
+  * @param ids The ConstraintID of the Constraint whose ComputeConfig were
+  *        retrieved will be added to this vector. */
 
  static void fill_ComputeConfig_Constraint
  ( Block * block , std::vector<ComputeConfig *> & configs ,
