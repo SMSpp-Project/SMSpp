@@ -946,44 +946,55 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( sp_Mod mod ,
 
     const auto & coeff = lf->get_v_var();
 
-    if( coeff.size() != f_polyf.get_num_active_var() )
+    // note that the LinearFunction has exactly one active Variable more than
+    // the PolyhedralFunction, the first one being "v"
+    if( coeff.size() != f_polyf.get_num_active_var() + 1 )
      throw( std::logic_error( "incorrect LinearFunction in FRowConstraint" ) );
 
     #ifndef NDEBUG
     // TODO: check that the Variables actually are the same
     #endif
+    A[ i ].resize( f_polyf.get_num_active_var() );
 
-    for( Index j = 0 ; j < coeff.size() ; ++j )
-     A[ i ][ j ] = - coeff[ j ].second;
+    for( Index j = 1 ; j < coeff.size() ; ++j )
+     A[ i ][ j - 1 ] = - coeff[ j ].second;
 
     ++i;
     }
 
    f_polyf.add_rows( std::move( A ) , b , make_par( eNoBlck , chnl ) );
 
-   throw( std::logic_error( "adding FRowConstraint is not handled yet" ) );
+   return;
    }
   }
 
- // BlockModRmv< FRowConstraint > - - - - - - - - - - - - - - - - - - - - - -
- // removing a dynamic constraint
+ // BlockModRmvRngd< FRowConstraint > - - - - - - - - - - - - - - - - - - - -
+ // removing a range of dynamic Constraint = rows of PolyhedralFunction
  {
-  const auto tmod =
-            std::dynamic_pointer_cast< BlockModRmv< FRowConstraint > >( mod );
+  const auto & tmod =
+       std::dynamic_pointer_cast< BlockModRmvRngd< FRowConstraint > >( mod );
   if( tmod ) {
    if( & tmod->whc() != & f_const )   // if it's not about f_const
     return;                           // none of my business
 
-   const auto & rmvd = tmod->removed();
-   if( rmvd.empty() )  // should not happen, but in case
-    return;            // nothing to do
-   /*
-   Subset nms( rmvd.size() );
-   for( auto rit = rmvd.begin() ; rit != rmvd.end() ; ++rit ) {
-    auto it = std::find();
-    }
-   */
-   throw( std::logic_error( "removing FRowConstraint is not handled yet" ) );
+   f_polyf.delete_rows( tmod->range() , make_par( eNoBlck , chnl ) );
+
+   return;
+   }
+  }
+
+ // BlockModRmvSbst< FRowConstraint > - - - - - - - - - - - - - - - - - - - -
+ // removing a subset of dynamic Constraint = rows of PolyhedralFunction
+ {
+  const auto & tmod =
+       std::dynamic_pointer_cast< BlockModRmvSbst< FRowConstraint > >( mod );
+  if( tmod ) {
+   if( & tmod->whc() != & f_const )   // if it's not about f_const
+    return;                           // none of my business
+
+   f_polyf.delete_rows( Subset( tmod->subset() ) , true ,
+			make_par( eNoBlck , chnl ) );
+   return;
    }
   }
 
@@ -1064,6 +1075,8 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( sp_Mod mod ,
    if( ci == f_const.end() )  // that's not in the linearized representation
     return;                   // none of my business
 
+   // note that the LinearFunction has exactly one active Variable more than
+   // the PolyhedralFunction, the first one being "v", whence the "- 1"
    RealVector ai( f_polyf.get_A()[ i ] );
    for( Index j = 0 ; j < tmod->delta().size() ; ++j )
     ai[ tmod->range().first + j - 1 ] += tmod->delta()[ j ];
@@ -1087,6 +1100,8 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( sp_Mod mod ,
    if( ci == f_const.end() )  // that's not in the linearized representation
     return;                   // none of my business
 
+   // note that the LinearFunction has exactly one active Variable more than
+   // the PolyhedralFunction, the first one being "v", whence the "- 1"
    RealVector ai( f_polyf.get_A()[ i ] );
    for( Index j = 0 ; j < tmod->subset().size() ; ++j )
     ai[ tmod->subset()[ j ] - 1 ] += tmod->delta()[ j ];
