@@ -508,9 +508,7 @@ class PolyhedralFunction : public C05Function {
     if( f_max_glob >= value ) {  // some linearizatons are lost
      f_max_glob = value ? value - 1 : 0;  // value could be 0 ...
 
-     // update f_max_glob
-     while( f_max_glob && ( v_glob[ f_max_glob ] == Inf<int>() ) )
-      --f_max_glob;
+     update_f_max_glob();
 
      if( ! f_Observer )  // noone is there
       break;             // all done
@@ -1629,10 +1627,12 @@ class PolyhedralFunction : public C05Function {
   * - if h < 0 then it's an aggregated one and it's found in v_aA[ - h - 1 ]
   *   and v_ab[ - h - 1 ]. */
 
- Index f_max_glob;           ///< the maximum active name in the global pool
- /**< f_max_glob is (>= than) the maximum index h such that v_glob[ h ] !=
-  * Inf<int>(). The ">=" is because if the global pool is completely empty,
-  * f_max_glob still is == 0. */
+ Index f_max_glob;           ///< 1 + maximum active name in the global pool
+ /**< f_max_glob is strictly larger than the maximum index h such that
+  * v_glob[ h ] != Inf<int>(), i.e., v_glob[ f_max_glob ] == Inf<int>()
+  * while v_glob[ f_max_glob - 1 ] != Inf<int>(). Note that one should
+  * never check v_glob[ f_max_glob ], as f_max_glob == v_glob.size() may
+  * happen (in particular when v_glob.empty() and f_max_glob == 0). */
 
  Index f_imp;                ///< the important linearization
 
@@ -1649,7 +1649,7 @@ class PolyhedralFunction : public C05Function {
  void reset_aggregate_linearizations( c_ModParam issueMod );
 
  void update_f_max_glob( void ) {
-  while( f_max_glob && ( v_glob[ f_max_glob ] == Inf<int>() ) )
+  while( f_max_glob && ( v_glob[ f_max_glob - 1 ] == Inf<int>() ) )
    --f_max_glob;
   }
  

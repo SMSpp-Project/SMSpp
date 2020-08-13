@@ -774,7 +774,7 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
    auto rit = tmod->rows().begin();
    if( tmod->PFtype() == PolyhedralFunctionMod::DeleteRows ) {
     // delete rows
-    remove_dynamic_constraints( f_const , Subset( tmod->rows() ) , par );
+    remove_dynamic_constraints( f_const , Subset( tmod->rows() ) , true , par );
     }
    else
     if( tmod->PFtype() == PolyhedralFunctionMod::ModifyRows ) {

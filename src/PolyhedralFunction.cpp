@@ -202,8 +202,8 @@ void PolyhedralFunction::store_linearization( Index name ,
   }
  
  v_glob[ name ] = v_ord[ f_next ];
- if( name > f_max_glob )  // update f_max_glob
-  f_max_glob = name;
+ if( name >= f_max_glob )  // update f_max_glob
+  f_max_glob = name + 1;
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
@@ -316,8 +316,8 @@ void PolyhedralFunction::store_combination_of_linearizations(
  v_aA[ pos ] = std::move( a );
  v_ab[ pos ] = b;
 
- if( name > f_max_glob )  // update f_max_glob
-  f_max_glob = name;
+ if( name >= f_max_glob )  // update f_max_glob
+  f_max_glob = name + 1;
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
@@ -1023,7 +1023,7 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
   v_aA.clear();
   v_ab.clear();
 
-  for( Index i = 0 ; i <= f_max_glob ; ++i )
+  for( Index i = 0 ; i < f_max_glob ; ++i )
    if( v_glob[ i ] < 0 ) {
     v_glob[ i ] = Inf<int>();
     whiche.push_back( i );
@@ -1043,7 +1043,7 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
 				 Observer::par2chnl( issueMod ) );
   }
  else  // there are no aggregate linearizations
-  for( Index i = 0 ; i <= f_max_glob ; ++i )
+  for( Index i = 0 ; i < f_max_glob ; ++i )
    if( ( v_glob[ i ] > range.first ) && ( v_glob[ i ] <= range.second ) )
     which.push_back( i );
 
@@ -1108,7 +1108,7 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
   v_ab.clear();
 
   // now search if some of the changed rows are in the global pool
-  for( Index i = 0 ; i <= f_max_glob ; ++i )
+  for( Index i = 0 ; i < f_max_glob ; ++i )
    if( v_glob[ i ] < 0 ) {
     v_glob[ i ] = Inf<int>();
     whiche.push_back( i );
@@ -1132,7 +1132,7 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
 				 Observer::par2chnl( issueMod ) );
   }
  else {  // there are no aggregate linearizations
-  for( Index i = 0 ; i <= f_max_glob ; ++i )
+  for( Index i = 0 ; i < f_max_glob ; ++i )
    if( v_glob[ i ] ) {        // unless it's the bound
     auto it = std::lower_bound( rows.begin() , rows.end() , v_glob[ i ] - 1 );
     if( ( it != rows.end() ) && ( *it == v_glob[ i ] - 1 ) )
@@ -1188,7 +1188,7 @@ void PolyhedralFunction::modify_row( Index i , RealVector && Ai ,
   v_ab.clear();
 
   // now search if the changed row is in the global pool
-  for( Index j = 0 ; j <= f_max_glob ; ++j )
+  for( Index j = 0 ; j < f_max_glob ; ++j )
    if( v_glob[ j ] < 0 ) {       // an aggregated one
     v_glob[ j ] = Inf<int>();    // kill it for sure
     whiche.push_back( j );
@@ -1208,7 +1208,7 @@ void PolyhedralFunction::modify_row( Index i , RealVector && Ai ,
 				 Observer::par2chnl( issueMod ) );
   }
  else {  // there are no aggregate linearizations
-  for( Index j = 0 ; j <= f_max_glob ; ++j )
+  for( Index j = 0 ; j < f_max_glob ; ++j )
    if( v_glob[ j ] == i + 1 )
     which.push_back( j );
   }
@@ -1288,7 +1288,7 @@ void PolyhedralFunction::modify_constants( c_RealVector & nb , Range range ,
   v_ab.clear();
 
   // now search if some of the changed constants are in the global pool
-  for( Index i = 0 ; i <= f_max_glob ; ++i )
+  for( Index i = 0 ; i < f_max_glob ; ++i )
    if( v_glob[ i ] < 0 ) {
     v_glob[ i ] = Inf<int>();
     whiche.push_back( i );
@@ -1308,7 +1308,7 @@ void PolyhedralFunction::modify_constants( c_RealVector & nb , Range range ,
 				 Observer::par2chnl( issueMod ) );
   }
  else {  // there are no aggregate linearizations
-  for( Index i = 0 ; i <= f_max_glob ; ++i )
+  for( Index i = 0 ; i < f_max_glob ; ++i )
    if( ( v_glob[ i ] > range.first ) && ( v_glob[ i ] <= range.second ) )
     which.push_back( i );
   }
@@ -1393,7 +1393,7 @@ void PolyhedralFunction::modify_constants( c_RealVector & nb ,
   v_ab.clear();
 
   // now search if some of the changed constants are in the global pool
-  for( Index i = 0 ; i <= f_max_glob ; ++i )
+  for( Index i = 0 ; i < f_max_glob ; ++i )
    if( v_glob[ i ] < 0 ) {       // an aggregated one
     v_glob[ i ] = Inf<int>();    // kill it for sure
     whiche.push_back( i );
@@ -1417,7 +1417,7 @@ void PolyhedralFunction::modify_constants( c_RealVector & nb ,
 				 Observer::par2chnl( issueMod ) );
   }
  else {  // there are no aggregate linearizations
-  for( Index i = 0 ; i <= f_max_glob ; ++i )
+  for( Index i = 0 ; i < f_max_glob ; ++i )
    if( v_glob[ i ] ) {        // unless it's the bound
     auto it = std::lower_bound( rows.begin() , rows.end() , v_glob[ i ] - 1 );
     if( ( it != rows.end() ) && ( *it == v_glob[ i ] - 1 ) )
@@ -1473,7 +1473,7 @@ void PolyhedralFunction::modify_constant( Index i , FunctionValue bi ,
   v_ab.clear();
 
   // now search the changed constant is in the global pool
-  for( Index j = 0 ; j <= f_max_glob ; ++j )
+  for( Index j = 0 ; j < f_max_glob ; ++j )
    if( v_glob[ j ] < 0 ) {
     v_glob[ j ] = Inf<int>();
     whiche.push_back( j );
@@ -1493,7 +1493,7 @@ void PolyhedralFunction::modify_constant( Index i , FunctionValue bi ,
 				 Observer::par2chnl( issueMod ) );
   }
  else {  // there are no aggregate linearizations
-  for( Index j = 0 ; j <= f_max_glob ; ++j )
+  for( Index j = 0 ; j < f_max_glob ; ++j )
    if( v_glob[ j ] == i + 1 )
     which.push_back( j );
   }
@@ -1565,7 +1565,7 @@ void PolyhedralFunction::modify_bound( FunctionValue newbound ,
 
    Subset whiche;
 
-   for( Index i = 0 ; i <= f_max_glob ; ++i )
+   for( Index i = 0 ; i < f_max_glob ; ++i )
     if( v_glob[ i ] < 0 ) {     // an aggregated one
      v_glob[ i ] = Inf<int>();  // kill it for sure
      whiche.push_back( i );
@@ -1574,7 +1574,7 @@ void PolyhedralFunction::modify_bound( FunctionValue newbound ,
    /*!!
    if( is_bound_set() ) {  // the bound has been changed
     // now search if the changed bound is in the global pool
-    for( Index i = 0 ; i <= f_max_glob ; ++i )
+    for( Index i = 0 ; i < f_max_glob ; ++i )
      if( v_glob[ i ] < 0 ) {       // an aggregated one
       v_glob[ i ] = Inf<int>();   // kill it for sure
       whiche.push_back( i );
@@ -1585,7 +1585,7 @@ void PolyhedralFunction::modify_bound( FunctionValue newbound ,
     }
    else  // the bound has been eliminated: eliminate both the it and any
          // aggregated linearization from the global pool
-    for( Index i = 0 ; i <= f_max_glob ; ++i )
+    for( Index i = 0 ; i < f_max_glob ; ++i )
      if( v_glob[ i ] <= 0 ) {
       v_glob[ i ] = Inf<int>();
       whiche.push_back( i );
@@ -1593,12 +1593,12 @@ void PolyhedralFunction::modify_bound( FunctionValue newbound ,
    }
   else {  // there are no aggregate linearizations
    if( is_bound_set() ) {  // the bound has been changed
-    for( Index i = 0 ; i <= f_max_glob ; ++i )
+    for( Index i = 0 ; i < f_max_glob ; ++i )
      if( ! v_glob[ i ] )
       which.push_back( i );
     }
    else  // the bound has been eliminated
-    for( Index i = 0 ; i <= f_max_glob ; ++i )
+    for( Index i = 0 ; i < f_max_glob ; ++i )
      if( ! v_glob[ i ] )
       whiche.push_back( i );
    }
@@ -1741,7 +1741,7 @@ void PolyhedralFunction::delete_rows( Range range , c_ModParam issueMod )
  // all the names in v_glob[] >= range.second + 1 must be decreased by
  // range.second - range.first
  auto delta = range.second - range.first;
- for( Index i = 0 ; i <= f_max_glob ; ++i ) {
+ for( Index i = 0 ; i < f_max_glob ; ++i ) {
   if( v_glob[ i ] == Inf<int>() )    // non-existent
    continue;
   if( v_glob[ i ] < 0 ) {             // an aggregated one
@@ -1832,7 +1832,7 @@ void PolyhedralFunction::delete_rows( Subset && rows , bool ordered ,
  // in rows greater than or equal to v_glob[ i ] - 1. If it is v_glob[ i ] - 1
  // we delete it. Otherwise, say that glob[ i ] - 1 == 6 and we find the
  // position 2: it means that glob[ i ] must be decreased by 2
- for( Index i = 0 ; i <= f_max_glob ; ++i ) {
+ for( Index i = 0 ; i < f_max_glob ; ++i ) {
   if( v_glob[ i ] == Inf<int>() )       // non-existent
    continue;
   if( v_glob[ i ] < 0 ) {                // an aggregated one
@@ -1898,9 +1898,8 @@ void PolyhedralFunction::delete_row( Index i , c_ModParam issueMod )
 
  // now search and mark as deleted the row i in the global pool; also,
  // all the names in v_glob[] > i + 1 must be decreased by 1
- ++i;  // names in v_glob[] are translated by +1
 
- for( Index j = 0 ; j <= f_max_glob ; ++j ) {
+ for( Index j = 0 ; j < f_max_glob ; ++j ) {
   if( v_glob[ j ] == Inf<int>() )    // non-existent
    continue;
   if( v_glob[ j ] < 0 ) {            // an aggregated one
@@ -1908,10 +1907,10 @@ void PolyhedralFunction::delete_row( Index i , c_ModParam issueMod )
    which.push_back( j );
    }
   else
-   if( v_glob[ j ] > i )
+   if( v_glob[ j ] > i + 1 )
     --v_glob[ j ];
    else
-    if( v_glob[ j ] == i ) {
+    if( v_glob[ j ] == i + 1 ) {
      v_glob[ j ] = Inf<int>();
      which.push_back( j );
      }
@@ -1982,7 +1981,7 @@ void PolyhedralFunction::reset_aggregate_linearizations( void )
  v_aA.clear();
  v_ab.clear();
 
- for( Index i = 0 ; i <= f_max_glob ; ++i )
+ for( Index i = 0 ; i < f_max_glob ; ++i )
   if( v_glob[ i ] < 0 )
    v_glob[ i ] = Inf<int>();
 
@@ -2002,7 +2001,7 @@ void PolyhedralFunction::reset_aggregate_linearizations( c_ModParam issueMod )
 
  Subset which;
 
- for( Index i = 0 ; i <= f_max_glob ; ++i )
+ for( Index i = 0 ; i < f_max_glob ; ++i )
   if( v_glob[ i ] < 0 ) {
    v_glob[ i ] = Inf<int>();
    which.push_back( i );
