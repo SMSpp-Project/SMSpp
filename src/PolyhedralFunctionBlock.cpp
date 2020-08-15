@@ -261,10 +261,9 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
      case( PolyhedralFunctionMod::ModifyRows ):
       if( n == 1 )
        PFB->f_polyf.modify_row( tmod->range().first ,
-				 RealVector(
+				RealVector(
 				   f_polyf.get_A()[ tmod->range().first ] ) ,
-				 f_polyf.get_b()[ tmod->range().first ] ,
-				 iPM );
+				f_polyf.get_b()[ tmod->range().first ] , iPM );
       else {
        MultiVector nA( n );
        RealVector nb( n );
@@ -275,7 +274,7 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
         }
        
        PFB->f_polyf.modify_rows( std::move( nA ) , std::move( nb ) ,
-				  tmod->range() , iPM );
+				 tmod->range() , iPM );
        }
       break;
      case( PolyhedralFunctionMod::ModifyCnst ):
@@ -286,15 +285,15 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
        
       if( n == 1 )
        PFB->f_polyf.modify_constant( tmod->range().first ,
-			    f_polyf.get_b()[ tmod->range().first ] , iPM );
+				     f_polyf.get_b()[ tmod->range().first ] ,
+				     iPM );
       else {
        RealVector nb( n );
        auto bit = nb.begin();
        for( Index i = tmod->range().first ; i < tmod->range().second ; )
 	*(bit++) = f_polyf.get_b()[ i++ ];
        
-       PFB->f_polyf.modify_constants( std::move( nb ) ,
-				       tmod->range() , iPM );
+       PFB->f_polyf.modify_constants( std::move( nb ) , tmod->range() , iPM );
        }
       break;
      case( PolyhedralFunctionMod::DeleteRows ):
@@ -324,10 +323,9 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
      case( PolyhedralFunctionMod::ModifyRows ):
       if( n == 1 )
        PFB->f_polyf.modify_row( tmod->rows()[ 0 ] ,
-				 RealVector(
+				RealVector(
 				    f_polyf.get_A()[ tmod->rows()[ 0 ] ] ) ,
-				 f_polyf.get_b()[ tmod->rows()[ 0 ] ] ,
-				 iPM );
+				f_polyf.get_b()[ tmod->rows()[ 0 ] ] , iPM );
       else {
        MultiVector nA( n );
        RealVector nb( n );
@@ -696,11 +694,9 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
 
    if( strt == stop ) {  // special case: the lower/upper bound
     if( f_polyf.is_convex() )  // convex ==> lower bound
-     f_bcv.set_lhs( f_polyf.get_lower_estimate() ,
-		    make_par( eNoBlck , chnl ) );
+     f_bcv.set_lhs( f_polyf.get_global_bound() , make_par( eNoBlck , chnl ) );
     else                       // concave ==> upper bound
-     f_bcv.set_rhs( f_polyf.get_upper_estimate() ,
-		    make_par( eNoBlck , chnl ) );
+     f_bcv.set_rhs( f_polyf.get_global_bound() , make_par( eNoBlck , chnl ) );
     return;
     }
 
@@ -740,10 +736,10 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
     else  // modify constants only
      if( f_polyf.is_convex() )
       for( Index i = strt ; i < stop ; )
-       cit->set_lhs( f_polyf.get_b()[ i++ ] , par );
+       (cit++)->set_lhs( f_polyf.get_b()[ i++ ] , par );
      else
       for( Index i = strt ; i < stop ; )
-       cit->set_rhs( f_polyf.get_b()[ i++ ] , par );
+       (cit++)->set_rhs( f_polyf.get_b()[ i++ ] , par );
     }
 
    if( newchnl ) {
