@@ -148,7 +148,7 @@ namespace SMSpp_di_unipi_it
  *
  * - f_1st_stat_cnst: the first groups of static Constraint;
  *
- * - f_1st_dym_cnst: the first groups of dynamic Constraint;
+ * - f_1st_dyn_cnst: the first groups of dynamic Constraint;
  *
  * - f_res_obj: the (only) Objective;
  *
@@ -228,7 +228,7 @@ class AbstractBlock : public Block {
   f_ub( Inf<double>() ) , f_lb( - Inf<double>() ) ,
   f_ub_cond( false ) , f_lb_cond( false ) ,
   f_1st_stat_var( 0 ) , f_1st_dyn_var( 0 ) ,
-  f_1st_stat_cnst( 0 ) , f_1st_dym_cnst( 0 ) ,
+  f_1st_stat_cnst( 0 ) , f_1st_dyn_cnst( 0 ) ,
   f_res_obj( false ) , f_1st_sub_block( 0 ) { }
 
 /*--------------------------------------------------------------------------*/
@@ -302,8 +302,8 @@ class AbstractBlock : public Block {
   * the conditionally valid one otherwise, with the other being automatically
   * set to + infinity. */
 
- void set_valid_upper_bound( const double newub = + Inf<double>() ,
-			     const bool conditional = false )
+ void set_valid_upper_bound( double newub = + Inf<double>() ,
+			     bool conditional = false )
  {
   f_ub = newub; f_ub_cond = conditional;
   }
@@ -321,8 +321,8 @@ class AbstractBlock : public Block {
   * the conditionally valid one otherwise, with the other being automatically
   * set to - infinity. */
 
- void set_valid_lower_bound( const double newlb = - Inf<double>() ,
-			     const bool conditional = false )
+ void set_valid_lower_bound( double newlb = - Inf<double>() ,
+			     bool conditional = false )
  {
   f_lb = newlb; f_lb_cond = conditional;
   }
@@ -351,7 +351,7 @@ class AbstractBlock : public Block {
   * the derived classes. */
 
  Index get_first_dynamic_Constraint( void ) const {
-  return( f_1st_dym_cnst );
+  return( f_1st_dyn_cnst );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -593,7 +593,7 @@ class AbstractBlock : public Block {
  Index f_1st_stat_var;    ///< the first available group of static Variable
  Index f_1st_dyn_var;     ///< the first available group of dynamic Variable
  Index f_1st_stat_cnst;   ///< the first available group of static Constraint
- Index f_1st_dym_cnst;    ///< the first available group of dynamic Constraint
+ Index f_1st_dyn_cnst;    ///< the first available group of dynamic Constraint
 
  bool f_res_obj;          ///< if the Objective is not available
 
