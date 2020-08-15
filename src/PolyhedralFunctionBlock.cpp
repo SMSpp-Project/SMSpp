@@ -726,9 +726,11 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
      // modify rows & constants
      Range rng = Range( 1 , f_polyf.get_num_active_var() + 1 );
      for( Index i = strt ; i < stop ; ) {
+      RealVector Ai( f_polyf.get_A()[ i ] );
+      for( auto & aij : Ai )
+       aij = -aij;
       static_cast< LinearFunction * >( cit->get_function() )->
-       modify_coefficients( std::move( RealVector( f_polyf.get_A()[ i ] ) ) ,
-			    rng , par );
+                            modify_coefficients( std::move( Ai ) , rng , par );
       if( f_polyf.is_convex() )
        (cit++)->set_lhs( f_polyf.get_b()[ i++ ] , par );
       else
@@ -782,9 +784,11 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
      Range rng = Range( 1 , f_polyf.get_num_active_var() + 1 );
      for( ; rit != tmod->rows().end() ; ) {
       cit = std::next( cit , *rit - prev );
+      RealVector Ai( f_polyf.get_A()[ *rit ] );
+      for( auto & aij : Ai )
+       aij = -aij;
       static_cast< LinearFunction * >( cit->get_function() )->
-       modify_coefficients(
-	    std::move( RealVector( f_polyf.get_A()[ *rit ] ) ) , rng , par );
+                             modify_coefficients( std::move( Ai ) , rng , par );
       if( f_polyf.is_convex() )
        cit->set_lhs( f_polyf.get_b()[ *rit ] , par );
       else
@@ -1077,9 +1081,12 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( sp_Mod mod ,
 
    // note that the LinearFunction has exactly one active Variable more than
    // the PolyhedralFunction, the first one being "v", whence the "- 1"
+   // also, note that the coefficients are the opposite of the entries in A;
+   // hence, if the coefficients are changed by adding them tmod->delta(),
+   // the entries of A must change by subtracting them tmod->delta()
    RealVector ai( f_polyf.get_A()[ i ] );
    for( Index j = 0 ; j < tmod->delta().size() ; ++j )
-    ai[ tmod->range().first + j - 1 ] += tmod->delta()[ j ];
+    ai[ tmod->range().first + j - 1 ] -= tmod->delta()[ j ];
 
    f_polyf.modify_row( i , std::move( ai ) , f_polyf.get_b()[ i ] ,
 		       make_par( eNoBlck , chnl ) );
@@ -1102,9 +1109,12 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( sp_Mod mod ,
 
    // note that the LinearFunction has exactly one active Variable more than
    // the PolyhedralFunction, the first one being "v", whence the "- 1"
+   // also, note that the coefficients are the opposite of the entries in A;
+   // hence, if the coefficients are changed by adding them tmod->delta(),
+   // the entries of A must change by subtracting them tmod->delta()
    RealVector ai( f_polyf.get_A()[ i ] );
    for( Index j = 0 ; j < tmod->subset().size() ; ++j )
-    ai[ tmod->subset()[ j ] - 1 ] += tmod->delta()[ j ];
+    ai[ tmod->subset()[ j ] - 1 ] -= tmod->delta()[ j ];
 
    f_polyf.modify_row( i , std::move( ai ) , f_polyf.get_b()[ i ] ,
 		       make_par( eNoBlck , chnl ) );

@@ -157,7 +157,7 @@ void Block::add_Modification( sp_Mod mod , ChnlName chnl )
   throw( std::invalid_argument( "wrong channel name" ) );
 
  // append it to the sub_Modifications of the appropriate GroupModification
- v_current_GroupMod[ chnl - 1 ]->v_sub_Modifications.push_back( mod );
+ v_current_GroupMod[ chnl - 1 ]->add( mod );
   
  }  // end( Block::add_Modification )
 

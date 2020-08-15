@@ -131,7 +131,7 @@ void LagBFunction::set_inner_block( Block* innerblock ) {
 /*--------------------------------------------------------------------------*/
 
 void LagBFunction::set_dual_pairs( v_dual_pair && lp ,
-		  c_ModParam issueMod ) { // this function is used to initialize
+		  ModParam issueMod ) { // this function is used to initialize
 	                      // a bunch of relaxed constraints along with their
 	                      // Lagrangian multipliers
 
@@ -344,7 +344,7 @@ void LagBFunction::deserialize( netCDF::NcGroup & group )
 /*-------------------- Methods for handling Modification -------------------*/
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::add_dual_pairs( v_dual_pair && lp , c_ModParam issueMod ) {
+void LagBFunction::add_dual_pairs( v_dual_pair && lp , ModParam issueMod ) {
 
  for( const auto l_pair : lp ) { // for each relaxed constraints
   auto LinFunc = dynamic_cast<const LinearFunction *>( l_pair.second );
@@ -398,7 +398,7 @@ void LagBFunction::add_dual_pairs( v_dual_pair && lp , c_ModParam issueMod ) {
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::remove_variable( Index i , c_ModParam issueMod )
+void LagBFunction::remove_variable( Index i , ModParam issueMod )
 {
  if( i >= LagPairs.size() )
   throw( std::logic_error( "less than i Variable are active" ) );
@@ -427,7 +427,7 @@ void LagBFunction::remove_variable( Index i , c_ModParam issueMod )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::remove_variables( Range range , c_ModParam issueMod )
+void LagBFunction::remove_variables( Range range , ModParam issueMod )
 {
  // TODO: better handling of a complete removal of Variable
  
@@ -465,7 +465,7 @@ void LagBFunction::remove_variables( Range range , c_ModParam issueMod )
 /*--------------------------------------------------------------------------*/
 
 void LagBFunction::remove_variables( Subset && nms , bool ordered ,
-				     c_ModParam issueMod )
+				     ModParam issueMod )
 {
  if( nms.empty() )
   throw( std::invalid_argument(
@@ -645,7 +645,7 @@ bool LagBFunction::compute_new_linearization( const bool diagonal )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::store_linearization( Index name , c_ModParam issueMod )
+void LagBFunction::store_linearization( Index name , ModParam issueMod )
 {
  // TODO: handle issueMod !!
 
@@ -684,7 +684,7 @@ void LagBFunction::store_linearization( Index name , c_ModParam issueMod )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::delete_linearization( Index name , c_ModParam issueMod )
+void LagBFunction::delete_linearization( Index name , ModParam issueMod )
 {
  // TODO: handle issueMod !!
 
@@ -699,7 +699,7 @@ void LagBFunction::delete_linearization( Index name , c_ModParam issueMod )
 /*--------------------------------------------------------------------------*/
 
 void LagBFunction::store_combination_of_linearizations(
-	LinearCombination & coefficients , Index name , c_ModParam issueMod )
+	LinearCombination & coefficients , Index name , ModParam issueMod )
 {
  // TODO: handle issueMod !!
 

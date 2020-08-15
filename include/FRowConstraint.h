@@ -190,23 +190,23 @@ class FRowConstraint : public RowConstraint , public Observer {
   * described in Observer::make_par(). */
 
  virtual void set_function( Function * const function = nullptr ,
-			    c_ModParam issueMod = eModBlck ,
+			    ModParam issueMod = eModBlck ,
 			    bool deleteold = true );
 
 /*--------------------------------------------------------------------------*/
 
  virtual void set_rhs( c_RHSValue rhs_value ,
-		       c_ModParam issueMod = eModBlck ) override;
+		       ModParam issueMod = eModBlck ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  virtual void set_lhs( c_RHSValue lhs_value ,
-		       c_ModParam issueMod = eModBlck ) override;
+		       ModParam issueMod = eModBlck ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  virtual void set_both( c_RHSValue both_value ,
-			c_ModParam issueMod = eModBlck ) override;
+			ModParam issueMod = eModBlck ) override;
 
 /*--------------------------------------------------------------------------*/
 
@@ -554,18 +554,18 @@ class FRowConstraint : public RowConstraint , public Observer {
 
 /*--------------------------------------------------------------------------*/
 
- void remove_variable( Index i , c_ModParam issueMod = eModBlck )
+ void remove_variable( Index i , ModParam issueMod = eModBlck )
   override final;
 
 /*--------------------------------------------------------------------------*/
 
- void remove_variables( Range range , c_ModParam issueMod = eModBlck )
+ void remove_variables( Range range , ModParam issueMod = eModBlck )
   override final;
 
 /*--------------------------------------------------------------------------*/
 
  void remove_variables( Subset && nms , bool ordered = false ,
-			c_ModParam issueMod = eModBlck )  override final;
+			ModParam issueMod = eModBlck )  override final;
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF AN Observer -------------*/

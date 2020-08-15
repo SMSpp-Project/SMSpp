@@ -683,7 +683,7 @@ class C05Function : public Function {
   * "abstract represenation" that the global pool provides. */
 
  virtual void store_linearization( Index name  ,
-				   c_ModParam issueMod = eModBlck ) { }
+				   ModParam issueMod = eModBlck ) { }
 
 /*--------------------------------------------------------------------------*/
  /// tells if there is a linearization in the global pool with that name
@@ -771,7 +771,7 @@ class C05Function : public Function {
 
  virtual void store_combination_of_linearizations(
 	                   LinearCombination & coefficients , Index name ,
-			   c_ModParam issueMod = eModBlck ) { }
+			   ModParam issueMod = eModBlck ) { }
 
 /*--------------------------------------------------------------------------*/
  /// specify which linearization is "the important one"
@@ -912,7 +912,7 @@ class C05Function : public Function {
   * provides. */
 
  virtual void delete_linearization( Index name ,
-				    c_ModParam issueMod = eModBlck ) { }
+				    ModParam issueMod = eModBlck ) { }
 
 /*--------------------------------------------------------------------------*/
  /// delete the given subset of linearizations from the global pool
@@ -936,7 +936,7 @@ class C05Function : public Function {
   * unique one is issued at the end. */
 
  virtual void delete_linearizations( Subset && which , bool ordered = true ,
-				     c_ModParam issueMod = eModBlck );
+				     ModParam issueMod = eModBlck );
  
 /*--------------------------------------------------------------------------*/
  /// get a range of coefficients (g vector) of a linearization in an array

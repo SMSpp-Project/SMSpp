@@ -608,7 +608,7 @@ class DQuadFunction : public C15Function {
   * quadratic function is additive, and therefore strongly quasi-additive. */
 
  void add_variables( v_coeff_triple && vars ,
-		     c_ModParam issueMod = eModBlck );
+		     ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// add one single new Variable to the DQuadFunction
@@ -617,7 +617,7 @@ class DQuadFunction : public C15Function {
   * is the coefficient of the Variable in the quadratic term. */
 
  void add_variable( ColVariable * var , Coefficient lin_coeff ,
-                    Coefficient quad_coeff , c_ModParam issueMod = eModBlck );
+                    Coefficient quad_coeff , ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// modify a single existing quadratic term
@@ -629,7 +629,7 @@ class DQuadFunction : public C15Function {
   * issued, as described in Observer::make_par(). */
 
  void modify_term( Index i , Coefficient lin_coeff ,
-                   Coefficient quad_coeff , c_ModParam issueMod = eModBlck );
+                   Coefficient quad_coeff , ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify a single existing linear coefficient
@@ -643,7 +643,7 @@ class DQuadFunction : public C15Function {
   * place of a C05FunctionModRngd one. */
 
  void modify_linear_coefficient( Index i , Coefficient coeff ,
-                                 c_ModParam issueMod = eModBlck );
+                                 ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// modify a set of existing quadratic terms
@@ -663,7 +663,7 @@ class DQuadFunction : public C15Function {
 
  void modify_terms( c_v_coeff_it NQuadCoef , c_v_coeff_it NLinCoef ,
 		    Subset && nms , bool ordered = false ,
-		    c_ModParam issueMod = eModBlck );
+		    ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify a set of existing linear coefficients
@@ -685,7 +685,7 @@ class DQuadFunction : public C15Function {
 
  void modify_linear_coefficients( Vec_FunctionValue && NCoef ,
 				  Subset && nms , bool ordered = false ,
-				  c_ModParam issueMod = eModBlck );
+				  ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// modify a range of existing quadratic terms
@@ -702,7 +702,7 @@ class DQuadFunction : public C15Function {
 
  void modify_terms( c_v_coeff_it NQuadCoef , c_v_coeff_it NLinCoef ,
                     Range range = std::make_pair( 0 , Inf<Index>() ) ,
-                    c_ModParam issueMod = eModBlck );
+                    ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify a range of linear coefficients
@@ -720,7 +720,7 @@ class DQuadFunction : public C15Function {
 
  void modify_linear_coefficients( Vec_FunctionValue && NCoef ,
 			   Range range = std::make_pair( 0 , Inf<Index>() ) ,
-				  c_ModParam issueMod = eModBlck );
+				  ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// remove the i-th "active" Variable from the DQuadFunction
@@ -736,7 +736,7 @@ class DQuadFunction : public C15Function {
   * which is why a C05FunctionModVarsRngd is issued as opposed to a
   * FunctionModVarsRngd one. */
 
- void remove_variable( Index i, c_ModParam issueMod = eModBlck )
+ void remove_variable( Index i , ModParam issueMod = eModBlck )
   override final;
 
 /*--------------------------------------------------------------------------*/
@@ -751,7 +751,7 @@ class DQuadFunction : public C15Function {
   * C05FunctionModVarsRngd is issued as opposed to a FunctionModVarsRngd
   * one. */
 
- void remove_variables( Range range , c_ModParam issueMod = eModBlck )
+ void remove_variables( Range range , ModParam issueMod = eModBlck )
   override final;
   
 /*--------------------------------------------------------------------------*/
@@ -775,7 +775,7 @@ class DQuadFunction : public C15Function {
   * C05FunctionModVarSbst is issued as opposed to a FunctionModVarSbst one. */
 
  void remove_variables( Subset && nms , bool ordered = false ,
-			c_ModParam issueMod = eModBlck )  override final;
+			ModParam issueMod = eModBlck ) override final;
 
 /*--------------------------------------------------------------------------*/
  ///< sets the value of the constant term of this function.
@@ -786,7 +786,7 @@ class DQuadFunction : public C15Function {
   * issued, as described in Observer::make_par(). */
 
  void set_constant_term( FunctionValue constant_term ,
-                         c_ModParam issueMod = eModBlck );
+                         ModParam issueMod = eModBlck );
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/

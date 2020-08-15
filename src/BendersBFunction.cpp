@@ -66,7 +66,7 @@ void BendersBFunction::load( std::istream &input ) {
 /*--------------------------------------------------------------------------*/
 
 void BendersBFunction::deserialize( netCDF::NcGroup & group ,
-                                    c_ModParam issueMod ) {
+                                    ModParam issueMod ) {
 
  c_Index nvar = get_num_active_var();
 
@@ -341,7 +341,7 @@ void BendersBFunction::map_active( c_Vec_p_Var & vars , Subset & map ,
 void BendersBFunction::set_mapping( MultiVector && A , RealVector && b ,
                                     ConstraintVector && constraints ,
                                     ConstraintSideVector && sides ,
-                                    c_ModParam issueMod ) {
+                                    ModParam issueMod ) {
 
  if( constraints.size() != b.size() )
   throw( std::invalid_argument( "BendersBFunction::set_mapping: the number of "
@@ -391,7 +391,7 @@ void BendersBFunction::set_mapping( MultiVector && A , RealVector && b ,
 /*--------------------------------------------------------------------------*/
 
 void BendersBFunction::add_variables( VarVector && nx , MultiVector && nA ,
-                                      c_ModParam issueMod ) {
+                                      ModParam issueMod ) {
  const auto nn = nx.size();
  if( ! nn )  // actually nothing to add
   return;    // cowardly (and silently) return
@@ -445,7 +445,7 @@ void BendersBFunction::add_variables( VarVector && nx , MultiVector && nA ,
 /*--------------------------------------------------------------------------*/
 
 void BendersBFunction::add_variable( ColVariable * const var ,
-                                     c_RealVector & Aj , c_ModParam issueMod ) {
+                                     c_RealVector & Aj , ModParam issueMod ) {
  if( var == nullptr )  // actually nothing to add
   return;              // cowardly (and silently) return
 
@@ -479,7 +479,7 @@ void BendersBFunction::add_variable( ColVariable * const var ,
 
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::remove_variable( Index i , c_ModParam issueMod )
+void BendersBFunction::remove_variable( Index i , ModParam issueMod )
 {
  if( i >= v_x.size() )
   throw( std::logic_error( "BendersBFunction::remove_variable: invalid "
@@ -507,7 +507,7 @@ void BendersBFunction::remove_variable( Index i , c_ModParam issueMod )
 
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::remove_variables( Range range , c_ModParam issueMod )
+void BendersBFunction::remove_variables( Range range , ModParam issueMod )
 {
  range.second = std::min( range.second , Index( v_x.size() ) );
  if( range.second <= range.first )
@@ -588,7 +588,7 @@ static void compact( std::vector< T > x ,
 /*--------------------------------------------------------------------------*/
 
 void BendersBFunction::remove_variables( Subset && nms , bool ordered ,
-                                         c_ModParam issueMod )
+                                         ModParam issueMod )
 {
  if( nms.empty() ) {      // removing *all* Variables
 
@@ -653,7 +653,7 @@ void BendersBFunction::remove_variables( Subset && nms , bool ordered ,
 /*--------------------------------------------------------------------------*/
 
 void BendersBFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
-                                    Range range , c_ModParam issueMod ) {
+                                    Range range , ModParam issueMod ) {
  range.second = std::min( range.second , Index( v_A.size() ) );
  if( range.second <= range.first )
   return;
@@ -702,7 +702,7 @@ void BendersBFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
 
 void BendersBFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
                                     Subset && rows , bool ordered ,
-                                    c_ModParam issueMod ) {
+                                    ModParam issueMod ) {
  if( rows.empty() )  // actually nothing to modify
   return;            // cowardly (and silently) return
 
@@ -754,7 +754,7 @@ void BendersBFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
 
 void BendersBFunction::modify_row( c_Index i , RealVector && Ai ,
                                    c_FunctionValue bi ,
-                                   c_ModParam issueMod ) {
+                                   ModParam issueMod ) {
  if( i >= v_A.size() )
   throw( std::invalid_argument( "BendersBFunction::modify_row: row " +
                                 std::to_string( i ) + " does not exist." ) );
@@ -792,7 +792,7 @@ void BendersBFunction::modify_row( c_Index i , RealVector && Ai ,
 
 void BendersBFunction::modify_constants
 ( std::vector< double >::const_iterator nb , Range range ,
-  c_ModParam issuePMod , c_ModParam issueAMod ) {
+  ModParam issuePMod , ModParam issueAMod ) {
 
  range.second = std::min( range.second , Index( v_b.size() ) );
  if( range.second <= range.first )
@@ -834,7 +834,7 @@ void BendersBFunction::modify_constants
 /*--------------------------------------------------------------------------*/
 
 void BendersBFunction::modify_constants( c_RealVector & nb , Range range ,
-                                         c_ModParam issueMod ) {
+                                         ModParam issueMod ) {
  modify_constants( nb.cbegin() , range , issueMod , issueMod );
 }  // end( BendersBFunction::modify_constants( range ) )
 
@@ -842,7 +842,7 @@ void BendersBFunction::modify_constants( c_RealVector & nb , Range range ,
 
 void BendersBFunction::modify_constants
 ( std::vector< double >::const_iterator nb , Subset && rows , bool ordered ,
-  c_ModParam issuePMod , c_ModParam issueAMod ) {
+  ModParam issuePMod , ModParam issueAMod ) {
 
  if( rows.empty() )  // actually nothing to modify
   return;            // cowardly (and silently) return
@@ -889,7 +889,7 @@ void BendersBFunction::modify_constants
 /*--------------------------------------------------------------------------*/
 
 void BendersBFunction::modify_constants
-( c_RealVector & nb , Subset && rows , bool ordered , c_ModParam issueMod ) {
+( c_RealVector & nb , Subset && rows , bool ordered , ModParam issueMod ) {
  modify_constants( nb.cbegin() , std::move( rows ) , ordered ,
                    issueMod , issueMod );
 }  // end( BendersBFunction::modify_constants )
@@ -897,7 +897,7 @@ void BendersBFunction::modify_constants
 /*--------------------------------------------------------------------------*/
 
 void BendersBFunction::modify_constant( c_Index i , c_FunctionValue bi ,
-                                        c_ModParam issueMod ) {
+                                        ModParam issueMod ) {
  if( i >= v_A.size() )
   throw( std::invalid_argument( "BendersBFunction::modify_constant: row " +
                                 std::to_string( i ) + " does not exist." ) );
@@ -935,7 +935,7 @@ void BendersBFunction::modify_constant( c_Index i , c_FunctionValue bi ,
 void BendersBFunction::add_rows( MultiVector && nA , c_RealVector & nb ,
                                  const ConstraintVector & nc ,
                                  const ConstraintSideVector & ns ,
-                                 c_ModParam issueMod ) {
+                                 ModParam issueMod ) {
  const auto k = nA.size();
  if( k != nb.size() )
   throw( std::invalid_argument( "BendersBFunction::add_rows: nA and nb must "
@@ -1003,7 +1003,7 @@ void BendersBFunction::add_rows( MultiVector && nA , c_RealVector & nb ,
 
 void BendersBFunction::add_row( RealVector && Ai , FunctionValue bi ,
                                 RowConstraint * ci , ConstraintSide si ,
-                                c_ModParam issueMod ) {
+                                ModParam issueMod ) {
  if( Ai.size() != v_x.size() )
   throw( std::invalid_argument( "BendersBFunction::add_row: given row Ai "
                                 "has wrong size." ) );
@@ -1046,7 +1046,7 @@ void BendersBFunction::add_row( RealVector && Ai , FunctionValue bi ,
 
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::delete_rows( Range range , c_ModParam issueMod ) {
+void BendersBFunction::delete_rows( Range range , ModParam issueMod ) {
  range.second = std::min( range.second , Index( v_b.size() ) );
  if( range.second <= range.first )
   return;
@@ -1101,7 +1101,7 @@ void BendersBFunction::delete_rows( Range range , c_ModParam issueMod ) {
 /*--------------------------------------------------------------------------*/
 
 void BendersBFunction::delete_rows( Subset && rows , bool ordered ,
-                                    c_ModParam issueMod ) {
+                                    ModParam issueMod ) {
  if( rows.empty() )  // actually nothing to remove
   return;            // cowardly (and silently) returning
 
@@ -1181,7 +1181,7 @@ void BendersBFunction::delete_rows( Subset && rows , bool ordered ,
 
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::delete_row( c_Index i , c_ModParam issueMod ) {
+void BendersBFunction::delete_row( c_Index i , ModParam issueMod ) {
  if( i >= v_b.size() )
   throw( std::invalid_argument( "BendersBFunction::delete_row: given row " +
                                 std::to_string( i ) + " does not exist." ) );
@@ -1222,7 +1222,7 @@ void BendersBFunction::delete_row( c_Index i , c_ModParam issueMod ) {
 
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::delete_rows( c_ModParam issueMod ) {
+void BendersBFunction::delete_rows( ModParam issueMod ) {
  v_A.clear();   // delete original rows
  v_b.clear();
  v_constraints.clear();
@@ -1654,7 +1654,7 @@ Function::FunctionValue BendersBFunction::get_value( void ) const {
  * compute_new_linearization() (which returned true) can be permanently stored
  * in the global pool of linearizations by calling this method. */
 
-void BendersBFunction::store_linearization( Index name , c_ModParam issueMod ) {
+void BendersBFunction::store_linearization( Index name , ModParam issueMod ) {
  if( name >= global_pool.size() )
   throw( std::invalid_argument( "BendersBFunction::store_linearization: "
                                 "invalid global pool name: " +
@@ -1699,7 +1699,7 @@ void BendersBFunction::store_linearization( Index name , c_ModParam issueMod ) {
 /*--------------------------------------------------------------------------*/
 
 void BendersBFunction::store_combination_of_linearizations
-( LinearCombination & coefficients , const Index name , c_ModParam issueMod ) {
+( LinearCombination & coefficients , const Index name , ModParam issueMod ) {
  global_pool.store_combination_of_linearizations( coefficients , name ,
                                                   AAccMlt );
 
@@ -1717,7 +1717,7 @@ void BendersBFunction::store_combination_of_linearizations
 /*--------------------------------------------------------------------------*/
 
 void BendersBFunction::delete_linearization( const Index name ,
-                                             c_ModParam issueMod ) {
+                                             ModParam issueMod ) {
  global_pool.delete_linearization( name );
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
@@ -1733,7 +1733,7 @@ void BendersBFunction::delete_linearization( const Index name ,
 /*--------------------------------------------------------------------------*/
 
 void BendersBFunction::delete_linearizations( Subset && which , bool ordered ,
-                                              c_ModParam issueMod ) {
+                                              ModParam issueMod ) {
  global_pool.delete_linearizations( which , ordered );
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
