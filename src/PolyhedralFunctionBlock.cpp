@@ -465,15 +465,15 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
  if( tmod ) {                    // this is a GroupModification
   if( ! par2chnl( issuePMod ) )  // and the channel is the default one
                                  // open a new channel and use it instead
-   iPM = make_par( par2concern( issuePMod ) , PFB->open_channel() );
+   iPM = make_par( par2mod( issuePMod ) , PFB->open_channel() );
 
   for( const auto & submod : tmod->sub_Modifications() )  // for each sub-Mod
    if( ! guts_of_mfM( submod ) )                          // make the call
     ok = false;
 
-  if( iPM != issuePMod )                   // a channel had been opened
+  if( ! par2chnl( issuePMod ) )            // a channel had been opened
    PFB->close_channel( par2chnl( iPM ) );  // close it
- }
+  }
  else                            // any other Modification
   ok = guts_of_mfM( mod );       // just make the call
 
