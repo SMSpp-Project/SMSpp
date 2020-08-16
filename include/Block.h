@@ -4377,7 +4377,7 @@ class Block : public Observer {
   *
   * R3B is assumed to be a R3 Block produced by the current one of "type"
   * r3bc (the same, or identical, Configuration object used in get_R3_Block()
-  * to produce R3B in the first place). mod is assumed to be a (smart)
+  * to produce R3B in the first place). mod is assumed to be a (const)
   * pointer to a Modification object that applies to the current Block.
   *
   * One example of use of such a mechanism is when the original Block has
@@ -4464,7 +4464,7 @@ class Block : public Observer {
   * Modification it produces, or which Modification need be mapped
   * "immediately". */
 
- virtual bool map_forward_Modification( Block *R3B , sp_Mod mod ,
+ virtual bool map_forward_Modification( Block *R3B , c_p_Mod mod ,
 					Configuration *r3bc = nullptr ,
 					ModParam issuePMod = eNoBlck ,
 					ModParam issueAMod = eModBlck )
@@ -4499,8 +4499,8 @@ class Block : public Observer {
   * would otherwise not be feasible.
   *
   * This method allows for such an operation. It takes the same inputs as
-  * map_forward_Modification(), save that the individual (smart pointer to a)
-  * Modification is now a list of  (smart pointerd to) Modification. The
+  * map_forward_Modification(), save that the individual (const pointer to a)
+  * Modification is now a list of (smart pointerd to) Modification. The
   * assumption is that the list contains "all the Modification issued that
   * cause the Block to be not in synch with its R3 Block", althugh individual
   * :Block may relax this to a subset of "difficult" Modification.
@@ -4521,7 +4521,8 @@ class Block : public Observer {
  {
   for( auto mit = lmod.begin() ; mit != lmod.end() ; ) {
    auto nmit = ++mit;
-   if( map_forward_Modification( R3B , *mit , r3bc , issuePMod , issueAMod ) )
+   if( map_forward_Modification( R3B , mit->get() , r3bc ,
+				 issuePMod , issueAMod ) )
     lmod.erase( mit );
    mit = nmit;
    }
@@ -4548,7 +4549,7 @@ class Block : public Observer {
   *
   * R3B is assumed to be a R3 Block produced by the current one of "type"
   * r3bc (the same, or identical, Configuration object used in get_R3_Block()
-  * to produce R3B in the first place). mod is assumed to be a (smart)
+  * to produce R3B in the first place). mod is assumed to be a (const)
   * pointer to a Modification object that applies to the R3 Block.
   *
   * IMPORTANT NOTE: A :Block SHOULD ONLY MAP EITHER ITS "PHYSICAL
@@ -4586,7 +4587,7 @@ class Block : public Observer {
   * implement any of the possible mapping, or extremely unlucky ones not
   * having any workable one to implement. */
 
- virtual bool map_back_Modification( Block *R3B , sp_Mod mod ,
+ virtual bool map_back_Modification( Block *R3B , c_p_Mod mod ,
 				     Configuration *r3bc = nullptr ,
 				     ModParam issuePMod = eNoBlck ,
 				     ModParam issueAMod = eModBlck )
@@ -4608,7 +4609,8 @@ class Block : public Observer {
  {
   for( auto mit = lmod.begin() ; mit != lmod.end() ; ) {
    auto nmit = ++mit;
-   if( map_back_Modification( R3B , *mit , r3bc , issuePMod , issueAMod ) )
+   if( map_back_Modification( R3B , mit->get() , r3bc ,
+			      issuePMod , issueAMod ) )
     lmod.erase( mit );
    mit = nmit;
    }

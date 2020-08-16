@@ -100,7 +100,7 @@ void PolyhedralFunctionBlock::generate_abstract_constraints(
    ConstructLPConstraint( i++ , *(cit++) );
 
   // note: the linear constraints are added "in front"
-  f_1st_dym_cnst = 1;
+  f_1st_dyn_cnst = 1;
   add_dynamic_constraint( f_const , "" , true );
   }
 
@@ -170,7 +170,7 @@ Block * PolyhedralFunctionBlock::get_R3_Block( Configuration *r3bc ,
 /*--------------------------------------------------------------------------*/
 
 bool PolyhedralFunctionBlock::map_forward_Modification(
-			      Block *R3B , sp_Mod mod , Configuration *r3bc ,
+			      Block *R3B , c_p_Mod mod , Configuration *r3bc ,
 			      ModParam issuePMod , ModParam issueAMod )
 {
  if( mod->concerns_Block() )  // an abstract Modification
@@ -201,8 +201,8 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
     which allows recursive calls. Note the need to explicitly capture
     "this" to use fields/methods of the class. */
 
- std::function< bool( sp_Mod ) > guts_of_mfM;
- guts_of_mfM = [ this , & guts_of_mfM , & PFB , & iPM ]( sp_Mod mod ) {
+ std::function< bool( c_p_Mod ) > guts_of_mfM;
+ guts_of_mfM = [ this , & guts_of_mfM , & PFB , & iPM ]( c_p_Mod mod ) {
   // process Modification- - - - - - - - - - - - - - - - - - - - - - - - - - -
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /* This requires to patiently sift through the possible Modification types
@@ -211,13 +211,13 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
 
   // GroupModification - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   {
-   const auto tmod = std::dynamic_pointer_cast<GroupModification>( mod );
+   const auto tmod = dynamic_cast< GroupModification * const >( mod );
    if( tmod ) {
     PFB->nest_channel( par2chnl( iPM ) );     // nest the channel
 
     bool ok = true;
     for( const auto & submod : tmod->sub_Modifications() )
-     if( ! guts_of_mfM( submod ) )
+     if( ! guts_of_mfM( submod.get() ) )
       ok = false;
 
     PFB->un_nest_channel( par2chnl( iPM ) );  // un-nest the channel
@@ -228,8 +228,7 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
 
   // PolyhedralFunctionModAddd- - - - - - - - - - - - - - - - - - - - - - - -
   {
-   const auto tmod = std::dynamic_pointer_cast<PolyhedralFunctionModAddd>( mod
-									   );
+   const auto tmod = dynamic_cast< PolyhedralFunctionModAddd * const >( mod );
    if( tmod ) {
     if( tmod->function() != & f_polyf )  // not my PolyhedralFunction
      return( false );                    // none of my business
@@ -250,8 +249,7 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
 
   // PolyhedralFunctionModRngd - - - - - - - - - - - - - - - - - - - - - - - -
   {
-   const auto tmod =
-                std::dynamic_pointer_cast< PolyhedralFunctionModRngd >( mod );
+   const auto tmod = dynamic_cast< PolyhedralFunctionModRngd * const >( mod );
    if( tmod ) {
     if( tmod->function() != & f_polyf )  // not my PolyhedralFunction
      return( false );                    // none of my business
@@ -312,8 +310,7 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
 
   // PolyhedralFunctionModSbst - - - - - - - - - - - - - - - - - - - - - - - -
   {
-   const auto tmod =
-                std::dynamic_pointer_cast< PolyhedralFunctionModSbst >( mod );
+   const auto tmod = dynamic_cast< PolyhedralFunctionModSbst * const >( mod );
    if( tmod ) {
     if( tmod->function() != & f_polyf )  // not my PolyhedralFunction
      return( false );                    // none of my business
@@ -370,8 +367,7 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
 
   // C05FunctionModVarsAddd- - - - - - - - - - - - - - - - - - - - - - - - - -
   {
-   const auto tmod =
-                std::dynamic_pointer_cast< C05FunctionModVarsAddd >( mod );
+   const auto tmod = dynamic_cast< C05FunctionModVarsAddd * const >( mod );
    if( tmod ) {
     if( tmod->function() != & f_polyf )  // not my PolyhedralFunction
      return( false );                    // none of my business
@@ -383,8 +379,7 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
 
   // C05FunctionModVarsRngd- - - - - - - - - - - - - - - - - - - - - - - - - -
   {
-   const auto tmod =
-                   std::dynamic_pointer_cast< C05FunctionModVarsRngd >( mod );
+   const auto tmod = dynamic_cast< C05FunctionModVarsRngd * const >( mod );
    if( tmod ) {
     if( tmod->function() != & f_polyf )  // not my PolyhedralFunction
      return( false );                    // none of my business
@@ -400,8 +395,7 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
 
   // C05FunctionModVarsSbst- - - - - - - - - - - - - - - - - - - - - - - - - -
   {
-   const auto tmod =
-                   std::dynamic_pointer_cast< C05FunctionModVarsSbst >( mod );
+   const auto tmod = dynamic_cast< C05FunctionModVarsSbst * const >( mod );
    if( tmod ) {
     if( tmod->function() != & f_polyf )  // not my PolyhedralFunction
      return( false );                    // none of my business
@@ -413,8 +407,7 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
 
   // PolyhedralFunctionMod - - - - - - - - - - - - - - - - - - - - - - - - - -
   {
-   const auto tmod =
-                    std::dynamic_pointer_cast< PolyhedralFunctionMod >( mod );
+   const auto tmod = dynamic_cast< PolyhedralFunctionMod * const >( mod );
    if( tmod ) {
     if( tmod->function() != & f_polyf )  // not my PolyhedralFunction
      return( false );                    // none of my business
@@ -430,7 +423,7 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
 
   // FunctionMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   {
-   const auto tmod = std::dynamic_pointer_cast< FunctionMod >( mod );
+   const auto tmod = dynamic_cast< FunctionMod * const >( mod );
    if( tmod ) {
     // "nuclear Modification for Function": everything changed
 
@@ -459,30 +452,30 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
 
  bool ok = true;  // final return value
 
- const auto tmod = std::dynamic_pointer_cast< GroupModification >( mod );
- if( tmod ) {                    // this is a GroupModification
-  if( ! par2chnl( issuePMod ) )  // and the channel is the default one
-                                 // open a new channel and use it instead
+ auto tmod = dynamic_cast< GroupModification * const >( mod );
+ if( tmod ) {                     // this is a GroupModification
+  if( ! par2chnl( issuePMod ) )   // and the channel is the default one
+                                  // open a new channel and use it instead
    iPM = make_par( par2mod( issuePMod ) , PFB->open_channel() );
 
   for( const auto & submod : tmod->sub_Modifications() )  // for each sub-Mod
-   if( ! guts_of_mfM( submod ) )                          // make the call
+   if( ! guts_of_mfM( submod.get() ) )                    // make the call
     ok = false;
 
   if( ! par2chnl( issuePMod ) )            // a channel had been opened
    PFB->close_channel( par2chnl( iPM ) );  // close it
   }
- else                            // any other Modification
-  ok = guts_of_mfM( mod );       // just make the call
+ else                             // any other Modification
+  ok = guts_of_mfM( mod );        // just make the call
 
  return( ok );
 
- }  // end( PFBlock::map_forward_Modification )
+ }  // end( PolyhedralFunctionBlock::map_forward_Modification )
 
 /*--------------------------------------------------------------------------*/
 
 bool PolyhedralFunctionBlock::map_back_Modification(
-			      Block *R3B , sp_Mod mod , Configuration *r3bc ,
+			      Block *R3B , c_p_Mod mod , Configuration *r3bc ,
 			      ModParam issuePMod , ModParam issueAMod )
 {
  /* Fantastically dirty trick: because the two objects are copies, mapping

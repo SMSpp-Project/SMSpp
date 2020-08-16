@@ -745,11 +745,13 @@ class GroupModification : public AModification {
 
  using p_Mod = Modification *;  ///< a pointer to Modification
 
+ using c_p_Mod = Modification * const;   ///< a const pointer to Modification
+
  using Vec_p_Mod = std::vector< p_Mod >;
  ///< a vector of pointer to Modification
 
  using Lst_p_Mod = std::list< p_Mod >;
- ///< a vector of pointer to Modification
+ ///< a list of pointer to Modification
 
  using sp_Mod = std::shared_ptr< Modification >;
  ///< a shared pointer to Modification
