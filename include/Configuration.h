@@ -701,19 +701,19 @@ class SimpleConfiguration : public Configuration
 
  /// move constructor taking the value (&&) as input
  explicit SimpleConfiguration( SimpleConfiguration_value_type && initval )
-  : Configuration() { f_value = initval; }
+  : Configuration() { f_value = std::move( initval ); }
 
  /// copy constructor: does what it says on the tin
  SimpleConfiguration( const SimpleConfiguration & old ) : Configuration() {
   f_value = old.f_value;
   }
   
- virtual void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( netCDF::NcGroup & group ) override;
 
  virtual ~SimpleConfiguration() { }  ///< destructor: does nothing
 
  /// clone method
- virtual SimpleConfiguration * clone( void ) const override
+ SimpleConfiguration * clone( void ) const override
  {
   return( new SimpleConfiguration( *this ) );
   }
