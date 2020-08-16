@@ -169,7 +169,7 @@ public:
   * map_forward_Modification() or map_back_Modification() to "forward" it to
   * the R3 Block (or original Block if the modified one was the R3 one). */
 
- void add_Modification( sp_Mod &mod ) override final
+ void add_Modification( sp_Mod & mod ) override final
  {
   if( f_no_Mod || ( ! f_Block )  || ( ! f_R3B ) )
    return;
@@ -181,10 +181,11 @@ public:
 
   // now map the Modification
   if( f_forward )
-   f_Block->map_forward_Modification( f_R3B , mod , f_R3C , f_iPM , f_iAM );
+   f_Block->map_forward_Modification( f_R3B , mod.get() ,
+				      f_R3C , f_iPM , f_iAM );
   else
-   f_R3B->map_back_Modification( f_Block , mod , f_R3C , f_iPM , f_iAM );
-
+   f_R3B->map_back_Modification( f_Block , mod.get() ,
+				 f_R3C , f_iPM , f_iAM );
   // finally, unlock the R3B
   if( ! owned )
    f_R3B->unlock( f_id );

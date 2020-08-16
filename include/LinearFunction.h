@@ -519,7 +519,7 @@ class LinearFunction : public C15Function {
   * is additive, and therefore strongly quasi-additive, which is why a
   * C05FunctionModVarsAddd (rather than a FunctionModVarsAddd) is issued. */
 
- void add_variables( v_coeff_pair && vars , c_ModParam issueMod = eModBlck );
+ void add_variables( v_coeff_pair && vars , ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// add one single new Variable to the LinearFunction
@@ -531,7 +531,7 @@ class LinearFunction : public C15Function {
   * is additive, and therefore strongly quasi-additive. */
 
  void add_variable( ColVariable * var , Coefficient coeff ,
-                    c_ModParam issueMod = eModBlck );
+                    ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// modify a single existing coefficient
@@ -542,7 +542,7 @@ class LinearFunction : public C15Function {
   * as described in Observer::make_par(). */
 
  void modify_coefficient( Index i , Coefficient coeff ,
-                          c_ModParam issueMod = eModBlck );
+                          ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// modify a set of existing coefficients
@@ -560,7 +560,7 @@ class LinearFunction : public C15Function {
 
  void modify_coefficients( Vec_FunctionValue && NCoef , Subset && nms ,
 			   bool ordered = false ,
-			   c_ModParam issueMod = eModBlck );
+			   ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify a range of coefficients
@@ -575,7 +575,7 @@ class LinearFunction : public C15Function {
 
  void modify_coefficients( Vec_FunctionValue && NCoef ,
 			   Range range = std::make_pair( 0 , Inf<Index>() ) ,
-                           c_ModParam issueMod = eModBlck );
+                           ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// remove the i-th "active" Variable from the LinearFunction
@@ -591,7 +591,7 @@ class LinearFunction : public C15Function {
   * C05FunctionModVarsRngd is issued as opposed to a FunctionModVarsRngd
   * one. */
 
- void remove_variable( Index i, c_ModParam issueMod = eModBlck )
+ void remove_variable( Index i, ModParam issueMod = eModBlck )
   override final;
 
 /*--------------------------------------------------------------------------*/
@@ -606,7 +606,7 @@ class LinearFunction : public C15Function {
   * C05FunctionModVarsRngd is issued as opposed to a FunctionModVarsRngd
   * one. */
 
- void remove_variables( Range range , c_ModParam issueMod = eModBlck )
+ void remove_variables( Range range , ModParam issueMod = eModBlck )
   override final;
 
 /*--------------------------------------------------------------------------*/
@@ -630,7 +630,7 @@ class LinearFunction : public C15Function {
   * C05FunctionModVarSbst is issued as opposed to a FunctionModVarSbst one. */
 
  void remove_variables( Subset && nms , bool ordered = false ,
-			c_ModParam issueMod = eModBlck )  override final;
+			ModParam issueMod = eModBlck )  override final;
 
 /*--------------------------------------------------------------------------*/
  ///< sets the value of the constant term of this function.
@@ -641,7 +641,7 @@ class LinearFunction : public C15Function {
   * as described in Observer::make_par(). */
 
  void set_constant_term( FunctionValue constant_term ,
-                         c_ModParam issueMod = eModBlck );
+                         ModParam issueMod = eModBlck );
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/

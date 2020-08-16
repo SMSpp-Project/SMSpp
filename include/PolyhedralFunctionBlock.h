@@ -513,7 +513,7 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   * reason for it to issue "abstract" Modification with concerns_Block() ==
   * true. */
 
- bool map_forward_Modification( Block *R3B , sp_Mod mod ,
+ bool map_forward_Modification( Block *R3B , c_p_Mod mod ,
 				Configuration *r3bc = nullptr ,
 				ModParam issuePMod = eNoBlck ,
 				ModParam issueAMod = eModBlck ) override;
@@ -525,7 +525,7 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   * map_forward_Modification() in reverse, so see the comments to the latter
   * method. */
 
- bool map_back_Modification( Block *R3B , sp_Mod mod ,
+ bool map_back_Modification( Block *R3B , c_p_Mod mod ,
 			     Configuration *r3bc = nullptr ,
 			     ModParam issuePMod = eNoBlck ,
 			     ModParam issueAMod = eModBlck ) override;

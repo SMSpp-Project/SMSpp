@@ -4207,17 +4207,49 @@ class Block : public Observer {
   * they may possibly be added to the R3 Block later on [see
   * map_forward_Modification()], if the original Block supports it.
   *
-  * The method is given a default implementation just returning the base
-  * argument. This is OK for extremely lazy Block refusing to produce any
-  * kind of R3 Block, comprised the "copy" one, as well as for Block whose
-  * derived classes take all the burden of the R3 Block construction.
-  * Anyway, it is clear that the caller should always check the returned
-  * value for non-nullptr-dness to ensure that the :Block was actually able
-  * to produce the required R3 one. */
+  * The method is given a default implementation just doing the following:
+  *
+  * - if there are no inner Block, just return the \p base argument;
+  *
+  * - if there are inner Block, \p base must not be nullptr (Block is an
+  *   abstract class, so it cannot be Block to construct it): then, the
+  *   inner Block of base are deleted, the vector is resized to the same size
+  *   as that of this, and then a R3 Block is created for each inner Block of
+  *   this and placed in the same position in base.
+  *
+  * If \p *r3bc is a SimpleConfiguration< std::vector< Configuration * >,
+  * then the i-th element of the vector is passed as the r3bc parameter
+  * in the call to get_R3_Block() to the i-the inner Block (otherwise, or
+  * if the vector has no i-th element, nullptr is used). Note that the call
+  * to get_R3_Block() is done with no \p base argument.
+  *
+  * A :Block should always explicitly state which kind of R3 Block can produce,
+  * and the caller should always check the returned value for non-nullptr-dness
+  * in case there is any doubt that the :Block is actually able to produce the
+  * required R3 one. */
 
  virtual Block * get_R3_Block( Configuration *r3bc = nullptr ,
 			       Block * base = nullptr )
  {
+  if( ! v_Block.empty() ) {
+   if( ! base )
+    throw( std::invalid_argument( "Block::get_R3_Block with no base" ) );
+
+   for( auto bi : base->v_Block )
+    delete bi;
+
+   base->v_Block.resize( v_Block.size() );
+
+   auto cv =
+    dynamic_cast< SimpleConfiguration< std::vector< Configuration * > > *
+                  >( r3bc );
+
+   for( Index i = 0 ; i < v_Block.size() ; ++i )
+    base->v_Block[ i ] = v_Block[ i ]->get_R3_Block(
+		      ( cv && ( cv->f_value.size() > i ) ) ? cv->f_value[ i ]
+			                                   : nullptr );
+   }
+
   return( base );
   }
 
@@ -4393,7 +4425,7 @@ class Block : public Observer {
   *
   * R3B is assumed to be a R3 Block produced by the current one of "type"
   * r3bc (the same, or identical, Configuration object used in get_R3_Block()
-  * to produce R3B in the first place). mod is assumed to be a (smart)
+  * to produce R3B in the first place). mod is assumed to be a (const)
   * pointer to a Modification object that applies to the current Block.
   *
   * One example of use of such a mechanism is when the original Block has
@@ -4475,17 +4507,46 @@ class Block : public Observer {
   * map_forward_Modification() corresponding to changing the constraint is
   * called *after* that the Constraint has been deleted, the original Block
   * no longer has any information on the Constraint, and therefore may have
-  * no way to properly implement the change. Each :Block should clearly if
-  * it supports deferred map_forward_Modification() for all the
+  * no way to properly implement the change. Each :Block should clearly 
+  * state if it supports deferred map_forward_Modification() for all the
   * Modification it produces, or which Modification need be mapped
-  * "immediately". */
+  * "immediately".
+  *
+  * The method is given a default implemntation returning false if \p mod
+  * refers to this; otherwise it seeks \p mod in the list of inner Block
+  * of this, and if it finds it calls map_forward_Modification() of the
+  * inner Block and the corresponding inner Block of R3B (if any, otherwise
+  * false is returned).
+  *
+  * If \p *r3bc is a SimpleConfiguration< std::vector< Configuration * >,
+  * then the i-th element of the vector is passed as the r3bc parameter
+  * in the call to map_forward_Modification() to the i-the inner Block
+  * (otherwise, or if the vector has no i-th element, nullptr is used). */
 
- virtual bool map_forward_Modification( Block *R3B , sp_Mod mod ,
+ virtual bool map_forward_Modification( Block *R3B , c_p_Mod mod ,
 					Configuration *r3bc = nullptr ,
 					ModParam issuePMod = eNoBlck ,
 					ModParam issueAMod = eModBlck )
  {
-  return( false );
+  if( mod->get_Block() == this )
+   return( false );
+
+  auto it = std::find( v_Block.begin() , v_Block.end() , mod->get_Block() );
+  if( it == v_Block.end() )
+   return( false );
+
+  auto i = std::distance( v_Block.begin() , it );
+  if( R3B->v_Block.size() <= i )
+   return( false );
+
+  auto cv =
+   dynamic_cast< SimpleConfiguration< std::vector< Configuration * > > *
+                 >( r3bc );
+
+  return( (*it)->map_forward_Modification( R3B->v_Block[ i ] , mod ,
+			               ( cv && ( cv->f_value.size() > i ) ) ?
+					   cv->f_value[ i ] : nullptr ,
+					   issuePMod , issueAMod ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -4515,8 +4576,8 @@ class Block : public Observer {
   * would otherwise not be feasible.
   *
   * This method allows for such an operation. It takes the same inputs as
-  * map_forward_Modification(), save that the individual (smart pointer to a)
-  * Modification is now a list of  (smart pointerd to) Modification. The
+  * map_forward_Modification(), save that the individual (const pointer to a)
+  * Modification is now a list of (smart pointerd to) Modification. The
   * assumption is that the list contains "all the Modification issued that
   * cause the Block to be not in synch with its R3 Block", althugh individual
   * :Block may relax this to a subset of "difficult" Modification.
@@ -4537,7 +4598,8 @@ class Block : public Observer {
  {
   for( auto mit = lmod.begin() ; mit != lmod.end() ; ) {
    auto nmit = ++mit;
-   if( map_forward_Modification( R3B , *mit , r3bc , issuePMod , issueAMod ) )
+   if( map_forward_Modification( R3B , mit->get() , r3bc ,
+				 issuePMod , issueAMod ) )
     lmod.erase( mit );
    mit = nmit;
    }
@@ -4564,7 +4626,7 @@ class Block : public Observer {
   *
   * R3B is assumed to be a R3 Block produced by the current one of "type"
   * r3bc (the same, or identical, Configuration object used in get_R3_Block()
-  * to produce R3B in the first place). mod is assumed to be a (smart)
+  * to produce R3B in the first place). mod is assumed to be a (const)
   * pointer to a Modification object that applies to the R3 Block.
   *
   * IMPORTANT NOTE: A :Block SHOULD ONLY MAP EITHER ITS "PHYSICAL
@@ -4597,17 +4659,43 @@ class Block : public Observer {
   * which and avoid to call this method on the "wrong" one, it is simpler to
   * just throw them all and have only the right one processed. Yet, if it is
   * crucial that the Modification is actually processed, the return value
-  * allows to check that this has happened. The default implementation of
-  * the method works for "extremely lazy" Block not being willing to
-  * implement any of the possible mapping, or extremely unlucky ones not
-  * having any workable one to implement. */
+  * allows to check that this has happened.
+  *
+  * The method is given a default implemntation returning false if \p mod
+  * refers to this; otherwise it seeks \p mod in the list of inner Block
+  * of this, and if it finds it calls map_back_Modification() of the inner
+  * Block and the corresponding inner Block of R3B (if any, otherwise false
+  * is returned).
+  *
+  * If \p *r3bc is a SimpleConfiguration< std::vector< Configuration * >,
+  * then the i-th element of the vector is passed as the r3bc parameter
+  * in the call to map_back_Modification() to the i-the inner Block
+  * (otherwise, or if the vector has no i-th element, nullptr is used). */
 
- virtual bool map_back_Modification( Block *R3B , sp_Mod mod ,
+ virtual bool map_back_Modification( Block *R3B , c_p_Mod mod ,
 				     Configuration *r3bc = nullptr ,
 				     ModParam issuePMod = eNoBlck ,
 				     ModParam issueAMod = eModBlck )
  {
-  return( false );
+  if( mod->get_Block() == this )
+   return( false );
+
+  auto it = std::find( v_Block.begin() , v_Block.end() , mod->get_Block() );
+  if( it == v_Block.end() )
+   return( false );
+
+  auto i = std::distance( v_Block.begin() , it );
+  if( R3B->v_Block.size() <= i )
+   return( false );
+
+  auto cv =
+   dynamic_cast< SimpleConfiguration< std::vector< Configuration * > > *
+                 >( r3bc );
+
+  return( (*it)->map_back_Modification( R3B->v_Block[ i ] , mod ,
+					( cv && ( cv->f_value.size() > i ) ) ?
+					cv->f_value[ i ] : nullptr ,
+					issuePMod , issueAMod ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -4624,7 +4712,8 @@ class Block : public Observer {
  {
   for( auto mit = lmod.begin() ; mit != lmod.end() ; ) {
    auto nmit = ++mit;
-   if( map_back_Modification( R3B , *mit , r3bc , issuePMod , issueAMod ) )
+   if( map_back_Modification( R3B , mit->get() , r3bc ,
+			      issuePMod , issueAMod ) )
     lmod.erase( mit );
    mit = nmit;
    }

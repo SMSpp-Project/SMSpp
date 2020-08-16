@@ -101,7 +101,7 @@ void PolyhedralFunctionBlock::generate_abstract_constraints(
    ConstructLPConstraint( i++ , *(cit++) );
 
   // note: the linear constraints are added "in front"
-  f_1st_dym_cnst = 1;
+  f_1st_dyn_cnst = 1;
   add_dynamic_constraint( f_const , "" , true );
   }
 
@@ -171,7 +171,7 @@ Block * PolyhedralFunctionBlock::get_R3_Block( Configuration *r3bc ,
 /*--------------------------------------------------------------------------*/
 
 bool PolyhedralFunctionBlock::map_forward_Modification(
-			      Block *R3B , sp_Mod mod , Configuration *r3bc ,
+			      Block *R3B , c_p_Mod mod , Configuration *r3bc ,
 			      ModParam issuePMod , ModParam issueAMod )
 {
  if( mod->concerns_Block() )  // an abstract Modification
@@ -202,8 +202,8 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
     which allows recursive calls. Note the need to explicitly capture
     "this" to use fields/methods of the class. */
 
- std::function< bool( sp_Mod ) > guts_of_mfM;
- guts_of_mfM = [ this , & guts_of_mfM , & PFB , & iPM ]( sp_Mod mod ) {
+ std::function< bool( c_p_Mod ) > guts_of_mfM;
+ guts_of_mfM = [ this , & guts_of_mfM , & PFB , & iPM ]( c_p_Mod mod ) {
   // process Modification- - - - - - - - - - - - - - - - - - - - - - - - - - -
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /* This requires to patiently sift through the possible Modification types
@@ -212,13 +212,13 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
 
   // GroupModification - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   {
-   const auto tmod = std::dynamic_pointer_cast<GroupModification>( mod );
+   const auto tmod = dynamic_cast< GroupModification * const >( mod );
    if( tmod ) {
     PFB->nest_channel( par2chnl( iPM ) );     // nest the channel
 
     bool ok = true;
     for( const auto & submod : tmod->sub_Modifications() )
-     if( ! guts_of_mfM( submod ) )
+     if( ! guts_of_mfM( submod.get() ) )
       ok = false;
 
     PFB->un_nest_channel( par2chnl( iPM ) );  // un-nest the channel
@@ -229,8 +229,7 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
 
   // PolyhedralFunctionModAddd- - - - - - - - - - - - - - - - - - - - - - - -
   {
-   const auto tmod = std::dynamic_pointer_cast<PolyhedralFunctionModAddd>( mod
-									   );
+   const auto tmod = dynamic_cast< PolyhedralFunctionModAddd * const >( mod );
    if( tmod ) {
     if( tmod->function() != & f_polyf )  // not my PolyhedralFunction
      return( false );                    // none of my business
@@ -251,8 +250,7 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
 
   // PolyhedralFunctionModRngd - - - - - - - - - - - - - - - - - - - - - - - -
   {
-   const auto tmod =
-                std::dynamic_pointer_cast< PolyhedralFunctionModRngd >( mod );
+   const auto tmod = dynamic_cast< PolyhedralFunctionModRngd * const >( mod );
    if( tmod ) {
     if( tmod->function() != & f_polyf )  // not my PolyhedralFunction
      return( false );                    // none of my business
@@ -262,10 +260,9 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
      case( PolyhedralFunctionMod::ModifyRows ):
       if( n == 1 )
        PFB->f_polyf.modify_row( tmod->range().first ,
-				 RealVector(
+				RealVector(
 				   f_polyf.get_A()[ tmod->range().first ] ) ,
-				 f_polyf.get_b()[ tmod->range().first ] ,
-				 iPM );
+				f_polyf.get_b()[ tmod->range().first ] , iPM );
       else {
        MultiVector nA( n );
        RealVector nb( n );
@@ -276,7 +273,7 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
         }
        
        PFB->f_polyf.modify_rows( std::move( nA ) , std::move( nb ) ,
-				  tmod->range() , iPM );
+				 tmod->range() , iPM );
        }
       break;
      case( PolyhedralFunctionMod::ModifyCnst ):
@@ -287,15 +284,15 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
        
       if( n == 1 )
        PFB->f_polyf.modify_constant( tmod->range().first ,
-			    f_polyf.get_b()[ tmod->range().first ] , iPM );
+				     f_polyf.get_b()[ tmod->range().first ] ,
+				     iPM );
       else {
        RealVector nb( n );
        auto bit = nb.begin();
        for( Index i = tmod->range().first ; i < tmod->range().second ; )
 	*(bit++) = f_polyf.get_b()[ i++ ];
        
-       PFB->f_polyf.modify_constants( std::move( nb ) ,
-				       tmod->range() , iPM );
+       PFB->f_polyf.modify_constants( std::move( nb ) , tmod->range() , iPM );
        }
       break;
      case( PolyhedralFunctionMod::DeleteRows ):
@@ -314,8 +311,7 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
 
   // PolyhedralFunctionModSbst - - - - - - - - - - - - - - - - - - - - - - - -
   {
-   const auto tmod =
-                std::dynamic_pointer_cast< PolyhedralFunctionModSbst >( mod );
+   const auto tmod = dynamic_cast< PolyhedralFunctionModSbst * const >( mod );
    if( tmod ) {
     if( tmod->function() != & f_polyf )  // not my PolyhedralFunction
      return( false );                    // none of my business
@@ -325,10 +321,9 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
      case( PolyhedralFunctionMod::ModifyRows ):
       if( n == 1 )
        PFB->f_polyf.modify_row( tmod->rows()[ 0 ] ,
-				 RealVector(
+				RealVector(
 				    f_polyf.get_A()[ tmod->rows()[ 0 ] ] ) ,
-				 f_polyf.get_b()[ tmod->rows()[ 0 ] ] ,
-				 iPM );
+				f_polyf.get_b()[ tmod->rows()[ 0 ] ] , iPM );
       else {
        MultiVector nA( n );
        RealVector nb( n );
@@ -373,8 +368,7 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
 
   // C05FunctionModVarsAddd- - - - - - - - - - - - - - - - - - - - - - - - - -
   {
-   const auto tmod =
-                std::dynamic_pointer_cast< C05FunctionModVarsAddd >( mod );
+   const auto tmod = dynamic_cast< C05FunctionModVarsAddd * const >( mod );
    if( tmod ) {
     if( tmod->function() != & f_polyf )  // not my PolyhedralFunction
      return( false );                    // none of my business
@@ -386,8 +380,7 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
 
   // C05FunctionModVarsRngd- - - - - - - - - - - - - - - - - - - - - - - - - -
   {
-   const auto tmod =
-                   std::dynamic_pointer_cast< C05FunctionModVarsRngd >( mod );
+   const auto tmod = dynamic_cast< C05FunctionModVarsRngd * const >( mod );
    if( tmod ) {
     if( tmod->function() != & f_polyf )  // not my PolyhedralFunction
      return( false );                    // none of my business
@@ -403,8 +396,7 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
 
   // C05FunctionModVarsSbst- - - - - - - - - - - - - - - - - - - - - - - - - -
   {
-   const auto tmod =
-                   std::dynamic_pointer_cast< C05FunctionModVarsSbst >( mod );
+   const auto tmod = dynamic_cast< C05FunctionModVarsSbst * const >( mod );
    if( tmod ) {
     if( tmod->function() != & f_polyf )  // not my PolyhedralFunction
      return( false );                    // none of my business
@@ -416,8 +408,7 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
 
   // PolyhedralFunctionMod - - - - - - - - - - - - - - - - - - - - - - - - - -
   {
-   const auto tmod =
-                    std::dynamic_pointer_cast< PolyhedralFunctionMod >( mod );
+   const auto tmod = dynamic_cast< PolyhedralFunctionMod * const >( mod );
    if( tmod ) {
     if( tmod->function() != & f_polyf )  // not my PolyhedralFunction
      return( false );                    // none of my business
@@ -433,7 +424,7 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
 
   // FunctionMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   {
-   const auto tmod = std::dynamic_pointer_cast< FunctionMod >( mod );
+   const auto tmod = dynamic_cast< FunctionMod * const >( mod );
    if( tmod ) {
     // "nuclear Modification for Function": everything changed
 
@@ -462,30 +453,30 @@ bool PolyhedralFunctionBlock::map_forward_Modification(
 
  bool ok = true;  // final return value
 
- const auto tmod = std::dynamic_pointer_cast< GroupModification >( mod );
- if( tmod ) {                    // this is a GroupModification
-  if( ! par2chnl( issuePMod ) )  // and the channel is the default one
-                                 // open a new channel and use it instead
-   iPM = make_par( par2concern( issuePMod ) , PFB->open_channel() );
+ auto tmod = dynamic_cast< GroupModification * const >( mod );
+ if( tmod ) {                     // this is a GroupModification
+  if( ! par2chnl( issuePMod ) )   // and the channel is the default one
+                                  // open a new channel and use it instead
+   iPM = make_par( par2mod( issuePMod ) , PFB->open_channel() );
 
   for( const auto & submod : tmod->sub_Modifications() )  // for each sub-Mod
-   if( ! guts_of_mfM( submod ) )                          // make the call
+   if( ! guts_of_mfM( submod.get() ) )                    // make the call
     ok = false;
 
-  if( iPM != issuePMod )                   // a channel had been opened
+  if( ! par2chnl( issuePMod ) )            // a channel had been opened
    PFB->close_channel( par2chnl( iPM ) );  // close it
- }
- else                            // any other Modification
-  ok = guts_of_mfM( mod );       // just make the call
+  }
+ else                             // any other Modification
+  ok = guts_of_mfM( mod );        // just make the call
 
  return( ok );
 
- }  // end( PFBlock::map_forward_Modification )
+ }  // end( PolyhedralFunctionBlock::map_forward_Modification )
 
 /*--------------------------------------------------------------------------*/
 
 bool PolyhedralFunctionBlock::map_back_Modification(
-			      Block *R3B , sp_Mod mod , Configuration *r3bc ,
+			      Block *R3B , c_p_Mod mod , Configuration *r3bc ,
 			      ModParam issuePMod , ModParam issueAMod )
 {
  /* Fantastically dirty trick: because the two objects are copies, mapping
@@ -697,11 +688,9 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
 
    if( strt == stop ) {  // special case: the lower/upper bound
     if( f_polyf.is_convex() )  // convex ==> lower bound
-     f_bcv.set_lhs( f_polyf.get_lower_estimate() ,
-		    make_par( eNoBlck , chnl ) );
+     f_bcv.set_lhs( f_polyf.get_global_bound() , make_par( eNoBlck , chnl ) );
     else                       // concave ==> upper bound
-     f_bcv.set_rhs( f_polyf.get_upper_estimate() ,
-		    make_par( eNoBlck , chnl ) );
+     f_bcv.set_rhs( f_polyf.get_global_bound() , make_par( eNoBlck , chnl ) );
     return;
     }
 
@@ -727,9 +716,11 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
      // modify rows & constants
      Range rng = Range( 1 , f_polyf.get_num_active_var() + 1 );
      for( Index i = strt ; i < stop ; ) {
+      RealVector Ai( f_polyf.get_A()[ i ] );
+      for( auto & aij : Ai )
+       aij = -aij;
       static_cast< LinearFunction * >( cit->get_function() )->
-       modify_coefficients( std::move( RealVector( f_polyf.get_A()[ i ] ) ) ,
-			    rng , par );
+                            modify_coefficients( std::move( Ai ) , rng , par );
       if( f_polyf.is_convex() )
        (cit++)->set_lhs( f_polyf.get_b()[ i++ ] , par );
       else
@@ -739,10 +730,10 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
     else  // modify constants only
      if( f_polyf.is_convex() )
       for( Index i = strt ; i < stop ; )
-       cit->set_lhs( f_polyf.get_b()[ i++ ] , par );
+       (cit++)->set_lhs( f_polyf.get_b()[ i++ ] , par );
      else
       for( Index i = strt ; i < stop ; )
-       cit->set_rhs( f_polyf.get_b()[ i++ ] , par );
+       (cit++)->set_rhs( f_polyf.get_b()[ i++ ] , par );
     }
 
    if( newchnl ) {
@@ -775,7 +766,7 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
    auto rit = tmod->rows().begin();
    if( tmod->PFtype() == PolyhedralFunctionMod::DeleteRows ) {
     // delete rows
-    remove_dynamic_constraints( f_const , Subset( tmod->rows() ) , par );
+    remove_dynamic_constraints( f_const , Subset( tmod->rows() ) , true , par );
     }
    else
     if( tmod->PFtype() == PolyhedralFunctionMod::ModifyRows ) {
@@ -783,9 +774,11 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
      Range rng = Range( 1 , f_polyf.get_num_active_var() + 1 );
      for( ; rit != tmod->rows().end() ; ) {
       cit = std::next( cit , *rit - prev );
+      RealVector Ai( f_polyf.get_A()[ *rit ] );
+      for( auto & aij : Ai )
+       aij = -aij;
       static_cast< LinearFunction * >( cit->get_function() )->
-       modify_coefficients(
-	    std::move( RealVector( f_polyf.get_A()[ *rit ] ) ) , rng , par );
+                             modify_coefficients( std::move( Ai ) , rng , par );
       if( f_polyf.is_convex() )
        cit->set_lhs( f_polyf.get_b()[ *rit ] , par );
       else
@@ -947,44 +940,55 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( sp_Mod mod ,
 
     const auto & coeff = lf->get_v_var();
 
-    if( coeff.size() != f_polyf.get_num_active_var() )
+    // note that the LinearFunction has exactly one active Variable more than
+    // the PolyhedralFunction, the first one being "v"
+    if( coeff.size() != f_polyf.get_num_active_var() + 1 )
      throw( std::logic_error( "incorrect LinearFunction in FRowConstraint" ) );
 
     #ifndef NDEBUG
     // TODO: check that the Variables actually are the same
     #endif
+    A[ i ].resize( f_polyf.get_num_active_var() );
 
-    for( Index j = 0 ; j < coeff.size() ; ++j )
-     A[ i ][ j ] = - coeff[ j ].second;
+    for( Index j = 1 ; j < coeff.size() ; ++j )
+     A[ i ][ j - 1 ] = - coeff[ j ].second;
 
     ++i;
     }
 
    f_polyf.add_rows( std::move( A ) , b , make_par( eNoBlck , chnl ) );
 
-   throw( std::logic_error( "adding FRowConstraint is not handled yet" ) );
+   return;
    }
   }
 
- // BlockModRmv< FRowConstraint > - - - - - - - - - - - - - - - - - - - - - -
- // removing a dynamic constraint
+ // BlockModRmvRngd< FRowConstraint > - - - - - - - - - - - - - - - - - - - -
+ // removing a range of dynamic Constraint = rows of PolyhedralFunction
  {
-  const auto tmod =
-            std::dynamic_pointer_cast< BlockModRmv< FRowConstraint > >( mod );
+  const auto & tmod =
+       std::dynamic_pointer_cast< BlockModRmvRngd< FRowConstraint > >( mod );
   if( tmod ) {
    if( & tmod->whc() != & f_const )   // if it's not about f_const
     return;                           // none of my business
 
-   const auto & rmvd = tmod->removed();
-   if( rmvd.empty() )  // should not happen, but in case
-    return;            // nothing to do
-   /*
-   Subset nms( rmvd.size() );
-   for( auto rit = rmvd.begin() ; rit != rmvd.end() ; ++rit ) {
-    auto it = std::find();
-    }
-   */
-   throw( std::logic_error( "removing FRowConstraint is not handled yet" ) );
+   f_polyf.delete_rows( tmod->range() , make_par( eNoBlck , chnl ) );
+
+   return;
+   }
+  }
+
+ // BlockModRmvSbst< FRowConstraint > - - - - - - - - - - - - - - - - - - - -
+ // removing a subset of dynamic Constraint = rows of PolyhedralFunction
+ {
+  const auto & tmod =
+       std::dynamic_pointer_cast< BlockModRmvSbst< FRowConstraint > >( mod );
+  if( tmod ) {
+   if( & tmod->whc() != & f_const )   // if it's not about f_const
+    return;                           // none of my business
+
+   f_polyf.delete_rows( Subset( tmod->subset() ) , true ,
+			make_par( eNoBlck , chnl ) );
+   return;
    }
   }
 
@@ -1065,9 +1069,14 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( sp_Mod mod ,
    if( ci == f_const.end() )  // that's not in the linearized representation
     return;                   // none of my business
 
+   // note that the LinearFunction has exactly one active Variable more than
+   // the PolyhedralFunction, the first one being "v", whence the "- 1"
+   // also, note that the coefficients are the opposite of the entries in A;
+   // hence, if the coefficients are changed by adding them tmod->delta(),
+   // the entries of A must change by subtracting them tmod->delta()
    RealVector ai( f_polyf.get_A()[ i ] );
    for( Index j = 0 ; j < tmod->delta().size() ; ++j )
-    ai[ tmod->range().first + j - 1 ] += tmod->delta()[ j ];
+    ai[ tmod->range().first + j - 1 ] -= tmod->delta()[ j ];
 
    f_polyf.modify_row( i , std::move( ai ) , f_polyf.get_b()[ i ] ,
 		       make_par( eNoBlck , chnl ) );
@@ -1088,9 +1097,14 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( sp_Mod mod ,
    if( ci == f_const.end() )  // that's not in the linearized representation
     return;                   // none of my business
 
+   // note that the LinearFunction has exactly one active Variable more than
+   // the PolyhedralFunction, the first one being "v", whence the "- 1"
+   // also, note that the coefficients are the opposite of the entries in A;
+   // hence, if the coefficients are changed by adding them tmod->delta(),
+   // the entries of A must change by subtracting them tmod->delta()
    RealVector ai( f_polyf.get_A()[ i ] );
    for( Index j = 0 ; j < tmod->subset().size() ; ++j )
-    ai[ tmod->subset()[ j ] - 1 ] += tmod->delta()[ j ];
+    ai[ tmod->subset()[ j ] - 1 ] -= tmod->delta()[ j ];
 
    f_polyf.modify_row( i , std::move( ai ) , f_polyf.get_b()[ i ] ,
 		       make_par( eNoBlck , chnl ) );

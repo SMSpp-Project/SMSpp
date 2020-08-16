@@ -41,7 +41,7 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------------------------------------------------*/
 
 void FRowConstraint::set_function( Function * const function ,
-				   c_ModParam issueMod , bool deleteold )
+				   ModParam issueMod , bool deleteold )
 {
  if( function == f_function )  // changing nothing
   return;                      // all done
@@ -85,7 +85,7 @@ void FRowConstraint::set_function( Function * const function ,
 
 /*--------------------------------------------------------------------------*/
 
-void FRowConstraint::set_rhs( c_RHSValue rhs_value , c_ModParam issueMod )
+void FRowConstraint::set_rhs( c_RHSValue rhs_value , ModParam issueMod )
 {
  if( f_rhs == rhs_value )  // actually doing nothing
   return;                  // cowardly (and silently) return
@@ -102,7 +102,7 @@ void FRowConstraint::set_rhs( c_RHSValue rhs_value , c_ModParam issueMod )
 
 /*--------------------------------------------------------------------------*/
  
-void FRowConstraint::set_lhs( c_RHSValue lhs_value , c_ModParam issueMod )
+void FRowConstraint::set_lhs( c_RHSValue lhs_value , ModParam issueMod )
 {
  if( f_lhs == lhs_value )  // actually doing nothing
   return;                  // cowardly (and silently) return
@@ -119,7 +119,7 @@ void FRowConstraint::set_lhs( c_RHSValue lhs_value , c_ModParam issueMod )
 
 /*--------------------------------------------------------------------------*/
 
-void FRowConstraint::set_both( c_RHSValue both_value , c_ModParam issueMod )
+void FRowConstraint::set_both( c_RHSValue both_value , ModParam issueMod )
 {
  if( ( f_rhs == both_value ) && ( f_lhs == both_value ) )  // doing nothing
   return;                                 // cowardly (and silently) return
@@ -139,7 +139,7 @@ void FRowConstraint::set_both( c_RHSValue both_value , c_ModParam issueMod )
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE FRowConstraint -------*/
 /*--------------------------------------------------------------------------*/
 
-void FRowConstraint::remove_variable( Index i , c_ModParam issueMod )
+void FRowConstraint::remove_variable( Index i , ModParam issueMod )
 {
  /* FRowConstraint typically relies on FunctionModVars to know if something
   * has happened to the Variable of the Function and register/unregister
@@ -162,7 +162,7 @@ void FRowConstraint::remove_variable( Index i , c_ModParam issueMod )
 
 /*--------------------------------------------------------------------------*/
 
-void FRowConstraint::remove_variables( Range range , c_ModParam issueMod )
+void FRowConstraint::remove_variables( Range range , ModParam issueMod )
 {
  if( ! f_function )
   return;
@@ -181,7 +181,7 @@ void FRowConstraint::remove_variables( Range range , c_ModParam issueMod )
 /*--------------------------------------------------------------------------*/
 
 void FRowConstraint::remove_variables( Subset && nms , bool ordered ,
-				       c_ModParam issueMod )
+				       ModParam issueMod )
 {
  if( ! f_function )
   return;

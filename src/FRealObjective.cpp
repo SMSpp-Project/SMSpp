@@ -42,7 +42,7 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------------------------------------------------*/
 
 void FRealObjective::set_function( Function * const function ,
-				   c_ModParam issueMod , bool deleteold )
+				   ModParam issueMod , bool deleteold )
 {
  if( function == f_function )  // changing nothing
   return;                      // all done
@@ -88,7 +88,7 @@ void FRealObjective::set_function( Function * const function ,
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE FRealObjective -------*/
 /*--------------------------------------------------------------------------*/
 
-void FRealObjective::remove_variable( Index i , c_ModParam issueMod )
+void FRealObjective::remove_variable( Index i , ModParam issueMod )
 {
  /* FRealObjective typically relies on FunctionModVars to know if something
   * has happened to the Variable of the Function and register/unregister
@@ -111,7 +111,7 @@ void FRealObjective::remove_variable( Index i , c_ModParam issueMod )
 
 /*--------------------------------------------------------------------------*/
 
-void FRealObjective::remove_variables( Range range , c_ModParam issueMod )
+void FRealObjective::remove_variables( Range range , ModParam issueMod )
 {
  if( ! f_function )
   return;
@@ -130,7 +130,7 @@ void FRealObjective::remove_variables( Range range , c_ModParam issueMod )
 /*--------------------------------------------------------------------------*/
 
 void FRealObjective::remove_variables( Subset && nms , bool ordered ,
-				       c_ModParam issueMod )
+				       ModParam issueMod )
 {
  if( ! f_function )
   return;

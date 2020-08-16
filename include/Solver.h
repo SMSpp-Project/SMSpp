@@ -1730,14 +1730,14 @@ public:
   * quite cheap, the mechanism is added to the base Solver class so that all
   * derived classes can rely on this being handled already. */
 
- virtual void add_Modification( sp_Mod &mod ) {
+ virtual void add_Modification( sp_Mod & mod ) {
   if( f_no_Mod )
    return;
 
   while( f_mod_lock.test_and_set( std::memory_order_acquire ) )
    ;  // try to acquire lock, spin on failure
 
-  const auto tmod = std::dynamic_pointer_cast<NBModification>( mod );
+  const auto tmod = std::dynamic_pointer_cast< NBModification >( mod );
   if( tmod )
    v_mod.clear();
 

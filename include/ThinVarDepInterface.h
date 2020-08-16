@@ -722,7 +722,7 @@ class ThinVarDepInterface {
   * structures of such "undead" Variable, in particular on their list of
   * "active stuff". */
 
- virtual void remove_variable( Index i , c_ModParam issueMod = eModBlck ) = 0;
+ virtual void remove_variable( Index i , ModParam issueMod = eModBlck ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// remove a range of Variable
@@ -743,7 +743,7 @@ class ThinVarDepInterface {
   * the ThinVarDepInterface, and therefore necessarily need be demanded to
   * the derived classes. */
  
- virtual void remove_variables( Range range , c_ModParam issueMod = eModBlck )
+ virtual void remove_variables( Range range , ModParam issueMod = eModBlck )
  {
   if( range.second <= range.first )  // empty range
    return;                           // silently (and cowardly) return
@@ -788,7 +788,7 @@ class ThinVarDepInterface {
   * the derived classes. */
  
  virtual void remove_variables( Subset && nms , bool ordered = false ,
-				c_ModParam issueMod = eModBlck )
+				ModParam issueMod = eModBlck )
  {
   // note: the removal loop goes backward, since eliminating a variable
   //       changes the "names" of all the variable with larger name;

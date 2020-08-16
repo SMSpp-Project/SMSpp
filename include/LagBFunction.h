@@ -491,7 +491,7 @@ class LagBFunction : public C05Function , public Block {
   * This function must be called after set_inner_block, the sub-Block has been
   * already defined. */
 
- void set_dual_pairs( v_dual_pair && lp , c_ModParam issueMod = eModBlck );
+ void set_dual_pairs( v_dual_pair && lp , ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
 
@@ -571,17 +571,17 @@ class LagBFunction : public C05Function , public Block {
    * the Variable with coefficient zero which are involved in the definition
    * of the relaxed constraints (RCs).  */
 
- void add_dual_pairs( v_dual_pair && lp, c_ModParam issueMod = eNoBlck );
+ void add_dual_pairs( v_dual_pair && lp, ModParam issueMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
 
- void remove_variable( Index i , c_ModParam issueMod = eModBlck ) override;
+ void remove_variable( Index i , ModParam issueMod = eModBlck ) override;
 
- void remove_variables( Range range , c_ModParam issueMod = eModBlck )
+ void remove_variables( Range range , ModParam issueMod = eModBlck )
   override final;
 
  void remove_variables( Subset && nms , bool ordered = false ,
-			c_ModParam issueMod = eModBlck )  override final;
+			ModParam issueMod = eModBlck )  override final;
 
 /*--------------------------------------------------------------------------*/
 
@@ -620,7 +620,7 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  void store_linearization( Index name ,
-			   c_ModParam issueMod = eModBlck  ) override final;
+			   ModParam issueMod = eModBlck  ) override final;
 
 /*--------------------------------------------------------------------------*/
 
@@ -640,7 +640,7 @@ class LagBFunction : public C05Function , public Block {
 
  void store_combination_of_linearizations( LinearCombination & coefficients ,
 					   Index name  ,
-					   c_ModParam issueMod = eModBlck )
+					   ModParam issueMod = eModBlck )
   override final;
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
@@ -672,12 +672,12 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  void delete_linearization( Index name ,
-			    c_ModParam issueMod = eModBlck ) override final;
+			    ModParam issueMod = eModBlck ) override final;
 
 /*--------------------------------------------------------------------------*/
 
  void delete_linearizations( Subset && which , bool ordered = true ,
-			     c_ModParam issueMod = eModBlck ) override final
+			     ModParam issueMod = eModBlck ) override final
  {
   //!! TO BE CHANGED
   C05Function::delete_linearizations( std::move( which ) , ordered ,

@@ -728,7 +728,7 @@ class SimpleConfiguration : public Configuration
 
  /// move constructor taking the value (&&) as input
  explicit SimpleConfiguration( SimpleConfiguration_value_type && initval )
-  : Configuration() { f_value = initval; }
+  : Configuration() { f_value = std::move( initval ); }
 
  /// copy constructor: does what it says on the tin
  SimpleConfiguration( const SimpleConfiguration & old ) : Configuration() {

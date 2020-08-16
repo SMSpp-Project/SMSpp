@@ -390,7 +390,7 @@ class PolyhedralFunction : public C05Function {
   *        since the method is mostly thought to be used during initialization
   *        when "no one is listening". */
 
- void deserialize( netCDF::NcGroup & group , c_ModParam issueMod = eNoMod );
+ void deserialize( netCDF::NcGroup & group , ModParam issueMod = eNoMod );
 
 /*--------------------------------------------------------------------------*/
  /// destructor: it is virtual, and empty
@@ -508,9 +508,7 @@ class PolyhedralFunction : public C05Function {
     if( f_max_glob >= value ) {  // some linearizatons are lost
      f_max_glob = value ? value - 1 : 0;  // value could be 0 ...
 
-     // update f_max_glob
-     while( f_max_glob && ( v_glob[ f_max_glob ] == Inf<int>() ) )
-      --f_max_glob;
+     update_f_max_glob();
 
      if( ! f_Observer )  // noone is there
       break;             // all done
@@ -663,7 +661,7 @@ class PolyhedralFunction : public C05Function {
 /*--------------------------------------------------------------------------*/
  /// store a linearization in the global pool 
 
- void store_linearization( Index name ,  c_ModParam issueMod = eModBlck )
+ void store_linearization( Index name ,  ModParam issueMod = eModBlck )
   override final;
 
 /*--------------------------------------------------------------------------*/
@@ -702,7 +700,7 @@ class PolyhedralFunction : public C05Function {
 
  void store_combination_of_linearizations( LinearCombination & coefficients ,
 					   Index name ,
-					   c_ModParam issueMod = eModBlck )
+					   ModParam issueMod = eModBlck )
   override final;
 
 /*--------------------------------------------------------------------------*/
@@ -738,12 +736,12 @@ class PolyhedralFunction : public C05Function {
 /*--------------------------------------------------------------------------*/
 
  void delete_linearization( Index name ,
-			    c_ModParam issueMod = eModBlck ) override final;
+			    ModParam issueMod = eModBlck ) override final;
 
 /*--------------------------------------------------------------------------*/
 
  void delete_linearizations( Subset && which , bool ordered = true ,
-			     c_ModParam issueMod = eModBlck ) override final;
+			     ModParam issueMod = eModBlck ) override final;
 
 /*--------------------------------------------------------------------------*/
 
@@ -981,7 +979,7 @@ class PolyhedralFunction : public C05Function {
  void set_PolyhedralFunction( MultiVector && A , RealVector && b ,
 			      FunctionValue bound = - Inf<FunctionValue>() ,
 			      bool is_convex = true ,
-			      c_ModParam issueMod = eModBlck );
+			      ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// change the "sign" of the PolyhedralFunction
@@ -1008,7 +1006,7 @@ class PolyhedralFunction : public C05Function {
   * C05FunctionMod::NothingChanged for the type() of the C05FunctionMod. */
 
  void set_is_convex( bool is_convex = true ,
-		     c_ModParam issueMod = eModBlck );
+		     ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// add a set of new Variable to the PolyhedralFunction
@@ -1053,7 +1051,7 @@ class PolyhedralFunction : public C05Function {
   * have been deleted). */
 
  void add_variables( VarVector && nx , MultiVector && nA ,
-		     c_ModParam issueMod = eModBlck );
+		     ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// add one single new Variable to the PolyhedralFunction
@@ -1073,7 +1071,7 @@ class PolyhedralFunction : public C05Function {
   *        Observer::make_par(). */
 
  void add_variable( ColVariable * const var , c_RealVector & Aj ,
-		    c_ModParam issueMod = eModBlck );
+		    ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// remove the i-th Variable
@@ -1089,7 +1087,7 @@ class PolyhedralFunction : public C05Function {
   *        shift() == 0 as expected) is issued, as described in
   *        Observer::make_par(). */
 
- void remove_variable( Index i , c_ModParam issueMod = eModBlck )
+ void remove_variable( Index i , ModParam issueMod = eModBlck )
   override final;
 
 /*--------------------------------------------------------------------------*/
@@ -1104,7 +1102,7 @@ class PolyhedralFunction : public C05Function {
   *        shift() == 0 as expected) is issued, as described in
   *        Observer::make_par(). */
 
- void remove_variables( Range range , c_ModParam issueMod = eModBlck )
+ void remove_variables( Range range , ModParam issueMod = eModBlck )
   override final;
 
 /*--------------------------------------------------------------------------*/
@@ -1137,7 +1135,7 @@ class PolyhedralFunction : public C05Function {
   *        quasi-additive) is issued, as described in Observer::make_par(). */
 
  void remove_variables( Subset && nms , bool ordered = false ,
-			c_ModParam issueMod = eModBlck ) override final;
+			ModParam issueMod = eModBlck ) override final;
 
 /*--------------------------------------------------------------------------*/
  /// modify a range of rows of the linear mapping
@@ -1164,7 +1162,7 @@ class PolyhedralFunction : public C05Function {
   *        ModifyRows. */  
 
  void modify_rows( MultiVector && nA , c_RealVector & nb , Range range ,
-		   c_ModParam issueMod = eModBlck );
+		   ModParam issueMod = eModBlck );
  
 /*--------------------------------------------------------------------------*/
  /// modify a subset of rows of the linear mapping
@@ -1198,7 +1196,7 @@ class PolyhedralFunction : public C05Function {
   *        ModifyRows. */  
 
  void modify_rows( MultiVector && nA , c_RealVector & nb , Subset && rows ,
-		   bool ordered = false , c_ModParam issueMod = eModBlck );
+		   bool ordered = false , ModParam issueMod = eModBlck );
  
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify one single row of the linear mapping
@@ -1222,7 +1220,7 @@ class PolyhedralFunction : public C05Function {
   *        ModifyRows. */  
 
  void modify_row( Index i , RealVector && Ai , FunctionValue bi ,
-		  c_ModParam issueMod = eModBlck );
+		  ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// modify only the constant term of a range of rows of the linear mapping
@@ -1250,7 +1248,7 @@ class PolyhedralFunction : public C05Function {
   *        nothing). */  
 
  void modify_constants( c_RealVector & nb , Range range ,
-			c_ModParam issueMod = eModBlck );
+			ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// modify only the constant term of a subset of rows of the linear mapping
@@ -1286,7 +1284,7 @@ class PolyhedralFunction : public C05Function {
 
  void modify_constants( c_RealVector & nb , Subset && rows ,
 			bool ordered = false ,
-			c_ModParam issueMod = eModBlck );
+			ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify only the constant term of one row of the linear mapping
@@ -1307,7 +1305,7 @@ class PolyhedralFunction : public C05Function {
   *        shift is either +INFshift or -INFshift accordingly. */  
 
  void modify_constant( Index i , FunctionValue bi ,
-		       c_ModParam issueMod = eModBlck );
+		       ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// modify the global lower/upper bound
@@ -1331,7 +1329,7 @@ class PolyhedralFunction : public C05Function {
   *        method does nothing), hence the shift() is either +INFshift or
   *        -INFshift accordingly. */  
 
- void modify_bound( FunctionValue newbound , c_ModParam issueMod = eModBlck );
+ void modify_bound( FunctionValue newbound , ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// add some rows to the linear mapping in the PolyhedralFunction
@@ -1359,7 +1357,7 @@ class PolyhedralFunction : public C05Function {
   * C05FunctionMod. */
 
  void add_rows( MultiVector && nA , c_RealVector & nb ,
-		c_ModParam issueMod = eModBlck );
+		ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// add one single new row to the linear mapping
@@ -1382,7 +1380,7 @@ class PolyhedralFunction : public C05Function {
   * C05FunctionMod. */
 
  void add_row( RealVector && Ai , FunctionValue bi ,
-	       c_ModParam issueMod = eModBlck );
+	       ModParam issueMod = eModBlck );
  
 /*--------------------------------------------------------------------------*/
  /// deletes a range of rows from the linear mapping in the PolyhedralFunction
@@ -1422,7 +1420,7 @@ class PolyhedralFunction : public C05Function {
   * with shift() == FunctionMod::NaNshift, i.e., "everything changed"
   * (cf. delete_rows( all )). */
 
- void delete_rows( Range range , c_ModParam issueMod = eModBlck );
+ void delete_rows( Range range , ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// deletes a subset of rows from the linear mapping
@@ -1468,14 +1466,14 @@ class PolyhedralFunction : public C05Function {
   * (cf. delete_rows( all )). */
 
  void delete_rows( Subset && rows , bool ordered = false ,
-		   c_ModParam issueMod = eModBlck );
+		   ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// deletes one single existing row from the linear mapping
  /** Like delete_rows(), but just only the i-th row of the linear mapping.
   */
 
- void delete_row( Index i , c_ModParam issueMod = eModBlck );
+ void delete_row( Index i , ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// deletes all rows from the linear mapping in the PolyhedralFunction
@@ -1486,7 +1484,7 @@ class PolyhedralFunction : public C05Function {
   * FunctionMod with shift() == FunctionMod::NaNshift, i.e., "everything
   * changed". */
 
- void delete_rows( c_ModParam issueMod = eModBlck );
+ void delete_rows( ModParam issueMod = eModBlck );
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -1629,10 +1627,12 @@ class PolyhedralFunction : public C05Function {
   * - if h < 0 then it's an aggregated one and it's found in v_aA[ - h - 1 ]
   *   and v_ab[ - h - 1 ]. */
 
- Index f_max_glob;           ///< the maximum active name in the global pool
- /**< f_max_glob is (>= than) the maximum index h such that v_glob[ h ] !=
-  * Inf<int>(). The ">=" is because if the global pool is completely empty,
-  * f_max_glob still is == 0. */
+ Index f_max_glob;           ///< 1 + maximum active name in the global pool
+ /**< f_max_glob is strictly larger than the maximum index h such that
+  * v_glob[ h ] != Inf<int>(), i.e., v_glob[ f_max_glob ] == Inf<int>()
+  * while v_glob[ f_max_glob - 1 ] != Inf<int>(). Note that one should
+  * never check v_glob[ f_max_glob ], as f_max_glob == v_glob.size() may
+  * happen (in particular when v_glob.empty() and f_max_glob == 0). */
 
  Index f_imp;                ///< the important linearization
 
@@ -1646,10 +1646,10 @@ class PolyhedralFunction : public C05Function {
 
  void reset_aggregate_linearizations( void );
 
- void reset_aggregate_linearizations( c_ModParam issueMod );
+ void reset_aggregate_linearizations( ModParam issueMod );
 
  void update_f_max_glob( void ) {
-  while( f_max_glob && ( v_glob[ f_max_glob ] == Inf<int>() ) )
+  while( f_max_glob && ( v_glob[ f_max_glob - 1 ] == Inf<int>() ) )
    --f_max_glob;
   }
  
