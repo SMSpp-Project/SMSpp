@@ -614,12 +614,12 @@ class PolyhedralFunctionBlock : public AbstractBlock {
    // generate a (bunch of) Modification(s) in the "linearized"
    // representation, and this Modification itself will also remain to
    // serves a the "physical" Modification)
-   guts_of_add_Modification_PF( tmod , chnl );
+   guts_of_add_Modification_PF( tmod.get() , chnl );
   else
    // this Modification comes from some other part of the abstract
    // representation of the PolyhedralFunctionBlock, possibly (but not
    // surely) the "linearized" one: deal with it
-   guts_of_add_Modification_LR( mod , chnl );
+   guts_of_add_Modification_LR( mod.get() , chnl );
 
   // finally, pass is up, but only if there really is someone "listening",
   // which may not be, because anyone_there() returns true anyway
@@ -707,8 +707,7 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   * This assumption drastically simplifies some of the logic here. Hence,
   * derived classes must ensure they do not mess up with this property. */
 
- void guts_of_add_Modification_PF( std::shared_ptr< FunctionMod > mod ,
-				   ChnlName chnl );
+ void guts_of_add_Modification_PF( FunctionMod * const mod , ChnlName chnl );
 
 /*--------------------------------------------------------------------------*/
  /// process a Modification produced by the "linearized" representation
@@ -753,7 +752,7 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   * This assumption drastically simplifies some of the logic here. Hence,
   * derived classes must ensure they do not mess up with this property. */
 
- void guts_of_add_Modification_LR( sp_Mod mod , ChnlName chnl );
+ void guts_of_add_Modification_LR( c_p_Mod mod , ChnlName chnl );
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/

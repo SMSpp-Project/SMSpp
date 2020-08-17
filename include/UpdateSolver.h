@@ -77,7 +77,7 @@ public:
 
  /// empty constructor
  UpdateSolver( void ) : Solver() , f_R3B( nullptr ) , f_R3C( nullptr ) ,
-  f_forward( true ) , f_iPM( eNoBlck ) , f_iAM( eModBlck ) { }
+  f_options( 0 ) , f_iPM( eNoBlck ) , f_iAM( eModBlck ) { }
 
 /*--------------------------------------------------------------------------*/
  /// constructor: stores the values of the parameters
@@ -94,8 +94,21 @@ public:
   * @param r3bc is (a pointer to) the Configuration used to produce the
   *        R3 Block (be it f_Block or R3B)
   *
-  * @param forward tells which among f_Block and R3B is the original Block and
-  *        which is the R3B
+  * @param options allows to configure how UpdateSolver deals with
+  *        Modification, coded bit-wise:
+  *
+  *        - bit 0: if 0 the Modification are map_forward from f_Block to
+  *                 R3B, if 1 the Modification are map_back from R3B to f_Block
+  *
+  *        - bit 1: if 0 all Modification are mapped, if 1 only Modification
+  *                 whose block() is f_Block (i.e., not its inner Block) are
+  *                 mapped
+  *
+  *        - bit 2:  if 0 all Modification are mapped, if 1 only Modification
+  *                  with concerns_Block() == true are mapped
+  *
+  *        - bit 3:  if 0 all Modification are mapped, if 1 only Modification
+  *                  with concerns_Block() == false are mapped
   *
   * @param issuePMod is the value of the issuePMod parameter to be passed to
   *        map_[forward/back]_Modification()
@@ -104,11 +117,9 @@ public:
   *        map_[forward/back]_Modification()
   */
 
- UpdateSolver( Block *R3B , Configuration *r3bc = nullptr ,
-	       bool forward = true ,
-	       ModParam issuePMod = eNoBlck ,
-	       ModParam issueAMod = eModBlck )
-  : Solver() , f_R3B( R3B ) , f_R3C( r3bc ) , f_forward( forward ) ,
+ UpdateSolver( Block *R3B , Configuration *r3bc = nullptr , int options = 0 ,
+	       ModParam issuePMod = eNoBlck , ModParam issueAMod = eModBlck )
+  : Solver() , f_R3B( R3B ) , f_R3C( r3bc ) , f_options( options ) ,
     f_iPM( issuePMod ) , f_iAM( issueAMod ) {
    if( ! f_R3B )
     throw( std::invalid_argument( "UpdateSolver::UpdateSolver: null R3B" ) );
@@ -129,7 +140,7 @@ public:
 
  void set_R3C( Configuration *r3bc = nullptr ) { f_R3C = r3bc; }
 
- void set_forward( bool forward = true ) { f_forward = forward; }
+ void set_options( int options = 0 ) { f_options = options; }
 
  void set_issuePMod( ModParam issuePMod = eNoBlck ) { f_iPM = issuePMod; }
 
@@ -174,18 +185,27 @@ public:
   if( f_no_Mod || ( ! f_Block )  || ( ! f_R3B ) )
    return;
 
+  if( ( f_options & 2 ) && ( mod->get_Block() != f_Block ) )
+   return;
+
+  if( ( f_options & 4 ) && ( ! mod->concerns_Block() ) )
+   return;
+
+  if( ( f_options & 8 ) && mod->concerns_Block() )
+   return;
+
   // first, lock the R3B
   bool owned = f_R3B->is_owned_by( f_id );
   if( ( ! owned ) && ( ! f_R3B->lock( f_id ) ) )
    throw( std::logic_error( "can't lock the R3B" ) );
 
   // now map the Modification
-  if( f_forward )
-   f_Block->map_forward_Modification( f_R3B , mod.get() ,
-				      f_R3C , f_iPM , f_iAM );
-  else
+  if( f_options & 1 )
    f_R3B->map_back_Modification( f_Block , mod.get() ,
 				 f_R3C , f_iPM , f_iAM );
+  else
+   f_Block->map_forward_Modification( f_R3B , mod.get() ,
+				      f_R3C , f_iPM , f_iAM );
   // finally, unlock the R3B
   if( ! owned )
    f_R3B->unlock( f_id );
@@ -210,7 +230,7 @@ public:
 
  Configuration * f_R3C;  ///< the R3 Configuration of the R3 Block
 
- bool f_forward;         ///< whether Modification are mapped forward or back
+ int f_options;          ///< how Modification are dealt with, coded bit-wise
 
  ModParam f_iPM;         ///< the value of the issuePMod parmeter
 
