@@ -2332,7 +2332,7 @@ class Block : public Observer {
   * produce the right kind of object, thereby leaving the parameter to its
   * nullptr default value. */
 
- virtual BlockSolverConfig *  get_SolverConfig(
+ virtual BlockSolverConfig * get_SolverConfig(
 	                                BlockSolverConfig * svcc = nullptr );
 
 /*--------------------------------------------------------------------------*/
@@ -2342,9 +2342,7 @@ class Block : public Observer {
   * non-nullptr) the abstract representation of the Objective must have been
   * constructed, cf. generate_objective(). */
 
- Objective * get_objective( void ) const {
-  return( f_Objective );
-  }
+ Objective * get_objective( void ) const { return( f_Objective ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// template method to get the the current Objective
@@ -4136,14 +4134,14 @@ class Block : public Observer {
   * interface.
   *
   * Each derived class can produce, in principle, any number of different R3
-  * Blocks; the parameter r3bc is a pointer to an arbitrarily complex
+  * Blocks; the parameter \p r3bc is a pointer to an arbitrarily complex
   * Configuration object which allows to tell which one has to be produced.
   * Of course, the R3 Block of a :Block with sub-Block may require each
   * sub-Block to produce R3 Block of its (recursively), hence the use of
   * Configuration that allows arbitrarily complex nested parameters to be
   * used.
   *
-  * The second parameter is provided for allowing the creation of R3 Blocks to
+  * The parameter \p base is provided for allowing the creation of R3 Blocks to
   * happen "piecemeal". The obvious use case is that of a class B1 : Block and
   * B2 : B1 where B1 provides some R3 Block, say the copy. If, as it is
   * sensible, B2 wants to provide the same R3 Block, it is useful for B2 to
@@ -4154,6 +4152,11 @@ class Block : public Observer {
   * have requirements about the specific type of :Block that it accepts as
   * second input, depending on r3bc; for instance, in the case of a copy it
   * has to be any class derived from B1 (such as B2).
+  *
+  * The parameter \p father is provided in case \p base is not, and therefore
+  * the R3 Block has to be created inside the method; father is (the pointer
+  * to) the "father Block" to the newly created R3 one, to be passed to the
+  * constructor.
   *
   * A specific point to be clarified concerns dynamic Constraint and
   * Variable. In principle, dynamic Constraint in Block are thought as "being
@@ -4213,7 +4216,8 @@ class Block : public Observer {
   * required R3 one. */
 
  virtual Block * get_R3_Block( Configuration *r3bc = nullptr ,
-			       Block * base = nullptr )
+			       Block * base = nullptr ,
+			       Block * father = nullptr )
  {
   if( ! v_Block.empty() ) {
    if( ! base )
@@ -4231,7 +4235,8 @@ class Block : public Observer {
    for( Index i = 0 ; i < v_Block.size() ; ++i )
     base->v_Block[ i ] = v_Block[ i ]->get_R3_Block(
 		      ( cv && ( cv->f_value.size() > i ) ) ? cv->f_value[ i ]
-			                                   : nullptr );
+		                                           : nullptr ,
+		                                     nullptr , father );
    }
 
   return( base );
@@ -4896,9 +4901,13 @@ class Block : public Observer {
   * with the Block. Note that the Block does sets itself to the Solver by
   * calling Solver::set_Block(), which is why the converse is not done (see
   * Solver.h). Note that the method is virtual because derived classes may
-  * have to do more. */
+  * have to do more.
+  *
+  * By default the new Solver (pointer) is pushed to the back of the list of
+  * registered Solver, unless \p tofront is set to true, in which case it is
+  * pushed to the front. */
 
- virtual void register_Solver( Solver *newSolver ) {
+ virtual void register_Solver( Solver *newSolver , bool tofront = false ) {
   if( v_Solver.empty() ) {    // this is the first Solver listening to me
    if( ! f_at ) {             // and no one was listening from above already
     for( auto el : v_Block )  // now someone is listening to all my sons
@@ -4912,7 +4921,10 @@ class Block : public Observer {
    }
 
   newSolver->set_Block( this );
-  v_Solver.push_back( newSolver );
+  if( tofront )
+   v_Solver.push_front( newSolver );
+  else
+   v_Solver.push_back( newSolver );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -8074,18 +8086,21 @@ void Block::add_dynamic_constraints( std::list< Const > &list ,
    *(it++) = &el;               // keep their names
    }
 
+  // add them at the end, *before* issuing the BlockModAdd
+  list.splice( list.end() , newlist );
+ 
   // now issue the BlockModAdd
   add_Modification( std::make_shared<BlockModAdd<Const>>( list ,
 					 std::move( names ) , first ,
 					 Observer::par2concern( issueMod ) ) ,
 		    Observer::par2chnl( issueMod ) );
   }
- else
+ else {
   for( auto & el : newlist )    // all the new Constraint
    el.set_Block( this );        // now belong to this Block
 
- list.splice( list.end() , newlist );  // add them at the end
-
+  list.splice( list.end() , newlist );  // add them at the end
+  }
  }  // end( Block::add_dynamic_constraints( Const ) )
 
 /*--------------------------------------------------------------------------*/
@@ -8099,7 +8114,7 @@ void Block::add_dynamic_variables( std::list< Var > &list ,
  static_assert( std::is_base_of< Variable , Var >::value ,
                        "add_dynamic_variables: must inherit from Variable" );
 
- if( newlist.empty() )  // actually no Variables to add
+ if( newlist.empty() )  // actually no Variable to add
   return;               // cowardly (and silently) return
 
  if( issue_mod( issueMod ) ) {
@@ -8107,10 +8122,13 @@ void Block::add_dynamic_variables( std::list< Var > &list ,
   Index first = list.size();
   auto names = std::vector<Var *>( newlist.size() );
   auto it = names.begin();
-  for( auto & el : newlist ) {  // all the new Constraint
+  for( auto & el : newlist ) {  // all the new Variable
    el.set_Block( this );        // now belong to this Block
    *(it++) = &el;               // keep their names
    }
+
+  // add them at the end, *before* issuing the BlockModAdd
+  list.splice( list.end() , newlist );
 
   // now issue the BlockModAdd
   add_Modification( std::make_shared< BlockModAdd< Var > >( list ,
@@ -8118,12 +8136,12 @@ void Block::add_dynamic_variables( std::list< Var > &list ,
 				       Observer::par2concern( issueMod ) ) ,
 		    Observer::par2chnl( issueMod ) );
   }
- else
+ else {
   for( auto & el : newlist )    // all the new Variable
    el.set_Block( this );        // now belong to this Block
 
- list.splice( list.end() , newlist );  // add them at the end
-
+  list.splice( list.end() , newlist );  // add them at the end
+  }
  }  // end( Block::add_dynamic_variables( Var ) )
 
 /*--------------------------------------------------------------------------*/

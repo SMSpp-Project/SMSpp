@@ -523,7 +523,7 @@ class Configuration
   * out in human-readable form. The base Configuration class has preciously
   * little to print, but it still does a bit. */
 
- virtual void print( std::ostream &output ) const  {
+ virtual void print( std::ostream &output ) const {
   output << "Configuration [" << this << "]" << std::endl;
   }
 

@@ -257,8 +257,7 @@ class LinearFunction : public C15Function {
   * All inputs have a default ({}, 0, and nullptr, respectively) so that this
   * can be used as the void constructor. */
 
- explicit LinearFunction( v_coeff_pair && vars = {} ,
-			  const FunctionValue ct = 0 ,
+ explicit LinearFunction( v_coeff_pair && vars = {} , FunctionValue ct = 0 ,
 			  Observer * const observer = nullptr )
   : C15Function( observer ) , v_pairs( std::move( vars ) ) ,
     f_value( Inf< FunctionValue >() ), f_constant_term( ct ) { }

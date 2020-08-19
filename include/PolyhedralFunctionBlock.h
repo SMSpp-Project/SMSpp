@@ -439,7 +439,8 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   */
 
  Block * get_R3_Block( Configuration *r3bc = nullptr ,
-		       Block * base = nullptr ) override;
+		       Block * base = nullptr , Block * father = nullptr)
+  override;
 
 /*--------------------------------------------------------------------------*/
  /** No specific Configuration is expected for PolyhedralFunctionBlock.

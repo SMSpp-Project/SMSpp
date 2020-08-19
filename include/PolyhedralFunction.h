@@ -836,6 +836,11 @@ class PolyhedralFunction : public C05Function {
 
  const RealVector & get_b( void ) const { return( v_b ); }
  
+/*--------------------------------------------------------------------------*/
+ /// returns the number of rows in the PolyhedralFunction
+
+ Index get_nrows( void ) const { return( v_A.size() ); }
+ 
 /**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/

@@ -52,9 +52,10 @@ void PolyhedralFunctionBlock::generate_abstract_variables(
  int wsol = 0;
  auto tstvv = dynamic_cast<SimpleConfiguration<int> *>( stvv );
 
- if( ( ! tstvv ) && f_BlockConfig && f_BlockConfig->f_solution_Configuration )
+ if( ( ! tstvv ) && f_BlockConfig &&
+     f_BlockConfig->f_static_variables_Configuration )
   tstvv = dynamic_cast<SimpleConfiguration<int> *>(
-			            f_BlockConfig->f_solution_Configuration );
+			    f_BlockConfig->f_static_variables_Configuration );
  if( tstvv )
   wsol = tstvv->f_value;
 
@@ -144,7 +145,7 @@ void PolyhedralFunctionBlock::generate_objective( Configuration * objc )
 /*--------------------------------------------------------------------------*/
 
 Block * PolyhedralFunctionBlock::get_R3_Block( Configuration *r3bc ,
-					       Block * base )
+					       Block * base , Block * father )
 {
  if( r3bc != nullptr )
   throw( std::invalid_argument( "non-nullptr R3B Configuration" ) );
@@ -156,7 +157,7 @@ Block * PolyhedralFunctionBlock::get_R3_Block( Configuration *r3bc ,
    throw( std::invalid_argument( "base is not a PolyhedralFunctionBlock" ) );
   }
  else
-  PFB = new PolyhedralFunctionBlock();
+  PFB = new PolyhedralFunctionBlock( father );
 
  PFB->f_polyf.set_PolyhedralFunction(
 		   MultiVector( f_polyf.get_A() ) ,
