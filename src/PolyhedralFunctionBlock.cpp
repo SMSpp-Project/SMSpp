@@ -159,11 +159,10 @@ Block * PolyhedralFunctionBlock::get_R3_Block( Configuration *r3bc ,
  else
   PFB = new PolyhedralFunctionBlock( father );
 
- PFB->f_polyf.set_PolyhedralFunction(
-		   MultiVector( f_polyf.get_A() ) ,
-		   RealVector( f_polyf.get_b() ) ,
-		   f_polyf.get_global_bound() , f_polyf.is_convex() ,
-		   eNoMod );
+ PFB->f_polyf.set_PolyhedralFunction( MultiVector( f_polyf.get_A() ) ,
+				      RealVector( f_polyf.get_b() ) ,
+				      f_polyf.get_global_bound() ,
+				      f_polyf.is_convex() , eNoMod );
  return( PFB );
 
  }  // end( MCFBlock::get_R3_Block )

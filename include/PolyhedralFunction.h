@@ -1709,7 +1709,8 @@ class PolyhedralFunctionMod : public C05FunctionMod {
   * Modification, the value of the shift, and the "concerns Block" value. No
   * other PolyhedralFunction-specific information is needed. */
 
- PolyhedralFunctionMod( C05Function * f , int type , Subset && which = {} ,
+ PolyhedralFunctionMod( PolyhedralFunction * f , int type ,
+			Subset && which = {} ,
 			FunctionValue shift = NaNshift , bool cB = true )
   : C05FunctionMod( f , type , std::move( which ) , shift , cB ) { }
 
@@ -1757,16 +1758,17 @@ class PolyhedralFunctionModAddd : public PolyhedralFunctionMod {
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: like that of PolyhedralFunctionMod + the added rows
  /** Constructor: takes a pointer to the affected C05Function, the number of
-  * added rows, the value of the shift, and the "concerns Block" value. Note
-  * that the type of the Modification and set of changed rows are set by
-  * default by C05FunctionMod::NothingChanged and {}, hence need not be
-  * provided. */
+  * added rows, and the "concerns Block" value. Note that the type of the
+  * Modification is set to C05FunctionMod::NothingChanged, the set of changed
+  * rows is set to {}, and the value of shift is automatically set to either
+  * +INF or -INF depending on the convexity, hence they need not be provided.
+  */
 
- explicit PolyhedralFunctionModAddd( C05Function * f , Index ar ,
-				     FunctionValue shift = NaNshift ,
+ explicit PolyhedralFunctionModAddd( PolyhedralFunction * f , Index ar ,
 				     bool cB = true )
-  : PolyhedralFunctionMod( f , C05FunctionMod::NothingChanged ,
-			   Subset( {} ) , shift , cB ) , f_addedrows( ar ) {}
+  : PolyhedralFunctionMod( f , C05FunctionMod::NothingChanged , Subset( {} ) ,
+			   f->is_convex() ? INFshift : - INFshift , cB ) ,
+    f_addedrows( ar ) {}
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
@@ -1837,7 +1839,7 @@ class PolyhedralFunctionModRngd : public PolyhedralFunctionMod {
   * concerned rows, the value of the shift, and the "concerns Block" value.
   */
 
- explicit PolyhedralFunctionModRngd( C05Function * f , int type ,
+ explicit PolyhedralFunctionModRngd( PolyhedralFunction * f , int type ,
 				     int pftype , c_Range & range ,
 				     Subset && which = {} ,
 				     FunctionValue shift = NaNshift ,
@@ -1927,8 +1929,9 @@ class PolyhedralFunctionModSbst : public PolyhedralFunctionMod {
   * tells, the rows parameter becomes property of the
   * PolyhedralFunctionModRng. */
 
- explicit PolyhedralFunctionModSbst( C05Function * f , int type , int pftype ,
-				     Subset && rows , Subset && which = {} , 
+ explicit PolyhedralFunctionModSbst( PolyhedralFunction * f , int type ,
+				     int pftype , Subset && rows ,
+				     Subset && which = {} , 
 				     FunctionValue shift = NaNshift ,
 				     bool cB = true )
   : PolyhedralFunctionMod( f , type , std::move( which ) , shift , cB ) ,

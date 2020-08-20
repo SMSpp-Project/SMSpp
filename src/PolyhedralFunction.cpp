@@ -1664,11 +1664,8 @@ void PolyhedralFunction::add_rows( MultiVector && nA , c_RealVector & nb ,
 
  // issue the PolyhedralFunctionModAddd
  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModAddd>(
-				  this , k ,
-				  f_is_convex ? FunctionMod::INFshift :
-			                      - FunctionMod::INFshift ,
-				  Observer::par2concern( issueMod ) ) ,
-				Observer::par2chnl( issueMod ) );
+			       this , k , Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
 
  }  // end( PolyhedralFunction::add_rows )
 
@@ -1702,11 +1699,8 @@ void PolyhedralFunction::add_row( RealVector && Ai , FunctionValue bi ,
 
  // issue the PolyhedralFunctionModAddd
  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModAddd>(
-				  this , 1 ,
-				  f_is_convex ? FunctionMod::INFshift :
-			                      - FunctionMod::INFshift ,
-				  Observer::par2concern( issueMod ) ) ,
-				Observer::par2chnl( issueMod ) );
+			       this , 1 , Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
 
  }  // end( PolyhedralFunction::add_row )
 

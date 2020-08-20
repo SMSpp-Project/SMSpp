@@ -4220,23 +4220,34 @@ class Block : public Observer {
 			       Block * father = nullptr )
  {
   if( ! v_Block.empty() ) {
+   // automate the creation of R3 Block for the sub-Block, hence do nothing
+   // if there aren't any
+
+   // base must be given because the base Block class is virtual
    if( ! base )
     throw( std::invalid_argument( "Block::get_R3_Block with no base" ) );
 
+   // ensure that eny existing sub-Block is deleted (there should not be any)
    for( auto bi : base->v_Block )
     delete bi;
 
+   // resize the vector to match that of this
    base->v_Block.resize( v_Block.size() );
 
    auto cv =
     dynamic_cast< SimpleConfiguration< std::vector< Configuration * > > *
                   >( r3bc );
 
+   // set the i-th sub-Block of base as the R3 Block of the i-th sub-Block
+   // of this, using base as its father and the i-th entry of the r3bc
+   // vector (if any) as Configuration; however, no base can be provided,
+   // so the sub-Block must be able to provide one itself (this cannot
+   // recourse)
    for( Index i = 0 ; i < v_Block.size() ; ++i )
     base->v_Block[ i ] = v_Block[ i ]->get_R3_Block(
 		      ( cv && ( cv->f_value.size() > i ) ) ? cv->f_value[ i ]
 		                                           : nullptr ,
-		                                     nullptr , father );
+		                                     nullptr , base );
    }
 
   return( base );
