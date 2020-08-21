@@ -135,7 +135,11 @@ class Configuration
 
  static Configuration *new_Configuration( const std::string &classname )
  {
-  const auto it = Configuration::f_factory().find( classname );
+  std::string classname_( classname );
+  classname_.erase( std::remove_if( classname_.begin() , classname_.end() ,
+                                    ::isspace ) , classname_.end() );
+
+  const auto it = Configuration::f_factory().find( classname_ );
   if( it == Configuration::f_factory().end() )
    throw( std::invalid_argument( classname +
 		   std::string( " not present in Configuration factory" ) ) );

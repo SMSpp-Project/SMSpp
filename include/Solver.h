@@ -563,7 +563,11 @@ public:
 
  static Solver *new_Solver( const std::string &classname )
  {
-  const auto it = Solver::f_factory().find( classname );
+  std::string classname_( classname );
+  classname_.erase( std::remove_if( classname_.begin() , classname_.end() ,
+                                    ::isspace ) , classname_.end() );
+
+  const auto it = Solver::f_factory().find( classname_ );
   if( it == Solver::f_factory().end() )
    throw( std::invalid_argument( classname +
 			  std::string( " not present in Solver factory" ) ) );
