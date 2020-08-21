@@ -420,6 +420,10 @@ class AbstractBlock : public Block {
  *
  * The protected methods of the base Block class
  *
+ * - reset_nested_Block
+ *
+ * - add_nested_Block
+ *
  * - reset_static_constraints
  *
  * - reset_static_variables
@@ -450,6 +454,10 @@ class AbstractBlock : public Block {
  * the AbstractBlock to manage its abstract representation;
  *  @{ */
  
+ using Block::reset_nested_Block;
+
+ using Block::add_nested_Block;
+
  using Block::reset_static_constraints;
 
  using Block::reset_static_variables;
