@@ -45,3 +45,12 @@ add_test(
         NAME FakeBlock_test
         COMMAND FakeBlock_test
 )
+
+# ----- class_factory_test ------------------------------------------------- #
+add_executable(class_factory_test tests_class_factory.cpp)
+target_link_libraries(class_factory_test PRIVATE SMS++::SMSpp)
+
+add_test(
+        NAME class_factory_test
+        COMMAND class_factory_test
+)
