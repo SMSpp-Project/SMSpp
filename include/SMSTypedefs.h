@@ -274,12 +274,12 @@ namespace SMSpp_di_unipi_it
  *
  * can be used to quickly ensure that < class name > is inserted in the
  * corresponding factory. As the name says, they have to be put respectively
- * in the private part of < class name > declaration in the .h, and in
- * the .cpp of < class name > (if any, *exactly one* .cpp otherwise). The
- * "_k" versions of the _cpp macro refer to the fact that the constructor of
- * the base class has k parameters. The further "_t" versions need be used if
- * the class is template, since then a template specialization is needed and
- * this requires adding "template<>" at proper places.
+ * in the private part of < class name > declaration in the .h, and in the
+ * .cpp of < class name > (if any, in *exactly one* .cpp otherwise). The "_k"
+ * versions of the _cpp macro refer to the fact that the constructor of the
+ * base class has k parameters. The further "_t" versions need be used if the
+ * class is template, since then a template specialization is needed and this
+ * requires adding "template<>" at proper places.
  * @{ */
 
 /* The macro defines a very small, "fake" class _init. Its only meaning is to
@@ -307,51 +307,42 @@ namespace SMSpp_di_unipi_it
 
  namespace type_traits {
   /* The name of template classes may have commas, which prevent them to be
-   * passed as arguments to the SMSpp_insert_in_factory_cpp_*_t macros. To pass
-   * such names as arguments to these macros, we can enclose them in
-   * parentheses. For instance, the class
-   *
-   *   SimpleConfiguration< std::pair< int , int > >
-   *
-   * could be inserted in the factory as follows:
-   *
-   *   SMSpp_insert_in_factory_cpp_0_t( ( SimpleConfiguration<
-   *                                 std::pair< int , int > > ) );
+   * directly passed as arguments to the SMSpp_insert_in_factory_cpp_*_t
+   * macros, as the comma is then interpreted by the tokeniser as separating
+   * different arguments of the macro. To allow passing such names as
+   * arguments to these macros, some extra template sheningangs are needed.
    *
    * The get_type struct is used within those macros to obtain the type U of a
-   * template class whose name may have been enclosed in parentheses. The type
-   * T is not relevant, as it is used only to obtain a well-formed type name
-   * which contains parentheses. For instance, to obtain the right type of the
-   * class above within these macros, one can do the following:
+   * (template) class whose name may have been enclosed in parentheses. The
+   * type T is not relevant, as it is used only to obtain a well-formed type
+   * name which contains parentheses. To obtain the right type of any class
+   * "ClassName" within these macros, one can do the following:
    *
    *   type_traits::get_type< void( ClassName ) >::type
    *
-   * where ClassName is the parameter of the macro. In the example above,
-   * ClassName would be
+   * where ClassName is the parameter of the macro. For instance, the class
    *
-   *   ( SimpleConfiguration< std::pair< int , int > > ) */
+   *   SimpleConfiguration< std::pair< int , int > >
+   *
+   * can be inserted in the factory as:
+   *
+   *   SMSpp_insert_in_factory_cpp_0_t( ( SimpleConfiguration<
+   *                                      std::pair< int , int > > ) );
+   *
+   * There, ClassName would be
+   *
+   *   ( SimpleConfiguration< std::pair< int , int > > )
+   *
+   * Note that *not* using the "(" and ")" would result in the macro
+   * invocation to fail. */
+
   template<typename T> struct get_type;
   template<typename T , class U> struct get_type<T(U)> { using type = U; };
   }
 
 /*--------------------------------------------------------------------------*/
-/** The \p ClassName parameter of the following macros must be the type of a
- * class or the type of a class enclosed in parentheses. For instance, for a
- * class called MyBlock, the argument passed to these macros could be MyBlock
- * or ( MyBlock ). Actually, there is no limit on the number of parentheses
- * that enclose the name of the class, as long as the expression is balanced
- * (more details on that below). We will refer to the type of the class
- * (without parentheses) simply as ClassType. In the following three examples
- *
- *   SMSpp_insert_in_factory_cpp_0( MyBlock )
- *
- *   SMSpp_insert_in_factory_cpp_0( ( MyBlock ) )
- *
- *   SMSpp_insert_in_factory_cpp_0( ( ( MyBlock ) ) )
- *
- * the ClassType would be MyBlock.
- *
- * The macros SMSpp_insert_in_factory_cpp_* do five things:
+/** The macros SMSpp_insert_in_factory_cpp_* do five things for the class
+ * \p ClassName for whick they are invoked:
  *
  * 1) the actual implementation of the ClassType::_init::_init( void )
  *    constructor, within which:
@@ -375,69 +366,73 @@ namespace SMSpp_di_unipi_it
  * - has one static_initialization() method (that can be defined in the base
  *   class and does nothing if it is not needed).
  *
- * Note the use of the "Stringification" operator "#" when converting the
+ * The \p ClassName parameter of the macros must be the type of a class
+ * satisfying the above constraints, possibly enclosed in any number of
+ * parentheses "( ... )"; that is, for ClassName == MyBlock, the following
+ *
+ *     SMSpp_insert_in_factory_cpp_0( MyBlock )
+ *
+ *     SMSpp_insert_in_factory_cpp_0( ( MyBlock ) )
+ *
+ *     SMSpp_insert_in_factory_cpp_0( ( ( MyBlock ) ) )
+ *
+ * are equivalent, save that
+ *
+ *     IN SOME CASES ONE PAIR OF PARENTHESES IS STRICTLY REQUIRED
+ *
+ * as detailed in the following.
+ *
+ *     IMPORTANT NOTE 1: THE STRING RETURNED BY [_]private_name(), WHICH IS
+ *     THE ONE THAT IS USED TO INDEX THE FACTORY; IS STRIPPED OF ANY
+ *     WHITESPACE AND ENCLOSING PARENTHESES. For instance, a template class
+ *     like MyBlock< std::pair< int , int > > gets name
+ *     "MyBlock<std::pair<int,int>>" (which is syntactically wrong due to
+ *     the closing ">>" instead of "> >", but after all it is ony a string).
+ *     This makes it possible to read it from a std::stream, where
+ *     whitespaces are separators. If MyBlock derives from Block, it is then
+ *     possible to create an object of class MyBlock with
+ *
+ *     new_Block( "MyBlock<std::pair<int,int>>" )
+ *
+ *     Note that the implementation of Block::my_Block() automatically strips
+ *     all the whitespaces from the input string, which means that
+ *
+ *     new_Block( " MyBlock< std::pair< int , int > > " )
+ *
+ *     (and any similar version) works as well; however, this depends on
+ *     my_Block() preprocessing its input, the string in the factory is
+ *     the first one.
+ *
+ *     IMPORTANT NOTE 2: IF THE CLASS NAME CONTAINS ANY COMMAS, THE CLASS
+ *     CLASS PASSED TO THE MACRO *MUST* BE ENCLOSED IN PARENTHESES. That
+ *     is, class names whose "natural" form contain a comma (typically,
+ *     some but not all of the template ones) will necessarily have to be
+ *     enclosed in parentheses. For instance, the template class
+ *
+ *     MyBlock< std::pair< int , int > >
+ *
+ * must be registered in the factory by
+ *
+ *     SMSpp_insert_in_factory_cpp_1_t( ( MyBlock< std::pair< int , int > > ) )
+ *
+ * i.e., with at least one (possibly more, but there is no use in that) pair
+ * of extra parentheses around the name of the class. For classes that do not
+ * have commas in their names, the use of parentheses is optional. For
+ * instance, the classes MyBlock and MyTBlock<int> could be registered in the
+ * factory by
+ *
+ *    SMSpp_insert_in_factory_cpp_1_t( MyBlock );
+ *
+ *    SMSpp_insert_in_factory_cpp_1_t( MyTBlock< int > );
+ *
+ * or, equivalently,
+ *
+ *     SMSpp_insert_in_factory_cpp_1_t( ( MyBlock ) );
+ *
+ *     SMSpp_insert_in_factory_cpp_1_t( ( MyTBlock< int > ) );
+ *
+ * Note the use of the "stringification" operator "#" when converting the
  * macro parameter ClassName to its string representation.
- *
- *     IMPORTANT NOTE: The string reported by [_]private_name(), which is the
- *     same that is used to index the factory, is *stripped of any
- *     whitespace*. The reason is that it can have to be read from a
- *     std::stream, and there whitespaces are separators. This means that a
- *     template class like MyBlock< std::vector< int > > gets name
- *     "MyBlock<std::vector<int>>".
- *
- * Due to the fact that the ClassName is used as an argument of the macros, if
- * the class name contains any commas, it must be enclosed in parentheses so
- * that it is processed by the macros as a single argument rather than many
- * separated by commas.
- *
- *     IMPORTANT NOTE: IF THE NAME GIVEN TO THE CLASS CONTAINS ANY COMMAS, THE
- *     NAME OF THE CLASS MUST BE ENCLOSED IN PARENTHESES
- *
- * Therefore, names whose "natural" form contain a comma (typically, some but
- * not all of the template ones) will have to be enclosed in parentheses. For
- * instance, the template class
- *
- *   MyBlock< std::pair< int , int > >
- *
- * should be registered in the factory by doing
- *
- *   SMSpp_insert_in_factory_cpp_1_t( ( MyBlock< std::pair< int , int > > ) );
- *
- * Notice the extra parentheses around the name of the class. Any number of
- * parentheses can be used to enclose the name of a class, as long as the
- * expression is balanced. For classes that do not have commas in their names,
- * the use of parentheses is optional. For instance, the classes MyBlock and
- * MyTBlock<int> could be registered in the factory by doing
- *
- *  SMSpp_insert_in_factory_cpp_1_t( MyBlock );
- *
- *  SMSpp_insert_in_factory_cpp_1_t( MyTBlock< int > );
- *
- * or
- *
- *   SMSpp_insert_in_factory_cpp_1_t( ( MyBlock ) );
- *
- *   SMSpp_insert_in_factory_cpp_1_t( ( MyTBlock< int > ) );
- *
- * Any parentheses (and whitespaces), however, are removed from the class name
- * when it is registered in the factory. For instance, a class like
- *
- *   MyBlock< std::pair< int , int > >
- *
- * is registered in the factory under the name
- * "MyBlock<std::pair<int,int>>". Thus, when this Block is required from the
- * factory, one can safely use
- *
- *   new_Block( "MyBlock<std::pair<int,int>>" )
- *
- * as new_Block( "( MyBlock< std::pair< int , int > > )" ) may not work (i.e.,
- * the desired class may not be found in the factory). Although a class is
- * registered under a name that contains no parentheses and whitespaces, the
- * implementation of each particular factory could allow one to provide a name
- * containing whitespaces (very likely) or parentheses and take care of
- * finding the right class in the factory. To see the requirements of each
- * factory, please refer to their documentation (for Block, see
- * Block::new_Block()).
  *
  * The alert reader may wonder why the ugly two-step mechanism to define the
  * object inserted in the factory in the "_1" version. This is due to the
@@ -478,19 +473,24 @@ namespace SMSpp_di_unipi_it
  * std::algorithms will be constexpr-able and therefore this will hopefully be
  * possible. */
 
-#define SMSpp_insert_in_factory_cpp_0( ClassName ) \
- const std::string & \
- type_traits::get_type<void(ClassName)>::type::_private_name( void ) { \
-  static const std::string my_name( \
-   [] ( std::string && str ) -> std::string && { \
-    str.erase( std::remove_if( str.begin() , str.end() , ::isspace ) , \
-	       str.end() );	\
+/*!!
     decltype( str.size() ) num_parentheses = 0; \
     while( num_parentheses < str.size() && str[ num_parentheses ] == '(' ) \
      num_parentheses++; \
     str.erase( 0 , num_parentheses ); \
     assert( str.size() >= num_parentheses ); \
     str.erase( str.size() - num_parentheses , num_parentheses ); \
+  !!*/
+ 
+#define SMSpp_insert_in_factory_cpp_0( ClassName ) \
+ const std::string & \
+ type_traits::get_type<void(ClassName)>::type::_private_name( void ) { \
+  static const std::string my_name( \
+   [] ( std::string && str ) -> std::string && { \
+    str.erase( std::remove_if( str.begin() , str.end() , ::isspace ) , \
+	       str.end() ); \
+    while( str.front() == '(' ) { assert( str.back() == ')' ); \
+                                  str.erase( 0 , 1 ); str.pop_back(); }	\
     return( std::move( str ) ); \
     } ( std::move( std::string( #ClassName ) ) ) ); \
   return( my_name ); \
@@ -517,12 +517,8 @@ namespace SMSpp_di_unipi_it
    [] ( std::string && str ) -> std::string && { \
     str.erase( std::remove_if( str.begin() , str.end() , ::isspace ) , \
 	       str.end() );	\
-    decltype( str.size() ) num_parentheses = 0; \
-    while( num_parentheses < str.size() && str[ num_parentheses ] == '(' ) \
-     num_parentheses++; \
-    str.erase( 0 , num_parentheses ); \
-    assert( str.size() >= num_parentheses ); \
-    str.erase( str.size() - num_parentheses , num_parentheses ); \
+    while( str.front() == '(' ) { assert( str.back() == ')' ); \
+                                  str.erase( 0 , 1 ); str.pop_back(); }	\
     return( std::move( str ) ); \
     } ( std::move( std::string( #ClassName ) ) ) ); \
   return( my_name ); \
@@ -552,12 +548,8 @@ namespace SMSpp_di_unipi_it
    [] ( std::string && str ) -> std::string && { \
     str.erase( std::remove_if( str.begin() , str.end() , ::isspace ) , \
 	       str.end() );    \
-    decltype( str.size() ) num_parentheses = 0; \
-    while( num_parentheses < str.size() && str[ num_parentheses ] == '(' ) \
-     num_parentheses++; \
-    str.erase( 0 , num_parentheses ); \
-    assert( str.size() >= num_parentheses ); \
-    str.erase( str.size() - num_parentheses , num_parentheses ); \
+    while( str.front() == '(' ) { assert( str.back() == ')' ); \
+                                  str.erase( 0 , 1 ); str.pop_back(); }	\
     return( std::move( str ) );                                  \
     } ( std::move( std::string( #ClassName ) ) ) ); \
   return( my_name ); \
@@ -586,12 +578,8 @@ namespace SMSpp_di_unipi_it
    [] ( std::string && str ) -> std::string && { \
     str.erase( std::remove_if( str.begin() , str.end() , ::isspace ) , \
 	       str.end() );    \
-    decltype( str.size() ) num_parentheses = 0; \
-    while( num_parentheses < str.size() && str[ num_parentheses ] == '(' ) \
-     num_parentheses++; \
-    str.erase( 0 , num_parentheses ); \
-    assert( str.size() >= num_parentheses ); \
-    str.erase( str.size() - num_parentheses , num_parentheses ); \
+    while( str.front() == '(' ) { assert( str.back() == ')' ); \
+                                  str.erase( 0 , 1 ); str.pop_back(); }	\
     return( std::move( str ) );                                  \
     } ( std::move( std::string( #ClassName ) ) ) ); \
   return( my_name ); \

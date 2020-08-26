@@ -670,36 +670,23 @@ class Configuration
  * contains commas (",") as they are taken to separate macro arguments. Hence,
  * while
  *
- * SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::vector< int > > );
+ *     SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration<
+ *                                                     std::vector< int > > );
  *
  * is legal,
  *
- * SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration<
- *                                                  std::pair< int , int > > );
+ *     SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration<
+ *                                                 std::pair< int , int > > );
  *
- * is not because of the comma. This is why the following types are defined in
- * Configuration.cpp
+ * is not because of the comma. This is solved by adding parentheses around the
+ * type name, as in
  *
- * using SimpleConfig_i_i = SimpleConfiguration< std::pair< int , int > >;
+ *     SMSpp_insert_in_factory_cpp_0_t( ( SimpleConfiguration<
+ *                                                std::pair< int , int > >)  );
  *
- * using SimpleConfig_d_d = SimpleConfiguration< std::pair< double , double > >;
- *
- * using SimpleConfig_i_d = SimpleConfiguration< std::pair< int , double > >;
- *
- * using SimpleConfig_d_i = SimpleConfiguration< std::pair< double , int > >;
- *
- * using SimpleConfig_p_p = SimpleConfiguration<
- *                           std::pair< Configuration * , Configuration * > >;
- *
- * and used to insert in the factory the corresponding classes. Hence,
- * producing a, say, SimpleConfiguration< std::pair< int , int > > with the
- * factory requires the call
- *
- *    new_Configuration( "SimpleConfig_i_i" )
- *
- * and similarly specifying its type in a deserialize(). */
+ * due to a specific feature of SMSpp_insert_in_factory_cpp. */
 
-template<class SimpleConfiguration_value_type>
+template< class SimpleConfiguration_value_type >
 class SimpleConfiguration : public Configuration
 {
 
