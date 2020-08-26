@@ -1632,19 +1632,17 @@ void PolyhedralFunction::modify_bound( FunctionValue newbound ,
 
  #if( EXPLICIT_BOUND )
   Subset which;
- #endif
 
- if( wasset ) {
-  // if the bound was not set, nothing else to do: surely it can not have
-  // contributed to exising linearizations
+  if( wasset ) {
+   // if the bound was not set, nothing else to do: surely it can not have
+   // contributed to exising linearizations
 
-  Subset whiche;
+   Subset whiche;
 
-  if( ! v_aA.empty() ) {  // meanwhile, reset aggregate linearizations
-   v_aA.clear();
-   v_ab.clear();
+   if( ! v_aA.empty() ) {  // meanwhile, reset aggregate linearizations
+    v_aA.clear();
+    v_ab.clear();
 
-   #if( EXPLICIT_BOUND )
     if( is_bound_set() ) {  // the bound has been changed
      // now search if the changed bound is in the global pool
      for( Index i = 0 ; i < f_max_glob ; ++i )
@@ -1663,15 +1661,7 @@ void PolyhedralFunction::modify_bound( FunctionValue newbound ,
        v_glob[ i ] = Inf<int>();
        whiche.push_back( i );
        }
-   #else
-    for( Index i = 0 ; i < f_max_glob ; ++i )
-     if( v_glob[ i ] < 0 ) {     // an aggregated one
-      v_glob[ i ] = Inf<int>();  // kill it for sure
-      whiche.push_back( i );
-      }
-   #endif
-   }  // if( ! v_aA.empty() )
-  #if( EXPLICIT_BOUND )
+    }
    else {  // there are no aggregate linearizations
     if( is_bound_set() ) {  // the bound has been changed
      for( Index i = 0 ; i < f_max_glob ; ++i )
@@ -1683,24 +1673,20 @@ void PolyhedralFunction::modify_bound( FunctionValue newbound ,
       if( ! v_glob[ i ] )
        whiche.push_back( i );
     }
-  #endif
 
- update_f_max_glob();
+   update_f_max_glob();
 
-  // a separate C05FunctionMod for removals
-  #if( EXPLICIT_BOUND )
-   if( ! whiche.empty() )  // if any
-  #endif
+   // a separate C05FunctionMod for removals, if any
+   if( ! whiche.empty() )
     f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
 			                 C05FunctionMod::GlobalPoolRemoved ,
 					 std::move( whiche ) , 0 ,
 				         Observer::par2concern( issueMod ) ) ,
-				 Observer::par2chnl( issueMod ) );
+				  Observer::par2chnl( issueMod ) );
 
-  }  // end( if( wasset ) )
+   }  // end( if( wasset ) )
 
- // issue the PolyhedralFunctionModRngd
- #if( EXPLICIT_BOUND )
+  // issue the PolyhedralFunctionModRngd
   f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModRngd>(
 			     this ,
 			     which.empty() ? C05FunctionMod::NothingChanged
@@ -1710,6 +1696,30 @@ void PolyhedralFunction::modify_bound( FunctionValue newbound ,
 			     Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
  #else
+  // if the bound was set, reset exising aggregate linearizations (if any)
+  if( wasset && ( ! v_aA.empty() ) ) {
+   Subset whiche;
+
+   v_aA.clear();
+   v_ab.clear();
+
+   for( Index i = 0 ; i < f_max_glob ; ++i )
+    if( v_glob[ i ] < 0 ) {     // an aggregated one
+     v_glob[ i ] = Inf<int>();  // kill it for sure
+     whiche.push_back( i );
+     }
+
+   update_f_max_glob();
+
+   // a separate C05FunctionMod for removals
+   f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+			                 C05FunctionMod::GlobalPoolRemoved ,
+					 std::move( whiche ) , 0 ,
+				         Observer::par2concern( issueMod ) ) ,
+				 Observer::par2chnl( issueMod ) );
+   }
+
+  // issue the PolyhedralFunctionModRngd
   f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModRngd>(
 				       this , C05FunctionMod::NothingChanged ,
 				       PolyhedralFunctionMod::ModifyCnst ,
