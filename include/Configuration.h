@@ -131,7 +131,20 @@ class Configuration
   *
   *     SMSpp_insert_in_factory_cpp_0( name_of_the_class );
   *
-  *   to exactly *one* .cpp file, typically that :Configuration .cpp file. */
+  *   to exactly *one* .cpp file, typically that :Configuration .cpp file. If
+  *   the name of the class contains any parentheses, then one must enclose
+  *   the name of the class in parentheses and instead add the line
+  *
+  *     SMSpp_insert_in_factory_cpp_0( ( name_of_the_class ) );
+  *
+  * Any whitespaces that the given \p classname may contain is ignored. So,
+  * for example, to create an instance of the class MyConfiguration<int> one
+  * could pass "MyConfiguration<int>" or "MyConfiguration< int >" (even " M y
+  * C o n f i g u r a t i o n < int > " would work).
+  *
+  * @param classname The name of the :Configuration class that must be
+  *        constructed. */
+
 
  static Configuration *new_Configuration( const std::string &classname )
  {

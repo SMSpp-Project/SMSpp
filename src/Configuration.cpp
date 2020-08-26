@@ -38,9 +38,9 @@ using namespace std;
 
 // register various versions of SimpleConfiguration<> to the factory
 
-SMSpp_insert_in_factory_cpp_0_t( ( SimpleConfiguration< int > ) );
+SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< int > );
 
-SMSpp_insert_in_factory_cpp_0_t( ( SimpleConfiguration< double > ) );
+SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< double > );
 
 SMSpp_insert_in_factory_cpp_0_t( ( SimpleConfiguration<
                                    std::pair< int , int > > ) );
@@ -54,22 +54,19 @@ SMSpp_insert_in_factory_cpp_0_t( ( SimpleConfiguration<
 SMSpp_insert_in_factory_cpp_0_t( ( SimpleConfiguration<
                                    std::pair< double , int > > ) );
 
-SMSpp_insert_in_factory_cpp_0_t( ( SimpleConfiguration<
-                                   std::vector< int > > ) );
+SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::vector< int > > );
+
+SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::vector< double > > );
+
+SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::list< int > > );
+
+SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::list< double > > );
 
 SMSpp_insert_in_factory_cpp_0_t( ( SimpleConfiguration<
-                                   std::vector< double > > ) );
+                         std::pair< Configuration * , Configuration * > > ) );
 
-SMSpp_insert_in_factory_cpp_0_t( ( SimpleConfiguration< std::list< int > > ) );
-
-SMSpp_insert_in_factory_cpp_0_t( ( SimpleConfiguration<
-                                   std::list< double > > ) );
-
-SMSpp_insert_in_factory_cpp_0_t( ( SimpleConfiguration<
-                        std::pair< Configuration * , Configuration * > > ) );
-
-SMSpp_insert_in_factory_cpp_0_t( ( SimpleConfiguration<
-                                   std::vector< Configuration * > > ) );
+SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration<
+                                   std::vector< Configuration * > > );
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- FUNCTIONS --------------------------------*/
