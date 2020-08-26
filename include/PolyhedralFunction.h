@@ -552,36 +552,34 @@ class PolyhedralFunction : public C05Function {
 
  /// compute the PolyhedralFunction
 
- int compute( bool changedvars = true ) override final;
+ int compute( bool changedvars = true ) override;
 
 /*--------------------------------------------------------------------------*/
  /// returns the value of the PolyhedralFunction
 
- FunctionValue get_value( void ) const override final { return( f_value ); }
+ FunctionValue get_value( void ) const override { return( f_value ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the PolyhedralFunction is exact, hence lower_estimate == value
  
- FunctionValue get_lower_estimate( void ) const override final {
-  return( f_value );
+ FunctionValue get_lower_estimate( void ) const override { return( f_value );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the PolyhedralFunction is exact, hence upper_estimate == value
 
- FunctionValue get_upper_estimate( void ) const override final {
-  return( f_value );
+ FunctionValue get_upper_estimate( void ) const override { return( f_value );
   }
 
 /*--------------------------------------------------------------------------*/
 
- FunctionValue get_global_lower_bound( void ) override final {
+ FunctionValue get_global_lower_bound( void ) override {
   return( f_is_convex ? f_bound : - Inf< FunctionValue >() );
   }
 
 /*--------------------------------------------------------------------------*/
 
- FunctionValue get_global_upper_bound( void ) override final {
+ FunctionValue get_global_upper_bound( void ) override {
   return( f_is_convex ? Inf< FunctionValue >() : f_bound );
   }
 
@@ -600,7 +598,7 @@ class PolyhedralFunction : public C05Function {
 /*--------------------------------------------------------------------------*/
  /// returns a (global) Lipschitz constant for the PolyhedralFunction
 
- FunctionValue get_Lipschitz_constant( void ) override final
+ FunctionValue get_Lipschitz_constant( void ) override
  {
   if( f_Lipschitz_constant < 0 )
    compute_Lipschitz_constant( v_A , 0 );
@@ -610,12 +608,12 @@ class PolyhedralFunction : public C05Function {
 /*--------------------------------------------------------------------------*/
  /// returns true if and only if this PolyhedralFunction is convex
 
- bool is_convex( void ) const override final { return( f_is_convex ); }
+ bool is_convex( void ) const override { return( f_is_convex ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns true if and only if this PolyhedralFunction is concave
 
- bool is_concave( void ) const override final { return( ! f_is_convex ); }
+ bool is_concave( void ) const override { return( ! f_is_convex ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns true only if this PolyhedralFunction is linear
@@ -625,30 +623,17 @@ class PolyhedralFunction : public C05Function {
   * is linear, but this is supposed to be an accident that may and probably
   * will change at any time, so we report the "safe" result. */
 
- bool is_linear( void ) const override final { return( false ); }
+ bool is_linear( void ) const override { return( false ); }
 
 /*--------------------------------------------------------------------------*/
  /// tells whether a linearization is available
 
- bool has_linearization( bool diagonal = true ) override final
- {
-  // vertical linearizations are not available. also, the flat all-zero
-  // subgradient corresponding to the lower bound is never explicitly produced
-  // since there is no need for it (the lower bound already implies it). as
-  // a consequence, if there are no linearizations nothing is ever returned
-
-  if( ( ! diagonal ) || v_A.empty() )
-   return( false );
-  else
-   return( v_ord[ 0 ] != 0 );
- 
-  //!! return( diagonal ? ( ! v_A.empty() ) || is_bound_set() : false );
-  }
+ bool has_linearization( bool diagonal = true ) override;
 
 /*--------------------------------------------------------------------------*/
  /// compute a new linearization for this PolyhedralFunction
 
- bool compute_new_linearization( bool diagonal = true ) override final
+ bool compute_new_linearization( bool diagonal = true ) override
  {
   if( ( ! diagonal ) || ( v_A.empty() && ( ! is_bound_set() ) ) ||
       ( f_next >= v_ord.size() - 1 ) || ( f_next >= f_loc_pool_sz - 1 ) )
@@ -662,11 +647,11 @@ class PolyhedralFunction : public C05Function {
  /// store a linearization in the global pool 
 
  void store_linearization( Index name ,  ModParam issueMod = eModBlck )
-  override final;
+  override;
 
 /*--------------------------------------------------------------------------*/
 
- bool is_linearization_there( Index name ) const override final {
+ bool is_linearization_there( Index name ) const override {
   return( v_glob[ name ] < Inf<int>() );
   }
 
@@ -701,13 +686,13 @@ class PolyhedralFunction : public C05Function {
  void store_combination_of_linearizations( LinearCombination & coefficients ,
 					   Index name ,
 					   ModParam issueMod = eModBlck )
-  override final;
+  override;
 
 /*--------------------------------------------------------------------------*/
  /// specify which linearization is "the important one"
 
  void set_important_linearization( LinearCombination && coefficients ,
-				   Index name ) override final
+				   Index name ) override
  {
   if( name >= v_glob.size() )
    throw( std::invalid_argument( "invalid global pool name" ) );
@@ -722,26 +707,24 @@ class PolyhedralFunction : public C05Function {
 /*--------------------------------------------------------------------------*/
  /// return the name of "the important linearization"
 
- Index get_important_linearization_name( void ) override final {
-  return( f_imp );
-  }
+ Index get_important_linearization_name( void ) override { return( f_imp ); }
 
 /*--------------------------------------------------------------------------*/
 
  c_LinearCombination & get_important_linearization_coefficients( void )
-  override final {
+  override {
   return( f_imp_coeff );
   }
 
 /*--------------------------------------------------------------------------*/
 
- void delete_linearization( Index name ,
-			    ModParam issueMod = eModBlck ) override final;
+ void delete_linearization( Index name , ModParam issueMod = eModBlck )
+  override;
 
 /*--------------------------------------------------------------------------*/
 
  void delete_linearizations( Subset && which , bool ordered = true ,
-			     ModParam issueMod = eModBlck ) override final;
+			     ModParam issueMod = eModBlck ) override;
 
 /*--------------------------------------------------------------------------*/
 
@@ -769,26 +752,9 @@ class PolyhedralFunction : public C05Function {
 				      Index name = Inf<Index>() ) override;
 
 /*--------------------------------------------------------------------------*/
- /// return the constant term of a linearization
 
  FunctionValue get_linearization_constant( Index name = Inf<Index>() )
-  override final
- {
-  int gn = name >= v_glob.size() ? v_ord[ f_next ] : v_glob[ name ];
-
-  if( ! gn )              // name 0
-   return( f_bound );     // == bound
-
-  if( gn < 0 )            // aggregated linearization
-   return( v_ab[ - gn - 1 ] );
-
-  if( gn <= v_A.size() )  // normal linearization
-   return( v_b[ --gn ] );
-
-  // there is no item with such a name, which may mean that it was there
-  // once but it has been deleted: the linearization is invalid
-  return( std::numeric_limits<FunctionValue>::quiet_NaN() );
-  }
+  override;
 
 /*--------------------------------------------------------------------------*/
  /// serialize a PolyhedralFunction into a netCDF::NcGroup
@@ -1512,7 +1478,7 @@ class PolyhedralFunction : public C05Function {
  {
   output << "PolyhedralFunction [" << this << "]"
 	 << " with " << get_num_active_var() << " columns and"
-	 << v_A.size() << " rows";
+	 << get_nrows() << " rows";
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1537,7 +1503,7 @@ class PolyhedralFunction : public C05Function {
 /*--------------------------------------------------------------------------*/
 
  void reset_v_ord( void ) {
-  v_ord.resize( f_loc_pool_sz == 1 ? 1 : v_A.size() + 1 );
+  v_ord.resize( f_loc_pool_sz == 1 ? 1 : get_nrows() + 1 );
   std::iota( v_ord.begin() , v_ord.end() , 0 );
   }
 
@@ -1560,23 +1526,7 @@ class PolyhedralFunction : public C05Function {
 
 /*--------------------------------------------------------------------------*/
 
- FunctionValue * get_ai( Index name )
- {
-  int gn = name >= v_glob.size() ? v_ord[ f_next ] : v_glob[ name ];
-
-  if( ! gn )              // bound
-   return( nullptr );     // == all-0 row
-
-  if( gn < 0 )            // aggregated linearization
-   return( v_aA[ - gn - 1 ].data() );
-
-  if( gn <= v_A.size() )  // original linearization
-   return( v_A[ --gn ].data() );
-
-  throw( std::invalid_argument( "invalid linearization name" ) );
-
-  return( nullptr );
-  }
+ FunctionValue * get_ai( Index name );
 
 /*--------------------------------------------------------------------------*/
 
@@ -1627,7 +1577,7 @@ class PolyhedralFunction : public C05Function {
   * - if h == Inf<int>() there is no item with this name
   * - if h == 0 then it's the all-0 linearization, which is not stored
   *   anywhere, and its constant term f_bound
-  * - if 0 < h <= v_A.size() then it's an original linearization and it's
+  * - if 0 < h <= get_nrows() then it's an original linearization and it's
   *   found in v_A[ h - 1 ] and v_b[ h - 1 ];
   * - if h < 0 then it's an aggregated one and it's found in v_aA[ - h - 1 ]
   *   and v_ab[ - h - 1 ]. */
