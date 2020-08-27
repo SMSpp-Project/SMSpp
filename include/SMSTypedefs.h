@@ -280,6 +280,16 @@ namespace SMSpp_di_unipi_it
  * base class has k parameters. The further "_t" versions need be used if the
  * class is template, since then a template specialization is needed and this
  * requires adding "template<>" at proper places.
+ *
+ * IMPORTANT NOTE: while the macros properly define the code in the object,
+ * it has to be actually included in the final executable. If a component
+ * using this feature is not *explicitly* referenced anywhere in all the
+ * linked objects, the linker may decide to exclude it from the final
+ * executable. If this happens, the code inserting it in the factory is not
+ * included. In this case, one must either forcibly include an object of the
+ * specific type in the final main, or use the option of the linker that
+ * disables this optimization (e.g., at the time of writing "whole-archive"
+ * for g++ and "force_load" for clang++).
  * @{ */
 
 /* The macro defines a very small, "fake" class _init. Its only meaning is to
@@ -296,16 +306,13 @@ namespace SMSpp_di_unipi_it
  * private_name() is virtual and therefore it can not). */
 
 #define SMSpp_insert_in_factory_h \
- static class _init { \
-  public: \
-  _init( void ); \
-  } _initializer; \
+ static class _init { public:  _init( void ); } _initializer; \
  \
  const std::string & private_name( void ) const override; \
  \
  static const std::string & _private_name( void )
 
- namespace type_traits {
+ namespace SMSpp_type_traits {
   /* The name of template classes may have commas, which prevent them to be
    * directly passed as arguments to the SMSpp_insert_in_factory_cpp_*_t
    * macros, as the comma is then interpreted by the tokeniser as separating
@@ -318,26 +325,26 @@ namespace SMSpp_di_unipi_it
    * name which contains parentheses. To obtain the right type of any class
    * "ClassName" within these macros, one can do the following:
    *
-   *   type_traits::get_type< void( ClassName ) >::type
+   *     SMSpp_type_traits::t< void( ClassName ) >::type
    *
    * where ClassName is the parameter of the macro. For instance, the class
    *
-   *   SimpleConfiguration< std::pair< int , int > >
+   *     SimpleConfiguration< std::pair< int , int > >
    *
    * can be inserted in the factory as:
    *
-   *   SMSpp_insert_in_factory_cpp_0_t( ( SimpleConfiguration<
-   *                                      std::pair< int , int > > ) );
+   *     SMSpp_insert_in_factory_cpp_0_t( ( SimpleConfiguration<
+   *                                        std::pair< int , int > > ) );
    *
    * There, ClassName would be
    *
-   *   ( SimpleConfiguration< std::pair< int , int > > )
+   *     ( SimpleConfiguration< std::pair< int , int > > )
    *
    * Note that *not* using the "(" and ")" would result in the macro
    * invocation to fail. */
 
-  template<typename T> struct get_type;
-  template<typename T , class U> struct get_type<T(U)> { using type = U; };
+  template< typename T > struct t;
+  template< typename T , class U > struct t< T( U ) > { using type = U; };
   }
 
 /*--------------------------------------------------------------------------*/
@@ -383,7 +390,7 @@ namespace SMSpp_di_unipi_it
  * as detailed in the following.
  *
  *     IMPORTANT NOTE 1: THE STRING RETURNED BY [_]private_name(), WHICH IS
- *     THE ONE THAT IS USED TO INDEX THE FACTORY; IS STRIPPED OF ANY
+ *     THE ONE THAT IS USED TO INDEX THE FACTORY, IS STRIPPED OF ANY
  *     WHITESPACE AND ENCLOSING PARENTHESES. For instance, a template class
  *     like MyBlock< std::pair< int , int > > gets name
  *     "MyBlock<std::pair<int,int>>" (which is syntactically wrong due to
@@ -473,83 +480,71 @@ namespace SMSpp_di_unipi_it
  * std::algorithms will be constexpr-able and therefore this will hopefully be
  * possible. */
 
-/*!!
-    decltype( str.size() ) num_parentheses = 0; \
-    while( num_parentheses < str.size() && str[ num_parentheses ] == '(' ) \
-     num_parentheses++; \
-    str.erase( 0 , num_parentheses ); \
-    assert( str.size() >= num_parentheses ); \
-    str.erase( str.size() - num_parentheses , num_parentheses ); \
-  !!*/
- 
 #define SMSpp_insert_in_factory_cpp_0( ClassName ) \
  const std::string & \
- type_traits::get_type<void(ClassName)>::type::_private_name( void ) { \
+ SMSpp_type_traits::t<void(ClassName)>::type::_private_name( void ) { \
   static const std::string my_name( \
-   [] ( std::string && str ) -> std::string && { \
+   []( std::string && str ) -> std::string && { \
     str.erase( std::remove_if( str.begin() , str.end() , ::isspace ) , \
 	       str.end() ); \
-    while( str.front() == '(' ) { assert( str.back() == ')' ); \
-                                  str.erase( 0 , 1 ); str.pop_back(); }	\
+    while( str.front() == '(' ) { str.erase( 0 , 1 ); str.pop_back(); }	\
     return( std::move( str ) ); \
     } ( std::move( std::string( #ClassName ) ) ) ); \
   return( my_name ); \
   } \
     \
  const std::string & \
- type_traits::get_type<void(ClassName)>::type::private_name( void ) const { \
-  return( type_traits::get_type<void(ClassName)>::type::_private_name() ); \
+ SMSpp_type_traits::t<void(ClassName)>::type::private_name( void ) const { \
+  return( SMSpp_type_traits::t<void(ClassName)>::type::_private_name() ); \
   } \
     \
- type_traits::get_type<void(ClassName)>::type::_init::_init( void ) {    \
-  f_factory()[type_traits::get_type<void(ClassName)>::type::_private_name()] = \
-   boost::factory< type_traits::get_type<void(ClassName)>::type * >();   \
-  type_traits::get_type<void(ClassName)>::type::static_initialization(); \
+ SMSpp_type_traits::t<void(ClassName)>::type::_init::_init( void ) {          \
+  f_factory()[SMSpp_type_traits::t<void(ClassName)>::type::_private_name()] = \
+   boost::factory< SMSpp_type_traits::t<void(ClassName)>::type * >();         \
+  SMSpp_type_traits::t<void(ClassName)>::type::static_initialization();       \
   } \
     \
- type_traits::get_type<void(ClassName)>::type::_init \
- type_traits::get_type<void(ClassName)>::type::_initializer
+ SMSpp_type_traits::t<void(ClassName)>::type::_init \
+ SMSpp_type_traits::t<void(ClassName)>::type::_initializer
 
 #define SMSpp_insert_in_factory_cpp_1( ClassName ) \
  const std::string & \
- type_traits::get_type<void(ClassName)>::type::_private_name( void ) { \
+ SMSpp_type_traits::t<void(ClassName)>::type::_private_name( void ) { \
   static const std::string my_name( \
-   [] ( std::string && str ) -> std::string && { \
+   []( std::string && str ) -> std::string && { \
     str.erase( std::remove_if( str.begin() , str.end() , ::isspace ) , \
 	       str.end() );	\
-    while( str.front() == '(' ) { assert( str.back() == ')' ); \
-                                  str.erase( 0 , 1 ); str.pop_back(); }	\
+    while( str.front() == '(' ) { str.erase( 0 , 1 ); str.pop_back(); }	\
     return( std::move( str ) ); \
     } ( std::move( std::string( #ClassName ) ) ) ); \
   return( my_name ); \
   } \
     \
  const std::string & \
- type_traits::get_type<void(ClassName)>::type::private_name( void ) const { \
-  return( type_traits::get_type<void(ClassName)>::type::_private_name() ); \
+ SMSpp_type_traits::t<void(ClassName)>::type::private_name( void ) const { \
+  return( SMSpp_type_traits::t<void(ClassName)>::type::_private_name() ); \
   } \
     \
- type_traits::get_type<void(ClassName)>::type::_init::_init( void ) { \
-  auto f = boost::factory< type_traits::get_type<void(ClassName)>::type * >(); \
-  auto f2 = boost::forward_adapter< decltype( f ) >( f ); \
-  f_factory()[type_traits::get_type<void(ClassName)>::type::_private_name()] = \
-   boost::bind<type_traits::get_type<void(ClassName)>::type *>( f2 , _1 ); \
-  type_traits::get_type<void(ClassName)>::type::static_initialization(); \
+ SMSpp_type_traits::t<void(ClassName)>::type::_init::_init( void ) { \
+  auto f = boost::factory< SMSpp_type_traits::t<void(ClassName)>::type * >(); \
+  auto f2 = boost::forward_adapter< decltype( f ) >( f );                     \
+  f_factory()[SMSpp_type_traits::t<void(ClassName)>::type::_private_name()] = \
+   boost::bind<SMSpp_type_traits::t<void(ClassName)>::type *>( f2 , _1 );     \
+  SMSpp_type_traits::t<void(ClassName)>::type::static_initialization();       \
   } \
     \
- type_traits::get_type<void(ClassName)>::type::_init \
- type_traits::get_type<void(ClassName)>::type::_initializer
+ SMSpp_type_traits::t<void(ClassName)>::type::_init \
+ SMSpp_type_traits::t<void(ClassName)>::type::_initializer
 
 #define SMSpp_insert_in_factory_cpp_0_t( ClassName ) \
  template<> \
  const std::string & \
- type_traits::get_type<void(ClassName)>::type::_private_name( void ) { \
+ SMSpp_type_traits::t<void(ClassName)>::type::_private_name( void ) { \
   static const std::string my_name( \
-   [] ( std::string && str ) -> std::string && { \
+   []( std::string && str ) -> std::string && { \
     str.erase( std::remove_if( str.begin() , str.end() , ::isspace ) , \
 	       str.end() );    \
-    while( str.front() == '(' ) { assert( str.back() == ')' ); \
-                                  str.erase( 0 , 1 ); str.pop_back(); }	\
+    while( str.front() == '(' ) { str.erase( 0 , 1 ); str.pop_back(); }	\
     return( std::move( str ) );                                  \
     } ( std::move( std::string( #ClassName ) ) ) ); \
   return( my_name ); \
@@ -557,29 +552,28 @@ namespace SMSpp_di_unipi_it
     \
  template<> \
  const std::string & \
- type_traits::get_type<void(ClassName)>::type::private_name( void ) const { \
-  return( type_traits::get_type<void(ClassName)>::type::_private_name() );  \
+ SMSpp_type_traits::t<void(ClassName)>::type::private_name( void ) const { \
+  return( SMSpp_type_traits::t<void(ClassName)>::type::_private_name() );  \
   } \
     \
- template<> type_traits::get_type<void(ClassName)>::type::_init::_init(void) { \
-  f_factory()[type_traits::get_type<void(ClassName)>::type::_private_name()] = \
-   boost::factory< type_traits::get_type<void(ClassName)>::type * >();         \
-  type_traits::get_type<void(ClassName)>::type::static_initialization();       \
+ template<> SMSpp_type_traits::t<void(ClassName)>::type::_init::_init(void) { \
+  f_factory()[SMSpp_type_traits::t<void(ClassName)>::type::_private_name()] = \
+   boost::factory< SMSpp_type_traits::t<void(ClassName)>::type * >();         \
+  SMSpp_type_traits::t<void(ClassName)>::type::static_initialization();       \
   } \
     \
- template<> type_traits::get_type<void(ClassName)>::type::_init \
- type_traits::get_type<void(ClassName)>::type::_initializer{}
+ template<> SMSpp_type_traits::t<void(ClassName)>::type::_init \
+ SMSpp_type_traits::t<void(ClassName)>::type::_initializer{}
 
 #define SMSpp_insert_in_factory_cpp_1_t( ClassName ) \
  template<> \
  const std::string & \
- type_traits::get_type<void(ClassName)>::type::_private_name( void ) { \
+ SMSpp_type_traits::t<void(ClassName)>::type::_private_name( void ) { \
   static const std::string my_name( \
-   [] ( std::string && str ) -> std::string && { \
+   []( std::string && str ) -> std::string && { \
     str.erase( std::remove_if( str.begin() , str.end() , ::isspace ) , \
 	       str.end() );    \
-    while( str.front() == '(' ) { assert( str.back() == ')' ); \
-                                  str.erase( 0 , 1 ); str.pop_back(); }	\
+    while( str.front() == '(' ) { str.erase( 0 , 1 ); str.pop_back(); }	\
     return( std::move( str ) );                                  \
     } ( std::move( std::string( #ClassName ) ) ) ); \
   return( my_name ); \
@@ -587,20 +581,20 @@ namespace SMSpp_di_unipi_it
     \
  template<> \
  const std::string & \
- type_traits::get_type<void(ClassName)>::type::private_name( void ) const { \
-  return( type_traits::get_type<void(ClassName)>::type::_private_name() );  \
+ SMSpp_type_traits::t<void(ClassName)>::type::private_name( void ) const { \
+  return( SMSpp_type_traits::t<void(ClassName)>::type::_private_name() );  \
   } \
     \
- template<> type_traits::get_type<void(ClassName)>::type::_init::_init(void) { \
-  auto f = boost::factory<type_traits::get_type<void(ClassName)>::type *>();   \
-  auto f2 = boost::forward_adapter< decltype( f ) >( f );                      \
-  f_factory()[type_traits::get_type<void(ClassName)>::type::_private_name()] = \
-   boost::bind<type_traits::get_type<void(ClassName)>::type *>( f2 , _1 );     \
-  type_traits::get_type<void(ClassName)>::type::static_initialization();       \
+ template<> SMSpp_type_traits::t<void(ClassName)>::type::_init::_init(void) { \
+  auto f = boost::factory<SMSpp_type_traits::t<void(ClassName)>::type *>();   \
+  auto f2 = boost::forward_adapter< decltype( f ) >( f );                     \
+  f_factory()[SMSpp_type_traits::t<void(ClassName)>::type::_private_name()] = \
+   boost::bind<SMSpp_type_traits::t<void(ClassName)>::type *>( f2 , _1 );     \
+  SMSpp_type_traits::t<void(ClassName)>::type::static_initialization();       \
   } \
     \
- template<> type_traits::get_type<void(ClassName)>::type::_init \
- type_traits::get_type<void(ClassName)>::type::_initializer{}
+ template<> SMSpp_type_traits::t<void(ClassName)>::type::_init \
+ SMSpp_type_traits::t<void(ClassName)>::type::_initializer{}
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------- HANDLE boost::any SPECIALIZATIONS --------------------*/
