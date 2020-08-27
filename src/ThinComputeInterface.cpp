@@ -288,13 +288,14 @@ void ComputeConfig::print( std::ostream &output ) const {
  output << "ComputeConfig";
  if( f_diff ) output << "[diff]";
  output << ": " << std::endl;
- for( auto pair : int_pars )
+ for( auto & pair : int_pars )
   output << pair.first << " = " << pair.second << std::endl;
- for( auto pair : dbl_pars )
+ for( auto & pair : dbl_pars )
   output << pair.first << " = " << pair.second << std::endl;
- for( auto pair : str_pars )
+ for( auto & pair : str_pars )
   output << pair.first << " = " << pair.second << std::endl;
- output << *f_extra_Configuration;
+ if( f_extra_Configuration )
+  output << "xtra Config:" << *f_extra_Configuration;
  }
 
 /*--------------------------------------------------------------------------*/

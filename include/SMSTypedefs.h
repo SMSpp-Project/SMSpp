@@ -487,7 +487,7 @@ namespace SMSpp_di_unipi_it
    []( std::string && str ) -> std::string && { \
     str.erase( std::remove_if( str.begin() , str.end() , ::isspace ) , \
 	       str.end() ); \
-    while( str.front() == '(' ) { str.erase( 0 , 1 ); str.pop_back(); }	\
+    while( str.front() == '(' ) { str.pop_back(); str.erase( 0 , 1 ); }	\
     return( std::move( str ) ); \
     } ( std::move( std::string( #ClassName ) ) ) ); \
   return( my_name ); \
@@ -514,7 +514,7 @@ namespace SMSpp_di_unipi_it
    []( std::string && str ) -> std::string && { \
     str.erase( std::remove_if( str.begin() , str.end() , ::isspace ) , \
 	       str.end() );	\
-    while( str.front() == '(' ) { str.erase( 0 , 1 ); str.pop_back(); }	\
+    while( str.front() == '(' ) { str.pop_back(); str.erase( 0 , 1 ); }	\
     return( std::move( str ) ); \
     } ( std::move( std::string( #ClassName ) ) ) ); \
   return( my_name ); \
@@ -544,7 +544,7 @@ namespace SMSpp_di_unipi_it
    []( std::string && str ) -> std::string && { \
     str.erase( std::remove_if( str.begin() , str.end() , ::isspace ) , \
 	       str.end() );    \
-    while( str.front() == '(' ) { str.erase( 0 , 1 ); str.pop_back(); }	\
+    while( str.front() == '(' ) { str.pop_back(); str.erase( 0 , 1 ); }	\
     return( std::move( str ) );                                  \
     } ( std::move( std::string( #ClassName ) ) ) ); \
   return( my_name ); \
@@ -573,7 +573,7 @@ namespace SMSpp_di_unipi_it
    []( std::string && str ) -> std::string && { \
     str.erase( std::remove_if( str.begin() , str.end() , ::isspace ) , \
 	       str.end() );    \
-    while( str.front() == '(' ) { str.erase( 0 , 1 ); str.pop_back(); }	\
+    while( str.front() == '(' ) { str.pop_back(); str.erase( 0 , 1 ); }	\
     return( std::move( str ) );                                  \
     } ( std::move( std::string( #ClassName ) ) ) ); \
   return( my_name ); \
