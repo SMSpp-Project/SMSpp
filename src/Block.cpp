@@ -1132,12 +1132,22 @@ void BlockSolverConfig::print( std::ostream &output ) const
  output << "BlockSolverConfig";
  if( f_diff ) output << "[diff]";
  output << ": " << std::endl;
- for( std::size_t i = 0 ; i < v_SolverNames.size() ; ++i )
-  output << v_SolverNames[ i ] << ": " << v_SolverConfigs[ i ];
- for( const auto cfg : v_BlockSolverConfigs )
-  if( cfg )
-   output << *cfg;
- output << std::endl;
+ for( std::size_t i = 0 ; i < v_SolverNames.size() ; ++i ) {
+  output << "Solver " << i << ": " << v_SolverNames[ i ];
+  if( ( v_SolverConfigs.size() > i ) && v_SolverConfigs[ i ] )
+   output << std::endl << *v_SolverConfigs[ i ];
+  else
+   output << " - empty config" << std::endl;
+  }
+
+ for( std::size_t i = 0 ; i < v_BlockSolverConfigs.size() ; ++i ) {
+  output << "sub-Block " << i << ": ";
+  if( v_BlockSolverConfigs[ i ] )
+   output << std::endl << *v_BlockSolverConfigs[ i ];
+  else
+   output << " - empty config" << std::endl;
+  }
+ // output << std::endl;
  }
 
 /*--------------------------------------------------------------------------*/

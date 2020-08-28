@@ -771,12 +771,30 @@ class Block : public Observer {
   *
   *       SMSpp_insert_in_factory_cpp_1( name_of_the_class );
   *
-  *   to exactly *one* .cpp file, typically that :Block .cpp file. */
+  *   to exactly *one* .cpp file, typically that :Block .cpp file. If the name
+  *   of the class contains any parentheses, then one must enclose the name of
+  *   the class in parentheses and instead add the line
+  *
+  *       SMSpp_insert_in_factory_cpp_1( ( name_of_the_class ) );
+  *
+  * Any whitespaces that the given \p classname may contain is ignored. So,
+  * for example, to create an instance of the class MyBlock<int> one could
+  * pass "MyBlock<int>" or "MyBlock< int >" (even " M y B l o c k < int > "
+  * would work).
+  *
+  * @param classname The name of the :Block class that must be constructed.
+  *
+  * @param father A pointer to the father of the Block that will be
+  *        constructed. */
 
  static Block *new_Block( const std::string &classname ,
 			  Block *father = nullptr )
  {
-  const auto it = Block::f_factory().find( classname );
+  std::string classname_( classname );
+  classname_.erase( std::remove_if( classname_.begin() , classname_.end() ,
+                                    ::isspace ) , classname_.end() );
+
+  const auto it = Block::f_factory().find( classname_ );
   if( it == Block::f_factory().end() )
    throw( std::invalid_argument( classname +
 			   std::string( " not present in Block factory" ) ) );
