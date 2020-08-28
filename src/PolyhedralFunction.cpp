@@ -23,7 +23,7 @@
 /*------------------------------- MACROS -----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#define EXPLICIT_BOUND 1
+#define EXPLICIT_BOUND 0
 
 /* if EXPLICIT_BOUND != 0, the PolyhedralFunction will explicitly produce an
  * all-0 flat subgradient each time that compute() hits the lower/upper
