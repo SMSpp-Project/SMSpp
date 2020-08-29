@@ -785,11 +785,11 @@ class C05Function : public Function {
   * convex and/or it should yield the all-0 vector. This is basically the
   * *dual optimal solution* of the optimization problem concerning the
   * C05Function. It may be very useful to be able to store this combination,
-  * or rather the informatin needed to re-construct it, in case the
+  * or rather the information needed to re-construct it, in case the
   * C05Function (or other parts of the Block) changes, in order to provide
   * effective reoptimization. For instance, the changes may be such that x^*
-  * may nonetheless remain an optimal solution, and the availability of the
-  * (informatin needed to re-construct" the) important linearization" may
+  * may nonetheless remain an optimal solution, and the availability of
+  * (the information needed to re-construct) "the important linearization" may
   * allow to prove this with very little computational effort. Hence, saving
   * (information concerning) the "important linearization" when the algorithm
   * is finished (but, possibly, even while it is running) may be useful.
@@ -826,13 +826,13 @@ class C05Function : public Function {
   *     little sensible recourse in this case)
   *
   * If there is a risk that this happens, the entity having use for this
-  * information should check and react appropriatedly, whatever this means.
+  * information should check and react appropriately, whatever this means.
   *
   * Of course, one possible use for this information is to call
   * store_combination_of_linearizations() to "physically" construct the
   * "important linearization" and have it stored in the global pool. In this
   * case, of course, \p coefficients should just be < name of the important
-  * linearization , 1 >. Indeed, there may no need to "physically" construct
+  * linearization , 1 >. Indeed, there may be no need to "physically" construct
   * the "important linearization" since it could well be one of those directly
   * produced by the C05Function; think to the case where f is smooth at x^*.
   * Alternatively, the algorithm doing the optimization may find it
@@ -863,7 +863,7 @@ class C05Function : public Function {
   *     CHANGING THE GLOBAL POOL, AND THEREFORE NO Modification IS ISSUED
   *
   * In fact, what this method sets is only the information characterizing the
-  * "virtual important linearization"; if the "physycal" one is constructed
+  * "virtual important linearization"; if the "physical" one is constructed
   * out of this information this changes the global pool and a Modification is
   * indeed issued, but this is a separate operation from just storing the
   * combination. Besides, the important linearization is basically (a part
