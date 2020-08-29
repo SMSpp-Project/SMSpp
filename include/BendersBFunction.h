@@ -1603,23 +1603,16 @@ class BendersBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
  /// specify which linearization is "the important one"
 
- void set_important_linearization( LinearCombination && coefficients ,
-                                   Index name ) override final {
-  global_pool.set_important_linearization( std::move( coefficients ), name );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// return the name of "the important linearization"
-
- Index get_important_linearization_name( void ) override final {
-  return( global_pool.get_important_linearization_name() );
+ void set_important_linearization( LinearCombination && coefficients )
+  override final {
+  global_pool.set_important_linearization( std::move( coefficients ) );
   }
 
 /*--------------------------------------------------------------------------*/
  /// return the combination used to form "the important linearization"
 
  c_LinearCombination & get_important_linearization_coefficients( void )
-  override final {
+  const override final {
   return( global_pool.get_important_linearization_coefficients() );
   }
 
@@ -1954,35 +1947,16 @@ class BendersBFunction : public C05Function , public Block {
   }
 
 /*--------------------------------------------------------------------------*/
-  /// specify which linearization is "the important one"
-  /** This method sets the linearization with the given name as "the important
-   * one".
-   *
-   * @param coefficients a LinearCombination that may define the important
-   *        linearization.
-   *
-   * @param name the name of the important linearization.
-   */
 
-  void set_important_linearization( LinearCombination && coefficients ,
-                                    Index name ) {
+  void set_important_linearization( LinearCombination && coefficients ) {
    important_linearization_lin_comb = std::move( coefficients );
-   important_linearization_name = name;
-  }
-
-/*--------------------------------------------------------------------------*/
-  /// return the name of "the important linearization"
-
-  Index get_important_linearization_name( void ) const {
-   return( important_linearization_name );
-  }
+   }
 
 /*--------------------------------------------------------------------------*/
   /// return the combination used to form "the important linearization"
 
-  c_LinearCombination & get_important_linearization_coefficients( void ) const {
-   return( important_linearization_lin_comb );
-  }
+  c_LinearCombination & get_important_linearization_coefficients( void ) const
+  { return( important_linearization_lin_comb ); }
 
 /*--------------------------------------------------------------------------*/
   /// stores a combination of the linearizations that are already stored
@@ -2040,9 +2014,6 @@ class BendersBFunction : public C05Function , public Block {
 
   LinearCombination important_linearization_lin_comb;
   ///< the linear combination of the important linearization
-
-  Index important_linearization_name;
-  ///< the name of the important linearization
 
   std::vector<bool> is_diagonal;
   ///< indicates whether a linearization is diagonal

@@ -4,9 +4,9 @@
 /** @file
  * Implementation of the PolyhedralFunction class.
  *
- * \version 0.25
+ * \version 0.20
  *
- * \date 18 - 04 - 2020
+ * \date 26 - 08 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -729,7 +729,7 @@ void PolyhedralFunction::set_PolyhedralFunction( MultiVector && A ,
   }
 
  f_bound = bound;
- f_max_glob = f_next = f_imp = 0;
+ f_max_glob = f_next = 0;
  v_glob.assign( v_glob.size() , Inf<int>() );
  v_aA.clear();
  v_ab.clear();

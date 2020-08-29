@@ -337,7 +337,7 @@ class PolyhedralFunction : public C05Function {
 		     bool is_convex = true ,
 		     Observer * const observer = nullptr )
   : C05Function( observer ) , f_is_convex( is_convex ) , f_bound( bound ) ,
-    f_loc_pool_sz( 1 ) , f_next( 0 ) ,  f_max_glob( 0 ) , f_imp( 0 )
+    f_loc_pool_sz( 1 ) , f_next( 0 ) ,  f_max_glob( 0 )
  {
   v_ord.resize( 1 );
   v_ord[ 0 ] = 0;
@@ -689,32 +689,14 @@ class PolyhedralFunction : public C05Function {
   override;
 
 /*--------------------------------------------------------------------------*/
- /// specify which linearization is "the important one"
 
- void set_important_linearization( LinearCombination && coefficients ,
-				   Index name ) override
- {
-  if( name >= v_glob.size() )
-   throw( std::invalid_argument( "invalid global pool name" ) );
-
-  if( v_glob[ name ] == Inf<int>() )
-   throw( std::invalid_argument( "no linearization with given name" ) );
-
-  f_imp = name;
-  f_imp_coeff = std::move( coefficients );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// return the name of "the important linearization"
-
- Index get_important_linearization_name( void ) override { return( f_imp ); }
+ void set_important_linearization( LinearCombination && coefficients )
+  override { f_imp_coeff = std::move( coefficients ); }
 
 /*--------------------------------------------------------------------------*/
 
  c_LinearCombination & get_important_linearization_coefficients( void )
-  override {
-  return( f_imp_coeff );
-  }
+  const override { return( f_imp_coeff ); }
 
 /*--------------------------------------------------------------------------*/
 
@@ -1588,8 +1570,6 @@ class PolyhedralFunction : public C05Function {
   * while v_glob[ f_max_glob - 1 ] != Inf<int>(). Note that one should
   * never check v_glob[ f_max_glob ], as f_max_glob == v_glob.size() may
   * happen (in particular when v_glob.empty() and f_max_glob == 0). */
-
- Index f_imp;                ///< the important linearization
 
  LinearCombination f_imp_coeff;  ///< coefficients of the important linear.
 
