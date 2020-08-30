@@ -732,21 +732,6 @@ void LagBFunction::store_combination_of_linearizations(
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::set_important_linearization(
-			     LinearCombination && coefficients , Index name )
-{
- // throw exception if name is greater thatn the dimension of the global pool
- if( name >= GPMaxSz )
-  throw( std::logic_error( "max size of global pool already exceed" ) );
- zName = name;
- std::get<0>(g_pool[ zName ])->write( v_Block[0] );
- if( zLC.size() )
-  zLC.clear();
- zLC = std::move( coefficients );
- } // end LagBFunction::set_important_linearization(  )  - - - - - - - - - - -
-
-/*--------------------------------------------------------------------------*/
-
 int LagBFunction::compute( bool changedvars )
 {
  // update the Lagrangian cost vector  - - - - - - - - - - - - - - - - - - - -
@@ -766,8 +751,8 @@ int LagBFunction::compute( bool changedvars )
  /* It is assumed that the sub-Block (B) does not have Variable defined
     in other Blocks. Then, the re-optimization of (B) can be performed starting
     from the warm-start (the old solution) and any problem shouldn't occur.
-    No relevant Variable are defined in (B). Return the status of the optimization
-    process */
+    No relevant Variable are defined in (B). Return the status of the
+    optimization process */
 
  return( slv->compute( false ) );
 
