@@ -32,6 +32,31 @@
  *   sub-Block (recursively) and (potentially) all Constraint and the
  *   Objective of the given Block.
  *
+ * All these BlockConfig support the notion of a "cleared" Configuration (see
+ * Configuration::clear()). When the clear() method is invoked, any pointers
+ * to a sub-Configuration that the :BlockConfig may have (for instance,
+ * pointers to the BlockConfig of the sub-Block; pointers to ComputeConfig of
+ * Constraint or Objective) are deleted. The value of the BlockConfig::f_diff
+ * field and the structure of the :BlockConfig are preserved. The only
+ * interesting structure that may be preserved is that of a :BlockConfig that
+ * deals with Constraint (namely, CBlockConfig, CRBlockConfig, OCBlockConfig,
+ * and OCRBlockConfig; shortly referred as *C*BlockConfig). A Block can have a
+ * huge number of Constraint, but usually very few Constraint (if any) require
+ * a Configuration. Therefore, a *C*BlockConfig has a very sparse structure:
+ * it handles only the Constraint that require a Configuration. When a
+ * *C*BlockConfig is constructed out of a Block (see CBlockConfig::get()), it
+ * may be necessary to scan all Constraint of that Block in order to determine
+ * which ones require a Configuration (i.e., the ones that have a non-default
+ * set of parameters). This operation can be potentially costly. If the
+ * Constraint that need a Configuration are known in advance, the scanning
+ * operation can be avoided. This is where a "cleared" *C*BlockConfig shows
+ * its usefulness. The structure of a *C*BlockConfig is formed by the list of
+ * (identification to the) Constraint that require a Configuration (see
+ * CBlockConfig::v_ConstraintID). Whenever a *C*BlockConfig is constructed out
+ * of a Block and CBlockConfig::v_ConstraintID is non-empty, only the
+ * Constraint indicated by v_ConstraintID are considered and no scan is
+ * performed.
+ *
  * \version 0.33
  *
  * \date 31 - 08 - 2020
@@ -80,38 +105,7 @@ namespace SMSpp_di_unipi_it
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
-/** @defgroup Block_CLASSES Classes in RBlockConfig.h
- *
- * Three main classes are defined to offer support to configure not only a
- * Block but also its sub-Block and "indirect sub-Block":
- *
- * - RBlockConfig : BlockConfig ("recursive" BlockConfig), which also
- *   configures (potentially) all sub-Block (recursively) of the given Block;
- *
- * - CBlockConfig : BlockConfig ("Constraint" BlockConfig), which also
- *   configures (potentially) all Constraint of the given Block;
- *
- * - OBlockConfig : BlockConfig ("Objective" BlockConfig), which also
- *   configures the Objective of the given Block.
- *
- * The three classes above are combined to produce classes that are useful in
- * more general situations:
- *
- * - ORBlockConfig : RBlockConfig, which also configures (potentially) all
- *   sub-Block (recursively) and the Objective of the given Block;
- *
- * - CRBlockConfig : RBlockConfig, which also configures (potentially) all
- *   sub-Block (recursively) and (potentially) all Constraint of the given
- *   Block;
- *
- * - OCBlockConfig : CBlockConfig ("Constraint" BlockConfig), which also
- *   configures (potentially) all Constraint and the Objective of the given
- *   Block;
- *
- * - OCRBlockConfig : CRBlockConfig ("Objective" BlockConfig), which also
- *   configures (potentially) all sub-Block (recursively) and (potentially)
- *   all Constraint and the Objective of the given Block.
- *
+/** @defgroup RBlockConfig_CLASSES Classes in RBlockConfig.h
  *  @{ */
 
 /*--------------------------------------------------------------------------*/
