@@ -3,8 +3,8 @@
 /*--------------------------------------------------------------------------*/
 /** @file
  * Header file for the *BlockSolverConfig classes, derived from Configuration,
- * which are intended as a useful tools to configure in one blow all the
- * Solver of a given Block. Three classes are defined:
+ * which are intended as useful tools to configure in one blow all the Solver
+ * of a given Block. Two classes are defined:
  *
  * - BlockSolverConfig : Configuration, used to only configure the Solver
  *   directly registered to the Block;
@@ -531,6 +531,20 @@ class BlockSolverConfig : public Configuration
   v_SolverConfigs = std::move( solver_configs );
   }
 
+/*--------------------------------------------------------------------------*/
+ /// adds a ComputeConfig
+ /** This function adds a pointer to a ComputeConfig to this
+  * BlockSolverConfig.
+  *
+  * @param solver_config A pointer to a ComputeConfig.
+  *
+  * @param name The name of the Solver. */
+
+ void add_SolverConfig( ComputeConfig * solver_config , std::string && name ) {
+  v_SolverConfigs.push_back( solver_config );
+  v_SolverNames.push_back( std::move( name ) );
+  }
+
 /**@} ----------------------------------------------------------------------*/
 /*---------- Methods for reading the data of the BlockSolverConfig ---------*/
 /*--------------------------------------------------------------------------*/
@@ -794,7 +808,7 @@ class RBlockSolverConfig : public BlockSolverConfig
 /*--------------------------------------------------------------------------*/
  /// unregister and delete all Solver attached to \p block (and its sub-Block)
  /** This method unregisters and deletes all Solver attached to the given
-  * Block and to each of its sub-Block.
+  * Block and to each of its sub-Block, recursively.
   *
   * @param block A pointer to the Block whose Solver will be reset. */
 
