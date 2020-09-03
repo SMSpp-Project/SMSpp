@@ -559,11 +559,27 @@ public:
   *
   *     SMSpp_insert_in_factory_cpp_0( name_of_the_class );
   *
-  *   to exactly *one* .cpp file, typically that :Solver .cpp file. */
+  *   to exactly *one* .cpp file, typically that :Solver .cpp file. If the
+  *   name of the class contains any parentheses, then one must enclose the
+  *   name of the class in parentheses and instead add the line
+  *
+  *     SMSpp_insert_in_factory_cpp_0( ( name_of_the_class ) );
+  *
+  * Any whitespaces that the given \p classname may contain is ignored. So,
+  * for example, to create an instance of the class MySolver<int> one could
+  * pass "MySolver<int>" or "MySolver< int >" (even " M y S o l v e r < int >
+  * " would work).
+  *
+  * @param classname The name of the :Solver class that must be
+  *        constructed. */
 
  static Solver *new_Solver( const std::string &classname )
  {
-  const auto it = Solver::f_factory().find( classname );
+  std::string classname_( classname );
+  classname_.erase( std::remove_if( classname_.begin() , classname_.end() ,
+                                    ::isspace ) , classname_.end() );
+
+  const auto it = Solver::f_factory().find( classname_ );
   if( it == Solver::f_factory().end() )
    throw( std::invalid_argument( classname +
 			  std::string( " not present in Solver factory" ) ) );

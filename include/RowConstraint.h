@@ -303,8 +303,8 @@ class RowConstraint : public Constraint {
   * The parameter issueMod decides if and how any Modification is issued, as
   * described in Observer::make_par(). */
 
- virtual void set_rhs( c_RHSValue rhs_value ,
-		       c_ModParam issueMod = eModBlck ) = 0;
+ virtual void set_rhs( RHSValue rhs_value ,
+		       ModParam issueMod = eModBlck ) = 0;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set the LHS of this to RowConstraint
@@ -314,8 +314,8 @@ class RowConstraint : public Constraint {
   * The parameter issueMod decides if and how any Modification is issued, as
   * described in Observer::make_par(). */
 
- virtual void set_lhs( c_RHSValue lhs_value ,
-		       c_ModParam issueMod = eModBlck ) = 0;
+ virtual void set_lhs( RHSValue lhs_value ,
+		       ModParam issueMod = eModBlck ) = 0;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set both the LHS and the RHS of this to RowConstraint
@@ -326,8 +326,8 @@ class RowConstraint : public Constraint {
   * The parameter issueMod decides if and how any Modification is issued, as
   * described in Observer::make_par(). */
 
- virtual void set_both( c_RHSValue both_value ,
-			c_ModParam issueMod = eModBlck) = 0;
+ virtual void set_both( RHSValue both_value ,
+			ModParam issueMod = eModBlck) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// method to set the dual value of the RowConstraint
@@ -358,7 +358,7 @@ class RowConstraint : public Constraint {
 
  /// compute the value of variable part of the RowConstraint
 
- virtual int compute( bool changedvars = true ) override = 0;
+ int compute( bool changedvars = true ) override = 0;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to get the value of variable part of the RowConstraint
@@ -369,7 +369,7 @@ class RowConstraint : public Constraint {
 
 /*--------------------------------------------------------------------------*/
 
- virtual bool feasible( void ) const override {
+ bool feasible( void ) const override {
   bool feas = true;
   c_RHSValue val = value();
   c_RHSValue lhs = get_lhs();

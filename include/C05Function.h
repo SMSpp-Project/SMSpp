@@ -774,23 +774,25 @@ class C05Function : public Function {
 			   ModParam issueMod = eModBlck ) { }
 
 /*--------------------------------------------------------------------------*/
- /// specify which linearization is "the important one"
- /** This method sets the linearization with the given name as "the important
-  * one".
+ /// specify how to construct "the important linearization"
+ /** This method allows to record in the C05Function, so that it can be
+  * retrieved at a later time, information that allows to construct "the
+  * important linearization".
   *
-  * There is usually "one important convex combination" that is very relevant
-  * for algorithmic purposes. Basically, proving optimality/stationariety of
-  * some x^* in problems containing the C05Function involves constructing one
-  * convex combination of linearizations with appropriate properties (say,
-  * be the all-0 vector). This is basically the *dual optimal solution* of
-  * the optimization problem. It may be very useful to be able to store away
-  * this object in case the C05Function (or other parts of the Block) changes,
-  * in order to provide effective reoptimization. For instances, the changes
-  * may be such that x^* may nonetheless remain an optimal solution, and the
-  * availability of the "important linearization" may allow to prove this with
-  * very little computational effort. This is why saving the "important
-  * linearization" when the algorithm is finished (but, possibly, even while
-  * it is running) may be useful.
+  * Usually, proving optimality/stationariety of some x^* in problems
+  * containing a C05Function involves using previously accrued linearizations
+  * to construct "one important combination" of them. Often the combination is
+  * convex and/or it should yield the all-0 vector. This is basically the
+  * *dual optimal solution* of the optimization problem concerning the
+  * C05Function. It may be very useful to be able to store this combination,
+  * or rather the information needed to re-construct it, in case the
+  * C05Function (or other parts of the Block) changes, in order to provide
+  * effective reoptimization. For instance, the changes may be such that x^*
+  * may nonetheless remain an optimal solution, and the availability of
+  * (the information needed to re-construct) "the important linearization" may
+  * allow to prove this with very little computational effort. Hence, saving
+  * (information concerning) the "important linearization" when the algorithm
+  * is finished (but, possibly, even while it is running) may be useful.
   *
   * This can be clearly seen in the Lagrangian function example: for a point
   * x^* to be \eps-optimal for the minimization of f (the Lagrangian Dual),
@@ -802,93 +804,92 @@ class C05Function : public Function {
   * an optimal solution to (P), otherwise u^* is the optimal solution of the
   * relaxation of (P) substituting U with conv( U ). Any reasonable algorithm
   * for solving the Lagrangian Dual should be able to conceptually produce
-  * such an object in order to stop; when this is done, u^* can be
-  * *explicitly* produced by calling store_combination_of_linearizations()
-  * with the appropriate multipliers, and then be available for algorithmic
-  * purposes. For instance, u^* can be used to to separation of constraints
+  * such an object, i.e., the (convex) multipliers \theta_i, in order to stop.
+  * Once the multipliers are known, u^* can be *explicitly* stored by calling
+  * store_combination_of_linearizations(), which can be useful for algorithmic
+  * purposes. For instance, u^* can be used to do separation of constraints
   * (say, in case the A u = b ones are very many, so that an active-set
   * strategy is necessary), or to guide heuristics or branching operations (if
-  * the set U included integrality constraints, so that the Lagrangian Dual of
-  * (P) is only a relaxation).
+  * the set U includes integrality constraints, so that the Lagrangian Dual of
+  * (P) is only a relaxation). For all this to be possible, u^* and/or the
+  * (convex) multipliers \theta_i must be available.
   *
-  * When the method is called, a linearization with the given name should be
-  * stored already in the global pool of linearizations, otherwise an
-  * exception may be thrown (unless, for instance, the concept is completely
-  * ignored, see below). That is, this method *must* be called only *after*
-  * store_combination_of_linearizations() has already been called, if
-  * necessary, to produce the "important linearization" and store it in the
-  * global pool. Note, however, this is not strictly necessary: the "important
-  * linearization" can be one of those directly produced by the C05Function,
-  * think to the case where the function is smooth at its optimum.
+  * The \p coefficients parameter just contains the encoding of the \theta_i
+  * multipliers, which the C05Function is supposed to store. Note that the
+  * C05Function itself has little use for the information, but it seems to be
+  * the most appropriate repository (since the information is tied to
+  * elements of the global pool, which is managed by the C05Function). Note
+  * that
   *
-  * Besides the name, the method also allows to store the linear combination
-  * (indices of used linearizations and corresponding coefficients) that has
-  * been used to construct the "important one"; note that if the latter is a
-  * "natural" linearization produced by the C05Function, then this information
-  * will just be < name of the important one , 1 >. Actually, one can always
-  * reduce to this case, e.g. if the size of the global pool has to be kept
-  * low by deleting some of the linearizations that had actually been used,
-  * but of course this causes some loss of information that may be useful.
-  * The name and the linear combination of the important linearization are
-  * retrieved, respectively, by means of get_important_linearization_name()
-  * and get_important_linearization_coefficients(). As the "&&" tells, the
-  * LinearCombination vector passed to this method becomes "property" of the
-  * C05Function.
+  *     THE C05Function IS NOT ASSUMED TO CHECK IF LINEARIZATIONS
+  *     INVOLVED IN coefficients ARE DELETED OR CHANGED (because there is
+  *     little sensible recourse in this case)
+  *
+  * If there is a risk that this happens, the entity having use for this
+  * information should check and react appropriately, whatever this means.
+  *
+  * Of course, one possible use for this information is to call
+  * store_combination_of_linearizations() to "physically" construct the
+  * "important linearization" and have it stored in the global pool. In this
+  * case, of course, \p coefficients should just be < name of the important
+  * linearization , 1 >. Indeed, there may be no need to "physically" construct
+  * the "important linearization" since it could well be one of those directly
+  * produced by the C05Function; think to the case where f is smooth at x^*.
+  * Alternatively, the algorithm doing the optimization may find it
+  * algorithmically expedient to produce it anyway. However, in principle
+  * there is no need for the "important linearization" to be physically
+  * constructed: once the information of \p coefficients is stored, the
+  * "important linearization" is "virtually" present in the global pool (as
+  * it is only a store_combination_of_linearizations() call away from being
+  * there). Thus, we consider \p coefficients to be equivalent to the
+  * "important linearization" itself; they clearly are when \p is a singleton
+  * which just specifies the name, but also in the general case. Whence the
+  * name of this method.
+  *
+  * As the "&&" tells, \p coefficient becomes "property" of the C05Function,
+  * and it is assumed to be retrieved by 
+  * get_important_linearization_coefficients().
   *
   * This method has a default empty implementation as some Functions may not
   * need to store linearizations, in which case the name is irrelevant. In
   * particular, a linear function always have the same linearization
   * everywhere, and therefore only one well-known linearization can be the
-  * "important one".
+  * "important one". In general smooth functions may only require one
+  * nonzero coefficient to characterize the important linearization.
   *
   * Note that
   *
   *     CHANGING THE IMPORTANT LINEARIZATION DOES NOT AMOUNT, IN ITSELF, AT
   *     CHANGING THE GLOBAL POOL, AND THEREFORE NO Modification IS ISSUED
   *
-  * The rationale here is that the important linearization is basically (a
-  * part of) the dual optimal solution of the optimization problem involving
-  * the C05Function. As such, it is "impermanent" like all solutions in a
-  * Block: the users cannot assume them to be kept (unless they properly
-  * lock the Block), and must use them immediately and/or explicitly save
-  * them for later use if they need to. Indeed, note that since there may
-  * be multiple optimal dual solutions, this method may be called more
-  * than once at the end of an optimization to retrieve them all, one by
-  * one. This may even happen re-using the same name each time, i.e.,
-  * destroying the previous important linearization to make space for the
-  * new one. However, note that this method only sets the name and the
-  * coefficients: the important linearization itself may need to be
-  * inserted in the global pool by store_combination_of_linearizations()
-  * prior to calling this method, and that method does issue a Modification.
-  */
+  * In fact, what this method sets is only the information characterizing the
+  * "virtual important linearization"; if the "physical" one is constructed
+  * out of this information this changes the global pool and a Modification is
+  * indeed issued, but this is a separate operation from just storing the
+  * combination. Besides, the important linearization is basically (a part
+  * of) the dual optimal solution of the optimization problem involving the
+  * C05Function. As such, it is "impermanent" like all solutions in a Block:
+  * the users cannot assume them to be kept (unless they properly lock the
+  * Block), and must use them immediately and/or explicitly save them for
+  * later use if they need to. Indeed, note that since there may be multiple
+  * optimal dual solutions, this method may be called more than once at the
+  * end of an optimization to retrieve them all, one by one. */
 
- virtual void set_important_linearization( LinearCombination && coefficients ,
-					   Index name ) { }
+ virtual void set_important_linearization( LinearCombination && coefficients )
+ { }
 
 /*--------------------------------------------------------------------------*/
- /// return the name of "the important linearization"
- /** This method has to return the name of "the important linearization", as
-  * set by set_important_linearization(). It has a default "empty"
-  * implementation, returning 0, as some Function may not need to store
-  * linearizations (in particular, a linear function always has the same,
-  * so there is nothing to store) in which case the name is irrelevant. */
-
- virtual Index get_important_linearization_name( void ) {
-  return( 0 );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// return the combination used to form "the important linearization"
- /** This method has to return the combination used to form "the important
-  * linearization", as set by set_important_linearization(). It has a default
-  * "empty" implementation returning the pair < 0 , 1 > because for some
-  * Function there is actually no need to store this information (in
+ /// return (the combination used to form) "the important linearization"
+ /** This method has to return the combination that can be used to form "the
+  * important linearization", as set by set_important_linearization(). It has
+  * a default "empty" implementation returning the pair < 0 , 1 > because for
+  * some C05Function there is actually no need to store this information (in
   * particular, a linear function always has the same linearization, hence
   * all linearizations in the global pool taken individually are the important
   * one, comprised the one with name 0). */
 
  virtual c_LinearCombination &
-                             get_important_linearization_coefficients( void )
+                       get_important_linearization_coefficients( void ) const
  {
   static c_LinearCombination _tmp = { std::make_pair( 0 , 1 ) };
   return( _tmp );

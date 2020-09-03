@@ -42,33 +42,31 @@ SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< int > );
 
 SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< double > );
 
-using SimpleConfig_i_i = SimpleConfiguration< std::pair< int , int > >;
-SMSpp_insert_in_factory_cpp_0_t( SimpleConfig_i_i );
+SMSpp_insert_in_factory_cpp_0_t( ( SimpleConfiguration<
+                                   std::pair< int , int > > ) );
 
-using SimpleConfig_d_d = SimpleConfiguration< std::pair< double , double > >;
-SMSpp_insert_in_factory_cpp_0_t( SimpleConfig_d_d );
+SMSpp_insert_in_factory_cpp_0_t( ( SimpleConfiguration<
+                                   std::pair< double , double > > ) );
 
-using SimpleConfig_i_d = SimpleConfiguration< std::pair< int , double > >;
-SMSpp_insert_in_factory_cpp_0_t( SimpleConfig_i_d );
+SMSpp_insert_in_factory_cpp_0_t( ( SimpleConfiguration<
+                                   std::pair< int , double > > ) );
 
-using SimpleConfig_d_i = SimpleConfiguration< std::pair< double , int > >;
-SMSpp_insert_in_factory_cpp_0_t( SimpleConfig_d_i );
+SMSpp_insert_in_factory_cpp_0_t( ( SimpleConfiguration<
+                                   std::pair< double , int > > ) );
 
 SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::vector< int > > );
 
-SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration<
-				                   std::vector< double > > );
+SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::vector< double > > );
 
 SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::list< int > > );
 
 SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::list< double > > );
 
-using SimpleConfig_p_p = SimpleConfiguration<
-                            std::pair< Configuration * , Configuration * > >;
-SMSpp_insert_in_factory_cpp_0_t( SimpleConfig_p_p );
+SMSpp_insert_in_factory_cpp_0_t( ( SimpleConfiguration<
+                         std::pair< Configuration * , Configuration * > > ) );
 
 SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration<
-				          std::vector< Configuration * > > );
+                                   std::vector< Configuration * > > );
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- FUNCTIONS --------------------------------*/

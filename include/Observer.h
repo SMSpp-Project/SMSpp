@@ -203,14 +203,22 @@ class Observer {
   * has been modified. These being smart pointers, this cannot be achieved
   * with the ordinary dynamic_cast<>; rather,
   *
-  *     auto dmod = dynamic_pointer_cast<DerivedModification>( mod );
+  *     auto dmod = std::dynamic_pointer_cast< DerivedModification >( mod );
   *
   * has to be used. Note that one can check that the dynamic cast worked as
   * for an ordinary pointer, i.e., with
   *
   *     dmod != nullptr       or        ! dmod
   *
-  * (thanks to shared_ptr operator bool).
+  * (thanks to shared_ptr operator bool). The alternative is to first extract
+  * the original Modification * from mod using get() and then use the "normal"
+  * dynamic_cast, as in
+  *
+  *     auto dmod = dynamic_cast< DerivedModification * const >( mod.get() );
+  *
+  * (note that the "const" above is not strictly necessary, but in general an
+  * Observer is not supposed to change a Modification, and in fact basically
+  * all methods of Modification are const anyway).
   *
   * It may be helpful to Solver that sets of "logically related Modification"
   * be dispatched together. For this reason, Observer supports the notion that

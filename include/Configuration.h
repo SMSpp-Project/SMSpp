@@ -94,11 +94,11 @@ class Configuration
   *
   *     class MyConfiguration : Configuration {
   *      virtual MyConfiguration * clone( void ) {
-  *      return( new( MyConfiguration( *this ) ) );
+  *       return( new( MyConfiguration( *this ) ) );
   *      }
   *
   *      MyConfiguration( MyConfiguration & ) { < copy constructor > }
-  *      };
+  *     };
   *
   * There could be smart template-based ways to avoid having to do this
   * explicitly for each :Configuration, but in our case it seems that the
@@ -131,11 +131,28 @@ class Configuration
   *
   *     SMSpp_insert_in_factory_cpp_0( name_of_the_class );
   *
-  *   to exactly *one* .cpp file, typically that :Configuration .cpp file. */
+  *   to exactly *one* .cpp file, typically that :Configuration .cpp file. If
+  *   the name of the class contains any parentheses, then one must enclose
+  *   the name of the class in parentheses and instead add the line
+  *
+  *     SMSpp_insert_in_factory_cpp_0( ( name_of_the_class ) );
+  *
+  * Any whitespaces that the given \p classname may contain is ignored. So,
+  * for example, to create an instance of the class MyConfiguration<int> one
+  * could pass "MyConfiguration<int>" or "MyConfiguration< int >" (even " M y
+  * C o n f i g u r a t i o n < int > " would work).
+  *
+  * @param classname The name of the :Configuration class that must be
+  *        constructed. */
+
 
  static Configuration *new_Configuration( const std::string &classname )
  {
-  const auto it = Configuration::f_factory().find( classname );
+  std::string classname_( classname );
+  classname_.erase( std::remove_if( classname_.begin() , classname_.end() ,
+                                    ::isspace ) , classname_.end() );
+
+  const auto it = Configuration::f_factory().find( classname_ );
   if( it == Configuration::f_factory().end() )
    throw( std::invalid_argument( classname +
 		   std::string( " not present in Configuration factory" ) ) );
@@ -550,7 +567,7 @@ class Configuration
   * out in human-readable form. The base Configuration class has preciously
   * little to print, but it still does a bit. */
 
- virtual void print( std::ostream &output ) const  {
+ virtual void print( std::ostream &output ) const {
   output << "Configuration [" << this << "]" << std::endl;
   }
 
@@ -680,36 +697,23 @@ class Configuration
  * contains commas (",") as they are taken to separate macro arguments. Hence,
  * while
  *
- * SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::vector< int > > );
+ *     SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration<
+ *                                                     std::vector< int > > );
  *
  * is legal,
  *
- * SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration<
- *                                                  std::pair< int , int > > );
+ *     SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration<
+ *                                                 std::pair< int , int > > );
  *
- * is not because of the comma. This is why the following types are defined in
- * Configuration.cpp
+ * is not because of the comma. This is solved by adding parentheses around the
+ * type name, as in
  *
- * using SimpleConfig_i_i = SimpleConfiguration< std::pair< int , int > >;
+ *     SMSpp_insert_in_factory_cpp_0_t( ( SimpleConfiguration<
+ *                                                std::pair< int , int > >)  );
  *
- * using SimpleConfig_d_d = SimpleConfiguration< std::pair< double , double > >;
- *
- * using SimpleConfig_i_d = SimpleConfiguration< std::pair< int , double > >;
- *
- * using SimpleConfig_d_i = SimpleConfiguration< std::pair< double , int > >;
- *
- * using SimpleConfig_p_p = SimpleConfiguration<
- *                           std::pair< Configuration * , Configuration * > >;
- *
- * and used to insert in the factory the corresponding classes. Hence,
- * producing a, say, SimpleConfiguration< std::pair< int , int > > with the
- * factory requires the call
- *
- *    new_Configuration( "SimpleConfig_i_i" )
- *
- * and similarly specifying its type in a deserialize(). */
+ * due to a specific feature of SMSpp_insert_in_factory_cpp. */
 
-template<class SimpleConfiguration_value_type>
+template< class SimpleConfiguration_value_type >
 class SimpleConfiguration : public Configuration
 {
 

@@ -582,11 +582,11 @@ namespace SMSpp_di_unipi_it::inspection
 
 /*--------------------------------------------------------------------------*/
 
- template<class T , class... Rest>
+ template<class P1 , class P2 , class T , class... Rest>
  static void fill_static_ComputeConfig
- ( boost::any & group ,const Index group_index ,
+ ( boost::any & group , const P1 group_index ,
    std::vector<ComputeConfig *> & configs ,
-   std::vector<Block::ConstraintID> & ids  ) {
+   std::vector< std::pair<P1 , P2> > & ids ) {
 
   Index constraint_index = 0;
   bool group_found = un_any_static
@@ -594,23 +594,25 @@ namespace SMSpp_di_unipi_it::inspection
               auto config = constraint.get_ComputeConfig();
               if( config ) {
                configs.push_back( config );
-               ids.push_back( Block::ConstraintID( group_index , constraint_index ) );
+               ids.push_back( std::make_pair( group_index ,
+                                              P2( constraint_index ) ) );
               }
               ++constraint_index;
              } , un_any_type<T>() );
   if( group_found )
    return;
   else if constexpr( sizeof...(Rest) != 0 )
-   fill_static_ComputeConfig<Rest...>( group , group_index , configs , ids );
+   fill_static_ComputeConfig<P1 , P2 , Rest...>( group , group_index ,
+                                                 configs , ids );
  }
 
 /*--------------------------------------------------------------------------*/
 
- template<class T , class... Rest>
+ template<class P1 , class P2 , class T , class... Rest>
  static void fill_dynamic_ComputeConfig
- ( boost::any & group , const Index group_index ,
+ ( boost::any & group , const P1 group_index ,
    std::vector<ComputeConfig *> & configs ,
-   std::vector<Block::ConstraintID> & ids  ) {
+   std::vector< std::pair<P1 , P2> > & ids ) {
 
   Index constraint_index = 0;
   bool group_found = un_any_dynamic
@@ -618,14 +620,16 @@ namespace SMSpp_di_unipi_it::inspection
               auto config = constraint.get_ComputeConfig();
               if( config ) {
                configs.push_back( config );
-               ids.push_back( Block::ConstraintID( group_index , constraint_index ) );
+               ids.push_back( std::make_pair( group_index ,
+                                              P2( constraint_index ) ) );
               }
               ++constraint_index;
              } , un_any_type<T>() );
   if( group_found )
    return;
   else if constexpr( sizeof...(Rest) != 0 )
-   fill_dynamic_ComputeConfig<Rest...>( group , group_index , configs , ids );
+   fill_dynamic_ComputeConfig<P1 , P2 , Rest...>( group , group_index ,
+                                                  configs , ids );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -650,19 +654,29 @@ namespace SMSpp_di_unipi_it::inspection
   * @param ids The ConstraintID of the Constraint whose ComputeConfig were
   *        retrieved will be added to this vector. */
 
+ template<class P1 , class P2>
  static void fill_ComputeConfig_Constraint
  ( Block * block , std::vector<ComputeConfig *> & configs ,
-   std::vector<Block::ConstraintID> & ids ) {
+   std::vector< std::pair< P1 , P2 > > & ids ) {
 
   if( ! block )
    return;
+
+  auto convert_index_type =
+   []( Index index ) -> P1 {
+    if constexpr( std::is_same_v< P1 , std::string > )
+     return std::to_string( index );
+    else
+     return index;
+   };
 
   // Static Constraint
   auto static_constraints = block->get_static_constraints();
   for( Index group_index = 0 ; group_index < static_constraints.size() ;
        ++group_index ) {
-   fill_static_ComputeConfig< Constraint_Derived_Classes >
-    ( static_constraints[ group_index ] , group_index , configs , ids );
+   fill_static_ComputeConfig< P1 , P2 , Constraint_Derived_Classes >
+    ( static_constraints[ group_index ] , convert_index_type( group_index ) ,
+      configs , ids );
   }
 
   const auto group_index_offset = static_constraints.size();
@@ -671,9 +685,9 @@ namespace SMSpp_di_unipi_it::inspection
   auto dynamic_constraints = block->get_dynamic_constraints();
   for( Index group_index = 0 ; group_index < dynamic_constraints.size() ;
        ++group_index ) {
-   fill_dynamic_ComputeConfig< Constraint_Derived_Classes >
-    ( dynamic_constraints[ group_index ] , group_index + group_index_offset ,
-      configs , ids );
+   fill_dynamic_ComputeConfig< P1 , P2 , Constraint_Derived_Classes >
+    ( dynamic_constraints[ group_index ] ,
+      convert_index_type( group_index + group_index_offset ) , configs , ids );
   }
  }
 

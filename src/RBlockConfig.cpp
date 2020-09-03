@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 31 - 08 - 2020
+ * \date 03 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -53,11 +53,70 @@ SMSpp_insert_in_factory_cpp_0( OCBlockConfig );
 SMSpp_insert_in_factory_cpp_0( OCRBlockConfig );
 
 /*--------------------------------------------------------------------------*/
+/*--------------------------- AUXILIARY FUNCTIONS --------------------------*/
+/*--------------------------------------------------------------------------*/
+
+namespace {
+
+ /// returns the index of the sub-Block with the given \p id
+ Block::Index get_nested_Block_index( const std::string & id ,
+                                      const Block * block ) {
+
+  if( ( ! id.empty() ) && std::isdigit( id.front() ) ) {
+   // The id is the index of the sub-Block
+   try {
+    return std::stoi( id );
+    }
+   catch( std::exception & e ) {
+    std::cerr << "get_nested_Block_index: invalid sub-Block id "
+              << id << ": " << e.what() << std::endl;
+    return Inf<Block::Index>();
+    }
+   }
+  else {
+   // The id is the name of the sub-Block
+   return block->get_nested_Block_index( id );
+   }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the index of the group of Constraint
+ Block::Index get_Constraint_group_index
+ ( const std::string & constraint_group_id , const Block * block ) {
+
+  if( ( ! constraint_group_id.empty() ) &&
+      std::isdigit( constraint_group_id.front() ) ) {
+   // The group id is the index of the group of Constraint
+   try {
+    return std::stoi( constraint_group_id );
+   }
+   catch( std::exception & e ) {
+    std::cerr << "get_Constraint_group_index: invalid Constraint group id "
+              << constraint_group_id << ": " << e.what() << std::endl;
+    return Inf<Block::Index>();
+   }
+  }
+  else {
+   // The group id is the name of the group of Constraint
+   auto constraint_group_index = block->get_s_const_index( constraint_group_id );
+   if( constraint_group_index >= block->get_number_static_constraints() ) {
+    // It must be a group of dynamic Constraint
+    constraint_group_index = block->get_d_const_index( constraint_group_id );
+   }
+   return constraint_group_index;
+  }
+ }
+}
+
+/*--------------------------------------------------------------------------*/
 /*------------------------- METHODS of RBlockConfig ------------------------*/
 /*--------------------------------------------------------------------------*/
 
 RBlockConfig::RBlockConfig( const RBlockConfig &old ) : BlockConfig( old )
 {
+ v_sub_Block_id = old.v_sub_Block_id;
+
  v_sub_BlockConfig.resize( old.v_sub_BlockConfig.size() , nullptr );
  for( std::size_t i = 0 ; i < v_sub_BlockConfig.size() ; ++i )
   if( old.v_sub_BlockConfig[ i ] )
@@ -78,12 +137,30 @@ void RBlockConfig::get( Block * block ) {
   return;
   }
 
- auto & nested_blocks = block->get_nested_Blocks();
- v_sub_BlockConfig.resize( nested_blocks.size() );
+ const auto number_nested_Blocks = block->get_number_nested_Blocks();
 
- auto nbit = nested_blocks.begin();
- for( c_Vec_Block::size_type i = 0 ; i < nested_blocks.size() ; ++i )
-  v_sub_BlockConfig[ i ] = new RBlockConfig( *(nbit++) );
+ if( v_sub_Block_id.empty() ) {
+  v_sub_Block_id.resize( number_nested_Blocks );
+  for( decltype( v_sub_Block_id )::size_type i = 0 ;
+       i < v_sub_Block_id.size() ; ++i )
+   v_sub_Block_id[ i ] = std::to_string( i );
+  }
+
+ v_sub_BlockConfig.resize( v_sub_Block_id.size() );
+
+ for( decltype( v_sub_Block_id )::size_type i = 0 ;
+      i < v_sub_Block_id.size() ; ++i ) {
+
+  const auto id = v_sub_Block_id[ i ];
+  Block::Index sub_Block_index = ::get_nested_Block_index( id , block );
+
+  if( sub_Block_index >= block->get_number_nested_Blocks() )
+   throw ( std::logic_error( "RBlockConfig::get: invalid sub-Block id: "
+                             + id + "." ) );
+
+  v_sub_BlockConfig[ i ] = new OCRBlockConfig // TODO
+   ( block->get_nested_Block( sub_Block_index ) );
+  }
  }  // end( RBlockConfig::get )
 
 /*--------------------------------------------------------------------------*/
@@ -93,33 +170,51 @@ void RBlockConfig::apply( Block * block , bool deleteold ) {
  if( ! block )
   return;
 
+ if( v_sub_BlockConfig.size() > v_sub_Block_id.size() )
+  throw ( std::logic_error
+          ( "RBlockConfig::apply: missing sub-Block identification. There are "
+            + std::to_string( v_sub_BlockConfig.size() ) + " BlockConfig but on"
+            "ly " + std::to_string( v_sub_Block_id.size() ) +
+            " sub-Block ids." ) );
+
  // set the configurations for the Block -------------------------------------
 
  BlockConfig::apply( block , deleteold );
 
  // set the configurations for the sub-Block ---------------------------------
 
- auto & nb = block->get_nested_Blocks();
- auto bit = nb.begin();
- auto sbcit = v_sub_BlockConfig.begin();
+ for( decltype( v_sub_BlockConfig )::size_type i = 0 ;
+      i < v_sub_BlockConfig.size() ; ++i ) {
 
- // only set non-nullptr configurations, hence only up until the list of
- // BlockConfigs ends
- for( ; ( bit != nb.end() ) &&
-        ( sbcit != v_sub_BlockConfig.end() ) ;
-        ++bit , ++sbcit )
-  if( *sbcit )
-   ( *sbcit )->apply( *bit , deleteold );
- }  // end( RBlockConfig::apply )
+  const auto & id = v_sub_Block_id[ i ];
+  Block::Index sub_Block_index = ::get_nested_Block_index( id , block );
+  if( sub_Block_index >= block->get_number_nested_Blocks() )
+   throw ( std::logic_error( "RBlockConfig::apply: invalid sub-Block id: "
+                             + id + "." ) );
+
+  auto sub_Block = block->get_nested_Block( sub_Block_index );
+
+  if( v_sub_BlockConfig[ i ] && sub_Block )
+   v_sub_BlockConfig[ i ]->apply( sub_Block , deleteold );
+ }
+} // end( RBlockConfig::apply )
 
 /*--------------------------------------------------------------------------*/
 
 void RBlockConfig::print( std::ostream &output ) const
 {
  BlockConfig::print( output );
- for( const auto config : v_sub_BlockConfig )
+
+ decltype( v_sub_BlockConfig )::size_type i = 0;
+ for( const auto config : v_sub_BlockConfig ) {
+  std::string id = ( i < v_sub_Block_id.size() ) ? v_sub_Block_id[ i ] : "?";
+  ++i;
+  output << "BlockConfig for sub-Block " << id << std::endl;
   if( config )
    output << *config;
+  else
+   output << "nullptr" << std::endl;
+ }
  output << std::endl;
 
  }  // end( RBlockConfig::print )
@@ -132,12 +227,24 @@ void RBlockConfig::load( std::istream & input ) {
 
  int k;
  input >> eatcomments >> k;
+ const bool id_is_provided = ( k < 0 );
+ k = std::abs( k );
  v_sub_BlockConfig.resize( k , nullptr );
+ v_sub_Block_id.resize( k );
+
  for( int i = 0 ; i < k ; ++i ) {
+
+  if( id_is_provided ) {
+   input >> eatcomments >> v_sub_Block_id[ i ];
+  }
+  else
+   v_sub_Block_id[ i ] = std::to_string( i );
+
   input >> eatcomments;
+
   if( input.peek() == input.widen( '*' ) ) {
    v_sub_BlockConfig[ i ] = nullptr;
-   input.ignore( std::numeric_limits< std::streamsize >::max(),
+   input.ignore( std::numeric_limits< std::streamsize >::max() ,
                  input.widen( '\n' ) );
   } else {
    std::string cname;
@@ -145,9 +252,8 @@ void RBlockConfig::load( std::istream & input ) {
    v_sub_BlockConfig[ i ] =
     dynamic_cast< BlockConfig * >( Configuration::new_Configuration( cname ) );
    if( ! v_sub_BlockConfig[ i ] )
-    throw ( std::invalid_argument( "RBlockConfig::load: invalid Configuration"
-                                   " for the sub-Block " +
-                                   std::to_string( i ) + "." ) );
+    throw ( std::invalid_argument("RBlockConfig::load: invalid BlockConfig for "
+                                  "sub-Block " + v_sub_Block_id[ i ] + "." ) );
    input >> *v_sub_BlockConfig[ i ];
   }
  }
@@ -159,13 +265,24 @@ void RBlockConfig::serialize( netCDF::NcGroup & group ) const
 {
  BlockConfig::serialize( group );
 
- group.addDim( "n_sub_Block" , v_sub_BlockConfig.size() );
+ auto n_sub_Block = group.addDim( "n_sub_Block" , v_sub_BlockConfig.size() );
 
  for( size_t i = 0 ; i < v_sub_BlockConfig.size() ; ++i )
   if( v_sub_BlockConfig[ i ] ) {
    auto cg =  group.addGroup( "sub-BlockConfig_" + std::to_string( i ) );
    v_sub_BlockConfig[ i ]->serialize( cg );
    }
+
+ netCDF::NcDim sub_Block_id_dim;
+ if( v_sub_Block_id.size() == v_sub_BlockConfig.size() )
+  sub_Block_id_dim = n_sub_Block;
+ else
+  sub_Block_id_dim = group.addDim( "n_sub_Block_id" , v_sub_Block_id.size() );
+
+ auto sub_Block_id_var = group.addVar( "sub-Block-id" , netCDF::NcString() ,
+                                       { sub_Block_id_dim } );
+
+ sub_Block_id_var.putVar( v_sub_Block_id.data() );
  }  // end( RBlockConfig::serialize( group ) )
 
 /*--------------------------------------------------------------------------*/
@@ -173,7 +290,7 @@ void RBlockConfig::serialize( netCDF::NcGroup & group ) const
 void RBlockConfig::deserialize( netCDF::NcGroup & group )
 {
 
- if( ! v_sub_BlockConfig.empty() )
+ if( ! ( v_sub_BlockConfig.empty() && v_sub_Block_id.empty() ) )
   throw( std::logic_error( "RBlockConfig::deserialize: deserializing a "
                            "non-empty RBlockConfig" ) );
 
@@ -181,7 +298,7 @@ void RBlockConfig::deserialize( netCDF::NcGroup & group )
 
  auto n_sub_Block = group.getDim( "n_sub_Block" );
 
- if( n_sub_Block.isNull() ) {
+ if( ! n_sub_Block.isNull() ) {
 
   v_sub_BlockConfig.resize( n_sub_Block.getSize() );
 
@@ -192,6 +309,19 @@ void RBlockConfig::deserialize( netCDF::NcGroup & group )
     dynamic_cast< BlockConfig * >( new_Configuration( cg ) );
    }
   }
+
+ auto var_sub_Block_id = group.getVar( "sub-Block-id" );
+ if( ! var_sub_Block_id.isNull() ) {
+  assert( var_sub_Block_id.getDimCount() == 1 );
+  v_sub_Block_id.resize( var_sub_Block_id.getDim( 0 ).getSize() );
+  var_sub_Block_id.getVar( v_sub_Block_id.data() );
+  }
+ else if( ! n_sub_Block.isNull() ) {
+  decltype( v_sub_Block_id )::size_type n = n_sub_Block.getSize();
+  v_sub_Block_id.resize( n );
+  for( decltype( n ) i = 0 ; i < n ; ++i )
+   v_sub_Block_id[ i ] = std::to_string( i );
+  }
  }  // end( RBlockConfig::deserialize( group ) )
 
 /*--------------------------------------------------------------------------*/
@@ -200,12 +330,12 @@ void RBlockConfig::deserialize( netCDF::NcGroup & group )
 
 CBlockConfig::CBlockConfig( const CBlockConfig &old ) : BlockConfig( old )
 {
- v_ConstraintID = old.v_ConstraintID;
+ v_Constraint_id = old.v_Constraint_id;
 
- v_Config_Constraints.resize( old.v_Config_Constraints.size() , nullptr );
- auto this_it = v_Config_Constraints.begin();
- auto old_it = old.v_Config_Constraints.cbegin();
- for( ; this_it != v_Config_Constraints.end() ; ++this_it , ++old_it )
+ v_Config_Constraint.resize( old.v_Config_Constraint.size() , nullptr );
+ auto this_it = v_Config_Constraint.begin();
+ auto old_it = old.v_Config_Constraint.cbegin();
+ for( ; this_it != v_Config_Constraint.end() ; ++this_it , ++old_it )
   if( *old_it )
    *this_it = ( *old_it )->clone();
  }
@@ -216,9 +346,9 @@ void CBlockConfig::get( Block * block ) {
 
  BlockConfig::get( block );
 
- for( auto config : v_Config_Constraints )
+ for( auto config : v_Config_Constraint )
   delete config;
- v_Config_Constraints.clear();
+ v_Config_Constraint.clear();
 
  if( ! block ) {
   return;
@@ -226,27 +356,33 @@ void CBlockConfig::get( Block * block ) {
 
  // ComputeConfig for the Constraint
 
- if( ! v_ConstraintID.empty() ) {
+ if( ! v_Constraint_id.empty() ) {
 
-  // v_ConstraintID is not empty. Consider only these Constraint.
+  // v_Constraint_id is not empty. Consider only these Constraint.
 
-  v_Config_Constraints.reserve( v_ConstraintID.size() );
+  v_Config_Constraint.reserve( v_Constraint_id.size() );
 
-  for( const auto & id : v_ConstraintID ) {
-   auto constraint = inspection::get_Constraint( block , id );
+  for( const auto [ constraint_group_id , constraint_index ] :
+        v_Constraint_id ) {
+
+   auto constraint_group_index =
+    ::get_Constraint_group_index( constraint_group_id , block );
+
+   auto constraint = inspection::get_Constraint
+    ( block , Block::ConstraintID( constraint_group_index , constraint_index ) );
    if( constraint )
-    v_Config_Constraints.push_back( constraint->get_ComputeConfig( true ) );
+    v_Config_Constraint.push_back( constraint->get_ComputeConfig( true ) );
    else
-    throw ( std::logic_error( "CBlockConfig::get: Constraint with ConstraintID"
-                              " ( " + std::to_string( id.first ) + " , " +
-                              std::to_string( id.second ) +
-                              ") was not found." ) );
+    throw ( std::logic_error
+            ( "CBlockConfig::get: Constraint with Constraint id ( " +
+              constraint_group_id + " , " + std::to_string( constraint_index ) +
+              ") was not found." ) );
    }
   }
  else {
-  // v_ConstraintID is empty. Now we scan all Constraint.
-  inspection::fill_ComputeConfig_Constraint( block , v_Config_Constraints ,
-                                             v_ConstraintID );
+  // v_Constraint_id is empty. Now we scan all Constraint.
+  inspection::fill_ComputeConfig_Constraint( block , v_Config_Constraint ,
+                                             v_Constraint_id );
   }
  }  // end( CBlockConfig::get )
 
@@ -261,17 +397,25 @@ void CBlockConfig::apply( Block * block , bool deleteold ) {
 
  // set the ComputeConfig of the Constraint
 
- for( std::size_t i = 0 ; i < v_Config_Constraints.size() ; ++i ) {
-  const auto & id = v_ConstraintID[ i ];
-  auto constraint = inspection::get_Constraint( block , id );
+ for( std::size_t i = 0 ; i < v_Config_Constraint.size() ; ++i ) {
+
+  const auto [ constraint_group_id , constraint_index ] =
+   v_Constraint_id[ i ];
+
+  auto constraint_group_index =
+   ::get_Constraint_group_index( constraint_group_id , block );
+
+  auto constraint = inspection::get_Constraint
+   ( block , Block::ConstraintID( constraint_group_index , constraint_index ) );
+
   if( constraint ) {
-   if( ( ! f_diff ) || v_Config_Constraints[ i ] )
-    constraint->set_ComputeConfig( v_Config_Constraints[ i ] );
+   if( ( ! f_diff ) || v_Config_Constraint[ i ] )
+    constraint->set_ComputeConfig( v_Config_Constraint[ i ] );
    }
   else
-   throw ( std::logic_error( "CBlockConfig::apply: Constraint with ConstraintID"
-                             " ( " + std::to_string( id.first ) + " , " +
-                             std::to_string( id.second ) +
+   throw ( std::logic_error( "CBlockConfig::apply: Constraint with Constraint "
+                             "id ( " + constraint_group_id + " , " +
+                             std::to_string( constraint_index ) +
                              ") was not found." ) );
   }
  }  // end( CBlockConfig::apply )
@@ -282,9 +426,17 @@ void CBlockConfig::print( std::ostream &output ) const
 {
  BlockConfig::print( output );
 
- for( const auto config : v_Config_Constraints )
+ decltype( v_Constraint_id )::size_type i = 0;
+
+ for( const auto config : v_Config_Constraint ) {
+  output << "ComputeConfig for Constraint (" << v_Constraint_id[ i ].first
+         << " , " << v_Constraint_id[ i ].second << ")" << std::endl;
+  ++i;
   if( config )
    output << *config;
+  else
+   output << "nullptr" << std::endl;
+  }
  output << std::endl;
  }  // end( CBlockConfig::print )
 
@@ -297,26 +449,29 @@ void CBlockConfig::load( std::istream & input ) {
 
  int k;
  input >> eatcomments >> k;
- v_Config_Constraints.resize( k );
- v_ConstraintID.resize( k );
+ v_Config_Constraint.resize( k );
+ v_Constraint_id.resize( k );
+
  for( int i = 0 ; i < k ; ++i ) {
-  Block::Index group_index, constraint_index;
+  std::string constraint_group_id;
+  Block::Index constraint_index;
+
   input >> eatcomments;
-  input >> group_index >> constraint_index;
-  v_ConstraintID[ i ] = Block::ConstraintID( group_index , constraint_index );
+  input >> v_Constraint_id[ i ].first >> v_Constraint_id[ i ].second;
+
   input >> eatcomments;
   if( input.peek() == input.widen( '*' ) )
-   v_Config_Constraints[ i ] = nullptr;
+   v_Config_Constraint[ i ] = nullptr;
   else {
    std::string cname;
    input >> cname;
-   v_Config_Constraints[ i ] =
+   v_Config_Constraint[ i ] =
     dynamic_cast<ComputeConfig *>( Configuration::new_Configuration( cname ) );
-   if( ! v_Config_Constraints[ i ] )
+   if( ! v_Config_Constraint[ i ] )
     throw ( std::invalid_argument( "CBlockConfig::load: invalid Configuration"
                                    " for the Constraint " +
                                    std::to_string( i ) + "." ) );
-   input >> *v_Config_Constraints[ i ];
+   input >> *v_Config_Constraint[ i ];
    }
   }
  }  // end( CBlockConfig::load )
@@ -329,27 +484,28 @@ void CBlockConfig::serialize( netCDF::NcGroup & group ) const
 
  // Configuration for the Constraint
 
- if( ! v_Config_Constraints.empty() ) {
+ if( ! v_Config_Constraint.empty() ) {
 
   auto n_Config_Constraint = group.addDim( "n_Config_Constraint" ,
-                                           v_Config_Constraints.size() );
+                                           v_Config_Constraint.size() );
 
-  for( size_t i = 0 ; i < v_Config_Constraints.size() ; ++i ) {
-   if( v_Config_Constraints[ i ] ) {
+  for( size_t i = 0 ; i < v_Config_Constraint.size() ; ++i ) {
+   if( v_Config_Constraint[ i ] ) {
     auto config_group = group.addGroup( "Config_Constraint_" +
                                         std::to_string( i ) );
-    v_Config_Constraints[ i ]->serialize( config_group );
+    v_Config_Constraint[ i ]->serialize( config_group );
     }
    }
 
-  auto two_dim = group.addDim( "two_dim" , 2 );
+  auto Constraint_group_id_var = group.addVar
+   ( "Constraint_group_id" , netCDF::NcString() , n_Config_Constraint );
 
-  auto ConstraintID_var = group.addVar( "ConstraintID" , netCDF::NcUint() ,
-                                        { n_Config_Constraint , two_dim } );
+  auto Constraint_index_var = group.addVar
+   ( "Constraint_index" , netCDF::NcUint() , n_Config_Constraint );
 
-  for( size_t i = 0 ; i < v_ConstraintID.size() ; ++i ) {
-   ConstraintID_var.putVar( { i , 0 } , v_ConstraintID[ i ].first );
-   ConstraintID_var.putVar( { i , 1 } , v_ConstraintID[ i ].second );
+  for( size_t i = 0 ; i < v_Constraint_id.size() ; ++i ) {
+   Constraint_group_id_var.putVar( { i } , v_Constraint_id[ i ].first );
+   Constraint_index_var.putVar( { i } , v_Constraint_id[ i ].second );
    }
   }
  }  // end( CBlockConfig::serialize( group ) )
@@ -358,7 +514,7 @@ void CBlockConfig::serialize( netCDF::NcGroup & group ) const
 
 void CBlockConfig::deserialize( netCDF::NcGroup & group )
 {
- if( v_Config_Constraints.size() || v_ConstraintID.size() )
+ if( v_Config_Constraint.size() || v_Constraint_id.size() )
   throw( std::logic_error( "CBlockConfig::deserialize: deserializing a "
                            "non-empty CBlockConfig" ) );
 
@@ -369,33 +525,46 @@ void CBlockConfig::deserialize( netCDF::NcGroup & group )
  auto constrdim = group.getDim( "n_Config_Constraint" );
  size_t constrsize = constrdim.isNull() ? 0 : constrdim.getSize();
 
- v_Config_Constraints.resize( constrsize );
- v_ConstraintID.resize( constrsize );
+ v_Config_Constraint.resize( constrsize );
+ v_Constraint_id.resize( constrsize );
 
- auto var_ConstraintID = group.getVar( "ConstraintID" );
+ auto var_Constraint_group_id = group.getVar( "Constraint_group_id" );
+ auto var_Constraint_index = group.getVar( "Constraint_index" );
  if( constrsize > 0 ) {
-  if( var_ConstraintID.isNull() )
+  if( var_Constraint_group_id.isNull() )
    throw( std::invalid_argument( "CBlockConfig::deserialize: netCDF variable "
-                                 "'ConstraintID' was not provided." ) );
+                                 "'Constraint_group_id' was not provided." ) );
   else {
-   auto dimensions = ::get_sizes_dimensions( var_ConstraintID );
-   if( dimensions.size() != 2 || dimensions[ 0 ] != constrsize
-       || dimensions[ 1 ] != 2 )
+   auto dimensions = ::get_sizes_dimensions( var_Constraint_group_id );
+   if( dimensions.size() != 1 || dimensions[ 0 ] != constrsize )
     throw( std::invalid_argument
-           ( "CBlockConfig::deserialize: invalid dimensions of netCDF variable "
-             "'ConstraintID'. Its dimensions should be (" +
-             std::to_string( constrsize ) +  ", 2)" ) );
+           ( "CBlockConfig::deserialize: invalid dimensions of netCDF "
+             "variable 'Constraint_group_id'. Its dimensions should be " +
+             std::to_string( constrsize ) ) );
+
+   if( ! var_Constraint_index.isNull() ) {
+    auto dimensions = ::get_sizes_dimensions( var_Constraint_index );
+    if( dimensions.size() != 1 || dimensions[ 0 ] != constrsize )
+     throw( std::invalid_argument
+            ( "CBlockConfig::deserialize: invalid dimensions of netCDF "
+              "variable 'Constraint_index'. Its dimensions should be " +
+              std::to_string( constrsize ) ) );
+    }
    }
   }
 
  for( size_t i = 0 ; i < constrsize ; ++i ) {
   auto config_group = group.getGroup( "Config_Constraint_" +
                                       std::to_string( i ) );
-  v_Config_Constraints[ i ] =
+  v_Config_Constraint[ i ] =
    dynamic_cast< ComputeConfig * >( new_Configuration( config_group ) );
 
-  var_ConstraintID.getVar( { i , 0 } , & v_ConstraintID[ i ].first );
-  var_ConstraintID.getVar( { i , 1 } , & v_ConstraintID[ i ].second );
+  var_Constraint_group_id.getVar( { i } , & v_Constraint_id[ i ].first );
+
+  if( ! var_Constraint_index.isNull() )
+   var_Constraint_index.getVar( { i } , & v_Constraint_id[ i ].second );
+  else
+   v_Constraint_id[ i ].second = i;
   }
  }  // end( CBlockConfig::deserialize( group ) )
 
@@ -628,211 +797,6 @@ void ORBlockConfig::deserialize( netCDF::NcGroup & group )
  }  // end( ORBlockConfig::deserialize( group ) )
 
 /*--------------------------------------------------------------------------*/
-/*------------------------ METHODS of CRBlockConfig ------------------------*/
-/*--------------------------------------------------------------------------*/
-
-CRBlockConfig::CRBlockConfig( const CRBlockConfig &old ) : RBlockConfig( old )
-{
- v_ConstraintID = old.v_ConstraintID;
-
- v_Config_Constraints.resize( old.v_Config_Constraints.size() , nullptr );
- auto this_it = v_Config_Constraints.begin();
- auto old_it = old.v_Config_Constraints.cbegin();
- for( ; this_it != v_Config_Constraints.end() ; ++this_it , ++old_it )
-  if( *old_it )
-   *this_it = ( *old_it )->clone();
- }
-
-/*--------------------------------------------------------------------------*/
-
-void CRBlockConfig::get( Block * block ) {
-
- RBlockConfig::get( block );
-
- for( auto config : v_Config_Constraints )
-  delete config;
- v_Config_Constraints.clear();
-
- if( ! block ) {
-  return;
-  }
-
- // ComputeConfig for the Constraint
-
- if( ! v_ConstraintID.empty() ) {
-
-  // v_ConstraintID is not empty. Consider only these Constraint.
-
-  v_Config_Constraints.reserve( v_ConstraintID.size() );
-
-  for( const auto & id : v_ConstraintID ) {
-   auto constraint = inspection::get_Constraint( block , id );
-   if( constraint )
-    v_Config_Constraints.push_back( constraint->get_ComputeConfig( true ) );
-   else
-    throw ( std::logic_error( "CRBlockConfig::get: Constraint with ConstraintID"
-                              " ( " + std::to_string( id.first ) + " , " +
-                              std::to_string( id.second ) +
-                              ") was not found." ) );
-   }
-  }
- else {
-  // v_ConstraintID is empty. Now we scan all Constraint.
-  inspection::fill_ComputeConfig_Constraint( block , v_Config_Constraints ,
-                                             v_ConstraintID );
-  }
- }  // end( CRBlockConfig::get )
-
-/*--------------------------------------------------------------------------*/
-
-void CRBlockConfig::apply( Block * block , bool deleteold ) {
-
- if( ! block )
-  return;
-
- RBlockConfig::apply( block , deleteold );
-
- // set the ComputeConfig of the Constraint
-
- for( std::size_t i = 0 ; i < v_Config_Constraints.size() ; ++i ) {
-  const auto & id = v_ConstraintID[ i ];
-  auto constraint = inspection::get_Constraint( block , id );
-  if( constraint ) {
-   if( ( ! f_diff ) || v_Config_Constraints[ i ] )
-    constraint->set_ComputeConfig( v_Config_Constraints[ i ] );
-   }
-  else
-   throw ( std::logic_error( "CRBlockConfig::apply: Constraint with "
-                             "ConstraintID ( " + std::to_string( id.first ) +
-                              " , " + std::to_string( id.second ) +
-                             ") was not found." ) );
-  }
- }  // end( CRBlockConfig::apply )
-
-/*--------------------------------------------------------------------------*/
-
-void CRBlockConfig::print( std::ostream &output ) const
-{
- RBlockConfig::print( output );
-
- for( const auto config : v_Config_Constraints )
-  if( config )
-   output << *config;
- output << std::endl;
- }  // end( CRBlockConfig::print )
-
-/*--------------------------------------------------------------------------*/
-
-void CRBlockConfig::load( std::istream & input ) {
- RBlockConfig::load( input );
-
- // Configuration for the Constraint
-
- int k;
- input >> eatcomments >> k;
- v_Config_Constraints.resize( k );
- v_ConstraintID.resize( k );
- for( int i = 0 ; i < k ; ++i ) {
-  Block::Index group_index, constraint_index;
-  input >> eatcomments;
-  input >> group_index >> constraint_index;
-  v_ConstraintID[ i ] = Block::ConstraintID( group_index , constraint_index );
-  input >> eatcomments;
-  if( input.peek() == input.widen( '*' ) )
-   v_Config_Constraints[ i ] = nullptr;
-  else {
-   std::string cname;
-   input >> cname;
-   v_Config_Constraints[ i ] =
-    dynamic_cast<ComputeConfig *>( Configuration::new_Configuration( cname ) );
-   if( ! v_Config_Constraints[ i ] )
-    throw ( std::invalid_argument( "CRBlockConfig::load: invalid Configuration"
-                                   " for the Constraint " +
-                                   std::to_string( i ) + "." ) );
-   input >> *v_Config_Constraints[ i ];
-   }
-  }
- }  // end( CRBlockConfig::load )
-
-/*--------------------------------------------------------------------------*/
-
-void CRBlockConfig::serialize( netCDF::NcGroup & group ) const
-{
- RBlockConfig::serialize( group );
-
- // Configuration for the Constraint
-
- if( ! v_Config_Constraints.empty() ) {
-
-  auto n_Config_Constraint = group.addDim( "n_Config_Constraint" ,
-                                           v_Config_Constraints.size() );
-
-  for( size_t i = 0 ; i < v_Config_Constraints.size() ; ++i ) {
-   if( v_Config_Constraints[ i ] ) {
-    auto config_group = group.addGroup( "Config_Constraint_" +
-                                        std::to_string( i ) );
-    v_Config_Constraints[ i ]->serialize( config_group );
-    }
-   }
-
-  auto two_dim = group.addDim( "two_dim" , 2 );
-
-  auto ConstraintID_var = group.addVar( "ConstraintID" , netCDF::NcUint() ,
-                                        { n_Config_Constraint , two_dim } );
-
-  for( size_t i = 0 ; i < v_ConstraintID.size() ; ++i ) {
-   ConstraintID_var.putVar( { i , 0 } , v_ConstraintID[ i ].first );
-   ConstraintID_var.putVar( { i , 1 } , v_ConstraintID[ i ].second );
-   }
-  }
- }  // end( CRBlockConfig::serialize( group ) )
-
-/*--------------------------------------------------------------------------*/
-
-void CRBlockConfig::deserialize( netCDF::NcGroup & group )
-{
- if( v_Config_Constraints.size() || v_ConstraintID.size() )
-  throw( std::logic_error( "CRBlockConfig::deserialize: deserializing a "
-                           "non-empty CRBlockConfig" ) );
-
- RBlockConfig::deserialize( group );
-
- // Configuration for Constraint
-
- auto constrdim = group.getDim( "n_Config_Constraint" );
- size_t constrsize = constrdim.isNull() ? 0 : constrdim.getSize();
-
- v_Config_Constraints.resize( constrsize );
- v_ConstraintID.resize( constrsize );
-
- auto var_ConstraintID = group.getVar( "ConstraintID" );
- if( constrsize > 0 ) {
-  if( var_ConstraintID.isNull() )
-   throw( std::invalid_argument( "CRBlockConfig::deserialize: netCDF variable "
-                                 "'ConstraintID' was not provided." ) );
-  else {
-   auto dimensions = ::get_sizes_dimensions( var_ConstraintID );
-   if( dimensions.size() != 2 || dimensions[ 0 ] != constrsize
-       || dimensions[ 1 ] != 2 )
-    throw( std::invalid_argument
-           ( "CRBlockConfig::deserialize: invalid dimensions of netCDF variable "
-             "'ConstraintID'. Its dimensions should be (" +
-             std::to_string( constrsize ) +  ", 2)" ) );
-   }
-  }
-
- for( size_t i = 0 ; i < constrsize ; ++i ) {
-  auto config_group = group.getGroup( "Config_Constraint_" +
-                                      std::to_string( i ) );
-  v_Config_Constraints[ i ] =
-   dynamic_cast< ComputeConfig * >( new_Configuration( config_group ) );
-
-  var_ConstraintID.getVar( { i , 0 } , & v_ConstraintID[ i ].first );
-  var_ConstraintID.getVar( { i , 1 } , & v_ConstraintID[ i ].second );
-  }
- }  // end( CRBlockConfig::deserialize( group ) )
-
-/*--------------------------------------------------------------------------*/
 /*------------------------ METHODS of OCBlockConfig ------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -945,6 +909,250 @@ void OCBlockConfig::deserialize( netCDF::NcGroup & group )
   f_Config_Objective = dynamic_cast< ComputeConfig * >
    ( new_Configuration( obj_group ) );
  }  // end( OCBlockConfig::deserialize( group ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------------------ METHODS of CRBlockConfig ------------------------*/
+/*--------------------------------------------------------------------------*/
+
+CRBlockConfig::CRBlockConfig( const CRBlockConfig &old ) : RBlockConfig( old )
+{
+ v_Constraint_id = old.v_Constraint_id;
+
+ v_Config_Constraint.resize( old.v_Config_Constraint.size() , nullptr );
+ auto this_it = v_Config_Constraint.begin();
+ auto old_it = old.v_Config_Constraint.cbegin();
+ for( ; this_it != v_Config_Constraint.end() ; ++this_it , ++old_it )
+  if( *old_it )
+   *this_it = ( *old_it )->clone();
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void CRBlockConfig::get( Block * block ) {
+
+ RBlockConfig::get( block );
+
+ for( auto config : v_Config_Constraint )
+  delete config;
+ v_Config_Constraint.clear();
+
+ if( ! block ) {
+  return;
+  }
+
+ // ComputeConfig for the Constraint
+
+ if( ! v_Constraint_id.empty() ) {
+
+  // v_Constraint_id is not empty. Consider only these Constraint.
+
+  v_Config_Constraint.reserve( v_Constraint_id.size() );
+
+  for( const auto [ constraint_group_id , constraint_index ] :
+        v_Constraint_id ) {
+
+   auto constraint_group_index =
+    ::get_Constraint_group_index( constraint_group_id , block );
+
+   auto constraint = inspection::get_Constraint
+    ( block , Block::ConstraintID( constraint_group_index , constraint_index ) );
+   if( constraint )
+    v_Config_Constraint.push_back( constraint->get_ComputeConfig( true ) );
+   else
+    throw ( std::logic_error
+            ( "CRBlockConfig::get: Constraint with Constraint id ( " +
+              constraint_group_id + " , " + std::to_string( constraint_index ) +
+              ") was not found." ) );
+   }
+  }
+ else {
+  // v_Constraint_id is empty. Now we scan all Constraint.
+  inspection::fill_ComputeConfig_Constraint( block , v_Config_Constraint ,
+                                             v_Constraint_id );
+  }
+ }  // end( CRBlockConfig::get )
+
+/*--------------------------------------------------------------------------*/
+
+void CRBlockConfig::apply( Block * block , bool deleteold ) {
+
+ if( ! block )
+  return;
+
+ RBlockConfig::apply( block , deleteold );
+
+ // set the ComputeConfig of the Constraint
+
+ for( std::size_t i = 0 ; i < v_Config_Constraint.size() ; ++i ) {
+
+  const auto [ constraint_group_id , constraint_index ] =
+   v_Constraint_id[ i ];
+
+  auto constraint_group_index =
+   ::get_Constraint_group_index( constraint_group_id , block );
+
+  auto constraint = inspection::get_Constraint
+   ( block , Block::ConstraintID( constraint_group_index , constraint_index ) );
+
+  if( constraint ) {
+   if( ( ! f_diff ) || v_Config_Constraint[ i ] )
+    constraint->set_ComputeConfig( v_Config_Constraint[ i ] );
+   }
+  else
+   throw ( std::logic_error( "CRBlockConfig::apply: Constraint with Constraint "
+                             "id ( " + constraint_group_id + " , " +
+                             std::to_string( constraint_index ) +
+                             ") was not found." ) );
+  }
+ }  // end( CRBlockConfig::apply )
+
+/*--------------------------------------------------------------------------*/
+
+void CRBlockConfig::print( std::ostream &output ) const
+{
+ RBlockConfig::print( output );
+
+ decltype( v_Constraint_id )::size_type i = 0;
+
+ for( const auto config : v_Config_Constraint ) {
+  output << "ComputeConfig for Constraint (" << v_Constraint_id[ i ].first
+         << " , " << v_Constraint_id[ i ].second << ")" << std::endl;
+  ++i;
+  if( config )
+   output << *config;
+  else
+   output << "nullptr" << std::endl;
+  }
+ output << std::endl;
+ }  // end( CRBlockConfig::print )
+
+/*--------------------------------------------------------------------------*/
+
+void CRBlockConfig::load( std::istream & input ) {
+ RBlockConfig::load( input );
+
+ // Configuration for the Constraint
+
+ int k;
+ input >> eatcomments >> k;
+ v_Config_Constraint.resize( k );
+ v_Constraint_id.resize( k );
+
+ for( int i = 0 ; i < k ; ++i ) {
+  std::string constraint_group_id;
+  Block::Index constraint_index;
+
+  input >> eatcomments;
+  input >> v_Constraint_id[ i ].first >> v_Constraint_id[ i ].second;
+
+  input >> eatcomments;
+  if( input.peek() == input.widen( '*' ) )
+   v_Config_Constraint[ i ] = nullptr;
+  else {
+   std::string cname;
+   input >> cname;
+   v_Config_Constraint[ i ] =
+    dynamic_cast<ComputeConfig *>( Configuration::new_Configuration( cname ) );
+   if( ! v_Config_Constraint[ i ] )
+    throw ( std::invalid_argument( "CRBlockConfig::load: invalid Configuration"
+                                   " for the Constraint " +
+                                   std::to_string( i ) + "." ) );
+   input >> *v_Config_Constraint[ i ];
+   }
+  }
+ }  // end( CRBlockConfig::load )
+
+/*--------------------------------------------------------------------------*/
+
+void CRBlockConfig::serialize( netCDF::NcGroup & group ) const
+{
+ RBlockConfig::serialize( group );
+
+ // Configuration for the Constraint
+
+ if( ! v_Config_Constraint.empty() ) {
+
+  auto n_Config_Constraint = group.addDim( "n_Config_Constraint" ,
+                                           v_Config_Constraint.size() );
+
+  for( size_t i = 0 ; i < v_Config_Constraint.size() ; ++i ) {
+   if( v_Config_Constraint[ i ] ) {
+    auto config_group = group.addGroup( "Config_Constraint_" +
+                                        std::to_string( i ) );
+    v_Config_Constraint[ i ]->serialize( config_group );
+    }
+   }
+
+  auto Constraint_group_id_var = group.addVar
+   ( "Constraint_group_id" , netCDF::NcString() , n_Config_Constraint );
+
+  auto Constraint_index_var = group.addVar
+   ( "Constraint_index" , netCDF::NcUint() , n_Config_Constraint );
+
+  for( size_t i = 0 ; i < v_Constraint_id.size() ; ++i ) {
+   Constraint_group_id_var.putVar( { i } , v_Constraint_id[ i ].first );
+   Constraint_index_var.putVar( { i } , v_Constraint_id[ i ].second );
+   }
+  }
+ }  // end( CRBlockConfig::serialize( group ) )
+
+/*--------------------------------------------------------------------------*/
+
+void CRBlockConfig::deserialize( netCDF::NcGroup & group )
+{
+ if( v_Config_Constraint.size() || v_Constraint_id.size() )
+  throw( std::logic_error( "CRBlockConfig::deserialize: deserializing a "
+                           "non-empty CRBlockConfig" ) );
+
+ RBlockConfig::deserialize( group );
+
+ // Configuration for Constraint
+
+ auto constrdim = group.getDim( "n_Config_Constraint" );
+ size_t constrsize = constrdim.isNull() ? 0 : constrdim.getSize();
+
+ v_Config_Constraint.resize( constrsize );
+ v_Constraint_id.resize( constrsize );
+
+ auto var_Constraint_group_id = group.getVar( "Constraint_group_id" );
+ auto var_Constraint_index = group.getVar( "Constraint_index" );
+ if( constrsize > 0 ) {
+  if( var_Constraint_group_id.isNull() )
+   throw( std::invalid_argument( "CRBlockConfig::deserialize: netCDF variable "
+                                 "'Constraint_group_id' was not provided." ) );
+  else {
+   auto dimensions = ::get_sizes_dimensions( var_Constraint_group_id );
+   if( dimensions.size() != 1 || dimensions[ 0 ] != constrsize )
+    throw( std::invalid_argument
+           ( "CRBlockConfig::deserialize: invalid dimensions of netCDF "
+             "variable 'Constraint_group_id'. Its dimensions should be " +
+             std::to_string( constrsize ) ) );
+
+   if( ! var_Constraint_index.isNull() ) {
+    auto dimensions = ::get_sizes_dimensions( var_Constraint_index );
+    if( dimensions.size() != 1 || dimensions[ 0 ] != constrsize )
+     throw( std::invalid_argument
+            ( "CRBlockConfig::deserialize: invalid dimensions of netCDF "
+              "variable 'Constraint_index'. Its dimensions should be " +
+              std::to_string( constrsize ) ) );
+    }
+   }
+  }
+
+ for( size_t i = 0 ; i < constrsize ; ++i ) {
+  auto config_group = group.getGroup( "Config_Constraint_" +
+                                      std::to_string( i ) );
+  v_Config_Constraint[ i ] =
+   dynamic_cast< ComputeConfig * >( new_Configuration( config_group ) );
+
+  var_Constraint_group_id.getVar( { i } , & v_Constraint_id[ i ].first );
+
+  if( ! var_Constraint_index.isNull() )
+   var_Constraint_index.getVar( { i } , & v_Constraint_id[ i ].second );
+  else
+   v_Constraint_id[ i ].second = i;
+  }
+ }  // end( CRBlockConfig::deserialize( group ) )
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- METHODS of OCRBlockConfig ------------------------*/

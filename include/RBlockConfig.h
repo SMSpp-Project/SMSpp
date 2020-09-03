@@ -37,29 +37,40 @@
  * to a sub-Configuration that the :BlockConfig may have (for instance,
  * pointers to the BlockConfig of the sub-Block; pointers to ComputeConfig of
  * Constraint or Objective) are deleted. The value of the BlockConfig::f_diff
- * field and the structure of the :BlockConfig are preserved. The only
- * interesting structure that may be preserved is that of a :BlockConfig that
- * deals with Constraint (namely, CBlockConfig, CRBlockConfig, OCBlockConfig,
- * and OCRBlockConfig; shortly referred as *C*BlockConfig). A Block can have a
- * huge number of Constraint, but usually very few Constraint (if any) require
- * a Configuration. Therefore, a *C*BlockConfig has a very sparse structure:
- * it handles only the Constraint that require a Configuration. When a
- * *C*BlockConfig is constructed out of a Block (see CBlockConfig::get()), it
- * may be necessary to scan all Constraint of that Block in order to determine
- * which ones require a Configuration (i.e., the ones that have a non-default
- * set of parameters). This operation can be potentially costly. If the
- * Constraint that need a Configuration are known in advance, the scanning
- * operation can be avoided. This is where a "cleared" *C*BlockConfig shows
- * its usefulness. The structure of a *C*BlockConfig is formed by the list of
- * (identification to the) Constraint that require a Configuration (see
- * CBlockConfig::v_ConstraintID). Whenever a *C*BlockConfig is constructed out
- * of a Block and CBlockConfig::v_ConstraintID is non-empty, only the
- * Constraint indicated by v_ConstraintID are considered and no scan is
- * performed.
+ * field and the structure of the :BlockConfig are preserved. The structures
+ * that may be preserved are that of a :BlockConfig that deals with sub-Block
+ * (namely, RBlockConfig, ORBlockConfig, CRBlockConfig, and OCRBlockConfig;
+ * shortly referred as *R*BlockConfig) or Constraint (namely, CBlockConfig,
+ * CRBlockConfig, OCBlockConfig, and OCRBlockConfig; shortly referred as
+ * *C*BlockConfig).
+ *
+ * A Block can have a huge number of Constraint, but usually very few
+ * Constraint (if any) require a Configuration. Therefore, a *C*BlockConfig
+ * has a very sparse structure: it handles only the Constraint that require a
+ * Configuration. When a *C*BlockConfig is constructed out of a Block (see
+ * CBlockConfig::get()), it may be necessary to scan all Constraint of that
+ * Block in order to determine which ones require a Configuration (i.e., the
+ * ones that have a non-default set of parameters). This operation can be
+ * potentially costly. If the Constraint that need a Configuration are known
+ * in advance, the scanning operation can be avoided. This is where a
+ * "cleared" *C*BlockConfig shows its usefulness. The structure of a
+ * *C*BlockConfig is formed by the list of (identification to the) Constraint
+ * that require a Configuration (see CBlockConfig::v_Constraint_id). Whenever
+ * a *C*BlockConfig is constructed out of a Block and
+ * CBlockConfig::v_Constraint_id is non-empty, only the Constraint indicated
+ * by v_Constraint_id are considered and no scan is performed.
+ *
+ * The reasoning behind a "cleared" *R*BlockConfig is analogous. The structure
+ * of a *R*BlockConfig is formed by the list of (identification to the)
+ * sub-Block that require a Configuration. A sub-Block can be identified
+ * either by its name or by its index in the list of sub-Blocks of its father
+ * Block. Whenever a *R*BlockConfig is constructed out of a Block and
+ * RBlockConfig::v_sub_Block_id is non-empty, only the sub-Block indicated by
+ * v_sub_Block_id are considered.
  *
  * \version 0.33
  *
- * \date 31 - 08 - 2020
+ * \date 03 - 08 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -116,11 +127,12 @@ namespace SMSpp_di_unipi_it
 /// derived class from BlockConfig for configuring the sub-Block of a Block
 /** The RBlockConfig class ("recursive" BlockConfig) derives from BlockConfig
  * and offers support for configuring also the sub-Block of a Block
- * (recursively). The RBlockConfig contains the following field:
+ * (recursively). The RBlockConfig contains the following fields:
  *
- * - a vector of pointers to BlockConfig for each of the sub-Block of the
- *   Block.
- */
+ * - a vector of pointers to BlockConfig for (all or some of) the sub-Block of
+ *   the Block.
+ *
+ * - a vector associating each BlockConfig to a sub-Block of the Block. */
 
 class RBlockConfig : public BlockConfig
 {
@@ -190,27 +202,34 @@ class RBlockConfig : public BlockConfig
   * format of a RBlockConfig. Besides the mandatory "type" attribute of any
   * :Configuration, the group should contain the following:
   *
-  * - a description of a BlockConfig object for the Block, as described in
+  * - A description of a BlockConfig object for the Block, as described in
   *   BlockConfig::deserialize().
   *
-  * - the dimension "n_sub_Block" containing the number of BlockConfig
+  * - The dimension "n_sub_Block" containing the number of BlockConfig
   *   descriptions for the sub-Block of the current Block; this dimension is
   *   optional; if it is not provided, then n_sub_Block = 0 is assumed.
   *
-  * - with n being the size of n_sub_Block, n groups, with name
+  * - With n being the size of n_sub_Block, n groups, with name
   *   "sub-BlockConfig_<i>" for all i = 0, ..., n - 1, containing each the
   *   description of a BlockConfig for one of the sub-Block of the current
   *   :Block. Each of these groups is optional. If a group is absent then the
   *   pointer to the BlockConfig for the corresponding sub-Block is
   *   considered to be a nullptr (default configuration).
   *
-  * Note that that the matching between the sub-BlockConfig and the
-  * sub-Block is positional: the BlockConfig found in the group
-  * "sub-BlockConfig_<i>" is that for the i-th sub-Block. Note that the
-  * vector of sub-BlockConfig is allowed to be of different size than the
-  * number of sub-Block; if it is larger any extra BlockConfig is simply
-  * ignored, if it shorted then all missing sub-BlockConfig are treated as
-  * nullptr (default configuration). */
+  * - With n being the size of n_sub_Block, a one-dimensional variable with
+  *   name "sub-Block-id", of size n and type netCDF::NcString, containing
+  *   the identification of the sub-Block such that "sub-BlockConfig_<i>"
+  *   contains the BlockConfig for the sub-Block whose identification is
+  *   "sub-Block-id[ i ]" for all i = 0, ..., n - 1. The identification of
+  *   the sub-Block can be either its name (see Block::name()) or its index in
+  *   the list of sub-Block of its father Block. This variable is optional. If
+  *   it is not provided, then the i-th BlockConfig is associated with the
+  *   i-th sub-Block of the Block for all i = 0, ..., n - 1 (i.e., i is taken
+  *   as the index of the sub-Block and "sub-Block-id[ i ]" is assumed to be
+  *   "i").
+  *
+  *       IF THE NAME OF THE Block IS USED AS ITS IDENTIFICATION, THEN
+  *       THE FIRST CHARACTER OF THIS NAME CANNOT BE A DIGIT. */
 
  void deserialize( netCDF::NcGroup & group ) override;
 
@@ -239,6 +258,19 @@ class RBlockConfig : public BlockConfig
   * RBlockConfig may have is deleted and the Configuration of the BlockConfig
   * of the given Block is cloned into the Configuration of this RBlockConfig.
   *
+  * If #v_sub_Block_id is not empty then its content is preserved and only the
+  * BlockConfig associated with the sub-Block (of the given \p block)
+  * specified by #v_sub_Block_id are retrieved. If #v_sub_Block_id is empty
+  * then the BlockConfig of every sub-Block in the given \p block is
+  * retrieved. In this case, for each sub-Block of the given \p block, its
+  * BlockConfig is stored in this RBlockConfig if it has a non-default set of
+  * parameters.
+  *
+  * If #v_sub_Block_id is not empty but one wants all sub-Block to be
+  * inspected (for instance, one is not sure that every sub-Block that is not
+  * specified in #v_sub_Block_id has a default set of parameters), then
+  * #v_sub_Block_id must be cleared before this method is called.
+  *
   * @param block A pointer to the Block whose RBlockConfig must be filled.
   */
 
@@ -260,8 +292,9 @@ class RBlockConfig : public BlockConfig
   * method is the following:
   *
   * First, BlockConfig::apply() is invoked for configuring the given
-  * Block. Then, for each sub-Block of the given Block, apply() is invoked for
-  * the corresponding BlockConfig for configuring the sub-Block.
+  * Block. Then, for each sub-Block of the given Block handled by this
+  * RBlockConfig (see #v_sub_Block_id), apply() is invoked for the
+  * corresponding BlockConfig for configuring the sub-Block.
   *
   * @param block A pointer to the Block that must be configured.
   *
@@ -275,7 +308,8 @@ class RBlockConfig : public BlockConfig
  /// clear this RBlockConfig
  /** This method clears this RBlockConfig by first calling
   * BlockConfig::clear() and then deleting the pointer to the BlockConfig of
-  * each sub-Block and finally clearing the vector #v_sub_BlockConfig. */
+  * each sub-Block and finally clearing the vector #v_sub_BlockConfig. The
+  * vector #v_sub_Block_id is left unchanged. */
 
  void clear( void ) override {
   BlockConfig::clear();
@@ -314,6 +348,16 @@ class RBlockConfig : public BlockConfig
  /// the vector of sub-BlockConfig for each of the sub-Block of the Block
  std::vector<BlockConfig *> v_sub_BlockConfig;
 
+ /// correspondence between v_sub_BlockConfig and the sub-Block of the Block
+ /** This vector specifies the correspondence between the BlockConfig in
+  * #v_sub_BlockConfig and the sub-Block of the Block. v_sub_Block_id[ i ]
+  * contains the identification of the sub-Block whose BlockConfig is
+  * v_sub_BlockConfig[ i ]. A sub-Block can be identified either by its name
+  * or by its index in the list of sub-Blocks of its father Block. If the name
+  * of the sub-Block is used, then the first character of this name cannot be
+  * a digit. */
+ std::vector<std::string> v_sub_Block_id;
+
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -330,13 +374,27 @@ class RBlockConfig : public BlockConfig
  /** Load this RBlockConfig out of an istream. The format is defined as that
   * of BlockConfig (see BlockConfig::load()) followed by:
   *
-  * number k of the sub-BlockConfig objects
+  * a number k such that abs(k) is the number of the sub-BlockConfig objects
   *
-  * for i = 1 ... k
+  * for i = 1 ... abs(k)
+  *  - if k < 0, the identification of the sub-Block
+  *
   *  - a string containing the class type of a BlockConfig object, '*' means
   *    none (nullptr)
   *
   *  - if the above is not '*', the description of the :BlockConfig object
+  *
+  * Notice that the sign of k determines whether the identification of the
+  * sub-Block must be provided. If k < 0, then the identification of the
+  * sub-Block must be provided. The identification of the sub-Block can be
+  * either its name (see Block::name()) or its index in the list of sub-Block
+  * or its father Block. If k >= 0, then the identification of the sub-Block
+  * must not be provided. In this case, the i-th BlockConfig is associated
+  * with the i-th sub-Block of the Block (i.e., i is taken as the index of the
+  * sub-Block and v_sub_Block_id[ i ] = "i").
+  *
+  *     IF THE NAME OF THE Block IS USED AS ITS IDENTIFICATION, THEN
+  *     THE FIRST CHARACTER OF THIS NAME CANNOT BE A DIGIT.
   */
 
  void load( std::istream &input ) override;
@@ -361,7 +419,9 @@ class RBlockConfig : public BlockConfig
 /// derived class from BlockConfig for configuring the Constraint of a Block
 /** The CBlockConfig class ("Constraint" BlockConfig) derives from BlockConfig
  * and offers support for configuring the Constraint of a Block. The
- * CBlockConfig contains the following field:
+ * CBlockConfig contains the following fields:
+ *
+ * - a vector identifying the set of Constraint that require a ComputeConfig
  *
  * - a vector of pointers to ComputeConfig for each indicated Constraint of a
  *   Block.
@@ -445,24 +505,45 @@ class CBlockConfig : public BlockConfig
   *   Block; this dimension is optional; if it is not provided, then
   *   n_Config_Constraint = 0 is assumed.
   *
-  * - with p being the size of "n_Config_Constraint", a two-dimensional
-  *   variable called "ConstraintID", of size p x 2 and type netCDF::ncUint,
-  *   containing the Block::ConstraintID of the Constraint that need a
-  *   ComputeConfig. The i-th row of this variable contains the ConstraintID
-  *   of the i-th Constraint: for each i = 0, ..., p - 1, the pair
-  *   ( ConstraintID[ i ][ 0 ], ConstraintID[ i ][ 1 ] ) is the ConstraintID
-  *   of the i-th Constraint that needs a ComputeConfig, i.e., ConstraintID[ i
-  *   ][ 0 ] provides the index of the group to which the i-th Constraint
-  *   belongs and ConstraintID[ i ][ 1 ] provides the index of the i-th
-  *   Constraint (see Block::ConstraintID for the definition of an index of a
-  *   Constraint); this variable is mandatory if n_Config_Constraint > 0.
+  * - with p being the size of "n_Config_Constraint", a one-dimensional
+  *   variable called "Constraint_group_id", of size p and type
+  *   netCDF::NcString, containing the identification of the group of
+  *   Constraint that require a ComputeConfig. The i-th element of this
+  *   vector, Constraint_group_id[ i ], is the identification of the group to
+  *   which the i-th Constraint belongs. For each i = 0, ..., p - 1,
+  *   Constraint_group_id[ i ] can be indicated in two ways: it is either (i)
+  *   the name of the group of Constraint (see Block::get_s_const_name() and
+  *   Block::get_d_const_name()) or the index of the group as defined in
+  *   Block::ConstraintID.
+  *
+  *       IF A Constraint group IS BEING IDENTIFIED USING THE NAME OF THE
+  *       GROUP (RATHER THAN THE INDEX OF THE GROUP), THEN
+  *
+  *       - THE FIRST CHARACTER OF THIS NAME CANNOT BE A DIGIT;
+  *
+  *       - THE STATIC GROUP HAS PRIORITY OVER THE DYNAMIC GROUP OF Constraint:
+  *         IF THERE IS A GROUP OF STATIC Constraint WITH THE GIVEN NAME, THEN
+  *         THIS GROUP IS CONSIDERED. OTHERWISE, THE GROUP OF DYNAMIC Constraint
+  *         WITH THAT NAME IS CONSIDERED.
+  *
+  *   This variable is mandatory if n_Config_Constraint > 0.
+  *
+  * - with p being the size of "n_Config_Constraint", a one-dimensional
+  *   variable called "Constraint_index", of size p and type netCDF::NcUint,
+  *   containing the index of the Constraint that require a ComputeConfig. The
+  *   i-th element of this vector, Constraint_index[ i ], is the index of the
+  *   i-th Constraint (which belongs to the group indicated by
+  *   Constraint_group_id[ i ]). See Block::ConstraintID for the definition of
+  *   the index of a Constraint in a group. This variable is optional. If it
+  *   is not provided, then Constraint_index[ i ] = i for all i = 0, ..., p -
+  *   1 is assumed.
   *
   * - p groups, with name "Config_Constraint_<i>" for all i = 0, ..., p - 1,
   *   containing each the description of a ComputeConfig associated with the
-  *   i-th Constraint indicated by the "ConstraintID" variable (which is given
-  *   by the pair ( ConstraintID[ 2i ], ConstraintID[ 2i + 1] )); these groups
-  *   are optional; if "Config_Constraint_<i>" is not provided, then nullptr
-  *   (default configuration) is assumed for the i-th Constraint. */
+  *   i-th Constraint indicated by the pair ( Constraint_group_id[ i ],
+  *   Constraint_index[ i ] ); these groups are optional; if
+  *   "Config_Constraint_<i>" is not provided, then nullptr (default
+  *   configuration) is assumed for the i-th Constraint. */
 
  void deserialize( netCDF::NcGroup & group ) override;
 
@@ -472,7 +553,7 @@ class CBlockConfig : public BlockConfig
   * CBlockConfig. */
  virtual ~CBlockConfig()
  {
-  for( auto config : v_Config_Constraints )
+  for( auto config : v_Config_Constraint )
    delete config;
   }
 
@@ -508,14 +589,14 @@ class CBlockConfig : public BlockConfig
  /** This method clears this CBlockConfig by first calling
   * BlockConfig::clear() and then deleting the pointer to the ComputeConfig of
   * each Constraint considered by this CBlockConfig and finally clearing the
-  * vector #v_Config_Constraints. Notice that the vector #v_ConstraintID is
+  * vector #v_Config_Constraint. Notice that the vector #v_Constraint_id is
   * preserved. */
 
  void clear( void ) override {
   BlockConfig::clear();
-  for( auto config : v_Config_Constraints )
+  for( auto config : v_Config_Constraint )
    delete config;
-  v_Config_Constraints.clear();
+  v_Config_Constraint.clear();
   }
 
 /*------------------------------- CLONE ------------------------------------*/
@@ -538,20 +619,20 @@ class CBlockConfig : public BlockConfig
   * of that supported by the BlockConfig (see BlockConfig::get()) plus any
   * ComputeConfig that may be associated with the Constraint of the given
   * Block. Any Configuration that this CBlockConfig may have at the moment
-  * this function is invoked is deleted. If #v_ConstraintID is not empty then
+  * this function is invoked is deleted. If #v_Constraint_id is not empty then
   * its content is preserved and only the ComputeConfig associated with the
-  * Constraint (of the given \p block) specified by #v_ConstraintID are
-  * considered. If #v_ConstraintID is empty then every Constraint in the given
+  * Constraint (of the given \p block) specified by #v_Constraint_id are
+  * considered. If #v_Constraint_id is empty then every Constraint in the given
   * \p block is inspected. In this case, for each Constraint of the given \p
   * block, its ComputeConfig is stored in this CBlockConfig if it has a
   * non-default set of parameters.
   *
-  * If #v_ConstraintID is not empty but one wants all Constraint to be
+  * If #v_Constraint_id is not empty but one wants all Constraint to be
   * inspected (for instance, one is not sure that every Constraint that is not
-  * specified in #v_ConstraintID has a default set of parameters), then
-  * #v_ConstraintID must be cleared before this method is called.
+  * specified in #v_Constraint_id has a default set of parameters), then
+  * #v_Constraint_id must be cleared before this method is called.
   *
-  * Note that
+  * Note that if #v_Constraint_id is empty then
   *
   *     CALLING CBlockConfig::get() IS A POTENTIALLY COSTLY OPERATION BECAUSE
   *     IT ENTAILS SCANNING ALL Constraint OF THE Block IN ORDER TO OBTAIN
@@ -581,16 +662,24 @@ class CBlockConfig : public BlockConfig
 /** @name Public fields of the class
  *  @{ */
 
- /// the vector of indices identifying the set of Constraint
- /** This vector indicates which Constraint of the Block have a
-  * ComputeConfig. */
- std::vector<Block::ConstraintID> v_ConstraintID;
+ /// the vector that identifies the Constraint that require a ComputeConfig
+ /** This vector indicates which Constraint of the Block require a
+  * ComputeConfig. Each element of this vector identifies one Constraint. A
+  * Constraint is identified by a pair. The first element of the pair is an
+  * identification of the group to which the Constraint belongs and the second
+  * one is the index of the Constraint in that group (see Block::ConstraintID
+  * for the definition of the index of a Constraint in a group). The group to
+  * which the Constraint belongs can be indicated in two ways: it is either
+  * (i) the name of the group of Constraint (see Block::get_s_const_name() and
+  * Block::get_d_const_name()) or the index of the group as defined in
+  * Block::ConstraintID. */
+ std::vector< std::pair<std::string , Block::Index> > v_Constraint_id;
 
- /// the vector of (pointer to the) ComputeConfig for Constraint
- /** The vector of (pointer to the) ComputeConfig for Constraint. The i-th
+ /// the vector of (pointer to the) ComputeConfig for the Constraint
+ /** The vector of (pointer to the) ComputeConfig for the Constraint. The i-th
   * ComputeConfig in this vector is that of the Constraint identified by the
-  * i-th element in the vector v_ConstraintID. */
- std::vector<ComputeConfig *> v_Config_Constraints;
+  * i-th element in the vector #v_Constraint_id. */
+ std::vector<ComputeConfig *> v_Config_Constraint;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -611,11 +700,28 @@ class CBlockConfig : public BlockConfig
   * - the number k of the ComputeConfig for the Constraint of the Block
   *
   * - for i = 1 ... k
-  *   - two integers representing the ConstraintID for the Constraint
+  *   - the identification of the Constraint
   *   - a string containing the class type of a ComputeConfig object,
   *     '*' means none (nullptr)
   *   - if the above is not '*', the description of the :ComputeConfig object
-  *   (clearly, if k == 0 this is empty) */
+  *   (clearly, if k == 0 this is empty)
+  *
+  * The identification of the Constraint can be either (i) two integers
+  * representing the Block::ConstraintID of the Constraint (see
+  * Block::ConstraintID for details) or (ii) the name of the group to which
+  * the Constraint belongs followed by the index of the Constraint in that
+  * group (see Block::ConstraintID for the definition of the index of a
+  * Constraint in a group).
+  *
+  *     IF THE Constraint IS BEING IDENTIFIED USING THE NAME OF THE GROUP TO
+  *     WHICH IT BELONGS, THEN
+  *
+  *     - THE FIRST CHARACTER OF THIS NAME CANNOT BE A DIGIT;
+  *
+  *     - THE STATIC GROUP HAS PRIORITY OVER THE DYNAMIC GROUP OF Constraint:
+  *       IF THERE IS A GROUP OF STATIC Constraint WITH THE GIVEN NAME, THEN
+  *       THIS GROUP IS CONSIDERED. OTHERWISE, THE GROUP OF DYNAMIC Constraint
+  *       WITH THAT NAME IS CONSIDERED. */
 
  void load( std::istream &input ) override;
 
@@ -1145,15 +1251,17 @@ class ORBlockConfig : public RBlockConfig
  };  // end( class( ORBlockConfig ) )
 
 /*--------------------------------------------------------------------------*/
-/*-------------------------- CLASS CRBlockConfig ---------------------------*/
+/*------------------------- CLASS CRBlockConfig ----------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /// derived class from RBlockConfig for configuring the Constraint of a Block
 /** The CRBlockConfig class ("Constraint" RBlockConfig) derives from
  * RBlockConfig and offers support for configuring the Constraint of a
- * Block. The CRBlockConfig contains the following field (besides those
+ * Block. The CRBlockConfig contains the following fields (besides those
  * defined in RBlockConfig):
+ *
+ * - a vector identifying the set of Constraint that require a ComputeConfig
  *
  * - a vector of pointers to ComputeConfig for each indicated Constraint of a
  *   Block.
@@ -1237,24 +1345,45 @@ class CRBlockConfig : public RBlockConfig
   *   Block; this dimension is optional; if it is not provided, then
   *   n_Config_Constraint = 0 is assumed.
   *
-  * - with p being the size of "n_Config_Constraint", a two-dimensional
-  *   variable called "ConstraintID", of size p x 2 and type netCDF::ncUint,
-  *   containing the Block::ConstraintID of the Constraint that need a
-  *   ComputeConfig. The i-th row of this variable contains the ConstraintID
-  *   of the i-th Constraint: for each i = 0, ..., p - 1, the pair
-  *   ( ConstraintID[ i ][ 0 ], ConstraintID[ i ][ 1 ] ) is the ConstraintID
-  *   of the i-th Constraint that needs a ComputeConfig, i.e., ConstraintID[ i
-  *   ][ 0 ] provides the index of the group to which the i-th Constraint
-  *   belongs and ConstraintID[ i ][ 1 ] provides the index of the i-th
-  *   Constraint (see Block::ConstraintID for the definition of an index of a
-  *   Constraint); this variable is mandatory if n_Config_Constraint > 0.
+  * - with p being the size of "n_Config_Constraint", a one-dimensional
+  *   variable called "Constraint_group_id", of size p and type
+  *   netCDF::NcString, containing the identification of the group of
+  *   Constraint that require a ComputeConfig. The i-th element of this
+  *   vector, Constraint_group_id[ i ], is the identification of the group to
+  *   which the i-th Constraint belongs. For each i = 0, ..., p - 1,
+  *   Constraint_group_id[ i ] can be indicated in two ways: it is either (i)
+  *   the name of the group of Constraint (see Block::get_s_const_name() and
+  *   Block::get_d_const_name()) or the index of the group as defined in
+  *   Block::ConstraintID.
+  *
+  *       IF A Constraint group IS BEING IDENTIFIED USING THE NAME OF THE
+  *       GROUP (RATHER THAN THE INDEX OF THE GROUP), THEN
+  *
+  *       - THE FIRST CHARACTER OF THIS NAME CANNOT BE A DIGIT;
+  *
+  *       - THE STATIC GROUP HAS PRIORITY OVER THE DYNAMIC GROUP OF
+  *         Constraint: IF THERE IS A GROUP OF STATIC Constraint WITH THE
+  *         GIVEN NAME, THEN THIS GROUP IS CONSIDERED. OTHERWISE, THE GROUP OF
+  *         DYNAMIC Constraint WITH THAT NAME IS CONSIDERED.
+  *
+  *   This variable is mandatory if n_Config_Constraint > 0.
+  *
+  * - with p being the size of "n_Config_Constraint", a one-dimensional
+  *   variable called "Constraint_index", of size p and type netCDF::NcUint,
+  *   containing the index of the Constraint that require a ComputeConfig. The
+  *   i-th element of this vector, Constraint_index[ i ], is the index of the
+  *   i-th Constraint (which belongs to the group indicated by
+  *   Constraint_group_id[ i ]). See Block::ConstraintID for the definition of
+  *   the index of a Constraint in a group. This variable is optional. If it
+  *   is not provided, then Constraint_index[ i ] = i for all i = 0, ..., p -
+  *   1 is assumed.
   *
   * - p groups, with name "Config_Constraint_<i>" for all i = 0, ..., p - 1,
   *   containing each the description of a ComputeConfig associated with the
-  *   i-th Constraint indicated by the "ConstraintID" variable (which is given
-  *   by the pair ( ConstraintID[ 2i ], ConstraintID[ 2i + 1] )); these groups
-  *   are optional; if "Config_Constraint_<i>" is not provided, then nullptr
-  *   (default configuration) is assumed for the i-th Constraint. */
+  *   i-th Constraint indicated by the pair ( Constraint_group_id[ i ],
+  *   Constraint_index[ i ] ); these groups are optional; if
+  *   "Config_Constraint_<i>" is not provided, then nullptr (default
+  *   configuration) is assumed for the i-th Constraint. */
 
  void deserialize( netCDF::NcGroup & group ) override;
 
@@ -1264,7 +1393,7 @@ class CRBlockConfig : public RBlockConfig
   * CRBlockConfig. */
  virtual ~CRBlockConfig()
  {
-  for( auto config : v_Config_Constraints )
+  for( auto config : v_Config_Constraint )
    delete config;
   }
 
@@ -1300,14 +1429,14 @@ class CRBlockConfig : public RBlockConfig
  /** This method clears this CRBlockConfig by first calling
   * RBlockConfig::clear() and then deleting the pointer to the ComputeConfig
   * of each Constraint considered by this CRBlockConfig and finally clearing
-  * the vector #v_Config_Constraints. Notice that the vector #v_ConstraintID
+  * the vector #v_Config_Constraint. Notice that the vector #v_Constraint_id
   * is preserved. */
 
  void clear( void ) override {
   RBlockConfig::clear();
-  for( auto config : v_Config_Constraints )
+  for( auto config : v_Config_Constraint )
    delete config;
-  v_Config_Constraints.clear();
+  v_Config_Constraint.clear();
   }
 
 /*------------------------------- CLONE ------------------------------------*/
@@ -1330,31 +1459,31 @@ class CRBlockConfig : public RBlockConfig
   * consists of that supported by the RBlockConfig (see RBlockConfig::get())
   * plus any ComputeConfig that may be associated with the Constraint of the
   * given Block. Any Configuration that this CRBlockConfig may have at the
-  * moment this function is invoked is deleted. If #v_ConstraintID is not
+  * moment this function is invoked is deleted. If #v_Constraint_id is not
   * empty then its content is preserved and only the ComputeConfig associated
-  * with the Constraint (of the given \p block) specified by #v_ConstraintID
-  * are considered. If #v_ConstraintID is empty then every Constraint in the
+  * with the Constraint (of the given \p block) specified by #v_Constraint_id
+  * are considered. If #v_Constraint_id is empty then every Constraint in the
   * given \p block is inspected. In this case, for each Constraint of the
   * given \p block, its ComputeConfig is stored in this CRBlockConfig if it
   * has a non-default set of parameters.
   *
-  * If #v_ConstraintID is not empty but one wants all Constraint to be
+  * If #v_Constraint_id is not empty but one wants all Constraint to be
   * inspected (for instance, one is not sure that every Constraint that is not
-  * specified in #v_ConstraintID has a default set of parameters), then
-  * #v_ConstraintID must be cleared before this method is called.
+  * specified in #v_Constraint_id has a default set of parameters), then
+  * #v_Constraint_id must be cleared before this method is called.
   *
-  * Note that
+  * Note that if #v_Constraint_id is empty then
   *
-  *     CALLING CRBlockConfig::get() IS A POTENTIALLY COSTLY OPERATION
-  *     BECAUSE IT ENTAILS SCANNING ALL Constraint OF THE Block IN ORDER
-  *     TO OBTAIN THEIR ComputeConfig.
+  *     CALLING CRBlockConfig::get() IS A POTENTIALLY COSTLY OPERATION BECAUSE
+  *     IT ENTAILS SCANNING ALL Constraint OF THE Block IN ORDER TO OBTAIN
+  *     THEIR ComputeConfig.
   *
   * @param block A pointer to the Block whose CRBlockConfig must be filled. */
 
  void get( Block * block ) override;
 
 /**@} ----------------------------------------------------------------------*/
-/*-------- METHODS FOR LOADING, PRINTING & SAVING THE CRBlockConfig --------*/
+/*--------- METHODS FOR LOADING, PRINTING & SAVING THE CRBlockConfig -------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the CRBlockConfig
  *  @{ */
@@ -1373,16 +1502,24 @@ class CRBlockConfig : public RBlockConfig
 /** @name Public fields of the class
  *  @{ */
 
- /// the vector of indices identifying the set of Constraint
- /** This vector indicates which Constraint of the Block have a
-  * ComputeConfig. */
- std::vector<Block::ConstraintID> v_ConstraintID;
+ /// the vector that identifies the Constraint that require a ComputeConfig
+ /** This vector indicates which Constraint of the Block require a
+  * ComputeConfig. Each element of this vector identifies one Constraint. A
+  * Constraint is identified by a pair. The first element of the pair is an
+  * identification of the group to which the Constraint belongs and the second
+  * one is the index of the Constraint in that group (see Block::ConstraintID
+  * for the definition of the index of a Constraint in a group). The group to
+  * which the Constraint belongs can be indicated in two ways: it is either
+  * (i) the name of the group of Constraint (see Block::get_s_const_name() and
+  * Block::get_d_const_name()) or the index of the group as defined in
+  * Block::ConstraintID. */
+ std::vector< std::pair<std::string , Block::Index> > v_Constraint_id;
 
- /// the vector of (pointer to the) ComputeConfig for Constraint
- /** The vector of (pointer to the) ComputeConfig for Constraint. The i-th
+ /// the vector of (pointer to the) ComputeConfig for the Constraint
+ /** The vector of (pointer to the) ComputeConfig for the Constraint. The i-th
   * ComputeConfig in this vector is that of the Constraint identified by the
-  * i-th element in the vector v_ConstraintID. */
- std::vector<ComputeConfig *> v_Config_Constraints;
+  * i-th element in the vector #v_Constraint_id. */
+ std::vector<ComputeConfig *> v_Config_Constraint;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -1403,11 +1540,28 @@ class CRBlockConfig : public RBlockConfig
   * - the number k of the ComputeConfig for the Constraint of the Block
   *
   * - for i = 1 ... k
-  *   - two integers representing the ConstraintID for the Constraint
+  *   - the identification of the Constraint
   *   - a string containing the class type of a ComputeConfig object,
   *     '*' means none (nullptr)
   *   - if the above is not '*', the description of the :ComputeConfig object
-  *   (clearly, if k == 0 this is empty) */
+  *   (clearly, if k == 0 this is empty)
+  *
+  * The identification of the Constraint can be either (i) two integers
+  * representing the Block::ConstraintID of the Constraint (see
+  * Block::ConstraintID for details) or (ii) the name of the group to which
+  * the Constraint belongs followed by the index of the Constraint in that
+  * group (see Block::ConstraintID for the definition of the index of a
+  * Constraint in a group).
+  *
+  *     IF THE Constraint IS BEING IDENTIFIED USING THE NAME OF THE GROUP TO
+  *     WHICH IT BELONGS, THEN
+  *
+  *     - THE FIRST CHARACTER OF THIS NAME CANNOT BE A DIGIT;
+  *
+  *     - THE STATIC GROUP HAS PRIORITY OVER THE DYNAMIC GROUP OF Constraint:
+  *       IF THERE IS A GROUP OF STATIC Constraint WITH THE GIVEN NAME, THEN
+  *       THIS GROUP IS CONSIDERED. OTHERWISE, THE GROUP OF DYNAMIC Constraint
+  *       WITH THAT NAME IS CONSIDERED. */
 
  void load( std::istream &input ) override;
 

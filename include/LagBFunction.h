@@ -652,22 +652,13 @@ class LagBFunction : public C05Function , public Block {
   * This method also writes the solution relative to the important linearizaiton
   * into the sub-Block (B).  */
 
- void set_important_linearization( LinearCombination && coefficients ,
-				   Index name ) override;
+ void set_important_linearization( LinearCombination && coefficients )
+  override { zLC = std::move( coefficients ); };
 
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
- /// get the name of the important linearization
- /** This method reads the name of the important linearization */
-
- Index get_important_linearization_name( void ) override { return( zName ); }
-
- /*--------------------------------------------------------------------------*/
- /// get the name of the important linearization
-  /** This method retrieves the linear combination used to form the important
-   * linearization */
+/*--------------------------------------------------------------------------*/
 
  c_LinearCombination & get_important_linearization_coefficients( void )
-  override final { return( zLC ); }
+  const override final { return( zLC ); }
 
 /*--------------------------------------------------------------------------*/
 
@@ -850,10 +841,9 @@ class LagBFunction : public C05Function , public Block {
 /** @name Protected methods for inserting and extracting
  *  @{ */
 
- /// printing the LagBFunction
- virtual void print( std::ostream &output ) const override;
+ void print( std::ostream &output ) const override;
 
- virtual void load( std::istream &input ) override final;
+ void load( std::istream &input ) override final;
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
@@ -862,48 +852,35 @@ class LagBFunction : public C05Function , public Block {
  FRealObjective * obj;
  ///< the (linear) objective function of the sub-Block (B)
 
- Solver* slv;
- ///< the Solver of (B)
+ Solver* slv;                   ///< the Solver of (B)
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
- v_dual_pair LagPairs;
- ///< vector of Lagrangian dual pairs
+ v_dual_pair LagPairs;          ///< vector of Lagrangian dual pairs
 
- v_linearization_tuple g_pool;
- ///< global pool
+ v_linearization_tuple g_pool;  ///< the global pool
 
  m_column CostMatrix;
  ///< the matrix < x , <c,yA> > used to update the Lagrangian cost vector
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
- Index LastSolution;
- ///< the last solution read by get_linearization
+ Index LastSolution;  ///< the last solution read by get_linearization
 
- bool VarType;
- ///< the type of variable contained in the solver
-
-
- Index zName;
- ///< the name of the important linearization
+ bool VarType;        ///< the type of variable contained in the solver
 
  LinearCombination zLC;
  ///< the LinearCombination of the important linearization
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
- int GPMaxSz;
- ///< maximum size of the "global pool"
+ int GPMaxSz;         ///< maximum size of the "global pool"
 
- int LPMaxSz;
- ///< maximum size of the "local pool"
+ int LPMaxSz;         ///< maximum size of the "local pool"
 
- double RAccLin;
- ///< maximum relative error in any linearization
+ double RAccLin;      ///< maximum relative error in any linearization
 
- double AAccLin;
- ///< maximum absolute error in any reported solution
+ double AAccLin;      ///< maximum absolute error in any reported solution
 
  BlockSolverConfig * svcc;
  ///< the block solver configuration of the sub-block
