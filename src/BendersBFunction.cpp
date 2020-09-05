@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 02 - 08 - 2020
+ * \date 04 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -30,10 +30,12 @@
 
 #include "AbstractPath.h"
 #include "BendersBFunction.h"
+#include "BlockSolverConfig.h"
 #include "FRowConstraint.h"
 #include "Objective.h"
 #include "Observer.h"
 #include "OneVarConstraint.h"
+#include "RBlockConfig.h"
 #include "RowConstraint.h"
 #include "SMSTypedefs.h"
 #include "Solution.h"
@@ -281,7 +283,7 @@ void BendersBFunction::set_par( const idx_type par , const int value ) {
 
    global_pool.resize( value );
 
-   if( f_Observer && value < old_size ) {
+   if( f_Observer && ( decltype( old_size)( value ) < old_size ) ) {
     // The size of the global pool is being reduced. We store in "which" the
     // indices of the deleted linearizations.
     Subset which( global_pool.size() - value );
@@ -1243,6 +1245,72 @@ void BendersBFunction::delete_rows( ModParam issueMod ) {
 }  // end( BendersBFunction::delete_rows( all ) )
 
 /*--------------------------------------------------------------------------*/
+
+void BendersBFunction::set_ComputeConfig( ComputeConfig *scfg ) {
+
+ ThinComputeInterface::set_ComputeConfig( scfg );
+
+ auto inner_block = get_inner_block();
+
+ if( ! inner_block )
+  return;
+
+ if( ! scfg ) {
+  // scfg is nullptr
+  // TODO
+  return;
+ }
+
+ if( ! scfg->f_extra_Configuration ) {
+  // scfg->f_extra_Configuration is nullptr
+  // TODO
+  return;
+ }
+
+ // Set the BlockConfig of the inner Block
+
+ if( auto config = dynamic_cast< SimpleConfiguration
+     < std::pair< Configuration * , Configuration * > > * >
+     ( scfg->f_extra_Configuration ) ) {
+
+  if( config->f_value.first ) {
+   if( auto block_config = dynamic_cast< BlockConfig * >
+       ( config->f_value.first ) )
+    block_config->apply( inner_block );
+   else
+    throw( std::invalid_argument
+           ( "BendersBFunction::set_ComputeConfig: the first element "
+             "of the pair of the extra Configuration must be a pointer "
+             "to a :BlockConfig." ) );
+  }
+  else {
+   // scfg->f_extra_Configuration->f_value.first is nullptr
+   // TODO
+  }
+
+  // Set the BlockSolverConfig of the inner Block
+
+  if( config->f_value.second ) {
+   if( auto block_config = dynamic_cast< BlockSolverConfig * >
+       ( config->f_value.second ) )
+    block_config->apply( inner_block );
+   else
+    throw( std::invalid_argument
+           ( "BendersBFunction::set_ComputeConfig: the second element "
+             "of the pair of the extra Configuration must be a pointer "
+             "to a :BlockSolverConfig." ) );
+  }
+  else {
+   // scfg->f_extra_Configuration->f_value.second is nullptr
+   // TODO
+  }
+ }
+ else
+  throw( std::invalid_argument( "BendersBFunction::set_ComputeConfig: "
+                                "invalid type of extra Configuration." ) );
+}  // end( BendersBFunction::set_ComputeConfig )
+
+/*--------------------------------------------------------------------------*/
 /*-------------------- Methods for handling Modification -------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -2010,6 +2078,57 @@ Function::FunctionValue BendersBFunction::get_linearization_constant(
   return constant;
  }
 }  // end( BendersBFunction::get_linearization_constant )
+
+/*--------------------------------------------------------------------------*/
+
+ComputeConfig * BendersBFunction::get_ComputeConfig
+( bool all , ComputeConfig * ocfg ) const {
+
+ auto ccfg = ThinComputeInterface::get_ComputeConfig( all , ocfg );
+
+ if( ! ccfg ) {
+  ccfg = new ComputeConfig();
+  ccfg->f_diff = !all;
+ }
+
+ bool replace_extra_config = true;
+ if( auto conf = dynamic_cast< SimpleConfiguration
+     < std::pair< Configuration * , Configuration * > > * >
+     ( ccfg->f_extra_Configuration ) ) {
+  if( dynamic_cast< BlockConfig * >( conf->f_value.first ) &&
+      dynamic_cast< BlockSolverConfig * >( conf->f_value.second ) )
+   replace_extra_config = false;
+ }
+ if( replace_extra_config ) {
+  delete ccfg->f_extra_Configuration;
+  ccfg->f_extra_Configuration = new
+   SimpleConfiguration< std::pair< Configuration * , Configuration * > >;
+ }
+
+ auto inner_block = get_inner_block();
+
+ auto extra_config = dynamic_cast< SimpleConfiguration<
+  std::pair< Configuration * , Configuration * > > * >
+  ( ccfg->f_extra_Configuration );
+
+ // Retrieve the BlockConfig of the inner Block
+
+ if( extra_config->f_value.first )
+  dynamic_cast< BlockConfig * >
+   ( extra_config->f_value.first )->get( inner_block );
+ else if( inner_block )
+  extra_config->f_value.first = new OCRBlockConfig( inner_block );
+
+ // Retrieve the BlockSolverConfig of the inner Block
+
+ if( extra_config->f_value.second )
+  dynamic_cast< BlockSolverConfig * >
+   ( extra_config->f_value.second )->get( inner_block );
+ else if( inner_block )
+  extra_config->f_value.second = new RBlockSolverConfig( inner_block );
+
+ return ccfg;
+}  // end( BendersBFunction::get_ComputeConfig )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/

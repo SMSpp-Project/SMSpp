@@ -7,7 +7,7 @@
  *
  * \version 0.01
  *
- * \date 30 - 07 - 2020
+ * \date 04 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1360,6 +1360,21 @@ class BendersBFunction : public C05Function , public Block {
 
  void delete_rows( ModParam issueMod = eModBlck );
 
+/*--------------------------------------------------------------------------*/
+
+ /// set the whole set of parameters of this BendersBFunction
+ /** The extra Configuration of the given ComputeConfig (see
+  * ComputeConfig::f_extra_Configuration), if not nullptr, is assumed to be of
+  * type SimpleConfiguration < std::pair< Configuration * , Configuration * >
+  * >. If it is not of this type, an exception is thrown.  The first element
+  * of that pair must be a pointer to a BlockConfig and the second one must be
+  * a pointer to a BlockSolverConfig.
+  *
+  * @param scfg a pointer to a ComputeConfig.
+  */
+
+ void set_ComputeConfig( ComputeConfig *scfg = nullptr ) override;
+
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- Methods for handling Modification -------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1708,6 +1723,35 @@ class BendersBFunction : public C05Function , public Block {
 
   return dynamic_cast< T * >( v_Block[ 0 ]->get_registered_solvers().back() );
  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// get the whole set of parameters of this BendersBFunction
+ /** The extra Configuration (see ComputeConfig::f_extra_Configuration) of the
+  * ComputeConfig of the BendersBFunction is a
+  * SimpleConfiguration<std::pair<Configuration* , Configuration*>>. The first
+  * Configuration of this pair is a :BlockConfig and the second one is a
+  * :BlockSolverConfig, both of them being associated with the inner Block of
+  * this BendersBFunction.
+  *
+  * If an appropriate extra Configuration is not provided in \p ocfg (either
+  * \p ocfg is nullptr or ocfg->f_extra_Configuration does not have the type
+  * above), the extra Configuration in \p ocfg is deleted (if any) and a new
+  * SimpleConfiguration<std::pair<Configuration* , Configuration*>> is
+  * constructed.
+  *
+  * If an appropriate extra Configuration is provided, then it is used to
+  * obtain the BlockConfig (see BlockConfig::get()) and the BlockSolverConfig
+  * (see BlockSolverConfig::get()) of the inner Block.
+  *
+  * @param all see ThinComputeInterface::get_ComputeConfig().
+  *
+  * @param ocfg a pointer to a ComputeConfig.
+  *
+  * @return a pointer to the ComputeConfig of this BendersBFunction. */
+
+ ComputeConfig * get_ComputeConfig
+ ( bool all = false , ComputeConfig * ocfg = nullptr ) const override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
