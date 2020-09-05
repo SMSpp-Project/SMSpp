@@ -891,8 +891,8 @@ public:
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- ///< get the whole set of parameters in one blow
- /**< This method gets the whole set of parameters in one blow using a
+ /// get the whole set of parameters in one blow
+ /** This method gets the whole set of parameters in one blow using a
   * ComputeConfig object.
   *
   * If a non-null ocfg is provided, then the pointed object (that is assumed

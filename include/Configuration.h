@@ -10,7 +10,7 @@
  *
  * \version 0.11
  *
- * \date 16 - 08 - 2019
+ * \date 05 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -821,6 +821,110 @@ class SimpleConfiguration : public Configuration
  ///< a vector of pointer to Configuration
 
 /** @} end( group( Configuration_TYPES ) ) */
+/*--------------------------------------------------------------------------*/
+/*---------------------- TEMPLATE SPECIALIZATIONS --------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @defgroup SimpleConfiguration_SPECIALIZATIONS SimpleConfiguration template
+ *  specializations.
+ *  @{ */
+
+ template<>
+ void SimpleConfiguration<int>::serialize( netCDF::NcGroup & group ) const;
+
+ template<>
+ void SimpleConfiguration<int>::deserialize( netCDF::NcGroup & group );
+
+ template<>
+ void SimpleConfiguration<double>::serialize( netCDF::NcGroup & group ) const;
+
+ template<>
+ void SimpleConfiguration<double>::deserialize( netCDF::NcGroup & group );
+
+ template<>
+ void SimpleConfiguration< std::pair<int,int> >::serialize(
+					      netCDF::NcGroup & group ) const;
+ template<>
+ void SimpleConfiguration< std::pair<int,int> >::deserialize(
+						     netCDF::NcGroup & group );
+ template<>
+ void SimpleConfiguration< std::pair<double,double> >::serialize(
+					      netCDF::NcGroup & group ) const;
+ template<>
+ void SimpleConfiguration< std::pair<double,double> >::deserialize(
+						     netCDF::NcGroup & group );
+ template<>
+ void SimpleConfiguration< std::pair<int,double> >::serialize(
+					      netCDF::NcGroup & group ) const;
+ template<>
+ void SimpleConfiguration< std::pair<int,double> >::deserialize(
+						     netCDF::NcGroup & group );
+ template<>
+ void SimpleConfiguration< std::pair<double,int> >::serialize(
+					      netCDF::NcGroup & group ) const;
+ template<>
+ void SimpleConfiguration< std::pair<double,int> >::deserialize(
+						     netCDF::NcGroup & group );
+ template<>
+ void SimpleConfiguration< std::vector<int> >::serialize(
+					      netCDF::NcGroup & group ) const;
+ template<>
+ void SimpleConfiguration< std::vector<int> >::deserialize(
+						    netCDF::NcGroup & group );
+ template<>
+ void SimpleConfiguration< std::vector<int> >::clear( void );
+
+ template<>
+ void SimpleConfiguration< std::vector<double> >::serialize(
+					       netCDF::NcGroup & group ) const;
+ template<>
+ void SimpleConfiguration< std::vector<double> >::deserialize(
+						    netCDF::NcGroup & group );
+ template<>
+ void SimpleConfiguration< std::vector<double> >::clear( void );
+
+ template<>
+ void SimpleConfiguration< std::list<int> >::serialize(
+					      netCDF::NcGroup & group ) const;
+ template<>
+ void SimpleConfiguration< std::list<int> >::deserialize(
+						     netCDF::NcGroup & group );
+ template<>
+ void SimpleConfiguration< std::list<int> >::clear( void );
+
+ template<>
+ void SimpleConfiguration< std::list<double> >::serialize(
+					      netCDF::NcGroup & group ) const;
+ template<>
+ void SimpleConfiguration< std::list<double> >::deserialize(
+					             netCDF::NcGroup & group );
+ template<>
+ void SimpleConfiguration< std::list<double> >::clear( void );
+
+ template<>
+ void SimpleConfiguration< std::pair< Configuration * , Configuration * >
+			  >::serialize( netCDF::NcGroup & group ) const;
+ template<>
+ void SimpleConfiguration< std::pair< Configuration * , Configuration * >
+			  >::deserialize( netCDF::NcGroup & group );
+ template<>
+ void SimpleConfiguration< std::pair< Configuration * , Configuration * >
+			  >::load( std::istream &input );
+ template<>
+ void SimpleConfiguration< std::pair< Configuration * , Configuration * >
+			  >::clear( void );
+ template<>
+ void SimpleConfiguration< std::vector< Configuration * > >::serialize(
+					       netCDF::NcGroup & group ) const;
+ template<>
+ void SimpleConfiguration< std::vector< Configuration * > >::deserialize(
+						    netCDF::NcGroup & group );
+ template<>
+ void SimpleConfiguration< std::vector< Configuration * >
+			  >::load( std::istream &input );
+ template<>
+ void SimpleConfiguration< std::vector< Configuration * > >::clear( void );
+
+/** @} end( group( SimpleConfiguration_SPECIALIZATIONS ) ) */
 /*--------------------------------------------------------------------------*/
 
 }  // end( namespace SMSpp_di_unipi_it )
