@@ -70,7 +70,7 @@
  *
  * \version 0.33
  *
- * \date 03 - 08 - 2020
+ * \date 07 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -444,11 +444,7 @@ class RBlockConfig : public BlockConfig
 
  void load( std::istream &input ) override;
 
-/**@} ----------------------------------------------------------------------*/
 /*---------------------- PROTECTED FIELDS OF THE CLASS ---------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Protected fields of the class
- *  @{ */
 
  /// the vector of sub-BlockConfig for each of the sub-Block of the Block
  std::vector<BlockConfig *> v_sub_BlockConfig;
@@ -622,6 +618,119 @@ class CBlockConfig : public BlockConfig
   }
 
 /**@} ----------------------------------------------------------------------*/
+/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Other initializations
+ *  @{ */
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// getting the CBlockConfig of the given Block
+ /** This method gets information about the parameter of the given Block (and
+  * its Constraint) and stores in this CBlockConfig. This information consists
+  * of that supported by the BlockConfig (see BlockConfig::get()) plus any
+  * ComputeConfig that may be associated with the Constraint of the given
+  * Block. Any Configuration that this CBlockConfig may have at the moment
+  * this function is invoked is deleted. If #v_Constraint_id is not empty then
+  * its content is preserved and only the ComputeConfig associated with the
+  * Constraint (of the given \p block) specified by #v_Constraint_id are
+  * considered. If #v_Constraint_id is empty then every Constraint in the given
+  * \p block is inspected. In this case, for each Constraint of the given \p
+  * block, its ComputeConfig is stored in this CBlockConfig if it has a
+  * non-default set of parameters.
+  *
+  * If #v_Constraint_id is not empty but one wants all Constraint to be
+  * inspected (for instance, one is not sure that every Constraint that is not
+  * specified in #v_Constraint_id has a default set of parameters), then
+  * #v_Constraint_id must be cleared before this method is called.
+  *
+  * Note that if #v_Constraint_id is empty then
+  *
+  *     CALLING CBlockConfig::get() IS A POTENTIALLY COSTLY OPERATION BECAUSE
+  *     IT ENTAILS SCANNING ALL Constraint OF THE Block IN ORDER TO OBTAIN
+  *     THEIR ComputeConfig.
+  *
+  * @param block A pointer to the Block whose CBlockConfig must be filled. */
+
+ void get( Block * block ) override;
+
+/**@} ----------------------------------------------------------------------*/
+/*---------------- METHODS FOR MODIFYING THE CBlockConfig ------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for modifying the CBlockConfig
+ *  @{ */
+
+/*--------------------------------------------------------------------------*/
+
+ /// add a ComputeConfig for a Constraint
+ /** This function adds the pointer to the ComputeConfig of the Constraint
+  * whose group is identified by \p constraint_group_id (which must be either
+  * the name or the index of the group to which the Constraint belongs) and \p
+  * constraint_index (the index of the Constraint in its group). See
+  * Block::ConstraintID for the definition of the index of a group and the
+  * index of a Constraint in a group.
+  *
+  * @param config A pointer to a ComputeConfig.
+  *
+  * @param constraint_group_id The identification (either the name or the
+  *        index) of the group to which the Constraint belongs.
+  *
+  * @param constraint_index The index of the Constraint in its group. */
+
+ void add_ComputeConfig_Constraint( ComputeConfig * config ,
+                                    std::string && constraint_group_id ,
+                                    Block::Index constraint_index ) {
+
+  v_Constraint_id.push_back
+   ( std::make_pair( std::move( constraint_group_id ) , constraint_index ) );
+  v_Config_Constraint.push_back( config );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// add a ComputeConfig for a Constraint
+ /** This function adds the pointer to the ComputeConfig of the Constraint
+  * that belongs to the group whose index is \p constraint_group_index and
+  * whose index in that group is \p constraint_index. See Block::ConstraintID
+  * for the definition of the index of a group and the index of a Constraint
+  * in a group.
+  *
+  * @param config A pointer to a ComputeConfig.
+  *
+  * @param constraint_group_index The index of the group to which the
+  *        Constraint belongs.
+  *
+  * @param constraint_index The index of the Constraint in its group. */
+
+ void add_ComputeConfig_Constraint( ComputeConfig * config ,
+                                    Block::Index constraint_group_index ,
+                                    Block::Index constraint_index ) {
+
+  v_Constraint_id.push_back
+   ( std::make_pair( std::to_string( constraint_group_index ) ,
+                     constraint_index ) );
+  v_Config_Constraint.push_back( config );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// remove a ComputeConfig of a Constraint
+ /** This function removes the ComputeConfig at the given \p index. Notice
+  * that \p index is not the index of the Constraint, but the index of the
+  * ComputeConfig being handled by this CBlockConfig.
+  *
+  * @param index The index of the ComputeConfig to be removed. */
+
+ void remove_ComputeConfig_Constraint( Block::Index index ) {
+  if( index >= v_Constraint_id.size() )
+   throw ( std::invalid_argument( "CBlockConfig::remove_ComputeConfig_"
+                                  "Constraint: invalid index: " +
+                                  std::to_string( index ) + "." ) );
+
+  v_Constraint_id.erase( std::begin( v_Constraint_id ) + index );
+  v_Config_Constraint.erase( std::begin( v_Config_Constraint ) + index );
+  }
+
+/**@} ----------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF THE CBlockConfig ----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of the CBlockConfig
@@ -663,48 +772,22 @@ class CBlockConfig : public BlockConfig
   v_Config_Constraint.clear();
   }
 
+/*--------------------------------------------------------------------------*/
+
+ /// returns the number of ComputeConfig for Constraint in this CBlockConfig
+ /** This method returns the number of ComputeConfig (for the Constraint)
+  * currently being handled by this CBlockConfig . */
+
+ Block::Index num_ComputeConfig_Constraint( void ) {
+  return v_Config_Constraint.size();
+  }
+
 /*------------------------------- CLONE ------------------------------------*/
 
  CBlockConfig * clone( void ) const override
  {
   return( new CBlockConfig( *this ) );
   }
-
-/**@} ----------------------------------------------------------------------*/
-/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Other initializations
- *  @{ */
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// getting the CBlockConfig of the given Block
- /** This method gets information about the parameter of the given Block (and
-  * its Constraint) and stores in this CBlockConfig. This information consists
-  * of that supported by the BlockConfig (see BlockConfig::get()) plus any
-  * ComputeConfig that may be associated with the Constraint of the given
-  * Block. Any Configuration that this CBlockConfig may have at the moment
-  * this function is invoked is deleted. If #v_Constraint_id is not empty then
-  * its content is preserved and only the ComputeConfig associated with the
-  * Constraint (of the given \p block) specified by #v_Constraint_id are
-  * considered. If #v_Constraint_id is empty then every Constraint in the given
-  * \p block is inspected. In this case, for each Constraint of the given \p
-  * block, its ComputeConfig is stored in this CBlockConfig if it has a
-  * non-default set of parameters.
-  *
-  * If #v_Constraint_id is not empty but one wants all Constraint to be
-  * inspected (for instance, one is not sure that every Constraint that is not
-  * specified in #v_Constraint_id has a default set of parameters), then
-  * #v_Constraint_id must be cleared before this method is called.
-  *
-  * Note that if #v_Constraint_id is empty then
-  *
-  *     CALLING CBlockConfig::get() IS A POTENTIALLY COSTLY OPERATION BECAUSE
-  *     IT ENTAILS SCANNING ALL Constraint OF THE Block IN ORDER TO OBTAIN
-  *     THEIR ComputeConfig.
-  *
-  * @param block A pointer to the Block whose CBlockConfig must be filled. */
-
- void get( Block * block ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*--------- METHODS FOR LOADING, PRINTING & SAVING THE CBlockConfig --------*/
@@ -719,31 +802,6 @@ class CBlockConfig : public BlockConfig
   * details of the format of the created netCDF group. */
 
  void serialize( netCDF::NcGroup & group ) const override;
-
-/**@} ----------------------------------------------------------------------*/
-/*--------------------- PUBLIC FIELDS OF THE CLASS -------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Public fields of the class
- *  @{ */
-
- /// the vector that identifies the Constraint that require a ComputeConfig
- /** This vector indicates which Constraint of the Block require a
-  * ComputeConfig. Each element of this vector identifies one Constraint. A
-  * Constraint is identified by a pair. The first element of the pair is an
-  * identification of the group to which the Constraint belongs and the second
-  * one is the index of the Constraint in that group (see Block::ConstraintID
-  * for the definition of the index of a Constraint in a group). The group to
-  * which the Constraint belongs can be indicated in two ways: it is either
-  * (i) the name of the group of Constraint (see Block::get_s_const_name() and
-  * Block::get_d_const_name()) or the index of the group as defined in
-  * Block::ConstraintID. */
- std::vector< std::pair<std::string , Block::Index> > v_Constraint_id;
-
- /// the vector of (pointer to the) ComputeConfig for the Constraint
- /** The vector of (pointer to the) ComputeConfig for the Constraint. The i-th
-  * ComputeConfig in this vector is that of the Constraint identified by the
-  * i-th element in the vector #v_Constraint_id. */
- std::vector<ComputeConfig *> v_Config_Constraint;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -788,6 +846,27 @@ class CBlockConfig : public BlockConfig
   *       WITH THAT NAME IS CONSIDERED. */
 
  void load( std::istream &input ) override;
+
+/*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
+
+ /// the vector that identifies the Constraint that require a ComputeConfig
+ /** This vector indicates which Constraint of the Block require a
+  * ComputeConfig. Each element of this vector identifies one Constraint. A
+  * Constraint is identified by a pair. The first element of the pair is an
+  * identification of the group to which the Constraint belongs and the second
+  * one is the index of the Constraint in that group (see Block::ConstraintID
+  * for the definition of the index of a Constraint in a group). The group to
+  * which the Constraint belongs can be indicated in two ways: it is either
+  * (i) the name of the group of Constraint (see Block::get_s_const_name() and
+  * Block::get_d_const_name()) or the index of the group as defined in
+  * Block::ConstraintID. */
+ std::vector< std::pair<std::string , Block::Index> > v_Constraint_id;
+
+ /// the vector of (pointer to the) ComputeConfig for the Constraint
+ /** The vector of (pointer to the) ComputeConfig for the Constraint. The i-th
+  * ComputeConfig in this vector is that of the Constraint identified by the
+  * i-th element in the vector #v_Constraint_id. */
+ std::vector<ComputeConfig *> v_Config_Constraint;
 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 
@@ -1462,6 +1541,119 @@ class CRBlockConfig : public RBlockConfig
   }
 
 /**@} ----------------------------------------------------------------------*/
+/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Other initializations
+ *  @{ */
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// getting the CRBlockConfig of the given Block
+ /** This method gets information about the parameter of the given Block (and
+  * its Constraint) and stores in this CRBlockConfig. This information
+  * consists of that supported by the RBlockConfig (see RBlockConfig::get())
+  * plus any ComputeConfig that may be associated with the Constraint of the
+  * given Block. Any Configuration that this CRBlockConfig may have at the
+  * moment this function is invoked is deleted. If #v_Constraint_id is not
+  * empty then its content is preserved and only the ComputeConfig associated
+  * with the Constraint (of the given \p block) specified by #v_Constraint_id
+  * are considered. If #v_Constraint_id is empty then every Constraint in the
+  * given \p block is inspected. In this case, for each Constraint of the
+  * given \p block, its ComputeConfig is stored in this CRBlockConfig if it
+  * has a non-default set of parameters.
+  *
+  * If #v_Constraint_id is not empty but one wants all Constraint to be
+  * inspected (for instance, one is not sure that every Constraint that is not
+  * specified in #v_Constraint_id has a default set of parameters), then
+  * #v_Constraint_id must be cleared before this method is called.
+  *
+  * Note that if #v_Constraint_id is empty then
+  *
+  *     CALLING CRBlockConfig::get() IS A POTENTIALLY COSTLY OPERATION BECAUSE
+  *     IT ENTAILS SCANNING ALL Constraint OF THE Block IN ORDER TO OBTAIN
+  *     THEIR ComputeConfig.
+  *
+  * @param block A pointer to the Block whose CRBlockConfig must be filled. */
+
+ void get( Block * block ) override;
+
+/**@} ----------------------------------------------------------------------*/
+/*---------------- METHODS FOR MODIFYING THE CRBlockConfig -----------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for modifying the CRBlockConfig
+ *  @{ */
+
+/*--------------------------------------------------------------------------*/
+
+ /// add a ComputeConfig for a Constraint
+ /** This function adds the pointer to the ComputeConfig of the Constraint
+  * whose group is identified by \p constraint_group_id (which must be either
+  * the name or the index of the group to which the Constraint belongs) and \p
+  * constraint_index (the index of the Constraint in its group). See
+  * Block::ConstraintID for the definition of the index of a group and the
+  * index of a Constraint in a group.
+  *
+  * @param config A pointer to a ComputeConfig.
+  *
+  * @param constraint_group_id The identification (either the name or the
+  *        index) of the group to which the Constraint belongs.
+  *
+  * @param constraint_index The index of the Constraint in its group. */
+
+ void add_ComputeConfig_Constraint( ComputeConfig * config ,
+                                    std::string && constraint_group_id ,
+                                    Block::Index constraint_index ) {
+
+  v_Constraint_id.push_back
+   ( std::make_pair( std::move( constraint_group_id ) , constraint_index ) );
+  v_Config_Constraint.push_back( config );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// add a ComputeConfig for a Constraint
+ /** This function adds the pointer to the ComputeConfig of the Constraint
+  * that belongs to the group whose index is \p constraint_group_index and
+  * whose index in that group is \p constraint_index. See Block::ConstraintID
+  * for the definition of the index of a group and the index of a Constraint
+  * in a group.
+  *
+  * @param config A pointer to a ComputeConfig.
+  *
+  * @param constraint_group_index The index of the group to which the
+  *        Constraint belongs.
+  *
+  * @param constraint_index The index of the Constraint in its group. */
+
+ void add_ComputeConfig_Constraint( ComputeConfig * config ,
+                                    Block::Index constraint_group_index ,
+                                    Block::Index constraint_index ) {
+
+  v_Constraint_id.push_back
+   ( std::make_pair( std::to_string( constraint_group_index ) ,
+                     constraint_index ) );
+  v_Config_Constraint.push_back( config );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// remove a ComputeConfig of a Constraint
+ /** This function removes the ComputeConfig at the given \p index. Notice
+  * that \p index is not the index of the Constraint, but the index of the
+  * ComputeConfig being handled by this CRBlockConfig.
+  *
+  * @param index The index of the ComputeConfig to be removed. */
+
+ void remove_ComputeConfig_Constraint( Block::Index index ) {
+  if( index >= v_Constraint_id.size() )
+   throw ( std::invalid_argument( "CRBlockConfig::remove_ComputeConfig_"
+                                  "Constraint: invalid index: " +
+                                  std::to_string( index ) + "." ) );
+
+  v_Constraint_id.erase( std::begin( v_Constraint_id ) + index );
+  v_Config_Constraint.erase( std::begin( v_Config_Constraint ) + index );
+  }
+
+/**@} ----------------------------------------------------------------------*/
 /*---------- METHODS DESCRIBING THE BEHAVIOR OF THE CRBlockConfig ----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of the CRBlockConfig
@@ -1503,48 +1695,22 @@ class CRBlockConfig : public RBlockConfig
   v_Config_Constraint.clear();
   }
 
+/*--------------------------------------------------------------------------*/
+
+ /// returns the number of ComputeConfig for Constraint in this CRBlockConfig
+ /** This method returns the number of ComputeConfig (for the Constraint)
+  * currently being handled by this CRBlockConfig . */
+
+ Block::Index num_ComputeConfig_Constraint( void ) {
+  return v_Config_Constraint.size();
+  }
+
 /*------------------------------- CLONE ------------------------------------*/
 
  CRBlockConfig * clone( void ) const override
  {
   return( new CRBlockConfig( *this ) );
   }
-
-/**@} ----------------------------------------------------------------------*/
-/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Other initializations
- *  @{ */
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// getting the CRBlockConfig of the given Block
- /** This method gets information about the parameter of the given Block (and
-  * its Constraint) and stores in this CRBlockConfig. This information
-  * consists of that supported by the RBlockConfig (see RBlockConfig::get())
-  * plus any ComputeConfig that may be associated with the Constraint of the
-  * given Block. Any Configuration that this CRBlockConfig may have at the
-  * moment this function is invoked is deleted. If #v_Constraint_id is not
-  * empty then its content is preserved and only the ComputeConfig associated
-  * with the Constraint (of the given \p block) specified by #v_Constraint_id
-  * are considered. If #v_Constraint_id is empty then every Constraint in the
-  * given \p block is inspected. In this case, for each Constraint of the
-  * given \p block, its ComputeConfig is stored in this CRBlockConfig if it
-  * has a non-default set of parameters.
-  *
-  * If #v_Constraint_id is not empty but one wants all Constraint to be
-  * inspected (for instance, one is not sure that every Constraint that is not
-  * specified in #v_Constraint_id has a default set of parameters), then
-  * #v_Constraint_id must be cleared before this method is called.
-  *
-  * Note that if #v_Constraint_id is empty then
-  *
-  *     CALLING CRBlockConfig::get() IS A POTENTIALLY COSTLY OPERATION BECAUSE
-  *     IT ENTAILS SCANNING ALL Constraint OF THE Block IN ORDER TO OBTAIN
-  *     THEIR ComputeConfig.
-  *
-  * @param block A pointer to the Block whose CRBlockConfig must be filled. */
-
- void get( Block * block ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*--------- METHODS FOR LOADING, PRINTING & SAVING THE CRBlockConfig -------*/
@@ -1559,31 +1725,6 @@ class CRBlockConfig : public RBlockConfig
   * details of the format of the created netCDF group. */
 
  void serialize( netCDF::NcGroup & group ) const override;
-
-/**@} ----------------------------------------------------------------------*/
-/*--------------------- PUBLIC FIELDS OF THE CLASS -------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Public fields of the class
- *  @{ */
-
- /// the vector that identifies the Constraint that require a ComputeConfig
- /** This vector indicates which Constraint of the Block require a
-  * ComputeConfig. Each element of this vector identifies one Constraint. A
-  * Constraint is identified by a pair. The first element of the pair is an
-  * identification of the group to which the Constraint belongs and the second
-  * one is the index of the Constraint in that group (see Block::ConstraintID
-  * for the definition of the index of a Constraint in a group). The group to
-  * which the Constraint belongs can be indicated in two ways: it is either
-  * (i) the name of the group of Constraint (see Block::get_s_const_name() and
-  * Block::get_d_const_name()) or the index of the group as defined in
-  * Block::ConstraintID. */
- std::vector< std::pair<std::string , Block::Index> > v_Constraint_id;
-
- /// the vector of (pointer to the) ComputeConfig for the Constraint
- /** The vector of (pointer to the) ComputeConfig for the Constraint. The i-th
-  * ComputeConfig in this vector is that of the Constraint identified by the
-  * i-th element in the vector #v_Constraint_id. */
- std::vector<ComputeConfig *> v_Config_Constraint;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -1628,6 +1769,27 @@ class CRBlockConfig : public RBlockConfig
   *       WITH THAT NAME IS CONSIDERED. */
 
  void load( std::istream &input ) override;
+
+/*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
+
+ /// the vector that identifies the Constraint that require a ComputeConfig
+ /** This vector indicates which Constraint of the Block require a
+  * ComputeConfig. Each element of this vector identifies one Constraint. A
+  * Constraint is identified by a pair. The first element of the pair is an
+  * identification of the group to which the Constraint belongs and the second
+  * one is the index of the Constraint in that group (see Block::ConstraintID
+  * for the definition of the index of a Constraint in a group). The group to
+  * which the Constraint belongs can be indicated in two ways: it is either
+  * (i) the name of the group of Constraint (see Block::get_s_const_name() and
+  * Block::get_d_const_name()) or the index of the group as defined in
+  * Block::ConstraintID. */
+ std::vector< std::pair<std::string , Block::Index> > v_Constraint_id;
+
+ /// the vector of (pointer to the) ComputeConfig for the Constraint
+ /** The vector of (pointer to the) ComputeConfig for the Constraint. The i-th
+  * ComputeConfig in this vector is that of the Constraint identified by the
+  * i-th element in the vector #v_Constraint_id. */
+ std::vector<ComputeConfig *> v_Config_Constraint;
 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 
