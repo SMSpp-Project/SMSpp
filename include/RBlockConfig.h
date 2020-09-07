@@ -319,13 +319,18 @@ class RBlockConfig : public BlockConfig
   * \p index is not the index of the sub-Block, but the index of the
   * BlockConfig being handled by this RBlockConfig.
   *
-  * @param index The index of the BlockConfig to be removed. */
+  * @param index The index of the BlockConfig to be removed.
+  *
+  * @param destroy It indicates whether the pointer to the BlockConfig at the
+  *        given index must be deleted. */
 
- void remove_sub_BlockConfig( Block::Index index ) {
+ void remove_sub_BlockConfig( Block::Index index , bool destroy = true ) {
   if( index >= v_sub_BlockConfig.size() )
    throw ( std::invalid_argument( "RBlockConfig::remove_sub_BlockConfig: "
                                   "invalid index: " +
                                   std::to_string( index ) + "." ) );
+  if( destroy )
+   delete v_sub_BlockConfig[ index ];
   v_sub_BlockConfig.erase( std::begin( v_sub_BlockConfig ) + index );
   v_sub_Block_id.erase( std::begin( v_sub_Block_id ) + index );
   }
@@ -372,16 +377,6 @@ class RBlockConfig : public BlockConfig
   v_sub_BlockConfig.clear();
   }
 
-/*--------------------------------------------------------------------------*/
-
- /// returns the number of sub-BlockConfig in this RBlockConfig
- /** This method returns the number of BlockConfig (for the sub-Block)
-  * currently being handled by this RBlockConfig . */
-
- Block::Index num_sub_BlockConfig( void ) {
-  return v_sub_BlockConfig.size();
-  }
-
 /*-------------------------------- CLONE -----------------------------------*/
 
  RBlockConfig * clone( void ) const override
@@ -390,12 +385,68 @@ class RBlockConfig : public BlockConfig
   }
 
 /**@} ----------------------------------------------------------------------*/
+/*------------ METHODS FOR READING THE DATA OF THE RBlockConfig ------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for reading the data of the RBlockConfig
+ * @{ */
+
+ /// returns the number of sub-BlockConfig in this RBlockConfig
+ /** This method returns the number of BlockConfig (for the sub-Block)
+  * currently being handled by this RBlockConfig . */
+
+ Block::Index num_sub_BlockConfig( void ) const {
+  return v_sub_BlockConfig.size();
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the (pointer to) the BlockConfig at the given \p index
+ /** This function returns the pointer to the BlockConfig at the given \p
+  * index. Notice that \p index is not the index of the sub-Block, but the
+  * index of the BlockConfig being handled by this RBlockConfig.
+  *
+  * @param index The index of the BlockConfig to be returned (it must be an
+  *        index between 0 and num_sub_BlockConfig() - 1).
+  *
+  * @return The pointer to the BlockConfig at the given \p index.
+  */
+
+ BlockConfig * get_sub_BlockConfig( Block::Index index ) const {
+  if( index >= v_sub_BlockConfig.size() )
+   throw ( std::invalid_argument( "RBlockConfig::get_sub_BlockConfig: invalid "
+                                  "index: " + std::to_string( index ) + "." ) );
+  return( v_sub_BlockConfig[ index ] );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the id of the sub-Block associated with the given \p index
+ /** This function returns the identification of the sub-Block whose
+  * BlockConfig is located at position \p index in this RBlockConfig. The
+  * identification of the sub-Block is either its name (see Block::name()) or
+  * its index in the list of nested Block of its father Block.
+  *
+  * @param index The index of a BlockConfig in this RBlockConfig (it must be
+  *        an index between 0 and num_sub_BlockConfig() - 1).
+  *
+  * @return The identification of the sub-Block associated with the
+  *         BlockConfig located at the given \p index.
+  */
+
+ const std::string & get_sub_BlockConfig_id( Block::Index index ) const {
+  if( index >= v_sub_Block_id.size() )
+   throw ( std::invalid_argument( "RBlockConfig::get_sub_BlockConfig_id: "
+                                  "invalid index: "
+                                  + std::to_string( index ) + "." ) );
+  return( v_sub_Block_id[ index ] );
+  }
+
+/**@} ----------------------------------------------------------------------*/
 /*--------- METHODS FOR LOADING, PRINTING & SAVING THE RBlockConfig --------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the RBlockConfig
  * @{ */
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// extends BlockConfig::serialize( netCDF::NcGroup )
  /** Extends BlockConfig::serialize( netCDF::NcGroup ) to the specific format
   * of a RBlockConfig. See RBlockConfig::deserialize( netCDF::NcGroup ) for
@@ -718,14 +769,19 @@ class CBlockConfig : public BlockConfig
   * that \p index is not the index of the Constraint, but the index of the
   * ComputeConfig being handled by this CBlockConfig.
   *
-  * @param index The index of the ComputeConfig to be removed. */
+  * @param index The index of the ComputeConfig to be removed.
+  *
+  * @param destroy It indicates whether the pointer to the ComputeConfig at
+  *        the given index must be deleted. */
 
- void remove_ComputeConfig_Constraint( Block::Index index ) {
+ void remove_ComputeConfig_Constraint( Block::Index index ,
+                                       bool destroy = true ) {
   if( index >= v_Constraint_id.size() )
    throw ( std::invalid_argument( "CBlockConfig::remove_ComputeConfig_"
                                   "Constraint: invalid index: " +
                                   std::to_string( index ) + "." ) );
-
+  if( destroy )
+   delete v_Config_Constraint[ index ];
   v_Constraint_id.erase( std::begin( v_Constraint_id ) + index );
   v_Config_Constraint.erase( std::begin( v_Config_Constraint ) + index );
   }
@@ -772,21 +828,68 @@ class CBlockConfig : public BlockConfig
   v_Config_Constraint.clear();
   }
 
-/*--------------------------------------------------------------------------*/
-
- /// returns the number of ComputeConfig for Constraint in this CBlockConfig
- /** This method returns the number of ComputeConfig (for the Constraint)
-  * currently being handled by this CBlockConfig . */
-
- Block::Index num_ComputeConfig_Constraint( void ) {
-  return v_Config_Constraint.size();
-  }
-
 /*------------------------------- CLONE ------------------------------------*/
 
  CBlockConfig * clone( void ) const override
  {
   return( new CBlockConfig( *this ) );
+  }
+
+/**@} ----------------------------------------------------------------------*/
+/*------------ METHODS FOR READING THE DATA OF THE CBlockConfig ------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for reading the data of the CBlockConfig
+ * @{ */
+
+ /// returns the number of ComputeConfig for Constraint in this CBlockConfig
+ /** This method returns the number of ComputeConfig (for the Constraint)
+  * currently being handled by this CBlockConfig . */
+
+ Block::Index num_ComputeConfig_Constraint( void ) const {
+  return v_Config_Constraint.size();
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the (pointer to) the ComputeConfig at the given \p index
+ /** This function returns the pointer to the ComputeConfig at the given \p
+  * index. Notice that \p index is not the index of the Constraint, but the
+  * index of the ComputeConfig being handled by this CBlockConfig.
+  *
+  * @param index The index of the ComputeConfig to be returned (it must be an
+  *        index between 0 and num_ComputeConfig_Constraint() - 1).
+  *
+  * @return The pointer to the ComputeConfig at the given \p index.
+  */
+
+ ComputeConfig * get_ComputeConfig_Constraint( Block::Index index ) const {
+  if( index >= v_Config_Constraint.size() )
+   throw ( std::invalid_argument( "CBlockConfig::get_ComputeConfig_Constraint: "
+                                  "invalid index: "
+                                  + std::to_string( index ) + "." ) );
+  return( v_Config_Constraint[ index ] );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the id of the Constraint associated with the given \p index
+ /** This function returns the identification of the Constraint whose
+  * ComputeConfig is located at position \p index in this CBlockConfig.
+  *
+  * @param index The index of a ComputeConfig in this CBlockConfig (it must be
+  *        an index between 0 and num_ComputeConfig_Constraint() - 1)
+  *
+  * @return The identification of the Constraint associated with the
+  *         ComputeConfig located at the given \p index.
+  */
+
+ const std::pair<std::string , Block::Index> &
+ get_Constraint_id( Block::Index index ) const {
+  if( index >= v_Constraint_id.size() )
+   throw ( std::invalid_argument( "CBlockConfig::get_Constraint_id: "
+                                  "invalid index: "
+                                  + std::to_string( index ) + "." ) );
+  return( v_Constraint_id[ index ] );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -1641,14 +1744,19 @@ class CRBlockConfig : public RBlockConfig
   * that \p index is not the index of the Constraint, but the index of the
   * ComputeConfig being handled by this CRBlockConfig.
   *
-  * @param index The index of the ComputeConfig to be removed. */
+  * @param index The index of the ComputeConfig to be removed.
+  *
+  * @param destroy It indicates whether the pointer to the ComputeConfig at
+  *        the given index must be deleted. */
 
- void remove_ComputeConfig_Constraint( Block::Index index ) {
+ void remove_ComputeConfig_Constraint( Block::Index index ,
+                                       bool destroy = true ) {
   if( index >= v_Constraint_id.size() )
    throw ( std::invalid_argument( "CRBlockConfig::remove_ComputeConfig_"
                                   "Constraint: invalid index: " +
                                   std::to_string( index ) + "." ) );
-
+  if( destroy )
+   delete v_Config_Constraint[ index ];
   v_Constraint_id.erase( std::begin( v_Constraint_id ) + index );
   v_Config_Constraint.erase( std::begin( v_Config_Constraint ) + index );
   }
@@ -1695,21 +1803,68 @@ class CRBlockConfig : public RBlockConfig
   v_Config_Constraint.clear();
   }
 
-/*--------------------------------------------------------------------------*/
-
- /// returns the number of ComputeConfig for Constraint in this CRBlockConfig
- /** This method returns the number of ComputeConfig (for the Constraint)
-  * currently being handled by this CRBlockConfig . */
-
- Block::Index num_ComputeConfig_Constraint( void ) {
-  return v_Config_Constraint.size();
-  }
-
 /*------------------------------- CLONE ------------------------------------*/
 
  CRBlockConfig * clone( void ) const override
  {
   return( new CRBlockConfig( *this ) );
+  }
+
+/**@} ----------------------------------------------------------------------*/
+/*------------ METHODS FOR READING THE DATA OF THE CRBlockConfig -----------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for reading the data of the CRBlockConfig
+ * @{ */
+
+ /// returns the number of ComputeConfig for Constraint in this CRBlockConfig
+ /** This method returns the number of ComputeConfig (for the Constraint)
+  * currently being handled by this CRBlockConfig . */
+
+ Block::Index num_ComputeConfig_Constraint( void ) const {
+  return v_Config_Constraint.size();
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the (pointer to) the ComputeConfig at the given \p index
+ /** This function returns the pointer to the ComputeConfig at the given \p
+  * index. Notice that \p index is not the index of the Constraint, but the
+  * index of the ComputeConfig being handled by this CRBlockConfig.
+  *
+  * @param index The index of the ComputeConfig to be returned (it must be an
+  *        index between 0 and num_ComputeConfig_Constraint() - 1).
+  *
+  * @return The pointer to the ComputeConfig at the given \p index.
+  */
+
+ ComputeConfig * get_ComputeConfig_Constraint( Block::Index index ) const {
+  if( index >= v_Config_Constraint.size() )
+   throw ( std::invalid_argument( "CRBlockConfig::get_ComputeConfig_Constraint:"
+                                  " invalid index: "
+                                  + std::to_string( index ) + "." ) );
+  return( v_Config_Constraint[ index ] );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the id of the Constraint associated with the given \p index
+ /** This function returns the identification of the Constraint whose
+  * ComputeConfig is located at position \p index in this CRBlockConfig.
+  *
+  * @param index The index of a ComputeConfig in this CRBlockConfig (it must
+  *        be an index between 0 and num_ComputeConfig_Constraint() - 1)
+  *
+  * @return The identification of the Constraint associated with the
+  *         ComputeConfig located at the given \p index.
+  */
+
+ const std::pair<std::string , Block::Index> &
+ get_Constraint_id( Block::Index index ) const {
+  if( index >= v_Constraint_id.size() )
+   throw ( std::invalid_argument( "CRBlockConfig::get_Constraint_id: "
+                                  "invalid index: "
+                                  + std::to_string( index ) + "." ) );
+  return( v_Constraint_id[ index ] );
   }
 
 /**@} ----------------------------------------------------------------------*/
