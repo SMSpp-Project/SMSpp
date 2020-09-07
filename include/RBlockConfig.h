@@ -277,6 +277,60 @@ class RBlockConfig : public BlockConfig
  void get( Block * block ) override;
 
 /**@} ----------------------------------------------------------------------*/
+/*---------------- METHODS FOR MODIFYING THE RBlockConfig ------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for modifying the RBlockConfig
+ *  @{ */
+
+ /// add a BlockConfig for a sub-Block
+ /** This function adds the pointer to the BlockConfig of the sub-Block with
+  * the given \p index.
+  *
+  * @param config A pointer to a BlockConfig.
+  *
+  * @param index The index of the sub-Block whose BlockConfig is being
+  *        added. */
+
+ void add_sub_BlockConfig( BlockConfig * config , Block::Index index ) {
+  v_sub_BlockConfig.push_back( config );
+  v_sub_Block_id.push_back( std::to_string( index ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// add a BlockConfig for a sub-Block
+ /** This function adds the pointer to the BlockConfig of the sub-Block with
+  * the given \p name.
+  *
+  * @param config A pointer to a BlockConfig.
+  *
+  * @param index The name of the sub-Block whose BlockConfig is being
+  *        added. */
+
+ void add_sub_BlockConfig( BlockConfig * config , std::string && name ) {
+  v_sub_BlockConfig.push_back( config );
+  v_sub_Block_id.push_back( std::move( name ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// remove a BlockConfig for a sub-Block
+ /** This function removes the BlockConfig at the given \p index. Notice that
+  * \p index is not the index of the sub-Block, but the index of the
+  * BlockConfig being handled by this RBlockConfig.
+  *
+  * @param index The index of the BlockConfig to be removed. */
+
+ void remove_sub_BlockConfig( Block::Index index ) {
+  if( index >= v_sub_BlockConfig.size() )
+   throw ( std::invalid_argument( "RBlockConfig::remove_sub_BlockConfig: "
+                                  "invalid index: " +
+                                  std::to_string( index ) + "." ) );
+  v_sub_BlockConfig.erase( std::begin( v_sub_BlockConfig ) + index );
+  v_sub_Block_id.erase( std::begin( v_sub_Block_id ) + index );
+  }
+
+/**@} ----------------------------------------------------------------------*/
 /*---------- METHODS DESCRIBING THE BEHAVIOR OF THE RBlockConfig -----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of the RBlockConfig
@@ -318,6 +372,16 @@ class RBlockConfig : public BlockConfig
   v_sub_BlockConfig.clear();
   }
 
+/*--------------------------------------------------------------------------*/
+
+ /// returns the number of sub-BlockConfig in this RBlockConfig
+ /** This method returns the number of BlockConfig (for the sub-Block)
+  * currently being handled by this RBlockConfig . */
+
+ Block::Index num_sub_BlockConfig( void ) {
+  return v_sub_BlockConfig.size();
+  }
+
 /*-------------------------------- CLONE -----------------------------------*/
 
  RBlockConfig * clone( void ) const override
@@ -338,25 +402,6 @@ class RBlockConfig : public BlockConfig
   * details of the format of the created netCDF group. */
 
  void serialize( netCDF::NcGroup & group ) const override;
-
-/**@} ----------------------------------------------------------------------*/
-/*--------------------- PUBLIC FIELDS OF THE CLASS -------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @name Public fields of the class
- *  @{ */
-
- /// the vector of sub-BlockConfig for each of the sub-Block of the Block
- std::vector<BlockConfig *> v_sub_BlockConfig;
-
- /// correspondence between v_sub_BlockConfig and the sub-Block of the Block
- /** This vector specifies the correspondence between the BlockConfig in
-  * #v_sub_BlockConfig and the sub-Block of the Block. v_sub_Block_id[ i ]
-  * contains the identification of the sub-Block whose BlockConfig is
-  * v_sub_BlockConfig[ i ]. A sub-Block can be identified either by its name
-  * or by its index in the list of sub-Blocks of its father Block. If the name
-  * of the sub-Block is used, then the first character of this name cannot be
-  * a digit. */
- std::vector<std::string> v_sub_Block_id;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -398,6 +443,25 @@ class RBlockConfig : public BlockConfig
   */
 
  void load( std::istream &input ) override;
+
+/**@} ----------------------------------------------------------------------*/
+/*---------------------- PROTECTED FIELDS OF THE CLASS ---------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Protected fields of the class
+ *  @{ */
+
+ /// the vector of sub-BlockConfig for each of the sub-Block of the Block
+ std::vector<BlockConfig *> v_sub_BlockConfig;
+
+ /// correspondence between v_sub_BlockConfig and the sub-Block of the Block
+ /** This vector specifies the correspondence between the BlockConfig in
+  * #v_sub_BlockConfig and the sub-Block of the Block. v_sub_Block_id[ i ]
+  * contains the identification of the sub-Block whose BlockConfig is
+  * v_sub_BlockConfig[ i ]. A sub-Block can be identified either by its name
+  * or by its index in the list of sub-Blocks of its father Block. If the name
+  * of the sub-Block is used, then the first character of this name cannot be
+  * a digit. */
+ std::vector<std::string> v_sub_Block_id;
 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 
