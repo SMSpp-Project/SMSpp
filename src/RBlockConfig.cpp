@@ -298,25 +298,26 @@ void RBlockConfig::deserialize( netCDF::NcGroup & group )
 
  auto n_sub_Block = group.getDim( "n_sub_Block" );
 
- if( ! n_sub_Block.isNull() ) {
+ if( n_sub_Block.isNull() )
+  return;
 
-  v_sub_BlockConfig.resize( n_sub_Block.getSize() );
+ v_sub_BlockConfig.resize( n_sub_Block.getSize() );
 
-  for( decltype( v_sub_BlockConfig )::size_type i = 0 ;
-       i < v_sub_BlockConfig.size() ; ++i ) {
-   auto cg = group.getGroup( "sub-BlockConfig_" + std::to_string( i ) );
-   v_sub_BlockConfig[ i ] =
-    dynamic_cast< BlockConfig * >( new_Configuration( cg ) );
-   }
+ for( decltype( v_sub_BlockConfig )::size_type i = 0 ;
+      i < v_sub_BlockConfig.size() ; ++i ) {
+  auto cg = group.getGroup( "sub-BlockConfig_" + std::to_string( i ) );
+  v_sub_BlockConfig[ i ] =
+   dynamic_cast< BlockConfig * >( new_Configuration( cg ) );
   }
 
  auto var_sub_Block_id = group.getVar( "sub-Block-id" );
  if( ! var_sub_Block_id.isNull() ) {
   assert( var_sub_Block_id.getDimCount() == 1 );
+  assert( var_sub_Block_id.getDim( 0 ).getSize() == n_sub_Block.getSize() );
   v_sub_Block_id.resize( var_sub_Block_id.getDim( 0 ).getSize() );
   var_sub_Block_id.getVar( v_sub_Block_id.data() );
   }
- else if( ! n_sub_Block.isNull() ) {
+ else {
   decltype( v_sub_Block_id )::size_type n = n_sub_Block.getSize();
   v_sub_Block_id.resize( n );
   for( decltype( n ) i = 0 ; i < n ; ++i )
@@ -453,9 +454,6 @@ void CBlockConfig::load( std::istream & input ) {
  v_Constraint_id.resize( k );
 
  for( int i = 0 ; i < k ; ++i ) {
-  std::string constraint_group_id;
-  Block::Index constraint_index;
-
   input >> eatcomments;
   input >> v_Constraint_id[ i ].first >> v_Constraint_id[ i ].second;
 
@@ -1039,9 +1037,6 @@ void CRBlockConfig::load( std::istream & input ) {
  v_Constraint_id.resize( k );
 
  for( int i = 0 ; i < k ; ++i ) {
-  std::string constraint_group_id;
-  Block::Index constraint_index;
-
   input >> eatcomments;
   input >> v_Constraint_id[ i ].first >> v_Constraint_id[ i ].second;
 

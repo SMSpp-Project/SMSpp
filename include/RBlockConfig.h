@@ -433,11 +433,10 @@ class RBlockConfig : public BlockConfig
   *         BlockConfig located at the given \p index.
   */
 
- const std::string & get_sub_BlockConfig_id( Block::Index index ) const {
+ const std::string & get_sub_Block_id( Block::Index index ) const {
   if( index >= v_sub_Block_id.size() )
-   throw ( std::invalid_argument( "RBlockConfig::get_sub_BlockConfig_id: "
-                                  "invalid index: "
-                                  + std::to_string( index ) + "." ) );
+   throw ( std::invalid_argument( "RBlockConfig::get_sub_Block_id: invalid "
+                                  "index: " + std::to_string( index ) + "." ) );
   return( v_sub_Block_id[ index ] );
   }
 
@@ -470,7 +469,7 @@ class RBlockConfig : public BlockConfig
  /** Load this RBlockConfig out of an istream. The format is defined as that
   * of BlockConfig (see BlockConfig::load()) followed by:
   *
-  * a number k such that abs(k) is the number of the sub-BlockConfig objects
+  * - a number k such that abs(k) is the number of the sub-BlockConfig objects
   *
   * for i = 1 ... abs(k)
   *  - if k < 0, the identification of the sub-Block
@@ -490,8 +489,7 @@ class RBlockConfig : public BlockConfig
   * sub-Block and v_sub_Block_id[ i ] = "i").
   *
   *     IF THE NAME OF THE Block IS USED AS ITS IDENTIFICATION, THEN
-  *     THE FIRST CHARACTER OF THIS NAME CANNOT BE A DIGIT.
-  */
+  *     THE FIRST CHARACTER OF THIS NAME CANNOT BE A DIGIT. */
 
  void load( std::istream &input ) override;
 
@@ -505,9 +503,9 @@ class RBlockConfig : public BlockConfig
   * #v_sub_BlockConfig and the sub-Block of the Block. v_sub_Block_id[ i ]
   * contains the identification of the sub-Block whose BlockConfig is
   * v_sub_BlockConfig[ i ]. A sub-Block can be identified either by its name
-  * or by its index in the list of sub-Blocks of its father Block. If the name
-  * of the sub-Block is used, then the first character of this name cannot be
-  * a digit. */
+  * (see Block::name()) or by its index in the list of sub-Blocks of its
+  * father Block. If the name of the sub-Block is used, then the first
+  * character of this name cannot be a digit. */
  std::vector<std::string> v_sub_Block_id;
 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
