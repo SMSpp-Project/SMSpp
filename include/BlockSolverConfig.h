@@ -15,7 +15,7 @@
  *
  * \version 0.33
  *
- * \date 10 - 08 - 2020
+ * \date 07 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -738,15 +738,25 @@ class RBlockSolverConfig : public BlockSolverConfig
   *   the description of a BlockSolverConfig for one of the sub-Block of the
   *   current Block.
   *
+  * - With n being the size of "n_BlockSolverConfig", a one-dimensional
+  *   variable with name "sub-Block-id", of size n and type netCDF::NcString,
+  *   containing the identification of the sub-Block such that
+  *   "BlockSolverConfig_<i>" contains the BlockSolverConfig for the sub-Block
+  *   whose identification is "sub-Block-id[ i ]" for all i = 0, ..., n -
+  *   1. The identification of the sub-Block can be either its name (see
+  *   Block::name()) or its index in the list of sub-Block of its father
+  *   Block. This variable is optional. If it is not provided, then the i-th
+  *   BlockSolverConfig is associated with the i-th sub-Block of the Block for
+  *   all i = 0, ..., n - 1 (i.e., i is taken as the index of the sub-Block
+  *   and "sub-Block-id[ i ]" is assumed to be "i").
+  *
+  *       IF THE NAME OF THE Block IS USED AS ITS IDENTIFICATION, THEN
+  *       THE FIRST CHARACTER OF THIS NAME CANNOT BE A DIGIT.
+  *
   * The individual groups "BlockSolverConfig_<i>" are optional. If
   * "BlockSolverConfig_<i>" is not provided, then nullptr is considered. Note
-  * that the matching between the sub-BlockSolverConfig and the sub-Block is
-  * positional: the BlockSolverConfig found in the group
-  * "BlockSolverConfig_<i>" is that for the i-th sub-Block. Note that the
-  * vector of sub-BlockSolverConfig is allowed to be of different size than
-  * the number of sub-Block; if it is larger any extra BlockSolverConfig is
-  * simply ignored, if it shorted then all missing sub-BlockSolverConfig are
-  * treated as nullptr (default configuration). */
+  * that the size of the vector of sub-BlockSolverConfig is allowed to be
+  * different than the number of sub-Block. */
 
  void deserialize( netCDF::NcGroup & group ) override;
 
@@ -755,7 +765,7 @@ class RBlockSolverConfig : public BlockSolverConfig
 
  virtual ~RBlockSolverConfig()
  {
-  for( auto sBSC : v_BlockSolverConfigs )
+  for( auto sBSC : v_BlockSolverConfig )
    delete sBSC;
    }
 
@@ -818,12 +828,13 @@ class RBlockSolverConfig : public BlockSolverConfig
  /// clear this RBlockSolverConfig
  /** This method first invokes BlockSolverConfig::clear(). Then, clear() is
   * invoked for each non-nullptr BlockSolverConfig * handled by this
-  * RBlockSolverConfig (the BlockSolverConfig for each sub-Block). */
+  * RBlockSolverConfig (the BlockSolverConfig for each sub-Block). The vector
+  * #v_sub_Block_id is left unchanged. */
 
  void clear( void ) override {
   BlockSolverConfig::clear();
 
-  for( auto config : v_BlockSolverConfigs )
+  for( auto config : v_BlockSolverConfig )
    if( config )
     config->clear();
   }
@@ -856,27 +867,62 @@ class RBlockSolverConfig : public BlockSolverConfig
 /** @name Methods for modifying the RBlockSolverConfig
  *  @{ */
 
- /// sets the (pointer to) the BlockSolverConfig of each sub-Block
- /** This function sets the vector containing the (pointer to) the
-  * BlockSolverConfig of every sub-Block. The vector \p bsc becomes property
-  * of this RBlockSolverConfig. If \p deleteold is true, all pointers to the
-  * BlockSolverConfig of the sub-Block currently stored in this
-  * RBlockSolverConfig are deleted.
-  *
-  * @param bsc A vector of pointers to the BlockSolverConfig for the
-  *        sub-Block.
-  *
-  * @param deleteold Indicates whether the previous pointers to the
-  *        BlockSolverConfig for the Constraintsub-Block must be deleted.
-  */
+/*--------------------------------------------------------------------------*/
 
- void set_BlockSolverConfigs( std::vector<BlockSolverConfig *> && bsc ,
-                              bool deleteold = true ) {
-  if( deleteold ) {
-   for( auto sBSC : v_BlockSolverConfigs )
-    delete sBSC;
-   }
-  v_BlockSolverConfigs = std::move( bsc );
+ /// adds a (pointer to a) BlockSolverConfig for a sub-Block
+ /** This function adds a (pointer to a) BlockSolverConfig for the sub-Block
+  * with the given \p id. The identification of a sub-Block is either its name
+  * (see Block::name()) or its index in the list of nested Block of its father
+  * Block.
+  *
+  * @param config A pointer to a BlockSolverConfig for the sub-Block with the
+  *        given \p index.
+  *
+  * @param id The identification of a sub-Block. */
+
+ void add_BlockSolverConfig( BlockSolverConfig * config , std::string id ) {
+  v_BlockSolverConfig.push_back( config );
+  v_sub_Block_id.push_back( id );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// adds a (pointer to a) BlockSolverConfig for a sub-Block
+ /** This function adds a (pointer to a) BlockSolverConfig for the sub-Block
+  * with the given \p index. The index of a sub-Block is its index in the list
+  * of nested Block of its father Block.
+  *
+  * @param config A pointer to a BlockSolverConfig for the sub-Block with the
+  *        given \p index.
+  *
+  * @param index The index of a sub-Block.  */
+
+ void add_BlockSolverConfig( BlockSolverConfig * config , Block::Index index ) {
+  v_BlockSolverConfig.push_back( config );
+  v_sub_Block_id.push_back( std::to_string( index ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// removes a BlockSolverConfig for a sub-Block
+ /** This function removes the BlockSolverConfig at the given \p index. Notice
+  * that \p index is not the index of the sub-Block, but the index of the
+  * BlockSolverConfig being handled by this RBlockSolverConfig.
+  *
+  * @param index The index of the BlockSolverConfig to be removed.
+  *
+  * @param destroy It indicates whether the pointer to the BlockSolverConfig
+  *        at the given index must be deleted. */
+
+ void remove_BlockSolverConfig( Block::Index index , bool destroy = true ) {
+  if( index >= v_BlockSolverConfig.size() )
+   throw ( std::invalid_argument( "RBlockSolverConfig::remove_"
+                                  "BlockSolverConfig: invalid index: " +
+                                  std::to_string( index ) + "." ) );
+  if( destroy )
+   delete v_BlockSolverConfig[ index ];
+  v_BlockSolverConfig.erase( std::begin( v_BlockSolverConfig ) + index );
+  v_sub_Block_id.erase( std::begin( v_sub_Block_id ) + index );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -885,12 +931,57 @@ class RBlockSolverConfig : public BlockSolverConfig
 /** @name Methods for reading the data of the RBlockSolverConfig
  *  @{ */
 
- /// returns the (pointer to) the BlockSolverConfig of every sub-Block
- /** This function returns a const reference to the vector containing the
-  * (pointer to) the BlockSolverConfig of every sub-Block. */
+/*--------------------------------------------------------------------------*/
 
- const std::vector<BlockSolverConfig *> & get_BlockSolverConfigs( void )
-  const { return( v_BlockSolverConfigs ); }
+ /// returns the number of BlockSolverConfig in this RBlockSolverConfig
+ /** This method returns the number of BlockSolverConfig (for the sub-Block)
+  * currently being handled by this RBlockSolverConfig . */
+
+ Block::Index num_BlockSolverConfig( void ) const {
+  return v_BlockSolverConfig.size();
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the (pointer to) the BlockSolverConfig at the given \p index
+ /** This function returns the pointer to the BlockSolverConfig at the given
+  * \p index.
+  *
+  * @param index The index of the BlockSolverConfig to be retrieved (an index
+  *        between 0 and num_BlockSolverConfig() - 1).
+  *
+  * @return A pointer to the BlockSolverConfig at the given \p index. */
+
+ BlockSolverConfig * get_BlockSolverConfig( Block::Index index ) const {
+  if( index >= v_BlockSolverConfig.size() )
+   throw ( std::invalid_argument( "RBlockSolverConfig::get_BlockSolverConfig: "
+                                  "invalid index: " +
+                                  std::to_string( index ) + "." ) );
+  return( v_BlockSolverConfig[ index ] );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the id of the sub-Block associated with the given \p index
+ /** This function returns the identification of the sub-Block whose
+  * BlockSolverConfig is located at position \p index in this
+  * RBlockSolverConfig. The identification of a sub-Block is either its name
+  * (see Block::name()) or its index in the list of nested Block of its father
+  * Block.
+  *
+  * @param index The index of a BlockSolverConfig in this RBlockSolverConfig
+  *        (it must be an index between 0 and num_BlockSolverConfig() - 1).
+  *
+  * @return The identification of the sub-Block associated with the
+  *         BlockSolverConfig located at the given \p index. */
+
+ const std::string & get_sub_Block_id( Block::Index index ) const {
+  if( index >= v_sub_Block_id.size() )
+   throw ( std::invalid_argument( "RBlockSolverConfig::get_sub_Block_id: "
+                                  "invalid index: "
+                                  + std::to_string( index ) + "." ) );
+  return( v_sub_Block_id[ index ] );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -908,21 +999,45 @@ class RBlockSolverConfig : public BlockSolverConfig
  /** Load this RBlockSolverConfig out of an istream. The format is defined as
   * that specified in BlockSolverConfig::load(), followed by:
   *
-  * - the number k of the BlockSolverConfig for the sub-Block of the Block
+  * - a number k such that abs(k) is the number of BlockSolverConfig objects
   *
-  * - for i = 1 ... k
-  *   = a string containing the class type of a BlockSolverConfig object,
-  *     '*' means none (nullptr)
-  *   = if the above is not '*', the description of the :BlockSolverConfig
-  *     object
-  *   (clearly, if k == 0 this is empty) */
+  * for i = 1 ... abs(k)
+  *  - if k < 0, the identification of the sub-Block
+  *
+  *  - a string containing the class type of a BlockSolverConfig object, '*'
+  *    means none (nullptr)
+  *
+  *  - if the above is not '*', the description of the :BlockSolverConfig
+  *    object
+  *
+  * Notice that the sign of k determines whether the identification of the
+  * sub-Block must be provided. If k < 0, then the identification of the
+  * sub-Block must be provided. The identification of the sub-Block can be
+  * either its name (see Block::name()) or its index in the list of sub-Block
+  * or its father Block. If k >= 0, then the identification of the sub-Block
+  * must not be provided. In this case, the i-th BlockSolverConfig is
+  * associated with the i-th sub-Block of the Block (i.e., i is taken as the
+  * index of the sub-Block and v_sub_Block_id[ i ] = "i").
+  *
+  *     IF THE NAME OF THE Block IS USED AS ITS IDENTIFICATION, THEN
+  *     THE FIRST CHARACTER OF THIS NAME CANNOT BE A DIGIT. */
 
  void load( std::istream &input ) override;
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
  /// the vector of (pointer to) the sub-BlockSolverConfig for each sub-Block
- std::vector<BlockSolverConfig *> v_BlockSolverConfigs;
+ std::vector<BlockSolverConfig *> v_BlockSolverConfig;
+
+ /// correspondence between v_BlockSolverConfig and the sub-Block of the Block
+ /** This vector specifies the correspondence between the BlockSolverConfig in
+  * #v_BlockSolverConfig and the sub-Block of the Block. v_sub_Block_id[ i ]
+  * contains the identification of the sub-Block whose BlockSolverConfig is
+  * v_BlockSolverConfig[ i ]. A sub-Block can be identified either by its name
+  * (see Block::name()) or by its index in the list of sub-Blocks of its
+  * father Block. If the name of the sub-Block is used, then the first
+  * character of this name cannot be a digit. */
+ std::vector<std::string> v_sub_Block_id;
 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 
