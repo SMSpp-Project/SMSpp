@@ -31,10 +31,14 @@
 /*--------------------------------------------------------------------------*/
 
 #include "BlockSolverConfig.h"
+
 #include "LagBFunction.h"
+
 #include "Observer.h"
+
+#include "RBlockConfig.h"
+
 #include "SMSTypedefs.h"
-#include <math.h>
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -201,26 +205,28 @@ void LagBFunction::set_relaxed_function( Function * const function  )
 
 /*--------------------------------------------------------------------------*/
 
-
 void LagBFunction::set_ComputeConfig( ComputeConfig *scfg )
 {
- auto cc = dynamic_cast<const SimpleConfig_p_p *>( scfg );
- if( cc == nullptr )
-  throw( std::logic_error( "the configuration is not a SimpleConfiguration" ) );
-
+ if( ! scfg )
+  return;
+ 
  ThinComputeInterface::set_ComputeConfig( scfg );
 
- auto sc = dynamic_cast<BlockSolverConfig *>( cc->f_value.first );
- if( sc == nullptr )
-  throw( std::logic_error( "the configuration is not a BlockSolverConfig" ) );
- sc->apply( v_Block[0] );
+ auto cc = dynamic_cast< SimpleConfiguration< std::pair< Configuration * ,
+							 Configuration * > >
+			 * >( scfg->f_extra_Configuration );
+ if( ! cc )
+  return;
 
- auto bc = dynamic_cast<BlockConfig *>( cc->f_value.second );
- if( bc == nullptr )
-  throw( std::logic_error( "the configuration is not a BlockConfig" ) );
- v_Block[0]->set_BlockConfig( bc );
+ auto bsc = dynamic_cast< BlockSolverConfig * >( cc->f_value.first );
+ if( bsc )
+  bsc->apply( v_Block[ 0 ] );
 
- }  // end ( LagBFunction::set_relaxed_function( ) )   - - - - - - - - - - - -
+ auto bc = dynamic_cast< BlockConfig * >( cc->f_value.second );
+ if( bc )
+  bc->apply( v_Block[ 0 ] );
+
+ }  // end ( LagBFunction::set_relaxed_function( ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -983,19 +989,20 @@ ComputeConfig * LagBFunction::get_ComputeConfig( bool all ,
 
  ComputeConfig* ccfg = ThinComputeInterface::get_ComputeConfig( all , ocfg );
 
- auto cc = dynamic_cast<SimpleConfig_p_p *>( ccfg );
- if( cc == nullptr )
-  throw( std::logic_error( "the configuration is not a SimpleConfiguration" ) );
+ auto cc = new
+     SimpleConfiguration< std::pair< Configuration * , Configuration * > >();
 
- auto bsc = new RBlockSolverConfig();
- bsc->get( v_Block[0] );
+ auto bsc = new RBlockSolverConfig();  // TODO: improve on this
+ bsc->get( v_Block[ 0 ] );
  cc->f_value.first = bsc;
 
- cc->f_value.second = (v_Block[0]->get_BlockConfig())->clone();
+ auto bc = new OCRBlockConfig();  // TODO: improve on this
+ bsc->get( v_Block[ 0 ] );
+ cc->f_value.second = bsc;
 
  return( ccfg );
 
- } // end( LagBFunction::get_ComputeConfig() )  - - - - - - - - - - - - - - -
+ }  // end( LagBFunction::get_ComputeConfig() )
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 

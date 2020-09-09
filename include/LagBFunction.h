@@ -506,16 +506,23 @@ class LagBFunction : public C05Function , public Block {
  virtual void set_relaxed_function( Function * const function = nullptr  );
 
 /*--------------------------------------------------------------------------*/
-
-  /// set the whole (empty) set of parameters in one blow
-  /** Although a LagBFunction formally has a lot of parameters, in fact it
-   * "listens to no-one"; hence, the implementation of set_ComputeConfig() is
-   * quite a trivial one.
-   *
-   * ComputeConfig is assumed to be of the SimpleConfig_p_p type wherein
-   * the field f_value is a Configuration pointers pair. The first element
-   * of that pair is a BlockSolverConfig and the second one is a
-   * BlockConfig. */
+ /// set the whole set of parameters in one blow
+ /** Although a LagBFunction formally has a lot of parameters, in fact it
+  * "listens to no-one" except the f_extra_Configuration field.
+  *
+  * That field, if non-nullptr, is assumed to be a
+  *
+  *   SimpleConfiguration< std::pair< Configuration * , Configuration * > >
+  *
+  * The first element of that pair is a BlockSolverConfig and the second one
+  * is a BlockConfig, which are used to configure the inner Block of the
+  * LagBFunction.
+  *
+  * TODO: set_ComputeConfig() should check whether the BlockConfig is a base
+  *       BlockConfig or a ***BlockConfig, and similarly for the 
+  *       BlockSolverConfig, and store this information somewhere, so that
+  *       get_ComputeConfig() could construct objects of the right classes
+  *       without defaulting to the "most expensive ones". */
 
   virtual void set_ComputeConfig( ComputeConfig *scfg = nullptr )
    override final;
@@ -748,35 +755,32 @@ class LagBFunction : public C05Function , public Block {
 /** @name Handling the parameters of the LagBFunction
  *  @{ */
 
- ///< get the whole (empty) set of parameters in one blow
- /** Although a LagBFunction formally has a lot of parameters, in fact it
-  * "listens to no-one"; hence, the implementation of get_ComputeConfig() is
-  * quite a trivial one.
-  *
-  * ComputeConfig is assumed to be of the SimpleConfig_p_p type wherein
-  * the field f_value is a Configuration pointers pair. The first element
-  * of that pair is a BlockSolverConfig and the second one is a
-  * BlockConfig. */
+ /// get the whole set of parameters in one blow
+ /** Mostly, this method has to fetch the BlockConfig and BlockSolverConfig
+  * from the inner Block to fill the f_extra_Configuration field of the
+  * ComputeConfig. Currently the original type of these is not recorded, so
+  * that one goes for the "worst cases" OCRBlockConfig and RBlockSolverConfig,
+  * but this could be improved upon. */
 
- virtual ComputeConfig * get_ComputeConfig( bool all = false ,
-					    ComputeConfig * ocfg = nullptr )
+ ComputeConfig * get_ComputeConfig( bool all = false ,
+				    ComputeConfig * ocfg = nullptr )
   const override final;
 
 /*--------------------------------------------------------------------------*/
 
- virtual int get_int_par( const idx_type par ) const override;
+ int get_int_par( const idx_type par ) const override;
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
- virtual double get_dbl_par( const idx_type par ) const override;
+ double get_dbl_par( const idx_type par ) const override;
 
 /*--------------------------------------------------------------------------*/
 
- virtual int get_dflt_int_par( const idx_type par ) const override;
+ int get_dflt_int_par( const idx_type par ) const override;
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
- virtual double get_dflt_dbl_par( const idx_type par ) const override;
+ double get_dflt_dbl_par( const idx_type par ) const override;
 
 /**@} ----------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE LagBFunction ---------*/
