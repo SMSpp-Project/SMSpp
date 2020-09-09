@@ -5265,6 +5265,31 @@ class Block : public Observer {
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// removing all Solver from the set of those currently registered
+ /** Clear all the list of registered Solver in one blow. If \p deleteold is
+  * true, then the Solver are also deleted. */
+
+ virtual void unregister_Solvers( bool deleteold = true ) {
+  if( v_Solver.empty() )  // no registered Solver
+   return;                // nothing to do
+
+  if( deleteold )
+   for( auto slvr : v_Solver ) {
+    slvr->set_Block( nullptr );
+    delete slvr;
+    }
+  else
+   for( auto slvr : v_Solver )
+    slvr->set_Block( nullptr );
+  
+  v_Solver.clear();
+
+  if( ! f_at )                 // nobody is listening from above
+   for( auto el : v_Block )    // now no one is listening to all my sons
+    el->anyone_there( false );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// removing oldSolver from the set of those currently registered
  /** Method for removing a Solver from the set of those currently registered
   * with the Block. If oldSolver is not among the registered solvers, then
