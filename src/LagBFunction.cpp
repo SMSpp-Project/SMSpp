@@ -344,7 +344,7 @@ void LagBFunction::set_par( const idx_type par , const double value )
    break;
   default: Function::set_par( par , value );
   }
- } // end ( LagBFunction::set_par( double ) )  - - - - - - - - - - - - - - - -
+ }  // end ( LagBFunction::set_par( double ) )
 
 /*--------------------------------------------------------------------------*/
 
