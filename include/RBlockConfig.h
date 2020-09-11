@@ -3,8 +3,8 @@
 /*--------------------------------------------------------------------------*/
 /** @file
  * Header file for classes derived from BlockConfig, which are intended to
- * offer support to configure not only a Block but also its sub-Block and
- * "indirect sub-Block". Three main classes are defined:
+ * offer support to configure not only a Block but also its Objective and
+ * Constraint. Three main classes are defined:
  *
  * - RBlockConfig : BlockConfig ("recursive" BlockConfig), which also
  *   configures (potentially) all sub-Block (recursively) of the given Block;
@@ -70,7 +70,7 @@
  *
  * \version 0.33
  *
- * \date 07 - 09 - 2020
+ * \date 10 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -115,7 +115,77 @@ namespace SMSpp_di_unipi_it
 /*------------------------------- CLASSES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @defgroup RBlockConfig_CLASSES Classes in RBlockConfig.h
- *  @{ */
+ *  @{
+ *
+ * This file declares some classes derived from BlockConfig, which are
+ * intended to offer support to configure not only a Block but also its
+ * Objective and Constraint. Three main classes are defined:
+ *
+ * - RBlockConfig : BlockConfig ("recursive" BlockConfig), which also
+ *   configures (potentially) all sub-Block (recursively) of the given Block;
+ *
+ * - CBlockConfig : BlockConfig ("Constraint" BlockConfig), which also
+ *   configures (potentially) all Constraint of the given Block;
+ *
+ * - OBlockConfig : BlockConfig ("Objective" BlockConfig), which also
+ *   configures the Objective of the given Block.
+ *
+ * The three classes above are combined to produce classes that are useful in
+ * more general situations:
+ *
+ * - ORBlockConfig : RBlockConfig, which also configures (potentially) all
+ *   sub-Block (recursively) and the Objective of the given Block;
+ *
+ * - CRBlockConfig : RBlockConfig, which also configures (potentially) all
+ *   sub-Block (recursively) and (potentially) all Constraint of the given
+ *   Block;
+ *
+ * - OCBlockConfig : CBlockConfig, which also configures (potentially) all
+ *   Constraint and the Objective of the given Block;
+ *
+ * - OCRBlockConfig : CRBlockConfig, which also configures (potentially) all
+ *   sub-Block (recursively) and (potentially) all Constraint and the
+ *   Objective of the given Block.
+ *
+ * All these BlockConfig support the notion of a "cleared" Configuration (see
+ * Configuration::clear()). When the clear() method is invoked, any pointers
+ * to a sub-Configuration that the :BlockConfig may have (for instance,
+ * pointers to ComputeConfig of Constraint or Objective) are deleted. The
+ * value of the BlockConfig::f_diff field and the structure of the
+ * :BlockConfig are preserved. The structures that may be preserved are that
+ * of a :BlockConfig that deals with sub-Block (namely, RBlockConfig,
+ * ORBlockConfig, CRBlockConfig, and OCRBlockConfig; shortly referred as
+ * *R*BlockConfig) or Constraint (namely, CBlockConfig, CRBlockConfig,
+ * OCBlockConfig, and OCRBlockConfig; shortly referred as *C*BlockConfig).
+ *
+ * A Block can have a huge number of Constraint, but usually very few
+ * Constraint (if any) require a Configuration. Therefore, a *C*BlockConfig
+ * has a very sparse structure: it handles only the Constraint that require a
+ * Configuration. When a *C*BlockConfig is constructed out of a Block (see
+ * CBlockConfig::get()), it may be necessary to scan all Constraint of that
+ * Block in order to determine which ones require a Configuration (i.e., the
+ * ones that have a non-default set of parameters). This operation can be
+ * potentially costly. If the Constraint that need a Configuration are known
+ * in advance, the scanning operation can be avoided. This is where a
+ * "cleared" *C*BlockConfig shows its usefulness. The structure of a
+ * *C*BlockConfig is formed by the list of (identification to the) Constraint
+ * that require a Configuration (see CBlockConfig::v_Constraint_id). Whenever
+ * a *C*BlockConfig is constructed out of a Block and
+ * CBlockConfig::v_Constraint_id is non-empty, only the Constraint indicated
+ * by v_Constraint_id are considered and no scan is performed.
+ *
+ * The reasoning behind a "cleared" *R*BlockConfig is analogous. The structure
+ * of a *R*BlockConfig is formed by the list of (identification to the)
+ * sub-Block that require a Configuration plus the BlockConfig for those
+ * sub-Block. A sub-Block can be identified either by its name or by its index
+ * in the list of sub-Blocks of its father Block. Whenever a *R*BlockConfig
+ * that has a non-empty list of (indentification to) sub-Block is retrieved
+ * from a Block (see the methods get() below), only the sub-Block indicated in
+ * that list are considered. It is important to notice that the list of
+ * BlockConfig of the sub-Block is also part of the structure of a
+ * *R*BlockConfig because it contains not only the right type of BlockConfig
+ * of each sub-Block but each BlockConfig also contains a recursive structure
+ * that is required to efficiently manipulate a BlockConfig. */
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS RBlockConfig ----------------------------*/
@@ -125,7 +195,8 @@ namespace SMSpp_di_unipi_it
 /// derived class from BlockConfig for configuring the sub-Block of a Block
 /** The RBlockConfig class ("recursive" BlockConfig) derives from BlockConfig
  * and offers support for configuring also the sub-Block of a Block
- * (recursively). The RBlockConfig contains the following fields:
+ * (recursively). Besides the fields in BlockConfig, the RBlockConfig contains
+ * the following fields:
  *
  * - a vector of pointers to BlockConfig for (all or some of) the sub-Block of
  *   the Block.
@@ -194,6 +265,10 @@ class RBlockConfig : public BlockConfig
 
  RBlockConfig( const RBlockConfig &old );
 
+/*--------------------------------------------------------------------------*/
+ /// copy assignment operator: it is deleted
+ RBlockConfig & operator=( const RBlockConfig & ) = delete;
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// extends BlockConfig::deserialize( netCDF::NcGroup )
  /** Extends BlockConfig::deserialize( netCDF::NcGroup ) to the specific
@@ -235,8 +310,8 @@ class RBlockConfig : public BlockConfig
  /// destructor: deletes all sub-BlockConfig
  virtual ~RBlockConfig()
  {
-  for( auto sBC : v_sub_BlockConfig )
-   delete sBC;
+  for( auto config : v_sub_BlockConfig )
+   delete config;
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -252,22 +327,25 @@ class RBlockConfig : public BlockConfig
   * given Block (and its sub-Block, recursively) and stores in this
   * RBlockConfig. This information consists of that supported by the
   * BlockConfig (see BlockConfig::get()) plus the BlockConfig of each
-  * sub-Block of the given Block. Notice that any Configuration that this
-  * RBlockConfig may have is deleted and the Configuration of the BlockConfig
-  * of the given Block is cloned into the Configuration of this RBlockConfig.
+  * sub-Block of the given Block. Notice that any Configuration handled by the
+  * BlockConfig is deleted (see BlockConfig::get()) and the Configuration of
+  * the BlockConfig of the given Block is cloned into the Configuration of
+  * this BlockConfig.
   *
-  * If #v_sub_Block_id is not empty then its content is preserved and only the
-  * BlockConfig associated with the sub-Block (of the given \p block)
-  * specified by #v_sub_Block_id are retrieved. If #v_sub_Block_id is empty
-  * then the BlockConfig of every sub-Block in the given \p block is
-  * retrieved. In this case, for each sub-Block of the given \p block, its
-  * BlockConfig is stored in this RBlockConfig if it has a non-default set of
-  * parameters.
+  * If num_sub_BlockConfig() returns a nonzero value, only the BlockConfig
+  * associated with the sub-Block (of the given \p block) currently being
+  * handled by this RBlockConfig (see get_sub_Block_id()) are retrieved.
   *
-  * If #v_sub_Block_id is not empty but one wants all sub-Block to be
-  * inspected (for instance, one is not sure that every sub-Block that is not
-  * specified in #v_sub_Block_id has a default set of parameters), then
-  * #v_sub_Block_id must be cleared before this method is called.
+  * If num_sub_BlockConfig() returns zero then the BlockConfig of every
+  * sub-Block in the given \p block is retrieved. In this case, for each
+  * sub-Block of the given \p block, its BlockConfig is stored in this
+  * RBlockConfig.
+  *
+  * This means that if one wants all sub-Block to be inspected (for instance,
+  * one is not sure that every sub-Block is handled by this RBlockConfig; or
+  * one is not sure the pointers to the BlockConfig in this RBlockConfig are
+  * of the right type), all BlockConfig should be removed before calling this
+  * method (see remove_sub_BlockConfig()).
   *
   * @param block A pointer to the Block whose RBlockConfig must be filled.
   */
@@ -364,15 +442,13 @@ class RBlockConfig : public BlockConfig
 
  /// clear this RBlockConfig
  /** This method clears this RBlockConfig by first calling
-  * BlockConfig::clear() and then deleting the pointer to the BlockConfig of
-  * each sub-Block and finally clearing the vector #v_sub_BlockConfig. The
-  * vector #v_sub_Block_id is left unchanged. */
+  * BlockConfig::clear() and then invoking clear() for each BlockConfig
+  * currently being handled by this RBlockConfig. */
 
  void clear( void ) override {
   BlockConfig::clear();
   for( auto config : v_sub_BlockConfig )
-   delete config;
-  v_sub_BlockConfig.clear();
+   config->clear();
   }
 
 /*-------------------------------- CLONE -----------------------------------*/
@@ -525,8 +601,8 @@ class RBlockConfig : public BlockConfig
 /*--------------------------------------------------------------------------*/
 /// derived class from BlockConfig for configuring the Constraint of a Block
 /** The CBlockConfig class ("Constraint" BlockConfig) derives from BlockConfig
- * and offers support for configuring the Constraint of a Block. The
- * CBlockConfig contains the following fields:
+ * and offers support for configuring the Constraint of a Block. Besides the
+ * fields in BlockConfig, the CBlockConfig contains the following fields:
  *
  * - a vector identifying the set of Constraint that require a ComputeConfig
  *
@@ -599,6 +675,10 @@ class CBlockConfig : public BlockConfig
  /// copy constructor: does what it says on the tin
 
  CBlockConfig( const CBlockConfig &old );
+
+/*--------------------------------------------------------------------------*/
+ /// copy assignment operator: it is deleted
+ CBlockConfig & operator=( const CBlockConfig & ) = delete;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// extends BlockConfig::deserialize( netCDF::NcGroup )
@@ -676,25 +756,31 @@ class CBlockConfig : public BlockConfig
   * its Constraint) and stores in this CBlockConfig. This information consists
   * of that supported by the BlockConfig (see BlockConfig::get()) plus any
   * ComputeConfig that may be associated with the Constraint of the given
-  * Block. Any Configuration that this CBlockConfig may have at the moment
-  * this function is invoked is deleted. If #v_Constraint_id is not empty then
-  * its content is preserved and only the ComputeConfig associated with the
-  * Constraint (of the given \p block) specified by #v_Constraint_id are
-  * considered. If #v_Constraint_id is empty then every Constraint in the given
-  * \p block is inspected. In this case, for each Constraint of the given \p
-  * block, its ComputeConfig is stored in this CBlockConfig if it has a
-  * non-default set of parameters.
+  * Block.
   *
-  * If #v_Constraint_id is not empty but one wants all Constraint to be
-  * inspected (for instance, one is not sure that every Constraint that is not
-  * specified in #v_Constraint_id has a default set of parameters), then
-  * #v_Constraint_id must be cleared before this method is called.
+  * If num_ComputeConfig_Constraint() returns zero then every Constraint in
+  * the given \p block is inspected. In this case, for each Constraint of the
+  * given \p block, its ComputeConfig is stored in this CBlockConfig if it has
+  * a non-default set of parameters.
   *
-  * Note that if #v_Constraint_id is empty then
+  * If num_ComputeConfig_Constraint() returns a nonzero value, only the
+  * ComputeConfig associated with the Constraint (of the given \p block)
+  * handled by this CBlockConfig (see get_Constraint_id()) are
+  * considered. Moreover, if the pointer to a ComputeConfig in this
+  * CBlockConfig is not nullptr, it is used to retrieve the configuration of
+  * its associated Constraint (see ThinComputeInterface::get_ComputeConfig()).
   *
-  *     CALLING CBlockConfig::get() IS A POTENTIALLY COSTLY OPERATION BECAUSE
-  *     IT ENTAILS SCANNING ALL Constraint OF THE Block IN ORDER TO OBTAIN
-  *     THEIR ComputeConfig.
+  * If num_ComputeConfig_Constraint() returns a nonzero value but one wants
+  * all Constraint of the given Block to be inspected (for instance, one is
+  * not sure that every Constraint that is not handled by this CBlockConfig
+  * has a default set of parameters), then all ComputeConfig should be removed
+  * before calling this method (see remove_ComputeConfig_Constraint()).
+  *
+  * Note that if num_ComputeConfig_Constraint() returns zero then
+  *
+  *     CALLING CBlockConfig::get() IS A POTENTIALLY COSTLY
+  *     OPERATION BECAUSE IT ENTAILS SCANNING ALL Constraint
+  *     OF THE Block IN ORDER TO OBTAIN THEIR ComputeConfig.
   *
   * @param block A pointer to the Block whose CBlockConfig must be filled. */
 
@@ -812,16 +898,13 @@ class CBlockConfig : public BlockConfig
 
  /// clear this CBlockConfig
  /** This method clears this CBlockConfig by first calling
-  * BlockConfig::clear() and then deleting the pointer to the ComputeConfig of
-  * each Constraint considered by this CBlockConfig and finally clearing the
-  * vector #v_Config_Constraint. Notice that the vector #v_Constraint_id is
-  * preserved. */
+  * BlockConfig::clear() and then invoking clear() for each ComputeConfig of
+  * Constraint currently being handled by this CBlockConfig. */
 
  void clear( void ) override {
   BlockConfig::clear();
   for( auto config : v_Config_Constraint )
-   delete config;
-  v_Config_Constraint.clear();
+   config->clear();
   }
 
 /*------------------------------- CLONE ------------------------------------*/
@@ -986,8 +1069,8 @@ class CBlockConfig : public BlockConfig
 /*--------------------------------------------------------------------------*/
 /// derived class from BlockConfig for configuring the Objective of a Block
 /** The OBlockConfig class ("Objective" BlockConfig) derives from BlockConfig
- * and offers support for configuring the Objective of a Block. The
- * OBlockConfig contains the following field:
+ * and offers support for configuring the Objective of a Block. Besides the
+ * fields in BlockConfig, the OBlockConfig contains the following field:
  *
  * - a pointer to ComputeConfig for the Objective of the Block.
  */
@@ -1059,6 +1142,10 @@ class OBlockConfig : public BlockConfig
 
  OBlockConfig( const OBlockConfig &old );
 
+/*--------------------------------------------------------------------------*/
+ /// copy assignment operator: it is deleted
+ OBlockConfig & operator=( const OBlockConfig & ) = delete;
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// extends BlockConfig::deserialize( netCDF::NcGroup )
  /** Extends BlockConfig::deserialize( netCDF::NcGroup ) to the specific
@@ -1079,6 +1166,7 @@ class OBlockConfig : public BlockConfig
  virtual ~OBlockConfig()
  {
   delete f_Config_Objective;
+  f_Config_Objective = nullptr;
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -1110,12 +1198,12 @@ class OBlockConfig : public BlockConfig
 
  /// clear this OBlockConfig
  /** This method clears this OBlockConfig by first calling
-  * BlockConfig::clear() and then deleting the pointer to the ComputeConfig
-  * of the Objective. */
+  * BlockConfig::clear() and then clearing the ComputeConfig of the Objective
+  * (see ComputeConfig::clear()). */
 
  void clear( void ) override {
   BlockConfig::clear();
-  delete f_Config_Objective;
+  f_Config_Objective->clear();
   }
 
 /*------------------------------- CLONE ------------------------------------*/
@@ -1137,8 +1225,10 @@ class OBlockConfig : public BlockConfig
   * its Objective) and stores in this OBlockConfig. This information consists
   * of that supported by the BlockConfig (see BlockConfig::get()) plus the
   * ComputeConfig that may be associated with the Objective of the given
-  * Block. Any Configuration that this OBlockConfig may have at the moment
-  * this function is invoked is deleted.
+  * Block. If the pointer to the ComputeConfig currently stored in this
+  * OBlockConfig is not nullptr, it is used to retrieve the configuration of
+  * the Objective of the given \p block (see
+  * ThinComputeInterface::get_ComputeConfig()).
   *
   * @param block A pointer to the Block whose OBlockConfig must be filled. */
 
@@ -1312,6 +1402,10 @@ class ORBlockConfig : public RBlockConfig
 
  ORBlockConfig( const ORBlockConfig &old );
 
+/*--------------------------------------------------------------------------*/
+ /// copy assignment operator: it is deleted
+ ORBlockConfig & operator=( const ORBlockConfig & ) = delete;
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// extends RBlockConfig::deserialize( netCDF::NcGroup )
  /** Extends RBlockConfig::deserialize( netCDF::NcGroup ) to the specific
@@ -1333,6 +1427,7 @@ class ORBlockConfig : public RBlockConfig
  virtual ~ORBlockConfig()
  {
   delete f_Config_Objective;
+  f_Config_Objective = nullptr;
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -1348,9 +1443,10 @@ class ORBlockConfig : public RBlockConfig
   * given Block (and its Objective and sub-Block, recursively) and stores in
   * this ORBlockConfig. This information consists of that supported by the
   * RBlockConfig (see RBlockConfig::get()) plus the ComputeConfig of the
-  * Objective of the given Block. Notice that any Configuration that this
-  * ORBlockConfig may have is deleted and the Configuration of the BlockConfig
-  * of the given Block is cloned into the Configuration of this ORBlockConfig.
+  * Objective of the given Block. If the pointer to the ComputeConfig
+  * currently stored in this ORBlockConfig is not nullptr, it is used to
+  * retrieve the configuration of the Objective of the given \p block (see
+  * ThinComputeInterface::get_ComputeConfig()).
   *
   * @param block A pointer to the Block whose ORBlockConfig must be filled.
   */
@@ -1387,12 +1483,12 @@ class ORBlockConfig : public RBlockConfig
 
  /// clear this ORBlockConfig
  /** This method clears this ORBlockConfig by first calling
-  * RBlockConfig::clear() and then deleting the pointer to the ComputeConfig
-  * of the Objective. */
+  * RBlockConfig::clear() and then clearing the ComputeConfig of the Objective
+  * (see ComputeConfig::clear()). */
 
  void clear( void ) override {
   RBlockConfig::clear();
-  delete f_Config_Objective;
+  f_Config_Objective->clear();
   }
 
 /*------------------------------- CLONE ------------------------------------*/
@@ -1575,6 +1671,10 @@ class CRBlockConfig : public RBlockConfig
 
  CRBlockConfig( const CRBlockConfig &old );
 
+/*--------------------------------------------------------------------------*/
+ /// copy assignment operator: it is deleted
+ CRBlockConfig & operator=( const CRBlockConfig & ) = delete;
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// extends RBlockConfig::deserialize( netCDF::NcGroup )
  /** Extends RBlockConfig::deserialize( netCDF::NcGroup ) to the specific
@@ -1651,25 +1751,31 @@ class CRBlockConfig : public RBlockConfig
   * its Constraint) and stores in this CRBlockConfig. This information
   * consists of that supported by the RBlockConfig (see RBlockConfig::get())
   * plus any ComputeConfig that may be associated with the Constraint of the
-  * given Block. Any Configuration that this CRBlockConfig may have at the
-  * moment this function is invoked is deleted. If #v_Constraint_id is not
-  * empty then its content is preserved and only the ComputeConfig associated
-  * with the Constraint (of the given \p block) specified by #v_Constraint_id
-  * are considered. If #v_Constraint_id is empty then every Constraint in the
-  * given \p block is inspected. In this case, for each Constraint of the
+  * given Block.
+  *
+  * If num_ComputeConfig_Constraint() returns zero then every Constraint in
+  * the given \p block is inspected. In this case, for each Constraint of the
   * given \p block, its ComputeConfig is stored in this CRBlockConfig if it
   * has a non-default set of parameters.
   *
-  * If #v_Constraint_id is not empty but one wants all Constraint to be
-  * inspected (for instance, one is not sure that every Constraint that is not
-  * specified in #v_Constraint_id has a default set of parameters), then
-  * #v_Constraint_id must be cleared before this method is called.
+  * If num_ComputeConfig_Constraint() returns a nonzero value, only the
+  * ComputeConfig associated with the Constraint (of the given \p block)
+  * handled by this CRBlockConfig (see get_Constraint_id()) are
+  * considered. Moreover, if the pointer to a ComputeConfig in this
+  * CRBlockConfig is not nullptr, it is used to retrieve the configuration of
+  * its associated Constraint (see ThinComputeInterface::get_ComputeConfig()).
   *
-  * Note that if #v_Constraint_id is empty then
+  * If num_ComputeConfig_Constraint() returns a nonzero value but one wants
+  * all Constraint of the given Block to be inspected (for instance, one is
+  * not sure that every Constraint that is not handled by this CRBlockConfig
+  * has a default set of parameters), then all ComputeConfig should be removed
+  * before calling this method (see remove_ComputeConfig_Constraint()).
   *
-  *     CALLING CRBlockConfig::get() IS A POTENTIALLY COSTLY OPERATION BECAUSE
-  *     IT ENTAILS SCANNING ALL Constraint OF THE Block IN ORDER TO OBTAIN
-  *     THEIR ComputeConfig.
+  * Note that if num_ComputeConfig_Constraint() returns zero then
+  *
+  *     CALLING CRBlockConfig::get() IS A POTENTIALLY COSTLY
+  *     OPERATION BECAUSE IT ENTAILS SCANNING ALL Constraint
+  *     OF THE Block IN ORDER TO OBTAIN THEIR ComputeConfig.
   *
   * @param block A pointer to the Block whose CRBlockConfig must be filled. */
 
@@ -1787,16 +1893,13 @@ class CRBlockConfig : public RBlockConfig
 
  /// clear this CRBlockConfig
  /** This method clears this CRBlockConfig by first calling
-  * RBlockConfig::clear() and then deleting the pointer to the ComputeConfig
-  * of each Constraint considered by this CRBlockConfig and finally clearing
-  * the vector #v_Config_Constraint. Notice that the vector #v_Constraint_id
-  * is preserved. */
+  * RBlockConfig::clear() and then invoking clear() for each ComputeConfig of
+  * Constraint currently being handled by this CRBlockConfig. */
 
  void clear( void ) override {
   RBlockConfig::clear();
   for( auto config : v_Config_Constraint )
-   delete config;
-  v_Config_Constraint.clear();
+   config->clear();
   }
 
 /*------------------------------- CLONE ------------------------------------*/
@@ -2035,6 +2138,10 @@ class OCBlockConfig : public CBlockConfig
 
  OCBlockConfig( const OCBlockConfig &old );
 
+/*--------------------------------------------------------------------------*/
+ /// copy assignment operator: it is deleted
+ OCBlockConfig & operator=( const OCBlockConfig & ) = delete;
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// extends CBlockConfig::deserialize( netCDF::NcGroup )
  /** Extends CBlockConfig::deserialize( netCDF::NcGroup ) to the specific
@@ -2055,6 +2162,7 @@ class OCBlockConfig : public CBlockConfig
  virtual ~OCBlockConfig()
  {
   delete f_Config_Objective;
+  f_Config_Objective = nullptr;
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -2086,12 +2194,12 @@ class OCBlockConfig : public CBlockConfig
 
  /// clear this OCBlockConfig
  /** This method clears this OCBlockConfig by first calling
-  * CBlockConfig::clear() and then deleting the pointer to the ComputeConfig
-  * of the Objective. */
+  * CBlockConfig::clear() and then clearing the ComputeConfig of the Objective
+  * (see ComputeConfig::clear()). */
 
  void clear( void ) override {
   CBlockConfig::clear();
-  delete f_Config_Objective;
+  f_Config_Objective->clear();
   }
 
 /*------------------------------- CLONE ------------------------------------*/
@@ -2113,8 +2221,10 @@ class OCBlockConfig : public CBlockConfig
   * its Objective) and stores in this OCBlockConfig. This information consists
   * of that supported by the CBlockConfig (see CBlockConfig::get()) plus the
   * ComputeConfig that may be associated with the Objective of the given
-  * Block. Any Configuration that this OCBlockConfig may have at the moment
-  * this function is invoked is deleted.
+  * Block. If the pointer to the ComputeConfig currently stored in this
+  * OCBlockConfig is not nullptr, it is used to retrieve the configuration of
+  * the Objective of the given \p block (see
+  * ThinComputeInterface::get_ComputeConfig()).
   *
   * @param block A pointer to the Block whose OCBlockConfig must be filled. */
 
@@ -2290,6 +2400,10 @@ class OCRBlockConfig : public CRBlockConfig
 
  OCRBlockConfig( const OCRBlockConfig &old );
 
+/*--------------------------------------------------------------------------*/
+ /// copy assignment operator: it is deleted
+ OCRBlockConfig & operator=( const OCRBlockConfig & ) = delete;
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// extends CRBlockConfig::deserialize( netCDF::NcGroup )
  /** Extends CRBlockConfig::deserialize( netCDF::NcGroup ) to the specific
@@ -2310,6 +2424,7 @@ class OCRBlockConfig : public CRBlockConfig
  virtual ~OCRBlockConfig()
  {
   delete f_Config_Objective;
+  f_Config_Objective = nullptr;
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -2341,12 +2456,12 @@ class OCRBlockConfig : public CRBlockConfig
 
  /// clear this OCRBlockConfig
  /** This method clears this OCRBlockConfig by first calling
-  * CRBlockConfig::clear() and then deleting the pointer to the ComputeConfig
-  * of the Objective. */
+  * CRBlockConfig::clear() and then clearing the ComputeConfig of the
+  * Objective (see ComputeConfig::clear()). */
 
  void clear( void ) override {
   CRBlockConfig::clear();
-  delete f_Config_Objective;
+  f_Config_Objective->clear();
   }
 
 /*------------------------------- CLONE ------------------------------------*/
@@ -2368,8 +2483,10 @@ class OCRBlockConfig : public CRBlockConfig
   * its Objective) and stores in this OCRBlockConfig. This information
   * consists of that supported by the CRBlockConfig (see CRBlockConfig::get())
   * plus the ComputeConfig that may be associated with the Objective of the
-  * given Block. Any Configuration that this OCRBlockConfig may have at the
-  * moment this function is invoked is deleted.
+  * given Block. If the pointer to the ComputeConfig currently stored in this
+  * OCRBlockConfig is not nullptr, it is used to retrieve the configuration of
+  * the Objective of the given \p block (see
+  * ThinComputeInterface::get_ComputeConfig()).
   *
   * @param block A pointer to the Block whose OCRBlockConfig must be
   *        filled. */
