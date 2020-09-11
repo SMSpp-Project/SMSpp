@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 03 - 09 - 2020
+ * \date 10 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -129,24 +129,26 @@ void RBlockConfig::get( Block * block ) {
 
  BlockConfig::get( block );
 
- for( auto & sBC : v_sub_BlockConfig )
-  delete sBC;
-
  if( ! block ) {
+  for( auto & config : v_sub_BlockConfig )
+   delete config;
   v_sub_BlockConfig.clear();
+  v_sub_Block_id.clear();
   return;
   }
 
  const auto number_nested_Blocks = block->get_number_nested_Blocks();
 
+ assert( v_sub_BlockConfig.size() == v_sub_Block_id.size() );
+
  if( v_sub_Block_id.empty() ) {
   v_sub_Block_id.resize( number_nested_Blocks );
+  v_sub_BlockConfig.resize( number_nested_Blocks , nullptr );
+
   for( decltype( v_sub_Block_id )::size_type i = 0 ;
        i < v_sub_Block_id.size() ; ++i )
    v_sub_Block_id[ i ] = std::to_string( i );
   }
-
- v_sub_BlockConfig.resize( v_sub_Block_id.size() );
 
  for( decltype( v_sub_Block_id )::size_type i = 0 ;
       i < v_sub_Block_id.size() ; ++i ) {
@@ -158,8 +160,12 @@ void RBlockConfig::get( Block * block ) {
    throw ( std::logic_error( "RBlockConfig::get: invalid sub-Block id: "
                              + id + "." ) );
 
-  v_sub_BlockConfig[ i ] = new OCRBlockConfig // TODO
-   ( block->get_nested_Block( sub_Block_index ) );
+  auto sub_Block = block->get_nested_Block( sub_Block_index );
+
+  if( v_sub_BlockConfig[ i ] )
+   v_sub_BlockConfig[ i ]->get( sub_Block );
+  else
+   v_sub_BlockConfig[ i ] = new OCRBlockConfig( sub_Block );
   }
  }  // end( RBlockConfig::get )
 
@@ -347,13 +353,15 @@ void CBlockConfig::get( Block * block ) {
 
  BlockConfig::get( block );
 
- for( auto config : v_Config_Constraint )
-  delete config;
- v_Config_Constraint.clear();
-
  if( ! block ) {
+  for( auto config : v_Config_Constraint )
+   delete config;
+  v_Config_Constraint.clear();
+  v_Constraint_id.clear();
   return;
   }
+
+ assert( v_Constraint_id.size() == v_Config_Constraint.size() );
 
  // ComputeConfig for the Constraint
 
@@ -361,10 +369,9 @@ void CBlockConfig::get( Block * block ) {
 
   // v_Constraint_id is not empty. Consider only these Constraint.
 
-  v_Config_Constraint.reserve( v_Constraint_id.size() );
+  for( Block::Index i = 0 ; i < v_Constraint_id.size() ; ++i ) {
 
-  for( const auto [ constraint_group_id , constraint_index ] :
-        v_Constraint_id ) {
+   const auto [ constraint_group_id , constraint_index ] = v_Constraint_id[ i ];
 
    auto constraint_group_index =
     ::get_Constraint_group_index( constraint_group_id , block );
@@ -372,7 +379,8 @@ void CBlockConfig::get( Block * block ) {
    auto constraint = inspection::get_Constraint
     ( block , Block::ConstraintID( constraint_group_index , constraint_index ) );
    if( constraint )
-    v_Config_Constraint.push_back( constraint->get_ComputeConfig( true ) );
+    v_Config_Constraint[ i ] =
+     constraint->get_ComputeConfig( false , v_Config_Constraint[ i ] );
    else
     throw ( std::logic_error
             ( "CBlockConfig::get: Constraint with Constraint id ( " +
@@ -583,17 +591,17 @@ void OBlockConfig::get( Block * block ) {
 
  BlockConfig::get( block );
 
- delete f_Config_Objective;
- f_Config_Objective = nullptr;
-
  if( ! block ) {
+  delete f_Config_Objective;
+  f_Config_Objective = nullptr;
   return;
   }
 
  // ComputeConfig for the Objective
 
  if( auto objective = block->get_objective() )
-  f_Config_Objective = objective->get_ComputeConfig();
+  f_Config_Objective = objective->get_ComputeConfig( false ,
+                                                     f_Config_Objective );
 
  }  // end( OBlockConfig::get )
 
@@ -697,17 +705,17 @@ void ORBlockConfig::get( Block * block ) {
 
  RBlockConfig::get( block );
 
- delete f_Config_Objective;
- f_Config_Objective = nullptr;
-
  if( ! block ) {
+  delete f_Config_Objective;
+  f_Config_Objective = nullptr;
   return;
   }
 
  // ComputeConfig for the Objective
 
  if( auto objective = block->get_objective() )
-  f_Config_Objective = objective->get_ComputeConfig();
+  f_Config_Objective = objective->get_ComputeConfig( false ,
+                                                     f_Config_Objective);
 
  }  // end( ORBlockConfig::get )
 
@@ -811,17 +819,17 @@ void OCBlockConfig::get( Block * block ) {
 
  CBlockConfig::get( block );
 
- delete f_Config_Objective;
- f_Config_Objective = nullptr;
-
  if( ! block ) {
+  delete f_Config_Objective;
+  f_Config_Objective = nullptr;
   return;
   }
 
  // ComputeConfig for the Objective
 
  if( auto objective = block->get_objective() )
-  f_Config_Objective = objective->get_ComputeConfig();
+  f_Config_Objective = objective->get_ComputeConfig( false ,
+                                                     f_Config_Objective );
 
  }  // end( OCBlockConfig::get )
 
@@ -930,13 +938,15 @@ void CRBlockConfig::get( Block * block ) {
 
  RBlockConfig::get( block );
 
- for( auto config : v_Config_Constraint )
-  delete config;
- v_Config_Constraint.clear();
-
  if( ! block ) {
+  for( auto config : v_Config_Constraint )
+   delete config;
+  v_Config_Constraint.clear();
+  v_Constraint_id.clear();
   return;
   }
+
+ assert( v_Constraint_id.size() == v_Config_Constraint.size() );
 
  // ComputeConfig for the Constraint
 
@@ -944,10 +954,9 @@ void CRBlockConfig::get( Block * block ) {
 
   // v_Constraint_id is not empty. Consider only these Constraint.
 
-  v_Config_Constraint.reserve( v_Constraint_id.size() );
+  for( Block::Index i = 0 ; i < v_Constraint_id.size() ; ++i ) {
 
-  for( const auto [ constraint_group_id , constraint_index ] :
-        v_Constraint_id ) {
+   const auto [ constraint_group_id , constraint_index ] = v_Constraint_id[ i ];
 
    auto constraint_group_index =
     ::get_Constraint_group_index( constraint_group_id , block );
@@ -955,7 +964,8 @@ void CRBlockConfig::get( Block * block ) {
    auto constraint = inspection::get_Constraint
     ( block , Block::ConstraintID( constraint_group_index , constraint_index ) );
    if( constraint )
-    v_Config_Constraint.push_back( constraint->get_ComputeConfig( true ) );
+    v_Config_Constraint[ i ] =
+     constraint->get_ComputeConfig( false , v_Config_Constraint[ i ] );
    else
     throw ( std::logic_error
             ( "CRBlockConfig::get: Constraint with Constraint id ( " +
@@ -1166,17 +1176,17 @@ void OCRBlockConfig::get( Block * block ) {
 
  CRBlockConfig::get( block );
 
- delete f_Config_Objective;
- f_Config_Objective = nullptr;
-
  if( ! block ) {
+  delete f_Config_Objective;
+  f_Config_Objective = nullptr;
   return;
   }
 
  // ComputeConfig for the Objective
 
  if( auto objective = block->get_objective() )
-  f_Config_Objective = objective->get_ComputeConfig();
+  f_Config_Objective = objective->get_ComputeConfig( false ,
+                                                     f_Config_Objective );
 
  }  // end( OCRBlockConfig::get )
 
