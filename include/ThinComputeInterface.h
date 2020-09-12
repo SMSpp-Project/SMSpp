@@ -999,11 +999,13 @@ class ComputeConfig : public Configuration
 
 /*---------------------------- CONSTRUCTORS --------------------------------*/
  /// constructor: initializes everything to "default configuration"
+
  ComputeConfig( void ) : Configuration() , f_diff( true ) ,
   f_extra_Configuration( nullptr ) {}
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: does what it says on the tin
+ 
  ComputeConfig( const ComputeConfig &old ) : Configuration() {
   f_diff = old.f_diff;
   int_pars = old.int_pars;
@@ -1014,12 +1016,12 @@ class ComputeConfig : public Configuration
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
  /// destructor; it deletes the f_extra_Configuration (if any)
- virtual ~ComputeConfig() {
-  delete f_extra_Configuration;
-  }
+
+ virtual ~ComputeConfig() { delete f_extra_Configuration; }
 
 /*------------------------------- CLONE -----------------------------------*/
  /// clone method
+
  ComputeConfig * clone( void ) const override {
   return( new ComputeConfig( *this ) );
   }
@@ -1117,6 +1119,100 @@ class ComputeConfig : public Configuration
   if( f_extra_Configuration )
    f_extra_Configuration->clear();
   }
+
+
+/*--------------------- METHODS FOR CHANGING PARAMETERS --------------------*/
+ /// set the given integer (int) numerical parameter
+ /** Set the integer (int) numerical parameter specified by \p name. If the
+  * parameter is not in the corresponding list it is added, otherwise its
+  * current value is changed to \p value. */
+
+ void set_par( std::string && name , int value ) {
+  auto it = std::find_if( int_pars.begin() , int_pars.end() ,
+		       [ & name ]( const std::pair< std::string , int > & el )
+		                 { return( name == el.first ); } );
+
+  if( it == int_pars.end() )
+   int_pars.push_back( std::pair< std::string , int >( std::move( name ) ,
+						       value ) );
+  else
+   it->second = value;
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// set the given float (double) numerical parameter
+ /** Set the float (double) numerical parameter specified by \p name. If the
+  * parameter is not in the corresponding list it is added, otherwise its
+  * current value is changed to \p value. */
+
+ void set_par( std::string && name , double value ) {
+  auto it = std::find_if( dbl_pars.begin() , dbl_pars.end() ,
+		   [ & name ]( const std::pair< std::string , double > & el )
+		             { return( name == el.first ); } );
+
+  if( it == dbl_pars.end() )
+   dbl_pars.push_back( std::pair< std::string , double >(
+					       std::move( name ) , value ) );
+  else
+   it->second = value;
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// set the given string numerical parameter
+ /** Set the numerical parameter specified by \p name. If the parameter is
+  * not in the corresponding list it is added, otherwise its current value is
+  * changed to \p value. */
+
+ void set_par( std::string && name , std::string && value ) {
+  auto it = std::find_if( str_pars.begin() , str_pars.end() ,
+	      [ & name ]( const std::pair< std::string , std::string > & el )
+		        { return( name == el.first ); } );
+
+  if( it == str_pars.end() )
+   str_pars.push_back( std::pair< std::string , std::string >(
+				  std::move( name ) , std::move( value ) ) );
+  else
+   it->second = std::move( value );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// removes a given parameter
+ /** Seeks the parameter with given \p name in the list of integer, double or
+  * string parameters as specified by \p type (with the values 'i', 'd' and
+  * 's', respectively); if it is found it is removed from the list, otherwise
+  * nothing is done. */
+
+ void reset_par( const std::string & name , char type = 'i' ) {
+  switch( type ) {
+   case( 'i' ): {
+    auto it = std::find_if( int_pars.begin() , int_pars.end() ,
+		       [ & name ]( const std::pair< std::string , int > & el )
+		                 { return( name == el.first ); } );
+    if( it != int_pars.end() ) {
+     *it = std::move( int_pars.back() );
+     int_pars.pop_back();
+     }
+    }
+   case( 'd' ): {
+    auto it = std::find_if( dbl_pars.begin() , dbl_pars.end() ,
+		    [ & name ]( const std::pair< std::string , double > & el )
+		              { return( name == el.first ); } );
+    if( it != dbl_pars.end() ) {
+     *it = std::move( dbl_pars.back() );
+     dbl_pars.pop_back();
+     }
+    }
+   case( 's' ): {
+    auto it = std::find_if( str_pars.begin() , str_pars.end() ,
+	      [ & name ]( const std::pair< std::string , std::string > & el )
+		        { return( name == el.first ); } );
+    if( it != str_pars.end() ) {
+     *it = std::move( str_pars.back() );
+     str_pars.pop_back();
+     }
+    }
+   }
+  }  // end( reset_par )
 
 /*--------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
 
