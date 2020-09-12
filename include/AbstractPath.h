@@ -57,7 +57,6 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#include "AbstractPath.h"
 #include "Block.h"
 #include "BlockInspection.h"
 #include "PolyhedralFunctionBlock.h"
@@ -462,7 +461,7 @@ public:
  };
 
 /**@}-----------------------------------------------------------------------*/
-/*--------------------------- PUBLIC CLASSES -------------------------------*/
+/*--------------------------- PUBLIC METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Public Methods
     @{ */
@@ -473,6 +472,17 @@ public:
   */
  inline Index length() const {
   return node_types.size();
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// clears this AbstractPath
+ /** This function clears this AbstractPath making it an empty path.
+  */
+ void clear() {
+  node_types.clear();
+  group_indices.clear();
+  element_indices.clear();
  }
 
 /*--------------------------------------------------------------------------*/

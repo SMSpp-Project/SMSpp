@@ -7,7 +7,7 @@
  *
  * \version 0.01
  *
- * \date 04 - 09 - 2020
+ * \date 11 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -2061,7 +2061,8 @@ class BendersBFunction : public C05Function , public Block {
 
   std::vector<bool> is_diagonal;
   ///< indicates whether a linearization is diagonal
- };
+
+ }; // end( class( GlobalPool ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -2112,7 +2113,8 @@ class BendersBFunction : public C05Function , public Block {
   std::vector< Index > nnz_at_row;
   std::vector< Index > column;
   std::vector< T > values;
- };
+
+ };  // end( class( SparseMatrix ) )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
@@ -2277,15 +2279,13 @@ class BendersBFunction : public C05Function , public Block {
 
  /// returns the behaviour of this Function considering the given Modification
 
- function_value_behaviour get_behaviour( std::shared_ptr<BlockModAD> mod )
-  const;
+ function_value_behaviour get_behaviour( std::shared_ptr<BlockModAD> mod );
 
 /*--------------------------------------------------------------------------*/
 
  /// returns the behaviour of this Function considering the given Modification
 
- function_value_behaviour get_behaviour( std::shared_ptr<ConstraintMod> mod )
-  const;
+ function_value_behaviour get_behaviour( std::shared_ptr<ConstraintMod> mod );
 
 /*--------------------------------------------------------------------------*/
 
@@ -2319,7 +2319,7 @@ class BendersBFunction : public C05Function , public Block {
   *         false otherwise.
   */
 
- bool has_constraint( Constraint * constraint ) const;
+ bool has_constraint( Constraint * constraint );
 
 /*--------------------------------------------------------------------------*/
 
@@ -2337,6 +2337,56 @@ class BendersBFunction : public C05Function , public Block {
   */
  template< class T >
  bool is_A_sparse( SparseMatrix<T> & matrix ) const;
+
+/*--------------------------------------------------------------------------*/
+
+ /// retrieve the list of affected RowConstraint from the inner Block
+ /** If the vector of AbstractPath to the affected RowConstraint
+  * (#v_paths_to_constraints) is not empty, this method retrieves the pointers
+  * to the Constraint specified by those paths and put them in
+  * #v_constraints. After the end of the call to this method,
+  * #v_paths_to_constraints is emptied. */
+
+ void retrieve_constraints();
+
+/*--------------------------------------------------------------------------*/
+
+ /// return the pointer to the RowConstraint at the given \p index
+ RowConstraint * get_constraint( Block::Index index ) {
+  retrieve_constraints();
+  assert( index < v_constraints.size() );
+  return v_constraints[ index ];
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// add the pointers to the Constraint in the given vector
+ void add_constraints( const ConstraintVector & nc );
+
+/*--------------------------------------------------------------------------*/
+
+ /// add the pointer to the given Constraint
+ void add_constraint( RowConstraint * constraint );
+
+/*--------------------------------------------------------------------------*/
+
+ /// remove all the Constraint in the given \p range
+ void remove_constraints( Range range );
+
+/*--------------------------------------------------------------------------*/
+
+ /// remove all the Constraint indicated in \p rows
+ void remove_constraints( const Subset & rows );
+
+/*--------------------------------------------------------------------------*/
+
+ /// removes all Constraint
+ void remove_constraints();
+
+/*--------------------------------------------------------------------------*/
+
+ /// remove the Constraint with the given \p index
+ void remove_constraint( Block::Index index );
 
 /*--------------------------------------------------------------------------*/
 
