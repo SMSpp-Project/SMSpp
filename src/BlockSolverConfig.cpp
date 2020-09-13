@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 10 - 09 - 2020
+ * \date 13 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -268,7 +268,7 @@ void BlockSolverConfig::apply( Block * block ) const
    Solver *oldS = *sit;
 
    if( (*nit).empty() ) {  // empty name
-    block->unregister_Solver( sit );
+    block->unregister_Solvers( sit );
     if( cit != v_SolverConfigs.end() )
      ++cit;  // ignore corresponding configuration
     // note: sit is not increased because the list is shortened
@@ -313,15 +313,35 @@ void BlockSolverConfig::apply( Block * block ) const
 
 /*--------------------------------------------------------------------------*/
 
-void BlockSolverConfig::reset_Solver( Block * block ) const {
- // unregister Solver in reverse order
+void BlockSolverConfig::unregister_Solvers( Block * block ) const {
+
+ if( ! block )
+  return;
+
+ if( v_SolverNames.empty() ) {
+  block->unregister_Solverss();
+  return;
+ }
+
  auto & solvers = block->get_registered_solvers();
- for( auto it = solvers.rbegin() ; it != solvers.rend() ; ++it ) {
-  Solver *oldS = *it;
-  block->unregister_Solver( --(it.base()) );  // convert backward into forward
-  delete oldS;
+
+ assert( solvers.size() == v_SolverNames.size() );
+
+ auto names_it = v_SolverNames.rbegin();
+
+ for( auto solvers_it = solvers.rbegin() ; solvers_it != solvers.rend() ;
+      ++solvers_it , ++names_it ) {
+
+  if( (*names_it).empty() )
+   continue;
+
+  // unregister the Solver
+  auto solver = *solvers_it;
+  block->unregister_Solvers( --(solvers_it.base()) ); // convert backward into
+                                                      // forward
+  delete solver;
   }
- }  // end( BlockSolverConfig::reset_Solver )
+ }  // end( BlockSolverConfig::unregister_Solvers )
 
 /*--------------------------------------------------------------------------*/
 /*------ METHODS FOR LOADING, PRINTING & SAVING THE BlockSolverConfig ------*/
@@ -565,8 +585,8 @@ void RBlockSolverConfig::apply( Block * block ) const
 
 /*--------------------------------------------------------------------------*/
 
-void RBlockSolverConfig::reset_Solver( Block * block ) const {
- BlockSolverConfig::reset_Solver( block );
+void RBlockSolverConfig::unregister_Solvers( Block * block ) const {
+ BlockSolverConfig::unregister_Solvers( block );
 
  // reset all Solver in the sub-Block
 
@@ -584,9 +604,9 @@ void RBlockSolverConfig::reset_Solver( Block * block ) const {
   auto sub_Block = block->get_nested_Block( sub_Block_index );
 
   if( v_BlockSolverConfig[ i ] && sub_Block )
-   v_BlockSolverConfig[ i ]->reset_Solver( sub_Block );
+   v_BlockSolverConfig[ i ]->unregister_Solvers( sub_Block );
   }
- }  // end( RBlockSolverConfig::reset_Solver )
+ }  // end( RBlockSolverConfig::unregister_Solvers )
 
 /*--------------------------------------------------------------------------*/
 /*------ METHODS FOR LOADING, PRINTING & SAVING THE RBlockSolverConfig -----*/

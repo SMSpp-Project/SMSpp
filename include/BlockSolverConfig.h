@@ -15,7 +15,7 @@
  *
  * \version 0.33
  *
- * \date 10 - 09 - 2020
+ * \date 13 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -79,7 +79,7 @@ namespace SMSpp_di_unipi_it
  * The destruction (as well as the construction) of the Solver attached to a
  * Block is not a responsibility of the Block and is not automatically
  * performed when the Block is destructed (or constructed). Unregistering and
- * deleting all Solver attached to a Block and those attached to its
+ * deleting some (or all) Solver attached to a Block and those attached to its
  * sub-Block, recursively, is a procedure that commonly appear right before a
  * Block is destroyed, when those Solver are no longer needed. Although this
  * or similar procedures can be implemented by the user, tailored to their own
@@ -87,13 +87,14 @@ namespace SMSpp_di_unipi_it
  * particular (and probably frequent) task.
  *
  * If an appropriate BlockSolverConfig for a Block is available, then it can
- * be used to perform this task by simply invoking reset_Solver(), passing a
- * pointer to the Block as argument. This will unregister and delete all the
- * Solver attached to the Block and those attached to the sub-Block
- * (recursively). By appropriate BlockSolverConfig, we mean one that covers
- * all Solver attached to the Block and to its sub-Block, recursively. If all
- * the Solver of the Block have been created by means of a single
- * BlockSolverConfig, then that specific BlockSolverConfig is clearly
+ * be used to perform this task by simply invoking unregister_Solvers(),
+ * passing a pointer to the Block as argument. This will unregisters and
+ * deletes all the Solver attached to the Block and those attached to the
+ * sub-Block (recursively) that have a non-empty name in the
+ * BlockSolverConfig. By appropriate BlockSolverConfig, we mean one that
+ * covers all Solver attached to the Block and to its sub-Block,
+ * recursively. If all the Solver of the Block have been created by means of a
+ * single BlockSolverConfig, then that specific BlockSolverConfig is clearly
  * appropriate, even if clear() has been called for it.
  *
  * Indeed, consider the most obvious use case: a Block is created, Solver
@@ -105,27 +106,28 @@ namespace SMSpp_di_unipi_it
  *     myBSC->apply( myBlock );
  *     myBSC->clear();
  *     < solve the Block with the created Solver >
- *     myBSC->reset_Solver( myBlock );
+ *     myBSC->unregister_Solvers( myBlock );
  *     delete myBSC;
  *     delete myBlock;
  *
  * The myBSC->clear() is not mandatory, but it will free all the memory in
- * the BlockSolverConfig that is not needed for reset_Solver() to work.
+ * the BlockSolverConfig that is not needed for unregister_Solvers() to work.
  *
  * Note that if myBlock has Solver attached to the sub-Block then the myBSC
  * object needs be of class RBlockSolverConfig (this is not difficult to do
  * via the factory).
  *
  * More complex use cases will require adapting, but still BlockSolverConfig
- * can be useful. For instance, if one needs to solve many Block with the
- * same structure (different instances of the same problem) sequentially with
- * the same Solver configuration, then it can define myBSC only once and use
- * it for all the Block; only, in this case it must not be clear()-ed. Also,
- * if some Solver have to be added/deleted during the solution process, it is
+ * can be useful. For instance, if one needs to solve many Block with the same
+ * structure (different instances of the same problem) sequentially with the
+ * same Solver configuration, then it can define myBSC only once and use it
+ * for all the Block; only, in this case it must not be clear()-ed. Also, if
+ * some Solver have to be added/deleted during the solution process, it is
  * possible to use myBSC to do that; by keeping myBSC "up to date" with the
  * position of all Solver in the Block, it is possible to clear them all with
- * a single call to reset_Solver() (note that myBSC can also be used to change
- * the SolverConfig of the Block, but doing so has no effect on reset_Solver()).
+ * a single call to unregister_Solvers() (note that myBSC can also be used to
+ * change the SolverConfig of the Block, but doing so has no effect on
+ * unregister_Solvers()).
  *
  * If an appropriate, up-to-date BlockSolverConfig is not available, one can be
  * constructed as follows:
@@ -135,7 +137,7 @@ namespace SMSpp_di_unipi_it
  * where myBlock is a pointer to the Block of interest. This constructs the
  * full BlockSolverConfig of the given Block; then,
  *
- *     myBSC.reset_Solver( myBlock );
+ *     myBSC.unregister_Solvers( myBlock );
  *
  * does the trick. The construction of an RBlockSolverConfig out of a Block,
  * which is what the above constructor does, is a reasonably cheap operation,
@@ -151,7 +153,7 @@ namespace SMSpp_di_unipi_it
  * [R]BlockSolverConfig that caters for that specific structure.
  *
  * Finally, note that if the only purpose of the thusly constructed
- * [R]BlockSolverConfig is to reset the Solver of the Block (and those
+ * [R]BlockSolverConfig is to unregister the Solver of the Block (and those
  * attached to its sub-Block, recursively), then a "cleared"
  * RBlockSolverConfig (one that contains no ComputeConfig for the Solver) can
  * be directly constructed by
@@ -160,7 +162,7 @@ namespace SMSpp_di_unipi_it
  *
  * This is clearly smarter than constructing a "full" RBlockSolverConfig,
  * only to clear() it immediately afterwards. Of course, such a "cleared"
- * RBlockSolverConfig is likely only useful to call reset_Solver().
+ * RBlockSolverConfig is likely only useful to call unregister_Solvers().
  * @{ */
 
 /*--------------------------------------------------------------------------*/
@@ -413,7 +415,7 @@ class BlockSolverConfig : public Configuration
   *
   * This method underlines the crucial difference between using a
   * BlockSolverConfig and directly using Block::register_Solver(),
-  * Block::unregister_Solver() and Block::replace_Solver() (which this
+  * Block::unregister_Solvers() and Block::replace_Solver() (which this
   * method uses on the user's behalf). In all the Block methods, it is
   * assumed that the new Solver have to be already constructed outside of
   * Block; consequently, the ones that get un-registered are *not* deleted,
@@ -426,7 +428,7 @@ class BlockSolverConfig : public Configuration
   *
   *     MIXING THE TWO STYLES OF MANAGING THE Solver, I.E., USING A
   *     BlockSolverConfig VS DIRECTLY CALLING Block::register_Solver(),
-  *     Block::unregister_Solver() AND Block::replace_Solver(), IS CLEARLY
+  *     Block::unregister_Solvers() AND Block::replace_Solver(), IS CLEARLY
   *     TRICKY AND CAUTION SHOULD BE EXERCISED.
   *
   * @param block A pointer to the Block that must be configured. */
@@ -434,29 +436,31 @@ class BlockSolverConfig : public Configuration
  virtual void apply( Block * block ) const;
 
 /*--------------------------------------------------------------------------*/
- /// unregister and delete all the Solver attached to the given Block
- /** This method unregisters and deletes all Solver attached to the given
-  * Block.
+ /// unregister and delete the Solver attached to the given Block
+ /** This method assumes that there is a one-to-one correspondence between the
+  * Solver attached to \block and the ComputeConfig and Solver names in this
+  * BlockSolverConfig: the number of Solver attached to \p block and the
+  * number of ComputeConfig handled by this BlockSolverConfig are equal and
+  * the i-th Solver name in this BlockSolverConfig is associated with the i-th
+  * Solver of \p block. The bahavior of this method depends on the names of
+  * the Solver stored in this BlockSolverConfig (see get_SolverNames()). This
+  * method unregisters and deletes every Solver attached to the given Block
+  * that has a non-empty name in this BlockSolverConfig.
   *
-  * @param block A pointer to the Block whose Solver will be reset. */
+  * @param block A pointer to the Block whose Solver will be unregister. */
 
- virtual void reset_Solver( Block * block ) const;
+ virtual void unregister_Solvers( Block * block ) const;
 
 /*--------------------------------------------------------------------------*/
- /// clear the names of the Solver and delete all the ComputeConfig
- /** This method clears the vector holding the names of the Solver and
-  * deletes all the ComputeConfig (clearing also the vector holding the
-  * ComputeConfig). */
+ /// delete all the ComputeConfig
+ /** This method deletes all pointers to ComputeConfig stored in this
+  * BlockSolverConfig. */
 
  void clear( void ) override {
-  v_SolverNames.clear();
-  v_SolverNames.shrink_to_fit();
-
-  for( auto config : v_SolverConfigs )
+  for( auto & config : v_SolverConfigs ) {
    delete config;
-
-  v_SolverConfigs.clear();
-  v_SolverConfigs.shrink_to_fit();
+   config = nullptr;
+   }
   }
 
 /*------------------------------- CLONE -----------------------------------*/
@@ -502,6 +506,7 @@ class BlockSolverConfig : public Configuration
  void set_diff( bool diff = true ) { f_diff = diff; }
 
 /*--------------------------------------------------------------------------*/
+
  /// adds a ComputeConfig
  /** This function adds, to this BlockSolverConfig, a ComputeConfig for a
   * Solver of the Block.
@@ -538,6 +543,43 @@ class BlockSolverConfig : public Configuration
    delete v_SolverConfigs[ index ];
   v_SolverConfigs.erase( std::begin( v_SolverConfigs ) + index );
   v_SolverNames.erase( std::begin( v_SolverNames ) + index );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// changes the name of a Solver
+ /** This function changes the name of the Solver at the given \p index.
+  *
+  * @param index The index of the name of the Solver to be changed (this must
+  *              be an index between 0 and num_ComputeConfig() - 1). */
+
+ void set_Solver_name( Index index , std::string && name = "" ) {
+  if( index >= v_SolverNames.size() )
+   throw ( std::invalid_argument( "BlockSolverConfig::set_Solver_name: invalid "
+                                  "index: " + std::to_string( index ) + "." ) );
+  v_SolverNames[ index ] = std::move( name );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// change a ComputeConfig
+ /** This function replaces the ComputeConfig at the given \p index.
+  *
+  * @param index The index of the ComputeConfig to be replaced (this must be
+  *              an index between 0 and num_ComputeConfig() - 1).
+  *
+  * @param destroy It indicates whether the pointer to the ComputeConfig at
+  *        the given index must be deleted. */
+
+ void set_ComputeConfig( Index index , ComputeConfig * config = nullptr ,
+                         bool destroy = true ) {
+  if( index >= v_SolverConfigs.size() )
+   throw ( std::invalid_argument( "BlockSolverConfig::set_ComputeConfig: "
+                                  "invalid index: "
+                                  + std::to_string( index ) + "." ) );
+  if( destroy )
+   delete v_SolverConfigs[ index ];
+  v_SolverConfigs[ index ] = config;
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -875,14 +917,14 @@ class RBlockSolverConfig : public BlockSolverConfig
  void apply( Block * block ) const override;
 
 /*--------------------------------------------------------------------------*/
- /// unregister and delete all Solver attached to \p block (and its sub-Block)
+ /// unregister and delete Solver attached to \p block (and its sub-Block)
  /** This method unregisters and deletes all Solver attached to the given
   * Block and to each of its sub-Block handled by this RBlockSolverConfig,
   * recursively.
   *
-  * @param block A pointer to the Block whose Solver will be reset. */
+  * @param block A pointer to the Block whose Solver will be unregistered. */
 
- void reset_Solver( Block * block ) const override;
+ void unregister_Solvers( Block * block ) const override;
 
 /*--------------------------------------------------------------------------*/
  /// clear this RBlockSolverConfig
