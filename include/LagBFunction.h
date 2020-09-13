@@ -1,13 +1,13 @@
 /*--------------------------------------------------------------------------*/
-/*------------------------ File LagBFunction.h ---------------------------*/
+/*------------------------- File LagBFunction.h ----------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Header file for the class LagBFunction, which
- * implements C05Function and Block with a Lagrangian function.
+ * Header file for the class LagBFunction, which implements the C05Function
+ * interface for a Lagrangian function.
  *
- * \version 0.07
+ * \version 0.10
  *
- * \date 20 - 11 - 2019
+ * \date 13 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -78,10 +78,10 @@ namespace SMSpp_di_unipi_it
  *
  * 2) A vector of pairs of relaxed functions and the Lagrangian multipliers
  *    thereof : [ y , g(x) ] = [ ( y_i , g_i (x) ) ]_{i \in I} which handle
- *    the static relaxation of constraints. The vector-valued
- *    function g(x) = [ g_i( x ) ]_{i \in I} is defined in the same Variable
- *    x as B, which should be thought as a part of the "complicating constraints"
- *    of some original problem
+ *    the static relaxation of constraints. The vector-valued function
+ *    g(x) = [ g_i( x ) ]_{i \in I} is defined in the same Variable x as B,
+ *    which should be thought as a part of the "complicating constraints" of
+ *    some original problem
  *
  *      (O)    max { c(x) : g(x) [ + ... ] [<]= 0 , x \in X }
  *
@@ -89,21 +89,22 @@ namespace SMSpp_di_unipi_it
  *    relaxed constraints are also referred to as (RCs).The "[ + ... ]" term
  *    underlines the fact that (O) may have other variables that, once the
  *    complicating constraints are relaxed, become independent from x; these
- *    will be typically put into one (or more) other LagBFunction, and therefore
- *    are not a concern of this specific (B). The notation "[<]=" means that the
- *    constraints can (almost) indifferently be equalities or inequalities,
- *    the difference simply yielding (or not) sign constraints on the
- *    Lagrangian multipliers [see right below]. The vector y = [ y_i ]_{i \in I}
- *    of Lagrangian multipliers, real-valued Variable (ColVariable) each one
- *    associated to one of the complicating constraints. Note that these must
- *    *not* be Variable of the LagBFunction seen as a Block, because they are
- *    conceptually fixed when the Block is solved. The y corresponding to
- *    inequality constraints will have an appropriate sign constraint on them;
- *    however, this will be a concern of the "outer" Block defining them,
- *    and therefore is not a concern of the LagBFunction.
+ *    will be typically put into one (or more) other LagBFunction, and
+ *    therefore are not a concern of this specific (B). The notation "[<]="
+ *    means that the constraints can (almost) indifferently be equalities or
+ *    inequalities, the difference simply yielding (or not) sign constraints
+ *    on the Lagrangian multipliers [see right below]. The vector
+ *    y = [ y_i ]_{ i \in I } of Lagrangian multipliers, real-valued Variable
+ *    (ColVariable) each one associated to one of the complicating
+ *    constraints. Note that these must *not* be Variable of the LagBFunction
+ *    seen as a Block, because they are conceptually fixed when the Block is
+ *    solved. The y corresponding to inequality constraints will have an
+ *    appropriate sign constraint on them; however, this will be a concern of
+ *    the "outer" Block defining them, and therefore is not a concern of the
+ *    <LagBFunction.
  *
  * 3) A list of pairs of relaxed functions and the Lagrangian multipliers
- *    thereof : { ( y_i , g_i (x) ) }_{i \in \bar{I}} which handle the
+ *    thereof : { ( y_i , g_i (x) ) }_{ i \in \bar{I} } which handle the
  *    dynamic generation/removal which handle the dynamic relaxation of
  *    constraints.
  *
@@ -115,11 +116,11 @@ namespace SMSpp_di_unipi_it
  *
  *   (L_y)   l( y ) = max { c(x) + \sum_{i \in I} y_i g_i(x) : x \in X }
  *
- * The function l(y) is convex in y (concave if (B) is a minimization problem),
- * since it is the pointwise maximum of (possibly, infinitely many) linear
- * functions in y. As such it is continuous in the interior of its domain;
- * however, it typically is non differentiable. Indeed, if x(y) is the
- * (eps-)optimal solution of (L_y), then
+ * The function l(y) is convex in y (concave if (B) is a minimization
+ * problem), since it is the pointwise maximum of (possibly, infinitely
+ * many) linear functions in y. As such it is continuous in the interior of
+ * its domain; however, it typically is non differentiable. Indeed, if x(y) 
+ * is the (eps-)optimal solution of (L_y), then
  *
  *       h = g( x(y) ) = [ g_i( x(y) ) ]_{i \in I}
  *
@@ -142,7 +143,7 @@ namespace SMSpp_di_unipi_it
  * - the Objective c(x) of (B) is a "simple" function, i.e., it belongs to
  *   following classes:
  *
- *   = FRealObjective whose inside function is a LinearFunction
+ *   = FRealObjective whose inside Function is a LinearFunction
  *
  * - g is represented by a std::vector<Function *>, with each g[ i ] being a
  *    "simple" function, i.e., belonging to following classes:
@@ -158,6 +159,18 @@ namespace SMSpp_di_unipi_it
  * Under these assumptions, LagBFunction can implement the required machinery
  * to use the inner Block (B), with any attached Solver, to implement the
  * C05Function interface for the Lagrangian function l( y ).
+ *
+ *     SINCE LagBFunction RELIES ON THE Solver ATTACHED TO THE INNER Block TO
+ *     COMPUTE ITSELF, THERE MUST BE SUCH A Solver BY THE TIME compute() IS
+ *     FIRST CALLED. IF MORE THAN ONE Solver IS ATTACHED TO THE INNER Block,
+ *     LagBFunction ALWAYS USES THE FIRST OF THEM. REGISTERING OR
+ *     UN-REGISTERING Solver FROM THE INNER Block OF THE LagBFunction MUST
+ *     NEVER CAUSE THE LIST TO BECOME EMPTY OR THE FIRST Solver IN THE LIST
+ *     TO CHANGE IF INFORMATION PRODUCED IN THE LAST compute() (FUNCTION
+ *     VALUES, LINEARIZATIONS, ...) IS STILL TO BE RETRIEVED.
+ *
+ * It should, however, in principle be possible to change the solver at every
+ * call of compute(), provided this is done "right before the call".
  *
  * An important note, however, is that LagBFunction is both a C05Function and
  * a Block. This is done in order for it to be able to "intercept" any
@@ -290,127 +303,126 @@ class LagBFunction : public C05Function , public Block {
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
  typedef std::tuple< p_Solution , bool , bool > linearization_tuple;
- /* a solution equipped with two boolean, one which defines the type of
-    and the other one states if the solution has to be checked for
-    feasibility. */
+ /**< a solution equipped with two boolean, one which defines the type of
+  * linearization (diagonal, vertical) and the other one states if the
+  * solution has to be checked for feasibility. */
 
  typedef std::vector< linearization_tuple > v_linearization_tuple;
  ///< a vector of linearization_pair
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
- typedef std::pair< LinearFunction::Coefficient , LinearFunction::v_coeff_pair > col_pair;
+ typedef std::pair< LinearFunction::Coefficient ,
+                    LinearFunction::v_coeff_pair > col_pair;
  ///< a pair to represent c_i and < y_i , A_i >
 
- typedef std::vector< col_pair > m_column;
- ///< a map of col_pair
+ typedef std::vector< col_pair > m_column;   ///< a map of col_pair
 
- /*--------------------------------------------------------------------------*/
-  /// virtualized concrete iterator
-  /** A concrete class deriving from ThinVarDepInterface::v_iterator and
-   * implementing the concrete iterator for "sifting through" the "active"
-   * Variable of a LagBFunction. */
+/*--------------------------------------------------------------------------*/
+ /// virtualized concrete iterator
+ /** A concrete class deriving from ThinVarDepInterface::v_iterator and
+  * implementing the concrete iterator for "sifting through" the "active"
+  * Variable of a LagBFunction. */
 
-  class v_iterator : public ThinVarDepInterface::v_iterator
-  {
-   public:
+ class v_iterator : public ThinVarDepInterface::v_iterator
+ {
+  public:
 
-   explicit v_iterator( v_dual_pair::iterator & itr ) : itr_( itr ) {}
-   explicit v_iterator( v_dual_pair::iterator && itr )
-    : itr_( std::move( itr ) ) {}
+  explicit v_iterator( v_dual_pair::iterator & itr ) : itr_( itr ) {}
+  explicit v_iterator( v_dual_pair::iterator && itr )
+   : itr_( std::move( itr ) ) {}
 
-   v_iterator * clone( void ) override final {
-    return( new v_iterator( itr_ ) );
-    }
+  v_iterator * clone( void ) override final {
+   return( new v_iterator( itr_ ) );
+   }
 
-   void operator++( void ) override final { ++(itr_); }
+  void operator++( void ) override final { ++(itr_); }
 
-   reference operator*( void ) const override final {
-    return( *((*itr_).first) );
-    }
-   pointer operator->( void ) const override final {
-    return( (*itr_).first );
-    }
+  reference operator*( void ) const override final {
+   return( *((*itr_).first) );
+   }
+  pointer operator->( void ) const override final {
+   return( (*itr_).first );
+   }
 
-   bool operator==( const ThinVarDepInterface::v_iterator & rhs )
-    const override final {
-    #ifdef NDEBUG
-     auto tmp = static_cast<const LagBFunction::v_iterator *>( & rhs );
-     return( itr_ == tmp->itr_ );
-    #else
-     auto tmp = dynamic_cast<const LagBFunction::v_iterator *>( & rhs );
-     return( tmp ? itr_ == tmp->itr_ : false );
-    #endif
-    }
-   bool operator!=( const ThinVarDepInterface::v_iterator & rhs )
-    const override final {
-    #ifdef NDEBUG
-     auto tmp = static_cast<const LagBFunction::v_iterator *>( & rhs );
-     return( itr_ != tmp->itr_ );
-    #else
-     auto tmp = dynamic_cast<const LagBFunction::v_iterator *>( & rhs );
-     return( tmp ? itr_ != tmp->itr_ : false );
-    #endif
-    }
+  bool operator==( const ThinVarDepInterface::v_iterator & rhs )
+   const override final {
+   #ifdef NDEBUG
+    auto tmp = static_cast<const LagBFunction::v_iterator *>( & rhs );
+    return( itr_ == tmp->itr_ );
+   #else
+    auto tmp = dynamic_cast<const LagBFunction::v_iterator *>( & rhs );
+    return( tmp ? itr_ == tmp->itr_ : false );
+   #endif
+   }
+  bool operator!=( const ThinVarDepInterface::v_iterator & rhs )
+   const override final {
+   #ifdef NDEBUG
+    auto tmp = static_cast<const LagBFunction::v_iterator *>( & rhs );
+    return( itr_ != tmp->itr_ );
+   #else
+    auto tmp = dynamic_cast<const LagBFunction::v_iterator *>( & rhs );
+    return( tmp ? itr_ != tmp->itr_ : false );
+   #endif
+   }
 
-   private:
+  private:
 
-   v_dual_pair::iterator itr_;
-   };
+  v_dual_pair::iterator itr_;
+  };
 
  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-  /// virtualized concrete const_iterator
-  /** A concrete class deriving from ThinVarDepInterface::v_const_iterator and
-    * implementing the concrete iterator for sifting through the "active"
-    * Variable of a LinearFunction. */
+ /// virtualized concrete const_iterator
+ /** A concrete class deriving from ThinVarDepInterface::v_const_iterator and
+  * implementing the concrete iterator for sifting through the "active"
+  * Variable of a LinearFunction. */
 
-  class v_const_iterator : public ThinVarDepInterface::v_const_iterator
-  {
-   public:
+ class v_const_iterator : public ThinVarDepInterface::v_const_iterator
+ {
+  public:
 
-   explicit v_const_iterator( v_dual_pair::const_iterator & itr )
-    : itr_( itr ) {}
-   explicit v_const_iterator( v_dual_pair::const_iterator && itr )
-    : itr_( std::move( itr ) ) {}
+  explicit v_const_iterator( v_dual_pair::const_iterator & itr )
+   : itr_( itr ) {}
+  explicit v_const_iterator( v_dual_pair::const_iterator && itr )
+   : itr_( std::move( itr ) ) {}
 
-   v_const_iterator * clone( void ) override final {
-    return( new v_const_iterator( itr_ ) );
-    }
+  v_const_iterator * clone( void ) override final {
+   return( new v_const_iterator( itr_ ) );
+   }
 
-   void operator++( void ) override final { (itr_)++; }
-   reference operator*( void ) const override final {
-    return( *((*itr_).first) );
-    }
-   pointer operator->( void ) const override final {
-    return( (*itr_).first );
-    }
+  void operator++( void ) override final { (itr_)++; }
+  reference operator*( void ) const override final {
+   return( *((*itr_).first) );
+   }
+  pointer operator->( void ) const override final {
+   return( (*itr_).first );
+   }
 
-   bool operator==( const ThinVarDepInterface::v_const_iterator & rhs )
-    const override final {
-    #ifdef NDEBUG
-     auto tmp = static_cast<const LagBFunction::v_const_iterator *>( & rhs );
-     return( itr_ == tmp->itr_ );
-    #else
-     auto tmp = dynamic_cast<const LagBFunction::v_const_iterator *>( & rhs
-  								       );
-     return( tmp ? itr_ == tmp->itr_ : false );
-    #endif
-    }
-   bool operator!=( const ThinVarDepInterface::v_const_iterator & rhs )
-    const override final {
-    #ifdef NDEBUG
-     auto tmp = static_cast<const LagBFunction::v_const_iterator *>( & rhs );
-     return( itr_ != tmp->itr_ );
-    #else
-     auto tmp = dynamic_cast<const LagBFunction::v_const_iterator *>( & rhs );
-     return( tmp ? itr_ != tmp->itr_ : false );
-    #endif
-    }
+  bool operator==( const ThinVarDepInterface::v_const_iterator & rhs )
+   const override final {
+   #ifdef NDEBUG
+    auto tmp = static_cast<const LagBFunction::v_const_iterator *>( & rhs );
+    return( itr_ == tmp->itr_ );
+   #else
+    auto tmp = dynamic_cast<const LagBFunction::v_const_iterator *>( & rhs );
+    return( tmp ? itr_ == tmp->itr_ : false );
+   #endif
+   }
+  bool operator!=( const ThinVarDepInterface::v_const_iterator & rhs )
+   const override final {
+   #ifdef NDEBUG
+    auto tmp = static_cast<const LagBFunction::v_const_iterator *>( & rhs );
+    return( itr_ != tmp->itr_ );
+   #else
+    auto tmp = dynamic_cast<const LagBFunction::v_const_iterator *>( & rhs );
+    return( tmp ? itr_ != tmp->itr_ : false );
+   #endif
+   }
 
-   private:
+  private:
 
-   v_dual_pair::const_iterator itr_;
-   };
+  v_dual_pair::const_iterator itr_;
+  };
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
@@ -421,18 +433,20 @@ class LagBFunction : public C05Function , public Block {
  *  @{ */
 
 /*--------------------------------------------------------------------------*/
- /// constructor of LagBFunction, taking the static Lagrangian pairs.
+ /// constructor of LagBFunction, taking the static Lagrangian pairs
  /** Constructor of LagBFunction. It accepts a pointer both to a Block and
-  * an Observer, in particular the Block is the sub-block (B).
+  * an Observer, in particular the Block is the one and only inner Block (B),
+  * the one defining the Lagrangian function.
   *
-  * It is assumed the sub-block (B) has no children. The constructor does not
-  * accept an array of dual pair, which consists of a pair of relaxed
-  * constraints g_i(x) and its Lagrangian multiplier y_i, for some i \in I.
-  * The assumption makes sure that, before saving the Lagrangian multipliers,
-  * the Observer has been registered. */
+  * If the inner Block is not passed in the constructor, this has to be done
+  * with set_inner_block().
+  *
+  * The constructor does not accept an array of dual pair, which consists of
+  * a pair of a relaxed constraint g_i(x) and its Lagrangian multiplier y_i,
+  * for i \in I. The assumption makes sure that, before saving the
+  * Lagrangian multipliers, the Observer has been registered. */
 
- LagBFunction( Block* innerblock = nullptr ,
-	       Observer * const observer = nullptr );
+ LagBFunction( Block * innerblock = nullptr , Observer * observer = nullptr );
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
  /// destructor of LagBFunction: delete the allocated memory.
@@ -452,8 +466,7 @@ class LagBFunction : public C05Function , public Block {
  *  @{ */
 
  /// set the sub-block pointer.
- /** This method to set the pointer to the sub-Block (B), which is assumed
-  *  to be without children.
+ /** This method to set the pointer to the sub-Block (B).
   *
   * If a set of "static" dual pairs <y, g(x)> have been already accommodated
   * [ see set_dual_pairs(), LagBFunction() ], the cost vector c of (obj_B) will
@@ -679,16 +692,18 @@ class LagBFunction : public C05Function , public Block {
 				      issueMod );
   }
 
+/**@} ----------------------------------------------------------------------*/
+/*----------- METHODS DESCRIBING THE BEHAVIOR OF A LagBFunction ------------*/
 /*--------------------------------------------------------------------------*/
- /// compute the Function
- /** It has to compute the Function. ?? The parameter changedvars is false if
-  *  the constant vector b of (RCs) is changed and the remaining data problem
-  *  is still valid. ??
-  *
-  *  It is assumed that the sub-Block (B) does not have Variable defined
-  *  in other Blocks. Then, the re-optimization of (B) can be performed starting
-  *  from the warm-start (the old solution). No relevant Variable are defined
-  *  in (B). */
+/** @name Methods describing the behavior of a LagBFunction
+ *
+ * @{ */
+
+ /// compute the LagBFunction
+ /** Compute the LagBFunction: this amounts at computing the Lagrangian costs
+  * and changing the costs in the inner Block accordingly (if the Lagrangian
+  * variables have changed, i.t., \p changedvars == true), and then using the
+  * Solver attached to the inner Block to solve it. */
 
  int compute( bool changedvars = true ) override;
 
@@ -707,19 +722,37 @@ class LagBFunction : public C05Function , public Block {
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
  FunctionValue get_lower_estimate( void ) const override {
-  return( slv->get_lb() );
+  return( v_Block.front()->get_registered_solvers().front()->get_lb() );
   }
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
  FunctionValue get_upper_estimate( void ) const override {
-  return( slv->get_ub() );
+  return( v_Block.front()->get_registered_solvers().front()->get_ub() );
   }
 
 /*--------------------------------------------------------------------------*/
 
+ FunctionValue get_Lipschitz_constant( void ) override {
+  // TODO: try to compute a Lipschitz constant. this should be possible if
+  //       all variable in the inner Block are bounded
+  // !! important!!
+
+  return( std::numeric_limits<FunctionValue>::infinity() );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ bool is_convex( void ) const override { return( IsConvex ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ bool is_concave( void ) const override { return( ! IsConvex ); }
+
+/*--------------------------------------------------------------------------*/
+
  void get_linearization_coefficients( FunctionValue * g ,
-			              Range range = Range( 0 , Inf<Index>() ) ,
+			             Range range = Range( 0 , Inf<Index>() ) ,
 				      Index name = Inf<Index>() ) override;
 
 /*--------------------------------------------------------------------------*/
@@ -731,19 +764,21 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  FunctionValue get_linearization_constant( c_Index name = Inf<Index>() )
-  override final;
+  override;
 
 /*--------------------------------------------------------------------------*/
 
- Block* get_inner_block( void ) const;
+ Block * get_inner_block( void ) const;
 
 /*--------------------------------------------------------------------------*/
+ //!! I strongly suspect this is useless
 
  int get_NzMat( void );
 
 /*--------------------------------------------------------------------------*/
+ //!! I strongly suspect this is useless
 
- void get_MatDesc( int *Abeg , int *Aind , double *Aval , const int strt ,
+ void get_MatDesc( int *Abeg , int *Aind , double *Aval , int strt ,
 		   int stp );
 
 /**@} ----------------------------------------------------------------------*/
@@ -761,7 +796,7 @@ class LagBFunction : public C05Function , public Block {
 
  ComputeConfig * get_ComputeConfig( bool all = false ,
 				    ComputeConfig * ocfg = nullptr )
-  const override final;
+  const override;
 
 /*--------------------------------------------------------------------------*/
 
@@ -787,46 +822,46 @@ class LagBFunction : public C05Function , public Block {
  * vector lag_p of Lagrangian pairs.
  * @{ */
 
- Index get_num_active_var( void ) const override final {
+ Index get_num_active_var( void ) const override {
   return( LagPairs.size() );
   }
 
 /*--------------------------------------------------------------------------*/
 
- Index is_active( const Variable * const var ) const override final;
+ Index is_active( const Variable * const var ) const override;
 
 /*--------------------------------------------------------------------------*/
 
  void map_active( c_Vec_p_Var & vars , Subset & map ,
-		  const bool ordered = false ) const override final;
+		  const bool ordered = false ) const override;
 
 /*--------------------------------------------------------------------------*/
 
- Variable *get_active_var( const Index i ) const override final {
+ Variable *get_active_var( const Index i ) const override {
   return( ( LagPairs.begin() + i )->first );
   }
 
 /*--------------------------------------------------------------------------*/
 
- v_iterator * v_begin( void ) override final {
+ v_iterator * v_begin( void ) override {
   return( new LagBFunction::v_iterator( LagPairs.begin() ) );
   }
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
- v_const_iterator * v_begin( void ) const override final {
+ v_const_iterator * v_begin( void ) const override {
   return( new LagBFunction::v_const_iterator( LagPairs.begin() ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
- v_iterator * v_end( void ) override final {
+ v_iterator * v_end( void ) override {
   return( new LagBFunction::v_iterator( LagPairs.end() ) );
   }
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
- v_const_iterator * v_end( void ) const override final {
+ v_const_iterator * v_end( void ) const override {
   return( new LagBFunction::v_const_iterator( LagPairs.end() ) );
   }
 
@@ -850,11 +885,11 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
- FRealObjective * obj;
+ LinearFunction * obj;
  ///< the (linear) objective function of the sub-Block (B)
 
- Solver* slv;                   ///< the Solver of (B)
-
+ bool IsConvex;  ///< true if the LagBFunction is convex
+ 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
  v_dual_pair LagPairs;          ///< vector of Lagrangian dual pairs
@@ -896,16 +931,15 @@ class LagBFunction : public C05Function , public Block {
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-   void set_objective_and_solver();
+ void initialize_cost_matrix( void );
 
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+ Subset add_columns( v_dual_pair & v_lag_pair );
 
-   void initialize_cost_matrix( void );
+ Subset update_columns( v_dual_pair & v_lag_pair );
 
-   Subset add_columns( v_dual_pair & v_lag_pair );
-   Subset update_columns( v_dual_pair & v_lag_pair );
-   void rm_columns( c_Subset & subset );
-   void rm_columns( c_Range & range );
+ void rm_columns( c_Subset & subset );
+
+ void rm_columns( c_Range & range );
 
 /*--------------------------------------------------------------------------*/
 
