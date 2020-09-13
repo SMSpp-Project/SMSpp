@@ -71,7 +71,6 @@
 
 // boost libraries
 #include <boost/any.hpp>
-#include <boost/bind.hpp>
 #include "boost/function.hpp"
 #include "boost/functional/factory.hpp"
 #include "boost/functional/forward_adapter.hpp"
@@ -441,10 +440,12 @@ namespace SMSpp_di_unipi_it
  * Note the use of the "stringification" operator "#" when converting the
  * macro parameter ClassName to its string representation.
  *
- * The alert reader may wonder why the ugly two-step mechanism to define the
- * object inserted in the factory in the "_1" version. This is due to the
- * fact that boost (up to and incl. 1.67) does not do 'perfect forwarding':
- * factory<>() requires lvalue arguments, but bind provides rvalues.
+ * Note that a previous version of these macros required an ugly two-step
+ * mechanism to define the object inserted in the factory in the "_1" version.
+ * This was due to the fact that boost (up to and incl. 1.67) did not do
+ * "perfect forwarding": factory<>() requires lvalue arguments, but bind
+ * provides rvalues. This flaw has apparently been fixed in later versions of
+ * boost, and this implementation works with boost 1.74.0.
  *
  * The alert reader may similarly wonder why the funny "{}" after
  * "_initializer" in the _t versions, but not in the standard ones. This is
@@ -526,10 +527,8 @@ namespace SMSpp_di_unipi_it
   } \
     \
  SMSpp_type_traits::t<void(ClassName)>::type::_init::_init( void ) { \
-  auto f = boost::factory< SMSpp_type_traits::t<void(ClassName)>::type * >(); \
-  auto f2 = boost::forward_adapter< decltype( f ) >( f );                     \
   f_factory()[SMSpp_type_traits::t<void(ClassName)>::type::_private_name()] = \
-   boost::bind<SMSpp_type_traits::t<void(ClassName)>::type *>( f2 , _1 );     \
+   boost::factory< SMSpp_type_traits::t<void(ClassName)>::type * >();         \
   SMSpp_type_traits::t<void(ClassName)>::type::static_initialization();       \
   } \
     \
@@ -586,10 +585,8 @@ namespace SMSpp_di_unipi_it
   } \
     \
  template<> SMSpp_type_traits::t<void(ClassName)>::type::_init::_init(void) { \
-  auto f = boost::factory<SMSpp_type_traits::t<void(ClassName)>::type *>();   \
-  auto f2 = boost::forward_adapter< decltype( f ) >( f );                     \
   f_factory()[SMSpp_type_traits::t<void(ClassName)>::type::_private_name()] = \
-   boost::bind<SMSpp_type_traits::t<void(ClassName)>::type *>( f2 , _1 );     \
+   boost::factory< SMSpp_type_traits::t<void(ClassName)>::type * >();         \
   SMSpp_type_traits::t<void(ClassName)>::type::static_initialization();       \
   } \
     \

@@ -6530,8 +6530,7 @@ class Block : public Observer {
  /// single object of class (derived from) Variable
 
  template< class Var >
- void set_static_variable( Index i , Var & newv ,
-			   std::string && name = "" )
+ void set_static_variable( Index i , Var & newv , std::string && name = "" )
  {
   // ensure derived classes insert a derivate of Variable
   static_assert( std::is_base_of< Variable, Var >::value,
@@ -6550,7 +6549,7 @@ class Block : public Observer {
 
  template< class Var >
  void add_static_variable( std::vector< Var > & newv ,
-                           std::string && name = "" , bool front = false )
+			   std::string && name = "" , bool front = false )
  {
   static_assert( std::is_base_of< Variable, Var >::value,
                  "add_static_variable: newv must inherit from Variable" );
@@ -6750,9 +6749,9 @@ class Block : public Observer {
  /// boost::multi_array<K> of std::list of (...) Constraint
 
  template< class Const, unsigned long K >
- void add_dynamic_constraint( boost::multi_array< std::list< Const > , K >
-                              & newc , std::string && name = "" ,
-			      bool front = false )
+ void add_dynamic_constraint(
+		       boost::multi_array< std::list< Const > , K > & newc ,
+		       std::string && name = "" , bool front = false )
  {
   static_assert( std::is_base_of< Constraint, Const >::value,
                "add_dynamic_constraint: newc must inherit from Constraint" );
@@ -6779,8 +6778,8 @@ class Block : public Observer {
 
  template< class Const, unsigned long K >
  void set_dynamic_constraint( Index i ,
-			      boost::multi_array< std::list< Const > , K >
-                              & newc , std::string && name = "" )
+			boost::multi_array< std::list< Const > , K > & newc ,
+			      std::string && name = "" )
  {
   static_assert( std::is_base_of< Constraint, Const >::value,
                "add_dynamic_constraint: newc must inherit from Constraint" );
@@ -6910,9 +6909,9 @@ class Block : public Observer {
  /// boost::multi_array<K> of std::list of (...) Variable
 
  template< class Var, unsigned long K >
- void add_dynamic_variable( boost::multi_array< std::list< Var > , K >
-			    & newv , std::string && name = "" ,
-			    bool front = false )
+ void add_dynamic_variable(
+			  boost::multi_array< std::list< Var > , K > & newv ,
+			  std::string && name = "" , bool front = false )
  {
   static_assert( std::is_base_of< Variable, Var >::value,
                  "add_dynamic_variable: newv must inherit from Variable" );
@@ -6939,8 +6938,8 @@ class Block : public Observer {
 
  template< class Var, unsigned long K >
  void set_dynamic_variable( Index i ,
-			    boost::multi_array< std::list< Var > , K >
-			    & newv , std::string && name = "" )
+		         boost::multi_array< std::list< Var > , K > & newv ,
+			    std::string && name = "" )
  {
   static_assert( std::is_base_of< Variable, Var >::value,
                  "add_dynamic_variable: newv must inherit from Variable" );
@@ -6968,6 +6967,7 @@ class Block : public Observer {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// removing the solver in position it of the set of the registered ones
+
  virtual void unregister_Solver( Lst_Solver_it it )
  {
   (*it)->set_Block( nullptr );  // unregister the Block in the Solver
@@ -7047,7 +7047,7 @@ class Block : public Observer {
   * Although clearly not "empty", as opposed as :Block fresh out of the
   * factory (see new_Block( string )), a freshly loaded Block is otherwise
   * "in pristine state": the "abstract representation" is not constructed
-  *  (unless the :Block does this by its own volition), both the BlockConfig
+  * (unless the :Block does this by its own volition), both the BlockConfig
   * and the BlockSolverConfig are not set, and (therefore) there are no Solver
   * attached, unless there were before. */
 
