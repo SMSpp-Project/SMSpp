@@ -2735,9 +2735,9 @@ public:
    throw( std::invalid_argument( "vars and delta sizes do not match" ) );
   if( ! ordered ) {
    using IdxVar = std::tuple< Index , Variable * , FunctionValue >;
-   std::vector< IdxVar > tmp;
+   std::vector< IdxVar > tmp( v_vars.size() );
    for( Index i = 0 ; i < v_vars.size() ; ++i )
-    tmp[ i ] = std::tuple( v_subset[ i ] , v_vars[ i ] , v_delta[ i ] );
+    tmp[ i ] = IdxVar( v_subset[ i ] , v_vars[ i ] , v_delta[ i ] );
    std::sort( tmp.begin() , tmp.end() ,
 	      []( IdxVar & a , IdxVar & b ) {
 	       return( std::get<0>( a ) < std::get<0>( b ) ); }
