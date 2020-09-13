@@ -206,8 +206,12 @@ public:
 
 /*--------------------------------------------------------------------------*/
  /// public enum for the possible types of events
- /**
-  */
+ /** This enum defines a set of "basic" event types that every
+  * :ThinComputeInterface should reasonably be able to manage, although each
+  * :ThinComputeInterface is completely free to choose which ones it actually
+  * supports. Also, a :ThinComputeInterface is completely free to "extend"
+  * event_type and define new class-specific events that their compute() can
+  * support. */
 
  enum event_type {
  eBeforeTermination = 0 ,   ///< event to be called just prior to terminating
@@ -225,8 +229,24 @@ public:
  * and check the stopping conditions again. */
 
  eEverykIteration   = 1 ,   ///< events to be called every k iterations
+                            /**< Type of events that will be called every
+			     * k iterations, whatever "iteration" means for
+ * the compute() at hand. The value of k is to be set with a separate
+ * algorithmic parameter, properly defined by derived classes actually
+ * implementing the mechanism. */
 
- eEveryTTime        = 2 ,
+ eEveryTTime        = 2 ,   ///< events to be called periodically in time
+                            /**< Type of events that will be called 
+			     * periodically every fixed amount T of time.
+ * The value of T is to be set with a separate algorithmic parameter, properly
+ * defined by derived classes actually implementing the mechanism. Note that
+ * in general one does not expect derived classes to be very "tight" in heeding
+ * to the time interval T, in the sense that they will typically check
+ * periodically (say, every iteration) whether the elapsed time has passed,
+ * and call the event of it has. If iterations are much longer than T this
+ * may cause some events not to be called at all, although of course a
+ * derived class may place appropriate checks in multiple places to try to
+ * avoid this. */
 
  e_last_event_type  = 4     ///< conveniemce value to define new events
                             /**< conveniemce value to allow derived classes
