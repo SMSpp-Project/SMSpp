@@ -90,7 +90,7 @@ namespace SMSpp_di_unipi_it
  * be used to perform this task by simply invoking unregister_Solvers(),
  * passing a pointer to the Block as argument. This will unregisters and
  * deletes all the Solver attached to the Block and those attached to the
- * sub-Block (recursively) that have a non-empty name in the
+ * sub-Block (recursively) that have an empty name in the
  * BlockSolverConfig. By appropriate BlockSolverConfig, we mean one that
  * covers all Solver attached to the Block and to its sub-Block,
  * recursively. If all the Solver of the Block have been created by means of a
@@ -445,7 +445,7 @@ class BlockSolverConfig : public Configuration
   * Solver of \p block. The bahavior of this method depends on the names of
   * the Solver stored in this BlockSolverConfig (see get_SolverNames()). This
   * method unregisters and deletes every Solver attached to the given Block
-  * that has a non-empty name in this BlockSolverConfig.
+  * that has an empty name in this BlockSolverConfig.
   *
   * @param block A pointer to the Block whose Solver will be unregister. */
 

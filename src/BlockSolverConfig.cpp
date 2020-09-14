@@ -332,12 +332,12 @@ void BlockSolverConfig::unregister_Solvers( Block * block ) const {
  for( auto solvers_it = solvers.rbegin() ; solvers_it != solvers.rend() ;
       ++solvers_it , ++names_it ) {
 
-  if( (*names_it).empty() )
+  if( ! (*names_it).empty() )
    continue;
 
   // unregister the Solver
   auto solver = *solvers_it;
-  block->unregister_Solver( --(solvers_it.base()) ); // convert backward into
+  block->unregister_Solver( --(solvers_it.base()) );  // convert backward into
                                                       // forward
   delete solver;
   }
