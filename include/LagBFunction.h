@@ -187,7 +187,7 @@ namespace SMSpp_di_unipi_it
  *
  * - the Objective of the LagBFunction should be the function
  *
- *       \sum_{i \in I} y_i g_i(x)
+ *       \sum_{ i \in I } y_i g_i(x)
  *
  * - the Objective of (B) should be its original function c(x).
  *
@@ -197,12 +197,22 @@ namespace SMSpp_di_unipi_it
  * its solver) accepts. For instance, if c() is a linear function, then
  * (B) will typically allow its coefficients to be changed, but *not* it
  * to be transformed into another kind of function. If, say, g() are also
- * linear functions (g(x) = Gx), the LagBFunction will, each time when
+ * linear functions ( g(x) = Ax ), the LagBFunction will, each time when
  * compute() is called [roughly], compute the Lagrangian costs
  *
  *      c^y = c + yA
  *
- * and change the Objective of (B) accordingly.
+ * and change the Objective of (B) accordingly. Note, however, the g(x) may
+ * have constant terms: for instanxe, it could be an affine function
+ * ( g(x) = Ax + b ) rather than a linear function. In this case, which is
+ * actually supported by LagBFunction, the value of the LagBFunction has the
+ * form
+ *
+ *       c x^* + y ( A x^* + b ) = ( c + y A x^* ) + yb = c^y x^* + yb
+ *
+ * with x^* the optimal solution of the Lagrangian problem. Then, the extra
+ * linear term yb will have to be exogenously computed and added to the
+ * optimal value c^y x^* directly produced by the Solver of (B).
  *
  * This is not mathematically required; in principle, one could define a
  * BilinearFunction l( x , y ) = cx + yAx, and insist that the objective
@@ -288,6 +298,7 @@ class LagBFunction : public C05Function , public Block {
   * same, but compilers still don't like it. Disambiguate by declaring we
   * use the ThinVarDepInterface versions (but it could have been the Block
   * versions, as they are the same. */
+
  using Index = ThinVarDepInterface::Index;
  using c_Index = ThinVarDepInterface::c_Index;
  using Range = ThinVarDepInterface::Range;
@@ -300,17 +311,17 @@ class LagBFunction : public C05Function , public Block {
  using dual_pair = std::pair< ColVariable * , Function * >;
  using  v_dual_pair = std::vector< dual_pair > ;
 
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  typedef std::tuple< p_Solution , bool , bool > linearization_tuple;
- /**< a solution equipped with two boolean, one which defines the type of
+ /**< a Solution equipped with two boolean, one which defines the type of
   * linearization (diagonal, vertical) and the other one states if the
   * solution has to be checked for feasibility. */
 
  typedef std::vector< linearization_tuple > v_linearization_tuple;
  ///< a vector of linearization_pair
 
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  typedef std::pair< LinearFunction::Coefficient ,
                     LinearFunction::v_coeff_pair > col_pair;
@@ -714,21 +725,34 @@ class LagBFunction : public C05Function , public Block {
   * returned by this method is meaningless.
   *
   * If (B) is computed with a low accuracy and the function value lays in an
-  * interval, the upper bound shall be returned (the lower bound if (B) is a
-  * minimization problem). */
+  * interval, the upper estimate shall be returned if the function is convex,
+  * i.e., (B) is a maximization problem, while the lower estimate is returned
+  * otherwse (the function is concave, i.e., (B) is a minimization problem).
+  *
+  * The rationale for this choice is that the Lagrangian function is typically
+  * used to compute bounds on the original problem, which is a maximization if
+  * and only if (B) is. Thus, the bound is an upper bound if and only if (B)
+  * is a maximization, i.e., the function is convex. In order to guarantee
+  * that the value returned by the function is a valid upper bound, one
+  * needs to return an upper estimate of it (the converse for a minimization
+  * problem. */
 
- FunctionValue get_value( void ) const override;
+ FunctionValue get_value( void ) const override {
+  return( is_convex() ? get_upper_estimate(): get_lower_estimate() );
+  }
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
  FunctionValue get_lower_estimate( void ) const override {
-  return( v_Block.front()->get_registered_solvers().front()->get_lb() );
+  auto lb = v_Block.front()->get_registered_solvers().front()->get_lb();
+  return( lb == -Inf<FunctionValue>() ? lb : lb + f_linear_term );
   }
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
  FunctionValue get_upper_estimate( void ) const override {
-  return( v_Block.front()->get_registered_solvers().front()->get_ub() );
+  auto ub = v_Block.front()->get_registered_solvers().front()->get_ub();
+  return( ub == Inf<FunctionValue>() ? ub : ub + f_linear_term );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -768,15 +792,25 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- Block * get_inner_block( void ) const;
+ Block * get_inner_block( void ) const { return( v_Block.front() ); }
 
 /*--------------------------------------------------------------------------*/
- //!! I strongly suspect this is useless
+ /// get the number of nonzeros in the matrix representation of g(x)
+ /** Since LagBFunction currently only deals with linear [affine] functions
+  * g(x) = A x [+ b], g(x) can be represented in matrix form. Usually the
+  * matrix would be sparse, hence this method returns the total number of
+  * nonzeros in such representation. */
 
  int get_NzMat( void );
 
 /*--------------------------------------------------------------------------*/
- //!! I strongly suspect this is useless
+ /// get the matrix representation of g(x)
+ /** Since LagBFunction currently only deals with linear [affine] functions
+  * g(x) = A x [+ b], g(x) can be represented in matrix form. This method
+  * provides the usual three-vectors sparse matrix representation of A,
+  * with the number of nonzeros being provided by get_NzMat().
+  *
+  * TODO: EXPLAIN THE FORMAT IN DETAIL. */
 
  void get_MatDesc( int *Abeg , int *Aind , double *Aval , int strt ,
 		   int stp );
@@ -802,17 +836,17 @@ class LagBFunction : public C05Function , public Block {
 
  int get_int_par( const idx_type par ) const override;
 
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  double get_dbl_par( const idx_type par ) const override;
 
 /*--------------------------------------------------------------------------*/
 
- int get_dflt_int_par( const idx_type par ) const override;
+ // int get_dflt_int_par( const idx_type par ) const override;
 
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- double get_dflt_dbl_par( const idx_type par ) const override;
+ // double get_dflt_dbl_par( const idx_type par ) const override;
 
 /**@} ----------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE LagBFunction ---------*/
@@ -902,13 +936,22 @@ class LagBFunction : public C05Function , public Block {
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
  Index LastSolution;  ///< the last solution read by get_linearization
+                      /**< the "name" of the solution currently in the
+		       * Variable of the inner Block:
+ * - NaN : the solution is not significant
+ *
+ * - Inf : the solution is the last one from the local pool
+ *
+ * - \in [ 0 , GPMaxSz ) : is the index of a solution of the global pool   */
 
  bool VarType;        ///< the type of variable contained in the solver
 
  LinearCombination zLC;
  ///< the LinearCombination of the important linearization
 
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+ FunctionValue f_linear_term;  ///< the term yb of the Lagrangian function
+
+ /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
  int GPMaxSz;         ///< maximum size of the "global pool"
 
@@ -943,22 +986,25 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
-   void set_original_costs( c_Subset & subset = {} );
-   void compute_Lagrangian_costs( );
+ void set_original_costs( c_Subset & subset = {} );
+
+ void compute_Lagrangian_costs( );
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
-   void guts_of_destructor( );
+ void guts_of_destructor( );
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
-   void guts_of_add_Modification( sp_Mod mod , ChnlName chnl );
+ void guts_of_add_Modification( sp_Mod mod , ChnlName chnl );
 
 /*--------------------------------------------------------------------------*/
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
 /*--------------------------------------------------------------------------*/
 
  SMSpp_insert_in_factory_h;        // insert LagBFunction in the Block factory
+
+/*--------------------------------------------------------------------------*/
 
  };  // end( class( LagBFunction ) )
 

@@ -268,7 +268,7 @@ void BlockSolverConfig::apply( Block * block ) const
    Solver *oldS = *sit;
 
    if( (*nit).empty() ) {  // empty name
-    block->unregister_Solvers( sit );
+    block->unregister_Solver( sit );
     if( cit != v_SolverConfigs.end() )
      ++cit;  // ignore corresponding configuration
     // note: sit is not increased because the list is shortened
@@ -319,7 +319,7 @@ void BlockSolverConfig::unregister_Solvers( Block * block ) const {
   return;
 
  if( v_SolverNames.empty() ) {
-  block->unregister_Solverss();
+  block->unregister_Solvers();
   return;
  }
 
@@ -337,7 +337,7 @@ void BlockSolverConfig::unregister_Solvers( Block * block ) const {
 
   // unregister the Solver
   auto solver = *solvers_it;
-  block->unregister_Solvers( --(solvers_it.base()) ); // convert backward into
+  block->unregister_Solver( --(solvers_it.base()) ); // convert backward into
                                                       // forward
   delete solver;
   }
