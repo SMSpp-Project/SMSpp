@@ -319,7 +319,7 @@ void BlockSolverConfig::unregister_Solvers( Block * block ) const {
   return;
 
  if( v_SolverNames.empty() ) {
-  block->unregister_Solverss();
+  block->unregister_Solvers();
   return;
  }
 
