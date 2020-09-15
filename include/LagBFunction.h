@@ -323,11 +323,11 @@ class LagBFunction : public C05Function , public Block {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- typedef std::pair< LinearFunction::Coefficient ,
-                    LinearFunction::v_coeff_pair > col_pair;
- ///< a pair to represent c_i and < y_i , A_i >
+ using col_pair = std::pair< LinearFunction::Coefficient ,
+                             LinearFunction::v_coeff_pair >;
+ ///< a pair to represent the original c_i and < y_i , A_i >
 
- typedef std::vector< col_pair > m_column;   ///< a map of col_pair
+ using m_column = std::vector< col_pair >;   ///< a map of col_pair
 
 /*--------------------------------------------------------------------------*/
  /// virtualized concrete iterator
@@ -696,12 +696,7 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  void delete_linearizations( Subset && which , bool ordered = true ,
-			     ModParam issueMod = eModBlck ) override
- {
-  //!! TO BE CHANGED
-  C05Function::delete_linearizations( std::move( which ) , ordered ,
-				      issueMod );
-  }
+			     ModParam issueMod = eModBlck ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A LagBFunction ------------*/
@@ -944,7 +939,11 @@ class LagBFunction : public C05Function , public Block {
  *
  * - \in [ 0 , GPMaxSz ) : is the index of a solution of the global pool   */
 
- bool VarType;        ///< the type of variable contained in the solver
+ bool VarSol;         ///< true if Variable in the inner Block are a solution
+                      /**< true if Variable in the inner Block are a solution
+		       * i.e., they correspond to a diagonal linearization
+                       * false if Variable in the inner Block are a direction
+		       * i.e., they correspond to a vertical linearization */
 
  LinearCombination zLC;
  ///< the LinearCombination of the important linearization

@@ -56,12 +56,7 @@ using SimpleConfig_p_p = SimpleConfiguration<
 static constexpr C05Function::Index NaNLinName
          = std::numeric_limits<C05Function::Index>::quiet_NaN();
 
-static const char VarAreDir = 0;   // a direction is stored
-static const char VarAreSol = 1;   // a solution is stored
-
-static const char VarToBeChckd = 1;  // Variable must be checked for feasibility
-
-// register MCFBlock to the Block factory
+// register LagBFunction to the Block factory
 SMSpp_insert_in_factory_cpp_1( LagBFunction );
 
 /*--------------------------------------------------------------------------*/
@@ -70,7 +65,7 @@ SMSpp_insert_in_factory_cpp_1( LagBFunction );
 
 LagBFunction::LagBFunction( Block* innerblock , Observer * const observer )
  :  C05Function() , obj( nullptr ) , IsConvex( true ) ,
-    LastSolution( NaNLinName ) , VarType( true ) , f_linear_term( 0 ) ,
+    LastSolution( NaNLinName ) , VarSol( true ) , f_linear_term( 0 ) ,
     GPMaxSz( 0 ) , LPMaxSz( 0 ) , RAccLin( 0 ) , AAccLin( 0 ) ,
     svcc( nullptr )
 {
@@ -261,13 +256,13 @@ void LagBFunction::set_par( const idx_type par , const int value )
   case( intGPMaxSz ):
    GPMaxSz = value;
    if( g_pool.size() > GPMaxSz )
-	for( auto it = g_pool.begin() + GPMaxSz ; it != g_pool.end() ; ++it  )
-	 delete[] std::get<0>(*it);
-   g_pool.resize( GPMaxSz );
+    for( auto it = g_pool.begin() + GPMaxSz ; it != g_pool.end() ; ++it  )
+     delete std::get<0>(*it);
+   g_pool.resize( GPMaxSz , linearization_tuple( nullptr , true , false ) );
    break;
   default: Function::set_par( par , value );
   }
- }  // end ( LagBFunction::set_par( int ) )  - - - - - - - - - - - - - - - - -
+ }  // end ( LagBFunction::set_par( int ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -615,22 +610,15 @@ void LagBFunction::serialize( netCDF::NcGroup & group ) const
 
 bool LagBFunction::has_linearization( const bool diagonal )
 {
- bool SlvHasNewLin;  // true if a linearization of the related type exists
+ // true if the first linearization of the related type exists
+ bool newlin = diagonal
+  ? v_Block.front()->get_registered_solvers().front()->has_var_solution()
+  : v_Block.front()->get_registered_solvers().front()->has_var_direction();
 
- if( diagonal ) {
-  SlvHasNewLin =
-   v_Block.front()->get_registered_solvers().front()->has_var_solution();
-  if( SlvHasNewLin )
-   VarType = VarAreSol;  // set the type of the solution
-  }
- else {
-  SlvHasNewLin =
-   v_Block.front()->get_registered_solvers().front()->has_var_direction();
-  if( SlvHasNewLin )
-   VarType = VarAreDir;  // set the type of the solution
-  }
+ if( newlin )
+  VarSol = diagonal;  // set the type of the solution
 
- return( SlvHasNewLin );
+ return( newlin );
 
  }  // end( LagBFunction::has_linearization() )
 
@@ -638,27 +626,15 @@ bool LagBFunction::has_linearization( const bool diagonal )
 
 bool LagBFunction::compute_new_linearization( const bool diagonal )
 {
- bool SlvHasNewLin; // true if a new linearization of the related type exists
-                    // in the local pool
+ // true if another linearization of the related type exists
+ bool newlin = diagonal
+  ? v_Block.front()->get_registered_solvers().front()->new_var_solution()
+  : v_Block.front()->get_registered_solvers().front()->new_var_direction();
 
- if( diagonal ) {
-  SlvHasNewLin =
-   v_Block.front()->get_registered_solvers().front()->new_var_solution();
-  if( SlvHasNewLin )
-   VarType = VarAreSol;  // set the type of the solution
-  }
- else {
-  SlvHasNewLin =
-   v_Block.front()->get_registered_solvers().front()->new_var_direction();
-  if( SlvHasNewLin )
-   VarType = VarAreDir;  // set the type of the solution
-  }
+ if( newlin )
+  VarSol = diagonal;  // set the type of the solution
 
- // one cannot access to the previous solution of the local pool unless
- // no additional solution was produced- - - - - - - - - - - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- return( SlvHasNewLin );
+ return( newlin );
 
  }  // end( LagBFunction::compute_new_linearization() )
 
@@ -670,8 +646,7 @@ void LagBFunction::store_linearization( Index name , ModParam issueMod )
 
  // throw exception if the solution does not exist or has been already stored
 
- if( std::isnan( LastSolution ) ||
-		 LastSolution < Inf<Index>() )
+ if( std::isnan( LastSolution ) || ( LastSolution < Inf<Index>() ) )
   throw( std::logic_error( "the linearization is unvailable" ) );
 
  // throw exception if name is greater thatn the dimension of the global pool
@@ -679,75 +654,153 @@ void LagBFunction::store_linearization( Index name , ModParam issueMod )
  if( name >= GPMaxSz )
   throw( std::logic_error( "max size of global pool exceeded" ) );
 
- // get the current solution - - - - - - - - - - - - - - - - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // get the current Solution - - - - - - - - - - - - - - - - - - - - - - - - -
+     
+ if( std::get<0>( g_pool[ name ] ) )     // a Solution is already there
+  delete std::get<0>( g_pool[ name ] );  // delete it
 
- if( std::get<0>(g_pool[ name ]) == nullptr )
-  std::get<0>(g_pool[ name ]) = v_Block.front()->get_Solution();
- std::get<0>(g_pool[ name ])->read( v_Block.front() );
+ // get a "fully loaded" Solution out of the Block, using the default
+ // f_solution_Configuration in the f_solution_Configuration
+ std::get<0>( g_pool[ name ] ) =
+                             v_Block.front()->get_Solution( nullptr , false );
 
  // set the solution type- - - - - - - - - - - - - - - - - - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( VarType == VarAreSol )
-  std::get<1>(g_pool[ name ]) = VarAreSol;
- else
-  std::get<1>(g_pool[ name ]) = VarAreDir;
+ std::get<1>( g_pool[ name ] ) = true;
 
  // the last computed solution is feasible - - - - - - - - - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- std::get<2>(g_pool[ name ]) = !VarToBeChckd;
+ std::get<2>( g_pool[ name ] ) = false;
+
+ // if necessary, issue the Modification - - - - - - - - - - - - - - - - - - -
+
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+  return;
+  
+ f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+				         C05FunctionMod::GlobalPoolAdded ,
+					 Subset( { name } ) , 0 ,
+				         Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
 
  }  // end( LagBFunction::store_linearization( Index ) )
-
-/*--------------------------------------------------------------------------*/
-
-void LagBFunction::delete_linearization( Index name , ModParam issueMod )
-{
- // TODO: handle issueMod !!
-
- if( name >= GPMaxSz )
-  throw( std::logic_error( "max size of global pool exceeded" ) );
-
- if( std::get<0>(g_pool[ name ]) )
-  delete[] std::get<0>(g_pool[ name ]);
-
- }  // end( LagBFunction::delete_linearization( Index ) )
 
 /*--------------------------------------------------------------------------*/
 
 void LagBFunction::store_combination_of_linearizations(
 	LinearCombination & coefficients , Index name , ModParam issueMod )
 {
- // TODO: handle issueMod !!
-
  if( name >= GPMaxSz )
   throw( std::logic_error( "max size of global pool already exceed" ) );
 
  if( coefficients.empty() )
   throw( std::invalid_argument( "the convex combination is empty" ) );
 
- bool convex_combination_type = VarAreDir;
- bool convex_combination_is_feasible = !VarToBeChckd;
+ bool type = true;         // a diagonal one unless oherwise proven
+ bool unfeasible = false;  // feasible unless oherwise proven
 
+ // get an "empty" solution from the Block
  p_Solution convex_combination = v_Block.front()->get_Solution();
+
  for( auto & pair : coefficients ) {
+  // add the new term to the convex combination
   convex_combination->sum( std::get<0>( g_pool[ pair.first ] ) ,
 			   pair.second );
-  if( convex_combination_type == VarAreSol )
-   convex_combination_type = VarAreSol;
-  if( std::get<2>( g_pool[ pair.first ] ) == VarToBeChckd )
-   convex_combination_is_feasible = VarToBeChckd;
+
+  // if the convex combination contains even a single direction
+  if( ! std::get<1>( g_pool[ pair.first ] ) )
+   type = false;  // then it is a direction
+
+  // if the convex combination contains even a single unfeasible element
+  if( std::get<2>( g_pool[ pair.first ] ) )
+   unfeasible = true;  // then it is a unfeasible
   }
 
- if( std::get<0>( g_pool[ name ] ) )
-  delete std::get<0>( g_pool[ name ] );
- std::get<0>( g_pool[ name ] ) = convex_combination;
- std::get<1>( g_pool[ name ] ) = convex_combination_type;
- std::get<2>( g_pool[ name ] ) = convex_combination_is_feasible;
+ if( std::get<0>( g_pool[ name ] ) )     // if a Solution is there already
+  delete std::get<0>( g_pool[ name ] );  // delete it
 
- }  // end( LagBFunction::store_convex_combination_of_linearizations() )
+ std::get<0>( g_pool[ name ] ) = convex_combination;
+ std::get<1>( g_pool[ name ] ) = type;
+ std::get<2>( g_pool[ name ] ) = unfeasible;
+
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+  return;
+
+ f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+					C05FunctionMod::GlobalPoolAdded ,
+					Subset( { name } ) , 0 ,
+					Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
+
+ }  // end( LagBFunction::store_convex_combination_of_linearizations )
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::delete_linearization( Index name , ModParam issueMod )
+{
+ if( ( name >= GPMaxSz ) || ( ! std::get<0>( g_pool[ name ] ) ) )
+  throw( std::invalid_argument( "invalid linearization name" ) );
+
+ delete std::get<0>( g_pool[ name ] );
+ std::get<0>( g_pool[ name ] ) = nullptr;
+
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+  return;
+  
+ f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+				      C05FunctionMod::GlobalPoolRemoved ,
+				      Subset( { name } ) , 0 ,
+				      Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
+
+ }  // end( LagBFunction::delete_linearization )
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::delete_linearizations( Subset && which , bool ordered ,
+					  ModParam issueMod )
+{
+ if( which.empty() ) {  // delete them all
+  for( auto & el : g_pool )
+   if( std::get<0>( el ) ) {
+    delete std::get<0>( el );
+    std::get<0>( el ) = nullptr;
+    }
+
+  if( f_Observer && f_Observer->issue_mod( issueMod ) )
+   f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+				      C05FunctionMod::GlobalPoolRemoved ,
+				      std::move( which ) , 0 ,
+				      Observer::par2concern( issueMod ) ) ,
+				 Observer::par2chnl( issueMod ) );
+  return;  // all done
+  }
+
+ // here, which is not empty, so we have to delete the given subset
+ if( ! ordered )
+  std::sort( which.begin() , which.end() );
+
+ if( which.back() >= GPMaxSz )
+  throw( std::invalid_argument( "invalid linearization name" ) );
+
+ for( auto i : which ) {
+  if( ! std::get<0>( g_pool[ i ] ) )
+   throw( std::invalid_argument( "invalid linearization name" ) );
+
+  delete std::get<0>( g_pool[ i ] );
+  std::get<0>( g_pool[ i ] ) = nullptr;
+  }
+
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+  return;
+  
+ f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+				      C05FunctionMod::GlobalPoolRemoved ,
+				      std::move( which ) , 0 ,
+				      Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
+
+ }  // end( LagBFunction::delete_linearizations )
 
 /*--------------------------------------------------------------------------*/
 
@@ -767,7 +820,7 @@ int LagBFunction::compute( bool changedvars )
  if( changedvars ) {
   compute_Lagrangian_costs();  // compute c^y = c + yA
 
-  f_linear_term = 0;  // compute the linear term yb
+  f_linear_term = 0;           // meanwhile also compute the linear term yb
   for( const auto & lagdual : LagPairs ) {
    auto lfrel = static_cast< const LinearFunction * >( lagdual.second );
    f_linear_term += lfrel->get_constant_term() * lagdual.first->get_value();
@@ -784,7 +837,7 @@ int LagBFunction::compute( bool changedvars )
 
  // it is assumed that the inner Block (B) does not have Variable defined in
  // other Blocks: then, the re-optimization of (B) can be performed starting
- // from the old solution, i.e., compute( false ) can be called
+ // from the old solution, i.e., compute( false ) can be called;
  // return the status of the Solver as the status of the LagBFunction
 
  return( v_Block.front()->get_registered_solvers().front()->compute( false )
@@ -807,12 +860,12 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
  if( name == Inf<Index>() ) {  // the last computed linearization- - - - - - -
 
   // get solution/direction from the solver
-
-  if( LastSolution != Inf<Index>() ) {
-   if( VarType == VarAreSol )
+  if( LastSolution != Inf<Index>() ) {  // ... if necessary
+   if( VarSol )
     v_Block.front()->get_registered_solvers().front()->get_var_solution();
    else
     v_Block.front()->get_registered_solvers().front()->get_var_direction();
+
    LastSolution = Inf<Index>();
    }
   }
@@ -821,8 +874,8 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
   // assign Solution to the sub-Block in such a way the linearization
   // associated with the given name will be retrieved from the global pool
 
-  if( std::get<0>( g_pool[ name ] ) == nullptr )
-   throw( std::logic_error( "the linearization is not available" ) );
+  if( ! std::get<0>( g_pool[ name ] ) )
+   throw( std::logic_error( "invalid linearization name" ) );
 
   if( LastSolution != name ) {
    std::get<0>( g_pool[ name ] )->write( v_Block.front() );
@@ -851,12 +904,12 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
  if( name == Inf<Index>() ) {  // the last computed linearization- - - - - - -
 
   // get solution/direction from the solver
-
-  if( LastSolution != Inf<Index>() ) {
-   if( VarType == VarAreSol )
+  if( LastSolution != Inf<Index>() ) {  // ... if necessary
+   if( VarSol )
     v_Block.front()->get_registered_solvers().front()->get_var_solution();
    else
     v_Block.front()->get_registered_solvers().front()->get_var_direction();
+
    LastSolution = Inf<Index>();
    }
   }
@@ -865,8 +918,8 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
   // assign Solution to the sub-Block in such a way the linearization
   // associated with the given name will be retrieved from the global pool
 
-  if( std::get<0>( g_pool[ name ] ) == nullptr )
-   throw( std::logic_error( "the linearization is not available" ) );
+  if( ! std::get<0>( g_pool[ name ] ) )
+   throw( std::logic_error( "invalid linearization name" ) );
 
   if( LastSolution != name ) {
    std::get<0>( g_pool[ name ] )->write( v_Block.front() );
@@ -890,26 +943,26 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
 
 Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
 {
- if( name == Inf<Index>() ) {
-  // get solution/direction from the solver  - - - - - - - - - - - - - - - - -
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ if( name == Inf<Index>() ) {  // the last computed linearization- - - - - - -
 
-  if( LastSolution != Inf<Index>() ) {
-   if( VarType == VarAreSol )
+  // get solution/direction from the solver
+  if( LastSolution != Inf<Index>() ) {  // ... if necessary
+   if( VarSol )
     v_Block.front()->get_registered_solvers().front()->get_var_solution();
    else
     v_Block.front()->get_registered_solvers().front()->get_var_direction();
+
    LastSolution = Inf<Index>();
    }
   }
- else {  // asking for a linearization of the global pool  - - - - - - - - - -
+ else {  // a linearization of the global pool - - - - - - - - - - - - - - - -
 
   // assign Solution to the sub-Block in such a way the linearization
   // associated with the given name will be recovered from the global pool
 
   if( name != LastSolution ) {
-   if( std::get<0>( g_pool[ name ] ) == nullptr )
-    throw( std::logic_error( "the linearization is not available" ) );
+   if( ! std::get<0>( g_pool[ name ] ) )
+    throw( std::logic_error( "invalid linearization name" ) );
 
    std::get<0>( g_pool[ name ] )->write( v_Block.front() );
    LastSolution = name;
@@ -920,29 +973,40 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
   //
   // this requires is_feasible() and is_unbounded() to be implemented,
   // which may not happen. it could be a problem
-
-  if( std::get<2>( g_pool[ name ] ) == VarToBeChckd )
-   if( ( ( std::get<1>( g_pool[ name ] ) == VarAreSol ) &&
+  //
+  // !!!!!!!!!!
+  // THIS MUST BE CHANGED! IF A LINEARIZATION IS NO LONGER VALID, IT HAS
+  // TO BE EXPLICITLY REMOVED FROM THE GLOBAL POOL AND THE CORRESPONDING
+  // Modification HAS TO BE ISSUED
+  
+  if( std::get<2>( g_pool[ name ] ) )
+   if( ( std::get<1>( g_pool[ name ] ) &&
 	 ( ! v_Block.front()->is_feasible() ) ) ||
-       ( ( std::get<1>( g_pool[ name ] ) == VarAreDir ) &&
+       ( ( ! std::get<1>( g_pool[ name ] ) ) &&
 	 ( ! v_Block.front()->is_unbounded() ) ) )
-    return( Inf< Function::FunctionValue >() );
-  }
+    return( std::numeric_limits<FunctionValue>::quiet_NaN() );
+
+  }  // end else - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  // return the c x^* for the chosen solution x^*, where c are the *original*
  // costs. this corresponds to the value of the Lagrangian function
  // c x^* + y ( A x^* + b ) = c x^* + y g( x^* ) in y = 0 (in fact, the
  // linear term b is not involved)
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- Function::FunctionValue alpha = obj->get_constant_term();
+ auto alpha = obj->get_constant_term();
 
- LinearFunction::v_c_coeff_pair & ov_pair = obj->get_v_var();
- for( auto & pi : ov_pair )
-  alpha += pi.first->get_value() * pi.second;
+ auto & ov_pair = obj->get_v_var();
+ #ifndef NDEBUG
+  if( ov_pair.size() != CostMatrix.size() )
+   throw( std::logic_error( "CostMatrix inconsistent with obj" ) );
+ #endif
+ for( Index i = 0 ; i < ov_pair.size() ; ++i )
+  alpha += ov_pair[ i ].first->get_value() * CostMatrix[ i ].first;
 
  return( alpha );
 
- }  // end( LagBFunction::get_linearization_constant() )
+ }  // end( LagBFunction::get_linearization_constant )
 
 /*--------------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
@@ -1615,7 +1679,7 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
      // that the feasibility of the solutions has to be checked
 
      for( auto tpl : g_pool )
-      std::get<2>( tpl ) = VarToBeChckd;
+      std::get<2>( tpl ) = true;
 
      // issue C05FunctionMod modification of the type AlphaChanged: the
      // feasible region of (B) has been changed, then the original linearizations
@@ -1717,7 +1781,7 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
      // that the feasibility of the solutions has to be checked
 
      for( auto tpl : g_pool )
-      std::get<2>( tpl ) = VarToBeChckd;
+      std::get<2>( tpl ) = true;
 
      // issue C05FunctionMod modification of the type AlphaChanged: the
      // feasible region of (B) has been changed, then the original linearizations
@@ -1823,7 +1887,7 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
        // that the feasibility of the solutions has to be checked
 
        for( auto tpl : g_pool )
-        std::get<2>( tpl ) = VarToBeChckd;
+        std::get<2>( tpl ) = true;
 
        // issue C05FunctionMod modification of the type AlphaChanged: the
        // feasible region of (B) changed and the original linearizations
@@ -1857,7 +1921,7 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
    // pool, signal that the fesibility of the solutions must be checked
 
    for( auto tpl : g_pool )
-    std::get<2>( tpl ) = VarToBeChckd;
+    std::get<2>( tpl ) = true;
 
    // issue C05FunctionMod modification of the type AlphaChanged: the
    // feasible region of (B) changed and the original linearizations
@@ -1888,7 +1952,7 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
     // solutions must be checked  - - - - - - - - - - - - - - - - - - - - - -
 
     for( auto tpl : g_pool )
-     std::get<2>( tpl ) = VarToBeChckd;
+     std::get<2>( tpl ) = true;
 
     // issue C05FunctionMod modification of the type AlphaChanged: the
     // feasible region of (B) changed and the original linearizations
@@ -1918,7 +1982,7 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
    // be checked   - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
    for( auto tpl : g_pool )
-    std::get<2>( tpl ) = VarToBeChckd;
+    std::get<2>( tpl ) = true;
 
    // issue C05FunctionMod modification of the type AlphaChanged: the
    // feasible region of (B) changed and the original linearizations
