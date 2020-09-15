@@ -313,12 +313,12 @@ class LagBFunction : public C05Function , public Block {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- typedef std::tuple< p_Solution , bool , bool > linearization_tuple;
+ using linearization_tuple = std::tuple< p_Solution , bool , bool >;
  /**< a Solution equipped with two boolean, one which defines the type of
   * linearization (diagonal, vertical) and the other one states if the
   * solution has to be checked for feasibility. */
 
- typedef std::vector< linearization_tuple > v_linearization_tuple;
+ using v_linearization_tuple = std::vector< linearization_tuple >;
  ///< a vector of linearization_pair
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/

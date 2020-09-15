@@ -887,7 +887,7 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
  // constraint (RCs)_i is the corresponding entry of the linearization
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- for( Index i = range.first ; i < range.second ; i++ ) {
+ for( Index i = range.first ; i < range.second ; ++i ) {
   LagPairs[ i ].second->compute();
   *(g++) = LagPairs[ i ].second->get_value();
   }
@@ -1499,7 +1499,7 @@ void LagBFunction::compute_Lagrangian_costs( void )
  for( Index i = 0 ; i < CostMatrix.size() ; ++i ) {
   NCoef[ i ] = CostMatrix[ i ].first;
   for( const auto & el : CostMatrix[ i ].second )
-   NCoef[ i ] -= el.first->get_value() * el.second;
+   NCoef[ i ] += el.first->get_value() * el.second;
   }
 
  // modify the coefficients in the LinearFunction
