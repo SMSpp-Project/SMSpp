@@ -1283,7 +1283,7 @@ class ComputeConfig : public Configuration
   * - a string containing the name of the string perameter
   * - a string (the parameter)
   *
-  * a string containing the class type of the extrs Configuration object,
+  * a string containing the class type of the extra Configuration object,
   * '*' means none (nullptr)
   *
   * if the above is not '*', the description of the :Configuration object

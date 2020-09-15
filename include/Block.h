@@ -8178,8 +8178,8 @@ class BlockConfig : public Configuration
   if( ! bc )
    return;
 
-  auto move = [deleteold]( Configuration * this_config ,
-                           Configuration * other_config ) {
+  auto move = [deleteold]( Configuration * & this_config ,
+                           Configuration * & other_config ) {
                if( this_config ) { // replace the sub-Configuration
                 if( deleteold ) {
                  delete other_config;
