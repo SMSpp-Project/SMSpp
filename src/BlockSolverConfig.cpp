@@ -337,8 +337,8 @@ void BlockSolverConfig::unregister_Solvers( Block * block ) const {
 
   // unregister the Solver
   auto solver = *solvers_it;
-  block->unregister_Solver( --(solvers_it.base()) ); // convert backward into
-                                                     // forward
+  block->unregister_Solver( --(solvers_it.base()) );  // convert backward into
+                                                      // forward
   delete solver;
   }
  }  // end( BlockSolverConfig::unregister_Solvers )
