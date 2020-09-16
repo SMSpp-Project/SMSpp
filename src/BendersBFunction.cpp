@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 11 - 09 - 2020
+ * \date 15 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1273,7 +1273,27 @@ void BendersBFunction::delete_rows( ModParam issueMod ) {
 
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::set_ComputeConfig( ComputeConfig *scfg ) {
+void BendersBFunction::set_default_inner_Block_BlockConfig() {
+ if( auto inner_block = get_inner_block() ) {
+   auto config = new OCRBlockConfig( inner_block );
+   config->clear();
+   config->apply( inner_block );
+  }
+}
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::set_default_inner_Block_BlockSolverConfig() {
+ if( auto inner_block = get_inner_block() ) {
+   auto solver_config = new RBlockSolverConfig( inner_block );
+   solver_config->clear();
+   solver_config->apply( inner_block );
+  }
+}
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::set_ComputeConfig( ComputeConfig * scfg ) {
 
  ThinComputeInterface::set_ComputeConfig( scfg );
 
@@ -1281,16 +1301,15 @@ void BendersBFunction::set_ComputeConfig( ComputeConfig *scfg ) {
 
  if( ! inner_block )
   return;
-
- if( ! scfg ) {
+ else if( ! scfg ) {
   // scfg is nullptr
-  // TODO
+  set_default_inner_Block_configuration();
   return;
  }
-
- if( ! scfg->f_extra_Configuration ) {
+ else if( ! scfg->f_extra_Configuration ) {
   // scfg->f_extra_Configuration is nullptr
-  // TODO
+  if( ! scfg->f_diff )
+   set_default_inner_Block_configuration();
   return;
  }
 
@@ -1311,8 +1330,10 @@ void BendersBFunction::set_ComputeConfig( ComputeConfig *scfg ) {
              "to a :BlockConfig." ) );
   }
   else {
+   // A BlockConfig for the inner Block was not provided
    // scfg->f_extra_Configuration->f_value.first is nullptr
-   // TODO
+   if( ! scfg->f_diff )
+    set_default_inner_Block_BlockConfig();
   }
 
   // Set the BlockSolverConfig of the inner Block
@@ -1328,8 +1349,10 @@ void BendersBFunction::set_ComputeConfig( ComputeConfig *scfg ) {
              "to a :BlockSolverConfig." ) );
   }
   else {
+   // A BlockSolverConfig for the inner Block was not provided
    // scfg->f_extra_Configuration->f_value.second is nullptr
-   // TODO
+   if( ! scfg->f_diff )
+    set_default_inner_Block_BlockSolverConfig();
   }
  }
  else
@@ -1683,7 +1706,7 @@ int BendersBFunction::compute( bool changedvars ) {
 
 bool BendersBFunction::is_convex( void ) const {
  if( v_Block.empty() ) return false;
- return( v_Block[ 0 ]->get_objective_sense() == Objective::eMin );
+ return( v_Block.front()->get_objective_sense() == Objective::eMin );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -1691,7 +1714,7 @@ bool BendersBFunction::is_convex( void ) const {
 bool BendersBFunction::is_concave( void ) const {
  if( v_Block.empty() )
   return false;
- return( v_Block[ 0 ]->get_objective_sense() == Objective::eMax );
+ return( v_Block.front()->get_objective_sense() == Objective::eMax );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -1741,7 +1764,7 @@ Function::FunctionValue BendersBFunction::get_value( void ) const {
                            "get the value. The sub-Block has no Solver "
                            "attached to it." ) );
 
- if( v_Block[ 0 ]->get_objective_sense() == Objective::eMin )
+ if( v_Block.front()->get_objective_sense() == Objective::eMin )
   return solver->get_ub();
  return solver->get_lb();
 
@@ -1776,8 +1799,8 @@ void BendersBFunction::store_linearization( Index name , ModParam issueMod ) {
  Solution * solution = nullptr;
 
  if( ! solution )
-  solution = v_Block[ 0 ]->get_Solution();
- solution->read( v_Block[ 0 ] );
+  solution = v_Block.front()->get_Solution();
+ solution->read( v_Block.front() );
 
  // Lazy computation of the linearization constant
 
@@ -2004,7 +2027,7 @@ Function::FunctionValue BendersBFunction::get_dual_value
   // Two constraints (lower and upper)
 
   RowConstraint::RHSValue sign =
-   ( v_Block[ 0 ]->get_objective_sense() == Objective::eMin ) ? - 1 : 1;
+   ( v_Block.front()->get_objective_sense() == Objective::eMin ) ? - 1 : 1;
 
   assert( side != eBoth );
 
@@ -2070,7 +2093,7 @@ void BendersBFunction::write_dual_solution_from_global_pool( Index name ) {
 
  // TODO check whether the solution has already been written into the Block
 
- solution->write( v_Block[ 0 ] );
+ solution->write( v_Block.front() );
 }  // end( BendersBFunction::write_dual_solution_from_global_pool )
 
 /*--------------------------------------------------------------------------*/
@@ -2122,25 +2145,21 @@ ComputeConfig * BendersBFunction::get_ComputeConfig
   ccfg->f_diff = !all;
  }
 
- bool replace_extra_config = true;
- if( auto conf = dynamic_cast< SimpleConfiguration
-     < std::pair< Configuration * , Configuration * > > * >
-     ( ccfg->f_extra_Configuration ) ) {
-  if( dynamic_cast< BlockConfig * >( conf->f_value.first ) &&
-      dynamic_cast< BlockSolverConfig * >( conf->f_value.second ) )
-   replace_extra_config = false;
- }
- if( replace_extra_config ) {
-  delete ccfg->f_extra_Configuration;
-  ccfg->f_extra_Configuration = new
-   SimpleConfiguration< std::pair< Configuration * , Configuration * > >;
- }
-
- auto inner_block = get_inner_block();
-
  auto extra_config = dynamic_cast< SimpleConfiguration<
   std::pair< Configuration * , Configuration * > > * >
   ( ccfg->f_extra_Configuration );
+
+ if( ! ( extra_config &&
+     dynamic_cast< BlockConfig * >( extra_config->f_value.first ) &&
+     dynamic_cast< BlockSolverConfig * >( extra_config->f_value.second ) ) ) {
+  // replace the extra Configuration
+  extra_config = new
+   SimpleConfiguration< std::pair< Configuration * , Configuration * > >;
+  delete ccfg->f_extra_Configuration;
+  ccfg->f_extra_Configuration = extra_config;
+  }
+
+ auto inner_block = get_inner_block();
 
  // Retrieve the BlockConfig of the inner Block
 

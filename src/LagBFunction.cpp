@@ -195,26 +195,91 @@ void LagBFunction::set_relaxed_function( Function * const function  )
 
 /*--------------------------------------------------------------------------*/
 
+void LagBFunction::set_default_inner_Block_BlockConfig() {
+ if( auto inner_block = get_inner_block() ) {
+   auto config = new OCRBlockConfig( inner_block );
+   config->clear();
+   config->apply( inner_block );
+  }
+}
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::set_default_inner_Block_BlockSolverConfig() {
+ if( auto inner_block = get_inner_block() ) {
+   auto solver_config = new RBlockSolverConfig( inner_block );
+   solver_config->clear();
+   solver_config->apply( inner_block );
+  }
+}
+
+/*--------------------------------------------------------------------------*/
+
 void LagBFunction::set_ComputeConfig( ComputeConfig *scfg )
 {
- if( ! scfg )
-  return;
- 
  ThinComputeInterface::set_ComputeConfig( scfg );
 
- auto cc = dynamic_cast< SimpleConfiguration< std::pair< Configuration * ,
-							 Configuration * > >
-			 * >( scfg->f_extra_Configuration );
- if( ! cc )
+ auto inner_block = get_inner_block();
+
+ if( ! inner_block )
   return;
+ else if( ! scfg ) {
+  // scfg is nullptr
+  set_default_inner_Block_configuration();
+  return;
+ }
+ else if( ! scfg->f_extra_Configuration ) {
+  // scfg->f_extra_Configuration is nullptr
+  if( ! scfg->f_diff )
+   set_default_inner_Block_configuration();
+  return;
+ }
 
- auto bsc = dynamic_cast< BlockSolverConfig * >( cc->f_value.first );
- if( bsc )
-  bsc->apply( v_Block.front() );
+ // Set the BlockConfig of the inner Block
 
- auto bc = dynamic_cast< BlockConfig * >( cc->f_value.second );
- if( bc )
-  bc->apply( v_Block.front() );
+ if( auto config = dynamic_cast< SimpleConfiguration
+     < std::pair< Configuration * , Configuration * > > * >
+     ( scfg->f_extra_Configuration ) ) {
+
+  if( config->f_value.first ) {
+   if( auto block_config = dynamic_cast< BlockConfig * >
+       ( config->f_value.first ) )
+    block_config->apply( inner_block );
+   else
+    throw( std::invalid_argument
+           ( "LagBFunction::set_ComputeConfig: the first element of "
+             "the pair of the extra Configuration must be a pointer "
+             "to a :BlockConfig." ) );
+  }
+  else {
+   // A BlockConfig for the inner Block was not provided
+   // scfg->f_extra_Configuration->f_value.first is nullptr
+   if( ! scfg->f_diff )
+    set_default_inner_Block_BlockConfig();
+  }
+
+  // Set the BlockSolverConfig of the inner Block
+
+  if( config->f_value.second ) {
+   if( auto block_config = dynamic_cast< BlockSolverConfig * >
+       ( config->f_value.second ) )
+    block_config->apply( inner_block );
+   else
+    throw( std::invalid_argument
+           ( "LagBFunction::set_ComputeConfig: the second element "
+             "of the pair of the extra Configuration must be a pointer "
+             "to a :BlockSolverConfig." ) );
+  }
+  else {
+   // A BlockSolverConfig for the inner Block was not provided
+   // scfg->f_extra_Configuration->f_value.second is nullptr
+   if( ! scfg->f_diff )
+    set_default_inner_Block_BlockSolverConfig();
+  }
+ }
+ else
+  throw( std::invalid_argument( "LagBFunction::set_ComputeConfig: "
+                                "invalid type of extra Configuration." ) );
 
  }  // end ( LagBFunction::set_relaxed_function( ) )
 

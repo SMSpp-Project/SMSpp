@@ -998,6 +998,26 @@ class LagBFunction : public C05Function , public Block {
  void guts_of_add_Modification( sp_Mod mod , ChnlName chnl );
 
 /*--------------------------------------------------------------------------*/
+
+ /// reset the BlockConfig of the inner Block to the default one
+ void set_default_inner_Block_BlockConfig();
+
+/*--------------------------------------------------------------------------*/
+
+ /// reset the BlockSolverConfig of the inner Block to the default one
+ void set_default_inner_Block_BlockSolverConfig();
+
+/*--------------------------------------------------------------------------*/
+
+ /// reset the configuration of the inner Block to the default one
+ /** Reset both the BlockConfig and the BlockSolverConfig of the inner Block
+  * to the default ones. */
+ void set_default_inner_Block_configuration() {
+  set_default_inner_Block_BlockSolverConfig();
+  set_default_inner_Block_BlockConfig();
+ }
+
+/*--------------------------------------------------------------------------*/
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
 /*--------------------------------------------------------------------------*/
 
