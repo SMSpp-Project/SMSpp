@@ -1129,17 +1129,18 @@ class ComputeConfig : public Configuration
  /** This method clears the vectors holding the integer, double, and string
   * parameters (#int_pars, #dbl_pars, and #str_pars). If
   * #f_extra_Configuration is not nullptr then Configuration::clear() is
-  * invoked for #f_extra_Configuration. */
+  * invoked for #f_extra_Configuration. Moreover, #f_diff is set to false. */
 
  void clear( void ) override {
   int_pars.clear();
   dbl_pars.clear();
   str_pars.clear();
 
+  f_diff = false;
+
   if( f_extra_Configuration )
    f_extra_Configuration->clear();
   }
-
 
 /*--------------------- METHODS FOR CHANGING PARAMETERS --------------------*/
  /// set the given integer (int) numerical parameter

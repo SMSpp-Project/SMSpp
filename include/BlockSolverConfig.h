@@ -15,7 +15,7 @@
  *
  * \version 0.33
  *
- * \date 13 - 09 - 2020
+ * \date 15 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -87,15 +87,14 @@ namespace SMSpp_di_unipi_it
  * particular (and probably frequent) task.
  *
  * If an appropriate BlockSolverConfig for a Block is available, then it can
- * be used to perform this task by simply invoking unregister_Solvers(),
+ * be used to perform this task by simply invoking clear() and then apply(),
  * passing a pointer to the Block as argument. This will unregisters and
  * deletes all the Solver attached to the Block and those attached to the
- * sub-Block (recursively) that have an empty name in the
- * BlockSolverConfig. By appropriate BlockSolverConfig, we mean one that
+ * sub-Block (recursively). By appropriate BlockSolverConfig, we mean one that
  * covers all Solver attached to the Block and to its sub-Block,
  * recursively. If all the Solver of the Block have been created by means of a
  * single BlockSolverConfig, then that specific BlockSolverConfig is clearly
- * appropriate, even if clear() has been called for it.
+ * appropriate.
  *
  * Indeed, consider the most obvious use case: a Block is created, Solver
  * are attached, the Block is solved, and then everything is deleted. This
@@ -106,15 +105,12 @@ namespace SMSpp_di_unipi_it
  *     myBSC->apply( myBlock );
  *     myBSC->clear();
  *     < solve the Block with the created Solver >
- *     myBSC->unregister_Solvers( myBlock );
+ *     myBSC->apply( myBlock );
  *     delete myBSC;
  *     delete myBlock;
  *
- * The myBSC->clear() is not mandatory, but it will free all the memory in
- * the BlockSolverConfig that is not needed for unregister_Solvers() to work.
- *
  * Note that if myBlock has Solver attached to the sub-Block then the myBSC
- * object needs be of class RBlockSolverConfig (this is not difficult to do
+ * object needs to be of class RBlockSolverConfig (this is not difficult to do
  * via the factory).
  *
  * More complex use cases will require adapting, but still BlockSolverConfig
@@ -125,19 +121,18 @@ namespace SMSpp_di_unipi_it
  * some Solver have to be added/deleted during the solution process, it is
  * possible to use myBSC to do that; by keeping myBSC "up to date" with the
  * position of all Solver in the Block, it is possible to clear them all with
- * a single call to unregister_Solvers() (note that myBSC can also be used to
- * change the SolverConfig of the Block, but doing so has no effect on
- * unregister_Solvers()).
+ * a call to clear() and then to apply().
  *
- * If an appropriate, up-to-date BlockSolverConfig is not available, one can be
- * constructed as follows:
+ * If an appropriate, up-to-date BlockSolverConfig is not available, one can
+ * be constructed as follows:
  *
  *     RBlockSolverConfig myBSC( myBlock );
  *
  * where myBlock is a pointer to the Block of interest. This constructs the
  * full BlockSolverConfig of the given Block; then,
  *
- *     myBSC.unregister_Solvers( myBlock );
+ *     myBSC.clear();
+ *     myBSC.apply( myBlock );
  *
  * does the trick. The construction of an RBlockSolverConfig out of a Block,
  * which is what the above constructor does, is a reasonably cheap operation,
@@ -160,9 +155,10 @@ namespace SMSpp_di_unipi_it
  *
  *     RBlockSolverConfig myBSC( block , false , true );
  *
- * This is clearly smarter than constructing a "full" RBlockSolverConfig,
- * only to clear() it immediately afterwards. Of course, such a "cleared"
- * RBlockSolverConfig is likely only useful to call unregister_Solvers().
+ * This is clearly smarter than constructing a "full" RBlockSolverConfig, only
+ * to clear() it immediately afterwards. Of course, such a "cleared"
+ * RBlockSolverConfig is likely only useful to call apply() to unregister the
+ * Solver.
  * @{ */
 
 /*--------------------------------------------------------------------------*/
@@ -436,30 +432,21 @@ class BlockSolverConfig : public Configuration
  virtual void apply( Block * block ) const;
 
 /*--------------------------------------------------------------------------*/
- /// unregister and delete the Solver attached to the given Block
- /** This method assumes that there is a one-to-one correspondence between the
-  * Solver attached to \block and the ComputeConfig and Solver names in this
-  * BlockSolverConfig: the number of Solver attached to \p block and the
-  * number of ComputeConfig handled by this BlockSolverConfig are equal and
-  * the i-th Solver name in this BlockSolverConfig is associated with the i-th
-  * Solver of \p block. The bahavior of this method depends on the names of
-  * the Solver stored in this BlockSolverConfig (see get_SolverNames()). This
-  * method unregisters and deletes every Solver attached to the given Block
-  * that has an empty name in this BlockSolverConfig.
-  *
-  * @param block A pointer to the Block whose Solver will be unregister. */
-
- virtual void unregister_Solvers( Block * block ) const;
-
-/*--------------------------------------------------------------------------*/
- /// delete all the ComputeConfig
+ /// delete all the ComputeConfig and empty the names of the Solver
  /** This method deletes all pointers to ComputeConfig stored in this
-  * BlockSolverConfig. */
+  * BlockSolverConfig and empties the names of the Solver. Morever, #f_diff is
+  * set to false. */
 
  void clear( void ) override {
+  set_diff( false );
+
   for( auto & config : v_SolverConfigs ) {
    delete config;
    config = nullptr;
+   }
+
+  for( auto & name : v_SolverNames ) {
+   name.empty();
    }
   }
 
@@ -915,16 +902,6 @@ class RBlockSolverConfig : public BlockSolverConfig
   * @param block A pointer to the Block that must be configured. */
 
  void apply( Block * block ) const override;
-
-/*--------------------------------------------------------------------------*/
- /// unregister and delete Solver attached to \p block (and its sub-Block)
- /** This method unregisters and deletes all Solver attached to the given
-  * Block and to each of its sub-Block handled by this RBlockSolverConfig,
-  * recursively.
-  *
-  * @param block A pointer to the Block whose Solver will be unregistered. */
-
- void unregister_Solvers( Block * block ) const override;
 
 /*--------------------------------------------------------------------------*/
  /// clear this RBlockSolverConfig
