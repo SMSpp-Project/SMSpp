@@ -54,7 +54,11 @@ using SimpleConfig_p_p = SimpleConfiguration<
 /*--------------------------------------------------------------------------*/
 
 static constexpr C05Function::Index NaNLinName
-         = std::numeric_limits<C05Function::Index>::quiet_NaN();
+                      = std::numeric_limits<C05Function::Index>::quiet_NaN();
+
+static constexpr Function::FunctionValue NaN = FunctionMod::NaNshift;
+
+static constexpr Function::FunctionValue INF = FunctionMod::INFshift;
 
 // register LagBFunction to the Block factory
 SMSpp_insert_in_factory_cpp_1( LagBFunction );
@@ -64,10 +68,9 @@ SMSpp_insert_in_factory_cpp_1( LagBFunction );
 /*--------------------------------------------------------------------------*/
 
 LagBFunction::LagBFunction( Block* innerblock , Observer * const observer )
- :  C05Function() , obj( nullptr ) , IsConvex( true ) ,
+ :  C05Function() , obj( nullptr ) , IsConvex( true ) , f_max_glob( 0 ) ,
     LastSolution( NaNLinName ) , VarSol( true ) , f_linear_term( 0 ) ,
-    GPMaxSz( 0 ) , LPMaxSz( 0 ) , RAccLin( 0 ) , AAccLin( 0 ) ,
-    svcc( nullptr )
+    LPMaxSz( 0 ) , RAccLin( 0 ) , AAccLin( 0 ) , svcc( nullptr )
 {
  // set the pointer to the sub-Block (B) - - - - - - - - - - - - - - - - - - -
 
@@ -291,11 +294,11 @@ void LagBFunction::set_par( const idx_type par , const int value )
   case( intLPMaxSz ):
    if( LPMaxSz != value ) {
     LPMaxSz = value;
-    if( !svcc ) {
+    if( ! svcc ) {
      svcc = new BlockSolverConfig;
      ComputeConfig* cc = new ComputeConfig;
      cc->int_pars.push_back(
-    		 std::make_pair( int_par_idx2str(intLPMaxSz) , value ) );
+    		 std::make_pair( int_par_idx2str( intLPMaxSz ) , value ) );
      svcc->add_ComputeConfig( "" , cc );
      }
     else {
@@ -319,11 +322,16 @@ void LagBFunction::set_par( const idx_type par , const int value )
     }
    break;
   case( intGPMaxSz ):
-   GPMaxSz = value;
-   if( g_pool.size() > GPMaxSz )
-    for( auto it = g_pool.begin() + GPMaxSz ; it != g_pool.end() ; ++it  )
-     delete std::get<0>(*it);
-   g_pool.resize( GPMaxSz , linearization_tuple( nullptr , true , false ) );
+   if( g_pool.size() > value ) {
+    for( auto it = g_pool.begin() + value ; it != g_pool.end() ; ++it  )
+     delete it->first;
+
+    if( f_max_glob > value ) {
+     f_max_glob = value;
+     update_f_max_glob();
+     }    
+    }
+   g_pool.resize( value , gpool_el( nullptr , true ) );
    break;
   default: Function::set_par( par , value );
   }
@@ -614,13 +622,47 @@ void LagBFunction::remove_variables( Subset && nms , bool ordered ,
 
 void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
 {
- if( mod->concerns_Block() ) {
-  mod->concerns_Block( false );
-  guts_of_add_Modification( mod , chnl );
-  }
+ // if the Modification requires it, now check all the Solution in the global
+ // pool for feasibility; any one found to be unfeasible is deleted, and if
+ // this happen an appropriate C05FunctionMod is issued- - - - - - - - - - - -
 
- Block::add_Modification( mod , chnl );
+ if( guts_of_add_Modification( mod.get() , chnl ) ) {
+  Subset which;
+  bool all = true;
 
+  for( Index i = 0 ; i < f_max_glob ; ++i )
+   if( g_pool[ i ].first ) {  // a Solution is there
+
+    // write it in the Variable of the inner Block
+    g_pool[ i ].first->write( v_Block.front() );
+    LastSolution = i;  // and recall what's there
+
+    // check it's still a feasible solution/direction
+    bool feas = g_pool[ i ].second ? v_Block.front()->is_feasible()
+                                   : v_Block.front()->is_unbounded();
+    if( feas )              // if so
+     all = false;           // not all are eliminated
+    else {                  // otherwise
+     delete g_pool[ i ].first;  // eliminate it
+     g_pool[ i ].first = nullptr;
+     which.push_back( i );      // recall its name
+     }
+    }
+
+  if( all )        // all removed
+   which.clear();  // has a special setting to it
+
+  // if the C05FunctionModSbst has to be issued, do it
+  // note: the Modification assumes issueMod == eModBlck and
+  //       concerns_Block() == true
+  if( ( all || ( ! which.empty() ) ) &&
+      ( f_Observer && f_Observer->issue_mod( eModBlck ) ) )
+   f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+				      C05FunctionMod::GlobalPoolRemoved ,
+				      std::move( which ) , true , 0 ) ,
+				 chnl );
+
+  }  // end( if( checking is required ) )
  }  // end( LagBFunction::add_Modification() )
 
 /*--------------------------------------------------------------------------*/
@@ -707,8 +749,6 @@ bool LagBFunction::compute_new_linearization( const bool diagonal )
 
 void LagBFunction::store_linearization( Index name , ModParam issueMod )
 {
- // TODO: handle issueMod !!
-
  // throw exception if the solution does not exist or has been already stored
 
  if( std::isnan( LastSolution ) || ( LastSolution < Inf<Index>() ) )
@@ -716,26 +756,24 @@ void LagBFunction::store_linearization( Index name , ModParam issueMod )
 
  // throw exception if name is greater thatn the dimension of the global pool
 
- if( name >= GPMaxSz )
+ if( name >= g_pool.size() )
   throw( std::logic_error( "max size of global pool exceeded" ) );
 
  // get the current Solution - - - - - - - - - - - - - - - - - - - - - - - - -
      
- if( std::get<0>( g_pool[ name ] ) )     // a Solution is already there
-  delete std::get<0>( g_pool[ name ] );  // delete it
+ if( g_pool[ name ].first )     // a Solution is already there
+  delete g_pool[ name ].first;  // delete it
 
  // get a "fully loaded" Solution out of the Block, using the default
  // f_solution_Configuration in the f_solution_Configuration
- std::get<0>( g_pool[ name ] ) =
-                             v_Block.front()->get_Solution( nullptr , false );
+ g_pool[ name ].first = v_Block.front()->get_Solution( nullptr , false );
 
  // set the solution type- - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- std::get<1>( g_pool[ name ] ) = true;
+ g_pool[ name ].second = true;
 
- // the last computed solution is feasible - - - - - - - - - - - - - - - - - -
-
- std::get<2>( g_pool[ name ] ) = false;
+ if( name >= f_max_glob )  // update f_max_glob
+  f_max_glob = name + 1;
 
  // if necessary, issue the Modification - - - - - - - - - - - - - - - - - - -
 
@@ -755,7 +793,7 @@ void LagBFunction::store_linearization( Index name , ModParam issueMod )
 void LagBFunction::store_combination_of_linearizations(
 	LinearCombination & coefficients , Index name , ModParam issueMod )
 {
- if( name >= GPMaxSz )
+ if( name >= g_pool.size() )
   throw( std::logic_error( "max size of global pool already exceed" ) );
 
  if( coefficients.empty() )
@@ -769,24 +807,20 @@ void LagBFunction::store_combination_of_linearizations(
 
  for( auto & pair : coefficients ) {
   // add the new term to the convex combination
-  convex_combination->sum( std::get<0>( g_pool[ pair.first ] ) ,
-			   pair.second );
+  convex_combination->sum( g_pool[ pair.first ].first , pair.second );
 
   // if the convex combination contains even a single direction
-  if( ! std::get<1>( g_pool[ pair.first ] ) )
+  if( ! g_pool[ pair.first ].second )
    type = false;  // then it is a direction
-
-  // if the convex combination contains even a single unfeasible element
-  if( std::get<2>( g_pool[ pair.first ] ) )
-   unfeasible = true;  // then it is a unfeasible
   }
 
- if( std::get<0>( g_pool[ name ] ) )     // if a Solution is there already
-  delete std::get<0>( g_pool[ name ] );  // delete it
+ delete g_pool[ name ].first;  // delete the current Solution (if any)
 
- std::get<0>( g_pool[ name ] ) = convex_combination;
- std::get<1>( g_pool[ name ] ) = type;
- std::get<2>( g_pool[ name ] ) = unfeasible;
+ g_pool[ name ].first = convex_combination;
+ g_pool[ name ].second = type;
+
+ if( name >= f_max_glob )      // update f_max_glob
+  f_max_glob = name + 1;
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
@@ -803,11 +837,13 @@ void LagBFunction::store_combination_of_linearizations(
 
 void LagBFunction::delete_linearization( Index name , ModParam issueMod )
 {
- if( ( name >= GPMaxSz ) || ( ! std::get<0>( g_pool[ name ] ) ) )
+ if( ( name >= g_pool.size() ) || ( ! g_pool[ name ].first ) )
   throw( std::invalid_argument( "invalid linearization name" ) );
 
- delete std::get<0>( g_pool[ name ] );
- std::get<0>( g_pool[ name ] ) = nullptr;
+ delete g_pool[ name ].first;
+ g_pool[ name ].first = nullptr;
+
+ update_f_max_glob();
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
@@ -827,10 +863,12 @@ void LagBFunction::delete_linearizations( Subset && which , bool ordered ,
 {
  if( which.empty() ) {  // delete them all
   for( auto & el : g_pool )
-   if( std::get<0>( el ) ) {
-    delete std::get<0>( el );
-    std::get<0>( el ) = nullptr;
+   if( el.first ) {
+    delete el.first;
+    el.first = nullptr;
     }
+
+  f_max_glob = 0;
 
   if( f_Observer && f_Observer->issue_mod( issueMod ) )
    f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
@@ -845,16 +883,18 @@ void LagBFunction::delete_linearizations( Subset && which , bool ordered ,
  if( ! ordered )
   std::sort( which.begin() , which.end() );
 
- if( which.back() >= GPMaxSz )
+ if( which.back() >= g_pool.size() )
   throw( std::invalid_argument( "invalid linearization name" ) );
 
  for( auto i : which ) {
-  if( ! std::get<0>( g_pool[ i ] ) )
+  if( ! g_pool[ i ].first )
    throw( std::invalid_argument( "invalid linearization name" ) );
 
-  delete std::get<0>( g_pool[ i ] );
-  std::get<0>( g_pool[ i ] ) = nullptr;
+  delete g_pool[ i ].first;
+  g_pool[ i ].first = nullptr;
   }
+
+ update_f_max_glob();
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
@@ -939,11 +979,11 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
   // assign Solution to the sub-Block in such a way the linearization
   // associated with the given name will be retrieved from the global pool
 
-  if( ! std::get<0>( g_pool[ name ] ) )
+  if( ! g_pool[ name ].first )
    throw( std::logic_error( "invalid linearization name" ) );
 
   if( LastSolution != name ) {
-   std::get<0>( g_pool[ name ] )->write( v_Block.front() );
+   g_pool[ name ].first->write( v_Block.front() );
    LastSolution = name;
    }
   }  // end else - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -983,11 +1023,11 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
   // assign Solution to the sub-Block in such a way the linearization
   // associated with the given name will be retrieved from the global pool
 
-  if( ! std::get<0>( g_pool[ name ] ) )
+  if( ! g_pool[ name ].first )
    throw( std::logic_error( "invalid linearization name" ) );
 
   if( LastSolution != name ) {
-   std::get<0>( g_pool[ name ] )->write( v_Block.front() );
+   g_pool[ name ].first->write( v_Block.front() );
    LastSolution = name;
    }
   }  // end else - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1022,35 +1062,16 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
   }
  else {  // a linearization of the global pool - - - - - - - - - - - - - - - -
 
+  if( ! g_pool[ name ].first )  // if no such linearization, return NaN
+   return( std::numeric_limits<FunctionValue>::quiet_NaN() );
+
   // assign Solution to the sub-Block in such a way the linearization
   // associated with the given name will be recovered from the global pool
 
   if( name != LastSolution ) {
-   if( ! std::get<0>( g_pool[ name ] ) )
-    throw( std::logic_error( "invalid linearization name" ) );
-
-   std::get<0>( g_pool[ name ] )->write( v_Block.front() );
+   g_pool[ name ].first->write( v_Block.front() );
    LastSolution = name;
    }
-
-  // if the solution must be checked and is proved to be not feasible, the
-  // method returns Inf
-  //
-  // this requires is_feasible() and is_unbounded() to be implemented,
-  // which may not happen. it could be a problem
-  //
-  // !!!!!!!!!!
-  // THIS MUST BE CHANGED! IF A LINEARIZATION IS NO LONGER VALID, IT HAS
-  // TO BE EXPLICITLY REMOVED FROM THE GLOBAL POOL AND THE CORRESPONDING
-  // Modification HAS TO BE ISSUED
-  
-  if( std::get<2>( g_pool[ name ] ) )
-   if( ( std::get<1>( g_pool[ name ] ) &&
-	 ( ! v_Block.front()->is_feasible() ) ) ||
-       ( ( ! std::get<1>( g_pool[ name ] ) ) &&
-	 ( ! v_Block.front()->is_unbounded() ) ) )
-    return( std::numeric_limits<FunctionValue>::quiet_NaN() );
-
   }  // end else - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  // return the c x^* for the chosen solution x^*, where c are the *original*
@@ -1138,7 +1159,7 @@ int LagBFunction::get_int_par( const idx_type par ) const
    return( LPMaxSz );
    break;
   case( intGPMaxSz ):
-   return( GPMaxSz );
+   return( g_pool.size() );
    break;
   default:
    return( C05Function::get_dflt_int_par( par ) ) ;
@@ -1239,7 +1260,7 @@ void LagBFunction::print( std::ostream & output ) const
  C05Function::print( output );
 
  output << "LagBFunction [" << this << "]"
- 	 << " with MaxPoll = ( " << LPMaxSz << " ~ " << GPMaxSz << " ) "
+	<< " with MaxPoll = ( " << LPMaxSz << " ~ " << g_pool.size() << " ) "
 	<< std::endl << " and tol. = ( " << AAccLin << " , " << RAccLin
 	<< " ) " << std::endl;
 
@@ -1250,7 +1271,7 @@ void LagBFunction::print( std::ostream & output ) const
 void LagBFunction::load( std::istream &input )
 {
  input >> LPMaxSz;
- input >> GPMaxSz;
+ // input >> GPMaxSz;
  input >> AAccLin;
  input >> RAccLin;
 
@@ -1588,8 +1609,8 @@ void LagBFunction::guts_of_destructor( void )
 
  // delete the global pool - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- for( auto tpl : g_pool )
-  delete std::get<0>( tpl );
+ for( Index i = 0 ; i < f_max_glob ; ++i )
+  delete g_pool[ i ].first;
  g_pool.clear();
 
  // delete the inner Block - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1602,19 +1623,38 @@ void LagBFunction::guts_of_destructor( void )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
+bool LagBFunction::guts_of_add_Modification( p_Mod mod , ChnlName chnl )
 {
- // process abstract Modification- - - - - - - - - - - - - - - - - - - - - - -
+ const auto tmod = dynamic_cast< GroupModification * >( mod );
+ if( tmod ) {
+  // process every Modification inside the GroupModification, returning true
+  // if any one of those returned true
+  bool to_check = false;
+  for( auto & ttmod : tmod->sub_Modifications() )
+   if( guts_of_add_Modification( ttmod.get() , chnl ) )
+    to_check = true;
+  return( to_check );  
+  }
+ else
+  return( guts_of_guts_of_add_Modification( mod , chnl ) );
+
+ }  // end( guts_of_add_Modification )
+
+/*--------------------------------------------------------------------------*/
+
+bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
+						     ChnlName chnl )
+{
+ // process Modification - - - - - - - - - - - - - - - - - - - - - - - - - - -
  /* This requires to patiently sift through the possible Modification types
-    to find what this Modification exactly is and appropriately mirror the
-    changes to the "abstract representation" to the "physical one". */
+    to find what this Modification exactly is and appropriately react. */
 
  // FunctionMod: a function has been changed, three kinds of functions have
  // to be taken into account : (obj_B), (RCs) and the constraints of (B), all
  // of these are assumed to be linear
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  {
-  const auto tmod = std::dynamic_pointer_cast< FunctionMod >( mod );
+  const auto tmod = dynamic_cast< FunctionMod * >( mod );
   if( tmod ) {
    auto lfmod = static_cast< LinearFunction * const >( tmod->function() );
    if( ! lfmod )
@@ -1629,9 +1669,8 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
 
    if( lfmod == obj ) // if the Linear Function is (obj_B)
     if( ! std::isnan( tmod->shift() ) &&
-	( tmod->shift() < FunctionMod::INFshift &&
-	  tmod->shift() > -FunctionMod::INFshift ) ) { // a predictable change
-
+	( tmod->shift() < INF && tmod->shift() > -INF ) ) {
+     // a predictable change
      // the Lagrangian function (obj_B) is shifted by the constant term
      // c'_0 - c_0
 
@@ -1682,8 +1721,8 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
     		 [ lfmod ]( const dual_pair & p ) {
     		  return( p.second == lfmod );  } );
 
- 	 // take out the multiplier y_i which has been modified  - - - - - - - - -
-  	 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+     // take out the multiplier y_i which has been modified  - - - - - - - - -
+     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
      v_dual_pair vdp( {*it_v} );
      Vec_p_Var v_vars( {vdp[ 0 ].first} );
@@ -1698,7 +1737,7 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
       // previous value thereof, this means that the Lagrangian function
       // changes the linear part y^i b_i --> y^_i b'_i - - - - - - - - - - - -
 
-      Function::Vec_FunctionValue delta( {lfmod->get_constant_term()} );
+      Vec_FunctionValue delta( {lfmod->get_constant_term()} );
 
       // issue C05FunctionModLin modification: the Lagrangian
       // function (obj_B) has changed in an "unpredictably",
@@ -1738,26 +1777,12 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
 					 chnl );
       }
      }
-    else { // the changes of the constraints of (B) may violate the
-     // solutions kept in the global pool, irrespectively to the fact that the
-     // changes are of the type "predictable" or "unpredictable" and  signal
-     // that the feasibility of the solutions has to be checked
+    else   // the changes of the constraints of (B) may violate the
+           // Solution kept in the global pool, irrespectively to the fact
+           // that the changes are "predictable" or "unpredictable"
+     return( true );
 
-     for( auto tpl : g_pool )
-      std::get<2>( tpl ) = true;
-
-     // issue C05FunctionMod modification of the type AlphaChanged: the
-     // feasible region of (B) has been changed, then the original linearizations
-     // (even the g part) can no longer be used
-     //!! check if C05FunctionMod::AlphaChanged is still right
-     // TODO: check if a better which is possible
-     if( f_Observer )
-      f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-					      C05FunctionMod::AlphaChanged ,
-					      Subset( {} ) ,
-					      FunctionMod::NaNshift ) ,
-				    chnl );
-     }
+   return( false );
    }
   } // end FunctionMod - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -1767,9 +1792,9 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
  // of these are assumed to be linear
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  {
-  const auto tmod = std::dynamic_pointer_cast<C05FunctionModLin>( mod );
+  const auto tmod = dynamic_cast< C05FunctionModLin * >( mod );
   if( tmod ) {
-   auto lfmod = static_cast<LinearFunction * const>( tmod->function() );
+   auto lfmod = static_cast< LinearFunction * const >( tmod->function() );
    if( ! lfmod )
     throw( std::logic_error( "the function must be linear" ) );
 
@@ -1810,8 +1835,8 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
     		 [ lfmod ]( const dual_pair & p ) {
     		  return( p.second == lfmod );  } );
 
- 	 // take out the multiplier y_i which has been modified  - - - - - - - - -
-  	 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+     // take out the multiplier y_i which has been modified  - - - - - - - - -
+     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
      v_dual_pair vdp( {*it_v} );
      Vec_p_Var v_vars( {vdp[ 0 ].first} );
@@ -1840,26 +1865,12 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
 		   FunctionMod::NaNshift , 0 ) ,
 				    chnl );
      }
-    else { // the changes of the constraints of (B) may violate the
-     // solutions kept in the global pool, irrespectively to the fact that the
-     // changes are of the type "predictable" or "unpredictable" and  signal
-     // that the feasibility of the solutions has to be checked
+    else  // the changes of the constraints of (B) may violate the
+           // Solution kept in the global pool, irrespectively to the fact
+           // that the are "predictable" or "unpredictable"
+     return( true );
 
-     for( auto tpl : g_pool )
-      std::get<2>( tpl ) = true;
-
-     // issue C05FunctionMod modification of the type AlphaChanged: the
-     // feasible region of (B) has been changed, then the original linearizations
-     // (even the g part) can no longer be used
-     //!! check if C05FunctionMod::AlphaChanged is still right
-     // TODO: check if a better which is possible
-     if( f_Observer )
-      f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-					      C05FunctionMod::AlphaChanged ,
-					      Subset( {} ) ,
-					      FunctionMod::NaNshift ) ,
-				    chnl );
-     }
+   return( false );
    }
   } // end C05FunctionModLin - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -1869,10 +1880,10 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
  // of these are assumed to be linear
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  {
-  const auto tmod = std::dynamic_pointer_cast<FunctionModVars>( mod );
+  const auto tmod = dynamic_cast< FunctionModVars * >( mod );
   if( tmod ) {
-   auto lfmod = static_cast<LinearFunction * const>( tmod->function() );
-   if( !lfmod )
+   auto lfmod = static_cast< LinearFunction * const >( tmod->function() );
+   if( ! lfmod )
    throw( std::logic_error( "the function must be linear" ) );
 
    // because of the linearity of the function the modification must be
@@ -1882,8 +1893,8 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
 
    if( lfmod == obj ) { // if the Linear Function is (obj_B)
 
-	// variables x_j, for some j, have been added to (remove from) (obj_B)
-	// and the new coefficients have to to be rewritten in (deleted from) CostMatrix
+    // variables x_j, for some j, have been added to (remove from) (obj_B)
+    // and the new coefficients have to to be rewritten in (deleted from) CostMatrix
 
     Subset nms( tmod->vars().size() );
     for( Index i = 0 ; i < tmod->vars().size() ; ++i )
@@ -1947,58 +1958,28 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
 		   FunctionMod::NaNshift , 0 ) ,
 				    chnl );
      }
-    else { // the changes of the constraints of (B) may violate the
-       // solutions kept in the global pool,  signal
-       // that the feasibility of the solutions has to be checked
+    else  // the changes of the constraints of (B) may violate the
+          // Solution kept in the global pool
+     return( true );
 
-       for( auto tpl : g_pool )
-        std::get<2>( tpl ) = true;
-
-       // issue C05FunctionMod modification of the type AlphaChanged: the
-       // feasible region of (B) changed and the original linearizations
-       // (even the g part) can no longer be used
-       //!! check if C05FunctionMod::AlphaChanged is still right
-       // TODO: check if a better which is possible
-       if( f_Observer )
-        f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-						C05FunctionMod::AlphaChanged ,
-						Subset( {} ) ,
-						FunctionMod::NaNshift ) ,
-				      chnl );
-     }
+   return( false );
    }
   } // end FunctionModVars   - - - - - - - - - - - - - - - - - - - - - - - - -
 
  // VariableMod: some variables of (B) changed the status
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  {
-  const auto tmod = std::dynamic_pointer_cast<VariableMod>( mod );
+  const auto tmod = dynamic_cast< VariableMod * >( mod );
   if( tmod ) {
-   auto xj = dynamic_cast<ColVariable * const>( tmod->variable() );
+   auto xj = dynamic_cast< ColVariable * const >( tmod->variable() );
+
+   if( ! xj )        // unknown variable type
+    return( true );  // no clue what is happening, take the worst case
 
    // if the variable is both free and continuous, the modification can be
    // ignored  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-   if( ( ! xj->is_fixed() ) && ( xj->get_type() == ColVariable::kContinuous ) )
-    return;
-
-   // the new status of the Variable may violate the feasibility of the global
-   // pool, signal that the fesibility of the solutions must be checked
-
-   for( auto tpl : g_pool )
-    std::get<2>( tpl ) = true;
-
-   // issue C05FunctionMod modification of the type AlphaChanged: the
-   // feasible region of (B) changed and the original linearizations
-   // (even the g part) can no longer be used
-   //!! check if C05FunctionMod::AlphaChanged is still right
-   // TODO: check if a better which is possible
-   if( f_Observer )
-    f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-						C05FunctionMod::AlphaChanged ,
-						Subset( {} ) ,
-					        FunctionMod::NaNshift ) ,
-				  chnl );
+   return( ( ! xj->is_fixed() ) || ( ! xj->is_integer() ) );
    }
   }  // end VariableMod- - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -2007,64 +1988,28 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
  // BlockModAD: is_variable() && is_added() keep feasibility
  // BlockModAD: ( ! is_variable() ) && ( ! is_added() ) keep feasibility
  {
-  const auto tmod = std::dynamic_pointer_cast< BlockModAD >( mod );
-  if( tmod ) {
-   if( ( tmod->is_variable() && ( ! tmod->is_added() ) ) ||
-       ( ( ! tmod->is_variable() ) && tmod->is_added() ) ) {
-    // the remotion of variables and addition of constraints of (B) may
-    // violate
-    // the feasibility of the global pool, signal that the feasibility of the
-    // solutions must be checked  - - - - - - - - - - - - - - - - - - - - - -
+  const auto tmod = dynamic_cast< BlockModAD * >( mod );
+  if( tmod )
+   return( ( tmod->is_variable() && ( ! tmod->is_added() ) ) ||
+	   ( ( ! tmod->is_variable() ) && tmod->is_added() ) );
 
-    for( auto tpl : g_pool )
-     std::get<2>( tpl ) = true;
-
-    // issue C05FunctionMod modification of the type AlphaChanged: the
-    // feasible region of (B) changed and the original linearizations
-    // (even the g part) can no longer be used
-    //!! check if C05FunctionMod::AlphaChanged is still right
-    // TODO: check if a better which is possible
-
-    if( f_Observer )
-     f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-						C05FunctionMod::AlphaChanged ,
-						Subset( {} ) ,
-						FunctionMod::NaNshift ) ,
-				   chnl );
-    }
-   }
   }  // end BlockModAdd- - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  // BlockMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  {
-  const auto tmod = std::dynamic_pointer_cast<BlockMod>( mod );
-  if( tmod ) {
+  const auto tmod = dynamic_cast< BlockMod * >( mod );
+  if( tmod )  // arbitrary changes of (B) may violate the feasibility
+   return( true );
 
-
-   // the changes of (B) may violate the feasibility
-   // of the global pool, signal that the feasibility of the solutions must
-   // be checked   - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-   for( auto tpl : g_pool )
-    std::get<2>( tpl ) = true;
-
-   // issue C05FunctionMod modification of the type AlphaChanged: the
-   // feasible region of (B) changed and the original linearizations
-   // (even the g part) can no longer be used
-   //!! check if C05FunctionMod::AlphaChanged is still right
-   // TODO: check if a better which is possible
-
-    if( f_Observer )
-     f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-						C05FunctionMod::AlphaChanged ,
-						Subset( {} ) ,
-						FunctionMod::NaNshift ) ,
-				   chnl );
-   }
   }  // end BlockMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- }  // end( LagBFunction::guts_of_add_Modification )
+ return( false );  // ignore any other Modification (BAD!!)
+ // indeed, the safe return value would be true: if I don't understand it,
+ // it can wreak arbitrary havok. but this would be severely over-reacting
+ // in many cases, so we avoid it for the time being
+
+ }  // end( LagBFunction::guts_of_guts_of_add_Modification )
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- End File LagBFunction.cpp -------------------------*/

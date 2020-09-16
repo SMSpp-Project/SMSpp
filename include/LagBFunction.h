@@ -313,12 +313,12 @@ class LagBFunction : public C05Function , public Block {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- using linearization_tuple = std::tuple< p_Solution , bool , bool >;
- /**< a Solution equipped with two boolean, one which defines the type of
-  * linearization (diagonal, vertical) and the other one states if the
-  * solution has to be checked for feasibility. */
+ using gpool_el = std::pair< p_Solution , bool >;
+ ///< an element of the global pool
+ /**< a Solution equipped with a boolean which defines the type of
+  * linearization (diagonal, vertical) */
 
- using v_linearization_tuple = std::vector< linearization_tuple >;
+ using v_gpool_el = std::vector< gpool_el >;
  ///< a vector of linearization_pair
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -612,6 +612,34 @@ class LagBFunction : public C05Function , public Block {
 			ModParam issueMod = eModBlck )  override;
 
 /*--------------------------------------------------------------------------*/
+ /// handles Modification issued to the LagBFunction as a Block
+ /** Modification reaching the LagBFunction can only be originated by its
+  * only inner Block, and will be treated in an highly non-standard way:
+  *
+  * - There cannot be Solver attached to LagBFunction as a Block,
+  *   LagBFunction as a Block has no father Block, and it makes no sense to
+  *   open a channel on LagBFunction as a Block (since if a channel is
+  *   needed, it can be opened directly on the inner Block); thus, it makes
+  *   no sense call Block::add_Modification() to pass the Modification to the
+  *   registered Solver and/or to the father Block and/or to open a channel.
+  *
+  * - The Modification as and of itself will not "exit" LagBFunction;
+  *   rather, it can be converted in appropriate [C05]FunctionMod that will
+  *   be issued to the Observer of LagBFunction.
+  *
+  *     FOR LACK OF A WAY TO DO DIFFERENTLY, ANY SUCH Modification WILL
+  *     BE ISSUED ASSUMING THE STANDARD eModBlck TYPE, WITH
+  *     concerns_Block() == true AND THE DEFAULT CHANNEL (this could be
+  *     a case where "hijacking" the default channel may be useful)
+  *
+  *     FOR THE EXCESSIVE RIGIDITY OF THE CURRENT Modification SYSTEM
+  *     (OR, PERHAPS BETTER, ITS LACK OF GENERAL INFORMATION), ONLY THE
+  *     "ABSTRACT" Modification COMING OUT OF THE INNER Block CAN BE
+  *     PROCESSED, THE OTHER ONES BEING IGNORED. THIS IS CLEARLY AN
+  *     ISSUE IF THE CHANGES IN THE INNER Block ONLY RESULT IN "PHISICAL"
+  *     Modification BEING ISSUED (this will be improved upon by the
+  *     planned re-haul of the Modification system).
+  */
 
  void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
 
@@ -917,27 +945,35 @@ class LagBFunction : public C05Function , public Block {
  LinearFunction * obj;
  ///< the (linear) objective function of the sub-Block (B)
 
- bool IsConvex;  ///< true if the LagBFunction is convex
+ bool IsConvex;         ///< true if the LagBFunction is convex
  
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
- v_dual_pair LagPairs;          ///< vector of Lagrangian dual pairs
+ v_dual_pair LagPairs;  ///< vector of Lagrangian dual pairs
 
- v_linearization_tuple g_pool;  ///< the global pool
+ v_gpool_el g_pool;     ///< the global pool
+
+ Index f_max_glob;           ///< 1 + maximum active name in the global pool
+ /**< f_max_glob is strictly larger than the maximum index h such that
+  * g_pool[ h ].first != nullptr, i.e., g_pool[ f_max_glob ].first == nullptr
+  * while g_pool[ f_max_glob - 1 ] != nullptr. Note that one should never
+  * check g_pool[ f_max_glob ], as f_max_glob == g_pool.size() may
+  * happen (in particular when g_pool.empty() and f_max_glob == 0). */
 
  m_column CostMatrix;
  ///< the matrix < x , <c,yA> > used to update the Lagrangian cost vector
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
- Index LastSolution;  ///< the last solution read by get_linearization
-                      /**< the "name" of the solution currently in the
+ Index LastSolution;  ///< the last Solution read by get_linearization
+                      /**< the "name" of the Solution currently in the
 		       * Variable of the inner Block:
- * - NaN : the solution is not significant
+ * - NaN : the Solution is not significant
  *
- * - Inf : the solution is the last one from the local pool
+ * - Inf : the Solution is the last one from the local pool
  *
- * - \in [ 0 , GPMaxSz ) : is the index of a solution of the global pool   */
+ * - \in [ 0 , g_pool.size() ): is the index of a Solution of the global pool
+ */
 
  bool VarSol;         ///< true if Variable in the inner Block are a solution
                       /**< true if Variable in the inner Block are a solution
@@ -951,8 +987,6 @@ class LagBFunction : public C05Function , public Block {
  FunctionValue f_linear_term;  ///< the term yb of the Lagrangian function
 
  /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
-
- int GPMaxSz;         ///< maximum size of the "global pool"
 
  int LPMaxSz;         ///< maximum size of the "local pool"
 
@@ -991,11 +1025,19 @@ class LagBFunction : public C05Function , public Block {
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
- void guts_of_destructor( );
+ void guts_of_destructor( void );
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+ /** handle every Modification, comprised GroupModification. returns true if
+  * the global pool has to be checked for feasibility. */
 
- void guts_of_add_Modification( sp_Mod mod , ChnlName chnl );
+ bool guts_of_add_Modification( p_Mod mod , ChnlName chnl );
+
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+ /** handle only "basic" Modification, i.e., no GroupModification. returns
+  * true if the global pool has to be checked for feasibility. */
+
+ bool guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl );
 
 /*--------------------------------------------------------------------------*/
 
@@ -1004,18 +1046,25 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- /// reset the BlockSolverConfig of the inner Block to the default one
+ // reset the BlockSolverConfig of the inner Block to the default one
  void set_default_inner_Block_BlockSolverConfig();
 
 /*--------------------------------------------------------------------------*/
-
- /// reset the configuration of the inner Block to the default one
- /** Reset both the BlockConfig and the BlockSolverConfig of the inner Block
+ // reset the configuration of the inner Block to the default one
+ /* Reset both the BlockConfig and the BlockSolverConfig of the inner Block
   * to the default ones. */
+
  void set_default_inner_Block_configuration() {
   set_default_inner_Block_BlockSolverConfig();
   set_default_inner_Block_BlockConfig();
- }
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ void update_f_max_glob( void ) {
+  while( f_max_glob && ( ! g_pool[ f_max_glob - 1 ].first ) )
+   --f_max_glob;
+  }
 
 /*--------------------------------------------------------------------------*/
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
