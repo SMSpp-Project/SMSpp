@@ -702,7 +702,7 @@ void BlockConfig::deserialize( netCDF::NcGroup & group )
 
  netCDF::NcGroupAtt diff = group.getAtt( "diff" );
  if( diff.isNull() )
-  f_diff = false;
+  f_diff = true;
  else {
   int diffint;
   diff.getValues( &diffint );

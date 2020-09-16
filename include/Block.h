@@ -8052,7 +8052,7 @@ class BlockConfig : public Configuration
   *   #f_diff field (basically, a bool telling if the information in it has to
   *   be taken as "the configuration to be set" or as "the changes to be made
   *   from the current configuration"); this attribute is optional: if it is
-  *   not provided, then diff = false is assumed;
+  *   not provided, then diff = true is assumed;
   *
   * - the group "static_constraints" containing a Configuration object for
   *   the static Constraint of the Block;
@@ -8130,6 +8130,7 @@ class BlockConfig : public Configuration
  /** This method deletes all sub-Configuration and does not change the value
   * of #f_diff. */
  void clear( void ) override {
+  f_diff = false;
   delete_sub_Configuration();
   }
 
