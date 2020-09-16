@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Support for concurrency
+- [O][C][R]BlockConfig for configuring also the Objective, Constraint, and
+  sub-Block, recursively
+- RBlockSolverConfig for configuring the Solver of the sub-Block, recursively
 
 ## [0.2.0] - 2020-03-06
 
