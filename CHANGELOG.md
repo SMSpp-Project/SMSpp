@@ -7,11 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2020-09-16
+
+### Fixed
+
+- Bug in *BlockConfig::clear().
+
 ## [0.3.0] - 2020-09-16
 
 ### Added
 
 - Support for concurrency.
+- [O][C][R]BlockConfig for configuring also the Objective, Constraint, and
+  sub-Block, recursively.
+- RBlockSolverConfig for configuring the Solver of the sub-Block, recursively.
 
 ### Changed
 
@@ -35,7 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First test release.
 
-[Unreleased]: https://gitlab.com/smspp/smspp/-/compare/0.3.0...develop
+[Unreleased]: https://gitlab.com/smspp/smspp/-/compare/0.3.1...develop
+[0.3.1]: https://gitlab.com/smspp/smspp/-/compare/0.3.0...0.3.1
 [0.3.0]: https://gitlab.com/smspp/smspp/-/compare/0.2.0...0.3.0
 [0.2.0]: https://gitlab.com/smspp/smspp/-/compare/0.1.1...0.2.0
 [0.1.1]: https://gitlab.com/smspp/smspp/-/compare/0.1.0...0.1.1
