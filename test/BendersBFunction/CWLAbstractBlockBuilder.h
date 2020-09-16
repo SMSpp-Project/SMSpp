@@ -273,11 +273,11 @@ BendersBFunction * build_decomposition_by_customer
 
  {
   for( int i = 0 ; i < instance.num_locations ; ++i ) {
-   auto cs = BendersBFunction::ConstraintSpecifier
-    ( & ( * capacity_constraints )[ i ] , BendersBFunction::eRHS );
    std::vector< double > Ai( instance.num_locations , 0 );
    Ai[ i ] = instance.capacity[ i ];
-   benders_function->add_row( std::move( Ai ) , 0 , cs );
+   benders_function->add_row( std::move( Ai ) , 0 ,
+                              & ( * capacity_constraints )[ i ] ,
+                              BendersBFunction::eRHS );
   }
  }
 
@@ -369,11 +369,10 @@ BendersBFunction * build_decomposition_by_location
   for( int i = 0 ; i < instance.num_locations ; ++i ) {
    auto capacity_constraint =
     nested_Blocks[ i ]->get_static_constraint< FRowConstraint >( 0 );
-   auto cs = BendersBFunction::ConstraintSpecifier
-    ( capacity_constraint , BendersBFunction::eRHS );
    std::vector< double > Ai( instance.num_locations , 0 );
    Ai[ i ] = instance.capacity[ i ];
-   benders_function->add_row( std::move( Ai ) , 0 , cs );
+   benders_function->add_row( std::move( Ai ) , 0 , capacity_constraint ,
+                              BendersBFunction::eRHS );
   }
  }
 
@@ -454,11 +453,11 @@ BendersBFunction * build_Benders_function( const CWLInstance & instance ,
 
  {
   for( int i = 0 ; i < instance.num_locations ; ++i ) {
-   auto cs = BendersBFunction::ConstraintSpecifier
-    ( & ( * capacity_constraints )[ i ] , BendersBFunction::eRHS );
    std::vector< double > Ai( instance.num_locations , 0 );
    Ai[ i ] = instance.capacity[ i ];
-   benders_function->add_row( std::move( Ai ) , 0 , cs );
+   benders_function->add_row( std::move( Ai ) , 0 ,
+                              & ( * capacity_constraints )[ i ] ,
+                              BendersBFunction::eRHS );
   }
  }
 

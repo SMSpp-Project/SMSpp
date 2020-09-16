@@ -7,7 +7,7 @@ include(FetchContent)
 fetchcontent_declare(
         googletest
         GIT_REPOSITORY https://github.com/google/googletest.git
-        GIT_TAG release-1.8.1
+        GIT_TAG release-1.10.0
 )
 
 fetchcontent_getproperties(googletest)
@@ -44,4 +44,13 @@ target_link_libraries(FakeBlock_test PRIVATE SMS++::SMSpp)
 add_test(
         NAME FakeBlock_test
         COMMAND FakeBlock_test
+)
+
+# ----- ClassFactory_test --------------------------------------------------- #
+add_executable(ClassFactory_test ClassFactory/main.cpp)
+target_link_libraries(ClassFactory_test PRIVATE SMS++::SMSpp)
+
+add_test(
+        NAME ClassFactory_test
+        COMMAND ClassFactory_test
 )

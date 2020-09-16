@@ -344,12 +344,12 @@ class ConstraintMod : public AModification
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to (the pointer to) the affected Constraint
 
- Constraint * constraint( void ) { return( f_constraint ); }
+ Constraint * constraint( void ) const { return( f_constraint ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to the type of Modification
 
- int type( void ) { return( f_type ); }
+ int type( void ) const { return( f_type ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 

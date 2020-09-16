@@ -7,7 +7,7 @@
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #
 cmake_minimum_required(VERSION 3.8...3.15)
-project(SMS++ VERSION 0.2.0 LANGUAGES CXX)
+project(SMS++ VERSION 0.3.0 LANGUAGES CXX)
 
 # ----- Settings ------------------------------------------------------------ #
 include(CTest)
@@ -27,7 +27,10 @@ target_compile_features(SMSpp PUBLIC cxx_std_17)
 target_sources(SMSpp PRIVATE
                src/AbstractBlock.cpp
                src/Block.cpp
+               src/BlockSolverConfig.cpp
+               src/C05Function.cpp
                src/BendersBFunction.cpp
+               src/BendersBlock.cpp
                src/ColVariable.cpp
                src/ColVariableSolution.cpp
                src/Configuration.cpp
@@ -42,6 +45,7 @@ target_sources(SMSpp PRIVATE
                src/Objective.cpp
                src/OneVarConstraint.cpp
                src/PolyhedralFunction.cpp
+               src/RBlockConfig.cpp
                src/RowConstraintSolution.cpp
                src/PolyhedralFunctionBlock.cpp
                src/Solver.cpp

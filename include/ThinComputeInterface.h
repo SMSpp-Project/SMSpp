@@ -8,9 +8,9 @@
  * a ComputeConfig object that allows to set and get all the parameters of a
  * :ThinComputeInterface object in one blow.
  *
- * \version 0.10
+ * \version 0.11
  *
- * \date 03 - 09 - 2018
+ * \date 15 - 06 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -126,16 +126,26 @@ public:
 /** @name Public Types
  *  @{ */
 
- typedef unsigned short int idx_type;  ///< the type of parameters indices
+ using idx_type = unsigned short int;  ///< the type of parameters indices
  
 /*--------------------------------------------------------------------------*/
-
  /// public enum for the possible return values of compute()
 
  enum compute_type {
- kUnEval = 0 ,   ///< compute() has not been called yet
+ kUnEval = 3 ,   ///< compute() has not been called yet
+                 /**< Any return value between 0 and kUnEval (extremes
+		  * included) means that the process of compute() has not
+ * finished yet. This may mean a few different things (which is why kUnEval
+ * is not 0), like "compute() has not been called", "compute() is actually
+ * running right now", or "compute() had been called and it did finish, but
+ * the thing that had to be compute()-d changed in the meantime" (like,
+ * this was solving a Block that has undergone come change). The specific
+ * values are left to derived classes, but the general gist is that any
+ * value <= kUnEval means that the solution process has not yet reached a
+ * state where a solution can be declared (or such a state has been lost for
+ * some reason. */
 
- kOK = 7 ,       ///< successful compute()
+ kOK = 10 ,      ///< successful compute()
                  /**< Any return value between kUnEval (excluded) and kOK
 		  * (included) means that the object ran smoothly, obtaining
  * the desired answer within the allowed limits on the available computational
@@ -145,7 +155,7 @@ public:
  * optimality, or conclusively shown to be empty, or conclusively shown to be
  * unbounded. */
 
- kError = 15 ,   ///< compute() stopped because of unrecoverable error
+ kError = 18 ,   ///< compute() stopped because of unrecoverable error
                  /**< Any return value >= kError means that the object was
 		  * forced to stop due to some error, e.g. of numerical nature
  * or because of lack of some crucial resource (say, memory). The error is of
@@ -159,22 +169,181 @@ public:
  *
  * Note that this leaves out all return values comprised between kOK and
  * kError, extremes excluded. These are left for "recoverable error states"
- * where the object were not able to conclusively obtain all of the desired
+ * where compute() was not able to conclusively obtain all of the desired
  * answer (although it may have already obtained a part of it), but this was
  * due to some reason that forced it to stop early on, such as a limit imposed
  * on the available computational resources. By relaxing the limit, which may
- * be as simple as calling compute() again, the object may further proceed in
+ * be as simple as calling compute() again, compute() may further proceed in
  * the computation process, possibly providing a kOK-type answer. */
+
+ };  // end( compute_type )
+
+/*--------------------------------------------------------------------------*/
+ /// the type of an event handler
+ /** An event is some occurrence happening inside compute() to which the
+  * caller may want to promptly react, before termination of the call. In
+  * order to achieve that, the caller may register event handlers with the
+  * ThinComputeInterface. An event handler, as defined by the EventHandler
+  * type, is a [std::]function taking no input and returning an int that
+  * tells the ThinComputeInterface which action it has to take after the
+  * event (see action_type). Each ThinComputeInterface will support a set of
+  * different types of events (see event_type), and will call all the event
+  * handlers registered under a certain event type when the corresponding
+  * condition occurs. Note that the return type is int rather than action_type
+  * to allow derived classes to extend the typer of actions they sypport. */
+
+ using EventHandler = std::function< int ( void ) >;
+
+/*--------------------------------------------------------------------------*/
+ /// the type of the internal ID of an event handler
+ /** When an event handler is registered into a ThinComputeInterface, it gets
+  * a unique ID that can be, and should, used later on to un-register it. One
+  * does not expect more than 65536 event handlers being registered to any
+  * sentible ThinComputeInterface, but should it be so, the definition of
+  * EventID could be changed accordingly. */
+
+ using EventID = unsigned short int;
+
+/*--------------------------------------------------------------------------*/
+ /// public enum for the possible types of events
+ /** This enum defines a set of "basic" event types that every
+  * :ThinComputeInterface should reasonably be able to manage, although each
+  * :ThinComputeInterface is completely free to choose which ones it actually
+  * supports. Also, a :ThinComputeInterface is completely free to "extend"
+  * event_type and define new class-specific events that their compute() can
+  * support. */
+
+ enum event_type {
+ eBeforeTermination = 0 ,   ///< event to be called just prior to terminating
+                            /**< Type of events that will be called right
+			     * before compute() terminates. This is provided
+ * in particular to handle cases such as a computation entailing the solution
+ * of an optimization problem whose model is dynamically generated (say, row
+ * and/or column generation). In such a case the optimality conditions may
+ * have been satisfied for the current partial model (master problem) which
+ * would lead compute() to terminate; before doing this, these events are
+ * invoked, which allows to trigger the generation of new rows and/or columns
+ * (separation, pricing). The event can then return eForceContinue [see] to
+ * instruct compute() to incorporate the new information into the model 
+ * (provided, of course, that this makes any sense for the compute() at hand)
+ * and check the stopping conditions again. */
+
+ eEverykIteration   = 1 ,   ///< events to be called every k iterations
+                            /**< Type of events that will be called every
+			     * k iterations, whatever "iteration" means for
+ * the compute() at hand. The value of k is to be set with a separate
+ * algorithmic parameter, properly defined by derived classes actually
+ * implementing the mechanism. */
+
+ eEveryTTime        = 2 ,   ///< events to be called periodically in time
+                            /**< Type of events that will be called 
+			     * periodically every fixed amount T of time.
+ * The value of T is to be set with a separate algorithmic parameter, properly
+ * defined by derived classes actually implementing the mechanism. Note that
+ * in general one does not expect derived classes to be very "tight" in heeding
+ * to the time interval T, in the sense that they will typically check
+ * periodically (say, every iteration) whether the elapsed time has passed,
+ * and call the event of it has. If iterations are much longer than T this
+ * may cause some events not to be called at all, although of course a
+ * derived class may place appropriate checks in multiple places to try to
+ * avoid this. */
+
+ e_last_event_type  = 4     ///< conveniemce value to define new events
+                            /**< conveniemce value to allow derived classes
+			     * to "extend" event_type and define new
+ * class-specific events that their compute() can support. */
+ 
+ };  // end( compute_type )
+
+/*--------------------------------------------------------------------------*/
+ /// public enum for the possible types of actions in response to events
+ /** This public enum provides values that describe general actions that an
+  * implementation of compute() is supposed to being instructed to perform
+  * by the return value of the event handler. */
+
+ enum action_type {
+ eForceContinue = 0 ,   ///< force compute() to continue even if it would stop
+                        /**< If compute() was going to stop because it
+			 * considered the computation to be over, force it
+ * to reconsider this. A typical case in which this can happen is if the
+ * computation entails the solution of an optimization problem whose model
+ * is dynamically generated (say, row and/or column generation). In such a
+ * case the optimality conditions may have been satisfied for the current
+ * partial model (master problem), but the event may have triggered the
+ * generation of new rows and/or columns (separation, pricing). This return
+ * value instructs compute() to check if this has happened (provided, of
+ * course, that this makes any sense for the compute() at hand). */
+
+ eContinue = kUnEval ,   ///< continue compute()
+                         /**< If the event handler returns any value
+			  * comprised between 0 and eContinue (extremes
+ * included, then compute() will continue. In particular, eContinue means
+ * "business as usual", while values < eContinue may give specific
+ * instructions (cf. e.g. eForceContinue). eContinue is taken equal to
+ * kUnEval to simplify handling of return errors between the event handler
+ * and compute(), see eStopOK and eStopError for details. */
+
+ eStopOK = kOK ,         ///< force compute() to stop returning success
+                         /**< If the event handler returns any value
+			  * comprised between eContinue (excluded) and
+ * eStopOK (included), compute() should immediately stop (some delay is
+ * possible if required by the implementation) because the event has
+ * detected that whatever needed to be compute()-d, has already been
+ * satsfactorily compute()-d. eStopOK is taken equal to kOK, so that
+ * 
+ *     compute() WILL RETURN AS ITS STATUS PRECISELY THE VALUE
+ *     RETURNED BY THE EVENT HANDLER
+ *
+ * This allows the event handler to more finely specify "what kind of good
+ * stop has occurred", in case compute() supports more than one (say,
+ * compute() requires solving a Block which may have an optimal solution, or
+ * be empty, or be unbounded). The event handler needs to know which compute()
+ * it is handling, and therefore ensure that the return value is valid for
+ * that compute(). Furthermore, obviously the event handler has to force
+ * this termination "for good reasons", possibly providing to compute() the
+ * extra information it needs to properly function after termination (say,
+ * compute() requires solving a Block, and the event handler has can detect
+ * termination early by ab ad-hoc computation of a dual solution; then, the
+ * dual solution will have to be provided to compute() if it can be required
+ * by the user after compute() terminates.) */
+
+ eStopError = kError     ///< force compute() to stop returning error
+                         /**< If the event handler returns any value
+			  * > eStopOK, then compute() should immediately
+ * stop (some delay is possible if required by the implementation) because
+ * the event has detected that whatever needed to be compute()-d can or need
+ * no longer be computed, say because some required computational resource
+ * (that compute() does not directly knows of or controls) is terminated.
+ * In this case
+ * 
+ *     compute() WILL RETURN AS ITS STATUS PRECISELY THE VALUE
+ *     RETURNED BY THE EVENT HANDLER
+ *
+ * This allows the event handler to more finely specify "what kind of bad
+ * stop has occurred", in case compute() supports more than one. In
+ * particular, values >= eStopError (which is taken equal to kError) are meant
+ * to represent "irrecoverable" errors, from which compute() is not likely to
+ * be able to ever recover. Instead, values between eStopOK and eStopError,
+ * extremes excluded, are left for "recoverable error states" where compute()
+ * was not able to conclusively obtain all of the desired answer (although it
+ * may have already obtained a part of it), but this was due to some reason
+ * that forced it to stop early on, such as a limit imposed on the available
+ * computational resources. By relaxing the limit, which may be as simple as
+ * calling compute() again, compute() may further proceed in the computation
+ * process, possibly finally providing a "good" answer. The event handler
+ * needs to know which compute() it is handling, and therefore ensure that
+ * the return value is valid for that compute(). */
 
  };  // end( compute_type )
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- CONSTRUCTING AND DESTRUCTING ThinComputeInterface ------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Constructing and destructing Block
+/** @name Constructing and destructing ThinComputeInterface
  *  @{ */
 
  /// constructor: does nothing, the class is thin
+
  ThinComputeInterface( void ) {}
 
 /*--------------------------------------------------------------------------*/
@@ -262,12 +431,149 @@ public:
  virtual void set_ComputeConfig( ComputeConfig *scfg = nullptr );
 
 /**@} ----------------------------------------------------------------------*/
+/*---------------------- METHODS FOR EVENTS HANDLING -----------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Set event handlers
+ *
+ *  The computation can be a long and complex process. Although some control
+ *  on it (say, its maximum time) is already allowed by the parameters, a
+ *  more fine-grained and ultimately interactive control may be needed. This
+ *  is what event handlers provide.
+ *
+ * An event is some occurrence happening inside compute() to which the caller
+ * may want to promptly react "immediately", i.e., before termination of the
+ * call. In order to achieve that, the caller may register event handlers
+ * with the ThinComputeInterface. An event handler, as defined by the
+ * EventHandler type, is a std::function taking no input and returning an int
+ * that tells the ThinComputeInterface which action it has to take after the
+ * event (see action_type). Each ThinComputeInterface will support a set of
+ * different types of events (see event_type), and will call all the event
+ * handlers registered under a certain event type when the corresponding
+ * condition occurs.
+ *
+ * Note that each ThinComputeInterface defines its own set of events, and
+ * can throw exception if required to handle events it does not support.
+ * Indeed, a ThinComputeInterface can be "so light" (a linear function ...)
+ * that events are not really a sensible option, which is why the default
+ * implementation of set_event_handler() unconditionally throws exception.
+ *
+ * The interface of event handlers may seem excessively threadbare; in
+ * particular, the event handler does not apparently even know "which
+ * ThinComputeInterface originated it". However, the typical usage pattern
+ * of event handlers is via lambdas, which cleanly solve the issue. That is,
+ * assume for instance that a callback foo( ThinComputeInterface * tci ) is
+ * available that one just want to call: it is easy to embed the information
+ * of the ThinComputeInterface * the callback is registered to (say, mytci)
+ * into the std::function by
+ *
+ *     mytci->set_event_handler( mytype ,
+ *                               [ mytci ] () { return( foo( mytci ) ); } );
+ *
+ * Note that this works also if foo() is, say, a member of the class where
+ * the call occurs, without requiring the use of std::bind, provided that
+ * this is explicitly added to the capture list. Also, note that the thusly
+ * defined lambda is a temporary whose lifetime does not extend beyond the
+ * end of the call to set_event_handler(). However, this is not an issue
+ * because the std::function that is created is then (allegedly) moved into
+ * the internal data structures of the ThinComputeInterface. This would not
+ * be possible by using a function pointer instead, as it would point to a
+ * soon-to-be temporary object. Besides, while there is a standard conversion
+ * between a lambda which *does not capture any context* to a function
+ * pointer, this does not work when the capture list is nonempty.
+ *
+ * The drawback is that calling a std::function incurs into a (hopefully,
+ * minimal) overhead w.r.t. calling a function pointer, but this seems to be
+ * largely justified by the increased functionality of the solution. However,
+ * this also implies that
+ *
+ *     EVENT HANDLERS SHOULD NOT BE CALLED IN THE TIGHTEST LOOPS Of compute()
+ *
+ * which does not seem to be too harsh a requirement.
+ *
+ * By being provided with, among any other information, a pointer to the
+ * ThinComputeInterface, the event handler can access all its public
+ * interface and therefore fetch from it all the information it needs to
+ * process the event. This will typically be :ThinComputeInterface-specific,
+ * although a skeleton interface is defined in ThinComputeInterface already
+ * for some very general concept that many ThinComputeInterface will probably
+ * support. An important note should also be made in this respect:
+ *
+ *     THE EVENT HANDLER WILL BE EXECUTED IN THE (MAIN) THREAD EXECUTING
+ *     compute(), WHICH THEREFORE WILL "NOT BE RUNNING" WHILE THE EVENT
+ *     HANDLER IS BEING EXECUTED
+ *
+ * This is of course a general statement, which will be true for any
+ * completely serial compute(), but may not be so for a compute() that is
+ * itself multi-threaded. However, the design principle is that
+ *
+ *     EVERY METHOD IN THE PUBLIC INTERFACE OF THE ThinComputeInterface
+ *     IS CALLABLE BY AN EVENT HANDLER UNLESS EXPLICTLY DECLARED OTHERWISE
+ *
+ * That is, each :ThinComputeInterface will have to specify, possibly
+ * separately for each type of event it supports, if some methods of its
+ * public interface are not available to be called by the event handler
+ * (maybe because the :ThinComputeInterface is multi-threaded and it cannot
+ * or does not want to handle the necessary synchronization), with the
+ * default being that if nothing is said then all of them can. Of course, a
+ * :ThinComputeInterface is allowed to rather specify a very small set of
+ * methods that can be called, which is OK provided it is explicitly done.
+ *
+ * It should be obvious, but let us explicitly remark that
+ *
+ *     IF THE EVENT HANDLER CAN BECOME INVALID, SAY BECAUSE THE OBJECT
+ *     WHOSE foo() METHOD IS INVOKED GOES OUT OF EXISTENCE, IT MUST BE
+ *     UNREGISTERED FROM THE ThinComputeInterface BEFORE THIS HAPPENS
+ *
+ * This is of course different from the fact that the EventHandler object
+ * itself becomes invalid; that the latter does not happen will be guaranteed
+ * by the ThinComputeInterface, but it is the caller's responsibility to
+ * ensure that any information that the event handler relies onto (apart of
+ * course from the ThinComputeInterface *, if any) will still be correct each
+ * time that the event handler is invoked. This is why reset_event_handler()
+ * and the handler id concept are provided.
+ *
+ *  @{ */
+
+ /// register a new event handler, returning its id
+ /** Adds a new event handler to these regostered for the given type. As the
+  * && tells, the event handler becomes property of the ThinComputeInterface,
+  * which is completely OK if, as one expects, it is defined via a lambda
+  * function. The method returns a unique id for the handler, which can (and
+  * must) be later used to remove the handler before it becomes invalid. Note
+  * that the handler is type-specific, i.e., two event handlers of different
+  * types can have the same id; in other words, the "real" id is the pair
+  * ( type , id ). An exception is thrown if the ThinComputeInterface is not
+  * capable of handling this type or event for whatever reason, among which
+  * that it has exhausted the available maximum number of event handlers
+  * slots for the given type. The method of the base class always throws
+  * exception. */
+
+ virtual EventID set_event_handler( int type , EventHandler && event )
+ {
+  throw( std::logic_error( "ThinComputeInterface::set_event_handler called" )
+	 );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// unregister an existing event handler
+ /** Removes the event handler with the given id from the list of those
+  * registered for the given type. If there is no event handler with the
+  * given id for the given type, exception will be thrown. The method of the
+  * base class always throws exception. */
+
+ virtual void reset_event_handler( int type , EventID id )
+ {
+  throw( std::logic_error( "ThinComputeInterface::reset_event_handler called"
+			   ) );
+  }
+
+/**@} ----------------------------------------------------------------------*/
 /*-------------------- METHODS FOR DOING THE COMPUTATION -------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Compute whatever the object is supposed to
  *  @{ */
 
- /// (try to) compute whatever the object is supposed to
+ /// (try to) compute whatever the object is supposed to, synchronously
  /** Starts or the computation process, or restarts a previously interrupted
   * computation process, and returns the status of the solver at termination.
   *
@@ -378,6 +684,38 @@ public:
   * do, but that clearly the global rule does not forbid doing. */
 
  virtual int compute( bool changedvars = true ) = 0;
+
+/*--------------------------------------------------------------------------*/
+ /// (try to) compute whatever the object is supposed to, asynchronously
+ /** This is just an one-line wrapper over compute() that runs it into a
+  * separate task and returns a std::future<int> upon which the caller can
+  * wait() for the result. Not really a significant contribution (it is not
+  * even virtual) and by no means the only way to make an asynchronous call
+  * to compute(), just a little convenience method that conveys what is
+  * perhaps the most convenient current C++ technique for asynchronous calls
+  * to compute(). */
+
+ std::future<int> compute_async( bool changedvars = true ) {
+  return( std::async( std::launch::async ,
+		      &ThinComputeInterface::compute , this , changedvars ) );
+  }
+
+/**@} ----------------------------------------------------------------------*/
+/*---------------------- METHODS FOR READING RESULTS -----------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Reading results
+ *
+ * Since ThinComputeInterface is a very "abstract" interface, which is
+ * independent from what is actually computed, there can hardly be methods for
+ * reading the results. However, a common aspect from all compute() is that
+ * they take time; also, most of them will be complex, iterative processes.
+ * Thus, ThinComputeInterface offers two skeleton methods to read the elapsed
+ * running time and iteration number from the last call to compute(). Among
+ * other possible uses, these can be useful to event handlers (see
+ * set_event_handler()).
+ *  
+ *  @{ */
+
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
@@ -573,8 +911,8 @@ public:
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- ///< get the whole set of parameters in one blow
- /**< This method gets the whole set of parameters in one blow using a
+ /// get the whole set of parameters in one blow
+ /** This method gets the whole set of parameters in one blow using a
   * ComputeConfig object.
   *
   * If a non-null ocfg is provided, then the pointed object (that is assumed
@@ -592,7 +930,9 @@ public:
   *
   * If all == true, then the whole set of parameters is copied. If all ==
   * false instead (default), only the parameters that are *not* at their
-  * default value are.
+  * default value are. The f_diff field of the produced ComputeConfig is
+  * set accordingly, i.e., f_diff == true <==> all == false. If for some
+  * reason this is not the intended value it can easily be changed later.
   *
   * Although the class is thin, this method is given a working configuration
   * using the class interface; hence, derived classes correctly implementing
@@ -679,11 +1019,13 @@ class ComputeConfig : public Configuration
 
 /*---------------------------- CONSTRUCTORS --------------------------------*/
  /// constructor: initializes everything to "default configuration"
+
  ComputeConfig( void ) : Configuration() , f_diff( true ) ,
   f_extra_Configuration( nullptr ) {}
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: does what it says on the tin
+ 
  ComputeConfig( const ComputeConfig &old ) : Configuration() {
   f_diff = old.f_diff;
   int_pars = old.int_pars;
@@ -694,13 +1036,13 @@ class ComputeConfig : public Configuration
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
  /// destructor; it deletes the f_extra_Configuration (if any)
- virtual ~ComputeConfig() {
-  delete f_extra_Configuration;
-  }
+
+ virtual ~ComputeConfig() { delete f_extra_Configuration; }
 
 /*------------------------------- CLONE -----------------------------------*/
  /// clone method
- virtual ComputeConfig * clone( void ) const override {
+
+ ComputeConfig * clone( void ) const override {
   return( new ComputeConfig( *this ) );
   }
 
@@ -710,56 +1052,68 @@ class ComputeConfig : public Configuration
   * format of a ComputeConfig. Besides the mandatory "type" attribute of
   * any :Configuration, the group should contain the following:
   *
-  * - the attribute "diff" of int type containing the value for the f_diff
-  *   field of the ComputeConfig (basically, a bool telling if the
+  * - the optional attribute "diff" of int type containing the value for the
+  *   f_diff field of the ComputeConfig (basically, a bool telling if the
   *   information in it has to be taken as "the configuration to be set" or
-  *   as "the changes to be made from the current configuration");
+  *   as "the changes to be made from the current configuration"); if the
+  *   attribute is not there, f_diff == false is assumed.
   *
-  * - the dimension "num_int_par" containing the number of int parameters;
+  * - the optional dimension "num_int_par" containing the number of int
+  *   parameters; if the dimension is not provided, 0 is assumed;
   *
   * - the variable "int_par_names", of type string and indexed over the
   *   dimension "num_int_par"; the i-th entry of the variable is assumed to
   *   contain the string name of an int parameter (see int_par_idx2str());
+  *   the variable is optional if num_int_par == 0 (e.g., it not provided),
+  *   since in this case it is ignored;
   *
   * - the variable "int_par_vals", of type int and indexed over the
   *   dimension "num_int_par"; the i-th entry of the variable is assumed to
   *   contain the value of the int parameter whose string name is to be found
-  *   in the i-th entry of "int_par_names";
+  *   in the i-th entry of "int_par_names"; the variable is optional if
+  *   num_int_par == 0 (e.g., it not provided), since in this case it is
+  *   ignored;
   *
-  * - the dimension "num_dbl_par" containing the number of double parameters;
+  * - the opional dimension "num_dbl_par" containing the number of double
+  *   parameters; if the dimension is not provided, 0 is assumed;
   *
   * - the variable "dbl_par_names", of type string and indexed over the
   *   dimension "num_dbl_par"; the i-th entry of the variable is assumed to
   *   contain the string name of a double parameter (see dbl_par_idx2str());
+  *   the variable is optional if num_dbl_par == 0 (e.g., it not provided),
+  *   since in this case it is ignored;
   *
   * - the variable "dbl_par_vals", of type double and indexed over the
   *   dimension "num_dbl_par"; the i-th entry of the variable is assumed to
   *   contain the value of the double parameter whose string name is to be
-  *   found in the i-th entry of "dbl_par_names";
+  *   found in the i-th entry of "dbl_par_names"; the variable is optional if
+  *   num_dbl_par == 0 (e.g., it not provided), since in this case it is
+  *   ignored;
   *
-  * - the dimension "num_str_par" containing the number of string parameters;
+  * - the optional dimension "num_str_par" containing the number of string
+  *   parameters; if the dimension is not provided, 0 is assumed;
   *
   * - the variable "str_par_names", of type string and indexed over the
   *   dimension "num_str_par"; the i-th entry of the variable is assumed to
   *   contain the string name of a string parameter (see int_par_idx2str());
+  *   the variable is optional if num_str_par == 0 (e.g., it not provided),
+  *   since in this case it is ignored;
   *
   * - the variable "str_par_vals", of type string and indexed over the
   *   dimension "num_str_par"; the i-th entry of the variable is assumed to
   *   contain the value of the string parameter whose string name is to be
-  *   found in the i-th entry of "str_par_names";
+  *   found in the i-th entry of "str_par_names"; the variable is optional if
+  *   num_int_par == 0 (e.g., it not provided), since in this case it is
+  *   ignored;
   *
   * - the group "extra" containing a Configuration object, which has no
   *   direct use in the base ComputeConfig class, but is added so that
   *   derived classes can put there any configuration information without
   *   having to define further derived classes form ComputeConfig (which,
-  *   however, they can still do if they want).
-  *
-  * The three dimensions "num_*_par" are mandatory. If any of these is zero,
-  * the corresponding variables "*_par_names" and "*_par_vals" may not be
-  * defined. The "extra" group may not exist, in which case the corresponding
-  * Configuration object is set to a nullptr. */
+  *   however, they can still do if they want); the group is optional, if it
+  *   does not exist the corresponding Configuration * is set to nullptr. */
 
- virtual void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( netCDF::NcGroup & group ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// extends Configuration::serialize( netCDF::NcGroup )
@@ -768,7 +1122,118 @@ class ComputeConfig : public Configuration
   * ComputeConfig::deserialize( netCDF::NcGroup ) for details of the format
   * of the created netCDF group. */
 
- virtual void serialize( netCDF::NcGroup & group ) const override;
+ void serialize( netCDF::NcGroup & group ) const override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// clears the vectors of parameters and the extra Configuration
+ /** This method clears the vectors holding the integer, double, and string
+  * parameters (#int_pars, #dbl_pars, and #str_pars). If
+  * #f_extra_Configuration is not nullptr then Configuration::clear() is
+  * invoked for #f_extra_Configuration. Moreover, #f_diff is set to false. */
+
+ void clear( void ) override {
+  int_pars.clear();
+  dbl_pars.clear();
+  str_pars.clear();
+
+  f_diff = false;
+
+  if( f_extra_Configuration )
+   f_extra_Configuration->clear();
+  }
+
+/*--------------------- METHODS FOR CHANGING PARAMETERS --------------------*/
+ /// set the given integer (int) numerical parameter
+ /** Set the integer (int) numerical parameter specified by \p name. If the
+  * parameter is not in the corresponding list it is added, otherwise its
+  * current value is changed to \p value. */
+
+ void set_par( std::string && name , int value ) {
+  auto it = std::find_if( int_pars.begin() , int_pars.end() ,
+		       [ & name ]( const std::pair< std::string , int > & el )
+		                 { return( name == el.first ); } );
+
+  if( it == int_pars.end() )
+   int_pars.push_back( std::pair< std::string , int >( std::move( name ) ,
+						       value ) );
+  else
+   it->second = value;
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// set the given float (double) numerical parameter
+ /** Set the float (double) numerical parameter specified by \p name. If the
+  * parameter is not in the corresponding list it is added, otherwise its
+  * current value is changed to \p value. */
+
+ void set_par( std::string && name , double value ) {
+  auto it = std::find_if( dbl_pars.begin() , dbl_pars.end() ,
+		   [ & name ]( const std::pair< std::string , double > & el )
+		             { return( name == el.first ); } );
+
+  if( it == dbl_pars.end() )
+   dbl_pars.push_back( std::pair< std::string , double >(
+					       std::move( name ) , value ) );
+  else
+   it->second = value;
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// set the given string numerical parameter
+ /** Set the numerical parameter specified by \p name. If the parameter is
+  * not in the corresponding list it is added, otherwise its current value is
+  * changed to \p value. */
+
+ void set_par( std::string && name , std::string && value ) {
+  auto it = std::find_if( str_pars.begin() , str_pars.end() ,
+	      [ & name ]( const std::pair< std::string , std::string > & el )
+		        { return( name == el.first ); } );
+
+  if( it == str_pars.end() )
+   str_pars.push_back( std::pair< std::string , std::string >(
+				  std::move( name ) , std::move( value ) ) );
+  else
+   it->second = std::move( value );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// removes a given parameter
+ /** Seeks the parameter with given \p name in the list of integer, double or
+  * string parameters as specified by \p type (with the values 'i', 'd' and
+  * 's', respectively); if it is found it is removed from the list, otherwise
+  * nothing is done. */
+
+ void reset_par( const std::string & name , char type = 'i' ) {
+  switch( type ) {
+   case( 'i' ): {
+    auto it = std::find_if( int_pars.begin() , int_pars.end() ,
+		       [ & name ]( const std::pair< std::string , int > & el )
+		                 { return( name == el.first ); } );
+    if( it != int_pars.end() ) {
+     *it = std::move( int_pars.back() );
+     int_pars.pop_back();
+     }
+    }
+   case( 'd' ): {
+    auto it = std::find_if( dbl_pars.begin() , dbl_pars.end() ,
+		    [ & name ]( const std::pair< std::string , double > & el )
+		              { return( name == el.first ); } );
+    if( it != dbl_pars.end() ) {
+     *it = std::move( dbl_pars.back() );
+     dbl_pars.pop_back();
+     }
+    }
+   case( 's' ): {
+    auto it = std::find_if( str_pars.begin() , str_pars.end() ,
+	      [ & name ]( const std::pair< std::string , std::string > & el )
+		        { return( name == el.first ); } );
+    if( it != str_pars.end() ) {
+     *it = std::move( str_pars.back() );
+     str_pars.pop_back();
+     }
+    }
+   }
+  }  // end( reset_par )
 
 /*--------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
 
@@ -793,7 +1258,7 @@ class ComputeConfig : public Configuration
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 
  /// print the ComputeConfig
- virtual void print( std::ostream &output ) const override;
+ void print( std::ostream &output ) const override;
 
 /*--------------------------------------------------------------------------*/
  /// load this ComputeConfig out of an istream
@@ -819,13 +1284,13 @@ class ComputeConfig : public Configuration
   * - a string containing the name of the string perameter
   * - a string (the parameter)
   *
-  * a string containing the class type of the extrs Configuration object,
+  * a string containing the class type of the extra Configuration object,
   * '*' means none (nullptr)
   *
   * if the above is not '*', the description of the :Configuration object
   */
 
- virtual void load( std::istream &input ) override;
+ void load( std::istream &input ) override;
 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 

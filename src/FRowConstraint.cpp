@@ -41,7 +41,7 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------------------------------------------------*/
 
 void FRowConstraint::set_function( Function * const function ,
-				   c_ModParam issueMod , bool deleteold )
+				   ModParam issueMod , bool deleteold )
 {
  if( function == f_function )  // changing nothing
   return;                      // all done
@@ -85,7 +85,7 @@ void FRowConstraint::set_function( Function * const function ,
 
 /*--------------------------------------------------------------------------*/
 
-void FRowConstraint::set_rhs( c_RHSValue rhs_value , c_ModParam issueMod )
+void FRowConstraint::set_rhs( c_RHSValue rhs_value , ModParam issueMod )
 {
  if( f_rhs == rhs_value )  // actually doing nothing
   return;                  // cowardly (and silently) return
@@ -102,7 +102,7 @@ void FRowConstraint::set_rhs( c_RHSValue rhs_value , c_ModParam issueMod )
 
 /*--------------------------------------------------------------------------*/
  
-void FRowConstraint::set_lhs( c_RHSValue lhs_value , c_ModParam issueMod )
+void FRowConstraint::set_lhs( c_RHSValue lhs_value , ModParam issueMod )
 {
  if( f_lhs == lhs_value )  // actually doing nothing
   return;                  // cowardly (and silently) return
@@ -119,7 +119,7 @@ void FRowConstraint::set_lhs( c_RHSValue lhs_value , c_ModParam issueMod )
 
 /*--------------------------------------------------------------------------*/
 
-void FRowConstraint::set_both( c_RHSValue both_value , c_ModParam issueMod )
+void FRowConstraint::set_both( c_RHSValue both_value , ModParam issueMod )
 {
  if( ( f_rhs == both_value ) && ( f_lhs == both_value ) )  // doing nothing
   return;                                 // cowardly (and silently) return
@@ -135,6 +135,70 @@ void FRowConstraint::set_both( c_RHSValue both_value , c_ModParam issueMod )
 			    Observer::par2chnl( issueMod ) );
  }
 
+/*--------------------------------------------------------------------------*/
+/*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE FRowConstraint -------*/
+/*--------------------------------------------------------------------------*/
+
+void FRowConstraint::remove_variable( Index i , ModParam issueMod )
+{
+ /* FRowConstraint typically relies on FunctionModVars to know if something
+  * has happened to the Variable of the Function and register/unregister
+  * itself from them. However, in this case it knows beforehand what is
+  * happening. If there is no real reason to have the Modification issued,
+  * it will instruct the Function not to and do the unregistering herein. */
+  
+ if( ! f_function )
+  return;
+
+ if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
+  f_function->remove_variable( i , issueMod );
+ else {
+  // unregistration can preceed removal, since the Function completely
+  // ignores this information
+  f_function->get_active_var( i )->remove_active( this );
+  f_function->remove_variable( i , eNoMod );
+  }
+ }  // end( FRowConstraint::remove_variable )
+
+/*--------------------------------------------------------------------------*/
+
+void FRowConstraint::remove_variables( Range range , ModParam issueMod )
+{
+ if( ! f_function )
+  return;
+
+ if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
+  f_function->remove_variables( range , issueMod );
+ else {
+  // unregistration can preceed removal, since the Function completely
+  // ignores this information
+  for( Index i = range.first ; i < range.second ; )
+   f_function->get_active_var( i++ )->remove_active( this );
+  f_function->remove_variables( range , eNoMod );
+  }
+ }  // end( FRowConstraint::remove_variables( range ) )
+
+/*--------------------------------------------------------------------------*/
+
+void FRowConstraint::remove_variables( Subset && nms , bool ordered ,
+				       ModParam issueMod )
+{
+ if( ! f_function )
+  return;
+
+ if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
+  f_function->remove_variables( std::move( nms ) , ordered , issueMod );
+ else {
+  // unregistration can preceed removal, since the Function completely
+  // ignores this information
+  for( auto i : nms )
+   f_function->get_active_var( i++ )->remove_active( this );
+  f_function->remove_variables( std::move( nms ) , ordered , eNoMod );
+  }
+ }  // end( FRowConstraint::remove_variables( subset ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------- METHODS DESCRIBING THE BEHAVIOR OF AN Observer -------------*/
 /*--------------------------------------------------------------------------*/
 
 void FRowConstraint::add_Modification( sp_Mod mod , c_ChnlName chnl )
@@ -157,16 +221,16 @@ void FRowConstraint::add_Modification( sp_Mod mod , c_ChnlName chnl )
   
   // GroupModification - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   {
-   const auto tmod = std::dynamic_pointer_cast<GroupModification>( mod );
+   const auto tmod = std::dynamic_pointer_cast< GroupModification >( mod );
    if( tmod ) {
-    for( const auto & submod : tmod->v_sub_Modifications )
+    for( const auto & submod : tmod->sub_Modifications() )
      guts_of_aM( submod );
     }
    }
 
   // FunctionModVars - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   {
-   const auto tmod = std::dynamic_pointer_cast<FunctionModVars>( mod );
+   const auto tmod = std::dynamic_pointer_cast< FunctionModVars >( mod );
    if( ! tmod )
     return;
 

@@ -86,7 +86,7 @@
  *
  * \version 0.33
  *
- * \date 09 - 01 - 2020
+ * \date 29 - 07 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -110,7 +110,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __Block
- #define __Block /* self-identification: #endif at the end of the file */
+#define __Block       /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -140,8 +140,6 @@ namespace SMSpp_di_unipi_it
  class Solution;            // forward definition of Solution
 
  class BlockConfig;         // forward definition of BlockConfig
-
- class BlockSolverConfig;   // forward definition of BlockSolverConfig
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- Block-RELATED TYPES ----------------------------*/
@@ -553,9 +551,6 @@ namespace SMSpp_di_unipi_it
  * - changing all the relevant parameters governing the Block behaviour in
  *   one blow by means of a single BlockConfig object;
  *
- * - changing all the attached Solver and their algorithmic configurations in
- *   one blow by means of a single BlockSolverConfig object;
- *
  * - printing the model in a human-readable form;
  *
  * - to help in the above, allow Variable and Constraint to be given
@@ -708,6 +703,84 @@ class Block : public Observer {
  using MS_int_sbst = arg_packer< MF_int_it , Subset && , const bool >;
 
 /**@} ----------------------------------------------------------------------*/
+
+ /// ConstraintID identifies a Constraint within a Block
+ /** A single Constraint of a Block can be identified by three pieces of
+  * information: whether it is a static or a dynamic Constraint, the index of
+  * the group to which is belongs, and the index of the Constraint in its
+  * group. The first information can be encoded in the second one if we
+  * redefine the index of the i-th dynamic group to be
+  *
+  *   i + number_static_constraint_groups.
+  *
+  * Let the pair (i, j) be a ConstraintID. If
+  *
+  *   i < number_static_constraint_groups,
+  *
+  * then it refers to a static Constraint, located at position j of the i-th
+  * static group. If
+  *
+  *   i >= number_static_constraint_groups,
+  *
+  * then it refers to a dynamic Constraint, located at position j of the
+  * dynamic group whose index is
+  *
+  *   i - number_static_constraint_groups.
+  *
+  * We now explain how the index of a Constraint within a group can be
+  * determined, as it may not be obvious for multidimensional groups. It is
+  * important to notice that all indices mentioned here belong to zero-based
+  * numbered sequences, i.e., sequences whose first element is 0.
+  *
+  * A static group of Constraint can be one of three types:
+  *
+  * 1. It is a single Constraint;
+  *
+  * 2. It is a vector of Constraint;
+  *
+  * 3. It is a multidimensional array of Constraint.
+  *
+  * In the first case, in which the group is a single Constraint, the index of
+  * the Constraint is 0. In the second case, in which the group is a vector of
+  * Constraint, the index of the Constraint is simply its position in that
+  * vector. In the last case, in which the group is a multidimensional array
+  * of Constraint, the index of the Constraint is its position in the
+  * vectorized multidimensional array in row-major layout. For instance, if
+  * the multidimensional array has two dimensions with sizes m and n,
+  * respectively, then the Constraint at position (p, q) would have an index
+  * equal to "n * p + q" (recall the indices start from 0). In general, for a
+  * multidimensional array with k dimensions with sizes (n_0, ..., n_{k-1}),
+  * the Constraint at position (i_0, ..., i_{k-1}) would have an index equal
+  * to
+  *
+  * \[
+  *    \sum_{r = 0}^{k-1} ( \prod_{s = r + 1}^{k-1} n_s ) i_r.
+  * \]
+  *
+  * A dynamic group of Constraint can be one of three types:
+  *
+  * 1. It is list of Constraint;
+  *
+  * 2. It is a vector of lists of Constraint;
+  *
+  * 3. It is a multidimensional array of lists of Constraint.
+  *
+  * In the first case, in which the group is a list of Constraint, the index
+  * of the Constraint is its position in that list. In the second case, in
+  * which the group is a vector of lists of Constraint, for a Constraint at
+  * position j of the k-th list of the vector, its index is given by
+  *
+  * \[
+  *    j + \sum_{t = 0}^{k-1} s_t
+  * \]
+  *
+  * where s_t is the number of Constraint in the t-th list of the vector. The
+  * last case is analogous.
+  */
+
+ using ConstraintID = std::pair< Index , Index >;
+
+/*--------------------------------------------------------------------------*/
 /*------------------------------- FRIENDS ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -727,7 +800,7 @@ class Block : public Observer {
   * that this can also be used as the void constructor), which may be useful
   * early on to a Block to initialize itself. */
 
- Block( Block *father = nullptr ) : Observer() ,
+ Block( Block *father = nullptr ) : Observer() , f_owner( nullptr ) ,
   f_at( false ) , verbosity_lvl( low ) , f_BlockConfig( nullptr ) ,
   f_channel( 0 ) , f_Block( father ) , f_Objective( nullptr ) {}
 
@@ -771,12 +844,30 @@ class Block : public Observer {
   *
   *       SMSpp_insert_in_factory_cpp_1( name_of_the_class );
   *
-  *   to exactly *one* .cpp file, typically that :Block .cpp file. */
+  *   to exactly *one* .cpp file, typically that :Block .cpp file. If the name
+  *   of the class contains any parentheses, then one must enclose the name of
+  *   the class in parentheses and instead add the line
+  *
+  *       SMSpp_insert_in_factory_cpp_1( ( name_of_the_class ) );
+  *
+  * Any whitespaces that the given \p classname may contain is ignored. So,
+  * for example, to create an instance of the class MyBlock<int> one could
+  * pass "MyBlock<int>" or "MyBlock< int >" (even " M y B l o c k < int > "
+  * would work).
+  *
+  * @param classname The name of the :Block class that must be constructed.
+  *
+  * @param father A pointer to the father of the Block that will be
+  *        constructed. */
 
  static Block *new_Block( const std::string &classname ,
 			  Block *father = nullptr )
  {
-  const auto it = Block::f_factory().find( classname );
+  std::string classname_( classname );
+  classname_.erase( std::remove_if( classname_.begin() , classname_.end() ,
+                                    ::isspace ) , classname_.end() );
+
+  const auto it = Block::f_factory().find( classname_ );
   if( it == Block::f_factory().end() )
    throw( std::invalid_argument( classname +
 			   std::string( " not present in Block factory" ) ) );
@@ -809,9 +900,8 @@ class Block : public Observer {
   * Note that the :Block returned my this method is clearly not "empty", as
   * opposed as :Block fresh out of the factory (see new_Block()), but is it
   * "un-configured": the "abstract representation" is not constructed (unless
-  * the :Block does this by its own volition), both the BlockConfig and the
-  * BlockSolverConfig are not set, and (therefore) there are no Solver
-  * attached. */
+  * the :Block does this by its own volition), the BlockConfig is not set, and
+  * (therefore) there are no Solver attached. */
 
  static Block * deserialize( const char * filename )
  {
@@ -1108,18 +1198,608 @@ class Block : public Observer {
 
 /*--------------------------------------------------------------------------*/
  /// destructor of Block: it is virtual
- /** Destructor of Block: it invokes set_BlockConfig() and set_SolverConfig()
-  * to clean up the configuration of the Block and all Solver attached to it
-  * (and recursively for its sub-Block), hence if there is any Solver that
-  * has to survive the Block it has to be manually unregistered from the
-  * Block before the latter is deleted. It also cleans up any currently
-  * open GroupModification. */
+ /** Destructor of Block: it invokes set_BlockConfig() to clean up the
+  * configuration of the Block. It also cleans up any currently open
+  * GroupModification. */
 
  virtual ~Block() {
   set_BlockConfig();
-  set_SolverConfig();
   for( auto ptr : v_current_GroupMod )
    delete ptr;
+  }
+
+/**@} ----------------------------------------------------------------------*/
+/*----------------- Methods for acquiring/releasing the Block --------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for acquiring/releasing the Block
+ *
+ * One of the main reasons for the existence of SMS++ is to support
+ * asynchronous operations on different parts of an optimization problem
+ * (different Block and sub-Block of a Block), and in general approaches
+ * capable of exploiting multiple available processors. The fundamental
+ * design principles of SMS++ basically mandate a shared memory (although a
+ * distributed framework could be constructed on top of SMS++); thus, access
+ * control and synchronization primitives need be provided by Block.
+ *
+ * This access control is basically structured as the classical "Big Fat
+ * Lock": before being modified, a Block need be "locked". Once the lock is
+ * acquired by any entity, only that entity is entitled to modify it. Until
+ * the entity releases the lock, no other entity can take it. This means that
+ * not only no other entity is allowed to modify the Block, but that even
+ * reading the Block data is unadvisable, in that it can be modified at any
+ * time by the other entity, which easily leads to data inconsitencies.
+ *
+ * Note that sub-Block are "a part of the Block"; this means that locking a
+ * Block implies locking all its sub-Block, recursively. In turn, this implies
+ * that locking a Block is not a "cheap" operation. Because of this, the
+ * locking and unlocking operations are *not* automatically performed by any
+ * method changing anything in the Block, but must be explicitly called before
+ * invoking any such method. The rationale for this choice is:
+ *
+ * - it dramatically simplifies the implementation of :Block, especially in
+ *   the case where a method of a derived class must call that of the base
+ *   class;
+ *
+ * - it allows to bunch a set of Block-changing operations under the same
+ *   lock/unlock stretch to improve performances;
+ *
+ * - there can be cases when one can be 100% sure that no other thread/entity
+ *   can possibly operate on the Block, either because the overall application
+ *   is rigidly single-threaded, or because the Block can only be accessed
+ *   via a rigidly controlled access point (for instance, the Block has
+ *   just been created out of a factory and there currently is only one
+ *   pointer to it that no other thread can possibly be sharing because it
+ *   is, say, a local variable in a function).
+ *
+ * Of course
+ *
+ *     EACH TIME THE Block IS LOCKED IT HAS TO BE UNLOCKED, WHICH MEANS
+ *     THAT ALL LOCK/UNLOCK STRETCHES THAT MAY THROW EXCEPTION SHOULD
+ *     BE ENCLOSED INSIDE A try - catch BLOCK OR ANALOGOUS CONSTRUCT
+ *
+ * While all this is mostly useful for asynchronous approaches, in general
+ * even in a synchronous setting it may not be trivial to ensure that
+ * different parts of a complex solution process "agree" on what kind of
+ * changes may be allowed to a given Block at any point in time. Therefore,
+ * the lock/unlock mechanism of Block is thought to be used even in a
+ * single-threaded environment to ensure that different parts of a solution
+ * process do not overstep the boundaries of their allowed changes. To handle
+ * these aspects, the lock/unlock mechanism of Block has the following
+ * specific features:
+ *
+ * - It explicitly indicates the "owner" of the Block (under the form of a
+ *   void *). This allows the owner to cheaply check if the Block is already
+ *   locked by itself and avoid to re-lock it. This is particularly useful
+ *   in that is allows "transfer of ownership" between different entities:
+ *   the entity owning a Block can provide another entity "access right" to,
+ *   say, a sub-Block of the Block, knowing that this may produce localized
+ *   changes that it is able to manage.
+ *
+ * - It explicitly stores the thread::id of the owner. This is necessary in
+ *   that attempts to locking an already locked block need necessarily be
+ *   handled differently according to the fact that the new would-be owner
+ *   runs in a different thread than the current owner or the same one.
+ *   Indeed, if it runs in a different thread it can just "go to sleep on
+ *   the mutex" (that the Block provides) and be automatically woken up when
+ *   the current owner relinquishes the lock; in other words, the lock
+ *   operation always eventually suceeds. However, if it runs in the same
+ *   thread this cannot happen, which means that the lock operation may
+ *   have to explicitly fail.
+ *
+ * The latter part, however, means that the
+ *
+ *     THE RESULT OF lock() AND unlock() OPERATIONS MAY DEPEND ON WHICH
+ *     THREAD THEY ARE CALLED BY.
+ *
+ * See the comment to the individual methods for details.
+ *
+ * Since a BFL may impose high synchronization costs, a "relaxed" version of
+ * the concept is provided by means of read_[only_]lock() and
+ * read_[only_]unlock(). Unlike the "normal" lock, which is read-write, any
+ * number of read-only locks can be concurrently acquired on the same Block;
+ * however, each of the entities is only permitted to read the Block, but not
+ * to modify it.
+ *
+ * Read-only locks are different from read-write-lock in that there is no
+ * concept of a single owner. Clearly, a read-lock is incompatible with a
+ * read-write-lock, and vice-versa. Any number of read-lock can belong to
+ * the same thread, but any read-write-lock from the same thread will
+ * immediately fail, as will any read-lock from the same thread as the
+ * owner of a read-write-lock. In all other cases the locks will wait on
+ * the mutex.
+ *
+ * Note that read-locks are somewhat simpler than read-write locks to manage
+ * because they are "counted": a new read-lock on an already read-locked
+ * Block just increments the counter, which means that the simple rule
+ * "one read-unlock for each read-lock" holds (unlike read-write-locks
+ * where a single unlock undoes any number of locks). However, note that
+ *
+ *      READ-ONLY LOCKS ARE COUNTED *PER THREAD*,  WHICH IMPLIES THAT EACH
+ *      THREAD THAT MAKES A READ-ONLY LOCK MUST EVENTUALLY MAKE A
+ *      READ-ONLY-UNLOCK
+ *
+ * Conversely, read-write-unlocks are thread-independent (but there still
+ * are requirements about doing read-write-locks and read-write-unlocks
+ * for the same owner from different threads, see the comments to the
+ * individual methods for details).
+ * @{ */
+
+ /// returns true if the Block is already owned by owner
+ /** The method returns true if the Block is already owned by owner. Note
+  * that this method just compares the internal field with the argument,
+  * and it is therefore
+  *
+  *     DANGEROUS TO BE USED IN A CONCURRENT CONTEXT IF owner RUNS IN A
+  *     DIFFERENT THREAD THAN THE CURRENT OWNER
+  *
+  * This is because, obviously, the internal field can change at any point
+  * in time immediately after the operation and before its result can be
+  * used. However, the method
+  *
+  *     CAN TYPICALLY BE USED TO ESTABLISH THAT THE ENTITY MAKING THE CALL
+  *     IS THE CURRENT OWNER
+  *
+  * This is so if the entity making the call is single-threaded, or if the
+  * call is made by the "main thread" where the other threads do not mess up
+  * with ownership of the Block. Indeed, the main reason for the existence of
+  * this method is to cheaply solve the issue poised by calls to
+  * lock( owner ) where owner is already the current owner. The issue is that
+  * such a call is supposed to immediately return true without doing nothing;
+  * however, in so doing it breaks the concept that each lock() should be
+  * paired with an unlock(), because the first unlock() by the owner undoes
+  * any number of previous consecutive lock() by the same entity. Therefore,
+  * if there is any doubt that the entity could already own the Block, the
+  * call scheme should be
+  *
+  *     bool owned = block->is_owned_by( me );
+  *     if( ( ! owned ) && ( ! block->lock( me ) ) )
+  *      < something happens, typcally a disaster >
+  *
+  *     < block is mine, do whatever I want with it >
+  *
+  *     if( ! owned )
+  *      block->unlock( me );
+  *
+  * This works if "me" is sure that no other thread can "share its identity"
+  * and be concurrently trying to lock/unlock the Block.
+  *
+  * A similar use of is_owned_by() is advised even when read_lock()-ing a
+  * Block.ì, i.e.,
+  *
+  *     bool owned = block->is_owned_by( me );
+  *     if( ( ! owned ) && ( ! block->read_lock() ) )
+  *      < something happens, typcally a disaster >
+  *
+  *     < block is mine, surely at least to read >
+  *
+  *     if( ! owned )
+  *      block->read_unlock();
+  *
+  * The rationale for this is the possibility for a Solver to (be forced to)
+  * "acquire someone else's identity" [cf. Solver::set_id()]. This is tied to
+  * the fact that the entity (say, a Solver) that has locked a Block may rely
+  * on [sub-]Solver to operate on (typically, sub-Block of) it. If the entity
+  * read_lock()s the Block, then the [sub-]Solver can freely read_lock() it
+  * again with no issues. However, if the entity has write lock()d the Block,
+  * the [sub-]Solver cannot read_lock() it. It is therefore always better to
+  * check if a Block need not be lock()d, be it a read_lock() or a write
+  * lock(), because it is already owned.
+  *
+  * Of course, this puts the onus on the entity that originally write
+  * lock()d the Block not to release the lock while any of the involved
+  * [sub-]Solver need to keep it. */
+
+ bool is_owned_by( void * owner ) { return( f_owner == owner ); }
+
+/*--------------------------------------------------------------------------*/
+ /// tries to lock the Block, return true on success
+ /** Attempts to acquire the lock on the Block for the entity "owner".
+  *
+  * The "owner" parameter is a void * and can in principle be anything;
+  * the only real restriction is that
+  *
+  *     OWNER MUST NOT BE nullptr, NOR A POINTER TO SOME INTERNAL FIELD OF
+  *     THE Block (BECAUSE TWO SUCH POINTERS ARE USED FOR INTERNAL PURPOSES,
+  *     SEE ReadOnlyLock() and v_ownersLock())
+  *
+  * In general one would want that "no other entity else should use the same
+  * value". Typically, the entity will be an object (say, a Solver), and
+  * "owner" will be the "this" of the object, so that no-one else has the
+  * same identity unless the object purposely "lends its identity". Note that
+  * there is no way for an external entity to know the owner's identity
+  * before the call and therefore "impersonate" it.
+  *
+  * If "owner" is already the owner, the operation surely suceeds at almost
+  * zero cost. This in particular means that
+  *
+  *     TWO LOCK OF ONE Block BY THE SAME OWNER EFFECTIVELY ARE ONE SINGLE
+  *     LOCK, AND THEREFORE THEY MUST BE UNLOCKED ONLY ONCE
+  *
+  * It is responsibility of the caller of lock() to keep track of this, and
+  * call unlock() the right number of times; see the comments to
+  * is_owned_by(). Analogously, if the owner is a multi-threaded entity,
+  * it must coordinate locking of Block between its threads on its own; in
+  * particular, it should never happen that a thread is unlocking the Block
+  * for a given owner while another thread is locking it for the same
+  * owner, because in this case the lock may suceed but the Block may end
+  * up being unlocked.
+  *
+  * It is also important to remark that
+  *
+  *     THE THREAD RUNNING THE FIRST SUCCESSFUL LOCK IS RECORDED AS THE
+  *     OWNER'S THREAD, WHICH IMPACTS THE OUTCOME OF SUBSEQUENT lock()
+  *
+  * In fact, if the Block owner's thread is the same as the one calling
+  * lock(), the operation immediately fails
+  *
+  *     UNLESS THE OWNER IS THE SAME, IN WHICH CASE THE THREAD IS IRRELEVANT
+  *
+  * If, instead, owner's thread is different from the one calling lock(),
+  * then lock() goes to sleep until the Block is unlocked by the current
+  * owner; then, one of the interested threads gets to own the lock, the
+  * others being kept sleeping.
+  *
+  * If the Block is un-owned, the operation succeeds if also all the sub-Block
+  * can be successfully locked. This means that the operation immediately
+  * fails if the owner's thread of the first encountered sub-Block that is
+  * already owned is the same as the thread making the call, unless the owner
+  * is "owner" already. In this case, all the sub-Block that had been
+  * tentatively locked during the unsuccessfull attempt are immediately
+  * unlocked. If, instead, the owner's thread of the first already owned
+  * sub-Block is different from the thread making the call (and the owner is
+  * not "owner"), then lock() goes to sleep until that sub-Block is unlocked
+  * by the current owner; then a race is possibly ran between interested
+  * threads to see who gets to own it first, the others being put back to
+  * sleep. Note that the previously locked sub-Block are not unlocked
+  * while lock() sleeps. It is therefore crucial that locking is always
+  * performed in a pre-visit (the father is locked before all its sons). This
+  * ensures that a locking sweep of the tree can only be stalled by another
+  * thread locking of one of its sub-trees, but that the locking of the
+  * sub-tree cannot be itself stalled (if not by a locking of a
+  * sub-sub-tree). In other words, the "inner" locking sweep between all
+  * the active ones will surely suceed withouh being stalled by the others,
+  * which ensures that there will be no deadlock between concurrent locking
+  * operations. This always work provided that
+  *
+  *     AN ENTITY OWNING A sub-Block NEVER TRIES TO OWN A Block THAT
+  *     INCLUDES IT, AND NO ENTITY EVER TRIES TO OWN TWO DIFFERENT
+  *     Block.
+  *
+  * Indeed, consider the case of two Block Father --> Son, where Son is
+  * already owned by an entity, while a different one (running on a different
+  * thread) is trying to lock Father. This lock attempt will stall waiting
+  * for Son to be unlocked. However, if the owner of Son also tries to lock
+  * Father, this will also stall and a deadlock will ensue. Since lock
+  * operations naturally travel "downward" on a tree, the lock attempts must
+  * always proceed top-down. Obviously, if an entity is trying to own two
+  * different Block, say B1 and B2 in this order, any other entity trying to
+  * own B2 and B1 (in this order) may deadlock. If this can happen, an 
+  * additional ad-hoc synchronization layer will be needed. Yet, note that
+  *
+  *     NO ADDITIONAL MECHANISM IS REQUIRED IF B1 AND B2 ARE BOTH DESCENDANTS
+  *     OF THE SAME BLOCK B, AND BOTH ENTITIES TRY TO OWN B DIRECTLY
+  *
+  * In fact, one of the two will surely suceed. Hence, it is always safe to
+  * lock a subset of Block by locking their (say) nearest common ancestor, if
+  * any exists.
+  *
+  * In most cases, there should be no reason for derived classes to mess
+  * up with this mechanism. However, some :Block may have nonstandard
+  * behavior, e.g. about how they store their sub-Block, and therefore for
+  * maximal flexibility this methos is virtual. */
+ 
+ virtual bool lock( void * owner ) {
+  if( ( ! owner ) || ( owner == ReadOnlyLock() ) ||
+      ( owner == v_ownersLock() ) )
+    throw( std::logic_error( "invalid owner in lock()" ) );
+
+  for(;;) {  // this may have to be repeated many times
+   void * current_owner = nullptr;
+   if( f_owner.compare_exchange_strong( current_owner , owner ) ) {
+    // the Block was un-owned, we now try to own it
+    // this may still fail because in order to own a Block all of its
+    // sub-Block must also be owned: try to do that
+
+    f_mutex.lock();  // first of all, lock the mutex: this is a bit weird
+                     // because the Block should be "free", but it is done
+    // immediately so that other Block willing to take ownership from
+    // different threads can sleep on the mutex even during the potentially
+    // long time its takes to (try to) lock all sub-Block, instead of
+    // actively looping on the compare_exchange_strong()
+
+    if( lock_sub_block( owner ) ) {  // if all sub-Block can be owned
+     f_owner_thread_id = std::this_thread::get_id();   // record own id
+     return( true );                                   // all done
+     }
+
+    // it was not possiblt to lock all the sub-Block;
+    f_owner = nullptr;  // release ownership of the Block
+    f_mutex.unlock();   // release the mutex
+    return( false );    // failed to lock the Block
+    }
+   else  // an owner already existed
+    if( current_owner == owner )  // but it's the would-be owner
+     return( true );              // nothing to do, it already owns the Block
+     // note: we are assuming that the current owner is not multi-threaded,
+     //       in the sense that no other thread sharing the owner identity
+     //       can be unlocking the Block in this very instant
+    else {                        // the current owner is different
+     if( ( current_owner == ReadOnlyLock() ) ||
+	 ( current_owner == v_ownersLock() ) ) {
+      // and it's a read-lock rather than a read-write lock
+      for(;;) {  // acquire the "active lock" on v_owners
+       // note that the Block may be read-locked by a single entity which
+       // was precisely in the process of releasing the last read-lock; in
+       // the picosecond between the first compare_exchange_strong() and the
+       // one below the read-lock may have been released and a new
+       // read-write lock may have been established, so we still have to
+       // consider the read-write-lock case
+       current_owner = ReadOnlyLock();
+       if( f_owner.compare_exchange_strong( current_owner , v_ownersLock() ) )
+       {
+	// a read-lock was indeed still in place and v_owner was
+	// active-unlocked, active lock successfully acquired
+	// check if there is any read-write lock from the current thread
+	auto it = v_owners.find( std::this_thread::get_id() );
+	// immediately release the active lock on v_ownersLock
+	f_owner = ReadOnlyLock();
+	if( it == v_owners.end() )  // if not
+	 break;            // it's OK to go to sleep on the mutex
+	else
+	 return( false );  // the only recourse is to fail
+	 // note: clearly, even if there were a single read-lock from this
+	 //       thread, it is not possible that the read-lock is being
+         //       released right now, because this should be done by this
+         //       thread, which is now doing this operation rather than
+	 //       read-unlocking the Block
+        }
+       else
+	if( current_owner == v_ownersLock() )  // v_owner was active-locked
+	 continue;                             // repeat until access granted
+       // else, a read-write lock suceeded in sneaking in: however, this
+       // read-write lock cannot possibly be running in the same thread, so
+       // it's still OK to go to sleep on the mutex without further checks
+       break;
+       }  // end( for( ever ) )
+      }
+     else  // the current owner is a read-write lock
+      if( f_owner_thread_id == std::this_thread::get_id() )
+                                  // but it runs on the same thread
+       return( false );           // the only recourse is to fail
+       // note: clearly, it is not possible that the current owner is
+       //       releasing the Block precisely at this point, because it
+       //       runs in the very same thread, and this thread is now doing
+       //       this operation rather than unlocking the Block
+
+     // if we get here, either the current owner is a read-write lock that
+     // runs in a different thread, or it is a bunch of read-locks, all of
+     // which run in a different thread
+
+     f_mutex.lock();  // first of all, lock the mutex
+                      // one expects the mutex to be locked, so that the
+                      // thread will go to sleep; in the weird case where
+     // the entity having taken ownership of the Block has not suceeded to
+     // lock the mutex already, the next step of trying to get ownership of
+     // the Block will fail immediately, the mutex will be released and a
+     // new attempt will be made
+
+     // (possibly) after having slept on the mutex, try to own the Block
+     current_owner = nullptr;
+     if( f_owner.compare_exchange_strong( current_owner , owner ) ) {
+      // no owner came in and beat us, the Block can be owned
+      if( lock_sub_block( owner ) ) {  // ... if all sub-Block can be owned
+       f_owner_thread_id = std::this_thread::get_id();  // record own id
+       return( true );                                  // all done
+       }
+
+      // it was not possiblt to lock all the sub-Block;
+      f_owner = nullptr;  // release ownership of the Block
+      f_mutex.unlock();   // release the mutex
+      return( false );    // failed to lock the Block
+      }
+     else {
+      // someone managed to do the atomic swap before us and it is now
+      // trying to lock the mutex to finalize locking of the sub-Block:
+      // the only solution is to give up the mutex to allow it do that,
+      // and then repeat everything (try the atomic swap, fail, go to
+      // sleep on the mutex, rinse and repeat)
+      f_mutex.unlock();
+      }
+     }
+   }  // end infinite loop
+  }  // end( lock() )
+
+/*--------------------------------------------------------------------------*/
+ /// unlock the Block
+ /** Removes the current read-write-lock on the Block, relinquishing
+  * ownership. This of course also relinquishes ownership on all the
+  * sub-Block of the Block.
+  *
+  * The unlocking is performed "in reverse" than the locking, i.e., with a
+  * post-visit (the father is unlocked after all the sons are) of the
+  * Block tree.
+  *
+  * It is clearly incorrect both to read-write-unlock a non-read-write-locked
+  * Block (which means, either an unlocked Block or a read-locked one) and
+  * for a non-owner to unlock a Block that some other entity had locked.
+  * This is why unlock() also has the owner parameter; if any of the above
+  * incorrect operations are attempted, exception will be thrown.
+  *
+  * Also, note that
+  *
+  *     AN OWNER RE-LOCKING AN ALREADY OWNED Block IS A NO-OP, WHICH
+  *     IMPLIES THAT ANY SEQUENCE OF LOCKING A Block BY THE SAME OWNER
+  *     MUST BE UNLOCKED ONLY ONCE
+  *
+  * It is responsibility of the caller of lock()/unlock() to keep track of
+  * this, see the comments to is_owned_by().
+  *
+  * In most cases, there should be no reason for derived classes to mess
+  * up with this mechanism. However, some :Block may have nonstandard
+  * behavior, e.g. about how they store their sub-Block, and therefore for
+  * maximal flexibility this methos is virtual. */
+ 
+ virtual void unlock( void * owner )
+ {
+  if( ( ! owner ) || ( owner == ReadOnlyLock() ) ||
+      ( owner == v_ownersLock() ) || ( f_owner != owner ) )
+   throw( std::logic_error( "invalid owner in unlock()" ) );
+
+  for( auto sb = v_Block.end() ; sb != v_Block.begin() ; )
+   (*(--sb))->unlock( owner );
+
+  f_owner = nullptr;  // release ownership of the Block
+  f_mutex.unlock();   // release the mutex
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// tries to read-lock the Block, return true on success
+ /** Attempts to acquire a read-only lock. Unlike the "normal" lock, which is
+  * read-write, any number of read-only locks can be concurrently acquired on
+  * the same Block; however, each of the entities is only permitted to read
+  * the Block, but not to modify it.
+  *
+  * As a consequence, the Block is not "owned" by any individual entity, but
+  * rather from an "abstract" entity indicating "a group of read-locks". A
+  * read-lock is incompatible with a read-write-lock: trying to acquire a
+  * read-lock while the Block is read-write-locked results in immediate
+  * failure if the owner of the read-write-lock runs on the same thread as
+  * the caller, and in sleeping on the mutex waiting for the current owner to
+  * release the read-write-lock. (Almost) symmetrically, trying to acquire a
+  * read-write-lock while the Block is read-locked results in immediate
+  * failure if *any* of the callers having acquired a read-lock run on the
+  * same thread as the caller, and in sleeping on the mutex waiting for all
+  * the current read-locks to be released otherwise.
+  *
+  * Note that the current implementation of the method does active wait on
+  * the f_owner field, a std::atomic< void * >. This is sensible under the
+  * assumption that std::atomic< void * >{}.is_lock_free() == true, which
+  * should happen in most systems. A more sophisticated implementation
+  * would require a std::atomic_flag added to the class and used instead
+  * whenever std::atomic< void * >{}.is_lock_free() == false.
+  *
+  * In most cases, there should be no reason for derived classes to mess
+  * up with this mechanism. However, some :Block may have nonstandard
+  * behavior, e.g. about how they store their sub-Block, and therefore for
+  * maximal flexibility this methos is virtual. */
+
+ virtual bool read_lock( void )
+ {
+  for(;;) {  // this may have to be repeated many times
+   void * current_owner = nullptr;
+   if( f_owner.compare_exchange_strong( current_owner , v_ownersLock() ) ) {
+    // the Block was un-owned: the first read-lock has been successfully
+    // acquired, and v_owners has been "active locked" at the same time
+
+    // insert the first element in v_owners: the id of the current thread
+    // and the counter of how many readers are there in this thread (1)
+    v_owners.insert( std::make_pair< std::thread::id , unsigned short >(
+				         std::this_thread::get_id() , 1 ) );
+
+    // immediately release the active lock on v_owners
+    f_owner = ReadOnlyLock();
+
+    f_mutex.lock();  // lock the mutex: this is a bit weird because the
+                     // Block is surely "free", but it is done
+    // immediately so that other Block willing to take a read-write lock from
+    // different threads can sleep on the mutex even during the potentially
+    // long time its takes to (try to) read-lock all sub-Block
+
+    // try to read-lock all sub-Block and return the success of the
+    // operation; upon failure, also read-unlock the Block
+    return( read_lock_sub_block() );
+    }
+   else {  // an owner already existed
+    if( ( current_owner == ReadOnlyLock() ) ||
+	( current_owner == v_ownersLock() ) ) {
+     // ... but it's another read-lock
+
+     for(;;) {  // acquire the "active lock" on v_owners
+      // note that the Block may have been read-locked by a single entity
+      // which was precisely in the process of releasing the last read-lock;
+      // in the picosecond between the first compare_exchange_strong() and
+      // the one right below, the read-lock may have been released and a new
+      // read-write lock has been established, in which case the read-lock
+      // has to either fail or wait
+      current_owner = ReadOnlyLock();
+      if( f_owner.compare_exchange_strong( current_owner , v_ownersLock() ) )
+      {
+       // v_owner was active-unlocked, active lock successfully acquired
+       // find the record corresponding to thread::id if there is any, or
+       // create one with count 0 (the default value of short int) otherwise,
+       // and then increase the counter
+       v_owners[ std::this_thread::get_id() ]++;
+
+       // release the active lock on v_owners
+       f_owner = ReadOnlyLock();
+
+       // note that there is no need to lock the mutex, since it's been
+       // locked already by the first successfull read-lock
+
+       // try to read-lock all sub-Block and return the success of the
+       // operation; upon failure, also read-unlock the Block
+       return( read_lock_sub_block() );
+       }
+      else
+       if( current_owner ==  v_ownersLock() )  // v_owner was active-locked
+	continue;                             // repeat until access granted
+       else  // a different owner suceeded in sneaking in
+	break;
+      }  // end( for( ever ) )
+     } // end( if( was read-locked already ) )
+
+    // a read-write-lock is established on the Block (or was established
+    // on the fly while trying to acquire the read-lock instead)
+    // if the owner of the read-write-lock runs in this thread
+    if( f_owner_thread_id == std::this_thread::get_id() )
+     return( false );  // the only recourse is to fail
+    
+    f_mutex.lock();  // go to sleep on the mutex, which should be locked
+    // after the mutex is released, go try again your luck with the lock
+    }
+   }  // end infinite loop
+  }  // end( read-lock() )
+
+/*--------------------------------------------------------------------------*/
+ /// read-unlock the Block
+ /** Removes one of the current read-lock on the Block, possibly completely
+  * relinquishing ownership if this was the last active read-lock on the
+  * Block. This of course also removes one of the current read-lock on all
+  * the sub-Block of the Block.
+  *
+  * The unlocking is performed "in reverse" than the locking, i.e., with a
+  * post-visit (the father is unlocked after all the sons are) of the Block
+  * tree.
+  *
+  * It is clearly incorrect to read-unlock a non-read-locked Block (which
+  * means, either an unlocked Block or a read-write-locked one): if this is
+  * attempted, exception will be thrown.
+  *
+  * However, note that
+  *
+  *     UNLIKE READ-WRITE-LOCKS, READ-ONLY LOCKS ARE COUNTED. THIS MEANS
+  *     THAT THE SIMPLE RULE "ONE READ-UNLOCK FOR EACH READ-LOCK" DOES
+  *     APPLY IN THIS CASE. YET, READ-ONLY LOCKS ARE COUNTED *PER THREAD*,
+  *     WHICH IMPLIES THAT EACH THREAD THAT MAKES A READ-ONLY LOCK MUST
+  *     EVENTUALLY MAKE A READ-ONLY-UNLOCK
+  *
+  * In most cases, there should be no reason for derived classes to mess
+  * up with this mechanism. However, some :Block may have nonstandard
+  * behavior, e.g. about how they store their sub-Block, and therefore for
+  * maximal flexibility this methos is virtual. */
+ 
+ virtual void read_unlock( void )
+ {
+  if( ( f_owner != ReadOnlyLock() ) && ( f_owner != v_ownersLock() ) )
+   throw( std::logic_error( "trying to read-unlock a non-read-locked Block"
+			    ) );
+
+  // read-unlock all the sub-Block
+  for( auto sb = v_Block.end() ; sb != v_Block.begin() ; )
+   (*(--sb))->read_unlock();
+
+  // read-unlock the Block
+  guts_of_read_unlock();
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -1148,67 +1828,36 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
  /// setting the BlockConfig
  /** This method sets the BlockConfig of this Block. The BlockConfig object
-  * pointed by newBC is not copied, but it becomes property of the Block.
-  * This means that if there already is a BlockConfig of the Block, it gets
-  * deleted during the call.
+  * pointed by \p newBC is not copied, but it becomes property of this
+  * Block. If the given pointer is equal to the one currently stored in this
+  * Block, a call to this function has no effect (no operation is performed;
+  * in particular, no pointer is deleted). Otherwise:
   *
-  * Since a BlockConfig has a vector of sub-BlockConfig for the sub-Block of
-  * this Block, it calls itself recursively to set them. Note that this means
-  * that there are at typically *two* "live" pointers to the same
-  * BlockConfig, one in the Block itself and one in the BlockConfig object of
-  * its father Block, if any.
+  * - If newBC == nullptr then the current BlockConfig of this Block is
+  *   deleted if \p deleteold == true. Moreover, the pointer to the
+  *   BlockConfig of this Block becomes nullptr.
   *
-  * Hence, a call to set_BlockConfig() (with default = nullptr newBC) deletes
-  * the BlockConfig to this Block and all of its sub-Block, recursively. Note
-  * that the vector of sub-BlockConfig is allowed to be of different size
-  * than the number of sub-Block; if it is larger any extra BlockConfig is
-  * simply ignored, if it shorted then all missing sub-BlockConfig are
-  * treated as nullptr. This means that, for instance, it is possible to set
-  * the BlockConfig of the father Block while resetting that of its sub-Block
-  * by just leaving the vector of sub-BlockConfig empty.
+  * - If newBC->is_diff() == true, the individual non-nullptr
+  *   sub-Configuration in \p newBC replace one-by-one those in the
+  *   BlockConfig of this Block, if any, while the nullptr sub-Configuration
+  *   mean that the existing ones in the BlockConfig of this Block are kept
+  *   untouched. If this Block has no BlockConfig, \p newBC is just moved.
   *
-  * Note, however, that changing (or deleting) a BlockConfig is only
-  * automatically safe if done top-down from the "root" Block (the one having
-  * no father Block), as changing the BlockConfig of a sub-Block leaves a
-  * dangling pointer in the BlockConfig of the father Block. This is the
-  * reason for the second parameter of the method. If safe == true, the
-  * method can assume that the BlockConfig (if any) of the father Block (if
-  * any) has already been updated. If not, the method will have to climb up
-  * (provided there is anywhere to climb) and update it (provided there is
-  * anything to update). */
+  * - If newBC->is_diff() == false then \p newBC is moved into the BlockConfig
+  *   of this Block. If \p deleteold is true then, before moving \p newBC, the
+  *   pointer to the BlockConfig currently stored in this Block is deleted,
+  *   destroying the previous BlockConfig. Hence, a call to set_BlockConfig()
+  *   (with default \p newBC = nullptr and \p deleteold = true) with
+  *   newBC->is_diff() == false deletes the BlockConfig to this Block.
+  *
+  * It is important to notice that, since \p newBC becomes property of this
+  * Block, if newBC->is_diff() == true (and this Block already has a
+  * BlockConfig) then \p newBC is deleted once the sub-Configuration of \p
+  * newBC have been moved.
+  */
 
  virtual void set_BlockConfig( BlockConfig *newBC = nullptr ,
-			       const bool safe = true );
-
-/*--------------------------------------------------------------------------*/
- /// incrementally changing information in the BlockConfig
- /** A BlockConfig is a complicated object; in general, one may want to just
-  * "change a few bits of it" rather than setting an entirely new
-  * BlockConfig. This is what this method is for.
-  *
-  * The trick is that the provided BlockConfig aBC is interpreted "in a
-  * differential sense". This means that every field of aBC that is "void"
-  * (either nullptr or empty) is interpreted as "leave the current value as it
-  * is", whereas a nonempty value causes the current value in the BlockConfig
-  * to be replaced with the one in aBC. Note that when pointers to object are
-  * involved, the previously pointed object is deleted and replaced with the
-  * one in aBC, i.e., those parts of aBC become "property" of the current
-  * BlockConfig of the Block. Indeed, the aBC object is "consumed" by this
-  * method; at the end, some parts of aBC will have become part of
-  * BlockConfig, and all the rest is safely disposed of. Note that if aBC (or
-  * one of its sub-BlockConfig) is going to replace a "void" (nullptr)
-  * (sub-)BlockConfig, then this is simple because "adding to void is
-  * equivalent to substituting": a non-existing BlockConfig is equivalent to
-  * one having all nullptr fields, and therefore adding aBC (...) to a "void"
-  * BlockConfig is the same as set_BlockConfig( aBC ). In this case, the
-  * whole aBC becomes property of the Block, and nothing part it is disposed
-  * of. Hence, this has the same problem as set_BlockConfig(), i.e., that if
-  * the father of this Block (if any) has a BlockConfig, then it should be
-  * updated to reflect the addition of aBC. This is why this method also has
-  * the "safe" parameter, although note that a call is surely safe if the
-  * BlockConfig of this Block is non-nullptr. */
-
- virtual void add_to_BlockConfig( BlockConfig *aBC , const bool safe = true );
+			       const bool deleteold = true );
 
 /*--------------------------------------------------------------------------*/
  /// generate the "abstract representation" of the Variable of the Block
@@ -1697,14 +2346,12 @@ class Block : public Observer {
   * the programmer purposely defines private_name() without calling the macro,
   * which seems rather pointless). */
 
- inline const std::string & classname( void ) const {
-  return( private_name() );
-  }
+ const std::string & classname( void ) const { return( private_name() ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// getting the string name of this Block
 
- inline const std::string & name( void ) const { return( f_name ); }
+ const std::string & name( void ) const { return( f_name ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// getting the "father" Block of this Block
@@ -1720,27 +2367,6 @@ class Block : public Observer {
   return( f_BlockConfig );
   }
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// getting the BlockSolverConfig of this Block
- /**< This method gets information about the current set of Solver attached to
-  * the Block (and its sub-Block, recursively) under the form of a single
-  * BlockSolverConfig object.
-  *
-  * If a non-null svcc is provided, then the pointed object (that is assumed
-  * to be "empty") is "filled" with the data of the current configuration,
-  * and returned. Otherwise, a new BlockSolverConfig object is created,
-  * filled and returned. This is done to allow :Block to return objects of a
-  * class derived from BlockSolverConfig containing information about specific
-  * parts of their Solver configuration that are not present in the base
-  * BlockSolverConfig class, filling only that part and then using method of
-  * the base Block class to fill-in the standard part. However, the "final
-  * user" should not bother and assume that the :Block will ultimately
-  * produce the right kind of object, thereby leaving the parameter to its
-  * nullptr default value. */
-
- virtual BlockSolverConfig *  get_SolverConfig(
-	                                BlockSolverConfig * svcc = nullptr );
-
 /*--------------------------------------------------------------------------*/
  /// getting the pointer to the current Objective
  /** Getting a pointer to current :Objective. Of course, for this method to
@@ -1748,9 +2374,7 @@ class Block : public Observer {
   * non-nullptr) the abstract representation of the Objective must have been
   * constructed, cf. generate_objective(). */
 
- Objective * get_objective( void ) const {
-  return( f_Objective );
-  }
+ Objective * get_objective( void ) const { return( f_Objective ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// template method to get the the current Objective
@@ -2052,6 +2676,55 @@ class Block : public Observer {
  c_Vec_Block & get_nested_Blocks( void ) const { return( v_Block ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the number of sub-Block of the Block
+
+ Index get_number_nested_Blocks( void ) const { return( v_Block.size() ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the i-th sub-Block of the Block (nullptr if not there)
+
+ Block * get_nested_Block( Index i ) const {
+  if( i >= v_Block.size() )
+   return( nullptr );
+  return( v_Block[ i ] );
+  }
+ 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns a pointer to the sub-Block with given \p name, nullptr if none
+
+ Block * get_nested_Block( const std::string & name ) const {
+  for( auto bi : v_Block )
+   if( bi && ( bi->name() == name ) )
+    return( bi );
+
+  return( nullptr );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the index of the sub-Block with given \p name
+ /** Returns the index the sub-Block  with given \p name; if no sub-Block
+  * has this name, a number >= get_number_nested_Blocks() is returned. */
+
+ Index get_nested_Block_index( const std::string & name ) const {
+  auto bit = v_Block.begin();
+  for( ; bit != v_Block.end() ; ++bit )
+   if( *bit && ( (*bit)->name() == name ) )
+    break;
+
+  return( std::distance( v_Block.begin() , bit ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the index of the given sub-Block
+ /** Returns the index of the given sub-Block; if is is not a sub-Block of
+  * the Block, a number >= get_number_nested_Blocks() is returned. */
+
+ Index get_nested_Block_index( Block * const block ) const {
+  auto bit = std::find( v_Block.begin() , v_Block.end() , block );
+  return( std::distance( v_Block.begin() , bit ) );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// getting the verbosity level
 
  verbosity_type get_verbosity( void ) const { return( verbosity_lvl ); }
@@ -2123,73 +2796,115 @@ class Block : public Observer {
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// template method to get the a "simple" static Constraint
- /** This method, template over the class Cnst (which must derive from
-  * Constraint), extracts the i-th static constraint group, which is supposed
-  * to be a simple Cnst *, and returns it. If anything goes wrong, exception
-  * is thrown. */
+ /// returns the number of groups of static Constraint
 
- template< class Cnst >
- Cnst * get_static_constraint( c_Index i ) const {
-  static_assert( std::is_base_of< Constraint , Cnst >::value ,
-                 "get_static_constraint: Cnst must inherit from Constraint" );
-  if( i >= v_s_Constraint.size() )
-   throw( std::invalid_argument( "get_static_constraint: group " +
-                                 std::to_string( i ) +
-                                 " of constraints does not exist" ) );
-  auto cnst = boost::any_cast< Cnst * >( v_s_Constraint[ i ] );
-  if( ! cnst )
-   throw( std::invalid_argument( "get_static_constraint: group " +
-                                 std::to_string( i ) +
-                                 " is not of required type" ) );
-  return( cnst );
+ Index get_number_static_constraints( void ) const {
+  return( v_s_Constraint.size() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// template method to get the a (static) std::vector< Constraint >
+ /// template method to get a "simple" static Constraint by index
+ /** This method, template over the class Cnst (which must derive from
+  * Constraint), extracts the i-th static constraint group, which is supposed
+  * to be a simple Cnst *, and returns it. If anything goes wrong, nullptr is
+  * returned. */
+
+ template< class Cnst >
+ Cnst * get_static_constraint( Index i ) const {
+  static_assert( std::is_base_of< Constraint , Cnst >::value ,
+                 "get_static_constraint: Cnst must inherit from Constraint" );
+  if( i >= v_s_Constraint.size() )
+   return( nullptr );
+  return( boost::any_cast< Cnst * >( v_s_Constraint[ i ] ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// template method to get a "simple" static Constraint by name
+ /** This method, template over the class Cnst (which must derive from
+  * Constraint), extracts the constraint group with given \p name, which is
+  * supposed to be a simple Cnst *, and returns it. If anything goes wrong,
+  * nullptr is returned. */
+
+ template< class Cnst >
+  Cnst * get_static_constraint( const std::string & name ) const {
+  static_assert( std::is_base_of< Constraint , Cnst >::value ,
+                 "get_static_constraint: Cnst must inherit from Constraint" );
+  auto it = std::find( v_s_Constraint_names.begin() ,
+		       v_s_Constraint_names.end() , name );
+  if( it == v_s_Constraint_names.end() )
+   return( nullptr );
+  return( boost::any_cast< Cnst * >( *it ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// template method to get a (static) std::vector of Constraint by index
  /** This method, template over the class Cnst (which must derive from
   * Constraint), extracts the i-th static constraint group, which is supposed
   * to be a std::vector< Cnst > *, and returns it. If anything goes wrong,
-  * exception is thrown. */
+  * nullptr is returned. */
 
  template< class Cnst >
- std::vector< Cnst > * get_static_constraint_v( c_Index i ) const {
+ std::vector< Cnst > * get_static_constraint_v( Index i ) const {
   static_assert( std::is_base_of< Constraint , Cnst >::value ,
                  "get_static_constraint_v: Cnst must inherit from Constraint" );
   if( i >= v_s_Constraint.size() )
-   throw( std::invalid_argument( "get_static_constraint_v: group " +
-                                 std::to_string( i ) + " of constraints " +
-                                 "does not exist" ) );
-  auto cnst = boost::any_cast< std::vector< Cnst > * >( v_s_Constraint[ i ] );
-  if( ! cnst )
-   throw( std::invalid_argument( "get_static_constraint_v: group " +
-                                 std::to_string( i ) + " is not of "
-                                 "required type" ) );
-  return( cnst );
+   return( nullptr );
+  return( boost::any_cast< std::vector< Cnst > * >( v_s_Constraint[ i ] ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// template method to get the a (static) boost::multi_array< Cnst , K >
+ /// template method to get a (static) std::vector of Constraint by name
+ /** This method, template over the class Cnst (which must derive from
+  * Constraint), extracts the constraint group with given \p name, which is
+  * supposed to be a std::vector< Cnst > *, and returns it. If anything goes
+  * wrong, nullptr is returned. */
+
+ template< class Cnst >
+ std::vector< Cnst > * get_static_constraint_v( const std::string & name )
+  const {
+  static_assert( std::is_base_of< Constraint , Cnst >::value ,
+                 "get_static_constraint_v: Cnst must inherit from Constraint" );
+  auto it = std::find( v_s_Constraint_names.begin() ,
+		       v_s_Constraint_names.end() , name );
+  if( it == v_s_Constraint_names.end() )
+   return( nullptr );
+  return( boost::any_cast< std::vector< Cnst > * >( *it ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method to get a (static) boost::multi_array of Constraint by index
  /** This method, template over the class Cnst (which must derive from
   * Constraint) and the integer K, extracts the i-th static constraint group,
   * which is supposed to be a boost::multi_array< Cnst , K > *, and returns
-  * it. If anything goes wrong, exception is thrown. */
+  * it. If anything goes wrong, nullptr is returned. */
 
  template< class Cnst , unsigned short K >
- boost::multi_array< Cnst , K > * get_static_constraint( c_Index i ) const {
+ boost::multi_array< Cnst , K > * get_static_constraint( Index i ) const {
   static_assert( std::is_base_of< Constraint , Cnst >::value ,
                  "get_static_constraint: Cnst must inherit from Constraint" );
   if( i >= v_s_Constraint.size() )
-   throw( std::invalid_argument( "get_static_constraint: group " +
-                                 std::to_string( i ) + " of constraints " +
-                                 "does not exist" ) );
-  auto cnst = boost::any_cast< boost::multi_array< Cnst , K > * >(
-						      v_s_Constraint[ i ] );
-  if( ! cnst )
-   throw( std::invalid_argument( "get_static_constraint: group " +
-                                 std::to_string( i ) + " is not of " +
-                                 "required type" ) );
-  return( cnst );
+   return( nullptr );
+  return( boost::any_cast< boost::multi_array< Cnst , K > * >(
+						      v_s_Constraint[ i ] ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method to get a (static) boost::multi_array of Constraint by name
+ /** This method, template over the class Cnst (which must derive from
+  * Constraint) and the integer K, extracts the static constraint group with
+  * given \p name, which is supposed to be a boost::multi_array< Cnst , K > *,
+  * and returns it. If anything goes wrong, nullptr is returned. */
+
+ template< class Cnst , unsigned short K >
+ boost::multi_array< Cnst , K > * get_static_constraint(
+					   const std::string & name ) const {
+  static_assert( std::is_base_of< Constraint , Cnst >::value ,
+                 "get_static_constraint: Cnst must inherit from Constraint" );
+  auto it = std::find( v_s_Constraint_names.begin() ,
+		       v_s_Constraint_names.end() , name );
+  if( it == v_s_Constraint_names.end() )
+   return( nullptr );
+  return( boost::any_cast< boost::multi_array< Cnst , K > * >( *it ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2252,78 +2967,117 @@ class Block : public Observer {
   * for addition/deletion of dynamic Variable and changes in the Variable
   * that are handled by the appropriate Modification). */
 
- c_Vec_any & get_static_variables( void ) const {
-  return ( v_s_Variable );
+ c_Vec_any & get_static_variables( void ) const { return ( v_s_Variable ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the number of groups of static Variable
+
+ Index get_number_static_variables( void ) const {
+  return( v_s_Variable.size() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// template method to get the a "simple" static Variable
+ /// template method to get a "simple" static Variable by index
  /** This method, template over the class Var (which must derive from
   * Variable), extracts the i-th static variable group, which is supposed to
-  * be a simple Var *, and returns it. If anything goes wrong, exception is
-  * thrown. */
+  * be a simple Var *, and returns it. If anything goes wrong, nullptr is
+  * returned. */
 
  template< class Var >
- Var * get_static_variable( c_Index i ) const {
+ Var * get_static_variable( Index i ) const {
   static_assert( std::is_base_of< Variable , Var >::value ,
                  "get_static_variable: Var must inherit from Variable" );
   if( i >= v_s_Variable.size() )
-   throw( std::invalid_argument( "get_static_variable: group " +
-                                 std::to_string( i ) + " of constraints "
-                                 "does not exist" ) );
-  auto var = boost::any_cast< Var * >( v_s_Variable[ i ] );
-  if( ! var )
-   throw( std::invalid_argument( "get_static_variable: group " +
-                                 std::to_string( i ) + " is not of " +
-                                 "required type" ) );
-  return( var );
+   return( nullptr );
+  return( boost::any_cast< Var * >( v_s_Variable[ i ] ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// template method to get the a (static) std::vector< Variable >
+ /// template method to get a "simple" static Variable by name
+ /** This method, template over the class Var (which must derive from
+  * Variable), extracts the static variable group with given \p name, which
+  * is supposed to be a simple Var *, and returns it. If anything goes wrong,
+  * nullptr is returned. */
+
+ template< class Var >
+ Var * get_static_variable( const std::string & name ) const {
+  static_assert( std::is_base_of< Variable , Var >::value ,
+                 "get_static_variable: Var must inherit from Variable" );
+  auto it = std::find( v_s_Variable_names.begin() ,
+		       v_s_Variable_names.end() , name );
+  if( it == v_s_Variable_names.end() )
+   return( nullptr );
+  return( boost::any_cast< Var * >( *it ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// template method to get a (static) std::vector< Variable > by index
  /** This method, template over the class Var (which must derive from
   * Variable), extracts the i-th static variable group, which is supposed to
   * be a std::vector< Var > *, and returns it. If anything goes wrong,
-  * exception is thrown. */
+  * nullptr is returned. */
 
  template< class Var >
- std::vector< Var > * get_static_variable_v( c_Index i ) const {
+ std::vector< Var > * get_static_variable_v( Index i ) const {
   static_assert( std::is_base_of< Variable , Var >::value ,
                  "get_static_variable_v: Var must inherit from Variable" );
   if( i >= v_s_Variable.size() )
-   throw( std::invalid_argument( "get_static_variable_v: group " +
-                                 std::to_string( i ) +
-                                 " of constraints does not exist" ) );
-  auto var = boost::any_cast< std::vector< Var > * >( v_s_Variable[ i ] );
-  if( ! var )
-   throw( std::invalid_argument( "get_static_variable_v: group "
-                                 + std::to_string( i ) +
-                                 " is not of required type" ) );
-  return( var );
+   return( nullptr );
+  return( boost::any_cast< std::vector< Var > * >( v_s_Variable[ i ] ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// template method to get the a (static) boost::multi_array< Var , K >
+ /// template method to get a (static) std::vector< Variable > by name
+ /** This method, template over the class Var (which must derive from
+  * Variable), extracts the static variable group with given \p name, which
+  * is supposed to be a std::vector< Var > *, and returns it. If anything
+  * goes wrong, nullptr is returned. */
+
+ template< class Var >
+ std::vector< Var > * get_static_variable_v( const std::string & name ) const {
+  static_assert( std::is_base_of< Variable , Var >::value ,
+                 "get_static_variable_v: Var must inherit from Variable" );
+  auto it = std::find( v_s_Variable_names.begin() ,
+		       v_s_Variable_names.end() , name );
+  if( it == v_s_Variable_names.end() )
+   return( nullptr );
+  return( boost::any_cast< std::vector< Var > * >( *it ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method to get a (static) boost::multi_array of Variable by index
  /** This method, template over the class Var (which must derive from
   * Variable) and the integer K, extracts the i-th static variable group,
   * which is supposed to be a boost::multi_array< Var , K > *, and returns
-  * it. If anything goes wrong, exception is thrown. */
+  * it. If anything goes wrong, nullptr is returned. */
 
  template< class Var , unsigned short K >
- boost::multi_array< Var , K > * get_static_variable( c_Index i ) const {
+ boost::multi_array< Var , K > * get_static_variable( Index i ) const {
   static_assert( std::is_base_of< Variable , Var >::value ,
                  "get_static_variable: Var must inherit from Variable" );
   if( i >= v_s_Variable.size() )
-   throw( std::invalid_argument( "get_static_variable: group " +
-                                 std::to_string( i ) +
-                                 " of constraints does not exist" ) );
-  auto var = boost::any_cast< boost::multi_array< Var , K > * >(
-						          v_s_Variable[ i ] );
-  if( ! var )
-   throw( std::invalid_argument( "get_static_variable: group " +
-                                 std::to_string( i ) +
-                                 " is not of required type" ) );
-  return( var );
+   return( nullptr );
+  return( boost::any_cast< boost::multi_array< Var , K > * >(
+						        v_s_Variable[ i ] ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method to get a (static) boost::multi_array of Variable by name
+ /** This method, template over the class Var (which must derive from
+  * Variable) and the integer K, extracts the static variable group with
+  * given \p name, which is supposed to be a boost::multi_array< Var , K > *,
+  * and returns it. If anything goes wrong, nullptr is returned. */
+
+ template< class Var , unsigned short K >
+ boost::multi_array< Var , K > * get_static_variable(
+					 const std::string & name ) const {
+  static_assert( std::is_base_of< Variable , Var >::value ,
+                 "get_static_variable: Var must inherit from Variable" );
+  auto it = std::find( v_s_Variable_names.begin() ,
+		       v_s_Variable_names.end() , name );
+  if( it == v_s_Variable_names.end() )
+   return( nullptr );
+  return( boost::any_cast< boost::multi_array< Var , K > * >( *it ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2418,78 +3172,121 @@ class Block : public Observer {
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// template method to get the a "simple" dynamic Constraint
- /** This method, template over the class Cnst (which must derive from
-  * Constraint), extracts the i-th dynamic constraint group, which is
-  * supposed to be a std::list< Cnst > *, and returns it. If anything goes
-  * wrong, exception is thrown. */
+ /// returns the number of groups of dynamic Constraint
 
- template< class Cnst >
- std::list< Cnst > * get_dynamic_constraint( c_Index i ) const {
-  static_assert( std::is_base_of< Constraint , Cnst >::value ,
-                 "get_dynamic_constraint: Cnst must inherit from Constraint" );
-  if( i >= v_d_Constraint.size() )
-   throw( std::invalid_argument( "get_dynamic_constraint: group " +
-                                 std::to_string( i ) +
-                                 " of constraints does not exist" ) );
-  auto cnst = boost::any_cast< std::list< Cnst > * >( v_d_Constraint[ i ] );
-  if( ! cnst )
-   throw( std::invalid_argument( "get_dynamic_constraint: group " +
-                                 std::to_string( i ) +
-                                 " is not of required type" ) );
-  return( cnst );
+ Index get_number_dynamic_constraints( void ) const {
+  return( v_s_Constraint.size() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// template method to get the a dynamic std::vector< std::list< Cnst > >
+ /// template method to get a "simple" dynamic Constraint by index
  /** This method, template over the class Cnst (which must derive from
-  * Constraint), extracts the i-th dynamic constraint group, which is supposed
-  * to be a std::vector< std::list< Cnst > > *, and returns it. If anything
-  * goes wrong, exception is thrown. */
+  * Constraint), extracts the i-th dynamic constraint group, which is
+  * supposed to be a std::list< Cnst > *, and returns it. If anything goes
+  * wrong, nullptr is returned. */
 
  template< class Cnst >
- std::vector< std::list< Cnst > > * get_dynamic_constraint_v( c_Index i )
+ std::list< Cnst > * get_dynamic_constraint( Index i ) const {
+  static_assert( std::is_base_of< Constraint , Cnst >::value ,
+                 "get_dynamic_constraint: Cnst must inherit from Constraint" );
+  if( i >= v_d_Constraint.size() )
+   return( nullptr );
+  return( boost::any_cast< std::list< Cnst > * >( v_d_Constraint[ i ] ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// template method to get a "simple" dynamic Constraint by name
+ /** This method, template over the class Cnst (which must derive from
+  * Constraint), extracts the i-th dynamic constraint group, which is
+  * supposed to be a std::list< Cnst > *, and returns it. If anything goes
+  * wrong, nullptr is returned. */
+
+ template< class Cnst >
+ std::list< Cnst > * get_dynamic_constraint( const std::string & name ) const {
+  static_assert( std::is_base_of< Constraint , Cnst >::value ,
+                 "get_dynamic_constraint: Cnst must inherit from Constraint" );
+  auto it = std::find( v_d_Constraint_names.begin() ,
+		       v_d_Constraint_names.end() , name );
+  if( it == v_d_Constraint_names.end() )
+   return( nullptr );
+  return( boost::any_cast< std::list< Cnst > * >( *it ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// template method to get a std::vector of dynamic Constraint by index
+  /** This method, template over the class Cnst (which must derive from
+  * Constraint), extracts the i-th dynamic constraint group, which is supposed
+  * to be a std::vector< std::list< Cnst > > *, and returns it. If anything
+  * goes wrong, nullptr is returned. */
+
+ template< class Cnst >
+ std::vector< std::list< Cnst > > * get_dynamic_constraint_v( Index i )
   const {
   static_assert( std::is_base_of< Constraint , Cnst >::value ,
                  "get_dynamic_constraint_v: "
                  "Cnst must inherit from Constraint" );
   if( i >= v_d_Constraint.size() )
-   throw( std::invalid_argument( "get_dynamic_constraint_v: group " +
-                                 std::to_string( i ) +
-                                 " of constraints does not exist" ) );
-  auto cnst = boost::any_cast< std::vector< std::list< Cnst > > * >(
-						       v_d_Constraint[ i ] );
-  if( ! cnst )
-   throw( std::invalid_argument( "get_dynamic_constraint_v: group " +
-                                 std::to_string( i ) +
-                                 " is not of required type" ) );
-  return( cnst );
+   return( nullptr );
+  return( boost::any_cast< std::vector< std::list< Cnst > > * >(
+						     v_d_Constraint[ i ] ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// method to get the a dynamic boost::multi_array< std::list< Cnst > , K >
+ /// template method to get a std::vector of dynamic Constraint by name
+  /** This method, template over the class Cnst (which must derive from
+  * Constraint), extracts the dynamic constraint group with given \p name,
+  * which is supposed to be a std::vector< std::list< Cnst > > *, and returns
+  * it. If anything goes wrong, nullptr is returned. */
+
+ template< class Cnst >
+ std::vector< std::list< Cnst > > * get_dynamic_constraint_v(
+					   const std::string & name ) const {
+  static_assert( std::is_base_of< Constraint , Cnst >::value ,
+             "get_dynamic_constraint_v: Cnst must inherit from Constraint" );
+  auto it = std::find( v_d_Constraint_names.begin() ,
+		       v_d_Constraint_names.end() , name );
+  if( it == v_d_Constraint_names.end() )
+   return( nullptr );
+  return( boost::any_cast< std::vector< std::list< Cnst > > * >( *it ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method to get a boost::multi_array of dynamic Constraint by index
  /** This method, template over the class Cnst (which must derive from
   * Constraint) and the integer K, extracts the i-th dynamic constraint group,
   * which is supposed to be a boost::multi_array< std::list< Cnst > , K > *,
-  * and returns it. If anything goes wrong, exception is thrown. */
+  * and returns it. If anything goes wrong, nullptr is returned. */
 
  template< class Cnst , unsigned short K >
  boost::multi_array< std::list< Cnst > , K > * get_dynamic_constraint(
-							 c_Index i ) const {
+							   Index i ) const {
   static_assert( std::is_base_of< Constraint , Cnst >::value ,
                  "get_dynamic_constraint: Cnst must inherit from Constraint" );
   if( i >= v_d_Constraint.size() )
-   throw( std::invalid_argument( "get_dynamic_constraint: group " +
-                                 std::to_string( i ) +
-                                 " of constraints does not exist" ) );
-  auto cnst =
-   boost::any_cast< boost::multi_array< std::list< Cnst > , K > * >(
-						      v_d_Constraint[ i ] );
-  if( ! cnst )
-    throw( std::invalid_argument( "get_dynamic_constraint: group " +
-                                  std::to_string( i ) +
-                                  " is not of required type" ) );
-  return( cnst );
+   return( nullptr );
+  return( boost::any_cast< boost::multi_array< std::list< Cnst > , K > * >(
+						      v_d_Constraint[ i ] ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method to get a boost::multi_array of dynamic Constraint by name
+ /** This method, template over the class Cnst (which must derive from
+  * Constraint) and the integer K, extracts the dynamic constraint group
+  * with given \p name, which is supposed to be a
+  * boost::multi_array< std::list< Cnst > , K > *, and returns it. If
+  * anything goes wrong, nullptr is returned. */
+
+ template< class Cnst , unsigned short K >
+ boost::multi_array< std::list< Cnst > , K > * get_dynamic_constraint(
+					  const std::string & name ) const {
+  static_assert( std::is_base_of< Constraint , Cnst >::value ,
+               "get_dynamic_constraint: Cnst must inherit from Constraint" );
+  auto it = std::find( v_d_Constraint_names.begin() ,
+		       v_d_Constraint_names.end() , name );
+  if( it == v_d_Constraint_names.end() )
+   return( nullptr );
+  return( boost::any_cast< boost::multi_array< std::list< Cnst > , K > * >(
+								      *it ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2580,118 +3377,247 @@ class Block : public Observer {
   * which means that there should be no need to call this method again in
   * order to "incorporate" this new information. */
 
- c_Vec_any & get_dynamic_variables( void ) const {
-  return( v_d_Variable );
+ c_Vec_any & get_dynamic_variables( void ) const { return( v_d_Variable ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the number of groups of dynamic Variable
+
+ Index get_number_dynamic_variables( void ) const {
+  return( v_s_Variable.size() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// template method to get the a "simple" dynamic Variable
+ /// template method to get the a "simple" dynamic Variable by index
  /** This method, template over the class Var (which must derive from
   * Variable), extracts the i-th dynamic variable group, which is supposed
   * to be a std::list< Var > *, and returns it. If anything goes wrong,
-  * exception is thrown. */
+  * nullptr is returned. */
 
  template< class Var >
- std::list< Var > * get_dynamic_variable( c_Index i ) const {
+ std::list< Var > * get_dynamic_variable( Index i ) const {
   static_assert( std::is_base_of< Variable , Var >::value ,
                  "get_dynamic_variable: Var must inherit from Variable" );
   if( i >= v_d_Variable.size() )
-   throw( std::invalid_argument( "get_dynamic_variable: group " +
-                                 std::to_string( i ) +
-                                 " of variables does not exist" ) );
-  auto var = boost::any_cast< std::list< Var > * >( v_d_Variable[ i ] );
-  if( ! var )
-   throw( std::invalid_argument( "get_dynamic_variable: group " +
-                                 std::to_string( i ) +
-                                 " is not of required type" ) );
-  return( var );
+   return( nullptr );
+  return( boost::any_cast< std::list< Var > * >( v_d_Variable[ i ] ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// template method to get the a dynamic std::vector< std::list< Var > >
+ /// template method to get the a "simple" dynamic Variable by name
+ /** This method, template over the class Var (which must derive from
+  * Variable), extracts the dynamic variable group with given \p name,
+  * which is supposed to be a std::list< Var > *, and returns it. If
+  * anything goes wrong, nullptr is returned. */
+
+ template< class Var >
+ std::list< Var > * get_dynamic_variable( const std::string & name ) const {
+  static_assert( std::is_base_of< Variable , Var >::value ,
+                 "get_dynamic_variable: Var must inherit from Variable" );
+  auto it = std::find( v_d_Variable_names.begin() ,
+		       v_d_Variable_names.end() , name );
+  if( it == v_d_Variable_names.end() )
+   return( nullptr );
+  return( boost::any_cast< std::list< Var > * >( *it ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// template method to get a std::vector of dynamic Variable by index
  /** This method, template over the class Var (which must derive from
   * Variable), extracts the i-th dynamic variable group, which is supposed to
   * be a std::vector< std::list< Var > > *, and returns it. If anything goes
-  * wrong, exception is thrown. */
+  * wrong, nullptr is returned. */
 
  template< class Var >
- std::vector< std::list< Var > > * get_dynamic_variable_v( c_Index i )
+ std::vector< std::list< Var > > * get_dynamic_variable_v( Index i )
   const {
   static_assert( std::is_base_of< Variable , Var >::value ,
                  "get_dynamic_variable_v: Var must inherit from Variable" );
   if( i >= v_d_Variable.size() )
-   throw( std::invalid_argument( "get_dynamic_variable_v: group " +
-                                 std::to_string( i ) +
-                                 " of variables does not exist" ) );
-  auto var = boost::any_cast< std::vector< std::list< Var > > * >(
-						       v_d_Variable[ i ] );
-  if( ! var )
-   throw( std::invalid_argument( "get_dynamic_variable_v: group " +
-                                 std::to_string( i ) +
-                                 " is not of required type" ) );
-  return( var );
+   return( nullptr );
+  return( boost::any_cast< std::vector< std::list< Var > > * >(
+						       v_d_Variable[ i ] ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// method to get the a dynamic boost::multi_array< std::list< Var > , K >
+ /// template method to get a std::vector of dynamic Variable by name
+ /** This method, template over the class Var (which must derive from
+  * Variable), extracts the dynamic variable group with given \p name, which
+  * is supposed to be a std::vector< std::list< Var > > *, and returns it. If
+  * anything goes wrong, nullptr is returned. */
+
+ template< class Var >
+ std::vector< std::list< Var > > * get_dynamic_variable_v(
+					  const std::string & name ) const {
+  static_assert( std::is_base_of< Variable , Var >::value ,
+                 "get_dynamic_variable_v: Var must inherit from Variable" );
+  auto it = std::find( v_d_Variable_names.begin() ,
+		       v_d_Variable_names.end() , name );
+  if( it == v_d_Variable_names.end() )
+   return( nullptr );
+  return( boost::any_cast< std::vector< std::list< Var > > * >( *it ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method to get a boost::multi_array< , K > of dynamic Variable by index
  /** This method, template over the class Var (which must derive from
   * Variable) and the integer K, extracts the i-th dynamic variable group,
   * which is supposed to be a boost::multi_array< std::list< Var > , K > *,
-  * and returns it. If anything goes wrong, exception is thrown. */
+  * and returns it. If anything goes wrong, nullptr is returned. */
 
  template< class Var , unsigned short K >
  boost::multi_array< std::list< Var > , K > * get_dynamic_variable(
-							 c_Index i ) const {
+							   Index i ) const {
   static_assert( std::is_base_of< Variable , Var >::value ,
                  "get_dynamic_variable: Var must inherit from Variable" );
   if( i >= v_d_Variable.size() )
-   throw( std::invalid_argument( "get_dynamic_variable: group " +
-                                 std::to_string( i ) +
-                                 " of variables does not exist" ) );
-  auto var =
-   boost::any_cast< boost::multi_array< std::list< Var > , K > * >(
-						      v_d_Variable[ i ] );
-  if( ! var )
-    throw( std::invalid_argument( "get_dynamic_variable: group " +
-                                  std::to_string( i ) +
-                                  " is not of required type" ) );
-  return( var );
+   return( nullptr );
+  return( boost::any_cast< boost::multi_array< std::list< Var > , K > * >(
+						      v_d_Variable[ i ] ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method to get a boost::multi_array< , K > of dynamic Variable by name
+ /** This method, template over the class Var (which must derive from
+  * Variable) and the integer K, extracts the dynamic variable group with
+  * given \p name, which is supposed to be a
+  * boost::multi_array< std::list< Var > , K > *, and returns it. If
+  * anything goes wrong, nullptr is returned. */
+
+ template< class Var , unsigned short K >
+ boost::multi_array< std::list< Var > , K > * get_dynamic_variable(
+					   const std::string & name ) const {
+  static_assert( std::is_base_of< Variable , Var >::value ,
+                 "get_dynamic_variable: Var must inherit from Variable" );
+  auto it = std::find( v_d_Variable_names.begin() ,
+		       v_d_Variable_names.end() , name );
+  if( it == v_d_Variable_names.end() )
+   return( nullptr );
+  return( boost::any_cast< boost::multi_array< std::list< Var > , K > * >(
+								      *it ) );
   }
 
 /*--------------------------------------------------------------------------*/
- /// getting the static Constraints' names
+ /// getting the static Constraint names
  /** Returns a const reference to the vector storing the names of the
-  * different types (sets) of static Constraints of the Block */
+  * different groups of static Constraints of the Block */
 
  c_Vec_string & get_s_const_name( void ) const {
   return( v_s_Constraint_names );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// getting the static Variables' names
+ /// returns the name of the i-th group of static Constraint, "" if none
+
+ const std::string & get_s_const_name( Index i ) const {
+  static const std::string _empty;
+  if( i >= v_s_Constraint_names.size() )
+   return( _empty );
+  return( v_s_Constraint_names[ i ] );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the index the group of static Constraint with given name
+ /** Returns the index the group of static Constraint with given name; if
+  * no group has this name, a number >= get_number_static_constraints()
+  * is returned. */
+
+ Index get_s_const_index( const std::string & name ) const {
+  auto it = std::find( v_s_Constraint_names.begin() ,
+		       v_s_Constraint_names.end() , name );
+  return( std::distance( v_s_Constraint_names.begin() , it ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// getting the static Variable names
  /** Returns a const reference to the vector storing the names of the
-  * different types (sets) of static Variables of the Block */
+  * different groups of static Variables of the Block */
 
  c_Vec_string & get_s_var_name( void ) const {
   return( v_s_Variable_names );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// getting the dynamic Constraints' names
+ /// returns the name of the i-th group of static Variable, "" if none
+
+ const std::string & get_s_var_name( Index i ) const {
+  static const std::string _empty;
+  if( i >= v_s_Variable_names.size() )
+   return( _empty );
+  return( v_s_Variable_names[ i ] );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// getting the index the group of static Variable with given name
+ /** Returns the index the group of static Variable with given name; if
+  * no group has this name, a number >= get_number_static_variables()
+  * is returned. */
+
+ Index get_s_var_index( const std::string & name ) const {
+  auto it = std::find( v_s_Variable_names.begin() ,
+		       v_s_Variable_names.end() , name );
+  return( std::distance( v_s_Variable_names.begin() , it ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// getting the dynamic Constraint names
  /** Returns a const reference to the vector storing the names of the
-  * different types (sets) of dynamic Constraints of the Block */
+  * different groupa of dynamic Constraints of the Block */
 
  c_Vec_string & get_d_const_name( void ) const {
   return( v_d_Constraint_names );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// getting the dynamic Variables' names
+ /// returns the name of the i-th group of dynamic Constraint, "" if none
+
+ const std::string & get_d_const_name( Index i ) const {
+  static const std::string _empty;
+  if( i >= v_d_Constraint_names.size() )
+   return( _empty );
+  return( v_d_Constraint_names[ i ] );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// getting the index the group of dynamic Constraint with given name
+ /** Returns the index the group of dynamic Constraint with given name; if
+  * no group has this name, a number >= get_number_dynamic_constraints()
+  * is returned. */
+
+ Index get_d_const_index( const std::string & name ) const {
+  auto it = std::find( v_d_Constraint_names.begin() ,
+		       v_d_Constraint_names.end() , name );
+  return( std::distance( v_d_Constraint_names.begin() , it ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// getting the dynamic Variable names
  /** Returns a const reference to the vector storing the names of the
-  * different types (sets) of dynamic Variables of the Block */
+  * different groups of dynamic Variables of the Block */
 
  c_Vec_string & get_d_var_name( void ) const {
   return( v_d_Variable_names );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// returns the name of the i-th group of dynamic Variable, "" if none
+
+ const std::string & get_d_var_name( Index i ) const {
+  static const std::string _empty;
+  if( i >= v_d_Variable_names.size() )
+   return( _empty );
+  return( v_d_Variable_names[ i ] );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// getting the index the group of dynamic Variable with given name
+ /** Returns the index the group of dynamic Variable with given name; if
+  * no group has this name, a number >= get_number_dynamic_variables()
+  * is returned. */
+
+ Index get_d_var_index( const std::string & name ) const {
+  auto it = std::find( v_d_Variable_names.begin() ,
+		       v_d_Variable_names.end() , name );
+  return( std::distance( v_d_Variable_names.begin() , it ) );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -2725,9 +3651,9 @@ class Block : public Observer {
   * The parameter issueMod decides if and how the BlockModAdd is issued, as
   * described in Observer::make_par(). */
 
- template<class Const>
- void add_dynamic_constraints( std::list<Const> &list ,
-			       std::list<Const> &newlist ,
+ template< class Const >
+ void add_dynamic_constraints( std::list< Const > &list ,
+			       std::list< Const > &newlist ,
 			       c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -2750,8 +3676,9 @@ class Block : public Observer {
   * The parameter issueMod decides if and how the BlockModAdd is issued, as
   * described in Observer::make_par(). */
 
- template<class Var>
- void add_dynamic_variables( std::list<Var> &list , std::list<Var> &newlist ,
+ template< class Var >
+ void add_dynamic_variables( std::list< Var > &list ,
+			     std::list< Var > &newlist ,
 			     c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -2760,7 +3687,7 @@ class Block : public Observer {
   *
   * The parameter list is obviously not "const", as the list will be updated.
   * Note that the base class implementation of this method just does this and
-  * possibly issues the appropriate BlockModRmv; as list is supposed to be a
+  * possibly issues the appropriate BlockModRmv*; as list is supposed to be a
   * part of the "abstract representation", this means that if the "physical
   * representation" of the corresponding dynamic Constraint (if any exists)
   * is different from its "abstract representation" is not updated, as this
@@ -2768,15 +3695,21 @@ class Block : public Observer {
   * corresponding implementation of this method).
   *
   * The Constraint to be removed are these whose iterator is found in the
-  * std::vector rmvd. Note that, if the BlockModRmv is issued, these
+  * std::vector rmvd. Note that, if the BlockModRmv* is issued, these
   * Constraint are not immediately deleted; rather, they are added to a list
-  * stored into a field of the BlockModRmv object, so that they remain alive
+  * stored into a field of the BlockModRmv* object, so that they remain alive
   * until the last interested Solver had had the chance to use them to
   * perform the required changes. This also implies that the same memory
   * address cannot be used for new Constraint (or anything), which also
-  * avoids potential problems. As soon as the BlockModRmv is eventually
+  * avoids potential problems. As soon as the BlockModRmv* is eventually
   * destroyed, the Constraints are destroyed as well. If, instead, the
-  * BlockModRmv is not issued, the Constraint are destroyed immediately.
+  * BlockModRmv* is not issued, the Constraint are destroyed immediately.
+  *
+  * Note that
+  *
+  *     IF THE BlockModRmv* IS ISSUED, THEN THE ITERATORS IN rmvd MUST BE
+  *     ORDERED; THAT IS, THE *rmvd[ i ] MUST BE FOUND IN THE LIST BEFORE
+  *     *rmvd[ i + 1 ] FOR ALL i
   *
   * The parameter issueMod decides if and how the BlockModRmv is issued, as
   * described in Observer::make_par().
@@ -2818,18 +3751,49 @@ class Block : public Observer {
   * this method does not trigger any other Modification apart from the
   * BlockModRmv. */
 
- template<class Const>
- void remove_dynamic_constraints( std::list<Const> &list ,
-	              std::vector<typename std::list<Const>::iterator> &rmvd ,
-		      c_ModParam issueMod = eModBlck );
+ template< class Const >
+ void remove_dynamic_constraints( std::list< Const > &list ,
+	          std::vector< typename std::list< Const >::iterator > &rmvd ,
+				  c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// Like remove_dynamic_constraint*s*( Const ), just only one of them
+ /// like remove_dynamic_constraint*s*( iterators ), just only one of them
 
- template<class Const>
- void remove_dynamic_constraint( std::list<Const> &list ,
-				 typename std::list<Const>::iterator rmvd  ,
+ template< class Const >
+ void remove_dynamic_constraint( std::list< Const > &list ,
+				 typename std::list< Const >::iterator rmvd  ,
 				 c_ModParam issueMod = eModBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// remove a range of dynamic Constraint
+ /** Removes a bunch of Constraint from the given list. Like
+  * remove_dynamic_constraint( iterators ), but the elements to be deleted
+  * are those in the usual left-closed, right-open interval range. The
+  * Modification issued according to issueMod will be a BlockModRmvRngd,
+  * unless the range actually covers all the list, in which case a
+  * BlockModRmvSbst with subset().empty() is rather issued because it
+  * "makes it clearer what happened". */
+
+ template< class Const >
+ void remove_dynamic_constraints( std::list< Const > &list , Range range ,
+				  c_ModParam issueMod = eModBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// remove a subset of dynamic Constraint
+ /** Removes a bunch of Constraint from the given list. Like
+  * remove_dynamic_constraint( iterators ), but the elements to be deleted
+  * are given under the form of a std::vector< Index >. A special setting is
+  * if subset.empty(), which means that all the elements in the list are
+  * removed. The ordered parameter tells if subset is ordered by increasing
+  * Index: if not, then it is ordered inside (unless of course if
+  * subset.empty()). Not that this matters for the caller since, as the the
+  * && tells, subset[] "becomes property" of Block, possibly to be shipped to
+  * the issued BlockModRmvSbst if issueMod so instructs. */
+
+ template< class Const >
+ void remove_dynamic_constraints( std::list< Const > &list , Subset && subset ,
+				  bool ordered = false ,
+				  c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// removes a bunch of Variable from the given list
@@ -2854,6 +3818,12 @@ class Block : public Observer {
   * problems. As soon as the BlockModAD is eventually destroyed, the Variable
   * are destroyed as well. If, instead, the BlockModAD is not issued, the
   * Variable are destroyed immediately.
+  *
+  * Note that
+  *
+  *     IF THE BlockModRmv* IS ISSUED, THEN THE ITERATORS IN rmvd MUST BE
+  *     ORDERED; THAT IS, THE *rmvd[ i ] MUST BE FOUND IN THE LIST BEFORE
+  *     *rmvd[ i + 1 ] FOR ALL i
   *
   * The parameter issueMod decides if and how the BlockModRmv is issued, as
   * described in Observer::make_par().
@@ -2914,20 +3884,53 @@ class Block : public Observer {
   * parameter should be left to the default value (or to eNoBlck when
   * appropriate). */
 
- template<class Var>
- void remove_dynamic_variables( std::list<Var> &list ,
-                       std::vector<typename std::list<Var>::iterator> &rmvd  ,
-	               c_ModParam issueMod = eModBlck ,
-		       c_ModParam issueindMod = eModBlck );
+ template< class Var >
+ void remove_dynamic_variables( std::list< Var > &list ,
+                 std::vector< typename std::list< Var >::iterator > &rmvd  ,
+				c_ModParam issueMod = eModBlck ,
+				c_ModParam issueindMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// Like remove_dynamic_variable*s*( Var ), just only one of them
+ /// like remove_dynamic_variable*s*( iterators ), just only one of them
 
- template<class Var>
- void remove_dynamic_variable( std::list<Var> &list ,
-			       typename std::list<Var>::iterator rmvd ,
+ template< class Var >
+ void remove_dynamic_variable( std::list< Var > &list ,
+			       typename std::list< Var >::iterator rmvd ,
 			       c_ModParam issueMod = eModBlck ,
 			       c_ModParam issueindMod = eModBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// remove a range of dynamic Variable
+ /** Removes a bunch of Variable from the given list. Like
+  * remove_dynamic_constraint( iterators ), but the elements to be deleted
+  * are those in the usual left-closed, right-open interval range. The
+  * Modification issued according to issueMod will be a BlockModRmvRngd,
+  * unless the range actually covers all the list, in which case a
+  * BlockModRmvSbst with subset().empty() is rather issued because it
+  * "makes it clearer what happened". */
+
+ template< class Var >
+ void remove_dynamic_variables( std::list< Var > &list , Range range ,
+				c_ModParam issueMod = eModBlck ,
+				c_ModParam issueindMod = eModBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// remove a subset of dynamic Variable
+ /** Removes a bunch of Variable from the given list. Like
+  * remove_dynamic_constraint( iterators ), but the elements to be deleted
+  * are given under the form of a std::vector< Index >. A special setting is
+  * if subset.empty(), which means that all the elements in the list are
+  * removed. The ordered parameter tells if subset is ordered by increasing
+  * Index: if not, then it is ordered inside (unless of course if
+  * subset.empty()). Not that this matters for the caller since, as the the
+  * && tells, subset[] "becomes property" of Block, possibly to be shipped to
+  * the issued BlockModRmvSbst if issueMod so instructs. */
+
+ template< class Var >
+ void remove_dynamic_variables( std::list< Var > &list , Subset && subset ,
+				bool ordered = false ,
+				c_ModParam issueMod = eModBlck ,
+				c_ModParam issueindMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// change the Objective of the Block
@@ -3465,12 +4468,29 @@ class Block : public Observer {
   * interface.
   *
   * Each derived class can produce, in principle, any number of different R3
-  * Blocks; the parameter r3bc is a pointer to an arbitrarily complex
+  * Blocks; the parameter \p r3bc is a pointer to an arbitrarily complex
   * Configuration object which allows to tell which one has to be produced.
   * Of course, the R3 Block of a :Block with sub-Block may require each
   * sub-Block to produce R3 Block of its (recursively), hence the use of
   * Configuration that allows arbitrarily complex nested parameters to be
   * used.
+  *
+  * The parameter \p base is provided for allowing the creation of R3 Blocks to
+  * happen "piecemeal". The obvious use case is that of a class B1 : Block and
+  * B2 : B1 where B1 provides some R3 Block, say the copy. If, as it is
+  * sensible, B2 wants to provide the same R3 Block, it is useful for B2 to
+  * be able to "ask B1 to work on its part of the R3 Block", while taking
+  * care of the B2-specific part. The idea is then that B2 can construct the
+  * R3 Block (say, of class B2 in case of the copy) an use B1::get_R3_Block()
+  * to have the B1-specific part managed (say, copied). Of course, B1 will
+  * have requirements about the specific type of :Block that it accepts as
+  * second input, depending on r3bc; for instance, in the case of a copy it
+  * has to be any class derived from B1 (such as B2).
+  *
+  * The parameter \p father is provided in case \p base is not, and therefore
+  * the R3 Block has to be created inside the method; father is (the pointer
+  * to) the "father Block" to the newly created R3 one, to be passed to the
+  * constructor.
   *
   * A specific point to be clarified concerns dynamic Constraint and
   * Variable. In principle, dynamic Constraint in Block are thought as "being
@@ -3508,14 +4528,59 @@ class Block : public Observer {
   * they may possibly be added to the R3 Block later on [see
   * map_forward_Modification()], if the original Block supports it.
   *
-  * The method is given an extremely lazy default implementation refusing to
-  * produce any kind of R3 Block, comprised the "copy" one. Thus, the caller
-  * should always check the returned argument for non-nullptr-dness to
-  * ensure that the :Block was actually able to produce the required R3 one. */
+  * The method is given a default implementation just doing the following:
+  *
+  * - if there are no inner Block, just return the \p base argument;
+  *
+  * - if there are inner Block, \p base must not be nullptr (Block is an
+  *   abstract class, so it cannot be Block to construct it): then, the
+  *   inner Block of base are deleted, the vector is resized to the same size
+  *   as that of this, and then a R3 Block is created for each inner Block of
+  *   this and placed in the same position in base.
+  *
+  * If \p *r3bc is a SimpleConfiguration< std::vector< Configuration * >,
+  * then the i-th element of the vector is passed as the r3bc parameter
+  * in the call to get_R3_Block() to the i-the inner Block (otherwise, or
+  * if the vector has no i-th element, nullptr is used). Note that the call
+  * to get_R3_Block() is done with no \p base argument.
+  *
+  * A :Block should always explicitly state which kind of R3 Block can produce,
+  * and the caller should always check the returned value for non-nullptr-dness
+  * in case there is any doubt that the :Block is actually able to produce the
+  * required R3 one. */
 
- virtual Block * get_R3_Block( Configuration *r3bc = nullptr )
+ virtual Block * get_R3_Block( Configuration *r3bc = nullptr ,
+			       Block * base = nullptr ,
+			       Block * father = nullptr )
  {
-  return( nullptr );
+  if( ! v_Block.empty() ) {
+   // automate the creation of R3 Block for the sub-Block, hence do nothing
+   // if there aren't any
+
+   // base must be given because the base Block class is virtual
+   if( ! base )
+    throw( std::invalid_argument( "Block::get_R3_Block with no base" ) );
+
+   // ensure that eny existing sub-Block is deleted (there should not be any)
+   base->reset_nested_Block();
+
+   auto cv =
+    dynamic_cast< SimpleConfiguration< std::vector< Configuration * > > *
+                  >( r3bc );
+
+   // set the i-th sub-Block of base as the R3 Block of the i-th sub-Block
+   // of this, using base as its father and the i-th entry of the r3bc
+   // vector (if any) as Configuration; however, no base can be provided,
+   // so the sub-Block must be able to provide one itself (this cannot
+   // recourse)
+   for( Index i = 0 ; i < v_Block.size() ; ++i )
+    base->add_nested_Block( v_Block[ i ]->get_R3_Block(
+		      ( cv && ( cv->f_value.size() > i ) ) ? cv->f_value[ i ]
+		                                           : nullptr ,
+		      nullptr , base ) );
+   }
+
+  return( base );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -3690,7 +4755,7 @@ class Block : public Observer {
   *
   * R3B is assumed to be a R3 Block produced by the current one of "type"
   * r3bc (the same, or identical, Configuration object used in get_R3_Block()
-  * to produce R3B in the first place). mod is assumed to be a (smart)
+  * to produce R3B in the first place). mod is assumed to be a (const)
   * pointer to a Modification object that applies to the current Block.
   *
   * One example of use of such a mechanism is when the original Block has
@@ -3760,14 +4825,112 @@ class Block : public Observer {
   * allows to check that this has happened. The default implementation of
   * the method works for "extremely lazy" Block not being willing to
   * implement any of the possible mapping, or extremely unlucky ones not
-  * having any workable one to implement. */
+  * having any workable one to implement.
+  *
+  *     IMPORTANT NOTE: MAPPING SOME Modification MAY ONLY BE POSSIBLE IF
+  *     PERFORMED "IMMEDIATELY" AFTER THE ORIGINAL Block HAS BEEN MODIFIED
+  *
+  * A case in point is if the Block has some dynamic Constraint or Variable.
+  * These can be changed, deleted and added. This kind of change may be very
+  * hard to manage if one lets Modification accumulate. For instance, a
+  * dynamic Constraint may first be modified, and then deleted. If the
+  * map_forward_Modification() corresponding to changing the constraint is
+  * called *after* that the Constraint has been deleted, the original Block
+  * no longer has any information on the Constraint, and therefore may have
+  * no way to properly implement the change. Each :Block should clearly 
+  * state if it supports deferred map_forward_Modification() for all the
+  * Modification it produces, or which Modification need be mapped
+  * "immediately".
+  *
+  * The method is given a default implemntation returning false if \p mod
+  * refers to this; otherwise it seeks \p mod in the list of inner Block
+  * of this, and if it finds it calls map_forward_Modification() of the
+  * inner Block and the corresponding inner Block of R3B (if any, otherwise
+  * false is returned).
+  *
+  * If \p *r3bc is a SimpleConfiguration< std::vector< Configuration * >,
+  * then the i-th element of the vector is passed as the r3bc parameter
+  * in the call to map_forward_Modification() to the i-the inner Block
+  * (otherwise, or if the vector has no i-th element, nullptr is used). */
 
- virtual bool map_forward_Modification( Block *R3B , sp_Mod mod ,
+ virtual bool map_forward_Modification( Block *R3B , c_p_Mod mod ,
 					Configuration *r3bc = nullptr ,
-					c_ModParam issuePMod = eNoBlck ,
-					c_ModParam issueAMod = eModBlck )
+					ModParam issuePMod = eNoBlck ,
+					ModParam issueAMod = eModBlck )
  {
-  return( false );
+  if( mod->get_Block() == this )
+   return( false );
+
+  auto i = get_nested_Block_index( mod->get_Block() );
+  if( ( i >= get_number_nested_Blocks() ) ||
+      ( i >= R3B->get_number_nested_Blocks() ) )
+   return( false );
+
+  auto cv =
+   dynamic_cast< SimpleConfiguration< std::vector< Configuration * > > *
+                 >( r3bc );
+
+  return( mod->get_Block()->map_forward_Modification(
+				       R3B->get_nested_Block( i ) , mod ,
+			               ( cv && ( cv->f_value.size() > i ) ) ?
+					   cv->f_value[ i ] : nullptr ,
+					   issuePMod , issueAMod ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// maps forward a list of Modification from the original Block to a R3 Block
+ /** Maps forward an entire  list of Modification from the original Block to
+  * a R3 Block in one blow.
+  *
+  * As discussed in map_forward_Modification(), mapping Modifications is in
+  * general complex. This is so because a Block and its R3 Block can be "very
+  * different", and therefore one Modification in one can result in many
+  * Modification in the other and vice-versa. Whie GroupModification may
+  * help in this respect, it may not solve everything. Furthermore, even if
+  * there is a nice one-to-one correspondence, mapping a Modification that
+  * can have been issued "a long time ago", with many changes having possibly
+  * occurred in Block in the meantime, can already be a daunting task if the
+  * Block has any form of dynamic components that may be freely created and
+  * destroyed.
+  *
+  * A part of the complexity, in both cases, is therefore due to the myopic
+  * definition of the task: mapping *one* Modification. In general, it may
+  * be simpler to map *all the issued Modification*. Knowing the whole list
+  * allows, for instance, to traverse if backwards, and therefore be able to
+  * completely map the current status of the Block (after all the changes)
+  * to the current status of the R3 Block (before any change). Althiugh
+  * "simpler" may not be the most appropriate adjective there, knowing the
+  * full list of Modification may make it possible to deal with tasks that
+  * would otherwise not be feasible.
+  *
+  * This method allows for such an operation. It takes the same inputs as
+  * map_forward_Modification(), save that the individual (const pointer to a)
+  * Modification is now a list of (smart pointerd to) Modification. The
+  * assumption is that the list contains "all the Modification issued that
+  * cause the Block to be not in synch with its R3 Block", althugh individual
+  * :Block may relax this to a subset of "difficult" Modification.
+  *
+  * The method is supposed to scan throgh the list of Modification,
+  * properly reacting to those it can deal with and ignoring the others; the
+  * Modification acted upon are deleted from the list, leaving the rest.
+  *
+  * The method is given a default implementation just dumbly scanning the
+  * list top-to-bottom and calling map_forward_Modification() on each
+  * element in turn. */
+
+
+ virtual void map_forward_Modifications( Block *R3B , Lst_sp_Mod lmod ,
+					 Configuration *r3bc = nullptr ,
+					 ModParam issuePMod = eNoBlck ,
+					 ModParam issueAMod = eModBlck )
+ {
+  for( auto mit = lmod.begin() ; mit != lmod.end() ; ) {
+   auto nmit = ++mit;
+   if( map_forward_Modification( R3B , mit->get() , r3bc ,
+				 issuePMod , issueAMod ) )
+    lmod.erase( mit );
+   mit = nmit;
+   }
   }
 
 /*--------------------------------------------------------------------------*/
@@ -3791,7 +4954,7 @@ class Block : public Observer {
   *
   * R3B is assumed to be a R3 Block produced by the current one of "type"
   * r3bc (the same, or identical, Configuration object used in get_R3_Block()
-  * to produce R3B in the first place). mod is assumed to be a (smart)
+  * to produce R3B in the first place). mod is assumed to be a (const)
   * pointer to a Modification object that applies to the R3 Block.
   *
   * IMPORTANT NOTE: A :Block SHOULD ONLY MAP EITHER ITS "PHYSICAL
@@ -3824,19 +4987,63 @@ class Block : public Observer {
   * which and avoid to call this method on the "wrong" one, it is simpler to
   * just throw them all and have only the right one processed. Yet, if it is
   * crucial that the Modification is actually processed, the return value
-  * allows to check that this has happened. The default implementation of
-  * the method works for "extremely lazy" Block not being willing to
-  * implement any of the possible mapping, or extremely unlucky ones not
-  * having any workable one to implement. */
+  * allows to check that this has happened.
+  *
+  * The method is given a default implemntation returning false if \p mod
+  * refers to this; otherwise it seeks \p mod in the list of inner Block
+  * of this, and if it finds it calls map_back_Modification() of the inner
+  * Block and the corresponding inner Block of R3B (if any, otherwise false
+  * is returned).
+  *
+  * If \p *r3bc is a SimpleConfiguration< std::vector< Configuration * >,
+  * then the i-th element of the vector is passed as the r3bc parameter
+  * in the call to map_back_Modification() to the i-the inner Block
+  * (otherwise, or if the vector has no i-th element, nullptr is used). */
 
- virtual bool map_back_Modification( Block *R3B , sp_Mod mod ,
+ virtual bool map_back_Modification( Block *R3B , c_p_Mod mod ,
 				     Configuration *r3bc = nullptr ,
-				     c_ModParam issuePMod = eNoBlck ,
-				     c_ModParam issueAMod = eModBlck )
+				     ModParam issuePMod = eNoBlck ,
+				     ModParam issueAMod = eModBlck )
  {
-  return( false );
+  if( mod->get_Block() == this )
+   return( false );
+
+  auto i = get_nested_Block_index( mod->get_Block() );
+  if( ( i >= get_number_nested_Blocks() ) ||
+      ( i >= R3B->get_number_nested_Blocks() ) )
+   return( false );
+
+  auto cv =
+   dynamic_cast< SimpleConfiguration< std::vector< Configuration * > > *
+                 >( r3bc );
+
+  return( mod->get_Block()->map_back_Modification(
+					R3B->get_nested_Block( i ) , mod ,
+					( cv && ( cv->f_value.size() > i ) ) ?
+					cv->f_value[ i ] : nullptr ,
+					issuePMod , issueAMod ) );
   }
 
+/*--------------------------------------------------------------------------*/
+ /// maps back a list of Modification from an R3 Block to the original Block
+ /** Maps bacl an entire list of Modificationfrom an R3 Block to the original
+  * Block in one blow.
+  *
+  * See the comments to map_forward_Modifications(). */
+
+ virtual void map_back_Modifications( Block *R3B , Lst_sp_Mod lmod ,
+				      Configuration *r3bc = nullptr ,
+				      ModParam issuePMod = eNoBlck ,
+				      ModParam issueAMod = eModBlck )
+ {
+  for( auto mit = lmod.begin() ; mit != lmod.end() ; ) {
+   auto nmit = ++mit;
+   if( map_back_Modification( R3B , mit->get() , r3bc ,
+			      issuePMod , issueAMod ) )
+    lmod.erase( mit );
+   mit = nmit;
+   }
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
@@ -3994,17 +5201,16 @@ class Block : public Observer {
 
 /*--------------------------------------------------------------------------*/
 
- ChnlName open_channel( GroupModification * gmpmod = nullptr ,
-			c_ModParam issueMod = eModBlck ) override;
+ ChnlName open_channel( GroupModification * gmpmod = nullptr ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
- void nest_channel( c_ChnlName chnl , GroupModification * gmpmod = nullptr ,
-		    c_ModParam issueMod = eModBlck ) override;
+ void nest_channel( ChnlName chnl , GroupModification * gmpmod = nullptr )
+  override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
- void un_nest_channel( c_ChnlName chnl ) override;
+ void un_nest_channel( ChnlName chnl ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
@@ -4012,7 +5218,7 @@ class Block : public Observer {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
- void set_default_channel( c_ChnlName chnl = 0 ) override;
+ void set_default_channel( ChnlName chnl = 0 ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------------- Methods for handling Solver -----------------------*/
@@ -4020,12 +5226,11 @@ class Block : public Observer {
 /** @name Methods for handling Solvers
     @{ */
 
- c_Lst_Solver & get_registered_solvers( void ) const {
-  return( v_Solver );
-  }
- ///< reading the list of (pointers to) currently registered Solvers
- /**< Method for reading the list of (pointers to) the Solvers currently
+ /// reading the list of (pointers to) currently registered Solvers
+ /** Method for reading the list of (pointers to) the Solvers currently
   * registered with the Block. */
+
+ c_Lst_Solver & get_registered_solvers( void ) const { return( v_Solver ); }
 
 /*--------------------------------------------------------------------------*/
  /// adding a Solver to the set of those currently registered
@@ -4033,9 +5238,13 @@ class Block : public Observer {
   * with the Block. Note that the Block does sets itself to the Solver by
   * calling Solver::set_Block(), which is why the converse is not done (see
   * Solver.h). Note that the method is virtual because derived classes may
-  * have to do more. */
+  * have to do more.
+  *
+  * By default the new Solver (pointer) is pushed to the back of the list of
+  * registered Solver, unless \p tofront is set to true, in which case it is
+  * pushed to the front. */
 
- virtual void register_Solver( Solver *newSolver ) {
+ virtual void register_Solver( Solver *newSolver , bool tofront = false ) {
   if( v_Solver.empty() ) {    // this is the first Solver listening to me
    if( ! f_at ) {             // and no one was listening from above already
     for( auto el : v_Block )  // now someone is listening to all my sons
@@ -4049,7 +5258,35 @@ class Block : public Observer {
    }
 
   newSolver->set_Block( this );
-  v_Solver.push_back( newSolver );
+  if( tofront )
+   v_Solver.push_front( newSolver );
+  else
+   v_Solver.push_back( newSolver );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// removing all Solver from the set of those currently registered
+ /** Clear all the list of registered Solver in one blow. If \p deleteold is
+  * true, then the Solver are also deleted. */
+
+ virtual void unregister_Solvers( bool deleteold = true ) {
+  if( v_Solver.empty() )  // no registered Solver
+   return;                // nothing to do
+
+  if( deleteold )
+   for( auto slvr : v_Solver ) {
+    slvr->set_Block( nullptr );
+    delete slvr;
+    }
+  else
+   for( auto slvr : v_Solver )
+    slvr->set_Block( nullptr );
+  
+  v_Solver.clear();
+
+  if( ! f_at )                 // nobody is listening from above
+   for( auto el : v_Block )    // now no one is listening to all my sons
+    el->anyone_there( false );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -4127,107 +5364,6 @@ class Block : public Observer {
   replace_Solver( newSolver , v_Solver.erase( it , it ) );
   // cast away const-ness and call the protected version
   }
-
-/*--------------------------------------------------------------------------*/
- /// create and set all the Solver attached to this Block (and its sub-Block)
- /** Method for creating, configuring and registering all the Solver that
-  * the Block may need.
-  *
-  * The method uses a BlockSolverConfig, that holds:
-  *
-  * - a std::vector<std::string> containing the class names of the required
-  *   :Solver;
-  * - a std::vector<SolverConfig *> containing the corresponding algorithmic
-  *   parameters;
-  * - a std::vector<BlockSolverConfig *> containing the same information for
-  *  each of the sub-Block of this Block;
-  *
-  * Note that the vector of SolverConfig * is allowed to be shorter than that
-  * of names, in which case all the missing entries are treated as nullptr.
-  * It is also allowed to be longer, in which case all the extra entries are
-  * ignored.
-  *
-  * The BlockSolverConfig also has a field f_diff that indicates whether it
-  * has to be interpreted in "differential mode". The behaviour of this
-  * method is the following:
-  *
-  * - First, the list of Solver registered to this Block is scanned, and for
-  *   each of them the corresponding elements in the BlockSolverConfig are
-  *   examined. Then:
-  *   = If f_diff == true
-  *     * if the name of the Solver is empty then the Solver is left there,
-  *       otherwise the existing solver is un-registered and deleted and a
-  *       new solver is created and registered in that position
-  *     * if the corresponding SolverConfig * is null then nothing is done,
-  *       otherwise the SolverConfig * is passed to the Solver
-  *   = If f_diff == false
-  *     the existing solver is un-registered and deleted, then
-  *     * if the name of the Solver is empty then the vector of registered
-  *       Solver is shortened by one (any SolverConfig is ignored)
-  *     * otherwise a new solver is created and registered in that position,
-  *       and the corresponding SolverConfig is passed to it.
-  *   Note that this would seem to not allow completely resetting the
-  *   configuration of some existing Solver without changing it, but this is
-  *   not true: it is sufficient to pass it a SolverConfig object (hence, not
-  *   nullptr) which is "empty" (no parameter set) but with its f_diff field
-  *   == false [see SolverConfig].
-  *
-  * - After the end of the list of currently registered Solver is reached (if
-  *   ever), the behaviour is instead independent on the value of f_diff
-  *   (adding to nothing is setting). If the name of the Solver is empty then
-  *   the entry of the vector is ignored, otherwise a new solver is created
-  *   and registered in that position (at the end) and the corresponding
-  *   SolverConfig is passed to it (unless it is nullptr, because setting a
-  *   nullptr configuration to a newly minted solver is useless).
-  *
-  * After this is done for this Block, the method is called recursively on
-  * each sub-Block. Here, again, f_diff dictates how "void" information is
-  * treated:
-  *
-  * - if f_diff == true and some BlockSolverConfig * is nullptr, then the
-  *   corresponding sub-Block is ignored; if the vector of BlockSolverConfig
-  *   is shorter than the number of sub-Block, all the non-specified ones are
-  *   left unchanged;
-  *
-  * - if f_diff == false and some BlockSolverConfig * is nullptr, then
-  *   set_SolverConfig( nullptr ) is called for the corresponding sub-Block;
-  *   if the vector of BlockSolverConfig is shorter than the number of
-  *   sub-Block, set_SolverConfig( nullptr ) is called for all the
-  *   non-specified ones.
-  *
-  * Since a call to set_SolverConfig( nullptr ) would not make sense if the
-  * "empty" SolverConfig were intended in the differential sense (it would do
-  * nothing), when svcc == nullptr the field f_diff should be interpreted as
-  * false. Hence, calling set_SolverConfig() will unregister and delete all
-  * Solver attached to this Block and to each of its sub-Block.
-  *
-  * Important note: the moment when the Block is passed to the Solver, the
-  * Solver should in principle do all the necessary initializations, since
-  * immediately afterwords compute() may be called already. However, some
-  * of the initializations could be heavily impacted by the algorithmic
-  * parameters of the Solver. This means that
-  *
-  *     IT IS EXPECTED THAT, IN A Solver, set_ComputeConfig() SHOULD BE
-  *     CALLED *BEFORE* set_Block() IS
-  *
-  * This is in fact how this is done here inside.
-  *
-  * Note an important difference between this method and register_Solver(),
-  * unregister_Solver() and replace_Solver(): in the latter the new solver
-  * have to be already constructed outside of Block, and the ones that get
-  * un-registered are *not* deleted, which therefore has to be done by
-  * whomever created them in the first place outside the Block. In this
-  * method, instead, the Solver are directly constructed (using the Solver
-  * factory) inside the Block, and correspondingly each Solver that gets
-  * un-registered is also immediately deleted. Mixing the two styles of
-  * managing Solver is therefore tricky and caution should be exercised.
-  *
-  * Finally, note that the BlockSolverConfig pointed by svcc is not changed
-  * by the call, and it is *not* retained by the Block. This means that it
-  * can (and should) be deleted after the call (provided it is not useful
-  * later). */
-
- virtual void set_SolverConfig( BlockSolverConfig * svcc = nullptr );
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------- Methods for handling the methods factory -----------------*/
@@ -4955,6 +6091,134 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 /*--------------------------------------------------------------------------*/
+/** @name Protected methods for locking and unlocking
+ */
+
+ bool lock_sub_block( void * owner )
+ {
+  if( v_Block.empty() )
+   return( true );
+
+  // visit the Block tree depth-first, left-to-right order
+  // note that we need to keep track if a sub-Block was already owned by
+  // owner in order to avoid unlocking it in case of failure
+
+  bool success = true;
+  std::vector< bool > locked( v_Block.size() , true );
+ 
+  auto sb = v_Block.begin();
+  auto oit = locked.begin();
+  for( ; sb != v_Block.end() ; ++sb , ++oit )
+   if( (*sb)->is_owned_by( owner ) )
+    *oit = false;
+   else
+    if( ! (*sb)->lock( owner ) ) {
+     success = false;
+     break;
+     }
+
+  if( ! success )   // some of the sub-Block could not be locked
+   while( sb-- != v_Block.begin() )  // re-unlock those that were locked
+    if( *(--oit) )                   // except those were owned already
+     (*sb)->unlock( owner );
+
+  return( success );
+  }
+
+/*--------------------------------------------------------------------------*/
+/* Try to read-lock all sub_Block of a Block that has already been
+ * successfully read-locked; upon success return true, upon failure
+ * read-unlock the Block and return false.
+ */
+
+ bool read_lock_sub_block( void )
+ {
+  bool success = true;
+  // visit the Block tree depth-first, left-to-right order
+  auto sb = v_Block.begin();
+  for( ; sb != v_Block.end() ; ++sb )
+   if( ! (*sb)->read_lock() ) {
+    success = false;
+    break;
+    }
+
+  if( success )     // all the sub-Block could be read-locked
+   return( true );  // return success
+
+  while( sb-- != v_Block.begin() )  // re-read-unlock the read-locked ones
+   (*sb)->read_unlock();
+
+  guts_of_read_unlock();  // read-unlock the Block
+
+  return( false );        // return failure
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// define a special owner for "locked read-only"
+ /** This address is not supposed to be used as that of any owner, and it
+  * is used to mean "the Block is under any number of read-locks".
+  *
+  * The const_cast is required to obtain a non-const void * from a field
+  * address inside a const method, since everything inside a const
+  * method (and hence their address) is const by default. It would be nice to
+  * rather return a const void *, but this is not liked by
+  * compare_exchange_strong() whose second argument is not const. */
+ 
+ void * ReadOnlyLock( void ) const {
+  return( const_cast< std::atomic< void * > * >( & f_owner ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// define a special owner for "locked read-only and working on v_owners"
+ /** This address is not supposed to be used as that of any owner, and it
+  * is used to mean "the Block is under any number of read-locks, and one of
+  * the read-locks is currently operating on the v_owners field, which means
+  * that nobody else should be even looking at it".
+  *
+  * The ugly sequence of cast is required to obtain a non-const void * from
+  * a field address inside a const method, since everything inside a const
+  * method (and hence their address) is const by default. It would be nice to
+  * rather return a const void *, but this is not liked by
+  * compare_exchange_strong() whose second argument is not const. */
+ 
+ void * v_ownersLock( void ) const {
+  return( const_cast< std::mutex * >( & f_mutex ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+/* Read-lock the Block (which must be read-locked). */
+
+ void guts_of_read_unlock( void )
+ {
+  for(;;) {  // acquire the "active lock" on v_owners
+   // note that since the Block is surely read-locked, the only possible
+   // contents of f_owner can be v_ownersLock and ReadOnlyLock
+   void * current_owner = ReadOnlyLock();
+   if( f_owner.compare_exchange_strong( current_owner , v_ownersLock() ) ) {
+    // v_owner was active-unlocked, active lock successfully acquired
+    // find the record corresponding to the thread::id, it must be there
+    auto it = v_owners.find( std::this_thread::get_id() );
+    if( it == v_owners.end() )
+     throw( std::logic_error( "unbalanced read lock/unlock" ) );
+    if( ! --(it->second) ) {
+     // decrease the counter, and if it reached 0 erase the record
+     v_owners.erase( it );
+     // if there are no longer readers for the Block
+     if( v_owners.empty() ) {
+      f_owner = nullptr;  // entirely release the lock
+      f_mutex.unlock();   // release the mutex
+      break;
+      }
+     }
+    // release the active lock on v_owners
+    f_owner = ReadOnlyLock();
+    break;
+    }
+   // else, v_owner was active-locked: repeat until access granted
+   }  // end( for( ever ) )
+  }  // end( guts_of_read_unlock )
+
+/**@} ----------------------------------------------------------------------*/
 /** @name Protected methods for handling the "abstract representation"
  *
  * The following methods are the only ones that derived classes can use to
@@ -4998,8 +6262,37 @@ class Block : public Observer {
  *
  * For sake of consistency, set_Block( this ) is called on every new added
  * element; users may set another Block later at their own risk.
+ *
+ * Similar methoda are provided to handle the set of sub-Block. Although
+ * currently v_Block is protected and derived classes can manipulate it
+ * freely, this may change in the future, and therefore the use of these
+ * methods is strongly advised for better future-proof code.
  * @{ */
 
+ /// removes any existing sub-Block; to be used with care
+
+ void reset_nested_Block( void )
+ {
+  for( auto bi : v_Block )
+   delete bi;
+  v_Block.clear();
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+  /// add a single sub-Block
+
+ void add_nested_Block( Block * newb , bool front = false  )
+ {
+  if( newb->get_f_Block() != this )
+   newb->set_f_Block( this );
+
+  if( front )
+   v_Block.insert( v_Block.begin() , newb );
+  else
+   v_Block.push_back( newb );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// removes any existing static Constraint; to be used with care
 
  void reset_static_constraints( void )
@@ -5237,8 +6530,7 @@ class Block : public Observer {
  /// single object of class (derived from) Variable
 
  template< class Var >
- void set_static_variable( Index i , Var & newv ,
-			   std::string && name = "" )
+ void set_static_variable( Index i , Var & newv , std::string && name = "" )
  {
   // ensure derived classes insert a derivate of Variable
   static_assert( std::is_base_of< Variable, Var >::value,
@@ -5257,7 +6549,7 @@ class Block : public Observer {
 
  template< class Var >
  void add_static_variable( std::vector< Var > & newv ,
-                           std::string && name = "" , bool front = false )
+			   std::string && name = "" , bool front = false )
  {
   static_assert( std::is_base_of< Variable, Var >::value,
                  "add_static_variable: newv must inherit from Variable" );
@@ -5307,8 +6599,8 @@ class Block : public Observer {
   static_assert( std::is_base_of< Variable, Var >::value,
                  "add_static_variable: newv must inherit from Variable" );
 
-  for( auto i = newv.data() ; i < ( newv.data() + newv.num_elements() ) ; ++i )
-   i->set_Block( this );
+  for( auto i = newv.data() ; i < ( newv.data() + newv.num_elements() ) ; )
+   (i++)->set_Block( this );
 
   boost::multi_array< Var, K > * cnewv = &newv;
   if( front ) {
@@ -5457,14 +6749,15 @@ class Block : public Observer {
  /// boost::multi_array<K> of std::list of (...) Constraint
 
  template< class Const, unsigned long K >
- void add_dynamic_constraint( boost::multi_array< std::list< Const > , K >
-                              & newc , std::string && name = "" ,
-			      bool front = false )
+ void add_dynamic_constraint(
+		       boost::multi_array< std::list< Const > , K > & newc ,
+		       std::string && name = "" , bool front = false )
  {
   static_assert( std::is_base_of< Constraint, Const >::value,
                "add_dynamic_constraint: newc must inherit from Constraint" );
 
-  for( auto i = newc.data() ; i < ( newc.data() + newc.num_elements() ) ; ++i )
+  for( auto i = newc.data() ; i < ( newc.data() + newc.num_elements() ) ;
+       ++i )
    for( auto & j : *i )
     j.set_Block( this );
 
@@ -5485,8 +6778,8 @@ class Block : public Observer {
 
  template< class Const, unsigned long K >
  void set_dynamic_constraint( Index i ,
-			      boost::multi_array< std::list< Const > , K >
-                              & newc , std::string && name = "" )
+			boost::multi_array< std::list< Const > , K > & newc ,
+			      std::string && name = "" )
  {
   static_assert( std::is_base_of< Constraint, Const >::value,
                "add_dynamic_constraint: newc must inherit from Constraint" );
@@ -5616,14 +6909,15 @@ class Block : public Observer {
  /// boost::multi_array<K> of std::list of (...) Variable
 
  template< class Var, unsigned long K >
- void add_dynamic_variable( boost::multi_array< std::list< Var > , K >
-			    & newv , std::string && name = "" ,
-			    bool front = false )
+ void add_dynamic_variable(
+			  boost::multi_array< std::list< Var > , K > & newv ,
+			  std::string && name = "" , bool front = false )
  {
   static_assert( std::is_base_of< Variable, Var >::value,
                  "add_dynamic_variable: newv must inherit from Variable" );
 
-  for( auto i = newv.data() ; i < ( newv.data() + newv.num_elements() ) ; ++i )
+  for( auto i = newv.data() ; i < ( newv.data() + newv.num_elements() ) ;
+       ++i )
    for( auto & j : *i )
     j.set_Block( this );
 
@@ -5644,8 +6938,8 @@ class Block : public Observer {
 
  template< class Var, unsigned long K >
  void set_dynamic_variable( Index i ,
-			    boost::multi_array< std::list< Var > , K >
-			    & newv , std::string && name = "" )
+		         boost::multi_array< std::list< Var > , K > & newv ,
+			    std::string && name = "" )
  {
   static_assert( std::is_base_of< Variable, Var >::value,
                  "add_dynamic_variable: newv must inherit from Variable" );
@@ -5673,6 +6967,7 @@ class Block : public Observer {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// removing the solver in position it of the set of the registered ones
+
  virtual void unregister_Solver( Lst_Solver_it it )
  {
   (*it)->set_Block( nullptr );  // unregister the Block in the Solver
@@ -5752,7 +7047,7 @@ class Block : public Observer {
   * Although clearly not "empty", as opposed as :Block fresh out of the
   * factory (see new_Block( string )), a freshly loaded Block is otherwise
   * "in pristine state": the "abstract representation" is not constructed
-  *  (unless the :Block does this by its own volition), both the BlockConfig
+  * (unless the :Block does this by its own volition), both the BlockConfig
   * and the BlockSolverConfig are not set, and (therefore) there are no Solver
   * attached, unless there were before. */
 
@@ -5812,6 +7107,15 @@ class Block : public Observer {
 /**@} ----------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
+
+ std::atomic< void * > f_owner;  ///< the "owner" of this Block
+
+ std::map< std::thread::id , unsigned short > v_owners;
+
+ std::atomic< std::thread::id > f_owner_thread_id;
+                                 ///< the thread::id of the owner
+
+ std::mutex f_mutex;            ///< the std::mutex of this Block
 
  Vec_Block v_Block;
  ///< vector of pointers of the nested blocks inside the Block
@@ -5974,7 +7278,7 @@ class BlockMod : public AModification
 /*------------------- PROTECTED METHODS OF THE CLASS -----------------------*/
  /// print the BlockMod
 
- virtual inline void print( std::ostream &output ) const override {
+ void print( std::ostream &output ) const override {
   output << "BlockMod[";
   if( concerns_Block() )
    output << "t";
@@ -6082,7 +7386,34 @@ class BlockModAD : public AModification
  * pointer to the affected Block is required, since it can always be inferred
  * from the other information (Constraint/Variable) that the Modification
  * contains. The class is template over the type of the Constraint or Variable
- * that have been added, which must be either a :Constraint or a :Variable. */
+ * that have been added, which must be either a :Constraint or a :Variable.
+ *
+ * Whatever stuff is added to a list of dynamic stuff, the "names == indices
+ * in the list" that the added Constraint/Variable take will be "length of the
+ * list", "length of the list + 1", where the length is taken immediately
+ * before of the insertion. The Modification stores the first of these names
+ * (i.e., "length of the list") in case it may be useful to better handle it.
+ * Note that this refers to the index that the Constraint/Variable
+ * (whose pointers are anyway returned by added())
+ *
+ *     HAD AT THE MOMENT IN WHICH THE BlockModAdd WAS ISSUED, SINCE WHEN THE
+ *     BlockModAdd IS PROCESSED, THESE Constraint/Variable MAY HAVE CHANGED
+ *     "NAME" (IF Constraint/Variable BEFORE THEM IN THE LIST HAVE BEEN
+ *     REMOVED), OR COULD HAVE EVEN BEEN REMOVED (IN WHCH CASE AN
+ *     APPROPRIATE Modification MUST BE SITTING IN THE QUEUE AFTER THIS ONE).
+ *
+ * Yet, this information may still be useful to a Solver which keeps some
+ * internal data structures depending on the order of the Constraint/Variable
+ * in the list, as it then would immediately know where to put the information
+ * about the newly added Constraint/Variable. Note that
+ *
+ *     THE INDEX THAT THE ADDED Constraint/Variable HAVE AT THE MOMENT IN
+ *     WHICH THE BlockModAdd IS PROCESSED CAN ONLY BE SMALLER THAN OR EQUAL
+ *     TO THAT THAT THE INFORMATION REPORTED HERE IMPLIES, EXCEPT IF A
+ *     Constraint/Variable HAS BEEN DELETED AND RE-ADDED (IN WHCH CASE TWO
+ *     APPROPRIATE Modification MUST BE SITTING IN THE QUEUE AFTER THIS ONE).
+ *
+ * This may allow to simplify somewhat the work for some Solver. */
 
 template< class ConstOrVar >
 class BlockModAdd : public BlockModAD
@@ -6110,8 +7441,10 @@ class BlockModAdd : public BlockModAD
   * needed. */
 
  BlockModAdd( std::list< ConstOrVar > & whc ,
-	      std::vector< ConstOrVar * > && add , bool cB = false )
-  : BlockModAD( cB ) , whc_list( whc ) , add_vec( std::move( add ) )
+	      std::vector< ConstOrVar * > && add , Block::Index first ,
+	      bool cB = false )
+  : BlockModAD( cB ) , whc_list( whc ) , add_vec( std::move( add ) ) ,
+    f_first( first )
  {
   static_assert( std::is_base_of< Variable , ConstOrVar >::value ||
 		 std::is_base_of< Constraint , ConstOrVar >::value ,
@@ -6130,16 +7463,19 @@ class BlockModAdd : public BlockModAD
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
  /// accessor to (the reference to) the affected list of Constraint/Variable
 
  std::list<ConstOrVar> & whc( void ) const { return( whc_list ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
  /// accessor to the array of the added Constraint/Variable
 
  const std::vector<ConstOrVar *> & added( void ) const { return( add_vec ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// accessor to the "name" that the first added stuff got
+
+ Block::Index first( void ) { return( f_first ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -6149,21 +7485,17 @@ class BlockModAdd : public BlockModAD
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual bool is_added( void ) const override final { return( true ); }
+ bool is_added( void ) const override final { return( true ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual void get_elements( std::vector< Variable * > & variables )
-  const override {
-  get_elements_( variables );
-  }
+ void get_elements( std::vector< Variable * > & variables )
+  const override { get_elements_( variables ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual void get_elements( std::vector< Constraint * > & constraints )
-  const override {
-  get_elements_( constraints );
-  }
+ void get_elements( std::vector< Constraint * > & constraints )
+  const override { get_elements_( constraints ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -6172,7 +7504,7 @@ class BlockModAdd : public BlockModAD
 /*-------------------------- PROTECTED METHODS -----------------------------*/
  /// print the BlockModAdd
 
- virtual inline void print( std::ostream &output ) const override {
+ void print( std::ostream &output ) const override {
   output << "BlockModAdd[";
   if( concerns_Block() )
    output << "t";
@@ -6183,7 +7515,13 @@ class BlockModAdd : public BlockModAD
    output << " Variable";
   else
    output << " Constraint";
-  output << " from list" << whc_list << std::endl;
+  if( add_vec.size() > 1 )
+   output << "s [ " << f_first << " , "
+	  << f_first + add_vec.size() << " )";
+  else
+   output << " " << f_first;
+
+  output << " to list:" << whc_list << std::endl;
   }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
@@ -6192,6 +7530,8 @@ class BlockModAdd : public BlockModAD
 
  std::vector< ConstOrVar * > add_vec;  ///< vector of pointers to added stuff
 
+ Block::Index f_first;  ///< "name" that the first added stuff got
+ 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 
  private:
@@ -6220,7 +7560,30 @@ class BlockModAdd : public BlockModAD
  * from the other information (Constraint/Variable) that the Modification
  * contains. The class is template over the type of the Constraint or Variable
  * that have been removed, which must be either a :Constraint or a :Variable.
- */
+ *
+ * Although this class is defined, it is purposely pure virtual because at it
+ * is the information is incomplete. The issue is that while rmvd completely
+ * identifies which Constraint/Variable have been removed,
+ *
+ *     WITHOUT FURTHER INFORMATION THE ORIGINAL "NAMES" OF THE REMOVED
+ *     Constraint/Variable, I.E., THEIR POSITION IN THE LIST AT THE MOMENT
+ *     THEY ARE REMOVED, IS IRREMEDIABLY LOST. INDEED, ONE CANNOT LOOK IT
+ *     UP BY SEEKING THE Constraint/Variable IN THE LIST, SINCE THEY ARE BY
+ *     DEFINITION NO LONGER THERE (UNLESS IF BY CHANCE A Constraint/Variable
+ *     WITH THE SAME NAME == POINTER HAS BEEN ADDED LATER).
+ *
+ * To handle this, a Solver should therefore be able to associate the pointer
+ * of the Constraint/Variable to the appropriate bits of its internal data
+ * structures. While this is possible, it may be much more convenient if the
+ * information is stored in the Modification. This is in fact done by derived
+ * classes of BlockModRmv. The important remark is that these Modification can
+ * necessarily only store
+ *
+ *     THE "NAMES == INDICES IN THE LIST" THAT THE DELETED Constraint/Variable
+ *     HAD AT THE MOMENT IN WHICH THE Modification WAS ISSUED
+ *
+ * Anyway, "name == pointer" of the removed Constraint/Variable is always
+ * returned by removed(). */
 
 template< class ConstOrVar >
 class BlockModRmv : public BlockModAD
@@ -6252,7 +7615,7 @@ class BlockModRmv : public BlockModAD
 
  BlockModRmv( std::list< ConstOrVar > & whc ,
 	      std::list< ConstOrVar > && rmvd , bool cB = false )
-  : BlockModAD( cB ) , whc_list( whc ) , rmvd_list( std::move( rmvd ) )
+  : BlockModAD( cB ) , f_whc( whc ) , f_rmvd( std::move( rmvd ) )
  {
   static_assert( std::is_base_of< Variable , ConstOrVar >::value ||
 		 std::is_base_of< Constraint , ConstOrVar >::value ,
@@ -6274,20 +7637,20 @@ class BlockModRmv : public BlockModAD
 /*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
  Block * get_Block( void ) const override final {
-  return( rmvd_list.front().get_Block() );
+  return( f_rmvd.front().get_Block() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  /// accessor to (the reference to) the affected list of Constraint/Variable
 
- std::list< ConstOrVar > & whc( void ) const { return( whc_list ); }
+ std::list< ConstOrVar > & whc( void ) const { return( f_whc ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  /// accessor to the list of the removed Constraint/Variable
 
- const std::list< ConstOrVar > & removed( void ) const { return( rmvd_list ); }
+ const std::list< ConstOrVar > & removed( void ) const { return( f_rmvd ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -6301,44 +7664,28 @@ class BlockModRmv : public BlockModAD
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual void get_elements( std::vector< Variable * > & variables )
-  const override {
-  get_elements_( variables );
-  }
+ void get_elements( std::vector< Variable * > & variables )
+  const override { get_elements_( variables ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual void get_elements( std::vector< Constraint * > & constraints )
-  const override {
-  get_elements_( constraints );
-  }
+ void get_elements( std::vector< Constraint * > & constraints )
+  const override { get_elements_( constraints ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
  protected:
 
 /*-------------------------- PROTECTED METHODS -----------------------------*/
- /// print the BlockModRmv
+ /// print the BlockModRmv (not)
 
- virtual inline void print( std::ostream &output ) const override {
-  output << "BlockModRmv[";
-  if( concerns_Block() )
-   output << "t";
-  else
-   output << "f";
-  output << "]: removed " << rmvd_list.size();
-  if( std::is_base_of< Variable , ConstOrVar >::value )
-   output << " Variable";
-  else
-   output << " Constraint";
-  output << " from list" << whc_list << std::endl;
-  }
+ void print( std::ostream &output ) const override = 0;
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
- std::list< ConstOrVar > & whc_list;     ///< reference to the affected list
+ std::list< ConstOrVar > & f_whc;     ///< reference to the affected list
 
- std::list< ConstOrVar > rmvd_list;      ///< list of removed stuff
+ std::list< ConstOrVar > f_rmvd;      ///< list of removed stuff
 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 
@@ -6349,9 +7696,9 @@ class BlockModRmv : public BlockModAD
  template<class T>
  void get_elements_( std::vector< T * > & elements ) const {
   if constexpr( std::is_base_of< T , ConstOrVar >::value ) {
-   elements.resize( rmvd_list.size() );
+   elements.resize( f_rmvd.size() );
    auto it = elements.begin();
-   auto it2 = rmvd_list.begin();
+   auto it2 = f_rmvd.begin();
    while( it != elements.end() )
     *it++ = const_cast< ConstOrVar * >( &*it2++ );
    }
@@ -6362,6 +7709,216 @@ class BlockModRmv : public BlockModAD
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( BlockModRmv ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------------------ CLASS BlockModRmvRngd ---------------------------*/
+/*--------------------------------------------------------------------------*/
+/// derived class from BlockModRmv for removing ranges of stuff to a Block
+/** Derived class from BlockModRmv to describe modifications to a Block
+ * involving the removal of a range of dynamic Variable or Constraint. It
+ * basically only extends BlockModRmv with a Range field. */
+
+template< class ConstOrVar >
+class BlockModRmvRngd : public BlockModRmv< ConstOrVar >
+{
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
+ /// constructor, taking all the data of the Modification
+ /** Constructor, taking:
+  *
+  * @param the std::list< ConstOrVar > & whc, a reference to the list from
+  *        which the Constraint or Variable (of type ConstOrVar) have been
+  *        removed;
+  *
+  * @param the std::list< ConstOrVar > && rmvd, containing the *actual*
+  *        Constraint or Variable (of type ConstOrVar) that have been
+  *        removed from the std::list< ConstOrVar > & whc; as the "&&"
+  *        suggests, the object becomes property of the BlockModRmv, which
+  *        is crucial for proper timely disposal of the objects themselves
+  *        (see comments to the destructor);
+  *
+  * @param the Range range, containing the usual left-closed, right-open
+  *        interval with the original names that the Constraint or Variable
+  *        (of type ConstOrVar) in \p rmvd had before they were removed;
+  *        note that
+  *
+  *     THE MAPPING BETWEEN rmvd AND range IS POSITIONAL, I.E., rmvd[ 0 ]
+  *     IS THE Constraint/Variable THAT WAS IN whc IN POSITION range.first,
+  *     rmvd[ 1 ] IS THE ONE IN POSITION range.first + 1, ...; IN OTHER
+  *     WORDS, rmvd WAS THE SUB-LIST OF whc BETWEEN range.first (INCLUDED)
+  *     AND range.second (EXCLUDED), AND OF COURSE ONE EXPECTS THE ORDER OF
+  *     ELEMENTS IN rmvd TO BE THE ORIGINAL ORDER IN whc
+  *
+  * @param the bool cB, containing the "concerns" value.
+  *
+  * Note that a pointer to the affected Block can always be inferred from the
+  * other information that the Modification contains, and therefore is not
+  * needed. */
+
+ BlockModRmvRngd( std::list< ConstOrVar > & whc ,
+		  std::list< ConstOrVar > && rmvd , Block::Range range ,
+		  bool cB = false )
+  : BlockModRmv< ConstOrVar >( whc , std::move( rmvd ) , cB ) ,
+    f_range( range )
+ {
+  // why on earth one needs "this->" to reference the fields of the base
+  // class is totally obscure to me
+  if( f_range.second - f_range.first != this->f_rmvd.size() )
+   throw( std::invalid_argument(
+			   "BlockModRmvRngd: incompatible range and rmvd" ) );
+  }
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+ /// destructor, *apparently* doing nothing
+
+ virtual ~BlockModRmvRngd() = default;
+
+/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+ /// accessor to the range
+
+ Block::c_Range & range( void ) { return( f_range ); }
+
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+ /// print the BlockModRmvRngd
+
+ void print( std::ostream &output ) const override {
+  output << "BlockModRmvRngd[";
+  if( this->concerns_Block() )
+   output << "t";
+  else
+   output << "f";
+  output << "]: removed ";
+  if( std::is_base_of< Variable , ConstOrVar >::value )
+   output << "Variable";
+  else
+   output << "Constraint";
+  if( this->f_rmvd.size() > 1 )
+   output << "s [ " << f_range.first << " , " << f_range.second << " )";
+  else
+   output << f_range.first;
+  output << " from list " << this->f_whc << std::endl;
+  }
+
+/*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
+
+ Block::Range f_range;  ///< the range of removed stuff
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( BlockModRmvRngd ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------------------ CLASS BlockModRmvSbst ---------------------------*/
+/*--------------------------------------------------------------------------*/
+/// derived class from BlockModRmv for removing subsets of stuff to a Block
+/** Derived class from BlockModRmv to describe modifications to a Block
+ * involving the removal of a subset of dynamic Variable or Constraint. It
+ * basically only extends BlockModRmv with a Subset field. */
+
+template< class ConstOrVar >
+class BlockModRmvSbst : public BlockModRmv< ConstOrVar >
+{
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
+ /// constructor, taking all the data of the Modification
+ /** Constructor, taking:
+  *
+  * @param the std::list< ConstOrVar > & whc, a reference to the list from
+  *        which the Constraint or Variable (of type ConstOrVar) have been
+  *        removed;
+  *
+  * @param the std::list< ConstOrVar > && rmvd, containing the *actual*
+  *        Constraint or Variable (of type ConstOrVar) that have been
+  *        removed from the std::list< ConstOrVar > & whc; as the "&&"
+  *        suggests, the object becomes property of the BlockModRmv, which
+  *        is crucial for proper timely disposal of the objects themselves
+  *        (see comments to the destructor);
+  *
+  * @param the Subset subset, containing the original names that the
+  *        Constraint or Variable (of type ConstOrVar) in \p rmvd had before
+  *        they were removed; note that
+  *
+  *     subset IS ASSUMED TO BE ORDERED IN INCREASING SENSE AND WITHOUT
+  *     REPEATED ELEMENTS, AND THE MAPPING BETWEEN rmvd AND subset IS
+  *     POSITIONAL, I.E., rmvd[ 0 ] IS THE Constraint/Variable THAT WAS IN
+  *     whc IN POSITION subset[ 0 ], rmvd[ 1 ] IS THE ONE IN POSITION 
+  *     subset[ 1 ], ...; THIS IMPLIES THAT THE ELEMENTS IN rmvd ARE
+  *     ORDERED BETWEEN THEMSELVES EXACTLY AS THEY WERE IN whc
+  *
+  *        As a special case, however,
+  *
+  *     subset IS ALLOWED TO BE EMPTY, MEANING THAT ALL THE Constraint OR
+  *     Variable FROM THE LIST WHICH HAVE BEEN REMOVED.
+  *
+  * @param the bool cB, containing the "concerns" value.
+  *
+  * Note that a pointer to the affected Block can always be inferred from the
+  * other information that the Modification contains, and therefore is not
+  * needed. */
+
+ BlockModRmvSbst( std::list< ConstOrVar > & whc ,
+		  std::list< ConstOrVar > && rmvd ,
+		  Block::Subset && subset , bool cB = false )
+  : BlockModRmv< ConstOrVar >( whc , std::move( rmvd ) , cB ) ,
+    f_subset( subset )
+ {
+  // why on earth one needs "this->" to reference the fields of the base
+  // class is totally obscure to me
+  if( ( ! f_subset.empty() ) && ( f_subset.size() != this->f_rmvd.size() ) )
+   throw( std::invalid_argument(
+			  "BlockModRmvSbst: incompatible subset and rmvd" ) );
+  }
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+ /// destructor, *apparently* doing nothing
+
+ virtual ~BlockModRmvSbst() = default;
+
+/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+ /// accessor to the range
+
+ Block::c_Subset & subset( void ) { return( f_subset ); }
+
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+ /// print the BlockModRmvSbst
+
+ void print( std::ostream &output ) const override {
+  output << "BlockModRmvSbst[";
+  if( this->concerns_Block() )
+   output << "t";
+  else
+   output << "f";
+  output << "]: removed " << f_subset.size();
+  if( std::is_base_of< Variable , ConstOrVar >::value )
+   output << " Variable";
+  else
+   output << " Constraint";
+  if( this->f_rmvd.size() > 1 )
+   output << "s";
+  output << " from list " << this->f_whc << std::endl;
+  }
+
+/*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
+
+ Block::Subset f_subset;  ///< the subset of removed stuff
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( BlockModRmvSbst ) )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS BlockConfig -----------------------------*/
@@ -6384,7 +7941,18 @@ class BlockModRmv : public BlockModAD
  * specific :Block, but in order to avoid this as much as possible an "extra"
  * Configuration is also available. Due to the flexibility of Configuration,
  * this may be enough to cover many use cases without a specific :BlockConfig.
- */
+ *
+ * Crucially, a BlockConfig can be used in two different ways: "setting mode"
+ * and "differential mode". How the current object has to be interpreted is
+ * specified by the field #f_diff. A full description of the difference
+ * between the two modes is provided in the comments to the
+ * Block::set_BlockConfig() method; however, the general gist is that in
+ * "setting mode" (#f_diff == false) the previous Configuration of a Block are
+ * replaced by the ones in this BlockConfig. Instead, in "differential mode"
+ * (#f_diff == true), all nullptr Configuration in this BlockConfig indicate
+ * that the corresponding Configuration of the Block must not be changed;
+ * while all non-nullptr Configuration in this BlockConfig replace the
+ * corresponding Configuration of the Block. */
 
 class BlockConfig : public Configuration
 {
@@ -6393,19 +7961,73 @@ class BlockConfig : public Configuration
 
  public:
 
+/*--------------------------------------------------------------------------*/
+/*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*--------------------------------------------------------------------------*/
+/*--------------- CONSTRUCTING AND DESTRUCTING BlockConfig -----------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Constructing and destructing BlockConfig
+ *  @{ */
+
 /*---------------------------- CONSTRUCTORS --------------------------------*/
  /// constructor: initializes everything to "default configuration"
 
- BlockConfig( void ) : Configuration() ,
-  f_static_constraints_Configuration( nullptr ),
-  f_dynamic_constraints_Configuration( nullptr ),
-  f_static_variables_Configuration( nullptr ),
-  f_dynamic_variables_Configuration( nullptr ),
-  f_objective_Configuration( nullptr ),
-  f_is_feasible_Configuration( nullptr ),
-  f_is_optimal_Configuration( nullptr ),
+ /** It constructs an empty BlockConfig, which can then be initialized by
+  * calling the methods deserialize(), load() or get(). The \p diff parameter
+  * indicates whether this BlockConfig must be considered as a "differential"
+  * one. This parameter has true as default value, so that this can be used as
+  * the void constructor.
+  *
+  * @param diff indicates if this configuration is a "differential" one. */
+
+ BlockConfig( bool diff = true ) : Configuration() ,
+  f_static_constraints_Configuration( nullptr ) ,
+  f_dynamic_constraints_Configuration( nullptr ) ,
+  f_static_variables_Configuration( nullptr ) ,
+  f_dynamic_variables_Configuration( nullptr ) ,
+  f_objective_Configuration( nullptr ) ,
+  f_is_feasible_Configuration( nullptr ) ,
+  f_is_optimal_Configuration( nullptr ) ,
   f_solution_Configuration( nullptr ) ,
-  f_extra_Configuration( nullptr ) {}
+  f_extra_Configuration( nullptr ) ,
+  f_diff( diff ) {}
+
+/*--------------------------------------------------------------------------*/
+ /// constructs a BlockConfig out of the given netCDF \p group
+ /** It constructs a BlockConfig out of the given netCDF \p group.  Please
+  * refer to the deserialize() method for the format of the netCDF::NcGroup of
+  * a BlockConfig.
+  *
+  * @param group The netCDF::NcGroup containing the description of the
+  *        BlockConfig. */
+
+ BlockConfig( netCDF::NcGroup & group ) : BlockConfig() {
+  deserialize( group );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// constructs a BlockConfig out of an istream
+ /** It constructs a BlockConfig out of the given istream \p input.
+  * Please refer to the load() method for the format of a BlockConfig.
+  *
+  * @param input The istream containing the description of the
+  *        BlockConfig. */
+
+ BlockConfig( std::istream &input ) : BlockConfig() { load( input ); }
+
+/*--------------------------------------------------------------------------*/
+ /// constructs a BlockConfig for the given Block
+ /** It constructs a BlockConfig for the given \p block. It creates an empty
+  * BlockConfig and invoke the method get().
+  *
+  * @param block A pointer to the Block for which a BlockConfig will be
+  *        constructed.
+  *
+  * @param diff It indicates if this configuration is a "differential" one.
+  */
+
+ BlockConfig( Block * block , bool diff = false ) : BlockConfig( diff )
+ { get( block ); }
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: does what it says on the tin
@@ -6425,6 +8047,12 @@ class BlockConfig : public Configuration
  /** Extends Configuration::deserialize( netCDF::NcGroup ) to the specific
   * format of a BlockConfig. Besides the mandatory "type" attribute of any
   * :Configuration, the group should contain the following:
+  *
+  * - the attribute "diff" of netCDF::NcInt type containing the value for the
+  *   #f_diff field (basically, a bool telling if the information in it has to
+  *   be taken as "the configuration to be set" or as "the changes to be made
+  *   from the current configuration"); this attribute is optional: if it is
+  *   not provided, then diff = true is assumed;
   *
   * - the group "static_constraints" containing a Configuration object for
   *   the static Constraint of the Block;
@@ -6457,45 +8085,125 @@ class BlockConfig : public Configuration
   *   define further derived classes form BlockConfig (which, however, they
   *   can still do if they want);
   *
-  * - the dimension "n_sub_Block" containing the number of BlockConfig
-  *   descriptions for the sub-Block of the current Block;
-  *
-  * - with n being the size of n_sub_Block, n groups, with name
-  *   "sub-BlockConfig_<i>" for all i = 0, ..., n - 1, containing each the
-  *   description of a BlockConfig for one of the sub-Block of the current
-  *   :Block.
-  *
-  * Of all these, only the "name" attribute and the "n_sub_Block" dimension
-  * are mandatory (they must exist, although they may be empty/zero). All
-  * other groups may not exist, in which case the corresponding field of the
-  * class is filled with a nullptr, indicating that the "default"
-  * configuration (whatever that may mean for the :Block in question) have
-  * to be used. Note that that the matching between the sub-BlockConfig and
-  * the sub-Block is positional: the BlockConfig found in the group
-  * "sub-BlockConfig_<i>" is that for the i-th sub-Block. Note that the
-  * vector of sub-BlockConfig is allowed to be of different size than the
-  * number of sub-Block; if it is larger any extra BlockConfig is simply
-  * ignored, if it shorted then all missing sub-BlockConfig are treated as
-  * nullptr (default configuration). */
+  * All these groups are optional. If a group is not provided, the
+  * corresponding field of the class is filled with a nullptr, indicating that
+  * the "default" configuration (whatever that may mean for the :Block in
+  * question) has to be used. */
 
  virtual void deserialize( netCDF::NcGroup & group ) override;
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
- /// destructor: deletes all sub-BlockConfig
+ /// destructor: deletes all Configuration
  virtual ~BlockConfig()
  {
-  for( auto sBC : v_sub_BlockConfig )
-   delete sBC;
+  delete_sub_Configuration();
+  }
 
-  delete f_extra_Configuration;
-  delete f_solution_Configuration;
-  delete f_is_optimal_Configuration;
-  delete f_is_feasible_Configuration;
-  delete f_objective_Configuration;
-  delete f_dynamic_variables_Configuration;
-  delete f_static_variables_Configuration;
-  delete f_dynamic_constraints_Configuration;
-  delete f_static_constraints_Configuration;
+/**@} ----------------------------------------------------------------------*/
+/*-------------------------- OTHER INITIALIZATIONS -------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Other initializations
+ *
+ *  @{ */
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// getting the BlockConfig of the given Block
+ /** This method gets information about the current set of parameters of the
+  * given Block and stores in this BlockConfig. This information consists of
+  * the sub-Configuration of the Block (see the general notes of
+  * BlockConfig). Any sub-Configuration that this BlockConfig may have is
+  * deleted and the sub-Configuration of the BlockConfig of the given Block is
+  * cloned into the Configuration of this BlockConfig.
+  *
+  * @param block A pointer to the Block whose BlockConfig must be filled. */
+
+ virtual void get( Block * block );
+
+/**@} ----------------------------------------------------------------------*/
+/*---------- METHODS DESCRIBING THE BEHAVIOR OF THE BlockConfig ------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods describing the behavior of the BlockConfig
+ *  @{ */
+
+/*--------------------------------------------------------------------------*/
+ /// delete all sub-Configuration
+ /** This method deletes all sub-Configuration and does not change the value
+  * of #f_diff. */
+ void clear( void ) override {
+  f_diff = false;
+  delete_sub_Configuration();
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// configure the given Block
+ /** Method for configuring the given Block. The configuration depends on the
+  * field #f_diff, which indicates whether it has to be interpreted in
+  * "differential mode". Please refer to Block::set_BlockConfig() for
+  * understanding how #f_diff and \p deleteold affect the configuration of a
+  * Block. The behaviour of this method is the following:
+  *
+  * First, a new BlockConfig is constructed and the individual Configuration
+  * of this BlockConfig are moved into that new one. This means that all the
+  * individual Configuration of this BlockConfig become nullptr. The new
+  * BlockConfig is then set as the BlockConfig for the given Block \p block by
+  * invoking Block::set_BlockConfig().
+  *
+  * @param block A pointer to the Block that must be configured.
+  *
+  * @param deleteold Indicates whether the current Configuration of Block must
+  *        be deleted (see Block::set_BlockConfig()). */
+
+ virtual void apply( Block * block , bool deleteold = true ) {
+
+  if( ! block )
+   return;
+
+  auto newBC = new BlockConfig( this->is_diff() );
+  this->move_non_null_configuration_to( newBC );
+  block->set_BlockConfig( newBC , deleteold );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// Moves the non-nullptr sub-Configuration from this BlockConfig into \p bc
+ /** This method moves one-by-one the individual non-nullptr sub-Configuration
+  * stored in this BlockConfig into \p bc. If a sub-Configuration in this
+  * BlockConfig is nullptr, the corresponding sub-Configuration in \p bc is
+  * kept untouched. If \p deleteold is true then each sub-Configuration in \p
+  * bc that gets replaced is deleted.
+  */
+
+ void move_non_null_configuration_to( BlockConfig * bc ,
+                                      const bool deleteold = true )
+ {
+  if( ! bc )
+   return;
+
+  auto move = [deleteold]( Configuration * & this_config ,
+                           Configuration * & other_config ) {
+               if( this_config ) { // replace the sub-Configuration
+                if( deleteold ) {
+                 delete other_config;
+                 other_config = nullptr;
+                 }
+                other_config = this_config;
+                this_config = nullptr;
+                }
+               };
+
+  move( f_static_constraints_Configuration ,
+        bc->f_static_constraints_Configuration );
+  move( f_dynamic_constraints_Configuration ,
+        bc->f_dynamic_constraints_Configuration );
+  move( f_static_variables_Configuration ,
+        bc->f_static_variables_Configuration );
+  move( f_dynamic_variables_Configuration ,
+        bc->f_dynamic_variables_Configuration );
+  move( f_objective_Configuration , bc->f_objective_Configuration );
+  move( f_is_feasible_Configuration , bc->f_is_feasible_Configuration );
+  move( f_is_optimal_Configuration , bc->f_is_optimal_Configuration );
+  move( f_solution_Configuration , bc->f_solution_Configuration );
+  move( f_extra_Configuration , bc->f_extra_Configuration );
   }
 
 /*------------------------------- CLONE -----------------------------------*/
@@ -6504,6 +8212,12 @@ class BlockConfig : public Configuration
  {
   return( new BlockConfig( *this ) );
   }
+
+/**@} ----------------------------------------------------------------------*/
+/*--------- METHODS FOR LOADING, PRINTING & SAVING THE BlockConfig ---------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for loading, printing & saving the BlockConfig
+ * @{ */
 
 /*--------------------------------------------------------------------------*/
  /// extends Configuration::serialize( netCDF::NcFile , type ) to eProbFile
@@ -6521,7 +8235,34 @@ class BlockConfig : public Configuration
 
  virtual void serialize( netCDF::NcGroup & group ) const override;
 
-/*--------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
+/**@} ----------------------------------------------------------------------*/
+/*---------------- METHODS FOR MODIFYING THE BlockConfig -------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for modifying the BlockConfig
+ *  @{ */
+
+ /// change the mode of this configuration
+ /** This function changes the mode of this BlockConfig. If \p diff is true,
+  * then this BlockConfig starts to be "interpreted in a differential
+  * sense". */
+
+ void set_diff( bool diff = true ) { f_diff = diff; }
+
+/**@} ----------------------------------------------------------------------*/
+/*------------- Methods for reading the data of the BlockConfig ------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for reading the data of the BlockConfig
+ *  @{ */
+
+ /// tells if the configuration is a "differential" one (reads #f_diff)
+
+ bool is_diff( void ) const { return( f_diff ); }
+
+/**@} ----------------------------------------------------------------------*/
+/*--------------------- PUBLIC FIELDS OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Public fields of the class
+ *  @{ */
 
  /// the Configuration for generate_abstract_constraints()
  Configuration *f_static_constraints_Configuration;
@@ -6542,10 +8283,9 @@ class BlockConfig : public Configuration
  /// any extra Block-specific Configuration
  Configuration *f_extra_Configuration;
 
- /// the vector of sub-BlockConfig for each of the sub-Block
- std::vector<BlockConfig *> v_sub_BlockConfig;
-
-/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+/**@} ----------------------------------------------------------------------*/
+/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
 
  protected:
 
@@ -6557,6 +8297,9 @@ class BlockConfig : public Configuration
 /*--------------------------------------------------------------------------*/
  /// load this BlockConfig out of an istream
  /** Load this BlockConfig out of an istream, with the following format:
+  *
+  * - a binary number b to determine the value of #f_diff. If b == 0 then
+  *   #f_diff = false, otherwise, #f_diff = true.
   *
   * for all of:  static constraints Configuration ,
   *              dynamic constraints Configuration ,
@@ -6573,17 +8316,13 @@ class BlockConfig : public Configuration
   *    means none (nullptr)
   *
   * - if the above is not '*', the description of the :Configuration object
-  *
-  * number k of the sub-BlockConfig objects
-  *
-  * for i = 1 ... k
-  *  - a string containing the class type of a BlockConfig object,
-  *    '*' means none (nullptr)
-  *
-  *  - if the above is not '*', the description of the :BlockConfig object
   */
 
  virtual void load( std::istream &input ) override;
+
+/*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
+
+ bool f_diff;  ///< tells if the configuration is a "differential" one
 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 
@@ -6592,198 +8331,78 @@ class BlockConfig : public Configuration
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
 
  SMSpp_insert_in_factory_h;
+
+/*---------------------------- PRIVATE METHODS -----------------------------*/
+
+ /// delete all sub-Confiuration of this BlockConfig
+ void delete_sub_Configuration( void ) {
+  delete f_static_constraints_Configuration;
+  f_static_constraints_Configuration = nullptr;
+
+  delete f_dynamic_constraints_Configuration;
+  f_dynamic_constraints_Configuration = nullptr;
+
+  delete f_static_variables_Configuration;
+  f_static_variables_Configuration = nullptr;
+
+  delete f_dynamic_variables_Configuration;
+  f_dynamic_variables_Configuration = nullptr;
+
+  delete f_objective_Configuration;
+  f_objective_Configuration = nullptr;
+
+  delete f_is_feasible_Configuration;
+  f_is_feasible_Configuration = nullptr;
+
+  delete f_is_optimal_Configuration;
+  f_is_optimal_Configuration = nullptr;
+
+  delete f_solution_Configuration;
+  f_solution_Configuration = nullptr;
+
+  delete f_extra_Configuration;
+  f_extra_Configuration = nullptr;
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// clone the sub-Configuration of bc into those of this BlockConfig
+ void clone_sub_Configuration( const BlockConfig * bc ) {
+  if( bc->f_static_constraints_Configuration )
+   f_static_constraints_Configuration =
+    bc->f_static_constraints_Configuration->clone();
+
+  if( bc->f_dynamic_constraints_Configuration )
+   f_dynamic_constraints_Configuration =
+    bc->f_dynamic_constraints_Configuration->clone();
+
+  if( bc->f_static_variables_Configuration )
+   f_static_variables_Configuration =
+    bc->f_static_variables_Configuration->clone();
+
+  if( bc->f_dynamic_variables_Configuration )
+   f_dynamic_variables_Configuration =
+    bc->f_dynamic_variables_Configuration->clone();
+
+  if( bc->f_objective_Configuration )
+   f_objective_Configuration = bc->f_objective_Configuration->clone();
+
+  if( bc->f_is_feasible_Configuration )
+   f_is_feasible_Configuration = bc->f_is_feasible_Configuration->clone();
+
+  if( bc->f_is_optimal_Configuration )
+   f_is_optimal_Configuration = bc->f_is_optimal_Configuration->clone();
+
+  if( bc->f_solution_Configuration )
+   f_solution_Configuration = bc->f_solution_Configuration->clone();
+
+  if( bc->f_extra_Configuration )
+   f_extra_Configuration = bc->f_extra_Configuration->clone();
+  }
 
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( BlockConfig ) )
-
-/*--------------------------------------------------------------------------*/
-/*----------------------- CLASS BlockSolverConfig --------------------------*/
-/*--------------------------------------------------------------------------*/
-/// derived class from Configuration for configuring the Solver of the Block
-/** Derived class from Configuration to configure in one all the Solver of
- * a given Block, comprised those of the sub-Block (recursively), each with
- * all its algorithmic parameters.
- *
- * It contains three fields:
- * - a vector of strings containing the names of Solver to be attached to
- *   the Block;
- * - a vector of ComputeConfig* for these same Solver
- * - a vector of BlockSolverConfig for each of the sub-Block of this Block.
- *
- * It also contains a bool field f_diff which, if true, tells that the
- * BlockSolverConfig has to be "interpreted in a differential sense": this
- * means that all Solver whose name is not specified (empty string) must be
- * left in their current state, all nullptr ComputeConfig correspond to not
- * changing the configuration of the Solver, and all nullptr
- * BlockSolverConfig correspond to not changing any of the configurations of
- * any of the Solver attached to the corresponding sub-Block. */
-
-class BlockSolverConfig : public Configuration
-{
-
-/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
-
- public:
-
-/*---------------------------- CONSTRUCTOR ---------------------------------*/
- /// constructor: initializes everything to "nothing happens"
- BlockSolverConfig( void ) : Configuration() , f_diff( true ) { }
-
-/*--------------------------------------------------------------------------*/
- /// copy constructor: does what it says on the tin
- BlockSolverConfig( const BlockSolverConfig &old );
-
-/*--------------------------------------------------------------------------*/
- /// extends Configuration::deserialize( netCDF::NcFile ) to eProbFile
- /** Since a BlockSolverConfig knows it is a BlockSolverConfig, it "knows its
-  * place" in an eProbFile netCDF SMS++ file. */
-
- static BlockSolverConfig * deserialize( netCDF::NcFile & f ,
-					 const unsigned int idx = 0 );
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// extends Configuration::deserialize( netCDF::NcGroup )
- /** Extends Configuration::deserialize( netCDF::NcGroup ) to the specific
-  * format of a BlockSolverConfig. Besides the mandatory "type" attribute of
-  * any :Configuration, the group should contain the following:
-  *
-  * - the dimension "n_SolverConfig" containing the number of Solver that
-  *   are to be attached to this Block, and therefore the number of their
-  *   SolverConfig objects;
-  *
-  * - the variable "SolverNames", of type string and indexed over the
-  *   dimension "n_SolverConfig"; the i-th entry of the variable is assumed
-  *   to contain the classname of a :Solver object to be attached to the
-  *   Block (this must be exact, i.e., exactly as returned by the protected
-  *   virtual method Solver::classname(), since it is used in the factory when
-  *   creating the object;
-  *
-  * - with n being the size of n_SolverConfig, n groups, with name
-  *   "SolverConfig_<i>" for all i = 0, ..., n - 1, containing each the
-  *   description of a ComputeConfig object for the i-th :Solver;
-  *
-  * - the dimension "n_BlockSolverConfig" containing containing the number
-  *   of BlockSolverConfig descriptions for the sub-Block of the current
-  *   Block;
-  *
-  * - with m being the size of n_BlockSolverConfig, m groups, with name
-  *   "BlockSolverConfig_<i>}" for all i = 0, \ldots, m - 1, containing each
-  *   the description of a BlockSolverConfig for one of the sub-Block of the
-  *   current Block.
-  *
-  * Of all these, only the "n_SolverConfig" and "n_BlockSolverConfig"
-  * dimensions and the "SolverNames" variable are mandatory; the individual
-  * groups may not exist if the corresponding dimension is 0. Note that that
-  * the matching between the sub-BlockSolverConfig and the sub-Block is
-  * positional: the BlockSolverConfig found in the group
-  * "BlockSolverConfig_<i>" is that for the i-th sub-Block. Note that the
-  * vector of sub-BlockSolverConfig is allowed to be of different size than
-  * the number of sub-Block; if it is larger any extra BlockSolverConfig is
-  * simply ignored, if it shorted then all missing sub-BlockConfig are
-  * treated as nullptr (default configuration). */
-
- virtual void deserialize( netCDF::NcGroup & group ) override;
-
-/*------------------------------ DESTRUCTOR --------------------------------*/
- /// destructor
-
- virtual ~BlockSolverConfig()
- {
-  for( auto sBSC : v_BlockSolverConfigs )
-   delete sBSC;
-
-  for( auto sSC : v_SolverConfigs )
-   delete sSC;
-  }
-
-/*------------------------------- CLONE -----------------------------------*/
-
- virtual BlockSolverConfig * clone( void ) const override
- {
-  return( new BlockSolverConfig( *this ) );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// "extends" Configuration::serialize( netCDF::NcFile , type ) to eProbFile
- /** Since a BlockSolverConfig knows it is a BlockSolverConfig, it "knows its
-  * place" in an eProbFile netCDF SMS++ file. */
-
- virtual void serialize( netCDF::NcFile & f , const int type )
-  const override;
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// extends Configuration::serialize( netCDF::NcGroup )
- /** Extends Configuration::serialize( netCDF::NcGroup ) to the specific
-  * format of a BlockSolverConfig. See
-  * BlockSolverConfig::deserialize( netCDF::NcGroup ) for details of the
-  * format of the created netCDF group. */
-
- virtual void serialize( netCDF::NcGroup & group ) const override;
-
-/*--------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
-
- bool f_diff;  ///< tells is the configuration is a "differential" one
-
- /// the names of all Solver of the father Block
- std::vector<std::string> v_SolverNames;
-
- /// (pointer to) the ComputeConfig of all Solver of the father Block
- std::vector<ComputeConfig *> v_SolverConfigs;
-
- /// the vector of (pointer to) the sub-SolverConfig for each sub-Block
- std::vector<BlockSolverConfig *> v_BlockSolverConfigs;
-
-/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
-
- protected:
-
-/*-------------------------- PROTECTED METHODS -----------------------------*/
-
- /// print the BlockSolverConfig
- virtual void print( std::ostream &output ) const override;
-
-/*--------------------------------------------------------------------------*/
- /// load this BlockSolverConfig out of an istream
- /** Load this BlockSolverConfig out of an istream, with the format:
-  *
-  * a bool
-  *
-  * number k of the names of Solver for this Block
-  *
-  * for i = 1 ... k
-  *  - a string containing the class type of a Solver object,
-  *    '*' means none (nullptr)
-  *
-  * number k of the ComputeConfig for the Solver for this Block
-  *
-  * for i = 1 ... k
-  *  - a string containing the class type of a ComputeConfig object,
-  *    '*' means none (nullptr)
-  *  - if the above is not '*', the description of the :ComputeConfig object
-  *
-  * number k of the BlockSolverConfig for the sub-Block of this Block
-  *
-  * for i = 1 ... k
-  *  - a string containing the class type of a BlockSolverConfig object,
-  *    '*' means none (nullptr)
-  *  - if the above is not '*', the description of the :BlockSolverConfig
-  *    object
-  */
-
- virtual void load( std::istream &input ) override;
-
-/*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
-
- private:
-
-/*---------------------------- PRIVATE FIELDS ------------------------------*/
-
- SMSpp_insert_in_factory_h;
-
-/*--------------------------------------------------------------------------*/
-
- };  // end( class( BlockSolverConfig ) )
 
 /** @}  end( group( Block_CLASSES ) ) */
 /*--------------------------------------------------------------------------*/
@@ -6811,6 +8430,7 @@ void Block::add_dynamic_constraints( std::list< Const > &list ,
 
  if( issue_mod( issueMod ) ) {
   // initialize the vector of pointer to added Constraint
+  Index first = list.size();
   auto names = std::vector<Const *>( newlist.size() );
   auto it = names.begin();
   for( auto & el : newlist ) {  // all the new Constraint
@@ -6818,18 +8438,21 @@ void Block::add_dynamic_constraints( std::list< Const > &list ,
    *(it++) = &el;               // keep their names
    }
 
+  // add them at the end, *before* issuing the BlockModAdd
+  list.splice( list.end() , newlist );
+ 
   // now issue the BlockModAdd
   add_Modification( std::make_shared<BlockModAdd<Const>>( list ,
-							  std::move( names ) ,
+					 std::move( names ) , first ,
 					 Observer::par2concern( issueMod ) ) ,
 		    Observer::par2chnl( issueMod ) );
   }
- else
+ else {
   for( auto & el : newlist )    // all the new Constraint
    el.set_Block( this );        // now belong to this Block
 
- list.splice( list.end() , newlist );  // add them at the end
-
+  list.splice( list.end() , newlist );  // add them at the end
+  }
  }  // end( Block::add_dynamic_constraints( Const ) )
 
 /*--------------------------------------------------------------------------*/
@@ -6843,30 +8466,34 @@ void Block::add_dynamic_variables( std::list< Var > &list ,
  static_assert( std::is_base_of< Variable , Var >::value ,
                        "add_dynamic_variables: must inherit from Variable" );
 
- if( newlist.empty() )  // actually no Variables to add
+ if( newlist.empty() )  // actually no Variable to add
   return;               // cowardly (and silently) return
 
  if( issue_mod( issueMod ) ) {
   // initialize the vector of pointer to added Constraint
+  Index first = list.size();
   auto names = std::vector<Var *>( newlist.size() );
   auto it = names.begin();
-  for( auto & el : newlist ) {  // all the new Constraint
+  for( auto & el : newlist ) {  // all the new Variable
    el.set_Block( this );        // now belong to this Block
    *(it++) = &el;               // keep their names
    }
 
+  // add them at the end, *before* issuing the BlockModAdd
+  list.splice( list.end() , newlist );
+
   // now issue the BlockModAdd
   add_Modification( std::make_shared< BlockModAdd< Var > >( list ,
-							std::move( names ) ,
+				       std::move( names ) , first ,
 				       Observer::par2concern( issueMod ) ) ,
 		    Observer::par2chnl( issueMod ) );
   }
- else
+ else {
   for( auto & el : newlist )    // all the new Variable
    el.set_Block( this );        // now belong to this Block
 
- list.splice( list.end() , newlist );  // add them at the end
-
+  list.splice( list.end() , newlist );  // add them at the end
+  }
  }  // end( Block::add_dynamic_variables( Var ) )
 
 /*--------------------------------------------------------------------------*/
@@ -6883,32 +8510,69 @@ void Block::remove_dynamic_constraints( std::list< Const > &list ,
  if( rmvd.empty() )  // actually no Constraints to remove
   return;            // cowardly (and silently) return
 
- // TODO What if the iterator is not valid?
+ if( list.empty() )
+  throw( std::invalid_argument( "removing from empty list" ) );
+
  for( const auto & const_it : rmvd ) {
   remove_constraint_from_variables( &(*const_it) );
   const_it->clear();
   }
 
- if( issue_mod( issueMod ) ) {
+ if( issue_mod( issueMod ) ) {  // somebody is listening
   std::list< Const > removed;
+  Subset subset( rmvd.size() );
 
   // remove all the Constraint (whose iterators are found) in rmvd and add
   // them to the removed list; note that by using splice() the address of
-  // the actual Constraints objects is not changed
-  for( auto el : rmvd )
-   removed.splice( removed.end() , list , el );
+  // the actual Constraints objects is not changed. meanwhile also construct
+  // the list of names, thereby checking that rmvd is correct
+  Index i = 0;
+  auto rit = rmvd.begin();
+  auto sit = subset.begin();
+  for( auto lit = list.begin() ;
+       ( lit != list.end() ) && ( rit != rmvd.end() ) ; ++i )
+   if( &(*lit) == &(*(*rit)) ) {
+    ++lit;  // increment the iterator before removing
+    removed.splice( removed.end() , list , *(rit++) );  // move element
+    *(sit++) = i;                                       // record position
+    }
+   else
+    ++lit;
 
-  // now issue the BlockModRmv
-  add_Modification( std::make_shared< BlockModRmv< Const > >( list ,
-						      std::move( removed ) ,
-				       Observer::par2concern( issueMod ) ) ,
-		    Observer::par2chnl( issueMod ) );
+  if( rit != rmvd.end() )
+   throw( std::invalid_argument( "invalid or unordered removed list" ) );
+
+  // now check if this actually was a range
+  bool isr = true;
+  if( list.empty() ) {  // unless the list has been emptyed
+   isr = false;
+   subset.clear();
+   }
+  else
+   for( i = subset.front() , sit = subset.begin() ; ++sit != subset.end() ; )
+    if( *sit != ++i ) {
+     isr = false;
+     break;
+     }
+
+  // now issue the BlockModRmv*
+  if( isr )
+   add_Modification( std::make_shared< BlockModRmvRngd< Const > >( list ,
+			       std::move( removed ) ,
+			       Range( subset.front() , subset.back() + 1 ) ,
+			       Observer::par2concern( issueMod ) ) ,
+		     Observer::par2chnl( issueMod ) );
+  else
+   add_Modification( std::make_shared< BlockModRmvSbst< Const > >( list ,
+			        std::move( removed ) , std::move( subset ) ,
+			        Observer::par2concern( issueMod ) ) ,
+		     Observer::par2chnl( issueMod ) );
   }
- else
+ else                           // nobody is listening, just do it
   for( auto & el : rmvd )
    list.erase( el );
 
- }  // end( Block::remove_dynamic_constraints( Const ) )
+ }  // end( Block::remove_dynamic_constraints( iterators ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -6921,27 +8585,237 @@ void Block::remove_dynamic_constraint( std::list< Const > &list ,
  static_assert( std::is_base_of< Constraint , Const >::value ,
                 "remove_dynamic_constraint: must inherit from Constraint" );
 
+ if( list.empty() )
+  throw( std::invalid_argument( "removing from empty list" ) );
+
  remove_constraint_from_variables( &(*rmvd) );
  rmvd->clear();
 
- if( issue_mod( issueMod ) ) {
+ if( issue_mod( issueMod ) ) {  // somebody is listening
   std::list< Const > removed;
 
   // remove the Constraint pointed by rmvd and add it the removed list; note
   // that by using splice() the address of the actual Constraint object is
-  // not changed
-  removed.splice( removed.end() , list , rmvd );
+  // not changed. meanwhile also find its name, thereby checking that it is
+  // correct
 
-  // now issue the BlockModRmv
-  add_Modification( std::make_shared< BlockModRmv< Const > >( list ,
-						      std::move( removed ) ,
-				       Observer::par2concern( issueMod ) ) ,
-		    Observer::par2chnl( issueMod ) );
+  Index i = 0;
+  auto lit = list.begin();
+  for( ; lit != list.end() ; ++lit , ++i )
+   if( &(*lit) == &(*rmvd) ) {
+    removed.splice( removed.end() , list , rmvd );
+    break;
+    }
+
+  if( lit == list.end() )
+   throw( std::invalid_argument( "invalid removed iterator" ) );
+
+  // now issue the BlockModRmv*
+  if( list.empty()  )
+   add_Modification( std::make_shared< BlockModRmvSbst< Const > >( list ,
+				     std::move( removed ) , Subset() ,
+				     Observer::par2concern( issueMod ) ) ,
+		     Observer::par2chnl( issueMod ) );
+  else
+   add_Modification( std::make_shared< BlockModRmvRngd< Const > >( list ,
+			       std::move( removed ) , Range( i , i + 1 ) ,
+			       Observer::par2concern( issueMod ) ) ,
+		     Observer::par2chnl( issueMod ) );
   }
- else
+ else                           // nobody is listening, just do it
   list.erase( rmvd );
 
- }  // end( Block::remove_dynamic_constraint( Const ) )
+ }  // end( Block::remove_dynamic_constraint )
+
+/*--------------------------------------------------------------------------*/
+
+template< class Const >
+void Block::remove_dynamic_constraints( std::list< Const > &list ,
+					Range range , c_ModParam issueMod )
+{
+ // ensure Const is a derivate of Constraint
+ static_assert( std::is_base_of< Constraint , Const >::value ,
+                "remove_dynamic_constraints: must inherit from Constraint" );
+
+ if( range.second <= range.first )  // actually no Constraints to remove
+  return;                           // cowardly (and silently) return
+
+ if( list.empty() )
+  throw( std::invalid_argument( "removing from empty list" ) );
+
+ if( range.second > list.size() )
+  throw( std::invalid_argument( "invalid removing range" ) );
+
+ // construct iterators to range.first and range.second at minimum cost
+ typename std::list< Const >::iterator sit;
+ typename std::list< Const >::iterator eit;
+ if( list.size() - range.second < range.first ) {
+  eit = std::prev( list.end() , list.size() - range.second );
+  if( range.second - range.first < range.first )
+   sit = std::prev( eit , range.second - range.first );
+  else
+   sit = std::next( list.begin() , range.first );
+  }
+ else {
+  sit = std::next( list.begin() , range.first );
+  if( range.second - range.first < list.size() - range.second )
+   eit = std::next( sit , range.second - range.first );
+  else
+   eit = std::prev( list.end() , list.size() - range.second );
+  }
+
+ // cleanup
+ for( auto it = sit ; it != eit ; ++it ) {
+  remove_constraint_from_variables( &(*it) );
+  it->clear();
+  }
+
+ if( issue_mod( issueMod ) ) {  // somebody is listening
+  std::list< Const > removed;
+
+  // remove all the Constraint in the range and add them to the removed list
+  removed.splice( removed.end() , list , sit , eit );
+
+  if( list.empty() )
+   add_Modification( std::make_shared< BlockModRmvSbst< Const > >( list ,
+				      std::move( removed ) , Subset() ,
+			              Observer::par2concern( issueMod ) ) ,
+		     Observer::par2chnl( issueMod ) );
+  else
+   add_Modification( std::make_shared< BlockModRmvRngd< Const > >( list ,
+				      std::move( removed ) , range ,
+			              Observer::par2concern( issueMod ) ) ,
+		     Observer::par2chnl( issueMod ) );
+  }
+ else                             // nobody is listening, just do it
+  list.erase( sit , eit );
+
+ }  // end( Block::remove_dynamic_constraints( range ) )
+
+/*--------------------------------------------------------------------------*/
+
+template< class Const >
+void Block::remove_dynamic_constraints( std::list< Const > &list ,
+					Subset && subset , bool ordered ,
+					c_ModParam issueMod )
+{
+ // ensure Const is a derivate of Constraint
+ static_assert( std::is_base_of< Constraint , Const >::value ,
+                "remove_dynamic_constraints: must inherit from Constraint" );
+
+ if( subset.empty() ) {  // completely cleanup the list
+  if( list.empty() )     // which is empty already
+   return;               // cowardly (and silently) return
+
+  // cleanup
+  for( auto & c : list ) {
+   remove_constraint_from_variables( &c );
+   c.clear();
+   }
+
+  if( issue_mod( issueMod ) ) {  // somebody is listening
+   std::list< Const > removed;
+
+   // remove all the Constraint add them to the removed list
+   removed.splice( removed.begin() , std::move( list ) );
+
+   add_Modification( std::make_shared< BlockModRmvSbst< Const > >( list ,
+				      std::move( removed ) , Subset() ,
+			              Observer::par2concern( issueMod ) ) ,
+		     Observer::par2chnl( issueMod ) );
+   }
+  else                             // nobody is listening, just do it
+   list.clear();
+  
+  return;
+  }
+
+ if( list.empty() )
+  throw( std::invalid_argument( "removing from empty list" ) );
+
+ if( ! ordered )
+  std::sort( subset.begin() , subset.end() );
+
+ if( subset.back() >= list.size() )
+  throw( std::invalid_argument( "invalid index in removing subset" ) );
+
+ // check if subset actually is a range
+ bool isr = true;
+ Index i = subset.front();
+ for( auto sit = subset.begin() ; ++sit != subset.end() ; )
+  if( *sit != ++i ) {
+   isr = false;
+   break;
+   }
+
+ // if so, defer to the simpler range version of the method
+ if( isr ) {
+  remove_dynamic_constraints( list ,
+			      Range( subset.front() , subset.back() + 1 ) ,
+			      issueMod );
+  return;
+  }
+ 
+ // deletion is easier if performed backwards; note that, unusually,
+ // eit points to list[ subset.back() ] and not one position to the right
+ i = subset.size() - 1;
+ Index pos = subset.back();
+ typename std::list< Const >::iterator eit = list.size() - pos < pos ?
+                              std::prev( list.end() , list.size() - pos ) :
+                              std::next( list.begin() , pos );
+ 
+ if( issue_mod( issueMod ) ) {  // somebody is listening
+  std::list< Const > removed;
+
+  // remove all the Constraint in the subset and add them to the removed
+  // list; meanwhile, do the cleanup. note that to keep the positional
+  // relation between subset and removed, insertion in removed has to be
+  // done at the beginning
+
+  while( i > 0 ) {
+   // the next value of the iterator has to be found before moving *eit
+   // out of the list, since this may invalidate the iterator
+   auto npos = subset[ --i ];
+   auto nit = std::prev( eit , pos - npos );
+   remove_constraint_from_variables( &(*eit) );
+   eit->clear();
+   removed.splice( removed.begin() , list , eit );
+   pos = npos;
+   eit = nit;
+   }
+
+  // the last element has to be done offline
+  remove_constraint_from_variables( &(*eit) );
+  eit->clear();
+  removed.splice( removed.begin() , list , eit );
+
+  // note that the list cannot be empty, since this would mean that
+  // subset was the complete range 0, 1, ..., list.size() - 1, which
+  // would have been discovered and acted upon before
+  add_Modification( std::make_shared< BlockModRmvSbst< Const > >( list ,
+			       std::move( removed ) , std::move( subset ) ,
+			       Observer::par2concern( issueMod ) ) ,
+		     Observer::par2chnl( issueMod ) );
+  }
+ else {                             // nobody is listening, just do it
+  while( i > 0 ) {
+   // the next value of the iterator has to be found before removing *eit
+   // from the list, since this may invalidate the iterator
+   auto npos = subset[ --i ];
+   auto nit = std::prev( eit , pos - npos );
+   remove_constraint_from_variables( &(*eit) );
+   eit->clear();
+   list.erase( eit );
+   pos = npos;
+   eit = nit;
+   }
+
+  // the last element has to be done offline
+  remove_constraint_from_variables( &(*eit) );
+  eit->clear();
+  list.erase( eit );
+  }
+ }  // end( Block::remove_dynamic_constraints( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -6957,29 +8831,67 @@ void Block::remove_dynamic_variables( std::list< Var > &list ,
  if( rmvd.empty() )  // actually no Variables to remove
   return;            // cowardly (and silently) return
 
+ if( list.empty() )
+  throw( std::invalid_argument( "removing from empty list" ) );
+
  for( const auto & var_it : rmvd )
   remove_variable_from_stuff( &( *var_it ) , issueindMod );
 
- if( issue_mod( issueMod ) ) {
+ if( issue_mod( issueMod ) ) {  // somebody is listening
   std::list< Var > removed;
+  Subset subset( rmvd.size() );
 
-  // remove all the Variable (whose iterators are found) in rmvd and add them
-  // to the removed list; note that by using splice() the address of the
-  // actual Variable objects is not changed
-  for( auto el : rmvd )
-   removed.splice( removed.end() , list , el );
+  // remove all the Variable (whose iterators are found) in rmvd and add
+  // them to the removed list; note that by using splice() the address of
+  // the actual Variable objects is not changed. meanwhile also construct
+  // the list of names, thereby checking that rmvd is correct
+  Index i = 0;
+  auto rit = rmvd.begin();
+  auto sit = subset.begin();
+  for( auto lit = list.begin() ;
+       ( lit != list.end() ) && ( rit != rmvd.end() ) ; ++i )
+   if( &(*lit) == &(*(*rit)) ) {
+    ++lit;  // increment the iterator before removing
+    removed.splice( removed.end() , list , *(rit++) );  // move element
+    *(sit++) = i;                                       // record position
+    }
+   else
+    ++lit;
 
-  // now issue the BlockModRmv
-  add_Modification( std::make_shared< BlockModRmv< Var > >( list ,
-						      std::move( removed ) ,
-				       Observer::par2concern( issueMod ) ) ,
-		    Observer::par2chnl( issueMod ) );
+  if( rit != rmvd.end() )
+   throw( std::invalid_argument( "invalid or unordered removed list" ) );
+
+  // now check if this actually was a range
+  bool isr = true;
+  if( list.empty() ) {  // unless the list has been emptyed
+   isr = false;
+   subset.clear();
+   }
+  else
+   for( i = subset.front() , sit = subset.begin() ; ++sit != subset.end() ; )
+    if( *sit != ++i ) {
+     isr = false;
+     break;
+     }
+
+  // now issue the BlockModRmv*
+  if( isr )
+   add_Modification( std::make_shared< BlockModRmvRngd< Var > >( list ,
+			       std::move( removed ) ,
+			       Range( subset.front() , subset.back() + 1 ) ,
+			       Observer::par2concern( issueMod ) ) ,
+		     Observer::par2chnl( issueMod ) );
+  else
+   add_Modification( std::make_shared< BlockModRmvSbst< Var > >( list ,
+			        std::move( removed ) , std::move( subset ) ,
+			        Observer::par2concern( issueMod ) ) ,
+		     Observer::par2chnl( issueMod ) );
   }
- else
-  for( auto & el : rmvd )  // just remove them
+ else                           // nobody is listening, just do it
+  for( auto & el : rmvd )
    list.erase( el );
 
- }  // end( Block::remove_dynamic_variables( Var ) )
+ }  // end( Block::remove_dynamic_variables( iterators ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -6993,26 +8905,231 @@ void Block::remove_dynamic_variable( std::list< Var > &list ,
  static_assert( std::is_base_of< Variable , Var >::value ,
                 "remove_dynamic_variable: must inherit from Variable" );
 
+ if( list.empty() )
+  throw( std::invalid_argument( "removing from empty list" ) );
+
  remove_variable_from_stuff( &(*rmvd) , issueindMod );
 
- if( issue_mod( issueMod ) ) {
+ if( issue_mod( issueMod ) ) {  // somebody is listening
   std::list< Var > removed;
 
   // remove the Variable pointed by rmvd and add it the removed list; note
   // that by using splice() the address of the actual Variable object is
-  // not changed
-  removed.splice( removed.end() , list , rmvd );
+  // not changed. meanwhile also find its name, thereby checking that it is
+  // correct
 
-  // now issue the BlockModRmv
-  add_Modification( std::make_shared< BlockModRmv< Var > >( list ,
-						      std::move( removed ) ,
-				       Observer::par2concern( issueMod ) ) ,
-		    Observer::par2chnl( issueMod ) );
+  Index i = 0;
+  auto lit = list.begin();
+  for( ; lit != list.end() ; ++lit , ++i )
+   if( &(*lit) == &(*rmvd) ) {
+    removed.splice( removed.end() , list , rmvd );
+    break;
+    }
+
+  if( lit == list.end() )
+   throw( std::invalid_argument( "invalid removed iterator" ) );
+
+  // now issue the BlockModRmv*
+  if( list.empty()  )
+   add_Modification( std::make_shared< BlockModRmvSbst< Var > >( list ,
+				     std::move( removed ) , Subset() ,
+				     Observer::par2concern( issueMod ) ) ,
+		     Observer::par2chnl( issueMod ) );
+  else
+   add_Modification( std::make_shared< BlockModRmvRngd< Var > >( list ,
+			       std::move( removed ) , Range( i , i + 1 ) ,
+			       Observer::par2concern( issueMod ) ) ,
+		     Observer::par2chnl( issueMod ) );
   }
- else
-  list.erase( rmvd );  // just remove it
+ else                           // nobody is listening, just do it
+  list.erase( rmvd );
 
- }  // end( Block::remove_dynamic_variable( Var ) )
+ }  // end( Block::remove_dynamic_variable )
+
+/*--------------------------------------------------------------------------*/
+
+template< class Var >
+void Block::remove_dynamic_variables( std::list< Var > &list ,
+				      Range range , c_ModParam issueMod ,
+				      c_ModParam issueindMod )
+{
+ // ensure Var is a derivate of Variable
+ static_assert( std::is_base_of< Variable , Var >::value ,
+                "remove_dynamic_variable: must inherit from Variable" );
+
+ if( range.second <= range.first )  // actually no Constraints to remove
+  return;                           // cowardly (and silently) return
+
+ if( list.empty() )
+  throw( std::invalid_argument( "removing from empty list" ) );
+
+ if( range.second > list.size() )
+  throw( std::invalid_argument( "invalid removing range" ) );
+
+ // construct iterators to range.first and range.second at minimum cost
+ typename std::list< Var >::iterator sit;
+ typename std::list< Var >::iterator eit;
+ if( list.size() - range.second < range.first ) {
+  eit = std::prev( list.end() , list.size() - range.second );
+  if( range.second - range.first < range.first )
+   sit = std::prev( eit , range.second - range.first );
+  else
+   sit = std::next( list.begin() , range.first );
+  }
+ else {
+  sit = std::next( list.begin() , range.first );
+  if( range.second - range.first < list.size() - range.second )
+   eit = std::next( sit , range.second - range.first );
+  else
+   eit = std::prev( list.end() , list.size() - range.second );
+  }
+
+ // cleanup
+ for( auto it = sit ; it != eit ; ++it )
+  remove_variable_from_stuff( &( *it ) , issueindMod );
+
+ if( issue_mod( issueMod ) ) {  // somebody is listening
+  std::list< Var > removed;
+
+  // remove all the Variable in the range and add them to the removed list
+  removed.splice( removed.end() , list , sit , eit );
+
+  if( list.empty() )
+   add_Modification( std::make_shared< BlockModRmvSbst< Var > >( list ,
+				      std::move( removed ) , Subset() ,
+			              Observer::par2concern( issueMod ) ) ,
+		     Observer::par2chnl( issueMod ) );
+  else
+   add_Modification( std::make_shared< BlockModRmvRngd< Var > >( list ,
+				      std::move( removed ) , range ,
+			              Observer::par2concern( issueMod ) ) ,
+		     Observer::par2chnl( issueMod ) );
+  }
+ else                             // nobody is listening, just do it
+  list.erase( sit , eit );
+
+ }  // end( Block::remove_dynamic_variables( range ) )
+
+/*--------------------------------------------------------------------------*/
+
+template< class Var >
+void Block::remove_dynamic_variables( std::list< Var > &list ,
+				      Subset && subset , bool ordered ,
+				      c_ModParam issueMod ,
+				      c_ModParam issueindMod )
+{
+ // ensure Var is a derivate of Variable
+ static_assert( std::is_base_of< Variable , Var >::value ,
+                "remove_dynamic_variable: must inherit from Variable" );
+
+ if( subset.empty() ) {  // completely cleanup the list
+  if( list.empty() )     // which is empty already
+   return;               // cowardly (and silently) return
+
+  // cleanup
+  for( auto & v : list )
+   remove_variable_from_stuff( &v , issueindMod );
+
+  if( issue_mod( issueMod ) ) {  // somebody is listening
+   std::list< Var > removed;
+
+   // remove all the Constraint add them to the removed list
+   removed.splice( removed.begin() , std::move( list ) );
+
+   add_Modification( std::make_shared< BlockModRmvSbst< Var > >( list ,
+				      std::move( removed ) , Subset() ,
+			              Observer::par2concern( issueMod ) ) ,
+		     Observer::par2chnl( issueMod ) );
+   }
+  else                             // nobody is listening, just do it
+   list.clear();
+  
+  return;
+  }
+
+ if( list.empty() )
+  throw( std::invalid_argument( "removing from empty list" ) );
+
+ if( ! ordered )
+  std::sort( subset.begin() , subset.end() );
+
+ if( subset.back() >= list.size() )
+  throw( std::invalid_argument( "invalid index in removing subset" ) );
+
+ // check if subset actually is a range
+ bool isr = true;
+ Index i = subset.front();
+ for( auto sit = subset.begin() ; ++sit != subset.end() ; )
+  if( *sit != ++i ) {
+   isr = false;
+   break;
+   }
+
+ // if so, defer to the simpler range version of the method
+ if( isr ) {
+  remove_dynamic_variables( list ,
+			    Range( subset.front() , subset.back() + 1 ) ,
+			    issueMod , issueindMod );
+  return;
+  }
+ 
+ // deletion is easier if performed backwards; note that, unusually,
+ // eit points to list[ subset.back() ] and not one position to the right
+ i = subset.size() - 1;
+ Index pos = subset.back();
+ typename std::list< Var >::iterator eit = list.size() - pos < pos ?
+                              std::prev( list.end() , list.size() - pos ) :
+                              std::next( list.begin() , pos );
+
+ if( issue_mod( issueMod ) ) {  // somebody is listening
+  std::list< Var > removed;
+
+  // remove all the Variable in the subset and add them to the removed
+  // list; meanwhile, do the cleanup. note that to keep the positional
+  // relation between subset and removed, insertion in removed has to be
+  // done at the beginning
+
+  while( i > 0 ) {
+   // the next value of the iterator has to be found before moving *eit
+   // out of the list, since this may invalidate the iterator
+   auto npos = subset[ --i ];
+   auto nit = std::prev( eit , pos - npos );
+   remove_variable_from_stuff( &(*eit) , issueindMod );
+   removed.splice( removed.begin() , list , eit );
+   pos = npos;
+   eit = nit;
+   }
+
+  // the last element has to be done offline
+  remove_variable_from_stuff( &(*eit) , issueindMod );
+  eit->clear();
+  removed.splice( removed.begin() , list , eit );
+
+  // note that the list cannot be empty, since this would mean that
+  // subset was the complete range 0, 1, ..., list.size() - 1, which
+  // would have been discovered and acted upon before
+  add_Modification( std::make_shared< BlockModRmvSbst< Var > >( list ,
+			      std::move( removed ) , std::move( subset ) ,
+			      Observer::par2concern( issueMod ) ) ,
+		     Observer::par2chnl( issueMod ) );
+  }
+ else {                             // nobody is listening, just do it
+  while( i > 0 ) {
+   // the next value of the iterator has to be found before removing *eit
+   // from the list, since this may invalidate the iterator
+   auto npos = subset[ --i ];
+   auto nit = std::prev( eit , pos - npos );
+   remove_variable_from_stuff( &(*eit) , issueindMod );
+   list.erase( eit );
+   pos = npos;
+   eit = nit;
+   }
+
+  // the last element has to be done offline
+  remove_variable_from_stuff( &(*eit) , issueindMod );
+  list.erase( eit );
+  }
+ }  // end( Block::remove_dynamic_variables( subset ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

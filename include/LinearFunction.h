@@ -127,46 +127,49 @@ class LinearFunction : public C15Function {
  class v_iterator : public ThinVarDepInterface::v_iterator {
   public:
 
-  explicit v_iterator( v_coeff_pair::iterator itr ) : itr_( itr ) {}
+  explicit v_iterator( v_coeff_pair::iterator & itr ) : itr_( itr ) {}
+  explicit v_iterator( v_coeff_pair::iterator && itr )
+   : itr_( std::move( itr ) ) {}
 
-  v_iterator * clone() override {
-   return new v_iterator( itr_ );
-  }
+  v_iterator * clone( void ) override final {
+   return( new v_iterator( itr_ ) );
+   }
 
-  void operator++() final { itr_++; }
+  void operator++( void ) override final { ++(itr_); }
 
-  reference operator*() const final {
-   return *( *itr_ ).first;
-  }
+  reference operator*( void ) const override final {
+   return( *( *itr_ ).first );
+   }
+  pointer operator->( void ) const override final {
+   return( ( *itr_ ).first );
+   }
 
-  pointer operator->() const final {
-   return ( *itr_ ).first;
-  }
+  bool operator==( const ThinVarDepInterface::v_iterator & rhs )
+   const override final {
+   #ifdef NDEBUG
+    auto tmp = static_cast< const LinearFunction::v_iterator * >( & rhs );
+    return( itr_ == tmp->itr_ );
+   #else
+    auto tmp = dynamic_cast< const LinearFunction::v_iterator * >( & rhs );
+    return( tmp ? itr_ == tmp->itr_ : false );
+   #endif
+   }
 
-  bool operator==( const ThinVarDepInterface::v_iterator & rhs ) const final {
-#ifdef NDEBUG
-   auto tmp = static_cast<const LinearFunction::v_iterator *>( & rhs );
-   return itr_ == tmp->itr_ ;
-#else
-   auto tmp = dynamic_cast<const LinearFunction::v_iterator *>( &rhs );
-   return tmp ? itr_ == tmp->itr_ : false;
-#endif
-  }
-
-  bool operator!=( const ThinVarDepInterface::v_iterator & rhs ) const final {
-#ifdef NDEBUG
-   auto tmp = static_cast<const LinearFunction::v_iterator *>( & rhs );
-   return itr_ != tmp->itr_ ;
-#else
-   auto tmp = dynamic_cast<const LinearFunction::v_iterator *>( &rhs );
-   return tmp ? itr_ != tmp->itr_ : true;
-#endif
-  }
+  bool operator!=( const ThinVarDepInterface::v_iterator & rhs )
+   const override final {
+   #ifdef NDEBUG
+    auto tmp = static_cast<const LinearFunction::v_iterator *>( & rhs );
+    return( itr_ != tmp->itr_ );
+   #else
+    auto tmp = dynamic_cast<const LinearFunction::v_iterator *>( &rhs );
+    return( tmp ? itr_ != tmp->itr_ : true );
+   #endif
+   }
 
   private:
 
   v_coeff_pair::iterator itr_;
- };
+  };
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// virtualized concrete const_iterator
@@ -177,49 +180,50 @@ class LinearFunction : public C15Function {
  class v_const_iterator : public ThinVarDepInterface::v_const_iterator {
   public:
 
-  explicit v_const_iterator( v_c_coeff_pair::const_iterator itr ) :
+  explicit v_const_iterator( v_c_coeff_pair::const_iterator & itr ) :
    itr_( itr ) {}
+  explicit v_const_iterator( v_c_coeff_pair::const_iterator && itr ) :
+   itr_( std::move( itr ) ) {}
 
-  v_const_iterator * clone() override {
-   return new v_const_iterator( itr_ );
-  }
+  v_const_iterator * clone( void ) override final {
+   return( new v_const_iterator( itr_ ) );
+   }
 
-  void operator++() final { itr_++; }
+  void operator++( void ) override final { ++(itr_); }
 
-  reference operator*() const final {
-   return *( *itr_ ).first;
-  }
-
-  pointer operator->() const final {
-   return ( *itr_ ).first;
-  }
+  reference operator*( void ) const override final {
+   return( *( *itr_ ).first );
+   }
+  pointer operator->( void ) const override final {
+   return( ( *itr_ ).first );
+   }
 
   bool operator==( const ThinVarDepInterface::v_const_iterator & rhs )
-  const final {
-#ifdef NDEBUG
-   auto tmp = static_cast<const LinearFunction::v_const_iterator *>( & rhs );
-   return itr_ == tmp->itr_;
-#else
-   auto tmp = dynamic_cast<const LinearFunction::v_const_iterator *>( &rhs );
-   return tmp ? itr_ == tmp->itr_ : false;
-#endif
-  }
+   const override final {
+   #ifdef NDEBUG
+    auto tmp = static_cast<const LinearFunction::v_const_iterator *>( & rhs );
+    return( itr_ == tmp->itr_ );
+   #else
+    auto tmp = dynamic_cast<const LinearFunction::v_const_iterator *>( &rhs );
+    return( tmp ? itr_ == tmp->itr_ : false );
+   #endif
+   }
 
   bool operator!=( const ThinVarDepInterface::v_const_iterator & rhs )
-  const final {
-#ifdef NDEBUG
-   auto tmp = static_cast<const LinearFunction::v_const_iterator *>( & rhs );
-   return itr_ != tmp->itr_;
-#else
-   auto tmp = dynamic_cast<const LinearFunction::v_const_iterator *>( &rhs );
-   return tmp ? itr_ != tmp->itr_ : true;
-#endif
-  }
+   const override final {
+   #ifdef NDEBUG
+    auto tmp = static_cast<const LinearFunction::v_const_iterator *>( & rhs );
+    return( itr_ != tmp->itr_ );
+   #else
+    auto tmp = dynamic_cast<const LinearFunction::v_const_iterator *>( &rhs );
+    return( tmp ? itr_ != tmp->itr_ : true );
+   #endif
+   }
 
   private:
 
   v_coeff_pair::const_iterator itr_;
- };
+  };
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
@@ -253,8 +257,7 @@ class LinearFunction : public C15Function {
   * All inputs have a default ({}, 0, and nullptr, respectively) so that this
   * can be used as the void constructor. */
 
- explicit LinearFunction( v_coeff_pair && vars = {} ,
-			  const FunctionValue ct = 0 ,
+ explicit LinearFunction( v_coeff_pair && vars = {} , FunctionValue ct = 0 ,
 			  Observer * const observer = nullptr )
   : C15Function( observer ) , v_pairs( std::move( vars ) ) ,
     f_value( Inf< FunctionValue >() ), f_constant_term( ct ) { }
@@ -515,7 +518,7 @@ class LinearFunction : public C15Function {
   * is additive, and therefore strongly quasi-additive, which is why a
   * C05FunctionModVarsAddd (rather than a FunctionModVarsAddd) is issued. */
 
- void add_variables( v_coeff_pair && vars , c_ModParam issueMod = eModBlck );
+ void add_variables( v_coeff_pair && vars , ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// add one single new Variable to the LinearFunction
@@ -527,7 +530,7 @@ class LinearFunction : public C15Function {
   * is additive, and therefore strongly quasi-additive. */
 
  void add_variable( ColVariable * var , Coefficient coeff ,
-                    c_ModParam issueMod = eModBlck );
+                    ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// modify a single existing coefficient
@@ -538,7 +541,7 @@ class LinearFunction : public C15Function {
   * as described in Observer::make_par(). */
 
  void modify_coefficient( Index i , Coefficient coeff ,
-                          c_ModParam issueMod = eModBlck );
+                          ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// modify a set of existing coefficients
@@ -556,7 +559,7 @@ class LinearFunction : public C15Function {
 
  void modify_coefficients( Vec_FunctionValue && NCoef , Subset && nms ,
 			   bool ordered = false ,
-			   c_ModParam issueMod = eModBlck );
+			   ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify a range of coefficients
@@ -571,7 +574,7 @@ class LinearFunction : public C15Function {
 
  void modify_coefficients( Vec_FunctionValue && NCoef ,
 			   Range range = std::make_pair( 0 , Inf<Index>() ) ,
-                           c_ModParam issueMod = eModBlck );
+                           ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// remove the i-th "active" Variable from the LinearFunction
@@ -587,7 +590,7 @@ class LinearFunction : public C15Function {
   * C05FunctionModVarsRngd is issued as opposed to a FunctionModVarsRngd
   * one. */
 
- void remove_variable( c_Index i, c_ModParam issueMod = eModBlck )
+ void remove_variable( Index i, ModParam issueMod = eModBlck )
   override final;
 
 /*--------------------------------------------------------------------------*/
@@ -602,14 +605,17 @@ class LinearFunction : public C15Function {
   * C05FunctionModVarsRngd is issued as opposed to a FunctionModVarsRngd
   * one. */
 
- void remove_variables( Range range = std::make_pair( 0 , Inf<Index>() ) ,
-                        c_ModParam issueMod = eModBlck );
+ void remove_variables( Range range , ModParam issueMod = eModBlck )
+  override final;
 
 /*--------------------------------------------------------------------------*/
  /// remove the given subset of Variable
  /** Remove all the Variable in the given set of indices. As the && tells,
   * nms becomes property of the LinearFunction object (possibly to be
-  * immediately dispatched to the issued C05FunctionModVarSbst).
+  * immediately dispatched to the issued C05FunctionModVarSbst). a special
+  * setting is if
+  *
+  *     nms.empty() == true, IN WHICH CASE ALL Variable ARE ELIMINATED
   *
   * The parameter ordered tells if nms is ordered by increasing index. This
   * is useful for efficently deleting them; indeed, if ordered == false the
@@ -620,11 +626,10 @@ class LinearFunction : public C15Function {
   * The parameter issueMod decides if and how the C05FunctionModVarSbst is
   * issued, as described in Observer::make_par(). Note that a linear function
   * is additive, and therefore strongly quasi-additive, which is why a
-  * C05FunctionModVarsRngd is issued as opposed to a C05FunctionModVarSbst
-  * one. */
+  * C05FunctionModVarSbst is issued as opposed to a FunctionModVarSbst one. */
 
  void remove_variables( Subset && nms , bool ordered = false ,
-			c_ModParam issueMod = eModBlck );
+			ModParam issueMod = eModBlck )  override final;
 
 /*--------------------------------------------------------------------------*/
  ///< sets the value of the constant term of this function.
@@ -635,7 +640,7 @@ class LinearFunction : public C15Function {
   * as described in Observer::make_par(). */
 
  void set_constant_term( FunctionValue constant_term ,
-                         c_ModParam issueMod = eModBlck );
+                         ModParam issueMod = eModBlck );
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/

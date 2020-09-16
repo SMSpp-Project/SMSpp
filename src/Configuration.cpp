@@ -42,33 +42,31 @@ SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< int > );
 
 SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< double > );
 
-using SimpleConfig_i_i = SimpleConfiguration< std::pair< int , int > >;
-SMSpp_insert_in_factory_cpp_0_t( SimpleConfig_i_i );
+SMSpp_insert_in_factory_cpp_0_t( ( SimpleConfiguration<
+                                   std::pair< int , int > > ) );
 
-using SimpleConfig_d_d = SimpleConfiguration< std::pair< double , double > >;
-SMSpp_insert_in_factory_cpp_0_t( SimpleConfig_d_d );
+SMSpp_insert_in_factory_cpp_0_t( ( SimpleConfiguration<
+                                   std::pair< double , double > > ) );
 
-using SimpleConfig_i_d = SimpleConfiguration< std::pair< int , double > >;
-SMSpp_insert_in_factory_cpp_0_t( SimpleConfig_i_d );
+SMSpp_insert_in_factory_cpp_0_t( ( SimpleConfiguration<
+                                   std::pair< int , double > > ) );
 
-using SimpleConfig_d_i = SimpleConfiguration< std::pair< double , int > >;
-SMSpp_insert_in_factory_cpp_0_t( SimpleConfig_d_i );
+SMSpp_insert_in_factory_cpp_0_t( ( SimpleConfiguration<
+                                   std::pair< double , int > > ) );
 
 SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::vector< int > > );
 
-SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration<
-				                   std::vector< double > > );
+SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::vector< double > > );
 
 SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::list< int > > );
 
 SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::list< double > > );
 
-using SimpleConfig_p_p = SimpleConfiguration<
-                            std::pair< Configuration * , Configuration * > >;
-SMSpp_insert_in_factory_cpp_0_t( SimpleConfig_p_p );
+SMSpp_insert_in_factory_cpp_0_t( ( SimpleConfiguration<
+                         std::pair< Configuration * , Configuration * > > ) );
 
 SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration<
-				          std::vector< Configuration * > > );
+                                   std::vector< Configuration * > > );
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- FUNCTIONS --------------------------------*/
@@ -247,6 +245,14 @@ void SimpleConfiguration< std::vector<int> >::deserialize(
  ( group.getVar( "value" ) ).getVar( start , count , f_value.data() );
  }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::vector<int> >::clear( void )
+{
+ f_value.clear();
+ }
+
 /*--------------------------------------------------------------------------*/
 
 template<>
@@ -280,6 +286,14 @@ void SimpleConfiguration< std::vector<double> >::deserialize(
  std::vector<size_t> start = { 0 };
  std::vector<size_t> count = { size };
  ( group.getVar( "value" ) ).getVar( start , count , f_value.data() );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::vector<double> >::clear( void )
+{
+ f_value.clear();
  }
 
 /*--------------------------------------------------------------------------*/
@@ -316,6 +330,14 @@ void SimpleConfiguration< std::list<int> >::deserialize(
   }
  }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::list<int> >::clear( void )
+{
+ f_value.clear();
+ }
+
 /*--------------------------------------------------------------------------*/
 
 template<>
@@ -348,6 +370,14 @@ void SimpleConfiguration< std::list<double> >::deserialize(
   var.getVar( { i++ } , &val );
   f_value.push_back( val );
   }
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::list<double> >::clear( void )
+{
+ f_value.clear();
  }
 
 /*--------------------------------------------------------------------------*/
@@ -393,6 +423,18 @@ void SimpleConfiguration< std::pair< Configuration * , Configuration * >
  input >> eatcomments >> name;
  f_value.second = new_Configuration( name );
  input >> *(f_value.second);
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::pair< Configuration * , Configuration * >
+			  >::clear( void )
+{
+ if( f_value.first )
+  f_value.first->clear();
+  if( f_value.second )
+  f_value.second->clear();
  }
 
 /*--------------------------------------------------------------------------*/
@@ -452,6 +494,16 @@ void SimpleConfiguration< std::vector< Configuration * >
   f_value[ i ] = new_Configuration( name );
   input >> *(f_value[ i ]);
   }
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::vector< Configuration * > >::clear( void )
+{
+ for( auto config : f_value )
+  if( config )
+   config->clear();
  }
 
 /*--------------------------------------------------------------------------*/

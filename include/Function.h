@@ -182,9 +182,30 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
  * sense to offer support for this notion in the base class. The default is
  * Inf<int>() = no limits. */
 
+ intMaxThread ,  ///< maximum number of threads that compute() can spawn
+                 /**< The algorithmic parameter for setting the maximum
+		  * number of threads that the next call to compute() is
+ * allowed to spawn while computinf the function. Actually "thread" here
+ * is intended in a loose sense, since each :Function will decide if and how
+ * to implememnt any asynchronous part, and hence which tools will be used
+ * to manage it. If std::asynch is used, for instance, then what is easily
+ * kept under control is the number of tasks, which may or may not coincide
+ * with the number of threads depending on the scheduler implementation.
+ * Specific :Function requiring more fine control of these aspects can define
+ * their own specific algorithmic parameters, but the concept of "maximum
+ * allowed amount of computational resources" (as governed by a simple int)
+ * should be general enough as to warrant a parameter in the base Function
+ * class. The default is 0, which means that compute() must only use the
+ * thread/task that is calling it. Note that this does not prevent the
+ * caller to call compute() in an asynchronous way, see e.g.
+ * ThinComputeInterface::compute_async() for an example, but in this case
+ * the responsibility of spawning (and then controlling) the new task is on
+ * the caller, while this parameter controls what happens inside compute(). */
+
  intLastParFun   ///< first allowed new int parameter for derived classes
                  /**< Convenience value for easily allow derived classes
 		  * to extend the set of int algorithmic parameters. */
+
  };  // end( int_par_type_F )
 
 /*--------------------------------------------------------------------------*/
@@ -564,31 +585,33 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
 /** @name Handling the parameters of the Function
  *  @{ */
 
- virtual idx_type get_num_int_par( void ) const override
+ idx_type get_num_int_par( void ) const override
  {
   return( idx_type( intLastParFun ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual idx_type get_num_dbl_par( void ) const override
+ idx_type get_num_dbl_par( void ) const override
  {
   return( idx_type( dblLastParFun ) );
   }
 
 /*--------------------------------------------------------------------------*/
  
- virtual int get_dflt_int_par( const idx_type par ) const override
+ int get_dflt_int_par( const idx_type par ) const override
  {
   if( par == intMaxIter )
    return( std::numeric_limits<int>::infinity() );
-  else
-   return( ThinComputeInterface::get_dflt_int_par( par ) );
+  if( par == intMaxThread )
+   return( 0 );
+
+  return( ThinComputeInterface::get_dflt_int_par( par ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  
- virtual double get_dflt_dbl_par( const idx_type par ) const override
+ double get_dflt_dbl_par( const idx_type par ) const override
  {
   switch( par ) {
    case( dblMaxTime ):  return( std::numeric_limits<double>::infinity() );
@@ -602,17 +625,19 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
 
 /*--------------------------------------------------------------------------*/
 
- virtual idx_type int_par_str2idx( const std::string & name ) const override
+ idx_type int_par_str2idx( const std::string & name ) const override
  {
   if( name == "intMaxIter" )
    return( intMaxIter );
-  else
-   return( ThinComputeInterface::int_par_str2idx( name ) );
+  if( name == "intMaxThread" )
+   return( intMaxThread );
+
+  return( ThinComputeInterface::int_par_str2idx( name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual idx_type dbl_par_str2idx( const std::string & name ) const override
+ idx_type dbl_par_str2idx( const std::string & name ) const override
  {
   if( name == "dblMaxTime" )
    return( dblMaxTime );
@@ -630,24 +655,25 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
 
 /*--------------------------------------------------------------------------*/
 
- virtual const std::string & int_par_idx2str( const idx_type idx )
-  const override
+ const std::string & int_par_idx2str( const idx_type idx ) const override
  {
-  static const std::string par = "intMaxIter";
+  static const std::string mi = "intMaxIter";
+  static const std::string mt = "intMaxThread";
   if( idx == intMaxIter )
-   return( par );
-  else
-   return( ThinComputeInterface::int_par_idx2str( idx ) );
+   return( mi );
+  if( idx == intMaxThread )
+   return( mt );
+
+  return( ThinComputeInterface::int_par_idx2str( idx ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual const std::string & dbl_par_idx2str( const idx_type idx )
-  const override
+ const std::string & dbl_par_idx2str( const idx_type idx ) const override
  {
   static const std::vector< std::string > pars =
    { "dblMaxTime" , "dblRelAcc" , "dblAbsAcc" , "dblUpCutOff" , "dblLwCutOff"
-   };
+     };
 
   if( ( idx >= dblMaxTime ) && ( idx <= dblLwCutOff ) )
    return( pars[ idx ] );
@@ -759,7 +785,14 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
  *   that the value of the Function has changed "unpredictably but
  *   monotonically downwards": computing the value of the Function at any
  *   point now returns a value that is surely smaller than or equal to the
- *   value that would have been returned prior to the Modification. */
+ *   value that would have been returned prior to the Modification.
+ *
+ * Note that a FunctionMod with std::isnan( shift() ) == true is the "nuclear
+ * Modification for Function": it basically says that everything that was
+ * previously known before about the function is no longer reliable, *except
+ * for the set of "active" Variable* that has remained the same. Indeed, 
+ * changes in the set of "active" Variable have their own separate 
+ * Modification. */
 
 class FunctionMod : public AModification {
 
@@ -835,7 +868,7 @@ public:
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to (the pointer to) the affected Constraint
 
- Function * function( void ) { return( f_function ); }
+ Function * function( void ) const { return( f_function ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to the type of Modification
@@ -867,7 +900,7 @@ public:
  *   equal to the value that would have been returned prior to the
  *   Modification. */
 
- FunctionValue shift( void ) { return( f_shift ); }
+ FunctionValue shift( void ) const { return( f_shift ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -918,14 +951,25 @@ public:
  * derived classes may add some operation-specific information that make the
  * task easier and/or more efficient under specific scenarios.
  *
+ * Note that even in case all the Variable are reset, vars() cannot be
+ * empty(). The reason is that Function do not register/unregister itself in
+ * its "active" Variable. This has to be done by something else; but on the
+ * other hand, this something else typically relies on Funtion to keep the
+ * list. If all Variable are reset the list is gone, and therefore the
+ * something else cannot do the un-registering.
+ *
+ * In this setting, the actual set of pointers is clearly not required, and it
+ * is likely that the operation can be performed more efficiently by knowing
+ * that the Variable to be eliminated are just "everyone".
+ *
  * The FunctionModVars also tells whether the Function is "quasi-additive"
  * in the added/removed Variable, which is an important property to allow
  * re-using previously computed function values. 
  *
- * The quasi-additivity property is encoded into asingle extended-real value
+ * The quasi-additivity property is encoded into a single extended-real value
  * (possibly NaN), returned by the method shift(). Note that this is similar,
  * but not the same, to the shift() of FunctionMod (indeed, FunctionModVars
- * does *not* derive from FunctionModV). The definition is as follows.
+ * does *not* derive from FunctionMod). The definition is as follows.
  *
  * Suppose that new Variables are added to the Function. Let f_old( x ) be
  * the Function, and x its vector of "active" Variable, before the
@@ -944,7 +988,7 @@ public:
  * Function after the modification. We say that the variables y are
  * quasi-additively removed from the Function if and only if
  *
- *    f( x ) = f_old( x , 0 ) + shift()    for all x
+ *     f( x ) = f_old( x , 0 ) + shift()    for all x
  *
  * Again, the new value of the Function just a constant shift to the old value
  * of the Function (identical if shift() == 0) whenever the latter were
@@ -954,7 +998,7 @@ public:
  * Note that the property depends on the specific Variable being
  * added/removed and what how exactly "adding" and "removing" means. For
  *
- *   f_old( x , y , z ) = x y + z
+ *     f_old( x , y , z ) = x y + z
  *
  * removing z leads to f( x , y ) = x y, and this clearly is quasi-additive,
  * while removing y may lead to f( x , z ) = x + z which is not. Yet,
@@ -1122,9 +1166,9 @@ public:
  Block * get_Block( void ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// accessor to (the pointer to) the affected Constraint
+ /// accessor to (the pointer to) the affected Function
 
- Function * function( void ) { return( f_function ); }
+ Function * function( void ) const { return( f_function ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// tells if the Modification was quasi-additive
@@ -1149,12 +1193,12 @@ public:
   *   value of the Function has changed "unpredictably" all over the space,
   *   the change is "downward monotone". */
 
- FunctionValue shift( void ) { return( f_shift ); }
+ FunctionValue shift( void ) const { return( f_shift ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to the vector of pointers to affected Variable
 
- Vec_p_Var vars( void ) { return( v_vars ); }
+ c_Vec_p_Var & vars( void ) const { return( v_vars ); }
 
  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method telling if the Variables have been added or removed
@@ -1282,7 +1326,7 @@ public:
 
  /// accessor to the index obtained by the first added Variable
 
- Index first( void ) { return( f_first ); }
+ Index first( void ) const { return( f_first ); }
 
  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method telling that the Variables have been added
@@ -1316,8 +1360,13 @@ public:
     else
      output << "quasi-additively (" << f_shift << ") ";
 
-  output << "adding variables [ " << f_first << " , "
-	 << f_first + v_vars.size() << " ]" << std::endl;
+  output << "adding variable";
+  if( v_vars.size() > 1 )
+   output << "s [ " << f_first << " , "
+	  << f_first + v_vars.size() << " )";
+  else
+   output << " " << f_first;
+  output << std::endl;
   }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
@@ -1388,7 +1437,7 @@ public:
 
  /// accessor to the range of the deleted Variable
 
- c_Range & range( void ) { return( f_range ); }
+ c_Range & range( void ) const { return( f_range ); }
 
  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method telling that the Variables have been removed
@@ -1450,7 +1499,7 @@ public:
  *     UNLESS THEY HAVE LATER BEEN RE-ADDED, IN WHCH CASE AN APPROPRIATE
  *     Modification MUST BE SITTING IN THE QUEUE AFTER THIS ONE.
  *
- * The "name == pointer" of the Variable, which is anyway returned by vars()
+  * The "name == pointer" of the Variable, which is anyway returned by vars()
  * by the base class, should in principle be sufficient alone to reconstruct
  * what the index was. However, this may require the Solver to keep some
  * internal data structure to map the Variable pointer to its index in the
@@ -1476,16 +1525,36 @@ public:
   * && tells, the vector "becomes property" of the FunctionModVarsSbst
   * object. The ordered parameter tells if subset is ordered by increasing
   * Index, which may be helpful for some Block/Solver having to deal with
-  * this FunctionModVarsSbst. */
+  * this FunctionModVarsSbst; indeed, if subset is not "naturally" ordered,
+  * it is ordered in the constructor. Of course, this means that vars gets
+  * re-ordered at the same time. */
 
  FunctionModVarsSbst( Function * f , Vec_p_Var && vars , Subset && subset ,
 		      bool ordered = false , FunctionValue shift = NaNshift ,
 		      bool cB = true )
   : FunctionModVars( f , std::move( vars ) , shift , cB ) ,
-    v_subset( subset ) , f_ordered( ordered )
+    v_subset( std::move( subset ) )
  {
-  if( v_vars.size() != v_subset.size() )
+  if( ( ! v_subset.empty() ) && ( v_vars.size() != v_subset.size() ) )
    throw( std::invalid_argument( "vars and subset sizes do not match" ) );
+  if( ! ordered ) {
+   using IdxVar = std::pair< Index , Variable * >;
+   std::vector< IdxVar > tmp;
+   for( Index i = 0 ; i < v_vars.size() ; ++i )
+    tmp[ i ] = std::pair( v_subset[ i ] , v_vars[ i ] );
+   std::sort( tmp.begin() , tmp.end() ,
+	      []( IdxVar & a , IdxVar & b ) { return( a.first < b.first ); }
+	      );
+   for( Index i = 0 ; i < v_vars.size() ; ++i ) {
+    v_subset[ i ] = tmp[ i ].first;
+    v_vars[ i ] = tmp[ i ].second;
+    }
+   }
+  #ifndef NDEBUG
+  for( Index i = 1 ; i < v_subset.size() ; ++i )
+   if( v_subset[ i - 1 ] >= v_subset[ i ] )
+    throw( std::invalid_argument( "unordered or repeated subset" ) );
+  #endif
   }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
@@ -1496,12 +1565,7 @@ public:
 
  /// accessor to the subset of the deleted Variable
 
- c_Subset & subset( void ) { return( v_subset ); }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// accessor to the ordered status
-
- bool ordered( void ) { return( f_ordered ); }
+ c_Subset & subset( void ) const { return( v_subset ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method telling that the Variables have been removed
@@ -1534,18 +1598,12 @@ public:
      output << "non quasi-additively (-)";
     else
      output << "quasi-additively (" << f_shift << ") ";
-
-  output << "deleting " << v_subset.size();
-  if( f_ordered )
-   output << "(ordered)";
-  output << " variables" << std::endl;
+  output << "deleting " << v_subset.size() << " variables" << std::endl;
   }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
  Subset v_subset;   ///< the subset of the removed Variable
-
- bool f_ordered;    ///< true if v_subset is ordered
 
 /*--------------------------------------------------------------------------*/
 

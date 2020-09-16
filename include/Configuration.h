@@ -10,7 +10,7 @@
  *
  * \version 0.11
  *
- * \date 16 - 08 - 2019
+ * \date 05 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -32,7 +32,6 @@
 /*--------------------------------------------------------------------------*/
 
 #include "SMSTypedefs.h"
-#include "netcdf"
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -95,11 +94,11 @@ class Configuration
   *
   *     class MyConfiguration : Configuration {
   *      virtual MyConfiguration * clone( void ) {
-  *      return( new( MyConfiguration( *this ) ) );
+  *       return( new( MyConfiguration( *this ) ) );
   *      }
   *
   *      MyConfiguration( MyConfiguration & ) { < copy constructor > }
-  *      };
+  *     };
   *
   * There could be smart template-based ways to avoid having to do this
   * explicitly for each :Configuration, but in our case it seems that the
@@ -132,11 +131,28 @@ class Configuration
   *
   *     SMSpp_insert_in_factory_cpp_0( name_of_the_class );
   *
-  *   to exactly *one* .cpp file, typically that :Configuration .cpp file. */
+  *   to exactly *one* .cpp file, typically that :Configuration .cpp file. If
+  *   the name of the class contains any parentheses, then one must enclose
+  *   the name of the class in parentheses and instead add the line
+  *
+  *     SMSpp_insert_in_factory_cpp_0( ( name_of_the_class ) );
+  *
+  * Any whitespaces that the given \p classname may contain is ignored. So,
+  * for example, to create an instance of the class MyConfiguration<int> one
+  * could pass "MyConfiguration<int>" or "MyConfiguration< int >" (even " M y
+  * C o n f i g u r a t i o n < int > " would work).
+  *
+  * @param classname The name of the :Configuration class that must be
+  *        constructed. */
+
 
  static Configuration *new_Configuration( const std::string &classname )
  {
-  const auto it = Configuration::f_factory().find( classname );
+  std::string classname_( classname );
+  classname_.erase( std::remove_if( classname_.begin() , classname_.end() ,
+                                    ::isspace ) , classname_.end() );
+
+  const auto it = Configuration::f_factory().find( classname_ );
   if( it == Configuration::f_factory().end() )
    throw( std::invalid_argument( classname +
 		   std::string( " not present in Configuration factory" ) ) );
@@ -366,6 +382,33 @@ class Configuration
   }
 
 /**@} ----------------------------------------------------------------------*/
+/*----------- METHODS DESCRIBING THE BEHAVIOR OF A Configuration -----------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods describing the behavior of a Configuration
+ *  @{ */
+
+ /// clear this Configuration
+ /** A Configuration is basically used to configure Block and its Solver. As a
+  * Block has a complex tree structure, it is regularly the case in which a
+  * Configuration also presents a similar tree structure, as it may commonly
+  * be used to configure not only the Block (or its Solver) but all of its
+  * sub-Block as well, recursively. If the structure of a Configuration object
+  * for a Block is unknown, its construction can therefore be a
+  * computationally expensive task, often requiring the inspection of the
+  * whole Block (its Constraint, Objective, and sub-Block, recursively). It
+  * turns out that it can be useful in some situations to have at hand a
+  * "cleared" Configuration object: one that contains its complete structure
+  * but without any other data (e.g., parameters upon which a Block or a
+  * Solver may depend). This method must "clear" this Configuration,
+  * preserving its complex structure and thus erasing any data that does not
+  * affect its structure.
+  *
+  * This method has a default empty implementation as some Configuration may
+  * not have any data to be "cleared". */
+
+ virtual void clear( void ) { }
+
+/**@} ----------------------------------------------------------------------*/
 /*-------- METHODS FOR LOADING, PRINTING & SAVING THE Configuration --------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the Configuration
@@ -524,7 +567,7 @@ class Configuration
   * out in human-readable form. The base Configuration class has preciously
   * little to print, but it still does a bit. */
 
- virtual void print( std::ostream &output ) const  {
+ virtual void print( std::ostream &output ) const {
   output << "Configuration [" << this << "]" << std::endl;
   }
 
@@ -643,9 +686,34 @@ class Configuration
  * deserialize() methods, as the netCDF C++ interface is not particularly
  * nice with templates. So, besides adding the specific template realization
  * to the factory, one also has to implement these two methods for it. Again,
- * in Configuration.cpp this is done for all the previous cases. */
+ * in Configuration.cpp this is done for all the previous cases.
+ *
+ * IMPORTANT NOTE: adding a specific SimpleConfiguration< something > to the
+ *                 factory requires a call to
+ *
+ *     SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< something > );
+ *
+ * This is actually a macro, and therefore it has a problem if "something"
+ * contains commas (",") as they are taken to separate macro arguments. Hence,
+ * while
+ *
+ *     SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration<
+ *                                                     std::vector< int > > );
+ *
+ * is legal,
+ *
+ *     SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration<
+ *                                                 std::pair< int , int > > );
+ *
+ * is not because of the comma. This is solved by adding parentheses around the
+ * type name, as in
+ *
+ *     SMSpp_insert_in_factory_cpp_0_t( ( SimpleConfiguration<
+ *                                                std::pair< int , int > >)  );
+ *
+ * due to a specific feature of SMSpp_insert_in_factory_cpp. */
 
-template<class SimpleConfiguration_value_type>
+template< class SimpleConfiguration_value_type >
 class SimpleConfiguration : public Configuration
 {
 
@@ -664,26 +732,30 @@ class SimpleConfiguration : public Configuration
 
  /// move constructor taking the value (&&) as input
  explicit SimpleConfiguration( SimpleConfiguration_value_type && initval )
-  : Configuration() { f_value = initval; }
+  : Configuration() { f_value = std::move( initval ); }
 
  /// copy constructor: does what it says on the tin
  SimpleConfiguration( const SimpleConfiguration & old ) : Configuration() {
   f_value = old.f_value;
   }
   
- virtual void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( netCDF::NcGroup & group ) override;
 
  virtual ~SimpleConfiguration() { }  ///< destructor: does nothing
 
  /// clone method
- virtual SimpleConfiguration * clone( void ) const override
+ SimpleConfiguration * clone( void ) const override
  {
   return( new SimpleConfiguration( *this ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
- virtual void serialize( netCDF::NcGroup & group ) const override;
+ void serialize( netCDF::NcGroup & group ) const override;
+
+/*--------------------------------------------------------------------------*/
+
+ void clear( void ) override { }
 
 /*---------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
 
@@ -749,6 +821,110 @@ class SimpleConfiguration : public Configuration
  ///< a vector of pointer to Configuration
 
 /** @} end( group( Configuration_TYPES ) ) */
+/*--------------------------------------------------------------------------*/
+/*---------------------- TEMPLATE SPECIALIZATIONS --------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @defgroup SimpleConfiguration_SPECIALIZATIONS SimpleConfiguration template
+ *  specializations.
+ *  @{ */
+
+ template<>
+ void SimpleConfiguration<int>::serialize( netCDF::NcGroup & group ) const;
+
+ template<>
+ void SimpleConfiguration<int>::deserialize( netCDF::NcGroup & group );
+
+ template<>
+ void SimpleConfiguration<double>::serialize( netCDF::NcGroup & group ) const;
+
+ template<>
+ void SimpleConfiguration<double>::deserialize( netCDF::NcGroup & group );
+
+ template<>
+ void SimpleConfiguration< std::pair<int,int> >::serialize(
+					      netCDF::NcGroup & group ) const;
+ template<>
+ void SimpleConfiguration< std::pair<int,int> >::deserialize(
+						     netCDF::NcGroup & group );
+ template<>
+ void SimpleConfiguration< std::pair<double,double> >::serialize(
+					      netCDF::NcGroup & group ) const;
+ template<>
+ void SimpleConfiguration< std::pair<double,double> >::deserialize(
+						     netCDF::NcGroup & group );
+ template<>
+ void SimpleConfiguration< std::pair<int,double> >::serialize(
+					      netCDF::NcGroup & group ) const;
+ template<>
+ void SimpleConfiguration< std::pair<int,double> >::deserialize(
+						     netCDF::NcGroup & group );
+ template<>
+ void SimpleConfiguration< std::pair<double,int> >::serialize(
+					      netCDF::NcGroup & group ) const;
+ template<>
+ void SimpleConfiguration< std::pair<double,int> >::deserialize(
+						     netCDF::NcGroup & group );
+ template<>
+ void SimpleConfiguration< std::vector<int> >::serialize(
+					      netCDF::NcGroup & group ) const;
+ template<>
+ void SimpleConfiguration< std::vector<int> >::deserialize(
+						    netCDF::NcGroup & group );
+ template<>
+ void SimpleConfiguration< std::vector<int> >::clear( void );
+
+ template<>
+ void SimpleConfiguration< std::vector<double> >::serialize(
+					       netCDF::NcGroup & group ) const;
+ template<>
+ void SimpleConfiguration< std::vector<double> >::deserialize(
+						    netCDF::NcGroup & group );
+ template<>
+ void SimpleConfiguration< std::vector<double> >::clear( void );
+
+ template<>
+ void SimpleConfiguration< std::list<int> >::serialize(
+					      netCDF::NcGroup & group ) const;
+ template<>
+ void SimpleConfiguration< std::list<int> >::deserialize(
+						     netCDF::NcGroup & group );
+ template<>
+ void SimpleConfiguration< std::list<int> >::clear( void );
+
+ template<>
+ void SimpleConfiguration< std::list<double> >::serialize(
+					      netCDF::NcGroup & group ) const;
+ template<>
+ void SimpleConfiguration< std::list<double> >::deserialize(
+					             netCDF::NcGroup & group );
+ template<>
+ void SimpleConfiguration< std::list<double> >::clear( void );
+
+ template<>
+ void SimpleConfiguration< std::pair< Configuration * , Configuration * >
+			  >::serialize( netCDF::NcGroup & group ) const;
+ template<>
+ void SimpleConfiguration< std::pair< Configuration * , Configuration * >
+			  >::deserialize( netCDF::NcGroup & group );
+ template<>
+ void SimpleConfiguration< std::pair< Configuration * , Configuration * >
+			  >::load( std::istream &input );
+ template<>
+ void SimpleConfiguration< std::pair< Configuration * , Configuration * >
+			  >::clear( void );
+ template<>
+ void SimpleConfiguration< std::vector< Configuration * > >::serialize(
+					       netCDF::NcGroup & group ) const;
+ template<>
+ void SimpleConfiguration< std::vector< Configuration * > >::deserialize(
+						    netCDF::NcGroup & group );
+ template<>
+ void SimpleConfiguration< std::vector< Configuration * >
+			  >::load( std::istream &input );
+ template<>
+ void SimpleConfiguration< std::vector< Configuration * > >::clear( void );
+
+/** @} end( group( SimpleConfiguration_SPECIALIZATIONS ) ) */
 /*--------------------------------------------------------------------------*/
 
 }  // end( namespace SMSpp_di_unipi_it )

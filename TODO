@@ -1,3 +1,17 @@
+2020-09-10 [low] Retrieving the "abstract name" of a Variable and printing the model
+
+        In many cases, printing the full model would be useful. In particular,
+        if the model turns out to be unexpectedly unfeasible, one should fetch
+        the dual ray from the CDASolver (if any) and use it to output an IS.
+        The biggest hurdle here is to be able to retrieve a significant name for
+        the [Col]Variable involved in the Constraint/Objective (Function). This
+        is not terribly complex, but still requires some work. After this is done,
+        the model and an IS can be printed with relatively little effore exploiting
+        the existing print() infrastructure. Of course, once this is done one should
+        also do the same for Constraint names and print them out, too. Maybe some
+        infrastructure for printing only specific parts of the model could be
+        imagined.
+
 2020-02-17 [high] LagrangianDualBlock, BendersDecompositionBlock
 
 	SMS++ is motivated by decomposition, and it offers LagBFunction and

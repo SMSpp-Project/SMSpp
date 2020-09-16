@@ -239,7 +239,7 @@ void LinearFunction::map_active( c_Vec_p_Var & vars , Subset & map ,
 /*--------------------------------------------------------------------------*/
 
 void LinearFunction::add_variables( v_coeff_pair && vars ,
-				    c_ModParam issueMod )
+				    ModParam issueMod )
 {
  if( vars.empty() )  // actually nothing to add
   return;            // cowardly (and silently) return
@@ -272,7 +272,7 @@ void LinearFunction::add_variables( v_coeff_pair && vars ,
 
 void LinearFunction::add_variable( ColVariable * const var ,
                                    const Coefficient coeff ,
-				   c_ModParam issueMod )
+				   ModParam issueMod )
 {
  if( var == nullptr )  // actually nothing to add
   return;              // cowardly (and silently) return
@@ -294,7 +294,7 @@ void LinearFunction::add_variable( ColVariable * const var ,
 /*--------------------------------------------------------------------------*/
 
 void LinearFunction::modify_coefficient( Index i , Coefficient coeff,
-                                         c_ModParam issueMod )
+                                         ModParam issueMod )
 {
  if( i >= v_pairs.size() )
   throw( std::invalid_argument( "LinearFunction::modify_coefficient: invalid"
@@ -322,7 +322,7 @@ void LinearFunction::modify_coefficient( Index i , Coefficient coeff,
 
 void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
 					  Subset && nms , bool ordered ,
-					  c_ModParam issueMod )
+					  ModParam issueMod )
 {
  if( nms.empty() )
   return;
@@ -344,7 +344,7 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
     throw( std::invalid_argument( "LinearFunction::modify_coefficients: "
                                   "invalid index: " + std::to_string( i ) ) );
    *(vpit++) = v_pairs[ i ].first;
-   auto di = v_pairs[ i ].second - *NCit;
+   auto di = *NCit - v_pairs[ i ].second;
    v_pairs[ i ].second = *NCit;
    *(NCit++) = di;
    }
@@ -370,7 +370,7 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
 /*--------------------------------------------------------------------------*/
 
 void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
-					  Range range , c_ModParam issueMod )
+					  Range range , ModParam issueMod )
 {
  range.second = std::min( range.second , c_Index( v_pairs.size() ) );
  if( range.second <= range.first )
@@ -412,7 +412,7 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
 
 /*--------------------------------------------------------------------------*/
 
-void LinearFunction::remove_variable( c_Index i , c_ModParam issueMod )
+void LinearFunction::remove_variable( Index i , ModParam issueMod )
 {
  if( v_pairs.size() <= i )
   throw( std::logic_error( "LinearFunction::remove_variable: there is no "
@@ -436,12 +436,31 @@ void LinearFunction::remove_variable( c_Index i , c_ModParam issueMod )
 
 /*--------------------------------------------------------------------------*/
 
-void LinearFunction::remove_variables( Range range , c_ModParam issueMod )
+void LinearFunction::remove_variables( Range range , ModParam issueMod )
 {
- range.second = std::min( range.second , c_Index( v_pairs.size() ) );
+ range.second = std::min( range.second , Index( v_pairs.size() ) );
  if( range.second <= range.first )
   return;
 
+ if( ( range.first == 0 ) && ( range.second == v_pairs.size() ) ) {
+  Vec_p_Var vars( v_pairs.size() );
+
+  for( Index i = 0 ; i < v_pairs.size() ; ++i )
+   vars[ i ] = v_pairs[ i ].first;
+
+  v_pairs.clear();  // removing *all* variable
+
+  // now issue the Modification
+  // a linear function is additive ==> strongly quasi-additive
+  if( f_Observer && f_Observer->issue_mod( issueMod ) )
+   f_Observer->add_Modification( std::make_shared<C05FunctionModVarsRngd>(
+				      this , std::move( vars ) , range , 0 ,
+				      Observer::par2concern( issueMod ) ) ,
+				 Observer::par2chnl( issueMod ) );
+  return;
+  }
+
+ // this is not a complete reset
  const auto strtit = v_pairs.begin() + range.first;
  const auto stopit = v_pairs.begin() + range.second;
 
@@ -470,25 +489,35 @@ void LinearFunction::remove_variables( Range range , c_ModParam issueMod )
 /*--------------------------------------------------------------------------*/
 
 void LinearFunction::remove_variables( Subset && nms , bool ordered ,
-				       c_ModParam issueMod )
+				       ModParam issueMod )
 {
- if( nms.empty() )  // actually nothing to remove
-  return;           // cowardly (and silently) return
+ if( nms.empty() ) {      // removing *all* variable
+  Vec_p_Var vars( v_pairs.size() );
 
- if( v_pairs.empty() )  // deleting from nothing
-  throw( std::logic_error( "LinearFunction::remove_variables: "
-                           "deleting from an empty set" ) );
+  for( Index i = 0 ; i < v_pairs.size() ; ++i )
+   vars[ i ] = v_pairs[ i ].first;
 
- if( ! ordered )
-  std::sort( nms.begin() , nms.end() );
- 
- auto it = nms.begin();
- if( ( *it >= v_pairs.size() ) || ( nms.back() >= v_pairs.size() ) ) {
-  throw( std::invalid_argument( "LinearFunction::remove_variables: wrong "
-                                "index: " + std::to_string(
-                                             std::max( *it , nms.back() ) ) ) );
+  v_pairs.clear();
+
+  // now issue the Modification: note that the subset is empty
+  // a linear function is additive ==> strongly quasi-additive
+  if( f_Observer && f_Observer->issue_mod( issueMod ) )
+   f_Observer->add_Modification( std::make_shared<C05FunctionModVarsSbst>(
+				 this , std::move( vars ) , Subset() , true ,
+				 0 , Observer::par2concern( issueMod ) ) ,
+				 Observer::par2chnl( issueMod ) );
+  return;
   }
 
+ // this is not a complete reset
+ if( ! ordered )
+  std::sort( nms.begin() , nms.end() );
+
+ if( nms.back() >= v_pairs.size() )  // the last name is wrong
+  throw( std::invalid_argument(
+	  "LinearFunction::remove_variables: wrong Variable index in nms" ) );
+
+ auto it = nms.begin();
  auto vi = *it;    // first element to be eliminated
  auto curr = v_pairs.begin() + vi;   // position where to move stuff
 
@@ -542,8 +571,8 @@ void LinearFunction::remove_variables( Subset && nms , bool ordered ,
 
 /*--------------------------------------------------------------------------*/
 
-void LinearFunction::set_constant_term( const FunctionValue constant_term  ,
-					c_ModParam issueMod )
+void LinearFunction::set_constant_term( FunctionValue constant_term  ,
+					ModParam issueMod )
 {
  if( f_constant_term == constant_term )  // actually nothing to change
   return;                                // cowardly (and silently) return

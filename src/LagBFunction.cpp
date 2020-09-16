@@ -8,7 +8,7 @@
  *
  * \version 0.07
  *
- * \date 20 - 11 - 2019
+ * \date 15 - 07 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -30,10 +30,15 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#include "Observer.h"
-#include "SMSTypedefs.h"
+#include "BlockSolverConfig.h"
+
 #include "LagBFunction.h"
-#include <math.h>
+
+#include "Observer.h"
+
+#include "RBlockConfig.h"
+
+#include "SMSTypedefs.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -49,14 +54,13 @@ using SimpleConfig_p_p = SimpleConfiguration<
 /*--------------------------------------------------------------------------*/
 
 static constexpr C05Function::Index NaNLinName
-         = std::numeric_limits<C05Function::Index>::quiet_NaN();
+                      = std::numeric_limits<C05Function::Index>::quiet_NaN();
 
-static const char VarAreDir = 0;   // a direction is stored
-static const char VarAreSol = 1;   // a solution is stored
+static constexpr Function::FunctionValue NaN = FunctionMod::NaNshift;
 
-static const char VarToBeChckd = 1;  // Variable must be checked for feasibility
+static constexpr Function::FunctionValue INF = FunctionMod::INFshift;
 
-// register MCFBlock to the Block factory
+// register LagBFunction to the Block factory
 SMSpp_insert_in_factory_cpp_1( LagBFunction );
 
 /*--------------------------------------------------------------------------*/
@@ -64,76 +68,70 @@ SMSpp_insert_in_factory_cpp_1( LagBFunction );
 /*--------------------------------------------------------------------------*/
 
 LagBFunction::LagBFunction( Block* innerblock , Observer * const observer )
- :  C05Function()
+ :  C05Function() , obj( nullptr ) , IsConvex( true ) , f_max_glob( 0 ) ,
+    LastSolution( NaNLinName ) , VarSol( true ) , f_linear_term( 0 ) ,
+    LPMaxSz( 0 ) , RAccLin( 0 ) , AAccLin( 0 ) , svcc( nullptr )
 {
-
- /* So far, the last computed solution is unknown
-  The last computed solution is encoded in the field LastSolution
-  as follows:
-
-   - NaN : the last solution is unknown
-
-   - Inf : the last solution is that of the local pool
-
-   - \in [ 0 , GPMaxSz ) : is the index of a solution of the global pool   */
-
- LastSolution = NaNLinName;
-
  // set the pointer to the sub-Block (B) - - - - - - - - - - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  if( innerblock )
   set_inner_block( innerblock );
 
  // set the observer pointer - - - - - - - - - - - - - - - - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  if( observer )
   register_Observer( observer );
 
- } // end ( LagBFunction::LagBFunction( ) )  - - - - - - - - - - - - - - - - -
+ }  // end( LagBFunction::LagBFunction() )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::clear( ) {
-
+void LagBFunction::clear( void )
+{
  for( const auto & dp : LagPairs )
-  delete[] dp.second;
+  delete dp.second;
  LagPairs.clear();
-
- } //end ( LagBFunction::clear( ) )  - - - - - - - - - - - - - - - - - - - - -
+ }
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::set_inner_block( Block* innerblock ) {
+void LagBFunction::set_inner_block( Block* innerblock )
+{
+ // consstency checks
 
- // set the pointer to the sub-Block (B) - - - - - - - - - - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ if( ! innerblock )
+  throw( std::invalid_argument( "empty inner Block not allowed" ) );
 
- if( v_Block.size() )
+ auto frobj = innerblock->get_objective< FRealObjective >();
+ if( ! frobj )
+ throw( std::invalid_argument( "inner Block with no FRealObj not allowed" ) );
+
+ IsConvex = ( frobj->get_sense() == Objective::eMax );
+
+ obj = dynamic_cast< LinearFunction * >( frobj->get_function() );
+ if( ! obj )
+  throw( std::logic_error( "inner Block with no linear obj not allowed" ) );
+
+ // set the inner Block
+ if( ! v_Block.empty() )
   v_Block.clear();
 
  v_Block.push_back( innerblock );
 
- // set the objective : the Lagrangian function (obj_B) is the objective of
- // sub-block (B)
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  // construct CostMatrix whose size is that of active variables in (obj_B)
+ initialize_cost_matrix();
 
- set_objective_and_solver( );
- initialize_cost_matrix();  // construct CostMatrix whose size is that of
-                      // active variables in (obj_B)
-
- } // end ( LagBFunction::set_inner_block( Block* )  ) - - - - - - - - - - - -
+ }  // end( LagBFunction::set_inner_block() )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::set_dual_pairs( v_dual_pair && lp ,
-		  c_ModParam issueMod ) { // this function is used to initialize
-	                      // a bunch of relaxed constraints along with their
-	                      // Lagrangian multipliers
+void LagBFunction::set_dual_pairs( v_dual_pair && lp , ModParam issueMod )
+{
+ // this function is used to initialize a bunch of relaxed constraints along
+ // with their Lagrangian multipliers
 
  clear();
 
@@ -148,8 +146,8 @@ void LagBFunction::set_dual_pairs( v_dual_pair && lp ,
     CostMatrix which is used to update the Lagrangian cost vector.
 
     CostMatrix is a map whose the key is the pointer to the primal variable x_j,
-    the second field is the pair < c_j , j-th column >, being the j-th column the
-    vector < y, A_j>. It is assumed that map is ordered by the primal
+    the second field is the pair < c_j , j-th column >, being the j-th column
+    the vector < y, A_j>. It is assumed that map is ordered by the primal
     variable name and a column < y, A_j> is ordered by Lagrangian multiplier
     name (= pointer).
 
@@ -167,8 +165,8 @@ void LagBFunction::set_dual_pairs( v_dual_pair && lp ,
  if( v_Block.empty() )
   throw( std::logic_error( "no sub-block is present" ) );
 
- // the vector LagPairs is empty, so initialize it adding the relaxed constraints
- // (RCs)={g_i(x): for some i} - - - - - - - - - - - - - - - - - - - - - - - -
+ // the vector LagPairs is empty, so initialize it adding the relaxed
+ // constraints (RCs) ={ g_i(x) : for some i } - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  LagPairs = std::move( lp );
@@ -190,36 +188,103 @@ void LagBFunction::set_dual_pairs( v_dual_pair && lp ,
 
 /*--------------------------------------------------------------------------*/
 
-
 void LagBFunction::set_relaxed_function( Function * const function  )
 {
  // register this Objective as an Observer of the given Function (if any)
+
  function->register_Observer( this );
 
  }  // end ( LagBFunction::set_relaxed_function( ) )   - - - - - - - - - - - -
 
 /*--------------------------------------------------------------------------*/
 
+void LagBFunction::set_default_inner_Block_BlockConfig() {
+ if( auto inner_block = get_inner_block() ) {
+   auto config = new OCRBlockConfig( inner_block );
+   config->clear();
+   config->apply( inner_block );
+  }
+}
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::set_default_inner_Block_BlockSolverConfig() {
+ if( auto inner_block = get_inner_block() ) {
+   auto solver_config = new RBlockSolverConfig( inner_block );
+   solver_config->clear();
+   solver_config->apply( inner_block );
+  }
+}
+
+/*--------------------------------------------------------------------------*/
 
 void LagBFunction::set_ComputeConfig( ComputeConfig *scfg )
 {
- auto cc = dynamic_cast<const SimpleConfig_p_p *>( scfg );
- if( cc == nullptr )
-  throw( std::logic_error( "the configuration is not a SimpleConfiguration" ) );
-
  ThinComputeInterface::set_ComputeConfig( scfg );
 
- auto sc = dynamic_cast<BlockSolverConfig *>( cc->f_value.first );
- if( sc == nullptr )
-  throw( std::logic_error( "the configuration is not a BlockSolverConfig" ) );
- v_Block[0]->set_SolverConfig( sc );
+ auto inner_block = get_inner_block();
 
- auto bc = dynamic_cast<BlockConfig *>( cc->f_value.second );
- if( bc == nullptr )
-  throw( std::logic_error( "the configuration is not a BlockConfig" ) );
- v_Block[0]->set_BlockConfig( bc );
+ if( ! inner_block )
+  return;
+ else if( ! scfg ) {
+  // scfg is nullptr
+  set_default_inner_Block_configuration();
+  return;
+ }
+ else if( ! scfg->f_extra_Configuration ) {
+  // scfg->f_extra_Configuration is nullptr
+  if( ! scfg->f_diff )
+   set_default_inner_Block_configuration();
+  return;
+ }
 
- }  // end ( LagBFunction::set_relaxed_function( ) )   - - - - - - - - - - - -
+ // Set the BlockConfig of the inner Block
+
+ if( auto config = dynamic_cast< SimpleConfiguration
+     < std::pair< Configuration * , Configuration * > > * >
+     ( scfg->f_extra_Configuration ) ) {
+
+  if( config->f_value.first ) {
+   if( auto block_config = dynamic_cast< BlockConfig * >
+       ( config->f_value.first ) )
+    block_config->apply( inner_block );
+   else
+    throw( std::invalid_argument
+           ( "LagBFunction::set_ComputeConfig: the first element of "
+             "the pair of the extra Configuration must be a pointer "
+             "to a :BlockConfig." ) );
+  }
+  else {
+   // A BlockConfig for the inner Block was not provided
+   // scfg->f_extra_Configuration->f_value.first is nullptr
+   if( ! scfg->f_diff )
+    set_default_inner_Block_BlockConfig();
+  }
+
+  // Set the BlockSolverConfig of the inner Block
+
+  if( config->f_value.second ) {
+   if( auto block_config = dynamic_cast< BlockSolverConfig * >
+       ( config->f_value.second ) )
+    block_config->apply( inner_block );
+   else
+    throw( std::invalid_argument
+           ( "LagBFunction::set_ComputeConfig: the second element "
+             "of the pair of the extra Configuration must be a pointer "
+             "to a :BlockSolverConfig." ) );
+  }
+  else {
+   // A BlockSolverConfig for the inner Block was not provided
+   // scfg->f_extra_Configuration->f_value.second is nullptr
+   if( ! scfg->f_diff )
+    set_default_inner_Block_BlockSolverConfig();
+  }
+ }
+ else
+  throw( std::invalid_argument( "LagBFunction::set_ComputeConfig: "
+                                "invalid type of extra Configuration." ) );
+
+ }  // end ( LagBFunction::set_relaxed_function( ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -228,39 +293,49 @@ void LagBFunction::set_par( const idx_type par , const int value )
  switch( par ) {
   case( intLPMaxSz ):
    if( LPMaxSz != value ) {
-   LPMaxSz = value;
-   if( !svcc ) {
-    svcc = new BlockSolverConfig;
-    ComputeConfig* cc = new ComputeConfig;
-    (svcc->v_SolverConfigs).push_back(cc);
-    svcc->v_SolverConfigs[0]->int_pars.push_back(
-    		 std::make_pair( int_par_idx2str(intLPMaxSz) , value ) );
-    }
-   else {
-    auto it_v = std::find_if( svcc->v_SolverConfigs[0]->int_pars.begin() ,
-    	 svcc->v_SolverConfigs[0]->int_pars.end() ,
+    LPMaxSz = value;
+    if( ! svcc ) {
+     svcc = new BlockSolverConfig;
+     ComputeConfig* cc = new ComputeConfig;
+     cc->int_pars.push_back(
+    		 std::make_pair( int_par_idx2str( intLPMaxSz ) , value ) );
+     svcc->add_ComputeConfig( "" , cc );
+     }
+    else {
+     auto & solver_configs = svcc->get_SolverConfigs();
+
+     if( solver_configs.empty() )
+      throw( std::logic_error( "LagBFunction::set_par: BlockSolverConfig "
+                               "has no ComputeConfig" ) );
+
+     auto & sc = solver_configs[ 0 ];
+
+     auto it_v = std::find_if( sc->int_pars.begin() , sc->int_pars.end() ,
     	 [ ]( const std::pair< std::string , int > & p ) {
     	      return( p.first == "intLPMaxSz" );  } );
 
-    if( it_v != svcc->v_SolverConfigs[0]->int_pars.end() )
-     (*it_v).second = value;
-    else
-     svcc->v_SolverConfigs[0]->int_pars.push_back(
-            std::make_pair( "intLPMaxSz" , value ) );
-
+     if( it_v != sc->int_pars.end() )
+      (*it_v).second = value;
+     else
+      sc->int_pars.push_back( std::make_pair( "intLPMaxSz" , value ) );
+     }
     }
-   }
    break;
   case( intGPMaxSz ):
-   GPMaxSz = value;
-   if( g_pool.size() > GPMaxSz )
-	for( auto it = g_pool.begin() + GPMaxSz ; it != g_pool.end() ; ++it  )
-	 delete[] std::get<0>(*it);
-   g_pool.resize( GPMaxSz );
+   if( g_pool.size() > value ) {
+    for( auto it = g_pool.begin() + value ; it != g_pool.end() ; ++it  )
+     delete it->first;
+
+    if( f_max_glob > value ) {
+     f_max_glob = value;
+     update_f_max_glob();
+     }    
+    }
+   g_pool.resize( value , gpool_el( nullptr , true ) );
    break;
   default: Function::set_par( par , value );
   }
- }  // end ( LagBFunction::set_par( int ) )  - - - - - - - - - - - - - - - - -
+ }  // end ( LagBFunction::set_par( int ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -268,27 +343,33 @@ void LagBFunction::set_par( const idx_type par , const double value )
 {
  switch( par ) {
   case( dblRAccLin ):
+
    if( RAccLin != value ) {
     RAccLin = value;
     if( !svcc ) {
      svcc = new BlockSolverConfig;
      ComputeConfig* cc = new ComputeConfig;
-     (svcc->v_SolverConfigs).push_back(cc);
-     svcc->v_SolverConfigs[0]->dbl_pars.push_back(
-    		 std::make_pair( dbl_par_idx2str(dblRAccLin) , value ) );
+     cc->dbl_pars.push_back( std::make_pair( dbl_par_idx2str( dblRAccLin ) ,
+                                             value ) );
+     svcc->add_ComputeConfig( "" , cc );
      }
     else {
-     auto it_v = std::find_if( svcc->v_SolverConfigs[0]->dbl_pars.begin() ,
-    	 svcc->v_SolverConfigs[0]->dbl_pars.end() ,
+     auto & solver_configs = svcc->get_SolverConfigs();
+
+     if( solver_configs.empty() )
+      throw( std::logic_error( "LagBFunction::set_par: BlockSolverConfig "
+                               "has no ComputeConfig" ) );
+
+     auto & sc = solver_configs[ 0 ];
+
+     auto it_v = std::find_if( sc->dbl_pars.begin() , sc->dbl_pars.end() ,
     	 [ ]( const std::pair< std::string , double > & p ) {
     	      return( p.first == "dblRAccLin" );  } );
 
-     if( it_v != svcc->v_SolverConfigs[0]->dbl_pars.end() )
+     if( it_v != sc->dbl_pars.end() )
       (*it_v).second = value;
      else
-      svcc->v_SolverConfigs[0]->dbl_pars.push_back(
-            std::make_pair( "dblRAccLin" , value ) );
-
+      sc->dbl_pars.push_back( std::make_pair( "dblRAccLin" , value ) );
      }
     }
    break;
@@ -298,29 +379,33 @@ void LagBFunction::set_par( const idx_type par , const double value )
     if( !svcc ) {
      svcc = new BlockSolverConfig;
      ComputeConfig* cc = new ComputeConfig;
-     (svcc->v_SolverConfigs).push_back(cc);
-     svcc->v_SolverConfigs[0]->dbl_pars.push_back(
-     		 std::make_pair( dbl_par_idx2str(dblAAccLin) , value ) );
+     cc->dbl_pars.push_back( std::make_pair( dbl_par_idx2str( dblAAccLin ) ,
+                                             value ) );
+     svcc->add_ComputeConfig( "" , cc );
      }
     else {
+     auto & solver_configs = svcc->get_SolverConfigs();
 
-     auto it_v = std::find_if( svcc->v_SolverConfigs[0]->dbl_pars.begin() ,
-     	 svcc->v_SolverConfigs[0]->dbl_pars.end() ,
+     if( solver_configs.empty() )
+      throw( std::logic_error( "LagBFunction::set_par: BlockSolverConfig "
+                               "has no ComputeConfig" ) );
+
+     auto & sc = solver_configs[ 0 ];
+
+     auto it_v = std::find_if( sc->dbl_pars.begin() , sc->dbl_pars.end() ,
      	 [ ]( const std::pair< std::string , double > & p ) {
      	      return( p.first == "dblAAccLin" );  } );
 
-     if( it_v != svcc->v_SolverConfigs[0]->dbl_pars.end() )
+     if( it_v != sc->dbl_pars.end() )
       (*it_v).second = value;
      else
-      svcc->v_SolverConfigs[0]->dbl_pars.push_back(
-             std::make_pair( "dblAAccLin" , value ) );
-
+      sc->dbl_pars.push_back( std::make_pair( "dblAAccLin" , value ) );
      }
     }
    break;
   default: Function::set_par( par , value );
   }
- } // end ( LagBFunction::set_par( double ) )  - - - - - - - - - - - - - - - -
+ }  // end( LagBFunction::set_par( double ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -338,14 +423,14 @@ void LagBFunction::deserialize( netCDF::NcGroup & group )
 
  Block::deserialize( group );
 
- } // end ( LagBFunction::deserialize )  - - - - - - - - - - - - - - - - - - -
+ }  // end( LagBFunction::deserialize )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- Methods for handling Modification -------------------*/
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::add_dual_pairs( v_dual_pair && lp , c_ModParam issueMod ) {
-
+void LagBFunction::add_dual_pairs( v_dual_pair && lp , ModParam issueMod )
+{
  for( const auto l_pair : lp ) { // for each relaxed constraints
   auto LinFunc = dynamic_cast<const LinearFunction *>( l_pair.second );
   if( LinFunc == nullptr )
@@ -353,20 +438,19 @@ void LagBFunction::add_dual_pairs( v_dual_pair && lp , c_ModParam issueMod ) {
   }
 
  /* If not already ordered by ColVariable "name = pointer", sort the vector of
-	dual Lagrangian pairs <y_i,g_i(x)=a_i^T x > and update the structure
-	CostMatrix which is used to update the Lagrangian cost vector.
+    dual Lagrangian pairs <y_i,g_i(x)=a_i^T x > and update the structure
+    CostMatrix which is used to update the Lagrangian cost vector.
 
-	CostMatrix is a map whose the key is the pointer to the primal variable x_j,
-	the second field is the pair < c_j , j-th column >, being the j-th column the
-	vector < y, A_j>. It is assumed that map is ordered by the primal
-	variable name and a column < y, A_j> is ordered by Lagrangian multiplier
-	name (= pointer).
+    CostMatrix is a map whose the key is the pointer to the primal variable
+    x_j, the second field is the pair < c_j , j-th column >, being the j-th
+    column the vector < y , A_j >. It is assumed that map is ordered by the
+    primal variable name and a column < y , A_j > is ordered by Lagrangian
+    multipliername (= pointer).
 
-	Copy the coefficients c of (obj_B) in CostMatrix in order to allow
-    the modifications of the Lagrangian cost vector c^y = c + yA,
-    the original costs c will be unavailable unless have been stored
-    somewhere, the issue is that -in (obj_B)- vector c must be
-    replaced by c^y.  */
+    Copy the coefficients c of (obj_B) in CostMatrix in order to allow the
+    modifications of the Lagrangian cost vector c^y = c + yA: the original
+    costs c would be unavailable unless have been stored somewhere, since
+    the vector c in (obj_B) must be replaced by c^y.  */
 
  add_columns( lp );
 
@@ -389,16 +473,16 @@ void LagBFunction::add_dual_pairs( v_dual_pair && lp , c_ModParam issueMod ) {
 					 Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 
- // clear lp, because already merged with LagPairs   - - - - - - - - - - - - -
+ // clear lp, because already merged with LagPairs - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  lp.clear();
 
- } // end ( LagBFunction::add_dual_pairs( ) )  - - - - - - - - - - - - - - - -
+ }  // end( LagBFunction::add_dual_pairs() )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::remove_variable( Index i , c_ModParam issueMod )
+void LagBFunction::remove_variable( Index i , ModParam issueMod )
 {
  if( i >= LagPairs.size() )
   throw( std::logic_error( "less than i Variable are active" ) );
@@ -423,12 +507,14 @@ void LagBFunction::remove_variable( Index i , c_ModParam issueMod )
 				        Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 
- } // end( LagBFunction::remove_variable() ) - - - - - - - - - - - - - - - - -
+ }  // end( LagBFunction::remove_variable() )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::remove_variables( Range range , c_ModParam issueMod )
+void LagBFunction::remove_variables( Range range , ModParam issueMod )
 {
+ // TODO: better handling of a complete removal of Variable
+ 
  range.second = std::min( range.second , c_Index( LagPairs.size() ) );
  if( range.second <= range.first )
   return;
@@ -463,10 +549,11 @@ void LagBFunction::remove_variables( Range range , c_ModParam issueMod )
 /*--------------------------------------------------------------------------*/
 
 void LagBFunction::remove_variables( Subset && nms , bool ordered ,
-				       c_ModParam issueMod )
+				     ModParam issueMod )
 {
- if( nms.empty() )  // actually nothing to remove
-  return;           // cowardly (and silently) return
+ if( nms.empty() )
+  throw( std::invalid_argument(
+       "LagBFunction::remove_variables: empty nms not properly handled " ) );
 
  if( LagPairs.empty() )  // deleting from nothing
   throw( std::logic_error( "deleting from an empty set" ) );
@@ -535,14 +622,48 @@ void LagBFunction::remove_variables( Subset && nms , bool ordered ,
 
 void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
 {
- if( mod->concerns_Block() ) {
-  mod->concerns_Block( false );
-  guts_of_add_Modification( mod , chnl );
-  }
+ // if the Modification requires it, now check all the Solution in the global
+ // pool for feasibility; any one found to be unfeasible is deleted, and if
+ // this happen an appropriate C05FunctionMod is issued- - - - - - - - - - - -
 
- Block::add_Modification( mod , chnl );
+ if( guts_of_add_Modification( mod.get() , chnl ) ) {
+  Subset which;
+  bool all = true;
 
- }  // end( LagBFunction::add_Modification() ) - - - - - - - - - - - - - - - -
+  for( Index i = 0 ; i < f_max_glob ; ++i )
+   if( g_pool[ i ].first ) {  // a Solution is there
+
+    // write it in the Variable of the inner Block
+    g_pool[ i ].first->write( v_Block.front() );
+    LastSolution = i;  // and recall what's there
+
+    // check it's still a feasible solution/direction
+    bool feas = g_pool[ i ].second ? v_Block.front()->is_feasible()
+                                   : v_Block.front()->is_unbounded();
+    if( feas )              // if so
+     all = false;           // not all are eliminated
+    else {                  // otherwise
+     delete g_pool[ i ].first;  // eliminate it
+     g_pool[ i ].first = nullptr;
+     which.push_back( i );      // recall its name
+     }
+    }
+
+  if( all )        // all removed
+   which.clear();  // has a special setting to it
+
+  // if the C05FunctionModSbst has to be issued, do it
+  // note: the Modification assumes issueMod == eModBlck and
+  //       concerns_Block() == true
+  if( ( all || ( ! which.empty() ) ) &&
+      ( f_Observer && f_Observer->issue_mod( eModBlck ) ) )
+   f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+				      C05FunctionMod::GlobalPoolRemoved ,
+				      std::move( which ) , true , 0 ) ,
+				 chnl );
+
+  }  // end( if( checking is required ) )
+ }  // end( LagBFunction::add_Modification() )
 
 /*--------------------------------------------------------------------------*/
 /*---------- METHODS FOR Loading/Saving THE DATA OF THE LagBFunction -------*/
@@ -562,8 +683,7 @@ void LagBFunction::serialize( netCDF::NcGroup & group ) const
  // The costs saved in (obj_B) are the Lagrangian ones. Hence, we need
  // to restore the original ones before serializing (B).
 
- auto lf_obj = static_cast<LinearFunction *>( obj->get_function() );
- LinearFunction::v_c_coeff_pair & ov_pair = lf_obj->get_v_var();
+ LinearFunction::v_c_coeff_pair & ov_pair = obj->get_v_var();
 
  Vec_FunctionValue NCoef1, NCoef2;
  Subset nms1, nms2;
@@ -571,25 +691,25 @@ void LagBFunction::serialize( netCDF::NcGroup & group ) const
  for( Index i = 0 ; i < CostMatrix.size() ; ++i ) {
   nms1.push_back( i );
   nms2.push_back( i );
-  NCoef1.push_back( CostMatrix[i].first );
-  NCoef2.push_back( ov_pair[i].second );
+  NCoef1.push_back( CostMatrix[ i ].first );
+  NCoef2.push_back( ov_pair[ i ].second );
   }
 
  // put the original costs into (obj_B)  - - - - - - - - - - - - - - - - - - -
 
- lf_obj->modify_coefficients( std::move(NCoef1) , std::move(nms1) );
+ obj->modify_coefficients( std::move( NCoef1 ) , std::move( nms1 ) );
 
  // serialize the sub-block  - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  netCDF::NcGroup sb = group.addGroup( "B" );
- v_Block[0]->serialize( sb );
+ v_Block.front()->serialize( sb );
 
  // put back the Lagrangian costs into (obj_B) - - - - - - - - - - - - - - - -
 
- lf_obj->modify_coefficients( std::move(NCoef2) , std::move(nms2) );
+ obj->modify_coefficients( std::move( NCoef2 ) , std::move( nms2 ) );
 
- } // end( LagBFunction::serialize() ) - - - - - - - - - - - - - - - - - - - -
+ }  // end( LagBFunction::serialize() )
 
 /*--------------------------------------------------------------------------*/
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF THE LagBFunction ------------*/
@@ -597,215 +717,243 @@ void LagBFunction::serialize( netCDF::NcGroup & group ) const
 
 bool LagBFunction::has_linearization( const bool diagonal )
 {
- bool SlvHasNewLin;  // true if a linearization of the related type exists
+ // true if the first linearization of the related type exists
+ bool newlin = diagonal
+  ? v_Block.front()->get_registered_solvers().front()->has_var_solution()
+  : v_Block.front()->get_registered_solvers().front()->has_var_direction();
 
- if( diagonal ) {
-  SlvHasNewLin = slv->has_var_solution();
-  if( SlvHasNewLin )
-   VarType = VarAreSol;  // set the type of the solution
-  }
- else {
-  SlvHasNewLin = slv->has_var_direction();
-  if( SlvHasNewLin )
-   VarType = VarAreDir;  // set the type of the solution
-  }
+ if( newlin )
+  VarSol = diagonal;  // set the type of the solution
 
- return( SlvHasNewLin );
+ return( newlin );
 
- }  // end LagBFunction::has_linearization( )  - - - - - - - - - - - - - - - -
+ }  // end( LagBFunction::has_linearization() )
 
 /*--------------------------------------------------------------------------*/
 
 bool LagBFunction::compute_new_linearization( const bool diagonal )
 {
- bool SlvHasNewLin; // true if a new linearization of the related type exists
-                    // in the local pool
+ // true if another linearization of the related type exists
+ bool newlin = diagonal
+  ? v_Block.front()->get_registered_solvers().front()->new_var_solution()
+  : v_Block.front()->get_registered_solvers().front()->new_var_direction();
 
- if( diagonal ) {
-  SlvHasNewLin = slv->new_var_solution();
-  if( SlvHasNewLin )
-   VarType = VarAreSol; // set the type of the solution
-  }
- else {
-  SlvHasNewLin = slv->new_var_direction();
-  if( SlvHasNewLin )
-   VarType = VarAreDir; // set the type of the solution
-  }
+ if( newlin )
+  VarSol = diagonal;  // set the type of the solution
 
- // one cannot access to the previous solution of the local pool unless
- // no additional solution was produced  - - - - - - - - - - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ return( newlin );
 
- return( SlvHasNewLin );
-
- } // end LagBFunction::compute_new_linearization( ) - - - - - - - - - - - - -
+ }  // end( LagBFunction::compute_new_linearization() )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::store_linearization( const Index name )
+void LagBFunction::store_linearization( Index name , ModParam issueMod )
 {
  // throw exception if the solution does not exist or has been already stored
 
- if( std::isnan( LastSolution ) ||
-		 LastSolution < Inf<Index>() )
+ if( std::isnan( LastSolution ) || ( LastSolution < Inf<Index>() ) )
   throw( std::logic_error( "the linearization is unvailable" ) );
 
  // throw exception if name is greater thatn the dimension of the global pool
 
- if( name >= GPMaxSz )
-  throw( std::logic_error( "the max size of global pool has been already exceed" ) );
+ if( name >= g_pool.size() )
+  throw( std::logic_error( "max size of global pool exceeded" ) );
 
- // get the current solution   - - - - - - - - - - - - - - - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // get the current Solution - - - - - - - - - - - - - - - - - - - - - - - - -
+     
+ if( g_pool[ name ].first )     // a Solution is already there
+  delete g_pool[ name ].first;  // delete it
 
- if( std::get<0>(g_pool[ name ]) == nullptr )
-  std::get<0>(g_pool[ name ]) = v_Block[0]->get_Solution();
- std::get<0>(g_pool[ name ])->read( v_Block[0] );
+ // get a "fully loaded" Solution out of the Block, using the default
+ // f_solution_Configuration in the f_solution_Configuration
+ g_pool[ name ].first = v_Block.front()->get_Solution( nullptr , false );
 
- // set the solution type  - - - - - - - - - - - - - - - - - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // set the solution type- - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( VarType == VarAreSol )
-  std::get<1>(g_pool[ name ]) = VarAreSol;
- else
-  std::get<1>(g_pool[ name ]) = VarAreDir;
+ g_pool[ name ].second = true;
 
- // the last computed solution is feasible - - - - - - - - - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ if( name >= f_max_glob )  // update f_max_glob
+  f_max_glob = name + 1;
 
- std::get<2>(g_pool[ name ]) = !VarToBeChckd;
+ // if necessary, issue the Modification - - - - - - - - - - - - - - - - - - -
 
- } // end LagBFunction::store_linearization( Index ) - - - - - - -
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+  return;
+  
+ f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+				         C05FunctionMod::GlobalPoolAdded ,
+					 Subset( { name } ) , 0 ,
+				         Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
 
-/*--------------------------------------------------------------------------*/
-
-void LagBFunction::delete_linearization( const Index name )
-{
- if( name >= GPMaxSz )
-  throw( std::logic_error( "the max size of global pool has been already exceed" ) );
-
- if( std::get<0>(g_pool[ name ]) )
-  delete[] std::get<0>(g_pool[ name ]);
- } // end LagBFunction::delete_linearization( Index )  - - - - - -
+ }  // end( LagBFunction::store_linearization( Index ) )
 
 /*--------------------------------------------------------------------------*/
 
 void LagBFunction::store_combination_of_linearizations(
-	  LinearCombination & coefficients , const Index name ) {
-
- if( name >= GPMaxSz )
-  throw( std::logic_error( "the max size of global pool has been already exceed" ) );
+	LinearCombination & coefficients , Index name , ModParam issueMod )
+{
+ if( name >= g_pool.size() )
+  throw( std::logic_error( "max size of global pool already exceed" ) );
 
  if( coefficients.empty() )
   throw( std::invalid_argument( "the convex combination is empty" ) );
 
- bool convex_combination_type = VarAreDir;
- bool convex_combination_is_feasible = !VarToBeChckd;
+ bool type = true;         // a diagonal one unless oherwise proven
+ bool unfeasible = false;  // feasible unless oherwise proven
 
- p_Solution convex_combination = v_Block[0]->get_Solution();
+ // get an "empty" solution from the Block
+ p_Solution convex_combination = v_Block.front()->get_Solution();
+
  for( auto & pair : coefficients ) {
-  convex_combination->sum( std::get<0>( g_pool[ pair.first ] ) , pair.second );
-  if( convex_combination_type == VarAreSol )
-   convex_combination_type = VarAreSol;
-  if( std::get<2>( g_pool[ pair.first ] ) == VarToBeChckd )
-   convex_combination_is_feasible = VarToBeChckd;
+  // add the new term to the convex combination
+  convex_combination->sum( g_pool[ pair.first ].first , pair.second );
+
+  // if the convex combination contains even a single direction
+  if( ! g_pool[ pair.first ].second )
+   type = false;  // then it is a direction
   }
 
- if( std::get<0>(g_pool[ name ]) )
-  delete std::get<0>(g_pool[ name ]);
- std::get<0>(g_pool[ name ]) = convex_combination;
+ delete g_pool[ name ].first;  // delete the current Solution (if any)
 
- std::get<1>(g_pool[ name ]) = convex_combination_type;
- std::get<2>(g_pool[ name ]) = convex_combination_is_feasible;
+ g_pool[ name ].first = convex_combination;
+ g_pool[ name ].second = type;
 
- } // end LagBFunction::store_convex_combination_of_linearizations(  ) - - - -
+ if( name >= f_max_glob )      // update f_max_glob
+  f_max_glob = name + 1;
 
-/*--------------------------------------------------------------------------*/
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+  return;
 
-void LagBFunction::set_important_linearization( LinearCombination && coefficients ,
-		Index name ) {
- // throw exception if name is greater thatn the dimension of the global pool
- if( name >= GPMaxSz )
-  throw( std::logic_error( "the max size of global pool has been already exceed" ) );
- zName = name;
- std::get<0>(g_pool[ zName ])->write( v_Block[0] );
- if( zLC.size() )
-  zLC.clear();
- zLC = std::move( coefficients );
- } // end LagBFunction::set_important_linearization(  )  - - - - - - - - - - -
+ f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+					C05FunctionMod::GlobalPoolAdded ,
+					Subset( { name } ) , 0 ,
+					Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
+
+ }  // end( LagBFunction::store_convex_combination_of_linearizations )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::rename_linearization( const Index current_name ,
- 				    const Index new_name ) {
+void LagBFunction::delete_linearization( Index name , ModParam issueMod )
+{
+ if( ( name >= g_pool.size() ) || ( ! g_pool[ name ].first ) )
+  throw( std::invalid_argument( "invalid linearization name" ) );
 
- if( new_name >= GPMaxSz )
-  throw( std::logic_error( "the max size of global pool has been already exceed" ) );
+ delete g_pool[ name ].first;
+ g_pool[ name ].first = nullptr;
 
- if( std::get<0>(g_pool[ current_name ]) == nullptr )
-  throw( std::logic_error( "this solution does not exist" ) );
+ update_f_max_glob();
 
- g_pool[ new_name ] = g_pool[ current_name ];
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+  return;
+  
+ f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+				      C05FunctionMod::GlobalPoolRemoved ,
+				      Subset( { name } ) , 0 ,
+				      Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
 
- } // end LagBFunction::rename_linearization(  )  - - - - - - - - - - - - - - -
+ }  // end( LagBFunction::delete_linearization )
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::delete_linearizations( Subset && which , bool ordered ,
+					  ModParam issueMod )
+{
+ if( which.empty() ) {  // delete them all
+  for( auto & el : g_pool )
+   if( el.first ) {
+    delete el.first;
+    el.first = nullptr;
+    }
+
+  f_max_glob = 0;
+
+  if( f_Observer && f_Observer->issue_mod( issueMod ) )
+   f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+				      C05FunctionMod::GlobalPoolRemoved ,
+				      std::move( which ) , 0 ,
+				      Observer::par2concern( issueMod ) ) ,
+				 Observer::par2chnl( issueMod ) );
+  return;  // all done
+  }
+
+ // here, which is not empty, so we have to delete the given subset
+ if( ! ordered )
+  std::sort( which.begin() , which.end() );
+
+ if( which.back() >= g_pool.size() )
+  throw( std::invalid_argument( "invalid linearization name" ) );
+
+ for( auto i : which ) {
+  if( ! g_pool[ i ].first )
+   throw( std::invalid_argument( "invalid linearization name" ) );
+
+  delete g_pool[ i ].first;
+  g_pool[ i ].first = nullptr;
+  }
+
+ update_f_max_glob();
+
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
+  return;
+  
+ f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+				      C05FunctionMod::GlobalPoolRemoved ,
+				      std::move( which ) , 0 ,
+				      Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
+
+ }  // end( LagBFunction::delete_linearizations )
 
 /*--------------------------------------------------------------------------*/
 
 int LagBFunction::compute( bool changedvars )
 {
+ if( v_Block.empty() )  // the Lagrangian function is not well-defined
+  return( kError );     // that's clearly an error
+
+ // if no Solver is attached to the inner Block
+ if( v_Block.front()->get_registered_solvers().empty() )
+  return( kError );     // that's clearly an error
+ 
  // update the Lagrangian cost vector  - - - - - - - - - - - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // ... only if the Lagrangian variables have changed, otherwise it is the
+ // same as before and need not be re-computed
 
- if( changedvars ) // ?? else do I have to exit ??
-  compute_Lagrangian_costs();
+ if( changedvars ) {
+  compute_Lagrangian_costs();  // compute c^y = c + yA
 
- // if some parameters have been changed, set BlockSolverConfig
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- if( svcc )
-  v_Block[0]->set_SolverConfig( svcc );
-
- delete svcc;
-
- /* It is assumed that the sub-Block (B) does not have Variable defined
-    in other Blocks. Then, the re-optimization of (B) can be performed starting
-    from the warm-start (the old solution) and any problem shouldn't occur.
-    No relevant Variable are defined in (B). Return the status of the optimization
-    process */
-
- return( slv->compute( false ) );
-
- } // end ( LagBFunction::compute( ) ) - - - - - - - - - - - - - - - - - - - -
-
-/*--------------------------------------------------------------------------*/
-
-Function::FunctionValue LagBFunction::get_value( void ) const
-{
- FunctionValue objvalue;
-
- if( obj->get_sense() == Objective::eMax )
-  objvalue = slv->get_ub();
- else
-  objvalue = slv->get_lb();
-
- // add zero-linearization - - - - - - - - - - - - - - - - - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- if( objvalue < Inf<FunctionValue>() &&  objvalue > -Inf<FunctionValue>() )
+  f_linear_term = 0;           // meanwhile also compute the linear term yb
   for( const auto & lagdual : LagPairs ) {
-   auto lfrel = static_cast<const LinearFunction *>( lagdual.second );
-   objvalue += lfrel->get_constant_term() * (lagdual.first)->get_value();
+   auto lfrel = static_cast< const LinearFunction * >( lagdual.second );
+   f_linear_term += lfrel->get_constant_term() * lagdual.first->get_value();
    }
+  }
 
- return( objvalue );
+ // if some parameters have been changed, set BlockSolverConfig- - - - - - - -
 
- } // end ( LagBFunction::get_value( ) ) - - - - - - - - - - - - - - - - - - -
+ if( svcc ) {
+  svcc->apply( v_Block.front() );
+  delete svcc;
+  svcc = nullptr;
+  }
+
+ // it is assumed that the inner Block (B) does not have Variable defined in
+ // other Blocks: then, the re-optimization of (B) can be performed starting
+ // from the old solution, i.e., compute( false ) can be called;
+ // return the status of the Solver as the status of the LagBFunction
+
+ return( v_Block.front()->get_registered_solvers().front()->compute( false )
+	 );
+
+ }  // end( LagBFunction::compute() )
 
 /*--------------------------------------------------------------------------*/
 
 void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
 						   Range range , Index name )
-
 {
  range.second = std::min( range.second , get_num_active_var() );
  if( range.second <= range.first )
@@ -814,288 +962,258 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
  // the solution shall be written in the Variable of the Block - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( name == Inf<Index>() ) { // asking for the last computed linearization
+ if( name == Inf<Index>() ) {  // the last computed linearization- - - - - - -
 
-  // get solution/direction from the solver  - - - - - - - - - - - - - - - - -
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-  if( LastSolution != Inf<Index>() ) {
-   if( VarType == VarAreSol )
-    slv->get_var_solution();
+  // get solution/direction from the solver
+  if( LastSolution != Inf<Index>() ) {  // ... if necessary
+   if( VarSol )
+    v_Block.front()->get_registered_solvers().front()->get_var_solution();
    else
-    slv->get_var_direction();
+    v_Block.front()->get_registered_solvers().front()->get_var_direction();
+
    LastSolution = Inf<Index>();
    }
-
   }
- else {  // asking for a linearization of the global pool  - - - - - - - - - -
+ else {  // a linearization of the global pool - - - - - - - - - - - - - - - -
 
   // assign Solution to the sub-Block in such a way the linearization
   // associated with the given name will be retrieved from the global pool
 
-  if( std::get<0>(g_pool[ name ]) == nullptr )
-   throw( std::logic_error( "the linearization is not available" ) );
+  if( ! g_pool[ name ].first )
+   throw( std::logic_error( "invalid linearization name" ) );
 
   if( LastSolution != name ) {
-   std::get<0>(g_pool[ name ])->write( v_Block[0] );
-   LastSolution = name ;
+   g_pool[ name ].first->write( v_Block.front() );
+   LastSolution = name;
    }
+  }  // end else - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-  } // end else  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-
- // for each Lagrangian multiplier y_i, the objective value of the relaxed constraint
- // (RCs)_i is the corresponding entry of the linearization - - - - - - - - - -
+ // for each Lagrangian multiplier y_i, the objective value of the relaxed
+ // constraint (RCs)_i is the corresponding entry of the linearization
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- for( Index i = range.first ; i < range.second ; i++ )
-   *(g++) = LagPairs[ i ].second->get_value();
-
- } // end( LagBFunction::get_linearization_coefficients( * , range ) )
+ for( Index i = range.first ; i < range.second ; ++i ) {
+  LagPairs[ i ].second->compute();
+  *(g++) = LagPairs[ i ].second->get_value();
+  }
+ }  // end( LagBFunction::get_linearization_coefficients( * , range ) )
 
 /*--------------------------------------------------------------------------*/
 
 void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
-						   c_Subset & subset ,
-						   const bool ordered ,
-						   Index name )
-
+			      c_Subset & subset , bool ordered , Index name )
 {
-
  // the solution shall be written in the Variable of the Block - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( name == Inf<Index>() ) { // asking for the last computed
-	                                      // linearization   - - - - - - - - -
+ if( name == Inf<Index>() ) {  // the last computed linearization- - - - - - -
 
-  // get solution/direction from the solver  - - - - - - - - - - - - - - - - -
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-  if( LastSolution != Inf<Index>() ) {
-   if( VarType == VarAreSol )
-    slv->get_var_solution();
+  // get solution/direction from the solver
+  if( LastSolution != Inf<Index>() ) {  // ... if necessary
+   if( VarSol )
+    v_Block.front()->get_registered_solvers().front()->get_var_solution();
    else
-    slv->get_var_direction();
+    v_Block.front()->get_registered_solvers().front()->get_var_direction();
+
    LastSolution = Inf<Index>();
    }
-
   }
- else {  // asking for a linearization of the global pool  - - - - - - - - - -
+ else {  // a linearization of the global pool - - - - - - - - - - - - - - - -
 
   // assign Solution to the sub-Block in such a way the linearization
   // associated with the given name will be retrieved from the global pool
 
-  if( std::get<0>(g_pool[ name ]) == nullptr )
-   throw( std::logic_error( "the linearization is not available" ) );
+  if( ! g_pool[ name ].first )
+   throw( std::logic_error( "invalid linearization name" ) );
 
   if( LastSolution != name ) {
-   std::get<0>(g_pool[ name ])->write( v_Block[0] );
-   LastSolution = name ;
+   g_pool[ name ].first->write( v_Block.front() );
+   LastSolution = name;
    }
+  }  // end else - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-  } // end else  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- // for each Lagrangian multiplier y_i, the objective value of the relaxed constraint
- // (RCs)_i is the corresponding entry of the linearization - - - - - - - - - -
+ // for each Lagrangian multiplier y_i, the objective value of the relaxed
+ // constraint (RCs)_i is the corresponding entry of the linearization - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- c_Index num_active_var = get_num_active_var();
- for( const auto & i : subset ) {
+ for( const auto i : subset ) {
   if( i >= get_num_active_var() )
    throw( std::invalid_argument( "wrong index in subset" ) );
+  LagPairs[ i ].second->compute();
   *(g++) = LagPairs[ i ].second->get_value();
   }
-
- } // end( LagBFunction::get_linearization_coefficients( * , range ) )
+ }  // end( LagBFunction::get_linearization_coefficients( * , subset ) )
 
 /*--------------------------------------------------------------------------*/
 
-Function::FunctionValue LagBFunction::get_linearization_constant(
-		const Index name )
+Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
 {
+ if( name == Inf<Index>() ) {  // the last computed linearization- - - - - - -
 
- if( name == Inf<Index>() ) {
-
-  // get solution/direction from the solver  - - - - - - - - - - - - - - - - -
-  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-  if( LastSolution != Inf<Index>() ) {
-   if( VarType == VarAreSol )
-    slv->get_var_solution();
+  // get solution/direction from the solver
+  if( LastSolution != Inf<Index>() ) {  // ... if necessary
+   if( VarSol )
+    v_Block.front()->get_registered_solvers().front()->get_var_solution();
    else
-    slv->get_var_direction();
+    v_Block.front()->get_registered_solvers().front()->get_var_direction();
+
    LastSolution = Inf<Index>();
    }
-
   }
- else {  // asking for a linearization of the global pool  - - - - - - - - - -
+ else {  // a linearization of the global pool - - - - - - - - - - - - - - - -
+
+  if( ! g_pool[ name ].first )  // if no such linearization, return NaN
+   return( std::numeric_limits<FunctionValue>::quiet_NaN() );
 
   // assign Solution to the sub-Block in such a way the linearization
   // associated with the given name will be recovered from the global pool
 
   if( name != LastSolution ) {
-
-   if( std::get<0>(g_pool[ name ]) == nullptr )
-    throw( std::logic_error( "the linearization is not available" ) );
-
-   std::get<0>(g_pool[ name ])->write( v_Block[0] );
-   LastSolution = name ;
+   g_pool[ name ].first->write( v_Block.front() );
+   LastSolution = name;
    }
+  }  // end else - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-  // if the solution must be checked and is proved to be not feasible, the method
-  // returns Inf
+ // return the c x^* for the chosen solution x^*, where c are the *original*
+ // costs. this corresponds to the value of the Lagrangian function
+ // c x^* + y ( A x^* + b ) = c x^* + y g( x^* ) in y = 0 (in fact, the
+ // linear term b is not involved)
+  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-  if( std::get<2>(g_pool[ name ]) == VarToBeChckd )
-   if( ( ( std::get<1>(g_pool[ name ]) == VarAreSol ) && (!v_Block[0]->is_feasible( ) ) )
-	|| ( ( std::get<1>(g_pool[ name ]) == VarAreDir ) && (!v_Block[0]->is_unbounded( ) ) ) )
-    return( Inf< Function::FunctionValue >() );
+ auto alpha = obj->get_constant_term();
 
-  }
-
- // return the constant c^Tx + c_0 unless the solution is no longer feasible
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- auto lfobj = static_cast<LinearFunction *>( obj->get_function() );
- Function::FunctionValue alpha = lfobj->get_constant_term();
-
- // in CostMatrix the coefficient of the variable is the Lagrangian cost
- // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- LinearFunction::v_c_coeff_pair & ov_pair = lfobj->get_v_var();
- for( auto itb = ov_pair.begin() ; itb != ov_pair.end() ; itb++ )
-  alpha += (itb->first)->get_value() * (itb->second);
+ auto & ov_pair = obj->get_v_var();
+ #ifndef NDEBUG
+  if( ov_pair.size() != CostMatrix.size() )
+   throw( std::logic_error( "CostMatrix inconsistent with obj" ) );
+ #endif
+ for( Index i = 0 ; i < ov_pair.size() ; ++i )
+  alpha += ov_pair[ i ].first->get_value() * CostMatrix[ i ].first;
 
  return( alpha );
 
- } // end( LagBFunction::get_linearization_constant() )  - - - - - - - - - - -
-
-/*--------------------------------------------------------------------------*/
-
-Block* LagBFunction::get_inner_block( void ) const {
- return( v_Block[0] );
- }
+ }  // end( LagBFunction::get_linearization_constant )
 
 /*--------------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/
 
 ComputeConfig * LagBFunction::get_ComputeConfig( bool all ,
-		ComputeConfig * ocfg ) const {
-
+					       ComputeConfig * ocfg ) const
+{
  ComputeConfig* ccfg = ThinComputeInterface::get_ComputeConfig( all , ocfg );
 
- auto cc = dynamic_cast<SimpleConfig_p_p *>( ccfg );
- if( cc == nullptr )
-  throw( std::logic_error( "the configuration is not a SimpleConfiguration" ) );
+ auto cc = new
+     SimpleConfiguration< std::pair< Configuration * , Configuration * > >();
 
- cc->f_value.first = v_Block[0]->get_SolverConfig();
- cc->f_value.second = (v_Block[0]->get_BlockConfig())->clone();
+ auto bsc = new RBlockSolverConfig();  // TODO: improve on this
+ bsc->get( v_Block.front() );
+ cc->f_value.first = bsc;
+
+ auto bc = new OCRBlockConfig();  // TODO: improve on this
+ bsc->get( v_Block.front() );
+ cc->f_value.second = bsc;
 
  return( ccfg );
 
- } // end( LagBFunction::get_ComputeConfig() )  - - - - - - - - - - - - - - -
+ }  // end( LagBFunction::get_ComputeConfig() )
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*--------------------------------------------------------------------------*/
 
-int LagBFunction::get_NzMat( void ) {
-
+int LagBFunction::get_NzMat( void )
+{
  Index count = 0;
- for( Index j = 0 ; j < CostMatrix.size() ; j++ )
-  for( auto it = CostMatrix[j].second.begin() ; it != CostMatrix[j].second.end()  ; )
-   count += CostMatrix[j].second.size();
+ for( auto & CMj : CostMatrix )
+  count += CMj.second.size();
 
  return( count );
- } // end( LagBFunction::get_NzMat() )  - - - - - - - - - - - - - - - - - - -
+ }
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*--------------------------------------------------------------------------*/
 
-void LagBFunction::get_MatDesc( int *Abeg , int *Aind , double *Aval , const int strt ,
-		   int stp ) {
-
+void LagBFunction::get_MatDesc( int *Abeg , int *Aind , double *Aval ,
+				int strt , int stp )
+{
  Index count = 0;
- for( Index j = 0 ; j < CostMatrix.size() ; j++ ) {
+ for( Index j = 0 ; j < CostMatrix.size() ; ++j ) {
   Abeg[ j ] = count;
-  for( auto it = CostMatrix[j].second.begin() ; it != CostMatrix[j].second.end()  ; ) {
-   Index xIdx = is_active( it->first );
+  for( auto & CMjs : CostMatrix[ j ].second ) {
+   Index xIdx = is_active( CMjs.first );
    if( xIdx >= strt && xIdx < stp ) {
-	Aind[ count ] = xIdx;
-	Aval[ count++ ] = it->second;
+    Aind[ count ] = xIdx;
+    Aval[ count++ ] = CMjs.second;
     }
    }
   }
+
  Abeg[ CostMatrix.size() ] = count;
 
  } // end( LagBFunction::get_MatDesc() )  - - - - - - - - - - - - - - - - - -
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*--------------------------------------------------------------------------*/
 
-int LagBFunction::get_int_par( const idx_type par ) const {
-
+int LagBFunction::get_int_par( const idx_type par ) const
+{
  switch( par ) {
   case( intLPMaxSz ):
-   return( RAccLin );
+   return( LPMaxSz );
    break;
   case( intGPMaxSz ):
-   return( RAccLin );
+   return( g_pool.size() );
    break;
   default:
    return( C05Function::get_dflt_int_par( par ) ) ;
   }
-
- } // end( LagBFunction::get_int_par( idx_type ) )  - - - - - - - - - - -
+ }  // end( LagBFunction::get_int_par( idx_type ) )
 
 /*--------------------------------------------------------------------------*/
 
-double LagBFunction::get_dbl_par( const idx_type par ) const {
-
+double LagBFunction::get_dbl_par( const idx_type par ) const
+{
  switch( par ) {
   case( dblRAccLin ):
     return( RAccLin );
     break;
-  case( intGPMaxSz ):
-   return( RAccLin );
+  case( dblAAccLin ):
+   return( AAccLin );
    break;
   default:
    return( C05Function::get_dflt_dbl_par( par ) ) ;
   }
-
- } // end( LagBFunction::get_dbl_par( idx_type ) ) - - - - - - - - - - - - - -
+ }  // end( LagBFunction::get_dbl_par( idx_type ) )
 
 /*--------------------------------------------------------------------------*/
-
-int LagBFunction::get_dflt_int_par( const idx_type par ) const
-{
+/*
+int LagBFunction::get_dflt_int_par( const idx_type par ) const {
  return( C05Function::get_dflt_int_par( par ) ) ;
- } // end( LagBFunction::get_dflt_int_par( idx_type ) ) - - - - - - - - - - -
-
+ }
+*/
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
-double LagBFunction::get_dflt_dbl_par( const idx_type par ) const
-{
+/*
+double LagBFunction::get_dflt_dbl_par( const idx_type par ) const {
  return( C05Function::get_dflt_dbl_par( par ) ) ;
- } // end( LagBFunction::get_dflt_dbl_par( idx_type ) ) - - - - - - - - - - - -
-
+ }
+*/
 /*--------------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE LagBFunction ---------*/
 /*--------------------------------------------------------------------------*/
 
-ThinVarDepInterface::Index LagBFunction::is_active( const Variable * const var )
-const
+ThinVarDepInterface::Index LagBFunction::is_active(
+					   const Variable * const var ) const
 {
  auto idx = std::find_if( LagPairs.begin() , LagPairs.end() ,
-				  [ & var ]( const auto & p ) -> bool {
-				    return( p.first == var );
-				    } );
+			  [ & var ]( const auto & p )
+			           { return( p.first == var ); } );
 
- return( idx != LagPairs.end() ? std::distance( LagPairs.begin(), idx )
+ return( idx != LagPairs.end() ? std::distance( LagPairs.begin() , idx )
  	                       : Inf< Index >() );
 
- } // end( LagBFunction::is_active( Variable* ) )  - - - - - - - - - - - - - -
+ }  // end( LagBFunction::is_active( Variable* ) )
 
 /*--------------------------------------------------------------------------*/
 
 void LagBFunction::map_active( c_Vec_p_Var & vars , Subset & map ,
-				 const bool ordered ) const
+			       bool ordered ) const
 {
  if( vars.empty() )
   return;
@@ -1127,7 +1245,7 @@ void LagBFunction::map_active( c_Vec_p_Var & vars , Subset & map ,
    *(it++) = i;
    }
   }
- }  // end( LagBFunction::map_active( Variable* ) )  - - - - - - - - - - - - -
+ }  // end( LagBFunction::map_active( Variable* ) )
 
 /*--------------------------------------------------------------------------*/
 /*-------------- METHODS FOR MODIFYING THE LagBFunction --------------------*/
@@ -1137,41 +1255,40 @@ void LagBFunction::map_active( c_Vec_p_Var & vars , Subset & map ,
 /*--------------------------- PROTECTED METHODS ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::print( std::ostream &output ) const {
-
+void LagBFunction::print( std::ostream & output ) const
+{
  C05Function::print( output );
 
  output << "LagBFunction [" << this << "]"
- 	 << " with MaxPoll = ( " << LPMaxSz << " ~ " << GPMaxSz << " ) ";
- output << std::endl << " and tol. = ( " << AAccLin << " , " << RAccLin
-		<< " ) " << std::endl;
+	<< " with MaxPoll = ( " << LPMaxSz << " ~ " << g_pool.size() << " ) "
+	<< std::endl << " and tol. = ( " << AAccLin << " , " << RAccLin
+	<< " ) " << std::endl;
 
- } // end LagBFunction::print( ) - - - - - - - - - - - - - - - - - - - - - - -
+ }  // end( LagBFunction::print() )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::load( std::istream &input ) {
-
+void LagBFunction::load( std::istream &input )
+{
  input >> LPMaxSz;
- input >> GPMaxSz;
+ // input >> GPMaxSz;
  input >> AAccLin;
  input >> RAccLin;
 
- } // end LagBFunction::load( ) - - - - - - - - - - - - - - - - - - - - - - -
+ }  // end( LagBFunction::load() )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::initialize_cost_matrix( void ) {
-
- auto lf_obj = static_cast<LinearFunction *>( obj->get_function() );
- LinearFunction::v_c_coeff_pair & rp = lf_obj->get_v_var();
+void LagBFunction::initialize_cost_matrix( void )
+{
+ LinearFunction::v_c_coeff_pair & rp = obj->get_v_var();
 
  for( const auto & monomial : rp )
   CostMatrix.push_back( std::make_pair( monomial.second , v_coeff_pair() ) );
 
- } // end ( LagBFunction::init_lag_matrix() )  - - - - - - - - - - - - - - - -
+ }  // end( LagBFunction::init_lag_matrix() )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1181,64 +1298,62 @@ LagBFunction::Subset LagBFunction::add_columns( v_dual_pair & v_LagPairsair )
  // Lagrangian costs - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  Index var_name;
- std::set<Index> XToAdd; // this array is used to indicate the
-                         // x_j to add to (obj_B)
+ std::set< Index > XToAdd;  // which x_j to add to (obj_B)
 
- auto lf_obj = static_cast<LinearFunction *>( obj->get_function() );
-
- for( const auto & l_pair : v_LagPairsair ) { // read the dual vector LagPairs,
-	          // getting the relaxed constraint <a_i,x> and the dual variable
-	          // y_i thereof
+ for( const auto & l_pair : v_LagPairsair ) {
+  // read the dual vector LagPairs, getting the relaxed constraint <a_i,x>
+  // and the dual variable y_i thereof
 
   auto lf_rc = static_cast<const LinearFunction *>( l_pair.second );
   LinearFunction::v_c_coeff_pair & rp = lf_rc->get_v_var();
 
-  for( const auto & monomial : rp ) { // for each Variable x_j
-                        // of the relaxed constraint, add the pair
-	                    // < y_i , a_{ij} > to CostMatrix
+  for( const auto & monomial : rp ) {
+   // for each Variable x_j of the relaxed constraint, add the pair
+   // < y_i , a_{ij} > to CostMatrix
 
    // construct the pair of the form < y_i , a_{ij} > to be added to
-   // the related column of x_j  - - - - - - - - - - - - - - - - - - - - - - - -
+   // the related column of x_j  - - - - - - - - - - - - - - - - - - - - - -
 
    const auto y_pair = std::make_pair( l_pair.first , monomial.second );
 
    // find the position of x_j in (obj_B), that is the position of x_j
-   // in CostMatrix - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+   // in CostMatrix - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-   var_name = lf_obj->is_active( monomial.first );
+   var_name = obj->is_active( monomial.first );
 
-   if( var_name >= lf_obj->get_num_active_var() ) { // a new variable x_j
-	                                             // was inserted   - - - - - - -
+   if( var_name >= obj->get_num_active_var() ) {
+    // a new variable x_j was inserted   - - - - - - -
 
-    var_name = lf_obj->get_num_active_var();
-    lf_obj->add_variable( monomial.first , LinearFunction::Coefficient(0) , true );
+    var_name = obj->get_num_active_var();
+    obj->add_variable( monomial.first , LinearFunction::Coefficient( 0 ) ,
+		       true );
 
     /* The original costs have to be replaced by Lagrangian ones in (obj_B)
-   	allowing B to be the Lagrangian relaxation sub-problem. To avoid
-   	to lose the original coefficients of the costs, they have to be
-   	saved in LagBFunction itself, actually it is done inside CostMatrix. */
+   	allowing B to be the Lagrangian relaxation sub-problem. To avoid to
+        lose the original coefficients of the costs, they have to be saved
+	in LagBFunction itself, actually it is done inside CostMatrix. */
 
     CostMatrix.push_back( col_pair() );
     auto itA = CostMatrix.back();
     itA.first = monomial.second; // set c_j
-	itA.second.push_back( y_pair );  // add < y_i , a_{ij} >
+    itA.second.push_back( y_pair );  // add < y_i , a_{ij} >
 
-	XToAdd.insert( var_name );
+    XToAdd.insert( var_name );
     }
-   else { // variable x_j already existed - - - - - - - - - - - - - - - - - - -
+   else {  // variable x_j already existed- - - - - - - - - - - - - - - - - -
 
-	auto itB = std::lower_bound( (CostMatrix[ var_name ].second).begin() ,
-	   			  (CostMatrix[ var_name ].second).end() , std::make_pair( l_pair.first , 0 ) ,
-	   	 		  []( const LinearFunction::coeff_pair &a ,
-	   	 		  const LinearFunction::coeff_pair &b )
-	   	 		  { return( a.first < b.first ); } );
+    auto itB = std::lower_bound( CostMatrix[ var_name ].second.begin() ,
+				 CostMatrix[ var_name ].second.end() ,
+				 std::make_pair( l_pair.first , 0 ) ,
+				 []( const LinearFunction::coeff_pair &a ,
+				     const LinearFunction::coeff_pair &b )
+	   	 		   { return( a.first < b.first ); } );
 
-    (CostMatrix[ var_name ].second).insert( itB , y_pair ); // add < y_i , a_{ij} >
+    // add < y_i , a_{ij} >
+    CostMatrix[ var_name ].second.insert( itB , y_pair );
     }
-
    }
   } // end for each relaxed constraints  - - - - - - - - - - - - - - - - - - -
-
 
  Subset vars(XToAdd.begin(), XToAdd.end());
  std::sort( vars.begin() , vars.end() ,
@@ -1246,11 +1361,12 @@ LagBFunction::Subset LagBFunction::add_columns( v_dual_pair & v_LagPairsair )
 
  return( vars );
 
- } // end ( LagBFunction::add_columns() )  - - - - - - - - - - - - - - - - - -
+ }  // end( LagBFunction::add_columns() )
 
 /*--------------------------------------------------------------------------*/
 
-LagBFunction::Subset LagBFunction::update_columns( v_dual_pair & v_LagPairsair )
+LagBFunction::Subset LagBFunction::update_columns(
+						v_dual_pair & v_LagPairsair )
 {
  // update CostMatrix which provides the information needed to compute the
  // Lagrangian costs, the method is similar to add_column() [see above ]
@@ -1265,99 +1381,93 @@ LagBFunction::Subset LagBFunction::update_columns( v_dual_pair & v_LagPairsair )
  Vec_FunctionValue NCoef;// primal variables which are no longer
  Subset nms;             //  active in any constraint
 
- auto lf_obj = static_cast<LinearFunction *>( obj->get_function() );
-
- for( const auto & l_pair : v_LagPairsair ) { // read the dual vector LagPairs,
-	          // getting the relaxed constraint <a_i,x> and the dual variable
-	          // y_i thereof
+ for( const auto & l_pair : v_LagPairsair ) {
+  // read the dual vector LagPairs, getting the relaxed constraint <a_i,x>
+  // and the dual variable y_i thereof
 
   auto lf_rc = static_cast<const LinearFunction *>( l_pair.second );
   LinearFunction::v_c_coeff_pair & rp = lf_rc->get_v_var();
 
   for( const auto & monomial : rp ) { // for each Variable x_j
-                        // of the relaxed constraint, add the pair
-	                    // < y_i , a_{ij} > to CostMatrix
+   // of the relaxed constraint, add the pair < y_i , a_{ij} > to CostMatrix
 
    // construct the pair of the form < y_i , a_{ij} > to be added to
-   // the related column of x_j  - - - - - - - - - - - - - - - - - - - - - - - -
+   // the related column of x_j  - - - - - - - - - - - - - - - - - - - - - -
 
    const auto y_pair = std::make_pair( l_pair.first , monomial.second );
 
    // find the position of x_j in (obj_B), that is the position of x_j
-   // in CostMatrix - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+   // in CostMatrix - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-   var_name = lf_obj->is_active( monomial.first );
+   var_name = obj->is_active( monomial.first );
 
-   if( var_name >= lf_obj->get_num_active_var() ) { // a new variable x_j
-	                                             // was inserted   - - - - - - -
+   if( var_name >= obj->get_num_active_var() ) {
+    // a new variable x_j was inserted   - - - - - - -
 
-	lf_obj->add_variable( monomial.first , LinearFunction::Coefficient(0) , true );
-	var_name = lf_obj->is_active( monomial.first );
+    obj->add_variable( monomial.first , LinearFunction::Coefficient( 0 ) ,
+		       true );
+    var_name = obj->is_active( monomial.first );
 
-	/* The original costs have to be replaced by Lagrangian ones in (obj_B)
-	   allowing B to be the Lagrangian relaxation sub-problem. To avoid
-	   to lose the original coefficients of the costs, they have to be
-	   saved in LagBFunction itself, actually it is done inside CostMatrix. */
+    /* The original costs have to be replaced by Lagrangian ones in (obj_B)
+       allowing B to be the Lagrangian relaxation sub-problem. To avoid
+       to lose the original coefficients of the costs, they have to be
+       saved in LagBFunction itself, actually it is done inside CostMatrix. */
 
-	CostMatrix.push_back( col_pair() );
-	auto itA = CostMatrix.back();
-	itA.first = monomial.second; // set c_j
+    CostMatrix.push_back( col_pair() );
+    auto itA = CostMatrix.back();
+    itA.first = monomial.second; // set c_j
     itA.second.push_back( y_pair );  // add < y_i , a_{ij} >
 
-	XToAdd.insert( var_name );
+    XToAdd.insert( var_name );
     }
-   else { // variable x_j already existed - - - - - - - - - - - - - - - - - - -
+   else {  // variable x_j already existed - - - - - - - - - - - - - - - - - -
+    auto itB = std::lower_bound( CostMatrix[ var_name ].second.begin() ,
+				 CostMatrix[ var_name ].second.end() ,
+				 std::make_pair( l_pair.first , 0 ) ,
+				 []( const LinearFunction::coeff_pair &a ,
+				     const LinearFunction::coeff_pair &b )
+				   { return( a.first < b.first ); } );
 
-	auto itB = std::lower_bound( (CostMatrix[ var_name ].second).begin() ,
-	   	   	  (CostMatrix[ var_name ].second).end() , std::make_pair( l_pair.first , 0 ) ,
-	   	   	  []( const LinearFunction::coeff_pair &a ,
-	   	   	  const LinearFunction::coeff_pair &b )
-	   	   	  { return( a.first < b.first ); } );
-
-	if( itB->first == y_pair.first )
-	 itB->second = y_pair.second;
-	else
-     (CostMatrix[ var_name ].second).insert( itB , y_pair ); // add < y_i , a_{ij} >
-
+    if( itB->first == y_pair.first )
+     itB->second = y_pair.second;
+    else  // add < y_i , a_{ij} >
+     CostMatrix[ var_name ].second.insert( itB , y_pair );
     }
-
    }
   } // end for each relaxed constraints  - - - - - - - - - - - - - - - - - - -
 
- // check for remotion of inactive variables: some variables
- // x_j may become inactive in the contraint (RC)_i, in this case the relative
- // column < y_i, a_{ij}> must be removed from CostMatrix, in addition
- // if a column < y, A_j> associated to a variable x_j is empty, copy the pointer
+ // check for remotion of inactive variables: some variables x_j may become
+ // inactive in the contraint (RC)_i, in this case the relative column
+ // < y_i, a_{ij}> must be removed from CostMatrix, in addition if a column
+ // < y, A_j> associated to a variable x_j is empty, copy the pointer
  // to that Variable x_j and the coefficient c_j thereof - - - - - - - - - -
 
  for( Index i = 0 ; i < CostMatrix.size() ; i++ ) {
+  const Variable * xvar = obj->get_active_var( i );
+  for( auto it = CostMatrix[ i ].second.begin() ;
+       it != CostMatrix[ i ].second.end() ; ) {
 
-  const Variable * xvar = lf_obj->get_active_var( i );
-  for( auto it = CostMatrix[i].second.begin() ; it != CostMatrix[i].second.end()  ; ) {
-
-   auto itB = std::lower_bound( LagPairs.begin() ,
-		        LagPairs.end() , std::make_pair( it->first , nullptr ) ,
+   auto itB = std::lower_bound( LagPairs.begin() , LagPairs.end() ,
+				std::make_pair( it->first , nullptr ) ,
 		 		[]( const dual_pair &a , const dual_pair &b )
-		 		{ return( a.first < b.first ); } );
-
+		 		  { return( a.first < b.first ); } );
 
    if( xvar->is_active( itB->second ) >= xvar->get_num_active() )
-    CostMatrix[i].second.erase( it );
+    CostMatrix[ i ].second.erase( it );
    else
     it++;
    }
 
-  if( CostMatrix[i].second.empty() ) {
+  if( CostMatrix[ i ].second.empty() ) {
    nms.push_back( i );
-   NCoef.push_back( CostMatrix[i].first );
+   NCoef.push_back( CostMatrix[ i ].first );
    }
-
   }
 
  // save the original coefficients c_j of the variables x_j which no
  // longer are active in (RCs), write them in (obj_B).  - - - - - - - - - -
 
- lf_obj->modify_coefficients( std::move(NCoef) , std::move(nms) );
+ obj->modify_coefficients( std::move( NCoef ) , std::move( nms ) );
 
  Subset vars( XToAdd.begin(), XToAdd.end() );
  std::sort( vars.begin() , vars.end() ,
@@ -1365,225 +1475,202 @@ LagBFunction::Subset LagBFunction::update_columns( v_dual_pair & v_LagPairsair )
 
  return( vars );
 
- } // end ( LagBFunction::update_columns() )  - - - - - -  - - - - - - - - - -
+ }  // end( LagBFunction::update_columns() )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::rm_columns( c_Range & range ) {
-
+void LagBFunction::rm_columns( c_Range & range )
+{
  // update the map which provides the information used to compute the
  // Lagrangian costs - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  Vec_FunctionValue NCoef;// primal variables which are no longer
  Subset nms;             //  active in any constraint
 
- auto lf_obj = static_cast<LinearFunction *>( obj->get_function() );
-
  // remove the Lagrangian pairs from the map CostMatrix, in addition
- // if a column < y, A_j> associated to a variable x_j is empty, copy the pointer
- // to that Variable x_j and the coefficient c_j thereof - - - - - - - - - -
+ // if a column < y, A_j> associated to a variable x_j is empty, copy the
+ // pointer to that Variable x_j and the coefficient c_j thereof
 
-for( Index j = 0 ; j < CostMatrix.size() ; j++ ) {
- for( Index i = 0 ; i < CostMatrix[i].second.size() && i < range.second ; ++i)
-  if( i < range.first )
-   i++;
-  else   // erasing the element
-   CostMatrix[j].second.erase( CostMatrix[j].second.begin() + i );
+ for( Index j = 0 ; j < CostMatrix.size() ; j++ ) {
+  for( Index i = 0 ; i < CostMatrix[ i ].second.size() && i < range.second ;
+       ++i )
+   if( i < range.first )
+    i++;
+   else   // erasing the element
+    CostMatrix[ j ].second.erase( CostMatrix[ j ].second.begin() + i );
 
- if( CostMatrix[j].second.empty() ) {
+ if( CostMatrix[ j ].second.empty() ) {
   nms.push_back( j );
-  NCoef.push_back( CostMatrix[j].first );
+  NCoef.push_back( CostMatrix[ j ].first );
   }
-
- } // end remotion - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ }  // end removal - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  // save the original coefficients c_j of he variables x_j which no
  // longer are active in (RCs), write them in (obj_B).  - - - - - - - - - -
 
- lf_obj->modify_coefficients( std::move(NCoef) , std::move(nms) );
+ obj->modify_coefficients( std::move( NCoef ) , std::move( nms ) );
 
- } // end ( LagBFunction::rm_columns() )  - - - - - - - -  - - - - - - - - - -
+ }  // end( LagBFunction::rm_columns() )
 
 /*--------------------------------------------------------------------------*/
 
 void LagBFunction::rm_columns( c_Subset & subset )
 {
-
  // update the map which provides the information used to compute the
  // Lagrangian costs - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  Vec_FunctionValue NCoef;// primal variables which are no longer
  Subset nms;             //  active in any constraint
 
- auto lf_obj = static_cast<LinearFunction *>( obj->get_function() );
-
  // remove the Lagrangian pairs from the map CostMatrix, in addition
- // if a column < y, A_j> associated to a variable x_j is empty, copy the pointer
- // to that Variable x_j and the coefficient c_j thereof - - - - - - - - - -
+ // if a column < y, A_j> associated to a variable x_j is empty, copy the
+ // pointer to that Variable x_j and the coefficient c_j thereof
 
- for( Index j = 0 ; j < CostMatrix.size() ; j++ ) {
+ for( Index j = 0 ; j < CostMatrix.size() ; ++j ) {
   auto itv1 = nms.begin();
-  for( Index i = 0 ; i < CostMatrix[i].second.size() && itv1 != nms.end() ; )
+  for( Index i = 0 ; i < CostMatrix[ i ].second.size() && itv1 != nms.end()
+	; )
    if( i < *itv1 )
     i++;
    else
-	if( i == *itv1 ) { // erasing the element,
-	 CostMatrix[j].second.erase( CostMatrix[j].second.begin() + i );
-	 i++;   // the iterator is moved to the next entry
-	 itv1++;
-	 }
-	else
-	 itv1++;
+    if( i == *itv1 ) { // erasing the element,
+     CostMatrix[ j ].second.erase( CostMatrix[ j ].second.begin() + i );
+     i++;   // the iterator is moved to the next entry
+     itv1++;
+     }
+    else
+     itv1++;
 
-  if( CostMatrix[j].second.empty() ) {
+  if( CostMatrix[ j ].second.empty() ) {
    nms.push_back( j );
-   NCoef.push_back( CostMatrix[j].first );
+   NCoef.push_back( CostMatrix[ j ].first );
    }
-
-  } // end remotion - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  } // end removal - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  // save the original coefficients c_j of he variables x_j which no
  // longer are active in (RCs), write them in (obj_B).  - - - - - - - - - -
 
- lf_obj->modify_coefficients( std::move(NCoef) , std::move(nms) );
+ obj->modify_coefficients( std::move( NCoef ) , std::move( nms ) );
 
- } // end ( LagBFunction::rm_columns() ) - - - - - - - - - - - - - - - - - - -
-
-/*--------------------------------------------------------------------------*/
-
-void LagBFunction::set_objective_and_solver( )
-{
- assert( v_Block[ 0 ]->get_objective() );  // ... which must exist
-
- // the objective function of the inner block must be linear - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- obj = dynamic_cast<FRealObjective *>( v_Block[0]->get_objective() );
- if( obj == nullptr )
-  throw( std::logic_error( "the objective is not a real function" ) );
-
- auto LFInnBlck = dynamic_cast<LinearFunction *>( (obj)->get_function() );
- if( LFInnBlck == nullptr )
-  throw( std::logic_error( "the objective is not a linear function" ) );
-
- // get the Solver of the sub-Block  - - - - - - - - - - - - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- Solver* slv = v_Block[0]->get_registered_solvers().back();
- assert( ! slv );
-
- } // end ( LagBFunction::set_objective_and_solver( ) )  - - - - - - - - - - -
+ }  // end( LagBFunction::rm_columns() )
 
 /*--------------------------------------------------------------------------*/
 
 void LagBFunction::set_original_costs( c_Subset & subset )
 {
  /* The original costs have to be replaced by Lagrangian ones in (obj_B)
-	allowing B to be the Lagrangian relaxation sub-problem. To avoid
-	to lose the original coefficients of the costs, they have to be
-	saved in LagBFunction itself, actually it is done inside CostMatrix. */
+    allowing B to be the Lagrangian relaxation sub-problem. To avoid
+    to lose the original coefficients of the costs, they have to be
+    saved in LagBFunction itself, actually it is done inside CostMatrix. */
 
- auto lf_obj = static_cast<LinearFunction *>( obj->get_function() );
- LinearFunction::v_c_coeff_pair & rp = lf_obj->get_v_var();
+ LinearFunction::v_c_coeff_pair & rp = obj->get_v_var();
 
- if( subset.size() )
+ if( ! subset.empty() )
   for( const auto idx : subset )
-   CostMatrix[idx].first = rp[idx].second;
+   CostMatrix[ idx ].first = rp[ idx ].second;
  else
   for( Index i = 0; i < rp.size() ; i++ )
-   CostMatrix.push_back( std::make_pair( rp[i].second , v_coeff_pair() ) );
+   CostMatrix.push_back( std::make_pair( rp[ i ].second , v_coeff_pair() ) );
 
- } // end ( LagBFunction::set_original_costs( c_Vec_p_Var ) )  - - - - - - - -
+ }  // end( LagBFunction::set_original_costs( c_Vec_p_Var ) )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::compute_Lagrangian_costs( )
+void LagBFunction::compute_Lagrangian_costs( void )
 {
- // get the objective function pointer of the inner block   - - - - - - - - -
+ // array of Lagrangian costs c^y = c + yA
+ Vec_FunctionValue NCoef( CostMatrix.size() );
 
- auto lf_obj = static_cast<LinearFunction *>( obj->get_function() );
-
- Vec_FunctionValue NCoef( CostMatrix.size() ); // this array is created
- Subset nms( CostMatrix.size() );     // to change the pairs in (obj_B)
-
+ // compute the Lagrangian costs
  for( Index i = 0 ; i < CostMatrix.size() ; ++i ) {
+  NCoef[ i ] = CostMatrix[ i ].first;
+  for( const auto & el : CostMatrix[ i ].second )
+   NCoef[ i ] += el.first->get_value() * el.second;
+  }
 
-  nms[ i ] = i;
-  NCoef[ i ] = CostMatrix[i].first;
-  for( const auto & el : CostMatrix[i].second )
-   NCoef[ i ] -= el.first->get_value() * el.second;
+ // modify the coefficients in the LinearFunction
+ obj->modify_coefficients( std::move( NCoef ) ,
+			   Range( 0 , CostMatrix.size() ) );
 
-  } // end for - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- lf_obj->modify_coefficients( std::move(NCoef) , std::move(nms) );
-
- } // end ( LagBFunction::update_function() )  - - - - - - - - - - - - - - - -
+ }  // end( LagBFunction::compute_Lagrangian_costs )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::guts_of_destructor( )
+void LagBFunction::guts_of_destructor( void )
 {
  // delete the Function objects  - - - - - - - - - - - - - - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  clear();
 
  // clear the map handling the data structure to compute linearizations and
- // updating the Lagrangian cost vector  - - - - - - - - - - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // updating the Lagrangian cost vector- - - - - - - - - - - - - - - - - - - -
 
  CostMatrix.clear();
 
  // delete the global pool - - - - - - - - - - - - - - - - - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- for( auto tpl : g_pool )
-  delete[] std::get<0>(tpl);
+ for( Index i = 0 ; i < f_max_glob ; ++i )
+  delete g_pool[ i ].first;
  g_pool.clear();
 
  // delete the inner Block - - - - - - - - - - - - - - - - - - - - - - - - - -
- //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  if( ! v_Block.empty() )
-  delete v_Block[ 0 ];
+  delete v_Block.front();
  v_Block.clear();
 
- } // end ( LagBFunction::guts_of_destructor() ) - - - - - - - - - - - - - - -
+ }  // end( LagBFunction::guts_of_destructor )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
+bool LagBFunction::guts_of_add_Modification( p_Mod mod , ChnlName chnl )
 {
- // process abstract Modification- - - - - - - - - - - - - - - - - - - - - - -
+ const auto tmod = dynamic_cast< GroupModification * >( mod );
+ if( tmod ) {
+  // process every Modification inside the GroupModification, returning true
+  // if any one of those returned true
+  bool to_check = false;
+  for( auto & ttmod : tmod->sub_Modifications() )
+   if( guts_of_add_Modification( ttmod.get() , chnl ) )
+    to_check = true;
+  return( to_check );  
+  }
+ else
+  return( guts_of_guts_of_add_Modification( mod , chnl ) );
+
+ }  // end( guts_of_add_Modification )
+
+/*--------------------------------------------------------------------------*/
+
+bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
+						     ChnlName chnl )
+{
+ // process Modification - - - - - - - - - - - - - - - - - - - - - - - - - - -
  /* This requires to patiently sift through the possible Modification types
-    to find what this Modification exactly is and appropriately mirror the
-    changes to the "abstract representation" to the "physical one". */
+    to find what this Modification exactly is and appropriately react. */
 
  // FunctionMod: a function has been changed, three kinds of functions have
  // to be taken into account : (obj_B), (RCs) and the constraints of (B), all
  // of these are assumed to be linear
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  {
-  const auto tmod = std::dynamic_pointer_cast<FunctionMod>( mod );
+  const auto tmod = dynamic_cast< FunctionMod * >( mod );
   if( tmod ) {
-   auto lfmod = static_cast<LinearFunction * const>( tmod->function() );
-   if( !lfmod )
-	throw( std::logic_error( "the function must be linear" ) );
+   auto lfmod = static_cast< LinearFunction * const >( tmod->function() );
+   if( ! lfmod )
+    throw( std::logic_error( "the function must be linear" ) );
 
    // let's start considering a modification of (obj_B) - - - - - - - - - - -
 
-   auto lfobj = static_cast<LinearFunction *>( obj->get_function() );
+   // distinguish between predictable and unpredictable changes, take into
+   // account that because of the linearity of the function a predictable
+   // change has to involve the constant term only and all the coefficients
+   // remain unchanged, the function shall be shifted
 
-   // distinguish between predictable and unpredictable changes, take into account
-   // that because of the linearity of the function a predictable change
-   // has to involve the constant term only and all the coefficients remain unchanged,
-   // the function shall be shifted - - - - - - - - - - - - - - - - - - - - -
-
-   if( lfmod == lfobj ) // if the Linear Function is (obj_B)
-    if( !std::isnan( tmod->shift() ) &&
-	( tmod->shift() < FunctionMod::INFshift &&
-	  tmod->shift() > -FunctionMod::INFshift ) ) { // a predictable change
-
+   if( lfmod == obj ) // if the Linear Function is (obj_B)
+    if( ! std::isnan( tmod->shift() ) &&
+	( tmod->shift() < INF && tmod->shift() > -INF ) ) {
+     // a predictable change
      // the Lagrangian function (obj_B) is shifted by the constant term
      // c'_0 - c_0
 
@@ -1594,9 +1681,13 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
      // the constant terms of the linearizations have to be computed again
      //	by calling get_linearization_constant()
 
+     //!! check if C05FunctionMod::AlphaChanged is still right
+     // TODO: check if better which is possible
      if( f_Observer )
       f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-								      C05FunctionMod::AlphaChanged , tmod->shift() , 0 ) , chnl );
+					  C05FunctionMod::AlphaChanged ,
+					  Subset( {} ) , tmod->shift() , 0 ) ,
+				    chnl );
 
      }
     else { // an unpredictable change
@@ -1612,9 +1703,13 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
      // linearizations (g, \alpha) have to be computed again by calling
      // get_linearization_constant() while the g remains unchanged
 
+     //!! check if C05FunctionMod::AlphaChanged is still right
+     // TODO: check if better which is possible
      if( f_Observer )
       f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-    		C05FunctionMod::AlphaChanged , FunctionMod::NaNshift , 0 ) , chnl );
+				 C05FunctionMod::AlphaChanged , Subset( {} ) ,
+				 FunctionMod::NaNshift , 0 ) ,
+				    chnl );
 
      }
    else
@@ -1626,8 +1721,8 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
     		 [ lfmod ]( const dual_pair & p ) {
     		  return( p.second == lfmod );  } );
 
- 	 // take out the multiplier y_i which has been modified  - - - - - - - - -
-  	 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+     // take out the multiplier y_i which has been modified  - - - - - - - - -
+     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
      v_dual_pair vdp( {*it_v} );
      Vec_p_Var v_vars( {vdp[ 0 ].first} );
@@ -1642,7 +1737,7 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
       // previous value thereof, this means that the Lagrangian function
       // changes the linear part y^i b_i --> y^_i b'_i - - - - - - - - - - - -
 
-      Function::Vec_FunctionValue delta( {lfmod->get_constant_term()} );
+      Vec_FunctionValue delta( {lfmod->get_constant_term()} );
 
       // issue C05FunctionModLin modification: the Lagrangian
       // function (obj_B) has changed in an "unpredictably",
@@ -1673,29 +1768,21 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
    	  // get_linearization_coefficients- at the index i-th, however the
    	  // Lagrangian function changes in an unpredictable  way and f_shift id
    	  // set to NaN  - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
+	  // TODO: check if a better which is possible
    	  if( f_Observer )
-   	   f_Observer->add_Modification( std::make_shared<C05FunctionModSbst>( this ,
-   	      C05FunctionModSbst::AllEntriesChanged , std::move(v_vars) ,
-		  std::move(nms) , true, FunctionMod::NaNshift , 0 ) , chnl );
+   	   f_Observer->add_Modification( std::make_shared<C05FunctionModSbst>(
+			        this , C05FunctionModSbst::AllEntriesChanged ,
+				std::move( v_vars ) , std::move( nms ) , true,
+				Subset( {} ) , FunctionMod::NaNshift , 0 ) ,
+					 chnl );
       }
      }
-    else { // the changes of the constraints of (B) may violate the
-     // solutions kept in the global pool, irrespectively to the fact that the
-     // changes are of the type "predictable" or "unpredictable" and  signal
-     // that the feasibility of the solutions has to be checked
+    else   // the changes of the constraints of (B) may violate the
+           // Solution kept in the global pool, irrespectively to the fact
+           // that the changes are "predictable" or "unpredictable"
+     return( true );
 
-     for( auto tpl : g_pool )
-      std::get<2>( tpl ) = VarToBeChckd;
-
-     // issue C05FunctionMod modification of the type AlphaChanged: the
-     // feasible region of (B) has been changed, then the original linearizations
-     // (even the g part) can no longer be used
-     if( f_Observer )
-      f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-    	  C05FunctionMod::AlphaChanged , FunctionMod::NaNshift ) , chnl );
-
-     }
+   return( false );
    }
   } // end FunctionMod - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -1705,24 +1792,22 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
  // of these are assumed to be linear
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  {
-  const auto tmod = std::dynamic_pointer_cast<C05FunctionModLin>( mod );
+  const auto tmod = dynamic_cast< C05FunctionModLin * >( mod );
   if( tmod ) {
-   auto lfmod = static_cast<LinearFunction * const>( tmod->function() );
-   if( !lfmod )
-	throw( std::logic_error( "the function must be linear" ) );
+   auto lfmod = static_cast< LinearFunction * const >( tmod->function() );
+   if( ! lfmod )
+    throw( std::logic_error( "the function must be linear" ) );
 
    // let's start considering a modification of (obj_B) - - - - - - - - - - -
 
-   auto lf_obj = static_cast<LinearFunction *>( obj->get_function() );
-
-   if( lfmod == lf_obj ) { // if the Linear Function is (obj_B)
+   if( lfmod == obj ) { // if the Linear Function is (obj_B)
 
     // the coefficients c_j of variables v_vars, changed and have to
     // to be rewritten in CostMatrix - - - - - - - - - - - - - - - - - - - - -
 
 	Subset nms( tmod->vars().size() );
 	for( Index i = 0 ; i < tmod->vars().size() ; ++i )
-	 nms[ i ] = lf_obj->is_active( LagPairs[ i ].first );
+	 nms[ i ] = obj->is_active( LagPairs[ i ].first );
 
     set_original_costs( nms );
 
@@ -1732,10 +1817,14 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
     // linearizations (g, \alpha) have to be computed again by calling
     // get_linearization_constant() while g remains unchanged
 
+     //!! check if C05FunctionMod::AlphaChanged is still right
+    // TODO: check if a better which is possible
     if( f_Observer )
      f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-    		C05FunctionMod::AlphaChanged , FunctionMod::NaNshift , 0 ) , chnl );
-
+					      C05FunctionMod::AlphaChanged ,
+					      Subset( {} ) ,
+					      FunctionMod::NaNshift , 0 ) ,
+				   chnl );
     }
    else
     if( lfmod->get_Observer() == this ) { // the Linear Function belongs
@@ -1746,8 +1835,8 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
     		 [ lfmod ]( const dual_pair & p ) {
     		  return( p.second == lfmod );  } );
 
- 	 // take out the multiplier y_i which has been modified  - - - - - - - - -
-  	 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+     // take out the multiplier y_i which has been modified  - - - - - - - - -
+     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
      v_dual_pair vdp( {*it_v} );
      Vec_p_Var v_vars( {vdp[ 0 ].first} );
@@ -1759,38 +1848,29 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
      // a_i has to be re-written in CostMatrix to allow LagBFunction the
      // computation of the Lagrangian costs
 
-   	 Subset nms = update_columns( vdp );
+     Subset nms = update_columns( vdp );
 
      // issue C05FunctionModSbst modification of the type AllEntriesChanged:
-   	 // the i-th entry of the linearization ( g , \alpha ) has to change,
-   	 // namely g_i must be re-computed -by calling
-   	 // get_linearization_coefficients- at the index i-th, however the
-   	 // Lagrangian function unpredictably changes and f_shift is
-   	 // set to NaN   - - - - - - - - - - - - - - - - - - - - - - - - - -
+     // the i-th entry of the linearization ( g , \alpha ) has to change,
+     // namely g_i must be re-computed -by calling
+     // get_linearization_coefficients- at the index i-th, however the
+     // Lagrangian function unpredictably changes and f_shift is
+     // set to NaN   - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-   	 if( f_Observer )
-   	  f_Observer->add_Modification( std::make_shared<C05FunctionModSbst>( this ,
-   	  C05FunctionModSbst::AllEntriesChanged , std::move(v_vars) ,
-       std::move(nms) , true, FunctionMod::NaNshift , 0 ) , chnl );
-
-
-     }
-    else { // the changes of the constraints of (B) may violate the
-     // solutions kept in the global pool, irrespectively to the fact that the
-     // changes are of the type "predictable" or "unpredictable" and  signal
-     // that the feasibility of the solutions has to be checked
-
-     for( auto tpl : g_pool )
-      std::get<2>( tpl ) = VarToBeChckd;
-
-     // issue C05FunctionMod modification of the type AlphaChanged: the
-     // feasible region of (B) has been changed, then the original linearizations
-     // (even the g part) can no longer be used
+     // TODO: check if a better which is possible
      if( f_Observer )
-      f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-    	  C05FunctionMod::AlphaChanged , FunctionMod::NaNshift ) , chnl );
-
+      f_Observer->add_Modification( std::make_shared<C05FunctionModSbst>( this ,
+   	           C05FunctionModSbst::AllEntriesChanged , std::move( v_vars ) ,
+		   std::move( nms ) , true , Subset( {} ) ,
+		   FunctionMod::NaNshift , 0 ) ,
+				    chnl );
      }
+    else  // the changes of the constraints of (B) may violate the
+           // Solution kept in the global pool, irrespectively to the fact
+           // that the are "predictable" or "unpredictable"
+     return( true );
+
+   return( false );
    }
   } // end C05FunctionModLin - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -1800,10 +1880,10 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
  // of these are assumed to be linear
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  {
-  const auto tmod = std::dynamic_pointer_cast<FunctionModVars>( mod );
+  const auto tmod = dynamic_cast< FunctionModVars * >( mod );
   if( tmod ) {
-   auto lfmod = static_cast<LinearFunction * const>( tmod->function() );
-   if( !lfmod )
+   auto lfmod = static_cast< LinearFunction * const >( tmod->function() );
+   if( ! lfmod )
    throw( std::logic_error( "the function must be linear" ) );
 
    // because of the linearity of the function the modification must be
@@ -1811,28 +1891,31 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
    if( tmod->shift() != 0 )
     throw( std::logic_error( "the function must be linear" ) );
 
-   auto lf_obj = static_cast<LinearFunction *>( obj->get_function() );
-   if( lfmod == lf_obj ) { // if the Linear Function is (obj_B)
+   if( lfmod == obj ) { // if the Linear Function is (obj_B)
 
-	// variables x_j, for some j, have been added to (remove from) (obj_B)
-	// and the new coefficients have to to be rewritten in (deleted from) CostMatrix
+    // variables x_j, for some j, have been added to (remove from) (obj_B)
+    // and the new coefficients have to to be rewritten in (deleted from) CostMatrix
 
     Subset nms( tmod->vars().size() );
     for( Index i = 0 ; i < tmod->vars().size() ; ++i )
-	 nms[ i ] = lf_obj->is_active( LagPairs[ i ].first );
+     nms[ i ] = obj->is_active( LagPairs[ i ].first );
 
-	set_original_costs( nms );
+    set_original_costs( nms );
 
-	// issue C05FunctionMod modification of the type AlphaChanged:
-	// the Lagrangian function unpredictably changes and
-	// f_shift has to be set to NaN, however the constant terms of the
-	// linearizations have to be computed again by calling
-	// get_linearization_constant()
+    // issue C05FunctionMod modification of the type AlphaChanged:
+    // the Lagrangian function unpredictably changes and
+    // f_shift has to be set to NaN, however the constant terms of the
+    // linearizations have to be computed again by calling
+    // get_linearization_constant()
 
-	if( f_Observer )
-	 f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-	    		C05FunctionMod::AlphaChanged , FunctionMod::NaNshift , 0 ) , chnl );
-
+    //!! check if C05FunctionMod::AlphaChanged is still right
+    // TODO: check if a better which is possible
+    if( f_Observer )
+     f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+						C05FunctionMod::AlphaChanged ,
+						Subset( {} ) ,
+					        FunctionMod::NaNshift , 0 ) ,
+				   chnl );
     }
    else
     if( lfmod->get_Observer() == this ) { // if the Linear Function belongs
@@ -1866,57 +1949,37 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
      // get_linearization_coefficients- at the index i-th, however the
      // Lagrangian function unpredictably changes and f_shift is
      // set to NaN   - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // TODO: check if a better which is possible
 
      if( f_Observer )
       f_Observer->add_Modification( std::make_shared<C05FunctionModSbst>( this ,
-       	  C05FunctionModSbst::AllEntriesChanged , std::move(v_vars) ,
-          std::move(nms) , true, FunctionMod::NaNshift , 0 ) , chnl );
-
+       	           C05FunctionModSbst::AllEntriesChanged , std::move( v_vars ) ,
+		   std::move( nms ) , true , Subset( {} ) ,
+		   FunctionMod::NaNshift , 0 ) ,
+				    chnl );
      }
-    else { // the changes of the constraints of (B) may violate the
-       // solutions kept in the global pool,  signal
-       // that the feasibility of the solutions has to be checked
+    else  // the changes of the constraints of (B) may violate the
+          // Solution kept in the global pool
+     return( true );
 
-       for( auto tpl : g_pool )
-        std::get<2>( tpl ) = VarToBeChckd;
-
-       // issue C05FunctionMod modification of the type AlphaChanged: the
-       // feasible region of (B) changed and the original linearizations
-       // (even the g part) can no longer be used
-       if( f_Observer )
-        f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-      	  C05FunctionMod::AlphaChanged , FunctionMod::NaNshift ) , chnl );
-
-     }
+   return( false );
    }
   } // end FunctionModVars   - - - - - - - - - - - - - - - - - - - - - - - - -
 
  // VariableMod: some variables of (B) changed the status
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  {
-  const auto tmod = std::dynamic_pointer_cast<VariableMod>( mod );
+  const auto tmod = dynamic_cast< VariableMod * >( mod );
   if( tmod ) {
-   auto xj = dynamic_cast<ColVariable * const>( tmod->variable() );
+   auto xj = dynamic_cast< ColVariable * const >( tmod->variable() );
+
+   if( ! xj )        // unknown variable type
+    return( true );  // no clue what is happening, take the worst case
 
    // if the variable is both free and continuous, the modification can be
    // ignored  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-   if( ( ! xj->is_fixed() ) && ( xj->get_type() == ColVariable::kContinuous ) )
-    return;
-
-   // the new status of the Variable may violate the feasibility of the global
-   // pool, signal that the fesibility of the solutions must be checked
-
-   for( auto tpl : g_pool )
-    std::get<2>( tpl ) = VarToBeChckd;
-
-   // issue C05FunctionMod modification of the type AlphaChanged: the
-   // feasible region of (B) changed and the original linearizations
-   // (even the g part) can no longer be used
-   if( f_Observer )
-    f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-  	  C05FunctionMod::AlphaChanged , FunctionMod::NaNshift ) , chnl );
-
+   return( ( ! xj->is_fixed() ) || ( ! xj->is_integer() ) );
    }
   }  // end VariableMod- - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -1925,56 +1988,28 @@ void LagBFunction::guts_of_add_Modification( sp_Mod mod , ChnlName chnl )
  // BlockModAD: is_variable() && is_added() keep feasibility
  // BlockModAD: ( ! is_variable() ) && ( ! is_added() ) keep feasibility
  {
-  const auto tmod = std::dynamic_pointer_cast< BlockModAD >( mod );
-  if( tmod ) {
-   if( ( tmod->is_variable() && ( ! tmod->is_added() ) ) ||
-       ( ( ! tmod->is_variable() ) && tmod->is_added() ) ) {
-    // the remotion of variables and addition of constraints of (B) may
-    // violate
-    // the feasibility of the global pool, signal that the feasibility of the
-    // solutions must be checked  - - - - - - - - - - - - - - - - - - - - - -
+  const auto tmod = dynamic_cast< BlockModAD * >( mod );
+  if( tmod )
+   return( ( tmod->is_variable() && ( ! tmod->is_added() ) ) ||
+	   ( ( ! tmod->is_variable() ) && tmod->is_added() ) );
 
-    for( auto tpl : g_pool )
-     std::get<2>( tpl ) = VarToBeChckd;
-
-    // issue C05FunctionMod modification of the type AlphaChanged: the
-    // feasible region of (B) changed and the original linearizations
-    // (even the g part) can no longer be used
-
-    if( f_Observer )
-     f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-   	      C05FunctionMod::AlphaChanged , FunctionMod::NaNshift ) , chnl );
-    }
-   }
   }  // end BlockModAdd- - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  // BlockMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  {
-  const auto tmod = std::dynamic_pointer_cast<BlockMod>( mod );
-  if( tmod ) {
+  const auto tmod = dynamic_cast< BlockMod * >( mod );
+  if( tmod )  // arbitrary changes of (B) may violate the feasibility
+   return( true );
 
-
-   // the changes of (B) may violate the feasibility
-   // of the global pool, signal that the feasibility of the solutions must
-   // be checked   - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-   for( auto tpl : g_pool )
-    std::get<2>( tpl ) = VarToBeChckd;
-
-   // issue C05FunctionMod modification of the type AlphaChanged: the
-   // feasible region of (B) changed and the original linearizations
-   // (even the g part) can no longer be used
-
-   if( f_Observer )
-    f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-  	  C05FunctionMod::AlphaChanged , FunctionMod::NaNshift ) , chnl );
-
-   }
   }  // end BlockMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+ return( false );  // ignore any other Modification (BAD!!)
+ // indeed, the safe return value would be true: if I don't understand it,
+ // it can wreak arbitrary havok. but this would be severely over-reacting
+ // in many cases, so we avoid it for the time being
 
- }  // end( LagBFunction::guts_of_add_Modification( sp_Mod ) ) - - - - - - - -
+ }  // end( LagBFunction::guts_of_guts_of_add_Modification )
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- End File LagBFunction.cpp -------------------------*/

@@ -263,7 +263,7 @@ class OneVarConstraint : public RowConstraint {
   * remove_variable(). */
 
  virtual void set_variable( ColVariable * const variable = nullptr ,
-			    c_ModParam issueMod = eModBlck );
+			    ModParam issueMod = eModBlck );
 
 /**@} ----------------------------------------------------------------------*/
 /*---------- METHODS DESCRIBING THE BEHAVIOR OF A OneVarConstraint ---------*/
@@ -343,14 +343,41 @@ class OneVarConstraint : public RowConstraint {
 
 /*--------------------------------------------------------------------------*/
 
- void remove_variable( Index i , c_ModParam issueMod = eModBlck ) override
- {
+ void remove_variable( Index i , ModParam issueMod = eModBlck )
+  override final {
   if( i == 0 )
    set_variable( nullptr , issueMod );
   else
-   throw( std::invalid_argument( "wrong Variable index in OneVarConstraint"
-				 ) );
-  }
+   throw( std::invalid_argument(
+		 "OneVarConstraint:remove_variable wrong Variable index" ) );
+
+  }  // end( OneVarConstraint::remove_variable )
+
+/*--------------------------------------------------------------------------*/
+
+ void remove_variables( Range range , ModParam issueMod = eModBlck )
+  override final
+ {
+  if( ( range.first != 0 ) || ( range.second != 1 ) )
+   throw( std::invalid_argument(
+		"OneVarConstraint:remove_variables wrong Variable index" ) );
+
+  set_variable( nullptr , issueMod );
+
+  }  // end( OneVarConstraint::remove_variables( range ) )
+
+/*--------------------------------------------------------------------------*/
+
+ void remove_variables( Subset && nms , bool ordered = false ,
+			ModParam issueMod = eModBlck )  override final
+ {
+  if( ( ! nms.empty() ) && ( ( nms.size() != 1 ) || ( nms[ 0 ] != 0 ) ) )
+   throw( std::invalid_argument(
+		"OneVarConstraint:remove_variables wrong Variable index" ) );
+
+  set_variable( nullptr , issueMod );
+
+  }  // end( FRowConstraint::remove_variables( subset ) )
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -442,7 +469,7 @@ class BoxConstraint : public OneVarConstraint {
   * ways. */
 
  virtual void set_rhs( c_RHSValue rhs_value ,
-		       c_ModParam issueMod = eModBlck ) override;
+		       ModParam issueMod = eModBlck ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set the LHS of this to BoxConstraint
@@ -453,7 +480,7 @@ class BoxConstraint : public OneVarConstraint {
   * ways. */
 
  virtual void set_lhs( c_RHSValue lhs_value ,
-		       c_ModParam issueMod = eModBlck ) override;
+		       ModParam issueMod = eModBlck ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set both the LHS and the RHS of this to BoxConstraint
@@ -465,7 +492,7 @@ class BoxConstraint : public OneVarConstraint {
   * kind of RowConstraint can react in specialized ways. */
 
  virtual void set_both( c_RHSValue both_value ,
-			c_ModParam issueMod = eModBlck ) override;
+			ModParam issueMod = eModBlck ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE BoxConstraint -----------*/
@@ -563,13 +590,13 @@ class LB0Constraint : public OneVarConstraint {
   * specialized ways. */
 
  virtual void set_rhs( c_RHSValue rhs_value ,
-		       c_ModParam issueMod = eModBlck ) override final;
+		       ModParam issueMod = eModBlck ) override final;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set the LHS of this to LB0Constraint: this throws exception
 
  virtual void set_lhs( c_RHSValue lhs_value ,
-		       c_ModParam issueMod = eModBlck ) override final {
+		       ModParam issueMod = eModBlck ) override final {
   if( lhs_value != 0 )
    throw( std::invalid_argument( "cannot change LHS in a LB0Constraint" ) );
    }
@@ -578,7 +605,7 @@ class LB0Constraint : public OneVarConstraint {
  /// set both the LHS and the RHS of this to LB0Constraint
 
  virtual void set_both( c_RHSValue both_value ,
-			c_ModParam issueMod = eModBlck  ) override final {
+			ModParam issueMod = eModBlck  ) override final {
   if( both_value == 0 )
    set_rhs( both_value , issueMod );
   else
@@ -674,7 +701,7 @@ class UB0Constraint : public OneVarConstraint {
  /// set the RHS of this to UB0Constraint: this throws exception
 
  virtual void set_rhs( c_RHSValue rhs_value ,
-		       c_ModParam issueMod = eModBlck ) override final {
+		       ModParam issueMod = eModBlck ) override final {
   if( rhs_value != 0 )
    throw( std::invalid_argument( "cannot change RHS in a UB0Constraint" ) );
   }
@@ -688,13 +715,13 @@ class UB0Constraint : public OneVarConstraint {
   * specialized ways. */
 
  virtual void set_lhs( c_RHSValue lhs_value ,
-		       c_ModParam issueMod = eModBlck ) override final;
+		       ModParam issueMod = eModBlck ) override final;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set both the LHS and the RHS of this to UB0Constraint
 
  virtual void set_both( c_RHSValue both_value ,
-			c_ModParam issueMod = eModBlck ) override final {
+			ModParam issueMod = eModBlck ) override final {
   if( both_value == 0 )
    set_lhs( both_value , issueMod );
   else
@@ -789,7 +816,7 @@ class LBConstraint : public OneVarConstraint {
  /// set the RHS of this to LBConstraint: this throws exception
 
  virtual void set_rhs( c_RHSValue rhs_value ,
-		       c_ModParam issueMod = eModBlck ) override {
+		       ModParam issueMod = eModBlck ) override {
   if( rhs_value < std::numeric_limits<RHSValue>::infinity() )
    throw( std::invalid_argument( "cannot change RHS in a LBConstraint" ) );
    }
@@ -803,13 +830,13 @@ class LBConstraint : public OneVarConstraint {
   * specialized ways. */
 
  virtual void set_lhs( c_RHSValue lhs_value ,
-		       c_ModParam issueMod = eModBlck ) override final;
+		       ModParam issueMod = eModBlck ) override final;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set both the LHS and the RHS of this to LBConstraint
 
  virtual void set_both( c_RHSValue both_value ,
-			c_ModParam issueMod = eModBlck ) override final {
+			ModParam issueMod = eModBlck ) override final {
   if( both_value >= std::numeric_limits<RHSValue>::infinity() )
    set_lhs( both_value , issueMod );
   else
@@ -948,13 +975,13 @@ class UBConstraint : public OneVarConstraint {
   * specialized ways. */
 
  virtual void set_rhs( c_RHSValue rhs_value ,
-		       c_ModParam issueMod = eModBlck ) override final;
+		       ModParam issueMod = eModBlck ) override final;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set the LHS of this to UBConstraint: this throws exception
 
  virtual void set_lhs( c_RHSValue lhs_value ,
-		       c_ModParam issueMod = eModBlck ) override final {
+		       ModParam issueMod = eModBlck ) override final {
   if( lhs_value > - std::numeric_limits<RHSValue>::infinity() )
    throw( std::invalid_argument( "cannot change LHS in a UBConstraint" ) );
    }
@@ -963,7 +990,7 @@ class UBConstraint : public OneVarConstraint {
  /// set both the LHS and the RHS of this to LBConstraint
 
  virtual void set_both( c_RHSValue both_value ,
-			c_ModParam issueMod = eModBlck ) override final {
+			ModParam issueMod = eModBlck ) override final {
   if( both_value <= - std::numeric_limits<RHSValue>::infinity() )
    set_rhs( both_value , issueMod );
   else
@@ -1097,7 +1124,7 @@ class NNConstraint : public OneVarConstraint {
  /// set the RHS of this to NNConstraint: this throws exception
 
  virtual void set_rhs( c_RHSValue rhs_value ,
-		       c_ModParam issueMod = eModBlck ) override final {
+		       ModParam issueMod = eModBlck ) override final {
   if( rhs_value < std::numeric_limits<RHSValue>::infinity() )
    throw( std::invalid_argument( "cannot change RHS in a NNConstraint" ) );
    }
@@ -1106,7 +1133,7 @@ class NNConstraint : public OneVarConstraint {
  /// set the LHS of this to NNConstraint: this throws exception
 
  virtual void set_lhs( c_RHSValue lhs_value ,
-		       c_ModParam issueMod = eModBlck ) override final {
+		       ModParam issueMod = eModBlck ) override final {
   if( lhs_value != 0 )
    throw( std::invalid_argument( "cannot change LHS in a NNConstraint" ) );
    }
@@ -1115,7 +1142,7 @@ class NNConstraint : public OneVarConstraint {
  /// set both the LHS and the RHS of this to NNConstraint: throws exception
 
  virtual void set_both( c_RHSValue both_value ,
-			c_ModParam issueMod = eModBlck ) override final {
+			ModParam issueMod = eModBlck ) override final {
   throw( std::invalid_argument( "LHS == RHS impossible in a NNConstraint" ) );
   }
 
@@ -1223,7 +1250,7 @@ class NPConstraint : public OneVarConstraint {
  /// set the RHS of this to NPConstraint: this throws exception
 
  virtual void set_rhs( c_RHSValue rhs_value ,
-		       c_ModParam issueMod = eModBlck ) override final {
+		       ModParam issueMod = eModBlck ) override final {
   if( rhs_value != 0 )
    throw( std::invalid_argument( "cannot change RHS in a NPConstraint" ) );
    }
@@ -1232,7 +1259,7 @@ class NPConstraint : public OneVarConstraint {
  /// set the LHS of this to NNConstraint: this throws exception
 
  virtual void set_lhs( c_RHSValue lhs_value ,
-		       c_ModParam issueMod = eModBlck ) override final {
+		       ModParam issueMod = eModBlck ) override final {
   if( lhs_value > - std::numeric_limits<RHSValue>::infinity() )
    throw( std::invalid_argument( "cannot change LHS in a NPConstraint" ) );
    }
@@ -1241,7 +1268,7 @@ class NPConstraint : public OneVarConstraint {
  /// set both the LHS and the RHS of this to NPConstraint: throws exception
 
  virtual void set_both( c_RHSValue both_value ,
-			c_ModParam issueMod = eModBlck ) override final {
+			ModParam issueMod = eModBlck ) override final {
   throw( std::invalid_argument( "LHS == RHS impossible in a NPConstraint" ) );
   }
 
@@ -1348,7 +1375,7 @@ class ZOConstraint : public OneVarConstraint {
  /// set the RHS of this to ZOConstraint: this throws exception
 
  virtual void set_rhs( c_RHSValue rhs_value ,
-		       c_ModParam issueMod = eModBlck ) override {
+		       ModParam issueMod = eModBlck ) override {
   if( rhs_value != 1 )
    throw( std::invalid_argument( "cannot change RHS in a ZOConstraint" ) );
    }
@@ -1357,7 +1384,7 @@ class ZOConstraint : public OneVarConstraint {
  /// set the LHS of this to ZOConstraint: this throws exception
 
  virtual void set_lhs( c_RHSValue lhs_value ,
-		       c_ModParam issueMod = eModBlck ) override {
+		       ModParam issueMod = eModBlck ) override {
   if( lhs_value != 0 )
    throw( std::invalid_argument( "cannot change LHS in a ZOConstraint" ) );
    }
@@ -1366,7 +1393,7 @@ class ZOConstraint : public OneVarConstraint {
  /// set both the LHS and the RHS of this to ZOConstraint: throws exception
 
  virtual void set_both( c_RHSValue both_value ,
-			c_ModParam issueMod = eModBlck ) override final {
+			ModParam issueMod = eModBlck ) override final {
   throw( std::invalid_argument( "LHS == RHS impossible in a ZOConstraint" ) );
   }
 

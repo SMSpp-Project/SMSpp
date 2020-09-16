@@ -204,7 +204,7 @@ class ColVariable : public Variable {
  /// destructor, virtual and empty
  /** Destructor of ColVariable. According to the guidelines set for the
   * destructor of any :Variable, it does *not* check the list of "stuff" this
-  * ColVariable, but just destrois it (and the list with it).
+  * ColVariable, but just destroys it (and the list with it).
   *
   * This would of course leave any "stuff" in which the Variable is active in
   * an inconsistent state, so care has to be exercised to ensure this does not
