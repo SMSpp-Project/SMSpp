@@ -7,7 +7,7 @@
  *
  * \version 0.01
  *
- * \date 30 - 07 - 2020
+ * \date 15 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -481,7 +481,7 @@ class BendersBFunction : public C05Function , public Block {
 
  virtual ~BendersBFunction( void ) {
   if( ! v_Block.empty() )
-   delete v_Block[ 0 ];
+   delete v_Block.front();
   v_Block.clear();
  }
 
@@ -556,12 +556,12 @@ class BendersBFunction : public C05Function , public Block {
   *        its allocated memory is released.
   */
  void set_inner_block( Block * block , bool destroy_previous_block = true ) {
-  if( ( ! v_Block.empty() ) && block == v_Block[ 0 ] &&
+  if( ( ! v_Block.empty() ) && block == v_Block.front() &&
       ( ! destroy_previous_block ) )
    return; // the given Block is already here; silently return
 
   if( destroy_previous_block && ! v_Block.empty() )
-   delete v_Block[ 0 ];
+   delete v_Block.front();
 
   v_Block.clear();
   v_Block.push_back( block );
@@ -1360,6 +1360,39 @@ class BendersBFunction : public C05Function , public Block {
 
  void delete_rows( ModParam issueMod = eModBlck );
 
+/*--------------------------------------------------------------------------*/
+
+ /// set the whole set of parameters of this BendersBFunction
+ /** The extra Configuration of the given ComputeConfig (see
+  * ComputeConfig::f_extra_Configuration), if not nullptr, is assumed to be of
+  * type SimpleConfiguration < std::pair< Configuration * , Configuration * >
+  * >. If it is not of this type, an exception is thrown. The first element of
+  * that pair must be a pointer to a BlockConfig and the second one must be a
+  * pointer to a BlockSolverConfig.
+  *
+  * If the given pointer to the ComputeConfig is nullptr, then the
+  * Configuration of the BendersBFunction is reset to its default. This means
+  * that
+  *
+  *  (1) all parameters of the BendersBFunction are reset to their default
+  *      values;
+  *
+  *  (2) the inner Block (if any) is configured to its default configuration;
+  *
+  *  (3) the Solver of the inner Block (and their sub-Block, recursively) are
+  *      unregistered and deleted.
+  *
+  * If the given pointer to the ComputeConfig is not nullptr but its extra
+  * Configuration is nullptr, then (2) and (3) above are performed. If the
+  * pointer to the BlockConfig in the extra Configuration is nullptr, then (2)
+  * above is performed. If the pointer to the BlockSolverConfig in the extra
+  * Configuration is nullptr, then (3) above is performed.
+  *
+  * @param scfg a pointer to a ComputeConfig.
+  */
+
+ void set_ComputeConfig( ComputeConfig *scfg = nullptr ) override;
+
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- Methods for handling Modification -------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1669,7 +1702,7 @@ class BendersBFunction : public C05Function , public Block {
  Block * get_inner_block() const {
   if( v_Block.empty() )
    return nullptr;
-  return v_Block[ 0 ];
+  return v_Block.front();
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1703,11 +1736,41 @@ class BendersBFunction : public C05Function , public Block {
   if( v_Block.empty() )
    return nullptr;
 
-  if( v_Block[ 0 ]->get_registered_solvers().empty() )
+  if( v_Block.front()->get_registered_solvers().empty() )
    return nullptr;
 
-  return dynamic_cast< T * >( v_Block[ 0 ]->get_registered_solvers().back() );
+  return dynamic_cast< T * >
+   ( v_Block.front()->get_registered_solvers().back() );
  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// get the whole set of parameters of this BendersBFunction
+ /** The extra Configuration (see ComputeConfig::f_extra_Configuration) of the
+  * ComputeConfig of the BendersBFunction is a
+  * SimpleConfiguration<std::pair<Configuration* , Configuration*>>. The first
+  * Configuration of this pair is a :BlockConfig and the second one is a
+  * :BlockSolverConfig, both of them being associated with the inner Block of
+  * this BendersBFunction.
+  *
+  * If an appropriate extra Configuration is not provided in \p ocfg (either
+  * \p ocfg is nullptr or ocfg->f_extra_Configuration does not have the type
+  * above), the extra Configuration in \p ocfg is deleted (if any) and a new
+  * SimpleConfiguration<std::pair<Configuration* , Configuration*>> is
+  * constructed.
+  *
+  * If an appropriate extra Configuration is provided, then it is used to
+  * obtain the BlockConfig (see BlockConfig::get()) and the BlockSolverConfig
+  * (see BlockSolverConfig::get()) of the inner Block.
+  *
+  * @param all see ThinComputeInterface::get_ComputeConfig().
+  *
+  * @param ocfg a pointer to a ComputeConfig.
+  *
+  * @return a pointer to the ComputeConfig of this BendersBFunction. */
+
+ ComputeConfig * get_ComputeConfig
+ ( bool all = false , ComputeConfig * ocfg = nullptr ) const override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -2017,7 +2080,8 @@ class BendersBFunction : public C05Function , public Block {
 
   std::vector<bool> is_diagonal;
   ///< indicates whether a linearization is diagonal
- };
+
+ }; // end( class( GlobalPool ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -2068,7 +2132,8 @@ class BendersBFunction : public C05Function , public Block {
   std::vector< Index > nnz_at_row;
   std::vector< Index > column;
   std::vector< T > values;
- };
+
+ };  // end( class( SparseMatrix ) )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
@@ -2233,15 +2298,13 @@ class BendersBFunction : public C05Function , public Block {
 
  /// returns the behaviour of this Function considering the given Modification
 
- function_value_behaviour get_behaviour( std::shared_ptr<BlockModAD> mod )
-  const;
+ function_value_behaviour get_behaviour( std::shared_ptr<BlockModAD> mod );
 
 /*--------------------------------------------------------------------------*/
 
  /// returns the behaviour of this Function considering the given Modification
 
- function_value_behaviour get_behaviour( std::shared_ptr<ConstraintMod> mod )
-  const;
+ function_value_behaviour get_behaviour( std::shared_ptr<ConstraintMod> mod );
 
 /*--------------------------------------------------------------------------*/
 
@@ -2275,7 +2338,7 @@ class BendersBFunction : public C05Function , public Block {
   *         false otherwise.
   */
 
- bool has_constraint( Constraint * constraint ) const;
+ bool has_constraint( Constraint * constraint );
 
 /*--------------------------------------------------------------------------*/
 
@@ -2293,6 +2356,76 @@ class BendersBFunction : public C05Function , public Block {
   */
  template< class T >
  bool is_A_sparse( SparseMatrix<T> & matrix ) const;
+
+/*--------------------------------------------------------------------------*/
+
+ /// retrieve the list of affected RowConstraint from the inner Block
+ /** If the vector of AbstractPath to the affected RowConstraint
+  * (#v_paths_to_constraints) is not empty, this method retrieves the pointers
+  * to the Constraint specified by those paths and put them in
+  * #v_constraints. After the end of the call to this method,
+  * #v_paths_to_constraints is emptied. */
+
+ void retrieve_constraints();
+
+/*--------------------------------------------------------------------------*/
+
+ /// return the pointer to the RowConstraint at the given \p index
+ RowConstraint * get_constraint( Block::Index index ) {
+  retrieve_constraints();
+  assert( index < v_constraints.size() );
+  return v_constraints[ index ];
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// add the pointers to the Constraint in the given vector
+ void add_constraints( const ConstraintVector & nc );
+
+/*--------------------------------------------------------------------------*/
+
+ /// add the pointer to the given Constraint
+ void add_constraint( RowConstraint * constraint );
+
+/*--------------------------------------------------------------------------*/
+
+ /// remove all the Constraint in the given \p range
+ void remove_constraints( Range range );
+
+/*--------------------------------------------------------------------------*/
+
+ /// remove all the Constraint indicated in \p rows
+ void remove_constraints( const Subset & rows );
+
+/*--------------------------------------------------------------------------*/
+
+ /// removes all Constraint
+ void remove_constraints();
+
+/*--------------------------------------------------------------------------*/
+
+ /// remove the Constraint with the given \p index
+ void remove_constraint( Block::Index index );
+
+/*--------------------------------------------------------------------------*/
+
+ /// reset the BlockConfig of the inner Block to the default one
+ void set_default_inner_Block_BlockConfig();
+
+/*--------------------------------------------------------------------------*/
+
+ /// reset the BlockSolverConfig of the inner Block to the default one
+ void set_default_inner_Block_BlockSolverConfig();
+
+/*--------------------------------------------------------------------------*/
+
+ /// reset the configuration of the inner Block to the default one
+ /** Reset both the BlockConfig and the BlockSolverConfig of the inner Block
+  * to the default ones. */
+ void set_default_inner_Block_configuration() {
+  set_default_inner_Block_BlockSolverConfig();
+  set_default_inner_Block_BlockConfig();
+ }
 
 /*--------------------------------------------------------------------------*/
 

@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 14 - 03 - 2019
+ * \date 29 - 07 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -48,10 +48,9 @@ using namespace std;
 /*----------------------------- STATIC MEMBERS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-// register BlockConfig, BlockSolverConfig to the Configuration factory
+// register BlockConfig to the Configuration factory
 
 SMSpp_insert_in_factory_cpp_0( BlockConfig );
-SMSpp_insert_in_factory_cpp_0( BlockSolverConfig );
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- FUNCTIONS --------------------------------*/
@@ -63,34 +62,6 @@ SMSpp_insert_in_factory_cpp_0( BlockSolverConfig );
 /*-------------------------- METHODS of Block ------------------------------*/
 /*--------------------------------------------------------------------------*/
 /*----------------- Methods for reading the data of the Block --------------*/
-/*--------------------------------------------------------------------------*/
-
-BlockSolverConfig * Block::get_SolverConfig( BlockSolverConfig * svcc )
-{
- BlockSolverConfig * scfg = svcc ? svcc : new BlockSolverConfig();
-
- c_Lst_Solver & ls = get_registered_solvers();
-
- scfg->v_SolverNames.resize( ls.size() );
- scfg->v_SolverConfigs.resize( ls.size() );
-
- auto lsit = ls.begin();
- for( c_Lst_Solver::size_type i = 0 ; i < ls.size() ; ++i , ++lsit ) {
-  scfg->v_SolverNames[ i ] = (*lsit)->classname();
-  scfg->v_SolverConfigs[ i ] = (*lsit)->get_ComputeConfig();
-  }
-
- c_Vec_Block & nb = get_nested_Blocks();
- scfg->v_BlockSolverConfigs.resize( nb.size() );
-
- auto nbit = nb.begin();
- for( c_Vec_Block::size_type i = 0 ; i < nb.size() ; )
-  scfg->v_BlockSolverConfigs[ i++ ] = (*(nbit++))->get_SolverConfig();
-
- return( scfg );
-
- }  // end( Block::get_SolverConfig )
-
 /*--------------------------------------------------------------------------*/
 
 int Block::get_objective_sense( void ) const
@@ -279,283 +250,34 @@ void Block::set_default_channel( ChnlName chnl )
 /*------------ METHODS FOR LOADING, PRINTING & SAVING THE Block ------------*/
 /*--------------------------------------------------------------------------*/
 
-void Block::set_BlockConfig( BlockConfig *newBC , const bool safe )
+void Block::set_BlockConfig( BlockConfig *newBC , const bool deleteold )
 {
- if( ( ! safe ) && f_Block && f_Block->f_BlockConfig ) {
-  // the current BlockConfig, if any, can be "live" in the BlockConfig of the
-  // father: find i such that this Block is the i-th son of its father Block
-   const std::size_t i = std::distance( f_Block->v_Block.begin() ,
-     std::find( f_Block->v_Block.begin() , f_Block->v_Block.end() , this ) );
+ if( f_BlockConfig == newBC )
+  return;
 
-  if( i >= f_Block->v_Block.size() )
-   throw( std::domain_error( "This Block is not a son of its father!" ) );
-
-  // then, this f_BlockConfig must be at the i-th position of the
-  // v_sub_BlockConfig in the father's f_BlockConfig, unless the vector is
-  // shorter than that; in this case it is resized
-
-  std::vector<BlockConfig *> &fvsBC =
-                                    f_Block->f_BlockConfig->v_sub_BlockConfig;
-
-  std::size_t j = fvsBC.size();
-  if( i >= j ) {  // the father did not have a i-th BlockConfig
-   fvsBC.resize( i + 1 );
-   for( ; j < i ; ++j )
-    fvsBC[ j ] = nullptr;
-   }
-  else           // the father had the i-th BlockConfig
-   if( fvsBC[ i ] != f_BlockConfig )
-    throw( std::domain_error( "Inconsistent v_sub_BlockConfig" ) );
-
-  fvsBC[ i ] = newBC;
-  }
-
- if( f_BlockConfig ) {  // there is a BlockConfig already
-  for( auto blck : v_Block )   // delete all sub-BlockConfig, if any
-   blck->set_BlockConfig();
-
-  delete f_BlockConfig;     // delete the previous BlockConfig
-  }
-
- std::size_t i = 0;
- if( newBC ) {  // a new BlockConfig is being set
-  std::vector<BlockConfig *> &vsBC = newBC->v_sub_BlockConfig;
-  for( ; i < vsBC.size() ; ++i )
-   v_Block[ i ]->set_BlockConfig( vsBC[ i ] );
-  }
-
- // for all sub-Block that have no explicit sub-BlockConfig (all if
- // newBC == nullptr), set them to "no configuration"
- for( ; i < v_Block.size() ; ++i )
-  v_Block[ i ]->set_BlockConfig();
- 
- f_BlockConfig = newBC;  // finally ...
-
- }  // end( set_BlockConfig )
-
-/*--------------------------------------------------------------------------*/
-
-void Block::add_to_BlockConfig( BlockConfig *aBC , const bool safe )
-{
- if( ! aBC )  // adding a void configuration to anything
-  return;     // does nothing
-
- if( ! f_BlockConfig ) {   // adding to nothing
-  set_BlockConfig( aBC );  // is setting
+ if( ! newBC ) {
+  if( deleteold )
+   delete f_BlockConfig;
+  f_BlockConfig = nullptr;
   return;
   }
 
- // add the individual fields of aBC to the corresponding ones of the
- // f_BlockConfig
-
- if( aBC->f_static_constraints_Configuration ) {
-  delete f_BlockConfig->f_static_constraints_Configuration;
-  f_BlockConfig->f_static_constraints_Configuration =
-                                     aBC->f_static_constraints_Configuration;
-  aBC->f_static_constraints_Configuration = nullptr;
-  }
-
- if( aBC->f_dynamic_constraints_Configuration ) {
-  delete f_BlockConfig->f_dynamic_constraints_Configuration;
-  f_BlockConfig->f_dynamic_constraints_Configuration =
-                                    aBC->f_dynamic_constraints_Configuration;
-  aBC->f_dynamic_constraints_Configuration = nullptr;
-  }
-
- if( aBC->f_static_variables_Configuration ) {
-  delete f_BlockConfig->f_static_variables_Configuration;
-  f_BlockConfig->f_static_variables_Configuration =
-                                      aBC->f_static_variables_Configuration;
-  aBC->f_static_variables_Configuration = nullptr;
-  }
-
- if( aBC->f_dynamic_variables_Configuration ) {
-  delete f_BlockConfig->f_dynamic_variables_Configuration;
-  f_BlockConfig->f_dynamic_variables_Configuration =
-                                     aBC->f_dynamic_variables_Configuration;
-  aBC->f_dynamic_variables_Configuration = nullptr;
-  }
-
- if( aBC->f_objective_Configuration ) {
-  delete f_BlockConfig->f_objective_Configuration;
-  f_BlockConfig->f_objective_Configuration = aBC->f_objective_Configuration;
-  aBC->f_objective_Configuration = nullptr;
-  }
-
- if( aBC->f_is_feasible_Configuration ) {
-  delete f_BlockConfig->f_is_feasible_Configuration;
-  f_BlockConfig->f_is_feasible_Configuration =
-                                           aBC->f_is_feasible_Configuration;
-  aBC->f_is_feasible_Configuration = nullptr;
-  }
- 
- if( aBC->f_is_optimal_Configuration ) {
-  delete f_BlockConfig->f_is_optimal_Configuration;
-  f_BlockConfig->f_is_optimal_Configuration =
-                                            aBC->f_is_optimal_Configuration;
-  aBC->f_is_optimal_Configuration = nullptr;
-  }
-
- if( aBC->f_solution_Configuration ) {
-  delete f_BlockConfig->f_solution_Configuration;
-  f_BlockConfig->f_solution_Configuration =
-                                              aBC->f_solution_Configuration;
-  aBC->f_solution_Configuration = nullptr;
-  }
-
- // now process the vectors of sub-BlockConfig
- std::vector<BlockConfig *> &vsBC = aBC->v_sub_BlockConfig;
- std::vector<BlockConfig *> &fvsBC = f_BlockConfig->v_sub_BlockConfig;
-
- // silently discard any component of vsBC for which there is no sub-Block
- int i = min( vsBC.size() , v_Block.size() );
-
- // ignore the last part of vsBC that is all made of nullptr, if any
- while( ( i > 0 ) && ( ! vsBC[ i - 1 ] ) )
-  --i;
-
- // if necessary, resize fvsBC
- int j = fvsBC.size();
- if( i > j ) {
-   fvsBC.resize( i );
-   for( ; j < i ; ++j )
-    fvsBC[ j ] = nullptr;
-   }
-
- // now add (or set) each element of aBC to the corresponding one of fvsBC
- for( j = 0 ; j < i ; ++j ) {
-  if( fvsBC[ j ] )
-   v_Block[ j ]->add_to_BlockConfig( vsBC[ j ] );
-  else
-   v_Block[ j ]->set_BlockConfig( vsBC[ j ] );
-
-  vsBC[ j ] = nullptr;  // remember it has been consumed already
-  }
-
- delete aBC;  // finally ...
-
- }  // end( Block::add_to_BlockConfig )
-
-/*--------------------------------------------------------------------------*/
-
-void Block::set_SolverConfig( BlockSolverConfig * svcc )
-{
- if( ! svcc ) {  // complete reset
-  // unregister Solver in reverse order
-  for( auto it = v_Solver.rbegin() ; it != v_Solver.rend() ; ++it ) {
-   Solver *oldS = *it;
-   unregister_Solver( --(it.base()) );  // convert backward into forward
-   delete oldS;
-   }
- 
-  // reset all Solver in all sub-Block
-  for( auto it = v_Block.begin() ; it != v_Block.end() ; ++it )
-   (*it)->set_SolverConfig();
-
-  return;        // all done
-  }
-
- // set the configurations for the Solver of this Block ----------------------
- //---------------------------------------------------------------------------
- auto sit = v_Solver.begin();
- auto nit = svcc->v_SolverNames.begin();
- auto cit = svcc->v_SolverConfigs.begin();
-
- // process existing Solvers -------------------------------------------------
-
- if( svcc->f_diff ) {  // differential mode ----------------------------------
-  for( ; ( sit != v_Solver.end() ) && ( nit != svcc->v_SolverNames.end() ) ;
-       ++sit , ++nit ) {
-
-   if( ! (*nit).empty() ) {  // if the name is empty do nothing
-    Solver *oldS = *sit;
-    replace_Solver( Solver::new_Solver( *nit ) , sit );
-    delete oldS;
-    }
-
-   if( cit != svcc->v_SolverConfigs.end() ) {
-    if( *cit )  // if the configurtion is empty, do nothing
-     (*sit)->set_ComputeConfig( *cit );
-    ++cit;
-    }
+ if( newBC->is_diff() ) {
+  // "differential mode"
+  if( ! f_BlockConfig )
+   f_BlockConfig = newBC;
+  else {
+   newBC->move_non_null_configuration_to( f_BlockConfig , deleteold );
+   delete newBC;
    }
   }
- else {                // setting mode ---------------------------------------
-  for( ; ( sit != v_Solver.end() ) && ( nit != svcc->v_SolverNames.end() ) ;
-       ++nit ) {
-
-   Solver *oldS = *sit;
-
-   if( (*nit).empty() ) {  // empty name
-    unregister_Solver( sit );
-    if( cit != svcc->v_SolverConfigs.end() )
-     ++cit;  // ignore corresponding configuration
-    // note: sit is not increased because the list is shortened
-    }
-   else {                   // non-empty name
-    replace_Solver( Solver::new_Solver( *nit ) , sit );
-    if( cit != svcc->v_SolverConfigs.end() ) {
-     (*sit)->set_ComputeConfig( *cit );
-     ++cit;
-     }
-    ++sit;
-    }
-
-   delete oldS;
-   }
-  }                    // end setting mode -----------------------------------
-
- // process Solvers in the Configuration but not in the Block-----------------
-
- for( ; nit != svcc->v_SolverNames.end() ; ++nit )   
-  if( (*nit).empty() ) {  // if the name is empty
-   if( cit != svcc->v_SolverConfigs.end() )
-    ++cit;
-   }
-  else {                   // the name is non-empty
-   // important note: the order is
-   // - first the Solver is created;
-   // - then it is ComputeConfig-ured
-   // - only then it is passed to the Block
-
-   auto slvr = Solver::new_Solver( *nit );
-
-   if( cit != svcc->v_SolverConfigs.end() ) {
-    if( *cit )  // if the configurtion is empty, do nothing
-     slvr->set_ComputeConfig( *cit );
-    ++cit;
-    }
-
-   register_Solver( slvr );
-   }
-
- // set the configurations for the sub-Block ---------------------------------
- //---------------------------------------------------------------------------
- auto bit = v_Block.begin();
- auto bsit = svcc->v_BlockSolverConfigs.begin();
-
- if( svcc->f_diff ) {  // differential mode ----------------------------------
-  // only set non-nullptr configurations, hence only up until the list of
-  // BlockSolverConfigs ends
-  for( ; ( bit != v_Block.end() ) &&
-	 ( bsit != svcc->v_BlockSolverConfigs.end() ) ;
-         ++bit , ++bsit )
-   if( *bsit )
-    (*bit)->set_SolverConfig( *bsit );
+ else {
+  // "setting mode"
+  if( deleteold )
+   delete f_BlockConfig;
+  f_BlockConfig = newBC;
   }
- else {                // setting mode ---------------------------------------
-  // process the list of BlockSolverConfigs, don't mind of nullptr
-  for( ; ( bit != v_Block.end() ) &&
-	 ( bsit != svcc->v_BlockSolverConfigs.end() ) ;
-         ++bit , ++bsit )
-   (*bit)->set_SolverConfig( *bsit );
-
-  // after the list ends, the remaining configurations are nullptr
-  for( ; bit != v_Block.end() ; ++bit )
-   (*bit)->set_SolverConfig();
-  }                    // end setting mode -----------------------------------
-
- }  // end( Block::set_SolverConfig )
+ }  // end( set_BlockConfig )
 
 /*--------------------------------------------------------------------------*/
 
@@ -673,26 +395,32 @@ void Block::remove_variable_from_stuff( Variable * const variable ,
 /*------------------------- METHODS of BlockConfig -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-BlockConfig::BlockConfig( const BlockConfig &old ) : Configuration()
+BlockConfig::BlockConfig( const BlockConfig &old ) : BlockConfig()
 {
- f_static_constraints_Configuration =
-                              old.f_static_constraints_Configuration->clone();
- f_dynamic_constraints_Configuration =
-                             old.f_dynamic_constraints_Configuration->clone();
- f_static_variables_Configuration =
-                              old.f_static_variables_Configuration->clone();
- f_dynamic_variables_Configuration =
-                              old.f_dynamic_variables_Configuration->clone();
- f_objective_Configuration = old.f_objective_Configuration->clone();
- f_is_feasible_Configuration = old.f_is_feasible_Configuration->clone();
- f_is_optimal_Configuration = old.f_is_optimal_Configuration->clone();
- f_solution_Configuration = old.f_solution_Configuration->clone();
- f_extra_Configuration = old.f_extra_Configuration->clone();
-
- v_sub_BlockConfig.resize( old.v_sub_BlockConfig.size() );
- for( std::size_t i = 0 ; i < v_sub_BlockConfig.size() ; ++i )
-  v_sub_BlockConfig[ i ] = old.v_sub_BlockConfig[ i ]->clone();
+ f_diff = old.f_diff;
+ clone_sub_Configuration( & old );
  }
+
+/*--------------------------------------------------------------------------*/
+
+void BlockConfig::get( Block * block ) {
+
+ // clear this BlockConfig
+ delete_sub_Configuration();
+
+ if( ! block )
+  return;
+
+ auto block_config = block->get_BlockConfig();
+
+ if( ! block_config )
+  return;
+
+ set_diff( block_config->is_diff() );
+
+ // clone the Configuration from Block
+ this->clone_sub_Configuration( block_config );
+ } // end( BlockConfig::get( block ) )
 
 /*--------------------------------------------------------------------------*/
 
@@ -764,7 +492,9 @@ void BlockConfig::serialize( netCDF::NcFile & f , const int type ) const
 
 void BlockConfig::print( std::ostream &output ) const
 {
- output << "BlockConfig: " << std::endl;
+ output << private_name();
+ if( f_diff ) output << "[diff]";
+ output << ": " << std::endl;
  if( f_static_constraints_Configuration )
   output << *f_static_constraints_Configuration;
  if( f_dynamic_constraints_Configuration )
@@ -783,16 +513,14 @@ void BlockConfig::print( std::ostream &output ) const
   output << *f_solution_Configuration;
  if( f_extra_Configuration )
   output << *f_extra_Configuration;
- for( const auto cfg : v_sub_BlockConfig )
-  if( cfg )
-   output << *cfg;
  output << std::endl;
-
  }  // end( BlockConfig::print )
 
 /*--------------------------------------------------------------------------*/
 
 void BlockConfig::load( std::istream & input ) {
+ input >> eatcomments >> f_diff;
+
  input >> eatcomments;
  if( input.peek() == input.widen( '*' ) ) {
   f_static_constraints_Configuration = nullptr;
@@ -904,27 +632,6 @@ void BlockConfig::load( std::istream & input ) {
   f_extra_Configuration = Configuration::new_Configuration( cname );
   input >> *f_extra_Configuration;
  }
-
- int k;
- input >> eatcomments >> k;
- v_sub_BlockConfig.resize( k );
- for( int i = 0; i < k; ++i ) {
-  input >> eatcomments;
-  if( input.peek() == input.widen( '*' ) ) {
-   v_sub_BlockConfig[ i ] = nullptr;
-   input.ignore( std::numeric_limits< std::streamsize >::max(),
-                 input.widen( '\n' ) );
-  } else {
-   std::string cname;
-   input >> cname;
-   Configuration * tmpc = Configuration::new_Configuration( cname );
-   BlockConfig * tmpbc = dynamic_cast<BlockConfig *>( tmpc );
-   if( !tmpbc )
-    throw ( invalid_argument( "not a BlockConfig object" ) );
-   v_sub_BlockConfig[ i ] = tmpbc;
-   input >> *tmpbc;
-  }
- }
 }  // end( BlockConfig::load )
 
 /*--------------------------------------------------------------------------*/
@@ -933,7 +640,9 @@ void BlockConfig::serialize( netCDF::NcGroup & group ) const
 {
  Configuration::serialize( group );
 
- if( f_static_constraints_Configuration ) {
+ group.putAtt( "diff" , netCDF::NcInt() , int( f_diff ) );
+
+if( f_static_constraints_Configuration ) {
   auto cg = group.addGroup( "static_constraints" );
   f_static_constraints_Configuration->serialize( cg );
   }
@@ -977,15 +686,6 @@ void BlockConfig::serialize( netCDF::NcGroup & group ) const
   auto cg = group.addGroup( "extra" );
   f_extra_Configuration->serialize( cg );
   }
-
- group.addDim( "n_sub_Block" , v_sub_BlockConfig.size() );
-
- for( size_t i = 0 ; i < v_sub_BlockConfig.size() ; ++i )
-  if( v_sub_BlockConfig[ i ] ) {
-   auto cg =  group.addGroup( "sub-BlockConfig_" + std::to_string( i ) );
-   v_sub_BlockConfig[ i ]->serialize( cg );
-   }
-
  }  // end( BlockConfig::serialize( group ) )
 
 /*--------------------------------------------------------------------------*/
@@ -997,8 +697,17 @@ void BlockConfig::deserialize( netCDF::NcGroup & group )
      f_static_variables_Configuration || f_dynamic_variables_Configuration ||
      f_objective_Configuration || f_is_feasible_Configuration ||
      f_is_optimal_Configuration || f_solution_Configuration ||
-     f_extra_Configuration || v_sub_BlockConfig.size() )
+     f_extra_Configuration )
   throw( std::logic_error( "deserializing a non-empty BlockConfig" ) );
+
+ netCDF::NcGroupAtt diff = group.getAtt( "diff" );
+ if( diff.isNull() )
+  f_diff = true;
+ else {
+  int diffint;
+  diff.getValues( &diffint );
+  f_diff = ( diffint > 0 );
+ }
 
  auto cg = group.getGroup( "static_constraints" );
  f_static_constraints_Configuration = new_Configuration( cg );
@@ -1027,243 +736,7 @@ void BlockConfig::deserialize( netCDF::NcGroup & group )
  cg = group.getGroup( "extra" );
  f_extra_Configuration = new_Configuration( cg );
 
- size_t size = ( group.getDim( "n_sub_Block" ) ).getSize();
-
- v_sub_BlockConfig.resize( size );
-
- for( size_t i = 0 ; i < size ; ++i ) {
-  cg = group.getGroup( "sub-BlockConfig_" + std::to_string( i ) );
-  v_sub_BlockConfig[ i ] = dynamic_cast< BlockConfig *> (
-						   new_Configuration( cg ) );
-  }
  }  // end( BlockConfig::deserialize( group ) )
-
-/*--------------------------------------------------------------------------*/
-/*--------------------- METHODS of BlockSolverConfig -----------------------*/
-/*--------------------------------------------------------------------------*/
-
-BlockSolverConfig::BlockSolverConfig( const BlockSolverConfig &old )
- : Configuration()
-{
- f_diff = old.f_diff;
- v_SolverNames = old.v_SolverNames;
-
- v_SolverConfigs.resize( old.v_SolverConfigs.size() );
- for( std::size_t i = 0 ; i < v_SolverConfigs.size() ; ++i )
-  v_SolverConfigs[ i ] = old.v_SolverConfigs[ i ]->clone();
-
- v_BlockSolverConfigs.resize( old.v_BlockSolverConfigs.size() );
-
- for( std::size_t i = 0 ; i < v_BlockSolverConfigs.size() ; ++i )
-  v_BlockSolverConfigs[ i ] = old.v_BlockSolverConfigs[ i ]->clone();
- }
-
-/*--------------------------------------------------------------------------*/
-
-BlockSolverConfig * BlockSolverConfig::deserialize( netCDF::NcFile & f ,
-						    const unsigned int idx )
-{
- try {
-  netCDF::NcGroupAtt ftype = f.getAtt( "SMS++_file_type" );
-  if( ftype.isNull() )
-   return( nullptr );
-
-  int type;
-  ftype.getValues( & type );
-
-  if( ( type != eProbFile ) && ( type != eConfigFile ) )
-   return( nullptr );
-
-  netCDF::NcGroup cg;
- 
-  if( type == eProbFile ) {
-   netCDF::NcGroup dg = f.getGroup( "Config_" + std::to_string( idx ) );
-   if( dg.isNull() )
-    return( nullptr );
-
-   cg = dg.getGroup( "SolverConfig" );
-   }
-  else
-   cg = f.getGroup( "Config_" + std::to_string( idx ) );
-
-  auto result = new_Configuration( cg );
-  auto bcresult = dynamic_cast< BlockSolverConfig * >( result );
-  if( ! bcresult ) {
-   delete result;
-   return( nullptr );
-   }
-
-  return( bcresult );
-  }
- catch( netCDF::exceptions::NcException & e ) {
-  std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
-  }
- catch( std::exception & e ) {
-  std::cerr << "error " << e.what() << " in deserialize" << std::endl;
-  }
- catch( ... ) {
-  std::cerr << "unknown error in deserialize" << std::endl;
-  }
-
- return( nullptr );
-
- } // end( BlockSolverConfig::deserialize( file ) ) 
-
-/*--------------------------------------------------------------------------*/
-
-void BlockSolverConfig::serialize( netCDF::NcFile & f , const int type )
- const
-{
- if( type == eConfigFile ) {
-  Configuration::serialize( f , type );
-  return;
-  }
-
- auto cg = ( f.addGroup( "Config_" + std::to_string( f.getGroupCount() )
-			 ) ).addGroup( "SolverConfig" );
- serialize( cg );
-
- }  // end( BlockSolverConfig::serialize( file ) )
-
-/*--------------------------------------------------------------------------*/
-
-void BlockSolverConfig::print( std::ostream &output ) const
-{
- output << "BlockSolverConfig";
- if( f_diff ) output << "[diff]";
- output << ": " << std::endl;
- for( std::size_t i = 0 ; i < v_SolverNames.size() ; ++i ) {
-  output << "Solver " << i << ": " << v_SolverNames[ i ];
-  if( ( v_SolverConfigs.size() > i ) && v_SolverConfigs[ i ] )
-   output << std::endl << *v_SolverConfigs[ i ];
-  else
-   output << " - empty config" << std::endl;
-  }
-
- for( std::size_t i = 0 ; i < v_BlockSolverConfigs.size() ; ++i ) {
-  output << "sub-Block " << i << ": ";
-  if( v_BlockSolverConfigs[ i ] )
-   output << std::endl << *v_BlockSolverConfigs[ i ];
-  else
-   output << " - empty config" << std::endl;
-  }
- // output << std::endl;
- }
-
-/*--------------------------------------------------------------------------*/
-
-void BlockSolverConfig::load( std::istream &input )
-{
- input >> eatcomments >> f_diff;
-
- int k;
- input >> eatcomments >> k;
- v_SolverNames.resize( k );
- for( int i = 0 ; i < k ; ++i ) {
-  input >> eatcomments;
-  if( input.peek() == input.widen( '*' ) )
-   v_SolverNames[ i ] = nullptr;
-  else
-   input >> v_SolverNames[ i ];
-  }
-
- input >> eatcomments >> k;
- v_SolverConfigs.resize( k );
- for( int i = 0 ; i < k ; ++i ) {
-  input >> eatcomments;
-  if( input.peek() == input.widen( '*' ) )
-   v_SolverConfigs[ i ] = nullptr;
-  else {
-   std::string cname;
-   input >> cname;
-   Configuration *tmpc = Configuration::new_Configuration( cname );
-   ComputeConfig *tmpbc = dynamic_cast<ComputeConfig *>( tmpc );
-   if( ! tmpbc )
-    throw( invalid_argument( "not a ComputeConfig object" ) );
-   v_SolverConfigs[ i ] = tmpbc;
-   input >> *tmpbc;
-   }
-  }
-
- input >> eatcomments >> k;
- v_BlockSolverConfigs.resize( k );
- for( int i = 0 ; i < k ; ++i ) {
-  input >> eatcomments;
-  if( input.peek() == input.widen( '*' ) )
-   v_BlockSolverConfigs[ i ] = nullptr;
-  else {
-   std::string cname;
-   input >> cname;
-   Configuration *tmpc = Configuration::new_Configuration( cname );
-   BlockSolverConfig *tmpbc = dynamic_cast<BlockSolverConfig *>( tmpc );
-   if( ! tmpbc )
-    throw( invalid_argument( "not a BlockSolverConfig object" ) );
-   v_BlockSolverConfigs[ i ] = tmpbc;
-   input >> *tmpbc;
-   }
-  }
- }  // end( BlockSolverConfig::load )
-
-/*--------------------------------------------------------------------------*/
-
-void BlockSolverConfig::serialize( netCDF::NcGroup & group ) const
-{
- Configuration::serialize( group );
-
- netCDF::NcDim sd = group.addDim( "n_SolverConfig" , v_SolverConfigs.size() );
- group.addDim( "n_BlockSolverConfig" , v_BlockSolverConfigs.size() );
-
- netCDF::NcVar slvnms = group.addVar( "SolverNames" , netCDF::NcString() ,
-				      sd );
- std::vector<size_t> idx( 1 );
- for( size_t i = 0 ; i < v_SolverConfigs.size() ; ++i ) {
-  idx[ 0 ] = i;
-  slvnms.putVar( idx , v_SolverNames[ i ] );
-  auto sc = group.addGroup( "SolverConfig_" + std::to_string( i ) );
-  v_SolverConfigs[ i ]->serialize( sc );
-  }
-
- for( size_t i = 0 ; i < v_BlockSolverConfigs.size() ; ++i ) {
-  auto bc = group.addGroup( "BlockSolverConfig_" + std::to_string( i ) );
-  v_BlockSolverConfigs[ i ]->serialize( bc );
-  }
- }  // end( BlockSolverConfig::serialize( group ) )
-
-/*--------------------------------------------------------------------------*/
-
-void BlockSolverConfig::deserialize( netCDF::NcGroup & group )
-{
- if( v_SolverNames.size() || v_SolverConfigs.size() ||
-     v_BlockSolverConfigs.size() )
-  throw( std::logic_error( "deserializing a non-empty BlockSolverConfig" ) );
-
- Configuration::deserialize( group );
-
- size_t slvsize = ( group.getDim( "n_SolverConfig" ) ).getSize();
- size_t blkslvsize = ( group.getDim( "n_BlockSolverConfig" ) ).getSize();
-
- v_SolverNames.resize( slvsize );
- v_SolverConfigs.resize( slvsize );
- v_BlockSolverConfigs.resize( blkslvsize );
-
- netCDF::NcVar slvnms = group.getVar( "SolverNames" );
- std::vector<size_t> idx( 1 );
- for( size_t i = 0 ; i < slvsize ; ++i ) {
-  idx[ 0 ] = i;
-  char * str;
-  slvnms.getVar( idx , & str );
-  v_SolverNames[ i ] = std::string( str );
-  auto sc = group.getGroup( "SolverConfig_" + std::to_string( i ) );
-  v_SolverConfigs[ i ] = dynamic_cast< ComputeConfig * >(
-                                                   new_Configuration( sc ) );
-  }
-
- for( size_t i = 0 ; i < blkslvsize ; ++i ) {
-  auto bc = group.getGroup( "BlockSolverConfig_" + std::to_string( i ) );
-  v_BlockSolverConfigs[ i ] = dynamic_cast< BlockSolverConfig * >(
-	                                            new_Configuration( bc ) );
-  }
- }  // end( BlockSolverConfig::deserialize( group ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ End File Block.cpp ------------------------------*/

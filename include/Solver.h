@@ -291,7 +291,16 @@ public:
  /** Public enum describing the different types of algorithmic parameters
   * of "int" type that any Solver should reasonably have. The value
   * intLastAlgPar is provided so that the list can be easily further extended
-  * by derived classes. */
+  * by derived classes.
+  *
+  * Note: WHILE THE BASE Solver CLASS DEFINES THESE VALUES, IT DOES NOT
+  *       HANDLE THEM SAVE FOR PROVIDING THE DEFAULT VALUES.
+  *
+  * That is, Solver does *not* re-define set_par( int ) and properly read
+  * these parameters into fields of the class. This is entirely demanded to
+  * derived classes. What Solver does, however, is to properly define
+  * get_dflt_int_par() so that the parameters have their stated default
+  * value. */
 
  enum int_par_type_S {
  intMaxIter = 0 ,  ///< maximum iterations for the next call to compute()
@@ -341,6 +350,12 @@ public:
  * the best one", and 0 says "I don't care of solutions at all, just tell
  * me if there is any, and what its value is". The default is 1. */
 
+ intEverykIt ,  ///< how often call events of type eEverykIteration
+                /**< This parameter decides every how many iterations the
+		 * events of type eEverykIteration are called. The default
+  * value is 0, meaning that events of that type are never called. A value of
+  * 1 rather means that the events are called at every iteration. */
+
  intLogVerb ,   ///< "verbosity" of the log
                 /**< An integer parameter dictating how "verbose" the log of
 		 * the Solver [see set_log()] has to be. The specific meaning
@@ -358,7 +373,16 @@ public:
  /** Public enum describing the different types of algorithmic parameters
   * of "double" type that any Solver should reasonably have. The value
   * dblLastAlgPar is provided so that the list can be easily further extended
-  * by derived classes. */
+  * by derived classes.
+  *
+  * Note: WHILE THE BASE Solver CLASS DEFINES THESE VALUES, IT DOES NOT
+  *       HANDLE THEM SAVE FOR PROVIDING THE DEFAULT VALUES.
+  *
+  * That is, Solver does *not* re-define set_par( double ) and properly read
+  * these parameters into fields of the class. This is entirely demanded to
+  * derived classes. What Solver does, however, is to properly define
+  * get_dflt_dbl_par() so that the parameters have their stated default
+  * value. */
 
  enum dbl_par_type_S {
  dblMaxTime = 0 ,  ///< maximum time for the next call to solve()
@@ -494,6 +518,11 @@ public:
  * solutions at all, which is why this is the default value of the parameter.
  */
 
+ dblEveryTTm ,  ///< how often call events of type eEveryTTime
+                /**< This parameter sets the period (amount of time) T with
+		 * which events of type eEveryTTime are called. The default
+  * value is 0, meaning that events of that type are never called. */
+
  dblLastAlgPar   ///< first allowed new double parameter for derived classes
                  /**< Convenience value for easily allow derived classes
 		  * to extend the set of double algorithmic parameters. */
@@ -531,9 +560,16 @@ public:
 /** @name Constructing and destructing Solver
  *  @{ */
 
- /// constructor: does nothing special except initializing the id
- Solver( void ) : f_Block( nullptr ) , f_log( nullptr ) , f_no_Mod( false )
-  { f_id = this; f_mod_lock.clear(); }
+ /// constructor: initialise the few data structures of the base class
+ Solver( void ) : f_Block( nullptr ) , f_log( nullptr ) , f_no_Mod( false ) {
+  f_id = this;
+  f_mod_lock.clear();
+
+  if( v_events.empty() )
+   v_events.resize( max_event_number() );
+
+
+  }
 
 /*--------------------------------------------------------------------------*/
  /// construct a :Solver of specific type using the Solver factory
@@ -791,30 +827,45 @@ public:
  *
  * Unlike the base ThinComputeInterface, Solver has a working implementation
  * of the set_event_handler() and reset_event_handler() methods, based on a
- * minimal set of fields of the class. Although this may be redundant for
+ * minimal set of fields of the class. Although this may be redundant for a
  * Solver that want to implement the mechanism in a different way, the
  * overhead should be small enough so that the convenience of possibly
  * requiring (almost) no code from derived classes to handle the mechanism
  * should justify it.
  *
- * All that a derived class need to do is to to implement the method
- * max_event_number(), besides of course
+ * All that a derived class need to do is:
  *
- *     ACTUALLY PROPERLY HANDLING THE EVENTS INSIDE compute()
+ * - to implement the method max_event_number();
  *
- * This just requires something like
+ * - to properly resize the v_events vector in the constructor, which is the
+ *   one-liner
  *
- *     for( auto ev : v_events[ type ] )
- *      switch( ev() ) {
- *       case( eContinue ): break; 
- *       case(    ...    ): < properly perform the requested action >
- *       ...
- *       }
+ *         v_events.resize( max_event_number() );
  *
- * in the appropriate places of compute(), depending on type.
+ *   (note that it would be nice to have this done automatically, say in the
+ *   constructor of the base Solver class, but this cannot be done because
+ *   "virtual methods do not work in the constructor": during construction of
+ *   the base class, called by the constructor of a derived one, the base
+ *   class version of the constructor is called).
+ *
+ * - of course
+ *
+ *       ACTUALLY PROPERLY HANDLING THE EVENTS INSIDE compute()
+ *
+ *   which just requires something like
+ *
+ *       for( auto ev : v_events[ type ] )
+ *        switch( ev() ) {
+ *         case( eContinue ): break; 
+ *         case(    ...    ): < properly perform the requested action >
+ *         ...
+ *         }
+ *
+ *   in the appropriate places of compute(), depending on type.
  *
  * Note that max_event_number() by default returns 0, which implies that the
- * :Solver does not support *any* event. */
+ * :Solver does not support *any* event, and therefore that there is no need
+ * to resize v_events. */
 
  /// returns the maximum number of event types supported by the :Solver
  /** Returns the maximum number of event types supported by the :Solver,
@@ -839,17 +890,13 @@ public:
   * ( type , id ). An exception is thrown if the ThinComputeInterface is not
   * capable of handling this type or event for whatever reason, among which
   * that it has exhausted the available maximum number of event handlers
-  * slots for the given type. The method of the base class always throws
-  * exception. */
+  * slots for the given type. */
 
  EventID set_event_handler( int type , EventHandler && event ) override
  {
   if( type >= max_event_number() )
    throw( std::invalid_argument( "unsupported event type " +
 				 std::to_string( type ) ) );
-
-  if( v_events.empty() )
-   v_events.resize( max_event_number() );
 
   if( v_events[ type ].size() > std::numeric_limits<EventID>::max() )
    throw( std::invalid_argument( "too many event handlers for type" +
@@ -1544,7 +1591,7 @@ public:
   }
 
 /*--------------------------------------------------------------------------*/
- 
+
  int get_dflt_int_par( const idx_type par ) const override
  {
   return( par < intLastAlgPar ? dflt_int_par[ par ] :
@@ -1552,7 +1599,7 @@ public:
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- 
+
  double get_dflt_dbl_par( const idx_type par ) const override
  {
   return( par < dblLastAlgPar ? dflt_dbl_par[ par ] :
@@ -1563,28 +1610,21 @@ public:
 
  idx_type int_par_str2idx( const std::string & name ) const override
  {
-  if( name == "intMaxIter" )
-   return( intMaxIter );
-  if( name == "intMaxThread" )
-   return( intMaxThread );
-  if( name == "intMaxSol" )
-   return( intMaxSol );
-  if( name == "intLogVerb" )
-   return( intLogVerb );
-
-  return( ThinComputeInterface::dbl_par_str2idx( name ) );
+  const auto it = int_pars_map.find( name );
+  if( it == int_pars_map.end() )
+   throw( std::invalid_argument( std::string( "int parameter " ) + name +
+				 std::string( " unknown" ) ) );
+  return( it->second );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  idx_type dbl_par_str2idx( const std::string & name ) const override
  {
-  // these may be many enough as to warrant using a map
   const auto it = dbl_pars_map.find( name );
   if( it == dbl_pars_map.end() )
    throw( std::invalid_argument( std::string( "dbl parameter " ) + name +
 				 std::string( " unknown" ) ) );
-
   return( it->second );
   }
 
@@ -1911,6 +1951,9 @@ protected:
 
  const static std::vector< std::string > dbl_pars_str;
  ///< the (static const) vector of double parameters names
+
+ const static std::map< std::string , idx_type > int_pars_map;
+ ///< the (static const) map for int parameters names
 
  const static std::map< std::string , idx_type > dbl_pars_map;
  ///< the (static const) map for double parameters names

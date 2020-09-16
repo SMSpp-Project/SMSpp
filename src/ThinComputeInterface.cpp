@@ -5,9 +5,9 @@
  * Implementation of the ThinComputeInterface and of the ComputeConfig
  * classes.
  *
- * \version 0.10
+ * \version 0.11
  *
- * \date 03 - 09 - 2018
+ * \date 15 - 06 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -136,18 +136,17 @@ void ComputeConfig::deserialize( netCDF::NcGroup & group )
  // f_diff field- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  netCDF::NcGroupAtt diff = group.getAtt( "diff" );
  if( diff.isNull() )
-  throw( std::invalid_argument( "missing diff in netCDF group" ) );
-
- int diffint;
- diff.getValues( &diffint );
- f_diff = diffint > 0;
+  f_diff = false;
+ else {
+  int diffint;
+  diff.getValues( &diffint );
+  f_diff = diffint > 0;
+  }
 
  // int parameters- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  netCDF::NcDim nip = group.getDim( "num_int_par" );
- if( nip.isNull() )
-  throw( std::invalid_argument( "missing num_int_par in netCDF group" ) );
+ size_t num_int_par = nip.isNull() ? 0 : nip.getSize();
 
- size_t num_int_par = nip.getSize();
  if( num_int_par ) {
   netCDF::NcVar int_par_names = group.getVar( "int_par_names" );
   if( int_par_names.isNull() )
@@ -167,10 +166,8 @@ void ComputeConfig::deserialize( netCDF::NcGroup & group )
 
  // double parameters - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  netCDF::NcDim ndp = group.getDim( "num_dbl_par" );
- if( ndp.isNull() )
-  throw( std::invalid_argument( "missing num_dbl_par in netCDF group" ) );
+ size_t num_dbl_par = ndp.isNull() ? 0 : ndp.getSize();
 
- size_t num_dbl_par = ndp.getSize();
  if( num_dbl_par ) {
   netCDF::NcVar dbl_par_names = group.getVar( "dbl_par_names" );
   if( dbl_par_names.isNull() )
@@ -190,10 +187,8 @@ void ComputeConfig::deserialize( netCDF::NcGroup & group )
 
  // string parameters - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  netCDF::NcDim nsp = group.getDim( "num_str_par" );
- if( nsp.isNull() )
-  throw( std::invalid_argument( "missing num_str_par in netCDF group" ) );
+ size_t num_str_par = nsp.isNull() ? 0 : nsp.getSize();
 
- size_t num_str_par = nsp.getSize();
  if( num_str_par ) {
   netCDF::NcVar str_par_names = group.getVar( "str_par_names" );
   if( str_par_names.isNull() )

@@ -188,7 +188,7 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration *fsbc )
  if( ( ! tfsbc ) && f_BlockConfig &&
      f_BlockConfig->f_is_feasible_Configuration )
   tfsbc = dynamic_cast<SimpleConfiguration<double> *>(
-			         f_BlockConfig->f_is_feasible_Configuration );
+                         f_BlockConfig->f_is_feasible_Configuration );
  if( tfsbc )
   eps = tfsbc->f_value;
 

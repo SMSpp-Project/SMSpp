@@ -8,9 +8,9 @@
  * a ComputeConfig object that allows to set and get all the parameters of a
  * :ThinComputeInterface object in one blow.
  *
- * \version 0.10
+ * \version 0.11
  *
- * \date 03 - 09 - 2018
+ * \date 15 - 06 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -206,8 +206,12 @@ public:
 
 /*--------------------------------------------------------------------------*/
  /// public enum for the possible types of events
- /**
-  */
+ /** This enum defines a set of "basic" event types that every
+  * :ThinComputeInterface should reasonably be able to manage, although each
+  * :ThinComputeInterface is completely free to choose which ones it actually
+  * supports. Also, a :ThinComputeInterface is completely free to "extend"
+  * event_type and define new class-specific events that their compute() can
+  * support. */
 
  enum event_type {
  eBeforeTermination = 0 ,   ///< event to be called just prior to terminating
@@ -225,8 +229,24 @@ public:
  * and check the stopping conditions again. */
 
  eEverykIteration   = 1 ,   ///< events to be called every k iterations
+                            /**< Type of events that will be called every
+			     * k iterations, whatever "iteration" means for
+ * the compute() at hand. The value of k is to be set with a separate
+ * algorithmic parameter, properly defined by derived classes actually
+ * implementing the mechanism. */
 
- eEveryTTime        = 2 ,
+ eEveryTTime        = 2 ,   ///< events to be called periodically in time
+                            /**< Type of events that will be called 
+			     * periodically every fixed amount T of time.
+ * The value of T is to be set with a separate algorithmic parameter, properly
+ * defined by derived classes actually implementing the mechanism. Note that
+ * in general one does not expect derived classes to be very "tight" in heeding
+ * to the time interval T, in the sense that they will typically check
+ * periodically (say, every iteration) whether the elapsed time has passed,
+ * and call the event of it has. If iterations are much longer than T this
+ * may cause some events not to be called at all, although of course a
+ * derived class may place appropriate checks in multiple places to try to
+ * avoid this. */
 
  e_last_event_type  = 4     ///< conveniemce value to define new events
                             /**< conveniemce value to allow derived classes
@@ -891,8 +911,8 @@ public:
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- ///< get the whole set of parameters in one blow
- /**< This method gets the whole set of parameters in one blow using a
+ /// get the whole set of parameters in one blow
+ /** This method gets the whole set of parameters in one blow using a
   * ComputeConfig object.
   *
   * If a non-null ocfg is provided, then the pointed object (that is assumed
@@ -999,11 +1019,13 @@ class ComputeConfig : public Configuration
 
 /*---------------------------- CONSTRUCTORS --------------------------------*/
  /// constructor: initializes everything to "default configuration"
+
  ComputeConfig( void ) : Configuration() , f_diff( true ) ,
   f_extra_Configuration( nullptr ) {}
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: does what it says on the tin
+ 
  ComputeConfig( const ComputeConfig &old ) : Configuration() {
   f_diff = old.f_diff;
   int_pars = old.int_pars;
@@ -1014,13 +1036,13 @@ class ComputeConfig : public Configuration
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
  /// destructor; it deletes the f_extra_Configuration (if any)
- virtual ~ComputeConfig() {
-  delete f_extra_Configuration;
-  }
+
+ virtual ~ComputeConfig() { delete f_extra_Configuration; }
 
 /*------------------------------- CLONE -----------------------------------*/
  /// clone method
- virtual ComputeConfig * clone( void ) const override {
+
+ ComputeConfig * clone( void ) const override {
   return( new ComputeConfig( *this ) );
   }
 
@@ -1030,56 +1052,68 @@ class ComputeConfig : public Configuration
   * format of a ComputeConfig. Besides the mandatory "type" attribute of
   * any :Configuration, the group should contain the following:
   *
-  * - the attribute "diff" of int type containing the value for the f_diff
-  *   field of the ComputeConfig (basically, a bool telling if the
+  * - the optional attribute "diff" of int type containing the value for the
+  *   f_diff field of the ComputeConfig (basically, a bool telling if the
   *   information in it has to be taken as "the configuration to be set" or
-  *   as "the changes to be made from the current configuration");
+  *   as "the changes to be made from the current configuration"); if the
+  *   attribute is not there, f_diff == false is assumed.
   *
-  * - the dimension "num_int_par" containing the number of int parameters;
+  * - the optional dimension "num_int_par" containing the number of int
+  *   parameters; if the dimension is not provided, 0 is assumed;
   *
   * - the variable "int_par_names", of type string and indexed over the
   *   dimension "num_int_par"; the i-th entry of the variable is assumed to
   *   contain the string name of an int parameter (see int_par_idx2str());
+  *   the variable is optional if num_int_par == 0 (e.g., it not provided),
+  *   since in this case it is ignored;
   *
   * - the variable "int_par_vals", of type int and indexed over the
   *   dimension "num_int_par"; the i-th entry of the variable is assumed to
   *   contain the value of the int parameter whose string name is to be found
-  *   in the i-th entry of "int_par_names";
+  *   in the i-th entry of "int_par_names"; the variable is optional if
+  *   num_int_par == 0 (e.g., it not provided), since in this case it is
+  *   ignored;
   *
-  * - the dimension "num_dbl_par" containing the number of double parameters;
+  * - the opional dimension "num_dbl_par" containing the number of double
+  *   parameters; if the dimension is not provided, 0 is assumed;
   *
   * - the variable "dbl_par_names", of type string and indexed over the
   *   dimension "num_dbl_par"; the i-th entry of the variable is assumed to
   *   contain the string name of a double parameter (see dbl_par_idx2str());
+  *   the variable is optional if num_dbl_par == 0 (e.g., it not provided),
+  *   since in this case it is ignored;
   *
   * - the variable "dbl_par_vals", of type double and indexed over the
   *   dimension "num_dbl_par"; the i-th entry of the variable is assumed to
   *   contain the value of the double parameter whose string name is to be
-  *   found in the i-th entry of "dbl_par_names";
+  *   found in the i-th entry of "dbl_par_names"; the variable is optional if
+  *   num_dbl_par == 0 (e.g., it not provided), since in this case it is
+  *   ignored;
   *
-  * - the dimension "num_str_par" containing the number of string parameters;
+  * - the optional dimension "num_str_par" containing the number of string
+  *   parameters; if the dimension is not provided, 0 is assumed;
   *
   * - the variable "str_par_names", of type string and indexed over the
   *   dimension "num_str_par"; the i-th entry of the variable is assumed to
   *   contain the string name of a string parameter (see int_par_idx2str());
+  *   the variable is optional if num_str_par == 0 (e.g., it not provided),
+  *   since in this case it is ignored;
   *
   * - the variable "str_par_vals", of type string and indexed over the
   *   dimension "num_str_par"; the i-th entry of the variable is assumed to
   *   contain the value of the string parameter whose string name is to be
-  *   found in the i-th entry of "str_par_names";
+  *   found in the i-th entry of "str_par_names"; the variable is optional if
+  *   num_int_par == 0 (e.g., it not provided), since in this case it is
+  *   ignored;
   *
   * - the group "extra" containing a Configuration object, which has no
   *   direct use in the base ComputeConfig class, but is added so that
   *   derived classes can put there any configuration information without
   *   having to define further derived classes form ComputeConfig (which,
-  *   however, they can still do if they want).
-  *
-  * The three dimensions "num_*_par" are mandatory. If any of these is zero,
-  * the corresponding variables "*_par_names" and "*_par_vals" may not be
-  * defined. The "extra" group may not exist, in which case the corresponding
-  * Configuration object is set to a nullptr. */
+  *   however, they can still do if they want); the group is optional, if it
+  *   does not exist the corresponding Configuration * is set to nullptr. */
 
- virtual void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( netCDF::NcGroup & group ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// extends Configuration::serialize( netCDF::NcGroup )
@@ -1088,7 +1122,118 @@ class ComputeConfig : public Configuration
   * ComputeConfig::deserialize( netCDF::NcGroup ) for details of the format
   * of the created netCDF group. */
 
- virtual void serialize( netCDF::NcGroup & group ) const override;
+ void serialize( netCDF::NcGroup & group ) const override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// clears the vectors of parameters and the extra Configuration
+ /** This method clears the vectors holding the integer, double, and string
+  * parameters (#int_pars, #dbl_pars, and #str_pars). If
+  * #f_extra_Configuration is not nullptr then Configuration::clear() is
+  * invoked for #f_extra_Configuration. Moreover, #f_diff is set to false. */
+
+ void clear( void ) override {
+  int_pars.clear();
+  dbl_pars.clear();
+  str_pars.clear();
+
+  f_diff = false;
+
+  if( f_extra_Configuration )
+   f_extra_Configuration->clear();
+  }
+
+/*--------------------- METHODS FOR CHANGING PARAMETERS --------------------*/
+ /// set the given integer (int) numerical parameter
+ /** Set the integer (int) numerical parameter specified by \p name. If the
+  * parameter is not in the corresponding list it is added, otherwise its
+  * current value is changed to \p value. */
+
+ void set_par( std::string && name , int value ) {
+  auto it = std::find_if( int_pars.begin() , int_pars.end() ,
+		       [ & name ]( const std::pair< std::string , int > & el )
+		                 { return( name == el.first ); } );
+
+  if( it == int_pars.end() )
+   int_pars.push_back( std::pair< std::string , int >( std::move( name ) ,
+						       value ) );
+  else
+   it->second = value;
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// set the given float (double) numerical parameter
+ /** Set the float (double) numerical parameter specified by \p name. If the
+  * parameter is not in the corresponding list it is added, otherwise its
+  * current value is changed to \p value. */
+
+ void set_par( std::string && name , double value ) {
+  auto it = std::find_if( dbl_pars.begin() , dbl_pars.end() ,
+		   [ & name ]( const std::pair< std::string , double > & el )
+		             { return( name == el.first ); } );
+
+  if( it == dbl_pars.end() )
+   dbl_pars.push_back( std::pair< std::string , double >(
+					       std::move( name ) , value ) );
+  else
+   it->second = value;
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// set the given string numerical parameter
+ /** Set the numerical parameter specified by \p name. If the parameter is
+  * not in the corresponding list it is added, otherwise its current value is
+  * changed to \p value. */
+
+ void set_par( std::string && name , std::string && value ) {
+  auto it = std::find_if( str_pars.begin() , str_pars.end() ,
+	      [ & name ]( const std::pair< std::string , std::string > & el )
+		        { return( name == el.first ); } );
+
+  if( it == str_pars.end() )
+   str_pars.push_back( std::pair< std::string , std::string >(
+				  std::move( name ) , std::move( value ) ) );
+  else
+   it->second = std::move( value );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// removes a given parameter
+ /** Seeks the parameter with given \p name in the list of integer, double or
+  * string parameters as specified by \p type (with the values 'i', 'd' and
+  * 's', respectively); if it is found it is removed from the list, otherwise
+  * nothing is done. */
+
+ void reset_par( const std::string & name , char type = 'i' ) {
+  switch( type ) {
+   case( 'i' ): {
+    auto it = std::find_if( int_pars.begin() , int_pars.end() ,
+		       [ & name ]( const std::pair< std::string , int > & el )
+		                 { return( name == el.first ); } );
+    if( it != int_pars.end() ) {
+     *it = std::move( int_pars.back() );
+     int_pars.pop_back();
+     }
+    }
+   case( 'd' ): {
+    auto it = std::find_if( dbl_pars.begin() , dbl_pars.end() ,
+		    [ & name ]( const std::pair< std::string , double > & el )
+		              { return( name == el.first ); } );
+    if( it != dbl_pars.end() ) {
+     *it = std::move( dbl_pars.back() );
+     dbl_pars.pop_back();
+     }
+    }
+   case( 's' ): {
+    auto it = std::find_if( str_pars.begin() , str_pars.end() ,
+	      [ & name ]( const std::pair< std::string , std::string > & el )
+		        { return( name == el.first ); } );
+    if( it != str_pars.end() ) {
+     *it = std::move( str_pars.back() );
+     str_pars.pop_back();
+     }
+    }
+   }
+  }  // end( reset_par )
 
 /*--------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
 
@@ -1113,7 +1258,7 @@ class ComputeConfig : public Configuration
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 
  /// print the ComputeConfig
- virtual void print( std::ostream &output ) const override;
+ void print( std::ostream &output ) const override;
 
 /*--------------------------------------------------------------------------*/
  /// load this ComputeConfig out of an istream
@@ -1139,13 +1284,13 @@ class ComputeConfig : public Configuration
   * - a string containing the name of the string perameter
   * - a string (the parameter)
   *
-  * a string containing the class type of the extrs Configuration object,
+  * a string containing the class type of the extra Configuration object,
   * '*' means none (nullptr)
   *
   * if the above is not '*', the description of the :Configuration object
   */
 
- virtual void load( std::istream &input ) override;
+ void load( std::istream &input ) override;
 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 

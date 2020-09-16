@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 02 - 08 - 2020
+ * \date 15 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -30,10 +30,12 @@
 
 #include "AbstractPath.h"
 #include "BendersBFunction.h"
+#include "BlockSolverConfig.h"
 #include "FRowConstraint.h"
 #include "Objective.h"
 #include "Observer.h"
 #include "OneVarConstraint.h"
+#include "RBlockConfig.h"
 #include "RowConstraint.h"
 #include "SMSTypedefs.h"
 #include "Solution.h"
@@ -54,6 +56,13 @@ using namespace SMSpp_di_unipi_it;
 SMSpp_insert_in_factory_cpp_1( BendersBFunction );
 
 /*--------------------------------------------------------------------------*/
+/*----------------------------- PRIVATE FIELDS -----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+// The AbstractPath to the affected RowConstraint
+std::vector< AbstractPath > v_paths_to_constraints;
+
+/*--------------------------------------------------------------------------*/
 /*---------------------------------TODO-------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -64,6 +73,45 @@ void BendersBFunction::load( std::istream &input ) {
 /*--------------------------------------------------------------------------*/
 /*------------- CONSTRUCTING AND DESTRUCTING BendersBFunction --------------*/
 /*--------------------------------------------------------------------------*/
+
+/*      IMPORTANT NOTE ON THE DESERIALIZATION OF THE BendersBFunction
+ *
+ * The BendersBFunction maintains a vector of pointers to the Constraint that
+ * are affected by its active Variable. Each of these Constraint is identified
+ * by an AbstractPath having the inner Block of this BendersBFunction as the
+ * reference Block (see AbstractPath for more details about the reference
+ * Block). When a BendersBFunction is deserialized, the paths to these
+ * Constraint are provided in the netCDF file. The issue is that after the
+ * inner Block is constructed, it is very likely that its abstract
+ * representation has not been generated yet, so that it is not possible to
+ * retrieve the pointers to the Constraint (because these Constraint still do
+ * not exist). After the inner Block is constructed, the BendersBFunction
+ * could ask the inner Block to generate its abstract representation, so that
+ * the BendersBFuntion would then be able to retrieve the pointers to the
+ * Constraint. The issue is that the abstract representation can be generated
+ * only once. If one were to generate the abstract representation of the inner
+ * Block at a later stage, after the BendersBFunction is deserialized (and,
+ * therefore, after the abstract representation of the inner Block has been
+ * generated), it would take no effect. This is particularly serious because
+ * one may want to use a Configuration to generate the abstract representation
+ * of the inner Block. This means that the abstract representation of the
+ * inner Block may not be the desired one if it is generated during the
+ * deserialization of the BendersBFunction (and, thus, without the appropriate
+ * Configuration). In order to deal with this situation, the abstract
+ * representation of the inner Block is not generated during the
+ * deserialization of the BendersBFunction. Instead, the BendersBFunction asks
+ * the inner Block to generate its abstract representation at the first time
+ * the BendersBFunction needs access to the Constraint. Doing this, gives
+ * someone a chance to generate the abstract representation of the inner Block
+ * after the deserialization of the inner Block.
+ *
+ * Therefore, the vector of pointers to the affected Constraint (namely,
+ * v_constraints) is lazy initialized and, thus,
+ *
+ *      THE CURRENT (VERY INCONVENIENT) SOLUTION REQUIRES THE METHOD
+ *      retrieve_constraints() TO BE INVOKED RIGHT BEFORE THE
+ *      POINTER TO A Constraint IS NEEDED.
+ */
 
 void BendersBFunction::deserialize( netCDF::NcGroup & group ,
                                     ModParam issueMod ) {
@@ -189,9 +237,6 @@ void BendersBFunction::deserialize( netCDF::NcGroup & group ,
 
  set_inner_block( inner_block );
 
- inner_block->generate_abstract_variables();
- inner_block->generate_abstract_constraints();
-
  std::vector< ConstraintSide > sides;
  if( ! ::deserialize( group , "ConstraintSide" , tb.size() , sides , true ) ) {
   sides.resize( tb.size() );
@@ -205,33 +250,22 @@ void BendersBFunction::deserialize( netCDF::NcGroup & group ,
 
  auto path_group = group.getGroup( "AbstractPath" );
 
- std::vector< AbstractPath > paths;
-
  if( ! path_group.isNull() )
-  paths = AbstractPath::vector_deserialize( path_group );
+  v_paths_to_constraints = AbstractPath::vector_deserialize( path_group );
  else if( sides.size() > 0 )
   throw ( std::invalid_argument( "BendersBFunction::deserialize: The group "
                                  "'AbstractPath' was not found." ) );
 
- if( paths.size() != sides.size() )
+ if( v_paths_to_constraints.size() != sides.size() )
   throw ( std::invalid_argument( "BendersBFunction::deserialize: The number of "
                                  "AbstractPath to Constraint must be equal to "
                                  "the size of the 'ConstraintSide' vector." ) );
 
+ // The pointers to the affected RowConstraint are retrieved at the first time
+ // they are needed, so as to give someone a chance to generate the abstract
+ // representation of the inner Block.
  std::vector< RowConstraint * > constraints;
- constraints.reserve( paths.size() );
-
- for( Index i = 0 ; i < sides.size() ; ++i ) {
-
-  auto constraint = AbstractPath::get_element< RowConstraint >
-   ( paths[ i ] , get_inner_block() );
-
-  if( ! constraint )
-   throw ( std::invalid_argument( "BendersBFunction::deserialize: Constraint " +
-                                  std::to_string( i ) + " was not found." ) );
-
-  constraints.push_back( constraint );
- }
+ constraints.resize( v_paths_to_constraints.size() , nullptr );
 
  set_mapping( std::move( tA ) , std::move( tb ) ,
               std::move( constraints ) , std::move( sides ) , issueMod );
@@ -281,7 +315,7 @@ void BendersBFunction::set_par( const idx_type par , const int value ) {
 
    global_pool.resize( value );
 
-   if( f_Observer && value < old_size ) {
+   if( f_Observer && ( decltype( old_size)( value ) < old_size ) ) {
     // The size of the global pool is being reduced. We store in "which" the
     // indices of the deleted linearizations.
     Subset which( global_pool.size() - value );
@@ -965,7 +999,7 @@ void BendersBFunction::add_rows( MultiVector && nA , c_RealVector & nb ,
 
  v_b.insert( v_b.end() , nb.begin(), nb.end() );
 
- v_constraints.insert( v_constraints.end() , nc.begin(), nc.end() );
+ add_constraints( nc );
 
  v_sides.insert( v_sides.end() , ns.begin(), ns.end() );
 
@@ -1014,8 +1048,8 @@ void BendersBFunction::add_row( RealVector && Ai , FunctionValue bi ,
 
  v_A.push_back( std::move( Ai ) );
  v_b.push_back( bi );
- v_constraints.push_back( ci );
  v_sides.push_back( si );
+ add_constraint( ci );
 
  constraints_are_updated = false;
 
@@ -1077,8 +1111,7 @@ void BendersBFunction::delete_rows( Range range , ModParam issueMod ) {
 
  v_b.erase( v_b.begin() + range.first , v_b.begin() + range.second );
 
- v_constraints.erase( v_constraints.begin() + range.first ,
-                      v_constraints.begin() + range.second );
+ remove_constraints( range );
 
  v_sides.erase( v_sides.begin() + range.first ,
                 v_sides.begin() + range.second );
@@ -1146,11 +1179,7 @@ void BendersBFunction::delete_rows( Subset && rows , bool ordered ,
             v_b.end() );
 
  // kill stuff in v_constraints[]
- v_constraints.erase
-  ( std::remove_if( v_constraints.begin() + rows.front() , v_constraints.end() ,
-                    []( RowConstraint * ci ) {
-                     return( ci == nullptr ); } ) ,
-    v_constraints.end() );
+ remove_constraints( rows );
 
  // kill stuff in v_sides[]
  v_sides.erase
@@ -1201,7 +1230,7 @@ void BendersBFunction::delete_row( c_Index i , ModParam issueMod ) {
 
  v_A.erase( v_A.begin() + i );                     // kill i in v_A[]
  v_b.erase( v_b.begin() + i );                     // kill i in v_b[]
- v_constraints.erase( v_constraints.begin() + i ); // kill i in v_constraints[]
+ remove_constraint( i );                           // kill i in v_constraints[]
  v_sides.erase( v_sides.begin() + i );             // kill i in v_sides[]
 
  constraints_are_updated = false;
@@ -1225,7 +1254,7 @@ void BendersBFunction::delete_row( c_Index i , ModParam issueMod ) {
 void BendersBFunction::delete_rows( ModParam issueMod ) {
  v_A.clear();   // delete original rows
  v_b.clear();
- v_constraints.clear();
+ remove_constraints();
  v_sides.clear();
 
  global_pool.invalidate();
@@ -1241,6 +1270,95 @@ void BendersBFunction::delete_rows( ModParam issueMod ) {
                                Observer::par2chnl( issueMod ) );
 
 }  // end( BendersBFunction::delete_rows( all ) )
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::set_default_inner_Block_BlockConfig() {
+ if( auto inner_block = get_inner_block() ) {
+   auto config = new OCRBlockConfig( inner_block );
+   config->clear();
+   config->apply( inner_block );
+  }
+}
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::set_default_inner_Block_BlockSolverConfig() {
+ if( auto inner_block = get_inner_block() ) {
+   auto solver_config = new RBlockSolverConfig( inner_block );
+   solver_config->clear();
+   solver_config->apply( inner_block );
+  }
+}
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::set_ComputeConfig( ComputeConfig * scfg ) {
+
+ ThinComputeInterface::set_ComputeConfig( scfg );
+
+ auto inner_block = get_inner_block();
+
+ if( ! inner_block )
+  return;
+ else if( ! scfg ) {
+  // scfg is nullptr
+  set_default_inner_Block_configuration();
+  return;
+ }
+ else if( ! scfg->f_extra_Configuration ) {
+  // scfg->f_extra_Configuration is nullptr
+  if( ! scfg->f_diff )
+   set_default_inner_Block_configuration();
+  return;
+ }
+
+ // Set the BlockConfig of the inner Block
+
+ if( auto config = dynamic_cast< SimpleConfiguration
+     < std::pair< Configuration * , Configuration * > > * >
+     ( scfg->f_extra_Configuration ) ) {
+
+  if( config->f_value.first ) {
+   if( auto block_config = dynamic_cast< BlockConfig * >
+       ( config->f_value.first ) )
+    block_config->apply( inner_block );
+   else
+    throw( std::invalid_argument
+           ( "BendersBFunction::set_ComputeConfig: the first element "
+             "of the pair of the extra Configuration must be a pointer "
+             "to a :BlockConfig." ) );
+  }
+  else {
+   // A BlockConfig for the inner Block was not provided
+   // scfg->f_extra_Configuration->f_value.first is nullptr
+   if( ! scfg->f_diff )
+    set_default_inner_Block_BlockConfig();
+  }
+
+  // Set the BlockSolverConfig of the inner Block
+
+  if( config->f_value.second ) {
+   if( auto block_config = dynamic_cast< BlockSolverConfig * >
+       ( config->f_value.second ) )
+    block_config->apply( inner_block );
+   else
+    throw( std::invalid_argument
+           ( "BendersBFunction::set_ComputeConfig: the second element "
+             "of the pair of the extra Configuration must be a pointer "
+             "to a :BlockSolverConfig." ) );
+  }
+  else {
+   // A BlockSolverConfig for the inner Block was not provided
+   // scfg->f_extra_Configuration->f_value.second is nullptr
+   if( ! scfg->f_diff )
+    set_default_inner_Block_BlockSolverConfig();
+  }
+ }
+ else
+  throw( std::invalid_argument( "BendersBFunction::set_ComputeConfig: "
+                                "invalid type of extra Configuration." ) );
+}  // end( BendersBFunction::set_ComputeConfig )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- Methods for handling Modification -------------------*/
@@ -1533,14 +1651,18 @@ void BendersBFunction::serialize( netCDF::NcGroup & group ) const {
                NcDim_NumRow , v_sides );
  }
 
- std::vector< AbstractPath > paths;
- paths.reserve( v_constraints.size() );
- for( const auto constraint : v_constraints ) {
-  paths.push_back( AbstractPath::build_path< Constraint >
-                   ( constraint , get_inner_block() ) );
+ if( v_paths_to_constraints.empty() ) {
+  std::vector< AbstractPath > paths;
+  paths.reserve( v_constraints.size() );
+  for( const auto constraint : v_constraints ) {
+   paths.push_back( AbstractPath::build_path< Constraint >
+                    ( constraint , get_inner_block() ) );
+  }
+  AbstractPath::serialize( paths , group );
  }
-
- AbstractPath::serialize( paths , group );
+ else {
+  AbstractPath::serialize( v_paths_to_constraints , group );
+ }
 
  if( auto inner_block = get_inner_block() ) {
   auto inner_block_group = group.addGroup( BLOCK_NAME );
@@ -1584,7 +1706,7 @@ int BendersBFunction::compute( bool changedvars ) {
 
 bool BendersBFunction::is_convex( void ) const {
  if( v_Block.empty() ) return false;
- return( v_Block[ 0 ]->get_objective_sense() == Objective::eMin );
+ return( v_Block.front()->get_objective_sense() == Objective::eMin );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -1592,7 +1714,7 @@ bool BendersBFunction::is_convex( void ) const {
 bool BendersBFunction::is_concave( void ) const {
  if( v_Block.empty() )
   return false;
- return( v_Block[ 0 ]->get_objective_sense() == Objective::eMax );
+ return( v_Block.front()->get_objective_sense() == Objective::eMax );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -1642,7 +1764,7 @@ Function::FunctionValue BendersBFunction::get_value( void ) const {
                            "get the value. The sub-Block has no Solver "
                            "attached to it." ) );
 
- if( v_Block[ 0 ]->get_objective_sense() == Objective::eMin )
+ if( v_Block.front()->get_objective_sense() == Objective::eMin )
   return solver->get_ub();
  return solver->get_lb();
 
@@ -1677,8 +1799,8 @@ void BendersBFunction::store_linearization( Index name , ModParam issueMod ) {
  Solution * solution = nullptr;
 
  if( ! solution )
-  solution = v_Block[ 0 ]->get_Solution();
- solution->read( v_Block[ 0 ] );
+  solution = v_Block.front()->get_Solution();
+ solution->read( v_Block.front() );
 
  // Lazy computation of the linearization constant
 
@@ -1786,8 +1908,8 @@ void BendersBFunction::get_linearization_coefficients( FunctionValue * g ,
  for( Index i = range.first ; i < range.second ; ++i )
   g[ i ] = 0;
 
- for( Index j = 0; j < v_constraints.size(); ++j ) {
-  const auto dual_value = get_dual_value( v_constraints[ j ] , v_sides[ j ] );
+ for( Index j = 0 ; j < v_constraints.size() ; ++j ) {
+  const auto dual_value = get_dual_value( get_constraint( j ) , v_sides[ j ] );
   for( Index i = range.first ; i < range.second ; ++i )
    g[ i - range.first ] += dual_value * v_A[ j ][ i ];
  }
@@ -1820,7 +1942,7 @@ void BendersBFunction::get_linearization_coefficients( SparseVector & g ,
  }
 
  for( Index j = 0; j < v_constraints.size(); ++j ) {
-  const auto dual_value = get_dual_value( v_constraints[ j ] , v_sides[ j ] );
+  const auto dual_value = get_dual_value( get_constraint( j ) , v_sides[ j ] );
   for( Index i = range.first ; i < range.second ; ++i )
    g.coeffRef( i ) += dual_value * v_A[ j ][ i ];
  }
@@ -1843,7 +1965,7 @@ void BendersBFunction::get_linearization_coefficients( FunctionValue * g ,
  }
 
  for( Index j = 0; j < v_constraints.size(); ++j ) {
-  const auto dual_value = get_dual_value( v_constraints[ j ] , v_sides[ j ] );
+  const auto dual_value = get_dual_value( get_constraint( j ) , v_sides[ j ] );
   for( auto i : subset )
    g[ i ] += dual_value * v_A[ j ][ i ];
  }
@@ -1884,7 +2006,7 @@ void BendersBFunction::get_linearization_coefficients( SparseVector & g ,
  }
 
  for( Index j = 0; j < v_constraints.size(); ++j ) {
-  const auto dual_value = get_dual_value( v_constraints[ j ] , v_sides[ j ] );
+  const auto dual_value = get_dual_value( get_constraint( j ) , v_sides[ j ] );
   for( auto i : subset )
    g.coeffRef( i ) += dual_value * v_A[ j ][ i ];
  }
@@ -1905,7 +2027,7 @@ Function::FunctionValue BendersBFunction::get_dual_value
   // Two constraints (lower and upper)
 
   RowConstraint::RHSValue sign =
-   ( v_Block[ 0 ]->get_objective_sense() == Objective::eMin ) ? - 1 : 1;
+   ( v_Block.front()->get_objective_sense() == Objective::eMin ) ? - 1 : 1;
 
   assert( side != eBoth );
 
@@ -1929,7 +2051,7 @@ Function::FunctionValue BendersBFunction::compute_linearization_constant() {
 
  for( Index j = 0; j < v_constraints.size(); ++j ) {
 
-  const auto constraint = v_constraints[ j ];
+  const auto constraint = get_constraint( j );
   const auto side = v_sides[ j ];
   const auto dual_value = get_dual_value( constraint , side );
   const auto b = v_b[ j ];
@@ -1971,7 +2093,7 @@ void BendersBFunction::write_dual_solution_from_global_pool( Index name ) {
 
  // TODO check whether the solution has already been written into the Block
 
- solution->write( v_Block[ 0 ] );
+ solution->write( v_Block.front() );
 }  // end( BendersBFunction::write_dual_solution_from_global_pool )
 
 /*--------------------------------------------------------------------------*/
@@ -2012,6 +2134,53 @@ Function::FunctionValue BendersBFunction::get_linearization_constant(
 }  // end( BendersBFunction::get_linearization_constant )
 
 /*--------------------------------------------------------------------------*/
+
+ComputeConfig * BendersBFunction::get_ComputeConfig
+( bool all , ComputeConfig * ocfg ) const {
+
+ auto ccfg = ThinComputeInterface::get_ComputeConfig( all , ocfg );
+
+ if( ! ccfg ) {
+  ccfg = new ComputeConfig();
+  ccfg->f_diff = !all;
+ }
+
+ auto extra_config = dynamic_cast< SimpleConfiguration<
+  std::pair< Configuration * , Configuration * > > * >
+  ( ccfg->f_extra_Configuration );
+
+ if( ! ( extra_config &&
+     dynamic_cast< BlockConfig * >( extra_config->f_value.first ) &&
+     dynamic_cast< BlockSolverConfig * >( extra_config->f_value.second ) ) ) {
+  // replace the extra Configuration
+  extra_config = new
+   SimpleConfiguration< std::pair< Configuration * , Configuration * > >;
+  delete ccfg->f_extra_Configuration;
+  ccfg->f_extra_Configuration = extra_config;
+  }
+
+ auto inner_block = get_inner_block();
+
+ // Retrieve the BlockConfig of the inner Block
+
+ if( extra_config->f_value.first )
+  dynamic_cast< BlockConfig * >
+   ( extra_config->f_value.first )->get( inner_block );
+ else if( inner_block )
+  extra_config->f_value.first = new OCRBlockConfig( inner_block );
+
+ // Retrieve the BlockSolverConfig of the inner Block
+
+ if( extra_config->f_value.second )
+  dynamic_cast< BlockSolverConfig * >
+   ( extra_config->f_value.second )->get( inner_block );
+ else if( inner_block )
+  extra_config->f_value.second = new RBlockSolverConfig( inner_block );
+
+ return ccfg;
+}  // end( BendersBFunction::get_ComputeConfig )
+
+/*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -2023,11 +2192,11 @@ void BendersBFunction::update_constraints() {
                                     return var->get_value() * val;
                                    } );
   if( v_sides[ i ] == eLHS )
-   v_constraints[ i ]->set_lhs( value );
+   get_constraint( i )->set_lhs( value );
   else if( v_sides[ i ] == eRHS )
-   v_constraints[ i ]->set_rhs( value );
+   get_constraint( i )->set_rhs( value );
   else
-   v_constraints[ i ]->set_both( value );
+   get_constraint( i )->set_both( value );
  }
 
  constraints_are_updated = true;
@@ -2056,9 +2225,11 @@ BendersBFunction::get_behaviour( Objective::of_type sense ,
 /*--------------------------------------------------------------------------*/
 
 BendersBFunction::function_value_behaviour
-BendersBFunction::get_behaviour( std::shared_ptr<BlockModAD> mod ) const {
+BendersBFunction::get_behaviour( std::shared_ptr<BlockModAD> mod ) {
 
  auto behaviour = function_value_behaviour::unchanged;
+
+ retrieve_constraints();
 
  std::vector< Constraint * > affected_constraints;
  mod->get_elements( affected_constraints );
@@ -2097,11 +2268,13 @@ BendersBFunction::get_behaviour( std::shared_ptr<BlockModAD> mod ) const {
 /*--------------------------------------------------------------------------*/
 
 BendersBFunction::function_value_behaviour
-BendersBFunction::get_behaviour( std::shared_ptr<ConstraintMod> mod ) const {
+BendersBFunction::get_behaviour( std::shared_ptr<ConstraintMod> mod ) {
 
  if( mod->type() != ConstraintMod::eRelaxConst &&
      mod->type() != ConstraintMod::eEnforceConst )
   return function_value_behaviour::unknown;
+
+ retrieve_constraints();
 
  auto modified_constraint = mod->constraint();
 
@@ -2132,7 +2305,8 @@ void BendersBFunction::send_nuclear_modification
 
 /*--------------------------------------------------------------------------*/
 
-bool BendersBFunction::has_constraint( Constraint * constraint ) const {
+bool BendersBFunction::has_constraint( Constraint * constraint ) {
+ retrieve_constraints();
  for( const auto affected_constraint : v_constraints ) {
   if( constraint == affected_constraint )
    return true;
@@ -2165,6 +2339,127 @@ bool BendersBFunction::is_A_sparse( SparseMatrix<T> & matrix ) const {
  }
  return true;
 }  // end( BendersBFunction::is_A_sparse )
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::retrieve_constraints() {
+ if( v_paths_to_constraints.empty() )
+  return; // no Constraint needs to be retrieved
+
+ auto inner_block = get_inner_block();
+
+ assert( inner_block );
+
+ inner_block->generate_abstract_variables();
+ inner_block->generate_abstract_constraints();
+
+ v_constraints.resize( v_paths_to_constraints.size() );
+
+ for( Index i = 0 ; i < v_sides.size() ; ++i ) {
+
+  auto constraint = AbstractPath::get_element< RowConstraint >
+   ( v_paths_to_constraints[ i ] , inner_block );
+
+  if( ! constraint )
+   throw ( std::logic_error( "BendersBFunction::retrieve_constraints: "
+                             "Constraint " + std::to_string( i ) +
+                             " was not found." ) );
+
+  v_constraints[ i ] = constraint;
+ }
+
+ v_paths_to_constraints.clear(); // paths are no longer needed
+ constraints_are_updated = false;
+}   // end( BendersBFunction::retrieve_constraints )
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::add_constraints( const ConstraintVector & nc ) {
+ if( v_paths_to_constraints.empty() ) {
+  // There is no path to Constraint. We can add the given pointers to
+  // Constraint directly.
+  v_constraints.insert( v_constraints.end() , nc.begin() , nc.end() );
+ }
+ else {
+  // This BendersBFunction still holds paths to Constraint.
+  v_paths_to_constraints.reserve( v_paths_to_constraints.size() + nc.size() );
+  for( auto & constraint : nc )
+   v_paths_to_constraints.push_back( AbstractPath::build_path< Constraint >
+                                     ( constraint , get_inner_block() ) );
+  v_constraints.resize( v_paths_to_constraints.size() , nullptr );
+ }
+}
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::add_constraint( RowConstraint * constraint ) {
+ add_constraints( std::vector<RowConstraint *>{ constraint } );
+}
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::remove_constraints( Range range ) {
+ if( v_paths_to_constraints.empty() ) {
+  // There is no path to Constraint. We can remove the given pointers to
+  // Constraint directly.
+  v_constraints.erase( v_constraints.begin() + range.first ,
+                       v_constraints.begin() + range.second );
+ }
+ else {
+  // This BendersBFunction still holds paths to Constraint.
+  v_paths_to_constraints.erase
+   ( v_paths_to_constraints.begin() + range.first ,
+     v_paths_to_constraints.begin() + range.second );
+  v_constraints.resize( v_paths_to_constraints.size() );
+ }
+}
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::remove_constraints( const Subset & rows ) {
+ if( v_paths_to_constraints.empty() ) {
+  // There is no path to Constraint. We can remove the given pointers to
+  // Constraint directly.
+
+  // mark Constraint to be removed
+  for( auto index : rows )
+   v_constraints[ index ] = nullptr;
+
+  v_constraints.erase
+   ( std::remove_if( v_constraints.begin() + rows.front() , v_constraints.end() ,
+                     []( RowConstraint * ci ) {
+                      return( ci == nullptr ); } ) ,
+     v_constraints.end() );
+ }
+ else {
+  // This BendersBFunction still holds paths to Constraint.
+
+  for( auto index : rows )
+   v_paths_to_constraints[ index ].clear();
+
+  v_paths_to_constraints.erase
+   ( std::remove_if( v_paths_to_constraints.begin() + rows.front() ,
+                     v_paths_to_constraints.end() ,
+                     []( AbstractPath & path ) {
+                      return( path.length() == 0 ); } ) ,
+     v_paths_to_constraints.end() );
+
+  v_constraints.resize( v_paths_to_constraints.size() );
+ }
+}
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::remove_constraints() {
+ v_constraints.clear();
+ v_paths_to_constraints.clear();
+}
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::remove_constraint( Block::Index index ) {
+ remove_constraints( Subset{ index } );
+}
 
 /*--------------------------------------------------------------------------*/
 /*----------------------------- GLOBALPOOL ---------------------------------*/

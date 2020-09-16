@@ -64,15 +64,24 @@ SMSpp_insert_in_factory_cpp_0( UpdateSolver );
 
 /*--------------------------------------------------------------------------*/
 // define and initialize here the vector of int parameters names
-const std::vector< std::string > Solver::int_pars_str =
-               { "intMaxIter" , "intMaxThread" , "intMaxSol" , "intLogVerb" };
+const std::vector< std::string > Solver::int_pars_str = {
+ "intMaxIter" , "intMaxThread" , "intMaxSol" , "intEverykIt" , "intLogVerb" };
 
 // define and initialize here the vector of double parameters names
 const std::vector< std::string > Solver::dbl_pars_str =
 		     { "dblMaxTime"  , "dblRelAcc"   ,  "dblAbsAcc"   ,
 		       "dblUpCutOff" , "dblLwCutOff" ,  "dblRAccSol"  ,
-		       "dblAAccSol"  , "dblFAccSol"
+		       "dblAAccSol" , "dblFAccSol" , "dblEveryTTm"
 		      };
+
+// define and initialize here the map for int parameters names
+const std::map< std::string , Solver::idx_type > Solver::int_pars_map =
+                   { { "intMaxIter"   , Solver::intMaxIter   } ,
+		     { "intMaxThread" , Solver::intMaxThread } ,
+		     { "intMaxSol"    , Solver::intMaxSol   } ,
+		     { "intEverykIt"  , Solver::intEverykIt } ,
+		     { "intLogVerb"   , Solver::intLogVerb }
+                    };
 
 // define and initialize here the map for double parameters names
 const std::map< std::string , Solver::idx_type > Solver::dbl_pars_map =
@@ -83,7 +92,8 @@ const std::map< std::string , Solver::idx_type > Solver::dbl_pars_map =
 		     { "dblLwCutOff" , Solver::dblLwCutOff } ,
 		     { "dblRAccSol"  , Solver::dblRAccSol  } ,
 		     { "dblAAccSol"  , Solver::dblAAccSol  } ,
-		     { "dblFAccSol"  , Solver::dblFAccSol  }
+		     { "dblFAccSol"  , Solver::dblFAccSol  } ,
+		     { "dblEveryTTm" , Solver::dblEveryTTm }
                     };
 
 // define and initialize here the default int parameters
@@ -91,6 +101,7 @@ const std::vector<int> Solver::dflt_int_par =
                        { Inf<int>() ,  // intMaxIter
 			 0 ,           // intMaxThread
 			 1 ,           // intMaxSol
+			 0 ,           // intEverykIt
 			 0             // intLogVerb
                          };
 
@@ -103,7 +114,8 @@ const std::vector<double> Solver::dflt_dbl_par =
 			 - Inf<Solver::OFValue>() ,  // dblLwCutOff
 			 Inf<Solver::OFValue>() ,    // dblRAccSol
 			 Inf<Solver::OFValue>() ,    // dblAAccSol
-			 0                           // dblFAccSol
+			 0 ,                         // dblFAccSol
+			 0                           // dblEveryTTm
                          };
 
 /*--------------------------------------------------------------------------*/
