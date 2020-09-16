@@ -448,7 +448,8 @@ class RBlockConfig : public BlockConfig
  void clear( void ) override {
   BlockConfig::clear();
   for( auto config : v_sub_BlockConfig )
-   config->clear();
+   if( config )
+    config->clear();
   }
 
 /*-------------------------------- CLONE -----------------------------------*/
@@ -904,7 +905,8 @@ class CBlockConfig : public BlockConfig
  void clear( void ) override {
   BlockConfig::clear();
   for( auto config : v_Config_Constraint )
-   config->clear();
+   if( config )
+    config->clear();
   }
 
 /*------------------------------- CLONE ------------------------------------*/
@@ -1203,7 +1205,8 @@ class OBlockConfig : public BlockConfig
 
  void clear( void ) override {
   BlockConfig::clear();
-  f_Config_Objective->clear();
+  if( f_Config_Objective )
+   f_Config_Objective->clear();
   }
 
 /*------------------------------- CLONE ------------------------------------*/
@@ -1488,7 +1491,8 @@ class ORBlockConfig : public RBlockConfig
 
  void clear( void ) override {
   RBlockConfig::clear();
-  f_Config_Objective->clear();
+  if( f_Config_Objective )
+   f_Config_Objective->clear();
   }
 
 /*------------------------------- CLONE ------------------------------------*/
@@ -1899,7 +1903,8 @@ class CRBlockConfig : public RBlockConfig
  void clear( void ) override {
   RBlockConfig::clear();
   for( auto config : v_Config_Constraint )
-   config->clear();
+   if( config )
+    config->clear();
   }
 
 /*------------------------------- CLONE ------------------------------------*/
@@ -2199,7 +2204,8 @@ class OCBlockConfig : public CBlockConfig
 
  void clear( void ) override {
   CBlockConfig::clear();
-  f_Config_Objective->clear();
+  if( f_Config_Objective )
+   f_Config_Objective->clear();
   }
 
 /*------------------------------- CLONE ------------------------------------*/
@@ -2461,7 +2467,8 @@ class OCRBlockConfig : public CRBlockConfig
 
  void clear( void ) override {
   CRBlockConfig::clear();
-  f_Config_Objective->clear();
+  if( f_Config_Objective )
+   f_Config_Objective->clear();
   }
 
 /*------------------------------- CLONE ------------------------------------*/

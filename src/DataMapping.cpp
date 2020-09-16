@@ -71,7 +71,7 @@ void SimpleDataMappingBase::deserialize
   data_mapping->deserialize( sdmb_netCDF , i , set_elements_start_index ,
                              block_reference );
 
-  data_mappings.emplace_back( data_mapping );
+  data_mappings.push_back( data_mapping );
  }
 }
 
