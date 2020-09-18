@@ -36,7 +36,7 @@
  *
  * \version 0.10
  *
- * \date 05 - 06 - 2020
+ * \date 17 - 09 - 2020
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -386,6 +386,7 @@ private:
 
 /*--------------------------------------------------------------------------*/
 
+ /// adds a node to this AbstractPath
  void add_node( Node::NodeType type , Index group_index = Inf<Index>() ,
                 Index element_index = Inf<Index>() ) {
   node_types.push_back( type );
@@ -395,10 +396,27 @@ private:
 
 /*--------------------------------------------------------------------------*/
 
+ /// reverses this AbstractPath
  void reverse() {
   std::reverse( std::begin( node_types ), std::end( node_types ) );
   std::reverse( std::begin( group_indices ), std::end( group_indices ) );
   std::reverse( std::begin( element_indices ), std::end( element_indices ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the length of the given AbstractPath
+ static Index length( const AbstractPath & path ) {
+  return path.length();
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns the length of the given AbstractPath
+ static Index length( const std::unique_ptr<AbstractPath> & path ) {
+  if( path )
+   return path->length();
+  return 0;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -432,7 +450,7 @@ public:
 /** @name Public Classes
     @{ */
 
- /// APnetCDF is a struct to store netCDF dimensions and variables of path
+ /// APnetCDF is a struct to store netCDF dimensions and variables of paths
  /** This struct is used simply to store the netCDF dimensions and variables
   * used to represent an AbstractPath or a vector of AbstractPath.
   */
@@ -459,6 +477,37 @@ public:
   /// Variable storing the element indices
   netCDF::NcVar PathElementIndices;
  };
+
+/**@} ----------------------------------------------------------------------*/
+/*--------------- CONSTRUCTING AND DESTRUCTING AbstractPath ----------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Constructing and destructing AbstractPath
+ *  @{ */
+
+ AbstractPath() { }
+
+/*--------------------------------------------------------------------------*/
+
+ template<class T>
+ AbstractPath( const T * t , const Block * reference_block ) {
+  build( t , reference_block );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ AbstractPath( const netCDF::NcGroup & group ) {
+  deserialize( group );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ AbstractPath( Index path_index , const APnetCDF & netCDFvars ) {
+  deserialize( path_index , netCDFvars );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ virtual ~AbstractPath() { }
 
 /**@}-----------------------------------------------------------------------*/
 /*--------------------------- PUBLIC METHODS -------------------------------*/
@@ -530,54 +579,53 @@ public:
   *         respect to the given \p reference_block.
   */
  template<class T>
- static AbstractPath build_path( const T * t ,
-                                 const Block * reference_block ) {
+ void build( const T * t , const Block * reference_block ) {
 
   static_assert( std::is_base_of_v< Block , T > ||
                  std::is_base_of_v< Constraint , T > ||
                  std::is_base_of_v< Function , T > ||
                  std::is_base_of_v< Objective , T > ||
                  std::is_base_of_v< Variable , T > ,
-                 "build_path: the element type must be one of: "
+                 "AbstractPath::build: the element type must be one of: "
                  "Block, Constraint, Function, Objective, Variable." );
 
-  AbstractPath path;
+  this->clear();
 
   if( ! t )
-   return path;
+   return;
 
   if constexpr( std::is_base_of_v< Constraint , T > ) {
-   path.add_node( t , Node::eConstraint );
+   this->add_node( t , Node::eConstraint );
   }
   else if constexpr( std::is_base_of_v< Variable , T > ) {
-   path.add_node( t , Node::eVariable );
+   this->add_node( t , Node::eVariable );
   }
   else if constexpr( std::is_base_of_v< Objective , T > ) {
-   path.add_node( Node::eObjective );
+   this->add_node( Node::eObjective );
   }
   else if constexpr( std::is_base_of_v< Function , T > ) {
    auto observer = t->get_Observer();
    if( const auto constraint = dynamic_cast< FRowConstraint * >( observer ) ) {
-    path.add_node( constraint , Node::eConstraint );
+    this->add_node( constraint , Node::eConstraint );
    }
    else if( dynamic_cast< FRealObjective * >( observer ) ) {
-    path.add_node( Node::eObjective );
+    this->add_node( Node::eObjective );
    }
    else if( dynamic_cast< PolyhedralFunctionBlock * >( observer ) ) {
     if( observer == reference_block )
-     path.add_node( Node::eBlock );
+     this->add_node( Node::eBlock );
    }
    else
-    throw( std::logic_error( "build_path: Unknown Observer of "
+    throw( std::logic_error( "AbstractPath::build: Unknown Observer of "
                              "given Function." ) );
   }
   else if constexpr( std::is_base_of_v< Block , T > ) {
    if( t == reference_block ) {
-    path.add_node( Node::eBlock , Inf<Index>() );
-    return path;
+    this->add_node( Node::eBlock , Inf<Index>() );
+    return;
    }
    auto group_index = inspection::get_block_index( t );
-   path.add_node( Node::eBlock , group_index );
+   this->add_node( Node::eBlock , group_index );
   }
 
   Block * block;
@@ -586,8 +634,8 @@ public:
   else if constexpr ( std::is_base_of_v< Function , T > ) {
    auto observer = t->get_Observer();
    if( ! observer )
-    throw( std::logic_error( "build_path: Path not found. Function has no "
-                             "Observer." ) );
+    throw( std::logic_error( "AbstractPath::build: Path not found. "
+                             "Function has no Observer." ) );
    block = observer->get_Block();
   }
   else
@@ -599,7 +647,7 @@ public:
 
    if( index < Inf<Index>() ) {
     // block has a father Block
-    path.add_node( Node::eBlock , index );
+    this->add_node( Node::eBlock , index );
     block = block->get_f_Block();
    }
 
@@ -614,23 +662,22 @@ public:
     else if( const auto lag = dynamic_cast< LagBFunction * >( block ) )
      observer = lag->get_Observer();
     else
-     throw( std::logic_error( "build_path: Path not found." ) );
+     throw( std::logic_error( "AbstractPath::build: Path not found." ) );
 
     if( const auto frc = dynamic_cast< FRowConstraint * >( observer ) ) {
-     path.add_node( frc , Node::eConstraint );
+     this->add_node( frc , Node::eConstraint );
      block = frc->get_Block();
     }
     else if( const auto fro = dynamic_cast< FRealObjective * >( observer ) ) {
-     path.add_node( Node::eObjective );
+     this->add_node( Node::eObjective );
      block = fro->get_Block();
     }
     else
-     throw( std::logic_error( "build_path: Path not found." ) );
+     throw( std::logic_error( "AbstractPath::build: Path not found." ) );
    }
   }
 
-  path.reverse();
-  return path;
+  this->reverse();
  }
 
 /*--------------------------------------------------------------------------*/
@@ -648,16 +695,16 @@ public:
   * @param The pointer to the target element.
   */
  template<class T>
- static T * get_element( const AbstractPath & path , Block * reference ) {
+ T * get_element( Block * reference ) const {
 
-  if( path.length() == 0 )
+  if( this->length() == 0 )
    return nullptr;
 
   auto block = reference;
 
-  for( Index i = 0 ; i < path.length() - 1 ; ++i ) {
+  for( Index i = 0 ; i < this->length() - 1 ; ++i ) {
 
-   const auto node = path.get_node( i );
+   const auto node = this->get_node( i );
 
    // Intermediate nodes can be: Block, Constraint, or Objective.
 
@@ -705,7 +752,7 @@ public:
 
   // Now, we analyse the last node in the path.
 
-  const auto node = path.get_last_node();
+  const auto node = this->get_last_node();
 
   if constexpr( std::is_base_of_v< Constraint , T > ) {
    assert( Node::is_constraint( node.type ) );
@@ -782,18 +829,17 @@ public:
   * @param group The group in which the path will be serialized.
   */
 
- static void serialize
- ( const AbstractPath & path , netCDF::NcGroup & group ) {
+ void serialize( netCDF::NcGroup & group ) const {
 
-  auto dim = group.addDim( path_total_length_dim_name , path.length() );
+  auto dim = group.addDim( path_total_length_dim_name , this->length() );
 
   using ::SMSpp_di_unipi_it::serialize;
   serialize( group , node_type_name , netCDF::NcChar() ,
-             dim , path.node_types );
+             dim , this->node_types );
   serialize( group , group_index_name , netCDF::NcUint() ,
-             dim , path.group_indices );
+             dim , this->group_indices );
   serialize( group , element_index_name , netCDF::NcUint() ,
-             dim , path.element_indices );
+             dim , this->element_indices );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -810,11 +856,35 @@ public:
   *        be stored.
   */
  static void serialize
- ( const std::vector< AbstractPath > & paths , netCDF::NcGroup & group ) {
+ ( const std::vector<AbstractPath> & paths , netCDF::NcGroup & group ) {
   APnetCDF netCDFvars;
   pre_serialize( paths , netCDFvars , group );
   for( Index i = 0 ; i < paths.size() ; ++i ) {
-   serialize( paths[ i ] , i , netCDFvars );
+   paths[ i ].serialize( i , netCDFvars );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// serialize a vector of AbstractPath into the given NcGroup
+ /** This function serializes a vector of (unique_ptr to) AbstractPath in the
+  * given \p group. Please refer to the comments to vector_deserialize() for a
+  * description of the format used to represent a vector of AbstractPath in
+  * netCDF.
+  *
+  * @param paths The vector of (unique_ptr to the) AbstractPath to be
+  *              serialized.
+  *
+  * @param group The netCDF::NcGroup in which the vector of AbstractPath will
+  *        be stored.
+  */
+ static void serialize
+ ( const std::vector< std::unique_ptr<AbstractPath> > & paths ,
+   netCDF::NcGroup & group ) {
+  APnetCDF netCDFvars;
+  pre_serialize( paths , netCDFvars , group );
+  for( Index i = 0 ; i < paths.size() ; ++i ) {
+   paths[ i ]->serialize( i , netCDFvars );
   }
  }
 
@@ -932,8 +1002,8 @@ public:
   * @return The AbstractPath corresponding to the given group.
   */
 
- static AbstractPath deserialize( const netCDF::NcGroup & group ) {
-  return deserialize( 0 , pre_deserialize( group ) );
+ void deserialize( const netCDF::NcGroup & group ) {
+  deserialize( 0 , pre_deserialize( group ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -987,10 +1057,47 @@ public:
   const auto netCDFvars = pre_deserialize( group );
   paths.reserve( netCDFvars.NumPaths );
   for( Index i = 0 ; i < netCDFvars.NumPaths ; ++i )
-   paths.push_back( deserialize( i , netCDFvars ) );
+   paths.emplace_back( i , netCDFvars );
   return paths;
  }
 
+/*--------------------------------------------------------------------------*/
+
+ /// deserializes a vector of AbstractPath
+ /** This function deserializes a vector of (unique_ptr) AbstractPath and
+  * returns it. The format of the netCDF \p group is specified in
+  * vector_deserialize( const netCDF::NcGroup & ).
+  *
+  * @param group The NcGroup that contains the description of the vector of
+  *              AbstractPath to be deserialized.
+  *
+  * @return A vector with the AbstractPaths.
+  */
+ static void vector_deserialize
+ ( const netCDF::NcGroup & group ,
+   std::vector< std::unique_ptr< AbstractPath > > & paths ) {
+
+  paths.clear();
+  if( group.isNull() )
+   return;
+  const auto netCDFvars = pre_deserialize( group );
+  paths.reserve( netCDFvars.NumPaths );
+  for( Index i = 0 ; i < netCDFvars.NumPaths ; ++i )
+   paths.emplace_back( std::make_unique<AbstractPath>( i , netCDFvars ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// pre-deserializes a vector of AbstractPath
+ /** This function pre-deserializes a vector of AbstractPath and returns an
+  * APnetCDF. The format of the netCDF \p group is specified in
+  * vector_deserialize( const netCDF::NcGroup & ).
+  *
+  * @param group The NcGroup that contains the description of the vector of
+  *              AbstractPath to be pre-deserialized.
+  *
+  * @return An APnetCDF for the vector of AbstractPath described in \p group.
+  */
  static APnetCDF pre_deserialize( const netCDF::NcGroup & group ) {
   APnetCDF netCDFvars;
   netCDFvars.NumPaths = 1;
@@ -1074,8 +1181,7 @@ public:
   * @return The AbstractPath with index \p path_index.
   */
 
- static AbstractPath deserialize( Index path_index ,
-                                  const APnetCDF & netCDFvars ) {
+ void deserialize( Index path_index , const APnetCDF & netCDFvars ) {
 
   Index path_start = 0;
   Index path_end = netCDFvars.PathNodeTypes.getDim( 0 ).getSize();
@@ -1105,33 +1211,30 @@ public:
 
   const auto num_nodes = path_end - path_start;
 
-  AbstractPath path;
-  path.node_types.resize( num_nodes );
-  path.group_indices.resize( num_nodes );
-  path.element_indices.resize( num_nodes );
+  this->node_types.resize( num_nodes );
+  this->group_indices.resize( num_nodes );
+  this->element_indices.resize( num_nodes );
 
   netCDFvars.PathNodeTypes.getVar( { path_start } , { num_nodes } ,
-                                   path.node_types.data() );
+                                   this->node_types.data() );
   netCDFvars.PathGroupIndices.getVar( { path_start } , { num_nodes } ,
-                                      path.group_indices.data() );
+                                      this->group_indices.data() );
 
   if( ! netCDFvars.PathElementIndices.isNull() ) {
    netCDFvars.PathElementIndices.getVar( { path_start } , { num_nodes } ,
-                                         path.element_indices.data() );
+                                         this->element_indices.data() );
   }
   else {
-   path.element_indices.resize( num_nodes );
-   path.element_indices.assign( path.element_indices.size() , Inf<Index>() );
+   this->element_indices.resize( num_nodes );
+   this->element_indices.assign( this->element_indices.size() , Inf<Index>() );
   }
-
-  return path;
  }
 
 /*--------------------------------------------------------------------------*/
 
- static void pre_serialize( const std::vector< AbstractPath > & paths ,
-                            APnetCDF & netCDFvars ,
-                            netCDF::NcGroup & group ) {
+ template<class T>
+ static void pre_serialize( const std::vector< T > & paths ,
+                            APnetCDF & netCDFvars , netCDF::NcGroup & group ) {
 
   netCDFvars.NumPaths = paths.size();
   netCDFvars.PathDim = group.addDim( path_dim_name , netCDFvars.NumPaths );
@@ -1141,7 +1244,7 @@ public:
   Index total_length = 0;
   for( Index i = 0 ; i < paths.size() ; ++i ) {
    netCDFvars.PathStart.putVar( { i } , total_length );
-   total_length += paths[ i ].length();
+   total_length += length( paths[ i ] );
   }
 
   netCDFvars.PathTotalLength = group.addDim( path_total_length_dim_name ,
@@ -1185,21 +1288,19 @@ public:
 
 /*--------------------------------------------------------------------------*/
 
- static void serialize
- ( const AbstractPath & path , const Index path_index ,
-   APnetCDF & netCDFvars ) {
+ void serialize( const Index path_index , APnetCDF & netCDFvars ) const {
 
-  const auto num_nodes = path.length();
+  const auto num_nodes = this->length();
 
   Index path_start;
   netCDFvars.PathStart.getVar( { path_index } , & path_start );
 
   netCDFvars.PathNodeTypes.putVar( { path_start } , { num_nodes } ,
-                                   path.node_types.data() );
+                                   this->node_types.data() );
   netCDFvars.PathGroupIndices.putVar( { path_start } , { num_nodes } ,
-                                      path.group_indices.data() );
+                                      this->group_indices.data() );
   netCDFvars.PathElementIndices.putVar( { path_start } , { num_nodes } ,
-                                        path.element_indices.data() );
+                                        this->element_indices.data() );
  }
 
 /*--------------------------------------------------------------------------*/

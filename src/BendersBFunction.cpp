@@ -56,13 +56,6 @@ using namespace SMSpp_di_unipi_it;
 SMSpp_insert_in_factory_cpp_1( BendersBFunction );
 
 /*--------------------------------------------------------------------------*/
-/*----------------------------- PRIVATE FIELDS -----------------------------*/
-/*--------------------------------------------------------------------------*/
-
-// The AbstractPath to the affected RowConstraint
-std::vector< AbstractPath > v_paths_to_constraints;
-
-/*--------------------------------------------------------------------------*/
 /*---------------------------------TODO-------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -72,6 +65,30 @@ void BendersBFunction::load( std::istream &input ) {
 
 /*--------------------------------------------------------------------------*/
 /*------------- CONSTRUCTING AND DESTRUCTING BendersBFunction --------------*/
+/*--------------------------------------------------------------------------*/
+
+BendersBFunction::BendersBFunction
+( Block * inner_block , VarVector && x , MultiVector && A , RealVector && b ,
+  ConstraintVector && constraints , ConstraintSideVector && sides ,
+  Observer * const observer )
+ : C05Function( observer ) , constraints_are_updated( false ) ,
+   solver_status ( 0 ) , diagonal_linearization_required( false ) {
+
+ set_inner_block( inner_block );
+ set_variables( std::move( x ) );
+ set_mapping( std::move( A ) , std::move( b ) , std::move( constraints ) ,
+              std::move( sides ) , eNoMod );
+}
+
+/*--------------------------------------------------------------------------*/
+
+BendersBFunction::~BendersBFunction() {
+ if( ! v_Block.empty() ) {
+  assert( v_Block.size() == 1 );
+  delete v_Block.front();
+ }
+}
+
 /*--------------------------------------------------------------------------*/
 
 /*      IMPORTANT NOTE ON THE DESERIALIZATION OF THE BendersBFunction
@@ -251,7 +268,7 @@ void BendersBFunction::deserialize( netCDF::NcGroup & group ,
  auto path_group = group.getGroup( "AbstractPath" );
 
  if( ! path_group.isNull() )
-  v_paths_to_constraints = AbstractPath::vector_deserialize( path_group );
+  AbstractPath::vector_deserialize( path_group , v_paths_to_constraints );
  else if( sides.size() > 0 )
   throw ( std::invalid_argument( "BendersBFunction::deserialize: The group "
                                  "'AbstractPath' was not found." ) );
@@ -1652,15 +1669,16 @@ void BendersBFunction::serialize( netCDF::NcGroup & group ) const {
  }
 
  if( v_paths_to_constraints.empty() ) {
+  // Construct the paths to the Constraint
   std::vector< AbstractPath > paths;
   paths.reserve( v_constraints.size() );
   for( const auto constraint : v_constraints ) {
-   paths.push_back( AbstractPath::build_path< Constraint >
-                    ( constraint , get_inner_block() ) );
+   paths.emplace_back( constraint , get_inner_block() );
   }
   AbstractPath::serialize( paths , group );
  }
  else {
+  // Use the paths we have
   AbstractPath::serialize( v_paths_to_constraints , group );
  }
 
@@ -2307,10 +2325,9 @@ void BendersBFunction::send_nuclear_modification
 
 bool BendersBFunction::has_constraint( Constraint * constraint ) {
  retrieve_constraints();
- for( const auto affected_constraint : v_constraints ) {
-  if( constraint == affected_constraint )
-   return true;
- }
+ if( std::find( std::begin( v_constraints ) , std::end( v_constraints ) ,
+                constraint ) != std::end( v_constraints ) )
+  return true;
  return false;
 }  // end( BendersBFunction::has_constraint )
 
@@ -2357,8 +2374,11 @@ void BendersBFunction::retrieve_constraints() {
 
  for( Index i = 0 ; i < v_sides.size() ; ++i ) {
 
-  auto constraint = AbstractPath::get_element< RowConstraint >
-   ( v_paths_to_constraints[ i ] , inner_block );
+  RowConstraint * constraint = nullptr;
+
+  if( v_paths_to_constraints[ i ] )
+   constraint = v_paths_to_constraints[ i ]->
+    get_element< RowConstraint >( inner_block );
 
   if( ! constraint )
    throw ( std::logic_error( "BendersBFunction::retrieve_constraints: "
@@ -2384,8 +2404,8 @@ void BendersBFunction::add_constraints( const ConstraintVector & nc ) {
   // This BendersBFunction still holds paths to Constraint.
   v_paths_to_constraints.reserve( v_paths_to_constraints.size() + nc.size() );
   for( auto & constraint : nc )
-   v_paths_to_constraints.push_back( AbstractPath::build_path< Constraint >
-                                     ( constraint , get_inner_block() ) );
+   v_paths_to_constraints.push_back
+    ( std::make_unique<AbstractPath>( constraint , get_inner_block() ) );
   v_constraints.resize( v_paths_to_constraints.size() , nullptr );
  }
 }
@@ -2417,33 +2437,21 @@ void BendersBFunction::remove_constraints( Range range ) {
 /*--------------------------------------------------------------------------*/
 
 void BendersBFunction::remove_constraints( const Subset & rows ) {
+
+ auto remove = [ &rows ]( auto & v ) {
+                for( Index i = rows.size() - 1 ; i >= 0 ; i-- ) {
+                 v.erase( v.begin() + rows[ i ] );
+                }
+               };
+
  if( v_paths_to_constraints.empty() ) {
   // There is no path to Constraint. We can remove the given pointers to
   // Constraint directly.
-
-  // mark Constraint to be removed
-  for( auto index : rows )
-   v_constraints[ index ] = nullptr;
-
-  v_constraints.erase
-   ( std::remove_if( v_constraints.begin() + rows.front() , v_constraints.end() ,
-                     []( RowConstraint * ci ) {
-                      return( ci == nullptr ); } ) ,
-     v_constraints.end() );
+  remove( v_constraints );
  }
  else {
   // This BendersBFunction still holds paths to Constraint.
-
-  for( auto index : rows )
-   v_paths_to_constraints[ index ].clear();
-
-  v_paths_to_constraints.erase
-   ( std::remove_if( v_paths_to_constraints.begin() + rows.front() ,
-                     v_paths_to_constraints.end() ,
-                     []( AbstractPath & path ) {
-                      return( path.length() == 0 ); } ) ,
-     v_paths_to_constraints.end() );
-
+  remove( v_paths_to_constraints );
   v_constraints.resize( v_paths_to_constraints.size() );
  }
 }
@@ -2458,7 +2466,7 @@ void BendersBFunction::remove_constraints() {
 /*--------------------------------------------------------------------------*/
 
 void BendersBFunction::remove_constraint( Block::Index index ) {
- remove_constraints( Subset{ index } );
+ remove_constraints( Range( index , index + 1 ) );
 }
 
 /*--------------------------------------------------------------------------*/

@@ -7,7 +7,7 @@
  *
  * \version 0.01
  *
- * \date 15 - 09 - 2020
+ * \date 17 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -48,6 +48,7 @@
 namespace SMSpp_di_unipi_it
 {
 
+ class AbstractPath;       // forward declaration of AbstractPath
  class ConstraintMod;      // forward declaration of ConstraintMod
  class RowConstraint;      // forward declaration of RowConstraint
  class Solution;           // forward declaration of Solution
@@ -411,15 +412,7 @@ class BendersBFunction : public C05Function , public Block {
                    RealVector && b = {} ,
                    ConstraintVector && constraints = {} ,
                    ConstraintSideVector && sides = {} ,
-                   Observer * const observer = nullptr )
-  : C05Function( observer ) , constraints_are_updated( false ) ,
-    solver_status ( 0 ) , diagonal_linearization_required( false )
- {
-  set_inner_block( inner_block );
-  set_variables( std::move( x ) );
-  set_mapping( std::move( A ) , std::move( b ) , std::move( constraints ) ,
-               std::move( sides ) , eNoMod );
- }
+                   Observer * const observer = nullptr );
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a BendersBFunction out of netCDF::NcGroup
@@ -479,11 +472,7 @@ class BendersBFunction : public C05Function , public Block {
   * passing \c nullptr as a pointer to the new inner Block and \c false to the
   * \c destroy_previous_block parameter. */
 
- virtual ~BendersBFunction( void ) {
-  if( ! v_Block.empty() )
-   delete v_Block.front();
-  v_Block.clear();
- }
+ virtual ~BendersBFunction();
 
 /*--------------------------------------------------------------------------*/
  /// clear method: clears the v_x field
@@ -1815,6 +1804,9 @@ class BendersBFunction : public C05Function , public Block {
  ConstraintVector v_constraints;
  ///< the pointers to RowConstraint
 
+ std::vector< std::unique_ptr< AbstractPath > > v_paths_to_constraints;
+ ///< The AbstractPath to the affected RowConstraint
+
  ConstraintSideVector v_sides;
  ///< the affected sides of the affected RowConstraint
  /**< The affected sides of the affected RowConstraint. There is a
@@ -2395,6 +2387,9 @@ class BendersBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  /// remove all the Constraint indicated in \p rows
+ /** This function removes all the Constrant indicated in \p rows. It is
+  * assumed that \p rows is ordered.
+  */
  void remove_constraints( const Subset & rows );
 
 /*--------------------------------------------------------------------------*/

@@ -9,7 +9,7 @@
  *
  * \version 0.1
  *
- * \date 25 - 05 - 2020
+ * \date 17 - 09 - 2020
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -851,9 +851,9 @@ public:
     std::logic_error( "SimpleDataMapping::deserialize: group '" +
                       AbstractPath_name + "' was not found." );
 
-   const auto path = AbstractPath::deserialize( path_group );
+   AbstractPath path( path_group );
 
-   caller = AbstractPath::get_element< Caller >( path , block_reference );
+   caller = path.get_element< Caller >( block_reference );
   }
 
   // SetFrom and SetTo
@@ -943,8 +943,8 @@ public:
 
   // AbstractPath
 
-  auto path = AbstractPath::deserialize( index , sdmb_netCDF.ap_netCDF );
-  caller = AbstractPath::get_element< Caller >( path , block_reference );
+  AbstractPath path( index , sdmb_netCDF.ap_netCDF );
+  caller = path.get_element< Caller >( block_reference );
 
   // SetFrom and SetTo
 
@@ -1067,14 +1067,14 @@ public:
 
   AbstractPath path;
   if constexpr( std::is_base_of_v< Function , Caller > ) {
-   path = AbstractPath::build_path< Function >( caller , block_reference );
+   path.build< Function >( caller , block_reference );
   }
   else {
-   path = AbstractPath::build_path< Caller >( caller , block_reference );
+   path.build< Caller >( caller , block_reference );
   }
 
   sdmb_netCDF.ap_netCDF.PathStart.putVar( { index } , path_start_index );
-  AbstractPath::serialize( path , index , sdmb_netCDF.ap_netCDF );
+  path.serialize( index , sdmb_netCDF.ap_netCDF );
   path_start_index += path.length();
 
   // SetFrom and SetTo
@@ -1200,16 +1200,16 @@ public:
   // AbstractPath
 
   if constexpr( std::is_base_of_v< Function , Caller > ) {
-   const auto path = AbstractPath::build_path< Function >( caller ,
-                                                           block_reference );
+   AbstractPath path;
+   path.build< Function >( caller , block_reference );
    auto path_group = group.addGroup( AbstractPath_name );
-   AbstractPath::serialize( path , path_group );
+   path.serialize( path_group );
   }
   else {
-   const auto path = AbstractPath::build_path< Caller >( caller ,
-                                                         block_reference );
+   AbstractPath path;
+   path.build< Caller >( caller , block_reference );
    auto path_group = group.addGroup( AbstractPath_name );
-   AbstractPath::serialize( path , path_group );
+   path.serialize( path_group );
   }
 
   // SetFrom and SetTo (SetSize and SetElements)
@@ -1535,48 +1535,7 @@ public:
   */
 
  static SimpleDataMappingBase * new_SimpleDataMapping
- ( const std::string & types ) {
-
-  if( types.size() == 4 && types[ 3 ] == 'F' ) {
-   const auto t = types.substr( 0, 3 );
-   if( t == "RRD" )
-    return new SimpleDataMapping<Range ,Range ,double,BendersBFunction>;
-   else if( t == "RRI" )
-    return new SimpleDataMapping<Range ,Range ,int   ,BendersBFunction>;
-   else if( t == "RSD" )
-    return new SimpleDataMapping<Range ,Subset,double,BendersBFunction>;
-   else if( t == "RSI" )
-    return new SimpleDataMapping<Range ,Subset,int   ,BendersBFunction>;
-   else if( t == "SRD" )
-    return new SimpleDataMapping<Subset,Range ,double,BendersBFunction>;
-   else if( t == "SRI" )
-    return new SimpleDataMapping<Subset,Range ,int   ,BendersBFunction>;
-   else if( t == "SSD" )
-    return new SimpleDataMapping<Subset,Subset,double,BendersBFunction>;
-   else if( t == "SSI" )
-    return new SimpleDataMapping<Subset,Subset,int   ,BendersBFunction>;
-   else
-    throw std::invalid_argument( "new_SimpleDataMapping: invalid template "
-                                 "parameter types string: " + types );
-  }
-  else if( types.size() == 3 || ( types.size() == 4 && types[ 3 ] == 'B' ) ) {
-   const auto t = types.substr( 0, 3 );
-        if( t == "RRD" ) return new SimpleDataMapping<Range ,Range ,double>;
-   else if( t == "RRI" ) return new SimpleDataMapping<Range ,Range ,int>;
-   else if( t == "RSD" ) return new SimpleDataMapping<Range ,Subset,double>;
-   else if( t == "RSI" ) return new SimpleDataMapping<Range ,Subset,int>;
-   else if( t == "SRD" ) return new SimpleDataMapping<Subset,Range ,double>;
-   else if( t == "SRI" ) return new SimpleDataMapping<Subset,Range ,int>;
-   else if( t == "SSD" ) return new SimpleDataMapping<Subset,Subset,double>;
-   else if( t == "SSI" ) return new SimpleDataMapping<Subset,Subset,int>;
-   else
-    throw std::invalid_argument( "new_SimpleDataMapping: invalid template "
-                                 "parameter types string: " + types );
-  }
-  else
-   throw std::invalid_argument( "new_SimpleDataMapping: invalid template "
-                                "parameter types string: " + types );
- }
+ ( const std::string & types );
 
 /*--------------------------------------------------------------------------*/
 
@@ -1591,32 +1550,7 @@ public:
   */
 
  static DataMapping * deserialize( const netCDF::NcGroup & group ,
-                                   Block * block_reference ) {
-
-  // DataType
-
-  char data_type;
-  if( ! ::SMSpp_di_unipi_it::deserialize( group , "DataType" ,
-                                          & data_type , true ) )
-   data_type = SimpleDataMappingBase::get_id< double >();
-
-  // Caller type
-
-  char caller_type;
-  if( ! ::SMSpp_di_unipi_it::deserialize( group , "Caller" ,
-                                          & caller_type , true ) )
-   caller_type = 'B';
-
-  char set_from_type, set_to_type;
-  get_sets_type( group , set_from_type , set_to_type );
-
-  auto data_mapping = new_SimpleDataMapping( { set_from_type , set_to_type ,
-                                               data_type , caller_type } );
-
-  data_mapping->deserialize( group , block_reference );
-
-  return data_mapping;
- }
+                                   Block * block_reference );
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
