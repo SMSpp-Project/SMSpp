@@ -77,21 +77,24 @@ namespace SMSpp_di_unipi_it
  *    as a Block).
  *
  * 2) A vector of pairs of relaxed functions and the Lagrangian multipliers
- *    thereof : [ y , g(x) ] = [ ( y_i , g_i (x) ) ]_{i \in I} which handle
+ *    thereof : [ y , g(x) ] = [ ( y_i , g_i (x) ) ]_{ i \in I } which handle
  *    the static relaxation of constraints. The vector-valued function
- *    g(x) = [ g_i( x ) ]_{i \in I} is defined in the same Variable x as B,
+ *    g(x) = [ g_i( x ) ]_{ i \in I } is defined in the same Variable x as B,
  *    which should be thought as a part of the "complicating constraints" of
  *    some original problem
  *
- *      (O)    max { c(x) : g(x) [ + ... ] [<]= 0 , x \in X }
+ *      (O)  max { c(x) [+ ...] : g(x) [+ ...] [<]= 0 , x \in X [, ...] }
  *
- *    that are relaxed to make it easier. To make the notation easier the
- *    relaxed constraints are also referred to as (RCs).The "[ + ... ]" term
- *    underlines the fact that (O) may have other variables that, once the
- *    complicating constraints are relaxed, become independent from x; these
- *    will be typically put into one (or more) other LagBFunction, and
- *    therefore are not a concern of this specific (B). The notation "[<]="
- *    means that the constraints can (almost) indifferently be equalities or
+ *    that are relaxed to make it easier. The "[...]" are meant to convey the
+ *    fact that (O) may have other groups of variables besides x, but when
+ *    the constraints are relaxed in a Lagrangian way the links between the
+ *    other groups of variables and x are rescinded, and (B) (with a changed
+ *    objective) is one of the independent subproblems which form the
+ *    Lagrangian relaxations. Each of them clearly makes a different and
+ *    independent Lagrangian function (of y), and here we are focussing on
+ *    just an arbitrary one of them. In the comments, the relaxed constraints
+ *    will sometimes be also referred to as (RCs). The notation "[<]=" means
+ *    that the constraints can (almost) indifferently be equalities or
  *    inequalities, the difference simply yielding (or not) sign constraints
  *    on the Lagrangian multipliers [see right below]. The vector
  *    y = [ y_i ]_{ i \in I } of Lagrangian multipliers, real-valued Variable
@@ -103,10 +106,9 @@ namespace SMSpp_di_unipi_it
  *    the "outer" Block defining them, and therefore is not a concern of the
  *    <LagBFunction.
  *
- * 3) A list of pairs of relaxed functions and the Lagrangian multipliers
- *    thereof : { ( y_i , g_i (x) ) }_{ i \in \bar{I} } which handle the
- *    dynamic generation/removal which handle the dynamic relaxation of
- *    constraints.
+ * 3) A list of pairs of relaxed functions and their Lagrangian multipliers:
+ *    { ( y_i , g_i (x) ) }_{ i \in \bar{I} } which handle the  dynamic
+ *    generation/removal which handle the dynamic relaxation of constraints.
  *
  * Note that the LagBFunction is not supposed to have any Constraint or
  * Variable in itself, that is, besides "x" and "x in X"  (respectively) that
@@ -114,7 +116,7 @@ namespace SMSpp_di_unipi_it
  *
  * With these elements, LagBFunction represents the Lagrangian function
  *
- *   (L_y)   l( y ) = max { c(x) + \sum_{i \in I} y_i g_i(x) : x \in X }
+ *   (L_y)   l( y ) = max { c(x) + \sum_{ i \in I } y_i g_i(x) : x \in X }
  *
  * The function l(y) is convex in y (concave if (B) is a minimization
  * problem), since it is the pointwise maximum of (possibly, infinitely
@@ -122,7 +124,7 @@ namespace SMSpp_di_unipi_it
  * its domain; however, it typically is non differentiable. Indeed, if x(y) 
  * is the (eps-)optimal solution of (L_y), then
  *
- *       h = g( x(y) ) = [ g_i( x(y) ) ]_{i \in I}
+ *       h = g( x(y) ) = [ g_i( x(y) ) ]_{ i \in I }
  *
  * is a(n eps-)subgradient of l( y ) at y (supergradient if (B) is a
  * minimization problem and therefore l is concave). Hence, the gradient of l
@@ -145,16 +147,10 @@ namespace SMSpp_di_unipi_it
  *
  *   = FRealObjective whose inside Function is a LinearFunction
  *
- * - g is represented by a std::vector<Function *>, with each g[ i ] being a
- *    "simple" function, i.e., belonging to following classes:
+ * - each g[ i ] is a generic Function (*), but the Function has to be 
+ *   "simple" function, i.e., belonging to following classes:
  *
  *   = LinearFunction
- *
- * IMPORTANT: THERE MUST BE A WAY TO UNDERSTAND WHICH Modification OF THE
- *            INNER Block (B) CORRESPOND TO CHANGES OF THE Objective c(x)
- *            AND WHICH ONES CORRESPOND TO CHANGES OF THE FEASIBLE REGION X,
- *            SINCE THE LagBFunction WILL HAVE TO REACT DIFFERENTLY; IT IS
- *            NOT ENTIRELY CLEAR TO ME NOW HOW TO DO THIS.
  *
  * Under these assumptions, LagBFunction can implement the required machinery
  * to use the inner Block (B), with any attached Solver, to implement the
@@ -169,17 +165,99 @@ namespace SMSpp_di_unipi_it
  *     TO CHANGE IF INFORMATION PRODUCED IN THE LAST compute() (FUNCTION
  *     VALUES, LINEARIZATIONS, ...) IS STILL TO BE RETRIEVED.
  *
- * It should, however, in principle be possible to change the solver at every
+ * It should, however, in principle be possible to change the Solver at every
  * call of compute(), provided this is done "right before the call".
  *
- * An important note, however, is that LagBFunction is both a C05Function and
- * a Block. This is done in order for it to be able to "intercept" any
- * Modification from its sub-Block (B) and properly react to it; however, the
- * current implementation
+ * The Observer of a LagBFunction will be, say, a FRealObjective or a
+ * FRowConstraint belonging to some Block. In turn, a LagBFunction is the
+ * Observer of both the (linear) Function g[ i ] defining the Lagrangian
+ * term, as well as the inner Block (B) (since the LagBFunction is also a
+ * Block, and the father of (B)). This means that a LagBFunction have to
+ * handle the Modification which come to it from both ways: the inner Block
+ * (B) and the constraints (RCs). Note that these Modification, per se, will
+ * *not* be sent to the Oserver of the LagBFunction; rather, they will be
+ * "digested" and become (typically, C05)FunctionMod* which describe the
+ * impact on the LagBFunction of the corresponding chenges.
+ *
+ * The current implementation of LagBFunction has the following limitations
+ * (implementation decisions) that somewhat further limit the kind of
+ * Block that can be used as (B):
+ *
+ * - THE LAGRANGIAN TERM c(x) + \sum_{ i \in I } y_i g_i(x) FOR FIXED VALUE
+ *   OF y_i AND LINEAR c(x), g_i(x) BECOMES A LinearFunction THAT IS WRITTEN
+ *   IN THE OBJECTIVE OF (B).
+ *
+ *   The first, obvious consequence is that (B) must necessarily have an
+ *   "abstract") Objective that is a FRealObjective whose Function is a
+ *   LinearFunction, as as already stated. This also means that if (B) has
+ *   a "physical" representation, it must reflect all changes of its
+ *   Objective resulting from the Lagrangian term into it. Some :Block may
+ *   make assumptions on the form of its Objective (say, a certain set of
+ *   Variable is *not* in it) that are satisfied by c(x) but are no longer
+ *   so when the Lagrangian term is added; these cannot be used as (B).
+ *   However, note that ALL "EXTRA" TERMS IN THE Objective OF (B) WILL BE
+ *   ADDED "AFTER" THE ORIGINAL ONES, which may make it possible for a
+ *   Block/Solver to ignore them since THE ORIGINAL ONES WILL STILL BE IN
+ *   THEIR ORIGINAL POSITION.
+ *
+ * - ALL THE INDICIDUAL TERMS c'_j x_j OF THE LAGRANGIAN TERM (WITH c_'j THE
+ *   LAGRANGIAN COST FOR FIXED y) ARE ADDED TO/MODIFIED INTO THE OBJECTIVE
+ *   OF (B), EVEN THOUGH THE Variable MAY IN FACT BE DEFINED IN A SUB-Block
+ *   OF (B)
+ *
+ *   This is consistent with the assumption that a Variable in a sub-Block is
+ *   still owned by the father Block, but it also means that the same Variable
+ *   may end up in more than one Objective; say, that of the sub-Block
+ *   defining it as well as that of (B). This should in general be supported,
+ *   but there may be :Solver that do not allow such an arrangement. On the
+ *   plus side, however, note that in such a case THE Objective OF THE
+ *   sub-Block IN NEVER MODIFIED, and therefore it CAN IN PRINCIPLE BE ANY
+ *   KIND OF Function, NOT NECESSARILY A LinearFunction (provided that the
+ *   Solver attached to (B) can deal with it).
+ *
+ * - THE LAGRANGIAN TERM MAY HAVE A DIFFERENT "SHAPE" THAN THE ORIGINAL
+ *   LinearFunction c(x) (i.e., more ColVariable may have a nonzero
+ *   coefficient than in happened in c(x)), which means that ColVariable
+ *   CAN BE ADDED TO c(x) THAT WERE NOT ORIGINERILY THERE.
+ *
+ *   This, as already mentioned, my be a problem for some Block/Solver that
+ *   require a specific arrangement. Furthermore, it means that ANY PROCESS
+ *   CHANGING THE COEFFICIENTS OF c(x) "FROM OUTSIDE OF THE LagBFunction"
+ *   MAY FIND "UNEXPECTED" ColVariable IN IT; ALSO, A PROCESS MAY DELETE A
+ *   ColVariable FROM c(x) AND "MYSTERIOUSLY SEE IT IMMEDIATELY REINSTATED"
+ *   (since that ColVariable has a nonzero coefficient in the Lagrangian
+ *   function even if it has not in c(x)). This must not be a problem for
+ *   the "outside" process.
+ *
+ * - THE LagBFunction WILL ONLY *ADD* TERMS TO c(x), BUT NEVER REMOVE THEM.
+ *   In particular, it may happen that a coefficient is added to c(x) for
+ *   some variable x_j due to some term g_i(x) having a nonzero coefficient
+ *   in x_j, while, say, the original coefficient of x_j in c(x) was 0,
+ *   i.e., x_j was *not* in c(x). Later, the Lagrangian term(s) g_i(x) may be
+ *   changed and x_j may no longer have a nonzero coefficient in the
+ *   Lagrangian term for any value of y. YET, x_j IS KEPT IN THE
+ *   LinearFunction IN THE Objective OF (B) WITH 0 COEFFICIENT: no attempt
+ *   is made to "optimize away" such Variable. The reason is that it is
+ *   hard to distinguish whether or not the 0 coefficient was there in the
+ *   original c(x) or x_j was not in c(x). While the two things are
+ *   mathematically equivalent, they may not be so for a Block/Solver
+ *   assuming that some Variable *are* in the Objective even if their
+ *   coefficient is 0. Optimizing away these Variable would not allow such
+ *   a Block/Solver to be used, so it is just not done. In the odd case
+ *   where this is not appropriate, the external process changing the
+ *   g_i(x) (which is what may cause this to happen) also has to do the
+ *   cleanup of c(x). Indeed, removing ColVariable from c(x) is allowed,
+ *   with the only provision that if the ColVariable is present in any
+ *   Lagrangian term g_i(x) it will be automatically re-added.
+ *
+ * We finish with a LARGELY THEORETICAL, BUT STILL POSSIBLY INTERESTING NOTE.
+ * The LagBFunction is both a C05Function and a Block. This is done in order
+ * for it to be able to "intercept" any Modification from its sub-Block (B)
+ * and properly react to it; however, the current implementation
  *
  *    KNOWINGLY AND INTENTIONALLY VIOLATE SOME OF THE STANDARD ASSUMPTIONS
  *    OF Block, WHICH IMPLIES THAT LagBFunction SHOULD NOT BE DIRECTLY
- *    PASSED TO A GENERAL-PURPOSE SOLVER TO BE SOLVED.
+ *    PASSED TO A GENERAL-PURPOSE Solver AS A STAND-ALONE Block
  *
  * The point is about the Objective of the LagBFunction and that of its
  * sub-Block (B). To properly represent, in an "abstract" form, the
@@ -268,16 +346,7 @@ namespace SMSpp_di_unipi_it
  * BiLinearFunction and extensions. More importantly, so far there is no
  * evidence that a specialized Solver exists that it may be appropriate to
  * use to solve this kind of problem, and therefore there does not appear to
- * be any compelling reason to implement this kludge.
- *
- * The Objective of a Lagrangian function is its Observer, but in turn a
- * LagBFunction is also the Observer of its relaxed (linear) function (RCs).
- * This means this a Lagrangian function handles the Modification which come
- * to it from both way: the sub-Block (B) and the constraints (RCs).
- * In addition, the Observer of a LagBFunction is assumed to be a
- * FRealObjective.
- *
- * WHY SHOULD THIS BE THE CASE?? I don't see it. */
+ * be any compelling reason to implement this kludge. */
 
 class LagBFunction : public C05Function , public Block {
 
@@ -681,15 +750,17 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  bool is_linearization_there( Index name ) const override {
-  //!! TO BE CHANGED
-  return( false );
+  if( name >= g_pool.size() )
+   throw( std::invalid_argument( "invalid linearization name" ) );
+  return( g_pool[ name ].first );
   }
 
 /*--------------------------------------------------------------------------*/
 
  bool is_linearization_vertical( Index name ) const override {
-  //!! TO BE CHANGED
-  return( false );
+  if( name >= g_pool.size() )
+   throw( std::invalid_argument( "invalid linearization name" ) );
+  return( ! g_pool[ name ].second );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -947,11 +1018,22 @@ class LagBFunction : public C05Function , public Block {
 
  bool IsConvex;         ///< true if the LagBFunction is convex
  
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  v_dual_pair LagPairs;  ///< vector of Lagrangian dual pairs
+                        /**< LagPairs has an element j for each active
+			 * ColVariable y[ j ] of the LagBFunction:
+  * LagPairs[ j ].first contains (a pointer to) y[ j ], while
+  * LagPairs[ j ].second contains (a pointer to) a LinearFunction that
+  * contains the Lagrangian term g_i(x) = A_i x + b_i. Note that the
+  * LagBFunction is the Observer of all these LinearFunction. */
 
  v_gpool_el g_pool;     ///< the global pool
+                        /**< g_pool has the size of the global pool;
+			 * g_pool[ i ].first is (a pointer to) the Solution
+ * corresponding to the i-th linearization of the global pool, or nullptr
+ * if there is no such linearization, while g_pool[ i ].second is a bool
+ * telling if the linearization is diagonal. */
 
  Index f_max_glob;           ///< 1 + maximum active name in the global pool
  /**< f_max_glob is strictly larger than the maximum index h such that
@@ -961,9 +1043,21 @@ class LagBFunction : public C05Function , public Block {
   * happen (in particular when g_pool.empty() and f_max_glob == 0). */
 
  m_column CostMatrix;
- ///< the matrix < x , <c,yA> > used to update the Lagrangian cost vector
-
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+ ///< the matrix < c_i , y A_i > used to update the Lagrangian cost vector
+ /**< CostMatrix[ i ] contains the information < c_i , y A_i > that is
+  * needed to construct the Lagrangian cost of x[ i ], the i-th
+  * ColVariable in the LinearFunction of the inner Block. Therefore,
+  * CostMatrix[] HAS THE SAME ORDERING AS THE ACTIVE Variable IN OBJ.
+  * At the beginning it has as many rows as there "naturally" are active
+  * Variable in obj; if a Lagrangian term causes a nonzero Lagrangian cost
+  * to (potentially) appear for an x[ i ] that originally had 0 coefficient
+  * in obj, x[ i ] is added to the list of active Variable (at the bottom,
+  * as usual) and a new row is added to CostMatrix (at the bottom).
+  * Also, the linear term y A_i is represented by the same v_coeff_pair
+  * as in a LinearFunction, but UNLIKE IN LinearFunction IT IS KEPT
+  * ORDERED BY POINTER TO 
+  */
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  Index LastSolution;  ///< the last Solution read by get_linearization
                       /**< the "name" of the Solution currently in the
@@ -986,7 +1080,9 @@ class LagBFunction : public C05Function , public Block {
 
  FunctionValue f_linear_term;  ///< the term yb of the Lagrangian function
 
- /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+ bool f_play_dumb;    ///< true if self-inflicted Modification are ignored
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  int LPMaxSz;         ///< maximum size of the "local pool"
 
@@ -1009,9 +1105,9 @@ class LagBFunction : public C05Function , public Block {
 
  void initialize_cost_matrix( void );
 
- Subset add_columns( v_dual_pair & v_lag_pair );
+ void add_columns( v_dual_pair & v_lag_pair );
 
- Subset update_columns( v_dual_pair & v_lag_pair );
+ void update_columns( v_dual_pair & v_lag_pair );
 
  void rm_columns( c_Subset & subset );
 
@@ -1021,7 +1117,9 @@ class LagBFunction : public C05Function , public Block {
 
  void set_original_costs( c_Subset & subset = {} );
 
- void compute_Lagrangian_costs( );
+ void set_original_costs( Range range );
+
+ void compute_Lagrangian_costs( void );
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
@@ -1066,6 +1164,11 @@ class LagBFunction : public C05Function , public Block {
    --f_max_glob;
   }
 
+/*--------------------------------------------------------------------------*/
+
+ template< typename par_type >
+ void add_par( std::string && name , par_type value );
+ 
 /*--------------------------------------------------------------------------*/
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
 /*--------------------------------------------------------------------------*/

@@ -730,18 +730,20 @@ void DQuadFunction::remove_variables( Subset && nms , bool ordered ,
 
 /*--------------------------------------------------------------------------*/
 
-void DQuadFunction::set_constant_term( FunctionValue constant_term  ,
+void DQuadFunction::set_constant_term( FunctionValue constant_term ,
 				       ModParam issueMod )
 {
  if( f_constant_term == constant_term )  // actually nothing to change
   return;                                // cowardly (and silently) return
 
  if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
-  const FunctionValue delta = f_constant_term - constant_term;
+  const FunctionValue delta = constant_term - f_constant_term;
   f_constant_term = constant_term;
 
-  f_Observer->add_Modification( std::make_shared<FunctionMod>( this , delta ,
-				        Observer::par2concern( issueMod ) ) ,
+  f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+				      C05FunctionMod::NothingChanged ,
+				      Subset( {} ) , delta ,
+				      Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
   }
  else

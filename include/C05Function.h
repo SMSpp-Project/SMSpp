@@ -242,12 +242,12 @@ namespace SMSpp_di_unipi_it
  * constructing one convex combination of linearizations with appropriate
  * properties.  This is why C05Function has the concept of "important
  * linearization": once an optimization involving the function has
- * terminated, the Solver can store this "important" linearization in the
- * global pool for future use. For instance, in case the Function (or other
- * parts of the Block) changes, the changes may be such that x^* may
- * nonetheless remain an optimal solution, and the availability of the
- * "important linearization" may allow to prove this with very little
- * computational effort. In other words,
+ * terminated, the Solver can store (information about how to compute) the
+ * "important" linearization in the global pool for future use. For instance,
+ * in case the Function (or other parts of the Block) changes, the changes
+ * may be such that x^* may nonetheless remain an optimal solution, and the
+ * availability of the "important linearization" may allow to prove this with
+ * very little computational effort. In other words,
  *
  *    THE "IMPORTANT LINEARIZATION" TYPICALLY CORRESPONDS TO THE
  *    OPTIMAL DUAL SOLUTION
@@ -262,11 +262,24 @@ namespace SMSpp_di_unipi_it
  * correspond to (say) unfeasible integer solutions. These can be used e.g.
  * in Lagrangian heuristics to construct a (say) feasible integer solution,
  * where the weights can be used as "probability that some feature of the
- * solution is conserved in the optimal one". This is why when the
- * "important linearization" is set, the interface also offers specific
- * provisions for producing storing the multipliers together with it.
- * Again, those multipliers can be considered the optimal dual solution
- * of the optimization problem involving the C05Function.
+ * solution is conserved in the optimal one". This is why the
+ * "important linearization" is not by default constructed in global pool;
+ * rather, the multipliers producing it are stored. Those multipliers can be
+ * considered (a part of) the optimal dual solution of the optimization
+ * problem involving the C05Function. Of course, one possible use for this
+ * information is to call store_combination_of_linearizations() to
+ * "physically" construct the "important linearization" and have it stored in
+ * the global pool. In this case, of course, \p coefficients should just be
+ * < name of the important linearization , 1 >. Indeed, there may be no need 
+ * to "physically" construct the "important linearization" since it could
+ * well be one of those directly produced by the C05Function; think to the
+ * case where f is smooth at x^*. Alternatively, the algorithm doing the
+ * optimization may find it algorithmically expedient to produce it anyway.
+ * However, in principle there is no need for the "important linearization"
+ * to be physically constructed: once the information of \p coefficients is
+ * stored, the "important linearization" is "virtually" present in the global
+ * pool (as it is only a store_combination_of_linearizations() call away from
+ * being there).
  *
  * It is important to remark that, differently from the global pool
  *
@@ -1000,8 +1013,8 @@ class C05Function : public Function {
   */
 
  virtual void get_linearization_coefficients( FunctionValue * g ,
-				      Range range = Range( 0 , Inf<Index>() ) ,
-				      Index name = Inf<Index>() ) = 0;
+				     Range range = Range( 0 , Inf<Index>() ) ,
+				     Index name = Inf<Index>() ) = 0;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get a range of coefficients of a linearization in a SparseVector
@@ -1217,17 +1230,14 @@ class C05Function : public Function {
   * concept is completely ignored because, say, the Function is a linear one
   * and therefore all linearizations are the same).
   *
-  * Note that the method can be queried, after that an appropriate
-  * Modification has been issued [see C05FunctionMod*], to get the *new* value
-  * of \alpha for each of the linearizations stored in the global pool, which
-  * may allow reoptimization to be performed. In this case, a linearization
-  * may have become invalid: this is signaled by returning NaN (e.g. as what
-  * is reported by std::numeric_limits::quiet_NaN<FunctionValue>() or by
-  * std::numeric_limits::signaling_NaN<FunctionValue>()) as the corresponding
-  * \alpha, which should prompt the linearization to be removed from the
-  * global pool (but at least it should warn whatever algorithm is using the
-  * Function not to use it any longer).
-  */
+  * The method can be used, after that an appropriate Modification has been
+  * issued [see C05FunctionMod*], to get the value of \alpha for each of the
+  * linearizations stored in the global pool (for which it has been changed,
+  * as the C05FunctionMod* specifies). If a linearization has become
+  * invalid, the linearization should not be asked; if it is, the method
+  * should retur NaN (e.g. as what is reported by
+  * std::numeric_limits::quiet_NaN<FunctionValue>() or by
+  * std::numeric_limits::signaling_NaN<FunctionValue>()). */
 
  virtual FunctionValue get_linearization_constant(
 					     Index name = Inf<Index>() ) = 0;

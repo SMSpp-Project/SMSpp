@@ -61,10 +61,11 @@ namespace SMSpp_di_unipi_it {
 /**< The class LinearFunction implements C15Function with a simple linear
  * function of the form
  * \[
- *  f(x) = c + sum_{i = 1, ..., n} a_i * x_i
+ *  f(x) = c + sum_{ i = 1, ..., n } a_i * x_i
  * \]
  * where the scalar c is the constant term of the Function, and a_i is the
- * fixed real coefficient of the Variable x_i.
+ * fixed real coefficient of the ColVariable x_i (since the return value
+ * need be a real and the a_i are reals, so must be the x_i).
  *
  * This Function issues the following :Modification:
  *
@@ -405,9 +406,7 @@ class LinearFunction : public C15Function {
   * constant is equal to the constant term of the LinearFunction. */
 
  FunctionValue get_linearization_constant( Index name = Inf<Index>() )
-  override final {
-  return( f_constant_term );
-  }
+  override { return( f_constant_term ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the value of the constant term of this LinearFunction.
@@ -426,7 +425,7 @@ class LinearFunction : public C15Function {
   * quite a trivial one. */
 
  ComputeConfig * get_ComputeConfig( bool all , ComputeConfig * ocfg )
-  const override final { return( nullptr ); }
+  const override { return( nullptr ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE LinearFunction -------*/
@@ -436,13 +435,13 @@ class LinearFunction : public C15Function {
  * vector v_pairs of pairs.
  * @{ */
 
- Index get_num_active_var( void ) const override final {
+ Index get_num_active_var( void ) const override {
   return( v_pairs.size() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- Index is_active( const Variable * const var ) const override final
+ Index is_active( const Variable * const var ) const override
  {
   auto idx = std::find_if( v_pairs.begin() , v_pairs.end() ,
 			   [ & var ]( const auto & p ) -> bool {
@@ -455,35 +454,35 @@ class LinearFunction : public C15Function {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  void map_active( c_Vec_p_Var & vars , Subset & map , bool ordered )
-  const override final;
+  const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- Variable * get_active_var( const Index i ) const override final {
+ Variable * get_active_var( const Index i ) const override {
   return( v_pairs[ i ].first );
   } 
 
 /*--------------------------------------------------------------------------*/
 
- v_iterator * v_begin( void ) override final {
+ v_iterator * v_begin( void ) override {
   return( new LinearFunction::v_iterator( v_pairs.begin() ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- v_const_iterator * v_begin( void ) const override final {
+ v_const_iterator * v_begin( void ) const override {
   return( new LinearFunction::v_const_iterator( v_pairs.begin() ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
- v_iterator * v_end( void ) override final {
+ v_iterator * v_end( void ) override {
   return( new LinearFunction::v_iterator( v_pairs.end() ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- v_const_iterator * v_end( void ) const override final {
+ v_const_iterator * v_end( void ) const override {
   return( new LinearFunction::v_const_iterator( v_pairs.end() ) );
   }
 
@@ -525,7 +524,7 @@ class LinearFunction : public C15Function {
  /** Like add_variables(), but just only one Variable. coeff is the
   * coefficient of the Variable in the linear function.
   *
-  * The parameter issueMod decides if and how the C05FunctionModVars is
+  * The parameter issueMod decides if and how the C05FunctionModVarsAddd is
   * issued, as described in Observer::make_par(). Note that a linear function
   * is additive, and therefore strongly quasi-additive. */
 
@@ -590,8 +589,7 @@ class LinearFunction : public C15Function {
   * C05FunctionModVarsRngd is issued as opposed to a FunctionModVarsRngd
   * one. */
 
- void remove_variable( Index i, ModParam issueMod = eModBlck )
-  override final;
+ void remove_variable( Index i, ModParam issueMod = eModBlck ) override;
 
 /*--------------------------------------------------------------------------*/
  /// remove a range of "active" Variable
@@ -605,8 +603,7 @@ class LinearFunction : public C15Function {
   * C05FunctionModVarsRngd is issued as opposed to a FunctionModVarsRngd
   * one. */
 
- void remove_variables( Range range , ModParam issueMod = eModBlck )
-  override final;
+ void remove_variables( Range range , ModParam issueMod = eModBlck ) override;
 
 /*--------------------------------------------------------------------------*/
  /// remove the given subset of Variable
@@ -629,15 +626,17 @@ class LinearFunction : public C15Function {
   * C05FunctionModVarSbst is issued as opposed to a FunctionModVarSbst one. */
 
  void remove_variables( Subset && nms , bool ordered = false ,
-			ModParam issueMod = eModBlck )  override final;
+			ModParam issueMod = eModBlck )  override;
 
 /*--------------------------------------------------------------------------*/
  ///< sets the value of the constant term of this function.
  /** Method that sets the new value to the constant term of this linear
   * (actually, affine) Function to constant_term.
   *
-  * The parameter issueMod decides if and how the FunctionMod is issued,
-  * as described in Observer::make_par(). */
+  * The parameter issueMod decides if and how the C05FunctionMod (with
+  * type() == NothingChanged and therefore clearly which().empty, and with
+  * shift() == constant_term - < old constant term >) is issued, as
+  * described in Observer::make_par(). */
 
  void set_constant_term( FunctionValue constant_term ,
                          ModParam issueMod = eModBlck );

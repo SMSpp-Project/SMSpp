@@ -782,8 +782,10 @@ class DQuadFunction : public C15Function {
  /** Method that sets the new value to the constant term of this
   * diagonal quadratic Function to constant_term.
   *
-  * The parameter issueMod decides if and how the DQuadFunctionMod is
-  * issued, as described in Observer::make_par(). */
+  * The parameter issueMod decides if and how the C05FunctionMod (with
+  * type() == NothingChanged and therefore clearly which().empty, and with
+  * shift() == constant_term - < old constant term >) is issued, as
+  * described in Observer::make_par(). */
 
  void set_constant_term( FunctionValue constant_term ,
                          ModParam issueMod = eModBlck );
