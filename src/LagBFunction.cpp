@@ -8,7 +8,7 @@
  *
  * \version 0.20
  *
- * \date 19 - 09 - 2020
+ * \date 18 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -36,20 +36,13 @@
 
 #include "LagBFunction.h"
 
-#include "Observer.h"
-
 #include "RBlockConfig.h"
-
-#include "SMSTypedefs.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
 using namespace SMSpp_di_unipi_it;
-
-using SimpleConfig_p_p = SimpleConfiguration<
-                            std::pair< Configuration * , Configuration * > >;
 
 /*--------------------------------------------------------------------------*/
 /*----------------------------- STATIC MEMBERS -----------------------------*/
@@ -91,9 +84,21 @@ LagBFunction::LagBFunction( Block* innerblock , Observer * const observer )
 
 void LagBFunction::clear( void )
 {
+ // delete all the ColVariable (and the Lagrangian terms with them)
  for( const auto & dp : LagPairs )
   delete dp.second;
  LagPairs.clear();
+
+ // delete the auxiliary data structure for computing the Lagrangian costs
+ CostMatrix.clear();
+
+ // delete the global pool (do not issue any Modification because clear()
+ // is only meant to be called right before destroying the Function, any
+ // Solver attached to it should have been done with long ago
+ for( Index i = 0 ; i < f_max_glob ; ++i )
+  delete g_pool[ i ].first;
+ g_pool.clear();
+ f_max_glob = 0;
  }
 
 /*--------------------------------------------------------------------------*/
@@ -867,19 +872,21 @@ int LagBFunction::compute( bool changedvars )
  // update the Lagrangian cost vector  - - - - - - - - - - - - - - - - - - - -
  // ... only if the Lagrangian variables have changed, otherwise it is the
  // same as before and need not be re-computed
-
  if( changedvars ) {
   compute_Lagrangian_costs();  // compute c^y = c + yA
+  f_linear_term = NaN;         // force to recompute the linear term yb
+  }
 
-  f_linear_term = 0;           // meanwhile also compute the linear term yb
+ // if necessary, recompute the linear term- - - - - - - - - - - - - - - - - -
+ if( std::isnan( f_linear_term ) ) {
+  f_linear_term = 0;
   for( const auto & lagdual : LagPairs ) {
    auto lfrel = static_cast< const LinearFunction * >( lagdual.second );
    f_linear_term += lfrel->get_constant_term() * lagdual.first->get_value();
    }
   }
-
+ 
  // if some parameters have been changed, set BlockSolverConfig- - - - - - - -
-
  if( svcc ) {
   svcc->apply( v_Block.front() );
   delete svcc;
@@ -1584,20 +1591,9 @@ void LagBFunction::compute_Lagrangian_costs( void )
 
 void LagBFunction::guts_of_destructor( void )
 {
- // delete the Function objects  - - - - - - - - - - - - - - - - - - - - - - -
+ // clear() the LagBFunction - - - - - - - - - - - - - - - - - - - - - - - - -
 
  clear();
-
- // clear the map handling the data structure to compute linearizations and
- // updating the Lagrangian cost vector- - - - - - - - - - - - - - - - - - - -
-
- CostMatrix.clear();
-
- // delete the global pool - - - - - - - - - - - - - - - - - - - - - - - - - -
-
- for( Index i = 0 ; i < f_max_glob ; ++i )
-  delete g_pool[ i ].first;
- g_pool.clear();
 
  // delete the inner Block - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -1664,7 +1660,7 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
    if( f_Observer )
     f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-				  C05FunctionMod::AlphaChanged , Subset( {} ) ,
+				  C05FunctionMod::AlphaChanged , Subset() ,
 				  FunctionMod::NaNshift , true ) , chnl );
    return( false );
    }
@@ -1688,7 +1684,7 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
    if( f_Observer )
     f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-				  C05FunctionMod::AlphaChanged , Subset( {} ) ,
+				  C05FunctionMod::AlphaChanged , Subset() ,
 				  FunctionMod::NaNshift , true ) , chnl );
    return( false );
    }
@@ -1740,7 +1736,7 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
      if( f_Observer )
       f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
 				    C05FunctionMod::NothingChanged ,
-				    Subset( {} ) , tmod->shift() , true ) ,
+				    Subset() , tmod->shift() , true ) ,
 				    chnl );
 
      }
@@ -1754,10 +1750,9 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
      if( f_Observer )
       f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-				C05FunctionMod::AlphaChanged , Subset( {} ) ,
-				FunctionMod::NaNshift , true ) ,
+				    C05FunctionMod::AlphaChanged ,
+				    Subset() , NaN , true ) ,
 				    chnl );
-
      }
 
     return( false );  // in either case, all is done
@@ -1779,14 +1774,9 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
       throw( std::logic_error( "Lagrangian term not found" ) );
     #endif
 
+    Index i = std::distance( LagPairs.begin() , it_v );
+
     // distinguish between predictable and unpredictable changes
-    // a finite shift() == a predictable change == the constant term b_i of
-    // the LinearFunction g_i(x) = A_i x + b_i has changed to b'_i. hence,
-    // the i-th entry of all linearizations changes by b'_i - b_i, which
-    // would be the perfect case for a C05FunctionModLin
-    // IF WE WERE ABLE TO COMPUTE b'_i - b_i, WHICH WE ARE NOT BECAUSE WE
-    // DO NOT KNOW THE ORIGINAL VALUE OF b_i, ONLY THE NEW ONE
-    // hence we have to fall back to a C05FunctionModRngd, with
     // shift() == NaN, like in the case of an unpredictable change
     // however, an unpredictable change means that the coefficient vector
     // A_i of the LinearFunction in the Lagrangian term has been modified,
@@ -1796,15 +1786,26 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 	( tmod->shift() == INF ) || ( tmod->shift() == -INF ) ) {
      v_dual_pair dp( { *it_v } );
      update_columns( dp );
-     }
 
-    if( f_Observer ) {
-     Index i = std::distance( LagPairs.begin() , it_v );
-     f_Observer->add_Modification( std::make_shared<C05FunctionModRngd>(
-				   this , C05FunctionMod::AllEntriesChanged ,
-				   Vec_p_Var( { it_v->first } ) ,
-				   Range( i , i + 1 ) , Subset( {} ) ,
-				   NaN , true ) ,
+     if( f_Observer )
+      f_Observer->add_Modification( std::make_shared<C05FunctionModRngd>(
+			       this , C05FunctionMod::AllEntriesChanged ,
+			       Vec_p_Var( { it_v->first } ) ,
+			       Range( i , i + 1 ) , Subset() , NaN , true ) ,
+				   chnl );
+     }
+    else {
+     // a finite shift() == a predictable change == the constant term b_i of
+     // the LinearFunction g_i(x) = A_i x + b_i has changed to b'_i. hence,
+     // the i-th entry of all linearizations changes by shift() == b'_i - b_i,
+     // which is the perfect case for a C05FunctionModLinRngd
+     f_linear_term = NaN;  // since b_i has changed, the linear term has
+
+     if( f_Observer )
+      f_Observer->add_Modification( std::make_shared<C05FunctionModLinRngd>(
+			     this , Vec_FunctionValue( { tmod->shift() } )  ,
+			     Vec_p_Var( { it_v->first } ) ,
+			     Range( i , i + 1 ) , NaN , true ) ,
 				   chnl );
      }
 
