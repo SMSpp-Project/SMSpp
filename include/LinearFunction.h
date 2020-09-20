@@ -323,19 +323,19 @@ class LinearFunction : public C15Function {
 /*--------------------------------------------------------------------------*/
  /// returns the value of the LinearFunction
 
- FunctionValue get_value( void ) const override final { return( f_value ); }
+ FunctionValue get_value( void ) const override { return( f_value ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the LinearFunction is exact, hence lower_estimate == value
 
- FunctionValue get_lower_estimate( void ) const override final {
+ FunctionValue get_lower_estimate( void ) const override {
   return( f_value );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the LinearFunction is exact, hence upper_estimate == value
 
- FunctionValue get_upper_estimate( void ) const override final {
+ FunctionValue get_upper_estimate( void ) const override {
   return( f_value );
   }
 

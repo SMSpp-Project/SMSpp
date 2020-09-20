@@ -208,20 +208,16 @@ void LinearFunction::map_active( c_Vec_p_Var & vars , Subset & map ,
  if( map.size() < vars.size() )
   map.resize( vars.size() );
 
- if( ordered ) {
-  Index found = 0;
+ if( ordered )
   for( Index i = 0 ; i < v_pairs.size() ; ++i ) {
    auto itvi = std::lower_bound( vars.begin() , vars.end() ,
 				 v_pairs[ i ].first );
-   if( itvi != vars.end() ) {
+   if( itvi != vars.end() )
     map[ std::distance( vars.begin() , itvi ) ] = i;
-    ++found;
-    }
+   else
+    throw( std::invalid_argument( "LinearFunction::map_active: "
+				  "some Variable is not active" ) );
    }
-  if( found < vars.size() )
-   throw( std::invalid_argument( "LinearFunction::map_active: "
-                                 "some Variable is not active" ) );
-  }
  else {
   auto it = map.begin();
   for( auto var : vars ) {
@@ -442,22 +438,27 @@ void LinearFunction::remove_variables( Range range , ModParam issueMod )
  if( range.second <= range.first )
   return;
 
- if( ( range.first == 0 ) && ( range.second == v_pairs.size() ) ) {
-  Vec_p_Var vars( v_pairs.size() );
+ if( ( range.first == 0 ) && ( range.second >= v_pairs.size() ) ) {
+  // removing *all* variable
+  if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+   // an Observer is there: copy the names of deleted Variable (all of them)
+   Vec_p_Var vars( v_pairs.size() );
 
-  for( Index i = 0 ; i < v_pairs.size() ; ++i )
-   vars[ i ] = v_pairs[ i ].first;
+   for( Index i = 0 ; i < v_pairs.size() ; ++i )
+    vars[ i ] = v_pairs[ i ].first;
 
-  v_pairs.clear();  // removing *all* variable
+   clear();  // then clear the LinearFunction
 
-  // now issue the Modification
+  // now issue the Modification: note that the subset is empty
   // a linear function is additive ==> strongly quasi-additive
-  if( f_Observer && f_Observer->issue_mod( issueMod ) )
-   f_Observer->add_Modification( std::make_shared<C05FunctionModVarsRngd>(
-				      this , std::move( vars ) , range , 0 ,
-				      Observer::par2concern( issueMod ) ) ,
+   f_Observer->add_Modification( std::make_shared<C05FunctionModVarsSbst>(
+				 this , std::move( vars ) , Subset() , true ,
+				 0 , Observer::par2concern( issueMod ) ) ,
 				 Observer::par2chnl( issueMod ) );
-  return;
+   }
+  else       // no-one is listening
+   clear();  // just do it
+  return;    // all done
   }
 
  // this is not a complete reset
@@ -492,21 +493,25 @@ void LinearFunction::remove_variables( Subset && nms , bool ordered ,
 				       ModParam issueMod )
 {
  if( nms.empty() ) {      // removing *all* variable
-  Vec_p_Var vars( v_pairs.size() );
+  if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+   // an Observer is there: copy the names of deleted Variable (all of them)
+   Vec_p_Var vars( v_pairs.size() );
 
-  for( Index i = 0 ; i < v_pairs.size() ; ++i )
-   vars[ i ] = v_pairs[ i ].first;
+   for( Index i = 0 ; i < v_pairs.size() ; ++i )
+    vars[ i ] = v_pairs[ i ].first;
 
-  v_pairs.clear();
+   clear();  // then clear the LinearFunction
 
   // now issue the Modification: note that the subset is empty
   // a linear function is additive ==> strongly quasi-additive
-  if( f_Observer && f_Observer->issue_mod( issueMod ) )
    f_Observer->add_Modification( std::make_shared<C05FunctionModVarsSbst>(
 				 this , std::move( vars ) , Subset() , true ,
 				 0 , Observer::par2concern( issueMod ) ) ,
 				 Observer::par2chnl( issueMod ) );
-  return;
+   }
+  else       // no-one is listening
+   clear();  // just do it
+  return;    // all done
   }
 
  // this is not a complete reset

@@ -141,8 +141,8 @@ $(SMS++SDR)obj/BendersBFunction.o: $(SMS++SDR)src/BendersBFunction.cpp \
 	$(SMS++SDR)include/ThinVarDepInterface.h
 	$(CC) -c $(SMS++SDR)src/BendersBFunction.cpp -o $@ $(SMS++INC) $(SW)
  
-$(SMS++SDR)obj/BendersBlock.o: $(SMS++SDR)src/BendersBlock.cpp $(intBlockINC) \
-	$(SMS++SDR)include/AbstractPath.h \
+$(SMS++SDR)obj/BendersBlock.o: $(SMS++SDR)src/BendersBlock.cpp \
+	$(intBlockINC) $(SMS++SDR)include/AbstractPath.h \
 	$(SMS++SDR)include/BendersBFunction.h \
 	$(SMS++SDR)include/C05Function.h $(SMS++SDR)include/ColVariable.h \
 	$(SMS++SDR)include/Constraint.h $(SMS++SDR)include/Function.h \
@@ -232,13 +232,17 @@ $(SMS++SDR)obj/Function.o: $(SMS++SDR)src/Function.cpp \
 	$(CC) -c $(SMS++SDR)src/Function.cpp -o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)obj/LagBFunction.o: $(SMS++SDR)src/LagBFunction.cpp \
-	$(SMS++SDR)include/LinearFunction.h $(SMS++SDR)include/C15Function.h \
-	$(SMS++SDR)include/C05Function.h $(SMS++SDR)include/Function.h \
-	$(SMS++SDR)include/ColVariable.h $(SMS++SDR)include/Variable.h \
-	$(SMS++SDR)include/Constraint.h $(SMS++SDR)include/Modification.h \
-	$(SMS++SDR)include/Observer.h $(SMS++SDR)include/SMSTypedefs.h \
-	$(SMS++SDR)include/ThinComputeInterface.h $(intBlockINC) \
-	$(SMS++SDR)include/ThinVarDepInterface.h
+	$(intBlockINC) $(SMS++SDR)include/LagBFunction.h \
+	$(SMS++SDR)include/BlockSolverConfig.h \
+	$(SMS++SDR)include/C05Function.h $(SMS++SDR)include/C15Function.h \
+	$(SMS++SDR)include/ColVariable.h $(SMS++SDR)include/Constraint.h \
+	$(SMS++SDR)include/FRealObjective.h \
+	$(SMS++SDR)include/FRowConstraint.h \
+	$(SMS++SDR)include/Function.h $(SMS++SDR)include/LinearFunction.h \
+	$(SMS++SDR)include/Objective.h $(SMS++SDR)include/RBlockConfig.h \
+	$(SMS++SDR)include/RowConstraint.h \
+	$(SMS++SDR)include/ThinVarDepInterface.h \
+	$(SMS++SDR)include/Variable.h
 	$(CC) -c $(SMS++SDR)src/LagBFunction.cpp -o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)obj/LinearFunction.o: $(SMS++SDR)src/LinearFunction.cpp \
