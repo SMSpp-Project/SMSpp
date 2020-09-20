@@ -247,20 +247,16 @@ void DQuadFunction::map_active( c_Vec_p_Var & vars , Subset & map ,
  if( map.size() < vars.size() )
    map.resize( vars.size() );
 
- if( ordered ) {
-  Index found = 0;
+ if( ordered )
   for( Index i = 0 ; i < v_triples.size() ; ++i ) {
    auto itvi = std::lower_bound( vars.begin() , vars.end() ,
 				 std::get< 0 >( v_triples[ i ] ) );
-   if( itvi != vars.end() ) {
+   if( itvi != vars.end() )
     map[ std::distance( vars.begin() , itvi ) ] = i;
-    ++found;
-    }
+   else
+    throw( std::invalid_argument( "DQuadFunction::map_active: "
+				  "some Variable is not active" ) );
    }
-  if( found < vars.size() )
-   throw( std::invalid_argument( "DQuadFunction::map_active: "
-                                 "some Variable is not active" ) );
-  }
  else {
   auto it = map.begin();
   for( auto var : vars ) {
@@ -596,23 +592,28 @@ void DQuadFunction::remove_variables( Range range, ModParam issueMod )
  if( range.second <= range.first )
   return;
 
- if( ( range.first == 0 ) && ( range.second == v_triples.size() ) ) {
+ if( ( range.first == 0 ) && ( range.second >= v_triples.size() ) ) {
   // removing *all* variable
-  Vec_p_Var vars( v_triples.size() );
+  if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+   // an Observer is there: copy the names of deleted Variable (all of them)
+   Vec_p_Var vars( v_triples.size() );
 
-  for( Index i = 0 ; i < v_triples.size() ; ++i )
-   vars[ i ] = std::get< 0 >( v_triples[ i ] );
+   for( Index i = 0 ; i < v_triples.size() ; ++i )
+    vars[ i ] = std::get< 0 >( v_triples[ i ] );
 
-  v_triples.clear();
+   clear();  // then clear the DQuadFunction
 
-  // now issue the Modification
+  // now issue the Modification: note that the subset is empty
   // a diagonal quadratic function is additive ==> strongly quasi-additive
   if( f_Observer && f_Observer->issue_mod( issueMod ) )
-   f_Observer->add_Modification( std::make_shared<C05FunctionModVarsRngd>(
-				      this , std::move( vars ) , range , 0 ,
-				      Observer::par2concern( issueMod ) ) ,
+   f_Observer->add_Modification( std::make_shared<C05FunctionModVarsSbst>(
+				 this , std::move( vars ) , Subset() , true ,
+				 0 , Observer::par2concern( issueMod ) ) ,
 				 Observer::par2chnl( issueMod ) );
-  return;
+   }
+  else       // no-one is listening
+   clear();  // just do it
+  return;    // all done
   }
 
  // this is not a complete reset
@@ -647,24 +648,26 @@ void DQuadFunction::remove_variables( Subset && nms , bool ordered ,
 				      ModParam issueMod )
 {
  if( nms.empty() ) {      // removing *all* variable
-  Vec_p_Var vars( v_triples.size() );
+  if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
+   // an Observer is there: copy the names of deleted Variable (all of them)
+   Vec_p_Var vars( v_triples.size() );
 
-  for( Index i = 0 ; i < v_triples.size() ; ++i )
-   vars[ i ] = std::get< 0 >( v_triples[ i ] );
+   for( Index i = 0 ; i < v_triples.size() ; ++i )
+    vars[ i ] = std::get< 0 >( v_triples[ i ] );
 
-  v_triples.clear();
+   clear();  // then clear the DQuadFunction
 
   // now issue the Modification: note that the subset is empty
- 
-  // now issue the Modification: note that the vector of Variable * and
-  // the subset are both empty
   // a diagonal quadratic function is additive ==> strongly quasi-additive
   if( f_Observer && f_Observer->issue_mod( issueMod ) )
    f_Observer->add_Modification( std::make_shared<C05FunctionModVarsSbst>(
 				 this , std::move( vars ) , Subset() , true ,
 				 0 , Observer::par2concern( issueMod ) ) ,
 				 Observer::par2chnl( issueMod ) );
-  return;
+   }
+  else       // no-one is listening
+   clear();  // just do it
+  return;    // all done
   }
 
  // this is not a complete reset

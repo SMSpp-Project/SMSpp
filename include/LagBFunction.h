@@ -33,13 +33,15 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#include "C05Function.h"
 #include "Block.h"
-#include "ColVariable.h"
+
+#include "C05Function.h"
+
 #include "FRealObjective.h"
+
 #include "LinearFunction.h"
+
 #include "Solution.h"
-#include "Configuration.h"
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -48,14 +50,7 @@
 /// namespace for the Structured Modeling System++ (SMS++)
 namespace SMSpp_di_unipi_it
 {
-
- class BlockSolverConfig;
-
-/*--------------------------------------------------------------------------*/
-/*------------------------------- CLASSES ----------------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @defgroup LagFun_CLASSES Classes in LagBFunction.h
- *  @{ */
+ class BlockSolverConfig;  // forward definition of BlockSolverConfig
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS LagBFunction -----------------------------*/
@@ -73,14 +68,13 @@ namespace SMSpp_di_unipi_it
  *
  *      (B)    max { c(x) : x \in X }
  *
- *    This will be the one, and only, sub-Block of LagBFunction (when "seen"
- *    as a Block).
+ *    This will be the one, and only, inner Block of LagBFunction (when
+ *    "seen" as a Block).
  *
- * 2) A vector of pairs of relaxed functions and the Lagrangian multipliers
- *    thereof : [ y , g(x) ] = [ ( y_i , g_i (x) ) ]_{ i \in I } which handle
- *    the static relaxation of constraints. The vector-valued function
- *    g(x) = [ g_i( x ) ]_{ i \in I } is defined in the same Variable x as B,
- *    which should be thought as a part of the "complicating constraints" of
+ * 2) A vector of pairs defining the Lagrangian term: < y , g(x) > =
+ *    [ < y_i , g_i(x) > ]_{ i \in I }. The vector-valued function g(x) =
+ *    [ g_i( x ) ]_{ i \in I } is defined in the same Variable x as B, and
+ *    it should be thought as [a part of] the "complicating constraints" of
  *    some original problem
  *
  *      (O)  max { c(x) [+ ...] : g(x) [+ ...] [<]= 0 , x \in X [, ...] }
@@ -250,6 +244,13 @@ namespace SMSpp_di_unipi_it
  *   with the only provision that if the ColVariable is present in any
  *   Lagrangian term g_i(x) it will be automatically re-added.
  *
+ * - Similarly, A TERM < x_j , a_{ij} > IN g_i(x) WILL GIVE RISE TO AN
+ *   EXPLICIT TERM < y_i , a_{ij} > IN THE (LINEAR) EXPRESSION FOR THE
+ *   LAGRANGIAN COST OF x_j EVEN IF a_{ij} == 0; no attemp is done to
+ *   optimize away zero coefficients from g_i(x), in case the entity
+ *   producing them relies on their position in the LinearFunction to
+ *   handle them.
+ *
  * We finish with a LARGELY THEORETICAL, BUT STILL POSSIBLY INTERESTING NOTE.
  * The LagBFunction is both a C05Function and a Block. This is done in order
  * for it to be able to "intercept" any Modification from its sub-Block (B)
@@ -378,7 +379,8 @@ class LagBFunction : public C05Function , public Block {
 
  ///< a vector of dual_pair (a constraint and its dual variable)
  using dual_pair = std::pair< ColVariable * , Function * >;
- using  v_dual_pair = std::vector< dual_pair > ;
+ using v_dual_pair = std::vector< dual_pair >;
+ using v_c_dual_pair = const v_dual_pair;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -388,7 +390,7 @@ class LagBFunction : public C05Function , public Block {
   * linearization (diagonal, vertical) */
 
  using v_gpool_el = std::vector< gpool_el >;
- ///< a vector of linearization_pair
+ ///< the global pool (a vector of linearization_pair)
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -396,7 +398,7 @@ class LagBFunction : public C05Function , public Block {
                              LinearFunction::v_coeff_pair >;
  ///< a pair to represent the original c_i and < y_i , A_i >
 
- using m_column = std::vector< col_pair >;   ///< a map of col_pair
+ using m_column = std::vector< col_pair >;   ///< a vector of col_pair
 
 /*--------------------------------------------------------------------------*/
  /// virtualized concrete iterator
@@ -512,7 +514,6 @@ class LagBFunction : public C05Function , public Block {
 /** @name Constructor and Destructor
  *  @{ */
 
-/*--------------------------------------------------------------------------*/
  /// constructor of LagBFunction, taking the static Lagrangian pairs
  /** Constructor of LagBFunction. It accepts a pointer both to a Block and
   * an Observer, in particular the Block is the one and only inner Block (B),
@@ -528,15 +529,15 @@ class LagBFunction : public C05Function , public Block {
 
  LagBFunction( Block * innerblock = nullptr , Observer * observer = nullptr );
 
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// destructor of LagBFunction: delete the allocated memory.
  /** destructor of LagBFunction. It deletes delete the global pool and the
      LagMatrix which is used to change the Lagrangian costs. */
 
  virtual ~LagBFunction( void ) { guts_of_destructor(); };
 
-/*--------------------------------------------------------------------------*/
- 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
  void clear( void ) override;
 
 /**@} ----------------------------------------------------------------------*/
@@ -545,61 +546,29 @@ class LagBFunction : public C05Function , public Block {
 /** @name Other initializations
  *  @{ */
 
- /// set the sub-block pointer.
- /** This method to set the pointer to the sub-Block (B).
-  *
-  * If a set of "static" dual pairs <y, g(x)> have been already accommodated
-  * [ see set_dual_pairs(), LagBFunction() ], the cost vector c of (obj_B) will
-  * be saved in LagMatrix. This because the evaluation of
-  * Lagrangian function l(y) requires the vector c -stored in (B)- to be
-  * replaced by c^y = c + yA, and consequently the original vector c
-  * would be unavailable.
-  *
-  * In addition, since c(x) of (obj_B) is stored in a *sparse* format,
-  * LagBFunction has to add -to the *active* variable set of (obj_B)-
-  * the Variable with coefficient zero which are involved in the definition
-  * of the relaxed constraints (RCs).  */
+ /// sets the inner Block (B)
+ /** Method to set the inner Block (B). This is supposed to be called before
+  * the LagBFunction gets an Observer, as it does not issue any Modification
+  * to signal that the LagBFunction has (very radically) changed. */
 
  void set_inner_block( Block * innerblock );
 
 /*--------------------------------------------------------------------------*/
- /// set a bunch of *static* Lagrangian pairs <y, g(x)>
- /** This method must be called after the construction of the
-  * class and *only if* an empty constructor has been used. By calling
-  * this method a bunch of Lagrangian pairs <y, g(x)> is stored.
-  *
-  * If a pointer to (B) has been passed, [ see set_inner_block(Block*),
-  * LagBFunction( ) ], the cost vector c of (obj_B) will be saved in LagMatrix.
-  * This because the evaluation of Lagrangian function l(y)
-  * requires the vector c -stored in (B)- to be replaced by c^y = c + yA,
-  * and consequently the original vector c would be unavailable.
-  *
-  * In addition, since c(x) of (obj_B) is stored in a *sparse* format,
-  * the LagBFunction has to add -to the *active* variable set of (obj_B)-
-  * the Variable with coefficient zero which are involved in the definition
-  * of the relaxed constraints (RCs).
-  *
-  * This function must be called after set_inner_block, the sub-Block has been
-  * already defined. */
+ /// set the Lagrangian term < y , g(x) >, hence the active Variable
+ /** Method to initialise all the Lagrangian term < y , g(x) > of the
+  * LagBFunction, hence its active Variable. This is supposed to be called
+  * before the LagBFunction gets an Observer, as it does not issue any
+  * Modification to signal that the LagBFunction has (very radically)
+  * changed. In case the LagBFunction already has an Observer which is
+  * actually "listening", add_dual_pairs() should be called instead
+  * (preceded by a call to remove_variables( Subset() ) to remove all the
+  * existing ones, if any. */
 
- void set_dual_pairs( v_dual_pair && lp , ModParam issueMod = eModBlck );
-
-/*--------------------------------------------------------------------------*/
- /// register LagBFunction as the Observer of g_i, with i \in I.
- /** This method registers this class as the Observer of the relaxed
-  * constraints given in input. This method *must be* called for all the
-  * relaxed constraints (RCs). No variable is registered because the
-  * Lagrangian multipliers are the variables of LagBFuntion while the primal
-  * variables x are the variables of (RCs), and then the set of variables
-  * are not compatible with each other. */
-
- void set_relaxed_function( Function * const function = nullptr  );
+ void set_dual_pairs( v_dual_pair && dp );
 
 /*--------------------------------------------------------------------------*/
  /// set the whole set of parameters in one blow
  /** LagBFunction "listems" to the following parameters:
-  *
-  * TODO: explain what they do
   *
   * - intLPMaxSz
   *
@@ -608,6 +577,8 @@ class LagBFunction : public C05Function , public Block {
   * - dblRAccLin
   *
   * - dblAAccLin
+  *
+  * TODO: explain what they do
   *
   * Furthermore, it also uses the f_extra_Configuration field of the
   * provided ComputeConfig. That field, if non-nullptr, is assumed to be a
@@ -627,16 +598,12 @@ class LagBFunction : public C05Function , public Block {
  void set_ComputeConfig( ComputeConfig *scfg = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
- /// set a given integer (int) numerical parameter
- /** Set a given integer (int) numerical parameter. The method sets the maximum
-  *  size of both the local and the global pool  */
+ /// set a given integer (int) numerical parameter (see set_ComputeConfig())
 
  void set_par( const idx_type par , const int value ) override;
 
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
- /// set a given float (double) numerical parameter
- /** Set a given float (double) numerical parameter. The method sets both the
-  *  relative and absolute accuracy in any linearization.  */
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// set a given integer (int) numerical parameter (see set_ComputeConfig())
 
  void set_par( const idx_type par , const double value ) override;
 
@@ -644,12 +611,68 @@ class LagBFunction : public C05Function , public Block {
 
  void deserialize( netCDF::NcGroup& group ) override;
 
+/**@} ----------------------------------------------------------------------*/
+/*---------------- METHODS FOR MODIFYING THE LagBFunction ------------------*/
 /*--------------------------------------------------------------------------*/
+/** @name Methods for modifying the LagBFunction
+ *
+ * Methods to add ar delete Lagrangian pairs < y , g(x) >, i.e., active
+ * Variable of the LagBFunction. Note that there are no explicit methods
+ * to *modify* the g_i(x) in the current Lagrangian terms because this can
+ * be done by acquiring the pointer to the corresponding Function (currently
+ * necessarily a LinearFunction) and directly modifying it.
+ *
+ *  @{ */
 
- void register_Observer( Observer * const observer = nullptr ) override
- {
-  Function::register_Observer( observer );
-  }
+ /// add new Lagrangian pairs < y , g(x) > (hence, active Variable)
+ /** This method adds a bunch of new Lagrangian pairs < y , g(x) > to the
+  * existing ones, thereby increasing the number of the active [Col]Variable
+  * of the LagBFunction.
+  *
+  * The parameter issueMod decides if and how the C05FunctionModVarsAddd is
+  * issued, as described in Observer::make_par(); note that a Lagrangian
+  * function is strongly quasi-additive. */
+
+ void add_dual_pairs( v_dual_pair && lp, ModParam issueMod = eNoBlck );
+
+/*--------------------------------------------------------------------------*/
+ /// remove the i-th Lagrangian term < y_i , g_i(x) > from the LagBFunction
+ /** Remove the i-th Lagrangian term < y_i , g_i(x) > from the LagBFunction,
+  * i.e., its i-th "active" Variable. If there is no Variable with the given
+  * index, an exception is thrown.
+  *
+  * The parameter issueMod decides if and how the C05FunctionModVarsRngd is
+  * issued, as described in Observer::make_par(); Note that a LagBFunction is
+  * strongly quasi-additive. */
+
+ void remove_variable( Index i , ModParam issueMod = eModBlck ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// remove a range of Lagrangian terms from the LagBFunction
+ /** Remove Lagrangian terms < y_i , g_i(x) > with range.first <= i <
+  * range.second from the LagBFunction, i.e., the corresponding range of
+  * the "active" Variable.
+  *
+  * The parameter issueMod decides if and how the C05FunctionModVarsRngd is
+  * issued, as described in Observer::make_par(); Note that a LagBFunction is
+  * strongly quasi-additive. */
+
+ void remove_variables( Range range , ModParam issueMod = eModBlck ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// remove a subset of Lagrangian terms from the LagBFunction
+ /** Remove the Lagrangian terms < y_i , g_i(x) > with i \in subset from the
+  * LagBFunction, i.e., the corresponding subset of the "active" Variable.
+  * If \p nms.empty(), then *all* the Lagrangian terms ("active" Variable) are
+  * removed. \p ordered tells if \p nms is already ordered in increasing
+  * sense.
+  *
+  * The parameter issueMod decides if and how the C05FunctionModVarsSbst is
+  * issued, as described in Observer::make_par(); Note that a LagBFunction is
+  * strongly quasi-additive. */
+
+ void remove_variables( Subset && nms , bool ordered = false ,
+			ModParam issueMod = eModBlck )  override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- Methods for handling Modification -------------------*/
@@ -657,30 +680,6 @@ class LagBFunction : public C05Function , public Block {
 /** @name Methods for handling Modification
  *  @{ */
 
- /// add a bunch of *dynamic* Lagrangian pairs <y, g(x)>,
- /** This method adds a bunch of Lagrangian pairs. The part of cost vector
-   * c of (obj_B) -not already saved- will be stored in LagMatrix.
-   * The evaluation of the Lagrangian function l(y) requires the vector c
-   * -stored in (B)- to be replaced by c^y = c + yA, and consequently the
-   * original vector c would be unavailable from (B).
-   *
-   * In addition, since c(x) of (obj_B) is stored in a *sparse* format,
-   * the LagBFunction has to add -to the *active* variable set of (obj_B)-
-   * the Variable with coefficient zero which are involved in the definition
-   * of the relaxed constraints (RCs).  */
-
- void add_dual_pairs( v_dual_pair && lp, ModParam issueMod = eNoBlck );
-
-/*--------------------------------------------------------------------------*/
-
- void remove_variable( Index i , ModParam issueMod = eModBlck ) override;
-
- void remove_variables( Range range , ModParam issueMod = eModBlck ) override;
-
- void remove_variables( Subset && nms , bool ordered = false ,
-			ModParam issueMod = eModBlck )  override;
-
-/*--------------------------------------------------------------------------*/
  /// handles Modification issued to the LagBFunction as a Block
  /** Modification reaching the LagBFunction can only be originated by its
   * only inner Block, and will be treated in an highly non-standard way:
@@ -707,8 +706,7 @@ class LagBFunction : public C05Function , public Block {
   *     PROCESSED, THE OTHER ONES BEING IGNORED. THIS IS CLEARLY AN
   *     ISSUE IF THE CHANGES IN THE INNER Block ONLY RESULT IN "PHISICAL"
   *     Modification BEING ISSUED (this will be improved upon by the
-  *     planned re-haul of the Modification system).
-  */
+  *     planned re-haul of the Modification system). */
 
  void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
 
@@ -766,18 +764,9 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  void store_combination_of_linearizations( LinearCombination & coefficients ,
-					   Index name  ,
-					   ModParam issueMod = eModBlck )
-  override;
+			Index name  , ModParam issueMod = eModBlck ) override;
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
- /// set the important linearization
- /** This method *must* be called after store_combination_of_linearizations()
-  * in such a way the important linearization already exists when
-  * set_important_linearization() is called. It sets the name of the important
-  * linearization and saves the combination used to form it.
-  * This method also writes the solution relative to the important linearizaiton
-  * into the sub-Block (B).  */
 
  void set_important_linearization( LinearCombination && coefficients )
   override { zLC = std::move( coefficients ); };
@@ -797,13 +786,7 @@ class LagBFunction : public C05Function , public Block {
  void delete_linearizations( Subset && which , bool ordered = true ,
 			     ModParam issueMod = eModBlck ) override;
 
-/**@} ----------------------------------------------------------------------*/
-/*----------- METHODS DESCRIBING THE BEHAVIOR OF A LagBFunction ------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Methods describing the behavior of a LagBFunction
- *
- * @{ */
-
  /// compute the LagBFunction
  /** Compute the LagBFunction: this amounts at computing the Lagrangian costs
   * and changing the costs in the inner Block accordingly (if the Lagrangian
@@ -829,24 +812,38 @@ class LagBFunction : public C05Function , public Block {
   * is a maximization, i.e., the function is convex. In order to guarantee
   * that the value returned by the function is a valid upper bound, one
   * needs to return an upper estimate of it (the converse for a minimization
-  * problem. */
+  * problem). */
 
  FunctionValue get_value( void ) const override {
-  return( is_convex() ? get_upper_estimate(): get_lower_estimate() );
+  return( is_convex() ? get_upper_estimate() : get_lower_estimate() );
   }
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
  FunctionValue get_lower_estimate( void ) const override {
   auto lb = v_Block.front()->get_registered_solvers().front()->get_lb();
-  return( lb == -Inf<FunctionValue>() ? lb : lb + f_linear_term );
+  if( lb == -Inf<FunctionValue>() )
+   return( lb );
+  else {
+   if( std::isnan( f_yb ) )
+    throw( std::logic_error( "get_upper_estimate() ccalled before compute() "
+			     ) );
+   return( f_yb > -Inf<FunctionValue>() ? lb + f_yb : lb );
+   }
   }
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
  FunctionValue get_upper_estimate( void ) const override {
   auto ub = v_Block.front()->get_registered_solvers().front()->get_ub();
-  return( ub == Inf<FunctionValue>() ? ub : ub + f_linear_term );
+  if( ub == Inf<FunctionValue>() )
+   return( ub );
+  else {
+   if( std::isnan( f_yb ) )
+    throw( std::logic_error( "get_upper_estimate() ccalled before compute() "
+			     ) );
+   return( f_yb > -Inf<FunctionValue>() ? ub + f_yb : ub );
+   }
   }
 
 /*--------------------------------------------------------------------------*/
@@ -885,8 +882,21 @@ class LagBFunction : public C05Function , public Block {
   override;
 
 /*--------------------------------------------------------------------------*/
+ /// returns a pointer to the inner Block (B) defining the LagBFunction
 
  Block * get_inner_block( void ) const { return( v_Block.front() ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns a pointer to the i-th Lagrangian term
+ /** Returns a pointer to the Function defining the Lagrangian term g_i(x)
+  * associated with the i-th ColVariable y_i of the LagBFunction (that
+  * returned by get_active_var( i )). Currently this can only be a
+  * LinearFunction, hence the return value can be safely static_cast-ed to
+  * a LinearFunction *. */
+
+ Function * get_Lagrangian_term( Index i ) const {
+  return( LagPairs[ i ].second );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// get the number of nonzeros in the matrix representation of g(x)
@@ -965,8 +975,8 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- Variable *get_active_var( const Index i ) const override {
-  return( ( LagPairs.begin() + i )->first );
+ Variable * get_active_var( const Index i ) const override {
+  return( LagPairs[ i ].first );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1007,8 +1017,68 @@ class LagBFunction : public C05Function , public Block {
 
  void print( std::ostream &output ) const override;
 
- void load( std::istream &input ) override final;
+ void load( std::istream &input ) override;
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/  /// delete all the Lagrangian terms (and the ColVariable with them)
+
+ void clear_lp( void ) {
+  for( const auto & dp : LagPairs )
+   delete dp.second;
+  LagPairs.clear();
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ void add_columns( v_c_dual_pair & newdp , Index first = 0 );
+
+/*--------------------------------------------------------------------------*/
+
+ void guts_of_destructor( void );
+
+/*--------------------------------------------------------------------------*/
+ /** handle every Modification, comprised GroupModification. returns true if
+  * the global pool has to be checked for feasibility. */
+
+ bool guts_of_add_Modification( p_Mod mod , ChnlName chnl );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /** handle only "basic" Modification, i.e., no GroupModification. returns
+  * true if the global pool has to be checked for feasibility. */
+
+ bool guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl );
+
+/*--------------------------------------------------------------------------*/
+ /// reset the BlockConfig of the inner Block to the default one
+
+ void set_default_inner_BlockConfig( void );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// reset the BlockSolverConfig of the inner Block to the default one
+
+ void set_default_inner_BlockSolverConfig( void );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// reset the configuration of the inner Block to the default one
+ /** Reset both the BlockConfig and the BlockSolverConfig of the inner Block
+  * to the default ones. */
+
+ void set_default_inner_Block_configuration( void ) {
+  set_default_inner_BlockSolverConfig();
+  set_default_inner_BlockConfig();
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ void update_f_max_glob( void ) {
+  while( f_max_glob && ( ! g_pool[ f_max_glob - 1 ].first ) )
+   --f_max_glob;
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ template< typename par_type >
+ void add_par( std::string && name , par_type value );
+ 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1062,12 +1132,11 @@ class LagBFunction : public C05Function , public Block {
  Index LastSolution;  ///< the last Solution read by get_linearization
                       /**< the "name" of the Solution currently in the
 		       * Variable of the inner Block:
- * - NaN : the Solution is not significant
- *
  * - Inf : the Solution is the last one from the local pool
  *
  * - \in [ 0 , g_pool.size() ): is the index of a Solution of the global pool
- */
+ *
+ * - \in [ g_pool.size() , INF ): the Solution is not significant */
 
  bool VarSol;         ///< true if Variable in the inner Block are a solution
                       /**< true if Variable in the inner Block are a solution
@@ -1078,10 +1147,17 @@ class LagBFunction : public C05Function , public Block {
  LinearCombination zLC;
  ///< the LinearCombination of the important linearization
 
- FunctionValue f_linear_term;  ///< the term yb of the Lagrangian function
+ FunctionValue f_yb;  ///< the term yb of the Lagrangian function
+                      /**< The term yb of the Lagrangian function:
+		       * -INF: b == 0, hence the term is 0
+  * +INF: have to check whether b == 0 or not
+  *  NaN: b != 0 and yb have to be computed
+  * any other value: the correct value of yb */
 
  bool f_play_dumb;    ///< true if self-inflicted Modification are ignored
 
+ bool f_dirty_Lc;     ///< true if Lagrangian costs have to be modified
+ 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  int LPMaxSz;         ///< maximum size of the "local pool"
@@ -1090,8 +1166,7 @@ class LagBFunction : public C05Function , public Block {
 
  double AAccLin;      ///< maximum absolute error in any reported solution
 
- BlockSolverConfig * svcc;
- ///< the block solver configuration of the sub-block
+ BlockSolverConfig * svcc;  ///< a BlockSolverConfig for the inner Block
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -1103,83 +1178,16 @@ class LagBFunction : public C05Function , public Block {
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- void initialize_cost_matrix( void );
-
- void add_columns( v_dual_pair & v_lag_pair );
-
- void update_columns( v_dual_pair & v_lag_pair );
-
- void rm_columns( c_Subset & subset );
-
- void rm_columns( c_Range & range );
-
-/*--------------------------------------------------------------------------*/
-
- void set_original_costs( c_Subset & subset = {} );
-
- void set_original_costs( Range range );
-
- void compute_Lagrangian_costs( void );
-
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
-
- void guts_of_destructor( void );
-
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
- /** handle every Modification, comprised GroupModification. returns true if
-  * the global pool has to be checked for feasibility. */
-
- bool guts_of_add_Modification( p_Mod mod , ChnlName chnl );
-
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
- /** handle only "basic" Modification, i.e., no GroupModification. returns
-  * true if the global pool has to be checked for feasibility. */
-
- bool guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl );
-
-/*--------------------------------------------------------------------------*/
-
- /// reset the BlockConfig of the inner Block to the default one
- void set_default_inner_Block_BlockConfig();
-
-/*--------------------------------------------------------------------------*/
-
- // reset the BlockSolverConfig of the inner Block to the default one
- void set_default_inner_Block_BlockSolverConfig();
-
-/*--------------------------------------------------------------------------*/
- // reset the configuration of the inner Block to the default one
- /* Reset both the BlockConfig and the BlockSolverConfig of the inner Block
-  * to the default ones. */
-
- void set_default_inner_Block_configuration() {
-  set_default_inner_Block_BlockSolverConfig();
-  set_default_inner_Block_BlockConfig();
-  }
-
-/*--------------------------------------------------------------------------*/
-
- void update_f_max_glob( void ) {
-  while( f_max_glob && ( ! g_pool[ f_max_glob - 1 ].first ) )
-   --f_max_glob;
-  }
-
-/*--------------------------------------------------------------------------*/
-
- template< typename par_type >
- void add_par( std::string && name , par_type value );
- 
 /*--------------------------------------------------------------------------*/
 /*---------------------------- PRIVATE FIELDS ------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- SMSpp_insert_in_factory_h;        // insert LagBFunction in the Block factory
+ SMSpp_insert_in_factory_h;  // insert LagBFunction in the Block factory
 
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( LagBFunction ) )
 
-/** @} end( group( LagFun_CLASSES ) ) --------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
  }  // end( namespace SMSpp_di_unipi_it )
