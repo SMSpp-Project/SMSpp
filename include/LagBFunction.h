@@ -33,13 +33,15 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#include "C05Function.h"
 #include "Block.h"
-#include "ColVariable.h"
+
+#include "C05Function.h"
+
 #include "FRealObjective.h"
+
 #include "LinearFunction.h"
+
 #include "Solution.h"
-#include "Configuration.h"
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -48,14 +50,7 @@
 /// namespace for the Structured Modeling System++ (SMS++)
 namespace SMSpp_di_unipi_it
 {
-
- class BlockSolverConfig;
-
-/*--------------------------------------------------------------------------*/
-/*------------------------------- CLASSES ----------------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @defgroup LagFun_CLASSES Classes in LagBFunction.h
- *  @{ */
+ class BlockSolverConfig;  // forward definition of BlockSolverConfig
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS LagBFunction -----------------------------*/
@@ -73,14 +68,13 @@ namespace SMSpp_di_unipi_it
  *
  *      (B)    max { c(x) : x \in X }
  *
- *    This will be the one, and only, sub-Block of LagBFunction (when "seen"
- *    as a Block).
+ *    This will be the one, and only, inner Block of LagBFunction (when
+ *    "seen" as a Block).
  *
- * 2) A vector of pairs of relaxed functions and the Lagrangian multipliers
- *    thereof : [ y , g(x) ] = [ ( y_i , g_i (x) ) ]_{ i \in I } which handle
- *    the static relaxation of constraints. The vector-valued function
- *    g(x) = [ g_i( x ) ]_{ i \in I } is defined in the same Variable x as B,
- *    which should be thought as a part of the "complicating constraints" of
+ * 2) A vector of pairs defining the Lagrangian term: < y , g(x) > =
+ *    [ < y_i , g_i(x) > ]_{ i \in I }. The vector-valued function g(x) =
+ *    [ g_i( x ) ]_{ i \in I } is defined in the same Variable x as B, and
+ *    it should be thought as [a part of] the "complicating constraints" of
  *    some original problem
  *
  *      (O)  max { c(x) [+ ...] : g(x) [+ ...] [<]= 0 , x \in X [, ...] }
@@ -385,7 +379,8 @@ class LagBFunction : public C05Function , public Block {
 
  ///< a vector of dual_pair (a constraint and its dual variable)
  using dual_pair = std::pair< ColVariable * , Function * >;
- using  v_dual_pair = std::vector< dual_pair > ;
+ using v_dual_pair = std::vector< dual_pair >;
+ using v_c_dual_pair = const v_dual_pair;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -1022,7 +1017,7 @@ class LagBFunction : public C05Function , public Block {
 
  void print( std::ostream &output ) const override;
 
- void load( std::istream &input ) override final;
+ void load( std::istream &input ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/  /// delete all the Lagrangian terms (and the ColVariable with them)
 
@@ -1034,21 +1029,13 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- void add_columns( v_dual_pair & v_lag_pair );
-
- void update_columns( v_dual_pair & v_LagPairsair );
+ void add_columns( v_c_dual_pair & newdp , Index first = 0 );
 
 /*--------------------------------------------------------------------------*/
 
- void set_original_costs( c_Subset & subset );
-
- void set_original_costs( Range range );
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
  void guts_of_destructor( void );
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*--------------------------------------------------------------------------*/
  /** handle every Modification, comprised GroupModification. returns true if
   * the global pool has to be checked for feasibility. */
 
@@ -1201,7 +1188,6 @@ class LagBFunction : public C05Function , public Block {
 
  };  // end( class( LagBFunction ) )
 
-/** @} end( group( LagFun_CLASSES ) ) --------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
  }  // end( namespace SMSpp_di_unipi_it )
