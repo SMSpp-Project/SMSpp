@@ -1095,14 +1095,18 @@ public:
 
   // DataType
 
-  sdmb_netCDF.DataType.putVar( { index } , get_id< DataType >() );
+  auto data_type = get_id< DataType >();
+  sdmb_netCDF.DataType.putVar( { index } , & data_type );
 
   // Caller type
 
+  char caller_type;
   if constexpr( std::is_base_of_v< Function , Caller > )
-   sdmb_netCDF.Caller.putVar( { index } , 'F' );
+   caller_type = 'F';
   else
-   sdmb_netCDF.Caller.putVar( { index } , 'B' );
+   caller_type = 'B';
+
+  sdmb_netCDF.Caller.putVar( { index } , & caller_type );
  }
 
 /*--------------------------------------------------------------------------*/
