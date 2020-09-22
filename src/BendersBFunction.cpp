@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 15 - 09 - 2020
+ * \date 22 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -2438,15 +2438,28 @@ void BendersBFunction::remove_constraints( Range range ) {
 
 void BendersBFunction::remove_constraints( const Subset & rows ) {
 
+ // Assumption: "rows" is ordered
+
+ if( ( ! rows.empty() ) && rows.back() >
+     std::max( v_paths_to_constraints.size() , v_constraints.size() ) )
+  throw( std::invalid_argument( "BendersBFunction::remove_constraints: "
+                                "invalid constraint index " +
+                                std::to_string( rows.back() ) + "." ) );
+
  auto remove = [ &rows ]( auto & v ) {
-                for( Index i = rows.size() - 1 ; i >= 0 ; i-- ) {
-                 v.erase( v.begin() + rows[ i ] );
+                auto it = v.begin();
+                Index curr_index = 0;
+                for( Subset::size_type i = 0 ; i < rows.size() ; ++i ) {
+                 if( i > 0 && rows[ i ] == rows[ i - 1 ] )
+                  continue; // already removed
+                 it = v.erase( std::next( it , rows[ i ] - curr_index ) );
+                 curr_index = rows[ i ] + 1;
                 }
                };
 
  if( v_paths_to_constraints.empty() ) {
-  // There is no path to Constraint. We can remove the given pointers to
-  // Constraint directly.
+  // There is no path to Constraint. We can remove the pointers to the given
+  // set of Constraint directly.
   remove( v_constraints );
  }
  else {
