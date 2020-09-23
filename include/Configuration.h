@@ -488,7 +488,13 @@ class Configuration
   * (mainly to make the signature of the method not ambiguous with the
   * serialize( netCDF::NcGroup ) one), must be the same as that found in the
   * :SMS++_file_type" attribute, with the meaning set out by the enum
-  * smspp_netCDF_file_type [see SMSTypedefs.h].
+  * smspp_netCDF_file_type. See SMSTypedefs.h for details of the type
+  * formats; in this setting, the only applicable type is
+  *
+  * - eConfigFile: the file (which is also a group) has any number of child
+  *   groups with names "Config_0", "Config_1", ... Each child group contains
+  *   the serialization of a :Configuration (the string attribute "type" and
+  *   all the rest).
   *
   * The current Configuration is *appended* after any existing Configuration
   * in the file.

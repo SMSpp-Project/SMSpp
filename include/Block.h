@@ -929,41 +929,23 @@ class Block : public Observer {
   * :Block object.
   *
   * There are three types of SMS++ netCDF files, corresponding to three values
-  * of the enum smspp_netCDF_file_type [see SMSTypedefs.h]. Each file, when
-  * opened in a netCDF::NcFile (which is also a netCDF::NcGroup), must have an
-  * int netCDF attribute "SMS++_file_type" with one of the three values of the
-  * enum. The structure of the corresponding files is:
+  * of the enum smspp_netCDF_file_type; see SMSTypedefs.h for details, the
+  * two ones relevant here being
   *
   * - eProbFile: the file (which is also a group) has any number of child
   *   groups with names "Prob_0", "Prob_1", ... In turn, each child group
   *   has exactly three child groups with names "Block", "BlockConfig" and
-  *   "BlockSolver", respectively. The first is intended to contain the
-  *   serialization of a :Block, the second the serialization of a
-  *   :BlockConfig of the same :Block, and the third the serialization of a
-  *   :BlockSolverConfig of the same :Block, although any of the three can
-  *   in principle be empty. If any of the child is not empty, it must
-  *   necessarily contain a string attribute "type" containing the classname()
-  *   of the corresponding :Block / :Configuration class, plus of course all
-  *   the information necessary to reconstruct the specific instance. Note
-  *   that sub-Block of the Block and sub-Configuration of the Configuration
-  *   (if any) are assumed each to be contained into a child of the group
-  *   containing the original :Block / :Configuration, recursively.
+  *   "BlockSolver", respectively.
   *
   * - eBlockFile: the file (which is also a group) has any number of child
   *   groups with names "Block_0", "Block_1", ... Each child group contains
   *   the serialization of a :Block (the string attribute "type" and all the
   *   rest).
   *
-  * - eConfigFile: the file (which is also a group) has any number of child
-  *   groups with names "Config_0", "Config_1", ... Each child group contains
-  *   the serialization of a :Configuration (the string attribute "type" and
-  *   all the rest).
-  *
   * The :Block extracted from the file is specified by the parameter idx:
-  * for an eProbFile it is extracted out of the netCDF::NcGroup "Prob_<idx>",
-  * while for an eBlockFile it is extracted out of the netCDF::NcGroup
-  * "Block_<idx>". Note that a :Block cannot be de-serialized out of a
-  * eConfigFile. Trying to do that, as well as if something goes wrong with
+  * for an eProbFile it is extracted out of the netCDF::NcGroup "Block" inside
+  * the netCDF::NcGroup "Prob_<idx>", while for an eBlockFile it is extracted
+  * out of the netCDF::NcGroup "Block_<idx>". If something goes wrong with
   * the entire operation (the file is not there, the "SMS++_file_type"
   * attribute is not there, there is no required "Prob_<idx>" or
   * "Block_<idx>" child group, there is any fatal error during the process,
@@ -971,7 +953,7 @@ class Block : public Observer {
   *
   * Note that the method is static, hence it is to be called as
   *
-  *       Block *myBlock = Block::deserialize( netCDFfile );
+  *       Block * myBlock = Block::deserialize( netCDFfile );
   *
   * i.e., without any reference to any specific Block (and, therefore, it can
   * be used to construct the very first Block if needed).
@@ -1113,12 +1095,12 @@ class Block : public Observer {
   * Although clearly not "empty", as opposed as :Block fresh out of the
   * factory (see new_Block( string )), a freshly loaded Block is otherwise
   * "in pristine state": the "abstract representation" is not constructed
-  * (unless the :Block does this by its own volition), both the BlockConfig
-  * and the BlockSolverConfig are not set, and (therefore) there are no Solver
-  * attached, unless there were before. The eProbFile SMS++ netCDF file type
-  * is precisely provided for allowing to save *all* the information required
-  * to solve a Block (the Block itself, its BlockConfig and its
-  * BlockSolverConfig), but de-serializing the Configuration and applying
+  * (unless the :Block does this by its own volition), the BlockConfig is not
+  * set, and there are no Solver attached, unless there were before. The
+  * eProbFile SMS++ netCDF file type is precisely provided for allowing to
+  * save *all* the information required to solve a Block (the Block itself,
+  * its BlockConfig and all its Solver information, see RBlockConfig.h and
+  * BlockSolverConfig.h), but de-serializing the Configuration and applying
   * them is still the user's responsibility.
   *
   * The method of the base class actually ignores the "type" attribute. This
@@ -1854,7 +1836,13 @@ class Block : public Observer {
   * Block, if newBC->is_diff() == true (and this Block already has a
   * BlockConfig) then \p newBC is deleted once the sub-Configuration of \p
   * newBC have been moved.
-  */
+  *
+  * Note that BlockConfig only refers to the "main" Block, i.e., it does not
+  * provide any way to configure the sub-Block. This can of course be done
+  * programmatically by visiting the whole tree structure of the Block and
+  * calling set_BlockConfig() whenever appropriate. Furthermore, specific
+  * components are separately provided for easing this task (see
+  * RBlockConfig.h). */
 
  virtual void set_BlockConfig( BlockConfig *newBC = nullptr ,
 			       const bool deleteold = true );
@@ -5224,7 +5212,17 @@ class Block : public Observer {
 /*---------------------- Methods for handling Solver -----------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling Solvers
-    @{ */
+ *
+ * The following methods are provided for changing the set of Solver
+ * registered with the Block.
+ *
+ * Note that these methods only refer to the "main" Block, i.e., they do not
+ * provide any way to manage the Solver registered with the sub-Block. This
+ * can of course be done programmatically by visiting the whole tree
+ * structure of the Block and calling the appropriate methods whenever
+ * appropriate. Furthermore, specific components are separately provided for
+ * easing this task (see BlockSolverConfig.h).
+ * @{ */
 
  /// reading the list of (pointers to) currently registered Solvers
  /** Method for reading the list of (pointers to) the Solvers currently
@@ -5244,7 +5242,10 @@ class Block : public Observer {
   * registered Solver, unless \p tofront is set to true, in which case it is
   * pushed to the front. */
 
- virtual void register_Solver( Solver *newSolver , bool tofront = false ) {
+ virtual void register_Solver( Solver * newSolver , bool tofront = false ) {
+  if( ! newSolver )
+   throw( std::invalid_argument( "registering nullptr Solver not allowed" ) );
+  
   if( v_Solver.empty() ) {    // this is the first Solver listening to me
    if( ! f_at ) {             // and no one was listening from above already
     for( auto el : v_Block )  // now someone is listening to all my sons
@@ -5295,17 +5296,21 @@ class Block : public Observer {
   * with the Block. If oldSolver is not among the registered solvers, then
   * nothing is done (and no warning is issued); otherwise the vector of
   * registered Solver is shortened by one, and the remaining solvers (if any)
-  * are shifted in the obvious way. Note that the Block calls
+  * are shifted in the obvious way. If \p deleteold is true, then the 
+  * Solver is also deleted. Note that the Block calls
   * Solver::set_Block( nullptr ) to the Solver that is un-registered, which is
   * why the converse is not done (see Solver.h). Note that the method is
   * virtual because derived classes may have to do more. */
 
- virtual void unregister_Solver( Solver *oldSolver ) {
+ virtual void unregister_Solver( Solver * oldSolver ,
+				 bool deleteold = false ) {
   auto it = find( v_Solver.begin() , v_Solver.end() , oldSolver );
   if( it == v_Solver.end() )  // the Solver is not there
    return;                    // silently return
 
   oldSolver->set_Block( nullptr );
+  if( deleteold )
+   delete oldSolver;
   v_Solver.erase( it );
 
   if( v_Solver.empty() && ( ! f_at ) ) {
@@ -5326,20 +5331,21 @@ class Block : public Observer {
   * the iterator parameter is const because the only place where it might
   * have been taken from (except if the method is called from another Block
   * method) is get_registered_solvers(); however, we "cast away const-ness"
-  * inside. Note that the Block calls Solver::set_Block( nullptr ) to the
-  * Solver that is un-registered, which is why the converse is not done (see
-  * Solver.h). Also, note that the method is virtual because derived classes
-  * may have to do more.
+  * inside. If \p deleteold is true, then the Solver is also deleted. Note
+  * that the Block calls Solver::set_Block( nullptr ) to the Solver that is
+  * un-registered, which is why the converse is not done (see Solver.h).
+  * Also, note that the method is virtual because derived classes may have
+  * to do more.
   *
   * Warning: checking if an iterator really belongs to a list is complicated,
   * hence the method does not try to do that; clearly, calling the method
   * with something that is not an iterator of that list results in indefinite
   * behaviour. */
 
- virtual void unregister_Solver( c_Lst_Solver_it it )
- {
-  unregister_Solver( v_Solver.erase( it , it ) );
+ virtual void unregister_Solver( c_Lst_Solver_it it ,
+				 bool deleteold = false ) {
   // cast away const-ness and call the protected version
+  unregister_Solver( v_Solver.erase( it , it ) , deleteold );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -5349,20 +5355,23 @@ class Block : public Observer {
   * the iterator parameter is const because the only place where it might
   * have been taken from (except if the method is called from another Block
   * method) is get_registered_solvers(); however, we "cast away const-ness"
-  * inside. Note that the Block calls Solver::set_Block( nullptr ) to the
-  * Solver that is replaced, which is why the converse is not done (see
-  * Solver.h). Note that the method is virtual because derived classes may
-  * have to do more.
+  * inside. If \p deleteold is true, then the replaced Solver is also deleted.
+  * Note that the Block calls Solver::set_Block( nullptr ) to the replaced
+  * Solver, which is why the converse is not done (see Solver.h). Note that
+  * the method is virtual because derived classes may have to do more.
   *
   * Warning: checking if an iterator really belongs to a list is complicated,
   * hence the method does not try to do that; clearly, calling the method
   * with something that is not an iterator of that list results in indefinite
   * behaviour. */
 
- virtual void replace_Solver( Solver *newSolver , c_Lst_Solver_it it )
- {
-  replace_Solver( newSolver , v_Solver.erase( it , it ) );
+ virtual void replace_Solver( Solver * newSolver , c_Lst_Solver_it it ,
+			      bool deleteold = false ) {
+  if( ! newSolver )
+   throw( std::invalid_argument( "registering nullptr Solver not allowed" ) );
+
   // cast away const-ness and call the protected version
+  replace_Solver( newSolver , v_Solver.erase( it , it ) , deleteold );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -6040,12 +6049,12 @@ class Block : public Observer {
   *   reconstruct it should be saved; typically this is the "physical
   *   representation" of the Block, if any exists, maybe with the smallest
   *   possible amount of information about the "abstract representation" that
-  *   is strictly required. As a consequence, nothing of the configuration of
-  *   the Block (the BlockConfig and the BlockSolverConfig) is saved when the
-  *   Block is serialized, even less so the attached solvers. The rationale
-  *   is that Configuration objects can themselves be serialized, so if
-  *   saving their current state is required this can (and it is better)
-  *   done separately.
+  *   is strictly required. As a consequence, no configuration of the Block
+  *   (the BlockConfig) and no information about the registered solver is
+  *   saved when the Block is serialized. The rationale is that
+  *   Configuration objects can themselves be serialized, so saving this
+  *   information it better done separately (see BlockSolverConfig.h and
+  *   RBlockConfig.h).
   *
   * The method of the base class just creates and fills the "type" attribute
   * (with the right name, thanks to the classname() method) and the optional
@@ -6952,9 +6961,11 @@ class Block : public Observer {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// removing the solver in position it of the set of the registered ones
 
- virtual void unregister_Solver( Lst_Solver_it it )
- {
+ virtual void unregister_Solver( Lst_Solver_it it ,
+				 bool deleteold = false ) {
   (*it)->set_Block( nullptr );  // unregister the Block in the Solver
+  if( deleteold )
+   delete *it;
   v_Solver.erase( it );  // erase the solver from its position in the list
 
   if( v_Solver.empty() && ( ! f_at ) ) {
@@ -6968,10 +6979,13 @@ class Block : public Observer {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// replace an old Solver with a new Solver
 
- virtual void replace_Solver( Solver *newSolver , Lst_Solver_it it )
- {
+ virtual void replace_Solver( Solver *newSolver , Lst_Solver_it it ,
+			      bool deleteold = false ) {
   (*it)->set_Block( nullptr );
+  if( deleteold )
+   delete *it;
   (*it) = newSolver;
+  newSolver->set_Block( this );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -7031,9 +7045,8 @@ class Block : public Observer {
   * Although clearly not "empty", as opposed as :Block fresh out of the
   * factory (see new_Block( string )), a freshly loaded Block is otherwise
   * "in pristine state": the "abstract representation" is not constructed
-  * (unless the :Block does this by its own volition), both the BlockConfig
-  * and the BlockSolverConfig are not set, and (therefore) there are no Solver
-  * attached, unless there were before. */
+  * (unless the :Block does this by its own volition), the BlockConfig is not
+  * set, and there are no Solver attached, unless there were before. */
 
  virtual void load( std::istream &input ) = 0;
 
@@ -8208,8 +8221,7 @@ class BlockConfig : public Configuration
  /** Since a BlockConfig knows it is a BlockConfig, it "knows its place" in
   * an eProbFile netCDF SMS++ file. */
 
- virtual void serialize( netCDF::NcFile & f , const int type )
-  const override;
+ void serialize( netCDF::NcFile & f , const int type ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// extends Configuration::serialize( netCDF::NcGroup )
@@ -8217,7 +8229,7 @@ class BlockConfig : public Configuration
   * format of a BlockConfig. See BlockConfig::deserialize( netCDF::NcGroup )
   * for details of the format of the created netCDF group. */
 
- virtual void serialize( netCDF::NcGroup & group ) const override;
+ void serialize( netCDF::NcGroup & group ) const override;
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------- METHODS FOR MODIFYING THE BlockConfig -------------------*/
@@ -8250,20 +8262,28 @@ class BlockConfig : public Configuration
 
  /// the Configuration for generate_abstract_constraints()
  Configuration *f_static_constraints_Configuration;
+
  /// the Configuration for generate_dynamic_constraints()
  Configuration *f_dynamic_constraints_Configuration;
+
  /// the Configuration for generate_abstract_variables()
  Configuration *f_static_variables_Configuration;
+
  /// the Configuration for generate_dynamic_variables()
  Configuration *f_dynamic_variables_Configuration;
+
  /// the Configuration for set_objective()
  Configuration *f_objective_Configuration;
+
  /// the Configuration for is_feasible()
  Configuration *f_is_feasible_Configuration;
+
  /// the Configuration for is_optimal()
  Configuration *f_is_optimal_Configuration;
+
  /// the Configuration for get_Solution() and map_[back/forward]_solution
  Configuration *f_solution_Configuration;
+
  /// any extra Block-specific Configuration
  Configuration *f_extra_Configuration;
 

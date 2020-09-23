@@ -54,26 +54,37 @@ SMSpp_insert_in_factory_cpp_0( RBlockSolverConfig );
 namespace {
 
  /// returns the index of the sub-Block with the given \p id
- Block::Index get_nested_Block_index( const std::string & id ,
-                                      const Block * block ) {
 
+ Block::Index get_nested_Block_index( const std::string & id ,
+                                      const Block * block )
+ {
   if( ( ! id.empty() ) && std::isdigit( id.front() ) ) {
    // The id is the index of the sub-Block
-   try {
-    return std::stoi( id );
-    }
-   catch( std::exception & e ) {
-    std::cerr << "get_nested_Block_index: invalid sub-Block id "
-              << id << ": " << e.what() << std::endl;
-    return Inf<Block::Index>();
-    }
+   try { return( std::stoi( id ) ); }
+   catch( ... ) { return( Inf<Block::Index>() ); }
    }
-  else {
-   // The id is the name of the sub-Block
+  else  // The id is the name of the sub-Block
    return block->get_nested_Block_index( id );
-   }
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the sub-Block with the given \p id
+
+ Block * get_nested_Block( const std::string & id , const Block * block )
+ {
+  if( auto bi = block->get_nested_Block( id ) )
+   return( bi );
+
+  if( id.empty() || ( ! std::isdigit( id.front() ) ) )
+   return( nullptr );
+
+  Block::Index i;
+  try { i = std::stoi( id ); }
+  catch( ... ) { return( nullptr ); }
+
+  return( block->get_nested_Block( i ) );
+  }
  }
-}
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- METHODS of BlockSolverConfig ------------------------*/
@@ -162,7 +173,7 @@ void BlockSolverConfig::deserialize( netCDF::NcGroup & group )
   int diffint;
   diff.getValues( &diffint );
   f_diff = diffint > 0;
- }
+  }
 
  size_t num_solvers = 0;
  auto dim = group.getDim( "n_SolverConfig" );
@@ -192,14 +203,10 @@ void BlockSolverConfig::deserialize( netCDF::NcGroup & group )
 /*----------------- OTHER INITIALIZATIONS BlockSolverConfig ----------------*/
 /*--------------------------------------------------------------------------*/
 
-void BlockSolverConfig::get( Block * block , bool clear ) {
-
- if( clear ) {
-  this->clear();
-  return;
-  }
-
- if( ! block ) {
+void BlockSolverConfig::get( Block * block , bool clear )
+{
+ // deal with the trivial cases first
+ if( clear || ( ! block ) ) {
   for( auto config : v_SolverConfigs )
    delete config;
   v_SolverConfigs.clear();
@@ -207,27 +214,28 @@ void BlockSolverConfig::get( Block * block , bool clear ) {
   return;
   }
 
+ // get the Solver (name) and the ComputeConfig (pointer) for each Solver
  auto registered_Solvers = block->get_registered_solvers();
 
  v_SolverNames.resize( registered_Solvers.size() );
  v_SolverConfigs.resize( registered_Solvers.size() );
 
- auto solver_it = registered_Solvers.begin();
- for( decltype( registered_Solvers )::size_type i = 0 ;
-      i < registered_Solvers.size() ; ++i , ++solver_it ) {
-  if( *solver_it ) {
-   v_SolverNames[ i ] = (*solver_it)->classname();
-   v_SolverConfigs[ i ] = (*solver_it)->get_ComputeConfig();
+ auto it = registered_Solvers.begin();
+
+ if( f_diff )
+  for( auto & el : v_SolverConfigs )
+   el = (*(it++))->get_ComputeConfig();
+ else
+  for( decltype( registered_Solvers )::size_type i = 0 ;
+       i < registered_Solvers.size() ; ++i , ++it ) {
+   v_SolverNames[ i ] = (*it)->classname();
+   v_SolverConfigs[ i ] = (*it)->get_ComputeConfig();
    }
-  else {
-   v_SolverNames[ i ] = "";
-   v_SolverConfigs[ i ] = nullptr;
-   }
-  }
+ 
  }  // end( BlockSolverConfig::get )
 
 /*--------------------------------------------------------------------------*/
-/*-------- METHODS DESCRIBING THE BEHAVIOR OF THE BlockSolverConfig --------*/
+/*---------- METHODS DESCRIBING THE BEHAVIOR OF BlockSolverConfig ----------*/
 /*--------------------------------------------------------------------------*/
 
 void BlockSolverConfig::apply( Block * block ) const
@@ -235,97 +243,103 @@ void BlockSolverConfig::apply( Block * block ) const
  if( ! block )
   return;
 
- // set the configurations for the Solver of the Block -----------------------
- //---------------------------------------------------------------------------
+ if( ( ! f_diff ) && v_SolverNames.empty() ) {
+  // applying a BlockSolverConfig without Solver in setting mode means
+  // unregistering and deleting all existing Solver
+  block->unregister_Solvers( true );  // do it with one call
+  return;                             // all done
+  }
+
  auto & solvers = block->get_registered_solvers();
  auto sit = solvers.begin();
  auto nit = v_SolverNames.begin();
  auto cit = v_SolverConfigs.begin();
 
- // process existing Solvers -------------------------------------------------
+ // process existing Solvers - - - - - - - - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( f_diff ) {  // differential mode ----------------------------------
+ if( f_diff ) {  // differential mode- - - - - - - - - - - - - - - - - - - - -
+  // process existing Solvers
+
   for( ; ( sit != solvers.end() ) && ( nit != v_SolverNames.end() ) ;
        ++sit , ++nit ) {
+   //  note: the order of operations is important
 
-   if( ! (*nit).empty() ) {  // if the name is empty do nothing
-    Solver *oldS = *sit;
-    block->replace_Solver( Solver::new_Solver( *nit ) , sit );
-    delete oldS;
-    }
+   // if the name is empty use the existing solver, otherwise create one
+   auto slvr = nit->empty() ? *sit : Solver::new_Solver( *nit );
 
-   if( cit != v_SolverConfigs.end() ) {
-    if( *cit )  // if the configuration is empty, do nothing
-     (*sit)->set_ComputeConfig( *cit );
-    ++cit;
-    }
-   }
-  }
- else {                // setting mode ---------------------------------------
-  for( ; ( sit != solvers.end() ) && ( nit != v_SolverNames.end() ) ; ++nit ) {
-
-   Solver *oldS = *sit;
-
-   if( (*nit).empty() ) {  // empty name
-    block->unregister_Solver( sit );
-    if( cit != v_SolverConfigs.end() )
-     ++cit;  // ignore corresponding configuration
-    // note: sit is not increased because the list is shortened
-    }
-   else {                  // non-empty name
-    block->replace_Solver( Solver::new_Solver( *nit ) , sit );
-    if( cit != v_SolverConfigs.end() ) {
-     (*sit)->set_ComputeConfig( *cit );
-     ++cit;
-     }
-    ++sit;
-    }
-
-   delete oldS;
-   }
-  }                    // end setting mode -----------------------------------
-
- // process Solvers in the Configuration but not in the Block-----------------
-
- for( ; nit != v_SolverNames.end() ; ++nit )
-  if( (*nit).empty() ) {  // if the name is empty
-   if( cit != v_SolverConfigs.end() )
-    ++cit;
-   }
-  else {                   // the name is non-empty
-   // important note: the order is
-   // - first the Solver is created;
-   // - then it is ComputeConfig-ured
-   // - only then it is passed to the Block
-
-   auto slvr = Solver::new_Solver( *nit );
-
-   if( cit != v_SolverConfigs.end() ) {
-    if( *cit )  // if the configuration is empty, do nothing
+   if( cit != v_SolverConfigs.end() ) {     // then ComputeConfig-ure it
+    if( *cit )                              // if the ComputeConfig is there
      slvr->set_ComputeConfig( *cit );
     ++cit;
     }
 
-   block->register_Solver( slvr );
+   if( ! nit->empty() )                    // if it is a new one, only now it 
+    block->replace_Solver( slvr , sit , true );  // replaces the existing one
    }
+
+  // if any Solver in the Block remains after that the end of v_SolverNames
+  // is reached, nothing is done
+  }
+ else {          // setting mode - - - - - - - - - - - - - - - - - - - - - - -
+  // delete extra Solvers
+
+  while( solvers.size() > v_SolverNames.size() )
+   block->unregister_Solver( --solvers.end() , true );
+
+  // process existing Solvers
+
+  for( ; ( sit != solvers.end() ) && ( nit != v_SolverNames.end() ) ;
+       ++nit , ++sit ) {
+   //  note: the order of operations is important
+
+   auto slvr = Solver::new_Solver( *nit );  // first create a new Solver
+
+   if( cit != v_SolverConfigs.end() ) {     // then ComputeConfig-ure it
+    if( *cit )                              // if the ComputeConfig is there
+     slvr->set_ComputeConfig( *cit );
+    ++cit;
+    }
+
+   // only then replace the existing one
+   block->replace_Solver( slvr , sit , true );
+   }
+  }              // end setting mode - - - - - - - - - - - - - - - - - - - - -
+
+ // process Solvers in the Configuration but not in the Block- - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ for( ; nit != v_SolverNames.end() ; ++nit ) {
+  //  note: the order of operations is important
+
+  auto slvr = Solver::new_Solver( *nit );  // first create the Solver
+
+  if( cit != v_SolverConfigs.end() ) {     // then ComputeConfig-ure it
+   if( *cit )                              // if the ComputeConfig is there
+    slvr->set_ComputeConfig( *cit );
+   ++cit;
+   }
+
+  block->register_Solver( slvr );          // only then pass it to the Block
+  }
+
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
  }  // end( BlockSolverConfig::apply )
 
 /*--------------------------------------------------------------------------*/
 /*------ METHODS FOR LOADING, PRINTING & SAVING THE BlockSolverConfig ------*/
 /*--------------------------------------------------------------------------*/
 
-void BlockSolverConfig::serialize( netCDF::NcFile & f , const int type )
- const
+void BlockSolverConfig::serialize( netCDF::NcFile & f , const int type ) const
 {
- if( type == eConfigFile ) {
+ if( type == eConfigFile )
   Configuration::serialize( f , type );
-  return;
+ else {
+  auto cg = ( f.addGroup( "Config_" + std::to_string( f.getGroupCount() )
+			  ) ).addGroup( "SolverConfig" );
+  serialize( cg );
   }
-
- auto cg = ( f.addGroup( "Config_" + std::to_string( f.getGroupCount() )
-                         ) ).addGroup( "SolverConfig" );
- serialize( cg );
-
  }  // end( BlockSolverConfig::serialize( file ) )
 
 /*--------------------------------------------------------------------------*/
@@ -336,7 +350,9 @@ void BlockSolverConfig::serialize( netCDF::NcGroup & group ) const
 
  group.putAtt( "diff" , netCDF::NcInt() , int( f_diff ) );
 
- netCDF::NcDim dim = group.addDim( "n_SolverConfig" , v_SolverConfigs.size() );
+ netCDF::NcDim dim = group.addDim( "n_SolverConfig" ,
+				   v_SolverConfigs.size() );
+
  netCDF::NcVar solver_names_var = group.addVar( "SolverNames" ,
                                                 netCDF::NcString() , dim );
 
@@ -400,24 +416,22 @@ void BlockSolverConfig::load( std::istream &input )
   }
  }  // end( BlockSolverConfig::load )
 
-
 /*--------------------------------------------------------------------------*/
 /*-------------------- METHODS of RBlockSolverConfig -----------------------*/
 /*--------------------------------------------------------------------------*/
 /*------------ CONSTRUCTING AND DESTRUCTING RBlockSolverConfig -------------*/
 /*--------------------------------------------------------------------------*/
 
-RBlockSolverConfig::RBlockSolverConfig( const RBlockSolverConfig &old )
+RBlockSolverConfig::RBlockSolverConfig( const RBlockSolverConfig & old )
  : BlockSolverConfig( old ) {
 
  v_BlockSolverConfig.resize( old.v_BlockSolverConfig.size() );
- for( std::size_t i = 0 ; i < v_BlockSolverConfig.size() ; ++i ) {
-  v_BlockSolverConfig[ i ] = nullptr;
-  if( old.v_BlockSolverConfig[ i ] )
-   v_BlockSolverConfig[ i ] = old.v_BlockSolverConfig[ i ]->clone();
-  }
+ for( std::size_t i = 0 ; i < v_BlockSolverConfig.size() ; ++i )
+  v_BlockSolverConfig[ i ] = old.v_BlockSolverConfig[ i ] ?
+                             old.v_BlockSolverConfig[ i ]->clone() : nullptr;
 
  v_sub_Block_id = old.v_sub_Block_id;
+
  }  // end( RBlockSolverConfig::RBlockSolverConfig )
 
 /*--------------------------------------------------------------------------*/
@@ -427,10 +441,12 @@ void RBlockSolverConfig::deserialize( netCDF::NcGroup & group )
  if( v_BlockSolverConfig.size() )
   throw( std::logic_error( "deserializing a non-empty RBlockSolverConfig" ) );
 
+ // deserialize the "root Block" information- - - - - - - - - - - - - - - - -
+
  BlockSolverConfig::deserialize( group );
 
- // BlockSolverConfig for sub-Block
-
+ // deserialize the sub-Block information - - - - - - - - - - - - - - - - - -
+ 
  auto dim = group.getDim( "n_BlockSolverConfig" );
  if( dim.isNull() )
   return;
@@ -442,7 +458,10 @@ void RBlockSolverConfig::deserialize( netCDF::NcGroup & group )
 
  for( size_t i = 0 ; i < v_BlockSolverConfig.size() ; ++i ) {
   auto bc = group.getGroup( "BlockSolverConfig_" + std::to_string( i ) );
-  v_BlockSolverConfig[ i ] = dynamic_cast< BlockSolverConfig * >(
+  if( bc.isNull() )
+   v_BlockSolverConfig[ i ] = nullptr;
+  else
+   v_BlockSolverConfig[ i ] = dynamic_cast< BlockSolverConfig * >(
                                                     new_Configuration( bc ) );
   }
 
@@ -461,14 +480,15 @@ void RBlockSolverConfig::deserialize( netCDF::NcGroup & group )
        i < v_sub_Block_id.size() ; ++i )
    v_sub_Block_id[ i ] = std::to_string( i );
   }
+
  }  // end( RBlockSolverConfig::deserialize( group ) )
 
 /*--------------------------------------------------------------------------*/
 /*----------------- OTHER INITIALIZATIONS RBlockSolverConfig ---------------*/
 /*--------------------------------------------------------------------------*/
 
-void RBlockSolverConfig::get( Block * block , bool clear ) {
-
+void RBlockSolverConfig::get( Block * block , bool clear )
+{
  BlockSolverConfig::get( block , clear );
 
  if( ! block ) {
@@ -479,39 +499,62 @@ void RBlockSolverConfig::get( Block * block , bool clear ) {
   return;
   }
 
- assert( v_BlockSolverConfig.size() == v_sub_Block_id.size() );
+ #ifndef NDEUG
+  if( v_BlockSolverConfig.size() != v_sub_Block_id.size() )
+   throw( std::logic_error( "inconsistent RBlockSolverConfig state" ) );
+ #endif
 
- const auto number_nested_Blocks = block->get_number_nested_Blocks();
+ if( v_sub_Block_id.empty() ) {  // scan *all* the sub-Block- - - - - - - - -
 
- // If v_sub_Block_id is empty, we consider all sub-Block of the given Block
+  for( Index i = 0 ; i < block->get_number_nested_Blocks() ; ++i ) {
+   auto bi = block->get_nested_Block( i );  // get i-th sub-Block
+   std::string id = bi->name();             // and its id
+   if( id.empty() ) id = std::to_string( i );
 
- if( v_sub_Block_id.empty() ) {
-  v_sub_Block_id.resize( number_nested_Blocks );
-  v_BlockSolverConfig.resize( number_nested_Blocks , nullptr );
-  for( decltype( v_sub_Block_id )::size_type i = 0 ;
-       i < v_sub_Block_id.size() ; ++i )
-   v_sub_Block_id[ i ] = std::to_string( i );
+   // get a new full-fledged RBlockSolverConfig for bi
+   auto newRBSC = new RBlockSolverConfig( bi , false , clear );
+   if( newRBSC->empty() ) {  // newRBSC is empty
+    // there is no meaningful information about the sub-Block (recursively),
+    // and therefore a BlockSolverConfig is not required. however, if bi has
+    // some registered Solver then newRBSC is empty only because clear ==
+    // true, hence an entry is still required but nullptr can be there to
+    // tell that bi just need be Solver-reset
+    delete newRBSC;
+    if( ! bi->get_registered_solvers().empty() )
+     add_BlockSolverConfig( nullptr , std::move( id ) );
+    }
+   else                                         // newRBSC is not empty
+    if( ! newRBSC->num_BlockSolverConfig() ) {  // but has no sub-Block info
+     // copy the "root" information into a base BlockSolverConfig
+     auto newBSC = new BlockSolverConfig( newRBSC );
+     delete newRBSC;
+     add_BlockSolverConfig( newRBSC , std::move( id ) );  // add it instead
+     }
+    else  // newRBSC is not empty both for "base" information and sub-Block
+     add_BlockSolverConfig( newRBSC , std::move( id ) );  // add it
+
+   }  // end( for( sub-Blocks ) )
+
+  return;  // all done
   }
 
- // Retrieve the BlockSolverConfig of the sub-Block
+ // only scan the existing sub-Block- - - - - - - - - - - - - - - - - - - - -
 
- for( decltype( v_sub_Block_id )::size_type i = 0 ;
-      i < v_sub_Block_id.size() ; ++i ) {
+ auto it = v_BlockSolverConfig.begin();
+ for( const auto & id : v_sub_Block_id ) {
+  auto bi = block->get_nested_Block( id );
+  if( *it )  // ... assuming they have a non-nullptr BlockSolverConfig
+   (*it)->get( bi , clear );
+  else              // the BlockSolverConfig is nullptr
+   if( ! clear ) {  // and a "full" BlockSolverConfig is required
+    auto newBSC = new BlockSolverConfig(  bi );  // get it
+    if( ! newBSC->empty() )                      // if it is significant
+     *it = newBSC;                               // record it
+    else                                         // otherwise
+     delete newBSC;                              // discard it
+    }
 
-  const auto id = v_sub_Block_id[ i ];
-  Block::Index sub_Block_index = ::get_nested_Block_index( id , block );
-
-  if( sub_Block_index >= block->get_number_nested_Blocks() )
-   throw ( std::logic_error( "RBlockSolverConfig::get: "
-                             "invalid sub-Block id: " + id + "." ) );
-
-  auto sub_Block = block->get_nested_Block( sub_Block_index );
-
-  if( v_BlockSolverConfig[ i ] )
-   v_BlockSolverConfig[ i ]->get( sub_Block , clear );
-  else
-   v_BlockSolverConfig[ i ] = new RBlockSolverConfig
-    ( sub_Block , false , clear );
+  ++it;
   }
  }  // end( RBlockSolverConfig::get )
 
@@ -524,29 +567,27 @@ void RBlockSolverConfig::apply( Block * block ) const
  if( ! block )
   return;
 
- // set the configurations for the Solver of the Block -----------------------
- //---------------------------------------------------------------------------
+ // set the configurations for the Solver of the "root" Block - - - - - - - -
 
  BlockSolverConfig::apply( block );
 
- // set the configurations for the sub-Block ---------------------------------
- //---------------------------------------------------------------------------
+ // set the configurations for the sub-Block- - - - - - - - - - - - - - - - -
 
- assert( v_BlockSolverConfig.size() == v_sub_Block_id.size() );
+ #ifndef NDEUG
+  if( v_BlockSolverConfig.size() != v_sub_Block_id.size() )
+   throw( std::logic_error( "inconsistent RBlockSolverConfig state" ) );
+ #endif
 
- for( decltype( v_BlockSolverConfig )::size_type i = 0 ;
-      i < v_BlockSolverConfig.size() ; ++i ) {
-
-  const auto & id = v_sub_Block_id[ i ];
-  Block::Index sub_Block_index = ::get_nested_Block_index( id , block );
-  if( sub_Block_index >= block->get_number_nested_Blocks() )
-   throw ( std::logic_error( "RBlockSolverConfig::apply: "
-                             "invalid sub-Block id: "+ id + "." ) );
-
-  auto sub_Block = block->get_nested_Block( sub_Block_index );
-
-  if( v_BlockSolverConfig[ i ] && sub_Block )
-   v_BlockSolverConfig[ i ]->apply( sub_Block );
+ auto it = v_BlockSolverConfig.begin();
+ for( const auto & id : v_sub_Block_id ) {
+  if( auto sub_Block = block->get_nested_Block( id ) ) {
+   if( *it )
+    (*it)->apply( sub_Block );
+   else
+    if( ! f_diff )
+     sub_Block->unregister_Solvers( true );
+   }
+  ++it;
   }
  }  // end( RBlockSolverConfig::apply )
 
@@ -561,7 +602,7 @@ void RBlockSolverConfig::serialize( netCDF::NcGroup & group ) const
  // BlockSolverConfig for sub-Block
 
  auto n_BlockSolverConfig =
-  group.addDim( "n_BlockSolverConfig" , v_BlockSolverConfig.size() );
+          group.addDim( "n_BlockSolverConfig" , v_BlockSolverConfig.size() );
 
  for( size_t i = 0 ; i < v_BlockSolverConfig.size() ; ++i ) {
   if( v_BlockSolverConfig[ i ] ) {
@@ -606,7 +647,6 @@ void RBlockSolverConfig::print( std::ostream &output ) const
 
 void RBlockSolverConfig::load( std::istream &input )
 {
-
  BlockSolverConfig::load( input );
 
  // BlockSolverConfig for sub-Block
@@ -619,10 +659,8 @@ void RBlockSolverConfig::load( std::istream &input )
  v_sub_Block_id.resize( k );
 
  for( int i = 0 ; i < k ; ++i ) {
-
-  if( id_is_provided ) {
+  if( id_is_provided )
    input >> eatcomments >> v_sub_Block_id[ i ];
-   }
   else
    v_sub_Block_id[ i ] = std::to_string( i );
 
@@ -636,12 +674,12 @@ void RBlockSolverConfig::load( std::istream &input )
   else {
    std::string config_name;
    input >> config_name;
-   v_BlockSolverConfig[ i ] = dynamic_cast< BlockSolverConfig * >
-    ( Configuration::new_Configuration( config_name ) );
+   v_BlockSolverConfig[ i ] = dynamic_cast< BlockSolverConfig * >(
+			   Configuration::new_Configuration( config_name ) );
    if( ! v_BlockSolverConfig[ i ] )
-    throw ( std::invalid_argument("RBlockSolverConfig::load: invalid "
+    throw( std::invalid_argument( "RBlockSolverConfig::load: invalid "
                                   "BlockSolverConfig for sub-Block " +
-                                  v_sub_Block_id[ i ] + "." ) );
+                                  v_sub_Block_id[ i ] ) );
    input >> *v_BlockSolverConfig[ i ];
    }
   }

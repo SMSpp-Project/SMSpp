@@ -1287,18 +1287,25 @@ ComputeConfig * LagBFunction::get_ComputeConfig( bool all ,
 {
  ComputeConfig* ccfg = ThinComputeInterface::get_ComputeConfig( all , ocfg );
 
- auto cc = new
+ auto bsc = new RBlockSolverConfig( v_Block.front() , ! all );
+ if( bsc->empty() ) {
+  delete bsc;
+  bsc = nullptr;
+  }
+ 
+ auto bc = new OCRBlockConfig();  // TODO: improve on this
+ bc->get( v_Block.front() );
+
+ if( bsc || bc ) {
+  auto cc = new
      SimpleConfiguration< std::pair< Configuration * , Configuration * > >();
 
- auto bsc = new RBlockSolverConfig();  // TODO: improve on this
- bsc->get( v_Block.front() );
- cc->f_value.first = bsc;
+  cc->f_value.first = bsc;
+  cc->f_value.second = bc;
+  return( ccfg );
+  }
 
- auto bc = new OCRBlockConfig();  // TODO: improve on this
- bsc->get( v_Block.front() );
- cc->f_value.second = bsc;
-
- return( ccfg );
+ return( nullptr );
 
  }  // end( LagBFunction::get_ComputeConfig() )
 

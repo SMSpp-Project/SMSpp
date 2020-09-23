@@ -133,6 +133,39 @@ namespace SMSpp_di_unipi_it
  /// public enum for types of SMS++ netCDF files
  /** Public enum for describing the different kinds of netCDF files that can
   * be read and produced by SMS++ objects (notably, Block and Configuration).
+  *
+  * There are three "basic" types of SMS++ netCDF files, corresponding to the
+  * three values of this enum smspp_netCDF_file_type. Each file, when opened
+  * in a netCDF::NcFile (which is also a netCDF::NcGroup), must have an int
+  * netCDF attribute "SMS++_file_type" with one of the three values of the
+  * enum. The structure of the corresponding files is:
+  *
+  * - eProbFile: the file (which is also a group) has any number of child
+  *   groups with names "Prob_0", "Prob_1", ... In turn, each child group
+  *   has exactly three child groups with names "Block", "BlockConfig" and
+  *   "BlockSolver", respectively. The first is intended to contain the
+  *   serialization of a :Block [see Block.h], the second the serialization
+  *   of a :BlockConfig of the same :Block [see Block.h or RBlockConfig.h],
+  *   and the third the serialization of a :BlockSolverConfig of the same
+  *   :Block [see BlockSolverConfig.h], although any of the three can in
+  *   principle be empty. If any of the child is not empty, it must
+  *   necessarily contain a string attribute "type" containing the classname()
+  *   of the corresponding :Block / :Configuration class, plus of course all
+  *   the information necessary to reconstruct the specific instance. Note
+  *   that sub-Block of the Block and sub-Configuration of the Configuration
+  *   (if any) are assumed each to be contained into a child of the group
+  *   containing the original :Block / :Configuration, recursively.
+  *
+  * - eBlockFile: the file (which is also a group) has any number of child
+  *   groups with names "Block_0", "Block_1", ... Each child group contains
+  *   the serialization of a :Block (the string attribute "type" and all the
+  *   rest).
+  *
+  * - eConfigFile: the file (which is also a group) has any number of child
+  *   groups with names "Config_0", "Config_1", ... Each child group contains
+  *   the serialization of a :Configuration (the string attribute "type" and
+  *   all the rest).
+  *
   * The value eLastFileParam is provided if some :Block or :Configuration
   * needs to read/write files with a specific structure. */
 
