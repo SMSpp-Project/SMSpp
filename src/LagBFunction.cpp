@@ -113,7 +113,7 @@ LagBFunction::LagBFunction( Block* innerblock , Observer * const observer )
  : C05Function() , obj( nullptr ) , IsConvex( true ) , f_max_glob( 0 ) ,
    LastSolution( 0 ) , VarSol( true ) , f_yb( -INF ) , f_play_dumb( false ) ,
    f_dirty_Lc( false ) , LPMaxSz( 0 ) , RAccLin( 0 ) , AAccLin( 0 ) ,
-   svcc( nullptr )
+   f_BSC( new BlockSolverConfig ) , f_BSC_changed( false )
 {
  // set the pointer to the sub-Block (B) - - - - - - - - - - - - - - - - - - -
 
@@ -124,6 +124,11 @@ LagBFunction::LagBFunction( Block* innerblock , Observer * const observer )
 
  if( observer )
   register_Observer( observer );
+
+ f_BSC->set_diff( true );        // set the BlockSolverConfig in "diff mode"
+ auto cc = new ComputeConfig;    // ensure there is a ComputeConfig
+ cc->f_diff = true;              // also in "diff mode"
+ f_BSC->add_ComputeConfig( "" , cc );
 
  }  // end( LagBFunction::LagBFunction() )
 
@@ -256,7 +261,7 @@ void LagBFunction::set_ComputeConfig( ComputeConfig * scfg )
 
  auto inner_block = get_inner_block();
  if( ! inner_block )
-  return;
+  throw( std::logic_error( "incomplete LagBFunction configured" ) );
 
  if( ! scfg ) {  // scfg is nullptr
   set_default_inner_Block_configuration();
@@ -275,9 +280,8 @@ void LagBFunction::set_ComputeConfig( ComputeConfig * scfg )
 						) ) {
   // set the BlockConfig of the inner Block
   if( config->f_value.first ) {  // if it was provided in extra_Configuration
-   if( auto block_config = dynamic_cast< BlockConfig * >(
-						  config->f_value.first ) )
-    block_config->apply( inner_block );
+   if( auto bc = dynamic_cast< BlockConfig * >( config->f_value.first ) )
+    bc->apply( inner_block );
    else
     throw( std::invalid_argument( "LagBFunction::set_ComputeConfig: scfg "
 				  "extra_Configuration.first must be a "
@@ -289,12 +293,25 @@ void LagBFunction::set_ComputeConfig( ComputeConfig * scfg )
 
   // set the BlockSolverConfig of the inner Block
   if( config->f_value.second ) {  // if it was provided in extra_Configuration
-   if( auto block_config = dynamic_cast< BlockSolverConfig * >(
-						   config->f_value.second ) )
-    block_config->apply( inner_block );
+   if( auto bsc = dynamic_cast< BlockSolverConfig * >(
+                                                 config->f_value.second ) ) {
+    if( f_BSC_changed && ( f_BSC->is_diff() ) )
+     // if some changes still had to be applied do that now, unless the new
+     // BlockSolverConfig is in "set mode", since this would reset everything
+     f_BSC->apply( inner_block );
+    bsc->apply( inner_block );      // apply the new BlockSolverConfig
+    f_BSC_changed = false;          // done
+    delete f_BSC;                   // delete the old one
+    f_BSC = bsc;                    // keep the new BlockSolverConfig
+    config->f_value.second = nullptr;  // take possession
+    f_BSC->clear();                 // clear it
+    f_BSC->set_diff( true );        // set it in "diff mode"
+    f_BSC->get_SolverConfig( 0 )->f_diff = true;
+    // also set the (first) internal SolverConfig in "diff mode"
+    }
    else
     throw( std::invalid_argument( "LagBFunction::set_ComputeConfig: scfg "
-				  "extra:Configuration.second must be a "
+				  "extra_Configuration.second must be a "
 				  "BlockSolverConfig *" ) );
    }
   else                           // it was not provided in extra_Configuration
@@ -368,6 +385,15 @@ void LagBFunction::deserialize( netCDF::NcGroup & group )
  throw( std::logic_error( "LagBFunction::deserialize not implemented yet" ) );
 
  guts_of_destructor();  // cleanup whatever is there now
+
+ // ensure a "default" f_BSC is there (it is deleted in guts_of)
+ f_BSC = new BlockSolverConfig;  // create a new ampty one
+ f_BSC->set_diff( true );        // set it in "diff mode"
+ auto cc = new ComputeConfig;    // ensure there is a ComputeConfig
+ cc->f_diff = true;              // also in "diff mode"
+ f_BSC->add_ComputeConfig( "" , cc );
+ f_BSC_changed = false;
+
  f_dirty_Lc = true;     // Lagrangian costs have to be updated
  f_yb = INF;            // have to check if b == 0 or not
 
@@ -1114,10 +1140,10 @@ int LagBFunction::compute( bool changedvars )
   }
  
  // if some parameters have been changed, set BlockSolverConfig- - - - - - - -
- if( svcc ) {
-  svcc->apply( v_Block.front() );
-  delete svcc;
-  svcc = nullptr;
+ if( f_BSC_changed ) {
+  f_BSC->apply( v_Block.front() );
+  f_BSC->clear();
+  f_BSC_changed = false;
   }
 
  // finally, compute() the inner Block - - - - - - - - - - - - - - - - - - - -
@@ -1560,6 +1586,14 @@ void LagBFunction::guts_of_destructor( void )
 
  // delete the inner Block - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+ // use the BlockSolverConfig to delete all the Solver
+ f_BSC->clear();
+ f_BSC->set_diff( false );
+ f_BSC->apply( v_Block.front() );
+
+ delete f_BSC;  // then delete it
+
+ // now finally the inner Block can be deleted
  if( ! v_Block.empty() )
   delete v_Block.front();
  v_Block.clear();
@@ -2306,22 +2340,8 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 template< typename par_type >
 void LagBFunction::add_par( std::string && name , par_type value )
 {
- if( ! svcc ) {
-  svcc = new BlockSolverConfig;
-  svcc->set_diff( true );
-  }
-
- ComputeConfig * cc;
- auto & solver_configs = svcc->get_SolverConfigs();
- if( solver_configs.empty() ) {
-  cc = new ComputeConfig;
-  cc->f_diff = true;
-  svcc->add_ComputeConfig( "" , cc );
-  }
- else
-  cc = solver_configs.front();
-
- cc->set_par( std::move( name ) , value );
+ f_BSC->get_SolverConfigs().front()->set_par( std::move( name ) , value );
+ f_BSC_changed = true;
  }
  
 /*--------------------------------------------------------------------------*/

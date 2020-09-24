@@ -99,7 +99,7 @@ namespace SMSpp_di_unipi_it
  * Indeed, consider the most obvious use case: a Block is created, Solver
  * are attached exclusively by means of a single BlockSolverConfig, the Block
  * is solved, and then everything is deleted. This can be easily performed by
- the following pseudo-code:
+ * the following pseudo-code:
  *
  *     Block *myBlock = < some way to create it, say a netCDF file >
  *     BlockSolverConfig *myBSC = < some way to create it, say a netCDF file >
@@ -258,7 +258,12 @@ class BlockSolverConfig : public Configuration
 /*--------------------------------------------------------------------------*/
  /// copy constructor: does what it says on the tin
 
- BlockSolverConfig( const BlockSolverConfig &old );
+ BlockSolverConfig( const BlockSolverConfig & old );
+
+/*--------------------------------------------------------------------------*/
+ /// move constructor: does what it says on the tin
+
+ BlockSolverConfig( BlockSolverConfig && old );
 
 /*--------------------------------------------------------------------------*/
  /// copy assignment operator: it is deleted
@@ -892,6 +897,11 @@ class RBlockSolverConfig : public BlockSolverConfig
  RBlockSolverConfig( const RBlockSolverConfig & old );
 
 /*--------------------------------------------------------------------------*/
+ /// move constructor: does what it says on the tin
+
+ RBlockSolverConfig( RBlockSolverConfig && old );
+
+/*--------------------------------------------------------------------------*/
  /// copy assignment operator: it is deleted
 
  RBlockSolverConfig & operator=( const RBlockSolverConfig & ) = delete;
@@ -1226,7 +1236,7 @@ class RBlockSolverConfig : public BlockSolverConfig
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
  /// the vector of (pointer to) the sub-BlockSolverConfig for each sub-Block
- std::vector<BlockSolverConfig *> v_BlockSolverConfig;
+ std::vector< BlockSolverConfig * > v_BlockSolverConfig;
 
  /// correspondence between v_BlockSolverConfig and the sub-Block of the Block
  /** This vector specifies the correspondence between the BlockSolverConfig in

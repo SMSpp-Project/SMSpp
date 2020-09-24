@@ -68,7 +68,7 @@ namespace {
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the sub-Block with the given \p id
+ // returns the sub-Block with the given \p id
 
  Block * get_nested_Block( const std::string & id , const Block * block )
  {
@@ -92,9 +92,9 @@ namespace {
 /*------------ CONSTRUCTING AND DESTRUCTING BlockSolverConfig --------------*/
 /*--------------------------------------------------------------------------*/
 
-BlockSolverConfig::BlockSolverConfig( const BlockSolverConfig &old )
- : Configuration() {
-
+BlockSolverConfig::BlockSolverConfig( const BlockSolverConfig & old )
+ : Configuration()
+{
  f_diff = old.f_diff;
  v_SolverNames = old.v_SolverNames;
 
@@ -104,6 +104,16 @@ BlockSolverConfig::BlockSolverConfig( const BlockSolverConfig &old )
   if( old.v_SolverConfigs[ i ] )
    v_SolverConfigs[ i ] = old.v_SolverConfigs[ i ]->clone();
   }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+BlockSolverConfig::BlockSolverConfig( BlockSolverConfig && old )
+ : Configuration()
+{
+ f_diff = old.f_diff;
+ v_SolverNames = std::move( old.v_SolverNames );
+ v_SolverConfigs = std::move( old.v_SolverConfigs );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -185,17 +195,17 @@ void BlockSolverConfig::deserialize( netCDF::NcGroup & group )
 
  netCDF::NcVar solver_names_var = group.getVar( "SolverNames" );
 
- if( num_solvers > 0 && solver_names_var.isNull() )
-  throw( std::logic_error( "BlockSolverConfig::deserialize: 'SolverNames' "
-                           "was not provided." ) );
+ if( ( num_solvers > 0 ) && solver_names_var.isNull() )
+  throw( std::invalid_argument( "BlockSolverConfig::deserialize: "
+				"missing SolverNames" ) );
 
  for( size_t i = 0 ; i < num_solvers ; ++i ) {
   char * solver_name;
   solver_names_var.getVar( { i } , & solver_name );
   v_SolverNames[ i ] = std::string( solver_name );
   auto sc = group.getGroup( "SolverConfig_" + std::to_string( i ) );
-  v_SolverConfigs[ i ] = dynamic_cast< ComputeConfig * >
-   ( new_Configuration( sc ) );
+  v_SolverConfigs[ i ] = dynamic_cast< ComputeConfig * >(
+						   new_Configuration( sc ) );
   }
  }  // end( BlockSolverConfig::deserialize( group ) )
 
@@ -431,8 +441,16 @@ RBlockSolverConfig::RBlockSolverConfig( const RBlockSolverConfig & old )
                              old.v_BlockSolverConfig[ i ]->clone() : nullptr;
 
  v_sub_Block_id = old.v_sub_Block_id;
+ }
 
- }  // end( RBlockSolverConfig::RBlockSolverConfig )
+/*--------------------------------------------------------------------------*/
+
+RBlockSolverConfig::RBlockSolverConfig( RBlockSolverConfig && old )
+ : BlockSolverConfig( old )
+{
+ v_BlockSolverConfig = std::move( old.v_BlockSolverConfig );
+ v_sub_Block_id = std::move( old.v_sub_Block_id );
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -526,9 +544,9 @@ void RBlockSolverConfig::get( Block * block , bool clear )
    else                                         // newRBSC is not empty
     if( ! newRBSC->num_BlockSolverConfig() ) {  // but has no sub-Block info
      // copy the "root" information into a base BlockSolverConfig
-     auto newBSC = new BlockSolverConfig( newRBSC );
+     auto newBSC = new BlockSolverConfig( std::move( *newRBSC ) );
      delete newRBSC;
-     add_BlockSolverConfig( newRBSC , std::move( id ) );  // add it instead
+     add_BlockSolverConfig( newBSC , std::move( id ) );  // add it instead
      }
     else  // newRBSC is not empty both for "base" information and sub-Block
      add_BlockSolverConfig( newRBSC , std::move( id ) );  // add it

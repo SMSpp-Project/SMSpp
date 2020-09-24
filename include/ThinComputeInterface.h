@@ -426,9 +426,17 @@ public:
   * do anything. Conversely, the implementation in the base class does not
   * use the f_extra_Configuration field of the ComputeConfig, so any
   * :ThinComputeInterface which needs it will have to derive its own version
-  * of the method (but, not necessarily of ComputeConfig). */
+  * of the method (but, not necessarily of ComputeConfig).
+  *
+  * Note that the :ThinComputeInterface is *not* expected to retain the
+  * pointer scfg; once it is used to configure the :ThinComputeInterface,
+  * the ComputeConfig is "free" and can be freely deleted. However, the
+  * :ThinComputeInterface *is* allowed to "extract" the extra Configuration
+  * from the ComputeConfig and retain a pointer to that. If it does,
+  * however, the f_extra_Configuration field of scfg has to be
+  * nullptr-ed, so that scfg can be safely deleted after the call. */
 
- virtual void set_ComputeConfig( ComputeConfig *scfg = nullptr );
+ virtual void set_ComputeConfig( ComputeConfig * scfg = nullptr );
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------------- METHODS FOR EVENTS HANDLING -----------------------*/

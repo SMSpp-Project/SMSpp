@@ -250,7 +250,7 @@ void Block::set_default_channel( ChnlName chnl )
 /*------------ METHODS FOR LOADING, PRINTING & SAVING THE Block ------------*/
 /*--------------------------------------------------------------------------*/
 
-void Block::set_BlockConfig( BlockConfig *newBC , const bool deleteold )
+void Block::set_BlockConfig( BlockConfig * newBC , bool deleteold )
 {
  if( f_BlockConfig == newBC )
   return;
@@ -262,8 +262,7 @@ void Block::set_BlockConfig( BlockConfig *newBC , const bool deleteold )
   return;
   }
 
- if( newBC->is_diff() ) {
-  // "differential mode"
+ if( newBC->is_diff() ) {  // "differential mode"
   if( ! f_BlockConfig )
    f_BlockConfig = newBC;
   else {
@@ -271,8 +270,7 @@ void Block::set_BlockConfig( BlockConfig *newBC , const bool deleteold )
    delete newBC;
    }
   }
- else {
-  // "setting mode"
+ else {                    // "setting mode"
   if( deleteold )
    delete f_BlockConfig;
   f_BlockConfig = newBC;
@@ -395,32 +393,62 @@ void Block::remove_variable_from_stuff( Variable * const variable ,
 /*------------------------- METHODS of BlockConfig -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-BlockConfig::BlockConfig( const BlockConfig &old ) : BlockConfig()
+BlockConfig::BlockConfig( const BlockConfig & old )
 {
  f_diff = old.f_diff;
- clone_sub_Configuration( & old );
+ clone_sub_Configuration( old );
  }
 
 /*--------------------------------------------------------------------------*/
 
-void BlockConfig::get( Block * block ) {
+BlockConfig::BlockConfig( BlockConfig && old )
+{
+ f_diff = old.f_diff;
+ f_static_constraints_Configuration = old.f_static_constraints_Configuration;
+ old.f_static_constraints_Configuration = nullptr;
 
+ f_dynamic_constraints_Configuration =
+                                      old.f_dynamic_constraints_Configuration;
+ old.f_dynamic_constraints_Configuration = nullptr;
+
+ f_static_variables_Configuration = old.f_static_variables_Configuration;
+ old.f_static_variables_Configuration = nullptr;
+
+ f_dynamic_variables_Configuration = old.f_dynamic_variables_Configuration;
+ old.f_dynamic_variables_Configuration = nullptr;
+
+ f_objective_Configuration = old.f_objective_Configuration;
+ old.f_objective_Configuration = nullptr;
+
+ f_is_feasible_Configuration = old.f_is_feasible_Configuration;
+ old.f_is_feasible_Configuration = nullptr;
+
+ f_is_optimal_Configuration = old.f_is_optimal_Configuration;
+ old.f_is_optimal_Configuration = nullptr;
+
+ f_solution_Configuration = old.f_solution_Configuration;
+ old.f_solution_Configuration = nullptr;
+
+ f_extra_Configuration = old.f_extra_Configuration;
+ old.f_extra_Configuration = nullptr;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void BlockConfig::get( Block * block )
+{
  // clear this BlockConfig
  delete_sub_Configuration();
 
  if( ! block )
   return;
 
- auto block_config = block->get_BlockConfig();
-
- if( ! block_config )
-  return;
-
- set_diff( block_config->is_diff() );
-
- // clone the Configuration from Block
- this->clone_sub_Configuration( block_config );
- } // end( BlockConfig::get( block ) )
+ if( auto block_config = block->get_BlockConfig() ) {
+  set_diff( block_config->is_diff() );
+  // clone the Configuration from Block
+  clone_sub_Configuration( *block_config );
+  }
+ }  // end( BlockConfig::get )
 
 /*--------------------------------------------------------------------------*/
 

@@ -884,7 +884,9 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
  /// returns a pointer to the inner Block (B) defining the LagBFunction
 
- Block * get_inner_block( void ) const { return( v_Block.front() ); }
+ Block * get_inner_block( void ) const {
+  return( v_Block.empty() ? nullptr : v_Block.front() );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns a pointer to the i-th Lagrangian term
@@ -1166,7 +1168,9 @@ class LagBFunction : public C05Function , public Block {
 
  double AAccLin;      ///< maximum absolute error in any reported solution
 
- BlockSolverConfig * svcc;  ///< a BlockSolverConfig for the inner Block
+ BlockSolverConfig * f_BSC;  ///< a BlockSolverConfig for the inner Block
+
+ bool f_BSC_changed;         ///< true if the BlockSolverConfig has changed
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/

@@ -1845,7 +1845,7 @@ class Block : public Observer {
   * RBlockConfig.h). */
 
  virtual void set_BlockConfig( BlockConfig *newBC = nullptr ,
-			       const bool deleteold = true );
+			       bool deleteold = true );
 
 /*--------------------------------------------------------------------------*/
  /// generate the "abstract representation" of the Variable of the Block
@@ -8023,13 +8023,19 @@ class BlockConfig : public Configuration
   * @param diff It indicates if this configuration is a "differential" one.
   */
 
- BlockConfig( Block * block , bool diff = false ) : BlockConfig( diff )
- { get( block ); }
+ BlockConfig( Block * block , bool diff = false ) : BlockConfig( diff ) {
+  get( block );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: does what it says on the tin
 
  BlockConfig( const BlockConfig &old );
+
+/*--------------------------------------------------------------------------*/
+ /// move constructor: does what it says on the tin
+
+ BlockConfig( BlockConfig && old );
 
 /*--------------------------------------------------------------------------*/
  /// "extends" Configuration::deserialize( netCDF::NcFile ) to eProbFile
@@ -8100,10 +8106,8 @@ class BlockConfig : public Configuration
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
- *
  *  @{ */
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// getting the BlockConfig of the given Block
  /** This method gets information about the current set of parameters of the
   * given Block and stores in this BlockConfig. This information consists of
@@ -8122,10 +8126,10 @@ class BlockConfig : public Configuration
 /** @name Methods describing the behavior of the BlockConfig
  *  @{ */
 
-/*--------------------------------------------------------------------------*/
  /// delete all sub-Configuration
- /** This method deletes all sub-Configuration and does not change the value
-  * of #f_diff. */
+ /** This method deletes all sub-Configuration and sets the value of #f_diff
+  * to false. */
+
  void clear( void ) override {
   f_diff = false;
   delete_sub_Configuration();
@@ -8151,34 +8155,30 @@ class BlockConfig : public Configuration
   *        be deleted (see Block::set_BlockConfig()). */
 
  virtual void apply( Block * block , bool deleteold = true ) {
-
   if( ! block )
    return;
 
   auto newBC = new BlockConfig( this->is_diff() );
   this->move_non_null_configuration_to( newBC );
   block->set_BlockConfig( newBC , deleteold );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// Moves the non-nullptr sub-Configuration from this BlockConfig into \p bc
  /** This method moves one-by-one the individual non-nullptr sub-Configuration
   * stored in this BlockConfig into \p bc. If a sub-Configuration in this
   * BlockConfig is nullptr, the corresponding sub-Configuration in \p bc is
   * kept untouched. If \p deleteold is true then each sub-Configuration in \p
-  * bc that gets replaced is deleted.
-  */
+  * bc that gets replaced is deleted. */
 
  void move_non_null_configuration_to( BlockConfig * bc ,
-                                      const bool deleteold = true )
- {
+                                      const bool deleteold = true ) {
   if( ! bc )
    return;
 
-  auto move = [deleteold]( Configuration * & this_config ,
-                           Configuration * & other_config ) {
-               if( this_config ) { // replace the sub-Configuration
+  auto move = [ deleteold ] ( Configuration * & this_config ,
+			      Configuration * & other_config ) {
+               if( this_config ) {  // replace the sub-Configuration
                 if( deleteold ) {
                  delete other_config;
                  other_config = nullptr;
@@ -8216,7 +8216,6 @@ class BlockConfig : public Configuration
 /** @name Methods for loading, printing & saving the BlockConfig
  * @{ */
 
-/*--------------------------------------------------------------------------*/
  /// extends Configuration::serialize( netCDF::NcFile , type ) to eProbFile
  /** Since a BlockConfig knows it is a BlockConfig, it "knows its place" in
   * an eProbFile netCDF SMS++ file. */
@@ -8254,6 +8253,23 @@ class BlockConfig : public Configuration
 
  bool is_diff( void ) const { return( f_diff ); }
 
+/*--------------------------------------------------------------------------*/
+ /// returns true if the BlockConfig is "empty"
+ /** Returns true if the BlockConfig is "empty", i.e., all of its
+  * sub-Configuration are nullptr. */
+
+ virtual bool empty( void ) const {
+  return( ( ! f_static_constraints_Configuration ) &&
+	  ( ! f_dynamic_constraints_Configuration ) &&
+	  ( ! f_static_variables_Configuration ) &&
+	  ( ! f_dynamic_variables_Configuration ) &&
+	  ( ! f_objective_Configuration ) &&
+	  ( ! f_is_feasible_Configuration ) &&
+	  ( ! f_is_optimal_Configuration ) &&
+	  ( ! f_solution_Configuration ) &&
+	  ( ! f_extra_Configuration ) );
+  }
+ 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- PUBLIC FIELDS OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -8339,6 +8355,7 @@ class BlockConfig : public Configuration
 /*---------------------------- PRIVATE METHODS -----------------------------*/
 
  /// delete all sub-Confiuration of this BlockConfig
+
  void delete_sub_Configuration( void ) {
   delete f_static_constraints_Configuration;
   f_static_constraints_Configuration = nullptr;
@@ -8369,39 +8386,39 @@ class BlockConfig : public Configuration
   }
 
 /*--------------------------------------------------------------------------*/
-
  /// clone the sub-Configuration of bc into those of this BlockConfig
- void clone_sub_Configuration( const BlockConfig * bc ) {
-  if( bc->f_static_constraints_Configuration )
+
+ void clone_sub_Configuration( const BlockConfig & bc ) {
+  if( bc.f_static_constraints_Configuration )
    f_static_constraints_Configuration =
-    bc->f_static_constraints_Configuration->clone();
+    bc.f_static_constraints_Configuration->clone();
 
-  if( bc->f_dynamic_constraints_Configuration )
+  if( bc.f_dynamic_constraints_Configuration )
    f_dynamic_constraints_Configuration =
-    bc->f_dynamic_constraints_Configuration->clone();
+    bc.f_dynamic_constraints_Configuration->clone();
 
-  if( bc->f_static_variables_Configuration )
+  if( bc.f_static_variables_Configuration )
    f_static_variables_Configuration =
-    bc->f_static_variables_Configuration->clone();
+    bc.f_static_variables_Configuration->clone();
 
-  if( bc->f_dynamic_variables_Configuration )
+  if( bc.f_dynamic_variables_Configuration )
    f_dynamic_variables_Configuration =
-    bc->f_dynamic_variables_Configuration->clone();
+    bc.f_dynamic_variables_Configuration->clone();
 
-  if( bc->f_objective_Configuration )
-   f_objective_Configuration = bc->f_objective_Configuration->clone();
+  if( bc.f_objective_Configuration )
+   f_objective_Configuration = bc.f_objective_Configuration->clone();
 
-  if( bc->f_is_feasible_Configuration )
-   f_is_feasible_Configuration = bc->f_is_feasible_Configuration->clone();
+  if( bc.f_is_feasible_Configuration )
+   f_is_feasible_Configuration = bc.f_is_feasible_Configuration->clone();
 
-  if( bc->f_is_optimal_Configuration )
-   f_is_optimal_Configuration = bc->f_is_optimal_Configuration->clone();
+  if( bc.f_is_optimal_Configuration )
+   f_is_optimal_Configuration = bc.f_is_optimal_Configuration->clone();
 
-  if( bc->f_solution_Configuration )
-   f_solution_Configuration = bc->f_solution_Configuration->clone();
+  if( bc.f_solution_Configuration )
+   f_solution_Configuration = bc.f_solution_Configuration->clone();
 
-  if( bc->f_extra_Configuration )
-   f_extra_Configuration = bc->f_extra_Configuration->clone();
+  if( bc.f_extra_Configuration )
+   f_extra_Configuration = bc.f_extra_Configuration->clone();
   }
 
 /*--------------------------------------------------------------------------*/
