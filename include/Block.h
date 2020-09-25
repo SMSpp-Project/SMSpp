@@ -1179,6 +1179,30 @@ class Block : public Observer {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// de-serialize a :Block out of std::istream, returns it
+ /** Convenience static method that creates a Block reading all its data
+  * from a std::istream, which is supposed to contain:
+  *
+  * - a string with the classname of the specific :Block, as required by the
+  *   Block factory;
+  *
+  * - all the rest of the information describing the Block, which of course
+  *   depends on its type.
+  *
+  * What the Block does is simply to use the factory to build the
+  * :Configuration object and then initialise it with its >> operator. */
+
+ static Block * new_Block( std::istream & input )
+ {
+  std::string name;
+  input >> eatcomments >> name;
+
+  auto block = Block::new_Block( name );
+  input >> *block;
+  return( block );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// destructor of Block: it is virtual
  /** Destructor of Block: it invokes set_BlockConfig() to clean up the
   * configuration of the Block. It also cleans up any currently open

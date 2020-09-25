@@ -556,112 +556,73 @@ void BlockConfig::load( std::istream & input )
   input.get();  // read away (and ignore) the '*' from the stream
   f_static_constraints_Configuration = nullptr;
   }
- else {
-  std::string cname;
-  input >> cname;
+ else
   f_static_constraints_Configuration =
-   Configuration::new_Configuration( cname );
-  input >> *f_static_constraints_Configuration;
-  }
-
+                                    Configuration::new_Configuration( input );
  input >> eatcomments;
  if( input.peek() == input.widen( '*' ) ) {
   input.get();  // read away (and ignore) the '*' from the stream
   f_dynamic_constraints_Configuration = nullptr;
   }
- else {
-  std::string cname;
-  input >> cname;
+ else
   f_dynamic_constraints_Configuration =
-   Configuration::new_Configuration( cname );
-  input >> *f_dynamic_constraints_Configuration;
-  }
-
+                                   Configuration::new_Configuration( input );
  input >> eatcomments;
  if( input.peek() == input.widen( '*' ) ) {
   input.get();  // read away (and ignore) the '*' from the stream
   f_static_variables_Configuration = nullptr;
   }
- else {
-  std::string cname;
-  input >> cname;
+ else
   f_static_variables_Configuration =
-   Configuration::new_Configuration( cname );
-  input >> *f_static_variables_Configuration;
- }
-
+                                   Configuration::new_Configuration( input );
  input >> eatcomments;
  if( input.peek() == input.widen( '*' ) ) {
   input.get();  // read away (and ignore) the '*' from the stream
   f_dynamic_variables_Configuration = nullptr;
   }
- else {
-  std::string cname;
-  input >> cname;
+ else
   f_dynamic_variables_Configuration =
-   Configuration::new_Configuration( cname );
-  input >> *f_dynamic_variables_Configuration;
-  }
-
+                                   Configuration::new_Configuration( input );
  input >> eatcomments;
  if( input.peek() == input.widen( '*' ) ) {
   input.get();  // read away (and ignore) the '*' from the stream
   f_objective_Configuration = nullptr;
   }
- else {
-  std::string cname;
-  input >> cname;
-  f_objective_Configuration = Configuration::new_Configuration( cname );
-  input >> *f_objective_Configuration;
-  }
+ else
+  f_objective_Configuration = Configuration::new_Configuration( input );
 
  input >> eatcomments;
  if( input.peek() == input.widen( '*' ) ) {
   input.get();  // read away (and ignore) the '*' from the stream
   f_is_feasible_Configuration = nullptr;
   }
- else {
-  std::string cname;
-  input >> cname;
-  f_is_feasible_Configuration = Configuration::new_Configuration( cname );
-  input >> *f_is_feasible_Configuration;
-  }
+ else
+  f_is_feasible_Configuration = Configuration::new_Configuration( input );
 
  input >> eatcomments;
  if( input.peek() == input.widen( '*' ) ) {
   input.get();  // read away (and ignore) the '*' from the stream
   f_is_optimal_Configuration = nullptr;
   }
- else {
-  std::string cname;
-  input >> cname;
-  f_is_optimal_Configuration = Configuration::new_Configuration( cname );
-  input >> *f_is_optimal_Configuration;
-  }
+ else
+  f_is_optimal_Configuration = Configuration::new_Configuration( input );
 
  input >> eatcomments;
  if( input.peek() == input.widen( '*' ) ) {
   input.get();  // read away (and ignore) the '*' from the stream
   f_solution_Configuration = nullptr;
   }
- else {
-  std::string cname;
-  input >> cname;
-  f_solution_Configuration = Configuration::new_Configuration( cname );
-  input >> *f_solution_Configuration;
-  }
+ else
+  f_solution_Configuration = Configuration::new_Configuration( input );
 
  input >> eatcomments;
  if( input.peek() == input.widen( '*' ) ) {
   input.get();  // read away (and ignore) the '*' from the stream
   f_extra_Configuration = nullptr;
   }
- else {
-  std::string cname;
-  input >> cname;
-  f_extra_Configuration = Configuration::new_Configuration( cname );
-  input >> *f_extra_Configuration;
-  }
+ else
+  f_extra_Configuration = Configuration::new_Configuration( input );
+
  }  // end( BlockConfig::load )
 
 /*--------------------------------------------------------------------------*/

@@ -354,6 +354,30 @@ class Configuration
   #endif
   }
 
+/*--------------------------------------------------------------------------*/
+ /// de-serialize a :Configuration out of std::istream, returns it
+ /** Convenience static method that creates a Configuration reading all its
+  * data from a std::istream, which is supposed to contain:
+  *
+  * - a string with the classname of the specific :Configuration, as
+  *   required by the Configuration factory;
+  *
+  * - all the rest of the information describing the Configuration, which
+  *   of course depends on its type.
+  *
+  * What the method does is simply to use the factory to build the
+  * :Configuration object and then initialise it with its >> operator. */
+
+ static Configuration * new_Configuration( std::istream & input )
+ {
+  std::string name;
+  input >> eatcomments >> name;
+
+  auto cfg = Configuration::new_Configuration( name );
+  input >> *cfg;
+  return( cfg );
+  }
+
 /**@} ----------------------------------------------------------------------*/
 /*------------- Methods for reading the data of the Configuration ----------*/
 /*--------------------------------------------------------------------------*/
@@ -570,7 +594,7 @@ class Configuration
   * out in human-readable form. The base Configuration class has preciously
   * little to print, but it still does a bit. */
 
- virtual void print( std::ostream &output ) const {
+ virtual void print( std::ostream & output ) const {
   output << "Configuration [" << this << "]" << std::endl;
   }
 
@@ -582,7 +606,7 @@ class Configuration
   * Configuration depends on the specific derived class, which is why this
   * method cannot be implemented. */
 
- virtual void load( std::istream &input ) = 0;
+ virtual void load( std::istream & input ) = 0;
 
 /**@} ---------------------------------------------------------------------*/
 /** @name Protected methods for handling static fields
