@@ -145,8 +145,7 @@ class Configuration
   * @param classname The name of the :Configuration class that must be
   *        constructed. */
 
-
- static Configuration *new_Configuration( const std::string &classname )
+ static Configuration *new_Configuration( const std::string & classname )
  {
   std::string classname_( classname );
   classname_.erase( std::remove_if( classname_.begin() , classname_.end() ,
@@ -377,9 +376,7 @@ class Configuration
   * (unless the programmer purposely defines private_name() without calling
   * the macro, which seems rather pointless). */
 
- inline const std::string & classname( void ) const {
-  return( private_name() );
-  }
+ const std::string & classname( void ) const { return( private_name() ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A Configuration -----------*/
@@ -434,8 +431,8 @@ class Configuration
   * customized by derived classes (since the base class has nothing to
   * print). */
 
- friend std::ostream& operator<< ( std::ostream &out ,
-				   const Configuration &b ) {
+ friend std::ostream& operator<< ( std::ostream & out ,
+				   const Configuration & b ) {
   b.print( out );
   return( out );
   }
@@ -448,7 +445,8 @@ class Configuration
    * which is abstract: it can only work for concrete derived classes which 
    * have actually implemented load() (because they have some actual data to
    * load). */
- friend std::istream& operator>> ( std::istream& in , Configuration& c ) {
+
+ friend std::istream& operator>> ( std::istream & in , Configuration & c ) {
   c.load( in );
   return( in );
   }
@@ -468,8 +466,7 @@ class Configuration
   * virtual, it is not expected that derived classes will have a need to
   * re-define it. */
 
- virtual void serialize( const char *filename , const int type = eProbFile )
-  const
+ virtual void serialize( const char *filename , int type = eProbFile ) const
  {
   if( ( type != eProbFile ) && ( type != eConfigFile ) )
    throw( std::invalid_argument( "invalid SMS++ netCDF file type" ) );

@@ -542,45 +542,47 @@ void BlockConfig::print( std::ostream &output ) const
  if( f_extra_Configuration )
   output << *f_extra_Configuration;
  output << std::endl;
+
  }  // end( BlockConfig::print )
 
 /*--------------------------------------------------------------------------*/
 
-void BlockConfig::load( std::istream & input ) {
+void BlockConfig::load( std::istream & input )
+{
  input >> eatcomments >> f_diff;
 
  input >> eatcomments;
  if( input.peek() == input.widen( '*' ) ) {
+  input.get();  // read away (and ignore) the '*' from the stream
   f_static_constraints_Configuration = nullptr;
-  input.ignore( std::numeric_limits< std::streamsize >::max(),
-                input.widen( '\n' ) );
- } else {
+  }
+ else {
   std::string cname;
   input >> cname;
   f_static_constraints_Configuration =
    Configuration::new_Configuration( cname );
   input >> *f_static_constraints_Configuration;
- }
+  }
 
  input >> eatcomments;
  if( input.peek() == input.widen( '*' ) ) {
+  input.get();  // read away (and ignore) the '*' from the stream
   f_dynamic_constraints_Configuration = nullptr;
-  input.ignore( std::numeric_limits< std::streamsize >::max(),
-                input.widen( '\n' ) );
- } else {
+  }
+ else {
   std::string cname;
   input >> cname;
   f_dynamic_constraints_Configuration =
    Configuration::new_Configuration( cname );
   input >> *f_dynamic_constraints_Configuration;
- }
+  }
 
  input >> eatcomments;
  if( input.peek() == input.widen( '*' ) ) {
+  input.get();  // read away (and ignore) the '*' from the stream
   f_static_variables_Configuration = nullptr;
-  input.ignore( std::numeric_limits< std::streamsize >::max(),
-                input.widen( '\n' ) );
- } else {
+  }
+ else {
   std::string cname;
   input >> cname;
   f_static_variables_Configuration =
@@ -590,77 +592,77 @@ void BlockConfig::load( std::istream & input ) {
 
  input >> eatcomments;
  if( input.peek() == input.widen( '*' ) ) {
+  input.get();  // read away (and ignore) the '*' from the stream
   f_dynamic_variables_Configuration = nullptr;
-  input.ignore( std::numeric_limits< std::streamsize >::max(),
-                input.widen( '\n' ) );
- } else {
+  }
+ else {
   std::string cname;
   input >> cname;
   f_dynamic_variables_Configuration =
    Configuration::new_Configuration( cname );
   input >> *f_dynamic_variables_Configuration;
- }
+  }
 
  input >> eatcomments;
  if( input.peek() == input.widen( '*' ) ) {
+  input.get();  // read away (and ignore) the '*' from the stream
   f_objective_Configuration = nullptr;
-  input.ignore( std::numeric_limits< std::streamsize >::max(),
-                input.widen( '\n' ) );
- } else {
+  }
+ else {
   std::string cname;
   input >> cname;
   f_objective_Configuration = Configuration::new_Configuration( cname );
   input >> *f_objective_Configuration;
- }
+  }
 
  input >> eatcomments;
  if( input.peek() == input.widen( '*' ) ) {
+  input.get();  // read away (and ignore) the '*' from the stream
   f_is_feasible_Configuration = nullptr;
-  input.ignore( std::numeric_limits< std::streamsize >::max(),
-                input.widen( '\n' ) );
- } else {
+  }
+ else {
   std::string cname;
   input >> cname;
   f_is_feasible_Configuration = Configuration::new_Configuration( cname );
   input >> *f_is_feasible_Configuration;
- }
+  }
 
  input >> eatcomments;
  if( input.peek() == input.widen( '*' ) ) {
+  input.get();  // read away (and ignore) the '*' from the stream
   f_is_optimal_Configuration = nullptr;
-  input.ignore( std::numeric_limits< std::streamsize >::max(),
-                input.widen( '\n' ) );
- } else {
+  }
+ else {
   std::string cname;
   input >> cname;
   f_is_optimal_Configuration = Configuration::new_Configuration( cname );
   input >> *f_is_optimal_Configuration;
- }
+  }
 
  input >> eatcomments;
  if( input.peek() == input.widen( '*' ) ) {
+  input.get();  // read away (and ignore) the '*' from the stream
   f_solution_Configuration = nullptr;
-  input.ignore( std::numeric_limits< std::streamsize >::max(),
-                input.widen( '\n' ) );
- } else {
+  }
+ else {
   std::string cname;
   input >> cname;
   f_solution_Configuration = Configuration::new_Configuration( cname );
   input >> *f_solution_Configuration;
- }
+  }
 
  input >> eatcomments;
  if( input.peek() == input.widen( '*' ) ) {
+  input.get();  // read away (and ignore) the '*' from the stream
   f_extra_Configuration = nullptr;
-  input.ignore( std::numeric_limits< std::streamsize >::max(),
-                input.widen( '\n' ) );
- } else {
+  }
+ else {
   std::string cname;
   input >> cname;
   f_extra_Configuration = Configuration::new_Configuration( cname );
   input >> *f_extra_Configuration;
- }
-}  // end( BlockConfig::load )
+  }
+ }  // end( BlockConfig::load )
 
 /*--------------------------------------------------------------------------*/
 
