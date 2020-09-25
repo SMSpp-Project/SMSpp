@@ -290,9 +290,8 @@ void RHandler::load( std::istream & input )
   input >> eatcomments;
 
   if( input.peek() == input.widen( '*' ) ) {
+   input.get();  // read away (and ignore) the '*' from the stream
    v_sub_BlockConfig[ i ] = nullptr;
-   input.ignore( std::numeric_limits< std::streamsize >::max() ,
-                 input.widen( '\n' ) );
    }
   else {
    std::string cname;
@@ -488,8 +487,10 @@ void CHandler::load( std::istream & input )
   input >> v_Constraint_id[ i ].first >> v_Constraint_id[ i ].second;
 
   input >> eatcomments;
-  if( input.peek() == input.widen( '*' ) )
+  if( input.peek() == input.widen( '*' ) ) {
+   input.get();  // read away (and ignore) the '*' from the stream
    v_Config_Constraint[ i ] = nullptr;
+   }
   else {
    std::string cname;
    input >> cname;
@@ -568,8 +569,10 @@ void OHandler::print( std::ostream &output ) const
 void OHandler::load( std::istream & input )
 {
  input >> eatcomments;
- if( input.peek() == input.widen( '*' ) )
+ if( input.peek() == input.widen( '*' ) ) {
+  input.get();  // read away (and ignore) the '*' from the stream
   f_Config_Objective = nullptr;
+  }
  else {
   std::string cname;
   input >> cname;

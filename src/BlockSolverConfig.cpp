@@ -393,8 +393,10 @@ void BlockSolverConfig::load( std::istream & input )
  v_SolverNames.resize( k );
  for( int i = 0 ; i < k ; ++i ) {
   input >> eatcomments;
-  if( input.peek() == input.widen( '*' ) )
+  if( input.peek() == input.widen( '*' ) ) {
+   input.get();  // read away (and ignore) the '*' from the stream
    v_SolverNames[ i ] = "";
+   }
   else
    input >> v_SolverNames[ i ];
   }
@@ -406,8 +408,10 @@ void BlockSolverConfig::load( std::istream & input )
 
  for( int i = 0 ; i < k ; ++i ) {
   input >> eatcomments;
-  if( input.peek() == input.widen( '*' ) )
+  if( input.peek() == input.widen( '*' ) ) {
+   input.get();  // read away (and ignore) the '*' from the stream
    v_SolverConfigs[ i ] = nullptr;
+   }
   else {
    std::string name;
    input >> name;
@@ -679,9 +683,8 @@ void RBlockSolverConfig::load( std::istream &input )
   input >> eatcomments;
 
   if( input.peek() == input.widen( '*' ) ) {
+   input.get();  // read away (and ignore) the '*' from the stream
    v_BlockSolverConfig[ i ] = nullptr;
-   input.ignore( std::numeric_limits< std::streamsize >::max() ,
-                 input.widen( '\n' ) );
    }
   else {
    std::string config_name;
