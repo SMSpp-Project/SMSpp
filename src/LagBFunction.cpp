@@ -295,19 +295,29 @@ void LagBFunction::set_ComputeConfig( ComputeConfig * scfg )
   if( config->f_value.second ) {  // if it was provided in extra_Configuration
    if( auto bsc = dynamic_cast< BlockSolverConfig * >(
                                                  config->f_value.second ) ) {
+
+    // there are no ComputeConfig, add any "empty" one. if the LagBFunction
+    // is compute()-d in this state an error will ensue, as a Solver
+    // registered to the inner Block is required for that, but it's the user's
+    // responsibility to ensure this does not happen (this call to
+    // set_ComputeConfig() may be happening right before destruction, or no
+    // call to compute() may be done
+    if( ! bsc->num_ComputeConfig() )
+     bsc->add_ComputeConfig( "" , new ComputeConfig );
+
     if( f_BSC_changed && ( f_BSC->is_diff() ) )
      // if some changes still had to be applied do that now, unless the new
      // BlockSolverConfig is in "set mode", since this would reset everything
      f_BSC->apply( inner_block );
-    bsc->apply( inner_block );      // apply the new BlockSolverConfig
-    f_BSC_changed = false;          // done
-    delete f_BSC;                   // delete the old one
-    f_BSC = bsc;                    // keep the new BlockSolverConfig
+    f_BSC_changed = false;             // done
+    delete f_BSC;                      // delete the old one
+    bsc->apply( inner_block );         // apply the new BlockSolverConfig
+    f_BSC = bsc;                       // keep the new BlockSolverConfig
     config->f_value.second = nullptr;  // take possession
-    f_BSC->clear();                 // clear it
-    f_BSC->set_diff( true );        // set it in "diff mode"
+    f_BSC->clear();                    // clear it
+    f_BSC->set_diff( true );           // set it in "diff mode"
     f_BSC->get_SolverConfig( 0 )->f_diff = true;
-    // also set the (first) internal SolverConfig in "diff mode"
+    // set the first ComputeConfig in "diff mode", too
     }
    else
     throw( std::invalid_argument( "LagBFunction::set_ComputeConfig: scfg "
@@ -1313,14 +1323,10 @@ ComputeConfig * LagBFunction::get_ComputeConfig( bool all ,
 {
  ComputeConfig* ccfg = ThinComputeInterface::get_ComputeConfig( all , ocfg );
 
- auto bsc = new RBlockSolverConfig( v_Block.front() , ! all );
- if( bsc->empty() ) {
-  delete bsc;
-  bsc = nullptr;
-  }
+ auto bsc = RBlockSolverConfig::get_right_BlockSolverConfig(
+						   v_Block.front() , ! all );
  
- auto bc = new OCRBlockConfig();  // TODO: improve on this
- bc->get( v_Block.front() );
+ auto bc = OCRBlockConfig::get_right_BlockConfig( v_Block.front() );
 
  if( bsc || bc ) {
   auto cc = new
@@ -1333,7 +1339,7 @@ ComputeConfig * LagBFunction::get_ComputeConfig( bool all ,
 
  return( nullptr );
 
- }  // end( LagBFunction::get_ComputeConfig() )
+ }  // end( LagBFunction::get_ComputeConfig )
 
 /*--------------------------------------------------------------------------*/
 

@@ -402,7 +402,7 @@ class BlockSolverConfig : public Configuration
   * @param clear It indicates whether this BlockSolverConfig must be a clear
   *        one. */
 
- virtual void get( Block * block , bool clear = false );
+ virtual void get( const Block * block , bool clear = false );
 
 /**@} ----------------------------------------------------------------------*/
 /*-------- METHODS DESCRIBING THE BEHAVIOR OF THE BlockSolverConfig --------*/
@@ -580,14 +580,14 @@ class BlockSolverConfig : public Configuration
 
 /*--------------------------------------------------------------------------*/
  /// removes a pair < Solver (name) , ComputeConfig (pointer) >
- /** This method removes the pair < Solver (name) , ComputeConfig (pointer) > 
-  * at the given \p index.
+ /** Removes the pair < Solver (name) , ComputeConfig (pointer) > at the
+  * given \p index.
   *
-  * @param index The index of the pair to be removed (this must be an index
-  *        between 0 and num_ComputeConfig() - 1).
+  * @param index the index of the pair to be removed (this must be an index
+  *        between 0 and num_ComputeConfig() - 1)
   *
-  * @param destroy It indicates whether the ComputeConfig pointed by the
-  *        pointer of the given pair must be deleted. */
+  * @param destroy indicates whether the current ComputeConfig of the given
+  *        pair must be deleted */
 
  void remove_ComputeConfig( Index index , bool destroy = true ) {
   if( index >= v_SolverConfigs.size() )
@@ -603,10 +603,10 @@ class BlockSolverConfig : public Configuration
 
 /*--------------------------------------------------------------------------*/
  /// changes the name of a Solver
- /** This function changes the name of the Solver at the given \p index.
+ /** Changes the name of the Solver at the given \p index.
   *
-  * @param index The index of the name of the Solver to be changed (this must
-  *              be an index between 0 and num_ComputeConfig() - 1). */
+  * @param index the index of the name of the Solver to be changed (this must
+  *              be an index between 0 and num_ComputeConfig() - 1) */
 
  void set_Solver_name( Index index , std::string && name = "" ) {
   if( index >= v_SolverNames.size() )
@@ -619,7 +619,7 @@ class BlockSolverConfig : public Configuration
 
 /*--------------------------------------------------------------------------*/
  /// change a ComputeConfig
- /** This function replaces the ComputeConfig at the given \p index.
+ /** Replaces the ComputeConfig at the given \p index.
   *
   * @param index The index of the ComputeConfig to be replaced (this must be
   *        an index between 0 and num_ComputeConfig() - 1).
@@ -651,20 +651,17 @@ class BlockSolverConfig : public Configuration
 
 /*--------------------------------------------------------------------------*/
  /// returns the current number of ComputeConfig in this BlockSolverConfig
+ /** Returns the current number of pairs < Solver name , ComputeConfig > in
+  * this BlockSolverConfig */
 
  Index num_ComputeConfig( void ) const { return( v_SolverConfigs.size() ); }
-
-/*--------------------------------------------------------------------------*/
- /// returns the current number of Solver names in this BlockSolverConfig
-
- Index num_SolverNames( void ) const { return( v_SolverNames.size() ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the names of all Solver names in this BlockSolverConfig
  /** This function returns a const reference to the vector containing the
   * Solver names in this BlockSolverConfig. */
 
- const std::vector<std::string> & get_SolverNames( void ) const {
+ const std::vector< std::string > & get_SolverNames( void ) const {
   return( v_SolverNames );
   }
 
@@ -886,7 +883,7 @@ class RBlockSolverConfig : public BlockSolverConfig
   * @param clear indicates whether a "cleared" RBlockSolverConfig is desired;
   *        see RBlockSolverConfig::get() for details. */
 
- RBlockSolverConfig( Block * block , bool diff = false ,
+ RBlockSolverConfig( const Block * block , bool diff = false ,
 		     bool clear = false ) : BlockSolverConfig( diff ) {
   get( block , clear );
   }
@@ -900,6 +897,42 @@ class RBlockSolverConfig : public BlockSolverConfig
  /// move constructor: does what it says on the tin
 
  RBlockSolverConfig( RBlockSolverConfig && old );
+
+/*--------------------------------------------------------------------------*/
+ /// construct the "right" BlockSolverConfig out of a Block
+ /** This static method inputs a Block and constructs the "minimal possible"
+  * *BlockSolverConfig out of it. This is done by first get()-ing a
+  * RBlockSolverConfig, which is the most general case, and then
+  * progressively bumping it down down to a BlockSolverConfig if it has no
+  * sub-Block, or even to nullptr remains the Block has exactly no Solver
+  * configuration.
+  *
+  * The parameter \diff tells if the required [R]BlockSolverConfig need be
+  * in "diff mode" or in "setting mode".
+  *
+  * Since the method is static it has to be called as
+  *
+  *     auto BSC = RBlockSolverConfig::get_right_BlockSolverConfig(myBlock );
+  *
+  * and therefore it can also be used as constructor of RBlockSolverConfig, or
+  * in fact of other BlockSolverConfig. */
+
+ static BlockSolverConfig * get_right_BlockSolverConfig(
+				   const Block * block , bool diff = true ) {
+  auto RBSC = new RBlockSolverConfig( block , diff );
+  if( ! RBSC->num_BlockSolverConfig() ) {
+   auto BSC = new BlockSolverConfig( std::move( *RBSC ) );
+   delete RBSC;
+   if( BSC->empty() ) {
+    delete BSC;
+    return( nullptr );
+    }
+   else
+    return( BSC );
+   }
+
+  return( RBSC );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// copy assignment operator: it is deleted
@@ -1005,7 +1038,7 @@ class RBlockSolverConfig : public BlockSolverConfig
   *        one. See the comments to BlockSolverConfig::get() for the
   *        definition of this parameter. */
 
- void get( Block * block , bool clear = false ) override;
+ void get( const Block * block , bool clear = false ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------- METHODS DESCRIBING THE BEHAVIOR OF THE RBlockSolverConfig -------*/

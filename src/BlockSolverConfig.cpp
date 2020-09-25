@@ -191,7 +191,7 @@ void BlockSolverConfig::deserialize( netCDF::NcGroup & group )
   num_solvers = dim.getSize();
 
  v_SolverNames.resize( num_solvers );
- v_SolverConfigs.resize( num_solvers );
+ v_SolverConfigs.resize( num_solvers , nullptr );
 
  netCDF::NcVar solver_names_var = group.getVar( "SolverNames" );
 
@@ -204,7 +204,8 @@ void BlockSolverConfig::deserialize( netCDF::NcGroup & group )
   solver_names_var.getVar( { i } , & solver_name );
   v_SolverNames[ i ] = std::string( solver_name );
   auto sc = group.getGroup( "SolverConfig_" + std::to_string( i ) );
-  v_SolverConfigs[ i ] = dynamic_cast< ComputeConfig * >(
+  if( ! sc.isNull() )
+   v_SolverConfigs[ i ] = dynamic_cast< ComputeConfig * >(
 						   new_Configuration( sc ) );
   }
  }  // end( BlockSolverConfig::deserialize( group ) )
@@ -213,7 +214,7 @@ void BlockSolverConfig::deserialize( netCDF::NcGroup & group )
 /*----------------- OTHER INITIALIZATIONS BlockSolverConfig ----------------*/
 /*--------------------------------------------------------------------------*/
 
-void BlockSolverConfig::get( Block * block , bool clear )
+void BlockSolverConfig::get( const Block * block , bool clear )
 {
  // deal with the trivial cases first
  if( clear || ( ! block ) ) {
@@ -405,7 +406,10 @@ void BlockSolverConfig::load( std::istream &input )
   }
 
  input >> eatcomments >> k;
- v_SolverConfigs.resize( k );
+ if( k > v_SolverNames.size() )
+  v_SolverNames.resize( k );
+ v_SolverConfigs.resize( std::max( k , int( v_SolverNames.size() ) ) );
+
  for( int i = 0 ; i < k ; ++i ) {
   input >> eatcomments;
   if( input.peek() == input.widen( '*' ) )
@@ -414,8 +418,8 @@ void BlockSolverConfig::load( std::istream &input )
    std::string config_name;
    input >> config_name;
 
-   v_SolverConfigs[ i ] = dynamic_cast<ComputeConfig *>
-    ( Configuration::new_Configuration( config_name ) );
+   v_SolverConfigs[ i ] = dynamic_cast< ComputeConfig * >(
+			 Configuration::new_Configuration( config_name ) );
 
    if( ! v_SolverConfigs[ i ] )
     throw( std::invalid_argument( "RBlockSolverConfig::load: invalid "
@@ -505,7 +509,7 @@ void RBlockSolverConfig::deserialize( netCDF::NcGroup & group )
 /*----------------- OTHER INITIALIZATIONS RBlockSolverConfig ---------------*/
 /*--------------------------------------------------------------------------*/
 
-void RBlockSolverConfig::get( Block * block , bool clear )
+void RBlockSolverConfig::get( const Block * block , bool clear )
 {
  BlockSolverConfig::get( block , clear );
 

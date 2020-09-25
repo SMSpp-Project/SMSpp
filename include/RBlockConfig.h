@@ -856,6 +856,23 @@ class OCRBlockConfig : public BlockConfig ,
   RHandler( std::move( old ) ) {}
 
 /*--------------------------------------------------------------------------*/
+ /// construct the "right" BlockConfig out of a Block
+ /** This static method inputs a Block and constructs the "minimal possible"
+  * *BlockConfig out of it. This is done by first get()-ing a OCRBlockConfig,
+  * which is the most general case, and then progressively bumping down all
+  * empty features until possibly a nullptr remains if the Block has exactly
+  * no configuration different from the default.
+  *
+  * Since the method is static it has to be called as
+  *
+  *     auto BC = OCRBlockConfig::get_right_BlockConfig( myBlock );
+  *
+  * and therefore it can also be used as constructor of OCRBlockConfig, or
+  * in fact any other *BlockConfig. */
+
+ static BlockConfig * get_right_BlockConfig( const Block * block );
+ 
+/*--------------------------------------------------------------------------*/
  /// copy assignment operator: it is deleted
 
  OCRBlockConfig & operator=( const OCRBlockConfig & ) = delete;

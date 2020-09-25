@@ -4,9 +4,9 @@
 /** @file
  * Implementation of the RBlockConfig class.
  *
- * \version 0.10
+ * \version 0.40
  *
- * \date 10 - 09 - 2020
+ * \date 24 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -113,66 +113,6 @@ namespace {
 
 /*--------------------------------------------------------------------------*/
 
- BlockConfig * get_right_BlockConfig( const Block * block )
- {
-  auto OCRBC = new OCRBlockConfig( block );
-  if( OCRBC->OHandler::empty() ) {
-   auto CRBC = new CRBlockConfig( std::move( *OCRBC ) );
-   delete OCRBC;
-
-   if( CRBC->CHandler::empty() ) {
-    auto RBC = new RBlockConfig( std::move( *CRBC ) );
-    delete CRBC;
-
-    if( RBC->RHandler::empty() ) {
-     auto BC = new BlockConfig( std::move( *RBC ) );
-     delete CRBC;
-
-     if( BC->empty() ) {
-      delete BC;
-      return( nullptr );
-      }
-     else
-      return( BC );
-     }
-    else
-     return( RBC );
-    }
-   else {
-    if( CRBC->RHandler::empty() ) {
-     auto CBC = new CBlockConfig( std::move( *CRBC ) );
-     delete CRBC;
-     return( CBC );
-     }
-    else
-     return( CRBC );
-    }
-   }
-
-  if( OCRBC->CHandler::empty() ) {
-   auto ORBC = new ORBlockConfig( std::move( *OCRBC ) );
-   delete OCRBC;
-
-   if( ORBC->RHandler::empty() ) {
-    auto OBC = new OBlockConfig( std::move( *ORBC ) );
-    delete ORBC;
-    return( OBC );
-    }
-   else
-    return( ORBC );
-   }
-
-  if( OCRBC->RHandler::empty() ) {
-   auto OCBC = new OCBlockConfig( std::move( *OCRBC ) );
-   delete OCRBC;
-   return( OCBC );
-   }
-  
-  return( OCRBC );
-  }
-
-/*--------------------------------------------------------------------------*/
-
  }  // end( namespace )
 
 /*--------------------------------------------------------------------------*/
@@ -232,7 +172,7 @@ void RHandler::get( Block * block )
   for( Block::Index i = 0 ; i < block->get_number_nested_Blocks() ; ++i ) {
    auto bi = block->get_nested_Block( i );  // get i-th sub-Block
 
-   if( auto BC = ::get_right_BlockConfig( bi ) ) {
+   if( auto BC = OCRBlockConfig::get_right_BlockConfig( bi ) ) {
     std::string id = bi->name();            // get its id
     if( id.empty() ) id = std::to_string( i );
     add_sub_BlockConfig( BC , std::move( id ) );
@@ -248,18 +188,17 @@ void RHandler::get( Block * block )
       i < v_sub_Block_id.size() ; ++i ) {
 
   const auto id = v_sub_Block_id[ i ];
-  Block::Index sub_Block_index = ::get_nested_Block_index( id , block );
+  Block::Index index = ::get_nested_Block_index( id , block );
 
-  if( sub_Block_index >= block->get_number_nested_Blocks() )
-   throw( std::logic_error( "RBlockConfig::get: invalid sub-Block id: "
-                             + id ) );
+  if( index >= block->get_number_nested_Blocks() )
+   throw( std::logic_error( "get: invalid sub-Block id: " + id ) );
 
-  auto sub_Block = block->get_nested_Block( sub_Block_index );
+  auto sB = block->get_nested_Block( index );
 
   if( v_sub_BlockConfig[ i ] )
-   v_sub_BlockConfig[ i ]->get( sub_Block );
+   v_sub_BlockConfig[ i ]->get( sB );
   else
-   v_sub_BlockConfig[ i ] = ::get_right_BlockConfig( sub_Block );
+   v_sub_BlockConfig[ i ] = OCRBlockConfig::get_right_BlockConfig( sB );
   }
  }  // end( RHandler::get )
 
@@ -643,6 +582,72 @@ void OHandler::load( std::istream & input )
   input >> *compute_config;
   }
  }  // end( OBlockConfig::load )
+
+/*--------------------------------------------------------------------------*/
+/*------------------------ METHODS of OCRBlockConfig -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+BlockConfig * OCRBlockConfig::get_right_BlockConfig( const Block * block )
+{
+ if( ! block )
+  return( nullptr );
+
+ auto OCRBC = new OCRBlockConfig( block );
+ if( OCRBC->OHandler::empty() ) {
+  auto CRBC = new CRBlockConfig( std::move( *OCRBC ) );
+  delete OCRBC;
+
+  if( CRBC->CHandler::empty() ) {
+   auto RBC = new RBlockConfig( std::move( *CRBC ) );
+   delete CRBC;
+
+   if( RBC->RHandler::empty() ) {
+    auto BC = new BlockConfig( std::move( *RBC ) );
+    delete RBC;
+
+    if( BC->empty() ) {
+     delete BC;
+     return( nullptr );
+     }
+    else
+     return( BC );
+    }
+   else
+    return( RBC );
+   }
+  else {
+   if( CRBC->RHandler::empty() ) {
+    auto CBC = new CBlockConfig( std::move( *CRBC ) );
+    delete CRBC;
+    return( CBC );
+    }
+   else
+    return( CRBC );
+   }
+  }
+
+ if( OCRBC->CHandler::empty() ) {
+  auto ORBC = new ORBlockConfig( std::move( *OCRBC ) );
+  delete OCRBC;
+
+  if( ORBC->RHandler::empty() ) {
+   auto OBC = new OBlockConfig( std::move( *ORBC ) );
+   delete ORBC;
+   return( OBC );
+   }
+  else
+   return( ORBC );
+  }
+
+ if( OCRBC->RHandler::empty() ) {
+  auto OCBC = new OCBlockConfig( std::move( *OCRBC ) );
+  delete OCRBC;
+  return( OCBC );
+  }
+
+ return( OCRBC );
+
+ }  // end( OCRBlockConfig::get_right_BlockConfig )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- End File RBlockConfig.cpp --------------------------*/
