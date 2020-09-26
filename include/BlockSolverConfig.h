@@ -910,20 +910,26 @@ class RBlockSolverConfig : public BlockSolverConfig
   * The parameter \diff tells if the required [R]BlockSolverConfig need be
   * in "diff mode" or in "setting mode".
   *
+  * The parameter clear tells is a clear()-ed BlockSolverConfig is wanted.
+  *
   * Since the method is static it has to be called as
   *
-  *     auto BSC = RBlockSolverConfig::get_right_BlockSolverConfig(myBlock );
+  *     auto BSC = RBlockSolverConfig::get_right_BlockSolverConfig( myBlock );
   *
   * and therefore it can also be used as constructor of RBlockSolverConfig, or
   * in fact of other BlockSolverConfig. */
 
  static BlockSolverConfig * get_right_BlockSolverConfig(
-				   const Block * block , bool diff = true ) {
-  auto RBSC = new RBlockSolverConfig( block , diff );
+	      const Block * block , bool diff = true , bool clear = false ) {
+  auto RBSC = new RBlockSolverConfig( block , diff , clear );
   if( ! RBSC->num_BlockSolverConfig() ) {
    auto BSC = new BlockSolverConfig( std::move( *RBSC ) );
    delete RBSC;
-   if( BSC->empty() ) {
+   if( BSC->empty() && block->get_registered_solvers().empty() ) {
+    // BSC may be "falsely" empty() because it has been called with clear
+    // == true, but in fact it has Solver registered, which means that one
+    // must return an "empty" BlockSolverConfig; only if this is not the
+    // case nullptr can be returned
     delete BSC;
     return( nullptr );
     }

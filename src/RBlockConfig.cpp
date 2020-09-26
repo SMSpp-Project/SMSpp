@@ -278,8 +278,8 @@ void RHandler::load( std::istream & input )
  input >> eatcomments >> k;
  const bool id_is_provided = ( k < 0 );
  k = std::abs( k );
- v_sub_BlockConfig.resize( k , nullptr );
  v_sub_Block_id.resize( k );
+ v_sub_BlockConfig.resize( k , nullptr );
 
  for( int i = 0 ; i < k ; ++i ) {
   if( id_is_provided )
@@ -289,19 +289,16 @@ void RHandler::load( std::istream & input )
 
   input >> eatcomments;
 
-  if( input.peek() == input.widen( '*' ) ) {
+  if( input.peek() == input.widen( '*' ) )
    input.get();  // read away (and ignore) the '*' from the stream
-   v_sub_BlockConfig[ i ] = nullptr;
-   }
   else {
-   std::string cname;
-   input >> cname;
-   v_sub_BlockConfig[ i ] = dynamic_cast< BlockConfig * >(
-			        Configuration::new_Configuration( cname ) );
-   if( ! v_sub_BlockConfig[ i ] )
+   auto cfg = Configuration::new_Configuration( input );
+   v_sub_BlockConfig[ i ] = dynamic_cast< BlockConfig * >( cfg );
+   if( ! v_sub_BlockConfig[ i ] ) {
+    delete cfg;
     throw( std::invalid_argument( "invalid BlockConfig for sub-Block "
 				  + v_sub_Block_id[ i ] ) );
-   input >> *v_sub_BlockConfig[ i ];
+    }
    }
   }
  }  // end( RHandler::load )
@@ -479,27 +476,23 @@ void CHandler::load( std::istream & input )
 {
  int k;
  input >> eatcomments >> k;
- v_Config_Constraint.resize( k );
  v_Constraint_id.resize( k );
+ v_Config_Constraint.resize( k , nullptr );
 
  for( int i = 0 ; i < k ; ++i ) {
-  input >> eatcomments;
-  input >> v_Constraint_id[ i ].first >> v_Constraint_id[ i ].second;
+  input >> eatcomments >> v_Constraint_id[ i ].first >> eatcomments >>
+   v_Constraint_id[ i ].second >> eatcomments;
 
-  input >> eatcomments;
-  if( input.peek() == input.widen( '*' ) ) {
+  if( input.peek() == input.widen( '*' ) )
    input.get();  // read away (and ignore) the '*' from the stream
-   v_Config_Constraint[ i ] = nullptr;
-   }
   else {
-   std::string cname;
-   input >> cname;
-   v_Config_Constraint[ i ] = dynamic_cast<ComputeConfig *>(
-				 Configuration::new_Configuration( cname ) );
-   if( ! v_Config_Constraint[ i ] )
+   auto cfg = Configuration::new_Configuration( input );
+   v_Config_Constraint[ i ] = dynamic_cast<ComputeConfig *>( cfg );
+   if( ! v_Config_Constraint[ i ] ) {
+    delete cfg;
     throw( std::invalid_argument(
      "load: invalid Configuration for Constraint " + std::to_string( i ) ) );
-   input >> *v_Config_Constraint[ i ];
+    }
    }
   }
  }  // end( CHandler::load )
@@ -574,15 +567,13 @@ void OHandler::load( std::istream & input )
   f_Config_Objective = nullptr;
   }
  else {
-  std::string cname;
-  input >> cname;
-  auto config = Configuration::new_Configuration( cname );
-  auto compute_config = dynamic_cast<ComputeConfig *>( config );
-  if( ! compute_config )
-   throw ( std::invalid_argument(
-		        "load: invalid Configuration for the Objective." ) );
-  f_Config_Objective = compute_config;
-  input >> *compute_config;
+  auto cfg = Configuration::new_Configuration( input );
+  f_Config_Objective = dynamic_cast<ComputeConfig *>( cfg );
+  if( ! f_Config_Objective ) {
+   delete cfg;
+   throw( std::invalid_argument(
+		         "load: invalid Configuration for the Objective" ) );
+   }
   }
  }  // end( OBlockConfig::load )
 
