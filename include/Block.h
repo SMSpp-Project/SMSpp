@@ -2845,7 +2845,8 @@ class Block : public Observer {
 		       v_s_Constraint_names.end() , name );
   if( it == v_s_Constraint_names.end() )
    return( nullptr );
-  return( boost::any_cast< Cnst * >( *it ) );
+  return( boost::any_cast< Cnst * >( v_s_Constraint[
+		     std::distance( v_s_Constraint_names.begin() , it ) ] ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -2880,7 +2881,8 @@ class Block : public Observer {
 		       v_s_Constraint_names.end() , name );
   if( it == v_s_Constraint_names.end() )
    return( nullptr );
-  return( boost::any_cast< std::vector< Cnst > * >( *it ) );
+  return( boost::any_cast< std::vector< Cnst > * >( v_s_Constraint[
+		     std::distance( v_s_Constraint_names.begin() , it ) ] ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -2916,7 +2918,8 @@ class Block : public Observer {
 		       v_s_Constraint_names.end() , name );
   if( it == v_s_Constraint_names.end() )
    return( nullptr );
-  return( boost::any_cast< boost::multi_array< Cnst , K > * >( *it ) );
+  return( boost::any_cast< boost::multi_array< Cnst , K > * >( v_s_Constraint[
+		     std::distance( v_s_Constraint_names.begin() , it ) ] ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -3019,7 +3022,8 @@ class Block : public Observer {
 		       v_s_Variable_names.end() , name );
   if( it == v_s_Variable_names.end() )
    return( nullptr );
-  return( boost::any_cast< Var * >( *it ) );
+  return( boost::any_cast< Var * >( v_s_Variable[
+		      std::distance( v_s_Variable_names.begin() , it ) ] ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3053,7 +3057,8 @@ class Block : public Observer {
 		       v_s_Variable_names.end() , name );
   if( it == v_s_Variable_names.end() )
    return( nullptr );
-  return( boost::any_cast< std::vector< Var > * >( *it ) );
+  return( boost::any_cast< std::vector< Var > * >( v_s_Variable[
+		      std::distance( v_s_Variable_names.begin() , it ) ] ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3089,7 +3094,8 @@ class Block : public Observer {
 		       v_s_Variable_names.end() , name );
   if( it == v_s_Variable_names.end() )
    return( nullptr );
-  return( boost::any_cast< boost::multi_array< Var , K > * >( *it ) );
+  return( boost::any_cast< boost::multi_array< Var , K > * >( v_s_Variable[
+		      std::distance( v_s_Variable_names.begin() , it ) ] ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -3221,7 +3227,8 @@ class Block : public Observer {
 		       v_d_Constraint_names.end() , name );
   if( it == v_d_Constraint_names.end() )
    return( nullptr );
-  return( boost::any_cast< std::list< Cnst > * >( *it ) );
+  return( boost::any_cast< std::list< Cnst > * >( v_d_Constraint[
+		      std::distance( v_d_Constraint_names.begin() , it ) ] ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3259,7 +3266,8 @@ class Block : public Observer {
 		       v_d_Constraint_names.end() , name );
   if( it == v_d_Constraint_names.end() )
    return( nullptr );
-  return( boost::any_cast< std::vector< std::list< Cnst > > * >( *it ) );
+  return( boost::any_cast< std::vector< std::list< Cnst > > * >(
+     v_d_Constraint[ std::distance( v_d_Constraint_names.begin() , it ) ] ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3298,7 +3306,7 @@ class Block : public Observer {
   if( it == v_d_Constraint_names.end() )
    return( nullptr );
   return( boost::any_cast< boost::multi_array< std::list< Cnst > , K > * >(
-								      *it ) );
+     v_d_Constraint[ std::distance( v_d_Constraint_names.begin() , it ) ] ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -3429,7 +3437,8 @@ class Block : public Observer {
 		       v_d_Variable_names.end() , name );
   if( it == v_d_Variable_names.end() )
    return( nullptr );
-  return( boost::any_cast< std::list< Var > * >( *it ) );
+  return( boost::any_cast< std::list< Var > * >( v_d_Variable[
+		      std::distance( v_d_Variable_names.begin() , it ) ] ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3466,7 +3475,8 @@ class Block : public Observer {
 		       v_d_Variable_names.end() , name );
   if( it == v_d_Variable_names.end() )
    return( nullptr );
-  return( boost::any_cast< std::vector< std::list< Var > > * >( *it ) );
+  return( boost::any_cast< std::vector< std::list< Var > > * >( v_d_Variable[
+		      std::distance( v_d_Variable_names.begin() , it ) ] ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3505,7 +3515,7 @@ class Block : public Observer {
   if( it == v_d_Variable_names.end() )
    return( nullptr );
   return( boost::any_cast< boost::multi_array< std::list< Var > , K > * >(
-								      *it ) );
+         v_d_Variable[ std::distance( v_d_Variable_names.begin() , it ) ] ) );
   }
 
 /*--------------------------------------------------------------------------*/
