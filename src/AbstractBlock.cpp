@@ -347,9 +347,12 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration *fsbc )
 
 /*--------------------------------------------------------------------------*/
 
-Solution * AbstractBlock::get_Solution( Configuration *solc , bool emptys )
+Solution * AbstractBlock::get_Solution( Configuration * csolc , bool emptys )
 {
- return( new ColVariableSolution() );
+ auto sol = new ColVariableSolution;
+ if( ! emptys )
+  sol->read( this );
+ return( sol );
  }
 
 /*--------------------------------------------------------------------------*/
