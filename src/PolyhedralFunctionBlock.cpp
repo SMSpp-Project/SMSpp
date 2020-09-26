@@ -54,7 +54,7 @@ void PolyhedralFunctionBlock::generate_abstract_variables(
 
  if( ( ! tstvv ) && f_BlockConfig &&
      f_BlockConfig->f_static_variables_Configuration )
-  tstvv = dynamic_cast<SimpleConfiguration<int> *>(
+  tstvv = dynamic_cast< SimpleConfiguration< int > * >(
 			    f_BlockConfig->f_static_variables_Configuration );
  if( tstvv )
   wsol = tstvv->f_value;
@@ -1003,95 +1003,85 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_LR( c_p_Mod mod ,
   }
 
  // C05FunctionModLinRngd - - - - - - - - - - - - - - - - - - - - - - - - - -
- {
-  const auto tmod = dynamic_cast< C05FunctionModLinRngd * const >( mod );
-  if( tmod ) {
-   Index i = 0;
-   auto ci = f_const.begin();
-   for( ; ci != f_const.end() ; ++ci , ++i )
-    if( ci->get_function() == tmod->function() )
-     break;
+ if( const auto tmod =
+     dynamic_cast< C05FunctionModLinRngd * const >( mod ) ) {
+  Index i = 0;
+  auto ci = f_const.begin();
+  for( ; ci != f_const.end() ; ++ci , ++i )
+   if( ci->get_function() == tmod->function() )
+    break;
 
-   if( ci == f_const.end() )  // that's not in the linearized representation
-    return;                   // none of my business
+  if( ci == f_const.end() )  // that's not in the linearized representation
+   return;                   // none of my business
 
-   // note that the LinearFunction has exactly one active Variable more than
-   // the PolyhedralFunction, the first one being "v", whence the "- 1"
-   // also, note that the coefficients are the opposite of the entries in A;
-   // hence, if the coefficients are changed by adding them tmod->delta(),
-   // the entries of A must change by subtracting them tmod->delta()
-   RealVector ai( f_polyf.get_A()[ i ] );
-   for( Index j = 0 ; j < tmod->delta().size() ; ++j )
-    ai[ tmod->range().first + j - 1 ] -= tmod->delta()[ j ];
+  // note that the LinearFunction has exactly one active Variable more than
+  // the PolyhedralFunction, the first one being "v", whence the "- 1"
+  // also, note that the coefficients are the opposite of the entries in A;
+  // hence, if the coefficients are changed by adding them tmod->delta(),
+  // the entries of A must change by subtracting them tmod->delta()
+  RealVector ai( f_polyf.get_A()[ i ] );
+  for( Index j = 0 ; j < tmod->delta().size() ; ++j )
+   ai[ tmod->range().first + j - 1 ] -= tmod->delta()[ j ];
 
-   f_polyf.modify_row( i , std::move( ai ) , f_polyf.get_b()[ i ] ,
-		       make_par( eNoBlck , chnl ) );
-   return;
-   }
+  f_polyf.modify_row( i , std::move( ai ) , f_polyf.get_b()[ i ] ,
+		      make_par( eNoBlck , chnl ) );
+  return;
   }
 
  // C05FunctionModLinSbst - - - - - - - - - - - - - - - - - - - - - - - - - -
- {
-  const auto tmod = dynamic_cast< C05FunctionModLinSbst * const >( mod );
-  if( tmod ) {
-   Index i = 0;
-   auto ci = f_const.begin();
-   for( ; ci != f_const.end() ; ++ci , ++i )
-    if( ci->get_function() == tmod->function() )
-     break;
+ if( const auto tmod =
+     dynamic_cast< C05FunctionModLinSbst * const >( mod ) ) {
+  Index i = 0;
+  auto ci = f_const.begin();
+  for( ; ci != f_const.end() ; ++ci , ++i )
+   if( ci->get_function() == tmod->function() )
+    break;
 
-   if( ci == f_const.end() )  // that's not in the linearized representation
-    return;                   // none of my business
+  if( ci == f_const.end() )  // that's not in the linearized representation
+   return;                   // none of my business
 
-   // note that the LinearFunction has exactly one active Variable more than
-   // the PolyhedralFunction, the first one being "v", whence the "- 1"
-   // also, note that the coefficients are the opposite of the entries in A;
-   // hence, if the coefficients are changed by adding them tmod->delta(),
-   // the entries of A must change by subtracting them tmod->delta()
-   RealVector ai( f_polyf.get_A()[ i ] );
-   for( Index j = 0 ; j < tmod->subset().size() ; ++j )
-    ai[ tmod->subset()[ j ] - 1 ] -= tmod->delta()[ j ];
+  // note that the LinearFunction has exactly one active Variable more than
+  // the PolyhedralFunction, the first one being "v", whence the "- 1"
+  // also, note that the coefficients are the opposite of the entries in A;
+  // hence, if the coefficients are changed by adding them tmod->delta(),
+  // the entries of A must change by subtracting them tmod->delta()
+  RealVector ai( f_polyf.get_A()[ i ] );
+  for( Index j = 0 ; j < tmod->subset().size() ; ++j )
+   ai[ tmod->subset()[ j ] - 1 ] -= tmod->delta()[ j ];
 
-   f_polyf.modify_row( i , std::move( ai ) , f_polyf.get_b()[ i ] ,
-		       make_par( eNoBlck , chnl ) );
-   return;
-   }
+  f_polyf.modify_row( i , std::move( ai ) , f_polyf.get_b()[ i ] ,
+		      make_par( eNoBlck , chnl ) );
+  return;
   }
 
  // FunctionModVars - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // any addition/removal of Variables in the linearized representation is bad
- {
-  const auto tmod = dynamic_cast< FunctionModVars * const >( mod );
-  if( tmod ) {
-   auto ci = f_const.begin();
-   for( ; ci != f_const.end() ; ++ci )
-    if( ci->get_function() == tmod->function() )
-     break;
+ if( const auto tmod = dynamic_cast< FunctionModVars * const >( mod ) ) {
+  auto ci = f_const.begin();
+  for( ; ci != f_const.end() ; ++ci )
+   if( ci->get_function() == tmod->function() )
+    break;
 
-   if( ci != f_const.end() )  // it's in the linearized representation
-    throw( std::logic_error(
+  if( ci != f_const.end() )  // it's in the linearized representation
+   throw( std::logic_error(
 	             "wrong FunctionModVars in PolyhedralFunctionBlock" ) );
  
-   return;  // else, none of my business
-   }
+  return;  // else, none of my business
   }
 
- // FunctionMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // C05FunctionMod- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // that's changing the constant, not good either
- {
-  const auto tmod = dynamic_cast< FunctionMod * const >( mod );
-  if( tmod ) {
-   auto ci = f_const.begin();
-   for( ; ci != f_const.end() ; ++ci )
-    if( ci->get_function() == tmod->function() )
-     break;
+ if( const auto tmod = dynamic_cast< C05FunctionMod * const >( mod ) ) {
+  auto ci = f_const.begin();
+  for( ; ci != f_const.end() ; ++ci )
+   if( ci->get_function() == tmod->function() )
+    break;
 
-   if( ci != f_const.end() )  // it's in the linearized representation
-    throw( std::logic_error(
-			  "wrong FunctionMod in PolyhedralFunctionBlock" ) );
+  if( ci != f_const.end() )  // it's in the linearized representation
+   throw( std::logic_error(
+		       "wrong C05FunctionMod in PolyhedralFunctionBlock" ) );
  
-   return;  // else, none of my business
-   }
+  return;  // else, none of my business
   }
  }  // end( PolyhedralFunctionBlock::guts_of_add_Modification_LR )
 
