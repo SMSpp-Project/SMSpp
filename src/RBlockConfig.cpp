@@ -95,7 +95,7 @@ namespace {
  // returns the index of the group of Constraint
 
  Block::Index get_Constraint_group_index( const std::string & id ,
-					  const Block * block )
+                                          const Block * block )
  {
   if( ( ! id.empty() ) && std::isdigit( id.front() ) ) {
    // the group id is the index of the group of Constraint
@@ -162,9 +162,9 @@ void RHandler::get( Block * block )
   return;
   }
 
- #ifndef NDEUG
+ #ifndef NDEBUG
   if( v_sub_BlockConfig.size() != v_sub_Block_id.size() )
-   throw( std::logic_error( "inconsistent Rhandler state" ) );
+   throw( std::logic_error( "RHandler::get: inconsistent Rhandler state" ) );
  #endif
 
  if( v_sub_Block_id.empty() ) {  // scan *all* the sub-Block- - - - - - - - -
@@ -191,7 +191,7 @@ void RHandler::get( Block * block )
   Block::Index index = ::get_nested_Block_index( id , block );
 
   if( index >= block->get_number_nested_Blocks() )
-   throw( std::logic_error( "get: invalid sub-Block id: " + id ) );
+   throw( std::logic_error( "RHandler::get: invalid sub-Block id: " + id ) );
 
   auto sB = block->get_nested_Block( index );
 
@@ -206,9 +206,9 @@ void RHandler::get( Block * block )
 
 void RHandler::apply( Block * block , bool deleteold , bool diff )
 {
- #ifndef NDEUG
+ #ifndef NDEBUG
   if( v_sub_BlockConfig.size() != v_sub_Block_id.size() )
-   throw( std::logic_error( "inconsistent RHandler state" ) );
+   throw( std::logic_error( "RHandler::apply: inconsistent RHandler state" ) );
  #endif
  
  for( decltype( v_sub_BlockConfig )::size_type i = 0 ;
@@ -217,8 +217,7 @@ void RHandler::apply( Block * block , bool deleteold , bool diff )
   const auto & id = v_sub_Block_id[ i ];
   Block::Index sub_Block_index = ::get_nested_Block_index( id , block );
   if( sub_Block_index >= block->get_number_nested_Blocks() )
-   throw( std::logic_error( "RBlockConfig::apply: invalid sub-Block id: "
-			    + id ) );
+   throw( std::logic_error( "RHandler::apply: invalid sub-Block id: " + id ) );
 
   auto sub_Block = block->get_nested_Block( sub_Block_index );
 
@@ -296,8 +295,8 @@ void RHandler::load( std::istream & input )
    v_sub_BlockConfig[ i ] = dynamic_cast< BlockConfig * >( cfg );
    if( ! v_sub_BlockConfig[ i ] ) {
     delete cfg;
-    throw( std::invalid_argument( "invalid BlockConfig for sub-Block "
-				  + v_sub_Block_id[ i ] ) );
+    throw( std::invalid_argument( "RHandler::load: invalid BlockConfig for "
+                                  "sub-Block " + v_sub_Block_id[ i ] ) );
     }
    }
   }
@@ -321,19 +320,19 @@ void CHandler::deserialize( netCDF::NcGroup & group )
  auto var_Constraint_index = group.getVar( "Constraint_index" );
  if( constrsize > 0 ) {
   if( var_Constraint_group_id.isNull() )
-   throw( std::invalid_argument( "deserialize: netCDF variable "
+   throw( std::invalid_argument( "CHandler::deserialize: netCDF variable "
                                  "Constraint_group_id not provided." ) );
   else {
    auto dimensions = ::get_sizes_dimensions( var_Constraint_group_id );
    if( ( dimensions.size() != 1 ) || ( dimensions[ 0 ] != constrsize ) )
-    throw( std::invalid_argument( "deserialize: invalid dimensions of netCDF"
-				  " variable Constraint_group_id" ) );
+    throw( std::invalid_argument( "CHandler::deserialize: invalid dimensions "
+                                  "of netCDF variable Constraint_group_id" ) );
 
    if( ! var_Constraint_index.isNull() ) {
     auto dimensions = ::get_sizes_dimensions( var_Constraint_index );
     if( ( dimensions.size() != 1 ) || ( dimensions[ 0 ] != constrsize ) )
-     throw( std::invalid_argument( "deserialize: invalid dimensions of "
-				   "netCDF variable Constraint_index" ) );
+     throw( std::invalid_argument( "CHandler::deserialize: invalid dimensions"
+                                   " of netCDF variable Constraint_index" ) );
     }
    }
   }
@@ -342,7 +341,7 @@ void CHandler::deserialize( netCDF::NcGroup & group )
   auto config_group = group.getGroup( "Config_Constraint_" +
                                       std::to_string( i ) );
   v_Config_Constraint[ i ] = dynamic_cast< ComputeConfig * >(
-			 Configuration::new_Configuration( config_group ) );
+                         Configuration::new_Configuration( config_group ) );
 
   var_Constraint_group_id.getVar( { i } , & v_Constraint_id[ i ].first );
 
@@ -365,9 +364,9 @@ void CHandler::get( Block * block )
   return;
   }
 
- #ifndef NDEUG
+ #ifndef NDEBUG
   if( v_Constraint_id.size() != v_Config_Constraint.size() )
-   throw( std::logic_error( "inconsistent CHandler state" ) );
+   throw( std::logic_error( "CHandler::get: inconsistent CHandler state" ) );
  #endif
 
  // ComputeConfig for the Constraint
@@ -380,13 +379,13 @@ void CHandler::get( Block * block )
    auto gi = ::get_Constraint_group_index( id , block );
 
    auto constraint = inspection::get_Constraint( block ,
-					   Block::ConstraintID( gi, ci ) );
+                                           Block::ConstraintID( gi, ci ) );
    if( constraint )
     v_Config_Constraint[ i ] =
          constraint->get_ComputeConfig( false , v_Config_Constraint[ i ] );
    else
-    throw( std::logic_error( "get: Constraint with id ( " + id + " , " +
-			     std::to_string( ci ) + ") not found." ) );
+    throw( std::logic_error( "CHandler::get: Constraint with id ( " + id +
+                             " , " + std::to_string( ci ) + ") not found." ) );
    }
   }
  else // v_Constraint_id is empty. Now we scan all Constraint.
@@ -406,15 +405,15 @@ void CHandler::apply( Block * block , bool deleteold  , bool diff )
 
   auto gi = ::get_Constraint_group_index( id , block );
   auto constraint = inspection::get_Constraint( block ,
-					    Block::ConstraintID( gi , ci ) );
+                                          Block::ConstraintID( gi , ci ) );
 
   if( constraint ) {
    if( ( ! diff ) || v_Config_Constraint[ i ] )
     constraint->set_ComputeConfig( v_Config_Constraint[ i ] );
    }
   else
-   throw( std::logic_error( "apply: Constraint with id ( " + id + " , " +
-                             std::to_string( ci ) + ") not found" ) );
+   throw( std::logic_error( "CHandler::apply: Constraint with id ( " + id +
+                            " , " + std::to_string( ci ) + ") not found" ) );
   }
  }  // end( CHandler::apply )
 
@@ -426,23 +425,23 @@ void CHandler::serialize( netCDF::NcGroup & group ) const
   return;
 
  auto n_Config_Constraint = group.addDim( "n_Config_Constraint" ,
-					  v_Config_Constraint.size() );
+                                          v_Config_Constraint.size() );
 
  for( size_t i = 0 ; i < v_Config_Constraint.size() ; ++i ) {
   if( v_Config_Constraint[ i ] ) {
    auto config_group = group.addGroup( "Config_Constraint_" +
-				       std::to_string( i ) );
+                                       std::to_string( i ) );
    v_Config_Constraint[ i ]->serialize( config_group );
    }
   }
 
  auto Constraint_group_id_var = group.addVar( "Constraint_group_id" ,
-					      netCDF::NcString() ,
-					      n_Config_Constraint );
+                                              netCDF::NcString() ,
+                                              n_Config_Constraint );
 
  auto Constraint_index_var = group.addVar( "Constraint_index" ,
-					   netCDF::NcUint() ,
-					   n_Config_Constraint );
+                                           netCDF::NcUint() ,
+                                           n_Config_Constraint );
 
  for( size_t i = 0 ; i < v_Constraint_id.size() ; ++i ) {
   Constraint_group_id_var.putVar( { i } , v_Constraint_id[ i ].first );
@@ -490,8 +489,8 @@ void CHandler::load( std::istream & input )
    v_Config_Constraint[ i ] = dynamic_cast<ComputeConfig *>( cfg );
    if( ! v_Config_Constraint[ i ] ) {
     delete cfg;
-    throw( std::invalid_argument(
-     "load: invalid Configuration for Constraint " + std::to_string( i ) ) );
+    throw( std::invalid_argument( "CHandler::load: invalid Configuration for"
+                                  " Constraint " + std::to_string( i ) ) );
     }
    }
   }
@@ -504,12 +503,13 @@ void CHandler::load( std::istream & input )
 void OHandler::deserialize( netCDF::NcGroup & group )
 {
  if( f_Config_Objective )
-  throw( std::logic_error( "deserializing a non-empty *OBlockConfig." ) );
+  throw( std::logic_error( "OHandler::deserializing a non-empty "
+                           "*OBlockConfig." ) );
 
  auto obj_group = group.getGroup( "Config_Objective" );
  if( ! obj_group.isNull() )
   f_Config_Objective = dynamic_cast< ComputeConfig * >(
-			     Configuration::new_Configuration( obj_group ) );
+                             Configuration::new_Configuration( obj_group ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -571,8 +571,8 @@ void OHandler::load( std::istream & input )
   f_Config_Objective = dynamic_cast<ComputeConfig *>( cfg );
   if( ! f_Config_Objective ) {
    delete cfg;
-   throw( std::invalid_argument(
-		         "load: invalid Configuration for the Objective" ) );
+   throw( std::invalid_argument( "OHandler::load: invalid Configuration "
+                                 "for the Objective" ) );
    }
   }
  }  // end( OBlockConfig::load )

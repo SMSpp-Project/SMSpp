@@ -175,7 +175,8 @@ BlockSolverConfig * BlockSolverConfig::deserialize( netCDF::NcFile & f ,
 void BlockSolverConfig::deserialize( netCDF::NcGroup & group )
 {
  if( v_SolverNames.size() || v_SolverConfigs.size() )
-  throw( std::logic_error( "deserializing a non-empty BlockSolverConfig" ) );
+  throw( std::logic_error( "BlockSolverConfig::deserialize: deserializing "
+                           "a non-empty BlockSolverConfig" ) );
 
  Configuration::deserialize( group );
 
@@ -200,7 +201,7 @@ void BlockSolverConfig::deserialize( netCDF::NcGroup & group )
 
  if( ( num_solvers > 0 ) && solver_names_var.isNull() )
   throw( std::invalid_argument( "BlockSolverConfig::deserialize: "
-				"missing SolverNames" ) );
+                                "missing SolverNames" ) );
 
  for( size_t i = 0 ; i < num_solvers ; ++i ) {
   char * solver_name;
@@ -209,7 +210,7 @@ void BlockSolverConfig::deserialize( netCDF::NcGroup & group )
   auto sc = group.getGroup( "SolverConfig_" + std::to_string( i ) );
   if( ! sc.isNull() )
    v_SolverConfigs[ i ] = dynamic_cast< ComputeConfig * >(
-						   new_Configuration( sc ) );
+                                                   new_Configuration( sc ) );
   }
  }  // end( BlockSolverConfig::deserialize( group ) )
 
@@ -342,7 +343,7 @@ void BlockSolverConfig::serialize( netCDF::NcFile & f , const int type ) const
   Configuration::serialize( f , type );
  else {
   auto cg = ( f.addGroup( "Config_" + std::to_string( f.getGroupCount() )
-			  ) ).addGroup( "SolverConfig" );
+                          ) ).addGroup( "SolverConfig" );
   serialize( cg );
   }
  }  // end( BlockSolverConfig::serialize( file ) )
@@ -356,7 +357,7 @@ void BlockSolverConfig::serialize( netCDF::NcGroup & group ) const
  group.putAtt( "diff" , netCDF::NcInt() , int( f_diff ) );
 
  netCDF::NcDim dim = group.addDim( "n_SolverConfig" ,
-				   v_SolverConfigs.size() );
+                                   v_SolverConfigs.size() );
 
  netCDF::NcVar solver_names_var = group.addVar( "SolverNames" ,
                                                 netCDF::NcString() , dim );
@@ -402,7 +403,7 @@ void BlockSolverConfig::load( std::istream & input )
  if( k > v_SolverNames.size() )
   v_SolverNames.resize( k );
  v_SolverConfigs.resize( std::max( k , int( v_SolverNames.size() ) ) ,
-			 nullptr );
+                         nullptr );
 
  for( int i = 0 ; i < k ; ++i ) {
   input >> eatcomments;
@@ -451,7 +452,8 @@ RBlockSolverConfig::RBlockSolverConfig( RBlockSolverConfig && old )
 void RBlockSolverConfig::deserialize( netCDF::NcGroup & group )
 {
  if( v_BlockSolverConfig.size() )
-  throw( std::logic_error( "deserializing a non-empty RBlockSolverConfig" ) );
+  throw( std::logic_error( "RBlockSolverConfig::deserialize: deserializing "
+                           "a non-empty RBlockSolverConfig" ) );
 
  // deserialize the "root Block" information- - - - - - - - - - - - - - - - -
 
@@ -484,9 +486,11 @@ void RBlockSolverConfig::deserialize( netCDF::NcGroup & group )
    v_sub_Block_id[ i ] = std::to_string( i );
  else {
   if( var_sub_Block_id.getDimCount() != 1 )
-   throw( std::invalid_argument( "wrong dimension number in sub-Block-id" ) );
+   throw( std::invalid_argument( "RBlockSolverConfig::deserialize: wrong "
+                                 "dimension number in sub-Block-id" ) );
   if( var_sub_Block_id.getDim( 0 ).getSize() != num_config  )
-   throw( std::invalid_argument( "wrong 1st dimension in sub-Block-id" ) );
+   throw( std::invalid_argument( "RBlockSolverConfig::deserialize: wrong "
+                                 "1st dimension in sub-Block-id" ) );
   var_sub_Block_id.getVar( v_sub_Block_id.data() );
   }
  }  // end( RBlockSolverConfig::deserialize( group ) )
@@ -507,9 +511,10 @@ void RBlockSolverConfig::get( const Block * block , bool clear )
   return;
   }
 
- #ifndef NDEUG
+ #ifndef NDEBUG
   if( v_BlockSolverConfig.size() != v_sub_Block_id.size() )
-   throw( std::logic_error( "inconsistent RBlockSolverConfig state" ) );
+   throw( std::logic_error( "RBlockSolverConfig::get: inconsistent "
+                            "RBlockSolverConfig state" ) );
  #endif
 
  if( v_sub_Block_id.empty() ) {  // scan *all* the sub-Block- - - - - - - - -
@@ -518,7 +523,7 @@ void RBlockSolverConfig::get( const Block * block , bool clear )
    auto bi = block->get_nested_Block( i );  // get the i-th sub-Block
     // if there is any significant configuration information in it
    if( auto bsc = RBlockSolverConfig::get_right_BlockSolverConfig( bi , true ,
-								   clear ) ) {
+                                                                   clear ) ) {
     std::string id = bi->name();                // define its id
     if( id.empty() ) id = std::to_string( i );  // (index if not name)
     add_BlockSolverConfig( bsc , id );          // add it
@@ -563,9 +568,10 @@ void RBlockSolverConfig::apply( Block * block ) const
 
  // set the configurations for the sub-Block- - - - - - - - - - - - - - - - -
 
- #ifndef NDEUG
+ #ifndef NDEBUG
   if( v_BlockSolverConfig.size() != v_sub_Block_id.size() )
-   throw( std::logic_error( "inconsistent RBlockSolverConfig state" ) );
+   throw( std::logic_error( "RBlockSolverConfig::apply: inconsistent "
+                            "RBlockSolverConfig state" ) );
  #endif
 
  auto it = v_BlockSolverConfig.begin();
