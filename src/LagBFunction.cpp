@@ -1325,19 +1325,26 @@ ComputeConfig * LagBFunction::get_ComputeConfig( bool all ,
 
  auto bsc = RBlockSolverConfig::get_right_BlockSolverConfig(
 						   v_Block.front() , ! all );
- 
+
  auto bc = OCRBlockConfig::get_right_BlockConfig( v_Block.front() );
 
  if( bsc || bc ) {
   auto cc = new
-     SimpleConfiguration< std::pair< Configuration * , Configuration * > >();
+       SimpleConfiguration< std::pair< Configuration * , Configuration * > >;
 
   cc->f_value.first = bsc;
   cc->f_value.second = bc;
-  return( ccfg );
+  if( ! ccfg )
+   ccfg = new ComputeConfig;
+  ccfg->f_extra_Configuration = cc;
   }
 
- return( nullptr );
+ if( ccfg && ccfg->empty() ) {
+  delete ccfg;
+  ccfg = nullptr;
+  }
+
+ return( ccfg );
 
  }  // end( LagBFunction::get_ComputeConfig )
 

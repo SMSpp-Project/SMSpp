@@ -946,21 +946,20 @@ public:
   * using the class interface; hence, derived classes correctly implementing
   * get_*_par(), get_num_*_par(), get_dflt_*_par() and *_par_idx2str() can in
   * principle avoid to re-implement it. Note that when all == false, the
-  * resulting ComputeConfig object may turn out to be "empty": no values
-  * stored, which means that all the parameters are at their default value.
-  * In this case, if the ComputeConfig object has *not* been provided by the
-  * caller, then no ComputeConfig is returned: nullptr is. This tells in a
-  * "compact form" (analogous to set_ComputeConfig()) the same information,
-  * i.e., "all parameters to their defult value". This is done by the base
-  * class implementation, but note that a ComputeConfig is only meant to
-  * actually store information about (non-default) values of parameters
-  * *that its :ThinComputeInterface actually cares about*. This means that
-  * if a specific :ThinComputeInterface formally is has some parameter, but
-  * in fact does not "listen" to it, it should never even process them,
-  * thereby increasing the chance of a nullptr result. Actually, a
-  * :ThinComputeInterface that either has no parameter, or formally has some
-  * but in fact "listens to none", can re-define this method to uniformly
-  * return nullptr.
+  * resulting ComputeConfig object may turn out to be empty(): no values
+  * stored (comprised the extra_Configuration), which means that all the
+  * parameters are at their default value. In this case no ComputeConfig is
+  * returned: nullptr is. This tells in a "compact form" (analogous to
+  * set_ComputeConfig()) the same information, i.e., "all parameters to their
+  * defult value". This is done by the base class implementation, but note
+  * that a ComputeConfig is only meant to actually store information about
+  * (non-default) values of parameters *that its :ThinComputeInterface
+  * actually cares about*. This means that if a specific :ThinComputeInterface
+  * formally is has some parameter, but in fact does not "listen" to it, it
+  * should never even process them, thereby increasing the chance of a nullptr
+  * result. Actually, a :ThinComputeInterface that either has no parameter, or
+  * formally has some but in fact "listens to none", can re-define this method
+  * to uniformly return nullptr.
   *
   * A :ThinComputeInterface may have several other reasons for wanting to
   * re-define it. In particular, the base class version does not use the
@@ -1148,6 +1147,15 @@ class ComputeConfig : public Configuration
 
   if( f_extra_Configuration )
    f_extra_Configuration->clear();
+  }
+
+/*--------------- METHODS FOR READING DATA OF THE ComputeConfig ------------*/
+
+ // returns true if the ComputeConfig is "completely empty" of any data
+
+ virtual bool empty( void ) const {
+  return( int_pars.empty() && dbl_pars.empty() && str_pars.empty() &&
+	  ( ! f_extra_Configuration ) );
   }
 
 /*--------------------- METHODS FOR CHANGING PARAMETERS --------------------*/

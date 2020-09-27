@@ -76,7 +76,7 @@ void ThinComputeInterface::set_ComputeConfig( ComputeConfig * scfg )
 ComputeConfig * ThinComputeInterface::get_ComputeConfig( bool all ,
 						ComputeConfig * ocfg ) const
 {
- ComputeConfig * ccfg = ocfg ? ocfg : new ComputeConfig();
+ ComputeConfig * ccfg = ocfg ? ocfg : new ComputeConfig;
  ccfg->f_diff = ! all;
  if( all ) {
   ccfg->int_pars.resize( get_num_int_par() );
@@ -112,12 +112,11 @@ ComputeConfig * ThinComputeInterface::get_ComputeConfig( bool all ,
    if( ! ( get_str_par( i ) == get_dflt_str_par( i ) ) )
     ccfg->str_pars.push_back( std::make_pair( str_par_idx2str( i ) ,
 					      get_str_par( i ) ) );
+  }
 
-  if( ( ! ocfg ) && ( ! ccfg->int_pars.size() ) &&
-      ( ! ccfg->dbl_pars.size() ) && ( ! ccfg->str_pars.size() ) ) {
-   delete ccfg;
-   ccfg = nullptr;
-   }   
+ if( ccfg->empty() ) {
+  delete ccfg;
+  ccfg = nullptr;
   }
 
  return( ccfg );
