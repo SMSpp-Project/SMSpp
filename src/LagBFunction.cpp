@@ -1321,27 +1321,53 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
 ComputeConfig * LagBFunction::get_ComputeConfig( bool all ,
 					         ComputeConfig * ocfg ) const
 {
+ // get the "standard" part of the ComputeConfig - - - - - - - - - - - - - - -
+ 
  ComputeConfig* ccfg = ThinComputeInterface::get_ComputeConfig( all , ocfg );
 
- auto bsc = RBlockSolverConfig::get_right_BlockSolverConfig(
+ if( ccfg && ccfg->f_extra_Configuration ) {
+  // if an extra configuration is there (must have been in ocfg) - - - - - - -
+  auto cc = dynamic_cast< SimpleConfiguration< std::pair< Configuration * ,
+							  Configuration * >
+					       > *
+			  >( ccfg->f_extra_Configuration );
+  if( ! cc )
+   throw( std::invalid_argument( "ocfg extra_Configuration is not a"
+				 "SimpleConfiguration< pair< Cfg * > >" ) );
+
+  auto bsc = dynamic_cast< BlockSolverConfig * >( cc->f_value.first );
+  if( ! bsc )
+   throw( std::invalid_argument(
+	     "ocfg extra_Configuration first is not a BlockSolverConfig" ) );
+  bsc->get( v_Block.front() , ! all );
+
+  auto bc = dynamic_cast< BlockConfig * >( cc->f_value.second );
+  if( ! bc )
+   throw( std::invalid_argument(
+	           "ocfg extra_Configuration second is not aBlockConfig" ) );
+  bc->get( v_Block.front() );
+  }
+ else {  // else (the extra Configuration has to be constructed) - - - - - - -
+  auto bsc = RBlockSolverConfig::get_right_BlockSolverConfig(
 						   v_Block.front() , ! all );
 
- auto bc = OCRBlockConfig::get_right_BlockConfig( v_Block.front() );
+  auto bc = OCRBlockConfig::get_right_BlockConfig( v_Block.front() );
 
- if( bsc || bc ) {
-  auto cc = new
+  if( bsc || bc ) {
+   auto cc = new
        SimpleConfiguration< std::pair< Configuration * , Configuration * > >;
 
-  cc->f_value.first = bsc;
-  cc->f_value.second = bc;
-  if( ! ccfg )
-   ccfg = new ComputeConfig;
-  ccfg->f_extra_Configuration = cc;
-  }
+   cc->f_value.first = bsc;
+   cc->f_value.second = bc;
+   if( ! ccfg )
+    ccfg = new ComputeConfig;
+   ccfg->f_extra_Configuration = cc;
+   }
 
- if( ccfg && ccfg->empty() ) {
-  delete ccfg;
-  ccfg = nullptr;
+  if( ccfg && ccfg->empty() ) {
+   delete ccfg;
+   ccfg = nullptr;
+   }
   }
 
  return( ccfg );
