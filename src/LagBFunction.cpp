@@ -1696,7 +1696,7 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
     if( current )  // if Range is still current, it's easy
      for( Index j = tmod->range().first ; j < tmod->range().second ; ++j )
       CostMatrix[ j ].first = rc[ j ].second;
-    else           // if Range is no longer current, it's compicated
+    else {         // if Range is no longer current, it's compicated
      // however, note that CostMatrix is still "aligned" with the indices
      // found in the Modification, since if Variable have been added/removed
      // in obj by changes occurring prior to this the corresponding
@@ -1729,6 +1729,7 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
         }
        }
       }
+     }
 
     // issue a C05FunctionMod modification of the type AlphaChanged:
     // the Lagrangian function unpredictably changes (f_shift == NaN), and
@@ -1836,7 +1837,7 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
     if( current )  // if Subset is still current, it's easy
      for( Index j : tmod->subset() )
       CostMatrix[ j ].first = rc[ j ].second;
-    else           // if Subset is no longer current, it's compicated
+    else {         // if Subset is no longer current, it's compicated
      // however, note that CostMatrix is still "aligned" with the indices
      // found in the Modification, since if Variable have been added/removed
      // in obj by changes occurring prior to this the corresponding
@@ -1869,6 +1870,7 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
         }
        }
       }
+     }
 
     // issue a C05FunctionMod modification of the type AlphaChanged:
     // the Lagrangian function unpredictably changes (f_shift == NaN), and
