@@ -1672,12 +1672,63 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
   if( const auto lf = dynamic_cast< p_LF >( tmod->function() ) ) {
    // only deal with C05FunctionModLinRngd coming from LinearFunction ...
    if( lf == obj ) {  // ... inside the Objective of the inner Block - - - - -
-    // update the corresponding Range of original costs by adding delta()
+    // note that one may think to update the corresponding Range of original
+    // costs by adding delta(), but this would be wrong because delta() is
+    // computed w.r.t. the last value of the costs, which is in general a
+    // Lagrangian one. one may alernatively think to just mark the cost as
+    // in need for refreshing and do it later (say, in compute()), but this
+    // would be wrong as well because the costs that have *not* been changed
+    // are the Lagrangian ones, and one would end up "fixing" them as the
+    // true costs. hence, the only option is to read the costs now (since the
+    // Modification is the only place where the information about which costs
+    // have actually changed is), although reading the costs from obj is
+    // nontrovial since the Range may not be current if Variable have been
+    // added/deleted
 
-    auto dit = tmod->delta().begin();
+    const auto & rc = lf->get_v_var();
 
+    // first check if by chance the Range is still current
+    bool current = true;
+    auto it = tmod->vars().begin();
     for( Index j = tmod->range().first ; j < tmod->range().second ; ++j )
-     CostMatrix[ j ].first += *(dit++);
+     if( rc[ j ].first != *(it++) ) { current = false; break; }
+
+    if( current )  // if Range is still current, it's easy
+     for( Index j = tmod->range().first ; j < tmod->range().second ; ++j )
+      CostMatrix[ j ].first = rc[ j ].second;
+    else           // if Range is no longer current, it's compicated
+     // however, note that CostMatrix is still "aligned" with the indices
+     // found in the Modification, since if Variable have been added/removed
+     // in obj by changes occurring prior to this the corresponding
+     // Modification have been already "seen" before this and acted upon
+     it = tmod->vars().begin();
+     for( Index j = tmod->range().first ; j < tmod->range().second ; ++j ) {
+      auto vi = *(it++);          // the Variable whose cost has changed
+      if( rc[ j ].first == vi )   // if vi is still in the same place
+       CostMatrix[ j ].first = rc[ j ].second;  // still easy
+      else {                      // if not, look up for it
+       // start looking up before j, since it's where it most likely is
+       Index h = j;
+       while( h )
+	if( rc[ --h ].first == vi )
+	 break;
+
+       if( rc[ h ].first == vi )  // if it is found
+	CostMatrix[ j ].first = rc[ h ].second;  // all done
+       else {                     // otherwise
+	// look up after j, it still could be there
+	for( h = j + 1 ; h < rc.size() ; ++h )
+	 if( rc[ h ].first == vi )
+	  break;
+
+	if( h < rc.size() )       // if it is found
+	 CostMatrix[ j ].first = rc[ h ].second;  // all done
+	// otherwise, do nothing: the changed Variable is no longer in obj
+	// at this point, which means that the corresponding Modification
+	// is waiting in the queue to be discovered and acted upon
+        }
+       }
+      }
 
     // issue a C05FunctionMod modification of the type AlphaChanged:
     // the Lagrangian function unpredictably changes (f_shift == NaN), and
@@ -1761,12 +1812,63 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
   if( const auto lf = dynamic_cast< p_LF >( tmod->function() ) ) {
    // only deal with C05FunctionModLinSbst coming from LinearFunction ...
    if( lf == obj ) {  // ... inside the Objective of the inner Block - - - - -
-    // update the corresponding Subset of original costs by adding delta()
+    // note that one may think to update the corresponding Subset of original
+    // costs by adding delta(), but this would be wrong because delta() is
+    // computed w.r.t. the last value of the costs, which is in general a
+    // Lagrangian one. one may alernatively think to just mark the cost as
+    // in need for refreshing and do it later (say, in compute()), but this
+    // would be wrong as well because the costs that have *not* been changed
+    // are the Lagrangian ones, and one would end up "fixing" them as the
+    // true costs. hence, the only option is to read the costs now (since the
+    // Modification is the only place where the information about which costs
+    // have actually changed is), although reading the costs from obj is
+    // nontrovial since the Subset may not be current if Variable have been
+    // added/deleted
 
-    auto dit = tmod->delta().begin();
+    const auto & rc = lf->get_v_var();
 
-    for( auto j : tmod->subset() )
-     CostMatrix[ j ].first += *(dit++);
+    // first check if by chance the Subset is still current
+    bool current = true;
+    auto it = tmod->vars().begin();
+    for( Index j : tmod->subset() )
+     if( rc[ j ].first != *(it++) ) { current = false; break; }
+
+    if( current )  // if Subset is still current, it's easy
+     for( Index j : tmod->subset() )
+      CostMatrix[ j ].first = rc[ j ].second;
+    else           // if Subset is no longer current, it's compicated
+     // however, note that CostMatrix is still "aligned" with the indices
+     // found in the Modification, since if Variable have been added/removed
+     // in obj by changes occurring prior to this the corresponding
+     // Modification have been already "seen" before this and acted upon
+     it = tmod->vars().begin();
+     for( Index j : tmod->subset() ) {
+      auto vi = *(it++);          // the Variable whose cost has changed
+      if( rc[ j ].first == vi )   // if vi is still in the same place
+       CostMatrix[ j ].first = rc[ j ].second;  // still easy
+      else {                      // if not, look up for it
+       // start looking up before j, since it's where it most likely is
+       Index h = j;
+       while( h )
+	if( rc[ --h ].first == vi )
+	 break;
+
+       if( rc[ h ].first == vi )  // if it is found
+	CostMatrix[ j ].first = rc[ h ].second;  // all done
+       else {                     // otherwise
+	// look up after j, it still could be there
+	for( h = j + 1 ; h < rc.size() ; ++h )
+	 if( rc[ h ].first == vi )
+	  break;
+
+	if( h < rc.size() )       // if it is found
+	 CostMatrix[ j ].first = rc[ h ].second;  // all done
+	// otherwise, do nothing: the changed Variable is no longer in obj
+	// at this point, which means that the corresponding Modification
+	// is waiting in the queue to be discovered and acted upon
+        }
+       }
+      }
 
     // issue a C05FunctionMod modification of the type AlphaChanged:
     // the Lagrangian function unpredictably changes (f_shift == NaN), and
