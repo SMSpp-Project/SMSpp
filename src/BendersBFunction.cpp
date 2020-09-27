@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 22 - 09 - 2020
+ * \date 27 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -2156,9 +2156,12 @@ Function::FunctionValue BendersBFunction::get_linearization_constant(
 ComputeConfig * BendersBFunction::get_ComputeConfig
 ( bool all , ComputeConfig * ocfg ) const {
 
+ bool default_config = false;
+
  auto ccfg = ThinComputeInterface::get_ComputeConfig( all , ocfg );
 
  if( ! ccfg ) {
+  default_config = true;
   ccfg = new ComputeConfig();
   ccfg->f_diff = !all;
  }
@@ -2167,33 +2170,46 @@ ComputeConfig * BendersBFunction::get_ComputeConfig
   std::pair< Configuration * , Configuration * > > * >
   ( ccfg->f_extra_Configuration );
 
- if( ! ( extra_config &&
-     dynamic_cast< BlockConfig * >( extra_config->f_value.first ) &&
-     dynamic_cast< BlockSolverConfig * >( extra_config->f_value.second ) ) ) {
+ if( ! extra_config ) {
   // replace the extra Configuration
+  delete ccfg->f_extra_Configuration;
   extra_config = new
    SimpleConfiguration< std::pair< Configuration * , Configuration * > >;
-  delete ccfg->f_extra_Configuration;
   ccfg->f_extra_Configuration = extra_config;
-  }
+ }
 
  auto inner_block = get_inner_block();
 
  // Retrieve the BlockConfig of the inner Block
 
- if( extra_config->f_value.first )
-  dynamic_cast< BlockConfig * >
-   ( extra_config->f_value.first )->get( inner_block );
- else if( inner_block )
-  extra_config->f_value.first = new OCRBlockConfig( inner_block );
+ if( auto bc = dynamic_cast< BlockConfig * >( extra_config->f_value.first ) )
+  bc->get( inner_block ); // use the given BlockConfig
+ else {
+  delete extra_config->f_value.first;
+  extra_config->f_value.first = nullptr;
+  if( inner_block )
+   extra_config->f_value.first =
+    OCRBlockConfig::get_right_BlockConfig( inner_block );
+ }
 
  // Retrieve the BlockSolverConfig of the inner Block
 
- if( extra_config->f_value.second )
-  dynamic_cast< BlockSolverConfig * >
-   ( extra_config->f_value.second )->get( inner_block );
- else if( inner_block )
-  extra_config->f_value.second = new RBlockSolverConfig( inner_block );
+ if( auto bsc = dynamic_cast< BlockSolverConfig * >
+     ( extra_config->f_value.second ) )
+  bsc->get( inner_block ); // use the given BlockSolverConfig
+ else {
+  delete extra_config->f_value.second;
+  extra_config->f_value.second = nullptr;
+  if( inner_block )
+   extra_config->f_value.second =
+    RBlockSolverConfig::get_right_BlockSolverConfig( inner_block , ! all );
+ }
+
+ if( default_config && ( ! extra_config->f_value.first ) &&
+     ( ! extra_config->f_value.first ) ) {
+  delete ccfg;
+  ccfg = nullptr;
+ }
 
  return ccfg;
 }  // end( BendersBFunction::get_ComputeConfig )

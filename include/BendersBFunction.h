@@ -1752,6 +1752,12 @@ class BendersBFunction : public C05Function , public Block {
   * obtain the BlockConfig (see BlockConfig::get()) and the BlockSolverConfig
   * (see BlockSolverConfig::get()) of the inner Block.
   *
+  * The parameters of this BendersBFunction (that are not related with its
+  * inner Block), are obtained via a call to
+  * ThinComputeInterface::get_ComputeConfig(). So, please take a look at
+  * ThinComputeInterface::get_ComputeConfig() to understand the behavior of
+  * this method and how it may affect the (possibly) given \p ocfg.
+  *
   * @param all see ThinComputeInterface::get_ComputeConfig().
   *
   * @param ocfg a pointer to a ComputeConfig.
