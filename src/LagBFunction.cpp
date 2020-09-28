@@ -1672,7 +1672,7 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
  // - the (LinearFunction inside the) Objective of the inner Block;
  //
  // - the LinearFunction that defines one of the Lagrangian terms
- //   < y_i , g_i( x ) >
+ //   < y_i , g_i( x ) = A_i x + b_i >
  //
  // There are two types of C05FunctionModLin, according to if the
  // coefficients of the LinearFunction that change are a Range or a Subset.
@@ -1697,7 +1697,8 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
  // C05FunctionModLinRngd- - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( const auto tmod = dynamic_cast< C05FunctionModLinRngd * >( mod ) ) {
+ if( const auto tmod = dynamic_cast< const C05FunctionModLinRngd * >( mod )
+     ) {
   if( const auto lf = dynamic_cast< p_LF >( tmod->function() ) ) {
    // only deal with C05FunctionModLinRngd coming from LinearFunction ...
    if( lf == obj ) {  // ... inside the Objective of the inner Block - - - - -
@@ -1838,7 +1839,8 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
  // C05FunctionModLinSbst- - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( const auto tmod = dynamic_cast< C05FunctionModLinSbst * >( mod ) ) {
+ if( const auto tmod = dynamic_cast< const C05FunctionModLinSbst * >( mod )
+     ) {
   if( const auto lf = dynamic_cast< p_LF >( tmod->function() ) ) {
    // only deal with C05FunctionModLinSbst coming from LinearFunction ...
    if( lf == obj ) {  // ... inside the Objective of the inner Block - - - - -
@@ -1990,7 +1992,7 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
  // - any Constraint in the inner Block, or any of its sub-Block (recursively)
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( const auto tmod = dynamic_cast< FunctionMod * >( mod ) ) {
+ if( const auto tmod = dynamic_cast< const FunctionMod * >( mod ) ) {
   auto f = tmod->function();  // the Function it comes from
 
   if( static_cast< p_LF >( f ) == obj ) {  // if it is obj - - - - - - - - - -
@@ -2128,7 +2130,8 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
  // C05FunctionModVarsAddd - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( const auto tmod = dynamic_cast< C05FunctionModVarsAddd * >( mod ) ) {
+ if( const auto tmod = dynamic_cast< const C05FunctionModVarsAddd * >( mod )
+     ) {
   if( const auto lf = dynamic_cast< p_LF >( tmod->function() ) ) {
    // only deal with C05FunctionModVarsAddd coming from LinearFunction ...
    if( lf == obj ) {  // ... inside the Objective of the inner Block - - - - -
@@ -2200,7 +2203,8 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
  // C05FunctionModVarsRngd - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( const auto tmod = dynamic_cast< C05FunctionModVarsRngd * >( mod ) ) {
+ if( const auto tmod = dynamic_cast< const C05FunctionModVarsRngd * >( mod )
+     ) {
   if( const auto lf = dynamic_cast< p_LF >( tmod->function() ) ) {
    // only deal with C05FunctionModVarsRngd coming from LinearFunction ...
    if( lf == obj ) {  // ... inside the Objective of the inner Block - - - - -
@@ -2292,7 +2296,8 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
  // C05FunctionModVarsSbst - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( const auto tmod = dynamic_cast< C05FunctionModVarsSbst * >( mod ) ) {
+ if( const auto tmod = dynamic_cast< const C05FunctionModVarsSbst * >( mod )
+     ) {
   if( const auto lf = dynamic_cast< p_LF >( tmod->function() ) ) {
    // only deal with C05FunctionModVarsSbst coming from LinearFunction ...
    if( lf == obj ) {  // ... inside the Objective of the inner Block - - - - -
@@ -2391,7 +2396,7 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
  // (or any of its sub-Block, recursively)
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- if( const auto tmod = dynamic_cast< FunctionModVars * >( mod ) ) {
+ if( const auto tmod = dynamic_cast< const FunctionModVars * >( mod ) ) {
   auto f = tmod->function();  // the Function it comes from
 
   if( auto objobs = dynamic_cast< FRealObjective * >( f->get_Observer() ) ) {
@@ -2428,8 +2433,8 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
  // VariableMod: some variables of (B) changed the status- - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( const auto tmod = dynamic_cast< VariableMod * >( mod ) ) {
-  auto xj = dynamic_cast< ColVariable * const >( tmod->variable() );
+ if( const auto tmod = dynamic_cast< const  VariableMod * >( mod ) ) {
+  const auto xj = dynamic_cast< const ColVariable * >( tmod->variable() );
 
   if( ! xj )        // unknown variable type
    return( true );  // no clue what is happening, take the worst case
@@ -2442,6 +2447,30 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
   return( ( ! xj->is_fixed() ) || ( ! xj->is_integer() ) );
 
   }  // end( VariableMod )
+
+ // RowConstraintMod: the LHS/RHS of some constraints of (B) changed - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ if( const auto tmod = dynamic_cast< const RowConstraintMod * >( mod ) ) {
+  // return true if the RHS and/or LHS have changed
+  // TODO: if the RHS increases or the LHS decreases in fact the feasible
+  //       region has increased and in fact false should be returned, but so
+  //       far there is no way to detect this since we don't have access to
+  //       the previous value; some work should be done on RowConstraintMod
+  if( ( tmod->type() == RowConstraintMod::eChgLHS ) ||
+      ( tmod->type() == RowConstraintMod::eChgRHS ) ||
+      ( tmod->type() == RowConstraintMod::eChgBTS ) )
+   return( true );
+  // otherwise do nothing, as the case is dealt with next
+  }
+
+ // ConstraintMod: some constraints of (B) relaxed/enforced- - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ if( const auto tmod = dynamic_cast< const ConstraintMod * >( mod ) ) {
+  // return true if a Constraint has been enforced, since this reduces the
+  // feasible region, and false if a Constraint has been relaxed, since this
+  // enlarges the feasible region
+  return( tmod->type() == ConstraintMod::eEnforceConst );
+  }
 
  // BlockModAD - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -2456,14 +2485,14 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
  // constructed part of the) solution is feasible.
  // THUS, GENERATING DYNAMIC Variable CANNOT MAKE A Solution UNFEASIBLE. A
  // FORTIORI NOR CAN DELETING A DYNAMIC Constraint
- if( const auto tmod = dynamic_cast< BlockModAD * >( mod ) )
+ if( const auto tmod = dynamic_cast< const BlockModAD * >( mod ) )
   return( ( tmod->is_variable() && ( ! tmod->is_added() ) ) ||
 	  ( ( ! tmod->is_variable() ) && tmod->is_added() ) );
 
  // BlockMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // arbitrary changes of (B) may violate the feasibility
- if( dynamic_cast< BlockMod * >( mod ) )
+ if( dynamic_cast< const BlockMod * >( mod ) )
   return( true );
 
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
