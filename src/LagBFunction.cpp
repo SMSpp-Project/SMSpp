@@ -342,7 +342,7 @@ void LagBFunction::set_par( const idx_type par , const int value )
   case( intLPMaxSz ):
    if( LPMaxSz != value ) {
     LPMaxSz = value;
-    add_par( std::string( int_par_idx2str( intLPMaxSz ) ) , value );
+    add_par( std::string( int_par_idx2str( Solver::intMaxSol ) ) , value );
     }
    break;
   case( intGPMaxSz ):
@@ -375,13 +375,13 @@ void LagBFunction::set_par( const idx_type par , const double value )
   case( dblRAccLin ):
    if( RAccLin != value ) {
     RAccLin = value;
-    add_par( std::string( dbl_par_idx2str( dblRAccLin ) ) , value );
+    add_par( std::string( dbl_par_idx2str( Solver::dblRelAcc ) ) , value );
     }
    break;
   case( dblAAccLin ):
    if( AAccLin != value ) {
     AAccLin = value;
-    add_par( std::string( dbl_par_idx2str( dblAAccLin ) ) , value );
+    add_par( std::string( dbl_par_idx2str( Solver::dblAbsAcc ) ) , value );
     }
    break;
   default: Function::set_par( par , value );
@@ -1323,14 +1323,11 @@ ComputeConfig * LagBFunction::get_ComputeConfig( bool all ,
 {
  // get the "standard" part of the ComputeConfig - - - - - - - - - - - - - - -
  
- ComputeConfig* ccfg = ThinComputeInterface::get_ComputeConfig( all , ocfg );
+ ComputeConfig * ccfg = C05Function::get_ComputeConfig( all , ocfg );
 
  if( ccfg && ccfg->f_extra_Configuration ) {
   // if an extra configuration is there (must have been in ocfg) - - - - - - -
-  auto cc = dynamic_cast< SimpleConfiguration< std::pair< Configuration * ,
-							  Configuration * >
-					       > *
-			  >( ccfg->f_extra_Configuration );
+  auto cc = dynamic_cast< SimpleConfig_p_p * >( ccfg->f_extra_Configuration );
   if( ! cc )
    throw( std::invalid_argument( "ocfg extra_Configuration is not a"
 				 "SimpleConfiguration< pair< Cfg * > >" ) );
@@ -1344,7 +1341,7 @@ ComputeConfig * LagBFunction::get_ComputeConfig( bool all ,
   auto bc = dynamic_cast< BlockConfig * >( cc->f_value.second );
   if( ! bc )
    throw( std::invalid_argument(
-	           "ocfg extra_Configuration second is not aBlockConfig" ) );
+	          "ocfg extra_Configuration second is not a BlockConfig" ) );
   bc->get( v_Block.front() );
   }
  else {  // else (the extra Configuration has to be constructed) - - - - - - -
@@ -1354,8 +1351,7 @@ ComputeConfig * LagBFunction::get_ComputeConfig( bool all ,
   auto bc = OCRBlockConfig::get_right_BlockConfig( v_Block.front() );
 
   if( bsc || bc ) {
-   auto cc = new
-       SimpleConfiguration< std::pair< Configuration * , Configuration * > >;
+   auto cc = new SimpleConfig_p_p;
 
    cc->f_value.first = bsc;
    cc->f_value.second = bc;

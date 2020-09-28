@@ -53,12 +53,19 @@ namespace SMSpp_di_unipi_it
  class BlockSolverConfig;  // forward definition of BlockSolverConfig
 
 /*--------------------------------------------------------------------------*/
+/*---------------------------- PUBLIC TYPES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ using SimpleConfig_p_p = SimpleConfiguration< std::pair< Configuration * ,
+							  Configuration * > >;
+
+/*--------------------------------------------------------------------------*/
 /*------------------------- CLASS LagBFunction -----------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /// a Lagrangian Function
-/**< The class LagBFunction is a convenience class implementing the "abstract"
+/** The class LagBFunction is a convenience class implementing the "abstract"
  * concept of Lagrangian Relaxation of "any" Block. LagBFunction derives from
  * *both* C05Function and Block.
  *
@@ -568,7 +575,7 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
  /// set the whole set of parameters in one blow
- /** LagBFunction "listems" to the following parameters:
+ /** LagBFunction "listens" to the following parameters:
   *
   * - intLPMaxSz
   *
@@ -578,22 +585,35 @@ class LagBFunction : public C05Function , public Block {
   *
   * - dblAAccLin
   *
-  * TODO: explain what they do
+  * Note that the value of intLPMaxSz is passed to the (first) Solver
+  * registered to the inner Block as the Solver::intMaxSol parameter, since
+  * each different Variable Solution produced by the Solver immediately
+  * translates into a linearization of the LagBFunction. Similarly,
+  * dblRAccLin and dblAAccLin are passed to the (...) Solver as the
+  * Solver::dblRelAcc and Solver::dblAbsAcc parameters, respectively, since 
+  * the error (relative or absolute) made by the Solver in computing the
+  * Variable Solutio immediately translates into the accuracy of the
+  * corresponding linearization.
   *
-  * Furthermore, it also uses the f_extra_Configuration field of the
+  * Instead, intGPMaxSz controls the maximum number of stored Solution from
+  * the Solver, each one of which (again) corresponds to a linearization.
+  *
+  * Furthermore, LagBFunction also uses the f_extra_Configuration field of the
   * provided ComputeConfig. That field, if non-nullptr, is assumed to be a
   *
-  *   SimpleConfiguration< std::pair< Configuration * , Configuration * > >
+  *     SimpleConfiguration< std::pair< Configuration * , Configuration * > >
   *
-  * The first element of that pair is a :BlockSolverConfig and the second one
-  * is a :BlockConfig, which are used to configure the inner Block of the
-  * LagBFunction.
+  * If this happens, then
   *
-  * TODO: set_ComputeConfig() should check whether the BlockConfig is a base
-  *       BlockConfig or a ***BlockConfig, and similarly for the 
-  *       BlockSolverConfig, and store this information somewhere, so that
-  *       get_ComputeConfig() could construct objects of the right classes
-  *       without defaulting to the "most expensive ones". */
+  *     f_extra_Configuration->f_value.first
+  *
+  * is assumed to be a :BlockSolverConfig, and
+  *
+  *     f_extra_Configuration->f_value.second
+  *
+  * is assumed to be a :BlockConfig (note that exception will be thrown if
+  * f_extra_Configuration or its two inner Configuration are not of the right
+  * type). These are used to configure the inner Block of the LagBFunction. */
 
  void set_ComputeConfig( ComputeConfig *scfg = nullptr ) override;
 
@@ -928,11 +948,30 @@ class LagBFunction : public C05Function , public Block {
  *  @{ */
 
  /// get the whole set of parameters in one blow
- /** Mostly, this method has to fetch the BlockConfig and BlockSolverConfig
+ /** Mostly, this method has to fetch the :BlockConfig and :BlockSolverConfig
   * from the inner Block to fill the f_extra_Configuration field of the
-  * ComputeConfig. Currently the original type of these is not recorded, so
-  * that one goes for the "worst cases" OCRBlockConfig and RBlockSolverConfig,
-  * but this could be improved upon. */
+  * ComputeConfig. If an appropriate
+  *
+  *     SimpleConfiguration< std::pair< Configuration * , Configuration * > >
+  *
+  * is passed as the f_extra_Configuration of the provided non-nullptr
+  * \p ocfg, then
+  *
+  *     f_extra_Configuration->f_value.first
+  *
+  * is used as the :BlockSolverConfig, and
+  *
+  *     f_extra_Configuration->f_value.second
+  *
+  * is used as the :BlockConfig (note that exception will be thrown if
+  * f_extra_Configuration or its two inner Configuration are not of the right
+  * type). Otherwise the get_right_Block*Config() methods of OCRBlockConfig
+  * and RBlockSolverConfig are used to get() the "smallest possible types" of
+  * :BlockConfig and :BlockSolverConfig, which may still result in an overall
+  * nullptr to be returned (although a functioning LagBFunction does need at
+  * least a Solver registered to the inner Block and the cleanest way to have
+  * this is to use set_ComputeConfig(), so one would expect
+  * f_extra_Configuration *not* to be "empty" in the end). */
 
  ComputeConfig * get_ComputeConfig( bool all = false ,
 				    ComputeConfig * ocfg = nullptr )
