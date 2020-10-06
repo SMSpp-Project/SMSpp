@@ -1383,7 +1383,7 @@ int LagBFunction::get_NzMat( void )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::get_MatDesc( int *Abeg , int *Aind , double *Aval ,
+void LagBFunction::get_MatDesc( int * Abeg , int * Aind , double * Aval ,
 				int strt , int stp )
 {
  Index count = 0;
@@ -1571,7 +1571,7 @@ void LagBFunction::add_columns( v_c_dual_pair & newdp , Index first )
      // it was not in toadd, it has to be added now
      toadd.push_back( LinearFunction::coeff_pair( rp[ h ].first , 0 ) );
      CostMatrix.push_back( col_pair() );
-     CostMatrix.back().first = rp[ h ].second;     // set c_j
+     CostMatrix.back().first = 0;                   // c_j = 0
      CostMatrix.back().second.push_back( y_pair );  // add < y_i , a_{ij} >
      j = Inf<Index>();
      }

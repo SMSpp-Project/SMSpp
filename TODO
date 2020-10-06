@@ -1,3 +1,37 @@
+2020-10-01 [low, unfortunately] Add MultiFunction and MultiRowConstraint
+
+	A MultiFunction is "just" the equivalent of a std::vector< Function >, its
+	value being a std::vector< FunctionValue >. However, by being a unique object
+	it can be managed more efficiently when "all the underlying Function change in
+	the same way". The obvious use case is a LinearMultiFunction, whose obvious
+	implementation is a std::vector< std::pair< ColVariable * , std::vector< 
+	FunctionValue > > >; that is, a *column* in a coefficient matrix. This could
+	be used in a MultiRowConstraint whose LHS and RHS are themselves
+	std::vector< FunctionValue >. According to what kind of operations are
+	done on the constrant, this may provide huge benefits in terms of many fewer
+	Modification and much more streamlined operations.
+
+	Such a LinearMultiFunction would be a "dense" one, hence one should probably
+	also have a LinearSparseMultiFunction; this may use Eigen sparse vectors,
+	although I'm not really convinced by these yet.
+
+	MultiFunction could/should have a way to add and remove Function (rows),
+	thereby making them "dynamic" even if used inside a static MultiRowConstraint.
+	This may create issues, tough.
+
+	Another advantage would be to make it easier to handle "shared Constraint"
+	between Block. A "shared Constraint" could be a [Multi]RowConstraint to the
+	[Multi]Function to which all [sub-]Block contribute some term (variable).
+	Each [sub-]Block could mind its own business (Variable) without bothering what
+	the other [sub-]Block do, allowing a "distributed management of a shared
+	Constraint". Perhaps this should be put as a separate TODO, although in
+	principle it does not seem to need tools that do not exist yet to work.
+	But one should probably mention the possibility somewhere, and possibly even
+	have methods of the Block that provide their "shared Constraint", although
+	it is not clear how that could be done (Function is not even mentioned in
+	Block, in principle with good reasons).
+
+
 2020-09-10 [low] Retrieving the "abstract name" of a Variable and printing the model
 
         In many cases, printing the full model would be useful. In particular,
