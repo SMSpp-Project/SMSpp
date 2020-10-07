@@ -53,18 +53,11 @@ namespace SMSpp_di_unipi_it
  class BlockSolverConfig;  // forward definition of BlockSolverConfig
 
 /*--------------------------------------------------------------------------*/
-/*---------------------------- PUBLIC TYPES --------------------------------*/
-/*--------------------------------------------------------------------------*/
-
- using SimpleConfig_p_p = SimpleConfiguration< std::pair< Configuration * ,
-							  Configuration * > >;
-
-/*--------------------------------------------------------------------------*/
 /*------------------------- CLASS LagBFunction -----------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-/// a Lagrangian Function
+/// a Lagrangian Function, which is also a Block
 /** The class LagBFunction is a convenience class implementing the "abstract"
  * concept of Lagrangian Relaxation of "any" Block. LagBFunction derives from
  * *both* C05Function and Block.
@@ -375,37 +368,47 @@ class LagBFunction : public C05Function , public Block {
   * same, but compilers still don't like it. Disambiguate by declaring we
   * use the ThinVarDepInterface versions (but it could have been the Block
   * versions, as they are the same. */
-
  using Index = ThinVarDepInterface::Index;
  using c_Index = ThinVarDepInterface::c_Index;
+
  using Range = ThinVarDepInterface::Range;
  using c_Range = ThinVarDepInterface::c_Range;
+
  using Subset = ThinVarDepInterface::Subset;
  using c_Subset = ThinVarDepInterface::c_Subset;
+
+ /* LagBFunction uses stuff from LinearFunction a lot, hence "import" here
+  * corresponding names. */
+ using Coefficient = LinearFunction::Coefficient;
+ using coeff_pair = LinearFunction::coeff_pair;
  using v_coeff_pair = LinearFunction::v_coeff_pair;
 
- ///< a vector of dual_pair (a constraint and its dual variable)
+ /// a dual_pair: (the Function defining) a Constraint and its dual variable
  using dual_pair = std::pair< ColVariable * , Function * >;
- using v_dual_pair = std::vector< dual_pair >;
- using v_c_dual_pair = const v_dual_pair;
+
+ using v_dual_pair = std::vector< dual_pair >;  ///< a vector of dual_pair
+ using v_c_dual_pair = const v_dual_pair;       ///< a const v_dual_pair
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
+ /// an element of the global pool
+ /** An element of the global pool ia a Solution equipped with a boolean
+  * which defines the type of linearization (diagonal, vertical) */
  using gpool_el = std::pair< p_Solution , bool >;
- ///< an element of the global pool
- /**< a Solution equipped with a boolean which defines the type of
-  * linearization (diagonal, vertical) */
 
+ /// a global pool (a vector of gpool_el)
  using v_gpool_el = std::vector< gpool_el >;
- ///< the global pool (a vector of linearization_pair)
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
- using col_pair = std::pair< LinearFunction::Coefficient ,
-                             LinearFunction::v_coeff_pair >;
- ///< a pair to represent the original c_i and < y_i , A_i >
+ /// a pair to represent the original c_i and the vector of < y_i , A_i >
+ using col_pair = std::pair< Coefficient , v_coeff_pair >;
 
  using m_column = std::vector< col_pair >;   ///< a vector of col_pair
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// the kind of SimpleConfiguration used as extra_Configuration
+
+ using SimpleConfig_p_p = SimpleConfiguration< std::pair< Configuration * ,
+							  Configuration * > >;
 
 /*--------------------------------------------------------------------------*/
  /// virtualized concrete iterator
@@ -1124,8 +1127,7 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
- LinearFunction * obj;
- ///< the (linear) objective function of the sub-Block (B)
+ LinearFunction * obj;  ///< the (LinearFunction inside the) Objective of (B)
 
  bool IsConvex;         ///< true if the LagBFunction is convex
  
@@ -1166,8 +1168,8 @@ class LagBFunction : public C05Function , public Block {
   * as usual) and a new row is added to CostMatrix (at the bottom).
   * Also, the linear term y A_i is represented by the same v_coeff_pair
   * as in a LinearFunction, but UNLIKE IN LinearFunction IT IS KEPT
-  * ORDERED BY POINTER TO 
-  */
+  * ORDERED BY POINTER. */
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  Index LastSolution;  ///< the last Solution read by get_linearization

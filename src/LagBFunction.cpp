@@ -211,9 +211,9 @@ void LagBFunction::set_dual_pairs( v_dual_pair && dp )
  // CostMatrix is a vector of pairs < c_j , A_j > indexed like the primal
  // variable x_j = obj->get_active_var( j ). c_j is the original cost (which
  // would no longer be available in obj and therefore need to be stored
- // somewhere, and A_j is a LinearFuction::v_coeff_pair: a vector of pairs
- // < y_i , a_{ij} > (pointer to ColVariable, real coefficient) describing
- // linear function y A_j required to compute the Lagrangian cost c_j - y A_j
+ // somewhere, and A_j is v_coeff_pair: a vector of pairs < y_i , a_{ij} >
+ // (pointer to ColVariable, real coefficient) describing the linear function
+ // y A_j required to compute the Lagrangian cost c_j - y A_j
 
  add_columns( dp );
 
@@ -480,8 +480,7 @@ void LagBFunction::remove_variable( Index i , ModParam issueMod )
 
  // update CostMatrix- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // get the list of pairs < x_j , a_{ij} > in g_i(x)
- LinearFunction::v_c_coeff_pair & rp =
-  static_cast< p_LF >( LagPairs[ i ].second )->get_v_var();
+ const auto & rp = static_cast< p_LF >( LagPairs[ i ].second )->get_v_var();
 
  // for each pair < x_j , a_{ij} > in g_i(x)
  for( const auto & monomial : rp ) {
@@ -497,8 +496,7 @@ void LagBFunction::remove_variable( Index i , ModParam issueMod )
   auto it = std::lower_bound( CostMatrix[ j ].second.begin() ,
 			      CostMatrix[ j ].second.end() ,
 			      std::make_pair( LagPairs[ i ].first , 0 ) ,
-			      []( const LinearFunction::coeff_pair & a ,
-				  const LinearFunction::coeff_pair & b )
+			      []( const auto & a , const auto & b )
 	   	 		{ return( a.first < b.first ); } );
   #ifndef NDEBUG
    if( it == CostMatrix[ j ].second.end() )
@@ -579,8 +577,7 @@ void LagBFunction::remove_variables( Range range , ModParam issueMod )
  // for each row i to remove
  for( auto lpit = strtit ; lpit != stopit ; ++lpit ) {
   // get the list of pairs < x_j , a_{ij} > in g_i(x)
-  LinearFunction::v_c_coeff_pair & rp =
-   static_cast< p_LF >( lpit->second )->get_v_var();
+  const auto & rp = static_cast< p_LF >( lpit->second )->get_v_var();
 
   // for each pair < x_j , a_{ij} > in g_i(x)
   for( const auto & monomial : rp ) {
@@ -596,14 +593,15 @@ void LagBFunction::remove_variables( Range range , ModParam issueMod )
    auto it = std::lower_bound( CostMatrix[ j ].second.begin() ,
 			       CostMatrix[ j ].second.end() ,
 			       std::make_pair( lpit->first , 0 ) ,
-			       []( const LinearFunction::coeff_pair & a ,
-				   const LinearFunction::coeff_pair & b )
+			       []( const auto & a , const auto & b )
 	   	 		 { return( a.first < b.first ); } );
    #ifndef NDEBUG
     if( it == CostMatrix[ j ].second.end() )
      throw( std::logic_error( "inconsistency between CostMatrix and LagPairs"
 			      ) );
    #endif
+
+   CostMatrix[ j ].second.erase( it );   // now erase it
 
    }  // end( for( rp ) )
   }  // end( for( rows to eliminate )
@@ -679,8 +677,7 @@ void LagBFunction::remove_variables( Subset && nms , bool ordered ,
  // update CostMatrix- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  for( Index i : nms ) {  // for each row i to remove
   // get the list of pairs < x_j , a_{ij} > in g_i(x)
-  LinearFunction::v_c_coeff_pair & rp =
-   static_cast< p_LF >( LagPairs[ i ].second )->get_v_var();
+  const auto & rp = static_cast< p_LF >( LagPairs[ i ].second )->get_v_var();
 
   // for each pair < x_j , a_{ij} > in g_i(x)
   for( const auto & monomial : rp ) {
@@ -696,14 +693,15 @@ void LagBFunction::remove_variables( Subset && nms , bool ordered ,
    auto it = std::lower_bound( CostMatrix[ j ].second.begin() ,
 			       CostMatrix[ j ].second.end() ,
 			       std::make_pair( LagPairs[ i ].first , 0 ) ,
-			       []( const LinearFunction::coeff_pair & a ,
-				   const LinearFunction::coeff_pair & b )
+			       []( const auto & a , const auto & b )
 	   	 		 { return( a.first < b.first ); } );
    #ifndef NDEBUG
     if( it == CostMatrix[ j ].second.end() )
      throw( std::logic_error( "inconsistency between CostMatrix and LagPairs"
 			      ) );
    #endif
+
+   CostMatrix[ j ].second.erase( it );   // now erase it
 
    }  // end( for( rp ) )
   }  // end( for( rows to eliminate )
@@ -830,7 +828,7 @@ void LagBFunction::serialize( netCDF::NcGroup & group ) const
  // The costs saved in (obj_B) are the Lagrangian ones. Hence, we need
  // to restore the original ones before serializing (B).
 
- LinearFunction::v_c_coeff_pair & ov_pair = obj->get_v_var();
+ const auto & ov_pair = obj->get_v_var();
 
  Vec_FunctionValue NCoef1( CostMatrix.size() );
  Vec_FunctionValue NCoef2( CostMatrix.size() );
@@ -1386,13 +1384,20 @@ int LagBFunction::get_NzMat( void )
 void LagBFunction::get_MatDesc( int * Abeg , int * Aind , double * Aval ,
 				int strt , int stp )
 {
+ // important note: the order of the variables in CostMatrix is *not* the
+ // original order of the columns, which is how A here need be provided,
+ // but rather the order of which they are in obj; not all of the varable
+ // may be in obj, which means they do not appear in A anywhere (for
+ // otherwise they would have been forcibly added to obj), which means
+ // that the corresponding column in A is empty
+ 
  Index count = 0;
  for( Index j = 0 ; j < CostMatrix.size() ; ++j ) {
   Abeg[ j ] = count;
   for( auto & CMjs : CostMatrix[ j ].second ) {
-   Index xIdx = is_active( CMjs.first );
-   if( xIdx >= strt && xIdx < stp ) {
-    Aind[ count ] = xIdx;
+   Index i = is_active( CMjs.first );
+   if( ( i >= strt ) && ( i < stp ) ) {
+    Aind[ count ] = i;
     Aval[ count++ ] = CMjs.second;
     }
    }
@@ -1538,11 +1543,10 @@ void LagBFunction::add_columns( v_c_dual_pair & newdp , Index first )
  // name >= first: this is used when g_i(x) changes, hence in this case newdp
  // is a singleton
 
- LinearFunction::v_coeff_pair toadd;  // new ColVariable to add to obj
+ v_coeff_pair toadd;  // new ColVariable to add to obj
 
- for( const auto & dp : newdp ) {
-  // for each dual pair < y_i , g_i(x) >
-  auto gi = dynamic_cast< p_LF >( dp.second );
+ for( const auto & dp : newdp ) {  // for each dual pair < y_i , g_i(x) >
+  const auto gi = dynamic_cast< p_LF >( dp.second );
   if( ! gi )
    throw( std::invalid_argument( "Lagrangian term not a LinearFunction" ) );
 
@@ -1557,7 +1561,7 @@ void LagBFunction::add_columns( v_c_dual_pair & newdp , Index first )
    // CostMatrix[ j ] (if it exists, otherwise create it)
 
    // construct the pair < y_i , a_{ij} > to be added to CostMatrix[ j ]
-   const auto y_pair = std::make_pair( dp.first , rp[ h ].second );
+   const auto y_pair = coeff_pair( dp.first , rp[ h ].second );
 
    // find the position of x_j in (obj_B)
    auto j = obj->is_active( rp[ h ].first );
@@ -1569,7 +1573,7 @@ void LagBFunction::add_columns( v_c_dual_pair & newdp , Index first )
 			         { return( el.first == rp[ h ].first ); } );
     if( it == toadd.end() ) {
      // it was not in toadd, it has to be added now
-     toadd.push_back( LinearFunction::coeff_pair( rp[ h ].first , 0 ) );
+     toadd.push_back( coeff_pair( rp[ h ].first , 0 ) );
      CostMatrix.push_back( col_pair() );
      CostMatrix.back().first = 0;                   // c_j = 0
      CostMatrix.back().second.push_back( y_pair );  // add < y_i , a_{ij} >
@@ -2124,7 +2128,7 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
  // deleted is a Range or a Subset. Hence, three similar pieces of code
  // follow, two almost being almost identical.
  //
- // IMPORTANT NOTE: se IMPORTANT NOTE 1 and IMPORTANT NOTE 2 for the
+ // IMPORTANT NOTE: see IMPORTANT NOTE 1 and IMPORTANT NOTE 2 for the
  //                 C05FunctionModLin, which apply verbatim here as well
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -2132,7 +2136,7 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  if( const auto tmod = dynamic_cast< const C05FunctionModVarsAddd * >( mod )
      ) {
-  if( const auto lf = dynamic_cast< p_LF >( tmod->function() ) ) {
+  if( const auto lf = dynamic_cast< const p_LF >( tmod->function() ) ) {
    // only deal with C05FunctionModVarsAddd coming from LinearFunction ...
    if( lf == obj ) {  // ... inside the Objective of the inner Block - - - - -
     // update CostMatrix accordingly. note that the new rows are empty,
