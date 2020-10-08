@@ -211,11 +211,12 @@ void LagBFunction::set_dual_pairs( v_dual_pair && dp )
  // CostMatrix is a vector of pairs < c_j , A_j > indexed like the primal
  // variable x_j = obj->get_active_var( j ). c_j is the original cost (which
  // would no longer be available in obj and therefore need to be stored
- // somewhere, and A_j is v_coeff_pair: a vector of pairs < y_i , a_{ij} >
- // (pointer to ColVariable, real coefficient) describing the linear function
- // y A_j required to compute the Lagrangian cost c_j - y A_j
+ // somewhere, and A_j is v_coeff_pair: a vector of pairs < i , a_{ij} >
+ // (index of the ColVariable among the active ones in the LagBFunction, real
+ // coefficient) describing the linear function y A_j required to compute the
+ // Lagrangian cost c_j - y A_j
 
- add_columns( dp );
+ add_dual_pairs( dp );
 
  // save the dual pairs in the LagPairs data structure
 
@@ -435,7 +436,7 @@ void LagBFunction::add_dual_pairs( v_dual_pair && dp , ModParam issueMod )
 
  // update CostMatrix- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- add_columns( dp );
+ add_dual_pairs( dp );
 
  // if b == 0, check if this remains true- - - - - - - - - - - - - - - - - - -
  if( f_yb == -INF )
@@ -479,34 +480,21 @@ void LagBFunction::remove_variable( Index i , ModParam issueMod )
 				) );
 
  // update CostMatrix- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- // get the list of pairs < x_j , a_{ij} > in g_i(x)
- const auto & rp = static_cast< p_LF >( LagPairs[ i ].second )->get_v_var();
 
- // for each pair < x_j , a_{ij} > in g_i(x)
- for( const auto & monomial : rp ) {
-
-  // find the position of x_j in (obj_B)
-  Index j = obj->is_active( monomial.first );
-  #ifndef NDEBUG
-   if( j >= obj->get_num_active_var() )
-    throw( std::logic_error( "inconsistency between obj and LagPairs" ) );
-  #endif
-
-  // find the position of the term < y_i , a_{ij} > in CostMatrix[ j ]
-  auto it = std::lower_bound( CostMatrix[ j ].second.begin() ,
-			      CostMatrix[ j ].second.end() ,
-			      std::make_pair( LagPairs[ i ].first , 0 ) ,
+ for( auto & CMj : CostMatrix ) {
+  // find the position of the term < i , a_{ij} > in CMj
+  auto it = std::lower_bound( CMj.second.begin() , CMj.second.end() ,
+			      mon_pair( i , 0 ) ,
 			      []( const auto & a , const auto & b )
 	   	 		{ return( a.first < b.first ); } );
-  #ifndef NDEBUG
-   if( it == CostMatrix[ j ].second.end() )
-    throw( std::logic_error( "inconsistency between CostMatrix and LagPairs"
-			     ) );
-  #endif
 
-  CostMatrix[ j ].second.erase( it );   // now erase it
-
-  }  // end( for( rp ) )
+  if( it != CMj.second.end() ) {  // if it is there
+   // decrease by 1 the names of all the < h , a_{hj} > with h > i
+   for( auto nit = it ; ++nit != CMj.second.end() ; )
+    --(nit->first);
+   CMj.second.erase( it );        // finally erase it
+   }
+  }
 
  // if b != 0 but we are eliminating a nonzero, it may have become 0 - - - - -
  if( ( f_yb > -INF ) && ( static_cast< p_LF >(
@@ -570,43 +558,34 @@ void LagBFunction::remove_variables( Range range , ModParam issueMod )
   }
 
  // this is not a complete reset
+ // update CostMatrix- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+ for( auto & CMj : CostMatrix ) {
+  // find the position of the term < range.first , a_{*j} > in CMj
+  auto iit = std::lower_bound( CMj.second.begin() , CMj.second.end() ,
+			       mon_pair( range.first , 0 ) ,
+			       []( const auto & a , const auto & b )
+	   	 		 { return( a.first < b.first ); } );
+
+  // find the position of the term < range.second , a_{*j} > in CMj
+  auto eit = std::lower_bound( CMj.second.begin() , CMj.second.end() ,
+			       mon_pair( range.second , 0 ) ,
+			       []( const auto & a , const auto & b )
+	   	 		 { return( a.first < b.first ); } );
+
+  if( iit != eit ) {                // if any of these are found
+   // decrease by range.second - range.first the names of all the
+   // < h , a_{hj} > with h >= range.second
+   for( auto nit = eit ; nit != CMj.second.end() ; ++nit )
+    (nit->first) -= range.second - range.first;
+   CMj.second.erase( iit , eit );   // finally, erase them all
+   }
+  }
+
+ // if b != 0 but we are eliminating nonzeros, it may have become 0- - - - - -
  const auto strtit = LagPairs.begin() + range.first;
  const auto stopit = LagPairs.begin() + range.second;
 
- // update CostMatrix- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- // for each row i to remove
- for( auto lpit = strtit ; lpit != stopit ; ++lpit ) {
-  // get the list of pairs < x_j , a_{ij} > in g_i(x)
-  const auto & rp = static_cast< p_LF >( lpit->second )->get_v_var();
-
-  // for each pair < x_j , a_{ij} > in g_i(x)
-  for( const auto & monomial : rp ) {
-
-   // find the position of x_j in (obj_B)
-   Index j = obj->is_active( monomial.first );
-   #ifndef NDEBUG
-    if( j >= obj->get_num_active_var() )
-     throw( std::logic_error( "inconsistency between obj and LagPairs" ) );
-   #endif
-
-   // find the position of the term < y_i , a_{ij} > in CostMatrix[ j ]
-   auto it = std::lower_bound( CostMatrix[ j ].second.begin() ,
-			       CostMatrix[ j ].second.end() ,
-			       std::make_pair( lpit->first , 0 ) ,
-			       []( const auto & a , const auto & b )
-	   	 		 { return( a.first < b.first ); } );
-   #ifndef NDEBUG
-    if( it == CostMatrix[ j ].second.end() )
-     throw( std::logic_error( "inconsistency between CostMatrix and LagPairs"
-			      ) );
-   #endif
-
-   CostMatrix[ j ].second.erase( it );   // now erase it
-
-   }  // end( for( rp ) )
-  }  // end( for( rows to eliminate )
-
- // if b != 0 but we are eliminating nonzeros, it may have become 0- - - - - -
  if( f_yb > -INF )
   for( auto lpit = strtit ; lpit != stopit ; ++lpit )
    if( static_cast< p_LF >( lpit->second )->get_constant_term() ) {
@@ -674,37 +653,41 @@ void LagBFunction::remove_variables( Subset && nms , bool ordered ,
  if( nms.back() >= LagPairs.size() )
   throw( std::invalid_argument( "LagBFunction::remove_variables: wrong index"
 				) );
+
  // update CostMatrix- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- for( Index i : nms ) {  // for each row i to remove
-  // get the list of pairs < x_j , a_{ij} > in g_i(x)
-  const auto & rp = static_cast< p_LF >( LagPairs[ i ].second )->get_v_var();
 
-  // for each pair < x_j , a_{ij} > in g_i(x)
-  for( const auto & monomial : rp ) {
-
-   // find the position of x_j in (obj_B)
-   Index j = obj->is_active( monomial.first );
-   #ifndef NDEBUG
-    if( j >= obj->get_num_active_var() )
-     throw( std::logic_error( "inconsistency between obj and LagPairs" ) );
-   #endif
-
-   // find the position of the term < y_i , a_{ij} > in CostMatrix[ j ]
-   auto it = std::lower_bound( CostMatrix[ j ].second.begin() ,
-			       CostMatrix[ j ].second.end() ,
-			       std::make_pair( LagPairs[ i ].first , 0 ) ,
+ for( auto & CMj : CostMatrix ) {
+  // find the position of the term < nms.front() , a_{*j} > in CMj
+  auto iit = std::lower_bound( CMj.second.begin() , CMj.second.end() ,
+			       mon_pair( nms.front() , 0 ) ,
 			       []( const auto & a , const auto & b )
-	   	 		 { return( a.first < b.first ); } );
-   #ifndef NDEBUG
-    if( it == CostMatrix[ j ].second.end() )
-     throw( std::logic_error( "inconsistency between CostMatrix and LagPairs"
-			      ) );
-   #endif
+			         { return( a.first < b.first ); } );
 
-   CostMatrix[ j ].second.erase( it );   // now erase it
+  if( iit == CMj.second.end() )  // none of them is there
+   continue;                     // next
 
-   }  // end( for( rp ) )
-  }  // end( for( rows to eliminate )
+  // for each < h , a_{hj} > in CMj with h >= nms.front(); if h is in nms
+  // erase the element (meaning, leave it there to be overwritten), if h
+  // is not in nms then decrease it by the proper amount, which is the
+  // number of elements in nms that are < h
+  
+  auto wit = iit;    // free position where to write
+  Index count = 0;   // how many elements of nms have been overtaken already
+  for( auto nit = nms.begin() ; ( nit != nms.end() ) &&
+	                        ( iit != CMj.second.end() ) ; )
+   if( iit->first == *nit ) {  ++iit; ++nit; ++count; }
+   else
+    if( iit->first > *nit ) { ++nit; ++count; }
+    else { *wit = *iit; wit->first -= count; ++wit; }
+
+  // decrease by nms.size() the names of all the < h , a_{hj} > with
+  // h > nms.back()
+  for( auto nit = iit ; nit != CMj.second.end() ; ++nit )
+   (nit->first) -= nms.size();
+
+  CMj.second.erase( wit , iit );  // now erase the deleted part
+
+  }  // end( for( CostMatrix ) )
 
  // if b != 0 but we are eliminating nonzeros, it may have become 0- - - - - -
  if( f_yb > -INF )
@@ -1114,11 +1097,16 @@ int LagBFunction::compute( bool changedvars )
   // array of new Lagrangian costs c^y = c + yA
   Vec_FunctionValue NCoef( CostMatrix.size() );
 
+  // temp array of y values, more cache friendly
+  Vec_FunctionValue y( LagPairs.size() );
+  for( Index i = 0 ; i < LagPairs.size() ; ++i )
+   y[ i ] = LagPairs[ i ].first->get_value();
+
   // compute the Lagrangian costs
   for( Index i = 0 ; i < CostMatrix.size() ; ++i ) {
    NCoef[ i ] = CostMatrix[ i ].first;
    for( const auto & el : CostMatrix[ i ].second )
-    NCoef[ i ] += el.first->get_value() * el.second;
+    NCoef[ i ] += y[ el.first ] * el.second;
    }
 
   // try to lock the inner Block: if this does not work
@@ -1370,7 +1358,7 @@ ComputeConfig * LagBFunction::get_ComputeConfig( bool all ,
 
 /*--------------------------------------------------------------------------*/
 
-int LagBFunction::get_NzMat( void )
+int LagBFunction::get_A_nz( void )
 {
  Index count = 0;
  for( auto & CMj : CostMatrix )
@@ -1394,13 +1382,11 @@ void LagBFunction::get_MatDesc( int * Abeg , int * Aind , double * Aval ,
  Index count = 0;
  for( Index j = 0 ; j < CostMatrix.size() ; ++j ) {
   Abeg[ j ] = count;
-  for( auto & CMjs : CostMatrix[ j ].second ) {
-   Index i = is_active( CMjs.first );
-   if( ( i >= strt ) && ( i < stp ) ) {
-    Aind[ count ] = i;
+  for( auto & CMjs : CostMatrix[ j ].second )
+   if( ( CMjs.first >= strt ) && ( CMjs.first < stp ) ) {
+    Aind[ count ] = CMjs.first;
     Aval[ count++ ] = CMjs.second;
     }
-   }
   }
 
  Abeg[ CostMatrix.size() ] = count;
@@ -1531,49 +1517,43 @@ void LagBFunction::load( std::istream &input )
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::add_columns( v_c_dual_pair & newdp , Index first )
+void LagBFunction::add_dual_pairs( v_c_dual_pair & newdp )
 {
  // given a new vector of pairs < y_i , g_i(x) >, that were not a part of
  // LagPairs already, update CostMatrix, which provides the information used
  // to compute the Lagrangian costs. the new g_i(x) may contain some Variable
  // x_j that is not in the Objective of the inner Block already, in which
  // case this is added (and CostMatrix grows by one row)
- //
- // first allows to restrict the addition only to the elements of g_i(x) with
- // name >= first: this is used when g_i(x) changes, hence in this case newdp
- // is a singleton
 
  v_coeff_pair toadd;  // new ColVariable to add to obj
 
- for( const auto & dp : newdp ) {  // for each dual pair < y_i , g_i(x) >
-  const auto gi = dynamic_cast< p_LF >( dp.second );
+ for( Index i = 0 ; i < newdp.size() ; ++i ) {  // for each < y_i , g_i(x) >
+  const auto gi = dynamic_cast< p_LF >( newdp[ i ].second );
   if( ! gi )
    throw( std::invalid_argument( "Lagrangian term not a LinearFunction" ) );
 
   const auto & rp = gi->get_v_var();
-  #ifndef NDEBUG
-   if( first >= rp.size() )
-    throw( std::logic_error( "inconsistent first in add_columns()" ) );
-  #endif
- 
-  for( Index h = first ; h < rp.size() ; ++h ) {
+  for( const auto & rpj : rp ) {
    // for each Variable x_j in g_i(x), add the pair < y_i , a_{ij} > to
    // CostMatrix[ j ] (if it exists, otherwise create it)
 
    // construct the pair < y_i , a_{ij} > to be added to CostMatrix[ j ]
-   const auto y_pair = coeff_pair( dp.first , rp[ h ].second );
+   // note that we assume that auto contains new columns that will be added
+   // after the current ones in LagPairs, hence the name that the ColVariable
+   // newdp[ i ].first will get is LagPairs.size() + i
+   const auto y_pair = mon_pair( LagPairs.size() + i , rpj.second );
 
    // find the position of x_j in (obj_B)
-   auto j = obj->is_active( rp[ h ].first );
+   auto j = obj->is_active( rpj.first );
 
    if( j >= obj->get_num_active_var() ) {
-    // the variable x_j is not (yet) in obj, but it may be in toadd
+    // the variable x_j is not (yet) in obj, but it may be in toadd already
     auto it = std::find_if( toadd.begin() , toadd.end() ,
 			    [ & ]( const auto & el )
-			         { return( el.first == rp[ h ].first ); } );
+			         { return( el.first == rpj.first ); } );
     if( it == toadd.end() ) {
      // it was not in toadd, it has to be added now
-     toadd.push_back( coeff_pair( rp[ h ].first , 0 ) );
+     toadd.push_back( coeff_pair( rpj.first , 0 ) );
      CostMatrix.push_back( col_pair() );
      CostMatrix.back().first = 0;                   // c_j = 0
      CostMatrix.back().second.push_back( y_pair );  // add < y_i , a_{ij} >
@@ -1585,35 +1565,110 @@ void LagBFunction::add_columns( v_c_dual_pair & newdp , Index first )
 
    if( j < Inf<Index>() ) {
     // x_j was there already in CostMatrix, although possibly not in obj
-    // find the place of < y_i , a_{ij} > in A_j
+    // find the place of < y_i , a_{ij} > in A_j; again, recall that the
+    // name of y_i is LagPairs.size() + i
     auto it = std::lower_bound( CostMatrix[ j ].second.begin() ,
 				CostMatrix[ j ].second.end() ,
-				std::make_pair( dp.first , 0 ) ,
+				mon_pair( LagPairs.size() + i , 0 ) ,
 				[]( const auto & a , const auto & b )
 	   	 		  { return( a.first < b.first ); } );
     // add < y_i , a_{ij} > to A_j
     CostMatrix[ j ].second.insert( it , y_pair );
     }
-   }  // end( for( each monomial in g_i(x) ) )
+   }  // end( for( each monomial rpj in g_i(x) ) )
   }  // end( for( each Lagrangian pair < y_i , g_i(x) > ) )- - - - - - - - - -
 
- if( ! toadd.empty() ) {             // some new Variables have to be added
-  bool owned = v_Block.front()->is_owned_by( this );
-  if( ( ! owned ) && ( ! v_Block.front()->lock( this ) ) )
-   throw( std::logic_error( "cannot lock inner Block" ) );
+ if( ! toadd.empty() )  // some new Variables have to be added to obj
+  add_to_obj( std::move( toadd ) );  // do it
 
-  f_play_dumb = true;                // ignore any ensuing Modification
+ }  // end( LagBFunction::add_dual_pairs )
 
-  if( toadd.size() == 1 )
-   obj->add_variable( toadd.front().first , toadd.front().second );
-  else
-   obj->add_variables( std::move( toadd ) );
+/*--------------------------------------------------------------------------*/
 
-  f_play_dumb = false;               // back to normal operations
-  if( ! owned )
-   v_Block.front()->unlock( this );  // unlock it
-  }
- }  // end( LagBFunction::add_columns )
+void LagBFunction::mod_dual_pair( Index i , Index first )
+{
+ // in the existing Lagrangian term < y_i , g_i(x) >, new monomials have been
+ // added to g_i(x) at position first and following: update CostMatrix, which
+ // provides the information used to compute the Lagrangian costs. the new
+ // monomials in g_i(x) may contain some Variable x_j that is not in the
+ // Objective of the inner Block already, in which case this is added (and
+ // CostMatrix grows by one row)
+
+ v_coeff_pair toadd;  // new ColVariable to add to obj
+
+ const auto gi = static_cast< p_LF >( LagPairs[ i ].second );
+ const auto & rp = gi->get_v_var();
+ #ifndef NDEBUG
+  if( first >= rp.size() )
+   throw( std::logic_error( "inconsistent first in add_columns()" ) );
+ #endif
+
+ for( Index h = first ; h < rp.size() ; ++h ) {
+  // for each Variable x_j in g_i(x) in a monomial with index >= first, add
+  // the pair < y_i , a_{ij} > to CostMatrix[ j ] (if it exists, otherwise
+  // create it)
+
+  // construct the pair < y_i , a_{ij} > to be added to CostMatrix[ j ]
+  const auto y_pair = mon_pair( i , rp[ h ].second );
+
+  // find the position of x_j in (obj_B)
+  auto j = obj->is_active( rp[ h ].first );
+
+  if( j >= obj->get_num_active_var() ) {
+   // the variable x_j is not (yet) in obj, but it may be in toadd already
+   auto it = std::find_if( toadd.begin() , toadd.end() ,
+			   [ & ]( const auto & el )
+			        { return( el.first == rp[ h ].first ); } );
+   if( it == toadd.end() ) {
+    // it was not in toadd, it has to be added now
+    toadd.push_back( coeff_pair( rp[ h ].first , 0 ) );
+    CostMatrix.push_back( col_pair() );
+    CostMatrix.back().first = 0;                   // c_j = 0
+    CostMatrix.back().second.push_back( y_pair );  // add < y_i , a_{ij} >
+    j = Inf<Index>();
+    }
+   else
+    j = obj->get_num_active_var() + std::distance( toadd.begin() , it );
+   }
+
+  if( j < Inf<Index>() ) {
+   // x_j was there already in CostMatrix, although possibly not in obj
+   // find the place of < y_i , a_{ij} > in A_j
+   auto it = std::lower_bound( CostMatrix[ j ].second.begin() ,
+			       CostMatrix[ j ].second.end() ,
+			       mon_pair( i , 0 ) ,
+			       []( const auto & a , const auto & b )
+	   	 		 { return( a.first < b.first ); } );
+   // add < y_i , a_{ij} > to A_j
+   CostMatrix[ j ].second.insert( it , y_pair );
+   }
+  }  // end( for( each monomial in g_i(x) ) )
+
+ if( ! toadd.empty() )  // some new Variables have to be added to obj
+  add_to_obj( std::move( toadd ) );  // do it
+
+ }  // end( LagBFunction::mod_dual_pair )
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::add_to_obj( v_coeff_pair && toadd )
+{
+ bool owned = v_Block.front()->is_owned_by( this );
+ if( ( ! owned ) && ( ! v_Block.front()->lock( this ) ) )
+  throw( std::logic_error( "cannot lock inner Block" ) );
+
+ f_play_dumb = true;                // ignore any ensuing Modification
+
+ if( toadd.size() == 1 )
+  obj->add_variable( toadd.front().first , toadd.front().second );
+ else
+  obj->add_variables( std::move( toadd ) );
+
+ f_play_dumb = false;               // back to normal operations
+ if( ! owned )
+  v_Block.front()->unlock( this );  // unlock it
+
+ }  // end( LagBFunction::add_to_obj )
 
 /*--------------------------------------------------------------------------*/
 
@@ -1792,6 +1847,7 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
       throw( std::logic_error( "Lagrangian term not found" ) );
     #endif
 
+    c_Index i = std::distance( LagPairs.begin() , it );
     const auto & rc = lf->get_v_var();
     auto dit = tmod->delta().begin();
 
@@ -1802,7 +1858,7 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
      // find the place of < y_i , a_{ij} > in A_j (has to be there)
      auto ajit = std::lower_bound( CostMatrix[ j ].second.begin() ,
 				   CostMatrix[ j ].second.end() ,
-				   std::make_pair( it->first , 0 ) ,
+				   mon_pair( i , 0 ) ,
 				   []( const auto & a , const auto & b )
 	   	 		     { return( a.first < b.first ); } );
      #ifndef NDEBUG
@@ -1821,14 +1877,12 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
     // issue a C05FunctionModRngd saying that the entry i of all
     // the linearizations in the global pool has changed (the value of
     // the function has changed unpredictably, i.e, shift() == NaN)
-    if( f_Observer ) {
-     Index i = std::distance( LagPairs.begin() , it );
+    if( f_Observer )
      f_Observer->add_Modification( std::make_shared< C05FunctionModRngd >(
 			       this , C05FunctionMod::AllEntriesChanged ,
 			       Vec_p_Var( { it->first } ) ,
 			       Range( i , i + 1 ) , Subset() , NaN , true ) ,
 				   chnl );
-     }
 
     return( false );  // all done
 
@@ -1934,6 +1988,7 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
       throw( std::logic_error( "Lagrangian term not found" ) );
     #endif
 
+    c_Index i = std::distance( LagPairs.begin() , it );
     const auto & rc = lf->get_v_var();
     auto dit = tmod->delta().begin();
 
@@ -1944,7 +1999,7 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
      // find the place of < y_i , a_{ij} > in A_j (has to be there)
      auto ajit = std::lower_bound( CostMatrix[ j ].second.begin() ,
 				   CostMatrix[ j ].second.end() ,
-				   std::make_pair( it->first , 0 ) ,
+				   mon_pair( i , 0 ) ,
 				   []( const auto & a , const auto & b )
 	   	 		     { return( a.first < b.first ); } );
      #ifndef NDEBUG
@@ -1964,14 +2019,12 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
     // C05FunctionModLin was a Sbst one) saying that the entry i of all
     // the linearizations in the global pool has changed (the value of
     // the function has changed unpredictably, i.e, shift() == NaN)
-    if( f_Observer ) {
-     Index i = std::distance( LagPairs.begin() , it );
+    if( f_Observer )
      f_Observer->add_Modification( std::make_shared< C05FunctionModRngd >(
 			       this , C05FunctionMod::AllEntriesChanged ,
 			       Vec_p_Var( { it->first } ) ,
 			       Range( i , i + 1 ) , Subset() , NaN , true ) ,
 				   chnl );
-     }
 
     return( false );  // all done
 
@@ -2165,7 +2218,7 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
     }  // end( coming from obj )
 
-   if( lf->get_Observer() == this ) {  // coming with a g_i(x) - - - - - - - -
+   if( lf->get_Observer() == this ) {  // coming from a g_i(x) - - - - - - - -
     // add the corresponding terms to CostMatrix
 
     // search for the Lagrangian term which has changed
@@ -2177,22 +2230,18 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
       throw( std::logic_error( "Lagrangian term not found" ) );
     #endif
 
-    // note: a temporary vector with just one element is created, which
-    //       is not too nice, but on the other hand a dual_pair is just
-    //       a pair of pointers
-    add_columns( v_dual_pair( { *it } ) , tmod->first() );
+    c_Index i = std::distance( LagPairs.begin() , it );
+    mod_dual_pair( i , tmod->first() );
 
     // issue a C05FunctionModRngd saying that the entry i of all
     // the linearizations in the global pool has changed (the value of
     // the function has changed unpredictably, i.e, shift() == NaN)
-    if( f_Observer ) {
-     Index i = std::distance( LagPairs.begin() , it );
+    if( f_Observer )
      f_Observer->add_Modification( std::make_shared< C05FunctionModRngd >(
 			       this , C05FunctionMod::AllEntriesChanged ,
 			       Vec_p_Var( { it->first } ) ,
 			       Range( i , i + 1 ) , Subset() , NaN , true ) ,
 				   chnl );
-     }
 
     return( false );  // all done
 
@@ -2255,6 +2304,7 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
       throw( std::logic_error( "Lagrangian term not found" ) );
     #endif
 
+    Index i = std::distance( LagPairs.begin() , it );
     // for all the Variable that have been eliminated
     for( auto xj : tmod->vars() ) {
      auto j = obj->is_active( xj );
@@ -2265,7 +2315,7 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
      auto ajit = std::lower_bound( CostMatrix[ j ].second.begin() ,
 				   CostMatrix[ j ].second.end() ,
-				   std::make_pair( it->first , 0 ) ,
+				   mon_pair( i , 0 ) ,
 				   []( const auto & a , const auto & b )
 	   	 		     { return( a.first < b.first ); } );
      #ifndef NDEBUG
@@ -2280,14 +2330,12 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
     // issue a C05FunctionModRngd saying that the entry i of all
     // the linearizations in the global pool has changed (the value of
     // the function has changed unpredictably, i.e, shift() == NaN)
-    if( f_Observer ) {
-     Index i = std::distance( LagPairs.begin() , it );
+    if( f_Observer )
      f_Observer->add_Modification( std::make_shared< C05FunctionModRngd >(
 			       this , C05FunctionMod::AllEntriesChanged ,
 			       Vec_p_Var( { it->first } ) ,
 			       Range( i , i + 1 ) , Subset() , NaN , true ) ,
 				   chnl );
-     }
 
     return( false );  // all done
 
@@ -2346,6 +2394,7 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
       throw( std::logic_error( "Lagrangian term not found" ) );
     #endif
 
+    c_Index i = std::distance( LagPairs.begin() , it );
     // for all the Variable that have been eliminated
     for( auto xj : tmod->vars() ) {
      auto j = obj->is_active( xj );
@@ -2356,7 +2405,7 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
      auto ajit = std::lower_bound( CostMatrix[ j ].second.begin() ,
 				   CostMatrix[ j ].second.end() ,
-				   std::make_pair( it->first , 0 ) ,
+				   std::make_pair( i , 0 ) ,
 				   []( const auto & a , const auto & b )
 	   	 		     { return( a.first < b.first ); } );
      #ifndef NDEBUG
@@ -2371,14 +2420,12 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
     // issue a C05FunctionModRngd saying that the entry i of all
     // the linearizations in the global pool has changed (the value of
     // the function has changed unpredictably, i.e, shift() == NaN)
-    if( f_Observer ) {
-     Index i = std::distance( LagPairs.begin() , it );
+    if( f_Observer )
      f_Observer->add_Modification( std::make_shared< C05FunctionModRngd >(
 			       this , C05FunctionMod::AllEntriesChanged ,
 			       Vec_p_Var( { it->first } ) ,
 			       Range( i , i + 1 ) , Subset() , NaN , true ) ,
 				   chnl );
-     }
 
     return( false );  // all done
 

@@ -399,8 +399,14 @@ class LagBFunction : public C05Function , public Block {
  using v_gpool_el = std::vector< gpool_el >;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// a pair to represent a monomial y_i * a_{ij} 
+ using mon_pair = std::pair< Index , Coefficient >;
+
+ /// a vector of mon_pair (a complete term y_i A_i) 
+ using v_mon_pair = std::vector< mon_pair >;
+
  /// a pair to represent the original c_i and the vector of < y_i , A_i >
- using col_pair = std::pair< Coefficient , v_coeff_pair >;
+ using col_pair = std::pair< Coefficient , v_mon_pair >;
 
  using m_column = std::vector< col_pair >;   ///< a vector of col_pair
 
@@ -928,12 +934,44 @@ class LagBFunction : public C05Function , public Block {
  /** Since LagBFunction currently only deals with linear [affine] functions
   * g(x) = A x [+ b], g(x) can be represented in matrix form. Usually the
   * matrix would be sparse, hence this method returns the total number of
-  * nonzeros in such representation. */
+  * nonzeros in such a representation. */
 
- int get_NzMat( void );
+ int get_A_nz( void );
 
 /*--------------------------------------------------------------------------*/
- /// get the matrix representation of g(x)
+ /// get the by-columns representation of g(x)
+ /** Since LagBFunction currently only deals with linear [affine] functions
+  * g(x) = A x [+ b], g(x) can be represented in matrix form. The by-row
+  * representation of the term (for each variable y_i, the linear function
+  * g_i(x) = A_i x [+ b_i]) can be easily accessed via get_Lagrangian_term().
+  * However, the by-column representation (for each variable x_j in the
+  * inner Block, the information necessary to compute its Lagrangian cost
+  * c_j - y A^j) can also be useful, and indeed LagBFunction does store it
+  * internally. This method provides access to the data structure: given a
+  * (pointer to) a [Col]Variable in the inner Block, it returns a (const
+  * pointer to) a data structure describing its Lagrangian cost. In
+  * particular, if the [Col]Variable does *not* belong to any Lagrangian
+  * term, i.e., it appears nowhere in A, then it returns nullptr. Otherwise
+  * it returns a (const) pointer to a std::pair< Coefficient , v_mon_pair >.
+  * The coefficient is the original cost c_j of the [Col]Variable.
+  * v_mon_pair is a vector of std::pair< Index , Coefficient > describing the
+  * linear function y A^j = \sum_i y_i a_{ij}, where the Index is j (the
+  * index of y_i as an active Variable of the LagBFunction), while the
+  * Coefficient is a_{ij}.
+  *
+  * Note that if xj is actually not a [Col]Variable of the inner Block, the
+  * method will not bother and still return nullptr. */
+
+ const col_pair * get_A_by_col( const ColVariable * xj ) {
+  auto j = obj->is_active( xj );
+  if( j >= obj->get_num_active_var() )
+   return( nullptr );
+  else
+   return( & CostMatrix[ j ] );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// get the matrix representation of g(x) TO BE DELETED
  /** Since LagBFunction currently only deals with linear [affine] functions
   * g(x) = A x [+ b], g(x) can be represented in matrix form. This method
   * provides the usual three-vectors sparse matrix representation of A,
@@ -1073,7 +1111,15 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- void add_columns( v_c_dual_pair & newdp , Index first = 0 );
+ void add_dual_pairs( v_c_dual_pair & newdp );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/ 
+
+ void mod_dual_pair( Index i , Index first );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/ 
+
+ void add_to_obj( v_coeff_pair && toadd );
 
 /*--------------------------------------------------------------------------*/
 
@@ -1158,17 +1204,17 @@ class LagBFunction : public C05Function , public Block {
  m_column CostMatrix;
  ///< the matrix < c_i , y A_i > used to update the Lagrangian cost vector
  /**< CostMatrix[ i ] contains the information < c_i , y A_i > that is
-  * needed to construct the Lagrangian cost of x[ i ], the i-th
-  * ColVariable in the LinearFunction of the inner Block. Therefore,
-  * CostMatrix[] HAS THE SAME ORDERING AS THE ACTIVE Variable IN OBJ.
-  * At the beginning it has as many rows as there "naturally" are active
-  * Variable in obj; if a Lagrangian term causes a nonzero Lagrangian cost
-  * to (potentially) appear for an x[ i ] that originally had 0 coefficient
-  * in obj, x[ i ] is added to the list of active Variable (at the bottom,
-  * as usual) and a new row is added to CostMatrix (at the bottom).
-  * Also, the linear term y A_i is represented by the same v_coeff_pair
-  * as in a LinearFunction, but UNLIKE IN LinearFunction IT IS KEPT
-  * ORDERED BY POINTER. */
+  * needed to construct the Lagrangian cost of x[ i ], the i-th ColVariable
+  * in the LinearFunction of the inner Block. Therefore, CostMatrix HAS
+  * THE SAME ORDERING AS THE ACTIVE Variable IN OBJ. At the beginning
+  * CostMatrix has as many rows as there "naturally" are active Variable in
+  * obj; if a Lagrangian term causes a nonzero Lagrangian cost to potentially
+  * appear for an x[ i ] that originally had 0 coefficient in obj, x[ i ] is
+  * added to the list of active Variable (at the bottom, as usual) and a new
+  * row is added to CostMatrix (at the bottom). The linear term y A_i is
+  * represented by the a v_mod_pair, where each mod_pair < j , a_{ij} > is
+  * the *index* of y_j (as active Variable in the LagBFunction) with its
+  * coefficient. Note that THE VECTOR IS KEPT ORDERED BY INDEX. */
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
