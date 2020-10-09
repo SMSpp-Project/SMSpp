@@ -1902,14 +1902,13 @@ class C05FunctionModSbst : public C05FunctionMod {
  {
   if( ( ! v_subset.empty() ) && ( v_vars.size() != v_subset.size() ) )
    throw( std::invalid_argument( "vars and subset sizes do not match" ) );
-  if( ! ordered ) {
+  if( ( ! ordered ) && ( ! v_subset.empty() ) && ( v_vars.size() > 1 ) ) {
    using IdxVar = std::pair< Index , Variable * >;
-   std::vector< IdxVar > tmp;
+   std::vector< IdxVar > tmp( v_vars.size() );
    for( Index i = 0 ; i < v_vars.size() ; ++i )
-    tmp[ i ] = std::pair( v_subset[ i ] , v_vars[ i ] );
+    tmp[ i ] = IdxVar( v_subset[ i ] , v_vars[ i ] );
    std::sort( tmp.begin() , tmp.end() ,
-	      []( IdxVar & a , IdxVar & b ) { return( a.first < b.first ); }
-	      );
+	      []( auto & a , auto & b ) { return( a.first < b.first ); } );
    for( Index i = 0 ; i < v_vars.size() ; ++i ) {
     v_subset[ i ] = tmp[ i ].first;
     v_vars[ i ] = tmp[ i ].second;
@@ -2743,19 +2742,19 @@ public:
    throw( std::invalid_argument( "vars and subset sizes do not match" ) );
   if( v_vars.size() != v_delta.size() )
    throw( std::invalid_argument( "vars and delta sizes do not match" ) );
-  if( ! ordered ) {
+  if( ( ! ordered )  && ( v_vars.size() > 1 ) ) {
    using IdxVar = std::tuple< Index , Variable * , FunctionValue >;
    std::vector< IdxVar > tmp( v_vars.size() );
    for( Index i = 0 ; i < v_vars.size() ; ++i )
     tmp[ i ] = IdxVar( v_subset[ i ] , v_vars[ i ] , v_delta[ i ] );
    std::sort( tmp.begin() , tmp.end() ,
-	      []( IdxVar & a , IdxVar & b ) {
-	       return( std::get<0>( a ) < std::get<0>( b ) ); }
+	      []( auto & a , auto & b )
+	        { return( std::get< 0 >( a ) < std::get< 0 >( b ) ); }
 	      );
    for( Index i = 0 ; i < v_vars.size() ; ++i ) {
-    v_subset[ i ] = std::get<0>( tmp[ i ] );
-    v_vars[ i ] = std::get<1>( tmp[ i ] );
-    v_delta[ i ] = std::get<2>( tmp[ i ] );
+    v_subset[ i ] = std::get< 0 >( tmp[ i ] );
+    v_vars[ i ] = std::get< 1 >( tmp[ i ] );
+    v_delta[ i ] = std::get< 2 >( tmp[ i ] );
     }
    }
   #ifndef NDEBUG

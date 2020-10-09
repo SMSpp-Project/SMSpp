@@ -2261,22 +2261,46 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
   if( const auto lf = dynamic_cast< p_LF >( tmod->function() ) ) {
    // only deal with C05FunctionModVarsRngd coming from LinearFunction ...
    if( lf == obj ) {  // ... inside the Objective of the inner Block - - - - -
-    // remove the range of rows from CostMatrix accordingly
-    // IN FACT WE ARE SHIFTING ON WHO IS DOING THIS THE BURDEN OF NOT
-    // INTERFERING WITH THE "AUTOMATIC" ADDITION OF Variable TO obj
+    // remove the range of rows from CostMatrix accordingly; however, if the
+    // Lagrangian term y A^j in a remoced CostMatrix entry is not empty, then
+    // the corresponding variable x_j is immediately re-added, with 0
+    // coefficient, at the back of the objective of the inner Block, and
+    // therefore the corresponding row of CostMatrix shares the same fate
 
     #ifndef NDEBUG
      if( tmod->range().second > CostMatrix.size() )
       throw( std::logic_error( "inconsistent CostMatrix" ) );
     #endif
 
+    m_column tempCM;     // CostMatrix elements to be re-added
+    v_coeff_pair tmpCP;  // coefficients to be re-added to obj
+
+    // check if are nonempty elements of CostMatrix are being deleted, if so
+    // save the corresponding information to sneakily add them back
     auto strtit = CostMatrix.begin() + tmod->range().first; 
     auto stpit = CostMatrix.begin() + tmod->range().second;
     for( auto it = strtit ; it != stpit ; ++it )
-     if( ! it->second.empty() )
-      throw( std::logic_error( "removing nonempty CostMatrix row" ) );
+     if( ! it->second.empty() ) {
+      tempCM.push_back( std::move( *it ) );
+      tempCM.back().first = 0;
+      tmpCP.push_back( coeff_pair( static_cast< ColVariable * >(
+			    tmod->vars()[ std::distance( strtit , it ) ] ) ,
+				   Coefficient( 0 ) ) );
+      }
 
     CostMatrix.erase( strtit , stpit );
+
+    if( ! tempCM.empty() ) {  // some nonempty elements have been deleted
+     // add them back at the end
+     CostMatrix.insert( CostMatrix.end() ,
+			std::make_move_iterator( tempCM.begin() ),
+			std::make_move_iterator( tempCM.end() ) );
+     // re-add the corresponding variables to obj with 0 coefficients
+     // ignoring any issued Modification
+     f_play_dumb = true;
+     obj->add_variables( std::move( tmpCP ) );
+     f_play_dumb = false;
+     }
 
     // issue a C05FunctionMod modification of the type AlphaChanged:
     // the Lagrangian function unpredictably changes (f_shift == NaN), and
@@ -2353,20 +2377,44 @@ bool LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
   if( const auto lf = dynamic_cast< p_LF >( tmod->function() ) ) {
    // only deal with C05FunctionModVarsSbst coming from LinearFunction ...
    if( lf == obj ) {  // ... inside the Objective of the inner Block - - - - -
-    // remove the subset of rows from CostMatrix accordingly
-    // IN FACT WE ARE SHIFTING ON WHO IS DOING THIS THE BURDEN OF NOT
-    // INTERFERING WITH THE "AUTOMATIC" ADDITION OF Variable TO obj
+    // remove the range of subset from CostMatrix accordingly; however, if the
+    // Lagrangian term y A^j in a remoced CostMatrix entry is not empty, then
+    // the corresponding variable x_j is immediately re-added, with 0
+    // coefficient, at the back of the objective of the inner Block, and
+    // therefore the corresponding row of CostMatrix shares the same fate
 
     #ifndef NDEBUG
      if( tmod->subset().back() >= CostMatrix.size() )
       throw( std::logic_error( "inconsistent CostMatrix" ) );
     #endif
 
-    for( auto j : tmod->subset() )
-     if( ! CostMatrix[ j ].second.empty() )
-      throw( std::logic_error( "removing nonempty CostMatrix row" ) );
+    m_column tempCM;     // CostMatrix elements to be re-added
+    v_coeff_pair tmpCP;  // coefficients to be re-added to obj
+
+    // check if are nonempty elements of CostMatrix are being deleted, if so
+    // save the corresponding information to sneakily add them back
+    for( Index i = 0 ; i < tmod->subset().size() ; ++i )
+     if( ! CostMatrix[ tmod->subset()[ i ] ].second.empty() ) {
+      tempCM.push_back( std::move( CostMatrix[ tmod->subset()[ i ] ] ) );
+      tempCM.back().first = 0;
+      tmpCP.push_back( coeff_pair(
+			static_cast< ColVariable * >( tmod->vars()[ i ] ) ,
+			Coefficient( 0 ) ) );
+      }
 
     Compact( CostMatrix , tmod->subset() );
+
+    if( ! tempCM.empty() ) {  // some nonempty elements have been deleted
+     // add them back at the end
+     CostMatrix.insert( CostMatrix.end() ,
+			std::make_move_iterator( tempCM.begin() ),
+			std::make_move_iterator( tempCM.end() ) );
+     // re-add the corresponding variables to obj with 0 coefficients
+     // ignoring any issued Modification
+     f_play_dumb = true;
+     obj->add_variables( std::move( tmpCP ) );
+     f_play_dumb = false;
+     }
 
     // issue a C05FunctionMod modification of the type AlphaChanged:
     // the Lagrangian function unpredictably changes (f_shift == NaN), and

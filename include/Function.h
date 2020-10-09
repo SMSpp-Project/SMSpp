@@ -1537,14 +1537,13 @@ public:
  {
   if( ( ! v_subset.empty() ) && ( v_vars.size() != v_subset.size() ) )
    throw( std::invalid_argument( "vars and subset sizes do not match" ) );
-  if( ! ordered ) {
+  if( ( ! ordered ) && ( ! v_subset.empty() ) && ( v_vars.size() > 1 ) ) {
    using IdxVar = std::pair< Index , Variable * >;
-   std::vector< IdxVar > tmp;
+   std::vector< IdxVar > tmp( v_vars.size() );
    for( Index i = 0 ; i < v_vars.size() ; ++i )
-    tmp[ i ] = std::pair( v_subset[ i ] , v_vars[ i ] );
+    tmp[ i ] = IdxVar( v_subset[ i ] , v_vars[ i ] );
    std::sort( tmp.begin() , tmp.end() ,
-	      []( IdxVar & a , IdxVar & b ) { return( a.first < b.first ); }
-	      );
+	      []( auto & a , auto & b ) { return( a.first < b.first ); } );
    for( Index i = 0 ; i < v_vars.size() ; ++i ) {
     v_subset[ i ] = tmp[ i ].first;
     v_vars[ i ] = tmp[ i ].second;
