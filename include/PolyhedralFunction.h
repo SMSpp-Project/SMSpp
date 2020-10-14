@@ -1635,9 +1635,10 @@ class PolyhedralFunctionMod : public C05FunctionMod {
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: identical to that of C05FunctionMod
- /** Constructor: takes a pointer to the affected C05Function, the type of the
-  * Modification, the value of the shift, and the "concerns Block" value. No
-  * other PolyhedralFunction-specific information is needed. */
+ /** Constructor: takes a pointer to the affected PolyhedralFunction, the type
+  * of the Modification, the Subset of affected linearizations, the value of
+  * the shift, and the "concerns Block" value. No PolyhedralFunction-specific
+  * information is added. */
 
  PolyhedralFunctionMod( PolyhedralFunction * f , int type ,
 			Subset && which = {} ,

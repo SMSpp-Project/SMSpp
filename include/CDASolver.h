@@ -281,17 +281,17 @@ class CDASolver : public Solver {
                   /**< The algorithmic parameter for setting the maximum
 		   * relative allowed violation of *dual* constraints,
  * assuming of course something like that exists in the specific dual that
- * is being dealt with. Whenever the CDASolver is incapable of finding feasible
- * dual solutions (maybe because there is none), it may still be useful that
- * it returns the "least unfeasible" ones. This parameter instructs the
- * CDASolver not to even consider a solution among the ones to be reported
- * (see intMaxDSol) if its violation is "too" bad. The actual meaning of this
- * parameter is necessarily be CDASolver-dependent; intuitively, it may be
- * thought to work as the "relative constraint violation" feas_epsilon of
- * the Block [see Block.h] if the concept of "dual constraint" is applicable.
- * A setting of 0 may be taken as a way to tell the CDASolver not to bother
- * to produce unfeasible solutions at all, which is why this is the default
- * value of the parameter. */
+ * is being dealt with. Whenever the CDASolver is incapable of finding
+ * feasible dual solutions (maybe because there is none), it may still be
+ * useful that it returns the "least unfeasible" ones. This parameter
+ * instructs the CDASolver not to even consider a solution among the ones to
+ * be reported (see intMaxDSol) if its violation is "too" bad. The actual
+ * meaning of this parameter is necessarily CDASolver-dependent; intuitively,
+ * it may be thought to work as the "relative constraint violation"
+ * feas_epsilon of the Block [see Block.h] if the concept of "dual
+ * constraint" is applicable. A setting of 0 may be taken as a way to tell
+ * the CDASolver not to bother to produce unfeasible solutions at all, which
+ * is why this is the default value of the parameter. */
 
  dblLastParCDAS    ///< first allowed parameter value for derived classes
                    /**< convenience value for easily allow derived classes

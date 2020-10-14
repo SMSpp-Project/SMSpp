@@ -735,7 +735,26 @@ class LagBFunction : public C05Function , public Block {
   *     PROCESSED, THE OTHER ONES BEING IGNORED. THIS IS CLEARLY AN
   *     ISSUE IF THE CHANGES IN THE INNER Block ONLY RESULT IN "PHISICAL"
   *     Modification BEING ISSUED (this will be improved upon by the
-  *     planned re-haul of the Modification system). */
+  *     planned re-haul of the Modification system).
+  *
+  * - Most of the changes made to the inner Block result in a C05FunctionMod
+  *   (actually, LagBFunctionMod) withtype() == GlobalPoolRemoved because
+  *   they mess up with feasibility of the previous solutions / directions. 
+  *   Thus, there is a risk of a long stream of basically identical
+  *   Modification to be be produced, which is clearly useless. It would be
+  *   nice to be able to "wait until the last Modification is received and
+  *   answer only once", but there is no way to know when the "last
+  *   Modification" will happen.
+  *
+  *   However, some degree of aggregation indeed happens when the original
+  *   Modification are bunched together in a GroupModification, because in
+  *   this case only one LagBFunctionMod is produced for them all. Hence
+  *
+  *     IF MANY CHANGES ARE MADE TO THE INNER Block., IT IS MOST DEFINITELY
+  *     A GOOD IDEA TO BUNCH AS MANY AS POSSIBLE OF THE CORRESPONDING
+  *     Modification INTO AN AS SMALL AS POSSIBLE NUMBER OF GroupModification
+  *
+  *   in order to reduce the number of produced LagBFunctionMod. */
 
  void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
 
@@ -1129,13 +1148,13 @@ class LagBFunction : public C05Function , public Block {
  /** handle every Modification, comprised GroupModification. returns true if
   * the global pool has to be checked for feasibility. */
 
- bool guts_of_add_Modification( p_Mod mod , ChnlName chnl );
+ char guts_of_add_Modification( p_Mod mod , ChnlName chnl );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /** handle only "basic" Modification, i.e., no GroupModification. returns
   * true if the global pool has to be checked for feasibility. */
 
- bool guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl );
+ char guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl );
 
 /*--------------------------------------------------------------------------*/
  /// reset the BlockConfig of the inner Block to the default one
@@ -1202,18 +1221,18 @@ class LagBFunction : public C05Function , public Block {
   * happen (in particular when g_pool.empty() and f_max_glob == 0). */
 
  m_column CostMatrix;
- ///< the matrix < c_i , y A_i > used to update the Lagrangian cost vector
- /**< CostMatrix[ i ] contains the information < c_i , y A_i > that is
-  * needed to construct the Lagrangian cost of x[ i ], the i-th ColVariable
+ ///< the matrix < c_j , y A^j > used to update the Lagrangian cost vector
+ /**< CostMatrix[ j ] contains the information < c_j , y A^j > that is
+  * needed to construct the Lagrangian cost of x[ j ], the j-th ColVariable
   * in the LinearFunction of the inner Block. Therefore, CostMatrix HAS
   * THE SAME ORDERING AS THE ACTIVE Variable IN OBJ. At the beginning
   * CostMatrix has as many rows as there "naturally" are active Variable in
   * obj; if a Lagrangian term causes a nonzero Lagrangian cost to potentially
-  * appear for an x[ i ] that originally had 0 coefficient in obj, x[ i ] is
+  * appear for an x[ j ] that originally had 0 coefficient in obj, x[ j ] is
   * added to the list of active Variable (at the bottom, as usual) and a new
-  * row is added to CostMatrix (at the bottom). The linear term y A_i is
-  * represented by the a v_mod_pair, where each mod_pair < j , a_{ij} > is
-  * the *index* of y_j (as active Variable in the LagBFunction) with its
+  * row is added to CostMatrix (at the bottom). The linear term y A^j is
+  * represented by the a v_mod_pair, where each mod_pair < i , a_{ij} > is
+  * the *index* of y_i (as active Variable in the LagBFunction) with its
   * coefficient. Note that THE VECTOR IS KEPT ORDERED BY INDEX. */
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -1278,6 +1297,131 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( LagBFunction ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------------------- CLASS LagBFunctionMod --------------------------*/
+/*--------------------------------------------------------------------------*/
+/// class to describe modifications specific to a LagBFunction
+/** Derived class from C0FunctionMod to describe modifications to a
+ * LagBFunction. This obviously "keeps the same interface" as C0FunctionMod,
+ * so that it can be used by Solver and/or Block just relying on the
+ * C0Function interface, but it also add LagBFunction-specific information,
+ * so that Solver and/or Block can actually react in LagBFunction-specific
+ * if they want to.
+ *
+ * The reason for having this LagBFunction-specific information is that
+ * LagBFunction "filters away a lot of information" about what happens in the
+ * inner Block. In particular, a very large number of different changes in the
+ * inner Block results in the same C05FunctionMod (now LagBFunctionMod) with
+ * type() == GlobalPoolRemoved because they mess up with feasibility of the
+ * previous solutions / directions. A Solver and/or Block knowing they are
+ * dealing with a LagBFunction may want to know more about what happened in
+ * order to react more appropriately.
+ *
+ * A very "aggressive" way to do that would be to keep inside the
+ * LagBFunctionMod a (smart) pointer to the original Modification, but that
+ * would require the Solver and/or Block to delve too deep in the details of
+ * what has happened. The current chosen middle ground is to add a simple
+ * bit-coded integer field what(), whose bits have the following meaning (if
+ * they are set to 1):
+ *
+ *   0 = the objective of the inner Block or of some sub-Block of the inner
+ *       Block has changed; this results in type() == AlphaChanged if the
+ *       (say) coefficients have changed and/or Variable have been added or
+ *       removed, while type() == NothingChanged if the constant term in the
+ *       objective (if any) has changed so that the function values have only
+ *       been shifted by a constant.
+ *
+ *   1 = the LHS/RHS of some Constraint in the inner Block (possibly
+ *       comprised the bounds on the ColVariable implemented via the
+ *       OneVarConstraint, but not the "inherent" ones) have changed.
+ *
+ *   2 = the coefficients in some of the Constraint in the inner Block have
+ *       changed.
+ *
+ *   3 = some Variable in the inner Block has changed state (fixed/unfixed,
+ *       changed type ...) in a way that can take away feasibility
+ *
+ *   4 = some previously relaxed Constraint in the inner Block has been
+ *       enforced (relaxing cannot take away feasibility and therefore is
+ *       not an issue)
+ *
+ *   5 = some dynamic Variable has been removed or some dynamic Constraint
+ *       has been added (it is assumed that adding Variable or removing
+ *       Constraint cannot take away feasibility and therefore is not an
+ *       issue)
+ *
+ *   6 = some other arbitrary change in a Block (a BlockMod), that can
+ *       therefore take away feasibility
+ *
+ * Note that a single LagBFunctionMod may have more than one bit set to 1
+ * (and surely it has at least one of them), since multiple original
+ * Modification coming from the inner Block and "bunched together" in the
+ * same GroupModification produce a single LagBFunctionMod. Indeed,
+ *
+ *     IF MANY CHANGES ARE MADE TO THE INNER Block., IT IS MOST DEFINITELY
+ *     A GOOD IDEA TO BUNCH AS MANY AS POSSIBLE OF THE CORRESPONDING
+ *     Modification INTO AN AS SMALL AS POSSIBLE NUMBER OF GroupModification
+ *
+ *   in order to reduce the number of produced LagBFunctionMod. */
+
+class LagBFunctionMod : public C05FunctionMod {
+
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*---------------------------- CONSTRUCTOR ---------------------------------*/
+ /// constructor: that of C05FunctionMod plus the what() value
+ /** Constructor: like that of C05FunctionMod takes a pointer to the affected
+  * LagBFunction, the type of the Modification, the Subset of affected
+  * linearizations, the value of the shift, and the "concerns Block" value.
+  * However, it also takes the \p what value that specifies how the inner
+  * Block of the LagBFunction has changed, whose default value is
+  * "everything". */
+
+ LagBFunctionMod( LagBFunction * f , int type , Subset && which = {} ,
+		  char what = 127 , FunctionValue shift = NaNshift ,
+		  bool cB = true )
+  : C05FunctionMod( f , type , std::move( which ) , shift , cB ) ,
+    f_what( what ) { }
+
+/*------------------------------ DESTRUCTOR --------------------------------*/
+
+ virtual ~LagBFunctionMod() { }  ///< destructor: does nothing
+
+/*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+
+ /// accessor to the what value
+
+ char what( void ) const { return( f_what ); }
+
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+ /// print the LagBFunctionMod
+
+ void print( std::ostream &output ) const override
+ {
+  output << "LagBFunctionMod[";
+  if( concerns_Block() )
+   output << "t";
+  else
+   output << "f";
+  output << "] with what() = " << what() << " on LagBFunction ["
+	 << &f_function << " ]: ";
+  guts_of_print( output );
+  }
+
+/*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
+
+ char f_what;  ///< the "what" value
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( LagBFunctionMod ) )
 
 /*--------------------------------------------------------------------------*/
 

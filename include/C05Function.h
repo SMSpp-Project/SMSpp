@@ -1007,7 +1007,6 @@ class C05Function : public Function {
   * Similarly, if a C05FunctionModRngd mod occurs, then the corresponding
   * mod->range() of changed entries of f the i-th linearization in the global
   * pool can be written in place in the existing vectors by just calling
-  * 
   *
   *   get_linearization_coefficients( G[ i ].data() , mod->range() , i )
   */

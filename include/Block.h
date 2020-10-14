@@ -4370,10 +4370,7 @@ class Block : public Observer {
   * is appropriate for Block which cannot ever be empty. */
 
  virtual bool is_empty( bool useabstract = false ,
-			Configuration *optc = nullptr )
- {
-  return( true );
-  }
+			Configuration *optc = nullptr ) { return( false ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------------- Methods for R3 Blocks --------------------------*/

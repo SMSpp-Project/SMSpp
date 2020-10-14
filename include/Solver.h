@@ -411,7 +411,7 @@ public:
  * [see the comments to get_ub(), get_lb() and Objective::set_sense()]. The
  * default is 1e-6. */
 
- dblAbsAcc   ,  ///< absolute accuracy for declaring a solution optimal
+ dblAbsAcc ,    ///< absolute accuracy for declaring a solution optimal
 		/**< The algorithmic parameter for setting the *absolute*
 		 * accuracy required to the solution of the model. This is
  * geared towards single-objective optimization problems, and it is defined
@@ -718,14 +718,17 @@ public:
  /** Method to set the (pointer to the) Block that the Solver has to solve.
   * If there were any other block attached to Block this Solver, any
   * information about solutions to the previous Block the Solver had
-  * computed is lost for good. This is why the method is virtual: derived
-  * classes may need to do more to reach to such an abrupt change.
+  * computed is lost for good. This is one reasin why the method is virtual:
+  * derived classes may need to do more to reach to such an abrupt change.
+  * In general, a :Solver may have to (lock and) read (data from) the Block
+  * to be stored in its internal data structures, hence this method is
+  * likely to be a rather costly one.
   *
-  * Passing block == nullptr signals to the Solver to discard every
+  * Passing \p block == nullptr signals to the Solver to discard every
   * information related to the solution process of the previous Block (if
   * any), and sit down quietly in a corner waiting for new orders.
   *
-  * Important note: the moment when the Block is passed to the Solver, the
+  * IMPORTANT NOTE: the moment when the Block is passed to the Solver, the
   * Solver should in principle do all the necessary initializations, since
   * immediately afterwords compute() may be called already. However, some of
   * the initializations could be heavily impacted by the algorithmic
@@ -735,28 +738,24 @@ public:
   *     set_Block() IS
   *
   * so that when set_Block() is finally called, the Solver fully knows how to
-  * initialize itsefl. This is in fact how this is done in
-  * Block::set_SolverConfig().
+  * initialize itself.
   *
-  * Important note: set_Block( < some Block > ) does *not* call
+  * IMPORTANT NOTE: set_Block( block ) does *not* call
   *
-  *      < some Block >->register_Solver( this )
+  *      block->register_Solver( this )
   *
   * to register the Solver to the Block, and likewise set_Block( nullptr )
   * does *not* call
   *
   *      f_Block->unregister_Solver( this )
   *
-  * to unregister the Solver from the Block. This is because this method is
-  * called when the Solver is [un/registered to the Block (see
-  * Block::register_Solver(), Block::unregister_Solver() and
-  * Block::replace_Solver()). Hence, the preferred way to set/rescind the ties
+  * to unregister the Solver from the previous Block (if any). This is
+  * because this method is called when the Solver is un/registered to the
+  * Block; see Block::register_Solver(), Block::unregister_Solver() and
+  * Block::replace_Solver(). Hence, the preferred way to set/rescind the ties
   * between a Block and a Solver is to do that via the Block; if set_Block()
   * is called before that, the methods of the Block will still have to be
-  * called to make the Block aware of the changes.
-  *
-  * The method is virtual because :Solver may have to be more to react to
-  * the changes. */
+  * called to make the Block aware of the changes. */
 
  virtual void set_Block( Block *block );
 
@@ -769,10 +768,10 @@ public:
   * equivalent to setting f_log = nullptr.
   *
   * The method is virtual because derived classes may need to do something to
-  * react to changes of the output log than storing the new log stream. */
+  * react to changes of the output log other than storing the new log
+  * stream. */
 
- virtual void set_log( std::ostream *log_stream = nullptr )
- {
+ virtual void set_log( std::ostream *log_stream = nullptr ) {
   f_log = log_stream;
   }
 
@@ -846,7 +845,7 @@ public:
  *   constructor of the base Solver class, but this cannot be done because
  *   "virtual methods do not work in the constructor": during construction of
  *   the base class, called by the constructor of a derived one, the base
- *   class version of the constructor is called).
+ *   class version of any method is called).
  *
  * - of course
  *
@@ -912,8 +911,7 @@ public:
  /// unregister an existing event handler
  /** Removes the event handler with the given id from the list of those
   * registered for the given type. If there is no event handler with the
-  * given id for the given type, exception will be thrown. The method of the
-  * base class always throws exception. */
+  * given id for the given type, exception will be thrown. */
 
  void reset_event_handler( int type , EventID id ) override;
 

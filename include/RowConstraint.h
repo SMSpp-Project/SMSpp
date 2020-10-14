@@ -347,7 +347,7 @@ class RowConstraint : public Constraint {
  /// pure virtual method to get the RHS of the RowConstraint
  virtual RHSValue get_rhs( void ) const = 0;
 
- /// pure virtual  method to get the LHS of the RowConstraint
+ /// pure virtual method to get the LHS of the RowConstraint
  virtual RHSValue get_lhs( void ) const = 0;
 
 /**@} ---------------------------------------------------------------------*/

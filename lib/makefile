@@ -50,6 +50,7 @@ SMS++OBJ = $(SMS++SDR)obj/AbstractBlock.o \
 	$(SMS++SDR)obj/FRealObjective.o \
 	$(SMS++SDR)obj/FRowConstraint.o \
 	$(SMS++SDR)obj/Function.o \
+        $(SMS++SDR)obj/LagBFunction.o \
 	$(SMS++SDR)obj/LinearFunction.o \
 	$(SMS++SDR)obj/Objective.o \
 	$(SMS++SDR)obj/OneVarConstraint.o \
@@ -59,8 +60,7 @@ SMS++OBJ = $(SMS++SDR)obj/AbstractBlock.o \
 	$(SMS++SDR)obj/RowConstraintSolution.o \
 	$(SMS++SDR)obj/Solver.o \
 	$(SMS++SDR)obj/ThinComputeInterface.o \
-	$(SMS++SDR)obj/Variable.o \
-        $(SMS++SDR)obj/LagBFunction.o 
+	$(SMS++SDR)obj/Variable.o
 #	$(SMS++SDR)obj/RowConstraint.o \
 
 SMS++INC := $(SMS++INC) -I$(SMS++SDR)include
