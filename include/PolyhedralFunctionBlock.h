@@ -384,7 +384,11 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   * FRealObjective, but its Function is a LinearFunction having a single
   * nonzero coefficient (that of v, which is 1). Note that the "verse" of
   * the Objective depends on PolyhedralFunction->is_convex(); if it is true
-  * then it is minimization, otherwise it is maximization. */
+  * then it is minimization, otherwise it is maximization. This is the
+  * "natural verse", which is mandatory if the "linearised representation" is
+  * used (because an LP can only represent convex or concave functions);
+  * nonetheless, the verse can in principle be changed manually after that the
+  * method is called (at your own risk). */
 
  void generate_objective( Configuration *objc = nullptr ) override;
 
