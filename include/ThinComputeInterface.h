@@ -358,29 +358,30 @@ public:
  *  @{ */
 
  /// set a given integer (int) numerical parameter
- /** Set a given integer (int) numerical parameter. The method is given a 
-  * void implementation doing nothing (i.e., ignoring the set value), rather
-  * than being pure virtual, so that derived classes not having any working
-  * int parameter (i.e., either not having any or not really reacting to the
-  * ones that they supposedly have) do not have to bother with implementing
-  * it. */
+ /** Set the integer (int) numerical parameter with index \p par, which must
+  * be in the range [ 0 , get_num_int_par() ). The method is given a "void"
+  * implementation doing nothing (i.e., ignoring the set value), rather than
+  * being pure virtual, so that derived classes not having any working int
+  * parameter (i.e., either not having any or not really reacting to the ones
+  * that they supposedly have) do not have to bother with implementing it. */
 
  virtual void set_par( const idx_type par , const int value ) {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set a given float (double) numerical parameter
- /** Set a given float (double) numerical parameter. The method is given a 
-  * void implementation doing nothing (i.e., ignoring the set value), rather
-  * than being pure virtual, so that derived classes not having any working
-  * double parameter (i.e., either not having any or not really reacting to
-  * the ones that they supposedly have) do not have to bother with
-  * implementing it. */
+ /** Set the float (double) numerical parameter with index \p par, which must
+  * be in the range [ 0 , get_num_dbl_par() ). The method is given a "void"
+  * implementation doing nothing (i.e., ignoring the set value), rather than
+  * being pure virtual, so that derived classes not having any working double
+  * parameter (i.e., either not having any or not really reacting to the ones
+  * that they supposedly have) do not have to bother with implementing it. */
 
  virtual void set_par( const idx_type par , const double value ) {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set a given string parameter
- /** Set a given string parameter. The method is given a void implementation
+ /** Set the string parameter with index \p par, which must be in the range
+  * [ 0 , get_num_tr_par() ). The method is given a "void" implementation
   * doing nothing (i.e., ignoring the set value), rather than being pure
   * virtual, so that derived classes not having any working string parameter
   * (i.e., either not having any or not really reacting to the ones that they
@@ -769,10 +770,11 @@ public:
 
 /*--------------------------------------------------------------------------*/
  /// get the default value of an int parameter
- /** Get the default value of the int parameter with given index. The method
-  * is given a void implementation (returning 0), rather than being pure
-  * virtual, so that derived classes not having any int parameter do not
-  * have to bother with implementing it. */
+ /** Get the default value of the int parameter with index \p par, which must
+  * be in the range [ 0 , get_num_int_par() ). The method is given a "void"
+  * implementation (returning int( 0 )), rather than being pure virtual, so
+  * that derived classes not having any int parameter do not have to bother
+  * with implementing it. */
  
  virtual int get_dflt_int_par( const idx_type par ) const {
   return( int( 0 ) );
@@ -780,10 +782,11 @@ public:
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get the default value of a double parameter
- /** Get the default value of the double parameter with given index. The
-  * method is given a void implementation (returning 0), rather than being
-  * pure virtual, so that derived classes not having any double parameter do
-  * not have to bother with implementing it. */
+ /** Get the default value of the double parameter with index \p par, which
+  * must be in the range [ 0 , get_num_dbl_par() ). The method is given a
+  * "void" implementation (returning double( 0 )), rather than being pure
+  * virtual, so that derived classes not having any int parameter do not
+  * have to bother with implementing it. */
  
  virtual double get_dflt_dbl_par( const idx_type par ) const {
   return( double( 0 ) );
@@ -791,11 +794,12 @@ public:
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get the default value of a string parameter
- /** Get the default value of the string parameter with given index. The
-  * method is given a void implementation (returning the empty string),
-  * rather than being pure virtual, so that derived classes not having any
-  * string parameter do not have to bother with implementing it. */
- 
+ /** Get the default value of the string parameter with index \p par, which
+  * must be in the range [ 0 , get_num_str_par() ). The method is given a
+  * "void" implementation (returning the empty string), rather than being
+  * pure virtual, so that derived classes not having any int parameter do
+  * not have to bother with implementing it. */
+
  virtual const std::string & get_dflt_str_par( const idx_type par ) const {
   static const std::string empty = "";
   return( empty );
@@ -803,8 +807,9 @@ public:
 
 /*--------------------------------------------------------------------------*/
  /// get a specific integer (int) numerical parameter
- /** Get a specific integer (int) numerical parameter. The method is given a
-  * void implementation always returning the default value for the parameter,
+ /** Get the integer (int) numerical parameter with index \p par, which must
+  * be in the range [ 0 , get_num_int_par() ). The method is given a "void"
+  * implementation always returning the default value for the parameter,
   * rather than being pure virtual, so that derived classes not having any
   * working int parameter (i.e., either not having any or not really reacting
   * to the ones that they supposedly have) do not have to bother with
@@ -816,26 +821,27 @@ public:
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get a specific float (double) numerical parameter
- /** Get a specific float (double) numerical parameter. The method is given a
-  * void implementation always returning the default value for the parameter,
+  /** Get the float (double) numerical parameter with index \p par, which must
+  * be in the range [ 0 , get_num_dbl_par() ). The method is given a "void"
+  * implementation always returning the default value for the parameter,
   * rather than being pure virtual, so that derived classes not having any
-  * working double parameter (i.e., either not having any or not really
-  * reacting to the ones that they supposedly have) do not have to bother with
-  * implementing it. */
+  * working float parameter (i.e., either not having any or not really
+  * reacting to the ones that they supposedly have) do not have to bother
+  * with implementing it. */
 
  virtual double get_dbl_par( const idx_type par ) const {
   return( get_dflt_dbl_par( par ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// get a specific string numerical parameter
- /** Get a specific string numerical parameter. The method is given a void
-  * implementation always returning the default value for the parameter,
-  * rather than being pure virtual, so that derived classes not having any
-  * working string parameter (i.e., either not having any or not really
-  * reacting to the ones that they supposedly have) do not have to bother
-  * with implementing it. */
- 
+ /// get a specific string parameter
+ /** Get the string parameter with index \p par, which must be in the range
+  * [ 0 , get_num_str_par() ). The method is given a "void" implementation 
+  * always returning the default value for the parameter, rather than being
+  * pure virtual, so that derived classes not having any working string
+  * parameter (i.e., either not having any or not really reacting to the ones
+  * that they supposedly have) do not have to bother with implementing it. */
+
  virtual const std::string & get_str_par( const idx_type par ) const {
   return( get_dflt_str_par( par ) );
   }
@@ -843,11 +849,13 @@ public:
 /*--------------------------------------------------------------------------*/
  /// returns the index of the int parameter with given string name
  /** This method takes a string, which is assumed to be the name of an int
-  * parameter, and returns its index, i.e., the integer value that can be
-  * used in [set/get]_par() to set/get it. The method is given a void
+  * parameter, and returns its index, i.e., the integer value in the range
+  * [ 0 , get_num_int_par() ) that can be used in set_par( int ) and
+  * get_[dflt_]int_par() to set/get it. The method is given a "void"
   * implementation (throwing exception), rather than being pure virtual, so
   * that derived classes not having any int parameter do not have to bother
-  * with implementing it. */
+  * with implementing it. The method should anyway throw exception if
+  * \p name does not correspond to the string name of any int parameter. */
 
  virtual idx_type int_par_str2idx( const std::string & name ) const {
   throw( std::invalid_argument( std::string( "int parameter " ) + name +
@@ -857,11 +865,13 @@ public:
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the index of the double parameter with given string name
  /** This method takes a string, which is assumed to be the name of a double
-  * parameter, and returns its index, i.e., the integer value that can be
-  * used in [set/get]_par() to set/get it. The method is given a void
+  * parameter, and returns its index, i.e., the integer value in the range
+  * [ 0 , get_num_dbl_par() ) that can be used in set_par( double ) and
+  * get_[dflt_]dbl_par() to set/get it. The method is given a "void"
   * implementation (throwing exception), rather than being pure virtual, so
   * that derived classes not having any double parameter do not have to bother
-  * with implementing it. */
+  * with implementing it. The method should anyway throw exception if
+  * \p name does not correspond to the string name of any double parameter. */
 
  virtual idx_type dbl_par_str2idx( const std::string & name ) const {
   throw( std::invalid_argument( std::string( "double parameter " ) + name +
@@ -871,11 +881,13 @@ public:
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the index of the string parameter with given string name
  /** This method takes a string, which is assumed to be the name of a string
-  * parameter, and returns its index, i.e., the integer value that can be
-  * used in [set/get]_par() to set/get it. The method is given a void
+  * parameter, and returns its index, i.e., the integer value in the range
+  * [ 0 , get_num_str_par() ) that can be used in set_par( std::string ) and
+  * get_[dflt_]str_par() to set/get it. The method is given a "void"
   * implementation (throwing exception), rather than being pure virtual, so
   * that derived classes not having any string parameter do not have to bother
-  * with implementing it. */
+  * with implementing it. The method should anyway throw exception if \p name
+  * does not correspond to the string name of any string parameter. */
 
  virtual idx_type str_par_str2idx( const std::string & name ) const {
   throw( std::invalid_argument( std::string( "string parameter " ) + name +
@@ -884,11 +896,12 @@ public:
 
 /*--------------------------------------------------------------------------*/
  /// returns the string name of the int parameter with given index
- /** This method takes an int parameter index, i.e., the integer value that
-  * can be used in [set/get]_par() [see above] to set/get it, and returns its
-  * "string name". The method is given a void implementation (throwing
-  * exception), rather than being pure virtual, so that derived classes not
-  * having any int parameter do not have to bother with implementing it. */
+ /** This method takes an int parameter index, i.e., the integer value in the
+  * range [ 0 , get_num_int_par() ) that can be used in set_par( int ) and
+  * get_[dflt_]int_par() to set/get it, and returns its "string name". The
+  * method is given a void implementation (throwing exception), rather than
+  * being pure virtual, so that derived classes not having any int parameter
+  * do not have to bother with implementing it. */
 
  virtual const std::string & int_par_idx2str( const idx_type idx ) const {
   throw( std::invalid_argument( "invalid int parameter name" ) );
@@ -896,11 +909,12 @@ public:
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the string name of the double parameter with given index
- /** This method takes a double parameter index, i.e., the integer value that
-  * can be used in [set/get]_par() [see above] to set/get it, and returns its
-  * "string name". The method is given a void implementation (throwing
-  * exception), rather than being pure virtual, so that derived classes not
-  * having any double parameter do not have to bother with implementing it. */
+ /** This method takes a double parameter index, i.e., the integer value in
+  * the range [ 0 , get_num_dbl_par() ) that can be used in set_par( double )
+  * and get_[dflt_]dbl_par() to set/get it, and returns its "string name".
+  * The method is given a void implementation (throwing exception), rather
+  * than being pure virtual, so that derived classes not having any double
+  * parameter do not have to bother with implementing it. */
 
  virtual const std::string & dbl_par_idx2str( const idx_type idx ) const {
   throw( std::invalid_argument( "invalid double parameter name" ) );
@@ -908,11 +922,13 @@ public:
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the string name of the string parameter with given index
- /** This method takes a string parameter index, i.e., the integer value that
-  * can be used in [set/get]_par() [see above] to set/get it, and returns its
-  * "string name". The method is given a void implementation (throwing
-  * exception), rather than being pure virtual, so that derived classes not
-  * having any string parameter do not have to bother with implementing it. */
+/** This method takes a string parameter index, i.e., the integer value in
+  * the range [ 0 , get_num_str_par() ) that can be used in 
+  * set_par( std::string ) and get_[dflt_]str_par() to set/get it, and
+  * returns its "string name". The method is given a void implementation
+  * (throwing exception), rather than being pure virtual, so that derived
+  * classes not having any double parameter do not have to bother with
+  * implementing it. */
 
  virtual const std::string & str_par_idx2str( const idx_type idx ) const {
   throw( std::invalid_argument( "invalid string parameter name" ) );

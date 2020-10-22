@@ -1,3 +1,21 @@
+2020-10-22 [low] add explicit support for non-handled parameters
+
+	Add methods bool is_*_par() to ThinComputeInterface that return true if that
+	parameter is actually handled. The methods return false in the base class, so
+	that a derived class not handling the parameters "explicitly tells it".
+	They are used by ComputeConfiguration to avoid dealing with parameters that
+	are explicitly not handled.
+
+	Breaks the interface in the sense that :ThinComputeInterface that *do* deal
+	with the parameters must now tell which ones they deal with. Simple version
+	is just to always return true and then possibly still ignore some, so not a
+	big deal (but still to be done).
+
+	Useful side effect is that one can then "intentionally leave holes" in the
+	range of parameter indices, which may be useful e.g. when dealing with
+	existing Solver with intricate parameters (say, Cplex).
+
+
 2020-10-01 [low, unfortunately] Add MultiFunction and MultiRowConstraint
 
 	A MultiFunction is "just" the equivalent of a std::vector< Function >, its
