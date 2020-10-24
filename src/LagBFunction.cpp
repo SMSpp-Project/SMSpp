@@ -772,18 +772,26 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
      }
     }
 
+  // if nobody is listening (assuming issueMod == eModBlck)
+  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( eModBlck ) ) )
+   return;  // all done
+  
   if( all )        // all removed
    which.clear();  // has a special setting to it
 
-  // if the C05FunctionMod with type() == GlobalPoolRemoved has to be
-  // issued, do it. note that the Modification assumes issueMod == eModBlck
-  // and concerns_Block() == true
-  if( ( all || ( ! which.empty() ) ) &&
-      ( f_Observer && f_Observer->issue_mod( eModBlck ) ) )
-   f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
-				      C05FunctionMod::GlobalPoolRemoved ,
-				      std::move( which ) , what , true , 0 ) ,
-				 chnl );
+  // issue a LagBFunctionMod: if some (or all) linearisations have been
+  // removed it has type() == GlobalPoolRemoved, otherwise it has
+  // type() == NothingChanged; in both cases it has shift() == NaN, since
+  // even if by chance none of the existing linearizations is affeted (but
+  // this may simply be because there is none) the value of the function in
+  // general has changed unpredictably
+  f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
+				        ( all || ( ! which.empty() ) )
+				        ? C05FunctionMod::GlobalPoolRemoved
+				        : C05FunctionMod::NothingChanged ,
+				        std::move( which ) , what ,
+				        C05FunctionMod::NaNshift , true ) ,
+				chnl );
 
   }  // end( if( checking is required ) )
  }  // end( LagBFunction::add_Modification() )
