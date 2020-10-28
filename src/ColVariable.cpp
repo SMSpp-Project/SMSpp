@@ -41,13 +41,14 @@ void ColVariable::set_type( const var_type type , c_ModParam issueMod )
  if( type == get_type() )  // actually doing nothing
   return;                  // cowardly (and silently) return
 
+ auto old_state = f_state;
  f_state &= var_type( 1 );  // clear all bits except the LSB
  f_state |= type * 2;       // set the type, leaving the LSB unchanged
 
  if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
   return;
 
- f_Block->add_Modification( std::make_shared<VariableMod>( this ,
+ f_Block->add_Modification( std::make_shared<VariableMod>( this , old_state ,
 					Observer::par2concern( issueMod ) ) ,
 			    Observer::par2chnl( issueMod ) );
  }

@@ -46,13 +46,14 @@ void Variable::is_fixed( const bool fixed , c_ModParam issueMod )
  if( fixed == is_fixed() )  // actually doing nothing
   return;                   // cowardly (and silently) return
 
+ auto old_state = f_state;
  f_state = fixed ? f_state |   var_type( 1 ) :
                    f_state & ~ var_type( 1 );  // fix/unfix it
 
  if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
   return;
 
- f_Block->add_Modification( std::make_shared<VariableMod>( this ,
+ f_Block->add_Modification( std::make_shared<VariableMod>( this , old_state ,
 					Observer::par2concern( issueMod ) ) ,
 			    Observer::par2chnl( issueMod ) );
  }

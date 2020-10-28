@@ -2530,12 +2530,23 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
   if( ! xj )     // unknown variable type
    return( 8 );  // no clue what is happening, take the worst case
 
-  // if the variable is both free and continuous, the Modification can be
-  // ignored
-  // THIS IS NOT ENTIRELY CORRECT: THE BOUNDS MAY HAVE CHANGED AND BECOME
-  // STRICTER!!
-
-  return( ( ! xj->is_fixed() ) || ( ! xj->is_integer() ) ? 0 : 8 );
+  // check the current state of the ColVariable against its previous state:
+  // if the change of state increased the set of values that the ColVariable
+  // can have then return 0 (nothing has to be done), otherwise return 8
+  // (feasibility has to be checked)
+  if( ( ( xj->is_fixed() == xj->is_fixed( tmod->old_state() ) ) ||
+	( ( ! xj->is_fixed() ) && xj->is_fixed( tmod->old_state() ) ) )
+      && ( ( xj->is_integer() == xj->is_integer( tmod->old_state() ) ) ||
+	 ( ( ! xj->is_integer() ) && xj->is_integer( tmod->old_state() ) ) )
+      && ( ( xj->is_positive() == xj->is_positive( tmod->old_state() ) ) ||
+	 ( ( ! xj->is_positive() ) && xj->is_positive( tmod->old_state() ) ) )
+      && ( ( xj->is_negative() == xj->is_negative( tmod->old_state() ) ) ||
+	 ( ( ! xj->is_negative() ) && xj->is_negative( tmod->old_state() ) ) )
+      && ( ( xj->is_unitary() == xj->is_unitary( tmod->old_state() ) ) ||
+	 ( ( ! xj->is_unitary() ) && xj->is_unitary( tmod->old_state() ) ) ) )
+   return( 0 );
+  else
+   return( 8 );
 
   }  // end( VariableMod )
 

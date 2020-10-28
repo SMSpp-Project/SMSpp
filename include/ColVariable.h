@@ -315,24 +315,40 @@ class ColVariable : public Variable {
  var_type get_type( void ) const { return( f_state / 2 ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method to tell whether a state is that of an integer-valued ColVariable
+
+ bool is_integer( var_type state ) const { return( state & var_type( 2 ) ); }
+
  /// method to tell whether the ColVariable is integer-valued
 
- bool is_integer( void ) const { return( f_state & var_type( 2 ) ); }
+ bool is_integer( void ) const { return( is_integer( f_state ) ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method to tell whether a state is that of a non-negative ColVariable
+
+ bool is_positive( var_type state ) const { return( state & var_type( 4 ) ); }
+
  /// method to tell whether the ColVariable is non-negative
 
- bool is_positive( void ) const { return( f_state & var_type( 4 ) ); }
+ bool is_positive( void ) const { return( is_positive( f_state ) ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method to tell whether a state is that of a non-positive ColVariable
+
+ bool is_negative( var_type state ) const { return( state & var_type( 8 ) ); }
+
  /// method to tell whether the ColVariable is non-positive
 
- bool is_negative( void ) const { return( f_state & var_type( 8 ) ); }
+ bool is_negative( void ) const { return( is_negative( f_state ) ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method to tell whether a state is that of a unitary ColVariable
+
+ bool is_unitary( var_type state ) const { return( state & var_type( 16 ) ); }
+
  /// method to tell whether the max absolute value of the ColVariable is 1
 
- bool is_unitary( void ) const { return( f_state & var_type( 16 ) ); }
+ bool is_unitary( void ) const { return( is_unitary( f_state ) ); }
 
 /*--------------------------------------------------------------------------*/
  /// method to return the lower bound on the ColVariable implied by its type
