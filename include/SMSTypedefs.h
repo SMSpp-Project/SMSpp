@@ -1537,65 +1537,86 @@ bool un_any_const_dynamic( const boost::any & any , F f , un_any_type<T> ,
  * a maximum K has to be fixed at compile time; currently the maximum K is
  * 8, but it may be easily extended to go higher if needed. */
 
-#define un_any_thing( thing_type , my_thing , f ) \
- [&]( const boost::any & _any ) -> bool { \
-  if( un_any_thing_0( thing_type , _any , f ) ) return( true ); \
-  else if( un_any_thing_1( thing_type , _any , f ) ) return( true ); \
-  return( un_any_thing_K( thing_type , _any , f ) ); \
+#define un_any_thing( thing_type, my_thing, f )                             \
+ [&]( const boost::any & _any ) -> bool {                                   \
+  if( un_any_thing_0( thing_type , _any , f ) )                             \
+   return true;                                                             \
+  else if( un_any_thing_1( thing_type , _any , f ) )                        \
+   return true;                                                             \
+  return un_any_thing_K( thing_type , _any , f );                           \
   }( my_thing )
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
-#define un_any_thing_0( thing_type , my_thing , f )	\
- [&]( const boost::any & _any ) -> bool { \
-  if( _any.type() == typeid( thing_type * ) ) { auto & var = \
-   * boost::any_cast< thing_type * >( _any ); f; return( true ); } \
-  return( false ); \
+#define un_any_thing_0( thing_type, my_thing, f )                           \
+ [&]( const boost::any & _any ) -> bool {                                   \
+  if( _any.type() == typeid( thing_type * ) ) {                             \
+   auto & var = * boost::any_cast< thing_type * >( _any );                  \
+   f;                                                                       \
+   return true;                                                             \
+  }                                                                         \
+  return false;                                                             \
   }( my_thing )
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
-#define un_any_thing_1( thing_type , my_thing , f )	\
- [&]( const boost::any & _any ) -> bool { \
-  if( _any.type() == typeid( std::vector< thing_type > * ) ) { \
-   auto & var = * boost::any_cast< std::vector< thing_type > * >( _any ); \
-   f; return( true ); } \
-  return( false ); \
+#define un_any_thing_1( thing_type, my_thing, f )                           \
+ [&]( const boost::any & _any ) -> bool {                                   \
+  if( _any.type() == typeid( std::vector< thing_type > * ) ) {              \
+   auto & var = * boost::any_cast< std::vector< thing_type > * >( _any );   \
+   f;                                                                       \
+   return true;                                                             \
+  }                                                                         \
+  return false;                                                             \
   }( my_thing )
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
-#define un_any_thing_K( thing_type , my_thing , f )	\
- [&]( const boost::any & _any ) -> bool { \
-  if( _any.type() == typeid( boost::multi_array< thing_type , 2 > * ) ) { \
-   auto & var = \
-   * boost::any_cast< boost::multi_array< thing_type , 2 > * >( _any ); f; \
-   return( true ); } \
-  if( _any.type() == typeid( boost::multi_array< thing_type , 3 > * ) ) { \
-   auto & var = \
-   * boost::any_cast< boost::multi_array< thing_type , 3 > * >( _any ); f; \
-   return( true ); } \
-  if( _any.type() == typeid( boost::multi_array< thing_type , 4 > * ) ) { \
-   auto & var = \
-   * boost::any_cast< boost::multi_array< thing_type , 4 > * >( _any ); f; \
-   return( true ); } \
-  if( _any.type() == typeid( boost::multi_array< thing_type , 5 > * ) ) { \
-   auto & var = \
-   * boost::any_cast< boost::multi_array< thing_type , 5 > * >( _any ); f; \
-   return( true ); } \
-  if( _any.type() == typeid( boost::multi_array< thing_type , 6 > * ) ) { \
-   auto & var = \
-   * boost::any_cast< boost::multi_array< thing_type , 6 > * >( _any ); f; \
-   return( true ); } \
-  if( _any.type() == typeid( boost::multi_array< thing_type , 7 > * ) ) { \
-   auto & var = \
-   * boost::any_cast< boost::multi_array< thing_type , 7 > * >( _any ); f; \
-   return( true ); } \
-  if( _any.type() == typeid( boost::multi_array< thing_type , 8 > * ) ) { \
-   auto & var = \
-   * boost::any_cast< boost::multi_array< thing_type , 8 > * >( _any ); f; \
-   return( true ); } \
-  return( false ); \
+#define un_any_thing_K( thing_type, my_thing, f )                           \
+ [&]( const boost::any & _any ) -> bool {                                   \
+  if( _any.type() == typeid( boost::multi_array< thing_type , 2 > * ) ) {   \
+   auto & var =                                                             \
+    * boost::any_cast< boost::multi_array< thing_type , 2 > * >( _any );    \
+   f;                                                                       \
+   return true;                                                             \
+  }                                                                         \
+  if( _any.type() == typeid( boost::multi_array< thing_type , 3 > * ) ) {   \
+   auto & var =                                                             \
+   * boost::any_cast< boost::multi_array< thing_type , 3 > * >( _any );     \
+   f;                                                                       \
+   return true;                                                             \
+  }                                                                         \
+  if( _any.type() == typeid( boost::multi_array< thing_type , 4 > * ) ) {   \
+   auto & var =                                                             \
+   * boost::any_cast< boost::multi_array< thing_type , 4 > * >( _any );     \
+   f;                                                                       \
+   return true;                                                             \
+  }                                                                         \
+  if( _any.type() == typeid( boost::multi_array< thing_type , 5 > * ) ) {   \
+   auto & var =                                                             \
+   * boost::any_cast< boost::multi_array< thing_type , 5 > * >( _any );     \
+   f;                                                                       \
+   return true;                                                             \
+  }                                                                         \
+  if( _any.type() == typeid( boost::multi_array< thing_type , 6 > * ) ) {   \
+   auto & var =                                                             \
+   * boost::any_cast< boost::multi_array< thing_type , 6 > * >( _any );     \
+   f;                                                                       \
+   return true;                                                             \
+  }                                                                         \
+  if( _any.type() == typeid( boost::multi_array< thing_type , 7 > * ) ) {   \
+   auto & var =                                                             \
+   * boost::any_cast< boost::multi_array< thing_type , 7 > * >( _any );     \
+   f;                                                                       \
+   return true;                                                             \
+  }                                                                         \
+  if( _any.type() == typeid( boost::multi_array< thing_type , 8 > * ) ) {   \
+   auto & var =                                                             \
+   * boost::any_cast< boost::multi_array< thing_type , 8 > * >( _any );     \
+   f;                                                                       \
+   return true;                                                             \
+  }                                                                         \
+  return false;                                                             \
   }( my_thing )
 
 /**@} ----------------------------------------------------------------------*/
