@@ -473,8 +473,8 @@ class PolyhedralFunction : public C05Function {
    case( intLPMaxSz ):
     if( value < 1 )
      throw( std::invalid_argument( "intLPMaxSz must be positive" ) );
-    if( value != f_loc_pool_sz ) {
-     f_loc_pool_sz = value;
+    if( Index( value ) != f_loc_pool_sz ) {
+     f_loc_pool_sz = Index( value );
      reset_v_ord();
      }
     break;
@@ -487,7 +487,7 @@ class PolyhedralFunction : public C05Function {
 
     // check if any of the linearizations that will be lost (if any) is an
     // aggregated one and manage v_aA and v_ab accordingly
-    for( int i = value ; i < f_max_glob ; ++i )
+    for( Index i = value ; i < f_max_glob ; ++i )
      if( v_glob[ i ] < 0 )          // it is an aggregated item
       // mark its position in v_ab[] with INF to signal it's not needed
       v_ab[ - v_glob[ i ] - 1 ] = Inf<FunctionValue>();
@@ -505,7 +505,7 @@ class PolyhedralFunction : public C05Function {
 
     v_glob.resize( value , Inf<int>() );  // resize v_glob
 
-    if( f_max_glob >= value ) {  // some linearizatons are lost
+    if( f_max_glob >= Index( value ) ) {  // some linearizatons are lost
      f_max_glob = value ? value - 1 : 0;  // value could be 0 ...
 
      update_f_max_glob();

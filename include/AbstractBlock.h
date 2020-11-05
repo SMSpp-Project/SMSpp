@@ -515,6 +515,36 @@ class AbstractBlock : public Block {
  bool is_feasible( bool useabstract = false ,
 		   Configuration *fsbc = nullptr ) override;
 
+/*--------------------------------------------------------------------------*/
+ /// several sanity checks
+ /** This debug method implements a bunch of sanity checks on the "abstract"
+  * (which is the only) representation of the AbstractBlock, such as:
+  *
+  * - every Variable and Constraint of the AbstractBlock belongs to the
+  *   AbstractBlock;
+  *
+  * - every sub-Block of the AbstractBlock belongs to the AbstractBlock;
+  *
+  * - for any Variable of the AbstractBlock, and for any of the "active stuff"
+  *   of that Variable, the Variable is found among the list of "active"
+  *   Variable of that stuff;
+  *
+  * - for each Constraint and for the Objective, and for each of the "active"
+  *   Variable in that, the Constraint / Objective if found among the "active
+  *   stuff" of that Variable;
+  *
+  * - ...
+  *
+  * These are very generic checks that should be done at the level of Block,
+  * but they can not because it is not possible to just "extract Variable"
+  * or "extract Constraint" from the "abstract representaion": one can only
+  * extract :Variable (say, ColVariable) or :Constraint (say, FRowConstraint).
+  * This is a very bad consequence of the initial design choice about using
+  * boost::any, and one of the reasins why these will be put to the wall when
+  * the revolution will come. */
+
+ void is_correct( void );
+
 /**@} ----------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
 /*--------------------------------------------------------------------------*/
@@ -587,7 +617,15 @@ class AbstractBlock : public Block {
  /// do all the dirty work for deserialize()
 
  void guts_of_deserialize( netCDF::NcGroup & group );
- 
+
+/*--------------------------------------------------------------------------*/
+
+ void check_Variable( Variable * var );
+
+ void check_Constraint( Constraint * cnst );
+
+ void check_Objective( Objective * obj );
+
 /*--------------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/

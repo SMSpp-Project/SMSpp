@@ -347,6 +347,196 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration *fsbc )
 
 /*--------------------------------------------------------------------------*/
 
+void AbstractBlock::check_Variable( Variable * var )
+{
+ if( var->get_Block() != this )
+  std::cout << std::endl << "Variable " << var
+	    << " not of the right Block";
+
+ for( Index as = 0 ; as < var->get_num_active() ; ++as ) {
+  auto tvdi = var->get_active( as );
+  if( tvdi->is_active( var ) >= tvdi->get_num_active_var() )
+   std::cout << std::endl << "Variable " << var
+	     << " not active in its " << as << "-th active stuff";
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void AbstractBlock::check_Constraint( Constraint * cnst )
+{
+ if( cnst->get_Block() != this )
+  std::cout << std::endl << "Constraint " << cnst << " not of the right Block";
+
+ for( Index av = 0 ; av < cnst->get_num_active_var() ; ++av ) {
+  auto var = cnst->get_active_var( av );
+  if( var->is_active( cnst ) >= var->get_num_active() )
+   std::cout << std::endl << "Constraint " << cnst
+	     << " not active in its " << av << "-th active Variable";
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void AbstractBlock::check_Objective( Objective * obj )
+{
+ if( obj->get_Block() != this )
+  std::cout << std::endl << "Objective " << obj << " not of the right Block";
+
+ for( Index av = 0 ; av < obj->get_num_active_var() ; ++av ) {
+  auto var = obj->get_active_var( av );
+  if( var->is_active( obj ) >= var->get_num_active() )
+   std::cout << std::endl << "Objective " << obj
+	     << " not active in its " << av << "-th active Variable";
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void AbstractBlock::is_correct( void )
+{
+ // the static Variables of the Block - - - - - - - - - - - - - - - - - - - -
+ auto & sv = get_static_variables();
+ for( Index i = 0 ; i < sv.size() ; ++i )
+ {
+  if( un_any_const_static( sv[ i ] ,
+			   [ this ]( ColVariable & var ) {
+			    check_Variable( & var );
+			    } , un_any_type< ColVariable >() ) ) {
+   continue;
+   }
+  throw( std::logic_error( "some static Variable not ColVariable" ) );
+  }
+
+ // the dynamic Variables of the Block- - - - - - - - - - - - - - - - - - - -
+ auto & dv = get_dynamic_variables();
+ for( Index i = 0 ; i < dv.size() ; ++i )
+ {
+  if( un_any_const_dynamic( dv[ i ] ,
+			    [ this ]( ColVariable & var ) {
+			     check_Variable( & var );
+			     } , un_any_type< ColVariable >() ) ) {
+
+   continue;
+   }
+  throw( std::logic_error( "some dynamic Variable not ColVariable" ) );
+  }
+
+ // the static Constraints of the Block - - - - - - - - - - - - - - - - - - -
+ auto & sc = get_static_constraints();
+ for( Index i = 0 ; i < sc.size() ; ++i ) {
+  if( un_any_const_static( sc[ i ] ,
+			   [ this ]( FRowConstraint & cnst ) {
+			    check_Constraint( & cnst );
+			    } , un_any_type< FRowConstraint >() ) )
+   continue;
+
+  if( un_any_const_static( sc[ i ] ,
+			   [ this ]( BoxConstraint & cnst ) {
+			    check_Constraint( & cnst );
+			    } , un_any_type< BoxConstraint >() ) )
+   continue;
+
+  if( un_any_const_static( sc[ i ] ,
+			   [ this ]( LBConstraint & cnst ) {
+			    check_Constraint( & cnst );
+			    } , un_any_type< LBConstraint >() ) )
+   continue;
+
+  if( un_any_const_static( sc[ i ] ,
+			   [ this ]( UBConstraint & cnst ) {
+			    check_Constraint( & cnst );
+			    } , un_any_type< UBConstraint >() ) )
+   continue;
+
+  if( un_any_const_static( sc[ i ] ,
+			   [ this ]( NNConstraint & cnst ) {
+			    check_Constraint( & cnst );
+			    } , un_any_type< NNConstraint >() ) )
+   continue;
+
+  if( un_any_const_static( sc[ i ] ,
+			   [ this ]( NPConstraint & cnst ) {
+			    check_Constraint( & cnst );
+			    } , un_any_type< NPConstraint >() ) )
+   continue;
+
+  if( un_any_const_static( sc[ i ] ,
+			   [ this ]( ZOConstraint & cnst ) {
+			    check_Constraint( & cnst );
+			    } , un_any_type< ZOConstraint >() ) )
+   continue;
+
+  throw( std::logic_error(
+	"some static Constraint not FRowConstraint or :OneVarConstraint" ) );
+  }
+
+ // the dynamic Constraints of the Block- - - - - - - - - - - - - - - - - - -
+ auto & dc = get_dynamic_constraints();
+ for( Index i = 0 ; i < dc.size() ; ++i ) {
+  if( un_any_const_dynamic( dc[ i ] ,
+			    [ this ]( FRowConstraint & cnst ) {
+			     check_Constraint( & cnst );
+			     } , un_any_type< FRowConstraint >() ) )
+   continue;
+
+  if( un_any_const_dynamic( dc[ i ] ,
+			    [ this ]( BoxConstraint & cnst ) {
+			     check_Constraint( & cnst );
+			     } , un_any_type< BoxConstraint >() ) )
+   continue;
+
+  if( un_any_const_dynamic( dc[ i ] ,
+			    [ this ]( LBConstraint & cnst ) {
+			     check_Constraint( & cnst );
+			     } , un_any_type< LBConstraint >() ) )
+   continue;
+
+  if( un_any_const_dynamic( dc[ i ] ,
+			    [ this ]( UBConstraint & cnst ) {
+			     check_Constraint( & cnst );
+			     } , un_any_type< UBConstraint >() ) )
+   continue;
+
+  if( un_any_const_dynamic( dc[ i ] ,
+			    [ this ]( NNConstraint & cnst ) {
+			     check_Constraint( & cnst );
+			     } , un_any_type< NNConstraint >() ) )
+   continue;
+
+  if( un_any_const_dynamic( dc[ i ] ,
+			    [ this ]( NPConstraint & cnst ) {
+			     check_Constraint( & cnst );
+			     } , un_any_type< NPConstraint >() ) )
+   continue;
+
+  if( un_any_const_dynamic( dc[ i ] ,
+			    [ this ]( ZOConstraint & cnst ) {
+			     check_Constraint( & cnst );
+			     } , un_any_type< ZOConstraint >() ) )
+   continue;
+
+  throw( std::logic_error(
+	"some static Constraint not FRowConstraint or :OneVarConstraint" ) );
+  }
+
+ // the Objective of the Block- - - - - - - - - - - - - - - - - - - - - - - -
+ if( auto obj = get_objective() )
+  check_Objective( obj );
+
+ // check every sub-Block of AbstractBlock - - - - - - - - - - - - - - - - -
+
+ for( Index i = 0 ; i < get_number_nested_Blocks() ; ++i ) {
+  auto sb = get_nested_Block( i );
+  if( sb->get_f_Block() != this )
+   std::cout << std::endl << "sub-Block " << i << " has wrong father";
+  if( auto asb = dynamic_cast< AbstractBlock * >( sb ) )
+   asb->is_correct();
+  }
+ }  // end( AbstractBlock::is_correct )
+
+/*--------------------------------------------------------------------------*/
+
 Solution * AbstractBlock::get_Solution( Configuration * csolc , bool emptys )
 {
  auto sol = new ColVariableSolution;
