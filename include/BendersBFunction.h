@@ -1091,7 +1091,7 @@ class BendersBFunction : public C05Function , public Block {
   *        nothing). */
 
  void modify_constants( c_RealVector & nb , Range range ,
-                        ModParam issueMod = eModBlck );
+                        c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// modify only the constant term of a subset of rows of the linear mapping
@@ -1126,7 +1126,7 @@ class BendersBFunction : public C05Function , public Block {
   *        nothing). */
 
  void modify_constants( c_RealVector & nb , Subset && rows ,
-                        bool ordered , ModParam issueMod );
+                        const bool ordered , ModParam issueMod );
 
 /*--------------------------------------------------------------------------*/
  /// modify only the constant term of a range of rows of the linear mapping
@@ -1158,10 +1158,10 @@ class BendersBFunction : public C05Function , public Block {
   *        shift is NANshift (unless all the values are equal, in which case
   *        the function value has not changed and the method does nothing). */
 
- void modify_constants( std::vector< double >::const_iterator nb ,
-                        Range range = Range( 0, Inf< Index >() ) ,
-                        ModParam issuePMod = eNoBlck ,
-                        ModParam issueAMod = eNoBlck );
+ void modify_constants( MF_dbl_it nb ,
+			Range range = Range( 0, Inf< Index >() ) ,
+                        c_ModParam issuePMod = eNoBlck ,
+                        c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// modify only the constant term of a subset of rows of the linear mapping
@@ -1200,8 +1200,8 @@ class BendersBFunction : public C05Function , public Block {
   *        the function value has not changed and the method does
   *        nothing). */
 
- void modify_constants( std::vector< double >::const_iterator nb ,
-                        Subset && rows , bool ordered = false ,
+ void modify_constants( MF_dbl_it nb , Subset && rows ,
+			const bool ordered = false ,
                         ModParam issuePMod = eNoBlck ,
                         ModParam issueAMod = eNoBlck );
 
@@ -2430,7 +2430,14 @@ class BendersBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- static void static_initialization() {
+ static void static_initialization()
+ {
+  /*!!
+   * Not all C++ compilers enjoy the template wizardry behing the three-args
+   * version of register_method<> with the compact MS_*_*::args(), so we just
+   * use the slightly less compact one with the explicit argument and be done
+   * with it.
+
   register_method< BendersBFunction >( "BendersBFunction::modify_constants" ,
                                        & BendersBFunction::modify_constants ,
                                        MS_dbl_sbst::args() );
@@ -2438,6 +2445,14 @@ class BendersBFunction : public C05Function , public Block {
   register_method< BendersBFunction >( "BendersBFunction::modify_constants" ,
                                        & BendersBFunction::modify_constants ,
                                        MS_dbl_rngd::args() );
+				       !!*/
+  register_method< BendersBFunction , MF_dbl_it , Subset && , const bool >(
+				       "BendersBFunction::modify_constants" ,
+                                       & BendersBFunction::modify_constants );
+
+  register_method< BendersBFunction , MF_dbl_it , Range >(
+				       "BendersBFunction::modify_constants" ,
+                                       & BendersBFunction::modify_constants );
  }
 
 /*--------------------------------------------------------------------------*/

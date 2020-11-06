@@ -841,9 +841,9 @@ void BendersBFunction::modify_row( c_Index i , RealVector && Ai ,
 
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::modify_constants
-( std::vector< double >::const_iterator nb , Range range ,
-  ModParam issuePMod , ModParam issueAMod ) {
+void BendersBFunction::modify_constants( MF_dbl_it nb , Range range ,
+					 c_ModParam issuePMod ,
+					 c_ModParam issueAMod ) {
 
  range.second = std::min( range.second , Index( v_b.size() ) );
  if( range.second <= range.first )
@@ -891,10 +891,11 @@ void BendersBFunction::modify_constants( c_RealVector & nb , Range range ,
 
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::modify_constants
-( std::vector< double >::const_iterator nb , Subset && rows , bool ordered ,
-  ModParam issuePMod , ModParam issueAMod ) {
-
+void BendersBFunction::modify_constants( MF_dbl_it nb , Subset && rows ,
+					 const bool ordered ,
+					 c_ModParam issuePMod ,
+					 c_ModParam issueAMod )
+{
  if( rows.empty() )  // actually nothing to modify
   return;            // cowardly (and silently) return
 
@@ -939,8 +940,9 @@ void BendersBFunction::modify_constants
 
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::modify_constants
-( c_RealVector & nb , Subset && rows , bool ordered , ModParam issueMod ) {
+void BendersBFunction::modify_constants( c_RealVector & nb , Subset && rows ,
+					 bool ordered , ModParam issueMod )
+{
  modify_constants( nb.cbegin() , std::move( rows ) , ordered ,
                    issueMod , issueMod );
 }  // end( BendersBFunction::modify_constants )
