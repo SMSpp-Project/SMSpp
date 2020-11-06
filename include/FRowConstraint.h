@@ -130,7 +130,7 @@ class FRowConstraint : public RowConstraint , public Observer {
   * This results in the list of Variable of the Function to be emptied,
   * so that in the destructor they re not un-registered. */
 
- void clear( void ) override {
+ void clear() override {
   if( f_function )
    f_function->clear();
   }
@@ -246,24 +246,24 @@ class FRowConstraint : public RowConstraint , public Observer {
   * is virtual while Constraint::get_Block() is not, hence the former has to
   * be explicitly implemented in terms of the latter. */
 
- Block * get_Block( void ) const override {
+ Block * get_Block() const override {
   return( Constraint::get_Block() );
   }
 
 /*--------------------------------------------------------------------------*/
  ///< method to get a pointer to the Function of the FRowConstraint
 
- Function * get_function( void ) const { return( f_function ); }
+ Function * get_function() const { return( f_function ); }
 
 /*--------------------------------------------------------------------------*/
  /// method to get the RHS of the RowConstraint
 
- RHSValue get_rhs( void ) const override { return( f_rhs ); }
+ RHSValue get_rhs() const override { return( f_rhs ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to get the LHS of the RowConstraint
 
- RHSValue get_lhs( void ) const override { return( f_lhs ); }
+ RHSValue get_lhs() const override { return( f_lhs ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A FRowConstraint ----------*/
@@ -285,7 +285,7 @@ class FRowConstraint : public RowConstraint , public Observer {
  /** Method to get the value of variable part of the FRowConstraint, which is
   * just the value of the value of the underlying Function. */
 
- RHSValue value( void ) const override {
+ RHSValue value() const override {
   return( f_function ? f_function->get_value() : 0 );
   }
 
@@ -296,7 +296,7 @@ class FRowConstraint : public RowConstraint , public Observer {
   * the lower estimate prodiced by the Function; the FRowConstraint is only
   * deemed feasible if upper_estimate <= f_rhs and lower_estimete >= f_lhs. */
 
- bool feasible( void ) const override {
+ bool feasible() const override {
   bool feas = true;
   if( f_lhs > - Inf<double>() )
    feas &= f_function->get_lower_estimate() >= f_lhs;
@@ -314,7 +314,7 @@ class FRowConstraint : public RowConstraint , public Observer {
   * the lower estimate prodiced by the Function to compute the absolute
   * violation of the FRowConstraint. */
 
- RHSValue abs_viol( void ) const override {
+ RHSValue abs_viol() const override {
   RHSValue viol = -Inf<double>();
 
   if( f_lhs > - Inf<double>() ) {
@@ -340,7 +340,7 @@ class FRowConstraint : public RowConstraint , public Observer {
   * the lower estimate prodiced by the Function to compute the relative
   * violation of the FRowConstraint. */
 
- RHSValue rel_viol( void ) const override {
+ RHSValue rel_viol() const override {
   RHSValue uval = f_function->get_upper_estimate();
 
   // if the upper estimate is +INF, then if the RHS is < +INF then the
@@ -388,19 +388,19 @@ class FRowConstraint : public RowConstraint , public Observer {
  * the Function has not been set yet.
  * @{ */
 
- idx_type get_num_int_par( void ) const override {
+ idx_type get_num_int_par() const override {
   return( f_function->get_num_int_par() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- idx_type get_num_dbl_par( void ) const override {
+ idx_type get_num_dbl_par() const override {
   return( f_function->get_num_dbl_par() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- idx_type get_num_str_par( void ) const override {
+ idx_type get_num_str_par() const override {
   return( f_function->get_num_str_par() );
   }
 
@@ -491,7 +491,7 @@ class FRowConstraint : public RowConstraint , public Observer {
  * FRowConstraint; they all dispatch the method of the underlying Function
  *  @{ */
 
- Index get_num_active_var( void ) const override
+ Index get_num_active_var() const override
  {
   return( f_function ? f_function->get_num_active_var() : 0 );
   }
@@ -512,14 +512,14 @@ class FRowConstraint : public RowConstraint , public Observer {
 
 /*--------------------------------------------------------------------------*/
 
- v_iterator * v_begin( void ) override
+ v_iterator * v_begin() override
  {
   return( f_function ? f_function->v_begin() : nullptr );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- v_const_iterator * v_begin( void ) const override
+ v_const_iterator * v_begin() const override
  {
   return( f_function ?
 	  static_cast<const Function *>( f_function )->v_begin() : nullptr );
@@ -527,14 +527,14 @@ class FRowConstraint : public RowConstraint , public Observer {
 
 /*--------------------------------------------------------------------------*/
 
- v_iterator * v_end( void ) override
+ v_iterator * v_end() override
  {
   return( f_function ? f_function->v_end() : nullptr );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- v_const_iterator * v_end( void ) const override
+ v_const_iterator * v_end() const override
  {
   return( f_function ?
 	  static_cast<const Function *>( f_function )->v_end() : nullptr );
@@ -574,7 +574,7 @@ class FRowConstraint : public RowConstraint , public Observer {
   * some mechanism allowing a finer control on which Modification are
   * "listened to". */
 
- bool anyone_there( void ) const override { return( true ); }
+ bool anyone_there() const override { return( true ); }
 
 /*--------------------------------------------------------------------------*/
  /// mostly just dispatch to add_Modification() of the Block (if any)
