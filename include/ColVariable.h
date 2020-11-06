@@ -385,8 +385,8 @@ class ColVariable : public Variable {
  virtual Index is_active( ThinVarDepInterface * stuff ) const override {
   auto idx = std::lower_bound( v_active.begin() , v_active.end() , stuff );
 
-  if( idx < v_active.end() )
-   return( std::distance( idx , v_active.begin() ) );
+  if( idx != v_active.end() )
+   return( std::distance( v_active.begin() , idx ) );
   else
    return( std::numeric_limits<Index>::infinity() );
   }

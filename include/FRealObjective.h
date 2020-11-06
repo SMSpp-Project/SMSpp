@@ -179,9 +179,8 @@ class FRealObjective : public RealObjective , public Observer {
   * The parameter issueMod decides if and how the FRealObjectiveMod is
   * issued, as described in Observer::make_par(). */
 
- virtual void set_function( Function * const function = nullptr ,
-			    ModParam issueMod = eModBlck ,
-			    bool deleteold = true );
+ void set_function( Function * const function = nullptr ,
+		    ModParam issueMod = eModBlck , bool deleteold = true );
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE FRealObjective -----------*/
