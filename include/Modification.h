@@ -55,8 +55,8 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __Modification
- #define __Modification
-                      /* self-identification: #endif at the end of the file */
+#define __Modification
+/* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -72,9 +72,8 @@
 /*--------------------------------------------------------------------------*/
 
 ///< namespace for the Structured Modeling System++ (SMS++)
-namespace SMSpp_di_unipi_it
-{
- class Block;            // forward definition of Block
+namespace SMSpp_di_unipi_it {
+class Block;            // forward definition of Block
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
@@ -366,7 +365,7 @@ class Modification {
 
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
- Modification( void ) { }            ///< constructor: does nothing
+ Modification() = default;           ///< constructor: does nothing
 
  virtual ~Modification() = default;  ///< destructor: does nothing
 
@@ -382,7 +381,7 @@ class Modification {
   * so that this can be immediately asked to any Modification, whatever its
   * type. */
 
- virtual Block * get_Block( void ) const = 0;
+ [[nodiscard]] virtual Block * get_Block() const = 0;
 
 /*--------------------------------------------------------------------------*/
  /// returns true if the :Block needs to process this Modification
@@ -396,7 +395,7 @@ class Modification {
   * returns false: this is the right behavior for PMod, which are directly
   * issued by the :Block and that therefore can be of no interest for it. */
 
- virtual bool concerns_Block( void ) const { return( false ); }
+ [[nodiscard]] virtual bool concerns_Block() const { return ( false ); }
 
 /*--------------------------------------------------------------------------*/
  /// method to set the value returned by concerns_Block( void )
@@ -406,9 +405,8 @@ class Modification {
 
  virtual void concerns_Block( const bool cB ) {
   if( cB )
-   throw( std::invalid_argument( "physical Modification cannot concerns_Block"
-				 ) );
-  }
+   throw std::invalid_argument( "physical Modification cannot concerns_Block" );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// friend operator<<(), dispatching to virtual protected print()
@@ -418,11 +416,11 @@ class Modification {
   * customized by derived classes (since the base class has nothing to
   * print). */
 
- friend std::ostream& operator<<( std::ostream &out , const Modification &b )
- {
+ friend std::ostream &
+ operator<<( std::ostream & out, const Modification & b ) {
   b.print( out );
-  return( out );
-  }
+  return ( out );
+ }
 
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 
@@ -436,11 +434,11 @@ class Modification {
   * does not have anything to print, and this method is precisely what makes
   * it an abstract base class. */
 
- virtual void print( std::ostream &output ) const = 0;
+ virtual void print( std::ostream & output ) const = 0;
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( Modification ) )
+};  // end( class( Modification ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ CLASS AModification -----------------------------*/
@@ -462,15 +460,17 @@ class AModification : public Modification {
  /// constructor: takes the value to be returned by concerns_Block()
  /** Constructor of the class; it takes and sets the value to be returned by
   * concerns_Block() (true by default). */
- 
- AModification( bool cB = true ) : f_concerns_Block( cB ) { }
 
- virtual ~AModification() = default;  ///< destructor: does nothing
+ explicit AModification( bool cB = true ) : f_concerns_Block( cB ) {}
+
+ ~AModification() override = default;  ///< destructor: does nothing
 
 /*--------------------------------------------------------------------------*/
  /// returns the value stored in the f_concerns_Block field
 
- bool concerns_Block( void ) const override { return( f_concerns_Block ); }
+ [[nodiscard]] bool concerns_Block() const override {
+  return ( f_concerns_Block );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// method to set the value returned by concerns_Block( void )
@@ -506,7 +506,7 @@ class AModification : public Modification {
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( AModification ) )
+};  // end( class( AModification ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ CLASS NModification -----------------------------*/
@@ -531,14 +531,14 @@ class NModification : public Modification {
 
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
  /// constructor: does nothing
- 
- NModification( void ) : Modification() { }
 
- virtual ~NModification() = default;  ///< destructor: does nothing
+ NModification() : Modification() {}
+
+ ~NModification() override = default;  ///< destructor: does nothing
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( NModification ) )
+};  // end( class( NModification ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS NBModification ---------------------------*/
@@ -573,8 +573,7 @@ class NModification : public Modification {
   * assumed that the whole of the Block (hence, both the "phyisical" and the
   * "abstract" representation) change at once. */
 
-class NBModification : public NModification
-{
+class NBModification : public NModification {
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
  public:
@@ -583,14 +582,15 @@ class NBModification : public NModification
 
  /// constructor: takes the Block
 
- NBModification( Block *fblock ) : NModification() , f_Block( fblock ) { }
+ explicit NBModification( Block * fblock ) :
+  NModification(), f_Block( fblock ) {}
 
- virtual ~NBModification() = default;   ///< destructor, does nothing
+ ~NBModification() override = default;   ///< destructor, does nothing
 
 /*--------------------------------------------------------------------------*/
  /// returns the Block this Modification was originated from
 
- Block * get_Block( void ) const override { return( f_Block ); }
+ [[nodiscard]] Block * get_Block() const override { return ( f_Block ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -599,17 +599,17 @@ class NBModification : public NModification
 /*-------------------------- PROTECTED METHODS -----------------------------*/
  /// print the NBModification
 
- void print( std::ostream &output ) const override {
+ void print( std::ostream & output ) const override {
   output << "NBModification on Block [" << &f_Block << "]" << std::endl;
-  }
+ }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
- Block *f_Block;  ///< reference to the block to which the Modification refers
+ Block * f_Block;  ///< reference to the block to which the Modification refers
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( NBModification ) )
+};  // end( class( NBModification ) )
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- CLASS GroupModification ---------------------------*/
@@ -647,12 +647,12 @@ class GroupModification : public AModification {
   * GroupModification. The concerns_Block() value is initialized to false,
   * and (almost) automatically set to true if any of the Modification
   * inserted in the GroupModification has concerns_Block() == true. */
- 
- GroupModification( GroupModification * father = nullptr )
-  : AModification( false ) , f_father( father ) { }
+
+ explicit GroupModification( GroupModification * father = nullptr )
+  : AModification( false ), f_father( father ) {}
 
  /// destructor: does nothing
- virtual ~GroupModification() = default;
+ ~GroupModification() override = default;
 
 /*--------------------------------------------------------------------------*/
  /// returns the Block this Modification was originated from
@@ -660,21 +660,21 @@ class GroupModification : public AModification {
   * refer to the same Block, hence GroupModification returns the Block of
   * the first one of them (if any, nullptr otherwise). */
 
- Block * get_Block( void ) const override {
-  return( v_sub_Modifications.empty() ?
-	  nullptr : v_sub_Modifications.front()->get_Block() );
-  }
+ [[nodiscard]] Block * get_Block() const override {
+  return ( v_sub_Modifications.empty() ?
+           nullptr : v_sub_Modifications.front()->get_Block() );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns a const reference to the list of sub-Modification
 
  std::list< std::shared_ptr< Modification > > &
-  sub_Modifications( void ) { return( v_sub_Modifications ); }
+ sub_Modifications() { return ( v_sub_Modifications ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns (a pointer to) the "father" GroupModification (may be nullptr)
 
- GroupModification * father( void ) { return( f_father ); }
+ GroupModification * father() { return ( f_father ); }
 
 /*------------------------ FRIENDS OF THE CLASS ----------------------------*/
  /** Opening, closing, nesting and un-nesting channels, and sending a
@@ -696,28 +696,26 @@ class GroupModification : public AModification {
  /** Method for printing the GroupModification, which basically means printing
   * all its sub-Modification. */
 
- void print( std::ostream &output ) const override
- {
+ void print( std::ostream & output ) const override {
   output << "GroupModification[";
   if( concerns_Block() )
    output << "t]:";
   else
    output << "f]:";
   output << std::endl;
-  for( auto mod : v_sub_Modifications )
+  for( const auto & mod : v_sub_Modifications )
    output << *mod << std::endl;
-  }
+ }
 
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 
  /// add a new Modification to the v_sub_Modifications list
 
- void add( std::shared_ptr< Modification > mod )
- {
+ void add( const std::shared_ptr< Modification > & mod ) {
   if( mod->concerns_Block() )  // if the sub-Modification concerns the Block
    concerns_Block( true );     // then the whole GroupModification does
   v_sub_Modifications.push_back( mod );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// sets (the pointer to) the "father" GroupModification
@@ -734,7 +732,7 @@ class GroupModification : public AModification {
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( GroupModification ) )
+};  // end( class( GroupModification ) )
 
 /** @} end( group( Modification_CLASSES ) ) */
 /*--------------------------------------------------------------------------*/
@@ -743,48 +741,48 @@ class GroupModification : public AModification {
 /** @defgroup Modification_TYPES Modification-related types.
  *  @{ */
 
- using p_Mod = Modification *;  ///< a pointer to Modification
+using p_Mod = Modification *;  ///< a pointer to Modification
 
- using c_p_Mod = Modification * const;   ///< a const pointer to Modification
+using c_p_Mod = Modification * const;   ///< a const pointer to Modification
 
- using Vec_p_Mod = std::vector< p_Mod >;
- ///< a vector of pointer to Modification
+using Vec_p_Mod = std::vector< p_Mod >;
+///< a vector of pointer to Modification
 
- using Lst_p_Mod = std::list< p_Mod >;
- ///< a list of pointer to Modification
+using Lst_p_Mod = std::list< p_Mod >;
+///< a list of pointer to Modification
 
- using sp_Mod = std::shared_ptr< Modification >;
- ///< a shared pointer to Modification
+using sp_Mod = std::shared_ptr< Modification >;
+///< a shared pointer to Modification
 
- using Vec_sp_Mod = std::vector< sp_Mod >;
- ///< a vector of shared pointer to Modification
+using Vec_sp_Mod = std::vector< sp_Mod >;
+///< a vector of shared pointer to Modification
 
- using Lst_sp_Mod = std::list< sp_Mod >;
- ///< a vector of pointer to Modification
+using Lst_sp_Mod = std::list< sp_Mod >;
+///< a vector of pointer to Modification
 
 /*--------------------------------------------------------------------------*/
- /// public type for parameters controlling issuing of Modification
- /** Public type for parameters controlling how Modification are issued. It
-  * is defined "at global scope" so that all methods of all relevant classes
-  * can use a consistent interface. */
+/// public type for parameters controlling issuing of Modification
+/** Public type for parameters controlling how Modification are issued. It
+ * is defined "at global scope" so that all methods of all relevant classes
+ * can use a consistent interface. */
 
- using ModParam = unsigned int;
+using ModParam = unsigned int;
 
- using c_ModParam = const ModParam;  ///< a const ModParam
+using c_ModParam = const ModParam;  ///< a const ModParam
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
- /// public enum for ways of issuing a Modification
- /** Public enum for describing if and how any method potentially issuing a
-  * Modification should actually issue it. The enum is defined "at global
-  * scope" so that all methods of all relevant classes can use a consistent
-  * interface. */
+/// public enum for ways of issuing a Modification
+/** Public enum for describing if and how any method potentially issuing a
+ * Modification should actually issue it. The enum is defined "at global
+ * scope" so that all methods of all relevant classes can use a consistent
+ * interface. */
 
- enum amododification_type {
-  eDryRun  = 0 ,  ///< dont't do the change, hence issue no Modification
-  eNoMod   = 1 ,  ///< do the change but issue no Modification at all
-  eNoBlck  = 2 ,  ///< issue the Modification, but concerns_Block() == false
-  eModBlck = 3    ///< issue the Modification, and concerns_Block() == true
-  };
+enum amododification_type {
+ eDryRun = 0,  ///< dont't do the change, hence issue no Modification
+ eNoMod = 1,  ///< do the change but issue no Modification at all
+ eNoBlck = 2,  ///< issue the Modification, but concerns_Block() == false
+ eModBlck = 3   ///< issue the Modification, and concerns_Block() == true
+};
 
 /*--------------------------------------------------------------------------*/
 

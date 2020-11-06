@@ -25,7 +25,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __Observer
- #define __Observer  /* self-identification: #endif at the end of the file */
+#define __Observer  /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -38,8 +38,7 @@
 /*--------------------------------------------------------------------------*/
 
 /// namespace for the Structured Modeling System++ (SMS++)
-namespace SMSpp_di_unipi_it
-{
+namespace SMSpp_di_unipi_it {
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
@@ -116,15 +115,15 @@ class Observer {
  *  @{ */
 
  /// constructor of Observer, it has nothing to do
- Observer() { }
+ Observer() = default;
 
 /*--------------------------------------------------------------------------*/
  ///< copy constructor, it has nothing to do either
- Observer( const Observer & ) { }
+ Observer( const Observer & ) = default;
 
 /*--------------------------------------------------------------------------*/
  ///< destructor: it is virtual, and empty
- virtual ~Observer() { }
+ virtual ~Observer() = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF AN Observer -------------*/
@@ -136,10 +135,10 @@ class Observer {
  /** Any Observer either is a Block, or belongs to one. This method has to
   * return a pointer to such Block. */
 
- virtual Block * get_Block( void ) const = 0;
+ [[nodiscard]] virtual Block * get_Block() const = 0;
 
 /*--------------------------------------------------------------------------*/
- 
+
  /// returns true if there is "anybody listening to Modification"
  /** Returns true if there is "anybody listening to Modification". In case of
   * a Block, this typically means that there is some Solver "listening to
@@ -150,7 +149,7 @@ class Observer {
   * Modification themselves because they need to "intercept them and change
   * them along the way". */
 
- virtual bool anyone_there( void ) const = 0;
+ [[nodiscard]] virtual bool anyone_there() const = 0;
 
 /*--------------------------------------------------------------------------*/
  /// notify this Observer about a Modification
@@ -257,7 +256,7 @@ class Observer {
   * handle the corresponding changes to the "physical representation". See
   * the comments to Block::add_Modification() for more details. */
 
- virtual void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) = 0;
+ virtual void add_Modification( sp_Mod mod, ChnlName chnl = 0 ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// "open" a channel
@@ -305,8 +304,8 @@ class Observer {
   * Calling the method with chnl non being the name of an open channel is an
   * error and should throw exception. */
 
- virtual void nest_channel( ChnlName chnl ,
-			    GroupModification * gmpmod = nullptr ) = 0;
+ virtual void
+ nest_channel( ChnlName chnl, GroupModification * gmpmod = nullptr ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// push back to the previous level of a channel
@@ -403,9 +402,9 @@ class Observer {
   * make_par( iM , 0 ) == iM, so this method is only needed when sending to
   * a non-default channel. */
 
- static inline ModParam make_par( c_ModParam iM , c_ChnlName chnl ) {
-  return( iM + 4 * chnl );
-  }
+ static inline ModParam make_par( c_ModParam iM, c_ChnlName chnl ) {
+  return ( iM + 4 * chnl );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
  /// method extracting the channel information
@@ -413,8 +412,8 @@ class Observer {
   * returns the channel information alone. */
 
  static inline ChnlName par2chnl( c_ModParam issueMod ) {
-  return( issueMod / 4 );
-  }
+  return ( issueMod / 4 );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
  /// method extracting the ModParam information
@@ -422,8 +421,8 @@ class Observer {
   * returns the ModParam information alone. */
 
  static inline ModParam par2mod( c_ModParam issueMod ) {
-  return( issueMod & 3 );
-  }
+  return ( issueMod & 3 );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
  /// method extracting the concerns_Block information
@@ -431,8 +430,8 @@ class Observer {
   * returns the boolean to become the concerns_Block. */
 
  static inline bool par2concern( c_ModParam issueMod ) {
-  return( ( par2mod( issueMod ) == eModBlck ) );
-  }
+  return ( par2mod( issueMod ) == eModBlck );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// method for checking if a(n abstract) Modification has to be issued
@@ -442,10 +441,10 @@ class Observer {
   * value eModBlck only makes sense for them. This also depends on the value
   * reported by anyone_there(), which is why the method is not static. */
 
- inline bool issue_mod( c_ModParam issueMod ) {
-  return( ( par2mod( issueMod ) == eModBlck ) ||
-	  ( ( par2mod( issueMod ) == eNoBlck ) && anyone_there() ) );
-  }
+ inline bool issue_mod( c_ModParam issueMod ) const {
+  return ( ( par2mod( issueMod ) == eModBlck ) ||
+           ( ( par2mod( issueMod ) == eNoBlck ) && anyone_there() ) );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// method for checking if a (physical) Modification has to be issued
@@ -456,9 +455,9 @@ class Observer {
   * the value reported by anyone_there(), which is why the method is not
   * static. */
 
- inline bool issue_pmod( c_ModParam issueMod ) {
-  return( par2mod( issueMod ) && anyone_there() );
-  }
+ [[nodiscard]] inline bool issue_pmod( c_ModParam issueMod ) const {
+  return ( par2mod( issueMod ) && anyone_there() );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// method for checking if a the change has to be made
@@ -473,14 +472,14 @@ class Observer {
   * is reacting to one AModification implying that the "abstract" one has
   * changed already). */
 
- inline bool not_dry_run( c_ModParam issueMod ) {
-  return( par2mod( issueMod ) );
-  }
+ static inline bool not_dry_run( c_ModParam issueMod ) {
+  return ( par2mod( issueMod ) );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-  };  // end( class( Observer ) )
+};  // end( class( Observer ) )
 
 /*--------------------------------------------------------------------------*/
 

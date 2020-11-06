@@ -44,7 +44,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __SMSTypedefs
- #define __SMSTypedefs
+#define __SMSTypedefs
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -84,8 +84,7 @@
 /*--------------------------------------------------------------------------*/
 
 /// namespace for the Structured Modeling System++ (SMS++)
-namespace SMSpp_di_unipi_it
-{
+namespace SMSpp_di_unipi_it {
 
 /*--------------------------------------------------------------------------*/
 /*---------------------------- GENERAL TYPES -------------------------------*/
@@ -96,85 +95,86 @@ namespace SMSpp_di_unipi_it
  * classes of SMS++.
  * @{ */
 
- typedef std::vector<boost::any> Vec_any;
- ///< a vector of boost::any, i.e., almost anything
+typedef std::vector< boost::any > Vec_any;
+///< a vector of boost::any, i.e., almost anything
 
- typedef const std::vector<boost::any> c_Vec_any;
- ///< a const vector of boost::any, i.e., almost anything
+typedef const std::vector< boost::any > c_Vec_any;
+///< a const vector of boost::any, i.e., almost anything
 
- typedef Vec_any::iterator Vec_any_it;
- ///< iterator for a Vec_any
+typedef Vec_any::iterator Vec_any_it;
+///< iterator for a Vec_any
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
- typedef std::vector<std::string> Vec_string;
- ///< a vector of strings (std::string)
+typedef std::vector< std::string > Vec_string;
+///< a vector of strings (std::string)
 
- typedef Vec_string::iterator Vec_string_it;
- ///< iterator for a Vec_string
+typedef Vec_string::iterator Vec_string_it;
+///< iterator for a Vec_string
 
- typedef const std::vector<std::string> c_Vec_string;
- ///< a const vector of strings (std::string)
+typedef const std::vector< std::string > c_Vec_string;
+///< a const vector of strings (std::string)
 
- typedef const c_Vec_string::const_iterator c_Vec_string_it;
- ///< iterator for a c_Vec_string
+typedef const c_Vec_string::const_iterator c_Vec_string_it;
+///< iterator for a c_Vec_string
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// Inf<T>() = infinity value for T
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+/// Inf<T>() = infinity value for T
 
- template <typename T>
- static constexpr T Inf( void ) noexcept {
-  return( std::numeric_limits<T>::has_infinity ?
-	  std::numeric_limits<T>::infinity() :
-	  std::numeric_limits<T>::max() );
-  }
+template< typename T >
+static constexpr T Inf() noexcept {
+ return ( std::numeric_limits< T >::has_infinity ?
+          std::numeric_limits< T >::infinity() :
+          std::numeric_limits< T >::max() );
+}
 
 /*--------------------------------------------------------------------------*/
- /// public enum for types of SMS++ netCDF files
- /** Public enum for describing the different kinds of netCDF files that can
-  * be read and produced by SMS++ objects (notably, Block and Configuration).
-  *
-  * There are three "basic" types of SMS++ netCDF files, corresponding to the
-  * three values of this enum smspp_netCDF_file_type. Each file, when opened
-  * in a netCDF::NcFile (which is also a netCDF::NcGroup), must have an int
-  * netCDF attribute "SMS++_file_type" with one of the three values of the
-  * enum. The structure of the corresponding files is:
-  *
-  * - eProbFile: the file (which is also a group) has any number of child
-  *   groups with names "Prob_0", "Prob_1", ... In turn, each child group
-  *   has exactly three child groups with names "Block", "BlockConfig" and
-  *   "BlockSolver", respectively. The first is intended to contain the
-  *   serialization of a :Block [see Block.h], the second the serialization
-  *   of a :BlockConfig of the same :Block [see Block.h or RBlockConfig.h],
-  *   and the third the serialization of a :BlockSolverConfig of the same
-  *   :Block [see BlockSolverConfig.h], although any of the three can in
-  *   principle be empty. If any of the child is not empty, it must
-  *   necessarily contain a string attribute "type" containing the classname()
-  *   of the corresponding :Block / :Configuration class, plus of course all
-  *   the information necessary to reconstruct the specific instance. Note
-  *   that sub-Block of the Block and sub-Configuration of the Configuration
-  *   (if any) are assumed each to be contained into a child of the group
-  *   containing the original :Block / :Configuration, recursively.
-  *
-  * - eBlockFile: the file (which is also a group) has any number of child
-  *   groups with names "Block_0", "Block_1", ... Each child group contains
-  *   the serialization of a :Block (the string attribute "type" and all the
-  *   rest).
-  *
-  * - eConfigFile: the file (which is also a group) has any number of child
-  *   groups with names "Config_0", "Config_1", ... Each child group contains
-  *   the serialization of a :Configuration (the string attribute "type" and
-  *   all the rest).
-  *
-  * The value eLastFileParam is provided if some :Block or :Configuration
-  * needs to read/write files with a specific structure. */
+/// public enum for types of SMS++ netCDF files
+/** Public enum for describing the different kinds of netCDF files that can
+ * be read and produced by SMS++ objects (notably, Block and Configuration).
+ *
+ * There are three "basic" types of SMS++ netCDF files, corresponding to the
+ * three values of this enum smspp_netCDF_file_type. Each file, when opened
+ * in a netCDF::NcFile (which is also a netCDF::NcGroup), must have an int
+ * netCDF attribute "SMS++_file_type" with one of the three values of the
+ * enum. The structure of the corresponding files is:
+ *
+ * - eProbFile: the file (which is also a group) has any number of child
+ *   groups with names "Prob_0", "Prob_1", ... In turn, each child group
+ *   has exactly three child groups with names "Block", "BlockConfig" and
+ *   "BlockSolver", respectively. The first is intended to contain the
+ *   serialization of a :Block [see Block.h], the second the serialization
+ *   of a :BlockConfig of the same :Block [see Block.h or RBlockConfig.h],
+ *   and the third the serialization of a :BlockSolverConfig of the same
+ *   :Block [see BlockSolverConfig.h], although any of the three can in
+ *   principle be empty. If any of the child is not empty, it must
+ *   necessarily contain a string attribute "type" containing the classname()
+ *   of the corresponding :Block / :Configuration class, plus of course all
+ *   the information necessary to reconstruct the specific instance. Note
+ *   that sub-Block of the Block and sub-Configuration of the Configuration
+ *   (if any) are assumed each to be contained into a child of the group
+ *   containing the original :Block / :Configuration, recursively.
+ *
+ * - eBlockFile: the file (which is also a group) has any number of child
+ *   groups with names "Block_0", "Block_1", ... Each child group contains
+ *   the serialization of a :Block (the string attribute "type" and all the
+ *   rest).
+ *
+ * - eConfigFile: the file (which is also a group) has any number of child
+ *   groups with names "Config_0", "Config_1", ... Each child group contains
+ *   the serialization of a :Configuration (the string attribute "type" and
+ *   all the rest).
+ *
+ * The value eLastFileParam is provided if some :Block or :Configuration
+ * needs to read/write files with a specific structure.
+ */
 
- enum smspp_netCDF_file_type {
-  eProbFile      = 0 ,  ///< a "complete" file of both Block and Configuration
-  eBlockFile     = 1 ,  ///< a file of Block
-  eConfigFile    = 2 ,  ///< a file of Configuration
-  eLastFileParam = 3    ///< first value available to define new file types
-  };
+enum smspp_netCDF_file_type {
+ eProbFile = 0,  ///< a "complete" file of both Block and Configuration
+ eBlockFile = 1,  ///< a file of Block
+ eConfigFile = 2,  ///< a file of Configuration
+ eLastFileParam = 3   ///< first value available to define new file types
+};
 
 /** @} end( group( SMS_TYPES ) ) */
 /*--------------------------------------------------------------------------*/
@@ -183,52 +183,53 @@ namespace SMSpp_di_unipi_it
 /** @defgroup Variable_TYPES Variable-related types.
  *  @{ */
 
- class Variable;             // forward definition of Variable
+// forward definition of Variable
+class Variable;
 
- typedef Variable *p_Var;
- ///< a pointer to Variable (Variable *)
+typedef Variable * p_Var;
+///< a pointer to Variable (Variable *)
 
- typedef std::vector<p_Var> Vec_p_Var;
- ///< a (1-D) vector of pointer to Variable
+typedef std::vector< p_Var > Vec_p_Var;
+///< a (1-D) vector of pointer to Variable
 
- typedef const Vec_p_Var c_Vec_p_Var;
- ///< a (1-D) const vector of pointer to Variable
+typedef const Vec_p_Var c_Vec_p_Var;
+///< a (1-D) const vector of pointer to Variable
 
- template <size_t K>
- using KD_Vec_p_Var = boost::multi_array<p_Var , K>;
- ///< Vec_p_Var<K> is a K-D vector of pointer to Variable
+template< size_t K >
+using KD_Vec_p_Var = boost::multi_array< p_Var, K >;
+///< Vec_p_Var<K> is a K-D vector of pointer to Variable
 
- template <size_t K>
- using KD_c_Vec_p_Var = const boost::multi_array<p_Var , K>;
- ///< c_Vec_p_Var<K> is a const K-D vector of pointer to Variable
+template< size_t K >
+using KD_c_Vec_p_Var = const boost::multi_array< p_Var, K >;
+///< c_Vec_p_Var<K> is a const K-D vector of pointer to Variable
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
- typedef std::list<p_Var> List_p_Var;
- ///< a list of pointer to Variable (Variable *)
+typedef std::list< p_Var > List_p_Var;
+///< a list of pointer to Variable (Variable *)
 
- typedef List_p_Var::iterator List_p_Var_it;
- ///< iterator for a List_p_Var
+typedef List_p_Var::iterator List_p_Var_it;
+///< iterator for a List_p_Var
 
- typedef const List_p_Var c_List_p_Var;
-  ///< a const list of pointers to Variable
+typedef const List_p_Var c_List_p_Var;
+///< a const list of pointers to Variable
 
- typedef c_List_p_Var::const_iterator c_List_p_Var_it;
- ///< iterator for a c_List_p_Var
+typedef c_List_p_Var::const_iterator c_List_p_Var_it;
+///< iterator for a c_List_p_Var
 
- typedef std::vector<List_p_Var> Vec_List_p_Var;
- ///< a 1-D array of lists of pointer to Variable
+typedef std::vector< List_p_Var > Vec_List_p_Var;
+///< a 1-D array of lists of pointer to Variable
 
- typedef const Vec_List_p_Var c_Vec_List_p_Var;
- ///< a const 1-D array of lists of Variable *
+typedef const Vec_List_p_Var c_Vec_List_p_Var;
+///< a const 1-D array of lists of Variable *
 
- template<size_t K>
- using KD_Vec_List_p_Var = boost::multi_array<List_p_Var , K>;
- ///< Vec_List_p_Var<K> is a K-D vector of lists of Variable *
+template< size_t K >
+using KD_Vec_List_p_Var = boost::multi_array< List_p_Var, K >;
+///< Vec_List_p_Var<K> is a K-D vector of lists of Variable *
 
- template<size_t K>
- using KD_c_Vec_List_p_Var = const boost::multi_array<List_p_Var , K>;
- ///< c_Vec_List_p_Var<K> is a const K-D vector of lists of Variable *
+template< size_t K >
+using KD_c_Vec_List_p_Var = const boost::multi_array< List_p_Var, K >;
+///< c_Vec_List_p_Var<K> is a const K-D vector of lists of Variable *
 
 
 /** @} end( group( Variable_TYPES ) ) */
@@ -238,53 +239,54 @@ namespace SMSpp_di_unipi_it
 /** @defgroup Constraint_TYPES Constraint-related types.
  *  @{ */
 
- class Constraint;  // forward definition
+// forward definition
+class Constraint;
 
- typedef Constraint* p_Const;
- ///< a pointer to Constraint (Constraint *)
+typedef Constraint * p_Const;
+///< a pointer to Constraint (Constraint *)
 
- typedef const p_Const c_p_Const;
- ///< a const pointer to Constraint
+typedef const p_Const c_p_Const;
+///< a const pointer to Constraint
 
- typedef std::vector<p_Const> Vec_p_Const;
- ///< a (1-D) vector of pointer to Constraint
+typedef std::vector< p_Const > Vec_p_Const;
+///< a (1-D) vector of pointer to Constraint
 
- typedef const Vec_p_Const c_Vec_p_Const;
- ///< a (1-D) const vector of pointer to Constraint
+typedef const Vec_p_Const c_Vec_p_Const;
+///< a (1-D) const vector of pointer to Constraint
 
- template<int K>
- using KD_Vec_p_Const = boost::multi_array<p_Const , K>;
- ///< Vec_p_Const<K> is a K-D vector of pointer to Constraint
+template< int K >
+using KD_Vec_p_Const = boost::multi_array< p_Const, K >;
+///< Vec_p_Const<K> is a K-D vector of pointer to Constraint
 
- template<int K>
- using KD_c_Vec_p_Const = const boost::multi_array<p_Const , K>;
- ///< c_Vec_p_Const<K> is a const K-D vector of pointer to Constraint
+template< int K >
+using KD_c_Vec_p_Const = const boost::multi_array< p_Const, K >;
+///< c_Vec_p_Const<K> is a const K-D vector of pointer to Constraint
 
- typedef std::list<p_Const> List_p_Const;
- ///< a list of pointers to Constraint (Constraint *)
+typedef std::list< p_Const > List_p_Const;
+///< a list of pointers to Constraint (Constraint *)
 
- typedef List_p_Const::iterator List_p_Const_it;
- ///< iterator for a List_p_Const
+typedef List_p_Const::iterator List_p_Const_it;
+///< iterator for a List_p_Const
 
- typedef const List_p_Const c_List_p_Const;
-  ///< a const list of Constraint *
+typedef const List_p_Const c_List_p_Const;
+///< a const list of Constraint *
 
- typedef c_List_p_Const::const_iterator c_List_p_Const_it;
- ///< iterator for a c_List_p_Const
+typedef c_List_p_Const::const_iterator c_List_p_Const_it;
+///< iterator for a c_List_p_Const
 
- typedef std::vector<List_p_Const> Vec_List_p_Const;
- ///< a 1-D array of lists of Constraint *
+typedef std::vector< List_p_Const > Vec_List_p_Const;
+///< a 1-D array of lists of Constraint *
 
- typedef const Vec_List_p_Const c_Vec_List_p_Const;
- ///< a const 1-D array of lists of Constraint *
+typedef const Vec_List_p_Const c_Vec_List_p_Const;
+///< a const 1-D array of lists of Constraint *
 
- template<int K>
- using KD_Vec_List_p_Const = boost::multi_array<List_p_Const , K>;
- ///< Vec_List_p_Const<K> is a K-D vector of lists of Constraint *
+template< int K >
+using KD_Vec_List_p_Const = boost::multi_array< List_p_Const, K >;
+///< Vec_List_p_Const<K> is a K-D vector of lists of Constraint *
 
- template<int K>
- using KD_c_Vec_List_p_Const = const boost::multi_array<List_p_Const , K>;
- ///< c_Vec_List_p_Const<K> is a const K-D vector of lists of Constraint *
+template< int K >
+using KD_c_Vec_List_p_Const = const boost::multi_array< List_p_Const, K >;
+///< c_Vec_List_p_Const<K> is a const K-D vector of lists of Constraint *
 
 /** @} end( group( Constraint_TYPES ) ) */
 /*--------------------------------------------------------------------------*/
@@ -322,9 +324,11 @@ namespace SMSpp_di_unipi_it
  * specific type in the final main, or use the option of the linker that
  * disables this optimization (e.g., at the time of writing "whole-archive"
  * for g++ and "force_load" for clang++).
- * @{ */
+ * @{
+ */
 
-/* The macro defines a very small, "fake" class _init. Its only meaning is to
+/*
+ * The macro defines a very small, "fake" class _init. Its only meaning is to
  * define a static member _initializer that is initialized in whatever object
  * the other macro SMSpp_insert_in_factory_cpp() is put as soon as the program
  * starts; when the constructor is called, it will register the class in the
@@ -335,49 +339,52 @@ namespace SMSpp_di_unipi_it
  * It also defines the private_name() method and the _private_name() static
  * method which is the implementation of private_name() (but it is static,
  * and therefore can be called in initialization statements, whereas
- * private_name() is virtual and therefore it can not). */
+ * private_name() is virtual and therefore it can not).
+ */
 
-#define SMSpp_insert_in_factory_h \
- static class _init { public:  _init( void ); } _initializer; \
- \
- const std::string & private_name( void ) const override; \
- \
- static const std::string & _private_name( void )
+#define SMSpp_insert_in_factory_h                                            \
+ static class _init { public:  _init(); } _initializer;                      \
+ const std::string & private_name() const override;                          \
+ static const std::string & _private_name();
 
- namespace SMSpp_type_traits {
-  /* The name of template classes may have commas, which prevent them to be
-   * directly passed as arguments to the SMSpp_insert_in_factory_cpp_*_t
-   * macros, as the comma is then interpreted by the tokeniser as separating
-   * different arguments of the macro. To allow passing such names as
-   * arguments to these macros, some extra template sheningangs are needed.
-   *
-   * The get_type struct is used within those macros to obtain the type U of a
-   * (template) class whose name may have been enclosed in parentheses. The
-   * type T is not relevant, as it is used only to obtain a well-formed type
-   * name which contains parentheses. To obtain the right type of any class
-   * "ClassName" within these macros, one can do the following:
-   *
-   *     SMSpp_type_traits::t< void( ClassName ) >::type
-   *
-   * where ClassName is the parameter of the macro. For instance, the class
-   *
-   *     SimpleConfiguration< std::pair< int , int > >
-   *
-   * can be inserted in the factory as:
-   *
-   *     SMSpp_insert_in_factory_cpp_0_t( ( SimpleConfiguration<
-   *                                        std::pair< int , int > > ) );
-   *
-   * There, ClassName would be
-   *
-   *     ( SimpleConfiguration< std::pair< int , int > > )
-   *
-   * Note that *not* using the "(" and ")" would result in the macro
-   * invocation to fail. */
+namespace SMSpp_type_traits {
+/*
+ * The name of template classes may have commas, which prevent them to be
+ * directly passed as arguments to the SMSpp_insert_in_factory_cpp_*_t
+ * macros, as the comma is then interpreted by the tokeniser as separating
+ * different arguments of the macro. To allow passing such names as
+ * arguments to these macros, some extra template sheningangs are needed.
+ *
+ * The get_type struct is used within those macros to obtain the type U of a
+ * (template) class whose name may have been enclosed in parentheses. The
+ * type T is not relevant, as it is used only to obtain a well-formed type
+ * name which contains parentheses. To obtain the right type of any class
+ * "ClassName" within these macros, one can do the following:
+ *
+ *     SMSpp_type_traits::t< void( ClassName ) >::type
+ *
+ * where ClassName is the parameter of the macro. For instance, the class
+ *
+ *     SimpleConfiguration< std::pair< int , int > >
+ *
+ * can be inserted in the factory as:
+ *
+ *     SMSpp_insert_in_factory_cpp_0_t( ( SimpleConfiguration<
+ *                                        std::pair< int , int > > ) );
+ *
+ * There, ClassName would be
+ *
+ *     ( SimpleConfiguration< std::pair< int , int > > )
+ *
+ * Note that *not* using the "(" and ")" would result in the macro
+ * invocation to fail.
+ */
 
-  template< typename T > struct t;
-  template< typename T , class U > struct t< T( U ) > { using type = U; };
-  }
+template< typename T >
+struct t;
+template< typename T, class U >
+struct t< T( U ) > { using type = U; };
+}
 
 /*--------------------------------------------------------------------------*/
 /** The macros SMSpp_insert_in_factory_cpp_* do five things for the class
@@ -512,119 +519,148 @@ namespace SMSpp_di_unipi_it
  * factory). This is slightly inefficient since the stripping should rather
  * reasonably happen at compile time; as C++-20 arrives most of
  * std::algorithms will be constexpr-able and therefore this will hopefully be
- * possible. */
+ * possible.
+ */
 
-#define SMSpp_insert_in_factory_cpp_0( ClassName ) \
- const std::string & \
- SMSpp_type_traits::t<void(ClassName)>::type::_private_name( void ) { \
-  static const std::string my_name( \
-   []( std::string && str ) -> std::string && { \
-    str.erase( std::remove_if( str.begin() , str.end() , ::isspace ) , \
-	       str.end() ); \
-    while( str.front() == '(' ) { str.pop_back(); str.erase( 0 , 1 ); }	\
-    return( std::move( str ) ); \
-    } ( std::move( std::string( #ClassName ) ) ) ); \
-  return( my_name ); \
-  } \
-    \
- const std::string & \
- SMSpp_type_traits::t<void(ClassName)>::type::private_name( void ) const { \
-  return( SMSpp_type_traits::t<void(ClassName)>::type::_private_name() ); \
-  } \
-    \
- SMSpp_type_traits::t<void(ClassName)>::type::_init::_init( void ) {          \
-  f_factory()[SMSpp_type_traits::t<void(ClassName)>::type::_private_name()] = \
-   boost::factory< SMSpp_type_traits::t<void(ClassName)>::type * >();         \
-  SMSpp_type_traits::t<void(ClassName)>::type::static_initialization();       \
-  } \
-    \
- SMSpp_type_traits::t<void(ClassName)>::type::_init \
- SMSpp_type_traits::t<void(ClassName)>::type::_initializer
+#define SMSpp_insert_in_factory_cpp_0( ClassName )                           \
+ const std::string &                                                         \
+ SMSpp_type_traits::t<void(ClassName)>::type::_private_name() {              \
+  static const std::string my_name(                                          \
+   []( std::string && str ) -> std::string && {                              \
+    str.erase( std::remove_if( str.begin(),                                  \
+                               str.end(),                                    \
+                               ::isspace ),                                  \
+               str.end() );                                                  \
+    while( str.front() == '(' ) {                                            \
+     str.pop_back();                                                         \
+     str.erase( 0 , 1 );                                                     \
+    }                                                                        \
+    return( std::move( str ) );                                              \
+    } ( std::move( std::string( #ClassName ) ) ) );                          \
+  return( my_name );                                                         \
+ }                                                                           \
+                                                                             \
+ const std::string &                                                         \
+ SMSpp_type_traits::t<void(ClassName)>::type::private_name() const {         \
+  return( SMSpp_type_traits::t<void(ClassName)>::type::_private_name() );    \
+ }                                                                           \
+                                                                             \
+ SMSpp_type_traits::t<void(ClassName)>::type::_init::_init() {               \
+  f_factory()                                                                \
+   [SMSpp_type_traits::t<void(ClassName)>::type::_private_name()] =          \
+    boost::factory< SMSpp_type_traits::t<void(ClassName)>::type * >();       \
+  SMSpp_type_traits::t<void(ClassName)>::type::static_initialization();      \
+ }                                                                           \
+                                                                             \
+ SMSpp_type_traits::t<void(ClassName)>::type::_init                          \
+ SMSpp_type_traits::t<void(ClassName)>::type::_initializer;
 
-#define SMSpp_insert_in_factory_cpp_1( ClassName ) \
- const std::string & \
- SMSpp_type_traits::t<void(ClassName)>::type::_private_name( void ) { \
-  static const std::string my_name( \
-   []( std::string && str ) -> std::string && { \
-    str.erase( std::remove_if( str.begin() , str.end() , ::isspace ) , \
-	       str.end() );	\
-    while( str.front() == '(' ) { str.pop_back(); str.erase( 0 , 1 ); }	\
-    return( std::move( str ) ); \
-    } ( std::move( std::string( #ClassName ) ) ) ); \
-  return( my_name ); \
-  } \
-    \
- const std::string & \
- SMSpp_type_traits::t<void(ClassName)>::type::private_name( void ) const { \
-  return( SMSpp_type_traits::t<void(ClassName)>::type::_private_name() ); \
-  } \
-    \
- SMSpp_type_traits::t<void(ClassName)>::type::_init::_init( void ) { \
-  f_factory()[SMSpp_type_traits::t<void(ClassName)>::type::_private_name()] = \
-   boost::factory< SMSpp_type_traits::t<void(ClassName)>::type * >();         \
-  SMSpp_type_traits::t<void(ClassName)>::type::static_initialization();       \
-  } \
-    \
- SMSpp_type_traits::t<void(ClassName)>::type::_init \
- SMSpp_type_traits::t<void(ClassName)>::type::_initializer
+#define SMSpp_insert_in_factory_cpp_1( ClassName )                           \
+ const std::string &                                                         \
+ SMSpp_type_traits::t<void(ClassName)>::type::_private_name() {              \
+  static const std::string my_name(                                          \
+   []( std::string && str ) -> std::string && {                              \
+    str.erase( std::remove_if( str.begin(),                                  \
+                               str.end(),                                    \
+                               ::isspace ),                                  \
+               str.end() );                                                  \
+    while( str.front() == '(' ) {                                            \
+     str.pop_back();                                                         \
+     str.erase( 0 , 1 );                                                     \
+    }                                                                        \
+    return( std::move( str ) );                                              \
+    } ( std::move( std::string( #ClassName ) ) ) );                          \
+  return( my_name );                                                         \
+ }                                                                           \
+                                                                             \
+ const std::string &                                                         \
+ SMSpp_type_traits::t<void(ClassName)>::type::private_name() const {         \
+  return( SMSpp_type_traits::t<void(ClassName)>::type::_private_name() );    \
+ }                                                                           \
+                                                                             \
+ SMSpp_type_traits::t<void(ClassName)>::type::_init::_init() {               \
+  f_factory()                                                                \
+   [SMSpp_type_traits::t<void(ClassName)>::type::_private_name()] =          \
+    boost::factory< SMSpp_type_traits::t<void(ClassName)>::type * >();       \
+  SMSpp_type_traits::t<void(ClassName)>::type::static_initialization();      \
+ }                                                                           \
+                                                                             \
+ SMSpp_type_traits::t<void(ClassName)>::type::_init                          \
+ SMSpp_type_traits::t<void(ClassName)>::type::_initializer;
 
-#define SMSpp_insert_in_factory_cpp_0_t( ClassName ) \
- template<> \
- const std::string & \
- SMSpp_type_traits::t<void(ClassName)>::type::_private_name( void ) { \
-  static const std::string my_name( \
-   []( std::string && str ) -> std::string && { \
-    str.erase( std::remove_if( str.begin() , str.end() , ::isspace ) , \
-	       str.end() );    \
-    while( str.front() == '(' ) { str.pop_back(); str.erase( 0 , 1 ); }	\
-    return( std::move( str ) );                                  \
-    } ( std::move( std::string( #ClassName ) ) ) ); \
-  return( my_name ); \
-  } \
-    \
- template<> \
- const std::string & \
- SMSpp_type_traits::t<void(ClassName)>::type::private_name( void ) const { \
-  return( SMSpp_type_traits::t<void(ClassName)>::type::_private_name() );  \
-  } \
-    \
- template<> SMSpp_type_traits::t<void(ClassName)>::type::_init::_init(void) { \
-  f_factory()[SMSpp_type_traits::t<void(ClassName)>::type::_private_name()] = \
-   boost::factory< SMSpp_type_traits::t<void(ClassName)>::type * >();         \
-  SMSpp_type_traits::t<void(ClassName)>::type::static_initialization();       \
-  } \
-    \
- template<> SMSpp_type_traits::t<void(ClassName)>::type::_init \
- SMSpp_type_traits::t<void(ClassName)>::type::_initializer{}
+#define SMSpp_insert_in_factory_cpp_0_t( ClassName )                         \
+ template<>                                                                  \
+ const std::string &                                                         \
+ SMSpp_type_traits::t<void(ClassName)>::type::_private_name() {              \
+  static const std::string my_name(                                          \
+   []( std::string && str ) -> std::string && {                              \
+    str.erase( std::remove_if( str.begin(),                                  \
+                               str.end(),                                    \
+                               ::isspace ),                                  \
+               str.end() );                                                  \
+    while( str.front() == '(' ) {                                            \
+     str.pop_back();                                                         \
+     str.erase( 0 , 1 );                                                     \
+    }                                                                        \
+    return( std::move( str ) );                                              \
+    } ( std::move( std::string( #ClassName ) ) ) );                          \
+  return( my_name );                                                         \
+ }                                                                           \
+                                                                             \
+ template<>                                                                  \
+ const std::string &                                                         \
+ SMSpp_type_traits::t<void(ClassName)>::type::private_name() const {         \
+  return( SMSpp_type_traits::t<void(ClassName)>::type::_private_name() );    \
+ }                                                                           \
+                                                                             \
+ template<>                                                                  \
+ SMSpp_type_traits::t<void(ClassName)>::type::_init::_init() {               \
+  f_factory()                                                                \
+   [SMSpp_type_traits::t<void(ClassName)>::type::_private_name()] =          \
+    boost::factory< SMSpp_type_traits::t<void(ClassName)>::type * >();       \
+  SMSpp_type_traits::t<void(ClassName)>::type::static_initialization();      \
+ }                                                                           \
+                                                                             \
+ template<>                                                                  \
+ SMSpp_type_traits::t<void(ClassName)>::type::_init                          \
+ SMSpp_type_traits::t<void(ClassName)>::type::_initializer{};
 
-#define SMSpp_insert_in_factory_cpp_1_t( ClassName ) \
- template<> \
- const std::string & \
- SMSpp_type_traits::t<void(ClassName)>::type::_private_name( void ) { \
-  static const std::string my_name( \
-   []( std::string && str ) -> std::string && { \
-    str.erase( std::remove_if( str.begin() , str.end() , ::isspace ) , \
-	       str.end() );    \
-    while( str.front() == '(' ) { str.pop_back(); str.erase( 0 , 1 ); }	\
-    return( std::move( str ) );                                  \
-    } ( std::move( std::string( #ClassName ) ) ) ); \
-  return( my_name ); \
-  } \
-    \
- template<> \
- const std::string & \
- SMSpp_type_traits::t<void(ClassName)>::type::private_name( void ) const { \
-  return( SMSpp_type_traits::t<void(ClassName)>::type::_private_name() );  \
-  } \
-    \
- template<> SMSpp_type_traits::t<void(ClassName)>::type::_init::_init(void) { \
-  f_factory()[SMSpp_type_traits::t<void(ClassName)>::type::_private_name()] = \
-   boost::factory< SMSpp_type_traits::t<void(ClassName)>::type * >();         \
-  SMSpp_type_traits::t<void(ClassName)>::type::static_initialization();       \
-  } \
-    \
- template<> SMSpp_type_traits::t<void(ClassName)>::type::_init \
- SMSpp_type_traits::t<void(ClassName)>::type::_initializer{}
+#define SMSpp_insert_in_factory_cpp_1_t( ClassName )                         \
+ template<>                                                                  \
+ const std::string &                                                         \
+ SMSpp_type_traits::t<void(ClassName)>::type::_private_name() {              \
+  static const std::string my_name(                                          \
+   []( std::string && str ) -> std::string && {                              \
+    str.erase( std::remove_if( str.begin(),                                  \
+                               str.end(),                                    \
+                               ::isspace ),                                  \
+               str.end() );                                                  \
+    while( str.front() == '(' ) {                                            \
+     str.pop_back();                                                         \
+     str.erase( 0 , 1 );                                                     \
+    }                                                                        \
+    return( std::move( str ) );                                              \
+    } ( std::move( std::string( #ClassName ) ) ) );                          \
+  return( my_name );                                                         \
+ }                                                                           \
+                                                                             \
+ template<>                                                                  \
+ const std::string &                                                         \
+ SMSpp_type_traits::t<void(ClassName)>::type::private_name() const {         \
+  return( SMSpp_type_traits::t<void(ClassName)>::type::_private_name() );    \
+ }                                                                           \
+                                                                             \
+ template<>                                                                  \
+ SMSpp_type_traits::t<void(ClassName)>::type::_init::_init() {               \
+  f_factory()                                                                \
+   [SMSpp_type_traits::t<void(ClassName)>::type::_private_name()] =          \
+    boost::factory< SMSpp_type_traits::t<void(ClassName)>::type * >();       \
+  SMSpp_type_traits::t<void(ClassName)>::type::static_initialization();      \
+ }                                                                           \
+                                                                             \
+ template<>                                                                  \
+ SMSpp_type_traits::t<void(ClassName)>::type::_init                          \
+ SMSpp_type_traits::t<void(ClassName)>::type::_initializer{};
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------- HANDLE boost::any SPECIALIZATIONS --------------------*/
@@ -695,17 +731,21 @@ namespace SMSpp_di_unipi_it
  * be "type polymorphic" (it has to work in all three cases), which is
  * nontrivial and (to the best of our knowledge) cannot be obtained with
  * templates at all, whence the not-very-C++ approach of using macros.
- *  @{ */
+ *  @{
+ */
 
 /*--------------------------------------------------------------------------*/
 
-template<unsigned short K> struct un_any_int {};
+template< unsigned short K >
+struct un_any_int {};
 ///< empty type, template over ints, for recursive template shenaningans
 
-template<class T> struct un_any_type {};
+template< class T >
+struct un_any_type {};
 ///< empty type, template over a type, for template functions shenaningans
 /**< empty type for allowing to declare the expected inner type in
- * un_any_*(). */
+ * un_any_*().
+ */
 
 /*--------------------------------------------------------------------------*/
 /** The template function
@@ -732,43 +772,45 @@ template<class T> struct un_any_type {};
  * Returns true if "any" did indeed contain one of the sought-for types, in
  * which case "f" have been applied to all its elements, and false if "any"
  * contained something else, and therefore "f" has not been applied to
- * anything. */
+ * anything.
+ */
 
-template<typename T , class F>
-bool un_any_static( boost::any & any , F f , un_any_type<T> ) {
+template< typename T, class F >
+bool un_any_static( boost::any & any, F f, un_any_type< T > ) {
  if( any.type() == typeid( T * ) ) {
-  auto & el = * boost::any_cast< T * >( any ); f( el ); return( true );
-  }
- else
- if( any.type() == typeid( std::vector<T> * ) ) {
-  auto & var = * boost::any_cast< std::vector<T> * >( any );
+  auto & el = *boost::any_cast< T * >( any );
+  f( el );
+  return ( true );
+ } else if( any.type() == typeid( std::vector< T > * ) ) {
+  auto & var = *boost::any_cast< std::vector< T > * >( any );
   for( auto & el : var )
    f( el );
-  return( true );
-  }
- else return( un_any_static( any , f , un_any_type<T>() ,
-			     un_any_int<2>() ) );
- }
+  return ( true );
+ } else
+  return ( un_any_static( any, f, un_any_type< T >(),
+                          un_any_int< 2 >() ) );
+}
 
-template<typename T , class F>
-bool un_any_static( boost::any & , F , un_any_type<T> , un_any_int<9> )
-{
- return( false );
- }
+template< typename T, class F >
+bool un_any_static( boost::any &, F, un_any_type< T >, un_any_int< 9 > ) {
+ return ( false );
+}
 
-template<typename T , class F , unsigned short K>
-bool un_any_static( boost::any & any , F f , un_any_type<T> ,
-		                             un_any_int<K> ) {
- if( any.type() == typeid( boost::multi_array< T , K > * ) ) {
-  auto & var = * boost::any_cast< boost::multi_array<T , K> * >( any );
-  T* p = var.data();
-  for( boost::multi_array_types::size_type i = var.num_elements() ; i-- ; )
-   f( *(p++) );
-  return( true );
-  }
- else return( un_any_static( any , f , un_any_type<T>() ,
-			               un_any_int<K + 1>() ) );
- }
+template< typename T, class F, unsigned short K >
+bool un_any_static( boost::any & any,
+                    F f,
+                    un_any_type< T >,
+                    un_any_int< K > ) {
+ if( any.type() == typeid( boost::multi_array< T, K > * ) ) {
+  auto & var = *boost::any_cast< boost::multi_array< T, K > * >( any );
+  T * p = var.data();
+  for( boost::multi_array_types::size_type i = var.num_elements(); i--; )
+   f( *( p++ ) );
+  return ( true );
+ } else
+  return ( un_any_static( any, f, un_any_type< T >(),
+                          un_any_int< K + 1 >() ) );
+}
 
 /*--------------------------------------------------------------------------*/
 
@@ -811,89 +853,96 @@ bool un_any_static( boost::any & any , F f , un_any_type<T> ,
  *
  * Notice that in debug mode, the std::vectors are required to have the same
  * size and the boost:multi_arrays are required to have the same number of
- * dimensions and shape. */
+ * dimensions and shape.
+ */
 
-template<typename T , typename U , class F>
-bool un_any_static_2( const boost::any & any1 , const boost::any & any2 ,
-		      F f , un_any_type<T> , un_any_type<U> )
-{
-  if( any1.type() == typeid( T * ) ) {
-   auto & el1 = * boost::any_cast< T * >( any1 );
-   #ifdef DEBUG
-    if( any2.type() != typeid( U * ) )
-     throw std::invalid_argument( "un_any_static_2: "
-				  "type of second argument should be U *");
-   #endif
-   auto & el2 = * boost::any_cast< U * >( any2 );
-   f( el1 , el2 );
-   return( true );
-   }
-  else {
-   if( any1.type() == typeid( std::vector<T> * ) ) {
-    auto & var1 = * boost::any_cast< std::vector<T> * >( any1 );
-    #ifdef DEBUG
-     if( any2.type() != typeid( std::vector<U> * ) )
-      throw std::invalid_argument( "un_any_static_2: "
-                                   "type of second argument should be "
-                                   "std::vector<U> *" );
-    #endif
-    auto & var2 = * boost::any_cast< std::vector<U> * >( any2 );
-    #ifdef DEBUG
-    if( var1.size() != var2.size() )
-     throw std::logic_error( "un_any_static_2: "
-			     "vectors must have the same size");
-    #endif
-    auto i1 = var1.begin();
-    auto i2 = var2.begin();
-    for( ; i1 != var1.end() && i2 != var2.end() ; ++i1 , ++i2 )
-     f( *i1 , *i2 );
+template< typename T, typename U, class F >
+bool un_any_static_2( const boost::any & any1,
+                      const boost::any & any2,
+                      F f,
+                      un_any_type< T >,
+                      un_any_type< U > ) {
+ if( any1.type() == typeid( T * ) ) {
+  auto & el1 = *boost::any_cast< T * >( any1 );
+#ifdef DEBUG
+  if( any2.type() != typeid( U * ) )
+   throw std::invalid_argument( "un_any_static_2: "
+                                "type of second argument should be U *" );
+#endif
+  auto & el2 = *boost::any_cast< U * >( any2 );
+  f( el1, el2 );
+  return ( true );
+ } else {
+  if( any1.type() == typeid( std::vector< T > * ) ) {
+   auto & var1 = *boost::any_cast< std::vector< T > * >( any1 );
+#ifdef DEBUG
+   if( any2.type() != typeid( std::vector< U > * ) )
+    throw std::invalid_argument( "un_any_static_2: "
+                                 "type of second argument should be "
+                                 "std::vector<U> *" );
+#endif
+   auto & var2 = *boost::any_cast< std::vector< U > * >( any2 );
+#ifdef DEBUG
+   if( var1.size() != var2.size() )
+    throw std::logic_error( "un_any_static_2: "
+                            "vectors must have the same size" );
+#endif
+   auto i1 = var1.begin();
+   auto i2 = var2.begin();
+   for( ; i1 != var1.end() && i2 != var2.end(); ++i1, ++i2 )
+    f( *i1, *i2 );
 
-    return( true );
-    }
-   else
-    return( un_any_static_2( any1 , any2 , f , un_any_type<T>() ,
-			     un_any_type<U>() , un_any_int < 2 >() ) );
-   }
+   return ( true );
+  } else
+   return ( un_any_static_2( any1, any2, f, un_any_type< T >(),
+                             un_any_type< U >(), un_any_int< 2 >() ) );
  }
+}
 
-template<typename T , typename U , class F>
-bool un_any_static_2( const boost::any & , const boost::any & , F ,
-		      un_any_type<T> , un_any_type<U> , un_any_int<9> )
-{
- return( false );
- }
+template< typename T, typename U, class F >
+bool un_any_static_2( const boost::any &,
+                      const boost::any &,
+                      F,
+                      un_any_type< T >,
+                      un_any_type< U >,
+                      un_any_int< 9 > ) {
+ return ( false );
+}
 
-template<typename T , typename U , class F , unsigned short K>
-bool un_any_static_2( const boost::any & any1 , const boost::any & any2 ,
-		      F f , un_any_type<T> , un_any_type<U> ,
-		      un_any_int<K> ) {
- if( any1.type() == typeid( boost::multi_array< T , K > * ) ) {
-  auto & var1 = * boost::any_cast< boost::multi_array<T , K> * >( any1 );
-  #ifdef DEBUG
-   if( any2.type() != typeid( boost::multi_array<U , K> * ) )
-    throw( std::invalid_argument( "un_any_static_2: "
-				  "type of second argument should be "
-				  "boost::multi_array<U , K> *") );
-  #endif
-  auto & var2 = * boost::any_cast< boost::multi_array<U , K> * >( any2 );
-  #ifdef DEBUG
-   if( var1.num_dimensions() != var2.num_dimensions() ||
-       ! std::equal( var1.shape() , var1.shape() + var1.num_dimensions() ,
-		     var2.shape() ) )
-    throw( std::logic_error( "un_any_static_2: "
-			     "multi_arrays must have the same shape") );
-  #endif
-  T* p1 = var1.data();
-  U* p2 = var2.data();
+template< typename T, typename U, class F, unsigned short K >
+bool un_any_static_2( const boost::any & any1,
+                      const boost::any & any2,
+                      F f,
+                      un_any_type< T >,
+                      un_any_type< U >,
+                      un_any_int< K > ) {
+ if( any1.type() == typeid( boost::multi_array< T, K > * ) ) {
+  auto & var1 = *boost::any_cast< boost::multi_array< T, K > * >( any1 );
+#ifdef DEBUG
+  if( any2.type() != typeid( boost::multi_array< U, K > * ) )
+   throw std::invalid_argument( "un_any_static_2: "
+                                "type of second argument should be "
+                                "boost::multi_array<U , K> *" );
+#endif
+  auto & var2 = *boost::any_cast< boost::multi_array< U, K > * >( any2 );
+#ifdef DEBUG
+  if( var1.num_dimensions() != var2.num_dimensions() ||
+      !std::equal( var1.shape(),
+                   var1.shape() + var1.num_dimensions(),
+                   var2.shape() ) )
+   throw std::logic_error( "un_any_static_2: "
+                           "multi_arrays must have the same shape" );
+#endif
+  T * p1 = var1.data();
+  U * p2 = var2.data();
   for( boost::multi_array_types::size_type i =
-	std::min( var1.num_elements() , var2.num_elements() ) ; i-- ; )
-   f( *(p1++) , *(p2++) );
-  return( true );
-  }
- else
-  return( un_any_static_2( any1 , any2 , f , un_any_type<T>() ,
-			   un_any_type<U>() , un_any_int<K + 1>() ) );
- }
+   std::min( var1.num_elements(), var2.num_elements() ); i--; )
+   f( *( p1++ ), *( p2++ ) );
+  return ( true );
+ } else
+  return ( un_any_static_2( any1, any2, f, un_any_type< T >(),
+                            un_any_type< U >(), un_any_int< K + 1 >() ) );
+}
 
 /*--------------------------------------------------------------------------*/
 /** The template function
@@ -928,88 +977,94 @@ bool un_any_static_2( const boost::any & any1 , const boost::any & any2 ,
  * the object and no one wants that, right?); a lambda would work perfectly
  * there.
  *
- * Returns true if "any1" did indeed contain one of the sought-for types. */
+ * Returns true if "any1" did indeed contain one of the sought-for types.
+ */
 
-template<typename T , typename U , class F>
-bool un_any_static_2_create( const boost::any & any1 , boost::any & any2 ,
-                             un_any_type<T> , un_any_type<U> ,
-                             F f , bool apply_f = true )
-{
+template< typename T, typename U, class F >
+bool un_any_static_2_create( const boost::any & any1,
+                             boost::any & any2,
+                             un_any_type< T >,
+                             un_any_type< U >,
+                             F f,
+                             bool apply_f = true ) {
  if( any1.type() == typeid( T * ) ) {
   any2 = new U();
 
   if( apply_f ) {
-   auto & var1 = * boost::any_cast< T * >( any1 );
-   auto & var2 = * boost::any_cast< U * >( any2 );
+   auto & var1 = *boost::any_cast< T * >( any1 );
+   auto & var2 = *boost::any_cast< U * >( any2 );
 
-   f( var1 , var2 );
-   }
-
-  return( true );
+   f( var1, var2 );
   }
- else {
-  if( any1.type() == typeid( std::vector<T> * ) ) {
-   auto & var1 = * boost::any_cast< std::vector<T> * >( any1 );
-   any2 = new std::vector<U>( var1.size() );
+
+  return ( true );
+ } else {
+  if( any1.type() == typeid( std::vector< T > * ) ) {
+   auto & var1 = *boost::any_cast< std::vector< T > * >( any1 );
+   any2 = new std::vector< U >( var1.size() );
    if( apply_f ) {
-    auto & var2 = * boost::any_cast< std::vector<U> * >( any2 );
+    auto & var2 = *boost::any_cast< std::vector< U > * >( any2 );
     auto i1 = var1.begin();
     auto i2 = var2.begin();
-    for( ; i1 != var1.end() ; ++i1 , ++i2 )
-     f( *i1 , *i2 );
-    }
-
-   return( true );
+    for( ; i1 != var1.end(); ++i1, ++i2 )
+     f( *i1, *i2 );
    }
-  else
-   return( un_any_static_2_create( any1 , any2 , un_any_type<T>() ,
-				   un_any_type<U>() , un_any_int < 2 >() ,
-				   f , apply_f ) );
-  }
- }
 
-template<typename T , typename U , class F>
-bool un_any_static_2_create( const boost::any & , boost::any & ,
-                             un_any_type<T> , un_any_type<U> , un_any_int<9> ,
-                             F f , bool apply_f = true )
-{
- return( false );
+   return ( true );
+  } else
+   return ( un_any_static_2_create( any1, any2, un_any_type< T >(),
+                                    un_any_type< U >(), un_any_int< 2 >(),
+                                    f, apply_f ) );
  }
+}
 
-template<typename T , typename U , class F , unsigned short K>
-bool un_any_static_2_create( const boost::any & any1 , boost::any & any2 ,
-                             un_any_type<T> , un_any_type<U> , un_any_int<K> ,
-                             F f , bool apply_f = true )
-{
- if( any1.type() == typeid( boost::multi_array< T , K > * ) ) {
-  auto & var1 = * boost::any_cast< boost::multi_array<T , K> * >( any1 );
+template< typename T, typename U, class F >
+bool un_any_static_2_create( const boost::any &,
+                             boost::any &,
+                             un_any_type< T >,
+                             un_any_type< U >,
+                             un_any_int< 9 >,
+                             F f,
+                             bool apply_f = true ) {
+ return ( false );
+}
+
+template< typename T, typename U, class F, unsigned short K >
+bool un_any_static_2_create( const boost::any & any1,
+                             boost::any & any2,
+                             un_any_type< T >,
+                             un_any_type< U >,
+                             un_any_int< K >,
+                             F f,
+                             bool apply_f = true ) {
+ if( any1.type() == typeid( boost::multi_array< T, K > * ) ) {
+  auto & var1 = *boost::any_cast< boost::multi_array< T, K > * >( any1 );
   auto first = var1.shape();
-  std::vector<int> shape( first , first + var1.num_dimensions() );
-  any2 = new boost::multi_array<U , K>( shape );
+  std::vector< int > shape( first, first + var1.num_dimensions() );
+  any2 = new boost::multi_array< U, K >( shape );
   if( apply_f ) {
-   auto & var2 = * boost::any_cast< boost::multi_array<U , K> * >( any2 );
-   T* p1 = var1.data();
-   U* p2 = var2.data();
+   auto & var2 = *boost::any_cast< boost::multi_array< U, K > * >( any2 );
+   T * p1 = var1.data();
+   U * p2 = var2.data();
    for( boost::multi_array_types::size_type i =
-	 std::min( var1.num_elements() , var2.num_elements() ) ; i-- ; )
-    f( *(p1++) , *(p2++) );
-    }
-
-  return( true );
+    std::min( var1.num_elements(), var2.num_elements() ); i--; )
+    f( *( p1++ ), *( p2++ ) );
   }
- else return( un_any_static_2_create( any1 , any2 , un_any_type<T>() ,
-				      un_any_type<U>() , un_any_int<K + 1>() ,
-				      f , apply_f ) );
- }
 
-template<typename T , typename U>
-bool un_any_static_2_create( const boost::any & any1 , boost::any & any2 ,
-                             un_any_type<T> , un_any_type<U> )
-{
- return( un_any_static_2_create( any1 , any2 ,
-                                 un_any_type<T>() , un_any_type<U>() ,
-                                 [](T& t,U& u){} , false ) );
- }
+  return ( true );
+ } else
+  return ( un_any_static_2_create( any1, any2, un_any_type< T >(),
+                                   un_any_type< U >(), un_any_int< K + 1 >(),
+                                   f, apply_f ) );
+}
+
+template< typename T, typename U >
+bool un_any_static_2_create( const boost::any & any1, boost::any & any2,
+                             un_any_type< T >, un_any_type< U > ) {
+ return ( ( un_any_static_2_create( any1, any2,
+                                    un_any_type< T >(), un_any_type< U >(),
+                                    []( T & t, U & u ) {}, false ) ) );
+}
 
 /*--------------------------------------------------------------------------*/
 /** The template function
@@ -1036,45 +1091,49 @@ bool un_any_static_2_create( const boost::any & any1 , boost::any & any2 ,
  * Returns true if "any" did indeed contain one of the sought-for types, in
  * which case "f" have been applied to all its elements, and false if "any"
  * contained something else, and therefore "f" has not been applied to
- * anything. */
+ * anything.
+ */
 
-template<typename T , class F>
-bool un_any_const_static( const boost::any & any , F f , un_any_type<T> ) {
+template< typename T, class F >
+bool un_any_const_static( const boost::any & any, F f, un_any_type< T > ) {
  if( any.type() == typeid( T * ) ) {
-  auto & el = * boost::any_cast< T * >( any ); f( el ); return( true );
-  }
- else
- if( any.type() == typeid( std::vector<T> * ) ) {
-  auto & var = * boost::any_cast< std::vector<T> * >( any );
+  auto & el = *boost::any_cast< T * >( any );
+  f( el );
+  return ( true );
+ } else if( any.type() == typeid( std::vector< T > * ) ) {
+  auto & var = *boost::any_cast< std::vector< T > * >( any );
   for( auto & el : var )
    f( el );
-  return( true );
-  }
- else return( un_any_const_static( any , f , un_any_type<T>() ,
-				   un_any_int<2>() ) );
+  return ( true );
+ } else
+  return ( un_any_const_static( any, f, un_any_type< T >(),
+                                un_any_int< 2 >() ) );
 
- }
+}
 
-template<typename T , class F>
-bool un_any_const_static( const boost::any & , F , un_any_type<T> ,
-			  un_any_int<9> )
-{
- return( false );
- }
+template< typename T, class F >
+bool un_any_const_static( const boost::any &,
+                          F,
+                          un_any_type< T >,
+                          un_any_int< 9 > ) {
+ return ( false );
+}
 
-template<typename T , class F , unsigned short K>
-bool un_any_const_static( const boost::any & any , F f , un_any_type<T> ,
-			                                 un_any_int<K> ) {
- if( any.type() == typeid( boost::multi_array< T , K > * ) ) {
-  auto & var = * boost::any_cast< boost::multi_array<T , K> * >( any );
-  T* p = var.data();
-  for( boost::multi_array_types::size_type i = var.num_elements() ; i-- ; )
-   f( *(p++) );
-  return( true );
-  }
- else return( un_any_const_static( any , f , un_any_type<T>() ,
-				             un_any_int<K + 1>() ) );
- }
+template< typename T, class F, unsigned short K >
+bool un_any_const_static( const boost::any & any,
+                          F f,
+                          un_any_type< T >,
+                          un_any_int< K > ) {
+ if( any.type() == typeid( boost::multi_array< T, K > * ) ) {
+  auto & var = *boost::any_cast< boost::multi_array< T, K > * >( any );
+  T * p = var.data();
+  for( boost::multi_array_types::size_type i = var.num_elements(); i--; )
+   f( *( p++ ) );
+  return ( true );
+ } else
+  return ( un_any_const_static( any, f, un_any_type< T >(),
+                                un_any_int< K + 1 >() ) );
+}
 
 /*--------------------------------------------------------------------------*/
 /** The template function
@@ -1103,50 +1162,49 @@ bool un_any_const_static( const boost::any & any , F f , un_any_type<T> ,
  * Returns true if "any" did indeed contain one of the sought-for types, in
  * which case "f" have been applied to all its elements, and false if "any"
  * contained something else, and therefore "f" has not been applied to
- * anything. */
+ * anything.
+ */
 
-template<typename T , class F>
-bool un_any_dynamic( boost::any & any , F f , un_any_type<T> ) {
- if( any.type() == typeid( std::list<T> * ) ) {
-  auto & el = * boost::any_cast< std::list<T> * >( any );
+template< typename T, class F >
+bool un_any_dynamic( boost::any & any, F f, un_any_type< T > ) {
+ if( any.type() == typeid( std::list< T > * ) ) {
+  auto & el = *boost::any_cast< std::list< T > * >( any );
   for( auto & ell : el )
    f( ell );
-  return( true );
-  }
- else
- if( any.type() == typeid( std::vector<std::list<T> > * ) ) {
-  auto & var = * boost::any_cast< std::vector<std::list<T> > * >( any );
+  return ( true );
+ } else if( any.type() == typeid( std::vector< std::list< T > > * ) ) {
+  auto & var = *boost::any_cast< std::vector< std::list< T > > * >( any );
   for( auto & el : var )
    for( auto & ell : el )
     f( ell );
-  return( true );
-  }
- else return( un_any_dynamic( any , f , un_any_type<T>() ,
-			      un_any_int<2>() ) );
- }
+  return ( true );
+ } else
+  return ( un_any_dynamic( any, f, un_any_type< T >(),
+                           un_any_int< 2 >() ) );
+}
 
-template<typename T , class F>
-bool un_any_dynamic( boost::any & , F , un_any_type<T> , un_any_int<9> )
-{
- return( false );
- }
+template< typename T, class F >
+bool un_any_dynamic( boost::any &, F, un_any_type< T >, un_any_int< 9 > ) {
+ return ( false );
+}
 
-template<typename T , class F , unsigned short K>
-bool un_any_dynamic( boost::any & any , F f , un_any_type<T> ,
-		                              un_any_int<K> ) {
- if( any.type() == typeid( boost::multi_array< std::list<T> , K > * ) ) {
+template< typename T, class F, unsigned short K >
+bool un_any_dynamic( boost::any & any,
+                     F f,
+                     un_any_type< T >,
+                     un_any_int< K > ) {
+ if( any.type() == typeid( boost::multi_array< std::list< T >, K > * ) ) {
   auto & var =
-       * boost::any_cast< boost::multi_array<std::list<T> , K> * >( any );
-  std::list<T> *p = var.data();
-  for( boost::multi_array_types::size_type i = var.num_elements() ; i-- ;
-       ++p )
+   *boost::any_cast< boost::multi_array< std::list< T >, K > * >( any );
+  std::list< T > * p = var.data();
+  for( boost::multi_array_types::size_type i = var.num_elements(); i--; ++p )
    for( auto & ell : *p )
     f( ell );
-  return( true );
-  }
- else return( un_any_dynamic( any , f , un_any_type<T>() ,
-			      un_any_int<K + 1>() ) );
- }
+  return ( true );
+ } else
+  return ( un_any_dynamic( any, f, un_any_type< T >(),
+                           un_any_int< K + 1 >() ) );
+}
 
 /*--------------------------------------------------------------------------*/
 /** The template function
@@ -1184,82 +1242,82 @@ bool un_any_dynamic( boost::any & any , F f , un_any_type<T> ,
  * dimensions and shape.
  */
 
-template<typename T , typename U , class F>
-bool un_any_dynamic_2( const boost::any & any1 , const boost::any & any2 ,
-                       F f , un_any_type<T> , un_any_type<U> )
-{
- if( any1.type() == typeid( std::list<T> * ) ) {
-  auto & el1 = * boost::any_cast< std::list<T> * >( any1 );
-  #ifdef DEBUG
-   if( any2.type() != typeid( U * ) )
-    throw( std::invalid_argument(
-			 "un_any_dynamic_2: type of 2nd argument not U *" ) );
-  #endif
-  auto & el2 = * boost::any_cast< U * >( any2 );
+template< typename T, typename U, class F >
+bool un_any_dynamic_2( const boost::any & any1, const boost::any & any2,
+                       F f, un_any_type< T >, un_any_type< U > ) {
+ if( any1.type() == typeid( std::list< T > * ) ) {
+  auto & el1 = *boost::any_cast< std::list< T > * >( any1 );
+#ifdef DEBUG
+  if( any2.type() != typeid( U * ) )
+   throw std::invalid_argument( "un_any_dynamic_2: "
+                                "type of 2nd argument not U *" );
+#endif
+  auto & el2 = *boost::any_cast< U * >( any2 );
   f( el1, el2 );
-  return( true );
-  }
- else
-  if( any1.type() == typeid( std::vector< std::list<T> > * ) ) {
-   auto & var1 = * boost::any_cast< std::vector<std::list<T> > * >( any1 );
-   #ifdef DEBUG
-   if( any2.type() != typeid( std::vector< U > * ) )
-    throw( std::invalid_argument(
-			 "un_any_dynamic_2: type of 2nd argument not U *" ) );
-   #endif
-   auto & var2 = * boost::any_cast< std::vector<U> * >( any2 );
-   #ifdef DEBUG
-    if( var1.size() != var2.size() )
-     throw( std::invalid_argument(
-			 "un_any_dynamic_2: vectors have different sizes" ) );
-   #endif
-   auto i1 = var1.begin();
-   auto i2 = var2.begin();
-   for( ; i1 != var1.end() && i2 != var2.end() ; ++i1 , ++i2 )
-    f( *i1 , *i2 );
-   return( true );
-  }
-  else return( un_any_dynamic_2( any1 , any2 , f , un_any_type<T>() ,
-				 un_any_type<U>() , un_any_int<2>() ) );
- }
+  return ( true );
+ } else if( any1.type() == typeid( std::vector< std::list< T > > * ) ) {
+  auto & var1 = *boost::any_cast< std::vector< std::list< T > > * >( any1 );
+#ifdef DEBUG
+  if( any2.type() != typeid( std::vector< U > * ) )
+   throw std::invalid_argument( "un_any_dynamic_2: "
+                                "type of 2nd argument not U *" );
+#endif
+  auto & var2 = *boost::any_cast< std::vector< U > * >( any2 );
+#ifdef DEBUG
+  if( var1.size() != var2.size() )
+   throw std::invalid_argument( "un_any_dynamic_2: "
+                                "vectors have different sizes" );
+#endif
+  auto i1 = var1.begin();
+  auto i2 = var2.begin();
+  for( ; i1 != var1.end() && i2 != var2.end(); ++i1, ++i2 )
+   f( *i1, *i2 );
+  return ( true );
+ } else
+  return ( un_any_dynamic_2( any1, any2, f, un_any_type< T >(),
+                             un_any_type< U >(), un_any_int< 2 >() ) );
+}
 
-template<typename T , typename U , class F>
-bool un_any_dynamic_2( const boost::any & , const boost::any & , F ,
-                       un_any_type<T> , un_any_type<U> , un_any_int<9> )
-{
- return( false );
- }
+template< typename T, typename U, class F >
+bool un_any_dynamic_2( const boost::any &, const boost::any &, F,
+                       un_any_type< T >, un_any_type< U >, un_any_int< 9 > ) {
+ return ( false );
+}
 
-template<typename T , typename U , class F , unsigned short K>
-bool un_any_dynamic_2( const boost::any & any1 , const boost::any & any2 , F f ,
-                       un_any_type<T> , un_any_type<U> , un_any_int<K> )
-{
- if( any1.type() == typeid( boost::multi_array< std::list<T> , K > * ) ) {
+template< typename T, typename U, class F, unsigned short K >
+bool un_any_dynamic_2( const boost::any & any1,
+                       const boost::any & any2,
+                       F f,
+                       un_any_type< T >,
+                       un_any_type< U >,
+                       un_any_int< K > ) {
+ if( any1.type() == typeid( boost::multi_array< std::list< T >, K > * ) ) {
   auto & var1 =
-   * boost::any_cast< boost::multi_array<std::list<T> , K> * >( any1 );
-  #ifdef DEBUG
-   if( any2.type() != typeid( boost::multi_array< U , K > * ) )
-    throw( std::invalid_argument(
-			 "un_any_dynamic_2: type of 2nd argument not U *" ) );
-  #endif
-  auto & var2 =* boost::any_cast< boost::multi_array< U , K > * >( any2 );
-  #ifdef DEBUG
-   if( var1.num_dimensions() != var2.num_dimensions() ||
-       ! std::equal( var1.shape() , var1.shape() + var1.num_dimensions() ,
-		     var2.shape() ) )
-      throw std::logic_error(
-		  "un_any_dynamic_2:  multi_arrays must have the same shape");
-  #endif
-  std::list<T> *p1 = var1.data();
-  U *p2 = var2.data();
+   *boost::any_cast< boost::multi_array< std::list< T >, K > * >( any1 );
+#ifdef DEBUG
+  if( any2.type() != typeid( boost::multi_array< U, K > * ) )
+   throw std::invalid_argument( "un_any_dynamic_2:"
+                                " type of 2nd argument not U *" );
+#endif
+  auto & var2 = *boost::any_cast< boost::multi_array< U, K > * >( any2 );
+#ifdef DEBUG
+  if( var1.num_dimensions() != var2.num_dimensions() ||
+      !std::equal( var1.shape(),
+                   var1.shape() + var1.num_dimensions(),
+                   var2.shape() ) )
+   throw std::logic_error( "un_any_dynamic_2: "
+                           " multi_arrays must have the same shape" );
+#endif
+  std::list< T > * p1 = var1.data();
+  U * p2 = var2.data();
   for( boost::multi_array_types::size_type i =
-	std::min( var1.num_elements() , var2.num_elements() ) ; --i ; )
-   f( *(p1++), *(p2++) );
-  return( true );
-  }
- else return( un_any_dynamic_2( any1 , any2 , f , un_any_type<T>() ,
-				un_any_type<U>() , un_any_int<K + 1>() ) );
- }
+   std::min( var1.num_elements(), var2.num_elements() ); --i; )
+   f( *( p1++ ), *( p2++ ) );
+  return ( true );
+ } else
+  return ( un_any_dynamic_2( any1, any2, f, un_any_type< T >(),
+                             un_any_type< U >(), un_any_int< K + 1 >() ) );
+}
 
 /*--------------------------------------------------------------------------*/
 /** The template function
@@ -1295,82 +1353,90 @@ bool un_any_dynamic_2( const boost::any & any1 , const boost::any & any2 , F f ,
  * the object and no one wants that, right?); a lambda would work
  * perfectly there.
  *
- * Returns true if "any1" did indeed contain one of the sought-for types. */
+ * Returns true if "any1" did indeed contain one of the sought-for types.
+ */
 
-template<typename T , typename U , class F>
-bool un_any_dynamic_2_create( const boost::any & any1 , boost::any & any2 ,
-                              un_any_type<T> , un_any_type<U> ,
-                              F f , bool apply_f )
-{
- if( any1.type() == typeid( std::list<T> * ) ) {
+template< typename T, typename U, class F >
+bool un_any_dynamic_2_create( const boost::any & any1,
+                              boost::any & any2,
+                              un_any_type< T >,
+                              un_any_type< U >,
+                              F f,
+                              bool apply_f ) {
+ if( any1.type() == typeid( std::list< T > * ) ) {
   any2 = new U();
   if( apply_f ) {
-   auto & var1 = * boost::any_cast< std::list<T> * >( any1 );
-   auto & var2 = * boost::any_cast< U * >( any2 );
+   auto & var1 = *boost::any_cast< std::list< T > * >( any1 );
+   auto & var2 = *boost::any_cast< U * >( any2 );
    f( var1, var2 );
-   }
-  return( true );
   }
- else
-  if( any1.type() == typeid( std::vector< std::list<T> > * ) ) {
-   auto & var1 = * boost::any_cast< std::vector< std::list<T> > * >( any1 );
-   any2 = new std::vector< U >(var1.size());
-   if( apply_f ) {
-    auto & var2 = * boost::any_cast< std::vector< U > * >( any2 );
-    auto i1 = var1.begin();
-    auto i2 = var2.begin();
-    for( ; i1 != var1.end() && i2 != var2.end() ; ++i1 , ++i2 )
-     f( *i1 , *i2 );
-    }
-   return( true );
-   }
-  else return( un_any_dynamic_2_create( any1 , any2 , un_any_type<T>() ,
-					un_any_type<U>() , un_any_int<2>() ,
-					f , apply_f ) );
- }
-
-template<typename T , typename U , class F>
-bool un_any_dynamic_2_create( const boost::any & , boost::any & ,
-                              un_any_type<T> , un_any_type<U> ,
-                              un_any_int<9> , F f , bool apply_f )
-{
- return( false );
- }
-
-template<typename T , typename U , class F , unsigned short K>
-bool un_any_dynamic_2_create( const boost::any & any1 , boost::any & any2 ,
-                              un_any_type<T> , un_any_type<U> ,
-                              un_any_int<K> , F f , bool apply_f )
-{
- if( any1.type() == typeid( boost::multi_array< std::list<T> , K > * ) ) {
-  auto & var1 =
-   * boost::any_cast< boost::multi_array< std::list<T> , K> * >( any1 );
-  auto first = var1.shape();
-  std::vector<int> shape( first , first + var1.num_dimensions() );
-  any2 = new boost::multi_array< U , K >( shape );
+  return ( true );
+ } else if( any1.type() == typeid( std::vector< std::list< T > > * ) ) {
+  auto & var1 = *boost::any_cast< std::vector< std::list< T > > * >( any1 );
+  any2 = new std::vector< U >( var1.size() );
   if( apply_f ) {
-   auto & var2 = * boost::any_cast< boost::multi_array< U , K> * >( any2 );
-   std::list<T> *p1 = var1.data();
-   U *p2 = var2.data();
-   for( boost::multi_array_types::size_type i =
-	 std::min( var1.num_elements() , var2.num_elements() ) ; --i ; )
-    f( *(p1++), *(p2++) );
-   }
-  return( true );
+   auto & var2 = *boost::any_cast< std::vector< U > * >( any2 );
+   auto i1 = var1.begin();
+   auto i2 = var2.begin();
+   for( ; i1 != var1.end() && i2 != var2.end(); ++i1, ++i2 )
+    f( *i1, *i2 );
   }
- else return( un_any_dynamic_2_create( any1 , any2 , un_any_type<T>() ,
-				       un_any_type<U>() ,
-				       un_any_int<K + 1>() , f , apply_f ) );
- }
+  return ( true );
+ } else
+  return ( un_any_dynamic_2_create( any1, any2, un_any_type< T >(),
+                                    un_any_type< U >(), un_any_int< 2 >(),
+                                    f, apply_f ) );
+}
 
-template<typename T , typename U>
-bool un_any_dynamic_2_create( const boost::any & any1 , boost::any & any2 ,
-                              un_any_type<T> , un_any_type<U> )
-{
- return( un_any_dynamic_2_create( any1 , any2 ,
-                                  un_any_type<T>() , un_any_type<U>() ,
-                                  [](T& t,U& u){} , false ) );
- }
+template< typename T, typename U, class F >
+bool un_any_dynamic_2_create( const boost::any &,
+                              boost::any &,
+                              un_any_type< T >,
+                              un_any_type< U >,
+                              un_any_int< 9 >,
+                              F f,
+                              bool apply_f ) {
+ return ( false );
+}
+
+template< typename T, typename U, class F, unsigned short K >
+bool un_any_dynamic_2_create( const boost::any & any1,
+                              boost::any & any2,
+                              un_any_type< T >,
+                              un_any_type< U >,
+                              un_any_int< K >,
+                              F f,
+                              bool apply_f ) {
+ if( any1.type() == typeid( boost::multi_array< std::list< T >, K > * ) ) {
+  auto & var1 =
+   *boost::any_cast< boost::multi_array< std::list< T >, K > * >( any1 );
+  auto first = var1.shape();
+  std::vector< int > shape( first, first + var1.num_dimensions() );
+  any2 = new boost::multi_array< U, K >( shape );
+  if( apply_f ) {
+   auto & var2 = *boost::any_cast< boost::multi_array< U, K > * >( any2 );
+   std::list< T > * p1 = var1.data();
+   U * p2 = var2.data();
+   for( boost::multi_array_types::size_type i =
+    std::min( var1.num_elements(), var2.num_elements() ); --i; )
+    f( *( p1++ ), *( p2++ ) );
+  }
+  return ( true );
+ } else
+  return ( un_any_dynamic_2_create( any1, any2, un_any_type< T >(),
+                                    un_any_type< U >(),
+                                    un_any_int< K + 1 >(), f, apply_f ) );
+}
+
+template< typename T, typename U >
+bool un_any_dynamic_2_create( const boost::any & any1,
+                              boost::any & any2,
+                              un_any_type< T >,
+                              un_any_type< U > ) {
+ return ( un_any_dynamic_2_create( any1, any2,
+                                   un_any_type< T >(), un_any_type< U >(),
+                                   []( T & t, U & u ) {}, false ) );
+}
 
 /*--------------------------------------------------------------------------*/
 /** The template function
@@ -1400,52 +1466,52 @@ bool un_any_dynamic_2_create( const boost::any & any1 , boost::any & any2 ,
  * Returns true if "any" did indeed contain one of the sought-for types, in
  * which case "f" have been applied to all its elements, and false if "any"
  * contained something else, and therefore "f" has not been applied to
- * anything. */
+ * anything.
+ */
 
-template<typename T , class F>
-bool un_any_const_dynamic( const boost::any & any , F f , un_any_type<T> ) {
- if( any.type() == typeid( std::list<T> * ) ) {
-  auto & el = * boost::any_cast< std::list<T> * >( any );
+template< typename T, class F >
+bool un_any_const_dynamic( const boost::any & any, F f, un_any_type< T > ) {
+ if( any.type() == typeid( std::list< T > * ) ) {
+  auto & el = *boost::any_cast< std::list< T > * >( any );
   for( auto & ell : el )
    f( ell );
-  return( true );
-  }
- else
- if( any.type() == typeid( std::vector<std::list<T> > * ) ) {
-  auto & var = * boost::any_cast< std::vector<std::list<T> > * >( any );
+  return ( true );
+ } else if( any.type() == typeid( std::vector< std::list< T > > * ) ) {
+  auto & var = *boost::any_cast< std::vector< std::list< T > > * >( any );
   for( auto & el : var )
    for( auto & ell : el )
     f( ell );
-  return( true );
-  }
- else return( un_any_const_dynamic( any , f , un_any_type<T>() ,
-				    un_any_int<2>() ) );
- }
+  return ( true );
+ } else
+  return ( un_any_const_dynamic( any, f, un_any_type< T >(),
+                                 un_any_int< 2 >() ) );
+}
 
-template<typename T , class F>
-bool un_any_const_dynamic( const boost::any & , F , un_any_type<T> ,
-			   un_any_int<9> )
-{
- return( false );
- }
+template< typename T, class F >
+bool un_any_const_dynamic( const boost::any &,
+                           F,
+                           un_any_type< T >,
+                           un_any_int< 9 > ) {
+ return ( false );
+}
 
-template<typename T , class F , unsigned short K>
-bool un_any_const_dynamic( const boost::any & any , F f , un_any_type<T> ,
-		                              un_any_int<K> )
-{
- if( any.type() == typeid( boost::multi_array< std::list<T> , K > * ) ) {
+template< typename T, class F, unsigned short K >
+bool un_any_const_dynamic( const boost::any & any,
+                           F f,
+                           un_any_type< T >,
+                           un_any_int< K > ) {
+ if( any.type() == typeid( boost::multi_array< std::list< T >, K > * ) ) {
   auto & var =
-       * boost::any_cast< boost::multi_array<std::list<T> , K> * >( any );
-  std::list<T> *p = var.data();
-  for( boost::multi_array_types::size_type i = var.num_elements() ; i-- ;
-       ++p )
+   *boost::any_cast< boost::multi_array< std::list< T >, K > * >( any );
+  std::list< T > * p = var.data();
+  for( boost::multi_array_types::size_type i = var.num_elements(); i--; ++p )
    for( auto & ell : *p )
     f( ell );
-  return( true );
-  }
- else return( un_any_const_dynamic( any , f , un_any_type<T>() ,
-				    un_any_int<K + 1>() ) );
- }
+  return ( true );
+ } else
+  return ( un_any_const_dynamic( any, f, un_any_type< T >(),
+                                 un_any_int< K + 1 >() ) );
+}
 
 /*--------------------------------------------------------------------------*/
 /** The four macro
@@ -1535,88 +1601,89 @@ bool un_any_const_dynamic( const boost::any & any , F f , un_any_type<T> ,
  * The pesky part in these macros (in particular, in un_any_thing_K() and
  * therefore in un_any_thing()) is that they have to work with "all" K, but
  * a maximum K has to be fixed at compile time; currently the maximum K is
- * 8, but it may be easily extended to go higher if needed. */
+ * 8, but it may be easily extended to go higher if needed.
+ */
 
-#define un_any_thing( thing_type, my_thing, f )                             \
- [&]( const boost::any & _any ) -> bool {                                   \
-  if( un_any_thing_0( thing_type , _any , f ) )                             \
-   return true;                                                             \
-  else if( un_any_thing_1( thing_type , _any , f ) )                        \
-   return true;                                                             \
-  return un_any_thing_K( thing_type , _any , f );                           \
+#define un_any_thing( thing_type, my_thing, f )                              \
+ [&]( const boost::any & _any ) -> bool {                                    \
+  if( un_any_thing_0( thing_type , _any , f ) )                              \
+   return( true );                                                           \
+  else if( un_any_thing_1( thing_type , _any , f ) )                         \
+   return( true );                                                           \
+  return( un_any_thing_K( thing_type , _any , f ) );                         \
   }( my_thing )
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-#define un_any_thing_0( thing_type, my_thing, f )                           \
- [&]( const boost::any & _any ) -> bool {                                   \
-  if( _any.type() == typeid( thing_type * ) ) {                             \
-   auto & var = * boost::any_cast< thing_type * >( _any );                  \
-   f;                                                                       \
-   return true;                                                             \
-  }                                                                         \
-  return false;                                                             \
+#define un_any_thing_0( thing_type, my_thing, f )                            \
+ [&]( const boost::any & _any ) -> bool {                                    \
+  if( _any.type() == typeid( thing_type * ) ) {                              \
+   auto & var = * boost::any_cast< thing_type * >( _any );                   \
+   f;                                                                        \
+   return( true );                                                           \
+  }                                                                          \
+  return( false );                                                           \
   }( my_thing )
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-#define un_any_thing_1( thing_type, my_thing, f )                           \
- [&]( const boost::any & _any ) -> bool {                                   \
-  if( _any.type() == typeid( std::vector< thing_type > * ) ) {              \
-   auto & var = * boost::any_cast< std::vector< thing_type > * >( _any );   \
-   f;                                                                       \
-   return true;                                                             \
-  }                                                                         \
-  return false;                                                             \
+#define un_any_thing_1( thing_type, my_thing, f )                            \
+ [&]( const boost::any & _any ) -> bool {                                    \
+  if( _any.type() == typeid( std::vector< thing_type > * ) ) {               \
+   auto & var = * boost::any_cast< std::vector< thing_type > * >( _any );    \
+   f;                                                                        \
+   return( true );                                                           \
+  }                                                                          \
+  return( false );                                                           \
   }( my_thing )
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-#define un_any_thing_K( thing_type, my_thing, f )                           \
- [&]( const boost::any & _any ) -> bool {                                   \
-  if( _any.type() == typeid( boost::multi_array< thing_type , 2 > * ) ) {   \
-   auto & var =                                                             \
-    * boost::any_cast< boost::multi_array< thing_type , 2 > * >( _any );    \
-   f;                                                                       \
-   return true;                                                             \
-  }                                                                         \
-  if( _any.type() == typeid( boost::multi_array< thing_type , 3 > * ) ) {   \
-   auto & var =                                                             \
-   * boost::any_cast< boost::multi_array< thing_type , 3 > * >( _any );     \
-   f;                                                                       \
-   return true;                                                             \
-  }                                                                         \
-  if( _any.type() == typeid( boost::multi_array< thing_type , 4 > * ) ) {   \
-   auto & var =                                                             \
-   * boost::any_cast< boost::multi_array< thing_type , 4 > * >( _any );     \
-   f;                                                                       \
-   return true;                                                             \
-  }                                                                         \
-  if( _any.type() == typeid( boost::multi_array< thing_type , 5 > * ) ) {   \
-   auto & var =                                                             \
-   * boost::any_cast< boost::multi_array< thing_type , 5 > * >( _any );     \
-   f;                                                                       \
-   return true;                                                             \
-  }                                                                         \
-  if( _any.type() == typeid( boost::multi_array< thing_type , 6 > * ) ) {   \
-   auto & var =                                                             \
-   * boost::any_cast< boost::multi_array< thing_type , 6 > * >( _any );     \
-   f;                                                                       \
-   return true;                                                             \
-  }                                                                         \
-  if( _any.type() == typeid( boost::multi_array< thing_type , 7 > * ) ) {   \
-   auto & var =                                                             \
-   * boost::any_cast< boost::multi_array< thing_type , 7 > * >( _any );     \
-   f;                                                                       \
-   return true;                                                             \
-  }                                                                         \
-  if( _any.type() == typeid( boost::multi_array< thing_type , 8 > * ) ) {   \
-   auto & var =                                                             \
-   * boost::any_cast< boost::multi_array< thing_type , 8 > * >( _any );     \
-   f;                                                                       \
-   return true;                                                             \
-  }                                                                         \
-  return false;                                                             \
+#define un_any_thing_K( thing_type, my_thing, f )                            \
+ [&]( const boost::any & _any ) -> bool {                                    \
+  if( _any.type() == typeid( boost::multi_array< thing_type , 2 > * ) ) {    \
+   auto & var =                                                              \
+    * boost::any_cast< boost::multi_array< thing_type , 2 > * >( _any );     \
+   f;                                                                        \
+   return( true );                                                           \
+  }                                                                          \
+  if( _any.type() == typeid( boost::multi_array< thing_type , 3 > * ) ) {    \
+   auto & var =                                                              \
+   * boost::any_cast< boost::multi_array< thing_type , 3 > * >( _any );      \
+   f;                                                                        \
+   return( true );                                                           \
+  }                                                                          \
+  if( _any.type() == typeid( boost::multi_array< thing_type , 4 > * ) ) {    \
+   auto & var =                                                              \
+   * boost::any_cast< boost::multi_array< thing_type , 4 > * >( _any );      \
+   f;                                                                        \
+   return( true );                                                           \
+  }                                                                          \
+  if( _any.type() == typeid( boost::multi_array< thing_type , 5 > * ) ) {    \
+   auto & var =                                                              \
+   * boost::any_cast< boost::multi_array< thing_type , 5 > * >( _any );      \
+   f;                                                                        \
+   return( true );                                                           \
+  }                                                                          \
+  if( _any.type() == typeid( boost::multi_array< thing_type , 6 > * ) ) {    \
+   auto & var =                                                              \
+   * boost::any_cast< boost::multi_array< thing_type , 6 > * >( _any );      \
+   f;                                                                        \
+   return( true );                                                           \
+  }                                                                          \
+  if( _any.type() == typeid( boost::multi_array< thing_type , 7 > * ) ) {    \
+   auto & var =                                                              \
+   * boost::any_cast< boost::multi_array< thing_type , 7 > * >( _any );      \
+   f;                                                                        \
+   return( true );                                                           \
+  }                                                                          \
+  if( _any.type() == typeid( boost::multi_array< thing_type , 8 > * ) ) {    \
+   auto & var =                                                              \
+   * boost::any_cast< boost::multi_array< thing_type , 8 > * >( _any );      \
+   f;                                                                        \
+   return( true );                                                           \
+  }                                                                          \
+  return( false );                                                           \
   }( my_thing )
 
 /**@} ----------------------------------------------------------------------*/
@@ -1626,107 +1693,99 @@ bool un_any_const_dynamic( const boost::any & any , F f , un_any_type<T> ,
  *
  * A few versions of operator<< for printing std::list, std::pair,
  * std::array and boost::multi_array.
- *  @{ */
+ *  @{
+ */
 
-template <class T1 , class T2>
-std::ostream &operator<<( std::ostream &os , const std::pair<T1 , T2> &p )
-{
+template< class T1, class T2 >
+std::ostream & operator<<( std::ostream & os, const std::pair< T1, T2 > & p ) {
  os << "( " << p.first << ", " << p.second << " )";
- return os;
- }
+ return ( os );
+}
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-template <typename T , unsigned long K>
-std::ostream &operator<<( std::ostream &os ,
-			  const boost::multi_array<T , K> &A )
-{
- const T* p = A.data();
- for( boost::multi_array_types::size_type i = A.num_elements() ; i-- ; ++p )
- {
+template< typename T, unsigned long K >
+std::ostream & operator<<( std::ostream & os,
+                           const boost::multi_array< T, K > & A ) {
+ const T * p = A.data();
+ for( boost::multi_array_types::size_type i = A.num_elements(); i--; ++p ) {
   os << "[ ";
-  for( boost::multi_array_types::size_type k = 0 ; k < K ; ) {
-   os << ( p - A.origin()  ) / A.strides()[ k ] % A.shape()[ k ]
-         +  A.index_bases()[ k ];
+  for( boost::multi_array_types::size_type k = 0; k < K; ) {
+   os << ( p - A.origin() ) / A.strides()[ k ] % A.shape()[ k ]
+         + A.index_bases()[ k ];
    if( ++k < K )
     os << ", ";
-    }
-  os << " ] = " << *p << std::endl;
   }
-
- return os;
+  os << " ] = " << *p << std::endl;
  }
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ return ( os );
+}
 
-template <typename T , unsigned long K>
-std::ostream &operator<<( std::ostream &os ,
-			  const boost::multi_array<T *, K> &A )
-{
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template< typename T, unsigned long K >
+std::ostream & operator<<( std::ostream & os,
+                           const boost::multi_array< T *, K > & A ) {
  typedef T * TP;
  const TP * p = A.data();
- for( boost::multi_array_types::size_type i = A.num_elements() ; i-- ; ++p )
- {
+ for( boost::multi_array_types::size_type i = A.num_elements(); i--; ++p ) {
   os << "[ ";
-  for( boost::multi_array_types::size_type k = 0 ; k < K ; ) {
-   os << ( p - A.origin()  ) / A.strides()[ k ] % A.shape()[ k ]
-         +  A.index_bases()[ k ];
+  for( boost::multi_array_types::size_type k = 0; k < K; ) {
+   os << ( p - A.origin() ) / A.strides()[ k ] % A.shape()[ k ]
+         + A.index_bases()[ k ];
    if( ++k < K )
     os << ", ";
-    }
-  os << " ] = " << **p << std::endl;
   }
-
- return os;
+  os << " ] = " << **p << std::endl;
  }
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ return ( os );
+}
 
-template<typename T>
-std::ostream &operator<<( std::ostream &os , const std::vector<T> &l )
-{
- for( unsigned int i = 0 ; i < l.size() ; ++i )
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template< typename T >
+std::ostream & operator<<( std::ostream & os, const std::vector< T > & l ) {
+ for( unsigned int i = 0; i < l.size(); ++i )
   os << "[ " << i << " ] = " << l[ i ] << std::endl;
 
- return os;
- }
+ return ( os );
+}
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-template<typename T>
-std::ostream &operator<<( std::ostream &os , const std::vector<T *> &l )
-{
- for( unsigned int i = 0 ; i < l.size() ; ++i )
+template< typename T >
+std::ostream & operator<<( std::ostream & os, const std::vector< T * > & l ) {
+ for( unsigned int i = 0; i < l.size(); ++i )
   os << "[ " << i << " ] = " << *l[ i ] << std::endl;
 
- return os;
- }
+ return ( os );
+}
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-template<typename T>
-std::ostream &operator<<( std::ostream &os , const std::list<T> &l )
-{
+template< typename T >
+std::ostream & operator<<( std::ostream & os, const std::list< T > & l ) {
  auto it = l.begin();
- for( unsigned int i = 0 ; i < l.size() ; ++i , ++it ) {
+ for( unsigned int i = 0; i < l.size(); ++i, ++it ) {
   os << i << " ) = " << *it;
-  }
-
- return os;
  }
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ return ( os );
+}
 
-template<typename T>
-std::ostream &operator<<( std::ostream &os , const std::list<T *> &l )
-{
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template< typename T >
+std::ostream & operator<<( std::ostream & os, const std::list< T * > & l ) {
  auto it = l.begin();
- for( unsigned int i = 0 ; i < l.size() ; ++i , ++it ) {
+ for( unsigned int i = 0; i < l.size(); ++i, ++it ) {
   os << i << " ) = " << **it;
-  }
-
- return os;
  }
+
+ return ( os );
+}
 
 /**@} ----------------------------------------------------------------------*/
 /*----------------- LOADING things while skipping comments -----------------*/
@@ -1735,20 +1794,19 @@ std::ostream &operator<<( std::ostream &os , const std::list<T *> &l )
  *
  *  @{ */
 
-inline std::istream & eatcomments( std::istream& is )
-{
- for(;;) {
+inline std::istream & eatcomments( std::istream & is ) {
+ for( ;; ) {
   is >> std::ws;  // skip whitespaces
   if( is.peek() == is.widen( '#' ) )
    // a comment: skip the rest of line and move to next
-   is.ignore( std::numeric_limits<std::streamsize>::max() ,
-	      is.widen( '\n' ) );
+   is.ignore( std::numeric_limits< std::streamsize >::max(),
+              is.widen( '\n' ) );
   else
    break;
-  }
-
- return( is );
  }
+
+ return ( is );
+}
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------ LOADING list, array and multi_array -------------------*/
@@ -1770,43 +1828,41 @@ inline std::istream & eatcomments( std::istream& is )
  * It is assumed that each element can be read with >> itself, which rules
  * out pointers. Elements are separated by whitespaces and comments (see
  * eatcomments above).
- *  @{ */
+ *  @{
+ */
 
-template <class T1 , class T2>
-std::istream &operator>>( std::istream &is , std::pair<T1 , T2> &p )
-{
+template< class T1, class T2 >
+std::istream & operator>>( std::istream & is, std::pair< T1, T2 > & p ) {
  is >> eatcomments >> p.first;
  is >> eatcomments >> p.second;
- return is;
- }
+ return ( is );
+}
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-template<typename T>
-std::istream &operator>>( std::istream &is , std::vector<T> &l )
-{
+template< typename T >
+std::istream & operator>>( std::istream & is, std::vector< T > & l ) {
  unsigned int k;
  is >> eatcomments >> k;
  l.resize( k );
- for( auto & li : l  )
+ for( auto & li : l )
   is >> eatcomments >> li;
 
- return is;
- }
+ return ( is );
+}
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-template<typename T>
-std::istream &operator>>( std::istream &is , std::list<T> &l )
-{
+template< typename T >
+std::istream & operator>>( std::istream & is, std::list< T > & l ) {
  unsigned int k;
  is >> eatcomments >> k;
  l.resize( k );
- for( auto & li : l  )
+ for( auto & li : l )
   is >> eatcomments >> li;
 
- return is;
- }
+ return ( is );
+}
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------ DE/SERIALIZING FROM/TO netCDF FILES -------------------*/
@@ -1818,7 +1874,8 @@ std::istream &operator>>( std::istream &is , std::list<T> &l )
  * typical tasks that must be performed when serializing and
  * deserializing objects.
  *
- *  @{ */
+ *  @{
+ */
 
 /// deserialize a dimension out of a netCDF NcGroup
 /** If the given netCDF NcGroup contains a dimension whose name is \p
@@ -1846,22 +1903,22 @@ std::istream &operator>>( std::istream &is , std::list<T> &l )
  * @return true if the desired dimension was deserialized; false, otherwise.
  */
 
-template<class T>
-inline bool deserialize_dim( const netCDF::NcGroup & group ,
-                             const std::string & dim_name , T & data ,
+template< class T >
+inline bool deserialize_dim( const netCDF::NcGroup & group,
+                             const std::string & dim_name, T & data,
                              const bool optional = true ) {
-  netCDF::NcDim ncDim = group.getDim( dim_name );
+ netCDF::NcDim ncDim = group.getDim( dim_name );
 
-  if( ncDim.isNull() ) {
-    if( optional )
-      return false;
-    throw( std::invalid_argument( "deserialize_dim(): " + dim_name +
-                                  " is not present in group '" +
-                                  group.getName() + "'." ) );
-  }
+ if( ncDim.isNull() ) {
+  if( optional )
+   return ( false );
+  throw ( std::invalid_argument( "deserialize_dim(): " + dim_name +
+                                 " is not present in group '" +
+                                 group.getName() + "'." ) );
+ }
 
-  data = ncDim.getSize();
-  return true;
+ data = ncDim.getSize();
+ return ( true );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -1877,13 +1934,13 @@ inline bool deserialize_dim( const netCDF::NcGroup & group ,
  * @return A vector with the sizes of the dimensions of the variable var.
  */
 
-inline std::vector<std::size_t>
+inline std::vector< std::size_t >
 get_sizes_dimensions( const netCDF::NcVar & var ) {
-  std::vector<std::size_t> sizes_dimensions( var.getDimCount() );
-  std::vector<std::size_t>::size_type i = 0;
-  for( const auto & dim : var.getDims() )
-    sizes_dimensions[ i++ ] = dim.getSize();
-  return( sizes_dimensions );
+ std::vector< std::size_t > sizes_dimensions( var.getDimCount() );
+ std::vector< std::size_t >::size_type i = 0;
+ for( const auto & dim : var.getDims() )
+  sizes_dimensions[ i++ ] = dim.getSize();
+ return ( sizes_dimensions );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -1935,70 +1992,69 @@ get_sizes_dimensions( const netCDF::NcVar & var ) {
  * @return true if the desired variable was deserialized; false, otherwise.
  */
 
-template<class T>
-inline bool deserialize( const netCDF::NcGroup & group ,
-                         const std::string & var_name ,
-                         const std::vector<std::size_t> & sizes ,
-                         std::vector<T> & data ,
-                         const bool optional = true ,
+template< class T >
+inline bool deserialize( const netCDF::NcGroup & group,
+                         const std::string & var_name,
+                         const std::vector< std::size_t > & sizes,
+                         std::vector< T > & data,
+                         const bool optional = true,
                          const bool allow_scalar_var = false ) {
 
-  if( sizes.empty() ) {
-    data.resize( 0 );
-    return false;
+ if( sizes.empty() ) {
+  data.resize( 0 );
+  return ( false );
+ }
+
+ auto total_size = std::accumulate( begin( sizes ), end( sizes ), 1,
+                                    std::multiplies< std::size_t >() );
+ if( total_size == 0 ) {
+  data.resize( 0 );
+  return ( false );
+ }
+
+ auto ncVar = group.getVar( var_name );
+ if( ncVar.isNull() ) {
+  if( optional ) {
+   data.resize( 0 );
+   return ( false );
   }
 
-  auto total_size = std::accumulate( begin( sizes ) , end( sizes ) , 1 ,
-                                     std::multiplies<std::size_t>() );
-  if( total_size == 0 ) {
-    data.resize( 0 );
-    return false;
-  }
+  throw std::invalid_argument( "deserialize(): " + var_name +
+                               " is not present" );
+ }
 
-  auto ncVar = group.getVar( var_name );
-  if( ncVar.isNull() ) {
-    if( optional ) {
-      data.resize( 0 );
-      return false;
-    }
+ if( ( ncVar.getDimCount() < 0 ||
+       sizes.size() != static_cast<decltype( sizes.size() )>
+       ( ncVar.getDimCount() ) ) &&
+     ( ncVar.getDimCount() != 0 || !allow_scalar_var ) )
 
-    throw( std::invalid_argument( "deserialize(): " + var_name +
-                                  " is not present" ) );
-  }
+  throw std::invalid_argument
+   ( "deserialize(): netCDF variable '" + var_name + "' of group '" +
+     group.getName() + "' has " + std::to_string( ncVar.getDimCount() ) +
+     " dimension(s), but provided argument has " +
+     std::to_string( sizes.size() ) + " dimension(s)." );
 
-  if( ( ncVar.getDimCount() < 0 ||
-        sizes.size() != static_cast<decltype( sizes.size() )>
-                                   ( ncVar.getDimCount() ) ) &&
-      ( ncVar.getDimCount() != 0 || ! allow_scalar_var ) )
+ if( ncVar.getDimCount() == 0 ) {
+  data.resize( 1 );
+  ncVar.getVar( &data[ 0 ] );
+  return ( true );
+ }
 
-    throw( std::invalid_argument
-           ( "deserialize(): netCDF variable '" + var_name + "' of group '" +
-             group.getName() + "' has " +
-             std::to_string( ncVar.getDimCount() ) + " dimension(s), but"
-             " provided argument has " +
-             std::to_string( sizes.size() ) + " dimension(s)." ) );
+ auto var_sizes = get_sizes_dimensions( ncVar );
 
-  if( ncVar.getDimCount() == 0 ) {
-    data.resize( 1 );
-    ncVar.getVar( & data[ 0 ] );
-    return true;
-  }
+ if( sizes != var_sizes )
+  throw std::invalid_argument
+   ( "deserialize(): given sizes of dimensions and the sizes of "
+     "dimensions of netCDF variable " + var_name + " of group '" +
+     group.getName() + "' do not match." );
 
-  auto var_sizes = get_sizes_dimensions( ncVar );
+ data.resize( total_size );
 
-  if( sizes != var_sizes )
-    throw( std::invalid_argument
-           ( "deserialize(): given sizes of dimensions and the sizes of "
-             "dimensions of netCDF variable " + var_name + " of group '" +
-             group.getName() + "' do not match." ) );
+ std::vector< std::size_t > start( sizes.size(), 0 );
 
-  data.resize( total_size );
+ ncVar.getVar( start, sizes, data.data() );
 
-  std::vector<std::size_t> start( sizes.size() , 0 );
-
-  ncVar.getVar( start , sizes , data.data() );
-
-  return true;
+ return ( true );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -2045,15 +2101,15 @@ inline bool deserialize( const netCDF::NcGroup & group ,
  * @return true if the desired variable was deserialized; false, otherwise.
  */
 
-template<class T>
-inline bool deserialize( const netCDF::NcGroup & group ,
-                         const std::string & var_name ,
-                         const std::size_t & size ,
-                         std::vector<T> & data ,
-                         const bool optional = true ,
+template< class T >
+inline bool deserialize( const netCDF::NcGroup & group,
+                         const std::string & var_name,
+                         const std::size_t & size,
+                         std::vector< T > & data,
+                         const bool optional = true,
                          const bool allow_scalar_var = false ) {
-  return deserialize( group , var_name , std::vector<size_t> { size } , data ,
-                      optional , allow_scalar_var );
+ return ( deserialize( group, var_name, std::vector< size_t >{ size }, data,
+                       optional, allow_scalar_var ) );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -2089,46 +2145,46 @@ inline bool deserialize( const netCDF::NcGroup & group ,
  * @return true if the desired variable was deserialized; false, otherwise.
  */
 
-template<class T>
-inline bool deserialize( const netCDF::NcGroup & group ,
-                         const std::string & var_name ,
-                         std::vector<T> & data ,
+template< class T >
+inline bool deserialize( const netCDF::NcGroup & group,
+                         const std::string & var_name,
+                         std::vector< T > & data,
                          const bool optional = true ) {
 
-  auto ncVar = group.getVar( var_name );
-  if( ncVar.isNull() ) {
-    if( optional ) {
-      data.resize( 0 );
-      return false;
-    }
-    throw( std::invalid_argument
-           ( "deserialize(): " + var_name + " is not present in group '" +
-             group.getName() + "'." ) );
+ auto ncVar = group.getVar( var_name );
+ if( ncVar.isNull() ) {
+  if( optional ) {
+   data.resize( 0 );
+   return ( false );
   }
+  throw std::invalid_argument( "deserialize(): " + var_name +
+                               " is not present in group '" +
+                               group.getName() + "'." );
+ }
 
-  auto sizes_dimensions = get_sizes_dimensions( ncVar );
+ auto sizes_dimensions = get_sizes_dimensions( ncVar );
 
-  if( sizes_dimensions.empty() ) {
-    data.resize( 0 );
-    return false;
-  }
+ if( sizes_dimensions.empty() ) {
+  data.resize( 0 );
+  return ( false );
+ }
 
-  auto total_size = std::accumulate
-    ( begin( sizes_dimensions ) , end( sizes_dimensions ) , 1 ,
-      std::multiplies<std::size_t>() );
+ auto total_size = std::accumulate( begin( sizes_dimensions ),
+                                    end( sizes_dimensions ), 1,
+                                    std::multiplies< std::size_t >() );
 
-  if( total_size == 0 ) {
-    data.resize( 0 );
-    return false;
-  }
+ if( total_size == 0 ) {
+  data.resize( 0 );
+  return ( false );
+ }
 
-  data.resize( total_size );
+ data.resize( total_size );
 
-  std::vector<std::size_t> start( sizes_dimensions.size() , 0 );
+ std::vector< std::size_t > start( sizes_dimensions.size(), 0 );
 
-  ncVar.getVar( start , sizes_dimensions , data.data() );
+ ncVar.getVar( start, sizes_dimensions, data.data() );
 
-  return true;
+ return ( true );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -2174,53 +2230,53 @@ inline bool deserialize( const netCDF::NcGroup & group ,
  * @return true if the desired variable was deserialized; false, otherwise.
  */
 
-template<class T, std::size_t N>
-inline bool deserialize( const netCDF::NcGroup & group ,
-                         const std::string & var_name ,
-                         boost::multi_array<T , N> & array ,
-                         const bool optional = true ,
+template< class T, std::size_t N >
+inline bool deserialize( const netCDF::NcGroup & group,
+                         const std::string & var_name,
+                         boost::multi_array< T, N > & array,
+                         const bool optional = true,
                          const bool allow_scalar_var = false ) {
 
-  using index = typename boost::multi_array<T , N>::index;
+ using index = typename boost::multi_array< T, N >::index;
 
-  auto ncVar = group.getVar( var_name );
-  if( ncVar.isNull() ) {
+ auto ncVar = group.getVar( var_name );
+ if( ncVar.isNull() ) {
 
-    if( optional ) {
-      std::vector<index> new_sizes( N , 0 );
-      array.resize( new_sizes );
-      return false;
-    }
-
-    throw( std::invalid_argument( "deserialize(): " + var_name +
-                                  " is not present in group '" +
-                                  group.getName() + "'." ) );
+  if( optional ) {
+   std::vector< index > new_sizes( N, 0 );
+   array.resize( new_sizes );
+   return ( false );
   }
 
-  if( ncVar.getDimCount() == 0 ) {
-    if( allow_scalar_var ) {
-      std::vector<index> new_sizes( N , 1 );
-      array.resize( new_sizes );
-      ncVar.getVar( array.origin() );
-      return true;
-    }
+  throw std::invalid_argument( "deserialize(): " + var_name +
+                               " is not present in group '" +
+                               group.getName() + "'." );
+ }
 
-    throw( std::invalid_argument
-           ( "deserialize(): netCDF variable '" + var_name + "' is a scalar," +
-             " but a multi-dimensional array with " + std::to_string( N ) +
-             " dimensions was expected in group '" + group.getName() + "'." ) );
+ if( ncVar.getDimCount() == 0 ) {
+  if( allow_scalar_var ) {
+   std::vector< index > new_sizes( N, 1 );
+   array.resize( new_sizes );
+   ncVar.getVar( array.origin() );
+   return ( true );
   }
 
-  auto sizes_dimensions = get_sizes_dimensions( ncVar );
-  if ( sizes_dimensions.size() < array.num_dimensions() ) {
-   sizes_dimensions.resize(array.num_dimensions(), 1);
-  }
-  array.resize( sizes_dimensions );
+  throw std::invalid_argument
+   ( "deserialize(): netCDF variable '" + var_name + "' is a scalar," +
+     " but a multi-dimensional array with " + std::to_string( N ) +
+     " dimensions was expected in group '" + group.getName() + "'." );
+ }
 
-  std::vector<std::size_t> start( sizes_dimensions.size() , 0 );
+ auto sizes_dimensions = get_sizes_dimensions( ncVar );
+ if( sizes_dimensions.size() < array.num_dimensions() ) {
+  sizes_dimensions.resize( array.num_dimensions(), 1 );
+ }
+ array.resize( sizes_dimensions );
 
-  ncVar.getVar( start , sizes_dimensions , array.data() );
-  return true;
+ std::vector< std::size_t > start( sizes_dimensions.size(), 0 );
+
+ ncVar.getVar( start, sizes_dimensions, array.data() );
+ return ( true );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -2251,21 +2307,23 @@ inline bool deserialize( const netCDF::NcGroup & group ,
  * @return true if the desired variable was deserialized; false, otherwise.
  */
 
-template<class T>
-bool deserialize( const netCDF::NcGroup & group , const std::string & var_name ,
-                  T * data , const bool optional = true ) {
+template< class T >
+bool deserialize( const netCDF::NcGroup & group,
+                  const std::string & var_name,
+                  T * data,
+                  const bool optional = true ) {
 
-  auto ncVar = group.getVar( var_name );
-  if( ncVar.isNull() ) {
-    if( ! optional ) {
-      throw( std::invalid_argument
-             ( "deserialize(): " + var_name + " is not present in group '" +
-               group.getName() + "'." ) );
-    }
-    return false;
+ auto ncVar = group.getVar( var_name );
+ if( ncVar.isNull() ) {
+  if( !optional ) {
+   throw std::invalid_argument( "deserialize(): " + var_name +
+                                " is not present in group '"
+                                + group.getName() + "'." );
   }
-  ncVar.getVar( data );
-  return true;
+  return ( false );
+ }
+ ncVar.getVar( data );
+ return ( true );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -2284,10 +2342,12 @@ bool deserialize( const netCDF::NcGroup & group , const std::string & var_name ,
  * @param[in] data The value to be write into the variable.
  */
 
-template<class T>
-inline void serialize( netCDF::NcGroup & group , const std::string & var_name ,
-                       const netCDF::NcType ncType , const T data ) {
-  ( group.addVar( var_name , ncType ) ).putVar( & data );
+template< class T >
+inline void serialize( netCDF::NcGroup & group,
+                       const std::string & var_name,
+                       const netCDF::NcType ncType,
+                       const T data ) {
+ ( group.addVar( var_name, ncType ) ).putVar( &data );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -2315,20 +2375,22 @@ inline void serialize( netCDF::NcGroup & group , const std::string & var_name ,
  * this case, the argument \p ncDim is completely ignored).
  */
 
-template<class T>
-void serialize( netCDF::NcGroup & group , const std::string & var_name ,
-                const netCDF::NcType & ncType , const netCDF::NcDim & ncDim ,
-                const std::vector<T> & data ,
+template< class T >
+void serialize( netCDF::NcGroup & group,
+                const std::string & var_name,
+                const netCDF::NcType & ncType,
+                const netCDF::NcDim & ncDim,
+                const std::vector< T > & data,
                 const bool allow_scalar_var = false ) {
 
-  if( allow_scalar_var && data.size() == 1 ) {
-    serialize( group , var_name , ncType , data[ 0 ] );
-    return;
-  }
+ if( allow_scalar_var && data.size() == 1 ) {
+  serialize( group, var_name, ncType, data[ 0 ] );
+  return;
+ }
 
-  group.addVar( var_name , ncType , ncDim ).putVar( { 0 } ,
-                                                    { data.size() } ,
-                                                    data.data() );
+ group.addVar( var_name, ncType, ncDim ).putVar( { 0 },
+                                                 { data.size() },
+                                                 data.data() );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -2364,65 +2426,66 @@ void serialize( netCDF::NcGroup & group , const std::string & var_name ,
  * this case, the argument \p ncDim is completely ignored).
  */
 
-template<class T>
-void serialize( netCDF::NcGroup & group , const std::string & var_name ,
-                const netCDF::NcType & ncType ,
-                const std::vector<netCDF::NcDim> & ncDim ,
-                const std::vector<T> & data ,
-                const std::vector<std::size_t> & sizes = {} ,
+template< class T >
+void serialize( netCDF::NcGroup & group,
+                const std::string & var_name,
+                const netCDF::NcType & ncType,
+                const std::vector< netCDF::NcDim > & ncDim,
+                const std::vector< T > & data,
+                const std::vector< std::size_t > & sizes = {},
                 const bool allow_scalar_var = false ) {
 
-  if( data.size() == 0 )
-    return; // Nothing to be serialized.
+ if( data.empty() )
+  return; // Nothing to be serialized.
 
-  if( ncDim.size() == 1 && sizes.size() <= 1 )
-    serialize( group , var_name , ncType , ncDim[ 0 ] , data ,
-               allow_scalar_var );
+ if( ncDim.size() == 1 && sizes.size() <= 1 )
+  serialize( group, var_name, ncType, ncDim[ 0 ], data, allow_scalar_var );
 
-  if( allow_scalar_var && data.size() == 1 ) {
-    // Serializes the only element of the given vector as a scalar variable.
-    serialize( group , var_name , ncType , data[ 0 ] );
-    return;
+ if( allow_scalar_var && data.size() == 1 ) {
+  // Serializes the only element of the given vector as a scalar variable.
+  serialize( group, var_name, ncType, data[ 0 ] );
+  return;
+ }
+
+ if( sizes.empty() ) {
+
+  // The sizes of the dimensions of the multi-dimensional array to be
+  // serialized were not provided. We thus consider the sizes of the given
+  // netCDF dimensions. In this case, unlimited dimensions are not allowed.
+
+  std::vector< std::size_t > sz( ncDim.size() );
+  for( std::size_t i = 0; i < ncDim.size(); ++i ) {
+   sz[ i ] = ncDim[ i ].getSize();
+
+   if( ncDim[ i ].isUnlimited() )
+    throw std::invalid_argument
+     ( "serialize(): error when serializing variable '" + var_name +
+       "' of group '" + group.getName() +
+       "'. The given netCDF dimension " +
+       std::to_string( i ) +
+       " is unlimited, but unlimited dimension is not supported when"
+       " the sizes of each dimension of the multi-dimensional array"
+       " represented by the vector parameter 'data' are not provided." );
   }
 
-  if( sizes.size() == 0 ) {
+  std::vector< std::size_t > start( ncDim.size(), 0 );
+  group.addVar( var_name, ncType, ncDim )
+   .putVar( start, sz, data.data() );
 
-    // The sizes of the dimensions of the multi-dimensional array to be
-    // serialized were not provided. We thus consider the sizes of the given
-    // netCDF dimensions. In this case, unlimited dimensions are not allowed.
-
-    std::vector<std::size_t> sizes( ncDim.size() );
-    for( std::size_t i = 0 ; i < ncDim.size() ; ++i ) {
-      sizes[ i ] = ncDim[ i ].getSize();
-
-      if( ncDim[ i ].isUnlimited() )
-        throw( std::invalid_argument
-               ( "serialize(): error when serializing variable '" + var_name +
-                 "' of group '" + group.getName() + "'. The given netCDF"
-                 " dimension " + std::to_string( i ) + " is unlimited, but"
-                 " unlimited dimension is not supported when the sizes of each"
-                 " dimension of the multi-dimensional array represented by the"
-                 " vector parameter 'data' are not provided." ) );
-    }
-
-    std::vector<std::size_t> start( ncDim.size() , 0 );
-    group.addVar( var_name , ncType , ncDim )
-      .putVar( start , sizes , data.data() );
-
-  }
-  else if( ncDim.size() != sizes.size() )
-    throw( std::invalid_argument
-           ( "serialize(): error when serializing variable '" + var_name +
-             "' of group '" + group.getName() + "'. The vector 'sizes' has"
-             " size " + std::to_string( sizes.size() ) + ", while the vector"
-             " 'ncDim' has size " + std::to_string( ncDim.size() ) + ". When"
-             " the optional vector parameter 'sizes' is present, it must"
-             " have the same size as the vector 'ncDim'." ) );
-  else {
-    std::vector<std::size_t> start( ncDim.size() , 0 );
-    group.addVar( var_name , ncType , ncDim )
-      .putVar( start , sizes , data.data() );
-  }
+ } else if( ncDim.size() != sizes.size() )
+  throw std::invalid_argument
+   ( "serialize(): error when serializing variable '" + var_name +
+     "' of group '" + group.getName() +
+     "'. The vector 'sizes' has size " +
+     std::to_string( sizes.size() ) +
+     ", while the vector 'ncDim' has size " +
+     std::to_string( ncDim.size() ) +
+     ". When the optional vector parameter 'sizes' is present,"
+     " it must have the same size as the vector 'ncDim'." );
+ else {
+  std::vector< std::size_t > start( ncDim.size(), 0 );
+  group.addVar( var_name, ncType, ncDim ).putVar( start, sizes, data.data() );
+ }
 }
 
 /*--------------------------------------------------------------------------*/
@@ -2517,94 +2580,96 @@ void serialize( netCDF::NcGroup & group , const std::string & var_name ,
  * \p group.
  */
 
-template<class T, std::size_t N>
-void serialize( netCDF::NcGroup & group , const std::string & var_name ,
-                const netCDF::NcType & ncType ,
-                const std::vector<netCDF::NcDim> & expected_ncDim ,
-                const boost::multi_array<T , N> & multi_array ,
+template< class T, std::size_t N >
+void serialize( netCDF::NcGroup & group, const std::string & var_name,
+                const netCDF::NcType & ncType,
+                const std::vector< netCDF::NcDim > & expected_ncDim,
+                const boost::multi_array< T, N > & multi_array,
                 const bool allow_scalar_var = false,
-                const bool allow_singleton_dim = false ,
+                const bool allow_singleton_dim = false,
                 const std::string & singleton_dim_name = "__Singleton__" ) {
 
-  if( multi_array.num_elements() == 0 )
-    return; // Nothing to be serialized.
+ if( multi_array.num_elements() == 0 )
+  return; // Nothing to be serialized.
 
-  if( allow_scalar_var && multi_array.num_elements() == 1 ) {
-    // Serializes the only value of the given multi_array into a netCDF scalar
-    // variable.
-    serialize( group , var_name , ncType , * multi_array.origin() );
-    return;
-  }
+ if( allow_scalar_var && multi_array.num_elements() == 1 ) {
+  // Serializes the only value of the given multi_array into a netCDF scalar
+  // variable.
+  serialize( group, var_name, ncType, *multi_array.origin() );
+  return;
+ }
 
-  if( expected_ncDim.size() != N )
-    throw( std::invalid_argument
-           ( "serialize(): error when serializing variable '" + var_name +
-             "' of group '" + group.getName() + "'. The given"
-             " boost::multi_array has " + std::to_string( N ) +
-             " dimensions, but " + std::to_string( expected_ncDim.size() ) +
-             " netCDF::NcDim were provided. Those numbers must be the same." ));
+ if( expected_ncDim.size() != N )
+  throw std::invalid_argument
+   ( "serialize(): error when serializing variable '" + var_name +
+     "' of group '" + group.getName() +
+     "'. The given boost::multi_array has " +
+     std::to_string( N ) +
+     " dimensions, but " + std::to_string( expected_ncDim.size() ) +
+     " netCDF::NcDim were provided. Those numbers must be the same." );
 
-  auto ncDim = expected_ncDim;
+ auto ncDim = expected_ncDim;
 
-  for( std::vector<netCDF::NcDim>::size_type i = 0 ; i < N ; ++i ) {
+ for( std::vector< netCDF::NcDim >::size_type i = 0; i < N; ++i ) {
 
-    if( ncDim[ i ].isUnlimited() )
-      continue;
+  if( ncDim[ i ].isUnlimited() )
+   continue;
 
-    auto ncdim_size = ncDim[ i ].getSize();
-    auto multi_array_dim_size = multi_array.shape()[ i ];
+  auto ncdim_size = ncDim[ i ].getSize();
+  auto multi_array_dim_size = multi_array.shape()[ i ];
 
-    if( ncdim_size != multi_array_dim_size ) {
+  if( ncdim_size != multi_array_dim_size ) {
 
-      if( allow_singleton_dim && multi_array_dim_size == 1 ) {
-        // Ignore the given netCDF::NcDim for the i-th dimension and consider
-        // the singleton dimension instead.
+   if( allow_singleton_dim && multi_array_dim_size == 1 ) {
+    // Ignore the given netCDF::NcDim for the i-th dimension and consider
+    // the singleton dimension instead.
 
-        auto singleton_dim = group.getDim( singleton_dim_name );
+    auto singleton_dim = group.getDim( singleton_dim_name );
 
-        if( singleton_dim.isNull() )
-          // The singleton dimension is currently not present in the given
-          // group. So, we add the singleton dimension to the given group.
-          singleton_dim = group.addDim( singleton_dim_name , 1 );
+    if( singleton_dim.isNull() )
+     // The singleton dimension is currently not present in the given
+     // group. So, we add the singleton dimension to the given group.
+     singleton_dim = group.addDim( singleton_dim_name, 1 );
 
-        else if( singleton_dim.getSize() != 1 )
-          throw( std::invalid_argument
-                 ( "serialize(): error when serializing variable '" + var_name +
-                   "' of group '" + group.getName() + "'. The singleton "
-                   "dimension must have size 1, but the dimension '" +
-                   singleton_dim_name + "' found in the group '" +
-                   group.getName() + "' has size " +
-                   std::to_string( singleton_dim.getSize() ) + "." ) );
-
-        ncDim[ i ] = singleton_dim;
-      }
-
-      else {
-        throw( std::invalid_argument
-               ( "serialize(): error when serializing variable '" + var_name +
-                 "' of group '" + group.getName() + "'. The size of dimension " +
-                 std::to_string( i ) + " of the given boost::multi_array is " +
-                 std::to_string( multi_array_dim_size ) +
-                 " but the size of the provided netCDF dimension is " +
-                 std::to_string( ncdim_size ) +
-                 ". At least one of the following requirements must be met:"
-                 " (1) these sizes are equal;"
-                 " (2) the given boost::multi_array has a single element and"
-                 " 'allow_scalar_var' is true;"
-                 " (3) the size of the dimension of the given boost::"
-                 "multi_array is 1 and 'allow_singleton_dim' is true;"
-                 " (4) provided netCDF dimension is unlimited." ) );
-      }
+    else if( singleton_dim.getSize() != 1 ) {
+     std::string error;
+     error += "serialize(): error when serializing variable '";
+     error += var_name + "' of group '" + group.getName();
+     error += "'. The singleton dimension must have size 1,"
+              "but the dimension '";
+     error += singleton_dim_name + "' found in the group '";
+     error += group.getName() + "' has size ";
+     error += std::to_string( singleton_dim.getSize() ) + ".";
+     throw std::invalid_argument( error );
     }
+
+    ncDim[ i ] = singleton_dim;
+   } else {
+    throw std::invalid_argument
+     ( "serialize(): error when serializing variable '" + var_name +
+       "' of group '" + group.getName() + "'. The size of dimension " +
+       std::to_string( i ) + " of the given boost::multi_array is " +
+       std::to_string( multi_array_dim_size ) +
+       " but the size of the provided netCDF dimension is " +
+       std::to_string( ncdim_size ) +
+       ". At least one of the following requirements must be met:"
+       " (1) these sizes are equal;"
+       " (2) the given boost::multi_array has a single element and"
+       " 'allow_scalar_var' is true;"
+       " (3) the size of the dimension of the given boost::"
+       "multi_array is 1 and 'allow_singleton_dim' is true;"
+       " (4) provided netCDF dimension is unlimited." );
+   }
   }
+ }
 
-  std::vector<std::size_t> start( N , 0 );
-  std::vector<std::size_t> dim_sizes( N );
-  for( std::vector<std::size_t>::size_type i = 0 ; i < N ; ++i )
-    dim_sizes[ i ] = multi_array.shape()[ i ];
+ std::vector< std::size_t > start( N, 0 );
+ std::vector< std::size_t > dim_sizes( N );
+ for( std::vector< std::size_t >::size_type i = 0; i < N; ++i )
+  dim_sizes[ i ] = multi_array.shape()[ i ];
 
-  group.addVar( var_name , ncType , ncDim )
-    .putVar( start , dim_sizes , multi_array.data() );
+ group.addVar( var_name, ncType, ncDim )
+  .putVar( start, dim_sizes, multi_array.data() );
 }
 
 /// Check if all the expected netCDF variables are present in a group
