@@ -327,8 +327,7 @@ using KD_c_Vec_List_p_Const = const boost::multi_array< List_p_Const, K >;
  * @{
  */
 
-/*
- * The macro defines a very small, "fake" class _init. Its only meaning is to
+/** The macro defines a very small, "fake" class _init. Its only meaning is to
  * define a static member _initializer that is initialized in whatever object
  * the other macro SMSpp_insert_in_factory_cpp() is put as soon as the program
  * starts; when the constructor is called, it will register the class in the
@@ -339,17 +338,15 @@ using KD_c_Vec_List_p_Const = const boost::multi_array< List_p_Const, K >;
  * It also defines the private_name() method and the _private_name() static
  * method which is the implementation of private_name() (but it is static,
  * and therefore can be called in initialization statements, whereas
- * private_name() is virtual and therefore it can not).
- */
+ * private_name() is virtual and therefore it can not). */
 
 #define SMSpp_insert_in_factory_h                                            \
  static class _init { public:  _init(); } _initializer;                      \
  const std::string & private_name() const override;                          \
- static const std::string & _private_name();
+ static const std::string & _private_name()
 
 namespace SMSpp_type_traits {
-/*
- * The name of template classes may have commas, which prevent them to be
+/* The name of template classes may have commas, which prevent them to be
  * directly passed as arguments to the SMSpp_insert_in_factory_cpp_*_t
  * macros, as the comma is then interpreted by the tokeniser as separating
  * different arguments of the macro. To allow passing such names as
@@ -377,8 +374,7 @@ namespace SMSpp_type_traits {
  *     ( SimpleConfiguration< std::pair< int , int > > )
  *
  * Note that *not* using the "(" and ")" would result in the macro
- * invocation to fail.
- */
+ * invocation to fail. */
 
 template< typename T >
 struct t;
@@ -483,8 +479,8 @@ struct t< T( U ) > { using type = U; };
  * Note that a previous version of these macros required an ugly two-step
  * mechanism to define the object inserted in the factory in the "_1" version.
  * This was due to the fact that boost (up to and incl. 1.67) did not do
- * "perfect forwarding": factory<>() requires lvalue arguments, but bind
- * provides rvalues. This flaw has apparently been fixed in later versions of
+ * "perfect forwarding": factory<>() required lvalue arguments, but bind
+ * provided rvalues. This flaw has apparently been fixed in later versions of
  * boost, and this implementation works with boost 1.74.0.
  *
  * The alert reader may similarly wonder why the funny "{}" after
@@ -515,78 +511,64 @@ struct t< T( U ) > { using type = U; };
  * std::string my_name variable of _private_name() by using a lambda that is
  * defined and immediately called on #ClassName. This operation hence happens
  * *at runtime*, although only once the first time that _private_name() is
- * called (which is immediately as the class is registered in the
- * factory). This is slightly inefficient since the stripping should rather
- * reasonably happen at compile time; as C++-20 arrives most of
- * std::algorithms will be constexpr-able and therefore this will hopefully be
- * possible.
- */
+ * called (which is immediately as the class is registered in the factory).
+ * This is slightly inefficient since the stripping should rather happen at
+ * compile time; as C++-20 arrives most of std::algorithms will be
+ * constexpr-able and therefore this will hopefully be possible. */
 
 #define SMSpp_insert_in_factory_cpp_0( ClassName )                           \
  const std::string &                                                         \
  SMSpp_type_traits::t<void(ClassName)>::type::_private_name() {              \
   static const std::string my_name(                                          \
    []( std::string && str ) -> std::string && {                              \
-    str.erase( std::remove_if( str.begin(),                                  \
-                               str.end(),                                    \
-                               ::isspace ),                                  \
+    str.erase( std::remove_if( str.begin() , str.end() , ::isspace ) ,       \
                str.end() );                                                  \
-    while( str.front() == '(' ) {                                            \
-     str.pop_back();                                                         \
-     str.erase( 0 , 1 );                                                     \
-    }                                                                        \
+    while( str.front() == '(' ) { str.pop_back(); str.erase( 0 , 1 ); }      \
     return( std::move( str ) );                                              \
     } ( std::move( std::string( #ClassName ) ) ) );                          \
   return( my_name );                                                         \
- }                                                                           \
+  }                                                                          \
                                                                              \
  const std::string &                                                         \
  SMSpp_type_traits::t<void(ClassName)>::type::private_name() const {         \
   return( SMSpp_type_traits::t<void(ClassName)>::type::_private_name() );    \
- }                                                                           \
+  }                                                                          \
                                                                              \
  SMSpp_type_traits::t<void(ClassName)>::type::_init::_init() {               \
-  f_factory()                                                                \
-   [SMSpp_type_traits::t<void(ClassName)>::type::_private_name()] =          \
+  f_factory()[SMSpp_type_traits::t<void(ClassName)>::type::_private_name()] =\
     boost::factory< SMSpp_type_traits::t<void(ClassName)>::type * >();       \
   SMSpp_type_traits::t<void(ClassName)>::type::static_initialization();      \
- }                                                                           \
+  }                                                                          \
                                                                              \
  SMSpp_type_traits::t<void(ClassName)>::type::_init                          \
- SMSpp_type_traits::t<void(ClassName)>::type::_initializer;
+ SMSpp_type_traits::t<void(ClassName)>::type::_initializer
 
 #define SMSpp_insert_in_factory_cpp_1( ClassName )                           \
  const std::string &                                                         \
  SMSpp_type_traits::t<void(ClassName)>::type::_private_name() {              \
   static const std::string my_name(                                          \
    []( std::string && str ) -> std::string && {                              \
-    str.erase( std::remove_if( str.begin(),                                  \
-                               str.end(),                                    \
-                               ::isspace ),                                  \
+    str.erase( std::remove_if( str.begin(), str.end(), ::isspace ) ,         \
                str.end() );                                                  \
-    while( str.front() == '(' ) {                                            \
-     str.pop_back();                                                         \
-     str.erase( 0 , 1 );                                                     \
-    }                                                                        \
+    while( str.front() == '(' ) { str.pop_back(); str.erase( 0 , 1 ); }      \
     return( std::move( str ) );                                              \
     } ( std::move( std::string( #ClassName ) ) ) );                          \
   return( my_name );                                                         \
- }                                                                           \
+  }                                                                          \
                                                                              \
  const std::string &                                                         \
  SMSpp_type_traits::t<void(ClassName)>::type::private_name() const {         \
   return( SMSpp_type_traits::t<void(ClassName)>::type::_private_name() );    \
- }                                                                           \
+  }                                                                          \
                                                                              \
  SMSpp_type_traits::t<void(ClassName)>::type::_init::_init() {               \
-  f_factory()                                                                \
-   [SMSpp_type_traits::t<void(ClassName)>::type::_private_name()] =          \
+  f_factory()[SMSpp_type_traits::t<void(ClassName)>::type::_private_name()] =\
     boost::factory< SMSpp_type_traits::t<void(ClassName)>::type * >();       \
   SMSpp_type_traits::t<void(ClassName)>::type::static_initialization();      \
- }                                                                           \
+  }                                                                          \
                                                                              \
  SMSpp_type_traits::t<void(ClassName)>::type::_init                          \
- SMSpp_type_traits::t<void(ClassName)>::type::_initializer;
+ SMSpp_type_traits::t<void(ClassName)>::type::_initializer
 
 #define SMSpp_insert_in_factory_cpp_0_t( ClassName )                         \
  template<>                                                                  \
@@ -594,36 +576,30 @@ struct t< T( U ) > { using type = U; };
  SMSpp_type_traits::t<void(ClassName)>::type::_private_name() {              \
   static const std::string my_name(                                          \
    []( std::string && str ) -> std::string && {                              \
-    str.erase( std::remove_if( str.begin(),                                  \
-                               str.end(),                                    \
-                               ::isspace ),                                  \
+    str.erase( std::remove_if( str.begin() , str.end() , ::isspace ) ,       \
                str.end() );                                                  \
-    while( str.front() == '(' ) {                                            \
-     str.pop_back();                                                         \
-     str.erase( 0 , 1 );                                                     \
-    }                                                                        \
+    while( str.front() == '(' ) { str.pop_back(); str.erase( 0 , 1 ); }      \
     return( std::move( str ) );                                              \
     } ( std::move( std::string( #ClassName ) ) ) );                          \
   return( my_name );                                                         \
- }                                                                           \
+  }                                                                          \
                                                                              \
  template<>                                                                  \
  const std::string &                                                         \
  SMSpp_type_traits::t<void(ClassName)>::type::private_name() const {         \
   return( SMSpp_type_traits::t<void(ClassName)>::type::_private_name() );    \
- }                                                                           \
+  }                                                                          \
                                                                              \
  template<>                                                                  \
  SMSpp_type_traits::t<void(ClassName)>::type::_init::_init() {               \
-  f_factory()                                                                \
-   [SMSpp_type_traits::t<void(ClassName)>::type::_private_name()] =          \
+  f_factory()[SMSpp_type_traits::t<void(ClassName)>::type::_private_name()] =\
     boost::factory< SMSpp_type_traits::t<void(ClassName)>::type * >();       \
   SMSpp_type_traits::t<void(ClassName)>::type::static_initialization();      \
- }                                                                           \
+  }                                                                          \
                                                                              \
  template<>                                                                  \
  SMSpp_type_traits::t<void(ClassName)>::type::_init                          \
- SMSpp_type_traits::t<void(ClassName)>::type::_initializer{};
+ SMSpp_type_traits::t<void(ClassName)>::type::_initializer{}
 
 #define SMSpp_insert_in_factory_cpp_1_t( ClassName )                         \
  template<>                                                                  \
@@ -631,36 +607,30 @@ struct t< T( U ) > { using type = U; };
  SMSpp_type_traits::t<void(ClassName)>::type::_private_name() {              \
   static const std::string my_name(                                          \
    []( std::string && str ) -> std::string && {                              \
-    str.erase( std::remove_if( str.begin(),                                  \
-                               str.end(),                                    \
-                               ::isspace ),                                  \
+    str.erase( std::remove_if( str.begin() , str.end() , ::isspace ) ,       \
                str.end() );                                                  \
-    while( str.front() == '(' ) {                                            \
-     str.pop_back();                                                         \
-     str.erase( 0 , 1 );                                                     \
-    }                                                                        \
+    while( str.front() == '(' ) { str.pop_back(); str.erase( 0 , 1 ); }      \
     return( std::move( str ) );                                              \
     } ( std::move( std::string( #ClassName ) ) ) );                          \
   return( my_name );                                                         \
- }                                                                           \
+  }                                                                          \
                                                                              \
  template<>                                                                  \
  const std::string &                                                         \
  SMSpp_type_traits::t<void(ClassName)>::type::private_name() const {         \
   return( SMSpp_type_traits::t<void(ClassName)>::type::_private_name() );    \
- }                                                                           \
+  }                                                                          \
                                                                              \
  template<>                                                                  \
  SMSpp_type_traits::t<void(ClassName)>::type::_init::_init() {               \
-  f_factory()                                                                \
-   [SMSpp_type_traits::t<void(ClassName)>::type::_private_name()] =          \
+  f_factory()[SMSpp_type_traits::t<void(ClassName)>::type::_private_name()] =\
     boost::factory< SMSpp_type_traits::t<void(ClassName)>::type * >();       \
   SMSpp_type_traits::t<void(ClassName)>::type::static_initialization();      \
- }                                                                           \
+  }                                                                          \
                                                                              \
  template<>                                                                  \
  SMSpp_type_traits::t<void(ClassName)>::type::_init                          \
- SMSpp_type_traits::t<void(ClassName)>::type::_initializer{};
+ SMSpp_type_traits::t<void(ClassName)>::type::_initializer{}
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------- HANDLE boost::any SPECIALIZATIONS --------------------*/

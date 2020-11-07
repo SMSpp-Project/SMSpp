@@ -387,11 +387,11 @@ void BlockSolverConfig::print( std::ostream & output ) const
 
 void BlockSolverConfig::load( std::istream & input )
 {
- int k;
+ Index k;
  input >> eatcomments >> f_diff >> eatcomments >> k;
 
  v_SolverNames.resize( k );
- for( int i = 0 ; i < k ; ++i ) {
+ for( Index i = 0 ; i < k ; ++i ) {
   input >> eatcomments;
   if( input.peek() == input.widen( '*' ) )
    input.get();  // read away (and ignore) the '*' from the stream
@@ -402,10 +402,10 @@ void BlockSolverConfig::load( std::istream & input )
  input >> eatcomments >> k;
  if( k > v_SolverNames.size() )
   v_SolverNames.resize( k );
- v_SolverConfigs.resize( std::max( k , int( v_SolverNames.size() ) ) ,
-                         nullptr );
+ v_SolverConfigs.resize( std::max( k , Index( v_SolverNames.size() ) ) ,
+			 nullptr );
 
- for( int i = 0 ; i < k ; ++i ) {
+ for( Index i = 0 ; i < k ; ++i ) {
   input >> eatcomments;
   if( input.peek() == input.widen( '*' ) )
    input.get();  // read away (and ignore) the '*' from the stream
