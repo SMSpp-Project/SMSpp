@@ -7,8 +7,7 @@ include(FetchContent)
 fetchcontent_declare(
         googletest
         GIT_REPOSITORY https://github.com/google/googletest.git
-        GIT_TAG release-1.10.0
-)
+        GIT_TAG release-1.10.0)
 
 fetchcontent_getproperties(googletest)
 if (NOT googletest_POPULATED)
@@ -23,34 +22,26 @@ endif ()
 add_executable(AbstractBlock_test tests_AbstractBlock.cpp)
 target_link_libraries(AbstractBlock_test PRIVATE SMS++::SMSpp gtest)
 
-add_test(
-        NAME AbstractBlock_test
-        COMMAND AbstractBlock_test
-)
+add_test(NAME AbstractBlock_test
+         COMMAND AbstractBlock_test)
+
+# ----- ColVariable_test ---------------------------------------------------- #
+add_executable(ColVariable_test tests_ColVariable.cpp)
+target_link_libraries(ColVariable_test PRIVATE SMS++::SMSpp gtest)
+
+add_test(NAME ColVariable_test
+         COMMAND ColVariable_test)
 
 # ----- AbstractPath_test --------------------------------------------------- #
 add_executable(AbstractPath_test tests_AbstractPath.cpp)
 target_link_libraries(AbstractPath_test PRIVATE SMS++::SMSpp)
 
-add_test(
-        NAME AbstractPath_test
-        COMMAND AbstractPath_test
-)
-
-# ----- Legacy test --------------------------------------------------------- #
-add_executable(FakeBlock_test main.cpp)
-target_link_libraries(FakeBlock_test PRIVATE SMS++::SMSpp)
-
-add_test(
-        NAME FakeBlock_test
-        COMMAND FakeBlock_test
-)
+#add_test(NAME AbstractPath_test
+#         COMMAND AbstractPath_test)
 
 # ----- ClassFactory_test --------------------------------------------------- #
 add_executable(ClassFactory_test ClassFactory/main.cpp)
 target_link_libraries(ClassFactory_test PRIVATE SMS++::SMSpp)
 
-add_test(
-        NAME ClassFactory_test
-        COMMAND ClassFactory_test
-)
+#add_test(NAME ClassFactory_test
+#         COMMAND ClassFactory_test)
