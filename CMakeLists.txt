@@ -13,12 +13,23 @@ project(SMS++ VERSION 0.3.2 LANGUAGES CXX)
 include(CTest)
 
 # ----- Requirements -------------------------------------------------------- #
-# This is to use the find modules we provide
-list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
-
 find_package(Boost 1.71.0 REQUIRED)
-find_package(Eigen3 REQUIRED)
+
+# This is to use the find modules we provide
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+
+# This will try first with Eigen3 own configuration file,
+# then with the find module we provide.
+find_package(Eigen3 QUIET NO_MODULE)
+if (NOT Eigen3_FOUND)
+    find_package(Eigen3 REQUIRED)
+endif ()
+
+# This will straight use our find module, as netCDF-C++
+# configuration file doesn't work.
 find_package(netCDFCxx REQUIRED)
+
+list(REMOVE_AT CMAKE_MODULE_PATH -1)
 
 # ----- Library ------------------------------------------------------------- #
 add_library(SMSpp)
@@ -114,9 +125,11 @@ install(FILES
 
 # Shipping custom find modules should not be encouraged because third
 # party developers should provide them.
-# We ship FindnetCDFCxx because the provided one has shortcomings.
+# We ship FindnetCDFCxx because the netCDF-C++ configuration file doesn't
+# work, and FindEigen3 because the user may want not to install Eigen3.
 install(FILES
         ${CMAKE_CURRENT_LIST_DIR}/cmake/FindnetCDFCxx.cmake
+        ${CMAKE_CURRENT_LIST_DIR}/cmake/FindEigen3.cmake
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SMSpp)
 
 # ----- Export from the build tree ------------------------------------------ #
@@ -145,4 +158,4 @@ endif ()
 # ----- Unit testing -------------------------------------------------------- #
 if (BUILD_TESTING)
     add_subdirectory(test)
-endif()
+endif ()
