@@ -740,12 +740,12 @@ public:
   * so that when set_Block() is finally called, the Solver fully knows how to
   * initialize itself.
   *
-  * IMPORTANT NOTE: set_Block( block ) does *not* call
+  * IMPORTANT NOTE: set_Block( block ) is *not* expected call
   *
   *      block->register_Solver( this )
   *
   * to register the Solver to the Block, and likewise set_Block( nullptr )
-  * does *not* call
+  * is *not* expected to call
   *
   *      f_Block->unregister_Solver( this )
   *
@@ -755,7 +755,13 @@ public:
   * Block::replace_Solver(). Hence, the preferred way to set/rescind the ties
   * between a Block and a Solver is to do that via the Block; if set_Block()
   * is called before that, the methods of the Block will still have to be
-  * called to make the Block aware of the changes. */
+  * called to make the Block aware of the changes. However, this means that
+  *
+  *     Solver::set_Block( block ) COULD BE CALLED TWICE FOR THE SAME block
+  *     (IF IT IS CALLED FIRST, AND THEN Block::register_Solver() IS CALLED
+  *     TO MAKE block AWARE OF THIS), WHICH MEANS THAT ANY :Solver SHOULD
+  *     CHECK IF THE block BEING SET IS THE SAME ONE ALREADY SET AND DO
+  *     NOTHING IN CASE (which is easy, cheap and very reasonable). */
 
  virtual void set_Block( Block *block );
 
