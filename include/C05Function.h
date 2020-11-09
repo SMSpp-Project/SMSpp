@@ -27,8 +27,8 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __C05Function
- #define __C05Function
-                      /* self-identification: #endif at the end of the file */
+#define __C05Function
+/* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -44,8 +44,7 @@
 /*--------------------------------------------------------------------------*/
 
 // namespace for the Structured Modeling System++ (SMS++)
-namespace SMSpp_di_unipi_it
-{
+namespace SMSpp_di_unipi_it {
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
@@ -366,7 +365,7 @@ class C05Function : public Function {
  using SparseVector = Eigen::SparseVector< FunctionValue >;
 
  ///< type used to define linear combinations of linearizations
- using LinearCombination = std::vector< std::pair < Index , FunctionValue > >;
+ using LinearCombination = std::vector< std::pair< Index, FunctionValue > >;
 
  using c_LinearCombination = const LinearCombination;
  ///< a const LinearCombination
@@ -379,25 +378,25 @@ class C05Function : public Function {
   * be easily further extended by derived classes. */
 
  enum int_par_type_C0F {
- intLPMaxSz = Function::intLastParFun ,
- ///< maximum size of the "local pool"
- /**< The algorithmic parameter for setting the size of the "local pool",
-  * that is, the maximum number of linearizations that should be stored in
-  * the local pool. The default is 1, which corresponds to the fact that the
-  * Function can only produce a single linearization at a time (for it is,
-  * say, smooth). */
+  intLPMaxSz = Function::intLastParFun,
+  ///< maximum size of the "local pool"
+  /**< The algorithmic parameter for setting the size of the "local pool",
+   * that is, the maximum number of linearizations that should be stored in
+   * the local pool. The default is 1, which corresponds to the fact that the
+   * Function can only produce a single linearization at a time (for it is,
+   * say, smooth). */
 
- intGPMaxSz ,  ///< maximum size of the "global pool"
-               /**< The algorithmic parameter for setting the size of the 
-		* "global pool", that is, the maximum number of
- * linearizations that should be stored in the local pool. The default is 0,
- * which corresponds to the fact that the Function cannot store any
- * linearization (for it is, say, smooth and therefore there is no need to).
- */
+  intGPMaxSz,  ///< maximum size of the "global pool"
+  /**< The algorithmic parameter for setting the size of the 
+   * "global pool", that is, the maximum number of
+   * linearizations that should be stored in the local pool. The default is 0,
+   * which corresponds to the fact that the Function cannot store any
+   * linearization (for it is, say, smooth and therefore there is no need to).
+   */
 
- intLastParC0F   ///< first allowed new int parameter for derived classes
-                 /**< Convenience value for easily allow derived classes
-		  * to extend the set of int algorithmic parameters. */
+  intLastParC0F   ///< first allowed new int parameter for derived classes
+  /**< Convenience value for easily allow derived classes
+   * to extend the set of int algorithmic parameters. */
  };  // end( int_par_type_C0F )
 
 /*--------------------------------------------------------------------------*/
@@ -408,72 +407,72 @@ class C05Function : public Function {
   * be easily further extended by derived classes. */
 
  enum dbl_par_type_C0F {
- dblRAccLin = Function::dblLastParFun ,
- ///< maximum relative error in any linearization
- /**< The parameter for setting the relative accuracy of the linearizations.
-  * A linearization ( g , \alpha ) computed at the point x is "accurate" if
-  * the value of the linearization coincides with the value of the function
-  * at x, i.e., g x + \alpha = f(x). In general linearizations that are not
-  * "completely accurate" can still be useful: for instance, in the Lagrangian
-  * case an \eps-optimal solution to the Lagrangian problem gives rise to a
-  * valid linearization ( g , \alpha ) with \eps >= f(x) - ( g x + \alpha ).
-  * Indeed, by convexity f(x) >= g x + \alpha, and the term
-  *
-  *    f(x) - ( g x + \alpha ) >= 0
-  *
-  * is called the "linearization error" of ( g , \alpha ) at x. Whenever the
-  * linearization error is <= \eps the linearization is an \eps-subgradient
-  * of f at x, and \eps-optimal solutions of the Lagrangian problem are those
-  * which characterise \eps-subgradient. Such a linearization can be deemed
-  * "interesting" if \eps is "small", but not if \eps is "large". This
-  * parameter instructs the C05Function not to bother reporting (and therefore
-  * storing in the "local pool") any linearization having a relative error
-  * with f(x) larger than dblRAccLin. This would generally mean
-  *
-  *  | f(x) - ( g x + \alpha )  | <= dblRAccLin * max( | f(x) | , 1 )
-  *
-  * except that the value f(x) may not be known exactly, with only lower
-  * and/or upper bounds on it available. The actual formula therefore depends
-  * on what information is actually available: for instance, in the Lagrangian
-  * case one knows that f(x) >= g x + \alpha, and therefore typically an upper
-  * estimate ub >= f(x) is used in the formula instead of f(x). The default is
-  * 0, i.e., "only perfect linearizations are allowed". */
+  dblRAccLin = Function::dblLastParFun,
+  ///< maximum relative error in any linearization
+  /**< The parameter for setting the relative accuracy of the linearizations.
+   * A linearization ( g , \alpha ) computed at the point x is "accurate" if
+   * the value of the linearization coincides with the value of the function
+   * at x, i.e., g x + \alpha = f(x). In general linearizations that are not
+   * "completely accurate" can still be useful: for instance, in the Lagrangian
+   * case an \eps-optimal solution to the Lagrangian problem gives rise to a
+   * valid linearization ( g , \alpha ) with \eps >= f(x) - ( g x + \alpha ).
+   * Indeed, by convexity f(x) >= g x + \alpha, and the term
+   *
+   *    f(x) - ( g x + \alpha ) >= 0
+   *
+   * is called the "linearization error" of ( g , \alpha ) at x. Whenever the
+   * linearization error is <= \eps the linearization is an \eps-subgradient
+   * of f at x, and \eps-optimal solutions of the Lagrangian problem are those
+   * which characterise \eps-subgradient. Such a linearization can be deemed
+   * "interesting" if \eps is "small", but not if \eps is "large". This
+   * parameter instructs the C05Function not to bother reporting (and therefore
+   * storing in the "local pool") any linearization having a relative error
+   * with f(x) larger than dblRAccLin. This would generally mean
+   *
+   *  | f(x) - ( g x + \alpha )  | <= dblRAccLin * max( | f(x) | , 1 )
+   *
+   * except that the value f(x) may not be known exactly, with only lower
+   * and/or upper bounds on it available. The actual formula therefore depends
+   * on what information is actually available: for instance, in the Lagrangian
+   * case one knows that f(x) >= g x + \alpha, and therefore typically an upper
+   * estimate ub >= f(x) is used in the formula instead of f(x). The default is
+   * 0, i.e., "only perfect linearizations are allowed". */
 
- dblAAccLin ,   ///< maximum absolute error in any reported solution
- /**< Similar to dblRAccLin but for an *absolute* accuracy; that is, a
-  * linearization is deemed acceptable if
-  *
-  *      | f(x) - ( g x + \alpha ) | <= dblAAccLin
-  *
-  * except that the value f(x) may not be known exactly, with only lower
-  * and/or upper bounds on it available. The actual formula therefore depends
-  * on what information is actually available: for instance, in the Lagrangian
-  * case one knows that f(x) >= ( g x + \alpha ), and therefore typically an
-  * upper estimate ub >= f(x) is used in the formula instead of f(x). The
-  * default is 0, i.e., "only perfect linearizations are allowed". */
+  dblAAccLin,   ///< maximum absolute error in any reported solution
+  /**< Similar to dblRAccLin but for an *absolute* accuracy; that is, a
+   * linearization is deemed acceptable if
+   *
+   *      | f(x) - ( g x + \alpha ) | <= dblAAccLin
+   *
+   * except that the value f(x) may not be known exactly, with only lower
+   * and/or upper bounds on it available. The actual formula therefore depends
+   * on what information is actually available: for instance, in the Lagrangian
+   * case one knows that f(x) >= ( g x + \alpha ), and therefore typically an
+   * upper estimate ub >= f(x) is used in the formula instead of f(x). The
+   * default is 0, i.e., "only perfect linearizations are allowed". */
 
- dblAAccMlt ,   ///< maximum absolute error in the multipliers
- /**< The multipliers used in store_combination_of_linearizations() and in
-  * set_important_linearization() are typically (a part of) the dual optimal
-  * solution of the optimization problem involving the C05Function. As such
-  * they typically have some constraint. Almost always they are bounded to be
-  * non-negative, and typically their sum has to be 1 (convex multipliers) or
-  * <= 1.
-  *
-  * This parameter controls the tolerance in these constraints. Since the
-  * unitary simplex is "well scaled" by default, the tolerance is absolute.
-  * While the specific form of the constraints is :C05Function-dependent, for
-  * the standard case of the unitary simplex the meaning should be:
-  *
-  * - each multiplier has to be >= - dblAAccMlt
-  *
-  * - abs( 1 - sum of multipliers ) <= dblAAccMlt * ( number of multipliers )
-  *
-  * The default is "small but not zero": 1e-10. */
+  dblAAccMlt,   ///< maximum absolute error in the multipliers
+  /**< The multipliers used in store_combination_of_linearizations() and in
+   * set_important_linearization() are typically (a part of) the dual optimal
+   * solution of the optimization problem involving the C05Function. As such
+   * they typically have some constraint. Almost always they are bounded to be
+   * non-negative, and typically their sum has to be 1 (convex multipliers) or
+   * <= 1.
+   *
+   * This parameter controls the tolerance in these constraints. Since the
+   * unitary simplex is "well scaled" by default, the tolerance is absolute.
+   * While the specific form of the constraints is :C05Function-dependent, for
+   * the standard case of the unitary simplex the meaning should be:
+   *
+   * - each multiplier has to be >= - dblAAccMlt
+   *
+   * - abs( 1 - sum of multipliers ) <= dblAAccMlt * ( number of multipliers )
+   *
+   * The default is "small but not zero": 1e-10. */
 
- dblLastParC0F   ///< first allowed new double parameter for derived classes
-                 /**< Convenience value for easily allow derived classes
-		  * to extend the set of double algorithmic parameters. */
+  dblLastParC0F   ///< first allowed new double parameter for derived classes
+  /**< Convenience value for easily allow derived classes
+   * to extend the set of double algorithmic parameters. */
  };  // end( dbl_par_type_F )
 
 /**@} ----------------------------------------------------------------------*/
@@ -486,12 +485,13 @@ class C05Function : public Function {
  /** Constructor of C05Function. Takes as input an optional pointer to an
   * Observer and passes it to the constructor of Function. */
 
- C05Function( Observer * const observer = nullptr ) : Function( observer ) { }
+ explicit C05Function( Observer * const observer = nullptr )
+  : Function( observer ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor: it is virtual, and empty
 
- virtual ~C05Function() = default;
+ ~C05Function() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -506,20 +506,20 @@ class C05Function : public Function {
   * nothing needs to be done, not even checking that the parameters (which
   * the base class does not even store) are changed. */
 
- void set_par( const idx_type par , const int value ) override
- {
+ void set_par( const idx_type par, const int value ) override {
   switch( par ) {
-   case( intLPMaxSz ):
+   case ( intLPMaxSz ):
     if( value != 1 )
-     throw( std::invalid_argument( "intLPMaxSz cannot be changed" ) );
+     throw ( std::invalid_argument( "intLPMaxSz cannot be changed" ) );
     break;
-   case( intGPMaxSz ):
+   case ( intGPMaxSz ):
     if( value != 0 )
-     throw( std::invalid_argument( "intGPMaxSz cannot be changed" ) );
+     throw ( std::invalid_argument( "intGPMaxSz cannot be changed" ) );
     break;
-   default: Function::set_par( par , value );
-   }
+   default:
+    Function::set_par( par, value );
   }
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set a given float (double) numerical parameter
@@ -529,16 +529,16 @@ class C05Function : public Function {
   * yet, setting any (non-negative) number allows these functions to just
   * keep doing the same, so whatever number is set can just be ignored. */
 
- void set_par( const idx_type par , const double value ) override
- {
+ void set_par( const idx_type par, const double value ) override {
   switch( par ) {
-   case( dblRAccLin ):
-   case( dblAAccLin ):
-   case( dblAAccMlt ):
+   case ( dblRAccLin ):
+   case ( dblAAccLin ):
+   case ( dblAAccMlt ):
     break;
-   default: Function::set_par( par , value );
-   }
+   default:
+    Function::set_par( par, value );
   }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A C05Function -------------*/
@@ -604,10 +604,9 @@ class C05Function : public Function {
   * (gradient) is well-defined and always easily computable as soon as the
   * value of the active Variable is set. */
 
- virtual bool has_linearization( const bool diagonal = true )
- {
-  return( diagonal );
-  }
+ virtual bool has_linearization( const bool diagonal = true ) {
+  return ( diagonal );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// compute a new linearization for this Function
@@ -658,10 +657,9 @@ class C05Function : public Function {
   * information allowing to compute them) is the task of the "global" pool
   * of linearizations. */
 
- virtual bool compute_new_linearization( const bool diagonal = true )
- {
-  return( false );
-  }
+ virtual bool compute_new_linearization( const bool diagonal = true ) {
+  return ( false );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// store a linearization in the global pool 
@@ -695,8 +693,8 @@ class C05Function : public Function {
   * "physical representation" of the C05Function, but only its (partial)
   * "abstract represenation" that the global pool provides. */
 
- virtual void store_linearization( Index name  ,
-				   ModParam issueMod = eModBlck ) { }
+ virtual void store_linearization( Index name,
+                                   ModParam issueMod = eModBlck ) {}
 
 /*--------------------------------------------------------------------------*/
  /// tells if there is a linearization in the global pool with that name
@@ -705,7 +703,9 @@ class C05Function : public Function {
   * of the method is to always return false, which is OK for C05Function that
   * does not store linearization at all. */
 
- virtual bool is_linearization_there( Index name ) const { return( false ); }
+ [[nodiscard]] virtual bool is_linearization_there( Index name ) const {
+  return ( false );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// tells if the linearization in the global pool with that name is vertical
@@ -718,10 +718,9 @@ class C05Function : public Function {
   * vertical linearizations (that is, the function is real-valued, i.e., it
   * never evaluates to +/- INF), or does not store linearization at all. */
 
- virtual bool is_linearization_vertical( Index name ) const
- {
-  return( false );
-  }
+ [[nodiscard]] virtual bool is_linearization_vertical( Index name ) const {
+  return ( false );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// stores a combination of the given linearizations
@@ -783,8 +782,8 @@ class C05Function : public Function {
   * "abstract represenation" that the global pool provides. */
 
  virtual void store_combination_of_linearizations(
-	                   LinearCombination & coefficients , Index name ,
-			   ModParam issueMod = eModBlck ) { }
+  LinearCombination & coefficients, Index name,
+  ModParam issueMod = eModBlck ) {}
 
 /*--------------------------------------------------------------------------*/
  /// specify how to construct "the important linearization"
@@ -888,8 +887,8 @@ class C05Function : public Function {
   * optimal dual solutions, this method may be called more than once at the
   * end of an optimization to retrieve them all, one by one. */
 
- virtual void set_important_linearization( LinearCombination && coefficients )
- { }
+ virtual void
+ set_important_linearization( LinearCombination && coefficients ) {}
 
 /*--------------------------------------------------------------------------*/
  /// return (the combination used to form) "the important linearization"
@@ -901,12 +900,11 @@ class C05Function : public Function {
   * all linearizations in the global pool taken individually are the important
   * one, comprised the one with name 0). */
 
- virtual c_LinearCombination &
-                       get_important_linearization_coefficients( void ) const
- {
-  static c_LinearCombination _tmp = { std::make_pair( 0 , 1 ) };
-  return( _tmp );
-  }
+ [[nodiscard]] virtual c_LinearCombination &
+ get_important_linearization_coefficients() const {
+  static c_LinearCombination _tmp = { std::make_pair( 0, 1 ) };
+  return ( _tmp );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// delete the given linearization from the global pool of linearizations
@@ -925,8 +923,8 @@ class C05Function : public Function {
   * only its (partial) "abstract represenation" that the global pool
   * provides. */
 
- virtual void delete_linearization( Index name ,
-				    ModParam issueMod = eModBlck ) { }
+ virtual void delete_linearization( Index name,
+                                    ModParam issueMod = eModBlck ) {}
 
 /*--------------------------------------------------------------------------*/
  /// delete the given subset of linearizations from the global pool
@@ -949,9 +947,9 @@ class C05Function : public Function {
   * individual calls to not generate individual C05FunctionMod; rather, an
   * unique one is issued at the end. */
 
- virtual void delete_linearizations( Subset && which , bool ordered = true ,
-				     ModParam issueMod = eModBlck );
- 
+ virtual void delete_linearizations( Subset && which, bool ordered = true,
+                                     ModParam issueMod = eModBlck );
+
 /*--------------------------------------------------------------------------*/
  /// get a range of coefficients (g vector) of a linearization in an array
  /** This method retrieves a range of the vector of coefficients g that is
@@ -1011,9 +1009,9 @@ class C05Function : public Function {
   *   get_linearization_coefficients( G[ i ].data() , mod->range() , i )
   */
 
- virtual void get_linearization_coefficients( FunctionValue * g ,
-				     Range range = Range( 0 , Inf<Index>() ) ,
-				     Index name = Inf<Index>() ) = 0;
+ virtual void get_linearization_coefficients( FunctionValue * g,
+                                              Range range = Range( 0, Inf< Index >() ),
+                                              Index name = Inf< Index >() ) = 0;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get a range of coefficients of a linearization in a SparseVector
@@ -1047,17 +1045,16 @@ class C05Function : public Function {
   * "rough" version. Derived classes are welcome to provide specialized
   * implementations avoiding the copy for efficiency. */
 
- virtual void get_linearization_coefficients( SparseVector & g ,
-			            Range range = Range( 0 , Inf<Index>() ) ,
-				    Index name = Inf<Index>() )
- {
-  range.second = std::min( range.second , get_num_active_var() );
+ virtual void get_linearization_coefficients( SparseVector & g,
+                                              Range range = Range( 0, Inf< Index >() ),
+                                              Index name = Inf< Index >() ) {
+  range.second = std::min( range.second, get_num_active_var() );
   if( range.second <= range.first )  // range is empty
    return;                           // cowardly (and silently) return
 
   Vec_FunctionValue gg( range.second - range.first );
   FunctionValue * ggp = gg.data();
-  get_linearization_coefficients( ggp , range , name );
+  get_linearization_coefficients( ggp, range, name );
 
   if( g.nonZeros() == 0 ) {  // g has no nonzeroes
 
@@ -1066,20 +1063,19 @@ class C05Function : public Function {
 
    g.reserve( range.second - range.first );
 
-   for( Index i = range.first ; i < range.second ; ++i , ++ggp )
+   for( Index i = range.first; i < range.second; ++i, ++ggp )
     if( *ggp )
      g.insert( i ) = *ggp;
-   }
-  else {                  // g has some nonzeroes
+  } else {                  // g has some nonzeroes
    if( g.size() != get_num_active_var() )
-    throw( std::invalid_argument( "wrong size of nonempty SparseVector g" ) );
+    throw ( std::invalid_argument( "wrong size of nonempty SparseVector g" ) );
 
-   for( Index i = range.first ; i < range.second ; ++i )
-    g.coeffRef( i ) = *(ggp++);
+   for( Index i = range.first; i < range.second; ++i )
+    g.coeffRef( i ) = *( ggp++ );
 
    g.prune( 0 );
-   }
   }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// get a subset of coefficients (g vector) of a linearization in an array
@@ -1137,10 +1133,10 @@ class C05Function : public Function {
   *   get_linearization_coefficients( G[ i ].data() , mod->subset() , i  )
   */
 
- virtual void get_linearization_coefficients( FunctionValue * g ,
-					      c_Subset & subset ,
-					      const bool ordered = false ,
-					      Index name = Inf<Index>() ) = 0;
+ virtual void get_linearization_coefficients( FunctionValue * g,
+                                              c_Subset & subset,
+                                              const bool ordered = false,
+                                              Index name = Inf< Index >() ) = 0;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get a subset of coefficients of a linearization in a SparseVector
@@ -1174,17 +1170,16 @@ class C05Function : public Function {
   * "rough" version. Derived classes are welcome to provide specialized
   * implementations avoiding the copy for efficiency. */
 
- virtual void get_linearization_coefficients( SparseVector & g ,
-					      c_Subset & subset ,
-					      const bool ordered = false ,
-					      Index name = Inf<Index>() )
- {
+ virtual void get_linearization_coefficients( SparseVector & g,
+                                              c_Subset & subset,
+                                              const bool ordered = false,
+                                              Index name = Inf< Index >() ) {
   if( subset.empty() )  // subset is empty
    return;              // cowardly (and silently) return
 
   Vec_FunctionValue gg( subset.size() );
   FunctionValue * ggp = gg.data();
-  get_linearization_coefficients( ggp , subset , ordered , name );
+  get_linearization_coefficients( ggp, subset, ordered, name );
 
   if( g.nonZeros() == 0 ) {  // g has no nonzeroes
 
@@ -1195,25 +1190,24 @@ class C05Function : public Function {
 
    for( auto i : subset ) {
     if( i >= get_num_active_var() )
-     throw( std::invalid_argument( "wrong index in subset" ) );
-    auto gi = *(ggp++);
+     throw ( std::invalid_argument( "wrong index in subset" ) );
+    auto gi = *( ggp++ );
     if( gi )
      g.insert( i ) = gi;
-    }
    }
-  else {                  // g has some nonzeroes
+  } else {                  // g has some nonzeroes
    if( g.size() != get_num_active_var() )
-    throw( std::invalid_argument( "wrong size of nonempty SparseVector g" ) );
+    throw ( std::invalid_argument( "wrong size of nonempty SparseVector g" ) );
 
    for( auto i : subset ) {
     if( i >= get_num_active_var() )
-     throw( std::invalid_argument( "wrong index in subset" ) );
-    g.coeffRef( i ) = *(ggp++);
-    }
+     throw ( std::invalid_argument( "wrong index in subset" ) );
+    g.coeffRef( i ) = *( ggp++ );
+   }
 
    g.prune( 0 );
-   }
   }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// return the constant term of a linearization
@@ -1239,7 +1233,7 @@ class C05Function : public Function {
   * std::numeric_limits::signaling_NaN<FunctionValue>()). */
 
  virtual FunctionValue get_linearization_constant(
-					     Index name = Inf<Index>() ) = 0;
+  Index name = Inf< Index >() ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// returns true only if this Function is continuously differentiable
@@ -1250,9 +1244,9 @@ class C05Function : public Function {
   * single linearization per compute(), as the only exact linearization is
   * the gradient, which is unique. */
 
- virtual bool is_continuously_differentiable( void ) const {
-  return( false );
-  }
+ [[nodiscard]] virtual bool is_continuously_differentiable() const {
+  return ( false );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
@@ -1260,95 +1254,101 @@ class C05Function : public Function {
 /** @name Handling the parameters of the Function
  *  @{ */
 
- idx_type get_num_int_par( void ) const override { return( intLastParC0F ); }
+ [[nodiscard]] idx_type get_num_int_par() const override {
+  return ( intLastParC0F );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- idx_type get_num_dbl_par( void ) const override { return( dblLastParC0F ); }
+ [[nodiscard]] idx_type get_num_dbl_par() const override {
+  return ( dblLastParC0F );
+ }
 
 /*--------------------------------------------------------------------------*/
- 
- int get_dflt_int_par( const idx_type par ) const override
- {
+
+ [[nodiscard]] int get_dflt_int_par( const idx_type par ) const override {
   if( par == intLPMaxSz )
-   return( 1 );
+   return ( 1 );
+  else if( par == intGPMaxSz )
+   return ( 0 );
   else
-   if( par == intGPMaxSz )
-    return( 0 );
-   else
-    return( Function::get_dflt_int_par( par ) );
-  }
+   return ( Function::get_dflt_int_par( par ) );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- 
- double get_dflt_dbl_par( const idx_type par ) const override
- {
+
+ [[nodiscard]] double get_dflt_dbl_par( const idx_type par ) const override {
   if( ( par == dblRAccLin ) || ( par == dblAAccLin ) )
-   return( 0 );
+   return ( 0 );
+  else if( par == dblAAccMlt )
+   return ( 1e-10 );
   else
-   if( par == dblAAccMlt )
-    return( 1e-10 );
-   else
-    return( Function::get_dflt_dbl_par( par ) );
-  }
+   return ( Function::get_dflt_dbl_par( par ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 
- idx_type int_par_str2idx( const std::string & name ) const override
- {
+ [[nodiscard]] idx_type
+ int_par_str2idx( const std::string & name ) const override {
   if( name == "intLPMaxSz" )
-   return( intLPMaxSz );
+   return ( intLPMaxSz );
   if( name == "intGPMaxSz" )
-   return( intGPMaxSz );
+   return ( intGPMaxSz );
 
-  return( Function::int_par_str2idx( name ) );
-  }
+  return ( Function::int_par_str2idx( name ) );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- idx_type dbl_par_str2idx( const std::string & name ) const override
- {
+ [[nodiscard]] idx_type
+ dbl_par_str2idx( const std::string & name ) const override {
   if( name == "dblRAccLin" )
-   return( dblRAccLin );
+   return ( dblRAccLin );
   if( name == "dblAAccLin" )
-   return( dblAAccLin );
+   return ( dblAAccLin );
   if( name == "dblAAccMlt" )
-   return( dblAAccMlt );
+   return ( dblAAccMlt );
 
-  return( Function::dbl_par_str2idx( name ) );
-  }
+  return ( Function::dbl_par_str2idx( name ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 
- const std::string & int_par_idx2str( const idx_type idx ) const override
- {
+ [[nodiscard]] const std::string &
+ int_par_idx2str( const idx_type idx ) const override {
   static const std::vector< std::string > pars =
-   { "intLPMaxSz" , "intGPMaxSz" };
+   { "intLPMaxSz", "intGPMaxSz" };
 
-  if( ( idx >= intLPMaxSz ) && ( idx <= intGPMaxSz ) )
-   return( pars[ idx - intGPMaxSz ] );
-  else
-   return( Function::int_par_idx2str( idx ) );
-  }
+  if( idx == intLPMaxSz )
+   return ( pars[ 0 ] );
+  if( idx == intGPMaxSz )
+   return ( pars[ 1 ] );
+
+  return ( Function::int_par_idx2str( idx ) );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- const std::string & dbl_par_idx2str( const idx_type idx ) const override
- {
+ [[nodiscard]] const std::string &
+ dbl_par_idx2str( const idx_type idx ) const override {
   static const std::vector< std::string > pars =
-   { "dblRAccLin" , "dblAAccLin" , "dblAAccMlt" };
+   { "dblRAccLin", "dblAAccLin", "dblAAccMlt" };
 
-  if( ( idx >= dblRAccLin ) && ( idx <= dblAAccLin ) )
-   return( pars[ idx - dblRAccLin ] );
-  else
-   return( Function::dbl_par_idx2str( idx ) );
-  }
+  if( idx == dblRAccLin )
+   return ( pars[ 0 ] );
+  if( idx == dblAAccLin )
+   return ( pars[ 1 ] );
+  if( idx == dblAAccMlt )
+   return ( pars[ 2 ] );
+
+  return ( Function::dbl_par_idx2str( idx ) );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-  protected:
+ protected:
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PROTECTED METHODS -----------------------------*/
@@ -1361,15 +1361,15 @@ class C05Function : public Function {
   * is virtual so that derived classes can print their specific information
   * in the format they choose. */
 
- void print( std::ostream &output ) const override {
+ void print( std::ostream & output ) const override {
   output << "C05Function [" << this << "]"
-	 << " with " << get_num_active_var() << " active variables";
-  }
+         << " with " << get_num_active_var() << " active variables";
+ }
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( C05Function ) )
+};  // end( class( C05Function ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS C05FunctionMod ---------------------------*/
@@ -1546,21 +1546,21 @@ class C05FunctionMod : public FunctionMod {
 
 /*---------------------------- PUBLIC TYPES --------------------------------*/
 
-  /// Definition of the possibles type of C05FunctionMod
-  /** This enum specifies what kind of assumption can be made about any
-   * previously produced linearization. */
-  enum c05function_mod_type {
-   NothingChanged ,           ///< both \alpha and g are still valid
-   AlphaChanged ,             ///< all the \alpha have changed, but g has not
-   AllEntriesChanged ,        ///< all the g have changed, but \alpha has not
-   AllLinearizationChanged ,  ///< both \alpha and g have changed
-   GlobalPoolAdded ,          ///< linearizations added to the global pool
-   GlobalPoolRemoved ,        ///< linearizations removed from the global pool
-   C05FunctionModLastParam
-   ///< First allowed parameter value for derived classes
-   /**< Convenience value for easily allow derived classes to extend
-    * the set of types of modifications. */
-   };
+ /// Definition of the possibles type of C05FunctionMod
+ /** This enum specifies what kind of assumption can be made about any
+  * previously produced linearization. */
+ enum c05function_mod_type {
+  NothingChanged,           ///< both \alpha and g are still valid
+  AlphaChanged,             ///< all the \alpha have changed, but g has not
+  AllEntriesChanged,        ///< all the g have changed, but \alpha has not
+  AllLinearizationChanged,  ///< both \alpha and g have changed
+  GlobalPoolAdded,          ///< linearizations added to the global pool
+  GlobalPoolRemoved,        ///< linearizations removed from the global pool
+  C05FunctionModLastParam
+  ///< First allowed parameter value for derived classes
+  /**< Convenience value for easily allow derived classes to extend
+   * the set of types of modifications. */
+ };
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: takes the type of Modification and a C05Function pointer
@@ -1573,33 +1573,32 @@ class C05FunctionMod : public FunctionMod {
   * order to allow derived classes to "extend" the set of possible types of
   * modifications. */
 
- C05FunctionMod( C05Function * f , int type , Subset && which = {} ,
-		 FunctionValue shift = NaNshift , bool cB = true )
-  : FunctionMod( f , shift , cB ) , f_type( type ) ,
-    v_which( std::move( which ) )
- {
-  #ifndef NDEBUG
-  for( Index i = 1 ; i < v_which.size() ; ++i )
+ C05FunctionMod( C05Function * f, int type, Subset && which = {},
+                 FunctionValue shift = NaNshift, bool cB = true )
+  : FunctionMod( f, shift, cB ), f_type( type ),
+    v_which( std::move( which ) ) {
+#ifndef NDEBUG
+  for( Index i = 1; i < v_which.size(); ++i )
    if( v_which[ i - 1 ] >= v_which[ i ] )
-    throw( std::invalid_argument( "unordered or repeated which" ) );
-  #endif
-  }
+    throw ( std::invalid_argument( "unordered or repeated which" ) );
+#endif
+ }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
- virtual ~C05FunctionMod() = default;  ///< destructor: does nothing
+ ~C05FunctionMod() override = default;  ///< destructor: does nothing
 
 /*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
  /// accessor to the type of modification
 
- int type( void ) const { return( f_type ); }
+ [[nodiscard]] int type() const { return ( f_type ); }
 
  /// accessor to the names of the linearizations that have been affected
  /** Returns the names of the linearizations that have been affected (added,
   * removed, changed). */
 
- c_Subset which( void ) const { return( v_which ); }
+ [[nodiscard]] c_Subset which() const { return ( v_which ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1608,8 +1607,7 @@ class C05FunctionMod : public FunctionMod {
 /*-------------------------- PROTECTED METHODS -----------------------------*/
  /// print the C05FunctionMod
 
- virtual void print( std::ostream &output ) const override
- {
+ void print( std::ostream & output ) const override {
   output << "C05FunctionMod[";
   if( concerns_Block() )
    output << "t";
@@ -1617,12 +1615,11 @@ class C05FunctionMod : public FunctionMod {
    output << "f";
   output << "] on Function [" << &f_function << " ]: ";
   guts_of_print( output );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
 
- void guts_of_print( std::ostream &output ) const
- {
+ void guts_of_print( std::ostream & output ) const {
   if( f_type == NothingChanged )
    output << "nothing changed";
   else {
@@ -1632,44 +1629,51 @@ class C05FunctionMod : public FunctionMod {
     else
      output << "in " << v_which.size();
     output << " linearizations ";
-    }
-   else
+   } else
     output << v_which.size();
    switch( f_type ) {
-    case( AlphaChanged ): output << "the \alpha have changed"; break;
-    case( AllEntriesChanged ): output << "the g have changed"; break;
-    case( AllLinearizationChanged ):
-     output << "both \alpha and g have changed"; break;
-    case( GlobalPoolAdded ): output << " linearizations added"; break;
-    case( GlobalPoolRemoved ): output << " linearizations removed"; break;
-    default: output << " unknown operation (?)";
-    }
+    case ( AlphaChanged ):
+     output << "the \alpha have changed";
+     break;
+    case ( AllEntriesChanged ):
+     output << "the g have changed";
+     break;
+    case ( AllLinearizationChanged ):
+     output << "both \alpha and g have changed";
+     break;
+    case ( GlobalPoolAdded ):
+     output << " linearizations added";
+     break;
+    case ( GlobalPoolRemoved ):
+     output << " linearizations removed";
+     break;
+    default:
+     output << " unknown operation (?)";
    }
+  }
   if( f_shift ) {
    output << ", f-values changed";
    if( std::isnan( f_shift ) )
     output << "(+-)";
+   else if( f_shift >= INFshift )
+    output << "(+)";
+   else if( f_shift <= -INFshift )
+    output << "(-)";
    else
-    if( f_shift >= INFshift )
-     output << "(+)";
-    else
-     if( f_shift <= -INFshift )
-      output << "(-)";
-     else
-      output << " by " << f_shift;
-   }
-  output << std::endl;
+    output << " by " << f_shift;
   }
-  
+  output << std::endl;
+ }
+
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
-  int f_type;      ///< type of modification
+ int f_type;      ///< type of modification
 
-  Subset v_which;  ///< which linearizations have changed
+ Subset v_which;  ///< which linearizations have changed
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( C05FunctionMod ) )
+};  // end( class( C05FunctionMod ) )
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- CLASS C05FunctionModRngd --------------------------*/
@@ -1753,8 +1757,7 @@ class C05FunctionMod : public FunctionMod {
  *
  * This may allow to simplify somewhat the work for some Solver. */
 
-class C05FunctionModRngd : public C05FunctionMod
-{
+class C05FunctionModRngd : public C05FunctionMod {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
@@ -1774,30 +1777,29 @@ class C05FunctionModRngd : public C05FunctionMod
   * tells, the vars[] vector "becomes property" of the C05FunctionModRngd
   * object. */
 
-  C05FunctionModRngd( C05Function * f , const int type , Vec_p_Var && vars ,
-		      c_Range & range , Subset && which = {} ,
-		      FunctionValue shift = 0 , bool cB = true )
-   : C05FunctionMod( f , type , std::move( which ) , shift , cB ) ,
-     v_vars( std::move( vars ) ) , f_range( range )
- {
+ C05FunctionModRngd( C05Function * f, const int type, Vec_p_Var && vars,
+                     c_Range & range, Subset && which = {},
+                     FunctionValue shift = 0, bool cB = true )
+  : C05FunctionMod( f, type, std::move( which ), shift, cB ),
+    v_vars( std::move( vars ) ), f_range( range ) {
   if( v_vars.size() != f_range.second - f_range.first )
-   throw( std::invalid_argument( "vars and range sizes do not match" ) );
-  }
+   throw ( std::invalid_argument( "vars and range sizes do not match" ) );
+ }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
- virtual ~C05FunctionModRngd() = default;  ///< destructor: does nothing
+ ~C05FunctionModRngd() override = default;  ///< destructor: does nothing
 
 /*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
  /// accessor to the vector of pointers to affected Variable
 
- c_Vec_p_Var & vars( void ) const { return( v_vars ); }
+ [[nodiscard]] c_Vec_p_Var & vars() const { return ( v_vars ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to the range of the deleted Variable
 
- c_Range & range( void ) const { return( f_range ); }
+ [[nodiscard]] c_Range & range() const { return ( f_range ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1807,8 +1809,7 @@ class C05FunctionModRngd : public C05FunctionMod
 
  /// print the C05FunctionModRngd
 
- virtual inline void print( std::ostream &output ) const
- {
+ inline void print( std::ostream & output ) const override {
   output << "C05FunctionModRngd[";
   if( concerns_Block() )
    output << "t";
@@ -1826,24 +1827,21 @@ class C05FunctionModRngd : public C05FunctionMod
     output << " the g have changed";
    else
     output << "both \alpha and g have changed";
-   }
-  else
+  } else
    output << "[ incorrect type() ]";
   if( f_shift ) {
    output << ", f-values changed";
    if( std::isnan( f_shift ) )
     output << "(+-)";
+   else if( f_shift >= INFshift )
+    output << "(+)";
+   else if( f_shift <= -INFshift )
+    output << "(-)";
    else
-    if( f_shift >= INFshift )
-     output << "(+)";
-    else
-     if( f_shift <= -INFshift )
-      output << "(-)";
-     else
-      output << " by " << f_shift;
-   }
-  output << std::endl;
+    output << " by " << f_shift;
   }
+  output << std::endl;
+ }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
@@ -1853,7 +1851,7 @@ class C05FunctionModRngd : public C05FunctionMod
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( C05FunctionModRngd ) )
+};  // end( class( C05FunctionModRngd ) )
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- CLASS C05FunctionModSbst -------------------------*/
@@ -1892,48 +1890,47 @@ class C05FunctionModSbst : public C05FunctionMod {
   * "naturally" ordered, then it is ordered in the constructor. Of course,
   * this means that vars gets re-ordered at the same time. */
 
- C05FunctionModSbst( C05Function * f , int type , Vec_p_Var && vars ,
-		     Subset && subset , bool ordered = false ,
-		     Subset && which = {} , FunctionValue shift = NaNshift ,
-		     bool cB = true )
-  : C05FunctionMod( f , type , std::move( which ) , shift , cB ) ,
-    v_vars( std::move( vars ) ) , v_subset( std::move( subset ) )
- {
-  if( ( ! v_subset.empty() ) && ( v_vars.size() != v_subset.size() ) )
-   throw( std::invalid_argument( "vars and subset sizes do not match" ) );
-  if( ( ! ordered ) && ( ! v_subset.empty() ) && ( v_vars.size() > 1 ) ) {
-   using IdxVar = std::pair< Index , Variable * >;
+ C05FunctionModSbst( C05Function * f, int type, Vec_p_Var && vars,
+                     Subset && subset, bool ordered = false,
+                     Subset && which = {}, FunctionValue shift = NaNshift,
+                     bool cB = true )
+  : C05FunctionMod( f, type, std::move( which ), shift, cB ),
+    v_vars( std::move( vars ) ), v_subset( std::move( subset ) ) {
+  if( ( !v_subset.empty() ) && ( v_vars.size() != v_subset.size() ) )
+   throw ( std::invalid_argument( "vars and subset sizes do not match" ) );
+  if( ( !ordered ) && ( !v_subset.empty() ) && ( v_vars.size() > 1 ) ) {
+   using IdxVar = std::pair< Index, Variable * >;
    std::vector< IdxVar > tmp( v_vars.size() );
-   for( Index i = 0 ; i < v_vars.size() ; ++i )
-    tmp[ i ] = IdxVar( v_subset[ i ] , v_vars[ i ] );
-   std::sort( tmp.begin() , tmp.end() ,
-	      []( auto & a , auto & b ) { return( a.first < b.first ); } );
-   for( Index i = 0 ; i < v_vars.size() ; ++i ) {
+   for( Index i = 0; i < v_vars.size(); ++i )
+    tmp[ i ] = IdxVar( v_subset[ i ], v_vars[ i ] );
+   std::sort( tmp.begin(), tmp.end(),
+              []( auto & a, auto & b ) { return ( a.first < b.first ); } );
+   for( Index i = 0; i < v_vars.size(); ++i ) {
     v_subset[ i ] = tmp[ i ].first;
     v_vars[ i ] = tmp[ i ].second;
-    }
    }
-  #ifndef NDEBUG
-  for( Index i = 1 ; i < v_subset.size() ; ++i )
-   if( v_subset[ i - 1 ] >= v_subset[ i ] )
-    throw( std::invalid_argument( "unordered or repeated subset" ) );
-  #endif
   }
+#ifndef NDEBUG
+  for( Index i = 1; i < v_subset.size(); ++i )
+   if( v_subset[ i - 1 ] >= v_subset[ i ] )
+    throw ( std::invalid_argument( "unordered or repeated subset" ) );
+#endif
+ }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
- virtual ~C05FunctionModSbst() = default;  ///< destructor: does nothing
+ ~C05FunctionModSbst() override = default;  ///< destructor: does nothing
 
 /*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
  /// accessor to the vector of pointers to affected Variable
 
- c_Vec_p_Var & vars( void ) const { return( v_vars ); }
+ [[nodiscard]] c_Vec_p_Var & vars() const { return ( v_vars ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to vector of indices of affected Variable
 
- c_Subset & subset( void ) const { return( v_subset ); }
+ [[nodiscard]] c_Subset & subset() const { return ( v_subset ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1942,8 +1939,7 @@ class C05FunctionModSbst : public C05FunctionMod {
 /*-------------------------- PROTECTED METHODS -----------------------------*/
  /// print the C05FunctionModSbst
 
- virtual inline void print( std::ostream &output ) const override
- {
+ inline void print( std::ostream & output ) const override {
   output << "C05FunctionModSbst[";
   if( concerns_Block() )
    output << "t";
@@ -1961,24 +1957,21 @@ class C05FunctionModSbst : public C05FunctionMod {
     output << " the g have changed";
    else
     output << "both \alpha and g have changed";
-   }
-  else
+  } else
    output << "[ incorrect type() ]";
   if( f_shift ) {
    output << ", f-values changed";
    if( std::isnan( f_shift ) )
     output << "(+-)";
+   else if( f_shift >= INFshift )
+    output << "(+)";
+   else if( f_shift <= -INFshift )
+    output << "(-)";
    else
-    if( f_shift >= INFshift )
-     output << "(+)";
-    else
-     if( f_shift <= -INFshift )
-      output << "(-)";
-     else
-      output << " by " << f_shift;
-   }
-  output << std::endl;
+    output << " by " << f_shift;
   }
+  output << std::endl;
+ }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
@@ -1988,7 +1981,7 @@ class C05FunctionModSbst : public C05FunctionMod {
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( C05FunctionModSbst ) )
+};  // end( class( C05FunctionModSbst ) )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- Class C05FunctionModVarsAddd ------------------------*/
@@ -2202,8 +2195,7 @@ class C05FunctionModSbst : public C05FunctionMod {
  *     RE-ADDED LATER, IN WHICH CASE AN APPROPRIATE Modification MUST BE
  *     SITTING IN THE QUEUE AFTER THIS ONE. */
 
-class C05FunctionModVarsAddd : public FunctionModVarsAddd
-{
+class C05FunctionModVarsAddd : public FunctionModVarsAddd {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
@@ -2212,13 +2204,13 @@ class C05FunctionModVarsAddd : public FunctionModVarsAddd
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: identical to that of FunctionModVarsAddd
 
- C05FunctionModVarsAddd( C05Function * f , Vec_p_Var && vars , Index first ,
-			 FunctionValue shift = NaNshift , bool cB = true )
-  : FunctionModVarsAddd( f , std::move( vars ) , first , shift , cB ) { }
+ C05FunctionModVarsAddd( C05Function * f, Vec_p_Var && vars, Index first,
+                         FunctionValue shift = NaNshift, bool cB = true )
+  : FunctionModVarsAddd( f, std::move( vars ), first, shift, cB ) {}
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
- virtual ~C05FunctionModVarsAddd() = default;  ///< destructor: does nothing
+ ~C05FunctionModVarsAddd() override = default;  ///< destructor: does nothing
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -2228,34 +2220,31 @@ class C05FunctionModVarsAddd : public FunctionModVarsAddd
 
  /// print the C05FunctionModVarsAddd
 
- void print( std::ostream &output ) const override
- {
+ void print( std::ostream & output ) const override {
   output << "C05FunctionModVarsAddd[";
   if( concerns_Block() )
    output << "t";
   else
    output << "f";
   output << "] on Function [" << f_function
-	 << " ]: strongly quasi-additively (";
+         << " ]: strongly quasi-additively (";
 
   if( std::isnan( f_shift ) )
    output << "+-(?)";
+  else if( f_shift >= std::numeric_limits< FunctionValue >::infinity() )
+   output << "+(?)";
+  else if( f_shift <= -std::numeric_limits< FunctionValue >::infinity() )
+   output << "-(?)";
   else
-   if( f_shift >= std::numeric_limits<FunctionValue>::infinity() )
-    output << "+(?)";
-   else
-    if( f_shift <= -std::numeric_limits<FunctionValue>::infinity() )
-     output << "-(?)";
-    else
-     output << f_shift;
+   output << f_shift;
 
   output << ") adding variables [ " << f_first << " , "
-	 << f_first + v_vars.size() << " ]" << std::endl;
-  }
+         << f_first + v_vars.size() << " ]" << std::endl;
+ }
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( C05FunctionModVarsAddd ) )
+};  // end( class( C05FunctionModVarsAddd ) )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- Class C05FunctionModVarsRngd ------------------------*/
@@ -2296,19 +2285,19 @@ class C05FunctionModVarsRngd : public FunctionModVarsRngd {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
-public:
+ public:
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: identical to that of FunctionModVarsRngd
 
- C05FunctionModVarsRngd( C05Function * f , Vec_p_Var && vars ,
-			 c_Range & range , FunctionValue shift = NaNshift ,
-			 bool cB = true )
-  : FunctionModVarsRngd( f , std::move( vars ) , range , shift , cB ) { }
+ C05FunctionModVarsRngd( C05Function * f, Vec_p_Var && vars,
+                         c_Range & range, FunctionValue shift = NaNshift,
+                         bool cB = true )
+  : FunctionModVarsRngd( f, std::move( vars ), range, shift, cB ) {}
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
- virtual ~C05FunctionModVarsRngd() = default;  ///< destructor: does nothing
+ ~C05FunctionModVarsRngd() override = default;  ///< destructor: does nothing
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -2318,34 +2307,31 @@ public:
 
  /// print the C05FunctionModVarsRngd
 
- void print( std::ostream &output ) const override
- {
+ void print( std::ostream & output ) const override {
   output << "C05FunctionModVarsRngd[";
   if( concerns_Block() )
    output << "t";
   else
    output << "f";
   output << "] on Function[" << &f_function
-	 << " ]: strongly quasi-additively (";
+         << " ]: strongly quasi-additively (";
 
   if( std::isnan( f_shift ) )
    output << "+-(?)";
+  else if( f_shift >= std::numeric_limits< FunctionValue >::infinity() )
+   output << "+(?)";
+  else if( f_shift <= -std::numeric_limits< FunctionValue >::infinity() )
+   output << "-(?)";
   else
-   if( f_shift >= std::numeric_limits<FunctionValue>::infinity() )
-    output << "+(?)";
-   else
-    if( f_shift <= -std::numeric_limits<FunctionValue>::infinity() )
-     output << "-(?)";
-    else
-     output << f_shift;
+   output << f_shift;
 
   output << ") deleting variables [ " << f_range.first << " , "
-	 << f_range.second << " ]" << std::endl;
-  }
+         << f_range.second << " ]" << std::endl;
+ }
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( C05FunctionModVarsRngd ) )
+};  // end( class( C05FunctionModVarsRngd ) )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- Class C05FunctionModVarsSbst ------------------------*/
@@ -2386,20 +2372,20 @@ class C05FunctionModVarsSbst : public FunctionModVarsSbst {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
-public:
+ public:
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: identical to that of FunctionModVarsSbst
 
- C05FunctionModVarsSbst( C05Function * f , Vec_p_Var && vars ,
-			 Subset && subset , bool ordered = false ,
-			 FunctionValue shift = NaNshift , bool cB = true )
-  : FunctionModVarsSbst( f , std::move( vars ) , std::move( subset ) ,
-			 ordered , shift , cB ) { }
+ C05FunctionModVarsSbst( C05Function * f, Vec_p_Var && vars,
+                         Subset && subset, bool ordered = false,
+                         FunctionValue shift = NaNshift, bool cB = true )
+  : FunctionModVarsSbst( f, std::move( vars ), std::move( subset ),
+                         ordered, shift, cB ) {}
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
- virtual ~C05FunctionModVarsSbst() = default;  ///< destructor: does nothing
+ ~C05FunctionModVarsSbst() override = default;  ///< destructor: does nothing
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -2409,33 +2395,30 @@ public:
 
  /// print the C05FunctionModVarsSbst
 
- void print( std::ostream &output ) const override
- {
+ void print( std::ostream & output ) const override {
   output << "C05FunctionModVarsSbst[";
   if( concerns_Block() )
    output << "t";
   else
    output << "f";
   output << "] on Function[" << &f_function
-	 << " ]: strongly quasi-additively (";
+         << " ]: strongly quasi-additively (";
 
   if( std::isnan( f_shift ) )
    output << "+-(?)";
+  else if( f_shift >= std::numeric_limits< FunctionValue >::infinity() )
+   output << "+(?)";
+  else if( f_shift <= -std::numeric_limits< FunctionValue >::infinity() )
+   output << "-(?)";
   else
-   if( f_shift >= std::numeric_limits<FunctionValue>::infinity() )
-    output << "+(?)";
-   else
-    if( f_shift <= -std::numeric_limits<FunctionValue>::infinity() )
-     output << "-(?)";
-    else
-     output << f_shift;
+   output << f_shift;
 
   output << ") deleting " << v_subset.size() << " variables" << std::endl;
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( C05FunctionModVarsSbst ) )
+};  // end( class( C05FunctionModVarsSbst ) )
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- CLASS C05FunctionModLin --------------------------*/
@@ -2543,31 +2526,30 @@ class C05FunctionModLin : public FunctionMod {
   * the the && tells, both vectors "become property" of the C05FunctionModLin
   * object. */
 
- C05FunctionModLin( C05Function * f , Vec_FunctionValue && delta ,
-		    Vec_p_Var && vars , FunctionValue shift = NaNshift ,
-		    bool cB = true )
-  : FunctionMod( f , shift , cB ) , v_vars( std::move( vars ) ) ,
-    v_delta( std::move( delta ) )
- {
+ C05FunctionModLin( C05Function * f, Vec_FunctionValue && delta,
+                    Vec_p_Var && vars, FunctionValue shift = NaNshift,
+                    bool cB = true )
+  : FunctionMod( f, shift, cB ), v_vars( std::move( vars ) ),
+    v_delta( std::move( delta ) ) {
   if( vars.size() != delta.size() )
-   throw( std::invalid_argument( "vars and delta sizes do not match" ) );
-  }
+   throw ( std::invalid_argument( "vars and delta sizes do not match" ) );
+ }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
- virtual ~C05FunctionModLin() = default;  ///< destructor: does nothing
+ ~C05FunctionModLin() override = default;  ///< destructor: does nothing
 
 /*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
  /// accessor to the vector of pointers to affected Variable
 
- c_Vec_p_Var & vars( void ) const { return( v_vars ); }
+ [[nodiscard]] c_Vec_p_Var & vars() const { return ( v_vars ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  /// accessor to the "delta" vector
 
- c_Vec_FunctionValue & delta( void ) const { return( v_delta ); }
+ [[nodiscard]] c_Vec_FunctionValue & delta() const { return ( v_delta ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -2577,17 +2559,16 @@ class C05FunctionModLin : public FunctionMod {
 
  /// print the C05FunctionModLin
 
- void print( std::ostream &output ) const override
- {
+ void print( std::ostream & output ) const override {
   output << "C05FunctionModLin[";
   if( concerns_Block() )
    output << "t";
   else
    output << "f";
   output << "] on Function [" << &f_function
-	 << " ]: change in the linear part of "<< v_delta.size()
-	 << " variables" << std::endl;
-  }
+         << " ]: change in the linear part of " << v_delta.size()
+         << " variables" << std::endl;
+ }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
@@ -2597,7 +2578,7 @@ class C05FunctionModLin : public FunctionMod {
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( C05FunctionModLin ) )
+};  // end( class( C05FunctionModLin ) )
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- CLASS C05FunctionModLinRngd -----------------------*/
@@ -2634,7 +2615,7 @@ class C05FunctionModLinRngd : public C05FunctionModLin {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
-public:
+ public:
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: takes all the necessary information
@@ -2647,27 +2628,26 @@ public:
   * range, vars[ 1 ] had index range + 1 ..., which implies that
   * vars.size() == stop - start. */
 
- C05FunctionModLinRngd( C05Function * f , Vec_FunctionValue && delta ,
-			Vec_p_Var && vars , c_Range & range ,
-			FunctionValue shift = NaNshift , bool cB = true )
-  : C05FunctionModLin( f , std::move( delta ) , std::move( vars ) , shift ,
-		       cB ) , f_range( range )
- {
+ C05FunctionModLinRngd( C05Function * f, Vec_FunctionValue && delta,
+                        Vec_p_Var && vars, c_Range & range,
+                        FunctionValue shift = NaNshift, bool cB = true )
+  : C05FunctionModLin( f, std::move( delta ), std::move( vars ), shift,
+                       cB ), f_range( range ) {
   if( v_vars.size() != f_range.second - f_range.first )
-   throw( std::invalid_argument( "vars and range sizes do not match" ) );
+   throw ( std::invalid_argument( "vars and range sizes do not match" ) );
   if( v_vars.size() != v_delta.size() )
-   throw( std::invalid_argument( "vars and delta sizes do not match" ) );
-  }
+   throw ( std::invalid_argument( "vars and delta sizes do not match" ) );
+ }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
- virtual ~C05FunctionModLinRngd() = default;  ///< destructor: does nothing
+ ~C05FunctionModLinRngd() override = default;  ///< destructor: does nothing
 
 /*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
  /// accessor to the range of the deleted Variable
 
- c_Range & range( void ) const { return( f_range ); }
+ [[nodiscard]] c_Range & range() const { return ( f_range ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -2677,17 +2657,16 @@ public:
 
  /// print the C05FunctionModLinRngd
 
- void print( std::ostream &output ) const override
- {
+ void print( std::ostream & output ) const override {
   output << "C05FunctionModLinRngd[";
   if( concerns_Block() )
    output << "t";
   else
    output << "f";
   output << "] on Function[" << &f_function
-	 << " ]: change in the linear part of variables [ "
-	 << f_range.first << " , " << f_range.second << " ]" << std::endl;
-  }
+         << " ]: change in the linear part of variables [ "
+         << f_range.first << " , " << f_range.second << " ]" << std::endl;
+ }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
@@ -2695,7 +2674,7 @@ public:
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( C05FunctionModLinRngd ) )
+};  // end( class( C05FunctionModLinRngd ) )
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- CLASS C05FunctionModLinSbst -----------------------*/
@@ -2714,7 +2693,7 @@ class C05FunctionModLinSbst : public C05FunctionModLin {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
-public:
+ public:
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: takes all the necessary information
@@ -2730,48 +2709,48 @@ public:
   * it is ordered in the constructor. Of course, this means that both vars
   * and delta get re-ordered at the same time. */
 
- C05FunctionModLinSbst( C05Function * f, Vec_FunctionValue && delta ,
-			Vec_p_Var && vars , Subset && subset ,
-			bool ordered = false ,
-			FunctionValue shift = NaNshift , bool cB = true )
-  : C05FunctionModLin( f , std::move( delta ) , std::move( vars ) , shift ,
-		       cB ) , v_subset( std::move( subset ) )
- {
+ C05FunctionModLinSbst( C05Function * f, Vec_FunctionValue && delta,
+                        Vec_p_Var && vars, Subset && subset,
+                        bool ordered = false,
+                        FunctionValue shift = NaNshift, bool cB = true )
+  : C05FunctionModLin( f, std::move( delta ), std::move( vars ), shift,
+                       cB ), v_subset( std::move( subset ) ) {
   if( v_vars.size() != v_subset.size() )
-   throw( std::invalid_argument( "vars and subset sizes do not match" ) );
+   throw ( std::invalid_argument( "vars and subset sizes do not match" ) );
   if( v_vars.size() != v_delta.size() )
-   throw( std::invalid_argument( "vars and delta sizes do not match" ) );
-  if( ( ! ordered )  && ( v_vars.size() > 1 ) ) {
-   using IdxVar = std::tuple< Index , Variable * , FunctionValue >;
+   throw ( std::invalid_argument( "vars and delta sizes do not match" ) );
+  if( ( !ordered ) && ( v_vars.size() > 1 ) ) {
+   using IdxVar = std::tuple< Index, Variable *, FunctionValue >;
    std::vector< IdxVar > tmp( v_vars.size() );
-   for( Index i = 0 ; i < v_vars.size() ; ++i )
-    tmp[ i ] = IdxVar( v_subset[ i ] , v_vars[ i ] , v_delta[ i ] );
-   std::sort( tmp.begin() , tmp.end() ,
-	      []( auto & a , auto & b )
-	        { return( std::get< 0 >( a ) < std::get< 0 >( b ) ); }
-	      );
-   for( Index i = 0 ; i < v_vars.size() ; ++i ) {
+   for( Index i = 0; i < v_vars.size(); ++i )
+    tmp[ i ] = IdxVar( v_subset[ i ], v_vars[ i ], v_delta[ i ] );
+   std::sort( tmp.begin(), tmp.end(),
+              []( auto & a, auto & b ) {
+               return ( std::get< 0 >( a ) < std::get< 0 >( b ) );
+              }
+   );
+   for( Index i = 0; i < v_vars.size(); ++i ) {
     v_subset[ i ] = std::get< 0 >( tmp[ i ] );
     v_vars[ i ] = std::get< 1 >( tmp[ i ] );
     v_delta[ i ] = std::get< 2 >( tmp[ i ] );
-    }
    }
-  #ifndef NDEBUG
-  for( Index i = 1 ; i < v_subset.size() ; ++i )
-   if( v_subset[ i - 1 ] >= v_subset[ i ] )
-    throw( std::invalid_argument( "unordered or repeated subset" ) );
-  #endif
   }
+#ifndef NDEBUG
+  for( Index i = 1; i < v_subset.size(); ++i )
+   if( v_subset[ i - 1 ] >= v_subset[ i ] )
+    throw ( std::invalid_argument( "unordered or repeated subset" ) );
+#endif
+ }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
- virtual ~C05FunctionModLinSbst() = default;  ///< destructor: does nothing
+ ~C05FunctionModLinSbst() override = default;  ///< destructor: does nothing
 
 /*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
  /// accessor to the subset of the affected Variable
 
- c_Subset & subset( void ) const { return( v_subset ); }
+ [[nodiscard]] c_Subset & subset() const { return ( v_subset ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -2781,17 +2760,16 @@ public:
 
  /// print the C05FunctionModLinSbst
 
- void print( std::ostream &output ) const override
- {
+ void print( std::ostream & output ) const override {
   output << "C05FunctionModLinSbst[";
   if( concerns_Block() )
    output << "t";
   else
    output << "f";
   output << "] on Function[" << &f_function
-	 << " ]: change in the linear part of " << v_subset.size()
-	 << " variables" << std::endl;
-  }
+         << " ]: change in the linear part of " << v_subset.size()
+         << " variables" << std::endl;
+ }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
@@ -2799,7 +2777,7 @@ public:
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( C05FunctionModLinSbst ) )
+};  // end( class( C05FunctionModLinSbst ) )
 
 /** @} end( group( C05Function_CLASSES ) ) ---------------------------------*/
 /*--------------------------------------------------------------------------*/

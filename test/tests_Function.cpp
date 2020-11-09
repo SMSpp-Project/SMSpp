@@ -1,0 +1,128 @@
+/** @file
+ * Unit tests for Function. Since it's an interface,
+ * is it tested through its closest implementations.
+ *
+ * \author Niccolò Iardella \n
+ *         Operations Research Group \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * Copyright &copy; by Antonio Frangioni, Niccolò Iardella
+ */
+
+#include <gtest/gtest.h>
+
+#include "LinearFunction.h"
+
+using namespace SMSpp_di_unipi_it;
+
+/*--------------------------------------------------------------------------*/
+/*------------------------------- TEST CASES -------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+TEST( FunctionTest, GetsParameters ) {
+ LinearFunction fun;
+ auto iinf = std::numeric_limits< int >::infinity();
+ auto dinf = std::numeric_limits< double >::infinity();
+
+ ASSERT_EQ( fun.ThinComputeInterface::get_num_int_par(), 0 );
+ ASSERT_EQ( fun.ThinComputeInterface::get_num_dbl_par(), 0 );
+ ASSERT_EQ( fun.ThinComputeInterface::get_num_str_par(), 0 );
+ ASSERT_EQ( fun.Function::get_num_int_par(), Function::intLastParFun );
+ ASSERT_EQ( fun.Function::get_num_dbl_par(), Function::dblLastParFun );
+ ASSERT_EQ( fun.C05Function::get_num_int_par(), C05Function::intLastParC0F );
+ ASSERT_EQ( fun.C05Function::get_num_dbl_par(), C05Function::dblLastParC0F );
+
+ ASSERT_EQ( fun.Function::get_dflt_int_par( Function::intMaxIter ), iinf );
+ ASSERT_EQ( fun.Function::get_dflt_int_par( Function::intMaxThread ), 0 );
+ ASSERT_EQ( fun.Function::get_dflt_dbl_par( Function::dblMaxTime ), dinf );
+ ASSERT_EQ( fun.Function::get_dflt_dbl_par( Function::dblRelAcc ), 1e-6 );
+ ASSERT_EQ( fun.Function::get_dflt_dbl_par( Function::dblAbsAcc ), dinf );
+ ASSERT_EQ( fun.Function::get_dflt_dbl_par( Function::dblUpCutOff ), dinf );
+ ASSERT_EQ( fun.Function::get_dflt_dbl_par( Function::dblLwCutOff ), -dinf );
+
+ ASSERT_EQ( fun.C05Function::get_dflt_int_par( C05Function::intLPMaxSz ), 1 );
+ ASSERT_EQ( fun.C05Function::get_dflt_int_par( C05Function::intGPMaxSz ), 0 );
+ ASSERT_EQ( fun.C05Function::get_dflt_dbl_par( C05Function::dblRAccLin ), 0 );
+ ASSERT_EQ( fun.C05Function::get_dflt_dbl_par( C05Function::dblAAccLin ), 0 );
+ ASSERT_EQ( fun.C05Function::get_dflt_dbl_par( C05Function::dblAAccMlt ),
+            1e-10 );
+
+ for( int i = 0; i < Function::intLastParFun; ++i ) {
+  ASSERT_EQ( fun.Function::get_int_par( i ),
+             fun.Function::get_dflt_int_par( i ) );
+ }
+ for( int i = 0; i < Function::dblLastParFun; ++i ) {
+  ASSERT_EQ( fun.Function::get_dbl_par( i ),
+             fun.Function::get_dflt_dbl_par( i ) );
+ }
+
+ for( int i = 0; i < C05Function::intLastParC0F; ++i ) {
+  ASSERT_EQ( fun.C05Function::get_int_par( i ),
+             fun.C05Function::get_dflt_int_par( i ) );
+ }
+ for( int i = 0; i < C05Function::dblLastParC0F; ++i ) {
+  ASSERT_EQ( fun.C05Function::get_dbl_par( i ),
+             fun.C05Function::get_dflt_dbl_par( i ) );
+ }
+
+ ASSERT_EQ( fun.Function::int_par_str2idx( "intMaxIter" ),
+            Function::intMaxIter );
+ ASSERT_EQ( fun.Function::int_par_str2idx( "intMaxThread" ),
+            Function::intMaxThread );
+ ASSERT_EQ( fun.Function::dbl_par_str2idx( "dblMaxTime" ),
+            Function::dblMaxTime );
+ ASSERT_EQ( fun.Function::dbl_par_str2idx( "dblRelAcc" ),
+            Function::dblRelAcc );
+ ASSERT_EQ( fun.Function::dbl_par_str2idx( "dblAbsAcc" ),
+            Function::dblAbsAcc );
+ ASSERT_EQ( fun.Function::dbl_par_str2idx( "dblUpCutOff" ),
+            Function::dblUpCutOff );
+ ASSERT_EQ( fun.Function::dbl_par_str2idx( "dblLwCutOff" ),
+            Function::dblLwCutOff );
+
+ ASSERT_EQ( fun.C05Function::int_par_str2idx( "intLPMaxSz" ),
+            C05Function::intLPMaxSz );
+ ASSERT_EQ( fun.C05Function::int_par_str2idx( "intGPMaxSz" ),
+            C05Function::intGPMaxSz );
+ ASSERT_EQ( fun.C05Function::dbl_par_str2idx( "dblRAccLin" ),
+            C05Function::dblRAccLin );
+ ASSERT_EQ( fun.C05Function::dbl_par_str2idx( "dblAAccLin" ),
+            C05Function::dblAAccLin );
+ ASSERT_EQ( fun.C05Function::dbl_par_str2idx( "dblAAccMlt" ),
+            C05Function::dblAAccMlt );
+
+ ASSERT_EQ( fun.Function::int_par_idx2str( Function::intMaxIter ),
+            "intMaxIter" );
+ ASSERT_EQ( fun.Function::int_par_idx2str( Function::intMaxThread ),
+            "intMaxThread" );
+ ASSERT_EQ( fun.Function::dbl_par_idx2str( Function::dblMaxTime ),
+            "dblMaxTime" );
+ ASSERT_EQ( fun.Function::dbl_par_idx2str( Function::dblRelAcc ),
+            "dblRelAcc" );
+ ASSERT_EQ( fun.Function::dbl_par_idx2str( Function::dblAbsAcc ),
+            "dblAbsAcc" );
+ ASSERT_EQ( fun.Function::dbl_par_idx2str( Function::dblUpCutOff ),
+            "dblUpCutOff" );
+ ASSERT_EQ( fun.Function::dbl_par_idx2str( Function::dblLwCutOff ),
+            "dblLwCutOff" );
+
+ ASSERT_EQ( fun.C05Function::int_par_idx2str( C05Function::intLPMaxSz ),
+            "intLPMaxSz" );
+ ASSERT_EQ( fun.C05Function::int_par_idx2str( C05Function::intGPMaxSz ),
+            "intGPMaxSz" );
+ ASSERT_EQ( fun.C05Function::dbl_par_idx2str( C05Function::dblRAccLin ),
+            "dblRAccLin" );
+ ASSERT_EQ( fun.C05Function::dbl_par_idx2str( C05Function::dblAAccLin ),
+            "dblAAccLin" );
+ ASSERT_EQ( fun.C05Function::dbl_par_idx2str( C05Function::dblAAccMlt ),
+            "dblAAccMlt" );
+
+}
+/*--------------------------------------------------------------------------*/
+/*---------------------------------- MAIN ----------------------------------*/
+/*--------------------------------------------------------------------------*/
+int main( int argc, char ** argv ) {
+ ::testing::InitGoogleTest( &argc, argv );
+ return RUN_ALL_TESTS();
+}

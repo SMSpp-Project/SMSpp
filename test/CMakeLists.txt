@@ -38,7 +38,7 @@ endif ()
 set(CLASSES
     "AbstractBlock"
     "ColVariable"
-    "ThinComputeInterface")
+    "Function")
 
 foreach(CLASS ${CLASSES})
     add_executable(${CLASS}_test tests_${CLASS}.cpp)

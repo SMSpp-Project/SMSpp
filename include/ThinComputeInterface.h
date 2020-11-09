@@ -24,8 +24,8 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __ThinComputeInterface
- #define __ThinComputeInterface
-                      /* self-identification: #endif at the end of the file */
+#define __ThinComputeInterface
+/* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -38,10 +38,9 @@
 /*--------------------------------------------------------------------------*/
 
 /// namespace for the Structured Modeling System++ (SMS++)
-namespace SMSpp_di_unipi_it
-{
- class ComputeConfig;  // forward definition of ComputeConfig
- 
+namespace SMSpp_di_unipi_it {
+class ComputeConfig;  // forward definition of ComputeConfig
+
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -118,7 +117,7 @@ class ThinComputeInterface {
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-public:
+ public:
 
 /*--------------------------------------------------------------------------*/
 /*---------------------------- PUBLIC TYPES --------------------------------*/
@@ -127,54 +126,54 @@ public:
  *  @{ */
 
  using idx_type = unsigned short int;  ///< the type of parameters indices
- 
+
 /*--------------------------------------------------------------------------*/
  /// public enum for the possible return values of compute()
 
  enum compute_type {
- kUnEval = 3 ,   ///< compute() has not been called yet
-                 /**< Any return value between 0 and kUnEval (extremes
-		  * included) means that the process of compute() has not
- * finished yet. This may mean a few different things (which is why kUnEval
- * is not 0), like "compute() has not been called", "compute() is actually
- * running right now", or "compute() had been called and it did finish, but
- * the thing that had to be compute()-d changed in the meantime" (like,
- * this was solving a Block that has undergone come change). The specific
- * values are left to derived classes, but the general gist is that any
- * value <= kUnEval means that the solution process has not yet reached a
- * state where a solution can be declared (or such a state has been lost for
- * some reason. */
+  kUnEval = 3,   ///< compute() has not been called yet
+  /**< Any return value between 0 and kUnEval (extremes
+   * included) means that the process of compute() has not
+   * finished yet. This may mean a few different things (which is why kUnEval
+   * is not 0), like "compute() has not been called", "compute() is actually
+   * running right now", or "compute() had been called and it did finish, but
+   * the thing that had to be compute()-d changed in the meantime" (like,
+   * this was solving a Block that has undergone come change). The specific
+   * values are left to derived classes, but the general gist is that any
+   * value <= kUnEval means that the solution process has not yet reached a
+   * state where a solution can be declared (or such a state has been lost for
+   * some reason. */
 
- kOK = 10 ,      ///< successful compute()
-                 /**< Any return value between kUnEval (excluded) and kOK
-		  * (included) means that the object ran smoothly, obtaining
- * the desired answer within the allowed limits on the available computational
- * resources (if any). The fact that multiple values are allowed corresponds
- * to the fact that "the desired answer" may in fact be of different types,
- * such as that some optimization problem has been conclusively solved to
- * optimality, or conclusively shown to be empty, or conclusively shown to be
- * unbounded. */
+  kOK = 10,      ///< successful compute()
+  /**< Any return value between kUnEval (excluded) and kOK
+   * (included) means that the object ran smoothly, obtaining
+   * the desired answer within the allowed limits on the available computational
+   * resources (if any). The fact that multiple values are allowed corresponds
+   * to the fact that "the desired answer" may in fact be of different types,
+   * such as that some optimization problem has been conclusively solved to
+   * optimality, or conclusively shown to be empty, or conclusively shown to be
+   * unbounded. */
 
- kError = 18 ,   ///< compute() stopped because of unrecoverable error
-                 /**< Any return value >= kError means that the object was
-		  * forced to stop due to some error, e.g. of numerical nature
- * or because of lack of some crucial resource (say, memory). The error is of
- * the irrecoverable type, i.e., the computation is assumed to have not been
- * able to obtain all of the desired answer (although it may have obtained a
- * part of it, say proving that an optimization problem is not unfeasible by
- * producing at least a feasible solution, but not being able to certify an
- * optimal solution). Specific values > kError can be used to specify more
- * information about the specific kind of error that the object is
- * experiencing.
- *
- * Note that this leaves out all return values comprised between kOK and
- * kError, extremes excluded. These are left for "recoverable error states"
- * where compute() was not able to conclusively obtain all of the desired
- * answer (although it may have already obtained a part of it), but this was
- * due to some reason that forced it to stop early on, such as a limit imposed
- * on the available computational resources. By relaxing the limit, which may
- * be as simple as calling compute() again, compute() may further proceed in
- * the computation process, possibly providing a kOK-type answer. */
+  kError = 18,   ///< compute() stopped because of unrecoverable error
+  /**< Any return value >= kError means that the object was
+   * forced to stop due to some error, e.g. of numerical nature
+   * or because of lack of some crucial resource (say, memory). The error is of
+   * the irrecoverable type, i.e., the computation is assumed to have not been
+   * able to obtain all of the desired answer (although it may have obtained a
+   * part of it, say proving that an optimization problem is not unfeasible by
+   * producing at least a feasible solution, but not being able to certify an
+   * optimal solution). Specific values > kError can be used to specify more
+   * information about the specific kind of error that the object is
+   * experiencing.
+   *
+   * Note that this leaves out all return values comprised between kOK and
+   * kError, extremes excluded. These are left for "recoverable error states"
+   * where compute() was not able to conclusively obtain all of the desired
+   * answer (although it may have already obtained a part of it), but this was
+   * due to some reason that forced it to stop early on, such as a limit imposed
+   * on the available computational resources. By relaxing the limit, which may
+   * be as simple as calling compute() again, compute() may further proceed in
+   * the computation process, possibly providing a kOK-type answer. */
 
  };  // end( compute_type )
 
@@ -192,7 +191,7 @@ public:
   * condition occurs. Note that the return type is int rather than action_type
   * to allow derived classes to extend the typer of actions they sypport. */
 
- using EventHandler = std::function< int ( void ) >;
+ using EventHandler = std::function< int( void ) >;
 
 /*--------------------------------------------------------------------------*/
  /// the type of the internal ID of an event handler
@@ -214,45 +213,45 @@ public:
   * support. */
 
  enum event_type {
- eBeforeTermination = 0 ,   ///< event to be called just prior to terminating
-                            /**< Type of events that will be called right
-			     * before compute() terminates. This is provided
- * in particular to handle cases such as a computation entailing the solution
- * of an optimization problem whose model is dynamically generated (say, row
- * and/or column generation). In such a case the optimality conditions may
- * have been satisfied for the current partial model (master problem) which
- * would lead compute() to terminate; before doing this, these events are
- * invoked, which allows to trigger the generation of new rows and/or columns
- * (separation, pricing). The event can then return eForceContinue [see] to
- * instruct compute() to incorporate the new information into the model 
- * (provided, of course, that this makes any sense for the compute() at hand)
- * and check the stopping conditions again. */
+  eBeforeTermination = 0,   ///< event to be called just prior to terminating
+  /**< Type of events that will be called right
+   * before compute() terminates. This is provided
+   * in particular to handle cases such as a computation entailing the solution
+   * of an optimization problem whose model is dynamically generated (say, row
+   * and/or column generation). In such a case the optimality conditions may
+   * have been satisfied for the current partial model (master problem) which
+   * would lead compute() to terminate; before doing this, these events are
+   * invoked, which allows to trigger the generation of new rows and/or columns
+   * (separation, pricing). The event can then return eForceContinue [see] to
+   * instruct compute() to incorporate the new information into the model
+   * (provided, of course, that this makes any sense for the compute() at hand)
+   * and check the stopping conditions again. */
 
- eEverykIteration   = 1 ,   ///< events to be called every k iterations
-                            /**< Type of events that will be called every
-			     * k iterations, whatever "iteration" means for
- * the compute() at hand. The value of k is to be set with a separate
- * algorithmic parameter, properly defined by derived classes actually
- * implementing the mechanism. */
+  eEverykIteration = 1,   ///< events to be called every k iterations
+  /**< Type of events that will be called every
+   * k iterations, whatever "iteration" means for
+   * the compute() at hand. The value of k is to be set with a separate
+   * algorithmic parameter, properly defined by derived classes actually
+   * implementing the mechanism. */
 
- eEveryTTime        = 2 ,   ///< events to be called periodically in time
-                            /**< Type of events that will be called 
-			     * periodically every fixed amount T of time.
- * The value of T is to be set with a separate algorithmic parameter, properly
- * defined by derived classes actually implementing the mechanism. Note that
- * in general one does not expect derived classes to be very "tight" in heeding
- * to the time interval T, in the sense that they will typically check
- * periodically (say, every iteration) whether the elapsed time has passed,
- * and call the event of it has. If iterations are much longer than T this
- * may cause some events not to be called at all, although of course a
- * derived class may place appropriate checks in multiple places to try to
- * avoid this. */
+  eEveryTTime = 2,   ///< events to be called periodically in time
+  /**< Type of events that will be called
+   * periodically every fixed amount T of time.
+   * The value of T is to be set with a separate algorithmic parameter, properly
+   * defined by derived classes actually implementing the mechanism. Note that
+   * in general one does not expect derived classes to be very "tight" in heeding
+   * to the time interval T, in the sense that they will typically check
+   * periodically (say, every iteration) whether the elapsed time has passed,
+   * and call the event of it has. If iterations are much longer than T this
+   * may cause some events not to be called at all, although of course a
+   * derived class may place appropriate checks in multiple places to try to
+   * avoid this. */
 
- e_last_event_type  = 4     ///< conveniemce value to define new events
-                            /**< conveniemce value to allow derived classes
-			     * to "extend" event_type and define new
- * class-specific events that their compute() can support. */
- 
+  e_last_event_type = 4     ///< conveniemce value to define new events
+  /**< conveniemce value to allow derived classes
+   * to "extend" event_type and define new
+   * class-specific events that their compute() can support. */
+
  };  // end( compute_type )
 
 /*--------------------------------------------------------------------------*/
@@ -262,77 +261,77 @@ public:
   * by the return value of the event handler. */
 
  enum action_type {
- eForceContinue = 0 ,   ///< force compute() to continue even if it would stop
-                        /**< If compute() was going to stop because it
-			 * considered the computation to be over, force it
- * to reconsider this. A typical case in which this can happen is if the
- * computation entails the solution of an optimization problem whose model
- * is dynamically generated (say, row and/or column generation). In such a
- * case the optimality conditions may have been satisfied for the current
- * partial model (master problem), but the event may have triggered the
- * generation of new rows and/or columns (separation, pricing). This return
- * value instructs compute() to check if this has happened (provided, of
- * course, that this makes any sense for the compute() at hand). */
+  eForceContinue = 0,   ///< force compute() to continue even if it would stop
+  /**< If compute() was going to stop because it
+   * considered the computation to be over, force it
+   * to reconsider this. A typical case in which this can happen is if the
+   * computation entails the solution of an optimization problem whose model
+   * is dynamically generated (say, row and/or column generation). In such a
+   * case the optimality conditions may have been satisfied for the current
+   * partial model (master problem), but the event may have triggered the
+   * generation of new rows and/or columns (separation, pricing). This return
+   * value instructs compute() to check if this has happened (provided, of
+   * course, that this makes any sense for the compute() at hand). */
 
- eContinue = kUnEval ,   ///< continue compute()
-                         /**< If the event handler returns any value
-			  * comprised between 0 and eContinue (extremes
- * included, then compute() will continue. In particular, eContinue means
- * "business as usual", while values < eContinue may give specific
- * instructions (cf. e.g. eForceContinue). eContinue is taken equal to
- * kUnEval to simplify handling of return errors between the event handler
- * and compute(), see eStopOK and eStopError for details. */
+  eContinue = kUnEval,   ///< continue compute()
+  /**< If the event handler returns any value
+   * comprised between 0 and eContinue (extremes
+   * included, then compute() will continue. In particular, eContinue means
+   * "business as usual", while values < eContinue may give specific
+   * instructions (cf. e.g. eForceContinue). eContinue is taken equal to
+   * kUnEval to simplify handling of return errors between the event handler
+   * and compute(), see eStopOK and eStopError for details. */
 
- eStopOK = kOK ,         ///< force compute() to stop returning success
-                         /**< If the event handler returns any value
-			  * comprised between eContinue (excluded) and
- * eStopOK (included), compute() should immediately stop (some delay is
- * possible if required by the implementation) because the event has
- * detected that whatever needed to be compute()-d, has already been
- * satsfactorily compute()-d. eStopOK is taken equal to kOK, so that
- * 
- *     compute() WILL RETURN AS ITS STATUS PRECISELY THE VALUE
- *     RETURNED BY THE EVENT HANDLER
- *
- * This allows the event handler to more finely specify "what kind of good
- * stop has occurred", in case compute() supports more than one (say,
- * compute() requires solving a Block which may have an optimal solution, or
- * be empty, or be unbounded). The event handler needs to know which compute()
- * it is handling, and therefore ensure that the return value is valid for
- * that compute(). Furthermore, obviously the event handler has to force
- * this termination "for good reasons", possibly providing to compute() the
- * extra information it needs to properly function after termination (say,
- * compute() requires solving a Block, and the event handler has can detect
- * termination early by ab ad-hoc computation of a dual solution; then, the
- * dual solution will have to be provided to compute() if it can be required
- * by the user after compute() terminates.) */
+  eStopOK = kOK,         ///< force compute() to stop returning success
+  /**< If the event handler returns any value
+   * comprised between eContinue (excluded) and
+   * eStopOK (included), compute() should immediately stop (some delay is
+   * possible if required by the implementation) because the event has
+   * detected that whatever needed to be compute()-d, has already been
+   * satsfactorily compute()-d. eStopOK is taken equal to kOK, so that
+   *
+   *     compute() WILL RETURN AS ITS STATUS PRECISELY THE VALUE
+   *     RETURNED BY THE EVENT HANDLER
+   *
+   * This allows the event handler to more finely specify "what kind of good
+   * stop has occurred", in case compute() supports more than one (say,
+   * compute() requires solving a Block which may have an optimal solution, or
+   * be empty, or be unbounded). The event handler needs to know which compute()
+   * it is handling, and therefore ensure that the return value is valid for
+   * that compute(). Furthermore, obviously the event handler has to force
+   * this termination "for good reasons", possibly providing to compute() the
+   * extra information it needs to properly function after termination (say,
+   * compute() requires solving a Block, and the event handler has can detect
+   * termination early by ab ad-hoc computation of a dual solution; then, the
+   * dual solution will have to be provided to compute() if it can be required
+   * by the user after compute() terminates.) */
 
- eStopError = kError     ///< force compute() to stop returning error
-                         /**< If the event handler returns any value
-			  * > eStopOK, then compute() should immediately
- * stop (some delay is possible if required by the implementation) because
- * the event has detected that whatever needed to be compute()-d can or need
- * no longer be computed, say because some required computational resource
- * (that compute() does not directly knows of or controls) is terminated.
- * In this case
- * 
- *     compute() WILL RETURN AS ITS STATUS PRECISELY THE VALUE
- *     RETURNED BY THE EVENT HANDLER
- *
- * This allows the event handler to more finely specify "what kind of bad
- * stop has occurred", in case compute() supports more than one. In
- * particular, values >= eStopError (which is taken equal to kError) are meant
- * to represent "irrecoverable" errors, from which compute() is not likely to
- * be able to ever recover. Instead, values between eStopOK and eStopError,
- * extremes excluded, are left for "recoverable error states" where compute()
- * was not able to conclusively obtain all of the desired answer (although it
- * may have already obtained a part of it), but this was due to some reason
- * that forced it to stop early on, such as a limit imposed on the available
- * computational resources. By relaxing the limit, which may be as simple as
- * calling compute() again, compute() may further proceed in the computation
- * process, possibly finally providing a "good" answer. The event handler
- * needs to know which compute() it is handling, and therefore ensure that
- * the return value is valid for that compute(). */
+  eStopError = kError     ///< force compute() to stop returning error
+  /**< If the event handler returns any value
+   * > eStopOK, then compute() should immediately
+   * stop (some delay is possible if required by the implementation) because
+   * the event has detected that whatever needed to be compute()-d can or need
+   * no longer be computed, say because some required computational resource
+   * (that compute() does not directly knows of or controls) is terminated.
+   * In this case
+   *
+   *     compute() WILL RETURN AS ITS STATUS PRECISELY THE VALUE
+   *     RETURNED BY THE EVENT HANDLER
+   *
+   * This allows the event handler to more finely specify "what kind of bad
+   * stop has occurred", in case compute() supports more than one. In
+   * particular, values >= eStopError (which is taken equal to kError) are meant
+   * to represent "irrecoverable" errors, from which compute() is not likely to
+   * be able to ever recover. Instead, values between eStopOK and eStopError,
+   * extremes excluded, are left for "recoverable error states" where compute()
+   * was not able to conclusively obtain all of the desired answer (although it
+   * may have already obtained a part of it), but this was due to some reason
+   * that forced it to stop early on, such as a limit imposed on the available
+   * computational resources. By relaxing the limit, which may be as simple as
+   * calling compute() again, compute() may further proceed in the computation
+   * process, possibly finally providing a "good" answer. The event handler
+   * needs to know which compute() it is handling, and therefore ensure that
+   * the return value is valid for that compute(). */
 
  };  // end( compute_type )
 
@@ -344,12 +343,12 @@ public:
 
  /// constructor: does nothing, the class is thin
 
- ThinComputeInterface( void ) {}
+ ThinComputeInterface() = default;
 
 /*--------------------------------------------------------------------------*/
  /// destructor: it is virtual and does nothing, the class is thin
 
- virtual ~ThinComputeInterface() { }
+ virtual ~ThinComputeInterface() = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -365,7 +364,7 @@ public:
   * parameter (i.e., either not having any or not really reacting to the ones
   * that they supposedly have) do not have to bother with implementing it. */
 
- virtual void set_par( const idx_type par , const int value ) {}
+ virtual void set_par( const idx_type par, const int value ) {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set a given float (double) numerical parameter
@@ -376,7 +375,7 @@ public:
   * parameter (i.e., either not having any or not really reacting to the ones
   * that they supposedly have) do not have to bother with implementing it. */
 
- virtual void set_par( const idx_type par , const double value ) {}
+ virtual void set_par( const idx_type par, const double value ) {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set a given string parameter
@@ -387,7 +386,7 @@ public:
   * (i.e., either not having any or not really reacting to the ones that they
   * supposedly have) do not have to bother with implementing it. */
 
- virtual void set_par( const idx_type par , const std::string & value ) {}
+ virtual void set_par( const idx_type par, const std::string & value ) {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set the whole set of parameters in one blow
@@ -557,11 +556,10 @@ public:
   * slots for the given type. The method of the base class always throws
   * exception. */
 
- virtual EventID set_event_handler( int type , EventHandler && event )
- {
-  throw( std::logic_error( "ThinComputeInterface::set_event_handler called" )
-	 );
-  }
+ virtual EventID set_event_handler( int type, EventHandler && event ) {
+  throw ( std::logic_error( "ThinComputeInterface::set_event_handler called" )
+  );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// unregister an existing event handler
@@ -570,11 +568,10 @@ public:
   * given id for the given type, exception will be thrown. The method of the
   * base class always throws exception. */
 
- virtual void reset_event_handler( int type , EventID id )
- {
-  throw( std::logic_error( "ThinComputeInterface::reset_event_handler called"
-			   ) );
-  }
+ virtual void reset_event_handler( int type, EventID id ) {
+  throw ( std::logic_error( "ThinComputeInterface::reset_event_handler called"
+  ) );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- METHODS FOR DOING THE COMPUTATION -------------------*/
@@ -704,10 +701,10 @@ public:
   * perhaps the most convenient current C++ technique for asynchronous calls
   * to compute(). */
 
- std::future<int> compute_async( bool changedvars = true ) {
-  return( std::async( std::launch::async ,
-		      &ThinComputeInterface::compute , this , changedvars ) );
-  }
+ std::future< int > compute_async( bool changedvars = true ) {
+  return ( std::async( std::launch::async,
+                       &ThinComputeInterface::compute, this, changedvars ) );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------------- METHODS FOR READING RESULTS -----------------------*/
@@ -742,9 +739,9 @@ public:
   * not having any int parameter do not have to bother with implementing it.
   */
 
- virtual idx_type get_num_int_par( void ) const {
-  return( idx_type( 0 ) );
-  }
+ [[nodiscard]] virtual idx_type get_num_int_par() const {
+  return ( idx_type( 0 ) );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get the number of double parameters
@@ -753,9 +750,9 @@ public:
   * derived classes not having any double parameter do not have to bother
   * with implementing it. */
 
- virtual idx_type get_num_dbl_par( void ) const {
-  return( idx_type( 0 ) );
-  }
+ [[nodiscard]] virtual idx_type get_num_dbl_par() const {
+  return ( idx_type( 0 ) );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get the number of string parameters
@@ -764,9 +761,9 @@ public:
   * derived classes not having any string parameter do not have to bother
   * with implementing it. */
 
- virtual idx_type get_num_str_par( void ) const {
-  return( idx_type( 0 ) );
-  }
+ [[nodiscard]] virtual idx_type get_num_str_par() const {
+  return ( idx_type( 0 ) );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// get the default value of an int parameter
@@ -775,10 +772,10 @@ public:
   * implementation (returning int( 0 )), rather than being pure virtual, so
   * that derived classes not having any int parameter do not have to bother
   * with implementing it. */
- 
- virtual int get_dflt_int_par( const idx_type par ) const {
-  return( int( 0 ) );
-  }
+
+ [[nodiscard]] virtual int get_dflt_int_par( const idx_type par ) const {
+  return ( int( 0 ) );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get the default value of a double parameter
@@ -787,10 +784,10 @@ public:
   * "void" implementation (returning double( 0 )), rather than being pure
   * virtual, so that derived classes not having any int parameter do not
   * have to bother with implementing it. */
- 
- virtual double get_dflt_dbl_par( const idx_type par ) const {
-  return( double( 0 ) );
-  }
+
+ [[nodiscard]] virtual double get_dflt_dbl_par( const idx_type par ) const {
+  return ( double( 0 ) );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get the default value of a string parameter
@@ -800,10 +797,11 @@ public:
   * pure virtual, so that derived classes not having any int parameter do
   * not have to bother with implementing it. */
 
- virtual const std::string & get_dflt_str_par( const idx_type par ) const {
-  static const std::string empty = "";
-  return( empty );
-  }
+ [[nodiscard]] virtual const std::string &
+ get_dflt_str_par( const idx_type par ) const {
+  static const std::string empty;
+  return ( empty );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// get a specific integer (int) numerical parameter
@@ -815,23 +813,23 @@ public:
   * to the ones that they supposedly have) do not have to bother with
   * implementing it. */
 
- virtual int get_int_par( const idx_type par ) const {
-  return( get_dflt_int_par( par ) );
-  }
+ [[nodiscard]] virtual int get_int_par( const idx_type par ) const {
+  return ( get_dflt_int_par( par ) );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get a specific float (double) numerical parameter
-  /** Get the float (double) numerical parameter with index \p par, which must
-  * be in the range [ 0 , get_num_dbl_par() ). The method is given a "void"
-  * implementation always returning the default value for the parameter,
-  * rather than being pure virtual, so that derived classes not having any
-  * working float parameter (i.e., either not having any or not really
-  * reacting to the ones that they supposedly have) do not have to bother
-  * with implementing it. */
+ /** Get the float (double) numerical parameter with index \p par, which must
+ * be in the range [ 0 , get_num_dbl_par() ). The method is given a "void"
+ * implementation always returning the default value for the parameter,
+ * rather than being pure virtual, so that derived classes not having any
+ * working float parameter (i.e., either not having any or not really
+ * reacting to the ones that they supposedly have) do not have to bother
+ * with implementing it. */
 
- virtual double get_dbl_par( const idx_type par ) const {
-  return( get_dflt_dbl_par( par ) );
-  }
+ [[nodiscard]] virtual double get_dbl_par( const idx_type par ) const {
+  return ( get_dflt_dbl_par( par ) );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get a specific string parameter
@@ -842,9 +840,10 @@ public:
   * parameter (i.e., either not having any or not really reacting to the ones
   * that they supposedly have) do not have to bother with implementing it. */
 
- virtual const std::string & get_str_par( const idx_type par ) const {
-  return( get_dflt_str_par( par ) );
-  }
+ [[nodiscard]] virtual const std::string &
+ get_str_par( const idx_type par ) const {
+  return ( get_dflt_str_par( par ) );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the index of the int parameter with given string name
@@ -857,10 +856,11 @@ public:
   * with implementing it. The method should anyway throw exception if
   * \p name does not correspond to the string name of any int parameter. */
 
- virtual idx_type int_par_str2idx( const std::string & name ) const {
-  throw( std::invalid_argument( std::string( "int parameter " ) + name +
-				std::string( " unknown" ) ) );
-  }
+ [[nodiscard]] virtual idx_type
+ int_par_str2idx( const std::string & name ) const {
+  throw ( std::invalid_argument( std::string( "int parameter " ) + name +
+                                 std::string( " unknown" ) ) );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the index of the double parameter with given string name
@@ -873,10 +873,11 @@ public:
   * with implementing it. The method should anyway throw exception if
   * \p name does not correspond to the string name of any double parameter. */
 
- virtual idx_type dbl_par_str2idx( const std::string & name ) const {
-  throw( std::invalid_argument( std::string( "double parameter " ) + name +
-				std::string( " unknown" ) ) );
-  }
+ [[nodiscard]] virtual idx_type
+ dbl_par_str2idx( const std::string & name ) const {
+  throw ( std::invalid_argument( std::string( "double parameter " ) + name +
+                                 std::string( " unknown" ) ) );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the index of the string parameter with given string name
@@ -889,10 +890,11 @@ public:
   * with implementing it. The method should anyway throw exception if \p name
   * does not correspond to the string name of any string parameter. */
 
- virtual idx_type str_par_str2idx( const std::string & name ) const {
-  throw( std::invalid_argument( std::string( "string parameter " ) + name +
-				std::string( " unknown" ) ) );
-  }
+ [[nodiscard]] virtual idx_type
+ str_par_str2idx( const std::string & name ) const {
+  throw ( std::invalid_argument( std::string( "string parameter " ) + name +
+                                 std::string( " unknown" ) ) );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the string name of the int parameter with given index
@@ -903,9 +905,10 @@ public:
   * being pure virtual, so that derived classes not having any int parameter
   * do not have to bother with implementing it. */
 
- virtual const std::string & int_par_idx2str( const idx_type idx ) const {
-  throw( std::invalid_argument( "invalid int parameter name" ) );
-  }
+ [[nodiscard]] virtual const std::string &
+ int_par_idx2str( const idx_type idx ) const {
+  throw ( std::invalid_argument( "invalid int parameter name" ) );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the string name of the double parameter with given index
@@ -916,9 +919,10 @@ public:
   * than being pure virtual, so that derived classes not having any double
   * parameter do not have to bother with implementing it. */
 
- virtual const std::string & dbl_par_idx2str( const idx_type idx ) const {
-  throw( std::invalid_argument( "invalid double parameter name" ) );
-  }
+ [[nodiscard]] virtual const std::string &
+ dbl_par_idx2str( const idx_type idx ) const {
+  throw ( std::invalid_argument( "invalid double parameter name" ) );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the string name of the string parameter with given index
@@ -930,9 +934,10 @@ public:
   * classes not having any double parameter do not have to bother with
   * implementing it. */
 
- virtual const std::string & str_par_idx2str( const idx_type idx ) const {
-  throw( std::invalid_argument( "invalid string parameter name" ) );
-  }
+ [[nodiscard]] virtual const std::string &
+ str_par_idx2str( const idx_type idx ) const {
+  throw ( std::invalid_argument( "invalid string parameter name" ) );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get the whole set of parameters in one blow
@@ -983,17 +988,18 @@ public:
   * :ThinComputeInterface which needs it will have to derive its own version
   * of the method (but, not necessarily of ComputeConfig). */
 
- virtual ComputeConfig * get_ComputeConfig( bool all = false ,
-				      ComputeConfig * ocfg = nullptr ) const;
+ virtual ComputeConfig * get_ComputeConfig(
+  bool all = false,
+  ComputeConfig * ocfg = nullptr ) const;
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 // empty, this is a thin interface
- 
+
 /*--------------------------------------------------------------------------*/
 
- };   // end( class ThinComputeInterface )
+};   // end( class ThinComputeInterface )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- CLASS ComputeConfig --------------------------*/
@@ -1033,8 +1039,7 @@ public:
  * Configuration field may be enough to cover many use cases without a 
  * specific :ComputeConfig class definition. */
 
-class ComputeConfig : public Configuration
-{
+class ComputeConfig : public Configuration {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
@@ -1043,31 +1048,31 @@ class ComputeConfig : public Configuration
 /*---------------------------- CONSTRUCTORS --------------------------------*/
  /// constructor: initializes everything to "default configuration"
 
- ComputeConfig( void ) : Configuration() , f_diff( true ) ,
-  f_extra_Configuration( nullptr ) {}
+ ComputeConfig() : Configuration(), f_diff( true ),
+                   f_extra_Configuration( nullptr ) {}
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: does what it says on the tin
- 
- ComputeConfig( const ComputeConfig &old ) : Configuration() {
+
+ ComputeConfig( const ComputeConfig & old ) : Configuration() {
   f_diff = old.f_diff;
   int_pars = old.int_pars;
   dbl_pars = old.dbl_pars;
   str_pars = old.str_pars;
   f_extra_Configuration = old.f_extra_Configuration->clone();
-  }
+ }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
  /// destructor; it deletes the f_extra_Configuration (if any)
 
- virtual ~ComputeConfig() { delete f_extra_Configuration; }
+ ~ComputeConfig() override { delete f_extra_Configuration; }
 
 /*------------------------------- CLONE -----------------------------------*/
  /// clone method
 
- ComputeConfig * clone( void ) const override {
-  return( new ComputeConfig( *this ) );
-  }
+ [[nodiscard]] ComputeConfig * clone() const override {
+  return ( new ComputeConfig( *this ) );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// extends Configuration::deserialize( netCDF::NcGroup )
@@ -1154,7 +1159,7 @@ class ComputeConfig : public Configuration
   * #f_extra_Configuration is not nullptr then Configuration::clear() is
   * invoked for #f_extra_Configuration. Moreover, #f_diff is set to false. */
 
- void clear( void ) override {
+ void clear() override {
   int_pars.clear();
   dbl_pars.clear();
   str_pars.clear();
@@ -1163,16 +1168,16 @@ class ComputeConfig : public Configuration
 
   if( f_extra_Configuration )
    f_extra_Configuration->clear();
-  }
+ }
 
 /*--------------- METHODS FOR READING DATA OF THE ComputeConfig ------------*/
 
  // returns true if the ComputeConfig is "completely empty" of any data
 
- virtual bool empty( void ) const {
-  return( int_pars.empty() && dbl_pars.empty() && str_pars.empty() &&
-	  ( ! f_extra_Configuration ) );
-  }
+ [[nodiscard]] virtual bool empty() const {
+  return ( int_pars.empty() && dbl_pars.empty() &&
+           str_pars.empty() && ( !f_extra_Configuration ) );
+ }
 
 /*--------------------- METHODS FOR CHANGING PARAMETERS --------------------*/
  /// set the given integer (int) numerical parameter
@@ -1180,17 +1185,17 @@ class ComputeConfig : public Configuration
   * parameter is not in the corresponding list it is added, otherwise its
   * current value is changed to \p value. */
 
- void set_par( std::string && name , int value ) {
-  auto it = std::find_if( int_pars.begin() , int_pars.end() ,
-		       [ & name ]( const std::pair< std::string , int > & el )
-		                 { return( name == el.first ); } );
+ void set_par( std::string && name, int value ) {
+  auto it = std::find_if( int_pars.begin(), int_pars.end(),
+                          [ & name ]( const std::pair< std::string, int > & el ) {
+                           return ( name == el.first );
+                          } );
 
   if( it == int_pars.end() )
-   int_pars.push_back( std::pair< std::string , int >( std::move( name ) ,
-						       value ) );
+   int_pars.emplace_back( std::move( name ), value );
   else
    it->second = value;
-  }
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set the given float (double) numerical parameter
@@ -1198,17 +1203,17 @@ class ComputeConfig : public Configuration
   * parameter is not in the corresponding list it is added, otherwise its
   * current value is changed to \p value. */
 
- void set_par( std::string && name , double value ) {
-  auto it = std::find_if( dbl_pars.begin() , dbl_pars.end() ,
-		   [ & name ]( const std::pair< std::string , double > & el )
-		             { return( name == el.first ); } );
+ void set_par( std::string && name, double value ) {
+  auto it = std::find_if( dbl_pars.begin(), dbl_pars.end(),
+                          [ & name ]( const std::pair< std::string, double > & el ) {
+                           return ( name == el.first );
+                          } );
 
   if( it == dbl_pars.end() )
-   dbl_pars.push_back( std::pair< std::string , double >(
-					       std::move( name ) , value ) );
+   dbl_pars.emplace_back( std::move( name ), value );
   else
    it->second = value;
-  }
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set the given string numerical parameter
@@ -1216,17 +1221,17 @@ class ComputeConfig : public Configuration
   * not in the corresponding list it is added, otherwise its current value is
   * changed to \p value. */
 
- void set_par( std::string && name , std::string && value ) {
-  auto it = std::find_if( str_pars.begin() , str_pars.end() ,
-	      [ & name ]( const std::pair< std::string , std::string > & el )
-		        { return( name == el.first ); } );
+ void set_par( std::string && name, std::string && value ) {
+  auto it = std::find_if( str_pars.begin(), str_pars.end(),
+                          [ & name ]( const std::pair< std::string, std::string > & el ) {
+                           return ( name == el.first );
+                          } );
 
   if( it == str_pars.end() )
-   str_pars.push_back( std::pair< std::string , std::string >(
-				  std::move( name ) , std::move( value ) ) );
+   str_pars.emplace_back( std::move( name ), std::move( value ) );
   else
    it->second = std::move( value );
-  }
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// removes a given parameter
@@ -1235,53 +1240,57 @@ class ComputeConfig : public Configuration
   * 's', respectively); if it is found it is removed from the list, otherwise
   * nothing is done. */
 
- void reset_par( const std::string & name , char type = 'i' ) {
+ void reset_par( const std::string & name, char type = 'i' ) {
   switch( type ) {
-   case( 'i' ): {
-    auto it = std::find_if( int_pars.begin() , int_pars.end() ,
-		       [ & name ]( const std::pair< std::string , int > & el )
-		                 { return( name == el.first ); } );
+   case ( 'i' ): {
+    auto it = std::find_if( int_pars.begin(), int_pars.end(),
+                            [ & name ]( const std::pair< std::string, int > & el ) {
+                             return ( name == el.first );
+                            } );
     if( it != int_pars.end() ) {
      *it = std::move( int_pars.back() );
      int_pars.pop_back();
-     }
     }
-   case( 'd' ): {
-    auto it = std::find_if( dbl_pars.begin() , dbl_pars.end() ,
-		    [ & name ]( const std::pair< std::string , double > & el )
-		              { return( name == el.first ); } );
+   }
+   case ( 'd' ): {
+    auto it = std::find_if( dbl_pars.begin(), dbl_pars.end(),
+                            [ & name ]( const std::pair< std::string, double > & el ) {
+                             return ( name == el.first );
+                            } );
     if( it != dbl_pars.end() ) {
      *it = std::move( dbl_pars.back() );
      dbl_pars.pop_back();
-     }
     }
-   case( 's' ): {
-    auto it = std::find_if( str_pars.begin() , str_pars.end() ,
-	      [ & name ]( const std::pair< std::string , std::string > & el )
-		        { return( name == el.first ); } );
+   }
+   case ( 's' ): {
+    auto it = std::find_if( str_pars.begin(), str_pars.end(),
+                            [ & name ]( const std::pair< std::string, std::string > & el ) {
+                             return ( name == el.first );
+                            } );
     if( it != str_pars.end() ) {
      *it = std::move( str_pars.back() );
      str_pars.pop_back();
-     }
     }
    }
-  }  // end( reset_par )
+   default:;
+  }
+ }  // end( reset_par )
 
 /*--------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
 
  bool f_diff;  ///< tells is the configuration is a "differential" one
 
  /// list of pairs < string , int > for integer-valued parameters
- std::vector< std::pair< std::string , int > > int_pars;
+ std::vector< std::pair< std::string, int > > int_pars;
 
  /// list of pairs < string , double > for float-valued parameters
- std::vector< std::pair< std::string , double > > dbl_pars;
+ std::vector< std::pair< std::string, double > > dbl_pars;
 
  /// list of pairs < string , string > for string-valued parameters
- std::vector< std::pair< std::string , std::string > > str_pars;
+ std::vector< std::pair< std::string, std::string > > str_pars;
 
  /// any extra ThinComputeInterface-specific Configuration
- Configuration *f_extra_Configuration;
+ Configuration * f_extra_Configuration;
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1290,7 +1299,7 @@ class ComputeConfig : public Configuration
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 
  /// print the ComputeConfig
- void print( std::ostream &output ) const override;
+ void print( std::ostream & output ) const override;
 
 /*--------------------------------------------------------------------------*/
  /// load this ComputeConfig out of an istream
@@ -1322,7 +1331,7 @@ class ComputeConfig : public Configuration
   * if the above is not '*', the description of the :Configuration object
   */
 
- void load( std::istream &input ) override;
+ void load( std::istream & input ) override;
 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 
@@ -1334,7 +1343,7 @@ class ComputeConfig : public Configuration
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( ComputeConfig ) )
+};  // end( class( ComputeConfig ) )
 
 /** @} end( group( ThinComputeInterface_CLASSES ) ) ------------------------*/
 /*--------------------------------------------------------------------------*/
