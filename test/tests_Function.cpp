@@ -20,7 +20,11 @@ using namespace SMSpp_di_unipi_it;
 /*------------------------------- TEST CASES -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-TEST( FunctionTest, GetsParameters ) {
+// TODO: ThinComputeInterface::set/get_ComputeConfig()
+// TODO: C05Function linearization stuff
+// TODO: C15Function hessian approximation stuff
+
+TEST( FunctionTest, GetsNumberOfParameters ) {
  LinearFunction fun;
  auto iinf = std::numeric_limits< int >::infinity();
  auto dinf = std::numeric_limits< double >::infinity();
@@ -32,6 +36,12 @@ TEST( FunctionTest, GetsParameters ) {
  ASSERT_EQ( fun.Function::get_num_dbl_par(), Function::dblLastParFun );
  ASSERT_EQ( fun.C05Function::get_num_int_par(), C05Function::intLastParC0F );
  ASSERT_EQ( fun.C05Function::get_num_dbl_par(), C05Function::dblLastParC0F );
+}
+
+TEST( FunctionTest, GetsParameterDefaultValues ) {
+ LinearFunction fun;
+ auto iinf = std::numeric_limits< int >::infinity();
+ auto dinf = std::numeric_limits< double >::infinity();
 
  ASSERT_EQ( fun.Function::get_dflt_int_par( Function::intMaxIter ), iinf );
  ASSERT_EQ( fun.Function::get_dflt_int_par( Function::intMaxThread ), 0 );
@@ -47,6 +57,10 @@ TEST( FunctionTest, GetsParameters ) {
  ASSERT_EQ( fun.C05Function::get_dflt_dbl_par( C05Function::dblAAccLin ), 0 );
  ASSERT_EQ( fun.C05Function::get_dflt_dbl_par( C05Function::dblAAccMlt ),
             1e-10 );
+}
+
+TEST( FunctionTest, ChecksParameterValues ) {
+ LinearFunction fun;
 
  for( int i = 0; i < Function::intLastParFun; ++i ) {
   ASSERT_EQ( fun.Function::get_int_par( i ),
@@ -65,6 +79,10 @@ TEST( FunctionTest, GetsParameters ) {
   ASSERT_EQ( fun.C05Function::get_dbl_par( i ),
              fun.C05Function::get_dflt_dbl_par( i ) );
  }
+}
+
+TEST( FunctionTest, ChecksParameterIndices ) {
+ LinearFunction fun;
 
  ASSERT_EQ( fun.Function::int_par_str2idx( "intMaxIter" ),
             Function::intMaxIter );
@@ -92,6 +110,11 @@ TEST( FunctionTest, GetsParameters ) {
  ASSERT_EQ( fun.C05Function::dbl_par_str2idx( "dblAAccMlt" ),
             C05Function::dblAAccMlt );
 
+}
+
+TEST( FunctionTest, ChecksParameterNames ) {
+ LinearFunction fun;
+
  ASSERT_EQ( fun.Function::int_par_idx2str( Function::intMaxIter ),
             "intMaxIter" );
  ASSERT_EQ( fun.Function::int_par_idx2str( Function::intMaxThread ),
@@ -117,8 +140,9 @@ TEST( FunctionTest, GetsParameters ) {
             "dblAAccLin" );
  ASSERT_EQ( fun.C05Function::dbl_par_idx2str( C05Function::dblAAccMlt ),
             "dblAAccMlt" );
-
 }
+
+
 /*--------------------------------------------------------------------------*/
 /*---------------------------------- MAIN ----------------------------------*/
 /*--------------------------------------------------------------------------*/

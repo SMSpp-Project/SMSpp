@@ -38,7 +38,8 @@ endif ()
 set(CLASSES
     "AbstractBlock"
     "ColVariable"
-    "Function")
+    "Function"
+    "LinearFunction")
 
 foreach(CLASS ${CLASSES})
     add_executable(${CLASS}_test tests_${CLASS}.cpp)
