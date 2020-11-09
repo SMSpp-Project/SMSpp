@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Compilation error in DataMapping with GCC.
+
+### Added
+
+- Some unit tests.
+- Configuration header SMSppConfig.h.
+
 ## [0.3.2] - 2020-09-16
 
 ### Fixed
