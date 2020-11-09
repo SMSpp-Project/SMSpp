@@ -480,28 +480,9 @@ public:
 
 /*--------------------------------------------------------------------------*/
 
+ // Specializations for this method are defined below, outside the class.
  template< class T >
  static constexpr char get_id();
-
-/*--------------------------------------------------------------------------*/
-
- template<>
- constexpr char get_id< Block::Range >() { return 'R'; }
-
-/*--------------------------------------------------------------------------*/
-
- template<>
- constexpr char get_id< Block::Subset >() { return 'S'; }
-
-/*--------------------------------------------------------------------------*/
-
- template<>
- constexpr char get_id< double >() { return 'D'; }
-
-/*--------------------------------------------------------------------------*/
-
- template<>
- constexpr char get_id< int >() { return 'I'; }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
@@ -625,6 +606,23 @@ private:
 /**@} ----------------------------------------------------------------------*/
 
 };  // end( class( SimpleDataMappingBase ) )
+
+/*--------------------------------------------------------------------------*/
+
+ // Apparently, GCC wants template specializations
+ // outside the class declaration.
+template<>
+constexpr char SimpleDataMappingBase::get_id< Block::Range >() { return 'R'; }
+
+template<>
+constexpr char SimpleDataMappingBase::get_id< Block::Subset >() { return 'S'; }
+
+template<>
+constexpr char SimpleDataMappingBase::get_id< double >() { return 'D'; }
+
+template<>
+constexpr char SimpleDataMappingBase::get_id< int >() { return 'I'; }
+
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ CLASS SimpleDataMapping -------------------------*/
