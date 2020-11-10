@@ -441,7 +441,7 @@ class Observer {
   * value eModBlck only makes sense for them. This also depends on the value
   * reported by anyone_there(), which is why the method is not static. */
 
- inline bool issue_mod( c_ModParam issueMod ) const {
+ [[nodiscard]] inline bool issue_mod( c_ModParam issueMod ) const {
   return ( ( par2mod( issueMod ) == eModBlck ) ||
            ( ( par2mod( issueMod ) == eNoBlck ) && anyone_there() ) );
  }

@@ -26,7 +26,7 @@
 
 #ifndef __FRealObjective
 #define __FRealObjective
-                      /* self-identification: #endif at the end of the file */
+/* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -41,8 +41,7 @@
 /*--------------------------------------------------------------------------*/
 
 ///< namespace for the Structured Modeling System++ (SMS++)
-namespace SMSpp_di_unipi_it
-{
+namespace SMSpp_di_unipi_it {
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
@@ -80,7 +79,7 @@ namespace SMSpp_di_unipi_it
  * mechanism allowing a finer control on which Modification are "listened to".
  */
 
-class FRealObjective : public RealObjective , public Observer {
+class FRealObjective : public RealObjective, public Observer {
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
@@ -100,11 +99,11 @@ class FRealObjective : public RealObjective , public Observer {
   * defines it. Both parameters default to nullptr so that this can be used
   * as the void constructor. */
 
- FRealObjective( Block *my_block = nullptr , Function *function = nullptr )
-  : RealObjective( my_block ) , f_function( nullptr )
- {
-  set_function( function , eNoMod );
-  }
+ explicit FRealObjective( Block * my_block = nullptr,
+                          Function * function = nullptr )
+  : RealObjective( my_block ), f_function( nullptr ) {
+  set_function( function, eNoMod );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// destructor: deletes the Function and un-registers with the Variable
@@ -112,9 +111,9 @@ class FRealObjective : public RealObjective , public Observer {
   * Variable of the Function (if clear() has not been called first) and then
   * deletes it. */
 
- virtual ~FRealObjective() {
-  set_function( nullptr , eNoMod );
-  }
+ ~FRealObjective() override {
+  set_function( nullptr, eNoMod );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// "rough destructor": calls the version of the Function object
@@ -122,10 +121,10 @@ class FRealObjective : public RealObjective , public Observer {
   * This results in the list of Variable of the Function to be emptied,
   * so that in the destructor they re not un-registered. */
 
- virtual void clear( void ) override {
+ void clear() override {
   if( f_function )
    f_function->clear();
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -179,8 +178,8 @@ class FRealObjective : public RealObjective , public Observer {
   * The parameter issueMod decides if and how the FRealObjectiveMod is
   * issued, as described in Observer::make_par(). */
 
- void set_function( Function * const function = nullptr ,
-		    ModParam issueMod = eModBlck , bool deleteold = true );
+ void set_function( Function * const function = nullptr,
+                    ModParam issueMod = eModBlck, bool deleteold = true );
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE FRealObjective -----------*/
@@ -194,47 +193,46 @@ class FRealObjective : public RealObjective , public Observer {
   * is virtual while Constraint::get_Block() is not, hence the former has to
   * be explicitly implemented in terms of the latter. */
 
- Block * get_Block( void ) const override {
-  return( Objective::get_Block() );
-  }
+ [[nodiscard]] Block * get_Block() const override {
+  return ( Objective::get_Block() );
+ }
 
 /*--------------------------------------------------------------------------*/
 
-  /// returns the pointer to the Function in this FRealObjective
-  Function *get_function( void ) const { return( f_function ); }
+ /// returns the pointer to the Function in this FRealObjective
+ [[nodiscard]] Function * get_function() const { return ( f_function ); }
 
 /*--------------------------------------------------------------------------*/
 
  /// dispatches the method of the underlying Function
- virtual void set_par( const idx_type par , const int value ) override {
+ void set_par( const idx_type par, const int value ) override {
   if( f_function )
-   f_function->set_par( par , value );
+   f_function->set_par( par, value );
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  /// dispatches the method of the underlying Function
- virtual void set_par( const idx_type par , const double value ) override {
+ void set_par( const idx_type par, const double value ) override {
   if( f_function )
-   f_function->set_par( par , value );
-  }
+   f_function->set_par( par, value );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  /// dispatches the method of the underlying Function
- virtual void set_par( const idx_type par , const std::string & value )
-  override {
+ void set_par( const idx_type par, const std::string & value ) override {
   if( f_function )
-   f_function->set_par( par , value );
-  }
+   f_function->set_par( par, value );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  /// dispatches the method of the underlying Function
- virtual void set_ComputeConfig( ComputeConfig *scfg = nullptr ) override {
+ void set_ComputeConfig( ComputeConfig * scfg = nullptr ) override {
   if( f_function )
    f_function->set_ComputeConfig( scfg );
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------ METHODS DESCRIBING THE BEHAVIOR OF A FRealObjective ---------*/
@@ -242,24 +240,22 @@ class FRealObjective : public RealObjective , public Observer {
 /** @name Methods describing the behavior of a FRealObjective
  *  @{ */
 
-  /// evaluate the FRealObjective
-  /** This FRealObjective is evaluated by evaluating the Function that
-   * defines it. */
+ /// evaluate the FRealObjective
+ /** This FRealObjective is evaluated by evaluating the Function that
+  * defines it. */
 
- virtual int compute( bool changedvars = true ) override
- {
-  return( f_function ? f_function->compute( changedvars ) : kUnEval );
-  }
+ int compute( bool changedvars = true ) override {
+  return ( f_function ? f_function->compute( changedvars ) : kUnEval );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the (real) value of the FRealObjective
  /** Method that returns the (real) value of this FRealObjective. It can
   * only be called after that compute() has been called. */
 
- virtual OFValue value( void ) const override
- {
-  return( f_function ? f_function->get_value() : Inf<OFValue>() );
-  }
+ [[nodiscard]] OFValue value() const override {
+  return ( f_function ? f_function->get_value() : Inf< OFValue >() );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
@@ -269,109 +265,109 @@ class FRealObjective : public RealObjective , public Observer {
  * the Function has not been set yet.
  *  @{ */
 
- virtual idx_type get_num_int_par( void ) const override {
-  return( f_function->get_num_int_par() );
-  }
+ [[nodiscard]] idx_type get_num_int_par() const override {
+  return ( f_function->get_num_int_par() );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual idx_type get_num_dbl_par( void ) const override {
-  return( f_function->get_num_dbl_par() );
-  }
+ [[nodiscard]] idx_type get_num_dbl_par() const override {
+  return ( f_function->get_num_dbl_par() );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual idx_type get_num_str_par( void ) const override {
-  return( f_function->get_num_str_par() );
-  }
-
-/*--------------------------------------------------------------------------*/
- 
- virtual int get_dflt_int_par( const idx_type par ) const override {
-  return( f_function->get_dflt_int_par( par ) );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- 
- virtual double get_dflt_dbl_par( const idx_type par ) const override {
-  return( f_function->get_dflt_dbl_par( par ) );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- 
- virtual const std::string & get_dflt_str_par( const idx_type par )
-  const override {
-  return( f_function->get_dflt_str_par( par ) );
-  }
+ [[nodiscard]] idx_type get_num_str_par() const override {
+  return ( f_function->get_num_str_par() );
+ }
 
 /*--------------------------------------------------------------------------*/
 
- virtual int get_int_par( const idx_type par ) const override {
-  return( f_function->get_int_par( par ) );
-  }
+ [[nodiscard]] int get_dflt_int_par( const idx_type par ) const override {
+  return ( f_function->get_dflt_int_par( par ) );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual double get_dbl_par( const idx_type par ) const override {
-  return( f_function->get_dbl_par( par ) );
-  }
+ [[nodiscard]] double get_dflt_dbl_par( const idx_type par ) const override {
+  return ( f_function->get_dflt_dbl_par( par ) );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual const std::string & get_str_par( const idx_type par ) const override
- {
-  return( f_function->get_str_par( par ) );
-  }
+ [[nodiscard]] const std::string & get_dflt_str_par( const idx_type par )
+ const override {
+  return ( f_function->get_dflt_str_par( par ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 
- virtual idx_type int_par_str2idx( const std::string & name ) const override
- {
-  return( f_function->int_par_str2idx( name ) );
-  }
+ [[nodiscard]] int get_int_par( const idx_type par ) const override {
+  return ( f_function->get_int_par( par ) );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual idx_type dbl_par_str2idx( const std::string & name ) const override
- {
-  return( f_function->dbl_par_str2idx( name ) );
-  }
+ [[nodiscard]] double get_dbl_par( const idx_type par ) const override {
+  return ( f_function->get_dbl_par( par ) );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual idx_type str_par_str2idx( const std::string & name ) const override
- {
-  return( f_function->str_par_str2idx( name ) );
-  }
+ [[nodiscard]] const std::string &
+ get_str_par( const idx_type par ) const override {
+  return ( f_function->get_str_par( par ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 
- virtual const std::string & int_par_idx2str( const idx_type idx ) const
-  override {
-  return( f_function->int_par_idx2str( idx ) );
-  }
+ [[nodiscard]] idx_type
+ int_par_str2idx( const std::string & name ) const override {
+  return ( f_function->int_par_str2idx( name ) );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual const std::string & dbl_par_idx2str( const idx_type idx ) const
-  override {
-  return( f_function->dbl_par_idx2str( idx ) );
-  }
+ [[nodiscard]] idx_type
+ dbl_par_str2idx( const std::string & name ) const override {
+  return ( f_function->dbl_par_str2idx( name ) );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual const std::string & str_par_idx2str( const idx_type idx ) const
-  override {
-  return( f_function->str_par_idx2str( idx ) );
-  }
+ [[nodiscard]] idx_type
+ str_par_str2idx( const std::string & name ) const override {
+  return ( f_function->str_par_str2idx( name ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ [[nodiscard]] const std::string & int_par_idx2str( const idx_type idx ) const
+ override {
+  return ( f_function->int_par_idx2str( idx ) );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual ComputeConfig * get_ComputeConfig( bool all = false ,
-			     ComputeConfig * ocfg = nullptr ) const override
- {
-  return( f_function->get_ComputeConfig( all , ocfg ) );
-  }
+ [[nodiscard]] const std::string & dbl_par_idx2str( const idx_type idx ) const
+ override {
+  return ( f_function->dbl_par_idx2str( idx ) );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] const std::string &
+ str_par_idx2str( const idx_type idx ) const override {
+  return ( f_function->str_par_idx2str( idx ) );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ ComputeConfig *
+ get_ComputeConfig( bool all = false,
+                    ComputeConfig * ocfg = nullptr ) const override {
+  return ( f_function->get_ComputeConfig( all, ocfg ) );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE FRealObjective -------*/
@@ -380,70 +376,62 @@ class FRealObjective : public RealObjective , public Observer {
  * FRealObjective; they all dispatch the method of the underlying Function
  * @{ */
 
- Index get_num_active_var( void ) const override
- {
-  return( f_function ? f_function->get_num_active_var() : 0 );
-  }
+ [[nodiscard]] Index get_num_active_var() const override {
+  return ( f_function ? f_function->get_num_active_var() : 0 );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- Index is_active( const Variable * const f_variable ) const override
- {
-  return( f_function ? f_function->is_active( f_variable ) : Inf<Index>() );
-  }
+ Index is_active( const Variable * const f_variable ) const override {
+  return ( f_function ? f_function->is_active( f_variable ) : Inf< Index >() );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- Variable * get_active_var( const Index i ) const override
- {
-  return( f_function ? f_function->get_active_var( i ) : nullptr );
-  }
+ [[nodiscard]] Variable * get_active_var( const Index i ) const override {
+  return ( f_function ? f_function->get_active_var( i ) : nullptr );
+ }
 
 /*--------------------------------------------------------------------------*/
 
- v_iterator * v_begin( void ) override
- {
-  return( f_function ? f_function->v_begin() : nullptr );
-  }
+ v_iterator * v_begin() override {
+  return ( f_function ? f_function->v_begin() : nullptr );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- v_const_iterator * v_begin( void ) const override
- {
-  return( f_function ? 
-	  static_cast<const Function *>( f_function )->v_begin() : nullptr );
-  }
+ [[nodiscard]] v_const_iterator * v_begin() const override {
+  return ( f_function ?
+           static_cast<const Function *>( f_function )->v_begin() : nullptr );
+ }
 
 /*--------------------------------------------------------------------------*/
 
- v_iterator * v_end( void ) override
- {
-  return( f_function ? f_function->v_end() : nullptr );
-  }
+ v_iterator * v_end() override {
+  return ( f_function ? f_function->v_end() : nullptr );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- v_const_iterator * v_end( void ) const override
- {
-  return( f_function ?
-	  static_cast<const Function *>( f_function )->v_end() : nullptr );
-  }
+ [[nodiscard]] v_const_iterator * v_end() const override {
+  return ( f_function ?
+           static_cast<const Function *>( f_function )->v_end() : nullptr );
+ }
 
 /*--------------------------------------------------------------------------*/
 
- void remove_variable( Index i , ModParam issueMod = eModBlck )
-  override final;
+ void remove_variable( Index i, ModParam issueMod = eModBlck ) final;
 
 /*--------------------------------------------------------------------------*/
 
- void remove_variables( Range range , ModParam issueMod = eModBlck )
-  override final;
+ void remove_variables( Range range, ModParam issueMod = eModBlck ) final;
 
 /*--------------------------------------------------------------------------*/
 
- void remove_variables( Subset && nms , bool ordered = false ,
-			ModParam issueMod = eModBlck )  override final;
- 
+ void remove_variables( Subset && nms,
+                        bool ordered = false,
+                        ModParam issueMod = eModBlck ) final;
+
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF AN Observer -------------*/
 /*--------------------------------------------------------------------------*/
@@ -463,10 +451,10 @@ class FRealObjective : public RealObjective , public Observer {
   * some mechanism allowing a finer control on which Modification are
   * "listened to". */
 
- bool anyone_there( void ) const override {
+ [[nodiscard]] bool anyone_there() const override {
   // return( f_Block ? f_Block->anyone_there() : false );
-  return( true );
-  }
+  return ( true );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// mostly just dispatch to add_Modification() of the Block (if any)
@@ -476,7 +464,7 @@ class FRealObjective : public RealObjective , public Observer {
   * anyone_there(), and in case register/unregister itself with the
   * added/removed Variable. */
 
- void add_Modification( sp_Mod mod , ChnlName chnl = 0  ) override;
+ void add_Modification( sp_Mod mod, ChnlName chnl = 0 ) override;
 
 /*--------------------------------------------------------------------------*/
  /// just dispatch to open_channel() of the Block (if any)
@@ -486,8 +474,8 @@ class FRealObjective : public RealObjective , public Observer {
 /*--------------------------------------------------------------------------*/
  /// just dispatch to nest_channel() of the Block (if any)
 
- void nest_channel( ChnlName chnl ,
-		    GroupModification * gmpmod = nullptr )  override;
+ void nest_channel( ChnlName chnl,
+                    GroupModification * gmpmod = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
  /// just dispatch to un_nest_channel() of the Block (if any)
@@ -517,35 +505,35 @@ class FRealObjective : public RealObjective , public Observer {
     @{ */
 
  /// print information about the FRealObjective on an ostream
-  /** Protected method intended to print information about the
-   * FRealObjective; it is virtual so that derived classes can
-   * print their specific information in the format they choose. The
-   * level of the verbosity of the printed information can be
-   * controlled looking at the appropriate information in the Block to
-   * which this FRealObjective belongs [see Block.h]. */
+ /** Protected method intended to print information about the
+  * FRealObjective; it is virtual so that derived classes can
+  * print their specific information in the format they choose. The
+  * level of the verbosity of the printed information can be
+  * controlled looking at the appropriate information in the Block to
+  * which this FRealObjective belongs [see Block.h]. */
 
- virtual void print( std::ostream &output ) const override {
+ void print( std::ostream & output ) const override {
   output << "FRealObjectiveFunction [" << this << "] of Block [" << f_Block
-	 << "] with Function [" << f_function << "] with "
+         << "] with Function [" << f_function << "] with "
          << ( f_function ? f_function->get_num_active_var() : 0 )
          << " active variables, to ";
   if( f_sense == eMin )
-    output << "minimize" << std::endl;
+   output << "minimize" << std::endl;
   else
-    output << "maximize" << std::endl;
+   output << "maximize" << std::endl;
  }
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-  Function *f_function = nullptr;
-  ///< pointer to the Function that defines this FRealObjective
+ Function * f_function = nullptr;
+ ///< pointer to the Function that defines this FRealObjective
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( FRealObjective ) )
+};  // end( class( FRealObjective ) )
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- CLASS FRealObjectiveMod ---------------------------*/
@@ -561,8 +549,7 @@ class FRealObjective : public RealObjective , public Observer {
  * (at the very least, it directly knows it comes from a FRealObjective
  * without having to check it). */
 
-class FRealObjectiveMod : public ObjectiveMod
-{
+class FRealObjectiveMod : public ObjectiveMod {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
@@ -574,25 +561,26 @@ class FRealObjectiveMod : public ObjectiveMod
   * thrown by FRealObjective. */
 
  enum FRO_cons_mod_type {
-  eFunctionChanged = eOFModLastParam ,
+  eFunctionChanged = eOFModLastParam,
   ///< the Function underlying this FRealObjective changed whole
 
   eFROConstModLastParam
   ///< first allowed parameter value for derived classes
   /**< Convenience value for easily allow derived classes to extend the set
    * of types of Modification. */
-  };
+ };
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: just calls that of ObjectiveMod
 
- FRealObjectiveMod( FRealObjective *obj , int mod = eFunctionChanged ,
-		    const bool cB = true )
-  : ObjectiveMod( obj , mod , cB ) { }
+ explicit FRealObjectiveMod( FRealObjective * obj,
+                             int mod = eFunctionChanged,
+                             const bool cB = true )
+  : ObjectiveMod( obj, mod, cB ) {}
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
- virtual ~FRealObjectiveMod() = default;  ///< destructor: does nothing
+ ~FRealObjectiveMod() override = default;  ///< destructor: does nothing
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -601,19 +589,19 @@ class FRealObjectiveMod : public ObjectiveMod
 /*-------------------------- PROTECTED METHODS -----------------------------*/
  /// print the FRealObjectiveMod
 
- virtual inline void print( std::ostream &output ) const {
+ inline void print( std::ostream & output ) const override {
   output << "FRealObjectiveMod[";
   if( concerns_Block() )
    output << "t";
   else
-   output << "f";  
+   output << "f";
   output << "] on FRealObjective["
-	 << f_of << "]: changing the Function" << std::endl;
-  }
+         << f_of << "]: changing the Function" << std::endl;
+ }
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( FRealObjectiveMod ) )
+};  // end( class( FRealObjectiveMod ) )
 
 /** @} end( group( FRealObjective_CLASSES ) ) ------------------------------*/
 /*--------------------------------------------------------------------------*/

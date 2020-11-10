@@ -2315,7 +2315,7 @@ bool deserialize( const netCDF::NcGroup & group,
 template< class T >
 inline void serialize( netCDF::NcGroup & group,
                        const std::string & var_name,
-                       const netCDF::NcType ncType,
+                       const netCDF::NcType& ncType,
                        const T data ) {
  ( group.addVar( var_name, ncType ) ).putVar( &data );
 }
