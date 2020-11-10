@@ -367,13 +367,13 @@ class LinearFunction : public C15Function {
 
 /*--------------------------------------------------------------------------*/
 
- bool is_continuously_differentiable() const final {
+ [[nodiscard]] bool is_continuously_differentiable() const final {
   return ( true );
  }
 
 /*--------------------------------------------------------------------------*/
 
- bool is_twice_continuously_differentiable() const final {
+ [[nodiscard]] bool is_twice_continuously_differentiable() const final {
   return ( true );
  }
 
