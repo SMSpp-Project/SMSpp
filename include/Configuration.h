@@ -24,8 +24,8 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __Configuration
- #define __Configuration
-                      /* self-identification: #endif at the end of the file */
+#define __Configuration
+/* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -38,8 +38,7 @@
 /*--------------------------------------------------------------------------*/
 
 ///< namespace for the Structured Modeling System++ (SMS++)
-namespace SMSpp_di_unipi_it
-{
+namespace SMSpp_di_unipi_it {
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
@@ -57,8 +56,7 @@ namespace SMSpp_di_unipi_it
  * objects intended to provide possibly complex configuration options for
  * the various elements of SMS++ (basically, Block and Solver). */
 
-class Configuration
-{
+class Configuration {
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
@@ -74,11 +72,11 @@ class Configuration
 /** @name Constructing and destructing Configuration
  *  @{ */
 
- Configuration( void ) { }  ///< constructor: does nothing
+ Configuration() = default;  ///< constructor: does nothing
 
 /*--------------------------------------------------------------------------*/
 
- virtual ~Configuration() { }  ///< destructor: does nothing
+ virtual ~Configuration() = default;  ///< destructor: does nothing
 
 /*--------------------------------------------------------------------------*/
  /// method for creating an exact clone of the current Configuration
@@ -104,7 +102,7 @@ class Configuration
   * explicitly for each :Configuration, but in our case it seems that the
   * pain is higher than the gain. */
 
- virtual Configuration * clone( void ) const = 0;
+ [[nodiscard]] virtual Configuration * clone() const = 0;
 
 /*--------------------------------------------------------------------------*/
  /// construct a :Configuration of given type using the Configuration factory
@@ -145,19 +143,18 @@ class Configuration
   * @param classname The name of the :Configuration class that must be
   *        constructed. */
 
- static Configuration *new_Configuration( const std::string & classname )
- {
+ static Configuration * new_Configuration( const std::string & classname ) {
   std::string classname_( classname );
-  classname_.erase( std::remove_if( classname_.begin() , classname_.end() ,
-                                    ::isspace ) , classname_.end() );
+  classname_.erase( std::remove_if( classname_.begin(), classname_.end(),
+                                    ::isspace ), classname_.end() );
 
   const auto it = Configuration::f_factory().find( classname_ );
   if( it == Configuration::f_factory().end() )
-   throw( std::invalid_argument( classname +
-		   std::string( " not present in Configuration factory" ) ) );
+   throw ( std::invalid_argument( classname +
+                                  std::string( " not present in Configuration factory" ) ) );
 
-  return( (it->second)() );
-  }
+  return ( ( it->second )() );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Configuration out of a netCDF file
@@ -176,24 +173,23 @@ class Configuration
   * therefore, it can be used to construct the very first Configuration if
   * needed). */
 
- static Configuration * deserialize( const char * filename )
- {
+ static Configuration * deserialize( const char * filename ) {
   try {
-   netCDF::NcFile f( filename , netCDF::NcFile::read );
-   return( Configuration::deserialize( f ) );
-   }
+   netCDF::NcFile f( filename, netCDF::NcFile::read );
+   return ( Configuration::deserialize( f ) );
+  }
   catch( netCDF::exceptions::NcException & e ) {
    std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
-   }
+  }
   catch( std::exception & e ) {
    std::cerr << "error " << e.what() << " in deserialize" << std::endl;
-   }
+  }
   catch( ... ) {
    std::cerr << "unknown error in deserialize" << std::endl;
-   }
-
-  return( nullptr );
   }
+
+  return ( nullptr );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Configuration out of an open netCDF SMS++ file
@@ -251,36 +247,35 @@ class Configuration
   * What this method does is finding the right child group, and then 
   * dispatching to new_Configuration( netCDF::NcGroup && ). */
 
- static Configuration * deserialize( netCDF::NcFile & f ,
-				     const unsigned int idx = 0 )
- {
+ static Configuration * deserialize( netCDF::NcFile & f,
+                                     const unsigned int idx = 0 ) {
   try {
    auto gtype = f.getAtt( "SMS++_file_type" );
    if( gtype.isNull() )
-    return( nullptr );
+    return ( nullptr );
 
    int type;
-   gtype.getValues( & type );
+   gtype.getValues( &type );
 
    if( type != eConfigFile )
-    return( nullptr );
+    return ( nullptr );
 
    auto cg = f.getGroup( "Config_" + std::to_string( idx ) );
-   return( new_Configuration( cg ) );
-   }
+   return ( new_Configuration( cg ) );
+  }
   catch( netCDF::exceptions::NcException & e ) {
    std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
-   }
+  }
   catch( std::exception & e ) {
    std::cerr << "error " << e.what() << " in deserialize" << std::endl;
-   }
+  }
   catch( ... ) {
    std::cerr << "unknown error in deserialize" << std::endl;
-   }
-
-  return( nullptr );
   }
- 
+
+  return ( nullptr );
+ }
+
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Configuration out of netCDF::NcGroup, returns it
  /** Third-level de-serialization method: takes a netCDF::NcGroup supposedly
@@ -294,34 +289,33 @@ class Configuration
   * different name from deserialize( netCDF::NcGroup ) (since the signature
   * is the same but for the return type). */
 
- static Configuration * new_Configuration( netCDF::NcGroup & group )
- {
+ static Configuration * new_Configuration( netCDF::NcGroup & group ) {
   try {
    if( group.isNull() )
-    return( nullptr );
+    return ( nullptr );
 
    netCDF::NcGroupAtt gtype = group.getAtt( "type" );
    if( gtype.isNull() )
-    return( nullptr );
+    return ( nullptr );
 
    std::string cfgtype;
    gtype.getValues( cfgtype );
    Configuration * result = new_Configuration( cfgtype );
    result->deserialize( group );
-   return( result );
-   }
+   return ( result );
+  }
   catch( netCDF::exceptions::NcException & e ) {
    std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
-   }
+  }
   catch( std::exception & e ) {
    std::cerr << "error " << e.what() << " in deserialize" << std::endl;
-   }
+  }
   catch( ... ) {
    std::cerr << "unknown error in deserialize" << std::endl;
-   }
-
-  return( nullptr );
   }
+
+  return ( nullptr );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize the current :Configuration out of netCDF::NcGroup
@@ -339,20 +333,19 @@ class Configuration
   * :Configuration class, and exception should be thrown if anything goes
   * wrong in the process. */
 
- virtual void deserialize( netCDF::NcGroup & group )
- {
-  #ifndef NDEBUG
-   netCDF::NcGroupAtt gtype = group.getAtt( "type" );
-   if( gtype.isNull() )
-    throw( std::invalid_argument( "missing type attribute in netCDF group" )
-	   );
+ virtual void deserialize( netCDF::NcGroup & group ) {
+#ifndef NDEBUG
+  netCDF::NcGroupAtt gtype = group.getAtt( "type" );
+  if( gtype.isNull() )
+   throw ( std::invalid_argument( "missing type attribute in netCDF group" )
+   );
 
-   std::string cfgtype;
-   gtype.getValues( cfgtype );
-   if( cfgtype != classname() )
-    throw( std::invalid_argument( "wrong Config type in netCDF group" ) );
-  #endif
-  }
+  std::string cfgtype;
+  gtype.getValues( cfgtype );
+  if( cfgtype != classname() )
+   throw ( std::invalid_argument( "wrong Config type in netCDF group" ) );
+#endif
+ }
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Configuration out of std::istream, returns it
@@ -368,15 +361,14 @@ class Configuration
   * What the method does is simply to use the factory to build the
   * :Configuration object and then initialise it with its >> operator. */
 
- static Configuration * new_Configuration( std::istream & input )
- {
+ static Configuration * new_Configuration( std::istream & input ) {
   std::string name;
   input >> eatcomments >> name;
 
   auto cfg = Configuration::new_Configuration( name );
   input >> *cfg;
-  return( cfg );
-  }
+  return ( cfg );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- Methods for reading the data of the Configuration ----------*/
@@ -400,7 +392,8 @@ class Configuration
   * (unless the programmer purposely defines private_name() without calling
   * the macro, which seems rather pointless). */
 
- const std::string & classname( void ) const { return( private_name() ); }
+ [[nodiscard]] const std::string &
+ classname() const { return ( private_name() ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A Configuration -----------*/
@@ -427,7 +420,7 @@ class Configuration
   * This method has a default empty implementation as some Configuration may
   * not have any data to be "cleared". */
 
- virtual void clear( void ) { }
+ virtual void clear() {}
 
 /**@} ----------------------------------------------------------------------*/
 /*-------- METHODS FOR LOADING, PRINTING & SAVING THE Configuration --------*/
@@ -455,11 +448,11 @@ class Configuration
   * customized by derived classes (since the base class has nothing to
   * print). */
 
- friend std::ostream& operator<< ( std::ostream & out ,
-				   const Configuration & b ) {
+ friend std::ostream & operator<<( std::ostream & out,
+                                   const Configuration & b ) {
   b.print( out );
-  return( out );
-  }
+  return ( out );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// friend operator>>(), dispatching to *pure* virtual protected load()
@@ -470,10 +463,10 @@ class Configuration
    * have actually implemented load() (because they have some actual data to
    * load). */
 
- friend std::istream& operator>> ( std::istream & in , Configuration & c ) {
+ friend std::istream & operator>>( std::istream & in, Configuration & c ) {
   c.load( in );
-  return( in );
-  }
+  return ( in );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// serialize a Configuration to a netCDF file given the filename
@@ -490,17 +483,16 @@ class Configuration
   * virtual, it is not expected that derived classes will have a need to
   * re-define it. */
 
- virtual void serialize( const char *filename , int type = eProbFile ) const
- {
+ virtual void serialize( const char * filename, int type = eProbFile ) const {
   if( ( type != eProbFile ) && ( type != eConfigFile ) )
-   throw( std::invalid_argument( "invalid SMS++ netCDF file type" ) );
+   throw ( std::invalid_argument( "invalid SMS++ netCDF file type" ) );
 
-  netCDF::NcFile f( filename , netCDF::NcFile::replace );
+  netCDF::NcFile f( filename, netCDF::NcFile::replace );
 
-  f.putAtt( "SMS++_file_type" , netCDF::NcInt() , type );
+  f.putAtt( "SMS++_file_type", netCDF::NcInt(), type );
 
-  serialize( f , type );
-  }
+  serialize( f, type );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// serialize a Configuration to an open netCDF file
@@ -530,14 +522,13 @@ class Configuration
   * exception is thrown. Although the method is virtual, it is not expected
   * that derived classes will have a need to re-define it. */
 
- virtual void serialize( netCDF::NcFile & f , const int type ) const
- {
+ virtual void serialize( netCDF::NcFile & f, const int type ) const {
   if( type != eConfigFile )
-   throw( std::invalid_argument( "invalid SMS++ netCDF file type" ) );
+   throw ( std::invalid_argument( "invalid SMS++ netCDF file type" ) );
 
   auto cg = f.addGroup( "Config_" + std::to_string( f.getGroupCount() ) );
   serialize( cg );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// serialize a Configuration to a netCDF NcGroup
@@ -556,10 +547,9 @@ class Configuration
   * The method of the base class just creates and fills the "type" attribute
   * (with the right name, thanks to the classname() method). */
 
- virtual void serialize( netCDF::NcGroup & group ) const
- {
-  group.putAtt( "type" , classname() );
-  }
+ virtual void serialize( netCDF::NcGroup & group ) const {
+  group.putAtt( "type", classname() );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -571,10 +561,10 @@ class Configuration
 /*--------------------------- PROTECTED TYPES ------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- typedef boost::function<Configuration*(void)> ConfigurationFactory;
+ typedef boost::function< Configuration *( void ) > ConfigurationFactory;
  // type of the factory of Configuration
 
- typedef std::map<std::string,ConfigurationFactory> ConfigurationFactoryMap;
+ typedef std::map< std::string, ConfigurationFactory > ConfigurationFactoryMap;
  // Type of the map between strings and the factory of Configuration
 
 /*--------------------------------------------------------------------------*/
@@ -596,7 +586,7 @@ class Configuration
 
  virtual void print( std::ostream & output ) const {
   output << "Configuration [" << this << "]" << std::endl;
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// load the Configuration out of an istream
@@ -621,7 +611,7 @@ class Configuration
   * The rationale for using a method is that this is the "Construct On First
   * Use Idiom" that solves the "static initialization order problem". */
 
- static ConfigurationFactoryMap & f_factory( void );
+ static ConfigurationFactoryMap & f_factory();
 
 /*--------------------------------------------------------------------------*/
  /// empty placeholder for class-specific static initialization
@@ -654,7 +644,7 @@ class Configuration
   * may just be the same as what the compiler does during the initialization
   * of static variables without telling you). */
 
- static void static_initialization( void ) { }
+ static void static_initialization() {}
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -667,11 +657,11 @@ class Configuration
 /*--------------------------------------------------------------------------*/
  // Definition of Configuration::private_name() (pure virtual)
 
- virtual const std::string & private_name( void ) const = 0;
+ [[nodiscard]] virtual const std::string & private_name() const = 0;
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( Configuration ) )
+};  // end( class( Configuration ) )
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- CLASS SimpleConfiguration ------------------------*/
@@ -741,8 +731,7 @@ class Configuration
  * due to a specific feature of SMSpp_insert_in_factory_cpp. */
 
 template< class SimpleConfiguration_value_type >
-class SimpleConfiguration : public Configuration
-{
+class SimpleConfiguration : public Configuration {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
@@ -751,7 +740,7 @@ class SimpleConfiguration : public Configuration
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
  /// void constructor (the value is not initialized)
- SimpleConfiguration( void ) : Configuration() { }
+ SimpleConfiguration() : Configuration() {}
 
  /// constructor taking the value (&) as input
  explicit SimpleConfiguration( const SimpleConfiguration_value_type & initval )
@@ -764,17 +753,16 @@ class SimpleConfiguration : public Configuration
  /// copy constructor: does what it says on the tin
  SimpleConfiguration( const SimpleConfiguration & old ) : Configuration() {
   f_value = old.f_value;
-  }
-  
+ }
+
  void deserialize( netCDF::NcGroup & group ) override;
 
- virtual ~SimpleConfiguration() { }  ///< destructor: does nothing
+ ~SimpleConfiguration() override = default;  ///< destructor: does nothing
 
  /// clone method
- SimpleConfiguration * clone( void ) const override
- {
-  return( new SimpleConfiguration( *this ) );
-  }
+ [[nodiscard]] SimpleConfiguration * clone() const override {
+  return ( new SimpleConfiguration( *this ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -782,12 +770,12 @@ class SimpleConfiguration : public Configuration
 
 /*--------------------------------------------------------------------------*/
 
- void clear( void ) override { }
+ void clear() override {}
 
 /*---------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
 
  SimpleConfiguration_value_type f_value;  // the value
-  
+
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 
  protected:
@@ -796,7 +784,7 @@ class SimpleConfiguration : public Configuration
 
  /// printing out the value of this SimpleConfiguration
 
- void print( std::ostream &output ) const override { output << f_value; }
+ void print( std::ostream & output ) const override { output << f_value; }
 
 /*--------------------------------------------------------------------------*/
  /// load this SimpleConfiguration out of an istream
@@ -807,10 +795,9 @@ class SimpleConfiguration : public Configuration
   * - load an object of type SimpleConfiguration_value_type
   */
 
- void load( std::istream &input ) override
- {
+ void load( std::istream & input ) override {
   input >> eatcomments >> f_value;
-  }
+ }
 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 
@@ -822,30 +809,30 @@ class SimpleConfiguration : public Configuration
   * whole of SMSTypedefs.h. */
 
  static class _init {
- public:
-  _init( void );
-  } _initializer;
+  public:
+  _init();
+ } _initializer;
 
- const std::string & private_name( void ) const override;
+ [[nodiscard]] const std::string & private_name() const override;
 
- static const std::string & _private_name( void );
+ static const std::string & _private_name();
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( SimpleConfiguration ) )
+};  // end( class( SimpleConfiguration ) )
 
-/** @} end( group( Configuration_CLASSES ) ) */ 
+/** @} end( group( Configuration_CLASSES ) ) */
 /*--------------------------------------------------------------------------*/
 /*-------------------- Configuration-RELATED TYPES -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @defgroup Configuration_TYPES Configuration-related types.
  *  @{ */
 
- typedef Configuration *p_Conf;
- ///< a pointer to Configuration
+typedef Configuration * p_Conf;
+///< a pointer to Configuration
 
- typedef std::vector<p_Conf> Vec_p_Conf;
- ///< a vector of pointer to Configuration
+typedef std::vector< p_Conf > Vec_p_Conf;
+///< a vector of pointer to Configuration
 
 /** @} end( group( Configuration_TYPES ) ) */
 /*--------------------------------------------------------------------------*/
@@ -855,101 +842,124 @@ class SimpleConfiguration : public Configuration
  *  specializations.
  *  @{ */
 
- template<>
- void SimpleConfiguration<int>::serialize( netCDF::NcGroup & group ) const;
+template<>
+void SimpleConfiguration< int >::serialize( netCDF::NcGroup & group ) const;
 
- template<>
- void SimpleConfiguration<int>::deserialize( netCDF::NcGroup & group );
+template<>
+void SimpleConfiguration< int >::deserialize( netCDF::NcGroup & group );
 
- template<>
- void SimpleConfiguration<double>::serialize( netCDF::NcGroup & group ) const;
+template<>
+void SimpleConfiguration< double >::serialize( netCDF::NcGroup & group ) const;
 
- template<>
- void SimpleConfiguration<double>::deserialize( netCDF::NcGroup & group );
+template<>
+void SimpleConfiguration< double >::deserialize( netCDF::NcGroup & group );
 
- template<>
- void SimpleConfiguration< std::pair<int,int> >::serialize(
-					      netCDF::NcGroup & group ) const;
- template<>
- void SimpleConfiguration< std::pair<int,int> >::deserialize(
-						     netCDF::NcGroup & group );
- template<>
- void SimpleConfiguration< std::pair<double,double> >::serialize(
-					      netCDF::NcGroup & group ) const;
- template<>
- void SimpleConfiguration< std::pair<double,double> >::deserialize(
-						     netCDF::NcGroup & group );
- template<>
- void SimpleConfiguration< std::pair<int,double> >::serialize(
-					      netCDF::NcGroup & group ) const;
- template<>
- void SimpleConfiguration< std::pair<int,double> >::deserialize(
-						     netCDF::NcGroup & group );
- template<>
- void SimpleConfiguration< std::pair<double,int> >::serialize(
-					      netCDF::NcGroup & group ) const;
- template<>
- void SimpleConfiguration< std::pair<double,int> >::deserialize(
-						     netCDF::NcGroup & group );
- template<>
- void SimpleConfiguration< std::vector<int> >::serialize(
-					      netCDF::NcGroup & group ) const;
- template<>
- void SimpleConfiguration< std::vector<int> >::deserialize(
-						    netCDF::NcGroup & group );
- template<>
- void SimpleConfiguration< std::vector<int> >::clear( void );
+template<>
+void SimpleConfiguration< std::pair< int, int > >::serialize(
+ netCDF::NcGroup & group ) const;
 
- template<>
- void SimpleConfiguration< std::vector<double> >::serialize(
-					       netCDF::NcGroup & group ) const;
- template<>
- void SimpleConfiguration< std::vector<double> >::deserialize(
-						    netCDF::NcGroup & group );
- template<>
- void SimpleConfiguration< std::vector<double> >::clear( void );
+template<>
+void SimpleConfiguration< std::pair< int, int > >::deserialize(
+ netCDF::NcGroup & group );
 
- template<>
- void SimpleConfiguration< std::list<int> >::serialize(
-					      netCDF::NcGroup & group ) const;
- template<>
- void SimpleConfiguration< std::list<int> >::deserialize(
-						     netCDF::NcGroup & group );
- template<>
- void SimpleConfiguration< std::list<int> >::clear( void );
+template<>
+void SimpleConfiguration< std::pair< double, double > >::serialize(
+ netCDF::NcGroup & group ) const;
 
- template<>
- void SimpleConfiguration< std::list<double> >::serialize(
-					      netCDF::NcGroup & group ) const;
- template<>
- void SimpleConfiguration< std::list<double> >::deserialize(
-					             netCDF::NcGroup & group );
- template<>
- void SimpleConfiguration< std::list<double> >::clear( void );
+template<>
+void SimpleConfiguration< std::pair< double, double > >::deserialize(
+ netCDF::NcGroup & group );
 
- template<>
- void SimpleConfiguration< std::pair< Configuration * , Configuration * >
-			  >::serialize( netCDF::NcGroup & group ) const;
- template<>
- void SimpleConfiguration< std::pair< Configuration * , Configuration * >
-			  >::deserialize( netCDF::NcGroup & group );
- template<>
- void SimpleConfiguration< std::pair< Configuration * , Configuration * >
-			  >::load( std::istream &input );
- template<>
- void SimpleConfiguration< std::pair< Configuration * , Configuration * >
-			  >::clear( void );
- template<>
- void SimpleConfiguration< std::vector< Configuration * > >::serialize(
-					       netCDF::NcGroup & group ) const;
- template<>
- void SimpleConfiguration< std::vector< Configuration * > >::deserialize(
-						    netCDF::NcGroup & group );
- template<>
- void SimpleConfiguration< std::vector< Configuration * >
-			  >::load( std::istream &input );
- template<>
- void SimpleConfiguration< std::vector< Configuration * > >::clear( void );
+template<>
+void SimpleConfiguration< std::pair< int, double > >::serialize(
+ netCDF::NcGroup & group ) const;
+
+template<>
+void SimpleConfiguration< std::pair< int, double > >::deserialize(
+ netCDF::NcGroup & group );
+
+template<>
+void SimpleConfiguration< std::pair< double, int > >::serialize(
+ netCDF::NcGroup & group ) const;
+
+template<>
+void SimpleConfiguration< std::pair< double, int > >::deserialize(
+ netCDF::NcGroup & group );
+
+template<>
+void SimpleConfiguration< std::vector< int > >::serialize(
+ netCDF::NcGroup & group ) const;
+
+template<>
+void SimpleConfiguration< std::vector< int > >::deserialize(
+ netCDF::NcGroup & group );
+
+template<>
+void SimpleConfiguration< std::vector< int > >::clear();
+
+template<>
+void SimpleConfiguration< std::vector< double > >::serialize(
+ netCDF::NcGroup & group ) const;
+
+template<>
+void SimpleConfiguration< std::vector< double > >::deserialize(
+ netCDF::NcGroup & group );
+
+template<>
+void SimpleConfiguration< std::vector< double > >::clear();
+
+template<>
+void SimpleConfiguration< std::list< int > >::serialize(
+ netCDF::NcGroup & group ) const;
+
+template<>
+void SimpleConfiguration< std::list< int > >::deserialize(
+ netCDF::NcGroup & group );
+
+template<>
+void SimpleConfiguration< std::list< int > >::clear();
+
+template<>
+void SimpleConfiguration< std::list< double > >::serialize(
+ netCDF::NcGroup & group ) const;
+
+template<>
+void SimpleConfiguration< std::list< double > >::deserialize(
+ netCDF::NcGroup & group );
+
+template<>
+void SimpleConfiguration< std::list< double > >::clear();
+
+template<>
+void SimpleConfiguration< std::pair< Configuration *, Configuration * >
+>::serialize( netCDF::NcGroup & group ) const;
+
+template<>
+void SimpleConfiguration< std::pair< Configuration *, Configuration * >
+>::deserialize( netCDF::NcGroup & group );
+
+template<>
+void SimpleConfiguration< std::pair< Configuration *, Configuration * >
+>::load( std::istream & input );
+
+template<>
+void SimpleConfiguration< std::pair< Configuration *, Configuration * >
+>::clear();
+
+template<>
+void SimpleConfiguration< std::vector< Configuration * > >::serialize(
+ netCDF::NcGroup & group ) const;
+
+template<>
+void SimpleConfiguration< std::vector< Configuration * > >::deserialize(
+ netCDF::NcGroup & group );
+
+template<>
+void SimpleConfiguration< std::vector< Configuration * >
+>::load( std::istream & input );
+
+template<>
+void SimpleConfiguration< std::vector< Configuration * > >::clear();
 
 /** @} end( group( SimpleConfiguration_SPECIALIZATIONS ) ) */
 /*--------------------------------------------------------------------------*/

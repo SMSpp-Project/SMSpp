@@ -40,9 +40,8 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void OneVarConstraint::set_variable( ColVariable * const variable ,
-				     ModParam issueMod )
-{
+void OneVarConstraint::set_variable( ColVariable * const variable,
+                                     ModParam issueMod ) {
  if( variable == f_variable )  // changing nothing
   return;                      // all done
 
@@ -55,135 +54,143 @@ void OneVarConstraint::set_variable( ColVariable * const variable ,
  if( f_variable )   // add this Constraint to its only active Variable
   f_variable->add_active( this );
 
- if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
+ if( ( !f_Block ) || ( !f_Block->issue_mod( issueMod ) ) )
   return;
 
- f_Block->add_Modification( std::make_shared<OneVarConstraintMod>( this ,
-	                               OneVarConstraintMod::eVariableChanged ,
-			               Observer::par2concern( issueMod ) ) ,
-			    Observer::par2chnl( issueMod ) );
+ f_Block->add_Modification(
+  std::make_shared< OneVarConstraintMod >( this,
+                                           OneVarConstraintMod::eVariableChanged,
+                                           Observer::par2concern( issueMod ) ),
+  Observer::par2chnl( issueMod ) );
 
- }  // end( OneVarConstraint::set_variable )
+}  // end( OneVarConstraint::set_variable )
 
 /*--------------------------------------------------------------------------*/
 
-void BoxConstraint::set_rhs( c_RHSValue rhs_value , ModParam issueMod ) {
+void BoxConstraint::set_rhs( c_RHSValue rhs_value, ModParam issueMod ) {
  if( f_rhs == rhs_value )  // actually doing nothing
   return;                  // cowardly (and silently) return
 
  f_rhs = rhs_value;        // change the value
 
- if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
+ if( ( !f_Block ) || ( !f_Block->issue_mod( issueMod ) ) )
   return;
 
- f_Block->add_Modification( std::make_shared<OneVarConstraintMod>( this ,
-					 RowConstraintMod::eChgRHS ,
-					 Observer::par2concern( issueMod ) ) ,
-			    Observer::par2chnl( issueMod ) );
- }
+ f_Block->add_Modification(
+  std::make_shared< OneVarConstraintMod >( this,
+                                           RowConstraintMod::eChgRHS,
+                                           Observer::par2concern( issueMod ) ),
+  Observer::par2chnl( issueMod ) );
+}
 
 /*--------------------------------------------------------------------------*/
 
-void BoxConstraint::set_lhs( c_RHSValue lhs_value , ModParam issueMod ) {
+void BoxConstraint::set_lhs( c_RHSValue lhs_value, ModParam issueMod ) {
  if( f_lhs == lhs_value )  // actually doing nothing
   return;                  // cowardly (and silently) return
 
  f_lhs = lhs_value;        // change the value
 
- if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
+ if( ( !f_Block ) || ( !f_Block->issue_mod( issueMod ) ) )
   return;
 
- f_Block->add_Modification( std::make_shared<OneVarConstraintMod>( this ,
-					 RowConstraintMod::eChgLHS ,
-					 Observer::par2concern( issueMod ) ) ,
-			    Observer::par2chnl( issueMod ) );
- }
+ f_Block->add_Modification(
+  std::make_shared< OneVarConstraintMod >( this,
+                                           RowConstraintMod::eChgLHS,
+                                           Observer::par2concern( issueMod ) ),
+  Observer::par2chnl( issueMod ) );
+}
 
 /*--------------------------------------------------------------------------*/
 
-void BoxConstraint::set_both( c_RHSValue both_value , ModParam issueMod ) {
+void BoxConstraint::set_both( c_RHSValue both_value, ModParam issueMod ) {
  if( ( f_rhs == both_value ) && ( f_lhs == both_value ) )  // doing nothing
   return;                                 // cowardly (and silently) return
 
  f_lhs = both_value;
  f_rhs = both_value;
 
- if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
+ if( ( !f_Block ) || ( !f_Block->issue_mod( issueMod ) ) )
   return;
 
- f_Block->add_Modification( std::make_shared<OneVarConstraintMod>( this ,
-					 RowConstraintMod::eChgBTS ,
-					 Observer::par2concern( issueMod ) ) ,
-			    Observer::par2chnl( issueMod ) );
- }
+ f_Block->add_Modification(
+  std::make_shared< OneVarConstraintMod >( this,
+                                           RowConstraintMod::eChgBTS,
+                                           Observer::par2concern( issueMod ) ),
+  Observer::par2chnl( issueMod ) );
+}
 
 /*--------------------------------------------------------------------------*/
- 
-void LB0Constraint::set_rhs( c_RHSValue rhs_value , ModParam issueMod ) {
+
+void LB0Constraint::set_rhs( c_RHSValue rhs_value, ModParam issueMod ) {
  if( f_rhs == rhs_value )  // actually doing nothing
   return;                  // cowardly (and silently) return
 
  f_rhs = rhs_value;        // change the value
 
- if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
+ if( ( !f_Block ) || ( !f_Block->issue_mod( issueMod ) ) )
   return;
 
- f_Block->add_Modification( std::make_shared<OneVarConstraintMod>( this ,
-					 RowConstraintMod::eChgRHS ,
-					 Observer::par2concern( issueMod ) ) ,
-			    Observer::par2chnl( issueMod ) );
- }
+ f_Block->add_Modification(
+  std::make_shared< OneVarConstraintMod >( this,
+                                           RowConstraintMod::eChgRHS,
+                                           Observer::par2concern( issueMod ) ),
+  Observer::par2chnl( issueMod ) );
+}
 
 /*--------------------------------------------------------------------------*/
 
-void UB0Constraint::set_lhs( c_RHSValue lhs_value , ModParam issueMod ) {
+void UB0Constraint::set_lhs( c_RHSValue lhs_value, ModParam issueMod ) {
  if( f_lhs == lhs_value )  // actually doing nothing
   return;                  // cowardly (and silently) return
 
  f_lhs = lhs_value;        // change the value
 
- if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
+ if( ( !f_Block ) || ( !f_Block->issue_mod( issueMod ) ) )
   return;
 
- f_Block->add_Modification( std::make_shared<OneVarConstraintMod>( this ,
-					 RowConstraintMod::eChgLHS ,
-					 Observer::par2concern( issueMod ) ) ,
-			    Observer::par2chnl( issueMod ) );
- }
+ f_Block->add_Modification(
+  std::make_shared< OneVarConstraintMod >( this,
+                                           RowConstraintMod::eChgLHS,
+                                           Observer::par2concern( issueMod ) ),
+  Observer::par2chnl( issueMod ) );
+}
 
 /*--------------------------------------------------------------------------*/
- 
-void LBConstraint::set_lhs( c_RHSValue lhs_value , ModParam issueMod ) {
+
+void LBConstraint::set_lhs( c_RHSValue lhs_value, ModParam issueMod ) {
  if( f_lhs == lhs_value )  // actually doing nothing
   return;                  // cowardly (and silently) return
 
  f_lhs = lhs_value;        // change the value
 
- if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
+ if( ( !f_Block ) || ( !f_Block->issue_mod( issueMod ) ) )
   return;
 
- f_Block->add_Modification( std::make_shared<OneVarConstraintMod>( this ,
-					 RowConstraintMod::eChgLHS ,
-					 Observer::par2concern( issueMod ) ) ,
-			    Observer::par2chnl( issueMod ) );
- }
+ f_Block->add_Modification(
+  std::make_shared< OneVarConstraintMod >( this,
+                                           RowConstraintMod::eChgLHS,
+                                           Observer::par2concern( issueMod ) ),
+  Observer::par2chnl( issueMod ) );
+}
 
 /*--------------------------------------------------------------------------*/
 
-void UBConstraint::set_rhs( c_RHSValue rhs_value , ModParam issueMod ) {
+void UBConstraint::set_rhs( c_RHSValue rhs_value, ModParam issueMod ) {
  if( f_rhs == rhs_value )  // actually doing nothing
   return;                  // cowardly (and silently) return
 
  f_rhs = rhs_value;        // change the value
 
- if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
+ if( ( !f_Block ) || ( !f_Block->issue_mod( issueMod ) ) )
   return;
 
- f_Block->add_Modification( std::make_shared<OneVarConstraintMod>( this ,
-					 RowConstraintMod::eChgRHS ,
-					 Observer::par2concern( issueMod ) ) ,
-			    Observer::par2chnl( issueMod ) );
- }
+ f_Block->add_Modification(
+  std::make_shared< OneVarConstraintMod >( this,
+                                           RowConstraintMod::eChgRHS,
+                                           Observer::par2concern( issueMod ) ),
+  Observer::par2chnl( issueMod ) );
+}
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- End File OneVarConstraint.cpp ----------------------*/

@@ -23,8 +23,8 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __FakeSolver
- #define __FakeSolver
-                      /* self-identification: #endif at the end of the file */
+#define __FakeSolver
+/* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -37,8 +37,7 @@
 /*--------------------------------------------------------------------------*/
 
 /// namespace for the Structured Modeling System++ (SMS++)
-namespace SMSpp_di_unipi_it
-{
+namespace SMSpp_di_unipi_it {
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
@@ -66,7 +65,7 @@ class FakeSolver : public Solver {
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-public:
+ public:
 
 /*--------------------------------------------------------------------------*/
 /*---------------- CONSTRUCTING AND DESTRUCTING FakeSolver -----------------*/
@@ -75,12 +74,12 @@ public:
  *  @{ */
 
  /// constructor: does nothing special
- FakeSolver( void ) : Solver() {}
+ FakeSolver() : Solver() {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor: it has to release all the Modifications
 
- virtual ~FakeSolver() { }
+ ~FakeSolver() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SOLVING THE MODEL ----------------------*/
@@ -92,17 +91,17 @@ public:
  /** FakeSolver does not even really try to solve the Block, so all this
   * method does is to return kError. */
 
- int compute( bool changedvars = true ) override { return( kError ); }
+ int compute( bool changedvars = true ) override { return ( kError ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------------- METHODS FOR READING RESULTS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
- bool has_var_solution( void ) override { return( false ); }
+ bool has_var_solution() override { return ( false ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- void get_var_solution( Configuration *solc = nullptr ) override {}
+ void get_var_solution( Configuration * solc = nullptr ) override {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// provide unfettered access to the list of Modification
@@ -114,22 +113,22 @@ public:
   * Because this is done externally, methods are provided to expose the
   * internal atomic flag that is supposed to protect the list. */
 
- Lst_sp_Mod & get_Modification_list( void ) { return( v_mod ); }
+ Lst_sp_Mod & get_Modification_list() { return ( v_mod ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// ensure that the list of Modification is locked, only return when it is
 
- void lock_Modification_list( void ) {
-  while( f_mod_lock.test_and_set( std::memory_order_acquire ) )
-   ;  // try to acquire lock, spin on failure
-  }
- 
+ void lock_Modification_list() {
+  // try to acquire lock, spin on failure
+  while( f_mod_lock.test_and_set( std::memory_order_acquire ) );
+ }
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// release the lock on the list of Modification
 
- void unlock_Modification_list( void ) {
+ void unlock_Modification_list() {
   f_mod_lock.clear( std::memory_order_release );  // release lock
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -145,7 +144,7 @@ public:
 
 /*--------------------------------------------------------------------------*/
 
- };   // end( class FakeSolver )
+};   // end( class FakeSolver )
 
 /** @} end( group( FakeSolver_CLASSES ) ) ----------------------------------*/
 /*--------------------------------------------------------------------------*/

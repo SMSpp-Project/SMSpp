@@ -27,7 +27,7 @@
 
 #ifndef __FRowConstraint
 #define __FRowConstraint
-                      /* self-identification: #endif at the end of the file */
+/* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -43,8 +43,7 @@
 /*--------------------------------------------------------------------------*/
 
 ///< namespace for the Structured Modeling System++ (SMS++)
-namespace SMSpp_di_unipi_it
-{
+namespace SMSpp_di_unipi_it {
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
@@ -86,7 +85,7 @@ namespace SMSpp_di_unipi_it
  * mechanism allowing a finer control on which Modification are "listened to".
  */
 
-class FRowConstraint : public RowConstraint , public Observer {
+class FRowConstraint : public RowConstraint, public Observer {
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
@@ -107,14 +106,13 @@ class FRowConstraint : public RowConstraint , public Observer {
   * default (nullptr, 0 and 0, nullptr, respectively) so that this can be
   * used as the void constructor. */
 
- FRowConstraint( Block * block = nullptr ,
-		 RHSValue lhs = 0 , RHSValue rhs = 0 ,
-		 Function * const function = nullptr )
-  : RowConstraint( block ) , f_lhs( lhs ) , f_rhs( rhs ) ,
-    f_function( nullptr )
- {
-  set_function( function , eNoMod );
-  }
+ explicit FRowConstraint( Block * block = nullptr,
+                          RHSValue lhs = 0, RHSValue rhs = 0,
+                          Function * const function = nullptr )
+  : RowConstraint( block ), f_lhs( lhs ), f_rhs( rhs ),
+    f_function( nullptr ) {
+  set_function( function, eNoMod );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// destructor: deletes the Function and un-registers with the Variable
@@ -122,7 +120,7 @@ class FRowConstraint : public RowConstraint , public Observer {
   * Variable of the Function (if clear() has not been called first) and then
   * deletes it. */
 
- virtual ~FRowConstraint() { set_function( nullptr , eNoMod ); }
+ ~FRowConstraint() override { set_function( nullptr, eNoMod ); }
 
 /*--------------------------------------------------------------------------*/
  /// "rough destructor": calls the version of the Function object
@@ -133,7 +131,7 @@ class FRowConstraint : public RowConstraint , public Observer {
  void clear() override {
   if( f_function )
    f_function->clear();
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -187,52 +185,52 @@ class FRowConstraint : public RowConstraint , public Observer {
   * The parameter issueMod decides if and how the Modification is issued, as
   * described in Observer::make_par(). */
 
- void set_function( Function * const function = nullptr ,
-		    ModParam issueMod = eModBlck , bool deleteold = true );
+ void set_function( Function * const function = nullptr,
+                    ModParam issueMod = eModBlck, bool deleteold = true );
 
 /*--------------------------------------------------------------------------*/
 
- void set_rhs( RHSValue rhs_value , ModParam issueMod = eModBlck ) override;
+ void set_rhs( RHSValue rhs_value, ModParam issueMod = eModBlck ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- void set_lhs( RHSValue lhs_value , ModParam issueMod = eModBlck ) override;
+ void set_lhs( RHSValue lhs_value, ModParam issueMod = eModBlck ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- void set_both( RHSValue both_value , ModParam issueMod = eModBlck ) override;
+ void set_both( RHSValue both_value, ModParam issueMod = eModBlck ) override;
 
 /*--------------------------------------------------------------------------*/
  /// dispatches the method of the underlying Function
 
- void set_par( const idx_type par , const int value ) override {
+ void set_par( const idx_type par, const int value ) override {
   if( f_function )
-   f_function->set_par( par , value );
-  }
+   f_function->set_par( par, value );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// dispatches the method of the underlying Function
 
- void set_par( const idx_type par , const double value ) override {
+ void set_par( const idx_type par, const double value ) override {
   if( f_function )
-   f_function->set_par( par , value );
-  }
+   f_function->set_par( par, value );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// dispatches the method of the underlying Function
 
- void set_par( const idx_type par , const std::string & value ) override {
+ void set_par( const idx_type par, const std::string & value ) override {
   if( f_function )
-   f_function->set_par( par , value );
-  }
+   f_function->set_par( par, value );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// dispatches the method of the underlying Function
 
- void set_ComputeConfig( ComputeConfig *scfg = nullptr ) override {
+ void set_ComputeConfig( ComputeConfig * scfg = nullptr ) override {
   if( f_function )
    f_function->set_ComputeConfig( scfg );
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE FRowConstraint -----------*/
@@ -246,24 +244,24 @@ class FRowConstraint : public RowConstraint , public Observer {
   * is virtual while Constraint::get_Block() is not, hence the former has to
   * be explicitly implemented in terms of the latter. */
 
- Block * get_Block() const override {
-  return( Constraint::get_Block() );
-  }
+ [[nodiscard]] Block * get_Block() const override {
+  return ( Constraint::get_Block() );
+ }
 
 /*--------------------------------------------------------------------------*/
  ///< method to get a pointer to the Function of the FRowConstraint
 
- Function * get_function() const { return( f_function ); }
+ [[nodiscard]] Function * get_function() const { return ( f_function ); }
 
 /*--------------------------------------------------------------------------*/
  /// method to get the RHS of the RowConstraint
 
- RHSValue get_rhs() const override { return( f_rhs ); }
+ [[nodiscard]] RHSValue get_rhs() const override { return ( f_rhs ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to get the LHS of the RowConstraint
 
- RHSValue get_lhs() const override { return( f_lhs ); }
+ [[nodiscard]] RHSValue get_lhs() const override { return ( f_lhs ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A FRowConstraint ----------*/
@@ -277,17 +275,17 @@ class FRowConstraint : public RowConstraint , public Observer {
   * field f_value and returned by value(). */
 
  int compute( bool changedvars = true ) override {
-  return( f_function ? f_function->compute( changedvars ) : kUnEval );
-  }
+  return ( f_function ? f_function->compute( changedvars ) : kUnEval );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to get the value of variable part of the FRowConstraint
  /** Method to get the value of variable part of the FRowConstraint, which is
   * just the value of the value of the underlying Function. */
 
- RHSValue value() const override {
-  return( f_function ? f_function->get_value() : 0 );
-  }
+ [[nodiscard]] RHSValue value() const override {
+  return ( f_function ? f_function->get_value() : 0 );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns true if the FRowConstraint is feasible
@@ -296,16 +294,16 @@ class FRowConstraint : public RowConstraint , public Observer {
   * the lower estimate prodiced by the Function; the FRowConstraint is only
   * deemed feasible if upper_estimate <= f_rhs and lower_estimete >= f_lhs. */
 
- bool feasible() const override {
+ [[nodiscard]] bool feasible() const override {
   bool feas = true;
-  if( f_lhs > - Inf<double>() )
+  if( f_lhs > -Inf< double >() )
    feas &= f_function->get_lower_estimate() >= f_lhs;
 
-  if( f_rhs < Inf<double>() )
+  if( f_rhs < Inf< double >() )
    feas &= f_function->get_upper_estimate() <= f_rhs;
 
-  return( feas );
-  }
+  return ( feas );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the absolute violation of the FRowConstraint
@@ -314,24 +312,24 @@ class FRowConstraint : public RowConstraint , public Observer {
   * the lower estimate prodiced by the Function to compute the absolute
   * violation of the FRowConstraint. */
 
- RHSValue abs_viol() const override {
-  RHSValue viol = -Inf<double>();
+ [[nodiscard]] RHSValue abs_viol() const override {
+  RHSValue viol = -Inf< double >();
 
-  if( f_lhs > - Inf<double>() ) {
+  if( f_lhs > -Inf< double >() ) {
    RHSValue lval = f_function->get_lower_estimate();
-   if( lval < Inf<double>() )
-    viol = ( lval <= -Inf<double>() ? Inf<double>() : f_lhs - lval );
-   }
-
-  if( f_rhs < Inf<double>() ) {
-   RHSValue uval = f_function->get_upper_estimate();
-   if( uval > -Inf<double>() )
-    viol = std::max( viol , ( uval >= Inf<double>() ? Inf<double>() :
-			                              uval - f_rhs ) );
-   }
-
-  return( viol );
+   if( lval < Inf< double >() )
+    viol = ( lval <= -Inf< double >() ? Inf< double >() : f_lhs - lval );
   }
+
+  if( f_rhs < Inf< double >() ) {
+   RHSValue uval = f_function->get_upper_estimate();
+   if( uval > -Inf< double >() )
+    viol = std::max( viol, ( uval >= Inf< double >() ? Inf< double >() :
+                             uval - f_rhs ) );
+  }
+
+  return ( viol );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the relative violation of the FRowConstraint
@@ -340,45 +338,43 @@ class FRowConstraint : public RowConstraint , public Observer {
   * the lower estimate prodiced by the Function to compute the relative
   * violation of the FRowConstraint. */
 
- RHSValue rel_viol() const override {
+ [[nodiscard]] RHSValue rel_viol() const override {
   RHSValue uval = f_function->get_upper_estimate();
 
   // if the upper estimate is +INF, then if the RHS is < +INF then the
   // constraint is infinitely violated, otherwise is infinitely slackened
-  if( uval >= Inf<double>() )
-   return( f_rhs < Inf<double>() ? Inf<double>() : - Inf<double>() );
+  if( uval >= Inf< double >() )
+   return ( f_rhs < Inf< double >() ? Inf< double >() : -Inf< double >() );
 
   RHSValue lval = f_function->get_lower_estimate();
   // if the lower estimate is -INF, then if the LHS is > -INF then the
   // constraint is infinitely violated, otherwise is infinitely slackened
-  if( lval <= -Inf<double>() )
-   return( f_lhs > -Inf<double>() ? Inf<double>() : - Inf<double>() );
+  if( lval <= -Inf< double >() )
+   return ( f_lhs > -Inf< double >() ? Inf< double >() : -Inf< double >() );
 
   // both upper and lower estimate are finite
-  if( f_lhs <= - Inf<double>() )
-   if( f_rhs >= Inf<double>() )
-    return( -Inf<double>() );
+  if( f_lhs <= -Inf< double >() )
+   if( f_rhs >= Inf< double >() )
+    return ( -Inf< double >() );
    else
-    return( f_rhs == 0 ? uval - f_rhs :
-	                 ( uval - f_rhs ) / std::abs( f_rhs ) );
-   else
-    if( f_rhs >= Inf<double>() )
-     return( f_lhs == 0 ? f_lhs - lval :
-	                  ( f_lhs - lval ) / std::abs( f_lhs ) );
-   
+    return ( f_rhs == 0 ? uval - f_rhs :
+             ( uval - f_rhs ) / std::abs( f_rhs ) );
+  else if( f_rhs >= Inf< double >() )
+   return ( f_lhs == 0 ? f_lhs - lval :
+            ( f_lhs - lval ) / std::abs( f_lhs ) );
+
   // both LHS and RHS are finite
   if( f_lhs == 0 )
    if( f_rhs == 0 )
-    return( std::max( f_lhs - lval , uval - f_rhs ) );
+    return ( std::max( f_lhs - lval, uval - f_rhs ) );
    else
-    return( std::max( f_lhs - lval , uval - f_rhs ) / std::abs( f_rhs ) );
+    return ( std::max( f_lhs - lval, uval - f_rhs ) / std::abs( f_rhs ) );
+  else if( f_rhs == 0 )
+   return ( std::max( f_lhs - lval, uval - f_rhs ) / std::abs( f_lhs ) );
   else
-   if( f_rhs == 0 )
-    return( std::max( f_lhs - lval , uval - f_rhs ) / std::abs( f_lhs ) );
-   else
-    return( std::max( ( f_lhs - lval ) / std::abs( f_lhs ) ,
-		      ( uval - f_rhs ) / std::abs( f_rhs ) ) );
-  }
+   return ( std::max( ( f_lhs - lval ) / std::abs( f_lhs ),
+                      ( uval - f_rhs ) / std::abs( f_rhs ) ) );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
@@ -388,101 +384,109 @@ class FRowConstraint : public RowConstraint , public Observer {
  * the Function has not been set yet.
  * @{ */
 
- idx_type get_num_int_par() const override {
-  return( f_function->get_num_int_par() );
-  }
+ [[nodiscard]] idx_type get_num_int_par() const override {
+  return ( f_function->get_num_int_par() );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- idx_type get_num_dbl_par() const override {
-  return( f_function->get_num_dbl_par() );
-  }
+ [[nodiscard]] idx_type get_num_dbl_par() const override {
+  return ( f_function->get_num_dbl_par() );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- idx_type get_num_str_par() const override {
-  return( f_function->get_num_str_par() );
-  }
-
-/*--------------------------------------------------------------------------*/
- 
- int get_dflt_int_par( const idx_type par ) const override {
-  return( f_function->get_dflt_int_par( par ) );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- 
- double get_dflt_dbl_par( const idx_type par ) const override {
-  return( f_function->get_dflt_dbl_par( par ) );
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- 
- const std::string & get_dflt_str_par( const idx_type par ) const override {
-  return( f_function->get_dflt_str_par( par ) );
-  }
+ [[nodiscard]] idx_type get_num_str_par() const override {
+  return ( f_function->get_num_str_par() );
+ }
 
 /*--------------------------------------------------------------------------*/
 
- int get_int_par( const idx_type par ) const override {
-  return( f_function->get_int_par( par ) );
-  }
+ [[nodiscard]] int get_dflt_int_par( const idx_type par ) const override {
+  return ( f_function->get_dflt_int_par( par ) );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- double get_dbl_par( const idx_type par ) const override {
-  return( f_function->get_dbl_par( par ) );
-  }
+ [[nodiscard]] double get_dflt_dbl_par( const idx_type par ) const override {
+  return ( f_function->get_dflt_dbl_par( par ) );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- const std::string & get_str_par( const idx_type par ) const override {
-  return( f_function->get_str_par( par ) );
-  }
+ [[nodiscard]] const std::string &
+ get_dflt_str_par( const idx_type par ) const override {
+  return ( f_function->get_dflt_str_par( par ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 
- idx_type int_par_str2idx( const std::string & name ) const override {
-  return( f_function->int_par_str2idx( name ) );
-  }
+ [[nodiscard]] int get_int_par( const idx_type par ) const override {
+  return ( f_function->get_int_par( par ) );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- idx_type dbl_par_str2idx( const std::string & name ) const override {
-  return( f_function->dbl_par_str2idx( name ) );
-  }
+ [[nodiscard]] double get_dbl_par( const idx_type par ) const override {
+  return ( f_function->get_dbl_par( par ) );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- idx_type str_par_str2idx( const std::string & name ) const override {
-  return( f_function->str_par_str2idx( name ) );
-  }
+ [[nodiscard]] const std::string &
+ get_str_par( const idx_type par ) const override {
+  return ( f_function->get_str_par( par ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 
- const std::string & int_par_idx2str( const idx_type idx ) const override {
-  return( f_function->int_par_idx2str( idx ) );
-  }
+ [[nodiscard]] idx_type
+ int_par_str2idx( const std::string & name ) const override {
+  return ( f_function->int_par_str2idx( name ) );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- const std::string & dbl_par_idx2str( const idx_type idx ) const override {
-  return( f_function->dbl_par_idx2str( idx ) );
-  }
+ [[nodiscard]] idx_type
+ dbl_par_str2idx( const std::string & name ) const override {
+  return ( f_function->dbl_par_str2idx( name ) );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- const std::string & str_par_idx2str( const idx_type idx ) const override {
-  return( f_function->str_par_idx2str( idx ) );
-  }
+ [[nodiscard]] idx_type
+ str_par_str2idx( const std::string & name ) const override {
+  return ( f_function->str_par_str2idx( name ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ [[nodiscard]] const std::string &
+ int_par_idx2str( const idx_type idx ) const override {
+  return ( f_function->int_par_idx2str( idx ) );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] const std::string &
+ dbl_par_idx2str( const idx_type idx ) const override {
+  return ( f_function->dbl_par_idx2str( idx ) );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] const std::string &
+ str_par_idx2str( const idx_type idx ) const override {
+  return ( f_function->str_par_idx2str( idx ) );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  ComputeConfig * get_ComputeConfig( bool all = false,
-				    ComputeConfig * ocfg = nullptr )
-  const override {
-  return( f_function->get_ComputeConfig( all , ocfg ) );
-  }
+                                    ComputeConfig * ocfg = nullptr )
+ const override {
+  return ( f_function->get_ComputeConfig( all, ocfg ) );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE FRowConstraint -------*/
@@ -491,69 +495,60 @@ class FRowConstraint : public RowConstraint , public Observer {
  * FRowConstraint; they all dispatch the method of the underlying Function
  *  @{ */
 
- Index get_num_active_var() const override
- {
-  return( f_function ? f_function->get_num_active_var() : 0 );
-  }
+ [[nodiscard]] Index get_num_active_var() const override {
+  return ( f_function ? f_function->get_num_active_var() : 0 );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- Index is_active( const Variable * const f_variable ) const override
- {
-  return( f_function ? f_function->is_active( f_variable ) : Inf<Index>() );
-  }
+ Index is_active( const Variable * const f_variable ) const override {
+  return ( f_function ? f_function->is_active( f_variable ) : Inf< Index >() );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- Variable * get_active_var( const Index i ) const override
- {
-  return( f_function ? f_function->get_active_var( i ) : nullptr );
-  }
+ [[nodiscard]] Variable * get_active_var( const Index i ) const override {
+  return ( f_function ? f_function->get_active_var( i ) : nullptr );
+ }
 
 /*--------------------------------------------------------------------------*/
 
- v_iterator * v_begin() override
- {
-  return( f_function ? f_function->v_begin() : nullptr );
-  }
+ v_iterator * v_begin() override {
+  return ( f_function ? f_function->v_begin() : nullptr );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- v_const_iterator * v_begin() const override
- {
-  return( f_function ?
-	  static_cast<const Function *>( f_function )->v_begin() : nullptr );
-  }
+ [[nodiscard]] v_const_iterator * v_begin() const override {
+  return ( f_function ?
+           static_cast<const Function *>( f_function )->v_begin() : nullptr );
+ }
 
 /*--------------------------------------------------------------------------*/
 
- v_iterator * v_end() override
- {
-  return( f_function ? f_function->v_end() : nullptr );
-  }
+ v_iterator * v_end() override {
+  return ( f_function ? f_function->v_end() : nullptr );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- v_const_iterator * v_end() const override
- {
-  return( f_function ?
-	  static_cast<const Function *>( f_function )->v_end() : nullptr );
-  }
+ [[nodiscard]] v_const_iterator * v_end() const override {
+  return ( f_function ?
+           static_cast<const Function *>( f_function )->v_end() : nullptr );
+ }
 
 /*--------------------------------------------------------------------------*/
 
- void remove_variable( Index i , ModParam issueMod = eModBlck )
-  override final;
+ void remove_variable( Index i, ModParam issueMod = eModBlck ) final;
 
 /*--------------------------------------------------------------------------*/
 
- void remove_variables( Range range , ModParam issueMod = eModBlck )
-  override final;
+ void remove_variables( Range range, ModParam issueMod = eModBlck ) final;
 
 /*--------------------------------------------------------------------------*/
 
- void remove_variables( Subset && nms , bool ordered = false ,
-			ModParam issueMod = eModBlck )  override final;
+ void remove_variables( Subset && nms, bool ordered = false,
+                        ModParam issueMod = eModBlck ) final;
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF AN Observer -------------*/
@@ -574,7 +569,7 @@ class FRowConstraint : public RowConstraint , public Observer {
   * some mechanism allowing a finer control on which Modification are
   * "listened to". */
 
- bool anyone_there() const override { return( true ); }
+ [[nodiscard]] bool anyone_there() const override { return ( true ); }
 
 /*--------------------------------------------------------------------------*/
  /// mostly just dispatch to add_Modification() of the Block (if any)
@@ -584,23 +579,23 @@ class FRowConstraint : public RowConstraint , public Observer {
   * anyone_there(), and in case register/unregister itself with the
   * added/removed Variable. */
 
- void add_Modification( sp_Mod mod , c_ChnlName chnl = 0 ) override;
+ void add_Modification( sp_Mod mod, c_ChnlName chnl = 0 ) override;
 
 /*--------------------------------------------------------------------------*/
  /// just dispatch to open_channel() of the Block (if any)
 
  ChnlName open_channel( GroupModification * gmpmod = nullptr ) override {
-  return( f_Block ? f_Block->open_channel( gmpmod ) : 0 );
-  }
+  return ( f_Block ? f_Block->open_channel( gmpmod ) : 0 );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// just dispatch to nest_channel() of the Block (if any)
 
- void nest_channel( ChnlName chnl , GroupModification * gmpmod = nullptr )
-  override {
+ void nest_channel( ChnlName chnl, GroupModification * gmpmod = nullptr )
+ override {
   if( f_Block )
-   f_Block->nest_channel( chnl , gmpmod );
-  }
+   f_Block->nest_channel( chnl, gmpmod );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// just dispatch to un_nest_channel() of the Block (if any)
@@ -608,7 +603,7 @@ class FRowConstraint : public RowConstraint , public Observer {
  void un_nest_channel( ChnlName chnl ) override {
   if( f_Block )
    f_Block->un_nest_channel( chnl );
-  }
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
  /// just dispatch to close_channel() of the Block (if any)
@@ -616,7 +611,7 @@ class FRowConstraint : public RowConstraint , public Observer {
  void close_channel( ChnlName chnl ) override {
   if( f_Block )
    f_Block->close_channel( chnl );
-  }
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
  /// just dispatch to set_default_channel() of the Block (if any)
@@ -624,7 +619,7 @@ class FRowConstraint : public RowConstraint , public Observer {
  void set_default_channel( ChnlName chnl = 0 ) override {
   if( f_Block )
    f_Block->set_default_channel( chnl );
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -639,18 +634,18 @@ class FRowConstraint : public RowConstraint , public Observer {
  *  @{ */
 
  /// print information about the FRowConstraint on an ostream
- virtual void print( std::ostream &output ) const override {
+ void print( std::ostream & output ) const override {
   output << "FRowConstraint [" << this << "] of Block [" << f_Block
-	 << "] with Function [" << f_function << "] with "
-	 << ( f_function ? f_function->get_num_active_var() : 0 )
-	 << " active variables, ";
+         << "] with Function [" << f_function << "] with "
+         << ( f_function ? f_function->get_num_active_var() : 0 )
+         << " active variables, ";
   if( feasible() )
    output << "feasible";
   else
    output << "unfeasible";
 
   output << " (value = " << value() << ")" << std::endl;
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
@@ -664,7 +659,7 @@ class FRowConstraint : public RowConstraint , public Observer {
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( FRowConstraint ) )
+};  // end( class( FRowConstraint ) )
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- CLASS FRowConstraintMod ---------------------------*/
@@ -680,8 +675,7 @@ class FRowConstraint : public RowConstraint , public Observer {
  * handle it (at the very least, it directly knows it comes from a
  * FRowConstraint without having to check it). */
 
-class FRowConstraintMod : public RowConstraintMod
-{
+class FRowConstraintMod : public RowConstraintMod {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
@@ -693,25 +687,25 @@ class FRowConstraintMod : public RowConstraintMod
   * thrown by FRowConstraint. */
 
  enum FRC_cons_mod_type {
-  eFunctionChanged = eRowConstModLastParam ,
+  eFunctionChanged = eRowConstModLastParam,
   ///< the Function underlying this FRowConstraint changed whole
 
   eFRCConstModLastParam
   ///< first allowed parameter value for derived classes
   /**< Convenience value for easily allow derived classes to extend the set
    * of types of Modification. */
-  };
+ };
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: just calls that of RowConstraintMod
 
- FRowConstraintMod( FRowConstraint *cnst , int mod = eFunctionChanged ,
-		    const bool cB = true )
-  : RowConstraintMod( cnst , mod , cB ) { }
+ explicit FRowConstraintMod( FRowConstraint * cnst, int mod = eFunctionChanged,
+                             const bool cB = true )
+  : RowConstraintMod( cnst, mod, cB ) {}
 
  /*------------------------------ DESTRUCTOR --------------------------------*/
 
- virtual ~FRowConstraintMod() = default;  ///< destructor: does nothing
+ ~FRowConstraintMod() override = default;  ///< destructor: does nothing
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -720,19 +714,19 @@ class FRowConstraintMod : public RowConstraintMod
 /*-------------------------- PROTECTED METHODS -----------------------------*/
  /// print the FRowConstraintMod
 
- virtual inline void print( std::ostream &output ) const {
+ inline void print( std::ostream & output ) const override {
   output << "FRowConstraintMod[";
   if( concerns_Block() )
    output << "t";
   else
-   output << "f";  
+   output << "f";
   output << "] on FRowConstraint[" << f_constraint
-	 << "]: changing the Function" << std::endl;
-  }
+         << "]: changing the Function" << std::endl;
+ }
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( FRowConstraintMod ) )
+};  // end( class( FRowConstraintMod ) )
 
 /*--------------------------------------------------------------------------*/
 

@@ -31,6 +31,9 @@ find_package(netCDFCxx REQUIRED)
 
 list(REMOVE_AT CMAKE_MODULE_PATH -1)
 
+# ----- Configuration header ------------------------------------------------ #
+configure_file(cmake/SMSppConfig.h.in SMSppConfig.h)
+
 # ----- Library ------------------------------------------------------------- #
 add_library(SMSpp)
 target_compile_features(SMSpp PUBLIC cxx_std_17)
@@ -96,6 +99,9 @@ install(TARGETS SMSpp
 
 # Install headers
 install(DIRECTORY include/
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/SMS++)
+
+install(FILES ${PROJECT_BINARY_DIR}/SMSppConfig.h
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/SMS++)
 
 # Install target import file

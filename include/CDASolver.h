@@ -29,7 +29,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __CDASolver
- #define __CDASolver  /* self-identification: #endif at the end of the file */
+#define __CDASolver  /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -42,8 +42,7 @@
 /*--------------------------------------------------------------------------*/
 
 ///< namespace for the Structured Modeling System++ (SMS++)
-namespace SMSpp_di_unipi_it
-{
+namespace SMSpp_di_unipi_it {
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
@@ -202,101 +201,113 @@ class CDASolver : public Solver {
 
  /// Public enum "extending" sol_type to a specific case of CDASolvers
  enum cda_sol_type {
- kBothInfeasible = kInfeasible + 1  ///< both primal and dual infeasible
-                                    /**< *Both* the primal and the dual
-				     * models are infeasible. This is
- * typically a rare but not impossible occurrence, and it has the unfortunate
- * consequence that it is impossible to provide a convenient certificate of
- * infeasibility of either problem in terms of a certificate of unboundedness
- * of the other. However, if for some reason the Solver is certain that this
- * is what is happening, this is still a "kOK-type" return value in that the
- * problem is "solved for good". */
+  kBothInfeasible = kInfeasible + 1  ///< both primal and dual infeasible
+  /**< *Both* the primal and the dual
+   * models are infeasible. This is
+   * typically a rare but not impossible occurrence, and it has the unfortunate
+   * consequence that it is impossible to provide a convenient certificate of
+   * infeasibility of either problem in terms of a certificate of unboundedness
+   * of the other. However, if for some reason the Solver is certain that this
+   * is what is happening, this is still a "kOK-type" return value in that the
+   * problem is "solved for good". */
 
  };              // end( cda_sol_type )
 
 /*--------------------------------------------------------------------------*/
  /// Public enum "extending" int_par_type_S to a specific case of CDASolvers
  enum int_par_type_CDAS {
- intMaxDSol = intLastAlgPar ,  ///< maximum number of different dual solutions
-                               /**< The algorithmic parameter for setting the
-			        * maximum number of different *dual* solutions
- * that the Solver should attempt to obtain and store. Since dual solutions
- * can be a "big" objects (in some cases, much bigger than primal sones),
- * storing them may be costly. It may be therefore helpful for a CDASolver to
- * know beforehand how many different dual solutions the user would like to
- * get. Among the reasonable values for this parameter, 1 says "I don't care
- * of multuple dual solutions, give me only the best one", and 0 says
- * "I don't care of dual solutions at all, just tell me if there is any, and
- * what its value is". The default is 1. */
+  intMaxDSol = intLastAlgPar,  ///< maximum number of different dual solutions
+  /**< The algorithmic parameter for setting the
+   * maximum number of different *dual* solutions
+   * that the Solver should attempt to obtain and store. Since dual solutions
+   * can be a "big" objects (in some cases, much bigger than primal sones),
+   * storing them may be costly. It may be therefore helpful for a CDASolver to
+   * know beforehand how many different dual solutions the user would like to
+   * get. Among the reasonable values for this parameter, 1 says "I don't care
+   * of multuple dual solutions, give me only the best one", and 0 says
+   * "I don't care of dual solutions at all, just tell me if there is any, and
+   * what its value is". The default is 1. */
 
- intLastParCDAS    ///< first allowed parameter value for derived classes
-                   /**< convenience value for easily allow derived classes
-		    * to further extend the set of types of return codes */
+  intLastParCDAS    ///< first allowed parameter value for derived classes
+  /**< convenience value for easily allow derived classes
+   * to further extend the set of types of return codes */
  };             // end( int_par_type_CDAS )
 
 /*--------------------------------------------------------------------------*/
  /// Public enum "extending" dbl_par_type_S to a specific case of CDASolvers
 
  enum dbl_par_type_CDAS {
- dblRAccDSol = dblLastAlgPar ,  ///< maximum relative error in dual solution
-                                /**< The algorithmic parameter for setting
-                                 * the relative accuracy of the accepted dual
- * solutions. It instructs the CDASolver not to even consider a solution
- * among the ones to be reported (see kMaxDSol) if its objective function
- * value is "too" bad. If the original problem is a minimization one, its
- * dual is a maximization one. Hence, the objective function value of a dual
- * solution provides a lower bound "lb" on the optimal dual value (which may,
- * or may not, be equal to that of the primal problem, see is_dual_exact()
- * below). Assuming an upper bound "ub" on the *optimal* value of the *dual*
- * problem has been found (note that this can be obtained by means of the
- * objective value of a feasible *primal* solution, see get_ub()), a solution
- * is deemed acceptable with the provided parameter \eps if
- *
- *    ub - lb <= \eps * max( abs( ub ) , abs( lb ) , 1 )
- *
- * Note that if no ub is available, the above formula can be replaced with
- *
- *    fbest - lb <= \eps * max( abs( fbest ) , abs( lb ) , 1 )
- *
- * where fbest is the value of the best (with largest objective value)
- * solution found so far. The roles of ub and lb are suitably reversed if
- * the primal is a maximization problem, so that the dual is a minimization
- * one. The default is Inf<OFValue>. */
+  dblRAccDSol = dblLastAlgPar,  ///< maximum relative error in dual solution
+  /**< The algorithmic parameter for setting
+   * the relative accuracy of the accepted dual
+   * solutions. It instructs the CDASolver not to even consider a solution
+   * among the ones to be reported (see kMaxDSol) if its objective function
+   * value is "too" bad. If the original problem is a minimization one, its
+   * dual is a maximization one. Hence, the objective function value of a dual
+   * solution provides a lower bound "lb" on the optimal dual value (which may,
+   * or may not, be equal to that of the primal problem, see is_dual_exact()
+   * below). Assuming an upper bound "ub" on the *optimal* value of the *dual*
+   * problem has been found (note that this can be obtained by means of the
+   * objective value of a feasible *primal* solution, see get_ub()), a solution
+   * is deemed acceptable with the provided parameter \eps if
+   *
+   *    ub - lb <= \eps * max( abs( ub ) , abs( lb ) , 1 )
+   *
+   * Note that if no ub is available, the above formula can be replaced with
+   *
+   *    fbest - lb <= \eps * max( abs( fbest ) , abs( lb ) , 1 )
+   *
+   * where fbest is the value of the best (with largest objective value)
+   * solution found so far. The roles of ub and lb are suitably reversed if
+   * the primal is a maximization problem, so that the dual is a minimization
+   * one. The default is Inf<OFValue>. */
 
- dblAAccDSol ,     ///< maximum absolute error in any dual solution
-                   /**< Similar to dblRAccDSol but for an *absolute* accuracy;
-                    * that is, a dual solution is deemed acceptable with the
- * provided parameter \eps if
- *
- *    ub - lb <= \eps
- *
- * or
- *
- *    fbest - lb <= \eps
- *
- * with the same notation as in dblRAccDSol and the same provisions about the
- * case of a maximization problem. The default is Inf<OFValue>. */
+  dblAAccDSol,     ///< maximum absolute error in any dual solution
+  /**< Similar to dblRAccDSol but for an *absolute* accuracy;
+   * that is, a dual solution is deemed acceptable with the
+   * provided parameter \eps if
+   *
+   *    ub - lb <= \eps
+   *
+   * or
+   *
+   *    fbest - lb <= \eps
+   *
+   * with the same notation as in dblRAccDSol and the same provisions about the
+   * case of a maximization problem. The default is Inf<OFValue>. */
 
- dblFAccDSol ,    ///< maximum absolute error in any dual solution
-                  /**< The algorithmic parameter for setting the maximum
-		   * relative allowed violation of *dual* constraints,
- * assuming of course something like that exists in the specific dual that
- * is being dealt with. Whenever the CDASolver is incapable of finding
- * feasible dual solutions (maybe because there is none), it may still be
- * useful that it returns the "least unfeasible" ones. This parameter
- * instructs the CDASolver not to even consider a solution among the ones to
- * be reported (see intMaxDSol) if its violation is "too" bad. The actual
- * meaning of this parameter is necessarily CDASolver-dependent; intuitively,
- * it may be thought to work as the "relative constraint violation"
- * feas_epsilon of the Block [see Block.h] if the concept of "dual
- * constraint" is applicable. A setting of 0 may be taken as a way to tell
- * the CDASolver not to bother to produce unfeasible solutions at all, which
- * is why this is the default value of the parameter. */
+  dblFAccDSol,    ///< maximum absolute error in any dual solution
+  /**< The algorithmic parameter for setting the maximum
+   * relative allowed violation of *dual* constraints,
+   * assuming of course something like that exists in the specific dual that
+   * is being dealt with. Whenever the CDASolver is incapable of finding
+   * feasible dual solutions (maybe because there is none), it may still be
+   * useful that it returns the "least unfeasible" ones. This parameter
+   * instructs the CDASolver not to even consider a solution among the ones to
+   * be reported (see intMaxDSol) if its violation is "too" bad. The actual
+   * meaning of this parameter is necessarily CDASolver-dependent; intuitively,
+   * it may be thought to work as the "relative constraint violation"
+   * feas_epsilon of the Block [see Block.h] if the concept of "dual
+   * constraint" is applicable. A setting of 0 may be taken as a way to tell
+   * the CDASolver not to bother to produce unfeasible solutions at all, which
+   * is why this is the default value of the parameter. */
 
- dblLastParCDAS    ///< first allowed parameter value for derived classes
-                   /**< convenience value for easily allow derived classes
-		    * to further extend the set of types of return codes */
+  dblLastParCDAS    ///< first allowed parameter value for derived classes
+  /**< convenience value for easily allow derived classes
+   * to further extend the set of types of return codes */
  };             // end( dbl_par_type_CDAS )
+
+/*--------------------------------------------------------------------------*/
+ /// Public enum "extending" str_par_type_S to a specific case of CDASolvers
+
+ enum str_par_type_CDAS {
+  strLastParCDAS = strLastAlgPar
+  ///< first allowed parameter value for derived classes
+  /**< convenience value for easily allow derived classes
+   * to further extend the set of types of return codes */
+ };
+
+ /*--------------------------------------------------------------------------*/
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
@@ -305,11 +316,12 @@ class CDASolver : public Solver {
      @{ */
 
  /// constructor: does nothing special
- CDASolver() : Solver () { }
+ CDASolver() : Solver() {}
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
- virtual ~CDASolver() { }  ///< destructor: it is virtual, and it is empty
+ /// destructor: it is virtual, and it is empty
+ ~CDASolver() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------------- METHODS FOR READING RESULTS -----------------------*/
@@ -355,7 +367,7 @@ class CDASolver : public Solver {
   * is OK, for instance, for "easy" problems that are never unbounded and can
   * surely be solved "efficiently enough". */
 
- virtual bool has_dual_solution( void ) { return( true ); }
+ virtual bool has_dual_solution() { return ( true ); }
 
 /*--------------------------------------------------------------------------*/
  ///< returns true if the "current" dual solution is feasible
@@ -377,7 +389,7 @@ class CDASolver : public Solver {
   * true, which is OK for a solver that always only returns dual feasible
   * solutions (if any). */
 
- virtual bool is_dual_feasible( void ) { return( true ); }
+ virtual bool is_dual_feasible() { return ( true ); }
 
 /*--------------------------------------------------------------------------*/
  /// write the "current" dual solution in (the Constraint of ?) the Block
@@ -451,7 +463,7 @@ class CDASolver : public Solver {
   * it might, if it so chooses) keep track of which "parts" of the dual
   * solution have been retrieved already; hence, this is better avoided. */
 
- virtual void get_dual_solution( Configuration *solc = nullptr ) = 0;
+ virtual void get_dual_solution( Configuration * solc = nullptr ) = 0;
 
 /*--------------------------------------------------------------------------*/
  ///< returns true if it is possible to generate a new dual solution
@@ -512,7 +524,7 @@ class CDASolver : public Solver {
   * kInfeasible and set_unbounded_threshold() has been called; see the
   * general comments. */
 
- virtual bool new_dual_solution( void )  { return( false ); }
+ virtual bool new_dual_solution() { return ( false ); }
 
 /*--------------------------------------------------------------------------*/
  /// tells whether a dual unbounded direction is available
@@ -546,7 +558,7 @@ class CDASolver : public Solver {
   * The default implementation in the base class always returns false, which
   * is OK for Solver that cannot produce any dual unbounded direction. */
 
- virtual bool has_dual_direction( void ) { return( false ); }
+ virtual bool has_dual_direction() { return ( false ); }
 
 /*--------------------------------------------------------------------------*/
  /// write the "current" dual unbounded direction in the Block
@@ -640,7 +652,7 @@ class CDASolver : public Solver {
   * doing nothing, for solvers that cannot produce any unbounded dual
   * direction. */
 
- virtual void get_dual_direction( Configuration *dirc = nullptr ) {}
+ virtual void get_dual_direction( Configuration * dirc = nullptr ) {}
 
 /*--------------------------------------------------------------------------*/
  /// returns true if is possible to generate a new dual unbounded direction
@@ -677,7 +689,7 @@ class CDASolver : public Solver {
   * always returning false, for solvers that cannot produce any dual
   * unbounded direction */
 
- virtual bool new_dual_direction( void ) { return( false ); }
+ virtual bool new_dual_direction() { return ( false ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE CDASolver ---------------*/
@@ -712,7 +724,7 @@ class CDASolver : public Solver {
   * The method is given a default implementation in the base CDASolver class
   * catering the very lucky case in which the dual is exact. */
 
- virtual bool is_dual_exact( void ) const { return( true ); }
+ [[nodiscard]] virtual bool is_dual_exact() const { return ( true ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
@@ -720,93 +732,94 @@ class CDASolver : public Solver {
 /** @name Handling the parameters of the CDASolver
  *  @{ */
 
- virtual idx_type get_num_int_par( void ) const override
- {
-  return( idx_type( intLastParCDAS ) );
-  }
+ [[nodiscard]] idx_type get_num_int_par() const override {
+  return ( idx_type( intLastParCDAS ) );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual idx_type get_num_dbl_par( void ) const override
- {
-  return( idx_type( dblLastParCDAS ) );
-  }
+ [[nodiscard]] idx_type get_num_dbl_par() const override {
+  return ( idx_type( dblLastParCDAS ) );
+ }
 
 /*--------------------------------------------------------------------------*/
- 
- virtual int get_dflt_int_par( const idx_type par ) const override
- {
-  return( par == intMaxDSol ? int( 1 ) : Solver::get_dflt_int_par( par ) );
-  }
+
+ [[nodiscard]] int get_dflt_int_par( const idx_type par ) const override {
+  return ( par == intMaxDSol ? int( 1 ) : Solver::get_dflt_int_par( par ) );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- 
- virtual double get_dflt_dbl_par( const idx_type par ) const override
- {
+
+ [[nodiscard]] double get_dflt_dbl_par( const idx_type par ) const override {
   if( ( par == dblRAccDSol ) || ( par == dblAAccDSol ) )
-   return( std::numeric_limits<double>::infinity() );
+   return ( std::numeric_limits< double >::infinity() );
 
   if( par == dblFAccDSol )
-   return( 0 );
+   return ( 0 );
 
-  return( Solver::get_dflt_dbl_par( par ) );
-  }
+  return ( Solver::get_dflt_dbl_par( par ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 
- virtual idx_type int_par_str2idx( const std::string & name ) const override
- {
-  return( name == "intMaxDSol" ? intMaxDSol :
-	                         Solver::int_par_str2idx( name ) );
-  }
+ [[nodiscard]] idx_type
+ int_par_str2idx( const std::string & name ) const override {
+  return ( name == "intMaxDSol" ? intMaxDSol :
+           Solver::int_par_str2idx( name ) );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual idx_type dbl_par_str2idx( const std::string & name ) const override
- {
+ [[nodiscard]] idx_type
+ dbl_par_str2idx( const std::string & name ) const override {
   if( name == "dblRAccDSol" )
-   return( dblRAccDSol );
+   return ( dblRAccDSol );
   if( name == "dbAAccDSol" )
-   return( dblAAccDSol );
+   return ( dblAAccDSol );
   if( name == "dblFAccDSol" )
-   return( dblFAccDSol );
+   return ( dblFAccDSol );
 
-  return( Solver::dbl_par_str2idx( name ) );
-  }
+  return ( Solver::dbl_par_str2idx( name ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 
- virtual const std::string & int_par_idx2str( const idx_type idx )
-  const override
- {
+ [[nodiscard]] const std::string & int_par_idx2str( const idx_type idx )
+ const override {
   static const std::string par = "intMaxDSol";
 
-  return( idx == intMaxDSol ? par : Solver::int_par_idx2str( idx ) );
-  }
+  return ( idx == intMaxDSol ? par : Solver::int_par_idx2str( idx ) );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual const std::string & dbl_par_idx2str( const idx_type idx )
-  const override
- {
+ [[nodiscard]] const std::string & dbl_par_idx2str( const idx_type idx )
+ const override {
   static const std::vector< std::string > pars =
-   { "dblRAccDSol" , "dblAAccDSol" , "dblFAccDSol" };
+   { "dblRAccDSol", "dblAAccDSol", "dblFAccDSol" };
 
-  if( ( idx >= dblRAccDSol ) && ( idx <= dblFAccDSol ) )
-   return( pars[ idx - dblRAccDSol ] );
-  else
-   return( Solver::dbl_par_idx2str( idx ) );
+  if( idx == dblRAccDSol ) {
+   return pars[ 0 ];
   }
+  if( idx == dblAAccDSol ) {
+   return pars[ 1 ];
+  }
+  if( idx == dblFAccDSol ) {
+   return pars[ 2 ];
+  }
+
+  return ( Solver::dbl_par_idx2str( idx ) );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- };   // end( class CDASolver )
+};   // end( class CDASolver )
 
 /** @} end( group( CDASolver_CLASSES ) ) -----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- };  // end( namespace SMSpp_di_unipi_it )
+};  // end( namespace SMSpp_di_unipi_it )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

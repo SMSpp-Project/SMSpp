@@ -25,8 +25,8 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __C15Function
- #define __C15Function
-                      /* self-identification: #endif at the end of the file */
+#define __C15Function
+/* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -39,8 +39,7 @@
 /*--------------------------------------------------------------------------*/
 
 /// namespace for the Structured Modeling System++ (SMS++)
-namespace SMSpp_di_unipi_it
-{
+namespace SMSpp_di_unipi_it {
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- C15Function-RELATED TYPES --------------------------*/
@@ -82,11 +81,11 @@ class C15Function : public C05Function {
 /** @name Public Types
     @{ */
 
- typedef Eigen::Matrix< FunctionValue , Eigen::Dynamic , Eigen::Dynamic >
+ typedef Eigen::Matrix< FunctionValue, Eigen::Dynamic, Eigen::Dynamic >
   DenseHessian;
  ///< type used to store a dense Hessian matrix
 
- typedef Eigen::SparseMatrix<FunctionValue> SparseHessian;
+ typedef Eigen::SparseMatrix< FunctionValue > SparseHessian;
  ///< type used to store a sparse Hessian matrix
 
 /**@} ----------------------------------------------------------------------*/
@@ -99,12 +98,12 @@ class C15Function : public C05Function {
  /** Constructor of C15Function. Takes as input an optional pointer to an
   * Observer and passes it to the constructor of C05Function. */
 
- C15Function( Observer * const observer = nullptr )
-  : C05Function( observer ) { }
+ explicit C15Function( Observer * const observer = nullptr )
+  : C05Function( observer ) {}
 
 /*--------------------------------------------------------------------------*/
 
- virtual ~C15Function() { }  ///< destructor: it is virtual, and empty
+ ~C15Function() override = default;  ///< destructor: it is virtual, and empty
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A C15Function -------------*/
@@ -116,7 +115,7 @@ class C15Function : public C05Function {
  /** Pure virtual method: it has to compute an approximation to the Hessian
   * matrix of this function at the current point. */
 
- virtual void compute_hessian_approximation( void ) = 0;
+ virtual void compute_hessian_approximation() = 0;
 
 /*--------------------------------------------------------------------------*/
  /// obtain an approximation to the Hessian for this Function
@@ -124,7 +123,7 @@ class C15Function : public C05Function {
   * approximation to the Hessian. This method can only be called after the
   * method compute_hessian_approximation() has been called. */
 
- virtual void get_hessian_approximation( DenseHessian &hessian ) const = 0;
+ virtual void get_hessian_approximation( DenseHessian & hessian ) const = 0;
 
 /*--------------------------------------------------------------------------*/
  /// obtain an approximation to the Hessian for this Function
@@ -132,16 +131,16 @@ class C15Function : public C05Function {
   * approximation to the Hessian. This method can only be called after the
   * method compute_hessian_approximation() has been called. */
 
- virtual void get_hessian_approximation( SparseHessian &hessian ) const = 0;
+ virtual void get_hessian_approximation( SparseHessian & hessian ) const = 0;
 
 /*--------------------------------------------------------------------------*/
  /// returns true only if this Function has continuous Hessian
  /** Method that returns only if this Function has continuous second order
   * derivative. By default, false is returned. */
 
- virtual bool is_twice_continuously_differentiable( void ) const {
-  return( false );
-  }
+ [[nodiscard]] virtual bool is_twice_continuously_differentiable() const {
+  return ( false );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -160,15 +159,15 @@ class C15Function : public C05Function {
   * is virtual so that derived classes can print their specific information 
   *in the format they choose. */
 
- virtual void print( std::ostream &output ) const override {
+ void print( std::ostream & output ) const override {
   output << "C15Function [" << this << "]" << " with "
-	 << get_num_active_var() << " active variables";
-  }
+         << get_num_active_var() << " active variables";
+ }
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-  };  // end( class( C15Function ) )
+};  // end( class( C15Function ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS C15FunctionMod ---------------------------*/
@@ -188,7 +187,7 @@ class C15FunctionMod : public C05FunctionMod {
 
  /// Definition of the possible type of C15FunctionMod
  enum c15function_mod_type {
-  C15FunctionModLastParam = C05FunctionModLastParam ,
+  C15FunctionModLastParam = C05FunctionModLastParam,
   ///< first allowed parameter value for derived classes
   /**< convenience value for easily allow derived classes to extend
    * the set of types of modifications */
@@ -196,11 +195,11 @@ class C15FunctionMod : public C05FunctionMod {
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
 
- C15FunctionMod( C15Function * const f , const int mod ,
-		 Subset && which = {} ,
-		 Function::FunctionValue shift = 0 ,
-		 const bool cB = true  )
-  : C05FunctionMod( f , mod , std::move( which ) , shift , cB ) { }
+ C15FunctionMod( C15Function * const f, const int mod,
+                 Subset && which = {},
+                 Function::FunctionValue shift = 0,
+                 const bool cB = true )
+  : C05FunctionMod( f, mod, std::move( which ), shift, cB ) {}
 
  ///< constructor: takes the type of Modification and a C15Function pointer
  /**< constructor: takes the type of the Modification and a pointer to
@@ -212,7 +211,7 @@ class C15FunctionMod : public C05FunctionMod {
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
- virtual ~C15FunctionMod() { }  ///< destructor: does nothing
+ ~C15FunctionMod() override = default;  ///< destructor: does nothing
 
 /*---------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
 
@@ -223,14 +222,14 @@ class C15FunctionMod : public C05FunctionMod {
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 
  /// print the C15FunctionMod
- virtual inline void print( std::ostream &output ) const {
-   output << "C15FunctionMod[";
+ inline void print( std::ostream & output ) const override {
+  output << "C15FunctionMod[";
   if( concerns_Block() )
    output << "t";
   else
    output << "f";
   output << "] on Function [" << f_function << " ]" << std::endl;
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
 

@@ -2,7 +2,23 @@
 #    CMake file for unit tests                                                #
 # --------------------------------------------------------------------------- #
 
-# ----- Fetch GoogleTest ---------------------------------------------------- #
+# ----- AbstractPath_test --------------------------------------------------- #
+add_executable(AbstractPath_test tests_AbstractPath.cpp)
+target_link_libraries(AbstractPath_test PRIVATE SMS++::SMSpp)
+
+#add_test(NAME AbstractPath_test
+#         COMMAND AbstractPath_test)
+
+# ----- ClassFactory_test --------------------------------------------------- #
+add_executable(ClassFactory_test ClassFactory/main.cpp)
+target_link_libraries(ClassFactory_test PRIVATE SMS++::SMSpp)
+
+#add_test(NAME ClassFactory_test
+#         COMMAND ClassFactory_test)
+
+# ----- GoogleTest unit tests ----------------------------------------------- #
+
+# Fetch GoogleTest
 include(FetchContent)
 fetchcontent_declare(
         googletest
@@ -18,30 +34,16 @@ if (NOT googletest_POPULATED)
     add_subdirectory(${googletest_SOURCE_DIR} ${googletest_BINARY_DIR})
 endif ()
 
-# ----- Block_test ---------------------------------------------------------- #
-add_executable(AbstractBlock_test tests_AbstractBlock.cpp)
-target_link_libraries(AbstractBlock_test PRIVATE SMS++::SMSpp gtest)
+# Declare all tests
+set(CLASSES
+    "AbstractBlock"
+    "ColVariable"
+    "Function"
+    "LinearFunction")
 
-add_test(NAME AbstractBlock_test
-         COMMAND AbstractBlock_test)
+foreach(CLASS ${CLASSES})
+    add_executable(${CLASS}_test tests_${CLASS}.cpp)
+    target_link_libraries(${CLASS}_test PRIVATE SMS++::SMSpp gtest)
 
-# ----- ColVariable_test ---------------------------------------------------- #
-add_executable(ColVariable_test tests_ColVariable.cpp)
-target_link_libraries(ColVariable_test PRIVATE SMS++::SMSpp gtest)
-
-add_test(NAME ColVariable_test
-         COMMAND ColVariable_test)
-
-# ----- AbstractPath_test --------------------------------------------------- #
-add_executable(AbstractPath_test tests_AbstractPath.cpp)
-target_link_libraries(AbstractPath_test PRIVATE SMS++::SMSpp)
-
-#add_test(NAME AbstractPath_test
-#         COMMAND AbstractPath_test)
-
-# ----- ClassFactory_test --------------------------------------------------- #
-add_executable(ClassFactory_test ClassFactory/main.cpp)
-target_link_libraries(ClassFactory_test PRIVATE SMS++::SMSpp)
-
-#add_test(NAME ClassFactory_test
-#         COMMAND ClassFactory_test)
+    add_test(NAME ${CLASS}_test COMMAND ${CLASS}_test)
+endforeach()

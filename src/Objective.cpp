@@ -41,22 +41,24 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void Objective::set_sense( int new_sense , c_ModParam issueMod )
-{
+void Objective::set_sense( int new_sense, c_ModParam issueMod ) {
  if( new_sense == f_sense )  // actually doing nothing
   return;                    // cowardly (and silently) return
 
  f_sense = new_sense;        // set the new sense
 
- if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
+ if( ( !f_Block ) || ( !f_Block->issue_mod( issueMod ) ) )
   return;
 
- f_Block->add_Modification( std::make_shared<ObjectiveMod>( this ,
-		                    f_sense == eMin ? ObjectiveMod::eSetMin :
-				  	              ObjectiveMod::eSetMax ,
-				    Observer::par2concern( issueMod ) ) ,
-			    Observer::par2chnl( issueMod ) );
- }
+ f_Block->add_Modification(
+  std::make_shared< ObjectiveMod >( this,
+                                    f_sense == eMin
+                                    ? ObjectiveMod::eSetMin
+                                    :
+                                    ObjectiveMod::eSetMax,
+                                    Observer::par2concern( issueMod ) ),
+  Observer::par2chnl( issueMod ) );
+}
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ End File Objective.cpp --------------------------*/

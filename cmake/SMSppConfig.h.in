@@ -1,0 +1,20 @@
+/** @file
+ * Configuration header of the SMS++ library.
+ *
+ * \author Niccolò Iardella \n
+ *         Operations Research Group \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * \copyright &copy; Niccolò Iardella
+ */
+
+#ifndef __SMSPP_CONFIG_H
+#define __SMSPP_CONFIG_H
+
+#define SMSpp_VERSION       "@SMS++_VERSION@"
+#define SMSpp_VERSION_MAJOR "@SMS++_VERSION_MAJOR@"
+#define SMSpp_VERSION_MINOR "@SMS++_VERSION_MINOR@"
+#define SMSpp_VERSION_PATCH "@SMS++_VERSION_PATCH@"
+
+#endif

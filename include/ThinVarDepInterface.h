@@ -335,9 +335,9 @@ class ThinVarDepInterface {
    return ( i );
   }
 
-  reference operator*( void ) const { return ( *( *itr_ ) ); }
+  reference operator*() const { return ( *( *itr_ ) ); }
 
-  pointer operator->( void ) const { return ( itr_->operator->() ); }
+  pointer operator->() const { return ( itr_->operator->() ); }
 
   bool operator==( const const_iterator & rhs ) const {
    return ( *itr_ == *( rhs.itr_ ) );
