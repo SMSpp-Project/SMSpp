@@ -297,6 +297,18 @@ class CDASolver : public Solver {
    * to further extend the set of types of return codes */
  };             // end( dbl_par_type_CDAS )
 
+/*--------------------------------------------------------------------------*/
+ /// Public enum "extending" str_par_type_S to a specific case of CDASolvers
+
+ enum str_par_type_CDAS {
+  strLastParCDAS = strLastAlgPar
+  ///< first allowed parameter value for derived classes
+  /**< convenience value for easily allow derived classes
+   * to further extend the set of types of return codes */
+ };
+
+ /*--------------------------------------------------------------------------*/
+
 /**@} ----------------------------------------------------------------------*/
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
 /*--------------------------------------------------------------------------*/
