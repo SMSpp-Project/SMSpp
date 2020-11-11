@@ -745,6 +745,13 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
  if( f_play_dumb && ( mod->get_Block() == v_Block.front() ) )
   return;
 
+ // if f_no_inner_Mod == true, ignore any Modification coming from the inner
+ // Block or any one of its sub-Block; this means "any Modification except
+ // those coming directly to the LagBFunction", the latter being those that
+ // come from the LinearFunction defining the Lagrangian term
+ if( f_no_inner_Mod && ( mod->get_Block() != this ) )
+  return;
+
  // if the Modification requires it, now check all the Solution in the global
  // pool for feasibility; any one found to be unfeasible is deleted, and if
  // this happen an appropriate C05FunctionMod is issued- - - - - - - - - - - -
@@ -782,7 +789,7 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
   // issue a LagBFunctionMod: if some (or all) linearisations have been
   // removed it has type() == GlobalPoolRemoved, otherwise it has
   // type() == NothingChanged; in both cases it has shift() == NaN, since
-  // even if by chance none of the existing linearizations is affeted (but
+  // even if by chance none of the existing linearizations is affected (but
   // this may simply be because there is none) the value of the function in
   // general has changed unpredictably
   f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,

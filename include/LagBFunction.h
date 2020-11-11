@@ -637,6 +637,29 @@ class LagBFunction : public C05Function , public Block {
  void set_par( const idx_type par , const double value ) override;
 
 /*--------------------------------------------------------------------------*/
+ /// "silences" the Modification coming from the inner Block
+ /** If silence_inner_Modification( true ) is called, any Modification coming
+  * from the inner Block (up to the moment silence_inner_Modification( false )
+  * is called) is ignored rather than giving rise to a LagBFunctionMod.
+  *
+  * The rationale for this method is that certain Solver may actually "look"
+  * at the inner Block, which is the "physical representation" of the
+  * LagBFunction, rather than relying on the LagBFunction to produce the
+  * linearization (which is the "abstract representation"). Such a Solver may
+  * then want/need to get access to the original Modification rather than to
+  * the "mangled-up" ones produced by LagBFunction, which is easy enough by
+  * registering some appropriate :Solver to the inner Block; if this is done,
+  * there is no point in the "mangled-up" Modifiation to be produced at all.
+  *
+  *     SINCE THIS SETTING IS UNIQUE, ANY ENTITY SILENCING THE Modification
+  *     FROM THE INNER Block MUST BE POSITIVE THESE ARE NOT NEEDED BY SOME
+  *     OTHER ENTITY, an issue solvable by appropriate Configuration. */
+
+ void silence_inner_Modification( bool silent = true ) {
+  f_no_inner_Mod = silent;
+  }
+
+/*--------------------------------------------------------------------------*/
 
  void deserialize( netCDF::NcGroup& group ) override;
 
@@ -724,10 +747,10 @@ class LagBFunction : public C05Function , public Block {
   *   rather, it can be converted in appropriate [C05]FunctionMod that will
   *   be issued to the Observer of LagBFunction.
   *
-  *     FOR LACK OF A WAY TO DO DIFFERENTLY, ANY SUCH Modification WILL
-  *     BE ISSUED ASSUMING THE STANDARD eModBlck TYPE, WITH
-  *     concerns_Block() == true AND THE DEFAULT CHANNEL (this could be
-  *     a case where "hijacking" the default channel may be useful)
+  *     FOR LACK OF A WAY TO DO DIFFERENTLY, ANY SUCH Modification WILL BE
+  *     ISSUED ASSUMING THE STANDARD eModBlck TYPE, WITH concerns_Block() ==
+  *     true AND THE DEFAULT CHANNEL (this could be a case where "hijacking"
+  *     the default channel may be useful)
   *
   *     FOR THE EXCESSIVE RIGIDITY OF THE CURRENT Modification SYSTEM
   *     (OR, PERHAPS BETTER, ITS LACK OF GENERAL INFORMATION), ONLY THE
@@ -1263,6 +1286,8 @@ class LagBFunction : public C05Function , public Block {
   * any other value: the correct value of yb */
 
  bool f_play_dumb;    ///< true if self-inflicted Modification are ignored
+
+ bool f_no_inner_Mod; ///< true if Modification from the inner Block are ignored
 
  bool f_dirty_Lc;     ///< true if Lagrangian costs have to be modified
  

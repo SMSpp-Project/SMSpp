@@ -25,7 +25,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __Observer
-#define __Observer  /* self-identification: #endif at the end of the file */
+ #define __Observer  /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -87,8 +87,7 @@ namespace SMSpp_di_unipi_it {
  *
  * - The Observer provides a few convenience methods for formatting in an
  *   uniform way the parameter of calls to methods that produce Modification
- *   which specifies if, how and where the Modification has to be issued.
- */
+ *   which specifies if, how and where the Modification has to be issued. */
 
 class Observer {
 
@@ -115,14 +114,17 @@ class Observer {
  *  @{ */
 
  /// constructor of Observer, it has nothing to do
+
  Observer() = default;
 
 /*--------------------------------------------------------------------------*/
  ///< copy constructor, it has nothing to do either
+
  Observer( const Observer & ) = default;
 
 /*--------------------------------------------------------------------------*/
  ///< destructor: it is virtual, and empty
+
  virtual ~Observer() = default;
 
 /**@} ----------------------------------------------------------------------*/
@@ -138,7 +140,6 @@ class Observer {
  [[nodiscard]] virtual Block * get_Block() const = 0;
 
 /*--------------------------------------------------------------------------*/
-
  /// returns true if there is "anybody listening to Modification"
  /** Returns true if there is "anybody listening to Modification". In case of
   * a Block, this typically means that there is some Solver "listening to
@@ -256,7 +257,7 @@ class Observer {
   * handle the corresponding changes to the "physical representation". See
   * the comments to Block::add_Modification() for more details. */
 
- virtual void add_Modification( sp_Mod mod, ChnlName chnl = 0 ) = 0;
+ virtual void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// "open" a channel
@@ -304,8 +305,8 @@ class Observer {
   * Calling the method with chnl non being the name of an open channel is an
   * error and should throw exception. */
 
- virtual void
- nest_channel( ChnlName chnl, GroupModification * gmpmod = nullptr ) = 0;
+ virtual void nest_channel( ChnlName chnl ,
+			    GroupModification * gmpmod = nullptr ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// push back to the previous level of a channel
@@ -402,36 +403,32 @@ class Observer {
   * make_par( iM , 0 ) == iM, so this method is only needed when sending to
   * a non-default channel. */
 
- static inline ModParam make_par( c_ModParam iM, c_ChnlName chnl ) {
-  return ( iM + 4 * chnl );
- }
+ static ModParam make_par( c_ModParam iM, c_ChnlName chnl ) {
+  return( iM + 4 * chnl );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
  /// method extracting the channel information
  /** Given a "composite" parameter as produced by make_par(), this method
   * returns the channel information alone. */
 
- static inline ChnlName par2chnl( c_ModParam issueMod ) {
-  return ( issueMod / 4 );
- }
+ static ChnlName par2chnl( c_ModParam issueMod ) { return( issueMod / 4 ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
  /// method extracting the ModParam information
  /** Given a "composite" parameter as produced by make_par(), this method
   * returns the ModParam information alone. */
 
- static inline ModParam par2mod( c_ModParam issueMod ) {
-  return ( issueMod & 3 );
- }
+ static ModParam par2mod( c_ModParam issueMod ) { return( issueMod & 3 ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
  /// method extracting the concerns_Block information
  /** Given a "composite" parameter as produced by make_par(), this method
   * returns the boolean to become the concerns_Block. */
 
- static inline bool par2concern( c_ModParam issueMod ) {
-  return ( par2mod( issueMod ) == eModBlck );
- }
+ static bool par2concern( c_ModParam issueMod ) {
+  return( par2mod( issueMod ) == eModBlck );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// method for checking if a(n abstract) Modification has to be issued
@@ -441,10 +438,10 @@ class Observer {
   * value eModBlck only makes sense for them. This also depends on the value
   * reported by anyone_there(), which is why the method is not static. */
 
- inline bool issue_mod( c_ModParam issueMod ) const {
-  return ( ( par2mod( issueMod ) == eModBlck ) ||
-           ( ( par2mod( issueMod ) == eNoBlck ) && anyone_there() ) );
- }
+ bool issue_mod( c_ModParam issueMod ) const {
+  return( ( par2mod( issueMod ) == eModBlck ) ||
+	  ( ( par2mod( issueMod ) == eNoBlck ) && anyone_there() ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// method for checking if a (physical) Modification has to be issued
@@ -455,9 +452,9 @@ class Observer {
   * the value reported by anyone_there(), which is why the method is not
   * static. */
 
- [[nodiscard]] inline bool issue_pmod( c_ModParam issueMod ) const {
-  return ( par2mod( issueMod ) && anyone_there() );
- }
+ [[nodiscard]] bool issue_pmod( c_ModParam issueMod ) const {
+  return( par2mod( issueMod ) && anyone_there() );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// method for checking if a the change has to be made
@@ -472,9 +469,9 @@ class Observer {
   * is reacting to one AModification implying that the "abstract" one has
   * changed already). */
 
- static inline bool not_dry_run( c_ModParam issueMod ) {
-  return ( par2mod( issueMod ) );
- }
+ static bool not_dry_run( c_ModParam issueMod ) {
+  return( par2mod( issueMod ) );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
