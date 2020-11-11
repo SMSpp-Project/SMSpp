@@ -2531,7 +2531,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
  // VariableMod: some variables of (B) changed the status- - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( const auto tmod = dynamic_cast< const  VariableMod * >( mod ) ) {
+ if( const auto tmod = dynamic_cast< const VariableMod * >( mod ) ) {
   const auto xj = dynamic_cast< const ColVariable * >( tmod->variable() );
 
   if( ! xj )     // unknown variable type
