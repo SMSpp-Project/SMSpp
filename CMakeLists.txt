@@ -138,6 +138,13 @@ install(FILES
         ${CMAKE_CURRENT_LIST_DIR}/cmake/FindEigen3.cmake
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SMSpp)
 
+# TODO: This should be a temporary fix while netCDF's config is fixed!
+if (${CMAKE_SYSTEM} MATCHES "Darwin-20.1.0")
+    install(FILES
+            ${CMAKE_CURRENT_LIST_DIR}/cmake/FindnetCDF.cmake
+            DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SMSpp)
+endif()
+
 # ----- Export from the build tree ------------------------------------------ #
 # This is needed so other projects can find the library in a local build.
 # It does not affect installation.
@@ -156,6 +163,13 @@ if (CMAKE_EXPORT_PACKAGE_REGISTRY)
     configure_file(${CMAKE_CURRENT_LIST_DIR}/cmake/FindnetCDFCxx.cmake
                    ${CMAKE_CURRENT_BINARY_DIR}/FindnetCDFCxx.cmake
                    COPYONLY)
+
+    # TODO: This should be a temporary fix while netCDF's config is fixed!
+    if (${CMAKE_SYSTEM} MATCHES "Darwin-20.1.0")
+        configure_file(${CMAKE_CURRENT_LIST_DIR}/cmake/FindnetCDF.cmake
+                       ${CMAKE_CURRENT_BINARY_DIR}/FindnetCDF.cmake
+                       COPYONLY)
+    endif ()
 
     # Register package in user's package registry (~/.cmake/registry)
     export(PACKAGE SMSpp)
