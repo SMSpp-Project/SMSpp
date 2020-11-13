@@ -28,9 +28,8 @@ include(FindPackageHandleStandardArgs)
 
 # TODO: This should be a temporary fix while netCDF's config is fixed!
 if (${CMAKE_SYSTEM} MATCHES "Darwin-20.1.0")
-    message("Big Sur detected, using our own FindnetCDF")
     find_package(netCDF REQUIRED)
-elseif ()
+else()
     find_package(netCDF REQUIRED CONFIG)
 endif ()
 
