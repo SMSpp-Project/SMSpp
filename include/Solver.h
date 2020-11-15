@@ -1133,7 +1133,7 @@ class Solver : public ThinComputeInterface {
   *   Variable of the Block, the upper bound is not assumed to change if
   *   get_var_solution() [see below] is called again. In several cases the
   *   upper bound is attached to a *dual* solution, but this concept is not
-  *   general enough to be supported in the base class [see DASolver.h].
+  *   general enough to be supported in the base class [see CDASolver.h].
   *
   * - any value, comprised Inf<OFValue> (meaning that no upper bound is
   *   currently available), if compute() returned any other value.

@@ -337,6 +337,22 @@ namespace SMSpp_di_unipi_it {
  * diagonal linearizations are "optimality cuts" and vertical linearizations
  * are "feasibility cuts". However, the concept is possibly general.
  *
+ * Note that the signs of the inequalities are tied to the convexity of the
+ * function; that is, for a concave function (*) becomes
+ *
+ *       ( 1 , - g ) ( v , x ) <= \alpha
+ *
+ * Hence, although not strictly necessary, it makes sense to assume that
+ * (**) analogously becomes
+ *
+ *       ( 0 , - g ) ( v , x ) <= \alpha
+ *
+ * (in other words, both g and \alpha are multipled by -1, which is precisely
+ * what happens if the concave function f() is changed in sign to become the
+ * convex -f()). For neither convex nor concave functions neither version of
+ * (*) is a valid inequality for the epi/ipograph, hence the discussion does
+ * not make sense.
+ *
  * Note that, while typically combinations of "diagonal" linearizations need
  * be convex ones, combination of "vertical" linearizations can usually be
  * performed with arbitrary non-negative weights. In the Lagrangian case,

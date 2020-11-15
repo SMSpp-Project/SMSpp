@@ -142,7 +142,7 @@ class ThinComputeInterface {
    * values are left to derived classes, but the general gist is that any
    * value <= kUnEval means that the solution process has not yet reached a
    * state where a solution can be declared (or such a state has been lost for
-   * some reason. */
+   * some reason). */
 
   kOK = 10,      ///< successful compute()
   /**< Any return value between kUnEval (excluded) and kOK
