@@ -25,7 +25,13 @@
 include(FindPackageHandleStandardArgs)
 
 # ----- Requirements -------------------------------------------------------- #
-find_package(netCDF REQUIRED)
+
+# TODO: This should be a temporary fix while netCDF's config is fixed!
+if (${CMAKE_SYSTEM} MATCHES "Darwin-20.1.0")
+    find_package(netCDF REQUIRED)
+else()
+    find_package(netCDF REQUIRED CONFIG)
+endif ()
 
 # ----- Find the headers and library ---------------------------------------- #
 find_path(netCDFCxx_INCLUDE_DIR netcdf
