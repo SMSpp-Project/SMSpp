@@ -67,7 +67,7 @@
 
 #ifndef __RBlockConfig
 #define __RBlockConfig
-                /* self-identification: #endif at the end of the file */
+/* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -80,8 +80,7 @@
 /*--------------------------------------------------------------------------*/
 
 /// namespace for the Structured Modeling System++ (SMS++)
-namespace SMSpp_di_unipi_it
-{
+namespace SMSpp_di_unipi_it {
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ BlockConfigHandlers -----------------------------*/
@@ -89,8 +88,7 @@ namespace SMSpp_di_unipi_it
 /* Uncommented auxiliary classes that separately handle the three different
  * aspects of configuration: sub-Block (R), Constraints (C), Objective (O). */
 
-namespace BlockConfigHandlers
-{
+namespace BlockConfigHandlers {
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- RHandler ---------------------------------*/
@@ -98,8 +96,7 @@ namespace BlockConfigHandlers
 /* Uncommented auxiliary classes that handles configuration of sub-Block
  * (recursively). */
 
-class RHandler
-{
+class RHandler {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
@@ -109,7 +106,7 @@ class RHandler
 
  // empty constructor
 
- RHandler( void ) {}
+ RHandler() = default;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  // copy constructor
@@ -117,8 +114,8 @@ class RHandler
  RHandler( const RHandler & old ) {
   v_sub_Block_id = old.v_sub_Block_id;
 
-  v_sub_BlockConfig.resize( old.v_sub_BlockConfig.size() , nullptr );
-  for( std::size_t i = 0 ; i < v_sub_BlockConfig.size() ; ++i )
+  v_sub_BlockConfig.resize( old.v_sub_BlockConfig.size(), nullptr );
+  for( std::size_t i = 0; i < v_sub_BlockConfig.size(); ++i )
    if( old.v_sub_BlockConfig[ i ] )
     v_sub_BlockConfig[ i ] = old.v_sub_BlockConfig[ i ]->clone();
  }
@@ -126,10 +123,10 @@ class RHandler
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  // move constructor
 
- RHandler( RHandler && old ) {
+ RHandler( RHandler && old ) noexcept {
   v_sub_Block_id = std::move( old.v_sub_Block_id );
   v_sub_BlockConfig = std::move( old.v_sub_BlockConfig );
-  }
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  // deserialize
@@ -143,7 +140,7 @@ class RHandler
  ~RHandler() {
   for( auto config : v_sub_BlockConfig )
    delete config;
-  }
+ }
 
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 
@@ -162,10 +159,10 @@ class RHandler
   * @param index The index of the sub-Block whose BlockConfig is being
   *        added. */
 
- void add_sub_BlockConfig( BlockConfig * config , Block::Index index ) {
+ void add_sub_BlockConfig( BlockConfig * config, Block::Index index ) {
   v_sub_BlockConfig.push_back( config );
   v_sub_Block_id.push_back( std::to_string( index ) );
-  }
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// add a BlockConfig for a sub-Block (name)
@@ -177,10 +174,10 @@ class RHandler
   * @param index The name of the sub-Block whose BlockConfig is being
   *        added. */
 
- void add_sub_BlockConfig( BlockConfig * config , std::string && name ) {
+ void add_sub_BlockConfig( BlockConfig * config, std::string && name ) {
   v_sub_BlockConfig.push_back( config );
   v_sub_Block_id.push_back( std::move( name ) );
-  }
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// remove a BlockConfig for a sub-Block
@@ -193,7 +190,7 @@ class RHandler
   * @param destroy It indicates whether the pointer to the BlockConfig at the
   *        given index must be deleted. */
 
- void remove_sub_BlockConfig( Block::Index index , bool destroy = true ) {
+ void remove_sub_BlockConfig( Block::Index index, bool destroy = true ) {
   if( index >= v_sub_BlockConfig.size() )
    throw ( std::invalid_argument( "RBlockConfig::remove_sub_BlockConfig: "
                                   "invalid index: " +
@@ -202,37 +199,37 @@ class RHandler
    delete v_sub_BlockConfig[ index ];
   v_sub_BlockConfig.erase( std::begin( v_sub_BlockConfig ) + index );
   v_sub_Block_id.erase( std::begin( v_sub_Block_id ) + index );
-  }
+ }
 
 /*------------ METHODS DESCRIBING THE BEHAVIOR OF THE RHandler -------------*/
 
  // configure the given Block and its sub-Block (recursively)
 
- void apply( Block * block , bool deleteold , bool diff );
+ void apply( Block * block, bool deleteold, bool diff );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  // clear this RHandler
 
- void clear( void ) {
+ void clear() {
   for( auto config : v_sub_BlockConfig )
    if( config )
     config->clear();
-  }
+ }
 
 /*-------------- METHODS FOR READING THE DATA OF THE RHandler --------------*/
 
  /// returns true if the RHandler is empty
 
- bool empty( void ) { return( v_sub_BlockConfig.empty() ); }
+ bool empty() { return ( v_sub_BlockConfig.empty() ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the current number of sub-BlockConfig
  /** This method returns the number of BlockConfig (for the sub-Block)
   * currently being handled. */
 
- Block::Index num_sub_BlockConfig( void ) const {
-  return( v_sub_BlockConfig.size() );
-  }
+ [[nodiscard]] Block::Index num_sub_BlockConfig() const {
+  return ( v_sub_BlockConfig.size() );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the (pointer to) the BlockConfig at the given \p index
@@ -245,12 +242,12 @@ class RHandler
   *
   * @return the pointer to the BlockConfig at the given \p index. */
 
- BlockConfig * get_sub_BlockConfig( Block::Index index ) const {
+ [[nodiscard]] BlockConfig * get_sub_BlockConfig( Block::Index index ) const {
   if( index >= v_sub_BlockConfig.size() )
-   throw( std::invalid_argument( "get_sub_BlockConfig: invalid index: "
-				 + std::to_string( index ) ) );
-  return( v_sub_BlockConfig[ index ] );
-  }
+   throw ( std::invalid_argument( "get_sub_BlockConfig: invalid index: "
+                                  + std::to_string( index ) ) );
+  return ( v_sub_BlockConfig[ index ] );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the id of the sub-Block associated with the given \p index
@@ -265,12 +262,13 @@ class RHandler
   * @return The identification of the sub-Block associated with the
   *         BlockConfig located at the given \p index. */
 
- const std::string & get_sub_Block_id( Block::Index index ) const {
+ [[nodiscard]] const std::string &
+ get_sub_Block_id( Block::Index index ) const {
   if( index >= v_sub_Block_id.size() )
-   throw( std::invalid_argument( "get_sub_Block_id: invalid index: "
-				 + std::to_string( index ) ) );
-  return( v_sub_Block_id[ index ] );
-  }
+   throw ( std::invalid_argument( "get_sub_Block_id: invalid index: "
+                                  + std::to_string( index ) ) );
+  return ( v_sub_Block_id[ index ] );
+ }
 
 /*----------- METHODS FOR LOADING, PRINTING & SAVING THE RHandler ----------*/
 
@@ -285,12 +283,12 @@ class RHandler
 /*-------------------------- PROTECTED METHODS -----------------------------*/
  // print the RHandler
 
- void print( std::ostream &output ) const;
+ void print( std::ostream & output ) const;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  // load this RHandler out of an istream
 
- void load( std::istream &input );
+ void load( std::istream & input );
 
 /*---------------------- PROTECTED FIELDS OF THE CLASS ---------------------*/
 
@@ -308,16 +306,15 @@ class RHandler
  std::vector< std::string > v_sub_Block_id;
 
 /*--------------------------------------------------------------------------*/
- 
- };  // end( class RHandler )
+
+};  // end( class RHandler )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CHandler ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 /* Uncommented auxiliary classes that handles configuration of Constraint */
 
-class CHandler
-{
+class CHandler {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
@@ -327,7 +324,7 @@ class CHandler
 
  // empty constructor
 
- CHandler( void ) {}
+ CHandler() = default;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  // copy constructor
@@ -335,21 +332,21 @@ class CHandler
  CHandler( const CHandler & old ) {
   v_Constraint_id = old.v_Constraint_id;
 
-  v_Config_Constraint.resize( old.v_Config_Constraint.size() , nullptr );
+  v_Config_Constraint.resize( old.v_Config_Constraint.size(), nullptr );
   auto this_it = v_Config_Constraint.begin();
   auto old_it = old.v_Config_Constraint.cbegin();
-  for( ; this_it != v_Config_Constraint.end() ; ++this_it , ++old_it )
+  for( ; this_it != v_Config_Constraint.end(); ++this_it, ++old_it )
    if( *old_it )
     *this_it = ( *old_it )->clone();
-  }
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  // move constructor
 
- CHandler( CHandler && old ) {
+ CHandler( CHandler && old ) noexcept {
   v_Constraint_id = std::move( old.v_Constraint_id );
   v_Config_Constraint = std::move( old.v_Config_Constraint );
-  }
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  // deserialize
@@ -363,7 +360,7 @@ class CHandler
  ~CHandler() {
   for( auto config : v_Config_Constraint )
    delete config;
-  }
+ }
 
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 
@@ -388,14 +385,14 @@ class CHandler
   *
   * @param constraint_index The index of the Constraint in its group. */
 
- void add_ComputeConfig_Constraint( ComputeConfig * config ,
-                                    std::string && constraint_group_id ,
+ void add_ComputeConfig_Constraint( ComputeConfig * config,
+                                    std::string && constraint_group_id,
                                     Block::Index constraint_index ) {
 
-  v_Constraint_id.push_back
-   ( std::make_pair( std::move( constraint_group_id ) , constraint_index ) );
+  v_Constraint_id.emplace_back( std::move( constraint_group_id ),
+                                constraint_index );
   v_Config_Constraint.push_back( config );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// add a ComputeConfig for a Constraint
@@ -412,15 +409,14 @@ class CHandler
   *
   * @param constraint_index The index of the Constraint in its group. */
 
- void add_ComputeConfig_Constraint( ComputeConfig * config ,
-                                    Block::Index constraint_group_index ,
+ void add_ComputeConfig_Constraint( ComputeConfig * config,
+                                    Block::Index constraint_group_index,
                                     Block::Index constraint_index ) {
 
-  v_Constraint_id.push_back
-   ( std::make_pair( std::to_string( constraint_group_index ) ,
-                     constraint_index ) );
+  v_Constraint_id.emplace_back( std::to_string( constraint_group_index ),
+                                constraint_index );
   v_Config_Constraint.push_back( config );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// remove a ComputeConfig of a Constraint
@@ -433,7 +429,7 @@ class CHandler
   * @param destroy It indicates whether the pointer to the ComputeConfig at
   *        the given index must be deleted. */
 
- void remove_ComputeConfig_Constraint( Block::Index index ,
+ void remove_ComputeConfig_Constraint( Block::Index index,
                                        bool destroy = true ) {
   if( index >= v_Constraint_id.size() )
    throw ( std::invalid_argument( "CBlockConfig::remove_ComputeConfig_"
@@ -443,37 +439,37 @@ class CHandler
    delete v_Config_Constraint[ index ];
   v_Constraint_id.erase( std::begin( v_Constraint_id ) + index );
   v_Config_Constraint.erase( std::begin( v_Config_Constraint ) + index );
-  }
+ }
 
 /*------------ METHODS DESCRIBING THE BEHAVIOR OF THE CHandler -------------*/
 
  // configure the given Block
 
- void apply( Block * block , bool deleteold , bool diff );
+ void apply( Block * block, bool deleteold, bool diff );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  // clear this CHandler
 
- void clear( void ) {
+ void clear() {
   for( auto config : v_Config_Constraint )
    if( config )
     config->clear();
-  }
+ }
 
 /*-------------- METHODS FOR READING THE DATA OF THE CHandler --------------*/
 
  /// returns true if the CHandler is empty
 
- bool empty( void ) { return( v_Config_Constraint.empty() ); }
+ bool empty() { return ( v_Config_Constraint.empty() ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the number of ComputeConfig for Constraint in this *CBlockConfig
  /** This method returns the number of ComputeConfig (for the Constraint)
   * currently being handled by this *CBlockConfig . */
 
- Block::Index num_ComputeConfig_Constraint( void ) const {
-  return( v_Config_Constraint.size() );
-  }
+ [[nodiscard]] Block::Index num_ComputeConfig_Constraint() const {
+  return ( v_Config_Constraint.size() );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the (pointer to) the ComputeConfig at the given \p index
@@ -486,13 +482,14 @@ class CHandler
   *
   * @return the pointer to the ComputeConfig at the given \p index. */
 
- ComputeConfig * get_ComputeConfig_Constraint( Block::Index index ) const {
+ [[nodiscard]] ComputeConfig *
+ get_ComputeConfig_Constraint( Block::Index index ) const {
   if( index >= v_Config_Constraint.size() )
-   throw( std::invalid_argument(
-                               "get_ComputeConfig_Constraint: invalid index "
-			       + std::to_string( index ) ) );
-  return( v_Config_Constraint[ index ] );
-  }
+   throw (
+    std::invalid_argument( "get_ComputeConfig_Constraint: invalid index "
+                           + std::to_string( index ) ) );
+  return ( v_Config_Constraint[ index ] );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the id of the Constraint associated with the given \p index
@@ -505,13 +502,14 @@ class CHandler
   * @return the identification of the Constraint associated with the
   *         ComputeConfig located at the given \p index. */
 
- const std::pair< std::string , Block::Index > & get_Constraint_id(
-					       Block::Index index ) const {
+ [[nodiscard]] const std::pair< std::string, Block::Index > &
+ get_Constraint_id(
+  Block::Index index ) const {
   if( index >= v_Constraint_id.size() )
-   throw( std::invalid_argument( "get_Constraint_id: invalid index "
+   throw ( std::invalid_argument( "get_Constraint_id: invalid index "
                                   + std::to_string( index ) ) );
-  return( v_Constraint_id[ index ] );
-  }
+  return ( v_Constraint_id[ index ] );
+ }
 
 /*----------- METHODS FOR LOADING, PRINTING & SAVING THE RHandler ----------*/
 
@@ -526,12 +524,12 @@ class CHandler
 /*-------------------------- PROTECTED METHODS -----------------------------*/
  // print the CHandler
 
- void print( std::ostream &output ) const;
+ void print( std::ostream & output ) const;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  // load this CHandler out of an istream
 
- void load( std::istream &input );
+ void load( std::istream & input );
 
 /*---------------------- PROTECTED FIELDS OF THE CLASS ---------------------*/
 
@@ -546,25 +544,24 @@ class CHandler
   * (i) the name of the group of Constraint (see Block::get_s_const_name() and
   * Block::get_d_const_name()) or the index of the group as defined in
   * Block::ConstraintID. */
- std::vector< std::pair<std::string , Block::Index> > v_Constraint_id;
+ std::vector< std::pair< std::string, Block::Index > > v_Constraint_id;
 
  /// the vector of (pointer to the) ComputeConfig for the Constraint
  /** The vector of (pointer to the) ComputeConfig for the Constraint. The i-th
   * ComputeConfig in this vector is that of the Constraint identified by the
   * i-th element in the vector #v_Constraint_id. */
- std::vector<ComputeConfig *> v_Config_Constraint;
+ std::vector< ComputeConfig * > v_Config_Constraint;
 
 /*--------------------------------------------------------------------------*/
- 
- };  // end( class CHandler )
+
+};  // end( class CHandler )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- OHandler ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 /* Uncommented auxiliary classes that handles configuration of Objective */
 
-class OHandler
-{
+class OHandler {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
@@ -574,7 +571,7 @@ class OHandler
 
  // empty constructor
 
- OHandler( void ) : f_Config_Objective( nullptr ) {}
+ OHandler() : f_Config_Objective( nullptr ) {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  // copy constructor
@@ -582,14 +579,15 @@ class OHandler
  OHandler( const OHandler & old ) : f_Config_Objective( nullptr ) {
   if( old.f_Config_Objective )
    f_Config_Objective = old.f_Config_Objective->clone();
-  }
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  // move constructor
 
- OHandler( OHandler && old ) : f_Config_Objective( old.f_Config_Objective ) {
+ OHandler( OHandler && old ) noexcept:
+  f_Config_Objective( old.f_Config_Objective ) {
   old.f_Config_Objective = nullptr;
-  }
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  // deserialize
@@ -618,35 +616,35 @@ class OHandler
   * @param deleteold indicates whether the currently stored ComputeConfig
   *        for the Objective (if any) must be destroyed. */
 
- void set_Config_Objective( ComputeConfig * config , bool deleteold = true ) {
+ void set_Config_Objective( ComputeConfig * config, bool deleteold = true ) {
   if( deleteold )
    delete f_Config_Objective;
   f_Config_Objective = config;
-  }
+ }
 
 /*------------ METHODS DESCRIBING THE BEHAVIOR OF THE OHandler -------------*/
 
  // configure the given Block
 
- void apply( Block * block , bool deleteold , bool diff );
+ void apply( Block * block, bool deleteold, bool diff );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  // clear this OHandler
 
- void clear( void ) { if( f_Config_Objective ) f_Config_Objective->clear(); }
+ void clear() { if( f_Config_Objective ) f_Config_Objective->clear(); }
 
 /*-------------- METHODS FOR READING THE DATA OF THE OHandler --------------*/
 
  /// returns true if the OHandler is empty
 
- bool empty( void ) { return( ! f_Config_Objective ); }
+ bool empty() { return ( !f_Config_Objective ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the ComputeConfig of the Objective
 
- ComputeConfig * get_Config_Objective( void ) const {
-  return( f_Config_Objective );
-  }
+ [[nodiscard]] ComputeConfig * get_Config_Objective() const {
+  return ( f_Config_Objective );
+ }
 
 /*----------- METHODS FOR LOADING, PRINTING & SAVING THE OHandler ----------*/
 
@@ -661,12 +659,12 @@ class OHandler
 /*-------------------------- PROTECTED METHODS -----------------------------*/
  // print the OHandler
 
- void print( std::ostream &output ) const;
+ void print( std::ostream & output ) const;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  // load this OHandler out of an istream
 
- void load( std::istream &input );
+ void load( std::istream & input );
 
 /*---------------------- PROTECTED FIELDS OF THE CLASS ---------------------*/
 
@@ -674,12 +672,12 @@ class OHandler
  ComputeConfig * f_Config_Objective = nullptr;
 
 /*--------------------------------------------------------------------------*/
- 
- };  // end( class OHandler )
+
+};  // end( class OHandler )
 
 /*--------------------------------------------------------------------------*/
 
- }  // end( namespace BlockConfigHandlers )
+}  // end( namespace BlockConfigHandlers )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
@@ -781,11 +779,10 @@ class OHandler
 /*--------------------------------------------------------------------------*/
 /// BlockConfig for configuring everything of a Block
 
-class OCRBlockConfig : public BlockConfig ,
-                       public BlockConfigHandlers::OHandler ,
-                       public BlockConfigHandlers::CHandler ,
-                       public BlockConfigHandlers::RHandler
-{
+class OCRBlockConfig : public BlockConfig,
+                       public BlockConfigHandlers::OHandler,
+                       public BlockConfigHandlers::CHandler,
+                       public BlockConfigHandlers::RHandler {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
@@ -802,8 +799,8 @@ class OCRBlockConfig : public BlockConfig ,
 /*---------------------------- CONSTRUCTORS --------------------------------*/
  /// constructor: creates an empty OCRBlockConfig
 
- OCRBlockConfig( bool diff = true )
-  : BlockConfig( diff ) , OHandler() , CHandler() , RHandler() {}
+ explicit OCRBlockConfig( bool diff = true )
+  : BlockConfig( diff ), OHandler(), CHandler(), RHandler() {}
 
 /*--------------------------------------------------------------------------*/
  /// constructs an OCRBlockConfig out of the given netCDF \p group
@@ -814,8 +811,12 @@ class OCRBlockConfig : public BlockConfig ,
   * @param group The netCDF::NcGroup containing the description of the
   *        OCRBlockConfig. */
 
- OCRBlockConfig( netCDF::NcGroup & group ) : BlockConfig() ,
-  OHandler() , CHandler() , RHandler() { deserialize( group ); }
+ explicit OCRBlockConfig( netCDF::NcGroup & group ) : BlockConfig(),
+                                                      OHandler(), CHandler(),
+                                                      RHandler() {
+  // FIXME: Do not invoke virtual member functions from constructor
+  deserialize( group );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// constructs an OCRBlockConfig out of an istream
@@ -826,8 +827,13 @@ class OCRBlockConfig : public BlockConfig ,
   * @param input The istream containing the description of the
   *        OCRBlockConfig. */
 
- OCRBlockConfig( std::istream &input ) : BlockConfig() ,
-  OHandler() , CHandler() , RHandler() { load( input ); }
+ explicit OCRBlockConfig( std::istream & input ) : BlockConfig(),
+                                                   OHandler(),
+                                                   CHandler(),
+                                                   RHandler() {
+  // FIXME: Do not invoke virtual member functions from constructor
+  load( input );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// constructs an OCRBlockConfig for the given Block
@@ -839,20 +845,30 @@ class OCRBlockConfig : public BlockConfig ,
   *
   * @param diff It indicates if this configuration is a "differential" one. */
 
- OCRBlockConfig( Block * block , bool diff = false ) : BlockConfig( diff ) ,
-  OHandler() , CHandler() , RHandler() { get( block ); }
+ explicit OCRBlockConfig( Block * block, bool diff = false ) :
+  BlockConfig( diff ),
+  OHandler(),
+  CHandler(),
+  RHandler() {
+  // FIXME: Do not invoke virtual member functions from constructor
+  get( block );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: does what it says on the tin
 
- OCRBlockConfig( const OCRBlockConfig &old ) : BlockConfig( old ) ,
-  OHandler( old ) , CHandler( old ) , RHandler( old ) {}
+ OCRBlockConfig( const OCRBlockConfig & old ) : BlockConfig( old ),
+                                                OHandler( old ),
+                                                CHandler( old ),
+                                                RHandler( old ) {}
 
 /*--------------------------------------------------------------------------*/
  /// move constructor: does what it says on the tin
 
- OCRBlockConfig( OCRBlockConfig && old ) : BlockConfig( std::move( old ) ) ,
-  OHandler( std::move( old ) ) , CHandler( std::move( old ) ) ,
+ OCRBlockConfig( OCRBlockConfig && old ) noexcept:
+  BlockConfig( std::move( old ) ),
+  OHandler( std::move( old ) ),
+  CHandler( std::move( old ) ),
   RHandler( std::move( old ) ) {}
 
 /*--------------------------------------------------------------------------*/
@@ -871,7 +887,7 @@ class OCRBlockConfig : public BlockConfig ,
   * in fact any other *BlockConfig. */
 
  static BlockConfig * get_right_BlockConfig( const Block * block );
- 
+
 /*--------------------------------------------------------------------------*/
  /// copy assignment operator: it is deleted
 
@@ -896,21 +912,21 @@ class OCRBlockConfig : public BlockConfig ,
   *   (see RBlockConfig::deserialize()). */
 
  void deserialize( netCDF::NcGroup & group ) override {
-  if( ! ( BlockConfig::empty() && OHandler::empty() &&
-	  CHandler::empty() && RHandler::empty() ) )
-   throw( std::logic_error( "deserializing a non-empty OCRBlockConfig" ) );
+  if( !( BlockConfig::empty() && OHandler::empty() &&
+         CHandler::empty() && RHandler::empty() ) )
+   throw ( std::logic_error( "deserializing a non-empty OCRBlockConfig" ) );
 
   BlockConfig::deserialize( group );
   OHandler::deserialize( group );
   CHandler::deserialize( group );
   RHandler::deserialize( group );
-  }
+ }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
  /// destructor: silently calls the destructors of base classes
 
- virtual ~OCRBlockConfig() {}
+ ~OCRBlockConfig() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -936,7 +952,7 @@ class OCRBlockConfig : public BlockConfig ,
   OHandler::get( block );
   CHandler::get( block );
   RHandler::get( block );
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF THE OCRBlockConfig ----------*/
@@ -956,30 +972,29 @@ class OCRBlockConfig : public BlockConfig ,
   * @param deleteold Indicates whether the current BlockConfig of Block must
   *        be deleted. */
 
- void apply( Block * block , bool deleteold = true ) override {
-  if( ! block ) return;
-  BlockConfig::apply( block , deleteold );
-  OHandler::apply( block , deleteold , f_diff );
-  CHandler::apply( block , deleteold , f_diff );
-  RHandler::apply( block , deleteold , f_diff );
-  }
+ void apply( Block * block, bool deleteold = true ) override {
+  if( !block ) return;
+  BlockConfig::apply( block, deleteold );
+  OHandler::apply( block, deleteold, f_diff );
+  CHandler::apply( block, deleteold, f_diff );
+  RHandler::apply( block, deleteold, f_diff );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// clear this OCRBlockConfig
 
- void clear( void ) override {
+ void clear() override {
   BlockConfig::clear();
   OHandler::clear();
   CHandler::clear();
   RHandler::clear();
-  }
+ }
 
 /*------------------------------- CLONE ------------------------------------*/
 
- OCRBlockConfig * clone( void ) const override
- {
-  return( new OCRBlockConfig( *this ) );
-  }
+ [[nodiscard]] OCRBlockConfig * clone() const override {
+  return ( new OCRBlockConfig( *this ) );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*------- METHODS FOR LOADING, PRINTING & SAVING THE OCRBlockConfig --------*/
@@ -998,7 +1013,7 @@ class OCRBlockConfig : public BlockConfig ,
   OHandler::serialize( group );
   CHandler::serialize( group );
   RHandler::serialize( group );
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------------------ FRIENDS -----------------------------------*/
@@ -1023,12 +1038,12 @@ class OCRBlockConfig : public BlockConfig ,
 
  /// print the OCRBlockConfig
 
- void print( std::ostream &output ) const override {
+ void print( std::ostream & output ) const override {
   BlockConfig::print( output );
   OHandler::print( output );
   CHandler::print( output );
   RHandler::print( output );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// load this OCRBlockConfig out of an istream
@@ -1042,12 +1057,12 @@ class OCRBlockConfig : public BlockConfig ,
   *
   * - that specified in RBlockConfig::load(). */
 
- void load( std::istream &input ) override {
+ void load( std::istream & input ) override {
   BlockConfig::load( input );
   OHandler::load( input );
   CHandler::load( input );
   RHandler::load( input );
-  }
+ }
 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 
@@ -1059,7 +1074,7 @@ class OCRBlockConfig : public BlockConfig ,
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( OCRBlockConfig ) )
+};  // end( class( OCRBlockConfig ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS CRBlockConfig ----------------------------*/
@@ -1078,10 +1093,9 @@ class OCRBlockConfig : public BlockConfig ,
  *   Block.
  */
 
-class CRBlockConfig : public BlockConfig ,
-                      public BlockConfigHandlers::CHandler ,
-                      public BlockConfigHandlers::RHandler
-{
+class CRBlockConfig : public BlockConfig,
+                      public BlockConfigHandlers::CHandler,
+                      public BlockConfigHandlers::RHandler {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
@@ -1098,8 +1112,8 @@ class CRBlockConfig : public BlockConfig ,
 /*---------------------------- CONSTRUCTORS --------------------------------*/
  /// constructor: creates an empty CRBlockConfig
 
- CRBlockConfig( bool diff = true )
-  : BlockConfig( diff ) , CHandler() , RHandler() {}
+ explicit CRBlockConfig( bool diff = true )
+  : BlockConfig( diff ), CHandler(), RHandler() {}
 
 /*--------------------------------------------------------------------------*/
  /// constructs an CRBlockConfig out of the given netCDF \p group
@@ -1110,8 +1124,11 @@ class CRBlockConfig : public BlockConfig ,
   * @param group The netCDF::NcGroup containing the description of the
   *        CRBlockConfig. */
 
- CRBlockConfig( netCDF::NcGroup & group )
-  : BlockConfig() , CHandler() , RHandler() { deserialize( group ); }
+ explicit CRBlockConfig( netCDF::NcGroup & group ) :
+  BlockConfig(), CHandler(), RHandler() {
+  // FIXME: Do not invoke virtual member functions from constructor
+  deserialize( group );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// constructs an CRBlockConfig out of an istream
@@ -1122,8 +1139,11 @@ class CRBlockConfig : public BlockConfig ,
   * @param input The istream containing the description of the
   *        CRBlockConfig. */
 
- CRBlockConfig( std::istream &input )
-  : BlockConfig() , CHandler() , RHandler() { load( input ); }
+ explicit CRBlockConfig( std::istream & input ) :
+  BlockConfig(), CHandler(), RHandler() {
+  // FIXME: Do not invoke virtual member functions from constructor
+  load( input );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// constructs an CRBlockConfig for the given Block
@@ -1136,20 +1156,25 @@ class CRBlockConfig : public BlockConfig ,
   * @param diff It indicates if this configuration is a "differential" one.
   */
 
- CRBlockConfig( Block * block , bool diff = false )
-  : BlockConfig( diff ) , CHandler() , RHandler() { get( block ); }
+ explicit CRBlockConfig( Block * block, bool diff = false )
+  : BlockConfig( diff ), CHandler(), RHandler() {
+  // FIXME: Do not invoke virtual member functions from constructor
+  get( block );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: does what it says on the tin
 
  CRBlockConfig( const CRBlockConfig & old )
- : BlockConfig( old ) , CHandler( old ) , RHandler( old ) {}
+  : BlockConfig( old ), CHandler( old ), RHandler( old ) {}
 
 /*--------------------------------------------------------------------------*/
  /// move constructor: does what it says on the tin
 
- CRBlockConfig( CRBlockConfig && old ) : BlockConfig( std::move( old ) ) ,
-  CHandler( std::move( old ) ) , RHandler( std::move( old ) ) {}
+ CRBlockConfig( CRBlockConfig && old ) noexcept:
+  BlockConfig( std::move( old ) ),
+  CHandler( std::move( old ) ),
+  RHandler( std::move( old ) ) {}
 
 /*--------------------------------------------------------------------------*/
  /// weird move constructor from formally unrelated class
@@ -1157,8 +1182,10 @@ class CRBlockConfig : public BlockConfig ,
   * latter in fact is a "superset" of the former, and therefore it can be
   * used to move-construct it. */
 
- CRBlockConfig( OCRBlockConfig && old ) : BlockConfig( std::move( old ) ) ,
-  CHandler( std::move( old ) ) , RHandler( std::move( old ) ) {}
+ explicit CRBlockConfig( OCRBlockConfig && old ) :
+  BlockConfig( std::move( old ) ),
+  CHandler( std::move( old ) ),
+  RHandler( std::move( old ) ) {}
 
 /*--------------------------------------------------------------------------*/
  /// copy assignment operator: it is deleted
@@ -1181,19 +1208,19 @@ class CRBlockConfig : public BlockConfig ,
   *   (see RBlockConfig::deserialize()). */
 
  void deserialize( netCDF::NcGroup & group ) override {
-  if( ! ( BlockConfig::empty() && CHandler::empty() && RHandler::empty() ) )
-   throw( std::logic_error( "deserializing a non-empty CRBlockConfig" ) );
+  if( !( BlockConfig::empty() && CHandler::empty() && RHandler::empty() ) )
+   throw ( std::logic_error( "deserializing a non-empty CRBlockConfig" ) );
 
   BlockConfig::deserialize( group );
   CHandler::deserialize( group );
   RHandler::deserialize( group );
-  }
+ }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
  /// destructor: silently calls the destructors of base classes
 
- virtual ~CRBlockConfig() {}
+ ~CRBlockConfig() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -1238,7 +1265,7 @@ class CRBlockConfig : public BlockConfig ,
   BlockConfig::get( block );
   CHandler::get( block );
   RHandler::get( block );
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*---------- METHODS DESCRIBING THE BEHAVIOR OF THE CRBlockConfig ----------*/
@@ -1258,28 +1285,27 @@ class CRBlockConfig : public BlockConfig ,
   * @param deleteold Indicates whether the current BlockConfig of Block must
   *        be deleted. */
 
- void apply( Block * block , bool deleteold = true ) override {
-  if( ! block ) return;
-  BlockConfig::apply( block , deleteold );
-  CHandler::apply( block , deleteold , f_diff );
-  RHandler::apply( block , deleteold , f_diff );
-  }
+ void apply( Block * block, bool deleteold = true ) override {
+  if( !block ) return;
+  BlockConfig::apply( block, deleteold );
+  CHandler::apply( block, deleteold, f_diff );
+  RHandler::apply( block, deleteold, f_diff );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// clear this CRBlockConfig
 
- void clear( void ) override {
+ void clear() override {
   BlockConfig::clear();
   CHandler::clear();
   RHandler::clear();
-  }
+ }
 
 /*------------------------------- CLONE ------------------------------------*/
 
- CRBlockConfig * clone( void ) const override
- {
-  return( new CRBlockConfig( *this ) );
-  }
+ [[nodiscard]] CRBlockConfig * clone() const override {
+  return ( new CRBlockConfig( *this ) );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------- METHODS FOR LOADING, PRINTING & SAVING THE CRBlockConfig -------*/
@@ -1296,7 +1322,7 @@ class CRBlockConfig : public BlockConfig ,
   BlockConfig::serialize( group );
   CHandler::serialize( group );
   RHandler::serialize( group );
-  }
+ }
 
 
 /**@} ----------------------------------------------------------------------*/
@@ -1316,11 +1342,11 @@ class CRBlockConfig : public BlockConfig ,
 
  /// print the CRBlockConfig
 
- void print( std::ostream &output ) const override {
+ void print( std::ostream & output ) const override {
   BlockConfig::print( output );
   CHandler::print( output );
   RHandler::print( output );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// load this CRBlockConfig out of an istream
@@ -1332,11 +1358,11 @@ class CRBlockConfig : public BlockConfig ,
   *
   * - that specified in RBlockConfig::load(). */
 
- void load( std::istream &input ) override {
+ void load( std::istream & input ) override {
   BlockConfig::load( input );
   CHandler::load( input );
   RHandler::load( input );
-  }
+ }
 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 
@@ -1348,7 +1374,7 @@ class CRBlockConfig : public BlockConfig ,
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( CRBlockConfig ) )
+};  // end( class( CRBlockConfig ) )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS ORBlockConfig ---------------------------*/
@@ -1357,10 +1383,9 @@ class CRBlockConfig : public BlockConfig ,
 /*--------------------------------------------------------------------------*/
 /// BlockConfig for configuring Objective and sub-Block (recursively)
 
-class ORBlockConfig : public BlockConfig ,
-                      public BlockConfigHandlers::OHandler ,
-                      public BlockConfigHandlers::RHandler
-{
+class ORBlockConfig : public BlockConfig,
+                      public BlockConfigHandlers::OHandler,
+                      public BlockConfigHandlers::RHandler {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
@@ -1377,8 +1402,8 @@ class ORBlockConfig : public BlockConfig ,
 /*---------------------------- CONSTRUCTORS --------------------------------*/
  /// constructor: creates an empty ORBlockConfig
 
- ORBlockConfig( bool diff = true )
-  : BlockConfig( diff ) , OHandler() , RHandler() {}
+ explicit ORBlockConfig( bool diff = true )
+  : BlockConfig( diff ), OHandler(), RHandler() {}
 
 /*--------------------------------------------------------------------------*/
  /// constructs an ORBlockConfig out of the given netCDF \p group
@@ -1389,8 +1414,12 @@ class ORBlockConfig : public BlockConfig ,
   * @param group The netCDF::NcGroup containing the description of the
   *        ORBlockConfig. */
 
- ORBlockConfig( netCDF::NcGroup & group ) : BlockConfig() ,
-  OHandler() , RHandler() { deserialize( group ); }
+ explicit ORBlockConfig( netCDF::NcGroup & group ) : BlockConfig(),
+                                                     OHandler(),
+                                                     RHandler() {
+  // FIXME: Do not invoke virtual member functions from constructor
+  deserialize( group );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// constructs an ORBlockConfig out of an istream
@@ -1400,8 +1429,12 @@ class ORBlockConfig : public BlockConfig ,
   * @param input The istream containing the description of the
   *        ORBlockConfig. */
 
- ORBlockConfig( std::istream &input ) : BlockConfig() ,
-  OHandler() , RHandler() { load( input ); }
+ explicit ORBlockConfig( std::istream & input ) : BlockConfig(),
+                                                  OHandler(),
+                                                  RHandler() {
+  // FIXME: Do not invoke virtual member functions from constructor
+  load( input );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// constructs an ORBlockConfig for the given Block
@@ -1414,20 +1447,28 @@ class ORBlockConfig : public BlockConfig ,
   * @param diff It indicates if this configuration is a "differential" one.
   */
 
- ORBlockConfig( Block * block , bool diff = false ) : BlockConfig( diff ) ,
-  OHandler() , RHandler() { get( block ); }
+ explicit ORBlockConfig( Block * block, bool diff = false ) :
+  BlockConfig( diff ),
+  OHandler(),
+  RHandler() {
+  // FIXME: Do not invoke virtual member functions from constructor
+  get( block );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: does what it says on the tin
 
- ORBlockConfig( const ORBlockConfig & old ) : BlockConfig( old ) ,
-  OHandler( old ) , RHandler( old ) {}
+ ORBlockConfig( const ORBlockConfig & old ) : BlockConfig( old ),
+                                              OHandler( old ),
+                                              RHandler( old ) {}
 
 /*--------------------------------------------------------------------------*/
  /// move constructor: does what it says on the tin
 
- ORBlockConfig( ORBlockConfig && old ) : BlockConfig( std::move( old ) ) ,
-  OHandler( std::move( old ) ) , RHandler( std::move( old ) ) {}
+ ORBlockConfig( ORBlockConfig && old ) noexcept:
+  BlockConfig( std::move( old ) ),
+  OHandler( std::move( old ) ),
+  RHandler( std::move( old ) ) {}
 
 /*--------------------------------------------------------------------------*/
  /// weird move constructor from formally unrelated class
@@ -1435,8 +1476,10 @@ class ORBlockConfig : public BlockConfig ,
   * latter in fact is a "superset" of the former, and therefore it can be
   * used to move-construct it. */
 
- ORBlockConfig( OCRBlockConfig && old ) : BlockConfig( std::move( old ) ) ,
-  OHandler( std::move( old ) ) , RHandler( std::move( old ) ) {}
+ explicit ORBlockConfig( OCRBlockConfig && old ) :
+  BlockConfig( std::move( old ) ),
+  OHandler( std::move( old ) ),
+  RHandler( std::move( old ) ) {}
 
 /*--------------------------------------------------------------------------*/
  /// copy assignment operator: it is deleted
@@ -1459,19 +1502,19 @@ class ORBlockConfig : public BlockConfig ,
   *   (see RBlockConfig::deserialize()). */
 
  void deserialize( netCDF::NcGroup & group ) override {
-  if( ! ( BlockConfig::empty() && OHandler::empty() && RHandler::empty() ) )
-   throw( std::logic_error( "deserializing a non-empty ORBlockConfig" ) );
+  if( !( BlockConfig::empty() && OHandler::empty() && RHandler::empty() ) )
+   throw ( std::logic_error( "deserializing a non-empty ORBlockConfig" ) );
 
   BlockConfig::deserialize( group );
   OHandler::deserialize( group );
   RHandler::deserialize( group );
-  }
+ }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
  /// destructor: silently calls the destructors of base classes
 
- virtual ~ORBlockConfig() {}
+ ~ORBlockConfig() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -1496,7 +1539,7 @@ class ORBlockConfig : public BlockConfig ,
   BlockConfig::get( block );
   OHandler::get( block );
   RHandler::get( block );
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*---------- METHODS DESCRIBING THE BEHAVIOR OF THE ORBlockConfig ----------*/
@@ -1516,28 +1559,27 @@ class ORBlockConfig : public BlockConfig ,
   * @param deleteold Indicates whether the current Configuration of Block must
   *        be deleted (see BlockConfig::apply()). */
 
- void apply( Block * block , bool deleteold = true ) override {
-  if( ! block ) return;
-  BlockConfig::apply( block , deleteold );
-  OHandler::apply( block , deleteold , f_diff );
-  RHandler::apply( block , deleteold , f_diff );
-  }
+ void apply( Block * block, bool deleteold = true ) override {
+  if( !block ) return;
+  BlockConfig::apply( block, deleteold );
+  OHandler::apply( block, deleteold, f_diff );
+  RHandler::apply( block, deleteold, f_diff );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// clear this ORBlockConfig
 
- void clear( void ) override {
+ void clear() override {
   BlockConfig::clear();
   OHandler::clear();
   RHandler::clear();
-  }
+ }
 
 /*------------------------------- CLONE ------------------------------------*/
 
- ORBlockConfig * clone( void ) const override
- {
-  return( new ORBlockConfig( *this ) );
-  }
+ [[nodiscard]] ORBlockConfig * clone() const override {
+  return ( new ORBlockConfig( *this ) );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------- METHODS FOR LOADING, PRINTING & SAVING THE ORBlockConfig --------*/
@@ -1554,7 +1596,7 @@ class ORBlockConfig : public BlockConfig ,
   BlockConfig::serialize( group );
   OHandler::serialize( group );
   RHandler::serialize( group );
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------------------ FRIENDS -----------------------------------*/
@@ -1573,11 +1615,11 @@ class ORBlockConfig : public BlockConfig ,
 
  /// print the ORBlockConfig
 
- void print( std::ostream &output ) const override {
+ void print( std::ostream & output ) const override {
   BlockConfig::print( output );
   OHandler::print( output );
   RHandler::print( output );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// load this ORBlockConfig out of an istream
@@ -1589,11 +1631,11 @@ class ORBlockConfig : public BlockConfig ,
   *
   * - that specified in RBlockConfig::load(). */
 
- void load( std::istream &input ) override {
+ void load( std::istream & input ) override {
   BlockConfig::load( input );
   OHandler::load( input );
   RHandler::load( input );
-  }
+ }
 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 
@@ -1605,7 +1647,7 @@ class ORBlockConfig : public BlockConfig ,
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( ORBlockConfig ) )
+};  // end( class( ORBlockConfig ) )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS OCBlockConfig ---------------------------*/
@@ -1614,10 +1656,9 @@ class ORBlockConfig : public BlockConfig ,
 /*--------------------------------------------------------------------------*/
 /// BlockConfig for configuring Objective and Constraints
 
-class OCBlockConfig : public BlockConfig ,
-                      public BlockConfigHandlers::OHandler ,
-                      public BlockConfigHandlers::CHandler
-{
+class OCBlockConfig : public BlockConfig,
+                      public BlockConfigHandlers::OHandler,
+                      public BlockConfigHandlers::CHandler {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
@@ -1634,8 +1675,8 @@ class OCBlockConfig : public BlockConfig ,
 /*---------------------------- CONSTRUCTORS --------------------------------*/
  /// constructor: creates an empty OCBlockConfig
 
- OCBlockConfig( bool diff = true )
-  : BlockConfig( diff ) , OHandler() , CHandler() {}
+ explicit OCBlockConfig( bool diff = true )
+  : BlockConfig( diff ), OHandler(), CHandler() {}
 
 /*--------------------------------------------------------------------------*/
  /// constructs an OCBlockConfig out of the given netCDF \p group
@@ -1646,8 +1687,11 @@ class OCBlockConfig : public BlockConfig ,
   * @param group The netCDF::NcGroup containing the description of the
   *        OCBlockConfig. */
 
- OCBlockConfig( netCDF::NcGroup & group )
-  : BlockConfig() , OHandler() , CHandler() { deserialize( group ); }
+ explicit OCBlockConfig( netCDF::NcGroup & group )
+  : BlockConfig(), OHandler(), CHandler() {
+  // FIXME: Do not invoke virtual member functions from constructor
+  deserialize( group );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// constructs an OCBlockConfig out of an istream
@@ -1658,8 +1702,11 @@ class OCBlockConfig : public BlockConfig ,
   * @param input The istream containing the description of the
   *        OCBlockConfig. */
 
- OCBlockConfig( std::istream &input )
-  : BlockConfig() , OHandler() , CHandler() { load( input ); }
+ explicit OCBlockConfig( std::istream & input )
+  : BlockConfig(), OHandler(), CHandler() {
+  // FIXME: Do not invoke virtual member functions from constructor
+  load( input );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// constructs an OCBlockConfig for the given Block
@@ -1672,20 +1719,25 @@ class OCBlockConfig : public BlockConfig ,
   * @param diff It indicates if this configuration is a "differential" one.
   */
 
- OCBlockConfig( Block * block , bool diff = false )
-  : BlockConfig( diff ) , OHandler() , CHandler() { get( block ); }
+ explicit OCBlockConfig( Block * block, bool diff = false )
+  : BlockConfig( diff ), OHandler(), CHandler() {
+  // FIXME: Do not invoke virtual member functions from constructor
+  get( block );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: does what it says on the tin
 
  OCBlockConfig( const OCBlockConfig & old )
-  : BlockConfig( old ) , OHandler( old ) , CHandler( old ) {}
+  : BlockConfig( old ), OHandler( old ), CHandler( old ) {}
 
 /*--------------------------------------------------------------------------*/
  /// move constructor: does what it says on the tin
 
- OCBlockConfig( OCBlockConfig && old ) : BlockConfig( std::move( old ) ) ,
-  OHandler( std::move( old ) ) , CHandler( std::move( old ) ) {}
+ OCBlockConfig( OCBlockConfig && old ) noexcept:
+  BlockConfig( std::move( old ) ),
+  OHandler( std::move( old ) ),
+  CHandler( std::move( old ) ) {}
 
 /*--------------------------------------------------------------------------*/
  /// weird move constructor from formally unrelated class
@@ -1693,8 +1745,10 @@ class OCBlockConfig : public BlockConfig ,
   * latter in fact is a "superset" of the former, and therefore it can be
   * used to move-construct it. */
 
- OCBlockConfig( OCRBlockConfig && old ) : BlockConfig( std::move( old ) ) ,
-  OHandler( std::move( old ) ) , CHandler( std::move( old ) ) {}
+ explicit OCBlockConfig( OCRBlockConfig && old ) :
+  BlockConfig( std::move( old ) ),
+  OHandler( std::move( old ) ),
+  CHandler( std::move( old ) ) {}
 
 /*--------------------------------------------------------------------------*/
  /// copy assignment operator: it is deleted
@@ -1717,19 +1771,19 @@ class OCBlockConfig : public BlockConfig ,
   *   (see CBlockConfig::deserialize()). */
 
  void deserialize( netCDF::NcGroup & group ) override {
-  if( ! ( BlockConfig::empty() && OHandler::empty() && CHandler::empty() ) )
-   throw( std::logic_error( "deserializing a non-empty OCBlockConfig" ) );
+  if( !( BlockConfig::empty() && OHandler::empty() && CHandler::empty() ) )
+   throw ( std::logic_error( "deserializing a non-empty OCBlockConfig" ) );
 
   BlockConfig::deserialize( group );
   OHandler::deserialize( group );
   CHandler::deserialize( group );
-  }
+ }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
  /// destructor: silently calls the destructors of base classes
 
- virtual ~OCBlockConfig() {}
+ ~OCBlockConfig() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -1753,7 +1807,7 @@ class OCBlockConfig : public BlockConfig ,
   BlockConfig::get( block );
   OHandler::get( block );
   CHandler::get( block );
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*---------- METHODS DESCRIBING THE BEHAVIOR OF THE OCBlockConfig ----------*/
@@ -1773,28 +1827,27 @@ class OCBlockConfig : public BlockConfig ,
   * @param deleteold Indicates whether the current BlockConfig of Block must
   *        be deleted. */
 
- void apply( Block * block , bool deleteold = true ) override{
-  if( ! block ) return;
-  BlockConfig::apply( block , deleteold );
-  OHandler::apply( block , deleteold , f_diff );
-  CHandler::apply( block , deleteold , f_diff );
-  }
+ void apply( Block * block, bool deleteold = true ) override {
+  if( !block ) return;
+  BlockConfig::apply( block, deleteold );
+  OHandler::apply( block, deleteold, f_diff );
+  CHandler::apply( block, deleteold, f_diff );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// clear this OCBlockConfig
 
- void clear( void ) override {
+ void clear() override {
   BlockConfig::clear();
   OHandler::clear();
   CHandler::clear();
-  }
+ }
 
 /*------------------------------- CLONE ------------------------------------*/
 
- OCBlockConfig * clone( void ) const override
- {
-  return( new OCBlockConfig( *this ) );
-  }
+ [[nodiscard]] OCBlockConfig * clone() const override {
+  return ( new OCBlockConfig( *this ) );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*------- METHODS FOR LOADING, PRINTING & SAVING THE OCBlockConfig ---------*/
@@ -1811,7 +1864,7 @@ class OCBlockConfig : public BlockConfig ,
   BlockConfig::serialize( group );
   OHandler::serialize( group );
   CHandler::serialize( group );
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -1823,11 +1876,11 @@ class OCBlockConfig : public BlockConfig ,
 
  /// print the OCBlockConfig
 
- void print( std::ostream &output ) const override {
+ void print( std::ostream & output ) const override {
   BlockConfig::print( output );
   OHandler::print( output );
   CHandler::print( output );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// load this OCBlockConfig out of an istream
@@ -1839,11 +1892,11 @@ class OCBlockConfig : public BlockConfig ,
   *
   * - that specified in CBlockConfig::load(). */
 
- void load( std::istream &input ) override {
+ void load( std::istream & input ) override {
   BlockConfig::load( input );
   OHandler::load( input );
   CHandler::load( input );
-  }
+ }
 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 
@@ -1855,7 +1908,7 @@ class OCBlockConfig : public BlockConfig ,
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( OCBlockConfig ) )
+};  // end( class( OCBlockConfig ) )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS OBlockConfig ----------------------------*/
@@ -1870,9 +1923,8 @@ class OCBlockConfig : public BlockConfig ,
  * - a pointer to ComputeConfig for the Objective of the Block.
  */
 
-class OBlockConfig : public BlockConfig ,
-                     public BlockConfigHandlers::OHandler
-{
+class OBlockConfig : public BlockConfig,
+                     public BlockConfigHandlers::OHandler {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
@@ -1889,7 +1941,7 @@ class OBlockConfig : public BlockConfig ,
 /*---------------------------- CONSTRUCTORS --------------------------------*/
  /// constructor: creates an empty OBlockConfig
 
- OBlockConfig( bool diff = true ) : BlockConfig( diff ) , OHandler() {}
+ explicit OBlockConfig( bool diff = true ) : BlockConfig( diff ), OHandler() {}
 
 /*--------------------------------------------------------------------------*/
  /// constructs an OBlockConfig out of the given netCDF \p group
@@ -1900,9 +1952,10 @@ class OBlockConfig : public BlockConfig ,
   * @param group The netCDF::NcGroup containing the description of the
   *        OBlockConfig. */
 
- OBlockConfig( netCDF::NcGroup & group ) : BlockConfig() , OHandler() {
+ explicit OBlockConfig( netCDF::NcGroup & group ) : BlockConfig(), OHandler() {
+  // FIXME: Do not invoke virtual member functions from constructor
   deserialize( group );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// constructs an OBlockConfig out of an istream
@@ -1913,9 +1966,10 @@ class OBlockConfig : public BlockConfig ,
   * @param input The istream containing the description of the
   *        OBlockConfig. */
 
- OBlockConfig( std::istream &input ) : BlockConfig() , OHandler() {
+ explicit OBlockConfig( std::istream & input ) : BlockConfig(), OHandler() {
+  // FIXME: Do not invoke virtual member functions from constructor
   load( input );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// constructs an OBlockConfig for the given Block
@@ -1928,20 +1982,24 @@ class OBlockConfig : public BlockConfig ,
   * @param diff It indicates if this configuration is a "differential" one.
   */
 
- OBlockConfig( Block * block , bool diff = false )
-  : BlockConfig( diff ) , OHandler() { get( block ); }
+ explicit OBlockConfig( Block * block, bool diff = false )
+  : BlockConfig( diff ), OHandler() {
+  // FIXME: Do not invoke virtual member functions from constructor
+  get( block );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: does what it says on the tin
 
  OBlockConfig( const OBlockConfig & old )
-  : BlockConfig( old ) , OHandler( old ) {}
+  : BlockConfig( old ), OHandler( old ) {}
 
 /*--------------------------------------------------------------------------*/
  /// move constructor: does what it says on the tin
 
- OBlockConfig( OBlockConfig && old )
- : BlockConfig( std::move( old ) ) , OHandler( std::move( old ) ) {}
+ OBlockConfig( OBlockConfig && old ) noexcept:
+  BlockConfig( std::move( old ) ),
+  OHandler( std::move( old ) ) {}
 
 /*--------------------------------------------------------------------------*/
  /// weird move constructor from formally unrelated class
@@ -1949,8 +2007,8 @@ class OBlockConfig : public BlockConfig ,
   * latter in fact is a "superset" of the former, and therefore it can be
   * used to move-construct it. */
 
- OBlockConfig( ORBlockConfig && old )
- : BlockConfig( std::move( old ) ) , OHandler( std::move( old ) ) {}
+ explicit OBlockConfig( ORBlockConfig && old )
+  : BlockConfig( std::move( old ) ), OHandler( std::move( old ) ) {}
 
 /*--------------------------------------------------------------------------*/
  /// copy assignment operator: it is deleted
@@ -1972,13 +2030,13 @@ class OBlockConfig : public BlockConfig ,
  void deserialize( netCDF::NcGroup & group ) override {
   BlockConfig::deserialize( group );
   OHandler::deserialize( group );
-  }
+ }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
  /// destructor: silently calls the destructors of base classes
 
- virtual ~OBlockConfig() {}
+ ~OBlockConfig() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -2001,7 +2059,7 @@ class OBlockConfig : public BlockConfig ,
  void get( Block * block ) override {
   BlockConfig::get( block );
   OHandler::get( block );
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF THE OBlockConfig ----------*/
@@ -2021,22 +2079,24 @@ class OBlockConfig : public BlockConfig ,
   * @param deleteold indicates whether the current BlockConfig of Block must
   *        be deleted. */
 
- void apply( Block * block , bool deleteold = true ) override {
-  BlockConfig::apply( block , deleteold );
-  OHandler::apply( block , deleteold , f_diff );
-  }
+ void apply( Block * block, bool deleteold = true ) override {
+  BlockConfig::apply( block, deleteold );
+  OHandler::apply( block, deleteold, f_diff );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// clear this OBlockConfig
 
- void clear( void ) override { BlockConfig::clear(); OHandler::clear(); }
+ void clear() override {
+  BlockConfig::clear();
+  OHandler::clear();
+ }
 
 /*------------------------------- CLONE ------------------------------------*/
 
- OBlockConfig * clone( void ) const override
- {
-  return( new OBlockConfig( *this ) );
-  }
+ [[nodiscard]] OBlockConfig * clone() const override {
+  return ( new OBlockConfig( *this ) );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------- METHODS FOR LOADING, PRINTING & SAVING THE OBlockConfig ---------*/
@@ -2052,7 +2112,7 @@ class OBlockConfig : public BlockConfig ,
  void serialize( netCDF::NcGroup & group ) const override {
   BlockConfig::serialize( group );
   OHandler::serialize( group );
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -2064,10 +2124,10 @@ class OBlockConfig : public BlockConfig ,
 
  /// print the OBlockConfig
 
- void print( std::ostream &output ) const override {
+ void print( std::ostream & output ) const override {
   BlockConfig::print( output );
   OHandler::print( output );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// load this OBlockConfig out of an istream
@@ -2080,10 +2140,10 @@ class OBlockConfig : public BlockConfig ,
   * - if the above is not '*', the description of the :ComputeConfig object
   *   for the Objective. */
 
- void load( std::istream &input ) override {
+ void load( std::istream & input ) override {
   BlockConfig::load( input );
   OHandler::load( input );
-  }
+ }
 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 
@@ -2095,7 +2155,7 @@ class OBlockConfig : public BlockConfig ,
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( OBlockConfig ) )
+};  // end( class( OBlockConfig ) )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS CBlockConfig ----------------------------*/
@@ -2112,9 +2172,8 @@ class OBlockConfig : public BlockConfig ,
  * - a vector of pointers to ComputeConfig for each indicated Constraint of a
  *   Block. */
 
-class CBlockConfig : public BlockConfig ,
-                     public BlockConfigHandlers::CHandler
-{
+class CBlockConfig : public BlockConfig,
+                     public BlockConfigHandlers::CHandler {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
@@ -2132,7 +2191,7 @@ class CBlockConfig : public BlockConfig ,
 
  /// constructor: creates an empty CBlockConfig
 
- CBlockConfig( bool diff = true ) : BlockConfig( diff ) , CHandler() {}
+ explicit CBlockConfig( bool diff = true ) : BlockConfig( diff ), CHandler() {}
 
 /*--------------------------------------------------------------------------*/
  /// constructs an CBlockConfig out of the given netCDF \p group
@@ -2143,8 +2202,11 @@ class CBlockConfig : public BlockConfig ,
   * @param group the netCDF::NcGroup containing the description of the
   *        CBlockConfig. */
 
- CBlockConfig( netCDF::NcGroup & group )
-  : BlockConfig() , CHandler() { deserialize( group ); }
+ explicit CBlockConfig( netCDF::NcGroup & group )
+  : BlockConfig(), CHandler() {
+  // FIXME: Do not invoke virtual member functions from constructor
+  deserialize( group );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// constructs an CBlockConfig out of an istream
@@ -2155,8 +2217,11 @@ class CBlockConfig : public BlockConfig ,
   * @param input the istream containing the description of the
   *        CBlockConfig. */
 
- CBlockConfig( std::istream &input )
-  : BlockConfig() , CHandler() { load( input ); }
+ explicit CBlockConfig( std::istream & input )
+  : BlockConfig(), CHandler() {
+  // FIXME: Do not invoke virtual member functions from constructor
+  load( input );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// constructs an CBlockConfig for the given Block
@@ -2168,20 +2233,23 @@ class CBlockConfig : public BlockConfig ,
   *
   * @param diff It indicates if this configuration is a "differential" one. */
 
- CBlockConfig( Block * block , bool diff = false )
-  : BlockConfig( diff ) , CHandler()  { get( block ); }
+ explicit CBlockConfig( Block * block, bool diff = false )
+  : BlockConfig( diff ), CHandler() {
+  // FIXME: Do not invoke virtual member functions from constructor
+  get( block );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: does what it says on the tin
 
  CBlockConfig( const CBlockConfig & old )
-  : BlockConfig( old ) , CHandler( old ) {}
+  : BlockConfig( old ), CHandler( old ) {}
 
 /*--------------------------------------------------------------------------*/
  /// move constructor: does what it says on the tin
 
- CBlockConfig( CBlockConfig && old )
-  : BlockConfig( std::move( old ) ) , CHandler( std::move( old ) ) {}
+ CBlockConfig( CBlockConfig && old ) noexcept:
+  BlockConfig( std::move( old ) ), CHandler( std::move( old ) ) {}
 
 /*--------------------------------------------------------------------------*/
  /// weird move constructor from formally unrelated class
@@ -2189,8 +2257,8 @@ class CBlockConfig : public BlockConfig ,
   * in fact is a "superset" of the former, and therefore it can be used to
   * move-construct it. */
 
- CBlockConfig( CRBlockConfig && old )
-  : BlockConfig( std::move( old ) ) , CHandler( std::move( old ) ) {}
+ explicit CBlockConfig( CRBlockConfig && old ) :
+  BlockConfig( std::move( old ) ), CHandler( std::move( old ) ) {}
 
 /*--------------------------------------------------------------------------*/
  /// weird move constructor from another formally unrelated class
@@ -2198,8 +2266,8 @@ class CBlockConfig : public BlockConfig ,
   * in fact is a "superset" of the former, and therefore it can be used to
   * move-construct it. */
 
- CBlockConfig( OCRBlockConfig && old )
-  : BlockConfig( std::move( old ) ) , CHandler( std::move( old ) ) {}
+ explicit CBlockConfig( OCRBlockConfig && old )
+  : BlockConfig( std::move( old ) ), CHandler( std::move( old ) ) {}
 
 /*--------------------------------------------------------------------------*/
  /// copy assignment operator: it is deleted
@@ -2259,19 +2327,19 @@ class CBlockConfig : public BlockConfig ,
   *   configuration) is assumed for the i-th Constraint. */
 
  void deserialize( netCDF::NcGroup & group ) override {
-  if( v_Config_Constraint.size() || v_Constraint_id.size() )
-   throw( std::logic_error( "CBlockConfig::deserialize: deserializing a "
-			    "non-empty CBlockConfig" ) );
+  if( !v_Config_Constraint.empty() || !v_Constraint_id.empty() )
+   throw ( std::logic_error( "CBlockConfig::deserialize: deserializing a "
+                             "non-empty CBlockConfig" ) );
 
   BlockConfig::deserialize( group );
   CHandler::deserialize( group );
-  }
+ }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
  /// destructor: silently calls the destructors of base classes
 
- virtual ~CBlockConfig() {}
+ ~CBlockConfig() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -2315,7 +2383,7 @@ class CBlockConfig : public BlockConfig ,
  void get( Block * block ) override {
   BlockConfig::get( block );
   CHandler::get( block );
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF THE CBlockConfig ----------*/
@@ -2340,23 +2408,25 @@ class CBlockConfig : public BlockConfig ,
   * @param deleteold Indicates whether the current BlockConfig of Block must
   *        be deleted. */
 
- void apply( Block * block , bool deleteold = true ) override {
- if( ! block ) return;
- BlockConfig::apply( block , deleteold );
- CHandler::apply( block , deleteold , f_diff );
+ void apply( Block * block, bool deleteold = true ) override {
+  if( !block ) return;
+  BlockConfig::apply( block, deleteold );
+  CHandler::apply( block, deleteold, f_diff );
  }
 
 /*--------------------------------------------------------------------------*/
  /// clear this CBlockConfig
 
- void clear( void ) override { BlockConfig::clear(); CHandler::clear(); }
+ void clear() override {
+  BlockConfig::clear();
+  CHandler::clear();
+ }
 
 /*------------------------------- CLONE ------------------------------------*/
 
- CBlockConfig * clone( void ) const override
- {
-  return( new CBlockConfig( *this ) );
-  }
+ [[nodiscard]] CBlockConfig * clone() const override {
+  return ( new CBlockConfig( *this ) );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------- METHODS FOR LOADING, PRINTING & SAVING THE CBlockConfig --------*/
@@ -2372,7 +2442,7 @@ class CBlockConfig : public BlockConfig ,
  void serialize( netCDF::NcGroup & group ) const override {
   BlockConfig::serialize( group );
   CHandler::serialize( group );
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -2384,10 +2454,10 @@ class CBlockConfig : public BlockConfig ,
 
  /// print the CBlockConfig
 
- void print( std::ostream &output ) const override {
+ void print( std::ostream & output ) const override {
   BlockConfig::print( output );
   CHandler::print( output );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// load this CBlockConfig out of an istream
@@ -2420,10 +2490,10 @@ class CBlockConfig : public BlockConfig ,
   *       THIS GROUP IS CONSIDERED. OTHERWISE, THE GROUP OF DYNAMIC Constraint
   *       WITH THAT NAME IS CONSIDERED. */
 
- void load( std::istream &input ) override {
+ void load( std::istream & input ) override {
   BlockConfig::load( input );
   CHandler::load( input );
-  }
+ }
 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 
@@ -2435,7 +2505,7 @@ class CBlockConfig : public BlockConfig ,
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( CBlockConfig ) )
+};  // end( class( CBlockConfig ) )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS RBlockConfig ----------------------------*/
@@ -2453,9 +2523,8 @@ class CBlockConfig : public BlockConfig ,
  *
  * - a vector associating each BlockConfig to a sub-Block of the Block. */
 
-class RBlockConfig : public BlockConfig ,
-                     public BlockConfigHandlers::RHandler
-{
+class RBlockConfig : public BlockConfig,
+                     public BlockConfigHandlers::RHandler {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
@@ -2472,7 +2541,7 @@ class RBlockConfig : public BlockConfig ,
 /*---------------------------- CONSTRUCTORS --------------------------------*/
  /// constructor: creates an empty RBlockConfig
 
- RBlockConfig( bool diff = true ): BlockConfig( diff ) , RHandler() {}
+ explicit RBlockConfig( bool diff = true ) : BlockConfig( diff ), RHandler() {}
 
 /*--------------------------------------------------------------------------*/
  /// constructs a RBlockConfig out of the given netCDF \p group
@@ -2483,9 +2552,10 @@ class RBlockConfig : public BlockConfig ,
   * @param group The netCDF::NcGroup containing the description of the
   *        RBlockConfig. */
 
- RBlockConfig( netCDF::NcGroup & group ) : BlockConfig() , RHandler() {
+ explicit RBlockConfig( netCDF::NcGroup & group ) : BlockConfig(), RHandler() {
+  // FIXME: Do not invoke virtual member functions from constructor
   deserialize( group );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// constructs a RBlockConfig out of an istream
@@ -2495,9 +2565,10 @@ class RBlockConfig : public BlockConfig ,
   * @param input The istream containing the description of the
   *        RBlockConfig. */
 
- RBlockConfig( std::istream &input ) : BlockConfig() , RHandler() {
+ explicit RBlockConfig( std::istream & input ) : BlockConfig(), RHandler() {
+  // FIXME: Do not invoke virtual member functions from constructor
   load( input );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// constructs a RBlockConfig for the given Block
@@ -2510,21 +2581,23 @@ class RBlockConfig : public BlockConfig ,
   * @param diff It indicates if this configuration is a "differential" one.
   */
 
- RBlockConfig( Block * block , bool diff = false ) : BlockConfig( diff ) {
+ explicit RBlockConfig( Block * block, bool diff = false ) :
+  BlockConfig( diff ) {
+  // FIXME: Do not invoke virtual member functions from constructor
   get( block );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: does what it says on the tin
 
- RBlockConfig( const RBlockConfig & old )
-  : BlockConfig( old ) , RHandler( old ) {}
+ RBlockConfig( const RBlockConfig & old ) :
+  BlockConfig( old ), RHandler( old ) {}
 
 /*--------------------------------------------------------------------------*/
  /// move constructor: does what it says on the tin
 
- RBlockConfig( RBlockConfig && old )
-  : BlockConfig( std::move( old ) ) , RHandler( std::move( old ) ) {}
+ RBlockConfig( RBlockConfig && old ) noexcept:
+  BlockConfig( std::move( old ) ), RHandler( std::move( old ) ) {}
 
 /*--------------------------------------------------------------------------*/
  /// weird move constructor from formally unrelated class
@@ -2532,8 +2605,8 @@ class RBlockConfig : public BlockConfig ,
   * latter in fact is a "superset" of the former, and therefore it can be
   * used to move-construct it. */
 
- RBlockConfig( CRBlockConfig && old )
-  : BlockConfig( std::move( old ) ) , RHandler( std::move( old ) ) {}
+ explicit RBlockConfig( CRBlockConfig && old ) :
+  BlockConfig( std::move( old ) ), RHandler( std::move( old ) ) {}
 
 /*--------------------------------------------------------------------------*/
  /// copy assignment operator: it is deleted
@@ -2576,18 +2649,18 @@ class RBlockConfig : public BlockConfig ,
   *       THE FIRST CHARACTER OF THIS NAME CANNOT BE A DIGIT. */
 
  void deserialize( netCDF::NcGroup & group ) override {
-  if( ! ( BlockConfig::empty() && RHandler::empty() ) )
-   throw( std::logic_error( "deserializing a non-empty RBlockConfig" ) );
+  if( !( BlockConfig::empty() && RHandler::empty() ) )
+   throw ( std::logic_error( "deserializing a non-empty RBlockConfig" ) );
 
   BlockConfig::deserialize( group );
   RHandler::deserialize( group );
-  }
+ }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
  /// destructor: silently calls the destructors of base classes
 
- virtual ~RBlockConfig() {}
+ ~RBlockConfig() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -2625,7 +2698,7 @@ class RBlockConfig : public BlockConfig ,
  void get( Block * block ) override {
   BlockConfig::get( block );
   RHandler::get( block );
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*---------- METHODS DESCRIBING THE BEHAVIOR OF THE RBlockConfig -----------*/
@@ -2651,11 +2724,11 @@ class RBlockConfig : public BlockConfig ,
   * @param deleteold Indicates whether the current Configuration of Block must
   *        be deleted (see BlockConfig::apply()). */
 
- void apply( Block * block , bool deleteold = true ) override {
-  if( ! block ) return;
-  BlockConfig::apply( block , deleteold );
-  RHandler::apply( block , deleteold , f_diff );
-  }
+ void apply( Block * block, bool deleteold = true ) override {
+  if( !block ) return;
+  BlockConfig::apply( block, deleteold );
+  RHandler::apply( block, deleteold, f_diff );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// clear this RBlockConfig
@@ -2663,14 +2736,16 @@ class RBlockConfig : public BlockConfig ,
   * BlockConfig::clear() and then invoking clear() for each BlockConfig
   * currently being handled by this RBlockConfig. */
 
- void clear( void ) override { BlockConfig::clear(); RHandler::clear(); }
+ void clear() override {
+  BlockConfig::clear();
+  RHandler::clear();
+ }
 
 /*-------------------------------- CLONE -----------------------------------*/
 
- RBlockConfig * clone( void ) const override
- {
-  return( new RBlockConfig( *this ) );
-  }
+ [[nodiscard]] RBlockConfig * clone() const override {
+  return ( new RBlockConfig( *this ) );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------- METHODS FOR LOADING, PRINTING & SAVING THE RBlockConfig --------*/
@@ -2686,7 +2761,7 @@ class RBlockConfig : public BlockConfig ,
  void serialize( netCDF::NcGroup & group ) const override {
   BlockConfig::serialize( group );
   RHandler::serialize( group );
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -2697,10 +2772,10 @@ class RBlockConfig : public BlockConfig ,
 /*-------------------------- PROTECTED METHODS -----------------------------*/
  /// print the RBlockConfig
 
- void print( std::ostream &output ) const override {
+ void print( std::ostream & output ) const override {
   BlockConfig::print( output );
   RHandler::print( output );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// load this RBlockConfig out of an istream
@@ -2729,15 +2804,15 @@ class RBlockConfig : public BlockConfig ,
   *     IF THE NAME OF THE Block IS USED AS ITS IDENTIFICATION, THEN
   *     THE FIRST CHARACTER OF THIS NAME CANNOT BE A DIGIT. */
 
- void load( std::istream &input ) override {
+ void load( std::istream & input ) override {
   BlockConfig::load( input );
   RHandler::load( input );
-  }
+ }
 
 /*---------------------- PROTECTED FIELDS OF THE CLASS ---------------------*/
 
  /// the vector of sub-BlockConfig for each of the sub-Block of the Block
- std::vector<BlockConfig *> v_sub_BlockConfig;
+ std::vector< BlockConfig * > v_sub_BlockConfig;
 
  /// correspondence between v_sub_BlockConfig and the sub-Block of the Block
  /** This vector specifies the correspondence between the BlockConfig in
@@ -2747,7 +2822,7 @@ class RBlockConfig : public BlockConfig ,
   * (see Block::name()) or by its index in the list of sub-Blocks of its
   * father Block. If the name of the sub-Block is used, then the first
   * character of this name cannot be a digit. */
- std::vector<std::string> v_sub_Block_id;
+ std::vector< std::string > v_sub_Block_id;
 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 
@@ -2759,7 +2834,7 @@ class RBlockConfig : public BlockConfig ,
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( RBlockConfig ) )
+};  // end( class( RBlockConfig ) )
 
 /*--------------------------------------------------------------------------*/
 /** @}  end( group( RBlockConfig_CLASSES ) ) */

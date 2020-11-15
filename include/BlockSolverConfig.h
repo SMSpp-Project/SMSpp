@@ -35,7 +35,7 @@
 
 #ifndef __BlockSolverConfig
 #define __BlockSolverConfig
-                      /* self-identification: #endif at the end of the file */
+/* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -48,8 +48,7 @@
 /*--------------------------------------------------------------------------*/
 
 /// namespace for the Structured Modeling System++ (SMS++)
-namespace SMSpp_di_unipi_it
-{
+namespace SMSpp_di_unipi_it {
 
 /*--------------------------------------------------------------------------*/
 /*------------------- BlockSolverConfig-RELATED TYPES ----------------------*/
@@ -57,7 +56,7 @@ namespace SMSpp_di_unipi_it
 /** @defgroup BlockSolverConfig_TYPES BlockSolverConfig-related types
  *  @{ */
 
- using Index = Block::Index;
+using Index = Block::Index;
 
 /** @}  end( group( BlockSolverConfig_TYPES ) ) */
 /*--------------------------------------------------------------------------*/
@@ -189,8 +188,7 @@ namespace SMSpp_di_unipi_it
  * algorithmic parameters of the Solver registered with the Block without
  * affecting any of the other ones. */
 
-class BlockSolverConfig : public Configuration
-{
+class BlockSolverConfig : public Configuration {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
@@ -214,7 +212,8 @@ class BlockSolverConfig : public Configuration
   *
   * @param diff indicates if this configuration is a "differential" one. */
 
- BlockSolverConfig( bool diff = true ) : Configuration() , f_diff( diff ) {}
+ explicit BlockSolverConfig( bool diff = true ) :
+  Configuration(), f_diff( diff ) {}
 
 /*--------------------------------------------------------------------------*/
  /// constructs a BlockSolverConfig out of the given netCDF \p group
@@ -225,9 +224,10 @@ class BlockSolverConfig : public Configuration
   * @param group The netCDF::NcGroup containing the description of the
   *        BlockSolverConfig. */
 
- BlockSolverConfig( netCDF::NcGroup & group ) : Configuration() {
+ explicit BlockSolverConfig( netCDF::NcGroup & group ) : Configuration() {
+  // FIXME: Do not invoke virtual member functions from constructor
   deserialize( group );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// constructs a BlockSolverConfig out of an istream
@@ -237,7 +237,10 @@ class BlockSolverConfig : public Configuration
   * @param input The istream containing the description of the
   *        BlockSolverConfig. */
 
- BlockSolverConfig( std::istream &input ) : Configuration() { load( input ); }
+ explicit BlockSolverConfig( std::istream & input ) : Configuration() {
+  // FIXME: Do not invoke virtual member functions from constructor
+  load( input );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// constructs a BlockSolverConfig for the given Block
@@ -252,8 +255,13 @@ class BlockSolverConfig : public Configuration
   * @param clear It indicates whether a "cleared" BlockSolverConfig is
   *        desired. See BlockSolverConfig::get() for details. */
 
- BlockSolverConfig( Block * block , bool diff = false , bool clear = false ) :
-  Configuration() , f_diff( diff ) {  get( block , clear ); }
+ explicit BlockSolverConfig( Block * block,
+                             bool diff = false,
+                             bool clear = false ) :
+  Configuration(), f_diff( diff ) {
+  // FIXME: Do not invoke virtual member functions from constructor
+  get( block, clear );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: does what it says on the tin
@@ -263,7 +271,7 @@ class BlockSolverConfig : public Configuration
 /*--------------------------------------------------------------------------*/
  /// move constructor: does what it says on the tin
 
- BlockSolverConfig( BlockSolverConfig && old );
+ BlockSolverConfig( BlockSolverConfig && old ) noexcept ;
 
 /*--------------------------------------------------------------------------*/
  /// copy assignment operator: it is deleted
@@ -300,7 +308,7 @@ class BlockSolverConfig : public Configuration
   *    auto myBSC = BlockSolverConfig::deserialize( netCDFfile );
   */
 
- static BlockSolverConfig * deserialize( netCDF::NcFile & f ,
+ static BlockSolverConfig * deserialize( netCDF::NcFile & f,
                                          const unsigned int idx = 0 );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -338,11 +346,10 @@ class BlockSolverConfig : public Configuration
 /*--------------------------------------------------------------------------*/
  /// destructor
 
- virtual ~BlockSolverConfig()
- {
+ ~BlockSolverConfig() override {
   for( auto config : v_SolverConfigs )
    delete config;
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -402,7 +409,7 @@ class BlockSolverConfig : public Configuration
   * @param clear It indicates whether this BlockSolverConfig must be a clear
   *        one. */
 
- virtual void get( const Block * block , bool clear = false );
+ virtual void get( const Block * block, bool clear = false );
 
 /**@} ----------------------------------------------------------------------*/
 /*-------- METHODS DESCRIBING THE BEHAVIOR OF THE BlockSolverConfig --------*/
@@ -511,20 +518,19 @@ class BlockSolverConfig : public Configuration
  /** This method clears the vectors of (pointers to) ComputeConfig and names;
   * morever, #f_diff is set to false. */
 
- void clear( void ) override {
+ void clear() override {
   set_diff( false );
   for( auto config : v_SolverConfigs )
    delete config;
   v_SolverConfigs.clear();
   v_SolverNames.clear();
-  }
+ }
 
 /*------------------------------- CLONE -----------------------------------*/
 
- BlockSolverConfig * clone( void ) const override
- {
-  return( new BlockSolverConfig( *this ) );
-  }
+ [[nodiscard]] BlockSolverConfig * clone() const override {
+  return ( new BlockSolverConfig( *this ) );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*------ METHODS FOR LOADING, PRINTING & SAVING THE BlockSolverConfig ------*/
@@ -539,7 +545,7 @@ class BlockSolverConfig : public Configuration
   * BlockSolverConfig::deserialize( netCDF::NcGroup , int ) for details of
   * where the created netCDF group is placed in the SMS++ file. */
 
- void serialize( netCDF::NcFile & f , const int type ) const override;
+ void serialize( netCDF::NcFile & f, const int type ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// extends Configuration::serialize( netCDF::NcGroup )
@@ -572,11 +578,11 @@ class BlockSolverConfig : public Configuration
   *
   * @param solver_config A pointer to a ComputeConfig. */
 
- void add_ComputeConfig( std::string && name ,
+ void add_ComputeConfig( std::string && name,
                          ComputeConfig * solver_config = nullptr ) {
   v_SolverConfigs.push_back( solver_config );
   v_SolverNames.push_back( std::move( name ) );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// removes a pair < Solver (name) , ComputeConfig (pointer) >
@@ -589,17 +595,17 @@ class BlockSolverConfig : public Configuration
   * @param destroy indicates whether the current ComputeConfig of the given
   *        pair must be deleted */
 
- void remove_ComputeConfig( Index index , bool destroy = true ) {
+ void remove_ComputeConfig( Index index, bool destroy = true ) {
   if( index >= v_SolverConfigs.size() )
-   throw( std::invalid_argument( "BlockSolverConfig::remove_"
-				 "ComputeConfig: invalid index " +
-				 std::to_string( index ) ) );
+   throw ( std::invalid_argument( "BlockSolverConfig::remove_"
+                                  "ComputeConfig: invalid index " +
+                                  std::to_string( index ) ) );
   if( destroy )
    delete v_SolverConfigs[ index ];
 
   v_SolverConfigs.erase( v_SolverConfigs.begin() + index );
   v_SolverNames.erase( v_SolverNames.begin() + index );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// changes the name of a Solver
@@ -608,14 +614,14 @@ class BlockSolverConfig : public Configuration
   * @param index the index of the name of the Solver to be changed (this must
   *              be an index between 0 and num_ComputeConfig() - 1) */
 
- void set_Solver_name( Index index , std::string && name = "" ) {
+ void set_Solver_name( Index index, std::string && name = "" ) {
   if( index >= v_SolverNames.size() )
-   throw( std::invalid_argument( "BlockSolverConfig::set_Solver_name: "
-				 "invalid index: " + std::to_string( index )
-				 ) );
+   throw ( std::invalid_argument( "BlockSolverConfig::set_Solver_name: "
+                                  "invalid index: " + std::to_string( index )
+   ) );
 
   v_SolverNames[ index ] = std::move( name );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// change a ComputeConfig
@@ -627,17 +633,17 @@ class BlockSolverConfig : public Configuration
   * @param destroy It indicates whether the pointer to the ComputeConfig at
   *        the given index must be deleted. */
 
- void set_ComputeConfig( Index index , ComputeConfig * config = nullptr ,
+ void set_ComputeConfig( Index index, ComputeConfig * config = nullptr,
                          bool destroy = true ) {
   if( index >= v_SolverConfigs.size() )
-   throw( std::invalid_argument( "BlockSolverConfig::set_ComputeConfig: "
-				 "invalid index: " + std::to_string( index )
-				 ) );
+   throw ( std::invalid_argument( "BlockSolverConfig::set_ComputeConfig: "
+                                  "invalid index: " + std::to_string( index )
+   ) );
   if( destroy )
    delete v_SolverConfigs[ index ];
 
   v_SolverConfigs[ index ] = config;
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*---------- Methods for reading the data of the BlockSolverConfig ---------*/
@@ -647,23 +653,25 @@ class BlockSolverConfig : public Configuration
 
  /// tells if the configuration is a "differential" one (reads #f_diff)
 
- bool is_diff( void ) const { return( f_diff ); }
+ [[nodiscard]] bool is_diff() const { return ( f_diff ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the current number of ComputeConfig in this BlockSolverConfig
  /** Returns the current number of pairs < Solver name , ComputeConfig > in
   * this BlockSolverConfig */
 
- Index num_ComputeConfig( void ) const { return( v_SolverConfigs.size() ); }
+ [[nodiscard]] Index num_ComputeConfig() const {
+  return ( v_SolverConfigs.size() );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the names of all Solver names in this BlockSolverConfig
  /** This function returns a const reference to the vector containing the
   * Solver names in this BlockSolverConfig. */
 
- const std::vector< std::string > & get_SolverNames( void ) const {
-  return( v_SolverNames );
-  }
+ [[nodiscard]] const std::vector< std::string > & get_SolverNames() const {
+  return ( v_SolverNames );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the name of the Solver at the given position
@@ -673,22 +681,23 @@ class BlockSolverConfig : public Configuration
   *
   * @return The name of the Solver at the given \p index. */
 
- const std::string & get_SolverName( Index index ) const {
+ [[nodiscard]] const std::string & get_SolverName( Index index ) const {
   if( index >= v_SolverConfigs.size() )
-   throw( std::invalid_argument( "BlockSolverConfig::get_SolverName: "
-				 "invalid index: " + std::to_string( index )
-				 ) );
-  return( v_SolverNames[ index ] );
-  }
+   throw ( std::invalid_argument( "BlockSolverConfig::get_SolverName: "
+                                  "invalid index: " + std::to_string( index )
+   ) );
+  return ( v_SolverNames[ index ] );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the (pointer to) the ComputeConfig of all Solver of the Block
  /** This function returns a const reference to the vector containing the
   * (pointer to) the ComputeConfig of all Solver of the Block. */
 
- const std::vector< ComputeConfig * > & get_SolverConfigs( void ) const {
-  return( v_SolverConfigs );
-  }
+ [[nodiscard]] const std::vector< ComputeConfig * > &
+ get_SolverConfigs() const {
+  return ( v_SolverConfigs );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the (pointer to) the ComputeConfig at the given index
@@ -699,13 +708,13 @@ class BlockSolverConfig : public Configuration
   *
   * @return The pointer to the ComputeConfig at the given \p index. */
 
- ComputeConfig * get_SolverConfig( Index index ) const {
+ [[nodiscard]] ComputeConfig * get_SolverConfig( Index index ) const {
   if( index >= v_SolverConfigs.size() )
-   throw( std::invalid_argument( "BlockSolverConfig::get_SolverConfig: "
-				 "invalid index: " + std::to_string( index )
-				 ) );
-  return( v_SolverConfigs[ index ] );
-  }
+   throw ( std::invalid_argument( "BlockSolverConfig::get_SolverConfig: "
+                                  "invalid index: " + std::to_string( index )
+   ) );
+  return ( v_SolverConfigs[ index ] );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns true if the BlockSolverConfig is "empty"
@@ -715,8 +724,8 @@ class BlockSolverConfig : public Configuration
   * it does nothing, if apply()-ed with f_diff == false it is equivalent to
   * a call to Block::unregister_Solvers( true ). */
 
- virtual bool empty( void ) const { return( v_SolverNames.empty() ); }
-  
+ [[nodiscard]] virtual bool empty() const { return ( v_SolverNames.empty() ); }
+
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -727,7 +736,7 @@ class BlockSolverConfig : public Configuration
 
  /// print the BlockSolverConfig
 
- void print( std::ostream &output ) const override;
+ void print( std::ostream & output ) const override;
 
 /*--------------------------------------------------------------------------*/
  /// load this BlockSolverConfig out of an istream
@@ -752,11 +761,11 @@ class BlockSolverConfig : public Configuration
   *   (clearly, if k == 0 this is empty)
   */
 
- void load( std::istream &input ) override;
+ void load( std::istream & input ) override;
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
- bool f_diff;  ///< tells if the configuration is a "differential" one
+ bool f_diff{};  ///< tells if the configuration is a "differential" one
 
  /// the names of the Solver of the BlockSolverConfig
  std::vector< std::string > v_SolverNames;
@@ -774,7 +783,7 @@ class BlockSolverConfig : public Configuration
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( BlockSolverConfig ) )
+};  // end( class( BlockSolverConfig ) )
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- CLASS RBlockSolverConfig -------------------------*/
@@ -820,8 +829,7 @@ class BlockSolverConfig : public Configuration
  * set with a RBlockSolverConfig that is "empty" for the base Block but
  * have a non-empty list of sub-Block. */
 
-class RBlockSolverConfig : public BlockSolverConfig
-{
+class RBlockSolverConfig : public BlockSolverConfig {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
@@ -843,7 +851,7 @@ class RBlockSolverConfig : public BlockSolverConfig
   *
   * @param diff indicates if this configuration is a "differential" one. */
 
- RBlockSolverConfig( bool diff = true ) : BlockSolverConfig( diff ) { }
+ explicit RBlockSolverConfig( bool diff = true ) : BlockSolverConfig( diff ) {}
 
 /*--------------------------------------------------------------------------*/
  /// constructs an RBlockSolverConfig out of the given netCDF \p group
@@ -854,9 +862,10 @@ class RBlockSolverConfig : public BlockSolverConfig
   * @param group The netCDF::NcGroup containing the description of the
   *        RBlockSolverConfig. */
 
- RBlockSolverConfig( netCDF::NcGroup & group ) : BlockSolverConfig() {
+ explicit RBlockSolverConfig( netCDF::NcGroup & group ) : BlockSolverConfig() {
+  // FIXME: Do not invoke virtual member functions from constructor
   deserialize( group );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// constructs an RBlockSolverConfig out of an istream
@@ -866,9 +875,10 @@ class RBlockSolverConfig : public BlockSolverConfig
   * @param input The istream containing the description of the
   *        RBlockSolverConfig. */
 
- RBlockSolverConfig( std::istream & input ) : BlockSolverConfig() {
+ explicit RBlockSolverConfig( std::istream & input ) : BlockSolverConfig() {
+  // FIXME: Do not invoke virtual member functions from constructor
   load( input );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// constructs an RBlockSolverConfig for the given Block
@@ -883,10 +893,13 @@ class RBlockSolverConfig : public BlockSolverConfig
   * @param clear indicates whether a "cleared" RBlockSolverConfig is desired;
   *        see RBlockSolverConfig::get() for details. */
 
- RBlockSolverConfig( const Block * block , bool diff = false ,
-		     bool clear = false ) : BlockSolverConfig( diff ) {
-  get( block , clear );
-  }
+ explicit RBlockSolverConfig( const Block * block,
+                              bool diff = false,
+                              bool clear = false ) :
+  BlockSolverConfig( diff ) {
+  // FIXME: Do not invoke virtual member functions from constructor
+  get( block, clear );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: does what it says on the tin
@@ -896,7 +909,7 @@ class RBlockSolverConfig : public BlockSolverConfig
 /*--------------------------------------------------------------------------*/
  /// move constructor: does what it says on the tin
 
- RBlockSolverConfig( RBlockSolverConfig && old );
+ RBlockSolverConfig( RBlockSolverConfig && old ) noexcept ;
 
 /*--------------------------------------------------------------------------*/
  /// construct the "right" BlockSolverConfig out of a Block
@@ -920,9 +933,9 @@ class RBlockSolverConfig : public BlockSolverConfig
   * in fact of other BlockSolverConfig. */
 
  static BlockSolverConfig * get_right_BlockSolverConfig(
-	      const Block * block , bool diff = true , bool clear = false ) {
-  auto RBSC = new RBlockSolverConfig( block , diff , clear );
-  if( ! RBSC->num_BlockSolverConfig() ) {
+  const Block * block, bool diff = true, bool clear = false ) {
+  auto RBSC = new RBlockSolverConfig( block, diff, clear );
+  if( !RBSC->num_BlockSolverConfig() ) {
    auto BSC = new BlockSolverConfig( std::move( *RBSC ) );
    delete RBSC;
    if( BSC->empty() && block->get_registered_solvers().empty() ) {
@@ -931,14 +944,13 @@ class RBlockSolverConfig : public BlockSolverConfig
     // must return an "empty" BlockSolverConfig; only if this is not the
     // case nullptr can be returned
     delete BSC;
-    return( nullptr );
-    }
-   else
-    return( BSC );
-   }
-
-  return( RBSC );
+    return ( nullptr );
+   } else
+    return ( BSC );
   }
+
+  return ( RBSC );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// copy assignment operator: it is deleted
@@ -988,11 +1000,10 @@ class RBlockSolverConfig : public BlockSolverConfig
 /*------------------------------ DESTRUCTOR --------------------------------*/
  /// destructor
 
- virtual ~RBlockSolverConfig()
- {
+ ~RBlockSolverConfig() override {
   for( auto config : v_BlockSolverConfig )
    delete config;
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -1044,7 +1055,7 @@ class RBlockSolverConfig : public BlockSolverConfig
   *        one. See the comments to BlockSolverConfig::get() for the
   *        definition of this parameter. */
 
- void get( const Block * block , bool clear = false ) override;
+ void get( const Block * block, bool clear = false ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------- METHODS DESCRIBING THE BEHAVIOR OF THE RBlockSolverConfig -------*/
@@ -1079,18 +1090,18 @@ class RBlockSolverConfig : public BlockSolverConfig
   * RBlockSolverConfig (num_BlockSolverConfig() and
   * get_BlockSolverConfig()). */
 
- void clear( void ) override {
+ void clear() override {
   BlockSolverConfig::clear();
   for( auto config : v_BlockSolverConfig )
    if( config )
     config->clear();
-  }
+ }
 
 /*------------------------------- CLONE -----------------------------------*/
 
- RBlockSolverConfig * clone( void ) const override {
-  return( new RBlockSolverConfig( *this ) );
-  }
+ [[nodiscard]] RBlockSolverConfig * clone() const override {
+  return ( new RBlockSolverConfig( *this ) );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*------ METHODS FOR LOADING, PRINTING & SAVING THE RBlockSolverConfig -----*/
@@ -1123,10 +1134,11 @@ class RBlockSolverConfig : public BlockSolverConfig
   *
   * @param id The identification of a sub-Block. */
 
- void add_BlockSolverConfig( BlockSolverConfig * config , std::string id ) {
+ void add_BlockSolverConfig( BlockSolverConfig * config,
+                             const std::string & id ) {
   v_BlockSolverConfig.push_back( config );
   v_sub_Block_id.push_back( id );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// adds a (pointer to a) BlockSolverConfig for a sub-Block
@@ -1139,10 +1151,10 @@ class RBlockSolverConfig : public BlockSolverConfig
   *
   * @param index The index of a sub-Block.  */
 
- void add_BlockSolverConfig( BlockSolverConfig * config , Index index ) {
+ void add_BlockSolverConfig( BlockSolverConfig * config, Index index ) {
   v_BlockSolverConfig.push_back( config );
   v_sub_Block_id.push_back( std::to_string( index ) );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// removes a BlockSolverConfig for a sub-Block
@@ -1155,7 +1167,7 @@ class RBlockSolverConfig : public BlockSolverConfig
   * @param destroy It indicates whether the pointer to the BlockSolverConfig
   *        at the given index must be deleted. */
 
- void remove_BlockSolverConfig( Index index , bool destroy = true ) {
+ void remove_BlockSolverConfig( Index index, bool destroy = true ) {
   if( index >= v_BlockSolverConfig.size() )
    throw ( std::invalid_argument( "RBlockSolverConfig::remove_"
                                   "BlockSolverConfig: invalid index: " +
@@ -1164,7 +1176,7 @@ class RBlockSolverConfig : public BlockSolverConfig
    delete v_BlockSolverConfig[ index ];
   v_BlockSolverConfig.erase( std::begin( v_BlockSolverConfig ) + index );
   v_sub_Block_id.erase( std::begin( v_sub_Block_id ) + index );
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*---------- Methods for reading the data of the RBlockSolverConfig --------*/
@@ -1176,9 +1188,9 @@ class RBlockSolverConfig : public BlockSolverConfig
  /** This method returns the number of BlockSolverConfig (for the sub-Block)
   * currently being handled by this RBlockSolverConfig . */
 
- Block::Index num_BlockSolverConfig( void ) const {
-  return( v_BlockSolverConfig.size() );
-  }
+ [[nodiscard]] Block::Index num_BlockSolverConfig() const {
+  return ( v_BlockSolverConfig.size() );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns the (pointer to) the BlockSolverConfig at the given \p index
@@ -1191,12 +1203,13 @@ class RBlockSolverConfig : public BlockSolverConfig
   *
   * @return A pointer to the BlockSolverConfig at the given \p index. */
 
- BlockSolverConfig * get_BlockSolverConfig( Block::Index index ) const {
+ [[nodiscard]] BlockSolverConfig *
+ get_BlockSolverConfig( Block::Index index ) const {
   if( index >= v_BlockSolverConfig.size() )
-   throw( std::invalid_argument( "RBlockSolverConfig::get_BlockSolverConfig: "
+   throw ( std::invalid_argument( "RBlockSolverConfig::get_BlockSolverConfig: "
                                   "invalid index: " + std::to_string( index )
-				 ) );
-  return( v_BlockSolverConfig[ index ] );
+   ) );
+  return ( v_BlockSolverConfig[ index ] );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1212,13 +1225,13 @@ class RBlockSolverConfig : public BlockSolverConfig
   * @return The identification of the sub-Block associated with the
   *         BlockSolverConfig located at the given \p index. */
 
- const std::string & get_sub_Block_id( Index index ) const {
+ [[nodiscard]] const std::string & get_sub_Block_id( Index index ) const {
   if( index >= v_sub_Block_id.size() )
-   throw( std::invalid_argument( "RBlockSolverConfig::get_sub_Block_id: "
-				 "invalid index: " + std::to_string( index )
-				 ) );
-  return( v_sub_Block_id[ index ] );
-  }
+   throw ( std::invalid_argument( "RBlockSolverConfig::get_sub_Block_id: "
+                                  "invalid index: " + std::to_string( index )
+   ) );
+  return ( v_sub_Block_id[ index ] );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// returns true if the RBlockSolverConfig is "empty"
@@ -1226,9 +1239,9 @@ class RBlockSolverConfig : public BlockSolverConfig
   * BlockSolverConfig is "empty" and there is no information associated to
   * any sub-Block. */
 
- bool empty( void ) const override {
-  return( BlockSolverConfig::empty() && v_BlockSolverConfig.empty() );
-  }
+ [[nodiscard]] bool empty() const override {
+  return ( BlockSolverConfig::empty() && v_BlockSolverConfig.empty() );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -1240,7 +1253,7 @@ class RBlockSolverConfig : public BlockSolverConfig
 
  /// print the RBlockSolverConfig
 
- void print( std::ostream &output ) const override;
+ void print( std::ostream & output ) const override;
 
 /*--------------------------------------------------------------------------*/
  /// load this RBlockSolverConfig out of an istream
@@ -1270,7 +1283,7 @@ class RBlockSolverConfig : public BlockSolverConfig
   *     IF THE NAME OF THE Block IS USED AS ITS IDENTIFICATION, THEN
   *     THE FIRST CHARACTER OF THIS NAME CANNOT BE A DIGIT. */
 
- void load( std::istream &input ) override;
+ void load( std::istream & input ) override;
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
@@ -1285,7 +1298,7 @@ class RBlockSolverConfig : public BlockSolverConfig
   * (see Block::name()) or by its index in the list of sub-Blocks of its
   * father Block. If the name of the sub-Block is used, then the first
   * character of this name cannot be a digit. */
- std::vector<std::string> v_sub_Block_id;
+ std::vector< std::string > v_sub_Block_id;
 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 
@@ -1297,7 +1310,7 @@ class RBlockSolverConfig : public BlockSolverConfig
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( RBlockSolverConfig ) )
+};  // end( class( RBlockSolverConfig ) )
 
 /*--------------------------------------------------------------------------*/
 

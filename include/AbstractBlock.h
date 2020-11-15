@@ -43,8 +43,8 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __AbstractBlock
- #define __AbstractBlock
-                      /* self-identification: #endif at the end of the file */
+#define __AbstractBlock
+/* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -57,8 +57,7 @@
 /*--------------------------------------------------------------------------*/
 
 /// namespace for the Structured Modeling System++ (SMS++)
-namespace SMSpp_di_unipi_it
-{
+namespace SMSpp_di_unipi_it {
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS AbstractBlock ----------------------------*/
@@ -224,12 +223,18 @@ class AbstractBlock : public Block {
   * Block constructor, and does little else except initializing all the
   * fields to default values. */
 
- AbstractBlock( Block * father = nullptr ) : Block( father ) ,
-  f_ub( Inf<double>() ) , f_lb( - Inf<double>() ) ,
-  f_ub_cond( false ) , f_lb_cond( false ) ,
-  f_1st_stat_var( 0 ) , f_1st_dyn_var( 0 ) ,
-  f_1st_stat_cnst( 0 ) , f_1st_dyn_cnst( 0 ) ,
-  f_res_obj( false ) , f_1st_sub_block( 0 ) { }
+ explicit AbstractBlock( Block * father = nullptr ) :
+  Block( father ),
+  f_ub( Inf< double >() ),
+  f_lb( -Inf< double >() ),
+  f_ub_cond( false ),
+  f_lb_cond( false ),
+  f_1st_stat_var( 0 ),
+  f_1st_dyn_var( 0 ),
+  f_1st_stat_cnst( 0 ),
+  f_1st_dyn_cnst( 0 ),
+  f_res_obj( false ),
+  f_1st_sub_block( 0 ) {}
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize the current :AbstractBlock out of netCDF::NcGroup
@@ -261,11 +266,10 @@ class AbstractBlock : public Block {
   * their deserialize() is they so need; see comments to
   * Block::deserialize() for a complete discussion. */
 
- virtual void deserialize( netCDF::NcGroup & group ) override
- {
+ void deserialize( netCDF::NcGroup & group ) override {
   guts_of_deserialize( group );
   Block::deserialize( group );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// destructor of AbstractBlock, destroys the abstract representation
@@ -282,7 +286,7 @@ class AbstractBlock : public Block {
   * specific structures have been dealt with and happily proceeds with
   * deleting the "arbitrary part". */
 
- virtual ~AbstractBlock( );
+ ~AbstractBlock() override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -302,11 +306,11 @@ class AbstractBlock : public Block {
   * the conditionally valid one otherwise, with the other being automatically
   * set to + infinity. */
 
- void set_valid_upper_bound( double newub = + Inf<double>() ,
-			     bool conditional = false )
- {
-  f_ub = newub; f_ub_cond = conditional;
-  }
+ void set_valid_upper_bound( double newub = +Inf< double >(),
+                             bool conditional = false ) {
+  f_ub = newub;
+  f_ub_cond = conditional;
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set a (either globally valid or conditionally valid) lower bound
@@ -321,11 +325,11 @@ class AbstractBlock : public Block {
   * the conditionally valid one otherwise, with the other being automatically
   * set to - infinity. */
 
- void set_valid_lower_bound( double newlb = - Inf<double>() ,
-			     bool conditional = false )
- {
-  f_lb = newlb; f_lb_cond = conditional;
-  }
+ void set_valid_lower_bound( double newlb = -Inf< double >(),
+                             bool conditional = false ) {
+  f_lb = newlb;
+  f_lb_cond = conditional;
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- Methods for reading the data of the AbstractBlock ----------*/
@@ -339,9 +343,9 @@ class AbstractBlock : public Block {
   * the corresponding field. Setting which, however, is responsibility of
   * the derived classes. */
 
- Index get_first_static_Constraint( void ) const {
-  return( f_1st_stat_cnst );
-  }
+ Index get_first_static_Constraint() const {
+  return ( f_1st_stat_cnst );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the index of the first group of "available" dynamic Constraint
@@ -350,9 +354,9 @@ class AbstractBlock : public Block {
   * the corresponding field. Setting which, however, is responsibility of
   * the derived classes. */
 
- Index get_first_dynamic_Constraint( void ) const {
-  return( f_1st_dyn_cnst );
-  }
+ Index get_first_dynamic_Constraint() const {
+  return ( f_1st_dyn_cnst );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the index of the first group of "available" static Variable
@@ -361,7 +365,7 @@ class AbstractBlock : public Block {
   * the corresponding field. Setting which, however, is responsibility of
   * the derived classes. */
 
- Index get_first_static_Variable( void ) const { return( f_1st_stat_var ); }
+ Index get_first_static_Variable() const { return ( f_1st_stat_var ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the index of the first group of "available" dynamic Variable
@@ -370,7 +374,7 @@ class AbstractBlock : public Block {
   * the corresponding field. Setting which, however, is responsibility of
   * the derived classes. */
 
- Index get_first_dynamic_Variable( void ) const { return( f_1st_dyn_var ); }
+ Index get_first_dynamic_Variable() const { return ( f_1st_dyn_var ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the index of the first "available" inner Block
@@ -379,7 +383,7 @@ class AbstractBlock : public Block {
   * the corresponding field. Setting which, however, is responsibility of
   * the derived classes. */
 
- Index get_first_inner_Block( void ) const { return( f_1st_sub_block ); }
+ Index get_first_inner_Block() const { return ( f_1st_sub_block ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// tells if the Objective is reserved
@@ -388,7 +392,7 @@ class AbstractBlock : public Block {
   * just returning the value of the corresponding field. Setting which,
   * however, is responsibility of the derived classes. */
 
- bool is_Objective_reserved( void ) const { return( f_res_obj ); }
+ bool is_Objective_reserved() const { return ( f_res_obj ); }
 
 /*--------------------------------------------------------------------------*/
  /// allow unfettered access to nested Block
@@ -397,21 +401,19 @@ class AbstractBlock : public Block {
   * great care, and *not* as soon as there is any solver attached to the
   * AbstractBlock. */
 
- Vec_Block & access_nested_Blocks( void ) { return( v_Block ); }
+ Vec_Block & access_nested_Blocks() { return ( v_Block ); }
 
 /*--------------------------------------------------------------------------*/
 
- double get_valid_upper_bound( bool conditional = false ) override
- {
-  return( f_ub_cond == conditional ? f_ub : + Inf<double>() );
-  }
+ double get_valid_upper_bound( bool conditional = false ) override {
+  return ( f_ub_cond == conditional ? f_ub : +Inf< double >() );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- double get_valid_lower_bound( bool conditional = false ) override
- {
-  return( f_lb_cond == conditional ? f_lb : - Inf<double>() );
-  }
+ double get_valid_lower_bound( bool conditional = false ) override {
+  return ( f_lb_cond == conditional ? f_lb : -Inf< double >() );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*----- Methods for adding/removing (dynamic) Variables and Constraints ----*/
@@ -453,7 +455,7 @@ class AbstractBlock : public Block {
  * are made public in AbstractBlock, so that they can be used "from outside"
  * the AbstractBlock to manage its abstract representation;
  *  @{ */
- 
+
  using Block::reset_nested_Block;
 
  using Block::add_nested_Block;
@@ -512,8 +514,8 @@ class AbstractBlock : public Block {
   *
   * - otherwise, it is 0. */
 
- bool is_feasible( bool useabstract = false ,
-		   Configuration *fsbc = nullptr ) override;
+ bool is_feasible( bool useabstract = false,
+                   Configuration * fsbc = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
  /// several sanity checks
@@ -543,7 +545,7 @@ class AbstractBlock : public Block {
   * boost::any, and one of the reasins why these will be put to the wall when
   * the revolution will come. */
 
- void is_correct( void );
+ void is_correct();
 
 /**@} ----------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
@@ -557,8 +559,8 @@ class AbstractBlock : public Block {
   * AbstractBlock, the "only reasonable" Solution is a ColVariableSolution.
   */
 
- Solution * get_Solution( Configuration *solc = nullptr ,
-			  bool emptys = true ) override;
+ Solution * get_Solution( Configuration * solc = nullptr,
+                          bool emptys = true ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------- METHODS FOR LOADING, PRINTING & SAVING THE AbstractBlock --------*/
@@ -598,7 +600,7 @@ class AbstractBlock : public Block {
   * Variable and Constraint, Objective, and inner Block) and asks everyone to
   * print itself. */
 
- void print( std::ostream &output ) const override;
+ void print( std::ostream & output ) const override;
 
 /*--------------------------------------------------------------------------*/
  /// load the AbstractBlock out of an istream
@@ -609,9 +611,9 @@ class AbstractBlock : public Block {
   * but it still have to be defined (throwing exception) to make the class
   * concrete. */
 
- virtual void load( std::istream &input ) override {
-  throw( std::logic_error( "AbstractBlock::load not implemented yet" ) );
-  }
+ void load( std::istream & input ) override {
+  throw ( std::logic_error( "AbstractBlock::load not implemented yet" ) );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// do all the dirty work for deserialize()
@@ -660,7 +662,7 @@ class AbstractBlock : public Block {
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( AbstractBlock ) )
+};  // end( class( AbstractBlock ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
