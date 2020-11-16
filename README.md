@@ -33,7 +33,7 @@ If you can't or wont install the required libraries, you will need to specify
 their custom path, see [here](https://gitlab.com/smspp/smspp/wikis/custom).
 
 
-### Build and install with Cmake
+### Build and install with CMake
 
 Configure and build the library with:
 
@@ -44,6 +44,9 @@ cmake ..
 make
 ```
 
+Some configuration options are available, see
+[here](https://gitlab.com/smspp/smspp/wikis/custom).
+
 Optionally, install the library in the system with:
 
 ```sh
@@ -51,26 +54,26 @@ sudo make install
 ```
 
 
-### Usage with Cmake
+### Usage with CMake
 
-After the library is configured and built, you can use it in your CMake project with:
+After the library is built, you can use it in your CMake project with:
 
 ```cmake
 find_package(SMSpp)
 target_link_libraries(<my_target> SMS++::SMSpp)
 ```
 
-### Running the tests with Cmake
+### Running the tests with CMake
 
 Some simple unit tests will be built with the library,
 to run them, launch `ctest` from the build directory.
-To disable them, configure the library with the option `-DBUILD_TESTING=OFF`.
+To disable them, set the option `BUILD_TESTING` to `OFF`.
 
 
 ### Build and install with makefiles
 
 Carefully hand-crafted makefiles have also been developed for those unwilling
-to use Cmake. General instructions are:
+to use CMake. General instructions are:
 
 - The arrangements of folders must be that envisioned by the
   [Umbrella SMS++ Project](https://gitlab.com/smspp/smspp-project)
