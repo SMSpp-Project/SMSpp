@@ -1,22 +1,37 @@
 # --------------------------------------------------------------------------- #
 #    Custom CMake find module for netCDF                                      #
 #                                                                             #
+#    This module finds netCDF include directories and libraries.              #
+#    Use it by invoking find_package() with the form:                         #
+#                                                                             #
+#        find_package(netCDF [version] [EXACT] [REQUIRED])                    #
+#                                                                             #
+#    The results are stored in the following output variables:                #
+#                                                                             #
+#        netCDF_FOUND         - True if headers are found                     #
+#        netCDF_INCLUDE_DIRS  - Include directories                           #
+#        netCDF_LIBRARIES     - Libraries to be linked                        #
+#        netCDF_VERSION       - Version number                                #
+#                                                                             #
+#    The search results are saved in these persistent cache entries:          #
+#                                                                             #
+#        netCDF_INCLUDE_DIR   - Directory containing headers                  #
+#        netCDF_LIBRARY       - The found library                             #
+#                                                                             #
+#    This module reads hints about search locations from variables:           #
+#                                                                             #
+#        NETCDF_INC           - Preferred include directory                   #
+#        NETCDF_LIB           - Preferred library directory                   #
+#                                                                             #
+#    The following IMPORTED target is also defined:                           #
+#                                                                             #
+#        netCDF::netcdf                                                       #
+#                                                                             #
 #    This find module is provided because the CMake support from netCDF       #
 #    was found to be lacking. In particular, it appears that netCDF's         #
 #    configuration file has the paths for its depencencies (HDF5, Zlib)       #
-#    hardcoded, and this doesn't work under macOS 11.0.                       #
-#                                                                             #
-#    Accepts the following PATHS:                                             #
-#                                                                             #
-#    - NETCDF_INC - Custom path to netCDF headers                             #
-#    - NETCDF_LIB - Custom path to netCDF libraries                           #
-#                                                                             #
-#    Provides (at least) the following variables:                             #
-#                                                                             #
-#    - netCDF_FOUND - Whether netCDF was found or not                         #
-#    - netCDF_INCLUDE_DIRS - Include directories                              #
-#    - netCDF_LIBRARIES - Libraries to link                                   #
-#    - netCDF::netcdf - A target to use with target_link_libraries()          #
+#    hardcoded, and that doesn't work under macOS 11.0.                       #
+#    We use it in netCDF-C++ find module.                                     #
 #                                                                             #
 #                              Niccolo' Iardella                              #
 #                          Operations Research Group                          #
@@ -29,17 +44,24 @@ include(FindPackageHandleStandardArgs)
 find_package(HDF5 QUIET REQUIRED COMPONENTS C HL)
 
 # ----- Find the headers and library ---------------------------------------- #
+# Note that find_path() creates a cache entry
 find_path(netCDF_INCLUDE_DIR netcdf.h
-          PATHS ${NETCDF_INC}
-          DOC "netCDF include directory")
+          HINTS ${NETCDF_INC}
+          DOC "netCDF include directory.")
 
+# Note that find_library() creates a cache entry
 find_library(netCDF_LIBRARY
              NAMES netcdf
-             PATHS ${NETCDF_LIB}
-             DOC "netCDF library")
+             HINTS ${NETCDF_LIB}
+             DOC "netCDF library.")
 
 # TODO: Find a way to get the version
 # ----- Handle the standard arguments --------------------------------------- #
+# The following macro manages the QUIET, REQUIRED and version-related options
+# passed to find_package(). It also sets <PackageName>_FOUND if REQUIRED_VARS
+# are set. REQUIRED_VARS should be cache entries and not output variables.
+# See:
+# https://cmake.org/cmake/help/latest/module/FindPackageHandleStandardArgs.html
 find_package_handle_standard_args(
         netCDF
         REQUIRED_VARS netCDF_LIBRARY netCDF_INCLUDE_DIR)
@@ -59,6 +81,8 @@ if (netCDF_FOUND)
     endif ()
 endif ()
 
+# Variables marked as advanced are not displayed in CMake GUIs, see:
+# https://cmake.org/cmake/help/latest/command/mark_as_advanced.html
 mark_as_advanced(netCDF_INCLUDE_DIR
                  netCDF_LIBRARY
                  netCDF_VERSION)

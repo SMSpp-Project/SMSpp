@@ -1,6 +1,19 @@
 # --------------------------------------------------------------------------- #
 #    Main CMake file for SMS++ library                                        #
 #                                                                             #
+#    This file allows one to build the library using CMake.                   #
+#    To do so, you can use the following commands:                            #
+#                                                                             #
+#        $ cmake -S <source-path> -B <build-path>                             #
+#        $ cmake --build <build-path>                                         #
+#                                                                             #
+#    The following command also installs the library in the system:           #
+#                                                                             #
+#        $ cmake --build <build-path> --target install                        #
+#                                                                             #
+#    Note: this file tries to respect the principles of Modern CMake,         #
+#          keep it in mind when editing it.                                   #
+#                                                                             #
 #                              Niccolo' Iardella                              #
 #                          Operations Research Group                          #
 #                         Dipartimento di Informatica                         #
@@ -10,34 +23,49 @@ cmake_minimum_required(VERSION 3.11)
 project(SMS++ VERSION 0.3.2 LANGUAGES CXX)
 
 # ----- Settings ------------------------------------------------------------ #
+# This creates an ENABLE_TESTING option (default: ON) and enables the testing
+# using the ctest executable.
+# See: https://cmake.org/cmake/help/latest/manual/ctest.1.html
 include(CTest)
 
 # ----- Requirements -------------------------------------------------------- #
+# The Boost find module is provided by CMake,
+# so this command will always work.
 find_package(Boost 1.71.0 REQUIRED)
 
-# This is to use the find modules we provide
+# This adds the cmake directory to the find module search paths,
+# allowing us to use our find modules.
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 # This will try first with Eigen3 own configuration file,
-# then with the find module we provide.
-find_package(Eigen3 QUIET NO_MODULE)
+# then with our find module.
+find_package(Eigen3 NO_MODULE)
 if (NOT Eigen3_FOUND)
     find_package(Eigen3 REQUIRED)
 endif ()
 
-# This will straight use our find module, as netCDF-C++
-# configuration file doesn't work.
+# This will straight use our find module, as the configuration file
+# that ships with netCDF-C++ doesn't work.
 find_package(netCDFCxx REQUIRED)
 
+# This removes from the search paths the cmake directory we added above.
 list(REMOVE_AT CMAKE_MODULE_PATH -1)
 
 # ----- Configuration header ------------------------------------------------ #
+# This will generate a *Config.h header in the build directory.
 configure_file(cmake/SMSppConfig.h.in SMSppConfig.h)
 
 # ----- Library ------------------------------------------------------------- #
+# With the BUILD_SHARED_LIBS variable we can specify if the library will
+# be STATIC or SHARED, so no reason to do it now.
 add_library(SMSpp)
 target_compile_features(SMSpp PUBLIC cxx_std_17)
 
+# When adding source files with target_sources(), PRIVATE means that the files
+# should only be added to this library, whereas PUBLIC means they should be
+# added to this library and to any target that links to it.
+# INTERFACE can be used for sources that should not be added to this library
+# but should be added to anything that links to it.
 target_sources(SMSpp PRIVATE
                src/AbstractBlock.cpp
                src/Block.cpp
@@ -66,71 +94,86 @@ target_sources(SMSpp PRIVATE
                src/ThinComputeInterface.cpp
                src/Variable.cpp)
 
+# When using target_include_directories(), PUBLIC means that any targets
+# that link to this target also need that include directory.
+# Other options are PRIVATE (only affect the current target, not dependencies),
+# and INTERFACE (only needed for dependencies).
+
 # Different INSTALL_INTERFACE and BUILD_INTERFACE paths are used when
-# generating the target import file (***Targets.cmake), that must be different
-# for local build and installation.
+# generating the target import file (***Targets.cmake).
+# This means that if a target finds this library in its build directory
+# will look into the BUILD_INTERFACE path for its headers, if it finds it
+# installed in the system will look into the INSTALL_INTERFACE path.
 target_include_directories(
         SMSpp PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include/SMS++>)
 
-# PRIVATE for build specifications
-# INTERFACE for usage requirements
-# PUBLIC for both
+# When linking other targets to the library with target_link_libraries(),
+# PRIVATE means that the libraries will be linked only to this library,
+# PUBLIC means they will be linked also to the targets that depend on this
+# library, INTERFACE means they will be linked only to the targets that depend
+# on this library.
 target_link_libraries(SMSpp PUBLIC
                       Boost::boost
                       Eigen3::Eigen
                       netCDF::netCDFCxx)
 
-# Alias for testing
+# This alias is defined so that executables in this same project can use
+# the library with this notation.
 add_library(SMS++::SMSpp ALIAS SMSpp)
 
 # ----- Install instructions ------------------------------------------------ #
-# For installing the library and all its CMake modules on the system.
-# Not required for local builds (see below).
+# The following commands are used when installing the library
+# and its CMake configuration files on the system.
+# They are not required for local builds (see below).
 
 include(GNUInstallDirs)
 
-# Install library
+# Install the library
 install(TARGETS SMSpp
         EXPORT SMSpp-targets
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
-# Install headers
+# Install the headers
 install(DIRECTORY include/
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/SMS++)
 
+# Install the auto-generated configuration header (see above).
 install(FILES ${PROJECT_BINARY_DIR}/SMSppConfig.h
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/SMS++)
 
-# Install target import file
+# (Generate and) install the target import file, that allows other
+# CMake projects to import the target.
 install(EXPORT SMSpp-targets
         FILE SMSppTargets.cmake
         NAMESPACE SMS++::
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SMSpp)
 
-# Generate package version file
+# Generate the package version file, that allows other
+# CMake projects to know the version.
 include(CMakePackageConfigHelpers)
 write_basic_package_version_file(
         ${CMAKE_CURRENT_BINARY_DIR}/SMSppConfigVersion.cmake
         VERSION ${PROJECT_VERSION}
         COMPATIBILITY AnyNewerVersion)
 
-# Generate package configuration file
+# Generate the package configuration file, that allows other
+# CMake projects to find the library with find_package().
 configure_package_config_file(
         ${CMAKE_CURRENT_LIST_DIR}/cmake/SMSppConfig.cmake.in
         ${CMAKE_CURRENT_BINARY_DIR}/SMSppConfig.cmake
         INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SMSpp)
 
-# Install package version and configuration files
+# Install the package version and configuration files.
 install(FILES
         ${CMAKE_CURRENT_BINARY_DIR}/SMSppConfig.cmake
         ${CMAKE_CURRENT_BINARY_DIR}/SMSppConfigVersion.cmake
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SMSpp)
 
 # Shipping custom find modules should not be encouraged because third
-# party developers should provide them.
+# party developers should provide for them.
 # We ship FindnetCDFCxx because the netCDF-C++ configuration file doesn't
 # work, and FindEigen3 because the user may want not to install Eigen3.
 install(FILES
@@ -138,24 +181,33 @@ install(FILES
         ${CMAKE_CURRENT_LIST_DIR}/cmake/FindEigen3.cmake
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SMSpp)
 
-# TODO: This should be a temporary fix while netCDF's config is fixed!
+# We also ship FindnetCDF because current netCDF configuration file
+# has a bug that prevents it from working on macOS 11.0.
+# TODO: This should be a temporary fix
 if (${CMAKE_SYSTEM} MATCHES "Darwin-20.1.0")
     install(FILES
             ${CMAKE_CURRENT_LIST_DIR}/cmake/FindnetCDF.cmake
             DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SMSpp)
-endif()
+endif ()
 
 # ----- Export from the build tree ------------------------------------------ #
-# This is needed so other projects can find the library in a local build.
-# It does not affect installation.
+# The following commands are needed so other projects can find the library
+# in a local build directory. They use CMake's User Package Registry
+# (located in ~/.cmake/registry) to do so.
+# See: https://cmake.org/cmake/help/latest/manual/cmake-packages.7.html
+# They don't affect the installation.
 
+# CMAKE_EXPORT_PACKAGE_REGISTRY is OFF by default.
+# It may be ON if the project is included by the SMS++ umbrella project.
 if (CMAKE_EXPORT_PACKAGE_REGISTRY)
 
+    # Generate the target import file, that allows other
+    # CMake projects to import the target.
     export(EXPORT SMSpp-targets
            FILE ${CMAKE_CURRENT_BINARY_DIR}/SMSppTargets.cmake
            NAMESPACE SMS++::)
 
-    # Export also the find modules for the local config file to use it
+    # Export the find modules for the local configuration file to use them.
     configure_file(${CMAKE_CURRENT_LIST_DIR}/cmake/FindEigen3.cmake
                    ${CMAKE_CURRENT_BINARY_DIR}/FindEigen3.cmake
                    COPYONLY)
@@ -164,18 +216,18 @@ if (CMAKE_EXPORT_PACKAGE_REGISTRY)
                    ${CMAKE_CURRENT_BINARY_DIR}/FindnetCDFCxx.cmake
                    COPYONLY)
 
-    # TODO: This should be a temporary fix while netCDF's config is fixed!
+    # TODO: This should be a temporary fix
     if (${CMAKE_SYSTEM} MATCHES "Darwin-20.1.0")
         configure_file(${CMAKE_CURRENT_LIST_DIR}/cmake/FindnetCDF.cmake
                        ${CMAKE_CURRENT_BINARY_DIR}/FindnetCDF.cmake
                        COPYONLY)
     endif ()
 
-    # Register package in user's package registry (~/.cmake/registry)
+    # Export the package in user's package registry
     export(PACKAGE SMSpp)
 endif ()
 
-# ----- Unit testing -------------------------------------------------------- #
+# ----- Subdirectories ------------------------------------------------------ #
 if (BUILD_TESTING)
     add_subdirectory(test)
 endif ()

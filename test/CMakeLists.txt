@@ -1,15 +1,26 @@
 # --------------------------------------------------------------------------- #
 #    CMake file for unit tests                                                #
+#                                                                             #
+#    In this file we define the unit tests for this library.                  #
+#    Tests that should be supported by ctest executable must be added         #
+#    with the add_test() command.                                             #
+#                                                                             #
+#    Note: this file tries to respect the principles of Modern CMake,         #
+#          keep it in mind when editing it.                                   #
+#                                                                             #
+#                              Niccolo' Iardella                              #
+#                          Operations Research Group                          #
+#                         Dipartimento di Informatica                         #
+#                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #
 
-# ----- AbstractPath_test --------------------------------------------------- #
+# ----- Standard unit tests ------------------------------------------------- #
 add_executable(AbstractPath_test tests_AbstractPath.cpp)
 target_link_libraries(AbstractPath_test PRIVATE SMS++::SMSpp)
 
 #add_test(NAME AbstractPath_test
 #         COMMAND AbstractPath_test)
 
-# ----- ClassFactory_test --------------------------------------------------- #
 add_executable(ClassFactory_test ClassFactory/main.cpp)
 target_link_libraries(ClassFactory_test PRIVATE SMS++::SMSpp)
 
@@ -17,15 +28,19 @@ target_link_libraries(ClassFactory_test PRIVATE SMS++::SMSpp)
 #         COMMAND ClassFactory_test)
 
 # ----- GoogleTest unit tests ----------------------------------------------- #
-
-# Fetch GoogleTest
+# The following tests are built using the GoogleTest framework,
+# see: https://github.com/google/googletest
+# GoogleTest is automatically fetched and built using CMake's FetchContent,
+# see: https://cmake.org/cmake/help/latest/module/FetchContent.html
 include(FetchContent)
-set(INSTALL_GTEST OFF)
+
+# Declare GoogleTest repository
 fetchcontent_declare(
         googletest
         GIT_REPOSITORY https://github.com/google/googletest.git
         GIT_TAG release-1.10.0)
 
+# Fetch GoogleTest, if not already fetched
 fetchcontent_getproperties(googletest)
 if (NOT googletest_POPULATED)
     if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
@@ -35,16 +50,19 @@ if (NOT googletest_POPULATED)
     add_subdirectory(${googletest_SOURCE_DIR} ${googletest_BINARY_DIR})
 endif ()
 
-# Declare all tests
+# This is so GoogleTest doesn't get installed alongside the library.
+set(INSTALL_GTEST OFF)
+
+# Declare all GoogleTest unit tests at once
 set(CLASSES
     "AbstractBlock"
     "ColVariable"
     "Function"
     "LinearFunction")
 
-foreach(CLASS ${CLASSES})
+foreach (CLASS ${CLASSES})
     add_executable(${CLASS}_test tests_${CLASS}.cpp)
     target_link_libraries(${CLASS}_test PRIVATE SMS++::SMSpp gtest)
 
     add_test(NAME ${CLASS}_test COMMAND ${CLASS}_test)
-endforeach()
+endforeach ()
