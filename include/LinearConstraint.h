@@ -96,7 +96,7 @@ class LinearConstraint : public FRowConstraint {
 
  LinearConstraint( Block * block = nullptr ,
 		   RHSValue lhs = 0 , RHSValue rhs = 0 ,
-		   v_coeff_pair && vars = {} , FunctionValue ct = 0 )
+		   v_coeff_pair && vars = {} , LinearFunction::FunctionValue ct = 0 )
   : FRowConstraint( block , lhs , rhs ,
 		    new LinearFunction( std::move( vars ) , ct ) ) { }
 
@@ -176,7 +176,8 @@ class LinearConstraint : public FRowConstraint {
 /*--------------------------------------------------------------------------*/
  /// modify a set of existing coefficients
 
- void modify_coefficients( Vec_FunctionValue && NCoef , Subset && nms ,
+ void modify_coefficients( LinearFunction::Vec_FunctionValue && NCoef ,
+                           Subset && nms ,
 			   bool ordered = false ,
 			   ModParam issueMod = eModBlck ) {
   static_cast< LinearFunction * >( f_function )->modify_coefficients(
@@ -187,7 +188,7 @@ class LinearConstraint : public FRowConstraint {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// modify a range of coefficients
 
- void modify_coefficients( Vec_FunctionValue && NCoef ,
+ void modify_coefficients( LinearFunction::Vec_FunctionValue && NCoef ,
 			   Range range = std::make_pair( 0 , Inf<Index>() ) ,
                            ModParam issueMod = eModBlck )  {
   static_cast< LinearFunction * >( f_function )->modify_coefficients(
