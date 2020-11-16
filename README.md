@@ -79,31 +79,41 @@ to use Cmake. General instructions are:
   each of the external libraries that any module requires, starting with
   Boost, Eigen and netCDF-C++. Setting the
 
-    lib*INC = -I<paths to include files directories>
-    lib*LIB = -L<paths to lib files directories> -l<libs>
+```make
+lib*INC = -I<paths to include files directories>
+lib*LIB = -L<paths to lib files directories> -l<libs>
+```
 
   in each allows one to set any non-standard path if the library is not
   installed in the system (or leave them empty if they are).
 
 - A makefile for building the "core" SMS++ library in available in
 
-    lib/makefile-lib
+```sh
+SMS++/lib/makefile-lib
+```
 
   The makefile allow to choose the compiler name and the optimization/debug.
   This builds the lib/libSMS++.a that can be linked upon. Also, the
 
-    lib/makefile-inc
+```sh
+SMS++/lib/makefile-inc
+```
 
   file is provided for allowing external makefiles to ensure that the library
   is up-to-date (useful in case one is actually developing it). The simplest
   way to learn how to use it is to check e.g. the makefiles of the tester
 
-    test/ClassFactory/makefile
+```sh
+test/ClassFactory/makefile
+```
 
   Note that the "basic" makefile macros
 
-    CC = 
-    SW =
+```make
+CC =
+SW =
+```
 
   for setting the c++ compiler and its options are "automatically forwarded"
   from the makefile to these of the other SMS++ components, and therefore
