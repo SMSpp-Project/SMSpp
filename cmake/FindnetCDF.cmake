@@ -41,30 +41,36 @@
 include(FindPackageHandleStandardArgs)
 
 # ----- Requirements -------------------------------------------------------- #
-find_package(HDF5 QUIET REQUIRED COMPONENTS C HL)
+find_package(HDF5 QUIET REQUIRED)
 
-# ----- Find the headers and library ---------------------------------------- #
-# Note that find_path() creates a cache entry
-find_path(netCDF_INCLUDE_DIR netcdf.h
-          HINTS ${NETCDF_INC}
-          DOC "netCDF include directory.")
+# Check if already in cache
+if (netCDF_INCLUDE_DIR AND netCDF_LIBRARY)
+    set(netCDF_FOUND TRUE)
+else ()
 
-# Note that find_library() creates a cache entry
-find_library(netCDF_LIBRARY
-             NAMES netcdf
-             HINTS ${NETCDF_LIB}
-             DOC "netCDF library.")
+    # ----- Find the headers and library ------------------------------------ #
+    # Note that find_path() creates a cache entry
+    find_path(netCDF_INCLUDE_DIR netcdf.h
+              HINTS ${NETCDF_INC}
+              DOC "netCDF include directory.")
 
-# TODO: Find a way to get the version
-# ----- Handle the standard arguments --------------------------------------- #
-# The following macro manages the QUIET, REQUIRED and version-related options
-# passed to find_package(). It also sets <PackageName>_FOUND if REQUIRED_VARS
-# are set. REQUIRED_VARS should be cache entries and not output variables.
-# See:
-# https://cmake.org/cmake/help/latest/module/FindPackageHandleStandardArgs.html
-find_package_handle_standard_args(
-        netCDF
-        REQUIRED_VARS netCDF_LIBRARY netCDF_INCLUDE_DIR)
+    # Note that find_library() creates a cache entry
+    find_library(netCDF_LIBRARY
+                 NAMES netcdf
+                 HINTS ${NETCDF_LIB}
+                 DOC "netCDF library.")
+
+    # TODO: Find a way to get the version
+    # ----- Handle the standard arguments ----------------------------------- #
+    # The following macro manages the QUIET, REQUIRED and version-related
+    # options passed to find_package(). It also sets <PackageName>_FOUND if
+    # REQUIRED_VARS are set.
+    # REQUIRED_VARS should be cache entries and not output variables. See:
+    # https://cmake.org/cmake/help/latest/module/FindPackageHandleStandardArgs.html
+    find_package_handle_standard_args(
+            netCDF
+            REQUIRED_VARS netCDF_LIBRARY netCDF_INCLUDE_DIR)
+endif ()
 
 # ----- Export the target --------------------------------------------------- #
 if (netCDF_FOUND)
@@ -77,7 +83,7 @@ if (netCDF_FOUND)
                 netCDF::netcdf PROPERTIES
                 IMPORTED_LOCATION "${netCDF_LIBRARY}"
                 INTERFACE_INCLUDE_DIRECTORIES "${netCDF_INCLUDE_DIR}"
-                INTERFACE_LINK_LIBRARIES "${HDF5_C_LIBRARIES}")
+                INTERFACE_LINK_LIBRARIES "${HDF5_LIBRARIES}")
     endif ()
 endif ()
 

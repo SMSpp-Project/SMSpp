@@ -44,35 +44,41 @@ include(FindPackageHandleStandardArgs)
 # TODO: This should be a temporary fix
 if (${CMAKE_SYSTEM} MATCHES "Darwin-20.1.0")
     find_package(netCDF REQUIRED)
-else()
+else ()
     find_package(netCDF REQUIRED CONFIG)
 endif ()
 
-# ----- Find the headers and library ---------------------------------------- #
-# Note that find_path() creates a cache entry
-find_path(netCDFCxx_INCLUDE_DIR netcdf
-          HINTS ${NETCDFCXX_INC}
-          DOC "netCDF-C++ include directory.")
+# Check if already in cache
+if (netCDFCxx_INCLUDE_DIR AND netCDFCxx_LIBRARY)
+    set(netCDFCxx_FOUND TRUE)
+else ()
 
-# Note that find_library() creates a cache entry
-find_library(netCDFCxx_LIBRARY
-             NAMES netcdf-cxx4 netcdf_c++4
-             HINTS ${NETCDFCXX_LIB}
-             DOC "netCDF-C++ library.")
+    # ----- Find the headers and library ------------------------------------ #
+    # Note that find_path() creates a cache entry
+    find_path(netCDFCxx_INCLUDE_DIR netcdf
+              HINTS ${NETCDFCXX_INC}
+              DOC "netCDF-C++ include directory.")
 
-# Get version from netCDF (there is no way to parse it from the headers)
-set(netCDFCxx_VERSION ${netCDF_VERSION})
+    # Note that find_library() creates a cache entry
+    find_library(netCDFCxx_LIBRARY
+                 NAMES netcdf-cxx4 netcdf_c++4
+                 HINTS ${NETCDFCXX_LIB}
+                 DOC "netCDF-C++ library.")
 
-# ----- Handle the standard arguments --------------------------------------- #
-# The following macro manages the QUIET, REQUIRED and version-related options
-# passed to find_package(). It also sets <PackageName>_FOUND if REQUIRED_VARS
-# are set. REQUIRED_VARS should be cache entries and not output variables.
-# See:
-# https://cmake.org/cmake/help/latest/module/FindPackageHandleStandardArgs.html
-find_package_handle_standard_args(
-        netCDFCxx
-        REQUIRED_VARS netCDFCxx_LIBRARY netCDFCxx_INCLUDE_DIR
-        VERSION_VAR netCDFCxx_VERSION)
+    # Get version from netCDF (there is no way to parse it from the headers)
+    set(netCDFCxx_VERSION ${netCDF_VERSION})
+
+    # ----- Handle the standard arguments ----------------------------------- #
+    # The following macro manages the QUIET, REQUIRED and version-related
+    # options passed to find_package(). It also sets <PackageName>_FOUND if
+    # REQUIRED_VARS are set.
+    # REQUIRED_VARS should be cache entries and not output variables. See:
+    # https://cmake.org/cmake/help/latest/module/FindPackageHandleStandardArgs.html
+    find_package_handle_standard_args(
+            netCDFCxx
+            REQUIRED_VARS netCDFCxx_LIBRARY netCDFCxx_INCLUDE_DIR
+            VERSION_VAR netCDFCxx_VERSION)
+endif ()
 
 # ----- Export the target --------------------------------------------------- #
 if (netCDFCxx_FOUND)
