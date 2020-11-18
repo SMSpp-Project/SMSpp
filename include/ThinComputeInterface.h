@@ -740,8 +740,8 @@ class ThinComputeInterface {
   */
 
  [[nodiscard]] virtual idx_type get_num_int_par() const {
-  return ( idx_type( 0 ) );
- }
+  return( idx_type( 0 ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get the number of double parameters
@@ -751,8 +751,8 @@ class ThinComputeInterface {
   * with implementing it. */
 
  [[nodiscard]] virtual idx_type get_num_dbl_par() const {
-  return ( idx_type( 0 ) );
- }
+  return( idx_type( 0 ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get the number of string parameters
@@ -762,8 +762,8 @@ class ThinComputeInterface {
   * with implementing it. */
 
  [[nodiscard]] virtual idx_type get_num_str_par() const {
-  return ( idx_type( 0 ) );
- }
+  return( idx_type( 0 ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// get the default value of an int parameter
@@ -774,8 +774,8 @@ class ThinComputeInterface {
   * with implementing it. */
 
  [[nodiscard]] virtual int get_dflt_int_par( const idx_type par ) const {
-  return ( int( 0 ) );
- }
+  return( int( 0 ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get the default value of a double parameter
@@ -786,8 +786,8 @@ class ThinComputeInterface {
   * have to bother with implementing it. */
 
  [[nodiscard]] virtual double get_dflt_dbl_par( const idx_type par ) const {
-  return ( double( 0 ) );
- }
+  return( double( 0 ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get the default value of a string parameter
@@ -800,8 +800,8 @@ class ThinComputeInterface {
  [[nodiscard]] virtual const std::string &
  get_dflt_str_par( const idx_type par ) const {
   static const std::string empty;
-  return ( empty );
- }
+  return( empty );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// get a specific integer (int) numerical parameter
@@ -814,8 +814,8 @@ class ThinComputeInterface {
   * implementing it. */
 
  [[nodiscard]] virtual int get_int_par( const idx_type par ) const {
-  return ( get_dflt_int_par( par ) );
- }
+  return( get_dflt_int_par( par ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get a specific float (double) numerical parameter
@@ -828,8 +828,8 @@ class ThinComputeInterface {
  * with implementing it. */
 
  [[nodiscard]] virtual double get_dbl_par( const idx_type par ) const {
-  return ( get_dflt_dbl_par( par ) );
- }
+  return( get_dflt_dbl_par( par ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get a specific string parameter
@@ -842,8 +842,8 @@ class ThinComputeInterface {
 
  [[nodiscard]] virtual const std::string &
  get_str_par( const idx_type par ) const {
-  return ( get_dflt_str_par( par ) );
- }
+  return( get_dflt_str_par( par ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the index of the int parameter with given string name
@@ -857,10 +857,10 @@ class ThinComputeInterface {
   * \p name does not correspond to the string name of any int parameter. */
 
  [[nodiscard]] virtual idx_type
- int_par_str2idx( const std::string & name ) const {
-  throw ( std::invalid_argument( std::string( "int parameter " ) + name +
-                                 std::string( " unknown" ) ) );
- }
+  int_par_str2idx( const std::string & name ) const {
+  throw( std::invalid_argument( std::string( "int parameter " ) + name +
+				std::string( " unknown" ) ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the index of the double parameter with given string name
@@ -875,9 +875,9 @@ class ThinComputeInterface {
 
  [[nodiscard]] virtual idx_type
  dbl_par_str2idx( const std::string & name ) const {
-  throw ( std::invalid_argument( std::string( "double parameter " ) + name +
-                                 std::string( " unknown" ) ) );
- }
+  throw( std::invalid_argument( std::string( "double parameter " ) + name +
+				std::string( " unknown" ) ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the index of the string parameter with given string name
@@ -892,9 +892,9 @@ class ThinComputeInterface {
 
  [[nodiscard]] virtual idx_type
  str_par_str2idx( const std::string & name ) const {
-  throw ( std::invalid_argument( std::string( "string parameter " ) + name +
-                                 std::string( " unknown" ) ) );
- }
+  throw( std::invalid_argument( std::string( "string parameter " ) + name +
+				std::string( " unknown" ) ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the string name of the int parameter with given index
@@ -906,9 +906,9 @@ class ThinComputeInterface {
   * do not have to bother with implementing it. */
 
  [[nodiscard]] virtual const std::string &
- int_par_idx2str( const idx_type idx ) const {
-  throw ( std::invalid_argument( "invalid int parameter name" ) );
- }
+  int_par_idx2str( const idx_type idx ) const {
+   throw( std::invalid_argument( "invalid int parameter name" ) );
+   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the string name of the double parameter with given index
@@ -920,9 +920,9 @@ class ThinComputeInterface {
   * parameter do not have to bother with implementing it. */
 
  [[nodiscard]] virtual const std::string &
- dbl_par_idx2str( const idx_type idx ) const {
-  throw ( std::invalid_argument( "invalid double parameter name" ) );
- }
+  dbl_par_idx2str( const idx_type idx ) const {
+   throw( std::invalid_argument( "invalid double parameter name" ) );
+   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the string name of the string parameter with given index
@@ -935,9 +935,9 @@ class ThinComputeInterface {
   * implementing it. */
 
  [[nodiscard]] virtual const std::string &
- str_par_idx2str( const idx_type idx ) const {
-  throw ( std::invalid_argument( "invalid string parameter name" ) );
- }
+  str_par_idx2str( const idx_type idx ) const {
+   throw( std::invalid_argument( "invalid string parameter name" ) );
+   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get the whole set of parameters in one blow
@@ -988,9 +988,9 @@ class ThinComputeInterface {
   * :ThinComputeInterface which needs it will have to derive its own version
   * of the method (but, not necessarily of ComputeConfig). */
 
- virtual ComputeConfig * get_ComputeConfig(
-  bool all = false,
-  ComputeConfig * ocfg = nullptr ) const;
+ virtual ComputeConfig * get_ComputeConfig( bool all = false ,
+					    ComputeConfig * ocfg = nullptr )
+  const;
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/

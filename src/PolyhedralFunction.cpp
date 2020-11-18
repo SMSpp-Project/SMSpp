@@ -56,13 +56,15 @@ using namespace SMSpp_di_unipi_it;
 void PolyhedralFunction::deserialize( netCDF::NcGroup & group ,
 				      ModParam issueMod  )
 {
- c_Index nvar = get_num_active_var();
-
  netCDF::NcDim nv = group.getDim( "PolyFunction_NumVar" );
  if( nv.isNull() )
   throw( std::logic_error( "PolyFunction_NumVar dimension is required" ) );
- if( nv.getSize() != nvar )
-  throw( std::invalid_argument( "wrong A col size in netCDF::NcGroup" ) );
+
+ Index nvar = nv.getSize();
+ if( auto av = get_num_active_var() )  // if there are active variable
+  if( av != nvar )                     // they must agree with the data
+   throw( std::invalid_argument(
+    "A col size in netCDF::NcGroup does not match with active variable" ) );
 
  MultiVector tA;
  RealVector tb;

@@ -343,9 +343,7 @@ class AbstractBlock : public Block {
   * the corresponding field. Setting which, however, is responsibility of
   * the derived classes. */
 
- Index get_first_static_Constraint() const {
-  return ( f_1st_stat_cnst );
- }
+ Index get_first_static_Constraint() const { return( f_1st_stat_cnst ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the index of the first group of "available" dynamic Constraint
@@ -354,9 +352,7 @@ class AbstractBlock : public Block {
   * the corresponding field. Setting which, however, is responsibility of
   * the derived classes. */
 
- Index get_first_dynamic_Constraint() const {
-  return ( f_1st_dyn_cnst );
- }
+ Index get_first_dynamic_Constraint() const { return( f_1st_dyn_cnst ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the index of the first group of "available" static Variable
@@ -365,7 +361,7 @@ class AbstractBlock : public Block {
   * the corresponding field. Setting which, however, is responsibility of
   * the derived classes. */
 
- Index get_first_static_Variable() const { return ( f_1st_stat_var ); }
+ Index get_first_static_Variable() const { return( f_1st_stat_var ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the index of the first group of "available" dynamic Variable
@@ -374,7 +370,7 @@ class AbstractBlock : public Block {
   * the corresponding field. Setting which, however, is responsibility of
   * the derived classes. */
 
- Index get_first_dynamic_Variable() const { return ( f_1st_dyn_var ); }
+ Index get_first_dynamic_Variable() const { return( f_1st_dyn_var ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the index of the first "available" inner Block
@@ -383,7 +379,7 @@ class AbstractBlock : public Block {
   * the corresponding field. Setting which, however, is responsibility of
   * the derived classes. */
 
- Index get_first_inner_Block() const { return ( f_1st_sub_block ); }
+ Index get_first_inner_Block() const { return( f_1st_sub_block ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// tells if the Objective is reserved
@@ -392,7 +388,7 @@ class AbstractBlock : public Block {
   * just returning the value of the corresponding field. Setting which,
   * however, is responsibility of the derived classes. */
 
- bool is_Objective_reserved() const { return ( f_res_obj ); }
+ bool is_Objective_reserved() const { return( f_res_obj ); }
 
 /*--------------------------------------------------------------------------*/
  /// allow unfettered access to nested Block
@@ -401,19 +397,19 @@ class AbstractBlock : public Block {
   * great care, and *not* as soon as there is any solver attached to the
   * AbstractBlock. */
 
- Vec_Block & access_nested_Blocks() { return ( v_Block ); }
+ Vec_Block & access_nested_Blocks() { return( v_Block ); }
 
 /*--------------------------------------------------------------------------*/
 
  double get_valid_upper_bound( bool conditional = false ) override {
-  return ( f_ub_cond == conditional ? f_ub : +Inf< double >() );
- }
+  return( f_ub_cond == conditional ? f_ub : +Inf< double >() );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  double get_valid_lower_bound( bool conditional = false ) override {
-  return ( f_lb_cond == conditional ? f_lb : -Inf< double >() );
- }
+  return( f_lb_cond == conditional ? f_lb : -Inf< double >() );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*----- Methods for adding/removing (dynamic) Variables and Constraints ----*/
