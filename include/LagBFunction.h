@@ -642,14 +642,15 @@ class LagBFunction : public C05Function , public Block {
   * from the inner Block (up to the moment silence_inner_Modification( false )
   * is called) is ignored rather than giving rise to a LagBFunctionMod.
   *
-  * The rationale for this method is that certain Solver may actually "look"
+  * The rationale for this method is that certain users of may actually "look"
   * at the inner Block, which is the "physical representation" of the
   * LagBFunction, rather than relying on the LagBFunction to produce the
-  * linearization (which is the "abstract representation"). Such a Solver may
-  * then want/need to get access to the original Modification rather than to
-  * the "mangled-up" ones produced by LagBFunction, which is easy enough by
-  * registering some appropriate :Solver to the inner Block; if this is done,
-  * there is no point in the "mangled-up" Modifiation to be produced at all.
+  * function values and the linearizations (which are the "abstract
+  * representation"). Such a user may then want/need to get access to the
+  * original Modification rather than to the "mangled-up" ones produced by
+  * LagBFunction, which is easy enough by registering some appropriate
+  * :Solver to the inner Block; if this is done, there is no point in the
+  * "mangled-up" Modifiation to be produced at all.
   *
   *     SINCE THIS SETTING IS UNIQUE, ANY ENTITY SILENCING THE Modification
   *     FROM THE INNER Block MUST BE POSITIVE THESE ARE NOT NEEDED BY SOME
@@ -862,9 +863,40 @@ class LagBFunction : public C05Function , public Block {
  /** Compute the LagBFunction: this amounts at computing the Lagrangian costs
   * and changing the costs in the inner Block accordingly (if the Lagrangian
   * variables have changed, i.t., \p changedvars == true), and then using the
-  * Solver attached to the inner Block to solve it. */
+  * Solver attached to the inner Block to solve it.
+  *
+  * Note that LagBFunction "stealthily" adds [Col]Variable to the Objective
+  * of the inner Block in case there are Lagrangian terms involving some
+  * [Col]Variable that does not naturally belong there. If some Modification
+  * causing new [Col]Variable to be thusly added is received from the inner
+  * Block, the information corresponding to the [Col]Variable is stored, and
+  * the actual addition to the Objective of the inner Block is done in the
+  * next call to compute(), just before computing the new Lagrangian costs. */
 
  int compute( bool changedvars = true ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// ensure that the Objective of the inner Block is up-to-date
+ /** LagBFunction "stealthily" adds [Col]Variable to the Objective of the
+  * inner Block in case there are Lagrangian terms involving some
+  * [Col]Variable that does not naturally belong there. If some Modification
+  * causing new [Col]Variable to be thusly added is received from the inner
+  * Block, the information corresponding to the [Col]Variable is stored, and
+  * the actual addition to the Objective of the inner Block is only
+  * *automatically* done in the next call to compute(). However, the user of
+  * the LagBFunction may actually "look" at the inner Block, which is the
+  * "physical representation" of the LagBFunction, rather than relying on
+  * the LagBFunction to produce the function values and linearizations (which
+  * are the "abstract representation"); see also the comments to
+  * silence_inner_Modification(). Such a user may never call compute(), and
+  * therefore never have the chance for the necessary [Col]Variable to be
+  * "stealthily" added to the Objective of the inner Block. This method
+  * ensures that the latter is, in fact, done. */
+
+ void apply_obj_Modification( void ) {
+  if( ( ! v_tmpCP.empty() ) && flush_v_tmpCP() )
+   v_Block.front()->unlock( this );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the value of the Function
@@ -1153,15 +1185,15 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- void add_dual_pairs( v_c_dual_pair & newdp );
+ bool flush_v_tmpCP( void );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/ 
 
- void mod_dual_pair( Index i , Index first );
+ void add_to_CostMatrix( v_c_dual_pair & newdp );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/ 
 
- void add_to_obj( v_coeff_pair && toadd );
+ void mod_CostMatrix( Index i , Index first );
 
 /*--------------------------------------------------------------------------*/
 
@@ -1254,10 +1286,30 @@ class LagBFunction : public C05Function , public Block {
   * appear for an x[ j ] that originally had 0 coefficient in obj, x[ j ] is
   * added to the list of active Variable (at the bottom, as usual) and a new
   * row is added to CostMatrix (at the bottom). The linear term y A^j is
-  * represented by the a v_mod_pair, where each mod_pair < i , a_{ij} > is
-  * the *index* of y_i (as active Variable in the LagBFunction) with its
-  * coefficient. Note that THE VECTOR IS KEPT ORDERED BY INDEX. */
+  * represented by a v_mod_pair, where each mod_pair < i , a_{ij} > is the
+  * *index* of y_i (as active Variable in the LagBFunction) with its
+  * coefficient. Note that THE VECTOR IS KEPT ORDERED BY INDEX.
+  *
+  * However, it is important to remark that CostMatrix CAN BE LONGER THAN THE
+  * NUMBER OF ACTIVE [Col]Variable IN OBJ. This is because THE "STEALTH"
+  * INSERTION OF [Col]Variable IN OBJ IS "BATCHED" IN compute(), which means
+  * that until compute() is called, there can be elements of CostMatrix[ i ]
+  * even for i >= obj->get_num_active_var(). However, these corresponds to
+  * variables (and their coefficients) stored in v_tmpCP in the same order,
+  * i.e., CostMatrix[ i ] corresponds to
+  * v_tmpCP[ i - obv->get_num_active_var() ]. */
 
+ v_coeff_pair v_tmpCP;  ///< temporary for coefficients to be re-added
+ /**< If [Col]Variable are removed from the objective of the inner Block that
+  * appear in any Lagrangian term, they must be "stealthily" be re-added.
+  * This is done in compute() just before the Lagrangian costs are recomputed,
+  * but doing this requires keeping information about what stuff should be
+  * added. This vector contains the coeff_pair( ColVariable * , double ) to
+  * be inserted in the objective, but note that the corresponding Lagrangian
+  * terms are already stored in CostMatrix in the same order, i.e.,
+  * v_tmpCP[ i ] corresponds to CostMatrix[ i + obj->get_num_active_var() ].
+  */
+ 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  Index LastSolution;  ///< the last Solution read by get_linearization
@@ -1270,22 +1322,38 @@ class LagBFunction : public C05Function , public Block {
  * - \in [ g_pool.size() , INF ): the Solution is not significant */
 
  bool VarSol;         ///< true if Variable in the inner Block are a solution
-                      /**< true if Variable in the inner Block are a solution
-		       * i.e., they correspond to a diagonal linearization
-                       * false if Variable in the inner Block are a direction
-		       * i.e., they correspond to a vertical linearization */
+                      /**< true if the values of the Variable in the inner
+		       * Block describe a feasible solution, i.e., they
+ * correspond to a diagonal linearization; false if the values of the 
+ * Variable in the inner Block describe a direction of the feasible set,
+ * i.e., they correspond to a vertical linearization */
 
  LinearCombination zLC;
  ///< the LinearCombination of the important linearization
 
- FunctionValue f_yb;  ///< the term yb of the Lagrangian function
-                      /**< The term yb of the Lagrangian function:
-		       * -INF: b == 0, hence the term is 0
-  * +INF: have to check whether b == 0 or not
-  *  NaN: b != 0 and yb have to be computed
-  * any other value: the correct value of yb */
+ FunctionValue f_yb;  ///< the yb term of the Lagrangian function
+                      /**< The yb term  of the Lagrangian function, or what
+		       * need to be done to compute it:
+  * - -INF: b == 0, hence the term is 0
+  *
+  * - +INF: have to check whether b == 0 or not
+  *
+  * -  NaN: b != 0 and yb have to be computed
+  *
+  *  - any other value: the correct value of yb */
 
  bool f_play_dumb;    ///< true if self-inflicted Modification are ignored
+                      /**< Since LagBFunction modifies the objective of the
+		       * inner Block (by both changing costs and adding
+  * [Col]Variable to it) it causes Modification to be issued. LagBFunction
+  * itself must ignore these, but it is in general not possible to avoid them
+  * being issued in the first place because the Solver attached to the inner
+  * Block need them. This field is used in add_Modification() to know that a
+  * Modification coming from the inner Block must be ignored. Note that this
+  * is in general dangerous in a parallel context since another thread may be
+  * independently modifying the inner Block, but LagBFunction ONLY SETS
+  * f_play_dumb == true WHEN THE INNER Block IS LOCKED, which avoids any
+  * such problem. */
 
  bool f_no_inner_Mod; ///< true if Modification from the inner Block are ignored
 
