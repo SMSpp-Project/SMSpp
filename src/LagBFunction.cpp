@@ -1350,7 +1350,7 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
 
  const auto & rp = obj->get_v_var();
  #ifndef NDEBUG
-  if( rp.size() != CostMatrix.size() )
+  if( rp.size() > CostMatrix.size() )
    throw( std::logic_error( "CostMatrix inconsistent with obj" ) );
  #endif
  for( Index i = 0 ; i < rp.size() ; ++i )
