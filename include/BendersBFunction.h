@@ -76,8 +76,9 @@ namespace SMSpp_di_unipi_it
  *        (B)    min { c(y) : w <= E(y) <= z, y \in Y },
  *
  *    where c, w, and z are vectors of appropriate sizes, E is a function of
- *    y, and Y is a convex set. This will be the one, and only, sub-Block of
- *    BendersBFunction (when "seen" as a Block).
+ *    y, and Y is a convex set. We assume that the set Y is represented by a
+ *    set of RowConstraint and bounds on the variables y. This will be the
+ *    one, and only, sub-Block of BendersBFunction (when "seen" as a Block).
  *
  * 2) A matrix A with m rows and n columns, a vector b with m rows, and a
  *    vector of pairs [ ( C_i , S_i ) ]_{i \in I}, each pair being formed by a
@@ -1819,16 +1820,18 @@ class BendersBFunction : public C05Function , public Block {
   * correspondence between the vectors v_side and v_constraints: v_sides[i] is
   * associated with v_constraints[i]. */
 
- bool constraints_are_updated = false;
+ bool f_constraints_are_updated = false;
  ///< indicates whether the constraints of the sub-Block are updated
 
- int solver_status = 0;
+ int f_solver_status = 0;
  ///< the most recent status returned by the Solver of the sub-Block
 
- bool diagonal_linearization_required = false;
+ bool f_diagonal_linearization_required = false;
  ///< indicates whether a diagonal linearization is required
 
  FunctionValue AAccMlt;  ///< maximum absolute error in the multipliers
+
+ bool f_ignore_modifications = false; ///< ignore any Modification
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -2373,6 +2376,30 @@ class BendersBFunction : public C05Function , public Block {
   retrieve_constraints();
   assert( index < v_constraints.size() );
   return v_constraints[ index ];
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// return the index of the given  RowConstraint
+ Index get_constraint_index( RowConstraint * constraint ) {
+  retrieve_constraints();
+  auto it = std::find( std::begin( v_constraints ) , std::end( v_constraints ) ,
+                       constraint );
+  if( it != std::end( v_constraints ) )
+   return std::distance( std::begin( v_constraints ) , it );
+  return Inf<Index>();
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// return the index of the given RowConstraint
+ Index get_constraint_index( RowConstraint * constraint ,
+                             ConstraintSide side ) {
+  retrieve_constraints();
+  for( Index i = 0 ; i < v_constraints.size() ; ++i )
+   if( v_constraints[ i ] == constraint && v_sides[ i ] == side )
+    return i;
+  return Inf<Index>();
  }
 
 /*--------------------------------------------------------------------------*/
