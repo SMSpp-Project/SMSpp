@@ -212,7 +212,7 @@ namespace SMSpp_di_unipi_it {
  * i.e., 
  * \f[
  *   L( w , z ) = z u - w l +
- *                \min \{ f( x ) + ( w - z ) g( x ) : x \in X \}  ,
+ *                \max \{ f( x ) + ( w - z ) g( x ) : x \in X \}  ,
  * \f]
  * This is of course if one insists that \f$ z \ge 0 \f$ and \f$ w \ge 0 \f$;
  * it would be perfectly possible to rather have  \f$ z \le 0 \f$ and
