@@ -1366,7 +1366,7 @@ class Block : public Observer {
   * and be concurrently trying to lock/unlock the Block.
   *
   * A similar use of is_owned_by() is advised even when read_lock()-ing a
-  * Block.ì, i.e.,
+  * Block, i.e.,
   *
   *     bool owned = block->is_owned_by( me );
   *     if( ( ! owned ) && ( ! block->read_lock() ) )
@@ -2711,7 +2711,7 @@ class Block : public Observer {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the index of the given sub-Block
- /** Returns the index of the given sub-Block; if is is not a sub-Block of
+ /** Returns the index of the given sub-Block; if it is not a sub-Block of
   * the Block, a number >= get_number_nested_Blocks() is returned. */
 
  Index get_nested_Block_index( Block * const block ) const {

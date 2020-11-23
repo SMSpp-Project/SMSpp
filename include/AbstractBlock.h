@@ -552,8 +552,29 @@ class AbstractBlock : public Block {
  /// returns a Solution representing the current solution of this Block
  /** This method must construct and return a (pointer to a) Solution object
   * representing the current "solution state" of this Block. For an
-  * AbstractBlock, the "only reasonable" Solution is a ColVariableSolution.
-  */
+  * AbstractBlock, the "only reasonable" Solution are ColVariableSolution,
+  * RowConstraintSolution, and ColRowSolution.
+  *
+  * The parameter for deciding which kind of Solution must be returned is a
+  * single int value. If this value is
+  *
+  * - 1, then a RowConstraintSolution is returned;
+  *
+  * - 2, then a ColRowSolution is returned;
+  *
+  * - any other value, then a ColVariable Solution is returned.
+  *
+  * This value is to be found as:
+  *
+  * - if solc is not nullptr and it is a SimpleConfiguration<int>, then it is
+  *   solc->f_value;
+  *
+  * - otherwise, if f_BlockConfig is not nullptr,
+  *   f_BlockConfig->f_solution_Configuration is not nullptr and it is a
+  *   SimpleConfiguration<int>, then it is
+  *   f_BlockConfig->f_solution_Configuration->f_value;
+  *
+  * - otherwise, it is 0. */
 
  Solution * get_Solution( Configuration * solc = nullptr,
                           bool emptys = true ) override;

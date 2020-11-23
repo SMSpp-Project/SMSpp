@@ -6,7 +6,7 @@
  *
  * \version 0.20
  *
- * \date 16 - 12 - 2019
+ * \date 19 - 11 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -33,6 +33,8 @@
 #include "FRealObjective.h"
 
 #include "ColVariableSolution.h"
+#include "RowConstraintSolution.h"
+#include "ColRowSolution.h"
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -543,10 +545,30 @@ void AbstractBlock::is_correct() {
 /*--------------------------------------------------------------------------*/
 
 Solution * AbstractBlock::get_Solution( Configuration * csolc, bool emptys ) {
- auto sol = new ColVariableSolution;
- if( !emptys )
+
+ auto config = dynamic_cast<SimpleConfiguration< int > *>( csolc );
+
+ if( ( !config ) && f_BlockConfig )
+  config = dynamic_cast<SimpleConfiguration< int > *>(
+   f_BlockConfig->f_solution_Configuration );
+
+ auto solution_type = config ? config->f_value : 0;
+
+ Solution * sol = nullptr;
+ switch( solution_type ) {
+  case 1:
+   sol = new RowConstraintSolution;
+   break;
+  case 2:
+   sol = new ColRowSolution;
+   break;
+  default:
+   sol = new ColVariableSolution;
+ }
+
+ if( ! emptys )
   sol->read( this );
- return ( sol );
+ return( sol );
 }
 
 /*--------------------------------------------------------------------------*/
