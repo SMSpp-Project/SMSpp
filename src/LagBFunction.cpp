@@ -794,11 +794,12 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
  // this happen an appropriate C05FunctionMod is issued- - - - - - - - - - - -
 
  if( auto what = guts_of_add_Modification( mod.get() , chnl ) ) {
-  Subset which;
-  bool all = true;
+  int cnt = 0;  // how many linearizations are there
+  Subset which;   // which ones get eliminated
 
   for( Index i = 0 ; i < f_max_glob ; ++i )
    if( g_pool[ i ].first ) {  // a Solution is there
+    ++cnt;
 
     // write it in the Variable of the inner Block
     g_pool[ i ].first->write( v_Block.front() );
@@ -807,9 +808,7 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
     // check it's still a feasible solution/direction
     bool feas = g_pool[ i ].second ? v_Block.front()->is_feasible()
                                    : v_Block.front()->is_unbounded();
-    if( feas )              // if so
-     all = false;           // not all are eliminated
-    else {                  // otherwise
+    if( ! feas ) {              // if not
      delete g_pool[ i ].first;  // eliminate it
      g_pool[ i ].first = nullptr;
      which.push_back( i );      // recall its name
@@ -820,21 +819,21 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
   if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( eModBlck ) ) )
    return;  // all done
   
-  if( all )        // all removed
-   which.clear();  // has a special setting to it
-
-  // issue a LagBFunctionMod: if some (or all) linearisations have been
-  // removed it has type() == GlobalPoolRemoved, otherwise it has
-  // type() == NothingChanged; in both cases it has shift() == NaN, since
-  // even if by chance none of the existing linearizations is affected (but
-  // this may simply be because there is none) the value of the function in
-  // general has changed unpredictably
+  // issue a LagBFunctionMod: if some linearisations have been removed it has
+  // type() == GlobalPoolRemoved, otherwise it has/ type() == NothingChanged;
+  // in both cases it has shift() == NaN, since even if by chance none of the
+  // existing linearizations is affected (but this may simply be because
+  // there is none) the value of the function in general has changed
+  // unpredictably
+  // if all linearizations have been removed, then pass an empty Subset
   f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
-				        ( all || ( ! which.empty() ) )
+				        ( ! which.empty() )
 				        ? C05FunctionMod::GlobalPoolRemoved
 				        : C05FunctionMod::NothingChanged ,
-				        std::move( which ) , what ,
-				        C05FunctionMod::NaNshift , true ) ,
+					( cnt > which.size() )
+					? std::move( which ) : Subset() ,
+					what ,
+					C05FunctionMod::NaNshift , true ) ,
 				chnl );
 
   }  // end( if( checking is required ) )

@@ -132,33 +132,32 @@ class ThinComputeInterface {
 
  enum compute_type {
   kUnEval = 3,   ///< compute() has not been called yet
-  /**< Any return value between 0 and kUnEval (extremes
-   * included) means that the process of compute() has not
-   * finished yet. This may mean a few different things (which is why kUnEval
-   * is not 0), like "compute() has not been called", "compute() is actually
-   * running right now", or "compute() had been called and it did finish, but
-   * the thing that had to be compute()-d changed in the meantime" (like,
-   * this was solving a Block that has undergone come change). The specific
-   * values are left to derived classes, but the general gist is that any
-   * value <= kUnEval means that the solution process has not yet reached a
-   * state where a solution can be declared (or such a state has been lost for
-   * some reason). */
+  /**< Any return value between 0 and kUnEval (extremes included) means that
+   * the process of compute() has not finished yet. This may mean a few
+   * different things (which is why kUnEval is not 0), like "compute() has
+   * not been called", "compute() is actually running right now", or
+   * "compute() had been called and it did finish, but the thing that had to
+   * be compute()-d changed in the meantime" (like, this was solving a Block
+   * that has undergone some change). The specific values are left to derived
+   * classes, but the general gist is that any value <= kUnEval means that
+   *the solution process has not yet reached a state where a solution can be
+   * declared (or such a state has been lost for some reason). */
 
   kOK = 10,      ///< successful compute()
-  /**< Any return value between kUnEval (excluded) and kOK
-   * (included) means that the object ran smoothly, obtaining
-   * the desired answer within the allowed limits on the available computational
-   * resources (if any). The fact that multiple values are allowed corresponds
-   * to the fact that "the desired answer" may in fact be of different types,
-   * such as that some optimization problem has been conclusively solved to
-   * optimality, or conclusively shown to be empty, or conclusively shown to be
-   * unbounded. */
+  /**< Any return value between kUnEval (excluded) and kOK (included) means
+   * that the object ran smoothly, obtaining the desired answer within the
+   * allowed limits on the available limits on computational resources (if
+   * any). The fact that multiple values are allowed corresponds to the fact
+   * that "the desired answer" may in fact be of different types, such as
+   * that some optimization problem has been conclusively solved to
+   * optimality, or conclusively shown to be empty, or conclusively shown to
+   * be unbounded. */
 
   kError = 18,   ///< compute() stopped because of unrecoverable error
-  /**< Any return value >= kError means that the object was
-   * forced to stop due to some error, e.g. of numerical nature
-   * or because of lack of some crucial resource (say, memory). The error is of
-   * the irrecoverable type, i.e., the computation is assumed to have not been
+  /**< Any return value >= kError means that the object was forced to stop
+   * due to some error, e.g. of numerical nature or because of lack of some
+   * crucial resource (say, memory or CPU time). The error is of the
+   * irrecoverable type, i.e., the computation is assumed to have not been
    * able to obtain all of the desired answer (although it may have obtained a
    * part of it, say proving that an optimization problem is not unfeasible by
    * producing at least a feasible solution, but not being able to certify an
@@ -170,10 +169,11 @@ class ThinComputeInterface {
    * kError, extremes excluded. These are left for "recoverable error states"
    * where compute() was not able to conclusively obtain all of the desired
    * answer (although it may have already obtained a part of it), but this was
-   * due to some reason that forced it to stop early on, such as a limit imposed
-   * on the available computational resources. By relaxing the limit, which may
-   * be as simple as calling compute() again, compute() may further proceed in
-   * the computation process, possibly providing a kOK-type answer. */
+   * due to some reason that forced it to stop early on, such as a limit
+   * imposed on the available computational resources. By relaxing the limit,
+   * which may be as simple as calling compute() again, compute() may further
+   * proceed in the computation process, possibly providing a kOK-type
+   * answer. */
 
  };  // end( compute_type )
 
