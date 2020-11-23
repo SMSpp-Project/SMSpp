@@ -73,6 +73,7 @@ target_sources(SMSpp PRIVATE
                src/C05Function.cpp
                src/BendersBFunction.cpp
                src/BendersBlock.cpp
+               src/ColRowSolution.cpp
                src/ColVariable.cpp
                src/ColVariableSolution.cpp
                src/Configuration.cpp

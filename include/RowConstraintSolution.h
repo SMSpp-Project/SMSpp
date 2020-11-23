@@ -37,6 +37,7 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include "RowConstraint.h"
 #include "Solution.h"
 
 /*--------------------------------------------------------------------------*/
@@ -47,7 +48,6 @@
 namespace SMSpp_di_unipi_it
 {
 
- class RowConstraint;         ///< forward definition of RowConstraint
  class RowConstraintSolution; ///< forward definition of RowConstraintSolution
 
 /*--------------------------------------------------------------------------*/
@@ -56,10 +56,10 @@ namespace SMSpp_di_unipi_it
 /** @defgroup RowConstraintSolution_TYPES RowConstraintSolution-related types
  *  @{ */
 
- typedef std::vector<RowConstraintSolution> Vec_RowConstraintSolution;
+ using Vec_RowConstraintSolution = std::vector<RowConstraintSolution>;
  ///< a vector of RowConstraintSolution
 
- typedef const std::vector<RowConstraintSolution> c_Vec_RowConstraintSolution;
+ using c_Vec_RowConstraintSolution = const std::vector<RowConstraintSolution>;
  ///< a const vector of RowConstraintSolution
 
 /** @}  end( group( RowConstraintSolution_TYPES ) ) */
@@ -326,9 +326,13 @@ protected:
 
  void apply_static( const Block * const block , const bool read );
 
+/*--------------------------------------------------------------------------*/
+
  void apply_dynamic
  ( const Block * const block , const bool read ,
    const RowConstraint::RHSValue default_dual_value = 0 );
+
+/*--------------------------------------------------------------------------*/
 
  /// initialize the solution from the given Block
  /** This method initializes this RowConstraintSolution in order for it
@@ -338,11 +342,17 @@ protected:
 
  void initialize( const Block * const block , bool read );
 
+/*--------------------------------------------------------------------------*/
+
  void initialize_static_constraint_dual_values( const Block * const block ,
                                                 bool read );
 
+/*--------------------------------------------------------------------------*/
+
  void initialize_dynamic_constraint_dual_values( const Block * const block ,
                                                  bool read );
+
+/*--------------------------------------------------------------------------*/
 
  /// delete all vectors created for this Solution
  /** This method deletes every object currently "stored" in the vectors
@@ -351,6 +361,8 @@ protected:
   * nested_solutions of nested Solutions are resized to 0. */
 
  void delete_vectors();
+
+/*--------------------------------------------------------------------------*/
 
 /** @name Protected methods for printing and serializing
     @{ */
@@ -383,7 +395,7 @@ protected:
 
 };  // end( class( RowConstraintSolution ) )
 
-/** @} end( group( RowConstraintSolution_CLASSES ) ) -------------------------*/
+/** @} end( group( RowConstraintSolution_CLASSES ) ) -----------------------*/
 /*--------------------------------------------------------------------------*/
 
 }  // end( namespace SMSpp_di_unipi_it )
