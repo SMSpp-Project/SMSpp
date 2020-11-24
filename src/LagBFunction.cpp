@@ -794,7 +794,7 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
  // this happen an appropriate C05FunctionMod is issued- - - - - - - - - - - -
 
  if( auto what = guts_of_add_Modification( mod.get() , chnl ) ) {
-  int cnt = 0;  // how many linearizations are there
+  Index cnt = 0;  // how many linearizations are there
   Subset which;   // which ones get eliminated
 
   for( Index i = 0 ; i < f_max_glob ; ++i )

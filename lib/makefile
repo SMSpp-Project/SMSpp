@@ -41,6 +41,7 @@ SMS++OBJ = $(SMS++SDR)obj/AbstractBlock.o \
 	$(SMS++SDR)obj/Block.o \
 	$(SMS++SDR)obj/BlockSolverConfig.o \
 	$(SMS++SDR)obj/C05Function.o \
+	$(SMS++SDR)obj/ColRowSolution.o \
 	$(SMS++SDR)obj/ColVariable.o \
 	$(SMS++SDR)obj/ColVariableSolution.o \
 	$(SMS++SDR)obj/Configuration.o \
@@ -74,6 +75,7 @@ SMS++H = $(SMS++SDR)include/AbstractBlock.h \
 	$(SMS++SDR)include/C05Function.h \
 	$(SMS++SDR)include/C15Function.h \
 	$(SMS++SDR)include/CDASolver.h \
+	$(SMS++SDR)include/ColRowSolution.h \
 	$(SMS++SDR)include/ColVariable.h \
 	$(SMS++SDR)include/ColVariableSolution.h \
 	$(SMS++SDR)include/Configuration.h \
@@ -177,6 +179,21 @@ $(SMS++SDR)obj/ColVariable.o: $(SMS++SDR)src/ColVariable.cpp \
 	$(SMS++SDR)include/ColVariable.h $(SMS++SDR)include/Variable.h \
 	$(intBlockINC)
 	$(CC) -c $(SMS++SDR)src/ColVariable.cpp -o $@ $(SMS++INC) $(SW)
+
+$(SMS++SDR)obj/ColRowSolution.o: $(SMS++SDR)src/ColRowSolution.cpp \
+	$(intBlockINC) $(SMS++SDR)include/ColRowSolution.h \
+	$(SMS++SDR)include/ColVariable.h \
+	$(SMS++SDR)include/ColVariableSolution.h \
+	$(SMS++SDR)include/Constraint.h \
+	$(SMS++SDR)include/FRowConstraint.h $(SMS++SDR)include/Function.h \
+	$(SMS++SDR)include/OneVarConstraint.h \
+	$(SMS++SDR)include/RowConstraint.h \
+	$(SMS++SDR)include/RowConstraintSolution.h \
+	$(SMS++SDR)include/Solution.h $(SMS++SDR)include/Variable.h \
+	$(SMS++SDR)include/ThinComputeInterface.h \
+	$(SMS++SDR)include/ThinVarDepInterface.h
+	$(CC) -c $(SMS++SDR)src/ColRowSolution.cpp -o $@ \
+	$(SMS++INC) $(SW)
 
 $(SMS++SDR)obj/ColVariableSolution.o: $(SMS++SDR)src/ColVariableSolution.cpp \
 	$(intBlockINC) $(SMS++SDR)include/ColVariableSolution.h \
@@ -305,7 +322,7 @@ $(SMS++SDR)obj/RowConstraintSolution.o: \
 	$(SMS++SDR)include/Constraint.h $(SMS++SDR)include/ColVariable.h \
 	$(SMS++SDR)include/FRowConstraint.h $(SMS++SDR)include/Function.h \
 	$(SMS++SDR)include/OneVarConstraint.h \
-	$(SMS++SDR)include/RowConstraint.h \
+	$(SMS++SDR)include/RowConstraint.h $(SMS++SDR)include/Solution.h \
 	$(SMS++SDR)include/ThinComputeInterface.h \
 	$(SMS++SDR)include/ThinVarDepInterface.h $(SMS++SDR)include/Variable.h
 	$(CC) -c $(SMS++SDR)src/RowConstraintSolution.cpp -o $@ $(SMS++INC) \
