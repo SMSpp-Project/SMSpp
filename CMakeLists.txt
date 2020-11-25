@@ -68,7 +68,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang" AND
     CMAKE_SYSTEM STREQUAL "Darwin-20.1.0")
     message(STATUS "SMS++: Applying AppleClang/Darwin-20.1.0 patch")
     target_compile_definitions(SMSpp PUBLIC CLANG_1200_0_32_27_PATCH)
-endif()
+endif ()
 
 # When adding source files with target_sources(), PRIVATE means that the files
 # should only be added to this library, whereas PUBLIC means they should be
@@ -235,8 +235,11 @@ if (CMAKE_EXPORT_PACKAGE_REGISTRY)
 
     # Add the binary directory to RPATH, so executables that use
     # dynamic loading will look into it.
-    set(SMSPP_BUILD_RPATH "${SMSPP_BUILD_RPATH};${CMAKE_CURRENT_BINARY_DIR}"
-        PARENT_SCOPE)
+    get_directory_property(hasParent PARENT_DIRECTORY)
+    if (hasParent)
+        set(SMSPP_BUILD_RPATH "${SMSPP_BUILD_RPATH};${CMAKE_CURRENT_BINARY_DIR}"
+            PARENT_SCOPE)
+    endif ()
 
     # Export the package in user's package registry
     export(PACKAGE SMSpp)
