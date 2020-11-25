@@ -1585,6 +1585,19 @@ bool un_any_const_dynamic( const boost::any & any,
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
+// TODO: Remove this when it's not needed anymore
+#ifdef CLANG_1200_0_32_27_PATCH
+#define un_any_thing_0( thing_type, my_thing, f )                            \
+ [&]( const boost::any & _any ) -> bool {                                    \
+  if( _any.type() == typeid( thing_type ) ) {}                               \
+  if( _any.type() == typeid( thing_type * ) ) {                              \
+   auto & var = * boost::any_cast< thing_type * >( _any );                   \
+   f;                                                                        \
+   return( true );                                                           \
+  }                                                                          \
+  return( false );                                                           \
+  }( my_thing )
+#else
 #define un_any_thing_0( thing_type, my_thing, f )                            \
  [&]( const boost::any & _any ) -> bool {                                    \
   if( _any.type() == typeid( thing_type * ) ) {                              \
@@ -1594,7 +1607,7 @@ bool un_any_const_dynamic( const boost::any & any,
   }                                                                          \
   return( false );                                                           \
   }( my_thing )
-
+#endif
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #define un_any_thing_1( thing_type, my_thing, f )                            \

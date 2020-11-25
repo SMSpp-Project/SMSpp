@@ -61,6 +61,15 @@ configure_file(cmake/SMSppConfig.h.in SMSppConfig.h)
 add_library(SMSpp)
 target_compile_features(SMSpp PUBLIC cxx_std_17)
 
+# This definition is needed because the version of Clang shipped with
+# macOS Big Sur has an issue with boost::any type recognition.
+# TODO: Remove this when it's not needed anymore
+if (CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang" AND
+    CMAKE_SYSTEM STREQUAL "Darwin-20.1.0")
+    message(STATUS "SMS++: Applying AppleClang/Darwin-20.1.0 patch")
+    target_compile_definitions(SMSpp PUBLIC CLANG_1200_0_32_27_PATCH)
+endif()
+
 # When adding source files with target_sources(), PRIVATE means that the files
 # should only be added to this library, whereas PUBLIC means they should be
 # added to this library and to any target that links to it.
