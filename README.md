@@ -65,8 +65,8 @@ target_link_libraries(<my_target> SMS++::SMSpp)
 
 ### Running the tests with CMake
 
-Some simple unit tests will be built with the library,
-to run them, launch `ctest` from the build directory.
+Some unit tests will be built with the library.
+Launch `ctest` from the build directory to run them.
 To disable them, set the option `BUILD_TESTING` to `OFF`.
 
 
