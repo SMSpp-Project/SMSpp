@@ -20,7 +20,13 @@
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #
 cmake_minimum_required(VERSION 3.11)
-project(SMS++ VERSION 0.3.2 LANGUAGES CXX)
+project(SMSpp VERSION 0.3.2 LANGUAGES CXX)
+
+# These variables make the code harder to read but easier to change.
+set(modName ${PROJECT_NAME})
+set(modNamespace "SMS++")
+set(modHeader "${modName}Config.h")
+set(modTargets "${modName}Targets")
 
 # ----- Settings ------------------------------------------------------------ #
 # This creates an ENABLE_TESTING option (default: ON) and enables the testing
@@ -53,21 +59,20 @@ list(REMOVE_AT CMAKE_MODULE_PATH -1)
 
 # ----- Configuration header ------------------------------------------------ #
 # This will generate a *Config.h header in the build directory.
-configure_file(cmake/SMSppConfig.h.in SMSppConfig.h)
+configure_file(cmake/${modHeader}.in ${modHeader})
 
 # ----- Library ------------------------------------------------------------- #
 # With the BUILD_SHARED_LIBS variable we can specify if the library will
 # be STATIC or SHARED, so no reason to do it now.
-add_library(SMSpp)
-target_compile_features(SMSpp PUBLIC cxx_std_17)
+add_library(${modName})
+target_compile_features(${modName} PUBLIC cxx_std_17)
 
 # This definition is needed because the version of Clang shipped with
 # macOS Big Sur has an issue with boost::any type recognition.
 # TODO: Remove this when it's not needed anymore
 if (CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang" AND
     CMAKE_SYSTEM STREQUAL "Darwin-20.1.0")
-    message(STATUS "SMS++: Applying AppleClang/Darwin-20.1.0 patch")
-    target_compile_definitions(SMSpp PUBLIC CLANG_1200_0_32_27_PATCH)
+    target_compile_definitions(${modName} PUBLIC CLANG_1200_0_32_27_PATCH)
 endif ()
 
 # When adding source files with target_sources(), PRIVATE means that the files
@@ -75,7 +80,8 @@ endif ()
 # added to this library and to any target that links to it.
 # INTERFACE can be used for sources that should not be added to this library
 # but should be added to anything that links to it.
-target_sources(SMSpp PRIVATE
+# Note: do not GLOB files here.
+target_sources(${modName} PRIVATE
                src/AbstractBlock.cpp
                src/Block.cpp
                src/BlockSolverConfig.cpp
@@ -115,23 +121,23 @@ target_sources(SMSpp PRIVATE
 # will look into the BUILD_INTERFACE path for its headers, if it finds it
 # installed in the system will look into the INSTALL_INTERFACE path.
 target_include_directories(
-        SMSpp PUBLIC
+        ${modName} PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include/SMS++>)
+        $<INSTALL_INTERFACE:include/${modNamespace}>)
 
 # When linking other targets to the library with target_link_libraries(),
 # PRIVATE means that the libraries will be linked only to this library,
 # PUBLIC means they will be linked also to the targets that depend on this
 # library, INTERFACE means they will be linked only to the targets that depend
 # on this library.
-target_link_libraries(SMSpp PUBLIC
+target_link_libraries(${modName} PUBLIC
                       Boost::boost
                       Eigen3::Eigen
                       netCDF::netCDFCxx)
 
 # This alias is defined so that executables in this same project can use
 # the library with this notation.
-add_library(SMS++::SMSpp ALIAS SMSpp)
+add_library(${modNamespace}::${modName} ALIAS ${modName})
 
 # ----- Install instructions ------------------------------------------------ #
 # The following commands are used when installing the library
@@ -141,46 +147,45 @@ add_library(SMS++::SMSpp ALIAS SMSpp)
 include(GNUInstallDirs)
 
 # Install the library
-install(TARGETS SMSpp
-        EXPORT SMSpp-targets
+install(TARGETS ${modName}
+        EXPORT ${modTargets}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 # Install the headers
 install(DIRECTORY include/
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/SMS++)
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${modNamespace})
 
 # Install the auto-generated configuration header (see above).
-install(FILES ${PROJECT_BINARY_DIR}/SMSppConfig.h
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/SMS++)
+install(FILES ${PROJECT_BINARY_DIR}/${modName}Config.h
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${modNamespace})
 
 # (Generate and) install the target import file, that allows other
 # CMake projects to import the target.
-install(EXPORT SMSpp-targets
-        FILE SMSppTargets.cmake
-        NAMESPACE SMS++::
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SMSpp)
+install(EXPORT ${modTargets}
+        NAMESPACE ${modNamespace}::
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${modName})
 
 # Generate the package version file, that allows other
 # CMake projects to know the version.
 include(CMakePackageConfigHelpers)
 write_basic_package_version_file(
-        ${CMAKE_CURRENT_BINARY_DIR}/SMSppConfigVersion.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/${modName}ConfigVersion.cmake
         VERSION ${PROJECT_VERSION}
         COMPATIBILITY AnyNewerVersion)
 
 # Generate the package configuration file, that allows other
 # CMake projects to find the library with find_package().
 configure_package_config_file(
-        ${CMAKE_CURRENT_LIST_DIR}/cmake/SMSppConfig.cmake.in
-        ${CMAKE_CURRENT_BINARY_DIR}/SMSppConfig.cmake
-        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SMSpp)
+        ${CMAKE_CURRENT_LIST_DIR}/cmake/${modName}Config.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/${modName}Config.cmake
+        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${modName})
 
 # Install the package version and configuration files.
 install(FILES
-        ${CMAKE_CURRENT_BINARY_DIR}/SMSppConfig.cmake
-        ${CMAKE_CURRENT_BINARY_DIR}/SMSppConfigVersion.cmake
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SMSpp)
+        ${CMAKE_CURRENT_BINARY_DIR}/${modName}Config.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/${modName}ConfigVersion.cmake
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${modName})
 
 # Shipping custom find modules should not be encouraged because third
 # party developers should provide for them.
@@ -189,7 +194,7 @@ install(FILES
 install(FILES
         ${CMAKE_CURRENT_LIST_DIR}/cmake/FindnetCDFCxx.cmake
         ${CMAKE_CURRENT_LIST_DIR}/cmake/FindEigen3.cmake
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SMSpp)
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${modName})
 
 # We also ship FindnetCDF because current netCDF configuration file
 # has a bug that prevents it from working on macOS 11.0.
@@ -197,7 +202,7 @@ install(FILES
 if (${CMAKE_SYSTEM} MATCHES "Darwin-20.1.0")
     install(FILES
             ${CMAKE_CURRENT_LIST_DIR}/cmake/FindnetCDF.cmake
-            DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/SMSpp)
+            DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${modName})
 endif ()
 
 # ----- Export from the build tree ------------------------------------------ #
@@ -213,9 +218,9 @@ if (CMAKE_EXPORT_PACKAGE_REGISTRY)
 
     # Generate the target import file, that allows other
     # CMake projects to import the target.
-    export(EXPORT SMSpp-targets
-           FILE ${CMAKE_CURRENT_BINARY_DIR}/SMSppTargets.cmake
-           NAMESPACE SMS++::)
+    export(EXPORT ${modTargets}
+           FILE ${CMAKE_CURRENT_BINARY_DIR}/${modTargets}.cmake
+           NAMESPACE ${modNamespace}::)
 
     # Export the find modules for the local configuration file to use them.
     configure_file(${CMAKE_CURRENT_LIST_DIR}/cmake/FindEigen3.cmake
@@ -242,7 +247,7 @@ if (CMAKE_EXPORT_PACKAGE_REGISTRY)
     endif ()
 
     # Export the package in user's package registry
-    export(PACKAGE SMSpp)
+    export(PACKAGE ${modName})
 endif ()
 
 # ----- Subdirectories ------------------------------------------------------ #
