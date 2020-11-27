@@ -112,9 +112,8 @@ SMSpp_insert_in_factory_cpp_1( LagBFunction );
 LagBFunction::LagBFunction( Block* innerblock , Observer * const observer )
  : C05Function() , obj( nullptr ) , IsConvex( true ) , f_max_glob( 0 ) ,
    LastSolution( 0 ) , VarSol( true ) , f_yb( -INF ) , f_play_dumb( false ) ,
-   f_no_inner_Mod( false ) , f_dirty_Lc( false ) , LPMaxSz( 0 ) ,
-   RAccLin( 0 ) , AAccLin( 0 ) , f_BSC( new BlockSolverConfig ) ,
-   f_BSC_changed( false )
+   f_dirty_Lc( false ) , LPMaxSz( 0 ) , RAccLin( 0 ) , AAccLin( 0 ) ,
+   f_BSC( new BlockSolverConfig ) , f_BSC_changed( false )
 {
  // set the pointer to the sub-Block (B) - - - - - - - - - - - - - - - - - - -
 
@@ -780,13 +779,6 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
  // inner Block because that's a "self-inflicted Modification" that
  // LagBFunction caused by modifying the Objective of the inner Block
  if( f_play_dumb && ( mod->get_Block() == v_Block.front() ) )
-  return;
-
- // if f_no_inner_Mod == true, ignore any Modification coming from the inner
- // Block or any one of its sub-Block; this means "any Modification except
- // those coming directly to the LagBFunction", the latter being those that
- // come from the LinearFunction defining the Lagrangian term
- if( f_no_inner_Mod && ( mod->get_Block() != this ) )
   return;
 
  // if the Modification requires it, now check all the Solution in the global

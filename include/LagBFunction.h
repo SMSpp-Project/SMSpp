@@ -637,30 +637,6 @@ class LagBFunction : public C05Function , public Block {
  void set_par( const idx_type par , const double value ) override;
 
 /*--------------------------------------------------------------------------*/
- /// "silences" the Modification coming from the inner Block
- /** If silence_inner_Modification( true ) is called, any Modification coming
-  * from the inner Block (up to the moment silence_inner_Modification( false )
-  * is called) is ignored rather than giving rise to a LagBFunctionMod.
-  *
-  * The rationale for this method is that certain users of may actually "look"
-  * at the inner Block, which is the "physical representation" of the
-  * LagBFunction, rather than relying on the LagBFunction to produce the
-  * function values and the linearizations (which are the "abstract
-  * representation"). Such a user may then want/need to get access to the
-  * original Modification rather than to the "mangled-up" ones produced by
-  * LagBFunction, which is easy enough by registering some appropriate
-  * :Solver to the inner Block; if this is done, there is no point in the
-  * "mangled-up" Modifiation to be produced at all.
-  *
-  *     SINCE THIS SETTING IS UNIQUE, ANY ENTITY SILENCING THE Modification
-  *     FROM THE INNER Block MUST BE POSITIVE THESE ARE NOT NEEDED BY SOME
-  *     OTHER ENTITY, an issue solvable by appropriate Configuration. */
-
- void silence_inner_Modification( bool silent = true ) {
-  f_no_inner_Mod = silent;
-  }
-
-/*--------------------------------------------------------------------------*/
 
  void deserialize( netCDF::NcGroup& group ) override;
 
@@ -1354,8 +1330,6 @@ class LagBFunction : public C05Function , public Block {
   * independently modifying the inner Block, but LagBFunction ONLY SETS
   * f_play_dumb == true WHEN THE INNER Block IS LOCKED, which avoids any
   * such problem. */
-
- bool f_no_inner_Mod; ///< true if Modification from the inner Block are ignored
 
  bool f_dirty_Lc;     ///< true if Lagrangian costs have to be modified
  
