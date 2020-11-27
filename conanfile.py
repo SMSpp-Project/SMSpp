@@ -31,8 +31,8 @@ class SmsppConan(ConanFile):
     def source(self):
         tools.replace_in_file(
             "CMakeLists.txt",
-            '''project(SMS++ VERSION 0.3.2 LANGUAGES CXX)''',
-            '''project(SMS++ VERSION 0.3.2 LANGUAGES C CXX)\n''' +
+            '''LANGUAGES C CXX)''',
+            '''LANGUAGES C CXX)\n''' +
             '''include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)\n''' +
             '''conan_basic_setup()'''
         )

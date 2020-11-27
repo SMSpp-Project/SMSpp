@@ -14,14 +14,14 @@
 #                         Dipartimento di Informatica                         #
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #
-get_filename_component(SMSpp_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
+get_filename_component(@modName@_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
 include(CMakeFindDependencyMacro)
 
 # ----- Requirements -------------------------------------------------------- #
 find_dependency(Boost)
 
 # This is needed to find the find modules we provide
-list(APPEND CMAKE_MODULE_PATH ${SMSpp_CMAKE_DIR})
+list(APPEND CMAKE_MODULE_PATH ${@modName@_CMAKE_DIR})
 
 # This will try first with Eigen3 own configuration file,
 # then with the find module we provide.
@@ -38,8 +38,8 @@ find_dependency(netCDFCxx)
 list(REMOVE_AT CMAKE_MODULE_PATH -1)
 
 # ----- Import target ------------------------------------------------------- #
-if (NOT TARGET SMS++::SMSpp)
-    include("${SMSpp_CMAKE_DIR}/SMSppTargets.cmake")
-endif ()
+if (NOT TARGET @modNamespace@::@modName@)
+    include("${@modName@_CMAKE_DIR}/@modName@Targets.cmake")
+endif()
 
-set(SMSpp_LIBRARIES SMS++::SMSpp)
+set(@modName@_LIBRARIES @modNamespace@::@modName@)
