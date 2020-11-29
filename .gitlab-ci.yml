@@ -1,16 +1,30 @@
-build:
+default:
   image: registry.gitlab.com/smspp/smspp
+
+stages:
+  - build
+  - test
+  - pages
+
+build:
   stage: build
   script:
     - cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
     - cmake --build build
-    - cmake --build build --target test
+  artifacts:
+    when: on_success
+    - build
   only:
     changes:
       - include/*
       - src/*
       - test/*
       - CMakeLists.txt
+
+test:
+  stage: test
+  script:
+    - cmake --build build --target test
 
 pages:
   image: alpine
