@@ -26,7 +26,12 @@ test_job:
   stage: test
   script:
     - cmake --build build --target test
-  when: on_success
+  only:
+    changes:
+      - include/*
+      - src/*
+      - test/*
+      - CMakeLists.txt
 
 pages_job:
   image: alpine
