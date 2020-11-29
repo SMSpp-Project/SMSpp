@@ -44,8 +44,15 @@ include(FindPackageHandleStandardArgs)
 # TODO: This should be a temporary fix
 if (${CMAKE_SYSTEM} MATCHES "Darwin-20.1.0")
     find_package(netCDF REQUIRED)
+    set(ncTarget "netCDF::netcdf")
 else ()
     find_package(netCDF REQUIRED CONFIG)
+    # Before 4.7.3, netCDF exported a target without namespace
+    if ("${netCDF_VERSION}" VERSION_LESS "4.7.3")
+        set(ncTarget "netcdf")
+    else ()
+        set(ncTarget "netCDF::netcdf")
+    endif ()
 endif ()
 
 # Check if already in cache
@@ -91,7 +98,7 @@ if (netCDFCxx_FOUND)
                 netCDF::netCDFCxx PROPERTIES
                 IMPORTED_LOCATION "${netCDFCxx_LIBRARY}"
                 INTERFACE_INCLUDE_DIRECTORIES "${netCDFCxx_INCLUDE_DIR}"
-                INTERFACE_LINK_LIBRARIES "netCDF::netcdf")
+                INTERFACE_LINK_LIBRARIES "${ncTarget}")
     endif ()
 endif ()
 

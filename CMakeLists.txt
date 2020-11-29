@@ -44,7 +44,7 @@ include(CTest)
 # ----- Requirements -------------------------------------------------------- #
 # The Boost find module is provided by CMake,
 # so this command will always work.
-find_package(Boost 1.71.0 REQUIRED)
+find_package(Boost 1.72.0 REQUIRED)
 
 # This adds the cmake directory to the find module search paths,
 # allowing us to use our find modules.
