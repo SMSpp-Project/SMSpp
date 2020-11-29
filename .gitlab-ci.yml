@@ -4,15 +4,14 @@ default:
 stages:
   - build
   - test
-  - pages
+  - deploy
 
-build_job:
+build:
   stage: build
   script:
     - cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
     - cmake --build build
   artifacts:
-    when: on_success
     paths:
       - build
   only:
@@ -22,20 +21,28 @@ build_job:
       - test/*
       - CMakeLists.txt
 
-test_job:
+test:
   stage: test
+  needs: ["build"]
   script:
     - cmake --build build --target test
-  only:
-    changes:
-      - include/*
-      - src/*
-      - test/*
-      - CMakeLists.txt
 
-pages_job:
+deploy:
+  stage: deploy
+  needs: ["build"]
+  script:
+    - cd build && cpack -G "TGZ;ZIP;TBZ2"
+  artifacts:
+    paths:
+      - build/*.tar.gz
+      - build/*.tar.bz2
+      - build/*.zip
+  only:
+    - tags
+
+pages:
   image: alpine
-  stage: pages
+  stage: deploy
   before_script:
     - apk update
     - apk add doxygen
