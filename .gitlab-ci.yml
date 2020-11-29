@@ -23,13 +23,15 @@ build:
 
 test:
   stage: test
-  needs: ["build"]
+  dependencies:
+    - build
   script:
     - cmake --build build --target test
 
 deploy:
   stage: deploy
-  needs: ["build"]
+  dependencies:
+    - build
   script:
     - cd build && cpack -G "TGZ;ZIP;TBZ2"
   artifacts:
