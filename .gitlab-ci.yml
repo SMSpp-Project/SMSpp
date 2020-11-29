@@ -23,15 +23,17 @@ build:
 
 test:
   stage: test
-  dependencies:
-    - build
   script:
     - cmake --build build --target test
+  only:
+    changes:
+      - include/*
+      - src/*
+      - test/*
+      - CMakeLists.txt
 
 deploy:
   stage: deploy
-  dependencies:
-    - build
   script:
     - cd build && cpack -G "TGZ;ZIP;TBZ2"
   artifacts:
