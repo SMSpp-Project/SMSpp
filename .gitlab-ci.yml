@@ -6,7 +6,7 @@ stages:
   - test
   - pages
 
-build:
+build_job:
   stage: build
   script:
     - cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
@@ -22,13 +22,15 @@ build:
       - test/*
       - CMakeLists.txt
 
-test:
+test_job:
   stage: test
   script:
     - cmake --build build --target test
+  when: on_success
 
-pages:
+pages_job:
   image: alpine
+  stage: pages
   before_script:
     - apk update
     - apk add doxygen
