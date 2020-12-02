@@ -44,37 +44,56 @@ SMSpp_insert_in_factory_cpp_0( ComputeConfig );
 /*--------------------- METHODS of ThinComputeInterface --------------------*/
 /*--------------------------------------------------------------------------*/
 
-void ThinComputeInterface::set_ComputeConfig( ComputeConfig * scfg ) {
- if( ( !scfg ) || ( !scfg->f_diff ) ) {  // "factory reset"
-  for( int i = 0; i < get_num_int_par(); ++i )
-   set_par( i, get_dflt_int_par( i ) );
+void ThinComputeInterface::set_ComputeConfig( ComputeConfig * scfg )
+{
+ if( ( ! scfg ) || ( ! scfg->f_diff ) ) {  // "factory reset"
+  for( int i = 0 ; i < get_num_int_par() ; ++i )
+   set_par( i , get_dflt_int_par( i ) );
 
-  for( int i = 0; i < get_num_dbl_par(); ++i )
-   set_par( i, get_dflt_dbl_par( i ) );
+  for( int i = 0 ; i < get_num_dbl_par() ; ++i )
+   set_par( i , get_dflt_dbl_par( i ) );
 
-  for( int i = 0; i < get_num_str_par(); ++i )
-   set_par( i, get_dflt_str_par( i ) );
- }
+  for( int i = 0 ; i < get_num_str_par() ; ++i )
+   set_par( i , get_dflt_str_par( i ) );
 
- if( !scfg )  // no ComputeConfig
+  for( int i = 0 ; i < get_num_vint_par() ; ++i )
+   set_par( i , get_dflt_vint_par( i ) );
+
+  for( int i = 0 ; i < get_num_vdbl_par() ; ++i )
+   set_par( i , get_dflt_vdbl_par( i ) );
+
+  for( int i = 0 ; i < get_num_vstr_par() ; ++i )
+   set_par( i , get_dflt_vstr_par( i ) );
+  }
+
+ if( ! scfg )  // no ComputeConfig
   return;      // all done
 
  for( const auto & pair : scfg->int_pars )
-  set_par( int_par_str2idx( pair.first ), pair.second );
+  set_par( int_par_str2idx( pair.first ) , pair.second );
 
  for( const auto & pair : scfg->dbl_pars )
-  set_par( dbl_par_str2idx( pair.first ), pair.second );
+  set_par( dbl_par_str2idx( pair.first ) , pair.second );
 
  for( const auto & pair : scfg->str_pars )
-  set_par( str_par_str2idx( pair.first ), pair.second );
+  set_par( str_par_str2idx( pair.first ) , pair.second );
 
-}  // end( ThinComputeInterface::set_ComputeConfig )
+ for( const auto & pair : scfg->vint_pars )
+  set_par( vint_par_str2idx( pair.first ) , pair.second );
+
+ for( const auto & pair : scfg->vdbl_pars )
+  set_par( vdbl_par_str2idx( pair.first ) , pair.second );
+
+ for( const auto & pair : scfg->vstr_pars )
+  set_par( vstr_par_str2idx( pair.first ) , pair.second );
+
+ }  // end( ThinComputeInterface::set_ComputeConfig )
 
 /*--------------------------------------------------------------------------*/
 
-ComputeConfig *
-ThinComputeInterface::get_ComputeConfig( bool all,
-                                         ComputeConfig * ocfg ) const {
+ComputeConfig * ThinComputeInterface::get_ComputeConfig(
+				       bool all, ComputeConfig * ocfg ) const
+{
  ComputeConfig * ccfg = ocfg ? ocfg : new ComputeConfig;
  ccfg->f_diff = !all;
  if( all ) {
@@ -82,47 +101,79 @@ ThinComputeInterface::get_ComputeConfig( bool all,
   for( int i = 0; i < get_num_int_par(); ++i ) {
    ccfg->int_pars[ i ].first = int_par_idx2str( i );
    ccfg->int_pars[ i ].second = get_int_par( i );
-  }
+   }
 
   ccfg->dbl_pars.resize( get_num_dbl_par() );
   for( int i = 0; i < get_num_dbl_par(); ++i ) {
    ccfg->dbl_pars[ i ].first = dbl_par_idx2str( i );
    ccfg->dbl_pars[ i ].second = get_dbl_par( i );
-  }
+   }
 
   ccfg->str_pars.resize( get_num_str_par() );
   for( int i = 0; i < get_num_str_par(); ++i ) {
    ccfg->str_pars[ i ].first = str_par_idx2str( i );
    ccfg->str_pars[ i ].second = get_str_par( i );
+   }
+  
+  ccfg->vint_pars.resize( get_num_vint_par() );
+  for( int i = 0; i < get_num_vint_par(); ++i ) {
+   ccfg->vint_pars[ i ].first = vint_par_idx2str( i );
+   ccfg->vint_pars[ i ].second = get_vint_par( i );
+   }
+
+  ccfg->vdbl_pars.resize( get_num_vdbl_par() );
+  for( int i = 0; i < get_num_vdbl_par(); ++i ) {
+   ccfg->vdbl_pars[ i ].first = vdbl_par_idx2str( i );
+   ccfg->vdbl_pars[ i ].second = get_vdbl_par( i );
+   }
+
+  ccfg->vstr_pars.resize( get_num_vstr_par() );
+  for( int i = 0; i < get_num_vstr_par(); ++i ) {
+   ccfg->vstr_pars[ i ].first = vstr_par_idx2str( i );
+   ccfg->vstr_pars[ i ].second = get_vstr_par( i );
+   }
   }
- } else {
-  for( int i = 0; i < get_num_int_par(); ++i )
+ else {
+  for( int i = 0 ; i < get_num_int_par() ; ++i )
    if( get_int_par( i ) != get_dflt_int_par( i ) )
-    ccfg->int_pars.emplace_back( int_par_idx2str( i ), get_int_par( i ) );
+    ccfg->int_pars.emplace_back( int_par_idx2str( i ) , get_int_par( i ) );
 
-  for( int i = 0; i < get_num_dbl_par(); ++i )
+  for( int i = 0 ; i < get_num_dbl_par() ; ++i )
    if( get_dbl_par( i ) != get_dflt_dbl_par( i ) )
-    ccfg->dbl_pars.emplace_back( dbl_par_idx2str( i ), get_dbl_par( i ) );
+    ccfg->dbl_pars.emplace_back( dbl_par_idx2str( i ) , get_dbl_par( i ) );
 
-  for( int i = 0; i < get_num_str_par(); ++i )
-   if( !( get_str_par( i ) == get_dflt_str_par( i ) ) )
-    ccfg->str_pars.emplace_back( str_par_idx2str( i ), get_str_par( i ) );
- }
+  for( int i = 0 ; i < get_num_str_par() ; ++i )
+   if( ! ( get_str_par( i ) == get_dflt_str_par( i ) ) )
+    ccfg->str_pars.emplace_back( str_par_idx2str( i ) , get_str_par( i ) );
+
+  for( int i = 0 ; i < get_num_vint_par() ; ++i )
+   if( ! ( get_vint_par( i ) == get_dflt_vint_par( i ) ) )
+    ccfg->vint_pars.emplace_back( vint_par_idx2str( i ) , get_vint_par( i ) );
+
+  for( int i = 0 ; i < get_num_vdbl_par() ; ++i )
+   if( ! ( get_vdbl_par( i ) == get_dflt_dbl_par( i ) ) )
+    ccfg->vdbl_pars.emplace_back( vdbl_par_idx2str( i ) , get_vdbl_par( i ) );
+
+  for( int i = 0 ; i < get_num_str_par() ; ++i )
+   if( ! ( get_vstr_par( i ) == get_dflt_vstr_par( i ) ) )
+    ccfg->vstr_pars.emplace_back( vstr_par_idx2str( i ) , get_vstr_par( i ) );
+  }
 
  if( ccfg->empty() ) {
   delete ccfg;
   ccfg = nullptr;
- }
+  }
 
- return ( ccfg );
+ return( ccfg );
 
-}  // end( ThinComputeInterface::get_ComputeConfig )
+ }  // end( ThinComputeInterface::get_ComputeConfig )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ METHODS of ComputeConfig ------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void ComputeConfig::deserialize( netCDF::NcGroup & group ) {
+void ComputeConfig::deserialize( netCDF::NcGroup & group )
+{
  // call the method of the base class, which does not much
  Configuration::deserialize( group );
 
@@ -134,80 +185,135 @@ void ComputeConfig::deserialize( netCDF::NcGroup & group ) {
   int diffint;
   diff.getValues( &diffint );
   f_diff = diffint > 0;
- }
+  }
 
  // int parameters- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- netCDF::NcDim nip = group.getDim( "num_int_par" );
- size_t num_int_par = nip.isNull() ? 0 : nip.getSize();
+ netCDF::NcDim nip = group.getDim( "int_par_num" );
 
- if( num_int_par ) {
-  netCDF::NcVar int_par_names = group.getVar( "int_par_names" );
-  if( int_par_names.isNull() )
-   throw ( std::invalid_argument( "missing int_par_names in netCDF group" ) );
+ if( size_t num = nip.isNull() ? 0 : nip.getSize() ) {
+  netCDF::NcVar names = group.getVar( "int_par_names" );
+  if( names.isNull() )
+   throw( std::invalid_argument( "missing int_par_names in netCDF group" ) );
 
-  netCDF::NcVar int_par_vals = group.getVar( "int_par_vals" );
-  if( int_par_vals.isNull() )
-   throw ( std::invalid_argument( "missing int_par_vals in netCDF group" ) );
+  netCDF::NcVar vals = group.getVar( "int_par_vals" );
+  if( vals.isNull() )
+   throw( std::invalid_argument( "missing int_par_vals in netCDF group" ) );
 
-  int_pars.resize( num_int_par );
-  for( size_t i = 0; i < num_int_par; ++i ) {
+  int_pars.resize( num );
+  for( size_t i = 0; i < num ; ++i ) {
    std::vector< size_t > idx = { i };
-   int_par_names.getVar( idx, &( int_pars[ i ].first ) );
-   int_par_vals.getVar( idx, &( int_pars[ i ].second ) );
+   names.getVar( idx , &( int_pars[ i ].first ) );
+   vals.getVar( idx , &( int_pars[ i ].second ) );
+   }
   }
- }
 
  // double parameters - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- netCDF::NcDim ndp = group.getDim( "num_dbl_par" );
- size_t num_dbl_par = ndp.isNull() ? 0 : ndp.getSize();
+ netCDF::NcDim ndp = group.getDim( "dbl_par_num" );
 
- if( num_dbl_par ) {
-  netCDF::NcVar dbl_par_names = group.getVar( "dbl_par_names" );
-  if( dbl_par_names.isNull() )
-   throw ( std::invalid_argument( "missing dbl_par_names in netCDF group" ) );
+ if( size_t num = ndp.isNull() ? 0 : ndp.getSize() ) {
+  netCDF::NcVar names = group.getVar( "dbl_par_names" );
+  if( names.isNull() )
+   throw( std::invalid_argument( "missing dbl_par_names in netCDF group" ) );
 
-  netCDF::NcVar dbl_par_vals = group.getVar( "dbl_par_vals" );
-  if( dbl_par_vals.isNull() )
-   throw ( std::invalid_argument( "missing dbl_par_vals in netCDF group" ) );
+  netCDF::NcVar vals = group.getVar( "dbl_par_vals" );
+  if( vals.isNull() )
+   throw( std::invalid_argument( "missing dbl_par_vals in netCDF group" ) );
 
-  dbl_pars.resize( num_dbl_par );
-  for( size_t i = 0; i < num_dbl_par; ++i ) {
+  dbl_pars.resize( num );
+  for( size_t i = 0 ; i < num ; ++i ) {
    std::vector< size_t > idx = { i };
-   dbl_par_names.getVar( idx, &( dbl_pars[ i ].first ) );
-   dbl_par_vals.getVar( idx, &( dbl_pars[ i ].second ) );
+   names.getVar( idx , &( dbl_pars[ i ].first ) );
+   vals.getVar( idx , &( dbl_pars[ i ].second ) );
+   }
   }
- }
 
  // string parameters - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- netCDF::NcDim nsp = group.getDim( "num_str_par" );
- size_t num_str_par = nsp.isNull() ? 0 : nsp.getSize();
+ netCDF::NcDim nsp = group.getDim( "str_par_num" );
+ 
+ if( size_t num = nsp.isNull() ? 0 : nsp.getSize() ) {
+  netCDF::NcVar names = group.getVar( "str_par_names" );
+  if( names.isNull() )
+   throw( std::invalid_argument( "missing str_par_names in netCDF group" ) );
 
- if( num_str_par ) {
-  netCDF::NcVar str_par_names = group.getVar( "str_par_names" );
-  if( str_par_names.isNull() )
-   throw ( std::invalid_argument( "missing str_par_names in netCDF group" ) );
+  netCDF::NcVar vals = group.getVar( "str_par_vals" );
+  if( vals.isNull() )
+   throw( std::invalid_argument( "missing str_par_vals in netCDF group" ) );
 
-  netCDF::NcVar str_par_vals = group.getVar( "str_par_vals" );
-  if( str_par_vals.isNull() )
-   throw ( std::invalid_argument( "missing str_par_vals in netCDF group" ) );
-
-  str_pars.resize( num_str_par );
-  for( size_t i = 0; i < num_str_par; ++i ) {
+  str_pars.resize( num );
+  for( size_t i = 0 ; i < num ; ++i ) {
    std::vector< size_t > idx = { i };
-   str_par_names.getVar( idx, &( str_pars[ i ].first ) );
-   str_par_vals.getVar( idx, &( str_pars[ i ].second ) );
+   names.getVar( idx , &( str_pars[ i ].first ) );
+   vals.getVar( idx , &( str_pars[ i ].second ) );
+   }
   }
- }
+
+ // vector-of-int parameters- - - - - - - - - - - - - - - - - - - - - - - - -
+ netCDF::NcDim nvip = group.getDim( "v_int_par_num" );
+
+ if( size_t num = nvip.isNull() ? 0 : nvip.getSize() ) {
+  netCDF::NcVar names = group.getVar( "v_int_par_names" );
+  if( names.isNull() )
+   throw( std::invalid_argument( "missing v_int_par_names in netCDF group" )
+	  );
+
+  std::vector< std::vector< int > > tmp;
+  ::deserialize( "v_int_par_vals" , "v_int_par_start" , tmp , false );
+
+  vint_pars.resize( num );
+  for( size_t i = 0 ; i < num ; ++i ) {
+   names.getVar( { i } , &( vint_pars[ i ].first ) );
+   vint_pars[ i ].second = std::move( tmp[ i ] );
+   }
+  }
+
+ // vector-of-float parameters- - - - - - - - - - - - - - - - - - - - - - - -
+ netCDF::NcDim nvdp = group.getDim( "v_dbl_par_num" );
+
+ if( size_t num = nvdp.isNull() ? 0 : nvdp.getSize() ) {
+  netCDF::NcVar names = group.getVar( "v_dbl_par_names" );
+  if( names.isNull() )
+   throw( std::invalid_argument( "missing v_dbl_par_names in netCDF group" )
+	  );
+
+  std::vector< std::vector< double > > tmp;
+  ::deserialize( "v_dbl_par_vals" , "v_dbl_par_start" , tmp , false );
+
+  vdbl_pars.resize( num );
+  for( size_t i = 0 ; i < num ; ++i ) {
+   names.getVar( { i } , &( vdbl_pars[ i ].first ) );
+   vdbl_pars[ i ].second = std::move( tmp[ i ] );
+   }
+  }
+
+ // vector-of-string parameters - - - - - - - - - - - - - - - - - - - - - - -
+ netCDF::NcDim nvsp = group.getDim( "v_str_par_num" );
+
+ if( size_t num = nvsp.isNull() ? 0 : nvsp.getSize() ) {
+  netCDF::NcVar names = group.getVar( "v_str_par_names" );
+  if( names.isNull() )
+   throw( std::invalid_argument( "missing v_str_par_names in netCDF group" )
+	  );
+
+  std::vector< std::vector< std::string > > tmp;
+  ::deserialize( "v_str_par_vals" , "v_str_par_start" , tmp , false );
+
+  vstr_pars.resize( num );
+  for( size_t i = 0 ; i < num ; ++i ) {
+   names.getVar( { i } , &( vstr_pars[ i ].first ) );
+   vstr_pars[ i ].second = std::move( tmp[ i ] );
+   }
+  }
 
  // "extra" Configuration - - - - - - - - - - - - - - - - - - - - - - - - - -
  auto ec = group.getGroup( "extra" );
  f_extra_Configuration = new_Configuration( ec );
 
-}  // end( ComputeConfig::deserialize( netCDF::NcGroup ) )
+ }  // end( ComputeConfig::deserialize( netCDF::NcGroup ) )
 
 /*--------------------------------------------------------------------------*/
 
-void ComputeConfig::serialize( netCDF::NcGroup & group ) const {
+void ComputeConfig::serialize( netCDF::NcGroup & group ) const
+{
  // call the method of the base class, which writes the "type" attribute
  Configuration::serialize( group );
 
@@ -215,63 +321,205 @@ void ComputeConfig::serialize( netCDF::NcGroup & group ) const {
  group.putAtt( "diff", netCDF::NcInt(), int( f_diff ) );
 
  // int parameters- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- netCDF::NcDim num_int_par = group.addDim( "num_int_par", int_pars.size() );
- if( !int_pars.empty() ) {
-  netCDF::NcVar int_par_names = group.addVar( "int_par_names",
-                                              netCDF::NcString(),
-                                              num_int_par );
-  netCDF::NcVar int_par_vals = group.addVar( "int_par_names",
-                                             netCDF::NcInt(),
-                                             num_int_par );
-  for( size_t i = 0; i < int_pars.size(); ++i ) {
+ if( ! int_pars.empty() ) {
+  auto num = group.addDim( "int_par_num" , int_pars.size() );
+  auto nmes = group.addVar( "int_par_names" , netCDF::NcString() , num );
+  auto vals = group.addVar( "int_par_vals" , netCDF::NcInt() , num );
+  for( size_t i = 0 ; i < int_pars.size() ; ++i ) {
    std::vector< size_t > idx = { i };
-   int_par_names.putVar( idx, int_pars[ i ].first );
-   int_par_vals.putVar( idx, int_pars[ i ].second );
+   nmes.putVar( idx, int_pars[ i ].first );
+   vals.putVar( idx, int_pars[ i ].second );
+   }
   }
- }
 
  // double parameters - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- netCDF::NcDim num_dbl_par = group.addDim( "num_dbl_par", dbl_pars.size() );
- if( !dbl_pars.empty() ) {
-  netCDF::NcVar dbl_par_names = group.addVar( "dbl_par_names",
-                                              netCDF::NcString(),
-                                              num_dbl_par );
-  netCDF::NcVar dbl_par_vals = group.addVar( "dbl_par_vals",
-                                             netCDF::NcDouble(),
-                                             num_dbl_par );
-  for( size_t i = 0; i < dbl_pars.size(); ++i ) {
+ if( ! dbl_pars.empty() ) {
+  auto num = group.addDim( "dbl_par_num" , dbl_pars.size() );
+  auto nmes = group.addVar( "dbl_par_names" , netCDF::NcString() , num );
+  auto vals = group.addVar( "dbl_par_vals" ,netCDF::NcDouble() , num );
+  for( size_t i = 0 ; i < dbl_pars.size() ; ++i ) {
    std::vector< size_t > idx = { i };
-   dbl_par_names.putVar( idx, dbl_pars[ i ].first );
-   dbl_par_vals.putVar( idx, dbl_pars[ i ].second );
+   nmes.putVar( idx , dbl_pars[ i ].first );
+   vals.putVar( idx , dbl_pars[ i ].second );
+   }
   }
- }
 
  // string parameters - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- netCDF::NcDim num_str_par = group.addDim( "num_str_par", str_pars.size() );
- if( !str_pars.empty() ) {
-  netCDF::NcVar str_par_names = group.addVar( "str_par_names",
-                                              netCDF::NcString(),
-                                              num_str_par );
-  netCDF::NcVar str_par_vals = group.addVar( "str_par_names",
-                                             netCDF::NcString(),
-                                             num_str_par );
-  for( size_t i = 0; i < str_pars.size(); ++i ) {
+ if( ! str_pars.empty() ) {
+  auto num = group.addDim( "str_par_num" , str_pars.size() );
+  auto nmes = group.addVar( "str_par_names" , netCDF::NcString() , num );
+  auto vals = group.addVar( "str_par_vals" , netCDF::NcString() , num );
+  for( size_t i = 0 ; i < str_pars.size() ; ++i ) {
    std::vector< size_t > idx = { i };
-   str_par_names.putVar( idx, str_pars[ i ].first );
-   str_par_vals.putVar( idx, str_pars[ i ].second );
+   nmes.putVar( idx , str_pars[ i ].first );
+   vals.putVar( idx , str_pars[ i ].second );
+   }
   }
- }
+
+ // vector-of-int parameters- - - - - - - - - - - - - - - - - - - - - - - - -
+ if( ! vint_pars.empty() ) {
+  auto num = group.addDim( "v_int_par_num" , vint_pars.size() );
+  auto nmes = group.addVar( "v_int_par_names" , netCDF::NcString() , num );
+  for( size_t i = 0 ; i < vint_pars.size() ; ++i )
+   nmes.putVar( { i } , vint_pars[ i ].first );
+
+  std::vector< int > strt( vint_pars.size() );
+  auto cnt = 0;
+  for( auto & el : vint_pars ) {
+   strt[ i ] = cnt;
+   cnt += el.second.size();
+   }
+
+  auto tot = group.addDim( "v_int_par_tot" , cnt );
+  ( group.addVar( "v_int_par_start", netCDF::NcInt() , num ) ).putVar(
+							      strt.data() );
+  std::vector< int > tmp( cnt );
+  auto tit = tmp.begin();
+  for( auto & el : vint_pars )
+   tit = std::copy( el.second.begin() , el.second.end() , tit );
+
+  ( group.addVar( "v_int_par_vals" , netCDF::NcInt() , tot ) ).putVar(
+							       tmp.data() ); 
+  }
+
+ // vector-of-float parameters- - - - - - - - - - - - - - - - - - - - - - - -
+ if( ! vdbl_pars.empty() ) {
+  auto num = group.addDim( "v_dbl_par_num" , vdbl_pars.size() );
+  auto nmes = group.addVar( "v_dbl_par_names" , netCDF::NcString() , num );
+  for( size_t i = 0 ; i < vdbl_pars.size() ; ++i )
+   nmes.putVar( { i } , vdbl_pars[ i ].first );
+
+  std::vector< int > strt( vdbl_pars.size() );
+  auto cnt = 0;
+  for( auto & el : vdbl_pars ) {
+   strt[ i ] = cnt;
+   cnt += el.second.size();
+   }
+
+  auto tot = group.addDim( "v_dbl_par_tot" , cnt );
+  ( group.addVar( "v_dbl_par_start", netCDF::NcInt() , num ) ).putVar(
+							      strt.data() );
+  std::vector< double > tmp( cnt );
+  auto tit = tmp.begin();
+  for( auto & el : vdbl_pars )
+   tit = std::copy( el.second.begin() , el.second.end() , tit );
+
+  ( group.addVar( "v_dbl_par_vals" , netCDF::NcDouble() , tot ) ).putVar(
+							       tmp.data() ); 
+  }
+
+ // vector-of-string parameters - - - - - - - - - - - - - - - - - - - - - - -
+ if( ! vstr_pars.empty() ) {
+  auto num = group.addDim( "v_str_par_num" , vstr_pars.size() );
+  auto nmes = group.addVar( "v_str_par_names" , netCDF::NcString() , num );
+  for( size_t i = 0 ; i < vstr_pars.size() ; ++i )
+   nmes.putVar( { i } , vstr_pars[ i ].first );
+
+  std::vector< int > strt( vstr_pars.size() );
+  auto cnt = 0;
+  for( auto & el : vstr_pars ) {
+   strt[ i ] = cnt;
+   cnt += el.second.size();
+   }
+
+  auto tot = group.addDim( "v_str_par_tot" , cnt );
+  ( group.addVar( "v_str_par_start", netCDF::NcInt() , num ) ).putVar(
+							      strt.data() );
+  std::vector< std::string > tmp( cnt );
+  auto tit = tmp.begin();
+  for( auto & el : vstr_pars )
+   tit = std::copy( el.second.begin() , el.second.end() , tit );
+
+  ( group.addVar( "v_str_par_vals" , netCDF::NcString() , tot ) ).putVar(
+							       tmp.data() ); 
+  }
 
  // "extra" Configuration - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( f_extra_Configuration ) {
-  auto ec = group.addGroup( "extra" );
-  f_extra_Configuration->serialize( ec );
- }
-}  // end( ComputeConfig::serialize( netCDF::NcGroup ) )
+ if( f_extra_Configuration )
+  f_extra_Configuration->serialize( group.addGroup( "extra" ) );
+
+ }  // end( ComputeConfig::serialize( netCDF::NcGroup ) )
 
 /*--------------------------------------------------------------------------*/
 
-void ComputeConfig::print( std::ostream & output ) const {
+void ComputeConfig::reset_par( const std::string & name , char type )
+{
+ switch( type ) {
+  case( 'i' ): {
+   auto it = std::find_if( int_pars.begin() , int_pars.end() ,
+			   [ & name ]( auto & el ) {
+			    return ( name == el.first );
+			    } );
+   if( it != int_pars.end() ) {
+    *it = std::move( int_pars.back() );
+    int_pars.pop_back();
+    }
+   return;
+   }
+  case( 'd' ): {
+   auto it = std::find_if( dbl_pars.begin() , dbl_pars.end() ,
+			   [ & name ]( auto & el ) {
+			    return ( name == el.first );
+			    } );
+   if( it != dbl_pars.end() ) {
+    *it = std::move( dbl_pars.back() );
+    dbl_pars.pop_back();
+    }
+   return;
+   }
+  case( 's' ): {
+   auto it = std::find_if( str_pars.begin() , str_pars.end() ,
+			   [ & name ]( auto & el ) {
+			    return ( name == el.first );
+			    } );
+   if( it != str_pars.end() ) {
+    *it = std::move( str_pars.back() );
+    str_pars.pop_back();
+    }
+   return;
+   }
+  case( 'I' ): {
+   auto it = std::find_if( vint_pars.begin() , vint_pars.end() ,
+			   [ & name ]( auto & el ) {
+			    return ( name == el.first );
+			    } );
+   if( it != vint_pars.end() ) {
+    *it = std::move( vint_pars.back() );
+    vint_pars.pop_back();
+    }
+   return;
+   }
+  case( 'D' ): {
+   auto it = std::find_if( vdbl_pars.begin() , vdbl_pars.end() ,
+			   [ & name ]( auto & el ) {
+			    return ( name == el.first );
+			    } );
+   if( it != vdbl_pars.end() ) {
+    *it = std::move( vdbl_pars.back() );
+    vdbl_pars.pop_back();
+    }
+   return;
+   }
+  case( 'S' ): {
+   auto it = std::find_if( vstr_pars.begin() , vstr_pars.end() ,
+			   [ & name ]( auto & el ) {
+			    return ( name == el.first );
+			    } );
+   if( it != vstr_pars.end() ) {
+    *it = std::move( vstr_pars.back() );
+    vstr_pars.pop_back();
+    }
+   return;
+   }
+  default:
+   throw( std::invalid_argument( "reset_par: invalid parameter type" ) ):
+  }
+ }  // end( ComputeConfig::reset_par )
+
+/*--------------------------------------------------------------------------*/
+
+void ComputeConfig::print( std::ostream & output ) const
+{
  output << "ComputeConfig";
  if( f_diff ) output << "[diff]";
  output << ": " << std::endl;
@@ -281,45 +529,158 @@ void ComputeConfig::print( std::ostream & output ) const {
   output << pair.first << " = " << pair.second << std::endl;
  for( auto & pair : str_pars )
   output << pair.first << " = " << pair.second << std::endl;
+ for( auto & pair : vint_pars )
+  output << pair.first << " = " << pair.second << std::endl;
+ for( auto & pair : vdbl_pars )
+  output << pair.first << " = " << pair.second << std::endl;
+ for( auto & pair : vstr_pars )
+  output << pair.first << " = " << pair.second << std::endl;
  if( f_extra_Configuration )
   output << "xtra Config:" << *f_extra_Configuration;
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 
-void ComputeConfig::load( std::istream & input ) {
+void ComputeConfig::load( std::istream & input )
+{
+ if( f_extra_Configuration ) {
+  delete f_extra_Configuration;
+  f_extra_Configuration = nullptr;
+  }
+
+ clear();
+ f_diff = true;
+
+ if( input.eof() || input.fail() )
+  return;
+
  input >> eatcomments >> f_diff;
+ if( input.fail() )
+  throw( std::invalid_argument( "ComputeConfig::load: stream read error" ) );
 
  int k;
  input >> eatcomments >> k;
+ if( input.fail() )
+  throw( std::invalid_argument( "ComputeConfig::load: stream read error" ) );
+
  int_pars.resize( k );
- for( int i = 0; i < k; ++i )
+ for( int i = 0 ; i < k ; ++i ) {
   input >> eatcomments >> int_pars[ i ].first
         >> eatcomments >> int_pars[ i ].second;
+  if( input.fail() )
+   throw( std::invalid_argument( "ComputeConfig::load: stream read error" ) );
+  }
+
+ if( input.eof() )
+  return;
 
  input >> eatcomments >> k;
+ if( input.fail() )
+  throw( std::invalid_argument( "ComputeConfig::load: stream read error" ) );
+
  dbl_pars.resize( k );
- for( int i = 0; i < k; ++i )
+ for( int i = 0 ; i < k ; ++i ) {
   input >> eatcomments >> dbl_pars[ i ].first
         >> eatcomments >> dbl_pars[ i ].second;
+  if( input.fail() )
+   throw( std::invalid_argument( "ComputeConfig::load: stream read error" ) );
+  }
+
+ if( input.eof() )
+  return;
 
  input >> eatcomments >> k;
+ if( input.fail() )
+  throw( std::invalid_argument( "ComputeConfig::load: stream read error" ) );
+
  str_pars.resize( k );
- for( int i = 0; i < k; ++i )
+ for( int i = 0 ; i < k ; ++i ) {
   input >> eatcomments >> str_pars[ i ].first
         >> eatcomments >> str_pars[ i ].second;
+  if( input.fail() )
+   throw( std::invalid_argument( "ComputeConfig::load: stream read error" ) );
+  }
+
+ if( input.eof() )
+  return;
+
+ input >> eatcomments >> k;
+ if( input.fail() )
+  throw( std::invalid_argument( "ComputeConfig::load: stream read error" ) );
+
+ vint_pars.resize( k );
+ for( int i = 0 ; i < k ; ++i ) {
+  Index h;
+  input >> eatcomments >> vint_pars[ i ].first >> eatcomments >> h;
+  if( input.fail() )
+   throw( std::invalid_argument( "ComputeConfig::load: stream read error" ) );
+  vint_pars[ i ].second.resize( h );
+  for( int j = 0 ; j < h ; ++j ) {
+   input >> eatcomments >> vint_pars[ i ].second[ j ];
+   if( input.fail() )
+    throw( std::invalid_argument( "ComputeConfig::load: stream read error" ) );
+   }
+  }
+
+ if( input.eof() )
+  return;
+
+ input >> eatcomments >> k;
+ if( input.fail() )
+  throw( std::invalid_argument( "ComputeConfig::load: stream read error" ) );
+
+ vdbl_pars.resize( k );
+ for( int i = 0 ; i < k ; ++i ) {
+  Index h;
+  input >> eatcomments >> vdbl_pars[ i ].first >> eatcomments >> h;
+  if( input.fail() )
+   throw( std::invalid_argument( "ComputeConfig::load: stream read error" ) );
+  vdbl_pars[ i ].second.resize( h );
+  for( int j = 0 ; j < h ; ++j ) {
+   input >> eatcomments >> vdbl_pars[ i ].second[ j ];
+   if( input.fail() )
+    throw( std::invalid_argument( "ComputeConfig::load: stream read error" ) );
+   }
+  }
+
+ if( input.eof() )
+  return;
+
+ input >> eatcomments >> k;
+ if( input.fail() )
+  throw( std::invalid_argument( "ComputeConfig::load: stream read error" ) );
+
+ vstr_pars.resize( k );
+ for( int i = 0 ; i < k ; ++i ) {
+  Index h;
+  input >> eatcomments >> vstr_pars[ i ].first >> eatcomments >> h;
+  if( input.fail() )
+   throw( std::invalid_argument( "ComputeConfig::load: stream read error" ) );
+  vstr_pars[ i ].second.resize( h );
+  for( int j = 0 ; j < h ; ++j ) {
+   input >> eatcomments >> vstr_pars[ i ].second[ j ];
+   if( input.fail() )
+    throw( std::invalid_argument( "ComputeConfig::load: stream read error" ) );
+   }
+  }
+
+ if( input.eof() )
+  return;
 
  input >> eatcomments;
  if( input.peek() == input.widen( '*' ) ) {
   input.get();
   f_extra_Configuration = nullptr;
- } else {
+  }
+ else {
   std::string cname;
   input >> cname;
+  if( input.fail() )
+   throw( std::invalid_argument( "ComputeConfig::load: stream read error" ) );
   f_extra_Configuration = Configuration::new_Configuration( cname );
   input >> *f_extra_Configuration;
- }
-}  // end( ComputeConfig::load )
+  }
+ }  // end( ComputeConfig::load )
 
 /*--------------------------------------------------------------------------*/
 /*------------------ End File ThinComputeInterface.cpp ---------------------*/

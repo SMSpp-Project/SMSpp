@@ -8,9 +8,9 @@
  * a ComputeConfig object that allows to set and get all the parameters of a
  * :ThinComputeInterface object in one blow.
  *
- * \version 0.11
+ * \version 0.20
  *
- * \date 15 - 06 - 2020
+ * \date 02 - 12 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -175,7 +175,7 @@ class ThinComputeInterface {
    * proceed in the computation process, possibly providing a kOK-type
    * answer. */
 
- };  // end( compute_type )
+  };  // end( compute_type )
 
 /*--------------------------------------------------------------------------*/
  /// the type of an event handler
@@ -214,8 +214,8 @@ class ThinComputeInterface {
 
  enum event_type {
   eBeforeTermination = 0,   ///< event to be called just prior to terminating
-  /**< Type of events that will be called right
-   * before compute() terminates. This is provided
+                            /**< Type of events that will be called right
+                             * before compute() terminates. This is provided
    * in particular to handle cases such as a computation entailing the solution
    * of an optimization problem whose model is dynamically generated (say, row
    * and/or column generation). In such a case the optimality conditions may
@@ -228,31 +228,30 @@ class ThinComputeInterface {
    * and check the stopping conditions again. */
 
   eEverykIteration = 1,   ///< events to be called every k iterations
-  /**< Type of events that will be called every
-   * k iterations, whatever "iteration" means for
+                          /**< Type of events that will be called every
+                           * k iterations, whatever "iteration" means for
    * the compute() at hand. The value of k is to be set with a separate
    * algorithmic parameter, properly defined by derived classes actually
    * implementing the mechanism. */
 
   eEveryTTime = 2,   ///< events to be called periodically in time
-  /**< Type of events that will be called
-   * periodically every fixed amount T of time.
-   * The value of T is to be set with a separate algorithmic parameter, properly
-   * defined by derived classes actually implementing the mechanism. Note that
-   * in general one does not expect derived classes to be very "tight" in heeding
-   * to the time interval T, in the sense that they will typically check
-   * periodically (say, every iteration) whether the elapsed time has passed,
-   * and call the event of it has. If iterations are much longer than T this
-   * may cause some events not to be called at all, although of course a
-   * derived class may place appropriate checks in multiple places to try to
-   * avoid this. */
+                     /**< Type of events that will be called periodically
+		      * every fixed amount T of time. The value of T is to be
+   * set with a separate algorithmic parameter, properly defined by derived
+   * classes actually implementing the mechanism. Note that in general one
+   * does not expect derived classes to be very "tight" in heeding to the time
+   * interval T, in the sense that they will typically check periodically (say,
+   * every iteration) whether the elapsed time has passed, and call the event
+   * of it has. If iterations are much longer than T this may cause some events
+   * not to be called at all, although of course a derived class may place
+   * appropriate checks in multiple places to try to avoid this. */
 
   e_last_event_type = 4     ///< conveniemce value to define new events
-  /**< conveniemce value to allow derived classes
-   * to "extend" event_type and define new
+                            /**< conveniemce value to allow derived classes
+			     * to "extend" event_type and define new
    * class-specific events that their compute() can support. */
 
- };  // end( compute_type )
+  };  // end( compute_type )
 
 /*--------------------------------------------------------------------------*/
  /// public enum for the possible types of actions in response to events
@@ -262,8 +261,8 @@ class ThinComputeInterface {
 
  enum action_type {
   eForceContinue = 0,   ///< force compute() to continue even if it would stop
-  /**< If compute() was going to stop because it
-   * considered the computation to be over, force it
+                        /**< If compute() was going to stop because it
+                         * considered the computation to be over, force it
    * to reconsider this. A typical case in which this can happen is if the
    * computation entails the solution of an optimization problem whose model
    * is dynamically generated (say, row and/or column generation). In such a
@@ -274,8 +273,8 @@ class ThinComputeInterface {
    * course, that this makes any sense for the compute() at hand). */
 
   eContinue = kUnEval,   ///< continue compute()
-  /**< If the event handler returns any value
-   * comprised between 0 and eContinue (extremes
+                         /**< If the event handler returns any value
+                          * comprised between 0 and eContinue (extremes
    * included, then compute() will continue. In particular, eContinue means
    * "business as usual", while values < eContinue may give specific
    * instructions (cf. e.g. eForceContinue). eContinue is taken equal to
@@ -283,8 +282,8 @@ class ThinComputeInterface {
    * and compute(), see eStopOK and eStopError for details. */
 
   eStopOK = kOK,         ///< force compute() to stop returning success
-  /**< If the event handler returns any value
-   * comprised between eContinue (excluded) and
+                         /**< If the event handler returns any value
+                          * comprised between eContinue (excluded) and
    * eStopOK (included), compute() should immediately stop (some delay is
    * possible if required by the implementation) because the event has
    * detected that whatever needed to be compute()-d, has already been
@@ -307,8 +306,8 @@ class ThinComputeInterface {
    * by the user after compute() terminates.) */
 
   eStopError = kError     ///< force compute() to stop returning error
-  /**< If the event handler returns any value
-   * > eStopOK, then compute() should immediately
+                          /**< If the event handler returns any value
+                            * > eStopOK, then compute() should immediately
    * stop (some delay is possible if required by the implementation) because
    * the event has detected that whatever needed to be compute()-d can or need
    * no longer be computed, say because some required computational resource
@@ -333,7 +332,7 @@ class ThinComputeInterface {
    * needs to know which compute() it is handling, and therefore ensure that
    * the return value is valid for that compute(). */
 
- };  // end( compute_type )
+  };  // end( compute_type )
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- CONSTRUCTING AND DESTRUCTING ThinComputeInterface ------------*/
@@ -359,34 +358,120 @@ class ThinComputeInterface {
  /// set a given integer (int) numerical parameter
  /** Set the integer (int) numerical parameter with index \p par, which must
   * be in the range [ 0 , get_num_int_par() ). The method is given a "void"
-  * implementation doing nothing (i.e., ignoring the set value), rather than
-  * being pure virtual, so that derived classes not having any working int
+  * implementation doing nothing (i.e., ignoring \p value), rather than being
+  * pure virtual, so that derived classes not having any working int
   * parameter (i.e., either not having any or not really reacting to the ones
   * that they supposedly have) do not have to bother with implementing it. */
 
- virtual void set_par( const idx_type par, const int value ) {}
+ virtual void set_par( idx_type par , int value ) {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set a given float (double) numerical parameter
  /** Set the float (double) numerical parameter with index \p par, which must
   * be in the range [ 0 , get_num_dbl_par() ). The method is given a "void"
-  * implementation doing nothing (i.e., ignoring the set value), rather than
-  * being pure virtual, so that derived classes not having any working double
+  * implementation doing nothing (i.e., ignoring \p value), rather than being
+  * pure virtual, so that derived classes not having any working double
   * parameter (i.e., either not having any or not really reacting to the ones
   * that they supposedly have) do not have to bother with implementing it. */
 
- virtual void set_par( const idx_type par, const double value ) {}
+ virtual void set_par( idx_type par , double value ) {}
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// move a given string parameter
+ /** Set the string parameter with index \p par, which must be in the range
+  * [ 0 , get_num_str_par() ). The method takes an lvalue reference, which
+  * means that \p value can be moved into the ThinComputeInterface. The method
+  * is given a "void" implementation doing nothing (i.e., ignoring \p value),
+  * rather than being pure virtual, so that derived classes not having any
+  * working string parameter (i.e., either not having any or not really
+  * reacting to the ones that they supposedly have) do not have to bother
+  * with implementing it. */
+
+ virtual void set_par( idx_type par , std::string && value ) {}
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set a given string parameter
- /** Set the string parameter with index \p par, which must be in the range
-  * [ 0 , get_num_tr_par() ). The method is given a "void" implementation
-  * doing nothing (i.e., ignoring the set value), rather than being pure
-  * virtual, so that derived classes not having any working string parameter
+ /** Like set_par( idx_type , std::string && ), but taking a const reference.
+  * The method is given a default implementation that calls the "move"
+  * version with a copy of \p value, and this might not need to be ever
+  * re-implemented by derived classes. */
+
+ virtual void set_par( idx_type par , const std::string & value ) {
+  set_par( par , std::move( std::string( value ) ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// move a given vector-of-integer (std::vector< int >) numerical parameter
+ /** Set the vector-of-integer (std::vector< int >) numerical parameter with
+  * index \p par, which must be in the range [ 0 , get_num_vint_par() ). The
+  * method takes an lvalue reference, which means that \p value can be moved
+  * into the ThinComputeInterface. The method is given a "void" implementation
+  * doing nothing (i.e., ignoring \p value), rather than being pure virtual,
+  * so that derived classes not having any working vector-of-integer parameter
   * (i.e., either not having any or not really reacting to the ones that they
   * supposedly have) do not have to bother with implementing it. */
 
- virtual void set_par( const idx_type par, const std::string & value ) {}
+ virtual void set_par( idx_type par , std::vector< int > && value ) {}
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// set a given vector-of-integer (std::vector< int >) numerical parameter
+ /** Like set_par( idx_type , std::vector< int > && ), but taking a const
+  * reference. The method is given a default implementation that calls the
+  * "move" version with a copy of \p value, and this might not need to be
+  * ever re-implemented by derived classes. */
+
+ virtual void set_par( idx_type par , const std::vector< int > & value ) {
+  set_par( par , std::move( std::vector< int >( value ) ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// move a given vector-of-float (std::vector< double >) numerical parameter
+ /** Set the vector-of-float (std::vector< doule >) numerical parameter with
+  * index \p par, which must be in the range [ 0 , get_num_vdbl_par() ). The
+  * method takes an lvalue reference, which means that \p value can be moved
+  * into the ThinComputeInterface. The method is given a "void" implementation
+  * doing nothing (i.e., ignoring \p value), rather than being pure virtual,
+  * so that derived classes not having any working vector-of-float parameter
+  * (i.e., either not having any or not really reacting to the ones that they
+  * supposedly have) do not have to bother with implementing it. */
+
+ virtual void set_par( idx_type par , std::vector< double > && value ) {}
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// set a given vector-of-float (std::vector< double >) numerical parameter
+ /** Like set_par( idx_type , std::vector< double > && ), but taking a const
+  * reference. The method is given a default implementation that calls the
+  * "move" version with a copy of \p value, and this might not need to be
+  * ever re-implemented by derived classes. */
+
+ virtual void set_par( idx_type par , const std::vector< double > & value ) {
+  set_par( par , std::move( std::vector< double >( value ) ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// move a given vector-of-string (std::vector< std::string >) parameter
+ /** Set the vector-of-string (std::vector< std::string >) parameter with
+  * index \p par, which must be in the range [ 0 , get_num_vstr_par() ). The
+  * method takes an lvalue reference, which means that \p value can be moved
+  * into the ThinComputeInterface. The method is given a "void" implementation
+  * doing nothing (i.e., ignoring \p value), rather than being pure virtual,
+  * so that derived classes not having any working vector-of-string parameter
+  * (i.e., either not having any or not really reacting to the ones that they
+  * supposedly have) do not have to bother with implementing it. */
+
+ virtual void set_par( idx_type par , std::vector< std::string > && value ) {}
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// set a given vector-of-string (std::vector< std::string >) parameter
+ /** Like set_par( idx_type , std::vector< std::string > && ), but taking a
+  * const reference. The method is given a default implementation that calls
+  * the "move" version with a copy of \p value, and this might not need to be
+  * ever re-implemented by derived classes. */
+
+ virtual void set_par( idx_type par ,
+		       const std::vector< std::string > & value ) {
+  set_par( par , std::move( std::vector< std::string >( value ) ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set the whole set of parameters in one blow
@@ -557,9 +642,9 @@ class ThinComputeInterface {
   * exception. */
 
  virtual EventID set_event_handler( int type, EventHandler && event ) {
-  throw ( std::logic_error( "ThinComputeInterface::set_event_handler called" )
-  );
- }
+  throw ( std::logic_error( "ThinComputeInterface::set_event_handler called"
+			    ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// unregister an existing event handler
@@ -569,9 +654,9 @@ class ThinComputeInterface {
   * base class always throws exception. */
 
  virtual void reset_event_handler( int type, EventID id ) {
-  throw ( std::logic_error( "ThinComputeInterface::reset_event_handler called"
-  ) );
- }
+  throw( std::logic_error( "ThinComputeInterface::reset_event_handler called"
+			   ) );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- METHODS FOR DOING THE COMPUTATION -------------------*/
@@ -694,17 +779,18 @@ class ThinComputeInterface {
 /*--------------------------------------------------------------------------*/
  /// (try to) compute whatever the object is supposed to, asynchronously
  /** This is just an one-line wrapper over compute() that runs it into a
-  * separate task and returns a std::future<int> upon which the caller can
+  * separate task and returns a std::future< int > upon which the caller can
   * wait() for the result. Not really a significant contribution (it is not
-  * even virtual) and by no means the only way to make an asynchronous call
-  * to compute(), just a little convenience method that conveys what is
+  * even virtual), and by no means the only way to make an asynchronous call
+  * to compute(); just a little convenience method that conveys what is
   * perhaps the most convenient current C++ technique for asynchronous calls
   * to compute(). */
 
  std::future< int > compute_async( bool changedvars = true ) {
-  return ( std::async( std::launch::async,
-                       &ThinComputeInterface::compute, this, changedvars ) );
- }
+  return( std::async( std::launch::async ,
+		      & ThinComputeInterface::compute , this , changedvars )
+	  );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------------- METHODS FOR READING RESULTS -----------------------*/
@@ -715,13 +801,51 @@ class ThinComputeInterface {
  * independent from what is actually computed, there can hardly be methods for
  * reading the results. However, a common aspect from all compute() is that
  * they take time; also, most of them will be complex, iterative processes.
- * Thus, ThinComputeInterface offers two skeleton methods to read the elapsed
- * running time and iteration number from the last call to compute(). Among
- * other possible uses, these can be useful to event handlers (see
- * set_event_handler()).
- *  
+ * Thus, ThinComputeInterface offers three skeleton methods to read the
+ * elapsed running time and iteration number from the last call to compute(),
+ * as well to the current number of times that compute() has been called.
+ * Among other possible uses, these can be useful to event handlers (see
+ * set_event_handler()) to write code that is more independent from the
+ * specific :ThinComputeInterface they are registered to.
+ *
  *  @{ */
 
+ /// returns the elapsed CPU time since the last call to compute()
+ /** This method has to return the CPU time that has been spent since the
+  * start of the last call to compute(). Although the concept is not very
+  * clearly defined for such a general interface as ThinComputeInterface, in
+  * particular if multiple threads are used, this is supposed to be basically
+  * the same counter with which time-based events are triggered. The method of
+  * the base class has an implementation always returning 0 for those derived
+  * classes that cannot be bothered to time their compute() (say, because they
+  * are so fast that timing it would hardly make sense and/or would take too
+  * much time). */
+ 
+ virtual double get_elapsed_time( void ) const { return( 0 ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the elapsed number of iterations in the last call to compute()
+ /** This method has to return current number of iterations in the last call
+  * to compute(). Although the concept cannot be clearly defined for such a
+  * general interface as ThinComputeInterface, this is supposed to be the same
+  * counter with which iteration-based events are triggered. The method of the
+  * base class has an implementation always returning 0 for those derived
+  * classes that cannot be bothered to count iterations of their compute()
+  * (say, because they are not iterative methods). */
+ 
+ virtual long get_elapsed_iterations( void ) const { return( 0 ); }
+
+/*--------------------------------------------------------------------------*/
+ /// returns the current number of calls to compute()
+ /** This method has to return current number of calls to compute() since the
+  * :ThinComputeInterface has been initialised (or reset, if this can happen).
+  * While one could argue that an user requiring this information could just
+  * keep count, this does not work if multiple users are calling compute()
+  * unaware of each other. The method of the base class has an implementation
+  * always returning 0 for those derived classes that cannot be bothered to
+  * count the calls to compute(). */
+ 
+ virtual long get_elapsed_calls( void ) const { return( 0 ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
@@ -750,7 +874,7 @@ class ThinComputeInterface {
   * derived classes not having any double parameter do not have to bother
   * with implementing it. */
 
- [[nodiscard]] virtual idx_type get_num_dbl_par() const {
+ [[nodiscard]] virtual idx_type get_num_dbl_par( void ) const {
   return( idx_type( 0 ) );
   }
 
@@ -761,7 +885,40 @@ class ThinComputeInterface {
   * derived classes not having any string parameter do not have to bother
   * with implementing it. */
 
- [[nodiscard]] virtual idx_type get_num_str_par() const {
+ [[nodiscard]] virtual idx_type get_num_str_par( void ) const {
+  return( idx_type( 0 ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// get the number of vector-of-integer (std::vector< int >) parameters
+ /** Get the number of vector-of-integer (std::vector< int >) parameters. The
+  * method is given an implementation (returning 0), rather than being pure
+  * virtual, so that derived classes not having any vector-of-integer
+  * parameter do not have to bother with implementing it. */
+
+ [[nodiscard]] virtual idx_type get_num_vint_par( void ) const {
+  return( idx_type( 0 ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// get the number of vector-of-float (std::vector< double >) parameters
+ /** Get the number of vector-of-float (std::vector< double >) parameters.
+  * The method is given an implementation (returning 0), rather than being
+  * pure virtual, so that derived classes not having any vector-of-float
+  * parameter do not have to bother with implementing it. */
+
+ [[nodiscard]] virtual idx_type get_num_vdbl_par( void ) const {
+  return( idx_type( 0 ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// get the number of vector-of-string (std::vector<std::string>) parameters
+ /** Get the number of vector-of-string (std::vector< std::string >)
+  *  parameters. The method is given an implementation (returning 0), rather
+  * than being pure virtual, so that derived classes not having any
+  * vector-of-string parameter do not have to bother with implementing it. */
+
+ [[nodiscard]] virtual idx_type get_num_vstr_par( void ) const {
   return( idx_type( 0 ) );
   }
 
@@ -773,7 +930,7 @@ class ThinComputeInterface {
   * that derived classes not having any int parameter do not have to bother
   * with implementing it. */
 
- [[nodiscard]] virtual int get_dflt_int_par( const idx_type par ) const {
+ [[nodiscard]] virtual int get_dflt_int_par( idx_type par ) const {
   return( int( 0 ) );
   }
 
@@ -785,21 +942,67 @@ class ThinComputeInterface {
   * virtual, so that derived classes not having any int parameter do not
   * have to bother with implementing it. */
 
- [[nodiscard]] virtual double get_dflt_dbl_par( const idx_type par ) const {
+ [[nodiscard]] virtual double get_dflt_dbl_par( idx_type par ) const {
   return( double( 0 ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get the default value of a string parameter
- /** Get the default value of the string parameter with index \p par, which
-  * must be in the range [ 0 , get_num_str_par() ). The method is given a
-  * "void" implementation (returning the empty string), rather than being
-  * pure virtual, so that derived classes not having any int parameter do
-  * not have to bother with implementing it. */
+ /**  Returns a const reference to the the default value of the string
+  * parameter with index \p par, which must be in the range
+  * [ 0 , get_num_str_par() ). The method is given a "void" implementation
+  * (returning the empty string), rather than being pure virtual, so that
+  * derived classes not having any string parameter do not have to bother
+  * with implementing it. */
 
- [[nodiscard]] virtual const std::string &
- get_dflt_str_par( const idx_type par ) const {
+ [[nodiscard]] virtual const std::string & get_dflt_str_par( idx_type par )
+  const {
   static const std::string empty;
+  return( empty );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// get the default value of a vector-of-integer parameter
+ /** Returns a const reference to the default value of the vector-of-integer
+  * parameter with index \p par, which must be in the range 
+  * [ 0 , get_num_vint_par() ). The method is given a "void" implementation
+  * (returning an empty vector), rather than being pure virtual, so that
+  * derived classes not having any vector-of-integer parameter do not have to
+  * bother with implementing it. */
+
+ [[nodiscard]] virtual const std::vector< int > &
+  get_dflt_vint_par( idx_type par ) const {
+  static const std::vector< int > empty;
+  return( empty );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// get the default value of a vector-of-float parameter
+ /** Returns a const reference to the default value of the vector-of-float
+  * parameter with index \p par, which must be in the range
+  * [ 0 , get_num_vdbl_par() ). The method is given a "void" implementation
+  * (returning an empty vector), rather than being pure virtual, so that
+  * derived classes not having any vector-of-float parameter do not have to
+  * bother with implementing it. */
+
+ [[nodiscard]] virtual const std::vector< double > &
+  get_dflt_vdbl_par( idx_type par ) const {
+  static const std::vector< double > empty;
+  return( empty );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// get the default value of a vector-of-string parameter
+ /** Returns a const reference to the default value of the vector-of-string
+  * parameter with index \p par, which must be in the range
+  * [ 0 , get_num_vstr_par() ). The method is given a "void" implementation
+  * (returning an empty vector), rather than being pure virtual, so that
+  * derived classes not having any vector-of-string parameter do not have to
+  * bother with implementing it. */
+
+ [[nodiscard]] virtual const std::vector< std::string > &
+  get_dflt_vstr_par( idx_type par ) const {
+  static const std::vector< std::string > empty;
   return( empty );
   }
 
@@ -813,9 +1016,8 @@ class ThinComputeInterface {
   * to the ones that they supposedly have) do not have to bother with
   * implementing it. */
 
- [[nodiscard]] virtual int get_int_par( const idx_type par ) const {
-  return( get_dflt_int_par( par ) );
-  }
+ [[nodiscard]] virtual int get_int_par( idx_type par )
+  const { return( get_dflt_int_par( par ) ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get a specific float (double) numerical parameter
@@ -827,26 +1029,66 @@ class ThinComputeInterface {
  * reacting to the ones that they supposedly have) do not have to bother
  * with implementing it. */
 
- [[nodiscard]] virtual double get_dbl_par( const idx_type par ) const {
-  return( get_dflt_dbl_par( par ) );
-  }
+ [[nodiscard]] virtual double get_dbl_par( idx_type par )
+  const { return( get_dflt_dbl_par( par ) ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get a specific string parameter
- /** Get the string parameter with index \p par, which must be in the range
-  * [ 0 , get_num_str_par() ). The method is given a "void" implementation 
-  * always returning the default value for the parameter, rather than being
-  * pure virtual, so that derived classes not having any working string
-  * parameter (i.e., either not having any or not really reacting to the ones
-  * that they supposedly have) do not have to bother with implementing it. */
+ /** Returns a const reference to the current value of the string parameter
+  * with index \p par, which must be in the range [ 0 , get_num_str_par() ).
+  * The method is given a "void" implementation always returning the default
+  * value for the parameter, rather than being pure virtual, so that derived
+  * classes not having any working string parameter (i.e., either not having
+  * any or not really reacting to the ones that they supposedly have) do not
+  * have to bother with implementing it. */
 
- [[nodiscard]] virtual const std::string &
- get_str_par( const idx_type par ) const {
-  return( get_dflt_str_par( par ) );
-  }
+ [[nodiscard]] virtual const std::string & get_str_par( idx_type par )
+  const { return( get_dflt_str_par( par ) ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// get a specific vector-of-integer (std::vector< int >) numerical parameter
+ /** Returns a const reference to the current value of the vector-of-integer
+  * (std::vector< int >) numerical parameter with index \p par, which must
+  * be in the range [ 0 , get_num_vint_par() ). The method is given a "void"
+  * implementation always returning the default value for the parameter,
+  * rather than being pure virtual, so that derived classes not having any
+  * working int parameter (i.e., either not having any or not really reacting
+  * to the ones that they supposedly have) do not have to bother with
+  * implementing it. */
+
+ [[nodiscard]] virtual const std::vector< int > &
+  get_vint_par( idx_type par ) const { return( get_dflt_vint_par( par ) ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// get a specific vector-of-float (std::vector<double>) numerical parameter
+ /** Returns a const reference to the current value of the vector-of-float
+  * (std::vector< double >) numerical parameter with index \p par, which must
+ * be in the range [ 0 , get_num_vdbl_par() ). The method is given a "void"
+ * implementation always returning the default value for the parameter,
+ * rather than being pure virtual, so that derived classes not having any
+ * working float parameter (i.e., either not having any or not really
+ * reacting to the ones that they supposedly have) do not have to bother
+ * with implementing it. */
+
+ [[nodiscard]] virtual const std::vector< double > &
+  get_vdbl_par( idx_type par ) const { return( get_dflt_vdbl_par( par ) ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// get a specific vector-of-string (std::vector< std::string >) parameter
+ /** Returns a const reference to the current value of the vector-of-string
+  * (std::vector< std::string >) parameter with index \p par, which must be
+  * in the range [ 0 , get_num_vstr_par() ). The method is given a "void"
+  * implementation always returning the default value for the parameter,
+  * rather than being pure virtual, so that derived classes not having any
+  * working vector-of-string parameter (i.e., either not having any or not
+  * really reacting to the ones that they supposedly have) do not have to
+  * bother with implementing it. */
+
+ [[nodiscard]] virtual const std::vector< std::string > &
+  get_vstr_par( idx_type par ) const { return( get_dflt_vstr_par( par ) ); }
 
 /*--------------------------------------------------------------------------*/
- /// returns the index of the int parameter with given string name
+ /// get the index of the int parameter with given string name
  /** This method takes a string, which is assumed to be the name of an int
   * parameter, and returns its index, i.e., the integer value in the range
   * [ 0 , get_num_int_par() ) that can be used in set_par( int ) and
@@ -856,14 +1098,14 @@ class ThinComputeInterface {
   * with implementing it. The method should anyway throw exception if
   * \p name does not correspond to the string name of any int parameter. */
 
- [[nodiscard]] virtual idx_type
-  int_par_str2idx( const std::string & name ) const {
+ [[nodiscard]] virtual idx_type int_par_str2idx( const std::string & name )
+  const {
   throw( std::invalid_argument( std::string( "int parameter " ) + name +
 				std::string( " unknown" ) ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// returns the index of the double parameter with given string name
+ /// get the index of the double parameter with given string name
  /** This method takes a string, which is assumed to be the name of a double
   * parameter, and returns its index, i.e., the integer value in the range
   * [ 0 , get_num_dbl_par() ) that can be used in set_par( double ) and
@@ -873,14 +1115,14 @@ class ThinComputeInterface {
   * with implementing it. The method should anyway throw exception if
   * \p name does not correspond to the string name of any double parameter. */
 
- [[nodiscard]] virtual idx_type
- dbl_par_str2idx( const std::string & name ) const {
+ [[nodiscard]] virtual idx_type dbl_par_str2idx( const std::string & name )
+  const {
   throw( std::invalid_argument( std::string( "double parameter " ) + name +
 				std::string( " unknown" ) ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// returns the index of the string parameter with given string name
+ /// get the index of the string parameter with given string name
  /** This method takes a string, which is assumed to be the name of a string
   * parameter, and returns its index, i.e., the integer value in the range
   * [ 0 , get_num_str_par() ) that can be used in set_par( std::string ) and
@@ -890,14 +1132,69 @@ class ThinComputeInterface {
   * with implementing it. The method should anyway throw exception if \p name
   * does not correspond to the string name of any string parameter. */
 
- [[nodiscard]] virtual idx_type
- str_par_str2idx( const std::string & name ) const {
+ [[nodiscard]] virtual idx_type str_par_str2idx( const std::string & name )
+  const {
   throw( std::invalid_argument( std::string( "string parameter " ) + name +
 				std::string( " unknown" ) ) );
   }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// get the index of the std::vector< int > parameter with given name
+ /** This method takes a string, which is assumed to be the name of a
+  * std::vector< int > parameter, and returns its index, i.e., the integer
+  * value in the range [ 0 , get_num_vint_par() ) that can be used in
+  * set_par( std::vector< int > &[&] ) and get_[dflt_]vint_par() to set/get
+  * it. The method is given a "void" implementation (throwing exception),
+  * rather than being pure virtual, so that derived classes not having any
+  * std::vector< int > parameter do not have to bother with implementing it.
+  * The method should anyway throw exception if \p name does not correspond
+  * to the string name of any std::vector< int > parameter. */
+
+ [[nodiscard]] virtual idx_type vint_par_str2idx( const std::string & name )
+  const {
+  throw( std::invalid_argument( std::string( "vector-of-int parameter " )
+				+ name + std::string( " unknown" ) ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// get the index of the std::vector< double > parameter with given name
+ /** This method takes a string, which is assumed to be the name of a
+  * std::vector< double > parameter, and returns its index, i.e., the integer
+  * value in the range [ 0 , get_num_vdbl_par() ) that can be used in
+  * set_par( std::vector< double > &[&] ) and get_[dflt_]vdbl_par() to set/get
+  * it. The method is given a "void" implementation (throwing exception),
+  * rather than being pure virtual, so that derived classes not having any
+  * std::vector< double > parameter do not have to bother with implementing
+  * it. The method should anyway throw exception if \p name does not
+  *correspond to the string name of any std::vector< double > parameter. */
+
+ [[nodiscard]] virtual idx_type vdbl_par_str2idx( const std::string & name )
+  const {
+  throw( std::invalid_argument( std::string( "vector-of-double parameter " )
+				+ name + std::string( " unknown" ) ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// get the index of the std::vector< std::string > parameter named name
+ /** This method takes a string, which is assumed to be the name of a
+  * std::vector< std::string > parameter, and returns its index, i.e., the
+  * integer value in the range [ 0 , get_num_vstr_par() ) that can be used in
+  * set_par( std::vector< std::string > &[&] ) and get_[dflt_]vstr_par() to
+  * set/get it. The method is given a "void" implementation (throwing
+  * exception), rather than being pure virtual, so that derived classes not
+  * having any std::vector< std::string > parameter do not have to bother
+  * with implementing it. The method should anyway throw exception if \p name
+  * does not correspond to the string name of any std::vector< std::string >
+  * parameter. */
+
+ [[nodiscard]] virtual idx_type vstr_par_str2idx( const std::string & name )
+  const {
+  throw( std::invalid_argument( std::string( "vector-of-string parameter " )
+				+ name + std::string( " unknown" ) ) );
+  }
+
 /*--------------------------------------------------------------------------*/
- /// returns the string name of the int parameter with given index
+ /// get the string name of the int parameter with given index
  /** This method takes an int parameter index, i.e., the integer value in the
   * range [ 0 , get_num_int_par() ) that can be used in set_par( int ) and
   * get_[dflt_]int_par() to set/get it, and returns its "string name". The
@@ -906,12 +1203,12 @@ class ThinComputeInterface {
   * do not have to bother with implementing it. */
 
  [[nodiscard]] virtual const std::string &
-  int_par_idx2str( const idx_type idx ) const {
+  int_par_idx2str( idx_type idx ) const {
    throw( std::invalid_argument( "invalid int parameter name" ) );
    }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// returns the string name of the double parameter with given index
+ /// get the string name of the double parameter with given index
  /** This method takes a double parameter index, i.e., the integer value in
   * the range [ 0 , get_num_dbl_par() ) that can be used in set_par( double )
   * and get_[dflt_]dbl_par() to set/get it, and returns its "string name".
@@ -920,12 +1217,12 @@ class ThinComputeInterface {
   * parameter do not have to bother with implementing it. */
 
  [[nodiscard]] virtual const std::string &
-  dbl_par_idx2str( const idx_type idx ) const {
+  dbl_par_idx2str( idx_type idx ) const {
    throw( std::invalid_argument( "invalid double parameter name" ) );
    }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// returns the string name of the string parameter with given index
+ /// get the string name of the string parameter with given index
 /** This method takes a string parameter index, i.e., the integer value in
   * the range [ 0 , get_num_str_par() ) that can be used in 
   * set_par( std::string ) and get_[dflt_]str_par() to set/get it, and
@@ -935,8 +1232,55 @@ class ThinComputeInterface {
   * implementing it. */
 
  [[nodiscard]] virtual const std::string &
-  str_par_idx2str( const idx_type idx ) const {
+  str_par_idx2str( idx_type idx ) const {
    throw( std::invalid_argument( "invalid string parameter name" ) );
+   }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// get the string name of the vector-of-int parameter with given index
+ /** This method takes an int parameter index, i.e., the integer value in the
+  * range [ 0 , get_num_vint_par() ) that can be used in
+  * set_par( std::vector< int < &[&] ) and get_[dflt_]vint_par() to set/get
+  * it, and returns its "string name". The method is given a void
+  * implementation (throwing exception), rather than being pure virtual, so
+  * that derived classes not having any vector-of-int parameter do not have
+  * to bother with implementing it. */
+
+ [[nodiscard]] virtual const std::string &
+  vint_par_idx2str( idx_type idx ) const {
+   throw( std::invalid_argument( "invalid vector-of-int parameter name" ) );
+   }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// get the string name of the vector-of-double parameter with given index
+ /** This method takes a vector-of-double parameter index, i.e., the integer
+  * value in the range [ 0 , get_num_vdbl_par() ) that can be used in
+  * set_par( std::vector< double > &[&] ) and get_[dflt_]vdbl_par() to set/get
+  * it, and returns its "string name". The method is given a void
+  * implementation (throwing exception), rather than being pure virtual, so
+  * that derived classes not having any vector-of-double parameter do not
+  * have to bother with implementing it. */
+
+ [[nodiscard]] virtual const std::string &
+  vdbl_par_idx2str( idx_type idx ) const {
+   throw( std::invalid_argument( "invalid vector-of-double parameter name" )
+	  );
+   }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// get the string name of the vector-of-string parameter with given index
+ /** This method takes a vector-of-string parameter index, i.e., the integer
+  * value in the range [ 0 , get_num_vstr_par() ) that can be used in 
+  * set_par( std::vector< std::string > &[&] ) and get_[dflt_]vstr_par() to
+  * set/get it, and returns its "string name". The method is given a void
+  * implementation (throwing exception), rather than being pure virtual, so
+  * that derived classes not having any vector-of-string parameter do not
+  * have to bother with implementing it. */
+
+ [[nodiscard]] virtual const std::string &
+  vstr_par_idx2str( idx_type idx ) const {
+   throw( std::invalid_argument( "invalid vector-of-string parameter name" )
+	  );
    }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -1009,11 +1353,14 @@ class ThinComputeInterface {
  * :ThinComputeInterface may have (derived classes only, of course, the base
  * class is thin and does not have any).
  *
- * The class holds three lists:
+ * The class holds six lists:
  *
- *  - a list of pairs < string , int >
- *  - a list of pairs < string , double >
- *  - a list of pairs < string , string >
+ *  - a list of pairs < std::string , int >
+ *  - a list of pairs < std::string , double >
+ *  - a list of pairs < std::string , std::string >
+ *  - a list of pairs < std::string , std::vector< int > >
+ *  - a list of pairs < std::string , std::vector< double > >
+ *  - a list of pairs < std::string , std::vector< std::string > >
  *
  * The idea is that each list contains the pairs < parameter name , value >
  * to be changed/set. The lists need *not* contain all the parameters (of the
@@ -1048,8 +1395,8 @@ class ComputeConfig : public Configuration {
 /*---------------------------- CONSTRUCTORS --------------------------------*/
  /// constructor: initializes everything to "default configuration"
 
- ComputeConfig() : Configuration(), f_diff( true ),
-                   f_extra_Configuration( nullptr ) {}
+ ComputeConfig( void ) : Configuration() , f_diff( true ) ,
+                         f_extra_Configuration( nullptr ) {}
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: does what it says on the tin
@@ -1059,8 +1406,26 @@ class ComputeConfig : public Configuration {
   int_pars = old.int_pars;
   dbl_pars = old.dbl_pars;
   str_pars = old.str_pars;
+  vint_pars = old.vint_pars;
+  vdbl_pars = old.vdbl_pars;
+  vstr_pars = old.vstr_pars;
   f_extra_Configuration = old.f_extra_Configuration->clone();
- }
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// move constructor: does what it says on the tin
+
+ ComputeConfig( ComputeConfig && old ) : Configuration() {
+  f_diff = old.f_diff;
+  int_pars = std::move( old.int_pars );
+  dbl_pars = std::move( old.dbl_pars );
+  str_pars = std::move( old.str_pars );
+  vint_pars = std::move( old.vint_pars );
+  vdbl_pars = std::move( old.vdbl_pars );
+  vstr_pars = std::move( old.vstr_pars );
+  f_extra_Configuration = old.f_extra_Configuration;
+  old.f_extra_Configuration = nullptr;
+  }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
  /// destructor; it deletes the f_extra_Configuration (if any)
@@ -1070,8 +1435,8 @@ class ComputeConfig : public Configuration {
 /*------------------------------- CLONE -----------------------------------*/
  /// clone method
 
- [[nodiscard]] ComputeConfig * clone() const override {
-  return ( new ComputeConfig( *this ) );
+ [[nodiscard]] ComputeConfig * clone( void ) const override {
+  return( new ComputeConfig( *this ) );
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -1086,54 +1451,69 @@ class ComputeConfig : public Configuration {
   *   as "the changes to be made from the current configuration"); if the
   *   attribute is not there, f_diff == false is assumed.
   *
-  * - the optional dimension "num_int_par" containing the number of int
-  *   parameters; if the dimension is not provided, 0 is assumed;
+  * - three alike groups of dimensions and variables, one for each type
+  *   of scalar parameter TYP in { "int" , "dbl" , "str" }:
   *
-  * - the variable "int_par_names", of type string and indexed over the
-  *   dimension "num_int_par"; the i-th entry of the variable is assumed to
-  *   contain the string name of an int parameter (see int_par_idx2str());
-  *   the variable is optional if num_int_par == 0 (e.g., it not provided),
-  *   since in this case it is ignored;
+  *   = the optional dimension "TYP_par_num" containing the number of scalar
+  *     parameters of that type (int for "int", double for "dbl", and string
+  *     for "str"); if the dimension is not provided, 0 is assumed and the
+  *     next two variables are ignored;
   *
-  * - the variable "int_par_vals", of type int and indexed over the
-  *   dimension "num_int_par"; the i-th entry of the variable is assumed to
-  *   contain the value of the int parameter whose string name is to be found
-  *   in the i-th entry of "int_par_names"; the variable is optional if
-  *   num_int_par == 0 (e.g., it not provided), since in this case it is
-  *   ignored;
+  *   = the variable "TYP_par_names", of type string and indexed over the
+  *     dimension "TYP_par_num"; the i-th entry of the variable is assumed to
+  *     contain the string name of a parameter of that type (see
+  *     TYP_par_idx2str()); the variable is optional if TYP_par_num == 0
+  *     (e.g., it not provided), since in this case it is ignored;
   *
-  * - the opional dimension "num_dbl_par" containing the number of double
-  *   parameters; if the dimension is not provided, 0 is assumed;
+  *   = the variable "TYP_par_vals", of the right type (int, double or string
+  *     according on TYP) and indexed over the dimension "TYP_par_num"; the
+  *     i-th entry of the variable is assumed to contain the value of the
+  *     parameter of that tyoe whose string name is to be found in the i-th
+  *     entry of "TYP_par_names"; the variable is optional if TYP_par_num
+  *     == 0 (e.g., it not provided), since in this case it is ignored;
   *
-  * - the variable "dbl_par_names", of type string and indexed over the
-  *   dimension "num_dbl_par"; the i-th entry of the variable is assumed to
-  *   contain the string name of a double parameter (see dbl_par_idx2str());
-  *   the variable is optional if num_dbl_par == 0 (e.g., it not provided),
-  *   since in this case it is ignored;
+  * - three alike groups of dimensions and variables, one for each type
+  *   of vector parameter TYP in { "int" , "dbl" , "str" }:
   *
-  * - the variable "dbl_par_vals", of type double and indexed over the
-  *   dimension "num_dbl_par"; the i-th entry of the variable is assumed to
-  *   contain the value of the double parameter whose string name is to be
-  *   found in the i-th entry of "dbl_par_names"; the variable is optional if
-  *   num_dbl_par == 0 (e.g., it not provided), since in this case it is
-  *   ignored;
+  *   = the optional dimension "v_TYP_par_num" containing the number of 
+  *     vector parameters of that type; if the dimension is not provided, 0
+  *     is assumed and the next dimension and three variables are ignored;
   *
-  * - the optional dimension "num_str_par" containing the number of string
-  *   parameters; if the dimension is not provided, 0 is assumed;
+  *   = the dimension "v_TYP_par_tot" containing the total number of basic
+  *     values (int for "int", double for "dbl", and string for "str") that
+  *     are contaned in all the vector parameters of that type, i.e., the
+  *     sum of the number of elements in all the vectors; the dimension is
+  *     optional if v_TYP_pa_numr == 0 (e.g., it not provided), since in this
+  *     case it is ignored;
   *
-  * - the variable "str_par_names", of type string and indexed over the
-  *   dimension "num_str_par"; the i-th entry of the variable is assumed to
-  *   contain the string name of a string parameter (see int_par_idx2str());
-  *   the variable is optional if num_str_par == 0 (e.g., it not provided),
-  *   since in this case it is ignored;
+  *   = the variable "v_TYP_par_names", of type string and indexed over the
+  *     dimension "v_TYP_par_num"; the i-th entry of the variable is assumed
+  *     to contain the string name of a vector parameter of that type (see
+  *     vTYP_par_idx2str()); the variable is optional if v_TYP_par_num == 0
+  *     (e.g., it not provided), since in this case it is ignored; the
+  *     variable is optional if v_TYP_par_num == 0 (e.g., it not provided),
+  *     since in this case it is ignored;
   *
-  * - the variable "str_par_vals", of type string and indexed over the
-  *   dimension "num_str_par"; the i-th entry of the variable is assumed to
-  *   contain the value of the string parameter whose string name is to be
-  *   found in the i-th entry of "str_par_names"; the variable is optional if
-  *   num_int_par == 0 (e.g., it not provided), since in this case it is
-  *   ignored;
+  *   = the variable "v_TYP_par_start", of type int and indexed over the
+  *     dimension "v_TYP_par_num"; the elements of this variable are supposed
+  *     to be non-negative, ordered in non-decreasing sense, and smaller than
+  *     v_TYP_par_tot; these elements describe how the unique vector of that
+  *     type contained in the next variable has to be partitioned into the
+  *     v_TYP_par_num different vectors parameter, as described below; the
+  *     variable is optional if v_TYP_par_num == 0 (e.g., it not provided),
+  *     since in this case it is ignored;
   *
+  *   = the variable "v_TYP_par_vals", of the right type (int, double or
+  *     string according on TYP) and indexed over the dimension
+  *     "v_TYP_par_tot"; the i-th vector parameter of type TYP, for i = 0,
+  *     ... v_TYP_par_num - 1, will be composed of the elements found in
+  *     v_TYP_par_vals with indices between v_TYP_par_start[ i ] and
+  *     v_TYP_par_start[ i + 1 ], except of course for the last vector
+  *     parameter (that of index v_TYP_par_num - 1) for which
+  *     v_TYP_par_start[ v_TYP_par_num ] is undefined, and v_TYP_par_tot
+  *     is used instead; the variable is optional if v_TYP_par_num == 0
+  *     (e.g., it not provided), since in this case it is ignored.
+  *    
   * - the group "extra" containing a Configuration object, which has no
   *   direct use in the base ComputeConfig class, but is added so that
   *   derived classes can put there any configuration information without
@@ -1159,40 +1539,45 @@ class ComputeConfig : public Configuration {
   * #f_extra_Configuration is not nullptr then Configuration::clear() is
   * invoked for #f_extra_Configuration. Moreover, #f_diff is set to false. */
 
- void clear() override {
+ void clear( void ) override {
   int_pars.clear();
   dbl_pars.clear();
   str_pars.clear();
+  vint_pars.clear();
+  vdbl_pars.clear();
+  vstr_pars.clear();
 
   f_diff = false;
 
   if( f_extra_Configuration )
    f_extra_Configuration->clear();
- }
+  }
 
 /*--------------- METHODS FOR READING DATA OF THE ComputeConfig ------------*/
 
  // returns true if the ComputeConfig is "completely empty" of any data
 
  [[nodiscard]] virtual bool empty() const {
-  return ( int_pars.empty() && dbl_pars.empty() &&
-           str_pars.empty() && ( !f_extra_Configuration ) );
- }
+  return( int_pars.empty() && dbl_pars.empty() && str_pars.empty() &&
+	  vint_pars.empty() && vdbl_pars.empty() && vstr_pars.empty() &&
+	  ( ! f_extra_Configuration ) );
+  }
 
 /*--------------------- METHODS FOR CHANGING PARAMETERS --------------------*/
  /// set the given integer (int) numerical parameter
  /** Set the integer (int) numerical parameter specified by \p name. If the
-  * parameter is not in the corresponding list it is added, otherwise its
-  * current value is changed to \p value. */
+  * parameter is not in the corresponding list it is added (in which case
+  * \p name is moved into the ComputeConfig), otherwise its current value
+  * is changed to \p value. */
 
- void set_par( std::string && name, int value ) {
-  auto it = std::find_if( int_pars.begin(), int_pars.end(),
-                          [ & name ]( const std::pair< std::string, int > & el ) {
-                           return ( name == el.first );
-                          } );
+ void set_par( std::string && name , int value ) {
+  auto it = std::find_if( int_pars.begin() , int_pars.end() ,
+                          [ & name ]( auto & el ) {
+                           return( name == el.first );
+                           } );
 
   if( it == int_pars.end() )
-   int_pars.emplace_back( std::move( name ), value );
+   int_pars.emplace_back( std::move( name ) , value );
   else
    it->second = value;
  }
@@ -1200,81 +1585,184 @@ class ComputeConfig : public Configuration {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set the given float (double) numerical parameter
  /** Set the float (double) numerical parameter specified by \p name. If the
-  * parameter is not in the corresponding list it is added, otherwise its
-  * current value is changed to \p value. */
+  * parameter is not in the corresponding list it is added (in which case
+  * \p name is moved into the ComputeConfig), otherwise its current value
+  * is changed to \p value. */
 
- void set_par( std::string && name, double value ) {
+ void set_par( std::string && name , double value ) {
   auto it = std::find_if( dbl_pars.begin(), dbl_pars.end(),
-                          [ & name ]( const std::pair< std::string, double > & el ) {
-                           return ( name == el.first );
-                          } );
+                          [ & name ]( auto & el ) {
+                           return( name == el.first );
+                           } );
 
   if( it == dbl_pars.end() )
-   dbl_pars.emplace_back( std::move( name ), value );
+   dbl_pars.emplace_back( std::move( name ) , value );
   else
    it->second = value;
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// set the given string numerical parameter
- /** Set the numerical parameter specified by \p name. If the parameter is
-  * not in the corresponding list it is added, otherwise its current value is
-  * changed to \p value. */
+ /// set the given string parameter
+ /** Set the string parameter specified by \p name. If the parameter is not
+  * in the corresponding list it is added (in which case \p name is moved
+  * into the ComputeConfig), otherwise its current value is changed to
+  * \p value. */
 
- void set_par( std::string && name, std::string && value ) {
-  auto it = std::find_if( str_pars.begin(), str_pars.end(),
-                          [ & name ]( const std::pair< std::string, std::string > & el ) {
-                           return ( name == el.first );
-                          } );
+ void set_par( std::string && name , std::string && value ) {
+  auto it = std::find_if( str_pars.begin() , str_pars.end() ,
+                          [ & name ]( auto & el ) {
+                           return( name == el.first );
+                           } );
 
   if( it == str_pars.end() )
-   str_pars.emplace_back( std::move( name ), std::move( value ) );
+   str_pars.emplace_back( std::move( name ) , std::move( value ) );
   else
    it->second = std::move( value );
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// removes a given parameter
- /** Seeks the parameter with given \p name in the list of integer, double or
-  * string parameters as specified by \p type (with the values 'i', 'd' and
-  * 's', respectively); if it is found it is removed from the list, otherwise
-  * nothing is done. */
+ /// set the given vector-of-integer numerical parameter
+ /** Set the vector-of-integer numerical parameter specified by \p name. If
+  * the parameter is not in the corresponding list it is added  (in which
+  * case \p name is moved into the ComputeConfig), otherwise its current
+  * value is changed to \p value; in either case, \p value is moved
+  * into the ComputeConfig). */
 
- void reset_par( const std::string & name, char type = 'i' ) {
-  switch( type ) {
-   case ( 'i' ): {
-    auto it = std::find_if( int_pars.begin(), int_pars.end(),
-                            [ & name ]( const std::pair< std::string, int > & el ) {
-                             return ( name == el.first );
-                            } );
-    if( it != int_pars.end() ) {
-     *it = std::move( int_pars.back() );
-     int_pars.pop_back();
-    }
-   }
-   case ( 'd' ): {
-    auto it = std::find_if( dbl_pars.begin(), dbl_pars.end(),
-                            [ & name ]( const std::pair< std::string, double > & el ) {
-                             return ( name == el.first );
-                            } );
-    if( it != dbl_pars.end() ) {
-     *it = std::move( dbl_pars.back() );
-     dbl_pars.pop_back();
-    }
-   }
-   case ( 's' ): {
-    auto it = std::find_if( str_pars.begin(), str_pars.end(),
-                            [ & name ]( const std::pair< std::string, std::string > & el ) {
-                             return ( name == el.first );
-                            } );
-    if( it != str_pars.end() ) {
-     *it = std::move( str_pars.back() );
-     str_pars.pop_back();
-    }
-   }
-   default:;
+ void set_par( std::string && name , std::vector< int > && value ) {
+  auto it = std::find_if( vint_pars.begin() , vint_pars.end() ,
+                          [ & name ]( auto & el ) {
+                           return( name == el.first );
+                           } );
+
+  if( it == int_pars.end() )
+   vint_pars.emplace_back( std::move( name ) , value );
+  else
+   it->second = value;
   }
- }  // end( reset_par )
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// set one entry of the given vector-of-integer numerical parameter
+ /** Set the entry specified by \pos of the vector-of-integer numerical
+  * parameter specified by \p name. If the parameter is not in the
+  * corresponding list or \p pos is not a valid position, exception is
+  * thrown. */
+
+ void set_par( const std::string & name , Index pos , int value ) {
+  auto it = std::find_if( vint_pars.begin() , vint_pars.end() ,
+                          [ & name ]( auto & el ) {
+                           return( name == el.first );
+                           } );
+
+  if( it == vint_pars.end() )
+   throw( std::invalid_argument( std::string( "parameter " ) + name +
+				 std::string( " not in ComputeConfig" ) ) );
+
+  if( pos >= Index( it->second.size() ) )
+   throw( std::invalid_argument( std::string( "invalid position " ) +
+				 std::to_string( pos ) +
+				 std::string( " in parameter" ) ) );
+  it->second[ pos ] = value;
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// set the given vector-of-float numerical parameter
+ /** Set the vector-of-float numerical parameter specified by \p name. If
+  * the parameter is not in the corresponding list it is added  (in which
+  * case \p name is moved into the ComputeConfig), otherwise its current
+  * value is changed to \p value; in either case, \p value is moved
+  * into the ComputeConfig). */
+
+ void set_par( std::string && name , std::vector< double > && value ) {
+  auto it = std::find_if( vdbl_pars.begin() , vdbl_pars.end() ,
+                          [ & name ]( auto & el ) {
+                           return( name == el.first );
+                           } );
+
+  if( it == vdbl_pars.end() )
+   vint_pars.emplace_back( std::move( name ) , value );
+  else
+   it->second = value;
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// set one entry of the given vector-of-float numerical parameter
+ /** Set the entry specified by \pos of the vector-of-float numerical
+  * parameter specified by \p name. If the parameter is not in the
+  * corresponding list or \p pos is not a valid position, exception is
+  * thrown. */
+
+ void set_par( const std::string & name , Index pos , double value ) {
+  auto it = std::find_if( vdbl_pars.begin() , vdbl_pars.end() ,
+                          [ & name ]( auto & el ) {
+                           return( name == el.first );
+                           } );
+
+  if( it == vdbl_pars.end() )
+   throw( std::invalid_argument( std::string( "parameter " ) + name +
+				 std::string( " not in ComputeConfig" ) ) );
+
+  if( pos >= Index( it->second.size() ) )
+   throw( std::invalid_argument( std::string( "invalid position " ) +
+				 std::to_string( pos ) +
+				 std::string( " in parameter" ) ) );
+  it->second[ pos ] = value;
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// set the given vector-of-string numerical parameter
+ /** Set the vector-of-string numerical parameter specified by \p name. If
+  * the parameter is not in the corresponding list it is added  (in which
+  * case \p name is moved into the ComputeConfig), otherwise its current
+  * value is changed to \p value; in either case, \p value is moved
+  * into the ComputeConfig). */
+
+ void set_par( std::string && name , std::vector< std::string > && value ) {
+  auto it = std::find_if( vstr_pars.begin() , vstr_pars.end() ,
+                          [ & name ]( auto & el ) {
+                           return( name == el.first );
+                           } );
+
+  if( it == vstr_pars.end() )
+   vstr_pars.emplace_back( std::move( name ) , value );
+  else
+   it->second = value;
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// set one entry of the given vector-of-integer numerical parameter
+ /** Set the entry specified by \pos of the vector-of-integer numerical
+  * parameter specified by \p name. If the parameter is not in the
+  * corresponding list or \p pos is not a valid position, exception is
+  * thrown; otherwise \p value is moved into the ComputeConfig. */
+
+ void set_par( const std::string & name , Index pos , std::string && value )
+ {
+  auto it = std::find_if( vstr_pars.begin() , vstr_pars.end() ,
+                          [ & name ]( auto & el ) {
+                           return( name == el.first );
+                           } );
+
+  if( it == vstr_pars.end() )
+   throw( std::invalid_argument( std::string( "parameter " ) + name +
+				 std::string( " not in ComputeConfig" ) ) );
+
+  if( pos >= Index( it->second.size() ) )
+   throw( std::invalid_argument( std::string( "invalid position " ) +
+				 std::to_string( pos ) +
+				 std::string( " in parameter" ) ) );
+
+  it->second[ pos ] = std::move( value );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// removes a given parameter
+ /** Eliminates the parameter with given \p name out of the parameters list
+  * specified by \p type: 'i', 'd' and 's' stand for scalar integer, double
+  * and string parameters, respectively, while 'I', 'D' and 'S' stand for
+  * the corresponding vector versions. If \p name is not found, nothing is
+  * done. */
+
+ void reset_par( const std::string & name , char type = 'i' );
 
 /*--------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
 
@@ -1287,9 +1775,19 @@ class ComputeConfig : public Configuration {
  std::vector< std::pair< std::string, double > > dbl_pars;
 
  /// list of pairs < string , string > for string-valued parameters
- std::vector< std::pair< std::string, std::string > > str_pars;
+ std::vector< std::pair< std::string , std::string > > str_pars;
 
- /// any extra ThinComputeInterface-specific Configuration
+ /// list of pairs < string , int > for vector-of-integer-valued parameters
+ std::vector< std::pair< std::string , std::vector< int > > > vint_pars;
+
+ /// list of pairs < string , double > for vector-of-float-valued parameters
+ std::vector< std::pair< std::string , std::vector< double > > > vdbl_pars;
+
+ /// list of pairs < string , string > for vector-of-string-valued parameters
+ std::vector< std::pair< std::string , std::vector< std::string > > >
+  vstr_pars;
+
+  /// any extra ThinComputeInterface-specific Configuration
  Configuration * f_extra_Configuration;
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
@@ -1311,25 +1809,54 @@ class ComputeConfig : public Configuration {
   *
   * for i = 1 ... k
   * - a string containing the name of the int perameter
-  * - an int (the parameter)
+  * - an int (the i-th int parameter)
   *
   * number k of the names of double parameters
   *
   * for i = 1 ... k
   * - a string containing the name of the double perameter
-  * - a double (the parameter)
+  * - a double (the i-th double parameter)
   *
   * number k of the names of string parameters
   *
   * for i = 1 ... k
   * - a string containing the name of the string perameter
-  * - a string (the parameter)
+  * - a string (the i-th string parameter)
+  *
+  * number k of the names of vector-of-int parameters
+  *
+  * for i = 1 ... k
+  * - a string containing the name of the vector-of-int perameter
+  * - number h of the elements of in the i-th vector-of-int parameter
+  * - for j = 1 ... h
+  *   an int (the j-th entry of the i-th vector-of-int parameter)
+  *
+  * number k of the names of vector-of-double parameters
+  *
+  * for i = 1 ... k
+  * - a string containing the name of the vector-of-double perameter
+  * - number h of the elements of in the i-th vector-of-double parameter
+  * - for j = 1 ... h
+  *   a double (the j-th entry of the i-th vector-of-double parameter)
+  *
+  * number k of the names of vector-of-string parameters
+  *
+  * for i = 1 ... k
+  * - a string containing the name of the vector-of-string perameter
+  * - number h of the elements of in the i-th vector-of-string parameter
+  * - for j = 1 ... h
+  *   a string (the j-th entry of the i-th vector-of-string parameter)
   *
   * a string containing the class type of the extra Configuration object,
   * '*' means none (nullptr)
   *
   * if the above is not '*', the description of the :Configuration object
-  */
+  *
+  * If the stream cleanly eof()-s after before reading each one of the
+  * sections, load() cleanly returns having loaded the corresponding part of
+  * the ComputeConfig, with the rest of the ComputeConfig being empty. If,
+  * rather, the stream fail()-s while reading some of the data that should
+  * be there, then exception is thrown. */
 
  void load( std::istream & input ) override;
 

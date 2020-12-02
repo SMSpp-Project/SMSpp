@@ -391,7 +391,7 @@ class ThinVarDepInterface {
  *  @{ */
 
  /// constructor of ThinVarDepInterface; does nothing
- ThinVarDepInterface() = default;
+ ThinVarDepInterface( void ) = default;
 
 /*--------------------------------------------------------------------------*/
  /// destructor: it is virtual, and empty
@@ -443,7 +443,7 @@ class ThinVarDepInterface {
   * this mathod should only be called when the underlying assumption is
   * guaranteed to be satisfied; in doubt, do not call it. */
 
- virtual void clear() {}
+ virtual void clear( void ) {}
 
 /**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE SET OF "ACTIVE" Variable ------------*/
@@ -540,7 +540,7 @@ class ThinVarDepInterface {
   * is stored in order to leave complete freedom to derived classes to
   * implement as they best see fit. */
 
- [[nodiscard]] virtual Index get_num_active_var() const = 0;
+ [[nodiscard]] virtual Index get_num_active_var( void ) const = 0;
 
 /*--------------------------------------------------------------------------*/
  /// returns the Index of a given "active" Variable
@@ -556,7 +556,7 @@ class ThinVarDepInterface {
   * is stored in order to leave complete freedom to derived classes to
   * implement as they best see fit. */
 
- virtual Index is_active( const Variable * const var ) const = 0;
+ virtual Index is_active( const Variable * var ) const = 0;
 
 /*--------------------------------------------------------------------------*/
  /// returns the set of indices of a given set "active" Variable
@@ -591,9 +591,8 @@ class ThinVarDepInterface {
   * implementation (if the one of the base class is used) if it is for any
   * reason preferable to do so. */
 
- virtual void map_active( const std::vector< Variable * > & vars,
-                          Subset & map,
-                          const bool ordered = false ) const {
+ virtual void map_active( const std::vector< Variable * > & vars ,
+                          Subset & map , bool ordered = false ) const {
   if( vars.empty() )
    return;
 
@@ -602,22 +601,26 @@ class ThinVarDepInterface {
 
   if( ordered ) {
    Index found = 0;
-   for( Index i = 0; i < get_num_active_var(); ++i ) {
+   for( Index i = 0 ; i < get_num_active_var() ; ++i ) {
     auto vi = get_active_var( i );
-    auto itvi = std::lower_bound( vars.begin(), vars.end(), vi );
+    auto itvi = std::lower_bound( vars.begin() , vars.end() , vi );
     if( itvi != vars.end() ) {
      map[ std::distance( vars.begin(), itvi ) ] = i;
      ++found;
     }
    }
+
    if( found < vars.size() )
-    throw std::invalid_argument( "map_active: some Variable is not active" );
-  } else {
+    throw( std::invalid_argument( "map_active: some Variable is not active"
+				  ) );
+   }
+  else {
    auto it = map.begin();
    for( auto var : vars ) {
     Index i = is_active( var );
     if( i >= get_num_active_var() )
-     throw std::invalid_argument( "map_active: some Variable is not active" );
+     throw( std::invalid_argument( "map_active: some Variable is not active"
+				   ) );
     *( it++ ) = i;
    }
   }
@@ -637,7 +640,7 @@ class ThinVarDepInterface {
   * class, subject to the assumptions stated in the general comments to this
   * section. */
 
- [[nodiscard]] virtual Variable * get_active_var( const Index i ) const = 0;
+ [[nodiscard]] virtual Variable * get_active_var( Index i ) const = 0;
 
 /*--------------------------------------------------------------------------*/
  /// get (a pointer to) a v_iterator for scanning the "active" Variable
@@ -651,13 +654,13 @@ class ThinVarDepInterface {
   * v_iterator, and also because begin() can be implemented in terms of this
   * version. */
 
- virtual v_iterator * v_begin() = 0;
+ virtual v_iterator * v_begin( void ) = 0;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get (a pointer to) a v_const_iterator for scanning the "active" Variable
  /** Const version of v_begin(), see the comments there. */
 
- [[nodiscard]] virtual v_const_iterator * v_begin() const = 0;
+ [[nodiscard]] virtual v_const_iterator * v_begin( void ) const = 0;
 
 /*--------------------------------------------------------------------------*/
  /// get (a pointer to) a v_iterator for the end of the "active" Variable
@@ -670,13 +673,13 @@ class ThinVarDepInterface {
   * still provided if the user wants to directly deal with the v_iterator,
   * and also because end() can be implemented in terms of this version. */
 
- virtual v_iterator * v_end() = 0;
+ virtual v_iterator * v_end( void ) = 0;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get (a pointer to) a v_const_iterator for the end the "active" Variable
  /** Const version of v_end(), see the comments there. */
 
- [[nodiscard]] virtual v_const_iterator * v_end() const = 0;
+ [[nodiscard]] virtual v_const_iterator * v_end( void ) const = 0;
 
 /*--------------------------------------------------------------------------*/
  /// get an iterator for scanning the "active" Variable
@@ -684,15 +687,15 @@ class ThinVarDepInterface {
   * returns the latter. However it is virtual, so that derived classes may
   * redefine it if needed. */
 
- virtual iterator begin() { return ( iterator( v_begin() ) ); }
+ virtual iterator begin( void ) { return ( iterator( v_begin() ) ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get a const iterator for scanning the "active" Variable
  /** Const version of end(), see the comments there. */
 
- [[nodiscard]] virtual const_iterator begin() const {
-  return ( const_iterator( v_begin() ) );
- }
+ [[nodiscard]] virtual const_iterator begin( void ) const {
+  return( const_iterator( v_begin() ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// get an iterator for the end of the "active" Variable
@@ -700,15 +703,15 @@ class ThinVarDepInterface {
   * returns the latter. However it is virtual, so that derived classes may
   * redefine it if needed. */
 
- virtual iterator end() { return ( iterator( v_end() ) ); }
+ virtual iterator end( void ) { return( iterator( v_end() ) ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get a const iterator for for the end of the "active" Variable
  /** Const version of end(), see the comments there. */
 
- [[nodiscard]] virtual const_iterator end() const {
-  return ( const_iterator( v_end() ) );
- }
+ [[nodiscard]] virtual const_iterator end( void ) const {
+  return( const_iterator( v_end() ) );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR CHANGING THE SET OF "ACTIVE" Variable -----------*/
@@ -746,7 +749,7 @@ class ThinVarDepInterface {
   * structures of such "undead" Variable, in particular on their list of
   * "active stuff". */
 
- virtual void remove_variable( Index i, ModParam issueMod = eModBlck ) = 0;
+ virtual void remove_variable( Index i , ModParam issueMod = eModBlck ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// remove a range of Variable
@@ -767,7 +770,7 @@ class ThinVarDepInterface {
   * the ThinVarDepInterface, and therefore necessarily need be demanded to
   * the derived classes. */
 
- virtual void remove_variables( Range range, ModParam issueMod = eModBlck ) {
+ virtual void remove_variables( Range range , ModParam issueMod = eModBlck ) {
   if( range.second <= range.first )  // empty range
    return;                           // silently (and cowardly) return
 
@@ -810,22 +813,21 @@ class ThinVarDepInterface {
   * the ThinVarDepInterface, and therefore necessarily need be demanded to
   * the derived classes. */
 
- virtual void remove_variables( Subset && nms,
-                                bool ordered = false,
+ virtual void remove_variables( Subset && nms , bool ordered = false ,
                                 ModParam issueMod = eModBlck ) {
   // note: the removal loop goes backward, since eliminating a variable
   //       changes the "names" of all the variable with larger name;
   //       this is why nms need be ordered (if nonempty)
 
   if( nms.empty() )
-   for( Index i = get_num_active_var(); i > 0; )
-    remove_variable( --i, issueMod );
+   for( Index i = get_num_active_var() ; i > 0 ; )
+    remove_variable( --i , issueMod );
   else {
-   if( !ordered )
-    std::sort( nms.begin(), nms.end() );
+   if( ! ordered )
+    std::sort( nms.begin() , nms.end() );
 
-   for( auto it = nms.rbegin(); it != nms.rend(); ++it )
-    remove_variable( *it, issueMod );
+   for( auto it = nms.rbegin() ; it != nms.rend() ; ++it )
+    remove_variable( *it , issueMod );
   }
  }
 

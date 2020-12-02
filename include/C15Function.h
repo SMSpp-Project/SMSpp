@@ -5,9 +5,9 @@
  * Header file for the C15Function class, which implements
  * C05Function and is able to provide approximations to its Hessian.
  *
- * \version 0.10
+ * \version 0.20
  *
- * \date 20 - 10 - 2017
+ * \date 02 - 12 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -25,8 +25,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __C15Function
-#define __C15Function
-/* self-identification: #endif at the end of the file */
+#define __C15Function /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -37,17 +36,10 @@
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
-
 /// namespace for the Structured Modeling System++ (SMS++)
+
 namespace SMSpp_di_unipi_it {
 
-/*--------------------------------------------------------------------------*/
-/*--------------------- C15Function-RELATED TYPES --------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @defgroup C15Function_TYPES C15Function-related types.
- *  @{ */
-
-/** @} end( group( C15Function_TYPES ) ) */
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -87,6 +79,66 @@ class C15Function : public C05Function {
 
  typedef Eigen::SparseMatrix< FunctionValue > SparseHessian;
  ///< type used to store a sparse Hessian matrix
+
+/*--------------------------------------------------------------------------*/
+ /// public enum "extending" int_par_type_C0F to the case of C15Function
+
+ enum int_par_type_C1F {
+  intLastParC15 = intLastParC05
+  ///< first allowed parameter value for derived classes
+  /**< Convenience value for easily allow derived classes to extend the set
+   * of int parameters. */
+  };
+
+/*--------------------------------------------------------------------------*/
+ /// public enum "extending" dbl_par_type_C0F to the case of C15Function
+
+ enum dbl_par_type_C1F {
+  dblLastParC15 = dblLastParC05
+  ///< first allowed parameter value for derived classes
+  /**< Convenience value for easily allow derived classes to extend the set
+   * of double parameters. */
+  };
+
+/*--------------------------------------------------------------------------*/
+ /// public enum "extending" str_par_type_C0F to the case of C15Function
+
+ enum str_par_type_C1F {
+  strLastParC15 = strLastParC05
+  ///< first allowed parameter value for derived classes
+  /**< Convenience value for easily allow derived classes to extend the set
+   * of string parameters. */
+  };
+
+/*--------------------------------------------------------------------------*/
+ /// public enum "extending" vint_par_type_C0F to the of C15Function
+
+ enum vint_par_type_C1F {
+  vintLastParC1F = vintLastParC0F
+  ///< first allowed parameter value for derived classes
+  /**< Convenience value for easily allow derived classes to extend the set
+   * of vector-of-int parameters. */
+  };
+
+/*--------------------------------------------------------------------------*/
+ /// public enum "extending" vdbl_par_type_C0F to the case of C15Function
+
+ enum vdbl_par_type_C1F {
+  vdblLastParC1F = vdblLastParC0F
+  ///< first allowed parameter value for derived classes
+  /**< Convenience value for easily allow derived classes to extend the set
+   * of vector-of-double parameters. */
+  };
+
+/*--------------------------------------------------------------------------*/
+ /// public enum "extending" vstr_par_type_C0F to the case of C15Function
+
+ enum vstr_par_type_C1F {
+  vstrLastParC1F = vstrLastParC0F
+  ///< first allowed parameter value for derived classes
+  /**< Convenience value for easily allow derived classes to extend the set
+   * of vector-of-string parameters. */
+  };
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
@@ -195,11 +247,11 @@ class C15FunctionMod : public C05FunctionMod {
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
 
- C15FunctionMod( C15Function * const f, const int mod,
-                 Subset && which = {},
-                 Function::FunctionValue shift = 0,
+ C15FunctionMod( C15Function * const f , const int mod ,
+		 Subset && which = {} ,
+                 Function::FunctionValue shift = 0 ,
                  const bool cB = true )
-  : C05FunctionMod( f, mod, std::move( which ), shift, cB ) {}
+  : C05FunctionMod( f , mod , std::move( which ) , shift , cB ) {}
 
  ///< constructor: takes the type of Modification and a C15Function pointer
  /**< constructor: takes the type of the Modification and a pointer to
@@ -222,14 +274,14 @@ class C15FunctionMod : public C05FunctionMod {
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 
  /// print the C15FunctionMod
- inline void print( std::ostream & output ) const override {
+ void print( std::ostream & output ) const override {
   output << "C15FunctionMod[";
   if( concerns_Block() )
    output << "t";
   else
    output << "f";
   output << "] on Function [" << f_function << " ]" << std::endl;
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 

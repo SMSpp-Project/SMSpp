@@ -194,9 +194,9 @@ class Solver : public ThinComputeInterface {
   *   optimality. */
 
  enum sol_type {
-  kUnbounded = kUnEval + 1,  ///< the model is provably unbounded
-  /**< Means that the problem does not have any
-   * optimal solution, i.e., that for each real
+  kUnbounded = kUnEval + 1 ,  ///< the model is provably unbounded
+                              /**< Means that the problem does not have any
+                               * optimal solution, i.e., that for each real
    * value M (large enough or small enough, respectively if the problem is a
    * maximization or minimization one) it is possible to produce a feasible
    * solution with that value. The Solver is able to *prove* that this is true,
@@ -211,9 +211,9 @@ class Solver : public ThinComputeInterface {
    * not possible to provide a specific method for that in the general
    * interface. */
 
-  kInfeasible,   ///< the model is provably infeasible
-  /**< Means that the problem does not have any optimal
-   * solution because it does not have any solution at all, and
+  kInfeasible ,   ///< the model is provably infeasible
+                  /**< Means that the problem does not have any optimal
+                   * solution because it does not have any solution at all, and
    * the Solver is able to *prove* that this is true. Note that this means that
    * the Solver has some "certificate of infeasibility", which may be of extreme
    * interest for the user. However, the actual form of the certificate (a ray
@@ -222,9 +222,9 @@ class Solver : public ThinComputeInterface {
    * is not possible to provide a specific method for that in the general
    * interface. */
 
-  kStopTime = kOK + 1,  ///< stopped because of time limit
-  /**< The Solver didn't manage to either obtain any
-   * feasible solution (to within the required
+  kStopTime = kOK + 1 ,  ///< stopped because of time limit
+                         /**< The Solver didn't manage to either obtain any
+                          * feasible solution (to within the required
    * tolerance for each Block) and/or to reach the required accuracy, not
    * because it is not in principle capable of doing so (see kLowPrecision) or
    * for some kind of error (see kError), but because the maximum running time
@@ -237,9 +237,9 @@ class Solver : public ThinComputeInterface {
    * problems are even decidable and therefore allow an extact Solver. Besides,
    * non-exact Solver also make full sense in many cases. */
 
-  kStopIter,   ///< stopped because of iteration limit
-  /**< The Solver didn't manage to either obtain any feasible
-   * solution (to within the required tolerance for each
+  kStopIter ,  ///< stopped because of iteration limit
+               /**< The Solver didn't manage to either obtain any feasible
+                * solution (to within the required tolerance for each
    * Block) and/or to reach the required accuracy, not because it is not in
    * principle capable of doing so (see kLowPrecision) or for some kind of
    * error (see kError), but because the maximum "number of iterations" it is
@@ -254,20 +254,20 @@ class Solver : public ThinComputeInterface {
    * given enough resources, unless an error occurs, but not all problems are
    * decidable and therefore allow an extact Solver. */
 
-  kStillRunning = kError + 1,  ///< not stopped yet
-  /**< compute() was called again while it has
-   * not already terminated, for instance from
+  kStillRunning = kError + 1 ,  ///< not stopped yet
+                                /**< compute() was called again while it has
+                                 * not already terminated, for instance from
    * within an event handler. This is in general not allowed, and the only
    * recourse is to return an error. */
 
-  kBlockLocked,  ///< could not acquire the lock on the Block
-  /**< compute() needed to lock the Block to work, but
-   * acquiring the lock was unsuccessful and the Solver does
+  kBlockLocked ,  ///< could not acquire the lock on the Block
+                  /**< compute() needed to lock the Block to work, but
+                   * acquiring the lock was unsuccessful and the Solver does
    * not have in place any mechanism to overcome this issue. */
 
-  kLowPrecision, ///< a solution found but not provably optimal
-  /**< The Solver was indeed able to obtain 
-   * feasible solution (to within the required tolerance for
+  kLowPrecision ,  ///< a solution found but not provably optimal
+                   /**< The Solver was indeed able to obtain 
+                    * feasible solution (to within the required tolerance for
    * each Block) but *not* to reach the required accuracy, and this not for an
    * issue relative to limits on the available resources (see kStopTime and
    * kStopIter) or for some kind of error (see kError), but because the Solver
@@ -287,10 +287,9 @@ class Solver : public ThinComputeInterface {
 
 /*--------------------------------------------------------------------------*/
  /// public enum for the int algorithmic parameters
- /** Public enum describing the different types of algorithmic parameters
-  * of "int" type that any Solver should reasonably have. The value
-  * intLastAlgPar is provided so that the list can be easily further extended
-  * by derived classes.
+ /** Public enum describing the different algorithmic parameters of "int" type
+  * that any Solver should reasonably have. The value intLastAlgPar is
+  * provided so that the list can be easily extended by derived classes.
   *
   * Note: WHILE THE BASE Solver CLASS DEFINES THESE VALUES, IT DOES NOT
   *       HANDLE THEM SAVE FOR PROVIDING THE DEFAULT VALUES.
@@ -302,9 +301,9 @@ class Solver : public ThinComputeInterface {
   * value. */
 
  enum int_par_type_S {
-  intMaxIter = 0,  ///< maximum iterations for the next call to compute()
-  /**< The algorithmic parameter for setting the maximum
-   * number of iterations that the next call to compute() is
+  intMaxIter = 0 ,  ///< maximum iterations for the next call to compute()
+                    /**< The algorithmic parameter for setting the maximum
+                     * number of iterations that the next call to compute() is
    * allowed to execute for trying to solve the Block. The concept of "what
    * exactly an iteration is" is clearly Solver-dependent, and the user of the
    * Solver need supposedly be aware of which concrete Solver it is actually
@@ -314,9 +313,9 @@ class Solver : public ThinComputeInterface {
    * be added by derived classes (see intLastAlgPar and dblLastAlgPar). The
    * default is Inf<int>(). */
 
-  intMaxThread,  ///< maximum number of threads that compute() can spawn
-  /**< The algorithmic parameter for setting the maximum
-   * number of threads that the next call to compute() is
+  intMaxThread ,  ///< maximum number of threads that compute() can spawn
+                  /**< The algorithmic parameter for setting the maximum
+                   * number of threads that the next call to compute() is
    * allowed to spawn while trying to solve the Block. Actually "thread" here
    * is intended in a loose sense, since each :Solver will decide if and how
    * to implememnt any asynchronous part, and hence which tools will be used
@@ -334,9 +333,9 @@ class Solver : public ThinComputeInterface {
    * the responsibility of spawning (and then controlling) the new task is on
    * the caller, while this parameter controls what happens inside compute(). */
 
-  intMaxSol,    ///< maximum number of different solutions to report
-  /**< The algorithmic parameter for setting the maximum 
-   * number of different solutions to the Block that the
+  intMaxSol ,   ///< maximum number of different solutions to report
+                /**< The algorithmic parameter for setting the maximum 
+                 * number of different solutions to the Block that the
    * Solver should attempt to obtain and store. Mathematical models can have
    * (very) many solutions: an objective function precisely helps in selecting
    * among them, but even that may not be enough to narrow the choice down to
@@ -350,29 +349,28 @@ class Solver : public ThinComputeInterface {
    * me if there is any, and what its value is". The default is 1. */
 
   intEverykIt,  ///< how often call events of type eEverykIteration
-  /**< This parameter decides every how many iterations the
-   * events of type eEverykIteration are called. The default
+                /**< This parameter decides every how many iterations the
+                 * events of type eEverykIteration are called. The default
    * value is 0, meaning that events of that type are never called. A value of
    * 1 rather means that the events are called at every iteration. */
 
   intLogVerb,   ///< "verbosity" of the log
-  /**< An integer parameter dictating how "verbose" the log of
-   * the Solver [see set_log()] has to be. The specific meaning
+                /**< An integer parameter dictating how "verbose" the log of
+                 * the Solver [see set_log()] has to be. The specific meaning
    * of each value is Solver-dependent, but it is intended that 0 means "no log
    * at all", and increasing values correspond to increasing verbosity. The
    * default value is 0 (no log). */
 
   intLastAlgPar   ///< first allowed new int parameter for derived classes
-  /**< Convenience value for easily allow derived classes
-   * to extend the set of int algorithmic parameters. */
+                  /**< Convenience value for easily allow derived classes to
+		   * extend the set of int algorithmic parameters. */
  };  // end( int_par_type_S )
 
 /*--------------------------------------------------------------------------*/
  /// public enum for the double algorithmic parameters
- /** Public enum describing the different types of algorithmic parameters
-  * of "double" type that any Solver should reasonably have. The value
-  * dblLastAlgPar is provided so that the list can be easily further extended
-  * by derived classes.
+ /** Public enum describing the different algorithmic parameters of "double"
+  * type that any Solver should reasonably have. The value dblLastAlgPar is
+  * provided so that the list can be easily extended by derived classes.
   *
   * Note: WHILE THE BASE Solver CLASS DEFINES THESE VALUES, IT DOES NOT
   *       HANDLE THEM SAVE FOR PROVIDING THE DEFAULT VALUES.
@@ -384,9 +382,9 @@ class Solver : public ThinComputeInterface {
   * value. */
 
  enum dbl_par_type_S {
-  dblMaxTime = 0,  ///< maximum time for the next call to solve()
-  /**< the algorithmic parameter for setting the maximum time
-   * limit that the next call to solve() can expend in trying
+  dblMaxTime = 0 ,  ///< maximum time for the next call to solve()
+                    /**< the algorithmic parameter for setting the maximum time
+                     * limit that the next call to solve() can expend in trying
    * to solve the Block. The value is assumed to be in seconds, and it's a
    * double (so both very quick and very slow solvers are supported). The base
    * Solver class does not explicitly distinguish between "wall-clock time" and
@@ -394,8 +392,8 @@ class Solver : public ThinComputeInterface {
    * environment, but this concept can be easily added by derived classes (see
    * intLastAlgPar and dblLastAlgPar). The default is Inf<double>(). */
 
-  dblRelAcc,    ///< relative accuracy for declaring a solution optimal
-  /**< The algorithmic parameter for setting the *relative*
+  dblRelAcc ,    ///< relative accuracy for declaring a solution optimal
+                 /**< The algorithmic parameter for setting the *relative*
    * accuracy required to the solution of the Block. This is
    * geared towards single-objective optimization problems, and it is defined
    * as follows: a solution for a *minimization* problem has a relative
@@ -410,9 +408,9 @@ class Solver : public ThinComputeInterface {
    * [see the comments to get_ub(), get_lb() and Objective::set_sense()]. The
    * default is 1e-6. */
 
-  dblAbsAcc,    ///< absolute accuracy for declaring a solution optimal
-  /**< The algorithmic parameter for setting the *absolute*
-   * accuracy required to the solution of the model. This is
+  dblAbsAcc ,    ///< absolute accuracy for declaring a solution optimal
+                 /**< The algorithmic parameter for setting the *absolute*
+                  * accuracy required to the solution of the model. This is
    * geared towards single-objective optimization problems, and it is defined
    * as follows: a solution for a *minimization* problem has a absolute
    * accuracy of \eps if a feasible  (to within the required tolerance for
@@ -428,9 +426,9 @@ class Solver : public ThinComputeInterface {
    * default is Inf<OFValue>(), which is intended to mean that the only working
    * accuracy is the relative one. */
 
-  dblUpCutOff,  ///< upper cutoff for stopping the algorithm
-  /**< The algorithmic parameter for setting the "upper cut 
-   * off" of the solution process. This is a value basically
+  dblUpCutOff ,  ///< upper cutoff for stopping the algorithm
+                 /**< The algorithmic parameter for setting the "upper cut 
+                  * off" of the solution process. This is a value basically
    * telling the Solver "when enough is enough". In particular, if the Solver
    * obtains a certified lower bound "lb" on the optimal value such that
    *
@@ -449,9 +447,9 @@ class Solver : public ThinComputeInterface {
    * this is never going to happen the problem is as good as unfeasible to me.
    * The default is Inf<OFValue>(). */
 
-  dblLwCutOff,  ///< lower cutoff for stopping the algorithm
-  /**< The algorithmic parameter for setting the "lower cut 
-   * off" of the solution process. This is a value basically
+  dblLwCutOff ,  ///< lower cutoff for stopping the algorithm
+                 /**< The algorithmic parameter for setting the "lower cut 
+                  * off" of the solution process. This is a value basically
    * telling the Solver "when enough is enough". In particular, if the Solver
    * obtains a certified upper bound "ub" on the optimal value such that
    *
@@ -470,9 +468,9 @@ class Solver : public ThinComputeInterface {
    * this is never going to happen the problem is as good as unfeasible to me.
    * The default is - Inf<OFValue>(). */
 
-  dblRAccSol,   ///< maximum relative error in any reported solution
-  /**< The algorithmic parameter for setting the relative
-   * accuracy of the accepted solutions. It instructs the
+  dblRAccSol ,   ///< maximum relative error in any reported solution
+                 /**< The algorithmic parameter for setting the relative
+                  * accuracy of the accepted solutions. It instructs the
    * Solver not to even consider a solution among the ones to be reported (see
    * intMaxSol) if its objective function value is "too" bad. For a minimization
    * problem, the objective function value of a feasible solution provides an
@@ -490,9 +488,9 @@ class Solver : public ThinComputeInterface {
    * solution found so far. The roles of ub and lb are suitably reversed for
    * a maximization problem. The default is Inf<OFValue>(). */
 
-  dblAAccSol,   ///< maximum absolute error in any reported solution
-  /**< Similar to dblRAccSol but for an *absolute* accuracy;
-   * that is, a solution is deemed acceptable with the
+  dblAAccSol ,   ///< maximum absolute error in any reported solution
+                 /**< Similar to dblRAccSol but for an *absolute* accuracy;
+                  * that is, a solution is deemed acceptable with the
    * provided parameter \eps if
    *
    *    ub - lb <= \eps
@@ -504,9 +502,9 @@ class Solver : public ThinComputeInterface {
    * with the same notation as in dblRAccSol and the same provisions about the
    * case of a maximization problem. The default is Inf<OFValue>(). */
 
-  dblFAccSol,   ///< maximum constraint violation in any reported solution
-  /**< The algorithmic parameter for setting the maximum
-   * relative allowed violation of constraints. Whenever the
+  dblFAccSol ,   ///< maximum constraint violation in any reported solution
+                 /**< The algorithmic parameter for setting the maximum
+                  * relative allowed violation of constraints. Whenever the
    * Solver is uncapable of finding feasible solutions (maybe because there is
    * none), it may still be useful that it returns the "least unfeasible" ones.
    * This parameter instructs the Solver not to even consider a solution among
@@ -517,41 +515,86 @@ class Solver : public ThinComputeInterface {
    * solutions at all, which is why this is the default value of the parameter.
    */
 
-  dblEveryTTm,  ///< how often call events of type eEveryTTime
-  /**< This parameter sets the period (amount of time) T with
-   * which events of type eEveryTTime are called. The default
+  dblEveryTTm ,  ///< how often call events of type eEveryTTime
+                 /**< This parameter sets the period (amount of time) T with
+                  * which events of type eEveryTTime are called. The default
    * value is 0, meaning that events of that type are never called. */
 
   dblLastAlgPar   ///< first allowed new double parameter for derived classes
-  /**< Convenience value for easily allow derived classes
-   * to extend the set of double algorithmic parameters. */
+                  /**< Convenience value for easily allow derived classes to
+		   * extend the set of double algorithmic parameters. */
  };  // end( dbl_par_type_S )
 
 /*--------------------------------------------------------------------------*/
  /// public enum for the string algorithmic parameters
- /** Public enum describing the different types of algorithmic parameters
-  * of "string" type that any Solver should reasonably have (none so far).
-  * The value strLastAlgPar is provided so that the list can be easily
-  * further extended by derived classes. */
+ /** Public enum describing the different algorithmic parameters of "string"
+  * type that any Solver should reasonably have (none so far). The value
+  * strLastAlgPar is provided so that the list can be easily extended by
+  * derived classes. */
 
  enum str_par_type_S {
-  strLastAlgPar = 0 ///< first allowed new string parameter for derived classes
-  /**< Convenience value for easily allow derived classes
-   * to extend the set of string algorithmic parameters.
-   * Actually, so far thare are no string algorithmic
-   * parameters in the base Solver class, but this may
-   * change in the future, so using this makes code
+  strLastAlgPar = 0   ///< first allowed new string parameter
+                      /**< Convenience value for easily allow derived classes
+		       * to extend the set of string algorithmic parameters.
+   * Actually, so far thare are no string algorithmic parameters in the base
+   * Solver class, but this may change in the future, so using this makes code
    * resistant to that. */
  };  // end( str_par_type_S )
 
 /*--------------------------------------------------------------------------*/
+ /// public enum for vector-of-int algorithmic parameters
+ /** Public enum describing the different algorithmic parameters that are
+  * vectors of int that any Solver should reasonably have (none so far). The
+  * value vintLastAlgPar is provided so that the list can be easily extended
+  * by derived classes. */
 
- typedef double OFValue;
+ enum vint_par_type_S {
+  vintLastAlgPar = 0  ///< first allowed new  vector-of-int parameter
+                      /**< Convenience value for easily allow derived classes
+                       * to extend the set of vector-of-int parameters.
+   * Actually, so far thare are no such parameters in the base Solver class,
+   * but this may change in the future, so using this makes code resistant to
+   * that. */
+ };  // end( vint_par_type_S )
 
- ///< type of the objective function value
- /**< This is the type of the value of the objective function, generically
-  * "a real". One may expect this to be defined exactly like the same-named
-  * type in RealObjective. */
+/*--------------------------------------------------------------------------*/
+ /// public enum for vector-of-double algorithmic parameters
+ /** Public enum describing the different algorithmic parameters that are
+  * vectors of double that any Solver should reasonably have (none so far).
+  * The value vdblLastAlgPar is provided so that the list can be easily
+  * extended by derived classes. */
+
+ enum vdbl_par_type_S {
+  vdblLastAlgPar = 0  ///< first allowed new  vector-of-double parameter
+                      /**< Convenience value for easily allow derived classes
+                       * to extend the set of vector-of-double parameters.
+   * Actually, so far thare are no such parameters in the base Solver class,
+   * but this may change in the future, so using this makes code resistant to
+   * that. */
+ };  // end( vdbl_par_type_S )
+
+/*--------------------------------------------------------------------------*/
+ /// public enum for vector-of-string algorithmic parameters
+ /** Public enum describing the different algorithmic parameters that are
+  * vectors of string that any Solver should reasonably have (none so far).
+  * The value vdblLastAlgPar is provided so that the list can be easily
+  * extended by derived classes. */
+
+ enum vstr_par_type_S {
+  vstrLastAlgPar = 0  ///< first allowed new  vector-of-string parameter
+                      /**< Convenience value for easily allow derived classes
+                       * to extend the set of vector-of-string parameters.
+   * Actually, so far thare are no such parameters in the base Solver class,
+   * but this may change in the future, so using this makes code resistant to
+   * that. */
+ };  // end( vstr_par_type_S )
+
+/*--------------------------------------------------------------------------*/
+
+ typedef double OFValue;  ///< type of the objective function value
+                          /**< This is the type of the value of the objective
+			   * function, generically "a real". One may expect
+  * this to be defined exactly like the same-named type in RealObjective. */
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------ CONSTRUCTING AND DESTRUCTING Solver -------------------*/
@@ -560,14 +603,10 @@ class Solver : public ThinComputeInterface {
  *  @{ */
 
  /// constructor: initialise the few data structures of the base class
- Solver() : f_Block( nullptr ), f_log( nullptr ), f_no_Mod( false ) {
+ Solver( void ) : f_Block( nullptr ) , f_log( nullptr ) , f_no_Mod( false ) {
   f_id = this;
   f_mod_lock.clear();
-
-  if( v_events.empty() )
-   // FIXME: Do not invoke virtual member functions from constructor
-   v_events.resize( max_event_number() );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// construct a :Solver of specific type using the Solver factory
@@ -609,19 +648,17 @@ class Solver : public ThinComputeInterface {
 
  static Solver * new_Solver( const std::string & classname ) {
   std::string classname_( classname );
-  classname_.erase( std::remove_if( classname_.begin(),
-                                    classname_.end(),
-                                    ::isspace ),
+  classname_.erase( std::remove_if( classname_.begin() ,
+                                    classname_.end() , ::isspace ),
                     classname_.end() );
 
   const auto it = Solver::f_factory().find( classname_ );
   if( it == Solver::f_factory().end() )
-   throw (
-    std::invalid_argument( classname +
+   throw( std::invalid_argument( classname +
                            std::string( " not present in Solver factory" ) ) );
 
-  return ( ( it->second )() );
- }
+  return( ( it->second )() );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// destructor: it has to release all the Modifications
@@ -696,17 +733,17 @@ class Solver : public ThinComputeInterface {
 
  /// lock the Solver, waiting if the lock is taken by another thread
 
- void lock() { f_mutex.lock(); }
+ void lock( void ) { f_mutex.lock(); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// try to lock the Solver, returns false if the lock is taken
 
- bool try_lock() { return ( f_mutex.try_lock() ); }
+ bool try_lock( void ) { return( f_mutex.try_lock() ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// unlock the Solver
 
- void unlock() { f_mutex.unlock(); }
+ void unlock( void ) { f_mutex.unlock(); }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -779,7 +816,7 @@ class Solver : public ThinComputeInterface {
 
  virtual void set_log( std::ostream * log_stream = nullptr ) {
   f_log = log_stream;
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// set the "identity" of the Solver
@@ -910,7 +947,7 @@ class Solver : public ThinComputeInterface {
   v_events[ type ].push_back( std::move( event ) );
 
   return ( id );
- }
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// unregister an existing event handler
@@ -1111,9 +1148,9 @@ class Solver : public ThinComputeInterface {
   * should be safe for any derived classes which simply don't have the
   * concept of real objective function. */
 
- virtual OFValue get_lb() {
-  return ( -std::numeric_limits< OFValue >::infinity() );
- }
+ virtual OFValue get_lb( void ) {
+  return( -std::numeric_limits< OFValue >::infinity() );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// return a valid upper bound on the optimal objective function value
@@ -1190,9 +1227,9 @@ class Solver : public ThinComputeInterface {
   * should be safe for any derived classes which simply don't have the
   * concept of real objective function. */
 
- virtual OFValue get_ub() {
-  return ( std::numeric_limits< OFValue >::infinity() );
- }
+ virtual OFValue get_ub( void ) {
+  return( std::numeric_limits< OFValue >::infinity() );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// tells whether a solution is available
@@ -1209,7 +1246,7 @@ class Solver : public ThinComputeInterface {
   * is OK, for instance, for "easy" problems that are never empty and can
   * surely be solved "efficiently enough". */
 
- virtual bool has_var_solution() { return ( true ); }
+ virtual bool has_var_solution( void ) { return( true ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns true if the "current" solution is feasible
@@ -1231,7 +1268,7 @@ class Solver : public ThinComputeInterface {
   * true, which is OK for a solver that always only returns feasible solutions
   * (if any). */
 
- virtual bool is_var_feasible() { return ( true ); }
+ virtual bool is_var_feasible( void ) { return( true ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the value of the (current) solution, if any
@@ -1249,7 +1286,7 @@ class Solver : public ThinComputeInterface {
   * lower bound). However the method is virtual and can be redefined by
   * derived classes. */
 
- virtual OFValue get_var_value();
+ virtual OFValue get_var_value( void );
 
 /*--------------------------------------------------------------------------*/
  /// write the "current" solution in the Variable of the Block

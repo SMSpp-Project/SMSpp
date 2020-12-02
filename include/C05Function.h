@@ -7,9 +7,9 @@
  * the linearizations need not be a continuous function, which means that
  * the Function may be non-smooth.
  *
- * \version 0.40
+ * \version 0.41
  *
- * \date 14 - 05 - 2020
+ * \date 02 - 12 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -27,8 +27,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __C05Function
-#define __C05Function
-/* self-identification: #endif at the end of the file */
+#define __C05Function /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -42,8 +41,8 @@
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
-
 // namespace for the Structured Modeling System++ (SMS++)
+
 namespace SMSpp_di_unipi_it {
 
 /*--------------------------------------------------------------------------*/
@@ -380,11 +379,11 @@ class C05Function : public Function {
  /// type used to store a sparse vector
  using SparseVector = Eigen::SparseVector< FunctionValue >;
 
- ///< type used to define linear combinations of linearizations
+ /// type used to define linear combinations of linearizations
  using LinearCombination = std::vector< std::pair< Index, FunctionValue > >;
 
+ /// a const LinearCombination
  using c_LinearCombination = const LinearCombination;
- ///< a const LinearCombination
 
 /*--------------------------------------------------------------------------*/
  /// public enum for the int algorithmic parameters of C05Function
@@ -394,8 +393,7 @@ class C05Function : public Function {
   * be easily further extended by derived classes. */
 
  enum int_par_type_C0F {
-  intLPMaxSz = Function::intLastParFun,
-  ///< maximum size of the "local pool"
+  intLPMaxSz = Function::intLastParFun ,  ///< max size of the "local pool"
   /**< The algorithmic parameter for setting the size of the "local pool",
    * that is, the maximum number of linearizations that should be stored in
    * the local pool. The default is 1, which corresponds to the fact that the
@@ -403,16 +401,16 @@ class C05Function : public Function {
    * say, smooth). */
 
   intGPMaxSz,  ///< maximum size of the "global pool"
-  /**< The algorithmic parameter for setting the size of the 
-   * "global pool", that is, the maximum number of
+               /**< The algorithmic parameter for setting the size of the 
+                * "global pool", that is, the maximum number of
    * linearizations that should be stored in the local pool. The default is 0,
    * which corresponds to the fact that the Function cannot store any
    * linearization (for it is, say, smooth and therefore there is no need to).
    */
 
   intLastParC0F   ///< first allowed new int parameter for derived classes
-  /**< Convenience value for easily allow derived classes
-   * to extend the set of int algorithmic parameters. */
+                  /**< Convenience value for easily allow derived classes
+                   * to extend the set of int algorithmic parameters. */
  };  // end( int_par_type_C0F )
 
 /*--------------------------------------------------------------------------*/
@@ -423,7 +421,7 @@ class C05Function : public Function {
   * be easily further extended by derived classes. */
 
  enum dbl_par_type_C0F {
-  dblRAccLin = Function::dblLastParFun,
+  dblRAccLin = Function::dblLastParFun ,
   ///< maximum relative error in any linearization
   /**< The parameter for setting the relative accuracy of the linearizations.
    * A linearization ( g , \alpha ) computed at the point x is "accurate" if
@@ -454,7 +452,7 @@ class C05Function : public Function {
    * estimate ub >= f(x) is used in the formula instead of f(x). The default is
    * 0, i.e., "only perfect linearizations are allowed". */
 
-  dblAAccLin,   ///< maximum absolute error in any reported solution
+  dblAAccLin ,   ///< maximum absolute error in any reported solution
   /**< Similar to dblRAccLin but for an *absolute* accuracy; that is, a
    * linearization is deemed acceptable if
    *
@@ -467,7 +465,7 @@ class C05Function : public Function {
    * upper estimate ub >= f(x) is used in the formula instead of f(x). The
    * default is 0, i.e., "only perfect linearizations are allowed". */
 
-  dblAAccMlt,   ///< maximum absolute error in the multipliers
+  dblAAccMlt ,   ///< maximum absolute error in the multipliers
   /**< The multipliers used in store_combination_of_linearizations() and in
    * set_important_linearization() are typically (a part of) the dual optimal
    * solution of the optimization problem involving the C05Function. As such
@@ -487,9 +485,49 @@ class C05Function : public Function {
    * The default is "small but not zero": 1e-10. */
 
   dblLastParC0F   ///< first allowed new double parameter for derived classes
-  /**< Convenience value for easily allow derived classes
-   * to extend the set of double algorithmic parameters. */
- };  // end( dbl_par_type_F )
+                  /**< Convenience value for easily allow derived classes
+                   * to extend the set of double algorithmic parameters. */
+ };  // end( dbl_par_type_C0F )
+
+/*--------------------------------------------------------------------------*/
+ /// public enum "extending" str_par_type_F to the case of C05Function
+
+ enum str_par_type_C0F {
+  strLastParC05 = strLastAlgPar
+  ///< first allowed parameter value for derived classes
+  /**< Convenience value for easily allow derived classes to extend the set
+   * of string parameters. */
+  };
+
+/*--------------------------------------------------------------------------*/
+ /// public enum "extending" vint_par_type_F to the case of C05Function
+
+ enum vint_par_type_C0F {
+  vintLastParC05 = vintLastAlgPar
+  ///< first allowed parameter value for derived classes
+  /**< Convenience value for easily allow derived classes to extend the set
+   * of vector-of-int parameters. */
+  };
+
+/*--------------------------------------------------------------------------*/
+ /// public enum "extending" vdbl_par_type_F to the case of C05Function
+
+ enum vdbl_par_type_C0F {
+  vdblLastParC05 = vdblLastAlgPar
+  ///< first allowed parameter value for derived classes
+  /**< Convenience value for easily allow derived classes to extend the set
+   * of vector-of-double parameters. */
+  };
+
+/*--------------------------------------------------------------------------*/
+ /// public enum "extending" vstr_par_type_F to the case of C05Function
+
+ enum vstr_par_type_C0F {
+  vstrLastParC05 = vstrLastAlgPar
+  ///< first allowed parameter value for derived classes
+  /**< Convenience value for easily allow derived classes to extend the set
+   * of vector-of-string parameters. */
+  };
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------- CONSTRUCTING AND DESTRUCTING C05Function -----------------*/
@@ -2306,10 +2344,10 @@ class C05FunctionModVarsRngd : public FunctionModVarsRngd {
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: identical to that of FunctionModVarsRngd
 
- C05FunctionModVarsRngd( C05Function * f, Vec_p_Var && vars,
-                         c_Range & range, FunctionValue shift = NaNshift,
+ C05FunctionModVarsRngd( C05Function * f , Vec_p_Var && vars ,
+                         c_Range & range , FunctionValue shift = NaNshift ,
                          bool cB = true )
-  : FunctionModVarsRngd( f, std::move( vars ), range, shift, cB ) {}
+  : FunctionModVarsRngd( f , std::move( vars ) , range , shift , cB ) {}
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
@@ -2343,7 +2381,7 @@ class C05FunctionModVarsRngd : public FunctionModVarsRngd {
 
   output << ") deleting variables [ " << f_range.first << " , "
          << f_range.second << " ]" << std::endl;
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -2393,11 +2431,11 @@ class C05FunctionModVarsSbst : public FunctionModVarsSbst {
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: identical to that of FunctionModVarsSbst
 
- C05FunctionModVarsSbst( C05Function * f, Vec_p_Var && vars,
-                         Subset && subset, bool ordered = false,
-                         FunctionValue shift = NaNshift, bool cB = true )
-  : FunctionModVarsSbst( f, std::move( vars ), std::move( subset ),
-                         ordered, shift, cB ) {}
+ C05FunctionModVarsSbst( C05Function * f , Vec_p_Var && vars ,
+                         Subset && subset , bool ordered = false ,
+                         FunctionValue shift = NaNshift , bool cB = true )
+  : FunctionModVarsSbst( f , std::move( vars ) , std::move( subset ) ,
+                         ordered , shift , cB ) {}
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
@@ -2430,7 +2468,7 @@ class C05FunctionModVarsSbst : public FunctionModVarsSbst {
    output << f_shift;
 
   output << ") deleting " << v_subset.size() << " variables" << std::endl;
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -2542,14 +2580,14 @@ class C05FunctionModLin : public FunctionMod {
   * the the && tells, both vectors "become property" of the C05FunctionModLin
   * object. */
 
- C05FunctionModLin( C05Function * f, Vec_FunctionValue && delta,
-                    Vec_p_Var && vars, FunctionValue shift = NaNshift,
+ C05FunctionModLin( C05Function * f , Vec_FunctionValue && delta ,
+                    Vec_p_Var && vars , FunctionValue shift = NaNshift ,
                     bool cB = true )
-  : FunctionMod( f, shift, cB ), v_vars( std::move( vars ) ),
+  : FunctionMod( f , shift , cB ) , v_vars( std::move( vars ) ) ,
     v_delta( std::move( delta ) ) {
   if( vars.size() != delta.size() )
-   throw ( std::invalid_argument( "vars and delta sizes do not match" ) );
- }
+   throw( std::invalid_argument( "vars and delta sizes do not match" ) );
+  }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
@@ -2559,13 +2597,13 @@ class C05FunctionModLin : public FunctionMod {
 
  /// accessor to the vector of pointers to affected Variable
 
- [[nodiscard]] c_Vec_p_Var & vars() const { return ( v_vars ); }
+ [[nodiscard]] c_Vec_p_Var & vars( void ) const { return( v_vars ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  /// accessor to the "delta" vector
 
- [[nodiscard]] c_Vec_FunctionValue & delta() const { return ( v_delta ); }
+ [[nodiscard]] c_Vec_FunctionValue & delta( void ) const { return( v_delta ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -2584,7 +2622,7 @@ class C05FunctionModLin : public FunctionMod {
   output << "] on Function [" << &f_function
          << " ]: change in the linear part of " << v_delta.size()
          << " variables" << std::endl;
- }
+  }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 

@@ -212,8 +212,8 @@ class BlockSolverConfig : public Configuration {
   *
   * @param diff indicates if this configuration is a "differential" one. */
 
- explicit BlockSolverConfig( bool diff = true ) :
-  Configuration(), f_diff( diff ) {}
+ explicit BlockSolverConfig( bool diff = true ) : Configuration() ,
+  f_diff( diff ) {}
 
 /*--------------------------------------------------------------------------*/
  /// constructs a BlockSolverConfig out of the given netCDF \p group
@@ -225,9 +225,8 @@ class BlockSolverConfig : public Configuration {
   *        BlockSolverConfig. */
 
  explicit BlockSolverConfig( netCDF::NcGroup & group ) : Configuration() {
-  // FIXME: Do not invoke virtual member functions from constructor
-  deserialize( group );
- }
+  BlockSolverConfig::deserialize( group );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// constructs a BlockSolverConfig out of an istream
@@ -238,9 +237,8 @@ class BlockSolverConfig : public Configuration {
   *        BlockSolverConfig. */
 
  explicit BlockSolverConfig( std::istream & input ) : Configuration() {
-  // FIXME: Do not invoke virtual member functions from constructor
-  load( input );
- }
+  BlockSolverConfig::load( input );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// constructs a BlockSolverConfig for the given Block
@@ -255,13 +253,11 @@ class BlockSolverConfig : public Configuration {
   * @param clear It indicates whether a "cleared" BlockSolverConfig is
   *        desired. See BlockSolverConfig::get() for details. */
 
- explicit BlockSolverConfig( Block * block,
-                             bool diff = false,
-                             bool clear = false ) :
-  Configuration(), f_diff( diff ) {
-  // FIXME: Do not invoke virtual member functions from constructor
-  get( block, clear );
- }
+ explicit BlockSolverConfig( Block * block ,
+			     bool diff = false , bool clear = false )
+  : Configuration(), f_diff( diff ) {
+  BlockSolverConfig::get( block, clear );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: does what it says on the tin
@@ -308,7 +304,7 @@ class BlockSolverConfig : public Configuration {
   *    auto myBSC = BlockSolverConfig::deserialize( netCDFfile );
   */
 
- static BlockSolverConfig * deserialize( netCDF::NcFile & f,
+ static BlockSolverConfig * deserialize( netCDF::NcFile & f ,
                                          const unsigned int idx = 0 );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -349,7 +345,7 @@ class BlockSolverConfig : public Configuration {
  ~BlockSolverConfig() override {
   for( auto config : v_SolverConfigs )
    delete config;
- }
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -863,9 +859,8 @@ class RBlockSolverConfig : public BlockSolverConfig {
   *        RBlockSolverConfig. */
 
  explicit RBlockSolverConfig( netCDF::NcGroup & group ) : BlockSolverConfig() {
-  // FIXME: Do not invoke virtual member functions from constructor
-  deserialize( group );
- }
+  RBlockSolverConfig::deserialize( group );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// constructs an RBlockSolverConfig out of an istream
@@ -876,9 +871,8 @@ class RBlockSolverConfig : public BlockSolverConfig {
   *        RBlockSolverConfig. */
 
  explicit RBlockSolverConfig( std::istream & input ) : BlockSolverConfig() {
-  // FIXME: Do not invoke virtual member functions from constructor
-  load( input );
- }
+  RBlockSolverConfig::load( input );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// constructs an RBlockSolverConfig for the given Block
@@ -893,13 +887,11 @@ class RBlockSolverConfig : public BlockSolverConfig {
   * @param clear indicates whether a "cleared" RBlockSolverConfig is desired;
   *        see RBlockSolverConfig::get() for details. */
 
- explicit RBlockSolverConfig( const Block * block,
-                              bool diff = false,
-                              bool clear = false ) :
-  BlockSolverConfig( diff ) {
-  // FIXME: Do not invoke virtual member functions from constructor
-  get( block, clear );
- }
+ explicit RBlockSolverConfig( const Block * block ,
+                              bool diff = false , bool clear = false )
+  : BlockSolverConfig( diff ) {
+   RBlockSolverConfig::get( block, clear );
+   }
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: does what it says on the tin
@@ -1003,7 +995,7 @@ class RBlockSolverConfig : public BlockSolverConfig {
  ~RBlockSolverConfig() override {
   for( auto config : v_BlockSolverConfig )
    delete config;
- }
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/

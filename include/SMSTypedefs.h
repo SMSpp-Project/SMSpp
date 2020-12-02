@@ -1209,85 +1209,87 @@ bool un_any_dynamic( boost::any & any,
  *
  * Notice that in debug mode, the std::vectors are required to have the same
  * size and the boost:multi_arrays are required to have the same number of
- * dimensions and shape.
- */
+ * dimensions and shape. */
 
-template< typename T, typename U, class F >
-bool un_any_dynamic_2( const boost::any & any1, const boost::any & any2,
-                       F f, un_any_type< T >, un_any_type< U > ) {
+template< typename T , typename U , class F >
+bool un_any_dynamic_2( const boost::any & any1 , const boost::any & any2 ,
+                       F f, un_any_type< T >, un_any_type< U > )
+{
  if( any1.type() == typeid( std::list< T > * ) ) {
   auto & el1 = *boost::any_cast< std::list< T > * >( any1 );
-#ifdef DEBUG
-  if( any2.type() != typeid( U * ) )
-   throw std::invalid_argument( "un_any_dynamic_2: "
-                                "type of 2nd argument not U *" );
-#endif
+  #ifdef DEBUG
+   if( any2.type() != typeid( U * ) )
+    throw( std::invalid_argument( "un_any_dynamic_2: "
+				  "type of 2nd argument not U *" ) );
+  #endif
   auto & el2 = *boost::any_cast< U * >( any2 );
   f( el1, el2 );
-  return ( true );
- } else if( any1.type() == typeid( std::vector< std::list< T > > * ) ) {
-  auto & var1 = *boost::any_cast< std::vector< std::list< T > > * >( any1 );
-#ifdef DEBUG
-  if( any2.type() != typeid( std::vector< U > * ) )
-   throw std::invalid_argument( "un_any_dynamic_2: "
-                                "type of 2nd argument not U *" );
-#endif
-  auto & var2 = *boost::any_cast< std::vector< U > * >( any2 );
-#ifdef DEBUG
-  if( var1.size() != var2.size() )
-   throw std::invalid_argument( "un_any_dynamic_2: "
-                                "vectors have different sizes" );
-#endif
-  auto i1 = var1.begin();
-  auto i2 = var2.begin();
-  for( ; i1 != var1.end() && i2 != var2.end(); ++i1, ++i2 )
+  return( true );
+  }
+ else
+  if( any1.type() == typeid( std::vector< std::list< T > > * ) ) {
+   auto & var1 = *boost::any_cast< std::vector< std::list< T > > * >( any1 );
+   #ifdef DEBUG
+   if( any2.type() != typeid( std::vector< U > * ) )
+    throw( std::invalid_argument( "un_any_dynamic_2: "
+				  "type of 2nd argument not U *" ) );
+   #endif
+   auto & var2 = *boost::any_cast< std::vector< U > * >( any2 );
+   #ifdef DEBUG
+   if( var1.size() != var2.size() )
+    throw( std::invalid_argument( "un_any_dynamic_2: "
+				  "vectors have different sizes" ) );
+   #endif
+   auto i1 = var1.begin();
+   auto i2 = var2.begin();
+   for( ; i1 != var1.end() && i2 != var2.end(); ++i1, ++i2 )
    f( *i1, *i2 );
-  return ( true );
- } else
-  return ( un_any_dynamic_2( any1, any2, f, un_any_type< T >(),
-                             un_any_type< U >(), un_any_int< 2 >() ) );
-}
+   return( true );
+   }
+  else
+   return( un_any_dynamic_2( any1, any2 , f , un_any_type< T >() ,
+                             un_any_type< U >() , un_any_int< 2 >() ) );
+ }
 
-template< typename T, typename U, class F >
-bool un_any_dynamic_2( const boost::any &, const boost::any &, F,
-                       un_any_type< T >, un_any_type< U >, un_any_int< 9 > ) {
- return ( false );
-}
+template< typename T , typename U , class F >
+bool un_any_dynamic_2( const boost::any & , const boost::any & , F ,
+                       un_any_type< T > , un_any_type< U > , un_any_int< 9 > )
+{
+ return( false );
+ }
 
-template< typename T, typename U, class F, unsigned short K >
-bool un_any_dynamic_2( const boost::any & any1,
-                       const boost::any & any2,
-                       F f,
-                       un_any_type< T >,
-                       un_any_type< U >,
-                       un_any_int< K > ) {
+template< typename T , typename U , class F , unsigned short K >
+bool un_any_dynamic_2( const boost::any & any1 , const boost::any & any2 ,
+                       F f , un_any_type< T > , un_any_type< U > ,
+                       un_any_int< K > )
+{
  if( any1.type() == typeid( boost::multi_array< std::list< T >, K > * ) ) {
   auto & var1 =
    *boost::any_cast< boost::multi_array< std::list< T >, K > * >( any1 );
-#ifdef DEBUG
+  #ifdef DEBUG
   if( any2.type() != typeid( boost::multi_array< U, K > * ) )
-   throw std::invalid_argument( "un_any_dynamic_2:"
-                                " type of 2nd argument not U *" );
-#endif
+   throw( std::invalid_argument( "un_any_dynamic_2:"
+				 " type of 2nd argument not U *" ) );
+  #endif
   auto & var2 = *boost::any_cast< boost::multi_array< U, K > * >( any2 );
-#ifdef DEBUG
-  if( var1.num_dimensions() != var2.num_dimensions() ||
-      !std::equal( var1.shape(),
-                   var1.shape() + var1.num_dimensions(),
-                   var2.shape() ) )
-   throw std::logic_error( "un_any_dynamic_2: "
-                           " multi_arrays must have the same shape" );
-#endif
+  #ifdef DEBUG
+  if( ( var1.num_dimensions() != var2.num_dimensions() ) ||
+      ( ! std::equal( var1.shape() , var1.shape() + var1.num_dimensions() ,
+		      var2.shape() ) ) )
+   throw( std::logic_error( "un_any_dynamic_2: "
+			    " multi_arrays must have the same shape" ) );
+  #endif
   std::list< T > * p1 = var1.data();
   U * p2 = var2.data();
   for( boost::multi_array_types::size_type i =
-   std::min( var1.num_elements(), var2.num_elements() ); --i; )
+	std::min( var1.num_elements(), var2.num_elements() ) ; --i ; )
    f( *( p1++ ), *( p2++ ) );
-  return ( true );
- } else
-  return ( un_any_dynamic_2( any1, any2, f, un_any_type< T >(),
-                             un_any_type< U >(), un_any_int< K + 1 >() ) );
-}
+  return( true );
+  }
+ else
+  return( un_any_dynamic_2( any1 , any2 , f , un_any_type< T >() ,
+			    un_any_type< U >() , un_any_int< K + 1 >() ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 /** The template function
@@ -1326,57 +1328,52 @@ bool un_any_dynamic_2( const boost::any & any1,
  * Returns true if "any1" did indeed contain one of the sought-for types.
  */
 
-template< typename T, typename U, class F >
-bool un_any_dynamic_2_create( const boost::any & any1,
-                              boost::any & any2,
-                              un_any_type< T >,
-                              un_any_type< U >,
-                              F f,
-                              bool apply_f ) {
+template< typename T , typename U , class F >
+bool un_any_dynamic_2_create( const boost::any & any1 , boost::any & any2 ,
+                              un_any_type< T > , un_any_type< U > ,
+                              F f , bool apply_f )
+{
  if( any1.type() == typeid( std::list< T > * ) ) {
   any2 = new U();
   if( apply_f ) {
    auto & var1 = *boost::any_cast< std::list< T > * >( any1 );
    auto & var2 = *boost::any_cast< U * >( any2 );
    f( var1, var2 );
+   }
+  return( true );
   }
-  return ( true );
- } else if( any1.type() == typeid( std::vector< std::list< T > > * ) ) {
-  auto & var1 = *boost::any_cast< std::vector< std::list< T > > * >( any1 );
-  any2 = new std::vector< U >( var1.size() );
-  if( apply_f ) {
-   auto & var2 = *boost::any_cast< std::vector< U > * >( any2 );
-   auto i1 = var1.begin();
-   auto i2 = var2.begin();
-   for( ; i1 != var1.end() && i2 != var2.end(); ++i1, ++i2 )
-    f( *i1, *i2 );
-  }
-  return ( true );
- } else
-  return ( un_any_dynamic_2_create( any1, any2, un_any_type< T >(),
-                                    un_any_type< U >(), un_any_int< 2 >(),
-                                    f, apply_f ) );
-}
+ else
+  if( any1.type() == typeid( std::vector< std::list< T > > * ) ) {
+   auto & var1 = *boost::any_cast< std::vector< std::list< T > > * >( any1 );
+   any2 = new std::vector< U >( var1.size() );
+   if( apply_f ) {
+    auto & var2 = *boost::any_cast< std::vector< U > * >( any2 );
+    auto i1 = var1.begin();
+    auto i2 = var2.begin();
+    for( ; i1 != var1.end() && i2 != var2.end(); ++i1, ++i2 )
+     f( *i1, *i2 );
+    }
+   return( true );
+   }
+  else
+   return( un_any_dynamic_2_create( any1 , any2 , un_any_type< T >() ,
+                                    un_any_type< U >() , un_any_int< 2 >() ,
+                                    f , apply_f ) );
+ }
 
-template< typename T, typename U, class F >
-bool un_any_dynamic_2_create( const boost::any &,
-                              boost::any &,
-                              un_any_type< T >,
-                              un_any_type< U >,
-                              un_any_int< 9 >,
-                              F f,
-                              bool apply_f ) {
- return ( false );
-}
+template< typename T , typename U , class F >
+bool un_any_dynamic_2_create( const boost::any & , boost::any & ,
+                              un_any_type< T >, un_any_type< U > ,
+                              un_any_int< 9 > , F f , bool apply_f )
+{
+ return( false );
+ }
 
-template< typename T, typename U, class F, unsigned short K >
-bool un_any_dynamic_2_create( const boost::any & any1,
-                              boost::any & any2,
-                              un_any_type< T >,
-                              un_any_type< U >,
-                              un_any_int< K >,
-                              F f,
-                              bool apply_f ) {
+template< typename T , typename U , class F , unsigned short K >
+bool un_any_dynamic_2_create( const boost::any & any1 , boost::any & any2 ,
+                              un_any_type< T > , un_any_type< U > ,
+                              un_any_int< K > , F f , bool apply_f )
+{
  if( any1.type() == typeid( boost::multi_array< std::list< T >, K > * ) ) {
   auto & var1 =
    *boost::any_cast< boost::multi_array< std::list< T >, K > * >( any1 );
@@ -1388,25 +1385,25 @@ bool un_any_dynamic_2_create( const boost::any & any1,
    std::list< T > * p1 = var1.data();
    U * p2 = var2.data();
    for( boost::multi_array_types::size_type i =
-    std::min( var1.num_elements(), var2.num_elements() ); --i; )
+	 std::min( var1.num_elements(), var2.num_elements() ) ; --i ; )
     f( *( p1++ ), *( p2++ ) );
+   }
+  return( true );
   }
-  return ( true );
- } else
-  return ( un_any_dynamic_2_create( any1, any2, un_any_type< T >(),
-                                    un_any_type< U >(),
-                                    un_any_int< K + 1 >(), f, apply_f ) );
-}
+ else
+  return( un_any_dynamic_2_create( any1 , any2 , un_any_type< T >() ,
+				   un_any_type< U >(),
+				   un_any_int< K + 1 >() , f , apply_f ) );
+ }
 
-template< typename T, typename U >
-bool un_any_dynamic_2_create( const boost::any & any1,
-                              boost::any & any2,
-                              un_any_type< T >,
-                              un_any_type< U > ) {
- return ( un_any_dynamic_2_create( any1, any2,
-                                   un_any_type< T >(), un_any_type< U >(),
-                                   []( T & t, U & u ) {}, false ) );
-}
+template< typename T , typename U >
+bool un_any_dynamic_2_create( const boost::any & any1 , boost::any & any2 ,
+                              un_any_type< T > , un_any_type< U > )
+{
+ return( un_any_dynamic_2_create( any1 , any2 , un_any_type< T >() ,
+				  un_any_type< U >() ,
+				  []( T & t , U & u ) {} , false ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 /** The template function
@@ -1436,40 +1433,41 @@ bool un_any_dynamic_2_create( const boost::any & any1,
  * Returns true if "any" did indeed contain one of the sought-for types, in
  * which case "f" have been applied to all its elements, and false if "any"
  * contained something else, and therefore "f" has not been applied to
- * anything.
- */
+ * anything. */
 
-template< typename T, class F >
-bool un_any_const_dynamic( const boost::any & any, F f, un_any_type< T > ) {
+template< typename T , class F >
+bool un_any_const_dynamic( const boost::any & any , F f , un_any_type< T > )
+{
  if( any.type() == typeid( std::list< T > * ) ) {
   auto & el = *boost::any_cast< std::list< T > * >( any );
   for( auto & ell : el )
    f( ell );
-  return ( true );
- } else if( any.type() == typeid( std::vector< std::list< T > > * ) ) {
-  auto & var = *boost::any_cast< std::vector< std::list< T > > * >( any );
-  for( auto & el : var )
-   for( auto & ell : el )
-    f( ell );
-  return ( true );
- } else
-  return ( un_any_const_dynamic( any, f, un_any_type< T >(),
+  return( true );
+  }
+ else
+  if( any.type() == typeid( std::vector< std::list< T > > * ) ) {
+   auto & var = *boost::any_cast< std::vector< std::list< T > > * >( any );
+   for( auto & el : var )
+    for( auto & ell : el )
+     f( ell );
+   return( true );
+   }
+  else
+   return( un_any_const_dynamic( any , f , un_any_type< T >() ,
                                  un_any_int< 2 >() ) );
-}
+ }
 
 template< typename T, class F >
-bool un_any_const_dynamic( const boost::any &,
-                           F,
-                           un_any_type< T >,
-                           un_any_int< 9 > ) {
- return ( false );
-}
+bool un_any_const_dynamic( const boost::any & , F , un_any_type< T >,
+                           un_any_int< 9 > )
+{
+ return( false );
+ }
 
-template< typename T, class F, unsigned short K >
-bool un_any_const_dynamic( const boost::any & any,
-                           F f,
-                           un_any_type< T >,
-                           un_any_int< K > ) {
+template< typename T , class F , unsigned short K >
+bool un_any_const_dynamic( const boost::any & any , F f ,
+                           un_any_type< T > , un_any_int< K > )
+{
  if( any.type() == typeid( boost::multi_array< std::list< T >, K > * ) ) {
   auto & var =
    *boost::any_cast< boost::multi_array< std::list< T >, K > * >( any );
@@ -1477,11 +1475,12 @@ bool un_any_const_dynamic( const boost::any & any,
   for( boost::multi_array_types::size_type i = var.num_elements(); i--; ++p )
    for( auto & ell : *p )
     f( ell );
-  return ( true );
- } else
-  return ( un_any_const_dynamic( any, f, un_any_type< T >(),
-                                 un_any_int< K + 1 >() ) );
-}
+  return( true );
+  }
+ else
+  return( un_any_const_dynamic( any , f , un_any_type< T >() ,
+				un_any_int< K + 1 >() ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 /** The four macro
@@ -1607,6 +1606,7 @@ bool un_any_const_dynamic( const boost::any & any,
   return( false );                                                           \
   }( my_thing )
 #endif
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #define un_any_thing_1( thing_type , my_thing , f )                          \
@@ -1673,14 +1673,15 @@ bool un_any_const_dynamic( const boost::any & any,
 template< class T1, class T2 >
 std::ostream & operator<<( std::ostream & os, const std::pair< T1, T2 > & p ) {
  os << "( " << p.first << ", " << p.second << " )";
- return ( os );
-}
+ return( os );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 template< typename T, unsigned long K >
 std::ostream & operator<<( std::ostream & os,
-                           const boost::multi_array< T, K > & A ) {
+                           const boost::multi_array< T, K > & A )
+{
  const T * p = A.data();
  for( boost::multi_array_types::size_type i = A.num_elements(); i--; ++p ) {
   os << "[ ";
@@ -1689,18 +1690,19 @@ std::ostream & operator<<( std::ostream & os,
          + A.index_bases()[ k ];
    if( ++k < K )
     os << ", ";
-  }
+   }
   os << " ] = " << *p << std::endl;
- }
+  }
 
- return ( os );
-}
+ return( os );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 template< typename T, unsigned long K >
 std::ostream & operator<<( std::ostream & os,
-                           const boost::multi_array< T *, K > & A ) {
+                           const boost::multi_array< T *, K > & A )
+{
  typedef T * TP;
  const TP * p = A.data();
  for( boost::multi_array_types::size_type i = A.num_elements(); i--; ++p ) {
@@ -1710,56 +1712,57 @@ std::ostream & operator<<( std::ostream & os,
          + A.index_bases()[ k ];
    if( ++k < K )
     os << ", ";
-  }
+   }
   os << " ] = " << **p << std::endl;
+  }
+
+ return( os );
  }
 
- return ( os );
-}
-
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 template< typename T >
-std::ostream & operator<<( std::ostream & os, const std::vector< T > & l ) {
- for( unsigned int i = 0; i < l.size(); ++i )
+std::ostream & operator<<( std::ostream & os , const std::vector< T > & l )
+{
+ for( unsigned int i = 0 ; i < l.size() ; ++i )
   os << "[ " << i << " ] = " << l[ i ] << std::endl;
 
- return ( os );
-}
+ return( os );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 template< typename T >
-std::ostream & operator<<( std::ostream & os, const std::vector< T * > & l ) {
- for( unsigned int i = 0; i < l.size(); ++i )
+std::ostream & operator<<( std::ostream & os, const std::vector< T * > & l )
+{
+ for( unsigned int i = 0 ; i < l.size() ; ++i )
   os << "[ " << i << " ] = " << *l[ i ] << std::endl;
 
- return ( os );
-}
+ return( os );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 template< typename T >
 std::ostream & operator<<( std::ostream & os, const std::list< T > & l ) {
  auto it = l.begin();
- for( unsigned int i = 0; i < l.size(); ++i, ++it ) {
+ for( unsigned int i = 0 ; i < l.size() ; ++i , ++it )
   os << i << " ) = " << *it;
- }
 
- return ( os );
-}
+ return( os );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 template< typename T >
-std::ostream & operator<<( std::ostream & os, const std::list< T * > & l ) {
+std::ostream & operator<<( std::ostream & os, const std::list< T * > & l )
+{
  auto it = l.begin();
- for( unsigned int i = 0; i < l.size(); ++i, ++it ) {
+ for( unsigned int i = 0 ; i < l.size() ; ++i , ++it )
   os << i << " ) = " << **it;
- }
 
- return ( os );
-}
+ return( os );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------------- LOADING things while skipping comments -----------------*/
@@ -1768,7 +1771,8 @@ std::ostream & operator<<( std::ostream & os, const std::list< T * > & l ) {
  *
  *  @{ */
 
-inline std::istream & eatcomments( std::istream & is ) {
+inline std::istream & eatcomments( std::istream & is )
+{
  for( ;; ) {
   is >> std::ws;  // skip whitespaces
   if( is.peek() == is.widen( '#' ) )
@@ -1777,10 +1781,10 @@ inline std::istream & eatcomments( std::istream & is ) {
               is.widen( '\n' ) );
   else
    break;
- }
+  }
 
- return ( is );
-}
+ return( is );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------ LOADING list, array and multi_array -------------------*/
@@ -1806,37 +1810,40 @@ inline std::istream & eatcomments( std::istream & is ) {
  */
 
 template< class T1, class T2 >
-std::istream & operator>>( std::istream & is, std::pair< T1, T2 > & p ) {
+std::istream & operator>>( std::istream & is , std::pair< T1, T2 > & p )
+{
  is >> eatcomments >> p.first;
  is >> eatcomments >> p.second;
- return ( is );
-}
+ return( is );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 template< typename T >
-std::istream & operator>>( std::istream & is, std::vector< T > & l ) {
+std::istream & operator>>( std::istream & is , std::vector< T > & l )
+{
  unsigned int k;
  is >> eatcomments >> k;
  l.resize( k );
  for( auto & li : l )
   is >> eatcomments >> li;
 
- return ( is );
-}
+ return( is );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 template< typename T >
-std::istream & operator>>( std::istream & is, std::list< T > & l ) {
+std::istream & operator>>( std::istream & is, std::list< T > & l )
+{
  unsigned int k;
  is >> eatcomments >> k;
  l.resize( k );
  for( auto & li : l )
   is >> eatcomments >> li;
 
- return ( is );
-}
+ return( is );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------ DE/SERIALIZING FROM/TO netCDF FILES -------------------*/
@@ -1844,13 +1851,13 @@ std::istream & operator>>( std::istream & is, std::list< T > & l ) {
 /** @defgroup helper functions for serializing/deserializing to/from netCDF
  *  files.
  *
- * The following functions are intended to help in the execution of
- * typical tasks that must be performed when serializing and
- * deserializing objects.
- *
- *  @{
- */
+ * The following functions are intended to help in the execution of typical
+ * tasks that must be performed when serializing and deserializing objects.
+ *  @{ */
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - DESERIALIZING - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// deserialize a dimension out of a netCDF NcGroup
 /** If the given netCDF NcGroup contains a dimension whose name is \p
  * dim_name, then its size is stored in \p data. If the group does not contain
@@ -1878,22 +1885,22 @@ std::istream & operator>>( std::istream & is, std::list< T > & l ) {
  */
 
 template< class T >
-inline bool deserialize_dim( const netCDF::NcGroup & group,
-                             const std::string & dim_name, T & data,
-                             const bool optional = true ) {
+bool deserialize_dim( const netCDF::NcGroup & group ,
+		      const std::string & dim_name , T & data ,
+		      const bool optional = true )
+{
  netCDF::NcDim ncDim = group.getDim( dim_name );
-
  if( ncDim.isNull() ) {
   if( optional )
-   return ( false );
-  throw ( std::invalid_argument( "deserialize_dim(): " + dim_name +
-                                 " is not present in group '" +
-                                 group.getName() + "'." ) );
- }
+   return( false );
+  throw( std::invalid_argument( "deserialize_dim(): " + dim_name +
+				" is not present in group '" +
+				group.getName() ) );
+  }
 
  data = ncDim.getSize();
- return ( true );
-}
+ return( true );
+ }
 
 /*--------------------------------------------------------------------------*/
 /// return the sizes of the dimensions of a netCDF variable
@@ -1905,17 +1912,16 @@ inline bool deserialize_dim( const netCDF::NcGroup & group,
  * @param[in] var The netCDF variable from which the sizes of the dimensions
  * will be extracted.
  *
- * @return A vector with the sizes of the dimensions of the variable var.
- */
+ * @return A vector with the sizes of the dimensions of the variable var. */
 
-inline std::vector< std::size_t >
-get_sizes_dimensions( const netCDF::NcVar & var ) {
+std::vector< std::size_t > get_sizes_dimensions( const netCDF::NcVar & var )
+{
  std::vector< std::size_t > sizes_dimensions( var.getDimCount() );
  std::vector< std::size_t >::size_type i = 0;
  for( const auto & dim : var.getDims() )
   sizes_dimensions[ i++ ] = dim.getSize();
- return ( sizes_dimensions );
-}
+ return( sizes_dimensions );
+ }
 
 /*--------------------------------------------------------------------------*/
 /// deserialize a multi-dimensional variable out of a netCDF NcGroup
@@ -1963,73 +1969,72 @@ get_sizes_dimensions( const netCDF::NcVar & var ) {
  * stored in the first position of \p data (notice that, in this case, the
  * given vector \p sizes is completely ignored).
  *
- * @return true if the desired variable was deserialized; false, otherwise.
- */
+ * @return true if the desired variable was deserialized; false, otherwise. */
 
 template< class T >
-inline bool deserialize( const netCDF::NcGroup & group,
-                         const std::string & var_name,
-                         const std::vector< std::size_t > & sizes,
-                         std::vector< T > & data,
-                         const bool optional = true,
-                         const bool allow_scalar_var = false ) {
-
+bool deserialize( const netCDF::NcGroup & group ,
+		  const std::string & var_name ,
+		  const std::vector< std::size_t > & sizes ,
+		  std::vector< T > & data , bool optional = true ,
+		  bool allow_scalar_var = false )
+{
  if( sizes.empty() ) {
   data.resize( 0 );
-  return ( false );
- }
+  return( false );
+  }
 
- auto total_size = std::accumulate( begin( sizes ), end( sizes ), 1,
+ auto total_size = std::accumulate( begin( sizes ) , end( sizes ) , 1 ,
                                     std::multiplies< std::size_t >() );
  if( total_size == 0 ) {
   data.resize( 0 );
-  return ( false );
- }
+  return( false );
+  }
 
  auto ncVar = group.getVar( var_name );
  if( ncVar.isNull() ) {
   if( optional ) {
    data.resize( 0 );
-   return ( false );
-  }
+   return( false );
+   }
 
   throw std::invalid_argument( "deserialize(): " + var_name +
                                " is not present" );
- }
+  }
 
- if( ( ncVar.getDimCount() < 0 ||
-       sizes.size() != static_cast<decltype( sizes.size() )>
-       ( ncVar.getDimCount() ) ) &&
-     ( ncVar.getDimCount() != 0 || !allow_scalar_var ) )
-
-  throw std::invalid_argument
-   ( "deserialize(): netCDF variable '" + var_name + "' of group '" +
-     group.getName() + "' has " + std::to_string( ncVar.getDimCount() ) +
-     " dimension(s), but provided argument has " +
-     std::to_string( sizes.size() ) + " dimension(s)." );
+ if( ( ( ncVar.getDimCount() < 0 ) ||
+       ( sizes.size() != static_cast< decltype( sizes.size() ) >(
+					    ncVar.getDimCount() ) ) ) &&
+     ( ( ncVar.getDimCount() != 0 ) || ( ! allow_scalar_var ) ) )
+  throw( std::invalid_argument( "deserialize(): netCDF variable '" +
+				var_name + "' of group '" +
+				group.getName() + "' has " +
+				std::to_string( ncVar.getDimCount() ) +
+				" dimension(s), but provided argument has " +
+				std::to_string( sizes.size() ) +
+				" dimension(s)." ) );
 
  if( ncVar.getDimCount() == 0 ) {
   data.resize( 1 );
   ncVar.getVar( &data[ 0 ] );
-  return ( true );
- }
+  return( true );
+  }
 
  auto var_sizes = get_sizes_dimensions( ncVar );
 
  if( sizes != var_sizes )
-  throw std::invalid_argument
-   ( "deserialize(): given sizes of dimensions and the sizes of "
+  throw( std::invalid_argument(
+     "deserialize(): given sizes of dimensions and the sizes of "
      "dimensions of netCDF variable " + var_name + " of group '" +
-     group.getName() + "' do not match." );
+     group.getName() + "' do not match." ) );
 
  data.resize( total_size );
 
- std::vector< std::size_t > start( sizes.size(), 0 );
+ std::vector< std::size_t > start( sizes.size() , 0 );
 
- ncVar.getVar( start, sizes, data.data() );
+ ncVar.getVar( start , sizes , data.data() );
 
- return ( true );
-}
+ return( true );
+ }
 
 /*--------------------------------------------------------------------------*/
 /// deserialize a single-dimensional variable out of a netCDF NcGroup
@@ -2072,27 +2077,23 @@ inline bool deserialize( const netCDF::NcGroup & group,
  * stored in the first position of \p data (notice that, in this case, the
  * given vector \p sizes is completely ignored).
  *
- * @return true if the desired variable was deserialized; false, otherwise.
- */
+ * @return true if the desired variable was deserialized; false, otherwise. */
 
 template< class T >
-inline bool deserialize( const netCDF::NcGroup & group,
-                         const std::string & var_name,
-                         const std::size_t & size,
-                         std::vector< T > & data,
-                         const bool optional = true,
-                         const bool allow_scalar_var = false ) {
- return ( deserialize( group, var_name, std::vector< size_t >{ size }, data,
-                       optional, allow_scalar_var ) );
-}
+bool deserialize( const netCDF::NcGroup & group ,
+		  const std::string & var_name ,
+		  const std::size_t & size , std::vector< T > & data ,
+		  bool optional = true , bool allow_scalar_var = false ) {
+ return( deserialize( group , var_name , std::vector< size_t >{ size } ,
+		      data , optional , allow_scalar_var ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 /// deserialize a multi-dimensional variable out of a netCDF NcGroup
-/**
- * This function reads a multi-dimensional array of values of type \p T from a
- * netCDF variable with name \p var_name within the given netCDF NcGroup \p
- * group. The values read are stored in the given vector data in row-major
- * layout.
+/** This function reads a multi-dimensional array of values of type \p T
+ * from a netCDF variable with name \p var_name within the given netCDF
+ * NcGroup \p group. The values read are stored in the given vector data in
+ * row-major layout.
  *
  * If the size of any dimension is zero, then \p data is resized to zero. If
  * the variable is not present in the given \p group, then the vector \p data
@@ -2116,22 +2117,21 @@ inline bool deserialize( const netCDF::NcGroup & group,
  * optional. This means that if the variable is not present in the given
  * NcGroup and \p optional is false, an exception is thrown.
  *
- * @return true if the desired variable was deserialized; false, otherwise.
- */
+ * @return true if the desired variable was deserialized; false, otherwise. */
 
 template< class T >
-inline bool deserialize( const netCDF::NcGroup & group,
-                         const std::string & var_name,
-                         std::vector< T > & data,
-                         const bool optional = true ) {
-
+bool deserialize( const netCDF::NcGroup & group ,
+		  const std::string & var_name ,
+		  std::vector< T > & data , bool optional = true )
+{
  auto ncVar = group.getVar( var_name );
  if( ncVar.isNull() ) {
   if( optional ) {
    data.resize( 0 );
-   return ( false );
-  }
-  throw std::invalid_argument( "deserialize(): " + var_name +
+   return( false );
+   }
+
+  throw( std::invalid_argument( "deserialize(): " + var_name +
                                " is not present in group '" +
                                group.getName() + "'." );
  }
@@ -2140,26 +2140,176 @@ inline bool deserialize( const netCDF::NcGroup & group,
 
  if( sizes_dimensions.empty() ) {
   data.resize( 0 );
-  return ( false );
- }
+  return( false );
+  }
 
- auto total_size = std::accumulate( begin( sizes_dimensions ),
-                                    end( sizes_dimensions ), 1,
+ auto total_size = std::accumulate( begin( sizes_dimensions ) ,
+                                    end( sizes_dimensions ) , 1 ,
                                     std::multiplies< std::size_t >() );
-
  if( total_size == 0 ) {
   data.resize( 0 );
-  return ( false );
- }
+  return( false );
+  }
 
  data.resize( total_size );
 
- std::vector< std::size_t > start( sizes_dimensions.size(), 0 );
+ std::vector< std::size_t > start( sizes_dimensions.size() , 0 );
 
- ncVar.getVar( start, sizes_dimensions, data.data() );
+ ncVar.getVar( start , sizes_dimensions , data.data() );
 
- return ( true );
-}
+ return( true );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// deserialize a matrix with variable-length rows
+/** This function reads a matrix with variable-length rows, i.e., a
+ * std::vector< std::vector< T > >. This is obtained in the netCDF by having
+ * two distinct netCDF::NcVars: a one-dimensional T array val[] (whose name
+ * is \p var_name), and a one-dimensional int array start[] (whose name is
+ * \p start_name). The length of start[] gives the number of rows in
+ * \p array; the elements of start[] are supposed to be non-negative, ordered
+ * in non-decreasing sense, and smaller than the number of elements of val[].
+ * Then, the i-th row of \p array will contain the elements found in val[]
+ * with indices between start[ i ] and start[ i + 1 ], except for the last
+ * row for which start[ i + 1 ] is undefined and the total number of elements
+ * in val[] is used instead. Note that one typically expect start[ 0 ] == 0,
+ * but this is not enforced for the slight chance that this may be useful to
+ * the user; clearly, the elements of val[] before start[ 0 ] are ignored.
+ *
+ * @param[in] group The netCDF::NcGroup from which the matrix with
+ *            variable-length rows will be obtained
+ *            from.
+ *
+ * @param[in] var_name The name of the one-dimensional netCDF::NcVar of type
+ *            T within the given \p group in which the values to be stored
+ *            in 1p array will be found;
+ *
+ * @param[in] start_name The name of the  one-dimensional netCDF::NcVar of
+ *            type netCDF::NcInt() within the given \p group which tells
+ *            how the elements of var_name are subdivided between the rows
+ *            of \p array; start_name is optional if var_name is not found
+ *            in \p group;
+ *
+ * @param[out] array A reference to the std::vector< std::vector< T > > to
+ *             be deserialised;
+ *
+ * @param[in] optional A bool stating if it is allowed for \p var_name not
+ *            to be a netCDF::NcVar in \p group, in which case an empty
+ *            \p array is returned as opposed to throwing exception.
+ *
+ * @return true if the desired variable was deserialized; false, otherwise. */
+
+template< class T >
+bool deserialize( const netCDF::NcGroup & group ,
+		  const std::string & var_name ,
+		  const std::string & start_name ,
+		  std::vector< std::vector< T > > & array ,
+		  bool optional = true )
+{
+ auto ncVar = group.getVar( var_name );
+ if( ncVar.isNull() ) {
+  if( optional ) {
+   array.clear();
+   return( false );
+   }
+
+  throw( std::invalid_argument( "deserialize(): " + var_name +
+				" is not present in group " +
+				group.getName() ) );
+  }
+
+ if( ncVar.getDimCount() == 0 ) {
+  array.clear();
+  return( true );
+  }
+
+ if( ncVar.getDimCount() != 1 )
+  throw( std::invalid_argument( "deserialize(): " + var_name +
+				" has wrong number of dimensions" ) );
+
+ auto ncVar_S = group.getVar( start_name ) );
+ if( ncVar_S.isNull() )
+  throw( std::invalid_argument( "deserialize(): " + start_name +
+				" is not present in group " +
+				group.getName() ) );
+
+ if( ncVar_S.getDimCount() != 1 )
+  throw( std::invalid_argument( "deserialize(): " + start_name +
+				" has wrong number of dimensions" ) );
+
+ auto nrows = ncVar_S.getDim( 0 );
+ std::vector< int > strt( nrows + 1 );
+ ncVar_S.getVar( strt.data() );
+
+ strt[ nrows ] = ncVar.getDim( 0 );
+
+ for( int i = 0 ; i < nrows ; ++i ) {
+  strt[ i ] = strt[ i + 1 ] - strt[ i ];
+  if( strt[ i ] < 0 )
+   throw( std::invalid_argument( "deserialize(): wrong indices in " +
+				 start_name ) );
+  }
+
+ std::vector< T > tmp( ncVar.getDim( 0 ) );
+ ncVar.getVar( tmp.data() );
+
+ array.resize( nrows );
+
+ auto tit = tmp.begin();
+ for( int i = 0 ; i < nrows ; ++i ) {
+  array[ i ].resize( strt[ i ] );
+  auto aiit = array[ i ].start()
+  for( const auto tend = tit + strt[ i ] ; tit != tend ; )
+   *(tit++) = std::move( *(ait++) );
+  }
+
+ return( true );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// deserialize a single variable out of a netCDF NcGroup
+/** This function reads a value of type \p T from a netCDF variable with name
+ * \p var_name within the given netCDF NcGroup \p group. If a variable with
+ * the given name is not present within the given \p group, an
+ * std::invalid_argument exception is thrown.
+ *
+ * If \p group has more than one variable with the same name, then the
+ * variable that is considered follows the rule defined by the netCDF method
+ * NcGroup::getVar(). As of version 4.3.1 of netCDF, if this happens, then the
+ * variable closest to the given group is considered.
+ *
+ * @param[in] group The netCDF NcGroup from which the value will be obtained
+ * from.
+ *
+ * @param[in] var_name The name of the variable within the given \p group that
+ * contains the desired value.
+ *
+ * @param[out] data A pointer to the object that will store the desired value.
+ *
+ * @param[in] optional This parameter informs whether the variable is
+ * optional. This means that if the variable is not present in the given
+ * NcGroup and \p optional is false, an exception is thrown.
+ *
+ * @return true if the desired variable was deserialized; false, otherwise.
+ */
+
+template< class T >
+bool deserialize( const netCDF::NcGroup & group ,
+		  const std::string & var_name , T * data ,
+                  bool optional = true )
+{
+ auto ncVar = group.getVar( var_name );
+ if( ncVar.isNull() ) {
+  if( ! optional )
+   throw( std::invalid_argument( "deserialize(): " + var_name +
+                                " is not present in group "
+				 + group.getName() ) );
+  return( false );
+  }
+
+ ncVar.getVar( data );
+ return( true );
+ }
 
 /*--------------------------------------------------------------------------*/
 /// deserialize a multi-dimensional variable out of a netCDF NcGroup
@@ -2201,110 +2351,61 @@ inline bool deserialize( const netCDF::NcGroup & group,
  * boost::multi_array \p array will have a single element (the origin) whose
  * value will be that of the netCDF variable.
  *
- * @return true if the desired variable was deserialized; false, otherwise.
- */
+ * @return true if the desired variable was deserialized; false, otherwise. */
 
-template< class T, std::size_t N >
-inline bool deserialize( const netCDF::NcGroup & group,
-                         const std::string & var_name,
-                         boost::multi_array< T, N > & array,
-                         const bool optional = true,
-                         const bool allow_scalar_var = false ) {
-
+template< class T , std::size_t N >
+bool deserialize( const netCDF::NcGroup & group ,
+		  const std::string & var_name ,
+		  boost::multi_array< T, N > & array,
+		  bool optional = true , bool allow_scalar_var = false )
+{
  using index = typename boost::multi_array< T, N >::index;
 
  auto ncVar = group.getVar( var_name );
  if( ncVar.isNull() ) {
-
   if( optional ) {
-   std::vector< index > new_sizes( N, 0 );
+   std::vector< index > new_sizes( Nc, 0 );
    array.resize( new_sizes );
-   return ( false );
-  }
+   return( false );
+   }
 
-  throw std::invalid_argument( "deserialize(): " + var_name +
-                               " is not present in group '" +
-                               group.getName() + "'." );
- }
+  throw( std::invalid_argument( "deserialize(): " + var_name +
+				" is not present in group " +
+				group.getName() ) );
+  }
 
  if( ncVar.getDimCount() == 0 ) {
   if( allow_scalar_var ) {
-   std::vector< index > new_sizes( N, 1 );
+   std::vector< index > new_sizes( N , 1 );
    array.resize( new_sizes );
    ncVar.getVar( array.origin() );
-   return ( true );
-  }
+   return( true );
+   }
 
-  throw std::invalid_argument
-   ( "deserialize(): netCDF variable '" + var_name + "' is a scalar," +
+  throw( std::invalid_argument(
+     "deserialize(): netCDF variable '" + var_name + "' is a scalar," +
      " but a multi-dimensional array with " + std::to_string( N ) +
-     " dimensions was expected in group '" + group.getName() + "'." );
- }
+     " dimensions was expected in group " + group.getName() ) );
+  }
 
  auto sizes_dimensions = get_sizes_dimensions( ncVar );
- if( sizes_dimensions.size() < array.num_dimensions() ) {
-  sizes_dimensions.resize( array.num_dimensions(), 1 );
- }
+ if( sizes_dimensions.size() < array.num_dimensions() )
+  sizes_dimensions.resize( array.num_dimensions() , 1 );
+
  array.resize( sizes_dimensions );
 
- std::vector< std::size_t > start( sizes_dimensions.size(), 0 );
+ std::vector< std::size_t > start( sizes_dimensions.size() , 0 );
 
- ncVar.getVar( start, sizes_dimensions, array.data() );
- return ( true );
-}
-
-/*--------------------------------------------------------------------------*/
-/// deserialize a single variable out of a netCDF NcGroup
-/**
- * This function reads a value of type \p T from a netCDF variable with name
- * \p var_name within the given netCDF NcGroup \p group. If a variable with
- * the given name is not present within the given \p group, an
- * std::invalid_argument exception is thrown.
- *
- * If \p group has more than one variable with the same name, then the
- * variable that is considered follows the rule defined by the netCDF method
- * NcGroup::getVar(). As of version 4.3.1 of netCDF, if this happens, then the
- * variable closest to the given group is considered.
- *
- * @param[in] group The netCDF NcGroup from which the value will be obtained
- * from.
- *
- * @param[in] var_name The name of the variable within the given \p group that
- * contains the desired value.
- *
- * @param[out] data A pointer to the object that will store the desired value.
- *
- * @param[in] optional This parameter informs whether the variable is
- * optional. This means that if the variable is not present in the given
- * NcGroup and \p optional is false, an exception is thrown.
- *
- * @return true if the desired variable was deserialized; false, otherwise.
- */
-
-template< class T >
-bool deserialize( const netCDF::NcGroup & group,
-                  const std::string & var_name,
-                  T * data,
-                  const bool optional = true ) {
-
- auto ncVar = group.getVar( var_name );
- if( ncVar.isNull() ) {
-  if( !optional ) {
-   throw std::invalid_argument( "deserialize(): " + var_name +
-                                " is not present in group '"
-                                + group.getName() + "'." );
-  }
-  return ( false );
+ ncVar.getVar( start , sizes_dimensions , array.data() );
+ return( true );
  }
- ncVar.getVar( data );
- return ( true );
-}
 
-/*--------------------------------------------------------------------------*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - -SERIALIZING- - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// serialize a single (scalar) variable into a netCDF NcGroup
-/**
- * Add a new netCDF (scalar) variable with the given name in the given netCDF
- * NcGroup. Moreover, it stores the given data into that variable.
+/** Add a new netCDF (scalar) variable with the given name in the given
+ * netCDF NcGroup. Moreover, it stores the given data into that variable.
  *
  * @param[in, out] group The netCDF NcGroup in which the variable will be
  * added.
@@ -2313,21 +2414,18 @@ bool deserialize( const netCDF::NcGroup & group,
  *
  * @param[in] ncType The type of the variable to be added.
  *
- * @param[in] data The value to be write into the variable.
- */
+ * @param[in] data The value to be write into the variable. */
 
 template< class T >
-inline void serialize( netCDF::NcGroup & group,
-                       const std::string & var_name,
-                       const netCDF::NcType& ncType,
-                       const T data ) {
+void serialize( netCDF::NcGroup & group , const std::string & var_name ,
+		const netCDF::NcType& ncType , const T data )
+{
  ( group.addVar( var_name, ncType ) ).putVar( &data );
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 /// serialize a one-dimensional variable into a netCDF NcGroup
-/**
- * Add a new one-dimensional netCDF variable with the given name in
+/** Add a new one-dimensional netCDF variable with the given name in
  * the given netCDF NcGroup. Moreover, it stores the given data into
  * that variable in row-major layout.
  *
@@ -2346,31 +2444,26 @@ inline void serialize( netCDF::NcGroup & group,
  * an array, it can also be used to serialize a scalar. If the given vector \p
  * data has size 1 and \p allow_scalar_var is true, then a netCDF scalar
  * variable is created instead of a multi-dimensional one (notice that, in
- * this case, the argument \p ncDim is completely ignored).
- */
+ * this case, the argument \p ncDim is completely ignored). */
 
 template< class T >
-void serialize( netCDF::NcGroup & group,
-                const std::string & var_name,
-                const netCDF::NcType & ncType,
-                const netCDF::NcDim & ncDim,
+void serialize( netCDF::NcGroup & group , const std::string & var_name ,
+                const netCDF::NcType & ncType , const netCDF::NcDim & ncDim ,
                 const std::vector< T > & data,
-                const bool allow_scalar_var = false ) {
-
- if( allow_scalar_var && data.size() == 1 ) {
-  serialize( group, var_name, ncType, data[ 0 ] );
+		bool allow_scalar_var = false )
+{
+ if( allow_scalar_var && ( data.size() == 1 ) ) {
+  serialize( group , var_name , ncType , data[ 0 ] );
   return;
- }
+  }
 
- group.addVar( var_name, ncType, ncDim ).putVar( { 0 },
-                                                 { data.size() },
+ group.addVar( var_name, ncType, ncDim ).putVar( { 0 }, { data.size() } ,
                                                  data.data() );
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 /// serialize a multi-dimensional variable into a netCDF NcGroup
-/**
- * Add a new multi-dimensional netCDF variable with the given name in
+/** Add a new multi-dimensional netCDF variable with the given name in
  * the given netCDF NcGroup. Moreover, it stores the given data into
  * that variable in row-major layout.
  *
@@ -2397,75 +2490,73 @@ void serialize( netCDF::NcGroup & group,
  * an array, it can also be used to serialize a scalar. If the given vector \p
  * data has size 1 and \p allow_scalar_var is true, then a netCDF scalar
  * variable is created instead of a multi-dimensional one (notice that, in
- * this case, the argument \p ncDim is completely ignored).
- */
+ * this case, the argument \p ncDim is completely ignored). */
 
 template< class T >
-void serialize( netCDF::NcGroup & group,
-                const std::string & var_name,
-                const netCDF::NcType & ncType,
-                const std::vector< netCDF::NcDim > & ncDim,
-                const std::vector< T > & data,
-                const std::vector< std::size_t > & sizes = {},
-                const bool allow_scalar_var = false ) {
-
+void serialize( netCDF::NcGroup & group , const std::string & var_name ,
+                const netCDF::NcType & ncType ,
+                const std::vector< netCDF::NcDim > & ncDim ,
+                const std::vector< T > & data ,
+                const std::vector< std::size_t > & sizes = {} ,
+		bool allow_scalar_var = false )
+{
  if( data.empty() )
   return; // Nothing to be serialized.
 
- if( ncDim.size() == 1 && sizes.size() <= 1 )
-  serialize( group, var_name, ncType, ncDim[ 0 ], data, allow_scalar_var );
+ if( ( ncDim.size() == 1 ) && ( sizes.size() <= 1 ) )
+  serialize( group , var_name , ncType , ncDim[ 0 ] , data ,
+	     allow_scalar_var );
 
- if( allow_scalar_var && data.size() == 1 ) {
+ if( allow_scalar_var && ( data.size() == 1 ) ) {
   // Serializes the only element of the given vector as a scalar variable.
-  serialize( group, var_name, ncType, data[ 0 ] );
+  serialize( group , var_name , ncType , data[ 0 ] );
   return;
- }
+  }
 
  if( sizes.empty() ) {
-
   // The sizes of the dimensions of the multi-dimensional array to be
   // serialized were not provided. We thus consider the sizes of the given
   // netCDF dimensions. In this case, unlimited dimensions are not allowed.
 
   std::vector< std::size_t > sz( ncDim.size() );
-  for( std::size_t i = 0; i < ncDim.size(); ++i ) {
+  for( std::size_t i = 0 ; i < ncDim.size() ; ++i ) {
    sz[ i ] = ncDim[ i ].getSize();
 
    if( ncDim[ i ].isUnlimited() )
-    throw std::invalid_argument
-     ( "serialize(): error when serializing variable '" + var_name +
+    throw( std::invalid_argument(
+       "serialize(): error when serializing variable '" + var_name +
        "' of group '" + group.getName() +
        "'. The given netCDF dimension " +
        std::to_string( i ) +
        " is unlimited, but unlimited dimension is not supported when"
        " the sizes of each dimension of the multi-dimensional array"
-       " represented by the vector parameter 'data' are not provided." );
+       " represented by the vector parameter 'data' are not provided." ) );
+   }
+
+  std::vector< std::size_t > start( ncDim.size() , 0 );
+  group.addVar( var_name, ncType, ncDim ).putVar( start , sz , data.data() );
   }
-
-  std::vector< std::size_t > start( ncDim.size(), 0 );
-  group.addVar( var_name, ncType, ncDim )
-   .putVar( start, sz, data.data() );
-
- } else if( ncDim.size() != sizes.size() )
-  throw std::invalid_argument
-   ( "serialize(): error when serializing variable '" + var_name +
+ else
+  if( ncDim.size() != sizes.size() )
+   throw( std::invalid_argument(
+     "serialize(): error when serializing variable '" + var_name +
      "' of group '" + group.getName() +
      "'. The vector 'sizes' has size " +
      std::to_string( sizes.size() ) +
      ", while the vector 'ncDim' has size " +
      std::to_string( ncDim.size() ) +
      ". When the optional vector parameter 'sizes' is present,"
-     " it must have the same size as the vector 'ncDim'." );
- else {
-  std::vector< std::size_t > start( ncDim.size(), 0 );
-  group.addVar( var_name, ncType, ncDim ).putVar( start, sizes, data.data() );
+     " it must have the same size as the vector 'ncDim'" ) );
+  else {
+   std::vector< std::size_t > start( ncDim.size() , 0 );
+   group.addVar( var_name , ncType , ncDim ).putVar( start , sizes ,
+						     data.data() );
+   }
  }
-}
 
 /*--------------------------------------------------------------------------*/
 /// serialize a multi-dimensional variable into a netCDF NcGroup
-/**
- * Add a new multi-dimensional netCDF variable with the given name in the
+/** Add a new multi-dimensional netCDF variable with the given name in the
  * given netCDF NcGroup. Moreover, it stores the given data into that variable
  * in row-major layout. The data is given by the boost::multi_array \p
  * multi_array. The type of the elements in \p multi_array is dertermined by
@@ -2551,18 +2642,17 @@ void serialize( netCDF::NcGroup & group,
  * considered. If this dimension is present in the given \p group, it must
  * have size 1 (otherwise, an exception is thrown). If a dimension with this
  * name is not found in \p group, a dimension with this name is added to the
- * \p group.
- */
+ * \p group. */
 
 template< class T, std::size_t N >
 void serialize( netCDF::NcGroup & group, const std::string & var_name,
-                const netCDF::NcType & ncType,
-                const std::vector< netCDF::NcDim > & expected_ncDim,
-                const boost::multi_array< T, N > & multi_array,
-                const bool allow_scalar_var = false,
-                const bool allow_singleton_dim = false,
-                const std::string & singleton_dim_name = "__Singleton__" ) {
-
+                const netCDF::NcType & ncType ,
+                const std::vector< netCDF::NcDim > & expected_ncDim ,
+                const boost::multi_array< T, N > & multi_array ,
+		bool allow_scalar_var = false ,
+		bool allow_singleton_dim = false ,
+                const std::string & singleton_dim_name = "__Singleton__" )
+{
  if( multi_array.num_elements() == 0 )
   return; // Nothing to be serialized.
 
@@ -2571,21 +2661,20 @@ void serialize( netCDF::NcGroup & group, const std::string & var_name,
   // variable.
   serialize( group, var_name, ncType, *multi_array.origin() );
   return;
- }
+  }
 
  if( expected_ncDim.size() != N )
-  throw std::invalid_argument
-   ( "serialize(): error when serializing variable '" + var_name +
+  throw( std::invalid_argument(
+     "serialize(): error when serializing variable '" + var_name +
      "' of group '" + group.getName() +
      "'. The given boost::multi_array has " +
      std::to_string( N ) +
      " dimensions, but " + std::to_string( expected_ncDim.size() ) +
-     " netCDF::NcDim were provided. Those numbers must be the same." );
+     " netCDF::NcDim were provided. Those numbers must be the same." ) );
 
  auto ncDim = expected_ncDim;
 
- for( std::vector< netCDF::NcDim >::size_type i = 0; i < N; ++i ) {
-
+ for( std::vector< netCDF::NcDim >::size_type i = 0 ; i < N ; ++i ) {
   if( ncDim[ i ].isUnlimited() )
    continue;
 
@@ -2593,7 +2682,6 @@ void serialize( netCDF::NcGroup & group, const std::string & var_name,
   auto multi_array_dim_size = multi_array.shape()[ i ];
 
   if( ncdim_size != multi_array_dim_size ) {
-
    if( allow_singleton_dim && multi_array_dim_size == 1 ) {
     // Ignore the given netCDF::NcDim for the i-th dimension and consider
     // the singleton dimension instead.
@@ -2605,22 +2693,24 @@ void serialize( netCDF::NcGroup & group, const std::string & var_name,
      // group. So, we add the singleton dimension to the given group.
      singleton_dim = group.addDim( singleton_dim_name, 1 );
 
-    else if( singleton_dim.getSize() != 1 ) {
-     std::string error;
-     error += "serialize(): error when serializing variable '";
-     error += var_name + "' of group '" + group.getName();
-     error += "'. The singleton dimension must have size 1,"
-              "but the dimension '";
-     error += singleton_dim_name + "' found in the group '";
-     error += group.getName() + "' has size ";
-     error += std::to_string( singleton_dim.getSize() ) + ".";
-     throw std::invalid_argument( error );
-    }
+    else
+     if( singleton_dim.getSize() != 1 ) {
+      std::string error;
+      error += "serialize(): error when serializing variable '";
+      error += var_name + "' of group '" + group.getName();
+      error += "'. The singleton dimension must have size 1,"
+               "but the dimension '";
+      error += singleton_dim_name + "' found in the group '";
+      error += group.getName() + "' has size ";
+      error += std::to_string( singleton_dim.getSize() ) + ".";
+      throw( std::invalid_argument( error ) );
+      }
 
     ncDim[ i ] = singleton_dim;
-   } else {
-    throw std::invalid_argument
-     ( "serialize(): error when serializing variable '" + var_name +
+    }
+   else {
+    throw( std::invalid_argument(
+       "serialize(): error when serializing variable '" + var_name +
        "' of group '" + group.getName() + "'. The size of dimension " +
        std::to_string( i ) + " of the given boost::multi_array is " +
        std::to_string( multi_array_dim_size ) +
@@ -2632,75 +2722,75 @@ void serialize( netCDF::NcGroup & group, const std::string & var_name,
        " 'allow_scalar_var' is true;"
        " (3) the size of the dimension of the given boost::"
        "multi_array is 1 and 'allow_singleton_dim' is true;"
-       " (4) provided netCDF dimension is unlimited." );
+       " (4) provided netCDF dimension is unlimited." ) );
+    }
    }
   }
- }
 
- std::vector< std::size_t > start( N, 0 );
+ std::vector< std::size_t > start( N , 0 );
  std::vector< std::size_t > dim_sizes( N );
- for( std::vector< std::size_t >::size_type i = 0; i < N; ++i )
+ for( std::vector< std::size_t >::size_type i = 0 ; i < N ; ++i )
   dim_sizes[ i ] = multi_array.shape()[ i ];
 
- group.addVar( var_name, ncType, ncDim )
-  .putVar( start, dim_sizes, multi_array.data() );
-}
+ group.addVar( var_name, ncType, ncDim ).putVar( start , dim_sizes ,
+						 multi_array.data() );
+ }
 
-/// Check if all the expected netCDF variables are present in a group
-/**
+/*--------------------------------------------------------------------------*/
+/// check if all the expected netCDF variables are present in a group
+/** Check if all the expected netCDF variables are present in a group
  *
  * @param group    The group to be checked
  * @param expected The names of the expected variables
  * @param stream   The output stream for putting out the unexpected variables
  */
-inline void check_variables( const netCDF::NcGroup & group,
-                             const std::vector< std::string > & expected,
-                             std::ostream & stream ) {
 
+void check_variables( const netCDF::NcGroup & group ,
+		      const std::vector< std::string > & expected ,
+		      std::ostream & stream )
+{
  auto vars = group.getVars();
- for( const auto & e: expected ) {
+ for( const auto & ec: expected ) {
   auto search = vars.find( e );
-  if( search != vars.end() ) {
+  if( search != vars.end() )
    vars.erase( search );
   }
- }
 
- if( !vars.empty() ) {
+ if( ! vars.empty() ) {
   stream << "Unexpected netCDF Vars found in group: ";
-  for( const auto & v: vars ) {
+  for( const auto & v: vars )
    stream << v.first << "; ";
-  }
   stream << std::endl;
+  }
  }
-}
 
-/// Check if all the expected netCDF dimensions are present in a group
-/**
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// check if all the expected netCDF dimensions are present in a group
+/** Check if all the expected netCDF dimensions are present in a group
  *
  * @param group    The group to be checked
  * @param expected The names of the expected dimensions
  * @param stream   The output stream for putting out the unexpected dimensions
  */
-inline void check_dimensions( const netCDF::NcGroup & group,
-                              const std::vector< std::string > & expected,
-                              std::ostream & stream ) {
 
+void check_dimensions( const netCDF::NcGroup & group ,
+		       const std::vector< std::string > & expected ,
+		       std::ostream & stream )
+{
  auto dims = group.getDims();
- for( const auto & e: expected ) {
+ for( const auto & e : expected ) {
   auto search = dims.find( e );
-  if( search != dims.end() ) {
+  if( search != dims.end() )
    dims.erase( search );
   }
- }
 
- if( !dims.empty() ) {
+ if( ! dims.empty() ) {
   stream << "Unexpected netCDF Dims found in group: ";
-  for( const auto & d: dims ) {
+  for( const auto & d: dims )
    stream << d.first << "; ";
-  }
   stream << std::endl;
+  }
  }
-}
 
 /**@} ----------------------------------------------------------------------*/
 
