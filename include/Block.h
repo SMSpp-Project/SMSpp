@@ -823,7 +823,7 @@ class Block : public Observer {
   * Note that the method is static because the factory is static, hence it is
   * to be called as
   *
-  *       Block *myBlock = Block::new_Block( someclass );
+  *       Block * myBlock = Block::new_Block( someclass );
   *
   * i.e., without any reference to any specific Block (and, therefore, it can
   * be used to construct the very first Block if needed).
@@ -861,73 +861,98 @@ class Block : public Observer {
   * @param father A pointer to the father of the Block that will be
   *        constructed. */
 
- static Block * new_Block( const std::string & classname,
-                           Block * father = nullptr ) {
+ static Block * new_Block( const std::string & classname ,
+                           Block * father = nullptr )
+ {
   std::string classname_( classname );
-  classname_.erase( std::remove_if( classname_.begin(),
-                                    classname_.end(),
-                                    ::isspace ), classname_.end() );
+  classname_.erase( std::remove_if( classname_.begin() , classname_.end(), 
+                                    ::isspace ) , classname_.end() );
 
   const auto it = Block::f_factory().find( classname_ );
   if( it == Block::f_factory().end() )
-   throw (
-    std::invalid_argument( classname +
+   throw( std::invalid_argument( classname +
                            std::string( " not present in Block factory" ) ) );
 
-  return ( ( it->second )( father ) );
- }
+  return( ( it->second )( father ) );
+  }
 
 /*--------------------------------------------------------------------------*/
- /// de-serialize a :Block out of a netCDF file
- /** Top-level de-serialization method: takes the filename of a SMS++ netCDF
-  * file, opens it in a netCDF::NcFile object, and returns the complete
-  * :Block object whose description is *the first one* found in the file. It
-  * does so by just forwarding to deserialize( netCDF::NcFile ). If something
-  * goes wrong with the entire operation, nullptr is returned. See
-  * deserialize( netCDF::NcFile ) for details of the SMS++ netCDF file format.
+ /// de-serialize a :Block out of a file
+ /** Top-level de-serialization method: takes the filename of a file, and
+  * and possibly a position into it and a \p father, and returns the
+  * complete :Block object whose description is the one found at position
+  * \p idx in the file (if this is supported, see later), with the prescribed
+  * father.
   *
   * Note that the method is static, hence it is to be called as
   *
-  *       Block *myBlock = Block::deserialize( somefile );
+  *       Block * myBlock = Block::deserialize( somefile [ , father ] );
   *
   * i.e., without any reference to any specific Block (and, therefore, it can
-  * be used to construct the very first Block if needed).
-  *
-  * Besides the newly created Block, the method also returns a && reference to
-  * the netCDF::NcFile created, which allows chaining of [de]serializing
-  * operations on it. Note the "&&", which comes from the insistence of
-  * netCDF C++ interface on never copying netCDF::NcFile / netCDF::NcGroup
-  * and always rather transfer ownership to the caller.
+  * be used to construct the very first Block if needed, in which case there
+  * will be no \p father).
   *
   * Note that the :Block returned my this method is clearly not "empty", as
   * opposed as :Block fresh out of the factory (see new_Block()), but is it
   * "un-configured": the "abstract representation" is not constructed (unless
   * the :Block does this by its own volition), the BlockConfig is not set, and
-  * (therefore) there are no Solver attached. */
+  * there are no Solver attached.
+  *
+  * The method supports two different kind of files:
+  *
+  * - text files,
+  *
+  * - SMS++ netCDF files.
+  *
+  * It distinguishes between the two by the suffix: if \p filename terminates
+  * by ".txt" (case sensitive) then a std::fstream is opened and 
+  * new_Block( std::istream & ) is called, otherwise a netCDF::NcFile is
+  * opened and Block::deserialize( netCDF::NcFile & [ , idx ] ) is called.
+  * Note that only SMS++ netCDF files support the \pos argument; by default
+  * it is 0, which means "the first Block in the file", which is always
+  * assumed for text files. If something goes wrong with the entire
+  * operation, nullptr is returned. See new_Block( std::istream & ) /
+  * deserialize( netCDF::NcFile & ) for details of the text / SMS++ netCDF
+  * file format. */
 
- static Block * deserialize( const char * filename ) {
+ static Block * deserialize( const std::string & filename ,
+			     unsigned int idx = 0 ,
+			     Block * father = nullptr )
+ {
   try {
-   netCDF::NcFile f( filename, netCDF::NcFile::read );
-   return ( Block::deserialize( f ) );
-  }
+   if( ( filename.size() > 4 ) &&
+       ( ! filename.compare( filename.size() - 4 , 4 , ".txt" ) ) ) {
+    ifstream f( filename , std::fstream::in );
+    if( ! f.is_open() ) {
+     cerr << "Error: cannot open text file " << filename << endl;
+     return( nullptr );
+     }
+    return( Block::new_Block( f , father ) );
+    }
+   else {
+    netCDF::NcFile f( filename.c_str() , netCDF::NcFile::read );
+    return( Block::deserialize( f , idx , father ) );
+    }
+   }
   catch( netCDF::exceptions::NcException & e ) {
    std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
-  }
+   }
   catch( std::exception & e ) {
    std::cerr << "error " << e.what() << " in deserialize" << std::endl;
-  }
+   }
   catch( ... ) {
    std::cerr << "unknown error in deserialize" << std::endl;
+   }
+
+  return( nullptr );
   }
 
-  return ( nullptr );
- }
-
 /*--------------------------------------------------------------------------*/
- /// de-serialize a :Block out of an open netCDF SMS++ file
- /** Second-level de-serialization method: takes an open netCDF file and the
-  * index of a Block into the file, and returns the corresponding complete
-  * :Block object.
+ /// de-serialize a :Block out of an open netCDF SMS++ file at given position
+ /** Second-level de-serialization method: takes an open netCDF file, the
+  * index \pos of a Block into the file, and possibly a \p father, and 
+  * returns the corresponding complete :Block object with the prescribed
+  * father (if any).
   *
   * There are three types of SMS++ netCDF files, corresponding to three values
   * of the enum smspp_netCDF_file_type; see SMSTypedefs.h for details, the
@@ -939,109 +964,146 @@ class Block : public Observer {
   *   "BlockSolver", respectively.
   *
   * - eBlockFile: the file (which is also a group) has any number of child
-  *   groups with names "Block_0", "Block_1", ... Each child group contains
-  *   the serialization of a :Block (the string attribute "type" and all the
-  *   rest).
+  *   groups with names "Block_0", "Block_1", ...
   *
-  * The :Block extracted from the file is specified by the parameter idx:
-  * for an eProbFile it is extracted out of the netCDF::NcGroup "Block" inside
+  * The :Block extracted from the file is specified by the parameter idx: for
+  * an eProbFile it is extracted out of the netCDF::NcGroup "Block" inside
   * the netCDF::NcGroup "Prob_<idx>", while for an eBlockFile it is extracted
-  * out of the netCDF::NcGroup "Block_<idx>". If something goes wrong with
-  * the entire operation (the file is not there, the "SMS++_file_type"
-  * attribute is not there, there is no required "Prob_<idx>" or
-  * "Block_<idx>" child group, there is any fatal error during the process,
-  * ...) results in nullptr being returned.
+  * out of the netCDF::NcGroup "Block_<idx>".
+  *
+  *
+  *
+  * Once the appropriate group is selected, the :Block is loaded from it with
+  * a call to new_Block( netCDF::NcGroup & ); see the corresponding comments
+  * for the format options. Anything going wrong with the entire operation
+  * (the file is not there, the "SMS++_file_type" attribute is not there,
+  * there is no required "Prob_<idx>" or "Block_<idx>" child group, there is
+  * any fatal error during the process, ...) results in nullptr being
+  * returned.
   *
   * Note that the method is static, hence it is to be called as
   *
   *       Block * myBlock = Block::deserialize( netCDFfile );
   *
   * i.e., without any reference to any specific Block (and, therefore, it can
-  * be used to construct the very first Block if needed).
-  *
-  * What this method does is finding the right child group and forward to
-  * new_Block( netCDF::NcGroup ). */
+  * be used to construct the very first Block if needed). */
 
- static Block * deserialize( netCDF::NcFile & f, const unsigned int idx = 0 ) {
+ static Block * deserialize( netCDF::NcFile & f , unsigned int idx = 0 ,
+			     Block * father = nullptr )
+ {
   try {
    netCDF::NcGroupAtt gtype = f.getAtt( "SMS++_file_type" );
    if( gtype.isNull() )
-    return ( nullptr );
+    return( nullptr );
 
    int type;
    gtype.getValues( &type );
 
    if( ( type != eProbFile ) && ( type != eBlockFile ) )
-    return ( nullptr );
+    return( nullptr );
 
    netCDF::NcGroup bg;
-
    if( type == eProbFile ) {
     netCDF::NcGroup dg = f.getGroup( "Prob_" + std::to_string( idx ) );
     if( dg.isNull() )
-     return ( nullptr );
+     return( nullptr );
 
     bg = dg.getGroup( "Block" );
-   } else
+    }
+   else
     bg = f.getGroup( "Block_" + std::to_string( idx ) );
 
-   return ( new_Block( bg ) );
-  }
+   return( new_Block( bg , father ) );
+   }
   catch( netCDF::exceptions::NcException & e ) {
    std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
-  }
+   }
   catch( std::exception & e ) {
    std::cerr << "error " << e.what() << " in deserialize" << std::endl;
-  }
+   }
   catch( ... ) {
    std::cerr << "unknown error in deserialize" << std::endl;
-  }
+   }
 
-  return ( nullptr );
- }
+  return( nullptr );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Block out of netCDF::NcGroup, returns it
  /** Third-level de-serialization method: takes a netCDF::NcGroup supposedly
-  * containing a Block, extracts the string attribute "type" out of the
-  * netCDF::NcGroup, uses it in the factory to construct the "empty" :Block
-  * [see new_Block( string )], and then finally dispatches to
-  * deserialize( netCDF::NcGroup , Block * ), which is where the
-  * :Block-dependent de-serialization happens. Since the latter method
-  * accepts a pointer to the father Block, this one does, too. This method is
-  * static (see the previous versions for comments about it) and returns a
-  * pointer to the newly minted Block, hence it has to have a different name
-  * from deserialize( netCDF::NcGroup , Block * ) (since the signature is the
-  * same but for the return type). */
+  * containing  (all the information describing) a :Block (either "directly"
+  * or "indirectly"), and possibly the \p father, and returns a pointer to a
+  * newly minted :Block object corresponding to what is found in the file
+  * and having the prescribed father (if any).
+  *
+  * The method works with two different kinds of netCDF::NcGroup:
+  *
+ * - A "direct" group that contains at least the string attribute "type";
+  *   this is used it in the factory to construct an "empty" :Block of that
+  *   type (and with the given \p father, if any) [see
+  *   new_Block( std::string & [ , Block * ] )], and then the method
+  *   deserialize( netCDF::NcGroup ) of the newly minted :Block is invoked
+  *   (with argument \p group) to finish the work.
+  *
+  * - An "indirect" group that just need to contain the single string
+  *   attribute "filename"; in this case, the attribute is used as argument
+  *   for a call to deserialize( const std::string & [ , int , Block * ] )
+  *   that will extract the :Block by the corresponding file (be it a text or
+  *   netCDF one), with the given \p father. In this case, \p group is also
+  *   searched for an integer attribute "position"; if found this is used as
+  *   the idx parameter in the call to deserialize(), see the comments in the
+  *   method for the exact meaning and limitations of the parameter.
+  *
+  * In case \p group contains both "type" and "filename", the first takes the
+  * precedence (direct groups have precedence over indirect ones).
+  *
+  * Note that this method is static (see the previous versions for comments
+  * about it) and returns a pointer to Block, hence it has to have a
+  * different name from deserialize( netCDF::NcGroup ) (since the signature
+  * is the same but for the return type).
+  *
+  * If anything goes wrong with the process, nullptr is returned. */
 
- static Block * new_Block( netCDF::NcGroup & group,
-                           Block * const father = nullptr ) {
+ static Block * new_Block( netCDF::NcGroup & group ,
+                           Block * father = nullptr ) {
   try {
    if( group.isNull() )
-    return ( nullptr );
+    return( nullptr );
 
-   netCDF::NcGroupAtt gtype = group.getAtt( "type" );
-   if( gtype.isNull() )
-    return ( nullptr );
+   std::string tmp;
+   auto gtype = group.getAtt( "type" );
+   if( gtype.isNull() ) {
+    auto gfile = group.getAtt( "filename" );
+    if( gfile.isNull() )
+     return( nullptr );
 
-   std::string blocktype;
-   gtype.getValues( blocktype );
-   Block * result = new_Block( blocktype, father );
+    gfile.getValues( tmp );
+
+    unsigned int idx = 0;
+    auto gpos = group.getAtt( "position" );
+    if( ! gfile.isNull() )
+     gpos.getValues( idx );
+
+    return( deserialize( tmp , idx , father ) );
+    }
+
+   gtype.getValues( tmp );
+   auto result = new_Block( tmp , father );
    result->deserialize( group );
-   return ( result );
-  }
+   return( result );
+   }
   catch( netCDF::exceptions::NcException & e ) {
    std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
-  }
+   }
   catch( std::exception & e ) {
    std::cerr << "error " << e.what() << " in deserialize" << std::endl;
-  }
+   }
   catch( ... ) {
    std::cerr << "unknown error in deserialize" << std::endl;
-  }
+   }
 
-  return ( nullptr );
- }
+  return( nullptr );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize the current :Block out of netCDF::NcGroup
@@ -1163,7 +1225,8 @@ class Block : public Observer {
   * necessarily be derived from. In this case deserialize() in the base class
   * should not call Block::deserialize(), leaving this to derived ones. */
 
- virtual void deserialize( netCDF::NcGroup & group ) {
+ virtual void deserialize( netCDF::NcGroup & group )
+ {
   netCDF::NcGroupAtt gname = group.getAtt( "name" );
   if( gname.isNull() )
    f_name.clear();
@@ -1173,30 +1236,100 @@ class Block : public Observer {
   // issue a NBModification, the "nuclear option"
   if( anyone_there() )
    add_Modification( std::make_shared< NBModification >( this ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Block out of std::istream, returns it
- /** Convenience static method that creates a Block reading all its data
-  * from a std::istream, which is supposed to contain:
+ /** Convenience static method that, given the open std::istream \p input,
+  * and possibly the \p father, creates a :Block reading all its data from
+  * \p input, and having the prescribed father (if any).
   *
-  * - a string with the classname of the specific :Block, as required by the
-  *   Block factory;
+  * The  format of the istream (from the point the pointer is onwards) is
+  * assumed to be:
   *
-  * - all the rest of the information describing the Block, which of course
-  *   depends on its type.
+  * - Either the character '*' is the first one that is found after any
+  *   whitespace and comment, after which two cases arise:
   *
-  * What the Block does is simply to use the factory to build the
-  * :Configuration object and then initialise it with its >> operator. */
+  *   = The characters immediately following '*' a nonempty string, which
+  *     means that '*' is not immediately followed by a whitespace (note that
+  *     comments are *not* skipped here): then, the string is used as the
+  *     filename, and possibly the idx, argument of deserialize(
+  *     const std::string & [ , int ] ), which opens it and reads the
+  *     :Block from there without advancing the pointer in \p input (save
+  *     for discarding '*' and the string). In particular:
+ *
+  *     * if the string ends with ']', then is is supposed to have the form
+  *       "<filename>[idx]": the "[idx] part is excised and used to compute
+  *       the int parameter of deserialize() (the position), with the
+  *       remaining part being used for the string parameter (the filename);
+  *
+  *     * otherwise, the whole string is used as the string parameter (the
+  *       filename);
+  *
+  *     See the comments of deserialize( const std::string & [ , int ] )
+  *     for the format of the filename and of the target file.
+  *
+  *   = The characters immediately following '*' form an empty string (which
+  *     means that '*' is immediately followed by whitespaces or comments):
+  *     then, nullptr is returned;
+  *
+  * - Or the first character that is found after any whitespace and comment
+  *   is not '*', in which case it has to be the first character of a
+  *   nonempty string that specifies the classname of the :Block, as
+  *   required by the Block factory; this has to be followed by all the rest
+  *   of the information describing the :Block, which of course depends on
+  *   its type (and should be described in the comments to the load() method
+  *   of that :Block, which is used by the >> operator to perform the task).
+  */
 
- static Block * new_Block( std::istream & input ) {
-  std::string name;
-  input >> eatcomments >> name;
+ static Block * deserialize( std::istream & input , Block * father = nullptr )
+ {
+  std::string tmp;
+  input >> eatcomments;
+  if( input.fail() )
+   throw( std::invalid_argument( "Block::deserialize: stream read error" ) );
+  if( input.peek() == input.widen( '*' ) ) {
+   input.get();
+   if( input.fail() )
+    throw( std::invalid_argument( "Block::deserialize: stream read error" ) );
+   if( input.eof() )
+    return( nullptr );
+   
+   if( std::isspace( input.peek() ) )
+    return( nullptr );
 
-  auto block = Block::new_Block( name );
-  input >> *block;
-  return ( block );
- }
+   input >> tmp;
+   if( input.fail() )
+    throw( std::invalid_argument( "Block::deserialize: stream read error" ) );
+
+   ind idx = 0;
+   if( tmp.back() == ']' ) {
+    auto pos = tmp.find_last_of( '[' );
+    if( pos != std::string::npos ) {
+     try {
+      idx = std::stoi( tmp.substr( pos + 1 ) );
+      tmp.resize( pos );
+      }
+     catch( ... ) { idx = 0; }
+     }
+    }
+
+   return( Block::deserialize( tmp , idx , father ) );
+   }
+  else {
+   input >> eatcomments >> tmp;
+   if( input.fail() )
+    throw( std::invalid_argument( "Block::deserialize: stream read error" ) );
+
+   auto block = Block::new_Block( name , father );
+   input >> *block;
+   if( input.fail() ) {
+    delete block;
+    throw( std::invalid_argument( "Block::deserialize: stream read error" ) );
+    }
+   return( block );
+   }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// destructor of Block: it is virtual
@@ -1208,7 +1341,7 @@ class Block : public Observer {
   set_BlockConfig();
   for( auto ptr : v_current_GroupMod )
    delete ptr;
- }
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------------- Methods for acquiring/releasing the Block --------------*/
@@ -1851,7 +1984,7 @@ class Block : public Observer {
   * components are separately provided for easing this task (see
   * RBlockConfig.h). */
 
- virtual void set_BlockConfig( BlockConfig * newBC = nullptr,
+ virtual void set_BlockConfig( BlockConfig * newBC = nullptr ,
                                bool deleteold = true );
 
 /*--------------------------------------------------------------------------*/
@@ -2341,26 +2474,24 @@ class Block : public Observer {
   * the programmer purposely defines private_name() without calling the macro,
   * which seems rather pointless). */
 
- const std::string & classname() const { return ( private_name() ); }
+ const std::string & classname( void ) const { return( private_name() ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// getting the string name of this Block
 
- const std::string & name() const { return ( f_name ); }
+ const std::string & name( void ) const { return( f_name ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// getting the "father" Block of this Block
 
- p_Block get_f_Block() const { return ( f_Block ); }
+ p_Block get_f_Block( void ) const { return( f_Block ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// getting the BlockConfig object of this Block
  /** The method returns a (const) pointer to the current BlockConfig object
   * of this Block, if any. */
 
- const BlockConfig * get_BlockConfig() {
-  return ( f_BlockConfig );
- }
+ const BlockConfig * get_BlockConfig( void ) { return( f_BlockConfig ); }
 
 /*--------------------------------------------------------------------------*/
  /// getting the pointer to the current Objective
@@ -3657,8 +3788,8 @@ class Block : public Observer {
   * described in Observer::make_par(). */
 
  template< class Const >
- void add_dynamic_constraints( std::list< Const > & list,
-                               std::list< Const > & newlist,
+ void add_dynamic_constraints( std::list< Const > & list ,
+                               std::list< Const > & newlist ,
                                c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -3682,8 +3813,8 @@ class Block : public Observer {
   * described in Observer::make_par(). */
 
  template< class Var >
- void add_dynamic_variables( std::list< Var > & list,
-                             std::list< Var > & newlist,
+ void add_dynamic_variables( std::list< Var > & list ,
+                             std::list< Var > & newlist ,
                              c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -3757,17 +3888,16 @@ class Block : public Observer {
   * BlockModRmv. */
 
  template< class Const >
- void remove_dynamic_constraints(
-  std::list< Const > & list,
-  std::vector< typename std::list< Const >::iterator > & rmvd,
-  c_ModParam issueMod = eModBlck );
+ void remove_dynamic_constraints( std::list< Const > & list ,
+	    std::vector< typename std::list< Const >::iterator > & rmvd ,
+				  c_ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// like remove_dynamic_constraint*s*( iterators ), just only one of them
 
  template< class Const >
- void remove_dynamic_constraint( std::list< Const > & list,
-                                 typename std::list< Const >::iterator rmvd,
+ void remove_dynamic_constraint( std::list< Const > & list ,
+                                 typename std::list< Const >::iterator rmvd ,
                                  c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -3781,8 +3911,7 @@ class Block : public Observer {
   * "makes it clearer what happened". */
 
  template< class Const >
- void remove_dynamic_constraints( std::list< Const > & list,
-                                  Range range,
+ void remove_dynamic_constraints( std::list< Const > & list , Range range ,
                                   c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -3798,9 +3927,8 @@ class Block : public Observer {
   * the issued BlockModRmvSbst if issueMod so instructs. */
 
  template< class Const >
- void remove_dynamic_constraints( std::list< Const > & list,
-                                  Subset && subset,
-                                  bool ordered = false,
+ void remove_dynamic_constraints( std::list< Const > & list ,
+				  Subset && subset , bool ordered = false ,
                                   c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -3893,19 +4021,18 @@ class Block : public Observer {
   * appropriate). */
 
  template< class Var >
- void remove_dynamic_variables(
-  std::list< Var > & list,
-  std::vector< typename std::list< Var >::iterator > & rmvd,
-  c_ModParam issueMod = eModBlck,
-  c_ModParam issueindMod = eModBlck );
+ void remove_dynamic_variables( std::list< Var > & list ,
+          std::vector< typename std::list< Var >::iterator > & rmvd ,
+				c_ModParam issueMod = eModBlck ,
+				c_ModParam issueindMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// like remove_dynamic_variable*s*( iterators ), just only one of them
 
  template< class Var >
- void remove_dynamic_variable( std::list< Var > & list,
-                               typename std::list< Var >::iterator rmvd,
-                               c_ModParam issueMod = eModBlck,
+ void remove_dynamic_variable( std::list< Var > & list ,
+                               typename std::list< Var >::iterator rmvd ,
+                               c_ModParam issueMod = eModBlck ,
                                c_ModParam issueindMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -3919,9 +4046,8 @@ class Block : public Observer {
   * "makes it clearer what happened". */
 
  template< class Var >
- void remove_dynamic_variables( std::list< Var > & list,
-                                Range range,
-                                c_ModParam issueMod = eModBlck,
+ void remove_dynamic_variables( std::list< Var > & list , Range range ,
+                                c_ModParam issueMod = eModBlck ,
                                 c_ModParam issueindMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -3937,10 +4063,9 @@ class Block : public Observer {
   * the issued BlockModRmvSbst if issueMod so instructs. */
 
  template< class Var >
- void remove_dynamic_variables( std::list< Var > & list,
-                                Subset && subset,
-                                bool ordered = false,
-                                c_ModParam issueMod = eModBlck,
+ void remove_dynamic_variables( std::list< Var > & list , Subset && subset ,
+                                bool ordered = false ,
+                                c_ModParam issueMod = eModBlck ,
                                 c_ModParam issueindMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -3959,7 +4084,7 @@ class Block : public Observer {
   * The parameter issueMod decides if and how the BlockMod is issued, as
   * described in Observer::make_par(). */
 
- void set_objective( Objective * newOF, c_ModParam issueMod = eModBlck );
+ void set_objective( Objective * newOF , c_ModParam issueMod = eModBlck );
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- Methods for checking the Block ---------------------*/
@@ -5964,7 +6089,7 @@ class Block : public Observer {
  /** Top-level method to serialize a Block (recursively) to a file in
   * netCDF-based SMS++-format, given the filename and its type. See
   * deserialize( netCDF::NcFile & ) for details of the different file types.
-  * Note that any existing content  of the file is overwritten, and that the
+  * Note that any existing content of the file is overwritten, and that the
   * Block is saved as *the first one* in the newly created file.
   *
   * The base class implementation opens the netCDF file, creates the required
@@ -5974,16 +6099,18 @@ class Block : public Observer {
   * it is not expected that derived classes will have a need to re-define it.
   */
 
- virtual void serialize( const char * filename, const int type = eProbFile ) {
+ virtual void serialize( const std::string & filename ,
+			 int type = eProbFile ) const
+ {
   if( ( type != eProbFile ) && ( type != eBlockFile ) )
-   throw ( std::invalid_argument( "invalid SMS++ netCDF file type" ) );
+   throw( std::invalid_argument( "invalid SMS++ netCDF file type" ) );
 
   netCDF::NcFile f( filename, netCDF::NcFile::replace );
 
   f.putAtt( "SMS++_file_type", netCDF::NcInt(), type );
 
   serialize( f, type );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// serialize a Block (recursively) to an open netCDF file
@@ -6003,9 +6130,10 @@ class Block : public Observer {
   * the method is virtual, it is not expected that derived classes will have
   * a need to re-define it. */
 
- virtual void serialize( netCDF::NcFile & f, const int type ) {
+ virtual void serialize( netCDF::NcFile & f , int type ) const
+ {
   if( ( type != eProbFile ) && ( type != eBlockFile ) )
-   throw ( std::invalid_argument( "invalid SMS++ netCDF file type" ) );
+   throw( std::invalid_argument( "invalid SMS++ netCDF file type" ) );
 
   const int idx = f.getGroupCount();
 
@@ -6014,11 +6142,12 @@ class Block : public Observer {
   if( type == eProbFile ) {
    netCDF::NcGroup dg = f.addGroup( "Prob_" + std::to_string( idx ) );
    bg = dg.addGroup( "Block" );
-  } else
+   }
+  else
    bg = f.addGroup( "Block_" + std::to_string( idx ) );
 
   serialize( bg );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// serialize a Block (recursively) to a netCDF NcGroup
@@ -6073,9 +6202,9 @@ class Block : public Observer {
 
  virtual void serialize( netCDF::NcGroup & group ) const {
   group.putAtt( "type", classname() );
-  if( !f_name.empty() )
+  if( ! f_name.empty() )
    group.putAtt( "name", f_name );
- }
+   }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -6919,7 +7048,7 @@ class Block : public Observer {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// removing the solver in position it of the set of the registered ones
 
- virtual void unregister_Solver( Lst_Solver_it it,
+ virtual void unregister_Solver( Lst_Solver_it it ,
                                  bool deleteold = false ) {
   ( *it )->set_Block( nullptr );  // unregister the Block in the Solver
   if( deleteold )
@@ -6931,21 +7060,20 @@ class Block : public Observer {
    // from above
    for( auto el : v_Block )    // now no one is listening to all my sons
     el->anyone_there( false );
+   }
   }
- }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// replace an old Solver with a new Solver
 
- virtual void replace_Solver( Solver * newSolver,
-                              Lst_Solver_it it,
+ virtual void replace_Solver( Solver * newSolver , Lst_Solver_it it ,
                               bool deleteold = false ) {
   ( *it )->set_Block( nullptr );
   if( deleteold )
    delete *it;
   ( *it ) = newSolver;
   newSolver->set_Block( this );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 /** @name Protected methods for inserting and extracting
@@ -7022,7 +7150,7 @@ class Block : public Observer {
   * rationale for using a method is that this is the "Construct On First Use
   * Idiom" that solves the "static initialization order problem". */
 
- static BlockFactoryMap & f_factory();
+ static BlockFactoryMap & f_factory( void );
 
 /*--------------------------------------------------------------------------*/
  /// empty placeholder for class-specific static initialization
@@ -7058,7 +7186,7 @@ class Block : public Observer {
   * could be used (this may just be the same as what the compiler does during
   * the initialization of static variables without telling you). */
 
- static void static_initialization() {}
+ static void static_initialization( void ) {}
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
@@ -7127,7 +7255,7 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
 
  template< class F >
- using bimap = boost::bimap< std::string, const F * >;
+ using bimap = boost::bimap< std::string , const F * >;
  ///< a bidirectional map for the methods factory
 
 /*--------------------------------------------------------------------------*/
@@ -7135,7 +7263,7 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
  // Definition of Block::private_name() (pure virtual)
 
- virtual const std::string & private_name() const = 0;
+ virtual const std::string & private_name( void ) const = 0;
 
 /*--------------------------------------------------------------------------*/
 /** This method removes the given Constraint from each Variable that
@@ -7151,7 +7279,7 @@ class Block : public Observer {
  * false [see remove_dynamic_variables()]. */
 
  void remove_variable_from_stuff( Variable * const variable,
-                                  const int issueindMod );
+                                  int issueindMod );
 
 /*--------------------------------------------------------------------------*/
 /// returns the bimap associated with the methods of type F
@@ -7160,7 +7288,7 @@ class Block : public Observer {
  * names) in the methods factory are stored. */
 
  template< class F >
- static inline bimap< F > & methods() {
+ static inline bimap< F > & methods( void ) {
   static bimap <F> methods;
   return ( methods );
  }
@@ -7204,7 +7332,8 @@ class Block : public Observer {
  *  Block, i.e., the Objective has changed.
  */
 
-class BlockMod : public AModification {
+class BlockMod : public AModification
+{
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
  public:
@@ -7213,8 +7342,8 @@ class BlockMod : public AModification {
 
  /// constructor: takes the Block and the "concerns" value
 
- BlockMod( Block * fblock, bool cB = false )
-  : AModification( cB ), f_Block( fblock ) {}
+ BlockMod( Block * fblock , bool cB = false )
+  : AModification( cB ),  f_Block( fblock ) {}
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
@@ -7244,7 +7373,7 @@ class BlockMod : public AModification {
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
- Block * f_Block;  ///< reference to the Block to which the Modification refers
+ Block * f_Block;  ///<  Block (*) which the Modification refers to
 
 /*--------------------------------------------------------------------------*/
 
@@ -7266,7 +7395,9 @@ class BlockMod : public AModification {
  * "catch" the base class irrespective to the type of Variable / Constraint
  * involved. */
 
-class BlockModAD : public AModification {
+class BlockModAD : public AModification
+{
+
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
  public:
@@ -7287,7 +7418,7 @@ class BlockModAD : public AModification {
   * involved. The method is pure virtual and it is actually implemented by
   * derived classes. */
 
- virtual bool is_variable() const = 0;
+ virtual bool is_variable( void ) const = 0;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns true if < something > is added, false if it is removed
@@ -7295,7 +7426,7 @@ class BlockModAD : public AModification {
   * method is pure virtual and it is actually implemented by derived classes.
  */
 
- virtual bool is_added() const = 0;
+ virtual bool is_added( void ) const = 0;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// stores the pointers to the affected Variable into the given vector
@@ -7305,9 +7436,16 @@ class BlockModAD : public AModification {
   * BlockModAD is not related to Variable, the elements of the given vector
   * are erased from it and the size of the vector becomes zero.
   *
+  * IMPORTANT NOTE: all the Variable whose pointers are written into
+  * \p variables (if any) are guaranteed to be EXACTLY OF THE SAME TYPE,
+  * since they all belong to the same :BlockModAD, which are all template on
+  * a specific type of :Variable (if it is Variable at all). Thus, if it is
+  * necessary to dynamic_cast<> the Variable * to better understand which
+  * type of :Variable the Modification is about, one can do it only on the
+  * first element of the vector.
+  *
   * @param variables the vector in which the pointers to the affected Variable
-  *        will be stored.
-  */
+  *        will be stored. */
 
  virtual void get_elements( std::vector< Variable * > & variables ) const = 0;
 
@@ -7321,15 +7459,14 @@ class BlockModAD : public AModification {
   * zero.
   *
   * @param constraints the vector in which the pointers to the affected
-  *        Constraint will be stored.
-  */
+  *        Constraint will be stored. */
 
  virtual void get_elements( std::vector< Constraint * > & constraints )
  const = 0;
 
 /*--------------------------------------------------------------------------*/
 
-};  // end( class( BlockModAD ) )
+ };  // end( class( BlockModAD ) )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS BlockModAdd -----------------------------*/
@@ -7370,7 +7507,8 @@ class BlockModAD : public AModification {
  * This may allow to simplify somewhat the work for some Solver. */
 
 template< class ConstOrVar >
-class BlockModAdd : public BlockModAD {
+class BlockModAdd : public BlockModAD
+{
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
  public:
@@ -7393,15 +7531,15 @@ class BlockModAdd : public BlockModAD {
   * other information that the Modification contains, and therefore is not
   * needed. */
 
- BlockModAdd( std::list< ConstOrVar > & whc,
-              std::vector< ConstOrVar * > && add, Block::Index first,
+ BlockModAdd( std::list< ConstOrVar > & whc ,
+	      std::vector< ConstOrVar * > && add , Block::Index first ,
               bool cB = false )
-  : BlockModAD( cB ), whc_list( whc ), add_vec( std::move( add ) ),
+  : BlockModAD( cB ) , whc_list( whc ), add_vec( std::move( add ) ) ,
     f_first( first ) {
   static_assert( std::is_base_of< Variable, ConstOrVar >::value ||
-                 std::is_base_of< Constraint, ConstOrVar >::value,
+                 std::is_base_of< Constraint, ConstOrVar >::value ,
                  "BlockModAD: must inherit from Variable or Constraint" );
- }
+  }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
  /// destructor, no specific code needed (all is done automatically)
@@ -7410,34 +7548,36 @@ class BlockModAdd : public BlockModAD {
 
 /*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
- Block * get_Block() const override final {
-  return ( add_vec[ 0 ]->get_Block() );
- }
+ Block * get_Block( void ) const override final {
+  return( add_vec[ 0 ]->get_Block() );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to (the reference to) the affected list of Constraint/Variable
 
- std::list< ConstOrVar > & whc() const { return ( whc_list ); }
+ std::list< ConstOrVar > & whc( void ) const { return( whc_list ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to the array of the added Constraint/Variable
 
- const std::vector< ConstOrVar * > & added() const { return ( add_vec ); }
+ const std::vector< ConstOrVar * > & added( void ) const {
+  return( add_vec );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to the "name" that the first added stuff got
 
- Block::Index first() { return ( f_first ); }
+ Block::Index first( void ) { return( f_first ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- bool is_variable() const override final {
-  return ( std::is_base_of< Variable, ConstOrVar >::value );
- }
+ bool is_variable( void ) const override final {
+  return( std::is_base_of< Variable, ConstOrVar >::value );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- bool is_added() const override final { return ( true ); }
+ bool is_added( void ) const override final { retur ( true ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -7474,7 +7614,7 @@ class BlockModAdd : public BlockModAD {
    output << " " << f_first;
 
   output << " to list:" << whc_list << std::endl;
- }
+  }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
@@ -7492,11 +7632,11 @@ class BlockModAdd : public BlockModAD {
 
  template< class T >
  void get_elements_( std::vector< T * > & elements ) const {
-  if constexpr( std::is_base_of< T, ConstOrVar >::value )
-   elements.assign( add_vec.cbegin(), add_vec.cend() );
+  if constexpr( std::is_base_of< T , ConstOrVar >::value )
+   elements.assign( add_vec.cbegin() , add_vec.cend() );
   else
    elements.clear();
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -7924,17 +8064,16 @@ class BlockConfig : public Configuration {
   *
   * @param diff indicates if this configuration is a "differential" one. */
 
- BlockConfig( bool diff = true ) :
-  Configuration(),
-  f_static_constraints_Configuration( nullptr ),
-  f_dynamic_constraints_Configuration( nullptr ),
-  f_static_variables_Configuration( nullptr ),
-  f_dynamic_variables_Configuration( nullptr ),
-  f_objective_Configuration( nullptr ),
-  f_is_feasible_Configuration( nullptr ),
-  f_is_optimal_Configuration( nullptr ),
-  f_solution_Configuration( nullptr ),
-  f_extra_Configuration( nullptr ),
+ BlockConfig( bool diff = true ) : Configuration() ,
+  f_static_constraints_Configuration( nullptr ) ,
+  f_dynamic_constraints_Configuration( nullptr ) ,
+  f_static_variables_Configuration( nullptr ) ,
+  f_dynamic_variables_Configuration( nullptr ) ,
+  f_objective_Configuration( nullptr ) ,
+  f_is_feasible_Configuration( nullptr ) ,
+  f_is_optimal_Configuration( nullptr ) ,
+  f_solution_Configuration( nullptr ) ,
+  f_extra_Configuration( nullptr ) ,
   f_diff( diff ) {}
 
 /*--------------------------------------------------------------------------*/
@@ -7947,8 +8086,8 @@ class BlockConfig : public Configuration {
   *        BlockConfig. */
 
  BlockConfig( netCDF::NcGroup & group ) : BlockConfig() {
-  deserialize( group );
- }
+  BlockConfig::deserialize( group );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// constructs a BlockConfig out of an istream
@@ -7958,7 +8097,9 @@ class BlockConfig : public Configuration {
   * @param input The istream containing the description of the
   *        BlockConfig. */
 
- BlockConfig( std::istream & input ) : BlockConfig() { load( input ); }
+ BlockConfig( std::istream & input ) : BlockConfig() {
+  BlockConfig::load( input );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// constructs a BlockConfig for the given Block
@@ -7971,9 +8112,9 @@ class BlockConfig : public Configuration {
   * @param diff It indicates if this configuration is a "differential" one.
   */
 
- BlockConfig( Block * block, bool diff = false ) : BlockConfig( diff ) {
-  get( block );
- }
+ BlockConfig( Block * block , bool diff = false ) : BlockConfig( diff ) {
+  BlockConfig::get( block );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: does what it says on the tin
@@ -7986,14 +8127,6 @@ class BlockConfig : public Configuration {
  BlockConfig( BlockConfig && old );
 
 /*--------------------------------------------------------------------------*/
- /// "extends" Configuration::deserialize( netCDF::NcFile ) to eProbFile
- /** Since a BlockConfig knows it is a BlockConfig, it "knows its place" in
-  * an eProbFile netCDF SMS++ file. */
-
- static BlockConfig * deserialize( netCDF::NcFile & f,
-                                   const unsigned int idx = 0 );
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// extends Configuration::deserialize( netCDF::NcGroup )
  /** Extends Configuration::deserialize( netCDF::NcGroup ) to the specific
   * format of a BlockConfig. Besides the mandatory "type" attribute of any
@@ -8044,10 +8177,10 @@ class BlockConfig : public Configuration {
  virtual void deserialize( netCDF::NcGroup & group ) override;
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
+
  /// destructor: deletes all Configuration
- virtual ~BlockConfig() {
-  delete_sub_Configuration();
- }
+
+ virtual ~BlockConfig() { delete_sub_Configuration(); }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -8077,10 +8210,10 @@ class BlockConfig : public Configuration {
  /** This method deletes all sub-Configuration and sets the value of #f_diff
   * to false. */
 
- void clear() override {
+ void clear( void ) override {
   f_diff = false;
   delete_sub_Configuration();
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// configure the given Block
@@ -8101,14 +8234,14 @@ class BlockConfig : public Configuration {
   * @param deleteold Indicates whether the current Configuration of Block must
   *        be deleted (see Block::set_BlockConfig()). */
 
- virtual void apply( Block * block, bool deleteold = true ) {
-  if( !block )
+ virtual void apply( Block * block ,  bool deleteold = true ) {
+  if( ! block )
    return;
 
   auto newBC = new BlockConfig( this->is_diff() );
   this->move_non_null_configuration_to( newBC );
   block->set_BlockConfig( newBC, deleteold );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// Moves the non-nullptr sub-Configuration from this BlockConfig into \p bc
@@ -8118,9 +8251,9 @@ class BlockConfig : public Configuration {
   * kept untouched. If \p deleteold is true then each sub-Configuration in \p
   * bc that gets replaced is deleted. */
 
- void move_non_null_configuration_to( BlockConfig * bc,
-                                      const bool deleteold = true ) {
-  if( !bc )
+ void move_non_null_configuration_to( BlockConfig * bc ,
+				      bool deleteold = true ) {
+  if( ! bc )
    return;
 
   auto move = [ deleteold ]( Configuration *& this_config,
@@ -8129,32 +8262,32 @@ class BlockConfig : public Configuration {
     if( deleteold ) {
      delete other_config;
      other_config = nullptr;
-    }
+     }
     other_config = this_config;
     this_config = nullptr;
-   }
-  };
+    }
+   };
 
-  move( f_static_constraints_Configuration,
+  move( f_static_constraints_Configuration ,
         bc->f_static_constraints_Configuration );
-  move( f_dynamic_constraints_Configuration,
+  move( f_dynamic_constraints_Configuration ,
         bc->f_dynamic_constraints_Configuration );
-  move( f_static_variables_Configuration,
+  move( f_static_variables_Configuration ,
         bc->f_static_variables_Configuration );
-  move( f_dynamic_variables_Configuration,
+  move( f_dynamic_variables_Configuration ,
         bc->f_dynamic_variables_Configuration );
-  move( f_objective_Configuration, bc->f_objective_Configuration );
-  move( f_is_feasible_Configuration, bc->f_is_feasible_Configuration );
-  move( f_is_optimal_Configuration, bc->f_is_optimal_Configuration );
-  move( f_solution_Configuration, bc->f_solution_Configuration );
-  move( f_extra_Configuration, bc->f_extra_Configuration );
+  move( f_objective_Configuration , bc->f_objective_Configuration );
+  move( f_is_feasible_Configuration , bc->f_is_feasible_Configuration );
+  move( f_is_optimal_Configuration , bc->f_is_optimal_Configuration );
+  move( f_solution_Configuration , bc->f_solution_Configuration );
+  move( f_extra_Configuration , bc->f_extra_Configuration );
  }
 
 /*------------------------------- CLONE -----------------------------------*/
 
- virtual BlockConfig * clone() const override {
-  return ( new BlockConfig( *this ) );
- }
+ BlockConfig * clone( void ) const override {
+  return( new BlockConfig( *this ) );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------- METHODS FOR LOADING, PRINTING & SAVING THE BlockConfig ---------*/
@@ -8166,7 +8299,7 @@ class BlockConfig : public Configuration {
  /** Since a BlockConfig knows it is a BlockConfig, it "knows its place" in
   * an eProbFile netCDF SMS++ file. */
 
- void serialize( netCDF::NcFile & f, const int type ) const override;
+ void serialize( netCDF::NcFile & f , int type ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// extends Configuration::serialize( netCDF::NcGroup )
@@ -8197,24 +8330,24 @@ class BlockConfig : public Configuration {
 
  /// tells if the configuration is a "differential" one (reads #f_diff)
 
- bool is_diff() const { return ( f_diff ); }
+ bool is_diff( vois ) const { return( f_diff ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns true if the BlockConfig is "empty"
  /** Returns true if the BlockConfig is "empty", i.e., all of its
   * sub-Configuration are nullptr. */
 
- virtual bool empty() const {
-  return ( ( !f_static_constraints_Configuration ) &&
-           ( !f_dynamic_constraints_Configuration ) &&
-           ( !f_static_variables_Configuration ) &&
-           ( !f_dynamic_variables_Configuration ) &&
-           ( !f_objective_Configuration ) &&
-           ( !f_is_feasible_Configuration ) &&
-           ( !f_is_optimal_Configuration ) &&
-           ( !f_solution_Configuration ) &&
-           ( !f_extra_Configuration ) );
- }
+ virtual bool empty( void ) const {
+  return( ( ! f_static_constraints_Configuration ) &&
+          ( ! f_dynamic_constraints_Configuration ) &&
+	  ( ! f_static_variables_Configuration ) &&
+	  ( ! f_dynamic_variables_Configuration ) &&
+	  ( ! f_objective_Configuration ) &&
+	  ( ! f_is_feasible_Configuration ) &&
+	  ( ! f_is_optimal_Configuration ) &&
+	  ( ! f_solution_Configuration ) &&
+	  ( ! f_extra_Configuration ) );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- PUBLIC FIELDS OF THE CLASS -------------------------*/
@@ -8258,7 +8391,7 @@ class BlockConfig : public Configuration {
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 
  /// print the BlockConfig
- virtual void print( std::ostream & output ) const override;
+ void print( std::ostream & output ) const override;
 
 /*--------------------------------------------------------------------------*/
  /// load this BlockConfig out of an istream
@@ -8278,13 +8411,12 @@ class BlockConfig : public Configuration {
   *              extra Configuration
   *              (in this order)
   *
-  *  - a string containing the class type of a Configuration object, '*'
-  *    means none (nullptr)
-  *
-  * - if the above is not '*', the description of the :Configuration object
-  */
+  *  information describing the corresponding :Configuration in the format
+  *  accepted by Configuration::deserialize( std::istream ), with all the
+  *  corresponding input options, like '*' for  nullptr and "*<filename>"
+  *  for loading it out of a different file. */
 
- virtual void load( std::istream & input ) override;
+ void load( std::istream & input ) override;
 
 /*-------------------- PROTECTED FIELDS OF THE CLASS -----------------------*/
 
@@ -8302,7 +8434,8 @@ class BlockConfig : public Configuration {
 
  /// delete all sub-Confiuration of this BlockConfig
 
- void delete_sub_Configuration() {
+ void delete_sub_Configuration( void )
+ {
   delete f_static_constraints_Configuration;
   f_static_constraints_Configuration = nullptr;
 
@@ -8329,12 +8462,13 @@ class BlockConfig : public Configuration {
 
   delete f_extra_Configuration;
   f_extra_Configuration = nullptr;
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// clone the sub-Configuration of bc into those of this BlockConfig
 
- void clone_sub_Configuration( const BlockConfig & bc ) {
+ void clone_sub_Configuration( const BlockConfig & bc )
+ {
   if( bc.f_static_constraints_Configuration )
    f_static_constraints_Configuration =
     bc.f_static_constraints_Configuration->clone();
@@ -8365,7 +8499,7 @@ class BlockConfig : public Configuration {
 
   if( bc.f_extra_Configuration )
    f_extra_Configuration = bc.f_extra_Configuration->clone();
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -8402,30 +8536,30 @@ void Block::add_dynamic_constraints( std::list< Const > & list,
   for( auto & el : newlist ) {  // all the new Constraint
    el.set_Block( this );        // now belong to this Block
    *( it++ ) = &el;               // keep their names
-  }
+   }
 
   // add them at the end, *before* issuing the BlockModAdd
   list.splice( list.end(), newlist );
 
   // now issue the BlockModAdd
-  add_Modification(
-   std::make_shared< BlockModAdd< Const>>( list,
-                                           std::move( names ), first,
-                                           Observer::par2concern( issueMod ) ),
-   Observer::par2chnl( issueMod ) );
- } else {
+  add_Modification( std::make_shared< BlockModAdd< Const > >( list ,
+                                        std::move( names ) , first ,
+                                        Observer::par2concern( issueMod ) ) ,
+		    Observer::par2chnl( issueMod ) );
+  }
+ else {
   for( auto & el : newlist )    // all the new Constraint
    el.set_Block( this );        // now belong to this Block
 
   list.splice( list.end(), newlist );  // add them at the end
- }
-}  // end( Block::add_dynamic_constraints( Const ) )
+  }
+ }  // end( Block::add_dynamic_constraints( Const ) )
 
 /*--------------------------------------------------------------------------*/
 
 template< class Var >
-void Block::add_dynamic_variables( std::list< Var > & list,
-                                   std::list< Var > & newlist,
+void Block::add_dynamic_variables( std::list< Var > & list ,
+                                   std::list< Var > & newlist ,
                                    c_ModParam issueMod ) {
  // ensure Var is a derivate of Variables
  static_assert( std::is_base_of< Variable, Var >::value,
@@ -8442,16 +8576,15 @@ void Block::add_dynamic_variables( std::list< Var > & list,
   for( auto & el : newlist ) {  // all the new Variable
    el.set_Block( this );        // now belong to this Block
    *( it++ ) = &el;               // keep their names
-  }
+   }
 
   // add them at the end, *before* issuing the BlockModAdd
   list.splice( list.end(), newlist );
 
   // now issue the BlockModAdd
-  add_Modification(
-   std::make_shared< BlockModAdd< Var > >( list,
-                                           std::move( names ), first,
-                                           Observer::par2concern( issueMod ) ),
+  add_Modification( std::make_shared< BlockModAdd< Var > >( list ,
+                                       std::move( names ) , first ,
+                                       Observer::par2concern( issueMod ) ) ,
    Observer::par2chnl( issueMod ) );
  } else {
   for( auto & el : newlist )    // all the new Variable

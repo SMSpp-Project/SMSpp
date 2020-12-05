@@ -618,7 +618,8 @@ void ComputeConfig::load( std::istream & input )
   for( int j = 0 ; j < h ; ++j ) {
    input >> eatcomments >> vint_pars[ i ].second[ j ];
    if( input.fail() )
-    throw( std::invalid_argument( "ComputeConfig::load: stream read error" ) );
+    throw( std::invalid_argument( "ComputeConfig::load: stream read error" )
+	   );
    }
   }
 
@@ -639,7 +640,8 @@ void ComputeConfig::load( std::istream & input )
   for( int j = 0 ; j < h ; ++j ) {
    input >> eatcomments >> vdbl_pars[ i ].second[ j ];
    if( input.fail() )
-    throw( std::invalid_argument( "ComputeConfig::load: stream read error" ) );
+    throw( std::invalid_argument( "ComputeConfig::load: stream read error" )
+	   );
    }
   }
 
@@ -660,26 +662,16 @@ void ComputeConfig::load( std::istream & input )
   for( int j = 0 ; j < h ; ++j ) {
    input >> eatcomments >> vstr_pars[ i ].second[ j ];
    if( input.fail() )
-    throw( std::invalid_argument( "ComputeConfig::load: stream read error" ) );
+    throw( std::invalid_argument( "ComputeConfig::load: stream read error" )
+	   );
    }
   }
 
  if( input.eof() )
   return;
 
- input >> eatcomments;
- if( input.peek() == input.widen( '*' ) ) {
-  input.get();
-  f_extra_Configuration = nullptr;
-  }
- else {
-  std::string cname;
-  input >> cname;
-  if( input.fail() )
-   throw( std::invalid_argument( "ComputeConfig::load: stream read error" ) );
-  f_extra_Configuration = Configuration::new_Configuration( cname );
-  input >> *f_extra_Configuration;
-  }
+ f_extra_Configuration = Configuration::deserialize( input );
+
  }  // end( ComputeConfig::load )
 
 /*--------------------------------------------------------------------------*/

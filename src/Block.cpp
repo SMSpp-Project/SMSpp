@@ -377,14 +377,16 @@ void Block::remove_variable_from_stuff( Variable * const variable,
 /*------------------------- METHODS of BlockConfig -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-BlockConfig::BlockConfig( const BlockConfig & old ) {
+BlockConfig::BlockConfig( const BlockConfig & old )
+{
  f_diff = old.f_diff;
  clone_sub_Configuration( old );
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 
-BlockConfig::BlockConfig( BlockConfig && old ) {
+BlockConfig::BlockConfig( BlockConfig && old )
+{
  f_diff = old.f_diff;
  f_static_constraints_Configuration = old.f_static_constraints_Configuration;
  old.f_static_constraints_Configuration = nullptr;
@@ -413,90 +415,44 @@ BlockConfig::BlockConfig( BlockConfig && old ) {
 
  f_extra_Configuration = old.f_extra_Configuration;
  old.f_extra_Configuration = nullptr;
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 
-void BlockConfig::get( Block * block ) {
+void BlockConfig::get( Block * block )
+{
  // clear this BlockConfig
  delete_sub_Configuration();
 
- if( !block )
+ if( ! block )
   return;
 
  if( auto block_config = block->get_BlockConfig() ) {
   set_diff( block_config->is_diff() );
   // clone the Configuration from Block
   clone_sub_Configuration( *block_config );
- }
-}  // end( BlockConfig::get )
-
-/*--------------------------------------------------------------------------*/
-
-BlockConfig * BlockConfig::deserialize( netCDF::NcFile & f,
-                                        const unsigned int idx ) {
- try {
-  netCDF::NcGroupAtt ftype = f.getAtt( "SMS++_file_type" );
-  if( ftype.isNull() )
-   return ( nullptr );
-
-  int type;
-  ftype.getValues( &type );
-
-  if( ( type != eProbFile ) && ( type != eConfigFile ) )
-   return ( nullptr );
-
-  netCDF::NcGroup cg;
-
-  if( type == eProbFile ) {
-   netCDF::NcGroup dg = f.getGroup( "Config_" + std::to_string( idx ) );
-   if( dg.isNull() )
-    return ( nullptr );
-
-   cg = dg.getGroup( "BlockConfig" );
-  } else
-   cg = f.getGroup( "Config_" + std::to_string( idx ) );
-
-  auto result = new_Configuration( cg );
-  auto bcresult = dynamic_cast< BlockConfig * >( result );
-  if( !bcresult ) {
-   delete result;
-   return ( nullptr );
   }
-
-  return ( bcresult );
- }
- catch( netCDF::exceptions::NcException & e ) {
-  std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
- }
- catch( std::exception & e ) {
-  std::cerr << "error " << e.what() << " in deserialize" << std::endl;
- }
- catch( ... ) {
-  std::cerr << "unknown error in deserialize" << std::endl;
- }
-
- return ( nullptr );
-
-} // end( BlockConfig::deserialize( file ) )
+ }  // end( BlockConfig::get )
 
 /*--------------------------------------------------------------------------*/
 
-void BlockConfig::serialize( netCDF::NcFile & f, const int type ) const {
+void BlockConfig::serialize( netCDF::NcFile & f , int type ) const
+{
  if( type == eConfigFile ) {
-  Configuration::serialize( f, type );
+  Configuration::serialize( f , type );
   return;
- }
+  }
 
  auto cg = ( f.addGroup( "Config_" + std::to_string( f.getGroupCount() )
  ) ).addGroup( "BlockConfig" );
  serialize( cg );
 
-}  // end( BlockConfig::serialize( file ) )
+ }  // end( BlockConfig::serialize( file ) )
 
 /*--------------------------------------------------------------------------*/
 
-void BlockConfig::print( std::ostream & output ) const {
+void BlockConfig::print( std::ostream & output ) const
+{
  output << private_name();
  if( f_diff ) output << "[diff]";
  output << ": " << std::endl;
@@ -520,141 +476,142 @@ void BlockConfig::print( std::ostream & output ) const {
   output << *f_extra_Configuration;
  output << std::endl;
 
-}  // end( BlockConfig::print )
+ }  // end( BlockConfig::print )
 
 /*--------------------------------------------------------------------------*/
 
-void BlockConfig::load( std::istream & input ) {
+void BlockConfig::load( std::istream & input )
+{
+ if( ! empty() )
+  throw( std::logic_error( "loading a non-empty BlockConfig" ) );
+
+ if( input.fail() )
+  throw( std::invalid_argument( "BlockConfig::load: stream read error" ) );
+
  input >> eatcomments >> f_diff;
+ if( input.fail() )
+  throw( std::invalid_argument( "BlockConfig::load: stream read error" ) );
 
- input >> eatcomments;
- if( input.peek() == input.widen( '*' ) ) {
-  input.get();  // read away (and ignore) the '*' from the stream
-  f_static_constraints_Configuration = nullptr;
- } else
-  f_static_constraints_Configuration =
-   Configuration::new_Configuration( input );
- input >> eatcomments;
- if( input.peek() == input.widen( '*' ) ) {
-  input.get();  // read away (and ignore) the '*' from the stream
-  f_dynamic_constraints_Configuration = nullptr;
- } else
-  f_dynamic_constraints_Configuration =
-   Configuration::new_Configuration( input );
- input >> eatcomments;
- if( input.peek() == input.widen( '*' ) ) {
-  input.get();  // read away (and ignore) the '*' from the stream
-  f_static_variables_Configuration = nullptr;
- } else
-  f_static_variables_Configuration =
-   Configuration::new_Configuration( input );
- input >> eatcomments;
- if( input.peek() == input.widen( '*' ) ) {
-  input.get();  // read away (and ignore) the '*' from the stream
-  f_dynamic_variables_Configuration = nullptr;
- } else
-  f_dynamic_variables_Configuration =
-   Configuration::new_Configuration( input );
- input >> eatcomments;
- if( input.peek() == input.widen( '*' ) ) {
-  input.get();  // read away (and ignore) the '*' from the stream
-  f_objective_Configuration = nullptr;
- } else
-  f_objective_Configuration = Configuration::new_Configuration( input );
+ delete_sub_Configuration();
+ if( input.eof() )
+  return;
 
- input >> eatcomments;
- if( input.peek() == input.widen( '*' ) ) {
-  input.get();  // read away (and ignore) the '*' from the stream
-  f_is_feasible_Configuration = nullptr;
- } else
-  f_is_feasible_Configuration = Configuration::new_Configuration( input );
+ f_static_constraints_Configuration = Configuration::deserialize( input );
+ if( input.fail() )
+  throw( std::invalid_argument( "BlockConfig::load: stream read error" ) );
+ if( input.eof() )
+  return;
 
- input >> eatcomments;
- if( input.peek() == input.widen( '*' ) ) {
-  input.get();  // read away (and ignore) the '*' from the stream
-  f_is_optimal_Configuration = nullptr;
- } else
-  f_is_optimal_Configuration = Configuration::new_Configuration( input );
+ f_dynamic_constraints_Configuration = Configuration::deserialize( input );
+ if( input.fail() )
+  throw( std::invalid_argument( "BlockConfig::load: stream read error" ) );
+ if( input.eof() )
+  return;
 
- input >> eatcomments;
- if( input.peek() == input.widen( '*' ) ) {
-  input.get();  // read away (and ignore) the '*' from the stream
-  f_solution_Configuration = nullptr;
- } else
-  f_solution_Configuration = Configuration::new_Configuration( input );
+ f_static_variables_Configuration = Configuration::deserialize( input );
+ if( input.fail() )
+  throw( std::invalid_argument( "BlockConfig::load: stream read error" ) );
+ if( input.eof() )
+  return;
 
- input >> eatcomments;
- if( input.peek() == input.widen( '*' ) ) {
-  input.get();  // read away (and ignore) the '*' from the stream
-  f_extra_Configuration = nullptr;
- } else
-  f_extra_Configuration = Configuration::new_Configuration( input );
+ f_dynamic_variables_Configuration = Configuration::deserialize( input );
+ if( input.fail() )
+  throw( std::invalid_argument( "BlockConfig::load: stream read error" ) );
+ if( input.eof() )
+  return;
 
-}  // end( BlockConfig::load )
+ f_objective_Configuration = Configuration::deserialize( input );
+ if( input.fail() )
+  throw( std::invalid_argument( "BlockConfig::load: stream read error" ) );
+ if( input.eof() )
+  return;
+
+ f_is_feasible_Configuration = Configuration::deserialize( input );
+ if( input.fail() )
+  throw( std::invalid_argument( "BlockConfig::load: stream read error" ) );
+ if( input.eof() )
+  return;
+
+ f_is_optimal_Configuration = Configuration::deserialize( input );
+ if( input.fail() )
+  throw( std::invalid_argument( "BlockConfig::load: stream read error" ) );
+ if( input.eof() )
+  return;
+
+ f_solution_Configuration = Configuration::deserialize( input );
+ if( input.fail() )
+  throw( std::invalid_argument( "BlockConfig::load: stream read error" ) );
+ if( input.eof() )
+  return;
+
+ f_extra_Configuration = Configuration::deserialize( input );
+ if( input.fail() )
+  throw( std::invalid_argument( "BlockConfig::load: stream read error" ) );
+ if( input.eof() )
+  return;
+
+ }  // end( BlockConfig::load )
 
 /*--------------------------------------------------------------------------*/
 
-void BlockConfig::serialize( netCDF::NcGroup & group ) const {
+void BlockConfig::serialize( netCDF::NcGroup & group ) const
+{
  Configuration::serialize( group );
 
- group.putAtt( "diff", netCDF::NcInt(), int( f_diff ) );
+ group.putAtt( "diff", netCDF::NcInt() , int( f_diff ) );
 
  if( f_static_constraints_Configuration ) {
   auto cg = group.addGroup( "static_constraints" );
   f_static_constraints_Configuration->serialize( cg );
- }
+  }
 
  if( f_dynamic_constraints_Configuration ) {
   auto cg = group.addGroup( "dynamic_constraints" );
   f_dynamic_constraints_Configuration->serialize( cg );
- }
+  }
 
  if( f_static_variables_Configuration ) {
   auto cg = group.addGroup( "static_variables" );
   f_static_variables_Configuration->serialize( cg );
- }
+  }
 
  if( f_dynamic_variables_Configuration ) {
   auto cg = group.addGroup( "dynamic_variables" );
   f_dynamic_variables_Configuration->serialize( cg );
- }
+  }
 
  if( f_objective_Configuration ) {
   auto cg = group.addGroup( "objective" );
   f_objective_Configuration->serialize( cg );
- }
+  }
 
  if( f_is_feasible_Configuration ) {
   auto cg = group.addGroup( "is_feasible" );
   f_is_feasible_Configuration->serialize( cg );
- }
+  }
 
  if( f_is_optimal_Configuration ) {
   auto cg = group.addGroup( "is_optimal" );
   f_is_optimal_Configuration->serialize( cg );
- }
+  }
 
  if( f_solution_Configuration ) {
   auto cg = group.addGroup( "solution" );
   f_solution_Configuration->serialize( cg );
- }
+  }
 
  if( f_extra_Configuration ) {
   auto cg = group.addGroup( "extra" );
   f_extra_Configuration->serialize( cg );
- }
-}  // end( BlockConfig::serialize( group ) )
+  }
+ }  // end( BlockConfig::serialize( group ) )
 
 /*--------------------------------------------------------------------------*/
 
-void BlockConfig::deserialize( netCDF::NcGroup & group ) {
- if( f_static_constraints_Configuration ||
-     f_dynamic_constraints_Configuration ||
-     f_static_variables_Configuration || f_dynamic_variables_Configuration ||
-     f_objective_Configuration || f_is_feasible_Configuration ||
-     f_is_optimal_Configuration || f_solution_Configuration ||
-     f_extra_Configuration )
-  throw ( std::logic_error( "deserializing a non-empty BlockConfig" ) );
+void BlockConfig::deserialize( netCDF::NcGroup & group )
+{
+ if( ! empty() )
+  throw( std::logic_error( "deserializing a non-empty BlockConfig" ) );
 
  netCDF::NcGroupAtt diff = group.getAtt( "diff" );
  if( diff.isNull() )
@@ -692,7 +649,7 @@ void BlockConfig::deserialize( netCDF::NcGroup & group ) {
  cg = group.getGroup( "extra" );
  f_extra_Configuration = new_Configuration( cg );
 
-}  // end( BlockConfig::deserialize( group ) )
+ }  // end( BlockConfig::deserialize( group ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ End File Block.cpp ------------------------------*/

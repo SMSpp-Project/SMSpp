@@ -33,6 +33,13 @@
  *   sub-Block (recursively) and (potentially) all Constraint and the
  *   Objective of the given Block.
  *
+ * Note that, technically, this is not obtained by having the "more complex"
+ * classes to derive from the "base" ones, as this would not work without
+ * virtual inheritance; rather, three "handler" classes (RHandler, CHandler
+ * and OHandler) are defined that handle each individual aspect, and then the
+ * *BlockConfig classes are defined by deriving from the proper subset of the
+ * *Handler).
+ *
  * All these BlockConfig support the notion of a "cleared" Configuration (see
  * Configuration::clear()). When the clear() method is invoked, any pointers
  * to a sub-Configuration that the :BlockConfig may have (for instance,
@@ -67,7 +74,7 @@
 
 #ifndef __RBlockConfig
 #define __RBlockConfig
-/* self-identification: #endif at the end of the file */
+                     /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -78,26 +85,26 @@
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
-
 /// namespace for the Structured Modeling System++ (SMS++)
-namespace SMSpp_di_unipi_it {
 
+namespace SMSpp_di_unipi_it
+{
 /*--------------------------------------------------------------------------*/
 /*------------------------ BlockConfigHandlers -----------------------------*/
 /*--------------------------------------------------------------------------*/
 /* Uncommented auxiliary classes that separately handle the three different
  * aspects of configuration: sub-Block (R), Constraints (C), Objective (O). */
 
-namespace BlockConfigHandlers {
-
+namespace BlockConfigHandlers
+{
 /*--------------------------------------------------------------------------*/
 /*------------------------------- RHandler ---------------------------------*/
 /*--------------------------------------------------------------------------*/
-/* Uncommented auxiliary classes that handles configuration of sub-Block
- * (recursively). */
+/** Auxiliary classes that handles configuration of sub-Block (recursively).
+ */
 
-class RHandler {
-
+class RHandler
+{
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
  public:
@@ -205,7 +212,7 @@ class RHandler {
 
  // configure the given Block and its sub-Block (recursively)
 
- void apply( Block * block, bool deleteold, bool diff );
+ void apply( Block * block , bool deleteold , bool diff );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  // clear this RHandler
@@ -281,7 +288,7 @@ class RHandler {
  protected:
 
 /*-------------------------- PROTECTED METHODS -----------------------------*/
- // print the RHandler
+ /// print the RHandler
 
  void print( std::ostream & output ) const;
 
@@ -2079,13 +2086,11 @@ class OBlockConfig : public BlockConfig ,
 /*--------------------------------------------------------------------------*/
  /// load this OBlockConfig out of an istream
  /** Load this OBlockConfig out of an istream. The format is defined as that
-  * specified in BlockConfig::load(), followed by:
-  *
-  * - a string containing the class type of a ComputeConfig object for the
-  *   Objective, '*' means none (nullptr)
-  *
-  * - if the above is not '*', the description of the :ComputeConfig object
-  *   for the Objective. */
+  * specified in BlockConfig::load(), followed by the information describing
+  * the corresponding ComputeConfig in the format accepted by
+  * Configuration::deserialize( std::istream ), with all the corresponding
+  * input options, like '*' for  nullptr and "*<filename>"  for loading it
+  * out of a different file. */
 
  void load( std::istream & input ) override {
   BlockConfig::load( input );
@@ -2407,10 +2412,10 @@ class CBlockConfig : public BlockConfig ,
   *
   * - for i = 1 ... k
   *   - the identification of the Constraint
-  *   - a string containing the class type of a ComputeConfig object,
-  *     '*' means none (nullptr)
-  *   - if the above is not '*', the description of the :ComputeConfig object
-  *   (clearly, if k == 0 this is empty)
+  *   - the information describing the corresponding ComputeConfig in the 
+  *     format accepted by Configuration::deserialize( std::istream ), with
+  *     all the corresponding input options, like '*' for  nullptr and
+  *     "*<filename>" for loading it out of a different file
   *
   * The identification of the Constraint can be either (i) two integers
   * representing the Block::ConstraintID of the Constraint (see
@@ -2720,11 +2725,10 @@ class RBlockConfig : public BlockConfig ,
   *
   * for i = 1 ... abs(k)
   *  - if k < 0, the identification of the sub-Block
-  *
-  *  - a string containing the class type of a BlockConfig object, '*' means
-  *    none (nullptr)
-  *
-  *  - if the above is not '*', the description of the :BlockConfig object
+  *  - the information describing the corresponding *BlockConfig in the 
+  *     format accepted by Configuration::deserialize( std::istream ), with
+  *     all the corresponding input options, like '*' for  nullptr and
+  *     "*<filename>" for loading it out of a different file
   *
   * Notice that the sign of k determines whether the identification of the
   * sub-Block must be provided. If k < 0, then the identification of the

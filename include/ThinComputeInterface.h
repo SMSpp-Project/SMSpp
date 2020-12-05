@@ -1362,6 +1362,10 @@ class ThinComputeInterface {
  *  - a list of pairs < std::string , std::vector< double > >
  *  - a list of pairs < std::string , std::vector< std::string > >
  *
+ * It also holds an "extra" Configuration * f_extra_Configuration, which
+ * allows to specify an arbitrary :Configuration object that a
+ * :ThinComputeInterface may use.
+ *
  * The idea is that each list contains the pairs < parameter name , value >
  * to be changed/set. The lists need *not* contain all the parameters (of the
  * given type), all those not directly specified are treated as speficied in
@@ -1370,8 +1374,7 @@ class ThinComputeInterface {
  * not be changed from their current value. If f_diff == false instead, then
  * all the parameters that are *not* specified in the ComputeConfig are
  * rather reset to their default value. Note that the same holds for the
- * provided field f_extra_Configuration, which allows to specify an arbitrary
- * extra Configuration object: if f_diff == true and f_extra_Configuration
+ * "extra" Configuration: if f_diff == true and f_extra_Configuration
  * == nullptr this has to be interpreted as "leave the previous extra
  * Configuration as it is", whereas if f_diff == false then the current extra
  * Configuration is replaced by that in the ComputeConfig (which may be
@@ -1847,10 +1850,10 @@ class ComputeConfig : public Configuration {
   * - for j = 1 ... h
   *   a string (the j-th entry of the i-th vector-of-string parameter)
   *
-  * a string containing the class type of the extra Configuration object,
-  * '*' means none (nullptr)
-  *
-  * if the above is not '*', the description of the :Configuration object
+  * the description of a :Configuration object for the "extra" Configuration
+  * of the ComputeConfig, loaded with Configuration::deserialize( std::istream )
+  * and therefore with all the corresponding input options, like '*' for
+  * nullptr and "*<filename>" for loading it out of a different file.
   *
   * If the stream cleanly eof()-s after before reading each one of the
   * sections, load() cleanly returns having loaded the corresponding part of
