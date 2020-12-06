@@ -957,8 +957,8 @@ class ThinComputeInterface {
 
  [[nodiscard]] virtual const std::string & get_dflt_str_par( idx_type par )
   const {
-  static const std::string empty;
-  return( empty );
+  static const std::string __empty;
+  return( __empty );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -972,8 +972,8 @@ class ThinComputeInterface {
 
  [[nodiscard]] virtual const std::vector< int > &
   get_dflt_vint_par( idx_type par ) const {
-  static const std::vector< int > empty;
-  return( empty );
+  static const std::vector< int > __empty;
+  return( __empty );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -987,8 +987,8 @@ class ThinComputeInterface {
 
  [[nodiscard]] virtual const std::vector< double > &
   get_dflt_vdbl_par( idx_type par ) const {
-  static const std::vector< double > empty;
-  return( empty );
+  static const std::vector< double > __empty;
+  return( __empty );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
