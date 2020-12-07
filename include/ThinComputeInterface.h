@@ -1413,7 +1413,8 @@ class ComputeConfig : public Configuration {
   vint_pars = old.vint_pars;
   vdbl_pars = old.vdbl_pars;
   vstr_pars = old.vstr_pars;
-  f_extra_Configuration = old.f_extra_Configuration->clone();
+  f_extra_Configuration = old.f_extra_Configuration ?
+                          old.f_extra_Configuration->clone() : nullptr;
   }
 
 /*--------------------------------------------------------------------------*/

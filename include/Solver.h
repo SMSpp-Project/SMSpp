@@ -1411,7 +1411,7 @@ class Solver : public ThinComputeInterface {
   * kUnbounded and set_unbounded_threshold() has been called; see the
   * comments to that method. */
 
- virtual bool new_var_solution() { return ( false ); }
+ virtual bool new_var_solution( void ) { return( false ); }
 
 /*--------------------------------------------------------------------------*/
  /// set the min/max objective value of the solution for the unbounded case
@@ -1481,7 +1481,7 @@ class Solver : public ThinComputeInterface {
   * The default implementation in the base class always returns false, which
   * is OK for Solver that cannot produce any unbounded direction. */
 
- virtual bool has_var_direction() { return ( false ); }
+ virtual bool has_var_direction( void ) { return( false ); }
 
 /*--------------------------------------------------------------------------*/
  /// write the "current" unbounded direction in the Block
@@ -1567,7 +1567,7 @@ class Solver : public ThinComputeInterface {
   * reasonable definition of an appropriate notion of "better direction"
   * that might be employed. */
 
- virtual bool new_var_direction() { return ( false ); }
+ virtual bool new_var_direction( void ) { return ( false ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------- METHODS FOR READING THE DATA OF THE Solver ----------------*/
@@ -1577,12 +1577,12 @@ class Solver : public ThinComputeInterface {
 
  /// retrieve the Block this Solver is attached to (if any)
 
- [[nodiscard]] virtual Block * get_Block() const { return ( f_Block ); }
+ [[nodiscard]] virtual Block * get_Block( void ) const { return( f_Block ); }
 
 /*--------------------------------------------------------------------------*/
  /// getting the "identity" of this Solver
 
- virtual void * id() { return ( f_id ); }
+ virtual void * id( void ) { return( f_id ); }
 
 /*--------------------------------------------------------------------------*/
  /// getting the classname of this Solver
@@ -1601,9 +1601,7 @@ class Solver : public ThinComputeInterface {
   * the programmer purposely defines private_name() without calling the macro,
   * which seems rather pointless). */
 
- inline const std::string & classname() {
-  return ( private_name() );
- }
+ const std::string & classname( void ) { return( private_name() ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
@@ -1611,73 +1609,71 @@ class Solver : public ThinComputeInterface {
 /** @name Handling the parameters of the Solver
  *  @{ */
 
- [[nodiscard]] idx_type get_num_int_par() const override {
-  return ( idx_type( intLastAlgPar ) );
+ [[nodiscard]] idx_type get_num_int_par( void ) const override {
+  return( idx_type( intLastAlgPar ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] idx_type get_num_dbl_par( void ) const override {
+  return( idx_type( dblLastAlgPar ) );
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- [[nodiscard]] idx_type get_num_dbl_par() const override {
-  return ( idx_type( dblLastAlgPar ) );
- }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
- [[nodiscard]] idx_type get_num_str_par() const override {
-  return ( idx_type( strLastAlgPar ) );
- }
+ [[nodiscard]] idx_type get_num_str_par( void ) const override {
+  return( idx_type( strLastAlgPar ) );
+  } 
 
 /*--------------------------------------------------------------------------*/
 
- [[nodiscard]] int get_dflt_int_par( const idx_type par ) const override {
-  return ( par < intLastAlgPar ? dflt_int_par[ par ] :
-           ThinComputeInterface::get_dflt_int_par( par ) );
- }
+ [[nodiscard]] int get_dflt_int_par( idx_type par ) const override {
+  return( par < intLastAlgPar ? dflt_int_par[ par ] :
+	  ThinComputeInterface::get_dflt_int_par( par ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- [[nodiscard]] double get_dflt_dbl_par( const idx_type par ) const override {
-  return ( par < dblLastAlgPar ? dflt_dbl_par[ par ] :
-           ThinComputeInterface::get_dflt_dbl_par( par ) );
- }
+ [[nodiscard]] double get_dflt_dbl_par( idx_type par ) const override {
+  return( par < dblLastAlgPar ? dflt_dbl_par[ par ] :
+	  ThinComputeInterface::get_dflt_dbl_par( par ) );
+  }
 
 /*--------------------------------------------------------------------------*/
 
- [[nodiscard]] idx_type
- int_par_str2idx( const std::string & name ) const override {
+ [[nodiscard]] idx_type int_par_str2idx( const std::string & name )
+  const override {
   const auto it = int_pars_map.find( name );
   if( it == int_pars_map.end() )
-   throw ( std::invalid_argument( std::string( "int parameter " ) + name +
-                                  std::string( " unknown" ) ) );
-  return ( it->second );
- }
+   throw( std::invalid_argument( "unknown int parameter " + name ) );
+  return( it->second );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- [[nodiscard]] idx_type
- dbl_par_str2idx( const std::string & name ) const override {
+ [[nodiscard]] idx_type dbl_par_str2idx( const std::string & name )
+  const override {
   const auto it = dbl_pars_map.find( name );
   if( it == dbl_pars_map.end() )
-   throw ( std::invalid_argument( std::string( "dbl parameter " ) + name +
-                                  std::string( " unknown" ) ) );
-  return ( it->second );
- }
+   throw( std::invalid_argument( "unknown dbl parameter " + name ) );
+  return( it->second );
+  }
 
 /*--------------------------------------------------------------------------*/
 
- [[nodiscard]] const std::string &
- int_par_idx2str( const idx_type idx ) const override {
-  return ( idx < intLastAlgPar ? int_pars_str[ idx ] :
-           ThinComputeInterface::int_par_idx2str( idx ) );
- }
+ [[nodiscard]] const std::string & int_par_idx2str( idx_type idx )
+  const override {
+  return( idx < intLastAlgPar ? int_pars_str[ idx ] :
+	  ThinComputeInterface::int_par_idx2str( idx ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- [[nodiscard]] const std::string &
- dbl_par_idx2str( const idx_type idx ) const override {
-  return ( idx < dblLastAlgPar ? dbl_pars_str[ idx ] :
-           ThinComputeInterface::dbl_par_idx2str( idx ) );
- }
+ [[nodiscard]] const std::string & dbl_par_idx2str( idx_type idx )
+  const override {
+  return( idx < dblLastAlgPar ? dbl_pars_str[ idx ] :
+	  ThinComputeInterface::dbl_par_idx2str( idx ) );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS FOR ADDING / REMOVING / CHANGING DATA --------------*/
@@ -1835,7 +1831,7 @@ class Solver : public ThinComputeInterface {
   v_mod.push_back( mod );
 
   f_mod_lock.clear( std::memory_order_release );  // release lock
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// temporarily inhibits the Solver to receive Modification
