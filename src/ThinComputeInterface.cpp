@@ -151,10 +151,10 @@ ComputeConfig * ThinComputeInterface::get_ComputeConfig(
     ccfg->vint_pars.emplace_back( vint_par_idx2str( i ) , get_vint_par( i ) );
 
   for( int i = 0 ; i < get_num_vdbl_par() ; ++i )
-   if( ! ( get_vdbl_par( i ) == get_dflt_dbl_par( i ) ) )
+   if( ! ( get_vdbl_par( i ) == get_dflt_vdbl_par( i ) ) )
     ccfg->vdbl_pars.emplace_back( vdbl_par_idx2str( i ) , get_vdbl_par( i ) );
 
-  for( int i = 0 ; i < get_num_str_par() ; ++i )
+  for( int i = 0 ; i < get_num_vstr_par() ; ++i )
    if( ! ( get_vstr_par( i ) == get_dflt_vstr_par( i ) ) )
     ccfg->vstr_pars.emplace_back( vstr_par_idx2str( i ) , get_vstr_par( i ) );
   }
@@ -257,7 +257,7 @@ void ComputeConfig::deserialize( netCDF::NcGroup & group )
 	  );
 
   std::vector< std::vector< int > > tmp;
-  ::deserialize( "v_int_par_vals" , "v_int_par_start" , tmp , false );
+  ::deserialize( group , "v_int_par_vals" , "v_int_par_start" , tmp , false );
 
   vint_pars.resize( num );
   for( size_t i = 0 ; i < num ; ++i ) {
@@ -276,7 +276,7 @@ void ComputeConfig::deserialize( netCDF::NcGroup & group )
 	  );
 
   std::vector< std::vector< double > > tmp;
-  ::deserialize( "v_dbl_par_vals" , "v_dbl_par_start" , tmp , false );
+  ::deserialize( group , "v_dbl_par_vals" , "v_dbl_par_start" , tmp , false );
 
   vdbl_pars.resize( num );
   for( size_t i = 0 ; i < num ; ++i ) {
@@ -295,7 +295,7 @@ void ComputeConfig::deserialize( netCDF::NcGroup & group )
 	  );
 
   std::vector< std::vector< std::string > > tmp;
-  ::deserialize( "v_str_par_vals" , "v_str_par_start" , tmp , false );
+  ::deserialize( group , "v_str_par_vals" , "v_str_par_start" , tmp , false );
 
   vstr_pars.resize( num );
   for( size_t i = 0 ; i < num ; ++i ) {
@@ -360,14 +360,14 @@ void ComputeConfig::serialize( netCDF::NcGroup & group ) const
  if( ! vint_pars.empty() ) {
   auto num = group.addDim( "v_int_par_num" , vint_pars.size() );
   auto nmes = group.addVar( "v_int_par_names" , netCDF::NcString() , num );
-  for( size_t i = 0 ; i < vint_pars.size() ; ++i )
-   nmes.putVar( { i } , vint_pars[ i ].first );
 
-  std::vector< int > strt( vint_pars.size() );
   auto cnt = 0;
-  for( auto & el : vint_pars ) {
+  std::vector< int > strt( vint_pars.size() );
+
+  for( size_t i = 0 ; i < vint_pars.size() ; ++i ) {
+   nmes.putVar( { i } , vint_pars[ i ].first );
    strt[ i ] = cnt;
-   cnt += el.second.size();
+   cnt += vint_pars[ i ].second.size();
    }
 
   auto tot = group.addDim( "v_int_par_tot" , cnt );
@@ -386,14 +386,14 @@ void ComputeConfig::serialize( netCDF::NcGroup & group ) const
  if( ! vdbl_pars.empty() ) {
   auto num = group.addDim( "v_dbl_par_num" , vdbl_pars.size() );
   auto nmes = group.addVar( "v_dbl_par_names" , netCDF::NcString() , num );
-  for( size_t i = 0 ; i < vdbl_pars.size() ; ++i )
-   nmes.putVar( { i } , vdbl_pars[ i ].first );
 
-  std::vector< int > strt( vdbl_pars.size() );
   auto cnt = 0;
-  for( auto & el : vdbl_pars ) {
+  std::vector< int > strt( vdbl_pars.size() );
+
+  for( size_t i = 0 ; i < vdbl_pars.size() ; ++i ) {
+   nmes.putVar( { i } , vdbl_pars[ i ].first );
    strt[ i ] = cnt;
-   cnt += el.second.size();
+   cnt += vdbl_pars[ i ].second.size();
    }
 
   auto tot = group.addDim( "v_dbl_par_tot" , cnt );
@@ -412,14 +412,14 @@ void ComputeConfig::serialize( netCDF::NcGroup & group ) const
  if( ! vstr_pars.empty() ) {
   auto num = group.addDim( "v_str_par_num" , vstr_pars.size() );
   auto nmes = group.addVar( "v_str_par_names" , netCDF::NcString() , num );
-  for( size_t i = 0 ; i < vstr_pars.size() ; ++i )
-   nmes.putVar( { i } , vstr_pars[ i ].first );
 
-  std::vector< int > strt( vstr_pars.size() );
   auto cnt = 0;
-  for( auto & el : vstr_pars ) {
+  std::vector< int > strt( vstr_pars.size() );
+
+  for( size_t i = 0 ; i < vstr_pars.size() ; ++i ) {
+   nmes.putVar( { i } , vstr_pars[ i ].first );
    strt[ i ] = cnt;
-   cnt += el.second.size();
+   cnt += vstr_pars[ i ].second.size();
    }
 
   auto tot = group.addDim( "v_str_par_tot" , cnt );
@@ -435,9 +435,10 @@ void ComputeConfig::serialize( netCDF::NcGroup & group ) const
   }
 
  // "extra" Configuration - - - - - - - - - - - - - - - - - - - - - - - - - -
- if( f_extra_Configuration )
-  f_extra_Configuration->serialize( group.addGroup( "extra" ) );
-
+ if( f_extra_Configuration ) {
+  auto eg = group.addGroup( "extra" );
+  f_extra_Configuration->serialize( eg );
+  }
  }  // end( ComputeConfig::serialize( netCDF::NcGroup ) )
 
 /*--------------------------------------------------------------------------*/
@@ -512,7 +513,7 @@ void ComputeConfig::reset_par( const std::string & name , char type )
    return;
    }
   default:
-   throw( std::invalid_argument( "reset_par: invalid parameter type" ) ):
+   throw( std::invalid_argument( "reset_par: invalid parameter type" ) );
   }
  }  // end( ComputeConfig::reset_par )
 
@@ -554,21 +555,23 @@ void ComputeConfig::load( std::istream & input )
  if( input.eof() || input.fail() )
   return;
 
+ static const std::string sre( "ComputeConfig::load: stream read error" );
+
  input >> eatcomments >> f_diff;
  if( input.fail() )
-  throw( std::invalid_argument( "ComputeConfig::load: stream read error" ) );
+  throw( std::invalid_argument( sre ) );
 
- int k;
+ unsigned int k;
  input >> eatcomments >> k;
  if( input.fail() )
-  throw( std::invalid_argument( "ComputeConfig::load: stream read error" ) );
+  throw( std::invalid_argument( sre ) );
 
  int_pars.resize( k );
- for( int i = 0 ; i < k ; ++i ) {
+ for( unsigned int i = 0 ; i < k ; ++i ) {
   input >> eatcomments >> int_pars[ i ].first
         >> eatcomments >> int_pars[ i ].second;
   if( input.fail() )
-   throw( std::invalid_argument( "ComputeConfig::load: stream read error" ) );
+   throw( std::invalid_argument( sre ) );
   }
 
  if( input.eof() )
@@ -576,14 +579,14 @@ void ComputeConfig::load( std::istream & input )
 
  input >> eatcomments >> k;
  if( input.fail() )
-  throw( std::invalid_argument( "ComputeConfig::load: stream read error" ) );
+  throw( std::invalid_argument( sre ) );
 
  dbl_pars.resize( k );
- for( int i = 0 ; i < k ; ++i ) {
+ for( unsigned int i = 0 ; i < k ; ++i ) {
   input >> eatcomments >> dbl_pars[ i ].first
         >> eatcomments >> dbl_pars[ i ].second;
   if( input.fail() )
-   throw( std::invalid_argument( "ComputeConfig::load: stream read error" ) );
+   throw( std::invalid_argument( sre ) );
   }
 
  if( input.eof() )
@@ -591,14 +594,14 @@ void ComputeConfig::load( std::istream & input )
 
  input >> eatcomments >> k;
  if( input.fail() )
-  throw( std::invalid_argument( "ComputeConfig::load: stream read error" ) );
+  throw( std::invalid_argument( sre ) );
 
  str_pars.resize( k );
- for( int i = 0 ; i < k ; ++i ) {
+ for( unsigned int i = 0 ; i < k ; ++i ) {
   input >> eatcomments >> str_pars[ i ].first
         >> eatcomments >> str_pars[ i ].second;
   if( input.fail() )
-   throw( std::invalid_argument( "ComputeConfig::load: stream read error" ) );
+   throw( std::invalid_argument( sre ) );
   }
 
  if( input.eof() )
@@ -606,20 +609,19 @@ void ComputeConfig::load( std::istream & input )
 
  input >> eatcomments >> k;
  if( input.fail() )
-  throw( std::invalid_argument( "ComputeConfig::load: stream read error" ) );
+  throw( std::invalid_argument( sre ) );
 
  vint_pars.resize( k );
- for( int i = 0 ; i < k ; ++i ) {
-  Index h;
+ for( unsigned int i = 0 ; i < k ; ++i ) {
+  unsigned int h;
   input >> eatcomments >> vint_pars[ i ].first >> eatcomments >> h;
   if( input.fail() )
-   throw( std::invalid_argument( "ComputeConfig::load: stream read error" ) );
+   throw( std::invalid_argument( sre ) );
   vint_pars[ i ].second.resize( h );
-  for( int j = 0 ; j < h ; ++j ) {
+  for( unsigned int j = 0 ; j < h ; ++j ) {
    input >> eatcomments >> vint_pars[ i ].second[ j ];
    if( input.fail() )
-    throw( std::invalid_argument( "ComputeConfig::load: stream read error" )
-	   );
+    throw( std::invalid_argument( sre ) );
    }
   }
 
@@ -628,20 +630,19 @@ void ComputeConfig::load( std::istream & input )
 
  input >> eatcomments >> k;
  if( input.fail() )
-  throw( std::invalid_argument( "ComputeConfig::load: stream read error" ) );
+  throw( std::invalid_argument( sre ) );
 
  vdbl_pars.resize( k );
- for( int i = 0 ; i < k ; ++i ) {
-  Index h;
+ for( unsigned int i = 0 ; i < k ; ++i ) {
+  unsigned int h;
   input >> eatcomments >> vdbl_pars[ i ].first >> eatcomments >> h;
   if( input.fail() )
-   throw( std::invalid_argument( "ComputeConfig::load: stream read error" ) );
+   throw( std::invalid_argument( sre ) );
   vdbl_pars[ i ].second.resize( h );
-  for( int j = 0 ; j < h ; ++j ) {
+  for( unsigned int j = 0 ; j < h ; ++j ) {
    input >> eatcomments >> vdbl_pars[ i ].second[ j ];
    if( input.fail() )
-    throw( std::invalid_argument( "ComputeConfig::load: stream read error" )
-	   );
+    throw( std::invalid_argument( sre ) );
    }
   }
 
@@ -650,20 +651,19 @@ void ComputeConfig::load( std::istream & input )
 
  input >> eatcomments >> k;
  if( input.fail() )
-  throw( std::invalid_argument( "ComputeConfig::load: stream read error" ) );
+  throw( std::invalid_argument( sre ) );
 
  vstr_pars.resize( k );
- for( int i = 0 ; i < k ; ++i ) {
-  Index h;
+ for( unsigned int i = 0 ; i < k ; ++i ) {
+  unsigned int h;
   input >> eatcomments >> vstr_pars[ i ].first >> eatcomments >> h;
   if( input.fail() )
-   throw( std::invalid_argument( "ComputeConfig::load: stream read error" ) );
+   throw( std::invalid_argument( sre ) );
   vstr_pars[ i ].second.resize( h );
-  for( int j = 0 ; j < h ; ++j ) {
+  for( unsigned int j = 0 ; j < h ; ++j ) {
    input >> eatcomments >> vstr_pars[ i ].second[ j ];
    if( input.fail() )
-    throw( std::invalid_argument( "ComputeConfig::load: stream read error" )
-	   );
+    throw( std::invalid_argument( sre ) );
    }
   }
 

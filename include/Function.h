@@ -680,12 +680,13 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
    case( dblUpCutOff ): return( std::numeric_limits< double >::infinity() );
    case( dblLwCutOff ):  return( -std::numeric_limits< double >::infinity() );
    }
+
   return( ThinComputeInterface::get_dflt_dbl_par( par ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
- [[nodiscard]] idx_type int_par_str2idx( std::string & name )
+ [[nodiscard]] idx_type int_par_str2idx( const std::string & name )
   const override {
   if( name == "intMaxIter" )
    return( intMaxIter );
@@ -697,7 +698,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- [[nodiscard]] idx_type dbl_par_str2idx( std::string & name )
+ [[nodiscard]] idx_type dbl_par_str2idx( const std::string & name )
   const override {
   if( name == "dblMaxTime" )
    return( dblMaxTime );
@@ -736,8 +737,8 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
 
   if( ( idx >= dblMaxTime ) && ( idx <= dblLwCutOff ) )
    return( pars[ idx ] );
-  else
-   return( ThinComputeInterface::dbl_par_idx2str( idx ) );
+
+  return( ThinComputeInterface::dbl_par_idx2str( idx ) );
   }
 
 /**@} ----------------------------------------------------------------------*/

@@ -685,9 +685,9 @@ void RBlockSolverConfig::load( std::istream & input )
 
  if( input.eof() ) {
   v_sub_Block_id.clear();
-  for( auto & el ; v_BlockSolverConfig )
+  for( auto & el : v_BlockSolverConfig )
    delete el;
-  v_BlockSolverConfig = nullptr;
+  v_BlockSolverConfig.clear();
   return;
   }
 

@@ -412,7 +412,7 @@ void SimpleConfiguration< std::pair< Configuration * , Configuration * >
   throw( std::invalid_argument( "SimpleConfiguration::load: stream read error"
 				) );
 
- f_value.first = Configuration::deserialize input );
+ f_value.first = Configuration::deserialize( input );
  if( input.fail() )
   throw( std::invalid_argument( "SimpleConfiguration::load: stream read error"
 				) );

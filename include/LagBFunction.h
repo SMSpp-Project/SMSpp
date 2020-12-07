@@ -608,23 +608,31 @@ class LagBFunction : public C05Function , public Block {
   * the Solver, each one of which (again) corresponds to a linearization.
   *
   * Furthermore, LagBFunction also uses the f_extra_Configuration field of the
-  * provided ComputeConfig. That field, if non-nullptr, is assumed to be a
+  * provided ComputeConfig. That field, if non-nullptr, is assumed to be:
+  *
+  * - either (a pointer to) a
   *
   *     SimpleConfiguration< std::pair< Configuration * , Configuration * > >
   *
-  * If this happens, then
+  *   in which case, f_extra_Configuration->f_value.first is assumed to be a
+  *   BlockSolverConfig *, and f_extra_Configuration->f_value.second is
+  *   assumed to be a BlockConfig *
   *
-  *     f_extra_Configuration->f_value.first
+  * - or a BlockConfig *
   *
-  * is assumed to be a :BlockSolverConfig, and
+  * - or a BlockSolverConfig *
   *
-  *     f_extra_Configuration->f_value.second
+  * Note that passing nullptr resets the inner Block, as does passing a
+  * non-nullptr scfg with a nullptr f_extra_Configuration if scfg->f_diff == 
+  * false.  Also, if a pair of Configuration * is passed, any one of those is
+  * nullptr and scfg->f_diff == false, then the corresponding part of the
+  * inner Block (BlockConfig or BlockSolverConfig) is reset.
   *
-  * is assumed to be a :BlockConfig (note that exception will be thrown if
-  * f_extra_Configuration or its two inner Configuration are not of the right
-  * type). These are used to configure the inner Block of the LagBFunction. */
+  * These are used to configure the inner Block of the LagBFunction. Note that
+  * exception will be thrown if any of the non-null pointers turns out not to
+  * be of the right type. */
 
- void set_ComputeConfig( ComputeConfig *scfg = nullptr ) override;
+ void set_ComputeConfig( ComputeConfig * scfg = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
  /// set a given integer (int) numerical parameter (see set_ComputeConfig())

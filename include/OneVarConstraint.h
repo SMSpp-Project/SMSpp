@@ -129,7 +129,7 @@ class OneVarConstraint : public RowConstraint {
   v_iterator * clone( void ) override { return( new v_iterator( ptr_ ) ); }
   void operator++( void ) final { ( ptr_ )++; }
   reference operator*( void ) const final { return( *ptr_ ); }
-  pointer operator-> void( void ) const final { return( ptr_ ); }
+  pointer operator->( void ) const final { return( ptr_ ); }
   bool operator==( const ThinVarDepInterface::v_iterator & rhs ) const final {
    const auto * tmp =
    #ifdef NDEBUG

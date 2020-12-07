@@ -44,18 +44,17 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __SMSTypedefs
-#define __SMSTypedefs
+ #define __SMSTypedefs/* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
-
 // standard C++ libraries (alphabetical order)
+
 #include <algorithm>
 #include <fstream>
 #include <functional>
 #include <future>
-//#include <iostream>
 #include <list>
 #include <map>
 #include <memory>
@@ -82,10 +81,10 @@
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
-
 /// namespace for the Structured Modeling System++ (SMS++)
-namespace SMSpp_di_unipi_it {
 
+namespace SMSpp_di_unipi_it
+{
 /*--------------------------------------------------------------------------*/
 /*---------------------------- GENERAL TYPES -------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -122,11 +121,11 @@ typedef const c_Vec_string::const_iterator c_Vec_string_it;
 /// Inf<T>() = infinity value for T
 
 template< typename T >
-static constexpr T Inf() noexcept {
- return ( std::numeric_limits< T >::has_infinity ?
-          std::numeric_limits< T >::infinity() :
-          std::numeric_limits< T >::max() );
-}
+static constexpr T Inf( void ) noexcept {
+ return( std::numeric_limits< T >::has_infinity ?
+	 std::numeric_limits< T >::infinity() :
+	 std::numeric_limits< T >::max() );
+ }
 
 /*--------------------------------------------------------------------------*/
 /// public enum for types of SMS++ netCDF files
@@ -170,11 +169,11 @@ static constexpr T Inf() noexcept {
  */
 
 enum smspp_netCDF_file_type {
- eProbFile = 0,  ///< a "complete" file of both Block and Configuration
- eBlockFile = 1,  ///< a file of Block
- eConfigFile = 2,  ///< a file of Configuration
+ eProbFile = 0 ,      ///< a "complete" file of both Block and Configuration
+ eBlockFile = 1 ,     ///< a file of Block
+ eConfigFile = 2 ,    ///< a file of Configuration
  eLastFileParam = 3   ///< first value available to define new file types
-};
+ };
 
 /** @} end( group( SMS_TYPES ) ) */
 /*--------------------------------------------------------------------------*/
@@ -196,11 +195,11 @@ typedef const Vec_p_Var c_Vec_p_Var;
 ///< a (1-D) const vector of pointer to Variable
 
 template< size_t K >
-using KD_Vec_p_Var = boost::multi_array< p_Var, K >;
+using KD_Vec_p_Var = boost::multi_array< p_Var , K >;
 ///< Vec_p_Var<K> is a K-D vector of pointer to Variable
 
 template< size_t K >
-using KD_c_Vec_p_Var = const boost::multi_array< p_Var, K >;
+using KD_c_Vec_p_Var = const boost::multi_array< p_Var , K >;
 ///< c_Vec_p_Var<K> is a const K-D vector of pointer to Variable
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -224,11 +223,11 @@ typedef const Vec_List_p_Var c_Vec_List_p_Var;
 ///< a const 1-D array of lists of Variable *
 
 template< size_t K >
-using KD_Vec_List_p_Var = boost::multi_array< List_p_Var, K >;
+using KD_Vec_List_p_Var = boost::multi_array< List_p_Var , K >;
 ///< Vec_List_p_Var<K> is a K-D vector of lists of Variable *
 
 template< size_t K >
-using KD_c_Vec_List_p_Var = const boost::multi_array< List_p_Var, K >;
+using KD_c_Vec_List_p_Var = const boost::multi_array< List_p_Var , K >;
 ///< c_Vec_List_p_Var<K> is a const K-D vector of lists of Variable *
 
 
@@ -1894,8 +1893,8 @@ bool deserialize_dim( const netCDF::NcGroup & group ,
   if( optional )
    return( false );
   throw( std::invalid_argument( "deserialize_dim(): " + dim_name +
-				" is not present in group '" +
-				group.getName() ) );
+				" not present in group '" + group.getName()
+				) );
   }
 
  data = ncDim.getSize();
@@ -1914,7 +1913,8 @@ bool deserialize_dim( const netCDF::NcGroup & group ,
  *
  * @return A vector with the sizes of the dimensions of the variable var. */
 
-std::vector< std::size_t > get_sizes_dimensions( const netCDF::NcVar & var )
+inline std::vector< std::size_t > get_sizes_dimensions(
+						 const netCDF::NcVar & var )
 {
  std::vector< std::size_t > sizes_dimensions( var.getDimCount() );
  std::vector< std::size_t >::size_type i = 0;
@@ -2132,12 +2132,11 @@ bool deserialize( const netCDF::NcGroup & group ,
    }
 
   throw( std::invalid_argument( "deserialize(): " + var_name +
-                               " is not present in group '" +
-                               group.getName() + "'." );
- }
+				" not present in group '" + group.getName()
+				) );
+  }
 
  auto sizes_dimensions = get_sizes_dimensions( ncVar );
-
  if( sizes_dimensions.empty() ) {
   data.resize( 0 );
   return( false );
@@ -2182,7 +2181,7 @@ bool deserialize( const netCDF::NcGroup & group ,
  *
  * @param[in] var_name The name of the one-dimensional netCDF::NcVar of type
  *            T within the given \p group in which the values to be stored
- *            in 1p array will be found;
+ *            in a 1D array will be found;
  *
  * @param[in] start_name The name of the  one-dimensional netCDF::NcVar of
  *            type netCDF::NcInt() within the given \p group which tells
@@ -2227,7 +2226,7 @@ bool deserialize( const netCDF::NcGroup & group ,
   throw( std::invalid_argument( "deserialize(): " + var_name +
 				" has wrong number of dimensions" ) );
 
- auto ncVar_S = group.getVar( start_name ) );
+ auto ncVar_S = group.getVar( start_name );
  if( ncVar_S.isNull() )
   throw( std::invalid_argument( "deserialize(): " + start_name +
 				" is not present in group " +
@@ -2237,30 +2236,30 @@ bool deserialize( const netCDF::NcGroup & group ,
   throw( std::invalid_argument( "deserialize(): " + start_name +
 				" has wrong number of dimensions" ) );
 
- auto nrows = ncVar_S.getDim( 0 );
+ auto nrows = ncVar_S.getDim( 0 ).getSize();
  std::vector< int > strt( nrows + 1 );
  ncVar_S.getVar( strt.data() );
 
- strt[ nrows ] = ncVar.getDim( 0 );
+ strt[ nrows ] = ncVar.getDim( 0 ).getSize();
 
- for( int i = 0 ; i < nrows ; ++i ) {
+ for( decltype( nrows ) i = 0 ; i < nrows ; ++i ) {
   strt[ i ] = strt[ i + 1 ] - strt[ i ];
   if( strt[ i ] < 0 )
    throw( std::invalid_argument( "deserialize(): wrong indices in " +
 				 start_name ) );
   }
 
- std::vector< T > tmp( ncVar.getDim( 0 ) );
+ std::vector< T > tmp( ncVar.getDim( 0 ).getSize() );
  ncVar.getVar( tmp.data() );
 
  array.resize( nrows );
 
  auto tit = tmp.begin();
- for( int i = 0 ; i < nrows ; ++i ) {
+ for( decltype( nrows ) i = 0 ; i < nrows ; ++i ) {
   array[ i ].resize( strt[ i ] );
-  auto aiit = array[ i ].start()
+  auto aiit = array[ i ].begin();
   for( const auto tend = tit + strt[ i ] ; tit != tend ; )
-   *(tit++) = std::move( *(ait++) );
+   *(tit++) = std::move( *(aiit++) );
   }
 
  return( true );
@@ -2302,8 +2301,8 @@ bool deserialize( const netCDF::NcGroup & group ,
  if( ncVar.isNull() ) {
   if( ! optional )
    throw( std::invalid_argument( "deserialize(): " + var_name +
-                                " is not present in group "
-				 + group.getName() ) );
+                                " not present in group " + group.getName()
+				 ) );
   return( false );
   }
 
@@ -2356,7 +2355,7 @@ bool deserialize( const netCDF::NcGroup & group ,
 template< class T , std::size_t N >
 bool deserialize( const netCDF::NcGroup & group ,
 		  const std::string & var_name ,
-		  boost::multi_array< T, N > & array,
+		  boost::multi_array< T , N > & array,
 		  bool optional = true , bool allow_scalar_var = false )
 {
  using index = typename boost::multi_array< T, N >::index;
@@ -2364,14 +2363,14 @@ bool deserialize( const netCDF::NcGroup & group ,
  auto ncVar = group.getVar( var_name );
  if( ncVar.isNull() ) {
   if( optional ) {
-   std::vector< index > new_sizes( Nc, 0 );
+   std::vector< index > new_sizes( N , 0 );
    array.resize( new_sizes );
    return( false );
    }
 
   throw( std::invalid_argument( "deserialize(): " + var_name +
-				" is not present in group " +
-				group.getName() ) );
+				" not present in group " + group.getName()
+				) );
   }
 
  if( ncVar.getDimCount() == 0 ) {
@@ -2745,12 +2744,12 @@ void serialize( netCDF::NcGroup & group, const std::string & var_name,
  * @param stream   The output stream for putting out the unexpected variables
  */
 
-void check_variables( const netCDF::NcGroup & group ,
-		      const std::vector< std::string > & expected ,
-		      std::ostream & stream )
+inline void check_variables( const netCDF::NcGroup & group ,
+			     const std::vector< std::string > & expected ,
+			     std::ostream & stream )
 {
  auto vars = group.getVars();
- for( const auto & ec: expected ) {
+ for( const auto & e : expected ) {
   auto search = vars.find( e );
   if( search != vars.end() )
    vars.erase( search );
@@ -2758,7 +2757,7 @@ void check_variables( const netCDF::NcGroup & group ,
 
  if( ! vars.empty() ) {
   stream << "Unexpected netCDF Vars found in group: ";
-  for( const auto & v: vars )
+  for( const auto & v : vars )
    stream << v.first << "; ";
   stream << std::endl;
   }
@@ -2773,9 +2772,9 @@ void check_variables( const netCDF::NcGroup & group ,
  * @param stream   The output stream for putting out the unexpected dimensions
  */
 
-void check_dimensions( const netCDF::NcGroup & group ,
-		       const std::vector< std::string > & expected ,
-		       std::ostream & stream )
+inline void check_dimensions( const netCDF::NcGroup & group ,
+			      const std::vector< std::string > & expected ,
+			      std::ostream & stream )
 {
  auto dims = group.getDims();
  for( const auto & e : expected ) {

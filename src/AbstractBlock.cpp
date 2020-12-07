@@ -68,12 +68,12 @@ AbstractBlock::~AbstractBlock()
                            un_any_type< BoxConstraint >() ) )
    continue;
   if( un_any_const_static( sc[ i ],
-                           []( L0Constraint & cnst ) { cnst.clear(); },
-                           un_any_type< L0Constraint >() ) )
+                           []( LB0Constraint & cnst ) { cnst.clear(); },
+                           un_any_type< LB0Constraint >() ) )
    continue;
   if( un_any_const_static( sc[ i ],
-                           []( U0Constraint & cnst ) { cnst.clear(); },
-                           un_any_type< U0Constraint >() ) )
+                           []( UB0Constraint & cnst ) { cnst.clear(); },
+                           un_any_type< UB0Constraint >() ) )
    continue;
   if( un_any_const_static( sc[ i ],
                            []( LBConstraint & cnst ) { cnst.clear(); },
@@ -106,12 +106,12 @@ AbstractBlock::~AbstractBlock()
                             un_any_type< BoxConstraint >() ) )
    continue;
   if( un_any_const_dynamic( dc[ i ] ,
-                            []( L0Constraint & cnst ) { cnst.clear(); } ,
-                            un_any_type< LBConstraint >() ) )
+                            []( LB0Constraint & cnst ) { cnst.clear(); } ,
+                            un_any_type< LB0Constraint >() ) )
    continue;
   if( un_any_const_dynamic( dc[ i ] ,
-                            []( U0Constraint & cnst ) { cnst.clear(); } ,
-                            un_any_type< UBConstraint >() ) )
+                            []( UB0Constraint & cnst ) { cnst.clear(); } ,
+                            un_any_type< UB0Constraint >() ) )
    continue;
   if( un_any_const_dynamic( dc[ i ] ,
                             []( LBConstraint & cnst ) { cnst.clear(); } ,
@@ -150,9 +150,9 @@ AbstractBlock::~AbstractBlock()
    continue;
   if( un_any_thing( BoxConstraint , sc[ i ] , { delete &var; } ) )
    continue;
-  if( un_any_thing( L0Constraint , sc[ i ] , { delete &var; } ) )
+  if( un_any_thing( LB0Constraint , sc[ i ] , { delete &var; } ) )
    continue;
-  if( un_any_thing( U0Constraint , sc[ i ] , { delete &var; } ) )
+  if( un_any_thing( UB0Constraint , sc[ i ] , { delete &var; } ) )
    continue;
   if( un_any_thing( LBConstraint , sc[ i ] , { delete &var; } ) )
    continue;
@@ -172,10 +172,10 @@ AbstractBlock::~AbstractBlock()
   if( un_any_thing( std::list< BoxConstraint > , dc[ i ] ,
 		    { delete &var; } ) )
    continue;
-  if( un_any_thing( std::list< L0Constraint > , dc[ i ] ,
+  if( un_any_thing( std::list< LB0Constraint > , dc[ i ] ,
 		    { delete &var; } ) )
    continue;
-  if( un_any_thing( std::list< U0Constraint > , dc[ i ] ,
+  if( un_any_thing( std::list< UB0Constraint > , dc[ i ] ,
 		    { delete &var; } ) )
    continue;
   if( un_any_thing( std::list< LBConstraint > , dc[ i ] ,
@@ -250,19 +250,19 @@ bool AbstractBlock::is_feasible( bool useabstract, Configuration * fsbc )
    continue;
    }
   if( un_any_const_static( sc[ i ] ,
-			   [ & feas , eps ]( L0Constraint & cnst ) {
+			   [ & feas , eps ]( LB0Constraint & cnst ) {
                             feas = ( cnst.rel_viol() <= eps );
                             } ,
-                           un_any_type< L0Constraint >() ) ) {
+                           un_any_type< LB0Constraint >() ) ) {
    if( ! feas )
     return( false );
    continue;
    }
   if( un_any_const_static( sc[ i ] ,
-			   [ & feas , eps ]( U0Constraint & cnst ) {
+			   [ & feas , eps ]( UB0Constraint & cnst ) {
                             feas = ( cnst.rel_viol() <= eps );
                             } ,
-                           un_any_type< U0Constraint >() ) ) {
+                           un_any_type< UB0Constraint >() ) ) {
    if( ! feas )
     return( false );
    continue;
@@ -352,19 +352,19 @@ bool AbstractBlock::is_feasible( bool useabstract, Configuration * fsbc )
    continue;
    }
   if( un_any_const_dynamic( dc[ i ] ,
-			    [ & feas , eps ]( L0Constraint & cnst ) {
+			    [ & feas , eps ]( LB0Constraint & cnst ) {
                              feas = ( cnst.rel_viol() <= eps );
                              } ,
-                            un_any_type< L0Constraint >() ) ) {
+                            un_any_type< LB0Constraint >() ) ) {
    if( ! feas )
     return( false );
    continue;
    }
   if( un_any_const_dynamic( dc[ i ] ,
-			    [ & feas , eps ]( U9Constraint & cnst ) {
+			    [ & feas , eps ]( UB0Constraint & cnst ) {
                              feas = ( cnst.rel_viol() <= eps );
                              } ,
-                            un_any_type< U0Constraint >() ) ) {
+                            un_any_type< UB0Constraint >() ) ) {
    if( ! feas )
     return( false );
    continue;
@@ -535,15 +535,15 @@ void AbstractBlock::is_correct( void )
    continue;
 
   if( un_any_const_static( sc[ i ] ,
-                           [ this ]( L0Constraint & cnst ) {
+                           [ this ]( LB0Constraint & cnst ) {
                             check_Constraint( &cnst );
-                            } , un_any_type< LBConstraint >() ) )
+                            } , un_any_type< LB0Constraint >() ) )
    continue;
 
   if( un_any_const_static( sc[ i ] ,
-                           [ this ]( U0Constraint & cnst ) {
+                           [ this ]( UB0Constraint & cnst ) {
                             check_Constraint( &cnst );
-                            } , un_any_type< UBConstraint >() ) )
+                            } , un_any_type< UB0Constraint >() ) )
    continue;
 
   if( un_any_const_static( sc[ i ] ,
@@ -596,15 +596,15 @@ void AbstractBlock::is_correct( void )
    continue;
 
   if( un_any_const_dynamic( dc[ i ] ,
-                            [ this ]( L0Constraint & cnst ) {
+                            [ this ]( LB0Constraint & cnst ) {
                              check_Constraint( &cnst );
-                             } , un_any_type< L0Constraint >() ) )
+                             } , un_any_type< LB0Constraint >() ) )
    continue;
 
   if( un_any_const_dynamic( dc[ i ] ,
-                            [ this ]( U0Constraint & cnst ) {
+                            [ this ]( UB0Constraint & cnst ) {
                              check_Constraint( &cnst );
-                             } , un_any_type< U0Constraint >() ) )
+                             } , un_any_type< UB0Constraint >() ) )
    continue;
 
   if( un_any_const_dynamic( dc[ i ] ,
@@ -757,13 +757,13 @@ void AbstractBlock::print( std::ostream & output ) const
                              output << cnst << std::endl;
                              } , un_any_type< BoxConstraint >() ) )
     continue;
-   if( un_any_const_static( sc[ i ] , [ & output ]( L0Constraint & cnst ) {
+   if( un_any_const_static( sc[ i ] , [ & output ]( LB0Constraint & cnst ) {
                              output << cnst << std::endl;
-                             } , un_any_type< L0Constraint >() ) )
+                             } , un_any_type< LB0Constraint >() ) )
     continue;
-   if( un_any_const_static( sc[ i ] , [ & output ]( U0Constraint & cnst ) {
+   if( un_any_const_static( sc[ i ] , [ & output ]( UB0Constraint & cnst ) {
                              output << cnst << std::endl;
-                             } , un_any_type< U9Constraint >() ) )
+                             } , un_any_type< UB0Constraint >() ) )
     continue;
    if( un_any_const_static( sc[ i ] , [ & output ]( LBConstraint & cnst ) {
                              output << cnst << std::endl;
@@ -829,14 +829,14 @@ void AbstractBlock::print( std::ostream & output ) const
                               } , un_any_type< BoxConstraint >() ) )
     continue;
    if( un_any_const_dynamic( dc[ i ] ,
-                             [ & output ]( L0Constraint & cnst ) {
+                             [ & output ]( LB0Constraint & cnst ) {
                               output << cnst << std::endl;
-                              } , un_any_type< L0Constraint >() ) )
+                              } , un_any_type< LB0Constraint >() ) )
     continue;
    if( un_any_const_dynamic( dc[ i ] ,
-                             [ & output ]( U0Constraint & cnst ) {
+                             [ & output ]( UB0Constraint & cnst ) {
                               output << cnst << std::endl;
-                              } , un_any_type< U0Constraint >() ) )
+                              } , un_any_type< UB0Constraint >() ) )
     continue;
    if( un_any_const_dynamic( dc[ i ] ,
                              [ & output ]( LBConstraint & cnst ) {

@@ -81,60 +81,60 @@ class C15Function : public C05Function {
  ///< type used to store a sparse Hessian matrix
 
 /*--------------------------------------------------------------------------*/
- /// public enum "extending" int_par_type_C0F to the case of C15Function
+ /// public enum "extending" int_par_type_C05F to the case of C15Function
 
- enum int_par_type_C1F {
-  intLastParC15 = intLastParC05
+ enum int_par_type_C15F {
+  intLastParC15F = intLastParC05F
   ///< first allowed parameter value for derived classes
   /**< Convenience value for easily allow derived classes to extend the set
    * of int parameters. */
   };
 
 /*--------------------------------------------------------------------------*/
- /// public enum "extending" dbl_par_type_C0F to the case of C15Function
+ /// public enum "extending" dbl_par_type_C05F to the case of C15Function
 
- enum dbl_par_type_C1F {
-  dblLastParC15 = dblLastParC05
+ enum dbl_par_type_C15F {
+  dblLastParC15F = dblLastParC05F
   ///< first allowed parameter value for derived classes
   /**< Convenience value for easily allow derived classes to extend the set
    * of double parameters. */
   };
 
 /*--------------------------------------------------------------------------*/
- /// public enum "extending" str_par_type_C0F to the case of C15Function
+ /// public enum "extending" str_par_type_C05F to the case of C15Function
 
- enum str_par_type_C1F {
-  strLastParC15 = strLastParC05
+ enum str_par_type_C15F {
+  strLastParC15F = strLastParC05F
   ///< first allowed parameter value for derived classes
   /**< Convenience value for easily allow derived classes to extend the set
    * of string parameters. */
   };
 
 /*--------------------------------------------------------------------------*/
- /// public enum "extending" vint_par_type_C0F to the of C15Function
+ /// public enum "extending" vint_par_type_C05F to the of C15Function
 
- enum vint_par_type_C1F {
-  vintLastParC1F = vintLastParC0F
+ enum vint_par_type_C15F {
+  vintLastParC15F = vintLastParC05F
   ///< first allowed parameter value for derived classes
   /**< Convenience value for easily allow derived classes to extend the set
    * of vector-of-int parameters. */
   };
 
 /*--------------------------------------------------------------------------*/
- /// public enum "extending" vdbl_par_type_C0F to the case of C15Function
+ /// public enum "extending" vdbl_par_type_C05F to the case of C15Function
 
- enum vdbl_par_type_C1F {
-  vdblLastParC1F = vdblLastParC0F
+ enum vdbl_par_type_C15F {
+  vdblLastParC15F = vdblLastParC05F
   ///< first allowed parameter value for derived classes
   /**< Convenience value for easily allow derived classes to extend the set
    * of vector-of-double parameters. */
   };
 
 /*--------------------------------------------------------------------------*/
- /// public enum "extending" vstr_par_type_C0F to the case of C15Function
+ /// public enum "extending" vstr_par_type_C05F to the case of C15Function
 
- enum vstr_par_type_C1F {
-  vstrLastParC1F = vstrLastParC0F
+ enum vstr_par_type_C15F {
+  vstrLastParC15F = vstrLastParC05F
   ///< first allowed parameter value for derived classes
   /**< Convenience value for easily allow derived classes to extend the set
    * of vector-of-string parameters. */
@@ -150,7 +150,7 @@ class C15Function : public C05Function {
  /** Constructor of C15Function. Takes as input an optional pointer to an
   * Observer and passes it to the constructor of C05Function. */
 
- explicit C15Function( Observer * const observer = nullptr )
+ explicit C15Function( Observer * observer = nullptr )
   : C05Function( observer ) {}
 
 /*--------------------------------------------------------------------------*/

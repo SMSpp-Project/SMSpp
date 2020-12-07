@@ -24,8 +24,8 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __ThinComputeInterface
-#define __ThinComputeInterface
-/* self-identification: #endif at the end of the file */
+ #define __ThinComputeInterface
+                      /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -36,10 +36,11 @@
 /*--------------------------------------------------------------------------*/
 /*----------------------------- NAMESPACE ----------------------------------*/
 /*--------------------------------------------------------------------------*/
-
 /// namespace for the Structured Modeling System++ (SMS++)
-namespace SMSpp_di_unipi_it {
-class ComputeConfig;  // forward definition of ComputeConfig
+
+namespace SMSpp_di_unipi_it
+{
+ class ComputeConfig;  // forward definition of ComputeConfig
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
@@ -844,7 +845,7 @@ class ThinComputeInterface {
   * unaware of each other. The method of the base class has an implementation
   * always returning 0 for those derived classes that cannot be bothered to
   * count the calls to compute(). */
- 
+
  virtual long get_elapsed_calls( void ) const { return( 0 ); }
 
 /**@} ----------------------------------------------------------------------*/
@@ -1629,7 +1630,7 @@ class ComputeConfig : public Configuration {
   * the parameter is not in the corresponding list it is added  (in which
   * case \p name is moved into the ComputeConfig), otherwise its current
   * value is changed to \p value; in either case, \p value is moved
-  * into the ComputeConfig). */
+  * into the ComputeConfig. */
 
  void set_par( std::string && name , std::vector< int > && value ) {
   auto it = std::find_if( vint_pars.begin() , vint_pars.end() ,
@@ -1637,10 +1638,10 @@ class ComputeConfig : public Configuration {
                            return( name == el.first );
                            } );
 
-  if( it == int_pars.end() )
-   vint_pars.emplace_back( std::move( name ) , value );
+  if( it == vint_pars.end() )
+   vint_pars.emplace_back( std::move( name ) , std::move( value ) );
   else
-   it->second = value;
+   it->second = std::move( value );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -1650,20 +1651,19 @@ class ComputeConfig : public Configuration {
   * corresponding list or \p pos is not a valid position, exception is
   * thrown. */
 
- void set_par( const std::string & name , Index pos , int value ) {
+ void set_par( const std::string & name , unsigned int pos , int value ) {
   auto it = std::find_if( vint_pars.begin() , vint_pars.end() ,
                           [ & name ]( auto & el ) {
                            return( name == el.first );
                            } );
 
   if( it == vint_pars.end() )
-   throw( std::invalid_argument( std::string( "parameter " ) + name +
-				 std::string( " not in ComputeConfig" ) ) );
+   throw( std::invalid_argument( "parameter " + name +
+				 " not in ComputeConfig" ) );
 
-  if( pos >= Index( it->second.size() ) )
-   throw( std::invalid_argument( std::string( "invalid position " ) +
-				 std::to_string( pos ) +
-				 std::string( " in parameter" ) ) );
+  if( pos >= decltype( pos )( it->second.size() ) )
+   throw( std::invalid_argument( "invalid position " + std::to_string( pos ) +
+				 " in vint parameter" ) );
   it->second[ pos ] = value;
   }
 
@@ -1673,7 +1673,7 @@ class ComputeConfig : public Configuration {
   * the parameter is not in the corresponding list it is added  (in which
   * case \p name is moved into the ComputeConfig), otherwise its current
   * value is changed to \p value; in either case, \p value is moved
-  * into the ComputeConfig). */
+  * into the ComputeConfig. */
 
  void set_par( std::string && name , std::vector< double > && value ) {
   auto it = std::find_if( vdbl_pars.begin() , vdbl_pars.end() ,
@@ -1682,9 +1682,9 @@ class ComputeConfig : public Configuration {
                            } );
 
   if( it == vdbl_pars.end() )
-   vint_pars.emplace_back( std::move( name ) , value );
+   vdbl_pars.emplace_back( std::move( name ) , std::move( value ) );
   else
-   it->second = value;
+   it->second = std::move( value );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -1694,30 +1694,29 @@ class ComputeConfig : public Configuration {
   * corresponding list or \p pos is not a valid position, exception is
   * thrown. */
 
- void set_par( const std::string & name , Index pos , double value ) {
+ void set_par( const std::string & name , unsigned int pos , double value ) {
   auto it = std::find_if( vdbl_pars.begin() , vdbl_pars.end() ,
                           [ & name ]( auto & el ) {
                            return( name == el.first );
                            } );
 
   if( it == vdbl_pars.end() )
-   throw( std::invalid_argument( std::string( "parameter " ) + name +
-				 std::string( " not in ComputeConfig" ) ) );
+   throw( std::invalid_argument( "parameter " + name +
+				 " not in ComputeConfig" ) );
 
-  if( pos >= Index( it->second.size() ) )
-   throw( std::invalid_argument( std::string( "invalid position " ) +
-				 std::to_string( pos ) +
-				 std::string( " in parameter" ) ) );
+  if( pos >= decltype( pos )( it->second.size() ) )
+   throw( std::invalid_argument( "invalid position " + std::to_string( pos ) +
+				  " in vdbl parameter" ) );
   it->second[ pos ] = value;
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// set the given vector-of-string numerical parameter
- /** Set the vector-of-string numerical parameter specified by \p name. If
-  * the parameter is not in the corresponding list it is added  (in which
-  * case \p name is moved into the ComputeConfig), otherwise its current
-  * value is changed to \p value; in either case, \p value is moved
-  * into the ComputeConfig). */
+ /// set the given vector-of-string parameter
+ /** Set the vector-of-string parameter specified by \p name. If the
+  * parameter is not in the corresponding list it is added  (in which case
+  * \p name is moved into the ComputeConfig), otherwise its current value is
+  * changed to \p value; in either case, \p value is moved into the
+  * ComputeConfig. */
 
  void set_par( std::string && name , std::vector< std::string > && value ) {
   auto it = std::find_if( vstr_pars.begin() , vstr_pars.end() ,
@@ -1726,19 +1725,20 @@ class ComputeConfig : public Configuration {
                            } );
 
   if( it == vstr_pars.end() )
-   vstr_pars.emplace_back( std::move( name ) , value );
+   vstr_pars.emplace_back( std::move( name ) , std::move( value ) );
   else
-   it->second = value;
+   it->second = std::move( value );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// set one entry of the given vector-of-integer numerical parameter
- /** Set the entry specified by \pos of the vector-of-integer numerical
-  * parameter specified by \p name. If the parameter is not in the
-  * corresponding list or \p pos is not a valid position, exception is
-  * thrown; otherwise \p value is moved into the ComputeConfig. */
+ /// set one entry of the given vector-of-string parameter
+ /** Set the entry specified by \pos of the vector-of-string parameter
+  * specified by \p name. If the parameter is not in the corresponding list
+  * or \p pos is not a valid position, exception is thrown; otherwise
+  * \p value is moved into the ComputeConfig. */
 
- void set_par( const std::string & name , Index pos , std::string && value )
+ void set_par( const std::string & name , unsigned int pos ,
+	       std::string && value )
  {
   auto it = std::find_if( vstr_pars.begin() , vstr_pars.end() ,
                           [ & name ]( auto & el ) {
@@ -1746,13 +1746,12 @@ class ComputeConfig : public Configuration {
                            } );
 
   if( it == vstr_pars.end() )
-   throw( std::invalid_argument( std::string( "parameter " ) + name +
-				 std::string( " not in ComputeConfig" ) ) );
+   throw( std::invalid_argument( "parameter " + name +
+				 " not in ComputeConfig" ) );
 
-  if( pos >= Index( it->second.size() ) )
-   throw( std::invalid_argument( std::string( "invalid position " ) +
-				 std::to_string( pos ) +
-				 std::string( " in parameter" ) ) );
+  if( pos >= decltype( pos )( it->second.size() ) )
+   throw( std::invalid_argument( "invalid position " + std::to_string( pos ) +
+				 " in vstr parameter" ) );
 
   it->second[ pos ] = std::move( value );
   }

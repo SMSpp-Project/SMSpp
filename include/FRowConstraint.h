@@ -223,7 +223,7 @@ class FRowConstraint : public RowConstraint, public Observer {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- void set_par( idx_type par , std::string & value ) override {
+ void set_par( idx_type par , const std::string & value ) override {
   if( f_function )
    f_function->set_par( par , value );
   }
@@ -237,7 +237,7 @@ class FRowConstraint : public RowConstraint, public Observer {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- void set_par( idx_type par , const std::vector< int > & ) override {
+ void set_par( idx_type par , const std::vector< int > & value ) override {
   if( f_function )
    f_function->set_par( par , value );
   }
@@ -251,7 +251,7 @@ class FRowConstraint : public RowConstraint, public Observer {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- void set_par( idx_type par , const std::vector< double > & ) override {
+ void set_par( idx_type par , const std::vector< double > & value ) override {
   if( f_function )
    f_function->set_par( par , value );
   }
@@ -265,12 +265,12 @@ class FRowConstraint : public RowConstraint, public Observer {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- void set_par( idx_type par , const std::vector< std::string > & ) override {
+ void set_par( idx_type par , const std::vector< std::string > & value )
+  override {
   if( f_function )
    f_function->set_par( par , value );
   }
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /*--------------------------------------------------------------------------*/
 
  void set_ComputeConfig( ComputeConfig * scfg = nullptr ) override {
@@ -535,26 +535,26 @@ class FRowConstraint : public RowConstraint, public Observer {
 
  [[nodiscard]] const std::vector< double > & get_vdbl_par( idx_type par )
   const override {
-  return( f_function->get_dbl_par( par ) );
+  return( f_function->get_vdbl_par( par ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  [[nodiscard]] const std::vector< std::string > & get_vstr_par( idx_type par )
   const override {
-  return( f_function->get_str_par( par ) );
+  return( f_function->get_vstr_par( par ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
- [[nodiscard]] idx_type int_par_str2idx( std::string & name )
+ [[nodiscard]] idx_type int_par_str2idx( const std::string & name )
   const override {
   return( f_function->int_par_str2idx( name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- [[nodiscard]] idx_type dbl_par_str2idx( std::string & name )
+ [[nodiscard]] idx_type dbl_par_str2idx( const std::string & name )
   const override {
   return( f_function->dbl_par_str2idx( name ) );
   }
@@ -568,14 +568,14 @@ class FRowConstraint : public RowConstraint, public Observer {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- [[nodiscard]] idx_type vint_par_str2idx( std::string & name )
+ [[nodiscard]] idx_type vint_par_str2idx( const std::string & name )
   const override {
   return( f_function->vint_par_str2idx( name ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- [[nodiscard]] idx_type vdbl_par_str2idx( std::string & name )
+ [[nodiscard]] idx_type vdbl_par_str2idx( const std::string & name )
   const override {
   return( f_function->vdbl_par_str2idx( name ) );
   }

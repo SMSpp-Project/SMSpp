@@ -922,12 +922,12 @@ class Block : public Observer {
   try {
    if( ( filename.size() > 4 ) &&
        ( ! filename.compare( filename.size() - 4 , 4 , ".txt" ) ) ) {
-    ifstream f( filename , std::fstream::in );
+    std::ifstream f( filename , std::fstream::in );
     if( ! f.is_open() ) {
-     cerr << "Error: cannot open text file " << filename << endl;
+     std::cerr << "Error: cannot open text file " << filename << std::endl;
      return( nullptr );
      }
-    return( Block::new_Block( f , father ) );
+    return( Block::deserialize( f , father ) );
     }
    else {
     netCDF::NcFile f( filename.c_str() , netCDF::NcFile::read );
@@ -1082,7 +1082,7 @@ class Block : public Observer {
     unsigned int idx = 0;
     auto gpos = group.getAtt( "position" );
     if( ! gfile.isNull() )
-     gpos.getValues( idx );
+     gpos.getValues( & idx );
 
     return( deserialize( tmp , idx , father ) );
     }
@@ -1302,7 +1302,7 @@ class Block : public Observer {
    if( input.fail() )
     throw( std::invalid_argument( "Block::deserialize: stream read error" ) );
 
-   ind idx = 0;
+   int idx = 0;
    if( tmp.back() == ']' ) {
     auto pos = tmp.find_last_of( '[' );
     if( pos != std::string::npos ) {
@@ -1321,7 +1321,7 @@ class Block : public Observer {
    if( input.fail() )
     throw( std::invalid_argument( "Block::deserialize: stream read error" ) );
 
-   auto block = Block::new_Block( name , father );
+   auto block = Block::new_Block( tmp , father );
    input >> *block;
    if( input.fail() ) {
     delete block;
@@ -7577,7 +7577,7 @@ class BlockModAdd : public BlockModAD
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- bool is_added( void ) const override final { retur ( true ); }
+ bool is_added( void ) const override final { return( true ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -8330,7 +8330,7 @@ class BlockConfig : public Configuration {
 
  /// tells if the configuration is a "differential" one (reads #f_diff)
 
- bool is_diff( vois ) const { return( f_diff ); }
+ bool is_diff( void ) const { return( f_diff ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns true if the BlockConfig is "empty"

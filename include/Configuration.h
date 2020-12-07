@@ -24,8 +24,8 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __Configuration
-#define __Configuration
-/* self-identification: #endif at the end of the file */
+ #define __Configuration
+                      /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -36,10 +36,10 @@
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
-
 ///< namespace for the Structured Modeling System++ (SMS++)
-namespace SMSpp_di_unipi_it {
 
+namespace SMSpp_di_unipi_it
+{
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -56,8 +56,8 @@ namespace SMSpp_di_unipi_it {
  * objects intended to provide possibly complex configuration options for
  * the various elements of SMS++ (basically, Block and Solver). */
 
-class Configuration {
-
+class Configuration
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -195,12 +195,12 @@ class Configuration {
   try {
    if( ( filename.size() > 4 ) &&
        ( ! filename.compare( filename.size() - 4 , 4 , ".txt" ) ) ) {
-    ifstream f( filename , std::fstream::in );
+    std::ifstream f( filename , std::fstream::in );
     if( ! f.is_open() ) {
-     cerr << "Error: cannot open text file " << filename << endl;
+     std::cerr << "Error: cannot open text file " << filename << std::endl;
      return( nullptr );
      }
-    return( Configuration::new_Configuration( f ) );
+    return( Configuration::deserialize( f ) );
     }
    else {
     netCDF::NcFile f( filename.c_str() , netCDF::NcFile::read );
@@ -353,14 +353,14 @@ class Configuration {
     if( gfile.isNull() )
      return( nullptr );
 
-    gfile.getValues( tmp , idx );
+    gfile.getValues( tmp );
 
     int idx = 0;
     auto gpos = group.getAtt( "position" );
     if( ! gfile.isNull() )
-     gpos.getValues( idx );
+     gpos.getValues( & idx );
 
-    return( deserialize( tmp ) );
+    return( deserialize( tmp , idx ) );
     }
 
    gtype.getValues( tmp );
@@ -476,7 +476,7 @@ class Configuration {
     throw( std::invalid_argument(
 		       "Configuration::deserialize: stream read error" ) );
 
-   ind idx = 0;
+   int idx = 0;
    if( tmp.back() == ']' ) {
     auto pos = tmp.find_last_of( '[' );
     if( pos != std::string::npos ) {
@@ -1040,7 +1040,6 @@ void SimpleConfiguration< std::pair< double , int >
 template<>
 void SimpleConfiguration< std::pair< double , int >
                           >::deserialize( netCDF::NcGroup & group );
-!!*
 
 template<>
 void SimpleConfiguration< std::vector< int >

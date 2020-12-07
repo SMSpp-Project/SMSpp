@@ -652,7 +652,7 @@ class BlockSolverConfig : public Configuration {
  /** Returns the current number of pairs < Solver name , ComputeConfig > in
   * this BlockSolverConfig */
 
- [[nodiscard]] Index num_ComputeConfig( vois ) const {
+ [[nodiscard]] Index num_ComputeConfig( void ) const {
   return( v_SolverConfigs.size() );
   }
 
@@ -661,7 +661,7 @@ class BlockSolverConfig : public Configuration {
  /** This function returns a const reference to the vector containing the
   * Solver names in this BlockSolverConfig. */
 
- [[nodiscard]] const std::vector< std::string > & get_SolverNames( void)
+ [[nodiscard]] const std::vector< std::string > & get_SolverNames( void )
   const { return( v_SolverNames ); }
 
 /*--------------------------------------------------------------------------*/

@@ -357,10 +357,10 @@ void CHandler::deserialize( netCDF::NcGroup & group )
   v_Config_Constraint[ i ] = dynamic_cast< ComputeConfig * >(
    Configuration::new_Configuration( config_group ) );
 
-  var_Constraint_group_id.getVar( { i } , &v_Constraint_id[ i ].first );
+  var_Constraint_group_id.getVar( { i } , & v_Constraint_id[ i ].first );
 
-  if( !cvar_Constraint_index.isNull() )
-   var_Constraint_index.getVar( { i }, &v_Constraint_id[ i ].second );
+  if( ! var_Constraint_index.isNull() )
+   var_Constraint_index.getVar( { i }, & v_Constraint_id[ i ].second );
   else
    v_Constraint_id[ i ].second = i;
   }
@@ -370,7 +370,7 @@ void CHandler::deserialize( netCDF::NcGroup & group )
 
 void CHandler::get( Block * block )
 {
- if( !cblock ) {
+ if( ! block ) {
   for( auto config : v_Config_Constraint )
    delete config;
   v_Config_Constraint.clear();
@@ -415,7 +415,7 @@ void CHandler::apply( Block * block , bool deleteold , bool diff )
  for( std::size_t i = 0 ; i < v_Config_Constraint.size() ; ++i ) {
   const auto[ id , ci ] = v_Constraint_id[ i ];
   auto gi = ::get_Constraint_group_index( id , block );
-  if( constr = inspection::get_Constraint( block ,
+  if( auto constr = inspection::get_Constraint( block ,
                                           Block::ConstraintID( gi, ci ) ) ) {
    if( ( ! diff ) || v_Config_Constraint[ i ] )
     constr->set_ComputeConfig( v_Config_Constraint[ i ] );
