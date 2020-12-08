@@ -1773,10 +1773,14 @@ std::ostream & operator<<( std::ostream & os, const std::list< T * > & l )
 inline std::istream & eatcomments( std::istream & is )
 {
  for( ;; ) {
+  if( is.eof() )  // never do any other reading if eof
+   break;
   is >> std::ws;  // skip whitespaces
+  if( is.eof() )  // never do any other reading if eof
+   break;
   if( is.peek() == is.widen( '#' ) )
    // a comment: skip the rest of line and move to next
-   is.ignore( std::numeric_limits< std::streamsize >::max(),
+   is.ignore( std::numeric_limits< std::streamsize >::max() ,
               is.widen( '\n' ) );
   else
    break;

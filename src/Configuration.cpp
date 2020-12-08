@@ -75,7 +75,182 @@ SMSpp_insert_in_factory_cpp_0_t(
 /*--------------------------------------------------------------------------*/
 /*------------------------- METHODS of Configuration -----------------------*/
 /*--------------------------------------------------------------------------*/
-// only one, that of the factory
+
+Configuration * Configuration::deserialize( const std::string & filename ,
+					    int idx )
+{
+ try {
+  if( ( filename.size() > 4 ) &&
+      ( ! filename.compare( filename.size() - 4 , 4 , ".txt" ) ) ) {
+   std::ifstream f( filename , std::fstream::in );
+   if( ! f.is_open() ) {
+    std::cerr << "Error: cannot open text file " << filename << std::endl;
+    return( nullptr );
+    }
+   return( Configuration::deserialize( f ) );
+   }
+  else {
+   netCDF::NcFile f( filename.c_str() , netCDF::NcFile::read );
+   return( Configuration::deserialize( f , idx ) );
+   }
+  }
+ catch( netCDF::exceptions::NcException & e ) {
+  std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
+  }
+ catch( std::exception & e ) {
+  std::cerr << "error " << e.what() << " in deserialize" << std::endl;
+  }
+ catch( ... ) {
+  std::cerr << "unknown error in deserialize" << std::endl;
+  }
+
+ return( nullptr );
+
+ }  // end( Configuration::deserialize( const std::string ) )
+
+/*--------------------------------------------------------------------------*/
+
+Configuration *  Configuration::deserialize( netCDF::NcFile & f , int idx )
+{
+ try {
+  auto gtype = f.getAtt( "SMS++_file_type" );
+  if( gtype.isNull() )
+   return( nullptr );
+
+  int type;
+  gtype.getValues( & type );
+
+  if( ( type != eProbFile ) && ( type != eConfigFile ) )
+   return( nullptr );
+
+  netCDF::NcGroup cg;
+  if( type == eProbFile ) {
+   netCDF::NcGroup dg = f.getGroup( "Prob_" +
+			        std::to_string( idx >= 0 ? idx : 1 - idx ) );
+   if( dg.isNull() )
+    return( nullptr );
+
+   cg = dg.getGroup( ( idx >= 0 ? "BlockConfig" : "BlockSolver" ) );
+   }
+  else
+   cg = f.getGroup( "Config_" + std::to_string( idx ) );
+
+  return( new_Configuration( cg ) );
+  }
+ catch( netCDF::exceptions::NcException & e ) {
+  std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
+  }
+ catch( std::exception & e ) {
+  std::cerr << "error " << e.what() << " in deserialize" << std::endl;
+  }
+ catch( ... ) {
+  std::cerr << "unknown error in deserialize" << std::endl;
+  }
+
+ return( nullptr );
+
+ }  // end( Configuration::deserialize( netCDF::NcFile ) )
+
+/*--------------------------------------------------------------------------*/
+
+Configuration * Configuration::new_Configuration( netCDF::NcGroup & group )
+{
+ try {
+  if( group.isNull() )
+   return( nullptr );
+
+  std::string tmp;
+  auto gtype = group.getAtt( "type" );
+  if( gtype.isNull() ) {
+   auto gfile = group.getAtt( "filename" );
+   if( gfile.isNull() )
+    return( nullptr );
+
+   gfile.getValues( tmp );
+
+   int idx = 0;
+   auto gpos = group.getAtt( "position" );
+   if( ! gfile.isNull() )
+    gpos.getValues( & idx );
+
+   return( deserialize( tmp , idx ) );
+   }
+
+  gtype.getValues( tmp );
+  auto result = new_Configuration( tmp );
+  result->deserialize( group );
+  return( result );
+  }
+ catch( netCDF::exceptions::NcException & e ) {
+  std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
+  }
+ catch( std::exception & e ) {
+  std::cerr << "error " << e.what() << " in deserialize" << std::endl;
+  }
+ catch( ... ) {
+  std::cerr << "unknown error in deserialize" << std::endl;
+  }
+
+ return( nullptr );
+
+ }  // end( Configuration::new_Configuration( netCDF::NcGroup ) )
+
+/*--------------------------------------------------------------------------*/
+
+Configuration * Configuration::deserialize( std::istream & input )
+{
+ input >> eatcomments;
+ if( input.eof() )
+  return( nullptr );
+ 
+ static std::string sre( "Configuration::deserialize: stream read error" );
+
+ if( input.fail() )
+  throw( std::invalid_argument( sre ) );
+
+ std::string tmp;
+ if( input.peek() == input.widen( '*' ) ) {
+  input.get();
+
+  if( input.eof() )
+   return( nullptr );
+  
+  if( input.fail() )
+   throw( std::invalid_argument( sre ) );
+
+  if( std::isspace( input.peek() ) )
+   return( nullptr );
+ 
+  input >> tmp;
+  if( input.fail() )
+    throw( std::invalid_argument( sre ) );
+
+  int idx = 0;
+  if( tmp.back() == ']' ) {
+   auto pos = tmp.find_last_of( '[' );
+   if( pos != std::string::npos ) {
+    try {
+     idx = std::stoi( tmp.substr( pos + 1 ) );
+     tmp.resize( pos );
+     }
+    catch( ... ) { idx = 0; }
+    }
+   }
+
+  return( Configuration::deserialize( tmp , idx ) );
+  }
+ else {
+  input >> tmp;
+  if( input.fail() )
+    throw( std::invalid_argument( sre ) );
+
+  auto cfg = Configuration::new_Configuration( tmp );
+  input >> *cfg;
+  return( cfg );
+  }
+ }  // end( Configuration::deserialize( std::istream ) )
+
+/*--------------------------------------------------------------------------*/
 
 Configuration::ConfigurationFactoryMap & Configuration::f_factory( void ) {
  static ConfigurationFactoryMap s_factory;
@@ -408,19 +583,8 @@ template<>
 void SimpleConfiguration< std::pair< Configuration * , Configuration * >
 			  >::load( std::istream & input )
 {
- if( input.fail() )
-  throw( std::invalid_argument( "SimpleConfiguration::load: stream read error"
-				) );
-
  f_value.first = Configuration::deserialize( input );
- if( input.fail() )
-  throw( std::invalid_argument( "SimpleConfiguration::load: stream read error"
-				) );
- if( input.eof() ) {
-  f_value.second = nullptr;
-  return;
-  }
- f_value.second = Configuration::deserialize( input );
+ f_value.second = input.eof() ? nullptr : Configuration::deserialize( input );
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -484,9 +648,11 @@ void SimpleConfiguration< std::vector< Configuration * >
  for( auto ptr : f_value )
   delete ptr;
 
+ input >> eatcomments;
+
  int dim = 0;
  if( ! input.eof() )
-  input >> eatcomments >> dim;
+  input >> dim;
 
  if( ! dim ) {
   f_value.clear();
@@ -495,14 +661,11 @@ void SimpleConfiguration< std::vector< Configuration * >
 
  f_value.resize( dim , nullptr );
  for( auto & el : f_value ) {
+  input >> eatcomments;
   if( input.eof() )
    return;
 
   el = Configuration::deserialize( input );
-
-  if( input.fail() )
-   throw( std::invalid_argument( "SimpleConfiguration::load: stream read error"
-				 ) );
   }
  }
 

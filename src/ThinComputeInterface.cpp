@@ -25,6 +25,7 @@
 /*--------------------------------------------------------------------------*/
 
 #include "SMSTypedefs.h"
+
 #include "ThinComputeInterface.h"
 
 /*--------------------------------------------------------------------------*/
@@ -32,6 +33,33 @@
 /*--------------------------------------------------------------------------*/
 
 using namespace SMSpp_di_unipi_it;
+
+/*--------------------------------------------------------------------------*/
+/*-------------------------------- FUNCTIONS -------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+static bool advance( std::istream & input )
+{
+ input >> eatcomments;
+ return( input.eof() );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+static bool advance( std::istream & input , const std::string & msg )
+{
+ if( input.fail() )
+  throw( std::invalid_argument( msg ) );
+ return( advance( input ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+static void checkfail( std::istream & input , const std::string & msg )
+{
+ if( input.fail() )
+  throw( std::invalid_argument( msg ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 /*----------------------------- STATIC MEMBERS -----------------------------*/
@@ -552,122 +580,106 @@ void ComputeConfig::load( std::istream & input )
  clear();
  f_diff = true;
 
- if( input.eof() || input.fail() )
+ static const std::string sre( "ComputeConfig::load: stream read error" );
+ if( advance( input , sre ) )
   return;
 
- static const std::string sre( "ComputeConfig::load: stream read error" );
-
- input >> eatcomments >> f_diff;
- if( input.fail() )
-  throw( std::invalid_argument( sre ) );
+ input >> f_diff;
+ if( advance( input , sre ) )
+  return;
 
  unsigned int k;
- input >> eatcomments >> k;
- if( input.fail() )
-  throw( std::invalid_argument( sre ) );
+ input >> k;
+ checkfail( input , sre );
 
  int_pars.resize( k );
  for( unsigned int i = 0 ; i < k ; ++i ) {
   input >> eatcomments >> int_pars[ i ].first
         >> eatcomments >> int_pars[ i ].second;
-  if( input.fail() )
-   throw( std::invalid_argument( sre ) );
+  checkfail( input , sre );
   }
 
- if( input.eof() )
+ if( advance( input ) )
   return;
 
- input >> eatcomments >> k;
- if( input.fail() )
-  throw( std::invalid_argument( sre ) );
+ input >> k;
+ checkfail( input , sre );
 
  dbl_pars.resize( k );
  for( unsigned int i = 0 ; i < k ; ++i ) {
   input >> eatcomments >> dbl_pars[ i ].first
         >> eatcomments >> dbl_pars[ i ].second;
-  if( input.fail() )
-   throw( std::invalid_argument( sre ) );
+  checkfail( input , sre );
   }
 
- if( input.eof() )
+ if( advance( input ) )
   return;
 
- input >> eatcomments >> k;
- if( input.fail() )
-  throw( std::invalid_argument( sre ) );
+ input >> k;
+ checkfail( input , sre );
 
  str_pars.resize( k );
  for( unsigned int i = 0 ; i < k ; ++i ) {
   input >> eatcomments >> str_pars[ i ].first
         >> eatcomments >> str_pars[ i ].second;
-  if( input.fail() )
-   throw( std::invalid_argument( sre ) );
+  checkfail( input , sre );
   }
 
- if( input.eof() )
+ if( advance( input ) )
   return;
 
- input >> eatcomments >> k;
- if( input.fail() )
-  throw( std::invalid_argument( sre ) );
+ input >> k;
+ checkfail( input , sre );
 
  vint_pars.resize( k );
  for( unsigned int i = 0 ; i < k ; ++i ) {
   unsigned int h;
   input >> eatcomments >> vint_pars[ i ].first >> eatcomments >> h;
-  if( input.fail() )
-   throw( std::invalid_argument( sre ) );
+  checkfail( input , sre );
   vint_pars[ i ].second.resize( h );
   for( unsigned int j = 0 ; j < h ; ++j ) {
    input >> eatcomments >> vint_pars[ i ].second[ j ];
-   if( input.fail() )
-    throw( std::invalid_argument( sre ) );
+   checkfail( input , sre );
    }
   }
 
- if( input.eof() )
+ if( advance( input ) )
   return;
 
- input >> eatcomments >> k;
- if( input.fail() )
-  throw( std::invalid_argument( sre ) );
+ input >> k;
+ checkfail( input , sre );
 
  vdbl_pars.resize( k );
  for( unsigned int i = 0 ; i < k ; ++i ) {
   unsigned int h;
   input >> eatcomments >> vdbl_pars[ i ].first >> eatcomments >> h;
-  if( input.fail() )
-   throw( std::invalid_argument( sre ) );
+  checkfail( input , sre );
   vdbl_pars[ i ].second.resize( h );
   for( unsigned int j = 0 ; j < h ; ++j ) {
    input >> eatcomments >> vdbl_pars[ i ].second[ j ];
-   if( input.fail() )
-    throw( std::invalid_argument( sre ) );
+   checkfail( input , sre );
    }
   }
 
- if( input.eof() )
+ if( advance( input ) )
   return;
 
- input >> eatcomments >> k;
- if( input.fail() )
-  throw( std::invalid_argument( sre ) );
+ input >> k;
+ checkfail( input , sre );
 
  vstr_pars.resize( k );
  for( unsigned int i = 0 ; i < k ; ++i ) {
   unsigned int h;
   input >> eatcomments >> vstr_pars[ i ].first >> eatcomments >> h;
-  if( input.fail() )
-   throw( std::invalid_argument( sre ) );
+  checkfail( input , sre );
   vstr_pars[ i ].second.resize( h );
   for( unsigned int j = 0 ; j < h ; ++j ) {
    input >> eatcomments >> vstr_pars[ i ].second[ j ];
-   if( input.fail() )
-    throw( std::invalid_argument( sre ) );
+   checkfail( input , sre );
    }
   }
 
- if( input.eof() )
+ if( advance( input ) )
   return;
 
  f_extra_Configuration = Configuration::deserialize( input );

@@ -102,7 +102,7 @@ class Configuration
   * explicitly for each :Configuration, but in our case it seems that the
   * pain is higher than the gain. */
 
- [[nodiscard]] virtual Configuration * clone() const = 0;
+ [[nodiscard]] virtual Configuration * clone( void ) const = 0;
 
 /*--------------------------------------------------------------------------*/
  /// construct a :Configuration of given type using the Configuration factory
@@ -190,35 +190,7 @@ class Configuration
   * goes wrong with the entire operation, nullptr is returned.  */
 
  static Configuration * deserialize( const std::string & filename ,
-				     int idx = 0 )
- {
-  try {
-   if( ( filename.size() > 4 ) &&
-       ( ! filename.compare( filename.size() - 4 , 4 , ".txt" ) ) ) {
-    std::ifstream f( filename , std::fstream::in );
-    if( ! f.is_open() ) {
-     std::cerr << "Error: cannot open text file " << filename << std::endl;
-     return( nullptr );
-     }
-    return( Configuration::deserialize( f ) );
-    }
-   else {
-    netCDF::NcFile f( filename.c_str() , netCDF::NcFile::read );
-    return( Configuration::deserialize( f , idx ) );
-    }
-   }
-  catch( netCDF::exceptions::NcException & e ) {
-   std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
-   }
-  catch( std::exception & e ) {
-   std::cerr << "error " << e.what() << " in deserialize" << std::endl;
-   }
-  catch( ... ) {
-   std::cerr << "unknown error in deserialize" << std::endl;
-   }
-
-  return( nullptr );
-  }
+				     int idx = 0 );
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Configuration out of an open netCDF SMS++ file
@@ -266,45 +238,7 @@ class Configuration
   * therefore, it can be used to construct the very first Configuration if
   * needed). */
 
- static Configuration * deserialize( netCDF::NcFile & f , int idx = 0 )
- {
-  try {
-   auto gtype = f.getAtt( "SMS++_file_type" );
-   if( gtype.isNull() )
-    return( nullptr );
-
-   int type;
-   gtype.getValues( &type );
-
-   if( ( type != eProbFile ) && ( type != eConfigFile ) )
-    return( nullptr );
-
-   netCDF::NcGroup cg;
-   if( type == eProbFile ) {
-    netCDF::NcGroup dg = f.getGroup( "Prob_" +
-			        std::to_string( idx >= 0 ? idx : 1 - idx ) );
-    if( dg.isNull() )
-     return( nullptr );
-
-    cg = dg.getGroup( ( idx >= 0 ? "BlockConfig" : "BlockSolver" ) );
-    }
-   else
-    cg = f.getGroup( "Config_" + std::to_string( idx ) );
-
-   return( new_Configuration( cg ) );
-   }
-  catch( netCDF::exceptions::NcException & e ) {
-   std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
-   }
-  catch( std::exception & e ) {
-   std::cerr << "error " << e.what() << " in deserialize" << std::endl;
-   }
-  catch( ... ) {
-   std::cerr << "unknown error in deserialize" << std::endl;
-   }
-
-  return( nullptr );
-  }
+ static Configuration * deserialize( netCDF::NcFile & f , int idx = 0 );
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Configuration out of netCDF::NcGroup, returns it
@@ -340,46 +274,7 @@ class Configuration
   *
   * If anything goes wrong with the process, nullptr is returned. */
 
- static Configuration * new_Configuration( netCDF::NcGroup & group )
- {
-  try {
-   if( group.isNull() )
-    return( nullptr );
-
-   std::string tmp;
-   auto gtype = group.getAtt( "type" );
-   if( gtype.isNull() ) {
-    auto gfile = group.getAtt( "filename" );
-    if( gfile.isNull() )
-     return( nullptr );
-
-    gfile.getValues( tmp );
-
-    int idx = 0;
-    auto gpos = group.getAtt( "position" );
-    if( ! gfile.isNull() )
-     gpos.getValues( & idx );
-
-    return( deserialize( tmp , idx ) );
-    }
-
-   gtype.getValues( tmp );
-   auto result = new_Configuration( tmp );
-   result->deserialize( group );
-   return( result );
-   }
-  catch( netCDF::exceptions::NcException & e ) {
-   std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
-   }
-  catch( std::exception & e ) {
-   std::cerr << "error " << e.what() << " in deserialize" << std::endl;
-   }
-  catch( ... ) {
-   std::cerr << "unknown error in deserialize" << std::endl;
-   }
-
-  return( nullptr );
-  }
+ static Configuration * new_Configuration( netCDF::NcGroup & group );
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize the current :Configuration out of netCDF::NcGroup
@@ -453,59 +348,7 @@ class Configuration
   *   to the load() method of that :Configuration, which is used by the
   *   >> operator to perform the task). */
 
- static Configuration * deserialize( std::istream & input )
- {
-  std::string tmp;
-  input >> eatcomments;
-  if( input.fail() )
-   throw( std::invalid_argument(
-		       "Configuration::deserialize: stream read error" ) );
-  if( input.peek() == input.widen( '*' ) ) {
-   input.get();
-   if( input.fail() )
-    throw( std::invalid_argument(
-		       "Configuration::deserialize: stream read error" ) );
-   if( input.eof() )
-    return( nullptr );
-   
-   if( std::isspace( input.peek() ) )
-    return( nullptr );
- 
-   input >> tmp;
-   if( input.fail() )
-    throw( std::invalid_argument(
-		       "Configuration::deserialize: stream read error" ) );
-
-   int idx = 0;
-   if( tmp.back() == ']' ) {
-    auto pos = tmp.find_last_of( '[' );
-    if( pos != std::string::npos ) {
-     try {
-      idx = std::stoi( tmp.substr( pos + 1 ) );
-      tmp.resize( pos );
-      }
-     catch( ... ) { idx = 0; }
-     }
-    }
-
-   return( Configuration::deserialize( tmp , idx ) );
-   }
-  else {
-   input >> eatcomments >> tmp;
-   if( input.fail() )
-    throw( std::invalid_argument(
-		       "Configuration::deserialize: stream read error" ) );
-
-   auto cfg = Configuration::new_Configuration( tmp );
-   input >> *cfg;
-   if( input.fail() ) {
-    delete cfg;
-    throw( std::invalid_argument(
-		       "Configuration::deserialize: stream read error" ) );
-    }
-   return( cfg );
-   }
-  }
+ static Configuration * deserialize( std::istream & input );
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- Methods for reading the data of the Configuration ----------*/
@@ -882,27 +725,37 @@ class SimpleConfiguration : public Configuration
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
  /// void constructor (the value is not initialized)
+
  SimpleConfiguration( void ) : Configuration() {}
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// constructor taking the value (&) as input
  explicit SimpleConfiguration( const SimpleConfiguration_value_type &
 			       initval )
   : Configuration() { f_value = initval; }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// move constructor taking the value (&&) as input
  explicit SimpleConfiguration( SimpleConfiguration_value_type && initval )
   : Configuration() { f_value = std::move( initval ); }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// copy constructor: does what it says on the tin
  SimpleConfiguration( const SimpleConfiguration & old ) : Configuration() {
   f_value = old.f_value;
   }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
  void deserialize( netCDF::NcGroup & group ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  ~SimpleConfiguration() override = default;  ///< destructor: does nothing
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// clone method
+
  [[nodiscard]] SimpleConfiguration * clone( void ) const override {
   return( new SimpleConfiguration( *this ) );
   }
@@ -948,6 +801,9 @@ class SimpleConfiguration : public Configuration
 
  void load( std::istream & input ) override {
   input >> eatcomments >> f_value;
+  if( input.fail() )
+   throw( std::invalid_argument(
+			  "SimpleConfiguration::load: stream read error" ) );
   }
 
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/

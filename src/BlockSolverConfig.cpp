@@ -92,6 +92,22 @@ Block * get_nested_Block( const std::string & id , const Block * block )
 }  // end( namespace )
 
 /*--------------------------------------------------------------------------*/
+
+static bool advance( std::istream & input )
+{
+ input >> eatcomments;
+ return( input.eof() );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+static void checkfail( std::istream & input , const std::string & msg )
+{
+ if( input.fail() )
+  throw( std::invalid_argument( msg ) );
+ }
+
+/*--------------------------------------------------------------------------*/
 /*-------------------- METHODS of BlockSolverConfig ------------------------*/
 /*--------------------------------------------------------------------------*/
 /*------------ CONSTRUCTING AND DESTRUCTING BlockSolverConfig --------------*/
@@ -396,47 +412,50 @@ void BlockSolverConfig::print( std::ostream & output ) const
 
 void BlockSolverConfig::load( std::istream & input )
 {
- if( input.fail() )
-  throw( std::invalid_argument( "BlockSolverConfig::load: stream read error"
-				) );
- Index k;
- input >> eatcomments >> f_diff >> eatcomments >> k;
- if( input.fail() )
-  throw( std::invalid_argument( "BlockSolverConfig::load: stream read error"
-				) );
+ static std::string sre( "BlockSolverConfig::load: stream read error" );
+
+ unsigned int k = 0;
+ if( ! advance( input ) ) {
+  input >> f_diff;
+  checkfail( input , sre );
+
+  if( ! advance( input ) ) {
+   input >> k;
+   checkfail( input , sre );
+   }
+  }
+
+ if( ! k ) {
+  v_SolverNames.clear();
+  v_SolverConfigs.clear();
+  return;
+  }
 
  v_SolverNames.resize( k );
- for( Index i = 0 ; i < k ; ++i ) {
+ v_SolverConfigs.resize( k , nullptr );
+ for( unsigned int i = 0 ; i < k ; ++i ) {
   input >> eatcomments;
   if( input.peek() == input.widen( '*' ) )
    input.get();  // read away (and ignore) the '*' from the stream
   else
    input >> v_SolverNames[ i ];
 
-  if( input.fail() )
-   throw( std::invalid_argument( "BlockSolverConfig::load: stream read error"
-				 ) );
-  if( input.eof() ) {
-   v_SolverConfigs.clear();
-   return;
-   }
+  checkfail( input , sre );
   }
 
- input >> eatcomments >> k;
- if( input.fail() )
-  throw( std::invalid_argument( "BlockSolverConfig::load: stream read error"
-				) );
+ if( advance( input ) )
+  return;
+
+ input >> k;
+ checkfail( input , sre );
  
  if( k > v_SolverNames.size() )
   v_SolverNames.resize( k );
  v_SolverConfigs.resize( std::max( k , Index( v_SolverNames.size() ) ) ,
                          nullptr );
 
- for( Index i = 0 ; i < k ; ++i ) {
+ for( unsigned int i = 0 ; i < k ; ++i ) {
   auto cfg = Configuration::deserialize( input );
-  if( input.fail() )
-   throw( std::invalid_argument( "BlockSolverConfig::load: stream read error"
-				 ) );
   v_SolverConfigs[ i ] = dynamic_cast< ComputeConfig * >( cfg );
   if( ! v_SolverConfigs[ i ] ) {
    delete cfg;
@@ -444,8 +463,6 @@ void BlockSolverConfig::load( std::istream & input )
 		         "BlockSolverConfig::load: not a ComputeConfig "
 			 + std::to_string( i ) ) );
    }
-  if( input.eof() )
-   break;
   }
  }  // end( BlockSolverConfig::load )
 
@@ -679,11 +696,9 @@ void RBlockSolverConfig::load( std::istream & input )
 {
  BlockSolverConfig::load( input );
 
- if( input.fail() )
-  throw( std::invalid_argument( "RBlockSolverConfig::load: stream read error"
-				) );
-
- if( input.eof() ) {
+ static const std::string sre(
+			    "RBlockSolverConfig::load: stream read error" );
+ if( advance( input ) ) {
   v_sub_Block_id.clear();
   for( auto & el : v_BlockSolverConfig )
    delete el;
@@ -691,13 +706,13 @@ void RBlockSolverConfig::load( std::istream & input )
   return;
   }
 
+ checkfail( input , sre );
+
  // BlockSolverConfig for sub-Block
 
  int k;
- input >> eatcomments >> k;
- if( input.fail() )
-  throw( std::invalid_argument( "RBlockSolverConfig::load: stream read error"
-				) );
+ input >> k;
+ checkfail( input , sre );
 
  const bool id_is_provided = ( k < 0 );
  k = std::abs( k );
@@ -705,21 +720,19 @@ void RBlockSolverConfig::load( std::istream & input )
  v_BlockSolverConfig.resize( k , nullptr );
 
  for( int i = 0 ; i < k ; ++i ) {
-  if( id_is_provided )
-   input >> eatcomments >> v_sub_Block_id[ i ] >> eatcomments;
+  if( id_is_provided ) {
+   input >> eatcomments >> v_sub_Block_id[ i ];
+   checkfail( input , sre );
+   }
   else
    v_sub_Block_id[ i ] = std::to_string( i );
 
   auto cfg = Configuration::deserialize( input );
-  if( input.fail() )
-   throw( std::invalid_argument( "RBlockSolverConfig::load: stream read error"
-				 ) );
-
   v_BlockSolverConfig[ i ] = dynamic_cast< BlockSolverConfig * >( cfg );
   if( ! v_BlockSolverConfig[ i ] ) {
    delete cfg;
    throw( std::invalid_argument(
-        "RBlockSolverConfig::load: invalid  BlockSolverConfig for sub-Block "
+        "RBlockSolverConfig::load: invalid BlockSolverConfig for sub-Block "
 	+ v_sub_Block_id[ i ] ) );
    }
   }

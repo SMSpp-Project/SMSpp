@@ -122,6 +122,22 @@ Block::Index get_Constraint_group_index( const std::string & id ,
 }  // end( namespace )
 
 /*--------------------------------------------------------------------------*/
+
+static bool advance( std::istream & input )
+{
+ input >> eatcomments;
+ return( input.eof() );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+static void checkfail( std::istream & input )
+{
+ if( input.fail() )
+  throw( std::invalid_argument( "*BlockConfig::load: stream read error" ) );
+ }
+
+/*--------------------------------------------------------------------------*/
 /*--------------------------- METHODS of RHandler --------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -279,31 +295,30 @@ void RHandler::print( std::ostream & output ) const
 
 void RHandler::load( std::istream & input )
 {
- if( input.fail() )
-  throw( std::invalid_argument( "*BlockConfig::load: stream read error"	) );
+ int k = 0;
+ if( ! advance( input ) ) {
+  input >> k;
+  checkfail( input );
+  }
 
- if( input.eof() )
+ if( ! k ) {
+  v_sub_Block_id.clear();
+  v_sub_BlockConfig.clear();
   return;
-
- int k;
- input >> eatcomments >> k;
- if( input.fail() )
-  throw( std::invalid_argument( "*BlockConfig::load: stream read error"	) );
+  }
 
  const bool id_is_provided = ( k < 0 );
  k = std::abs( k );
  v_sub_Block_id.resize( k );
- v_sub_BlockConfig.resize( k, nullptr );
+ v_sub_BlockConfig.resize( k , nullptr );
 
  for( int i = 0 ; i < k ; ++i ) {
-  if( id_is_provided )
+  if( id_is_provided ) {
    input >> eatcomments >> v_sub_Block_id[ i ];
+   checkfail( input );
+   }
   else
    v_sub_Block_id[ i ] = std::to_string( i );
-
-  input >> eatcomments;
-  if( input.fail() )
-   throw( std::invalid_argument( "*BlockConfig::load: stream read error" ) );
 
   auto cfg = Configuration::deserialize( input );
   v_sub_BlockConfig[ i ] = dynamic_cast< BlockConfig * >( cfg );
@@ -482,23 +497,25 @@ void CHandler::print( std::ostream & output ) const
 
 void CHandler::load( std::istream & input )
 {
- if( input.fail() )
-  throw( std::invalid_argument( "BlockConfig::load: stream read error" ) );
+ unsigned int k = 0;
+ if( ! advance( input ) ) {
+  input >> k;
+  checkfail( input );
+  }
 
- if( input.eof() )
+ if( ! k ) {
+  v_Constraint_id.clear();
+  v_Config_Constraint.clear();
   return;
+  }
 
- int k;
- input >> eatcomments >> k;
  v_Constraint_id.resize( k );
- v_Config_Constraint.resize( k, nullptr );
+ v_Config_Constraint.resize( k , nullptr );
 
- for( int i = 0 ; i < k ; ++i ) {
-  if( input.fail() )
-   throw( std::invalid_argument( "BlockConfig::load: stream read error" ) );
-
+ for( unsigned int i = 0 ; i < k ; ++i ) {
   input >> eatcomments >> v_Constraint_id[ i ].first >> eatcomments
 	>> v_Constraint_id[ i ].second >> eatcomments;
+  checkfail( input );
 
   auto cfg = Configuration::deserialize( input );
   v_Config_Constraint[ i ] = dynamic_cast< ComputeConfig * >( cfg );
@@ -575,18 +592,14 @@ void OHandler::print( std::ostream & output ) const
 
 void OHandler::load( std::istream & input )
 {
- if( input.fail() )
-  throw( std::invalid_argument( "*BlockConfig::load: stream read error" ) );
-
- if( input.eof() ) {
+ if( advance( input ) ) {
   f_Config_Objective = nullptr;
   return;
   }
 
- auto cfg = Configuration::deserialize( input );
- if( input.fail() )
-  throw( std::invalid_argument( "*BlockConfig::load: stream read error" ) );
+ checkfail( input );
 
+ auto cfg = Configuration::deserialize( input );
  f_Config_Objective = dynamic_cast< ComputeConfig * >( cfg );
  if( ! f_Config_Objective ) {
   delete cfg;

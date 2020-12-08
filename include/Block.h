@@ -799,11 +799,9 @@ class Block : public Observer {
   * that this can also be used as the void constructor), which may be useful
   * early on to a Block to initialize itself. */
 
- Block( Block * father = nullptr ) : Observer(), f_owner( nullptr ),
-                                     f_at( false ), verbosity_lvl( low ),
-                                     f_BlockConfig( nullptr ),
-                                     f_channel( 0 ), f_Block( father ),
-                                     f_Objective( nullptr ) {}
+ Block( Block * father = nullptr ) : Observer() , f_owner( nullptr ) ,
+  f_at( false ) , verbosity_lvl( low ) , f_BlockConfig( nullptr ) ,
+  f_channel( 0 ) , f_Block( father ) , f_Objective( nullptr ) {}
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: it is deleted
@@ -917,35 +915,7 @@ class Block : public Observer {
 
  static Block * deserialize( const std::string & filename ,
 			     unsigned int idx = 0 ,
-			     Block * father = nullptr )
- {
-  try {
-   if( ( filename.size() > 4 ) &&
-       ( ! filename.compare( filename.size() - 4 , 4 , ".txt" ) ) ) {
-    std::ifstream f( filename , std::fstream::in );
-    if( ! f.is_open() ) {
-     std::cerr << "Error: cannot open text file " << filename << std::endl;
-     return( nullptr );
-     }
-    return( Block::deserialize( f , father ) );
-    }
-   else {
-    netCDF::NcFile f( filename.c_str() , netCDF::NcFile::read );
-    return( Block::deserialize( f , idx , father ) );
-    }
-   }
-  catch( netCDF::exceptions::NcException & e ) {
-   std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
-   }
-  catch( std::exception & e ) {
-   std::cerr << "error " << e.what() << " in deserialize" << std::endl;
-   }
-  catch( ... ) {
-   std::cerr << "unknown error in deserialize" << std::endl;
-   }
-
-  return( nullptr );
-  }
+			     Block * father = nullptr );
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Block out of an open netCDF SMS++ file at given position
@@ -971,8 +941,6 @@ class Block : public Observer {
   * the netCDF::NcGroup "Prob_<idx>", while for an eBlockFile it is extracted
   * out of the netCDF::NcGroup "Block_<idx>".
   *
-  *
-  *
   * Once the appropriate group is selected, the :Block is loaded from it with
   * a call to new_Block( netCDF::NcGroup & ); see the corresponding comments
   * for the format options. Anything going wrong with the entire operation
@@ -989,44 +957,7 @@ class Block : public Observer {
   * be used to construct the very first Block if needed). */
 
  static Block * deserialize( netCDF::NcFile & f , unsigned int idx = 0 ,
-			     Block * father = nullptr )
- {
-  try {
-   netCDF::NcGroupAtt gtype = f.getAtt( "SMS++_file_type" );
-   if( gtype.isNull() )
-    return( nullptr );
-
-   int type;
-   gtype.getValues( &type );
-
-   if( ( type != eProbFile ) && ( type != eBlockFile ) )
-    return( nullptr );
-
-   netCDF::NcGroup bg;
-   if( type == eProbFile ) {
-    netCDF::NcGroup dg = f.getGroup( "Prob_" + std::to_string( idx ) );
-    if( dg.isNull() )
-     return( nullptr );
-
-    bg = dg.getGroup( "Block" );
-    }
-   else
-    bg = f.getGroup( "Block_" + std::to_string( idx ) );
-
-   return( new_Block( bg , father ) );
-   }
-  catch( netCDF::exceptions::NcException & e ) {
-   std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
-   }
-  catch( std::exception & e ) {
-   std::cerr << "error " << e.what() << " in deserialize" << std::endl;
-   }
-  catch( ... ) {
-   std::cerr << "unknown error in deserialize" << std::endl;
-   }
-
-  return( nullptr );
-  }
+			     Block * father = nullptr );
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Block out of netCDF::NcGroup, returns it
@@ -1065,45 +996,7 @@ class Block : public Observer {
   * If anything goes wrong with the process, nullptr is returned. */
 
  static Block * new_Block( netCDF::NcGroup & group ,
-                           Block * father = nullptr ) {
-  try {
-   if( group.isNull() )
-    return( nullptr );
-
-   std::string tmp;
-   auto gtype = group.getAtt( "type" );
-   if( gtype.isNull() ) {
-    auto gfile = group.getAtt( "filename" );
-    if( gfile.isNull() )
-     return( nullptr );
-
-    gfile.getValues( tmp );
-
-    unsigned int idx = 0;
-    auto gpos = group.getAtt( "position" );
-    if( ! gfile.isNull() )
-     gpos.getValues( & idx );
-
-    return( deserialize( tmp , idx , father ) );
-    }
-
-   gtype.getValues( tmp );
-   auto result = new_Block( tmp , father );
-   result->deserialize( group );
-   return( result );
-   }
-  catch( netCDF::exceptions::NcException & e ) {
-   std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
-   }
-  catch( std::exception & e ) {
-   std::cerr << "error " << e.what() << " in deserialize" << std::endl;
-   }
-  catch( ... ) {
-   std::cerr << "unknown error in deserialize" << std::endl;
-   }
-
-  return( nullptr );
-  }
+                           Block * father = nullptr );
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize the current :Block out of netCDF::NcGroup
@@ -1282,54 +1175,8 @@ class Block : public Observer {
   *   of that :Block, which is used by the >> operator to perform the task).
   */
 
- static Block * deserialize( std::istream & input , Block * father = nullptr )
- {
-  std::string tmp;
-  input >> eatcomments;
-  if( input.fail() )
-   throw( std::invalid_argument( "Block::deserialize: stream read error" ) );
-  if( input.peek() == input.widen( '*' ) ) {
-   input.get();
-   if( input.fail() )
-    throw( std::invalid_argument( "Block::deserialize: stream read error" ) );
-   if( input.eof() )
-    return( nullptr );
-   
-   if( std::isspace( input.peek() ) )
-    return( nullptr );
-
-   input >> tmp;
-   if( input.fail() )
-    throw( std::invalid_argument( "Block::deserialize: stream read error" ) );
-
-   int idx = 0;
-   if( tmp.back() == ']' ) {
-    auto pos = tmp.find_last_of( '[' );
-    if( pos != std::string::npos ) {
-     try {
-      idx = std::stoi( tmp.substr( pos + 1 ) );
-      tmp.resize( pos );
-      }
-     catch( ... ) { idx = 0; }
-     }
-    }
-
-   return( Block::deserialize( tmp , idx , father ) );
-   }
-  else {
-   input >> eatcomments >> tmp;
-   if( input.fail() )
-    throw( std::invalid_argument( "Block::deserialize: stream read error" ) );
-
-   auto block = Block::new_Block( tmp , father );
-   input >> *block;
-   if( input.fail() ) {
-    delete block;
-    throw( std::invalid_argument( "Block::deserialize: stream read error" ) );
-    }
-   return( block );
-   }
-  }
+ static Block * deserialize( std::istream & input ,
+			     Block * father = nullptr );
 
 /*--------------------------------------------------------------------------*/
  /// destructor of Block: it is virtual
