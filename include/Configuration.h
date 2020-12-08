@@ -159,18 +159,10 @@ class Configuration
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Configuration out of a netCDF file
- /** Top-level de-serialization method: takes the filename of a file, and
-  * and possibly a position into it, and returns the complete :Configuration
-  * object whose description is the one found at position \p idx in the file
-  * (if this is supported, see later).
-  *
-  * Note that the method is static, hence it is to be called as
-  *
-  *     Configuration * myConfig = Configuration::deserialize( somefile );
-  *
-  * i.e., without any reference to any specific Configuration (and,
-  * therefore, it can be used to construct the very first Configuration if
-  * needed).
+ /** Top-level de-serialization method: takes the \p filename of a file
+  * (possibly also encoding a position into it), and returns the complete
+  * :Configuration object whose description is the one found (at the
+  * specified position) in the file.
   *
   * The method supports two different kind of files:
   *
@@ -178,19 +170,36 @@ class Configuration
   *
   * - SMS++ netCDF files.
   *
-  * It distinguishes between the two by the suffix: if \p filename terminates
-  * by ".txt" (case sensitive) then a std::fstream is opened and 
-  * new_Configuration( std::istream & ) is called, otherwise a
-  * netCDF::NcFile is opened and Configuration::deserialize( netCDF::NcFile
-  * & [ , idx ] ) is called. Note that only SMS++ netCDF files support the
-  * \pos argument, while for text files the first Configuration found in the
-  * file is always extracted; see new_Configuration( std::istream & ) /
-  * deserialize( netCDF::NcFile & ) for details of the text / SMS++ netCDF
-  * file format, and in the latter case of the \p idx parameter. If anything
-  * goes wrong with the entire operation, nullptr is returned.  */
+  * It distinguishes between the two by the suffix. In particular, the format
+  * of \p filename can be:
+  *
+  * - either \p filename terminates by ".txt" (case sensitive) then a
+  *   std::fstream is opened and deserialize( istream ) is called, with
+  *   the Configuration being extracted is the first one found in it;
+  *
+  * - otherwise a netCDF::NcFile is opened and deserialize( netCDF::NcFile )
+  *   is called; since netCDF::NcFile support the notion of having
+  *   multiple Configuration inside, \p filename can be used to encode the
+  *   position (Configuration) in the file:
+  *
+  *     * if the \p filename ends with ']', then is is supposed to have the
+  *       form "real filename[idx]": the "[idx] part is excised and used to
+  *       compute the int parameter of deserialize() (the position), with the
+  *       remaining part being used for the string parameter (the filename);
+  *
+  *     * otherwise, the whole string is used as the string parameter (the
+  *       filename).
+  *
+  * If anything goes wrong with the entire operation, nullptr is returned.
+  *
+  * Note that the method is static, hence it is to be called as
+  *
+  *     Configuration * myConfig = Configuration::deserialize( somefile );
+  *
+  * i.e., without any reference to any specific Configuration (and, therefore,
+  * it can be used to construct the very first Configuration if needed). */
 
- static Configuration * deserialize( const std::string & filename ,
-				     int idx = 0 );
+ static Configuration * deserialize( const std::string & filename );
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Configuration out of an open netCDF SMS++ file
@@ -257,12 +266,11 @@ class Configuration
   *
   * - An "indirect" group that just need to contain the single string
   *   attribute "filename"; in this case, the attribute is used as argument
-  *   for a call to deserialize( const std::string & [ , int ] ) that will
-  *   extract the :Configuration by the corresponding file (be it a text or
-  *   netCDF one). In this case, \p group is also searched for an integer
-  *   attribute "position"; if found this is used as the idx parameter in
-  *   the call to deserialize(), see the comments in the method for the exact
-  *   meaning and limitations of the parameter.
+  *   for a call to deserialize( const std::string & ) that will extract the
+  *   :Configuration by the corresponding file (be it a text or netCDF one).
+  *   Note that for netCDF files the filename string can also be used to
+  *   encode the position in the file, see the comments in the method for
+  *   details.
   *
   * In case \p group contains both "type" and "filename", the first takes the
   * precedence (direct groups have precedence over indirect ones).
@@ -319,21 +327,11 @@ class Configuration
   *   = The characters immediately following '*' a nonempty string, which
   *     means that '*' is not immediately followed by a whitespace (note that
   *     comments are *not* skipped here): then, the string is used as the
-  *     filename, and possibly the idx, argument of deserialize(
-  *     const std::string & [ , int ] ), which opens it and reads the
-  *     :Configuration from there without advancing the pointer in
-  *     \p input (save for discarding '*' and the string). In particular:
-  *
-  *     * if the string ends with ']', then is is supposed to have the form
-  *       "<filename>[idx]": the "[idx] part is excised and used to compute
-  *       the int parameter of deserialize() (the position), with the
-  *       remaining part being used for the string parameter (the filename);
-  *
-  *     * otherwise, the whole string is used as the string parameter (the
-  *       filename);
-  *
-  *     See the comments of deserialize( const std::string & [ , int ] )
-  *     for the format of the filename and of the target file.
+  *     filenam of deserialize( string ), which opens it and reads the
+  *     :Configuration from there without advancing the pointer in \p input
+  *     (save for discarding '*' and the string). Check the comments of
+  *     deserialize( string ) for the details of the possible formats of the
+  *     string.
   *
   *   = The characters immediately following '*' form an empty string (which
   *     means that '*' is immediately followed by whitespaces or comments):
@@ -439,13 +437,26 @@ class Configuration
  /// friend operator>>(), dispatching to *pure* virtual protected load()
  /** Not really a method, but a friend operator>>() that just calls the
    * protected *pure* virtual method load(). This way the operator>>() is
-   * defined for each Configuration, but it won't work for the case class,
+   * defined for each Configuration, but it won't work for the base class,
    * which is abstract: it can only work for concrete derived classes which 
    * have actually implemented load() (because they have some actual data to
    * load). */
 
  friend std::istream & operator>>( std::istream & in , Configuration & c ) {
   c.load( in );
+  return( in );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// friend operator>>() for pointers
+ /** Not really a method, but a friend operator>>() that loads a new
+  * :Configuration and stores its pointer; this is basically calling
+  * Configuration::deserialize( stream ) to load the string classname, use
+  * the factory to build the object, and then use the standard operator>>()
+  * to finish loading. It would not even really need to be a friend. */
+
+ friend std::istream & operator>>( std::istream & in , Configuration * &c ) {
+  c = Configuration::deserialize( in );
   return( in );
   }
 
@@ -788,9 +799,16 @@ class SimpleConfiguration : public Configuration
   * istream can only be rather simple: it "just" has to contain an object of
   * type SimpleConfiguration_value_type.
   *
-  * For SimpleConfiguration_value_type any type that has a working
-  * << operator, this is done by the default method (skipping any whitespace
-  * and comments).
+  * For SimpleConfiguration_value_type any type that has a working operator>>,
+  * this is done by the default method (skipping any whitespace and comments).
+  * In particular, some of these are defined in SMSTypedefs.h for:
+  *
+  * - std::pair< T1 , T2 > that just read .first first and .second second
+  *   using T1::operator>> and T2::operator>
+  *
+  * - std::vector< T > and std::list< T > that first read the number of
+  *   elements (using [unsigned int]::operator>>) and then read the elements
+  *   one by one (using T::operator>>) 
   *
   * However, for SimpleConfiguration_value_type being anything that
   * contains other Configuration [*], specialised versions are implemented
@@ -943,15 +961,18 @@ void SimpleConfiguration< std::list< double > >::clear( void );
 
 template<>
 void SimpleConfiguration< std::pair< Configuration *, Configuration * >
->::serialize( netCDF::NcGroup & group ) const;
+                                     >::serialize( netCDF::NcGroup & group )
+ const;
 
 template<>
 void SimpleConfiguration< std::pair< Configuration *, Configuration * >
                           >::deserialize( netCDF::NcGroup & group );
 
+/*!!
 template<>
 void SimpleConfiguration< std::pair< Configuration * , Configuration * >
                           >::load( std::istream & input );
+			  !!*/
 
 template<>
 void SimpleConfiguration< std::pair< Configuration * , Configuration * >
@@ -965,9 +986,11 @@ template<>
 void SimpleConfiguration< std::vector< Configuration * >
                           >::deserialize( netCDF::NcGroup & group );
 
+/*!!
 template<>
 void SimpleConfiguration< std::vector< Configuration * >
                           >::load( std::istream & input );
+			  !!*/
 
 template<>
 void SimpleConfiguration< std::vector< Configuration * > >::clear( void );

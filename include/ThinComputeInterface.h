@@ -1830,25 +1830,22 @@ class ComputeConfig : public Configuration {
   *
   * for i = 1 ... k
   * - a string containing the name of the vector-of-int perameter
-  * - number h of the elements of in the i-th vector-of-int parameter
-  * - for j = 1 ... h
-  *   an int (the j-th entry of the i-th vector-of-int parameter)
+  * - the i-th vector-of-int parameter (loaded with operator>>,
+  *   see SMSTypedefs.h for details),
   *
   * number k of the names of vector-of-double parameters
   *
   * for i = 1 ... k
   * - a string containing the name of the vector-of-double perameter
-  * - number h of the elements of in the i-th vector-of-double parameter
-  * - for j = 1 ... h
-  *   a double (the j-th entry of the i-th vector-of-double parameter)
+  * - the i-th vector-of-double parameter (loaded with operator>>,
+  *   see SMSTypedefs.h for details),
   *
   * number k of the names of vector-of-string parameters
   *
   * for i = 1 ... k
   * - a string containing the name of the vector-of-string perameter
-  * - number h of the elements of in the i-th vector-of-string parameter
-  * - for j = 1 ... h
-  *   a string (the j-th entry of the i-th vector-of-string parameter)
+  * - the i-th vector-of-string parameter (loaded with operator>>,
+  *   see SMSTypedefs.h for details),
   *
   * the description of a :Configuration object for the "extra" Configuration
   * of the ComputeConfig, loaded with Configuration::deserialize( std::istream )

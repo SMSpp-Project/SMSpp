@@ -62,8 +62,7 @@ SMSpp_insert_in_factory_cpp_0( BlockConfig );
 /*-------------------------- METHODS of Block ------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-Block * Block::deserialize( const std::string & filename , unsigned int idx ,
-			    Block * father )
+Block * Block::deserialize( const std::string & filename , Block * father )
 {
  try {
   if( ( filename.size() > 4 ) &&
@@ -76,7 +75,20 @@ Block * Block::deserialize( const std::string & filename , unsigned int idx ,
    return( Block::deserialize( f , father ) );
    }
   else {
-   netCDF::NcFile f( filename.c_str() , netCDF::NcFile::read );
+   int idx = 0;
+   std::string fn;
+   if( filename.back() == ']' ) {
+    auto pos = filename.find_last_of( '[' );
+    if( pos != std::string::npos ) {
+     try {
+      idx = std::stoi( filename.substr( pos + 1 ) );
+      fn = filename.substr( 0 , pos );
+      }
+     catch( ... ) { idx = 0; }
+     }
+    }
+   netCDF::NcFile f( fn.empty() ? filename.c_str() : fn.c_str() ,
+		     netCDF::NcFile::read );
    return( Block::deserialize( f , idx , father ) );
    }
   }
@@ -154,12 +166,7 @@ Block * Block::new_Block( netCDF::NcGroup & group , Block * father )
 
    gfile.getValues( tmp );
 
-   unsigned int idx = 0;
-   auto gpos = group.getAtt( "position" );
-   if( ! gfile.isNull() )
-    gpos.getValues( & idx );
-
-   return( deserialize( tmp , idx , father ) );
+   return( deserialize( tmp , father ) );
    }
 
   gtype.getValues( tmp );
@@ -211,19 +218,7 @@ Block * Block::deserialize( std::istream & input , Block * father )
   if( input.fail() )
     throw( std::invalid_argument( sre ) );
 
-  int idx = 0;
-  if( tmp.back() == ']' ) {
-   auto pos = tmp.find_last_of( '[' );
-   if( pos != std::string::npos ) {
-    try {
-     idx = std::stoi( tmp.substr( pos + 1 ) );
-     tmp.resize( pos );
-     }
-    catch( ... ) { idx = 0; }
-    }
-   }
-
-  return( Block::deserialize( tmp , idx , father ) );
+  return( Block::deserialize( tmp , father ) );
   }
  else {
   input >> tmp;

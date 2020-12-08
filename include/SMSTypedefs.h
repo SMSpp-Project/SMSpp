@@ -1792,23 +1792,48 @@ inline std::istream & eatcomments( std::istream & is )
 /**@} ----------------------------------------------------------------------*/
 /*------------------ LOADING list, array and multi_array -------------------*/
 /*--------------------------------------------------------------------------*/
-/** @defgroup load_multi_arrays Loading lists and arrays
+/** @defgroup load_composite_data structures Loading lists and vectors
  *
- * A few versions of operator>> for loading pairs, lists and arrays. For lists
- * and arrays the format is always
+ * A few versions of operator>> for loading pairs, lists and vectors out of
+ * a std::istream. For pairs, the format is just
  *
- * number of elements k
- * for i = 1 to k
- * - element of the list
+ *     first element of the pair
+ *     second element of the pair
  *
- * while for pairs the format is just
+ * List and vectors can instead be either in dense or sparse format. That is,
+ * the format always starts with a signed integer
  *
- *  first element of the pair
- *  second element of the pair
+ *     +/- number of elements k
+ *
+ * If k == 0, the empty vector is returned. If k > 0, the vector has k
+ * elements, and the format is the obvious "dense" one, i.e.,
+ *
+ *     for i = 1 to k
+ *     - i-th element of the array/list
+ *
+ * If k < 0, instead, the vector/list will have abs( k ) elements. The format
+ * is instead the "sparse" one, i.e. (after k)
+ *
+ *     number of non-default elements h (<= k)
+ *     for i = 1 to h
+ *     - index 0 <= j < k of the i-th non-default element
+ *     - value of the i-th non-default element
+ *
+ *     IMPORTANT NOTE: THE VALUES OF THE INDICES MUST BE IN THE RIGTH RANGE,
+ *     ORDERED IN INCREASING SENSE AND NOT REPLICATED
  *
  * It is assumed that each element can be read with >> itself, which rules
  * out pointers. Elements are separated by whitespaces and comments (see
- * eatcomments above).
+ * eatcomments above). This creates a problem with dense vectors/lists of
+ * std::strings, because there is no way in which one can have any of their
+ * elements to be empty; if this is the case, use the sparse input instaed.
+ * 
+ * Note that one could in principle define the method only once as
+ *
+ * template< template <class ... > class C , typename T  >
+ * std::istream & operator>>( std::istream & is , C< T > & l )
+ *
+ * but this would clash with the operator>> for std::string.
  *  @{
  */
 
@@ -1825,26 +1850,76 @@ std::istream & operator>>( std::istream & is , std::pair< T1, T2 > & p )
 template< typename T >
 std::istream & operator>>( std::istream & is , std::vector< T > & l )
 {
- unsigned int k;
- is >> eatcomments >> k;
- l.resize( k );
- for( auto & li : l )
-  is >> eatcomments >> li;
+ int k = 0;
+ is >> eatcomments;
+ if( ! is.eof() )
+  is >> k;
 
+ if( ! k ) {
+  l.clear();
+  return( is );
+  }
+
+ if( k > 0 ) {
+  l.resize( k );
+  for( auto & li : l )
+   is >> eatcomments >> li;
+   }
+ else {
+  l.resize( -k );
+  unsigned int h;
+  is >> eatcomments >> h;
+  auto lit = l.begin();
+  for( unsigned int p = 0 ; h-- ; ++p ) {
+   unsigned int j;
+   is >> eatcomments >> j;
+   for( ; p < j ; ++p )
+    *(lit++) = T();
+   is >> eatcomments >> *(lit++);
+   }
+  while( lit != l.end() )
+   *(lit++) = T();
+  }
+ 
  return( is );
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 template< typename T >
-std::istream & operator>>( std::istream & is, std::list< T > & l )
+std::istream & operator>>( std::istream & is , std::list< T > & l )
 {
- unsigned int k;
- is >> eatcomments >> k;
- l.resize( k );
- for( auto & li : l )
-  is >> eatcomments >> li;
+ int k = 0;
+ is >> eatcomments;
+ if( ! is.eof() )
+  is >> k;
 
+ if( ! k ) {
+  l.clear();
+  return( is );
+  }
+
+ if( k > 0 ) {
+  l.resize( k );
+  for( auto & li : l )
+   is >> eatcomments >> li;
+   }
+ else {
+  l.resize( -k );
+  unsigned int h;
+  is >> eatcomments >> h;
+  auto lit = l.begin();
+  for( unsigned int p = 0 ; h-- ; ++p ) {
+   unsigned int j;
+   is >> eatcomments >> j;
+   for( ; p < j ; ++p )
+    *(lit++) = T();
+   is >> eatcomments >> *(lit++);   
+   }
+  while( lit != l.end() )
+   *(lit++) = T();
+  }
+ 
  return( is );
  }
 

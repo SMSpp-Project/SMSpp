@@ -160,11 +160,9 @@ class ColVariable : public Variable {
   kZeroRealU   = 14 ,  ///< any real value between -1 and 1 provided it is 0
   kZeroIntU    = 15 ,  ///< any int value between -1 and 1 provided it is 0
   ColVarLastType       ///< first allowed parameter value for derived classes
-  /**<
-   * Convenience value for easily allow derived classes
-   * to extend the set of types of real subsets.
-   */
- };
+                       /**< Convenience value for easily allow derived classes
+                        * to extend the set of types of real subsets. */
+  };
 
 /*--------------------------------------------------------------------------*/
 
@@ -189,20 +187,20 @@ class ColVariable : public Variable {
   *
   * The constructor sets the value of the ColVariable to its default. */
 
- explicit ColVariable( Block * my_block = nullptr,
-                       const var_type type = kContinuous )
+ explicit ColVariable( Block * my_block = nullptr ,
+                       var_type type = kContinuous )
   : Variable( my_block ) {
   f_state &= var_type( 1 );
   f_state |= type * 2;
   f_value = 0;
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: the vector of active stuff will be empty
 
  ColVariable( const ColVariable & v ) : Variable( v ) {
   f_value = v.f_value;
- }
+  }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
  /// destructor, virtual and empty
@@ -242,7 +240,7 @@ class ColVariable : public Variable {
   * reported by a Modification, and other mechanisms must be put in place to
   * (avoid) deal(ing) with it; see the discussion in ThinComputeInterface. */
 
- virtual void set_value( c_VarValue new_value = 0 ) { f_value = new_value; }
+ virtual void set_value( VarValue new_value = 0 ) { f_value = new_value; }
 
 /*--------------------------------------------------------------------------*/
  /// sets the "type" of the ColVariable
@@ -255,28 +253,27 @@ class ColVariable : public Variable {
   * The parameter issueMod decides if and how the VariableMod is issued, as
   * described in Observer::make_par(). */
 
- virtual void set_type( const var_type type,
-                        c_ModParam issueMod = eModBlck );
+ virtual void set_type( var_type type , ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// method to set whether the ColVariable is integer-valued
 
- virtual void is_integer( const bool yn, c_ModParam issueMod = eModBlck );
+ virtual void is_integer( bool yn , ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to set whether the ColVariable is non-negative
 
- virtual void is_positive( const bool yn, c_ModParam issueMod = eModBlck );
+ virtual void is_positive( bool yn , ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to set whether the ColVariable is non-positive
 
- virtual void is_negative( const bool yn, c_ModParam issueMod = eModBlck );
+ virtual void is_negative( bool yn , ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to set whether the max absolute value of the ColVariable is 1
 
- virtual void is_unitary( const bool yn, c_ModParam issueMod = eModBlck );
+ virtual void is_unitary( bool yn , ModParam issueMod = eModBlck );
 
 /**@} ----------------------------------------------------------------------*/
 /*------------ METHODS DESCRIBING THE BEHAVIOR OF A ColVariable ------------*/
@@ -285,7 +282,8 @@ class ColVariable : public Variable {
  *  @{ */
 
  /// method to get the value of the ColVariable (a real, i.e., a VarValue)
- [[nodiscard]] VarValue get_value() const { return ( f_value ); }
+
+ [[nodiscard]] VarValue get_value( void ) const { return( f_value ); }
 
 /*--------------------------------------------------------------------------*/
  /// method to check feasibility of a ColVariable
@@ -295,73 +293,101 @@ class ColVariable : public Variable {
   * that is, a non-negative ColVariable is feasible if its value is >= - eps,
   * and so on. */
 
- [[nodiscard]] bool is_feasible( const var_type eps = 0 ) const {
-  if( is_integer() && std::abs( std::round( f_value ) - f_value ) > eps )
-   return ( false );
+ [[nodiscard]] bool is_feasible( var_type eps = 0 ) const {
+  if( is_integer() && ( std::abs( std::round( f_value ) - f_value ) > eps ) )
+   return( false );
 
-  if( is_positive() && f_value < -eps )
-   return ( false );
+  if( is_positive() && ( f_value < -eps ) )
+   return( false );
 
-  if( is_negative() && f_value > eps )
-   return ( false );
+  if( is_negative() && ( f_value > eps ) )
+   return( false );
 
-  if( is_unitary() && std::abs( f_value ) - 1 > eps )
-   return ( false );
+  if( is_unitary() && ( std::abs( f_value ) - 1 > eps ) )
+   return( false );
 
-  return ( true );
- }
+  return( true );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// method to get the type of the ColVariable
  /** Returns the "type" of the ColVariable, encoded accordingly to the enum
   * col_var_type. */
- [[nodiscard]] var_type get_type() const { return ( f_state / 2 ); }
+
+ [[nodiscard]] var_type get_type( void ) const { return( f_state / 2 ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to tell whether a state is that of an integer-valued ColVariable
- static bool is_integer( var_type state ) { return ( state & var_type( 2 ) ); }
 
+ static bool is_integer( var_type state ) {
+  return( state & var_type( 2 ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to tell whether the ColVariable is integer-valued
- [[nodiscard]] bool is_integer() const { return ( is_integer( f_state ) ); }
+
+ [[nodiscard]] bool is_integer( void ) const {
+  return( is_integer( f_state ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to tell whether a state is that of a non-negative ColVariable
- static bool is_positive( var_type state ) { return ( state & var_type( 4 ) ); }
 
+ static bool is_positive( var_type state ) {
+  return( state & var_type( 4 ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to tell whether the ColVariable is non-negative
- [[nodiscard]] bool is_positive() const { return ( is_positive( f_state ) ); }
+ 
+ [[nodiscard]] bool is_positive( void ) const {
+  return( is_positive( f_state ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to tell whether a state is that of a non-positive ColVariable
- static bool is_negative( var_type state ) { return ( state & var_type( 8 ) ); }
+ static bool is_negative( var_type state ) {
+  return( state & var_type( 8 ) );
+  }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to tell whether the ColVariable is non-positive
- [[nodiscard]] bool is_negative() const { return ( is_negative( f_state ) ); }
+
+ [[nodiscard]] bool is_negative( void ) const {
+  return( is_negative( f_state ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to tell whether a state is that of a unitary ColVariable
- static bool is_unitary( var_type state ) { return ( state & var_type( 16 ) ); }
 
+ static bool is_unitary( var_type state ) {
+  return( state & var_type( 16 ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to tell whether the max absolute value of the ColVariable is 1
- [[nodiscard]] bool is_unitary() const { return ( is_unitary( f_state ) ); }
+
+ [[nodiscard]] bool is_unitary( void ) const {
+  return( is_unitary( f_state ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// method to return the lower bound on the ColVariable implied by its type
 
- [[nodiscard]] VarValue get_lb() const {
-  return ( is_positive() ? VarValue( 0 ) :
+ [[nodiscard]] VarValue get_lb( void ) const {
+  return( is_positive() ? VarValue( 0 ) :
            ( is_unitary() ? VarValue( -1 ) :
              -std::numeric_limits< VarValue >::infinity() ) );
- }
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to return the upper bound on the ColVariable implied by its type
 
- [[nodiscard]] VarValue get_ub() const {
-  return ( is_negative() ? VarValue( 0 ) :
-           ( is_unitary() ? VarValue( 1 ) :
-             std::numeric_limits< VarValue >::infinity() ) );
- }
+ [[nodiscard]] VarValue get_ub( void ) const {
+  return( is_negative() ? VarValue( 0 ) :
+	  ( is_unitary() ? VarValue( 1 ) :
+	    std::numeric_limits< VarValue >::infinity() ) );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING ACTIVE "STUFF" ------------------*/
@@ -369,9 +395,9 @@ class ColVariable : public Variable {
 /** @name Methods for handling the set of "active" stuff
  *  @{ */
 
- [[nodiscard]] Index get_num_active() const override {
-  return ( v_active.size() );
- }
+ [[nodiscard]] Index get_num_active( void ) const override {
+  return( v_active.size() );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -379,17 +405,16 @@ class ColVariable : public Variable {
   auto idx = std::lower_bound( v_active.begin(), v_active.end(), stuff );
 
   if( idx != v_active.end() )
-   return ( std::distance( v_active.begin(), idx ) );
+   return( std::distance( v_active.begin() , idx ) );
   else
-   return ( std::numeric_limits< Index >::infinity() );
- }
+   return( std::numeric_limits< Index >::infinity() );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- [[nodiscard]] ThinVarDepInterface *
- get_active( const Index i ) const override {
-  return ( v_active[ i ] );
- }
+ [[nodiscard]] ThinVarDepInterface * get_active( Index i ) const override {
+  return( v_active[ i ] );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns (a reference to) the vector of pointers to active stuff
@@ -397,10 +422,10 @@ class ColVariable : public Variable {
   * stuff, which is ordered in increasing sense (using as key the "name"
   * of the ThinVarDepInterface, i.e., the pointer itself). */
 
- [[nodiscard]] const std::vector< ThinVarDepInterface * > &
- active_stuff() const {
-  return ( v_active );
- }
+ [[nodiscard]] const std::vector< ThinVarDepInterface * > & active_stuff(
+							      void ) const {
+  return( v_active );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// adds a pointer to the vector of (pointers to) active stuff
@@ -411,8 +436,8 @@ class ColVariable : public Variable {
   // find proper position in ascending order
   auto it = std::upper_bound( v_active.begin(), v_active.end(), stuff );
 
-  v_active.insert( it, stuff );  // insert before it
- }
+  v_active.insert( it , stuff );  // insert before it
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// removes the given pointer from the vector of active stuff
@@ -421,10 +446,10 @@ class ColVariable : public Variable {
 
  void remove_active( ThinVarDepInterface * stuff ) override {
   // find proper position in ascending order
-  auto it = std::find( v_active.begin(), v_active.end(), stuff );
+  auto it = std::find( v_active.begin() , v_active.end() , stuff );
 
   v_active.erase( it );  // now remove it
- }
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// removes the active stuff at the given position in the vector
@@ -433,7 +458,7 @@ class ColVariable : public Variable {
 
  void remove_active( std::vector< ThinVarDepInterface * >::iterator it ) {
   v_active.erase( it );  // just remove it
- }
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// sets the value of this ColVariable to its default value (0)
@@ -447,9 +472,9 @@ class ColVariable : public Variable {
   * - create a class that derives from ColVariable and overrides this method.
   */
 
- void set_to_default_value() override {
+ void set_to_default_value( void ) override {
   this->set_value( VarValue( 0 ) );
- }
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/

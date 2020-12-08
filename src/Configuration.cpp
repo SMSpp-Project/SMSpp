@@ -76,8 +76,7 @@ SMSpp_insert_in_factory_cpp_0_t(
 /*------------------------- METHODS of Configuration -----------------------*/
 /*--------------------------------------------------------------------------*/
 
-Configuration * Configuration::deserialize( const std::string & filename ,
-					    int idx )
+Configuration * Configuration::deserialize( const std::string & filename )
 {
  try {
   if( ( filename.size() > 4 ) &&
@@ -90,7 +89,20 @@ Configuration * Configuration::deserialize( const std::string & filename ,
    return( Configuration::deserialize( f ) );
    }
   else {
-   netCDF::NcFile f( filename.c_str() , netCDF::NcFile::read );
+   int idx = 0;
+   std::string fn;
+   if( filename.back() == ']' ) {
+    auto pos = filename.find_last_of( '[' );
+    if( pos != std::string::npos ) {
+     try {
+      idx = std::stoi( filename.substr( pos + 1 ) );
+      fn = filename.substr( 0 , pos );
+      }
+     catch( ... ) { idx = 0; }
+     }
+    }
+   netCDF::NcFile f( fn.empty() ? filename.c_str() : fn.c_str() ,
+		     netCDF::NcFile::read );
    return( Configuration::deserialize( f , idx ) );
    }
   }
@@ -110,7 +122,7 @@ Configuration * Configuration::deserialize( const std::string & filename ,
 
 /*--------------------------------------------------------------------------*/
 
-Configuration *  Configuration::deserialize( netCDF::NcFile & f , int idx )
+Configuration * Configuration::deserialize( netCDF::NcFile & f , int idx )
 {
  try {
   auto gtype = f.getAtt( "SMS++_file_type" );
@@ -168,12 +180,7 @@ Configuration * Configuration::new_Configuration( netCDF::NcGroup & group )
 
    gfile.getValues( tmp );
 
-   int idx = 0;
-   auto gpos = group.getAtt( "position" );
-   if( ! gfile.isNull() )
-    gpos.getValues( & idx );
-
-   return( deserialize( tmp , idx ) );
+   return( deserialize( tmp ) );
    }
 
   gtype.getValues( tmp );
@@ -225,19 +232,7 @@ Configuration * Configuration::deserialize( std::istream & input )
   if( input.fail() )
     throw( std::invalid_argument( sre ) );
 
-  int idx = 0;
-  if( tmp.back() == ']' ) {
-   auto pos = tmp.find_last_of( '[' );
-   if( pos != std::string::npos ) {
-    try {
-     idx = std::stoi( tmp.substr( pos + 1 ) );
-     tmp.resize( pos );
-     }
-    catch( ... ) { idx = 0; }
-    }
-   }
-
-  return( Configuration::deserialize( tmp , idx ) );
+  return( Configuration::deserialize( tmp ) );
   }
  else {
   input >> tmp;
@@ -578,7 +573,7 @@ void SimpleConfiguration< std::pair< Configuration * , Configuration * >
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-
+/*!!
 template<>
 void SimpleConfiguration< std::pair< Configuration * , Configuration * >
 			  >::load( std::istream & input )
@@ -586,6 +581,7 @@ void SimpleConfiguration< std::pair< Configuration * , Configuration * >
  f_value.first = Configuration::deserialize( input );
  f_value.second = input.eof() ? nullptr : Configuration::deserialize( input );
  }
+ !!*/
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
@@ -637,7 +633,7 @@ void SimpleConfiguration< std::vector< Configuration * >
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-
+/*!!
 template<>
 void SimpleConfiguration< std::vector< Configuration * >
 			  >::load( std::istream & input )
@@ -668,6 +664,7 @@ void SimpleConfiguration< std::vector< Configuration * >
   el = Configuration::deserialize( input );
   }
  }
+ !!*/
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 

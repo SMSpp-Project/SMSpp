@@ -633,14 +633,9 @@ void ComputeConfig::load( std::istream & input )
 
  vint_pars.resize( k );
  for( unsigned int i = 0 ; i < k ; ++i ) {
-  unsigned int h;
-  input >> eatcomments >> vint_pars[ i ].first >> eatcomments >> h;
+  input >> eatcomments >> vint_pars[ i ].first
+        >> eatcomments >> vint_pars[ i ].second;
   checkfail( input , sre );
-  vint_pars[ i ].second.resize( h );
-  for( unsigned int j = 0 ; j < h ; ++j ) {
-   input >> eatcomments >> vint_pars[ i ].second[ j ];
-   checkfail( input , sre );
-   }
   }
 
  if( advance( input ) )
@@ -651,14 +646,9 @@ void ComputeConfig::load( std::istream & input )
 
  vdbl_pars.resize( k );
  for( unsigned int i = 0 ; i < k ; ++i ) {
-  unsigned int h;
-  input >> eatcomments >> vdbl_pars[ i ].first >> eatcomments >> h;
+  input >> eatcomments >> vdbl_pars[ i ].first
+        >> eatcomments >> vdbl_pars[ i ].second;
   checkfail( input , sre );
-  vdbl_pars[ i ].second.resize( h );
-  for( unsigned int j = 0 ; j < h ; ++j ) {
-   input >> eatcomments >> vdbl_pars[ i ].second[ j ];
-   checkfail( input , sre );
-   }
   }
 
  if( advance( input ) )
@@ -669,14 +659,8 @@ void ComputeConfig::load( std::istream & input )
 
  vstr_pars.resize( k );
  for( unsigned int i = 0 ; i < k ; ++i ) {
-  unsigned int h;
-  input >> eatcomments >> vstr_pars[ i ].first >> eatcomments >> h;
-  checkfail( input , sre );
-  vstr_pars[ i ].second.resize( h );
-  for( unsigned int j = 0 ; j < h ; ++j ) {
-   input >> eatcomments >> vstr_pars[ i ].second[ j ];
-   checkfail( input , sre );
-   }
+  input >> eatcomments >> vstr_pars[ i ].first
+        >> eatcomments >> vstr_pars[ i ].second;
   }
 
  if( advance( input ) )

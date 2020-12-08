@@ -1,3 +1,13 @@
+2020-08-12 [low] add configuration and vector-of-configuration parameters
+
+	Rather than one single "extra" Configuration, ComputeConfig could have
+	an arbitrary number of Configuration parameters and even
+	vector-of-configuration parameters. This would, I'd say, make it almost
+	infinitely flexible, thereby negating every reasonable need for having
+	:ComputeConfig (of which we have none even now). Since this would break a
+	number of things, it is best left for the future.
+
+
 2020-10-22 [low] add explicit support for non-handled parameters
 
 	Add methods bool is_*_par() to ThinComputeInterface that return true if that
@@ -64,27 +74,34 @@
         infrastructure for printing only specific parts of the model could be
         imagined.
 
+
 2020-02-17 [high] LagrangianDualBlock, BendersDecompositionBlock
+2020-08-20 [updated] LagrangianDualSolver, BendersDecompositionSolver
 
 	SMS++ is motivated by decomposition, and it offers LagBFunction and
 	BendersBFunction to handle a large part of the complications about
 	transforming an optimization problem into a C05Function (Lagrangian
 	or value one). However, the step from a :Block with appropriate
 	structure and the corresponding collection of C05Functions still
-	have to be done manually. LagrangianDualBlock and
-	BendersDecompositionBlock should automate this. The idea is that
-	they take an inner :Block with appropriate structure and "hyjack"
-	its sons, storing them into appropriate LagBFunction or
+	have to be done manually. LagrangianDualSolver and
+	BendersDecompositionSolver should automate this. The idea is that
+	they take a inner Block with appropriate structure (in the Lagrangian
+	case, no variables in the father and no other links between the sons but
+	the linear constraints in the father) and construct an appropriate :Block
+	(say, an AbstractBlock) representing the Lagrangian Dual / Benders'
+	Reformulation of the original Block. This is done by either "hyjacking"
+	or copying (R3B) its sons, storing them into appropriate LagBFunction or
 	BendersBFunction that are then stuffed into newly constructed
-	AbstractBlock and put as its sons. The original :Block may *not*
+	AbstractBlock and put as its sons. The original :Block will *not*
 	be destroied but rather kept, with its sons now referring to the
 	LagrangianDualBlock / BendersDecompositionBlock as their father,
 	but the original :Block "still believing" they are its sons. This
-	may allow a user having a reference to the original :Block to keep
+	will allow a user having a reference to the original :Block to keep
 	working with it and keeping using it without even realising that its
 	Lagrangian Dual / Benders Reformulation are being solved instead.
-	This is a possible alternative to having the :Block to manually
-	produce an appropriately structured R3Block of its.
+	This is a great alternative to having the :Block to manually produce
+	an appropriately structured R3Block of its, because it is all done
+	transparently inside a Solver that is attached to the original Block.
 
 
 2019-11-01 [medium-high] Block and Solver specify which kinds of Modification
@@ -291,13 +308,6 @@
 	Maybe solution information could need to have a specific signature,
 	maybe not. This is relatively quick to do, but quite some comments
 	around Block will have to be updated.
-
-2018-03-22 [medium, pre-requisite LagrangianBlock] LagrangianUCBlock
-
-	Simply, the concrete implementation of get_r3_Block() in
-	UCBlock that produces the Lagrangian dual w.r.t. the energy
-	constraints, with all the methods to pass information back and
-	forth between this and the original one.
 
 
 2019-03-17 [medium] Variable[Index]Set
@@ -705,3 +715,12 @@
 #-------------------------------- DISCARDED -----------------------------------#
 ################################################################################
 ################################################################################
+
+2018-03-22 [medium, pre-requisite LagrangianBlock] LagrangianUCBlock
+
+	Simply, the concrete implementation of get_r3_Block() in
+	UCBlock that produces the Lagrangian dual w.r.t. the energy
+	constraints, with all the methods to pass information back and
+	forth between this and the original one.
+
+

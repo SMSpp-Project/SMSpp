@@ -876,25 +876,10 @@ class Block : public Observer {
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Block out of a file
- /** Top-level de-serialization method: takes the filename of a file, and
-  * and possibly a position into it and a \p father, and returns the
-  * complete :Block object whose description is the one found at position
-  * \p idx in the file (if this is supported, see later), with the prescribed
-  * father.
-  *
-  * Note that the method is static, hence it is to be called as
-  *
-  *       Block * myBlock = Block::deserialize( somefile [ , father ] );
-  *
-  * i.e., without any reference to any specific Block (and, therefore, it can
-  * be used to construct the very first Block if needed, in which case there
-  * will be no \p father).
-  *
-  * Note that the :Block returned my this method is clearly not "empty", as
-  * opposed as :Block fresh out of the factory (see new_Block()), but is it
-  * "un-configured": the "abstract representation" is not constructed (unless
-  * the :Block does this by its own volition), the BlockConfig is not set, and
-  * there are no Solver attached.
+ /** Top-level de-serialization method: takes the \p filename of a file
+  * (possibly also encoding a position into it), and possibly a \p father,
+  * and returns the complete :Block object whose description is the one
+  * found (at the specified position) in the file.
   *
   * The method supports two different kind of files:
   *
@@ -902,19 +887,37 @@ class Block : public Observer {
   *
   * - SMS++ netCDF files.
   *
-  * It distinguishes between the two by the suffix: if \p filename terminates
-  * by ".txt" (case sensitive) then a std::fstream is opened and 
-  * new_Block( std::istream & ) is called, otherwise a netCDF::NcFile is
-  * opened and Block::deserialize( netCDF::NcFile & [ , idx ] ) is called.
-  * Note that only SMS++ netCDF files support the \pos argument; by default
-  * it is 0, which means "the first Block in the file", which is always
-  * assumed for text files. If something goes wrong with the entire
-  * operation, nullptr is returned. See new_Block( std::istream & ) /
-  * deserialize( netCDF::NcFile & ) for details of the text / SMS++ netCDF
-  * file format. */
+  * It distinguishes between the two by the suffix. In particular, the format
+  * of \p filename can be:
+  *
+  * - either \p filename terminates by ".txt" (case sensitive) then a
+  *   std::fstream is opened and deserialize( istream ) is called, with
+  *   the Block being extracted is the first one found in it;
+  *
+  * - otherwise a netCDF::NcFile is opened and deserialize( netCDF::NcFile )
+  *   is called; since netCDF::NcFile support the notion of having
+  *   multiple Block inside, \p filename can be used to encode the position
+  *   (Block) in the file:
+  *
+  *     * if the \p filename ends with ']', then is is supposed to have the
+  *       form "real filename[idx]": the "[idx] part is excised and used to
+  *       compute the int parameter of deserialize() (the position), with the
+  *       remaining part being used for the string parameter (the filename);
+  *
+  *     * otherwise, the whole string is used as the string parameter (the
+  *       filename).
+  *
+  * If anything goes wrong with the entire operation, nullptr is returned.
+  *
+  * Note that the method is static, hence it is to be called as
+  *
+  *       Block * myBlock = Block::deserialize( somefile [ , father ] );
+  *
+  * i.e., without any reference to any specific Block (and, therefore, it can
+  * be used to construct the very first Block if needed, in which case there
+  * will be no \p father). */
 
  static Block * deserialize( const std::string & filename ,
-			     unsigned int idx = 0 ,
 			     Block * father = nullptr );
 
 /*--------------------------------------------------------------------------*/
@@ -980,10 +983,9 @@ class Block : public Observer {
   *   attribute "filename"; in this case, the attribute is used as argument
   *   for a call to deserialize( const std::string & [ , int , Block * ] )
   *   that will extract the :Block by the corresponding file (be it a text or
-  *   netCDF one), with the given \p father. In this case, \p group is also
-  *   searched for an integer attribute "position"; if found this is used as
-  *   the idx parameter in the call to deserialize(), see the comments in the
-  *   method for the exact meaning and limitations of the parameter.
+  *   netCDF one), with the given \p father. Note that for netCDF files the
+  *   filename string can also be used to encode the position in the file,
+  *   see the comments in the method for details.
   *
   * In case \p group contains both "type" and "filename", the first takes the
   * precedence (direct groups have precedence over indirect ones).
@@ -1146,21 +1148,10 @@ class Block : public Observer {
   *   = The characters immediately following '*' a nonempty string, which
   *     means that '*' is not immediately followed by a whitespace (note that
   *     comments are *not* skipped here): then, the string is used as the
-  *     filename, and possibly the idx, argument of deserialize(
-  *     const std::string & [ , int ] ), which opens it and reads the
-  *     :Block from there without advancing the pointer in \p input (save
-  *     for discarding '*' and the string). In particular:
- *
-  *     * if the string ends with ']', then is is supposed to have the form
-  *       "<filename>[idx]": the "[idx] part is excised and used to compute
-  *       the int parameter of deserialize() (the position), with the
-  *       remaining part being used for the string parameter (the filename);
-  *
-  *     * otherwise, the whole string is used as the string parameter (the
-  *       filename);
-  *
-  *     See the comments of deserialize( const std::string & [ , int ] )
-  *     for the format of the filename and of the target file.
+  *     filenam of deserialize( string ), which opens it and reads the :Block
+  *     from there without advancing the pointer in \p input (save for
+  *     discarding '*' and the string). Check the comments of deserialize(
+  *     string ) for the details of the possible formats of the string.
   *
   *   = The characters immediately following '*' form an empty string (which
   *     means that '*' is immediately followed by whitespaces or comments):
@@ -5930,6 +5921,20 @@ class Block : public Observer {
   b.load( in );
   return ( in );
  }
+
+/*--------------------------------------------------------------------------*/
+ /// friend operator>>() for pointers
+ /** Not really a method, but a friend operator>>() that loads a new :Block
+  * and stores its pointer; this is basically calling Block::deserialize(
+  * stream ) to load the string classname, use the factory to build the
+  * object, and then use the standard operator>>() to finish loading. For
+  * obvious reasons it cannot take care of the father, which is therefore
+  * always nullpr. It would not even really need to be a friend. */
+
+ friend std::istream & operator>>( std::istream & in , Block * &c ) {
+  c = Block::deserialize( in );
+  return( in );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// serialize a Block (recursively) to a netCDF file given the filename

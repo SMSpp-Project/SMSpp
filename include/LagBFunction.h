@@ -905,30 +905,34 @@ class LagBFunction : public C05Function , public Block {
   return( is_convex() ? get_upper_estimate() : get_lower_estimate() );
   }
 
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  FunctionValue get_lower_estimate( void ) const override {
-  auto lb = v_Block.front()->get_registered_solvers().front()->get_lb();
+  auto slvr = v_Block.front()->get_registered_solvers().front();
+  if( ! slvr )
+   throw( std::logic_error( "get_lower_estimate called with no Solver" ) );
+  auto lb = slvr->get_lb();
   if( lb == -Inf<FunctionValue>() )
    return( lb );
   else {
    if( std::isnan( f_yb ) )
-    throw( std::logic_error( "get_upper_estimate() ccalled before compute() "
-			     ) );
+    throw( std::logic_error( "get_lower_estimate called before compute" ) );
    return( f_yb > -Inf<FunctionValue>() ? lb + f_yb : lb );
    }
   }
 
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  FunctionValue get_upper_estimate( void ) const override {
-  auto ub = v_Block.front()->get_registered_solvers().front()->get_ub();
+ auto slvr = v_Block.front()->get_registered_solvers().front();
+  if( ! slvr )
+   throw( std::logic_error( "get_upper_estimate called with no Solver" ) );
+  auto ub = slvr->get_ub();
   if( ub == Inf<FunctionValue>() )
    return( ub );
   else {
    if( std::isnan( f_yb ) )
-    throw( std::logic_error( "get_upper_estimate() ccalled before compute() "
-			     ) );
+    throw( std::logic_error( "get_upper_estimate called before compute" ) );
    return( f_yb > -Inf<FunctionValue>() ? ub + f_yb : ub );
    }
   }
