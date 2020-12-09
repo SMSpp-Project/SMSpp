@@ -58,7 +58,7 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void RowConstraintSolution::deserialize( netCDF::NcGroup & group ) {
+void RowConstraintSolution::deserialize( const netCDF::NcGroup & group ) {
  throw( std::logic_error( "RowConstraintSolution::deserialize not ready yet" )
         );
 }

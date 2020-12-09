@@ -190,7 +190,7 @@ BlockSolverConfig * BlockSolverConfig::deserialize( netCDF::NcFile & f,
 
 /*--------------------------------------------------------------------------*/
 
-void BlockSolverConfig::deserialize( netCDF::NcGroup & group )
+void BlockSolverConfig::deserialize( const netCDF::NcGroup & group )
 {
  if( v_SolverNames.size() || v_SolverConfigs.size() )
   throw( std::logic_error( "deserializing a non-empty BlockSolverConfig" ) );
@@ -494,7 +494,7 @@ RBlockSolverConfig::RBlockSolverConfig( RBlockSolverConfig && old ) noexcept
 
 /*--------------------------------------------------------------------------*/
 
-void RBlockSolverConfig::deserialize( netCDF::NcGroup & group )
+void RBlockSolverConfig::deserialize( const netCDF::NcGroup & group )
 {
  if( v_BlockSolverConfig.size() )
   throw( std::logic_error( "deserializing a non-empty RBlockSolverConfig" ) );

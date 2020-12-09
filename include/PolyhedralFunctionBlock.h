@@ -226,7 +226,7 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   * - any other data necessary to represent the "arbitrary" part of the
   *   AbstractBlock, see AbstractBlock::deserialize() for details. */
 
- void deserialize( netCDF::NcGroup & group ) override
+ void deserialize( const netCDF::NcGroup & group ) override
  {
   // have the PolyhedralFunction do all the dirty work for us
   // don't bother issuing individual Modification, since a NBModification will

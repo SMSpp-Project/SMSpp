@@ -646,7 +646,7 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- void deserialize( netCDF::NcGroup& group ) override;
+ void deserialize( const netCDF::NcGroup& group ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------- METHODS FOR MODIFYING THE LagBFunction ------------------*/

@@ -247,7 +247,7 @@ class Configuration
   * therefore, it can be used to construct the very first Configuration if
   * needed). */
 
- static Configuration * deserialize( netCDF::NcFile & f , int idx = 0 );
+ static Configuration * deserialize( const netCDF::NcFile & f , int idx = 0 );
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Configuration out of netCDF::NcGroup, returns it
@@ -282,7 +282,7 @@ class Configuration
   *
   * If anything goes wrong with the process, nullptr is returned. */
 
- static Configuration * new_Configuration( netCDF::NcGroup & group );
+ static Configuration * new_Configuration( const netCDF::NcGroup & group );
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize the current :Configuration out of netCDF::NcGroup
@@ -300,7 +300,7 @@ class Configuration
   * :Configuration class, and exception should be thrown if anything goes
   * wrong in the process. */
 
- virtual void deserialize( netCDF::NcGroup & group )
+ virtual void deserialize( const netCDF::NcGroup & group )
  {
   #ifndef NDEBUG
    netCDF::NcGroupAtt gtype = group.getAtt( "type" );
@@ -741,24 +741,30 @@ class SimpleConfiguration : public Configuration
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// constructor taking the value (&) as input
+
  explicit SimpleConfiguration( const SimpleConfiguration_value_type &
 			       initval )
   : Configuration() { f_value = initval; }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// move constructor taking the value (&&) as input
+
  explicit SimpleConfiguration( SimpleConfiguration_value_type && initval )
   : Configuration() { f_value = std::move( initval ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// copy constructor: does what it says on the tin
+
  SimpleConfiguration( const SimpleConfiguration & old ) : Configuration() {
   f_value = old.f_value;
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( const netCDF::NcGroup & group ) override {
+  Configuration::deserialize( group );
+  SMSpp_di_unipi_it::deserialize( group , f_value );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -773,7 +779,10 @@ class SimpleConfiguration : public Configuration
 
 /*--------------------------------------------------------------------------*/
 
- void serialize( netCDF::NcGroup & group ) const override;
+ void serialize( netCDF::NcGroup & group ) const override {
+  Configuration::serialize( group );
+  SMSpp_di_unipi_it::serialize( group , f_value );
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -860,104 +869,104 @@ typedef std::vector< p_Conf > Vec_p_Conf;
 
 /** @} end( group( Configuration_TYPES ) ) */
 /*--------------------------------------------------------------------------*/
-/*---------------------- TEMPLATE SPECIALIZATIONS --------------------------*/
+/*------------------ Configuration-RELATED FUNCTIONS -----------------------*/
 /*--------------------------------------------------------------------------*/
-/** @defgroup SimpleConfiguration_SPECIALIZATIONS SimpleConfiguration template
- *  specializations.
+/** @defgroup Configuration_FUNCTIONS Configuration-related functions.
  *  @{ */
 
-template<>
-void SimpleConfiguration< int >::serialize( netCDF::NcGroup & group ) const;
+/// deserialize a Configuration (*) out of a given group
+/** Deserialize a Configuration (*) , out of the given \p group and into
+ * \p data. This is is done by calling Configuration::new_Configuration() on
+ * the given \p group if \p name is empty, and otherwise on the sub.group of
+ * \p group with the given \p name. */
 
-template<>
-void SimpleConfiguration< int >::deserialize( netCDF::NcGroup & group );
+inline void deserialize( const netCDF::NcGroup & group ,
+			 Configuration * & data ,
+			 const std::string & name = "" )
+{
+ if( name.empty() )
+  data = Configuration::new_Configuration( group );
+ else
+  data = Configuration::new_Configuration( group.getGroup( name ) );
+ }
 
-template<>
-void SimpleConfiguration< double >::serialize( netCDF::NcGroup & group )
- const;
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// serialize a Configuration (*) into a given group
+/** Serialize a Configuration (*) out of \p data. This is done by serializing
+ * the Configuration in \p group if \p name is empty, and otherwise by
+ * creating the sub-group of \p group with the given \p name and serializing
+ * the Configuration there. */
 
-template<>
-void SimpleConfiguration< double >::deserialize( netCDF::NcGroup & group );
+inline void serialize( netCDF::NcGroup & group , const Configuration * data ,
+		       const std::string & name = "" )
+{
+ if( name.empty() )
+  data->serialize( group );
+ else {
+  auto gr = group.addGroup( name );
+  data->serialize( gr );
+  }
+ }
 
-template<>
-void SimpleConfiguration< std::pair< int , int >
-                          >::serialize( netCDF::NcGroup & group ) const;
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// deserialize basically any STL container of Configuration (*)
+/** Deserialize basically any STL container of Configuration (*) out of the
+ * given \p group and into \p data. This is supposed to be represented by
+ * the dimension with name \p size giving the size of the container, plus
+ * by as many sub-groups of \p group with name <name>0, <name>1, ..., each
+ * one containing one of the Configuration. */
 
-template<>
-void SimpleConfiguration< std::pair< int , int >
-                          >::serialize( netCDF::NcGroup & group ) const;
+template< template < class ... > class C >
+void deserialize( const netCDF::NcGroup & group ,
+		  C< Configuration * > & data ,
+		  const std::string & size = "size" ,
+		  const std::string & name = "Config_" )
+{
+ for( auto el : data )
+  delete el;
+ auto dim = group.getDim( size );
+ if( dim.isNull() ) {
+  data.clear();
+  return;
+  }
+ data.resize( dim.getSize() );
+ size_t i = 0;
+ for( auto & el : data )
+  el = Configuration::new_Configuration(
+			   group.getGroup( name + std::to_string( i++ ) ) );
+ }
 
-template<>
-void SimpleConfiguration< std::pair< int , int >
-                          >::deserialize( netCDF::NcGroup & group );
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// serialize basically any STL container of Configuration (*)
+/** Serialize basically any STL container of Configuration (*) into the
+ * given \p group and into \p data. This is supposed to be represented by
+ * the dimension with name \p size giving the size of the container, plus
+ * by as many sub-groups of \p group with name <name>0, <name>1, ..., each
+ * one containing one of the Configuration. */
 
-template<>
-void SimpleConfiguration< std::pair< double , double >
-                          >::serialize( netCDF::NcGroup & group ) const;
+template< template < class ... > class C >
+void serialize( netCDF::NcGroup & group , const C< Configuration * > & data ,
+		const std::string & size = "size" ,
+		const std::string & name = "Config_" )
+{
+ group.addDim( size , data.size() );
+ size_t i = 0;
+ for( auto el : data )
+  el->serialize( group.addGroup( name + std::to_string( i++ ) ) );
+ }
 
-template<>
-void SimpleConfiguration< std::pair< double , double >
-                          >::deserialize( netCDF::NcGroup & group );
-
-template<>
-void SimpleConfiguration< std::pair< int , double >
-                          >::serialize( netCDF::NcGroup & group ) const;
-
-template<>
-void SimpleConfiguration< std::pair< int , double >
-                          >::deserialize( netCDF::NcGroup & group );
-
-template<>
-void SimpleConfiguration< std::pair< double , int >
-                          >::serialize( netCDF::NcGroup & group ) const;
-
-template<>
-void SimpleConfiguration< std::pair< double , int >
-                          >::deserialize( netCDF::NcGroup & group );
-
-template<>
-void SimpleConfiguration< std::vector< int >
-                          >::serialize( netCDF::NcGroup & group ) const;
-
-template<>
-void SimpleConfiguration< std::vector< int >
-                          >::deserialize( netCDF::NcGroup & group );
-
-template<>
-void SimpleConfiguration< std::vector< int > >::clear( void );
-
-template<>
-void SimpleConfiguration< std::vector< double >
-                          >::serialize( netCDF::NcGroup & group ) const;
-
-template<>
-void SimpleConfiguration< std::vector< double >
-                          >::deserialize( netCDF::NcGroup & group );
-
-template<>
-void SimpleConfiguration< std::vector< double > >::clear( void );
-
-template<>
-void SimpleConfiguration< std::list< int >
-                          >::serialize( netCDF::NcGroup & group ) const;
-
-template<>
-void SimpleConfiguration< std::list< int >
-                          >::deserialize( netCDF::NcGroup & group );
-
-template<>
-void SimpleConfiguration< std::list< int > >::clear( void );
-
-template<>
-void SimpleConfiguration< std::list< double >
-                          >::serialize( netCDF::NcGroup & group ) const;
-
-template<>
-void SimpleConfiguration< std::list< double >
-                          >::deserialize( netCDF::NcGroup & group );
-
-template<>
-void SimpleConfiguration< std::list< double > >::clear( void );
+/** @} end( group( Configuration_FUNCTIONS ) ) */
+/*--------------------------------------------------------------------------*/
+/*---------------------- TEMPLATE SPECIALIZATIONS --------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @defgroup SimpleConfiguration_SPECIALIZATIONS SimpleConfiguration
+ *  template specializations.
+ *
+ *  Template specializations are mostly needed for SimpleConfiguration
+ *  containing Configuration *, mostly because template arguments deduction
+ *  removes references, and making it hard to work with pointer types in the
+ *  exact same ways in which you work with non-pointer types.
+ *  @{ */
 
 template<>
 void SimpleConfiguration< std::pair< Configuration *, Configuration * >
@@ -965,32 +974,12 @@ void SimpleConfiguration< std::pair< Configuration *, Configuration * >
  const;
 
 template<>
-void SimpleConfiguration< std::pair< Configuration *, Configuration * >
-                          >::deserialize( netCDF::NcGroup & group );
-
-/*!!
-template<>
 void SimpleConfiguration< std::pair< Configuration * , Configuration * >
-                          >::load( std::istream & input );
-			  !!*/
+                          >::deserialize( const netCDF::NcGroup & group );
 
 template<>
 void SimpleConfiguration< std::pair< Configuration * , Configuration * >
                           >::clear( void );
-
-template<>
-void SimpleConfiguration< std::vector< Configuration * >
-                          >::serialize( netCDF::NcGroup & group ) const;
-
-template<>
-void SimpleConfiguration< std::vector< Configuration * >
-                          >::deserialize( netCDF::NcGroup & group );
-
-/*!!
-template<>
-void SimpleConfiguration< std::vector< Configuration * >
-                          >::load( std::istream & input );
-			  !!*/
 
 template<>
 void SimpleConfiguration< std::vector< Configuration * > >::clear( void );

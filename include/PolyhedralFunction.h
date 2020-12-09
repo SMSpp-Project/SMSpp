@@ -391,7 +391,8 @@ class PolyhedralFunction : public C05Function {
   *        since the method is mostly thought to be used during initialization
   *        when "no one is listening". */
 
- void deserialize( netCDF::NcGroup & group , ModParam issueMod = eNoMod );
+ void deserialize( const netCDF::NcGroup & group ,
+		   ModParam issueMod = eNoMod );
 
 /*--------------------------------------------------------------------------*/
  /// destructor: it is virtual, and empty

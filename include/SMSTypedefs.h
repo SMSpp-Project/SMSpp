@@ -1827,14 +1827,6 @@ inline std::istream & eatcomments( std::istream & is )
  * eatcomments above). This creates a problem with dense vectors/lists of
  * std::strings, because there is no way in which one can have any of their
  * elements to be empty; if this is the case, use the sparse input instaed.
- * 
- * Note that one could in principle define the method only once as
- *
- * template< template <class ... > class C , typename T  >
- * std::istream & operator>>( std::istream & is , C< T > & l )
- *
- * but this would clash with the operator>> for std::string.
- *  @{
  */
 
 template< class T1, class T2 >
@@ -1846,9 +1838,15 @@ std::istream & operator>>( std::istream & is , std::pair< T1, T2 > & p )
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+// note the template wizardry in the third parameter which prevents the
+// templated operator>> for "any" std container to clash with the predefined
+// one for std:: string
 
-template< typename T >
-std::istream & operator>>( std::istream & is , std::vector< T > & l )
+template< template <class ... > class C , typename T ,
+          typename std::enable_if< ! std::is_same< C< T > ,
+                                                   std::string >::value
+                                                  >::type * = nullptr >
+ std::istream & operator>>( std::istream & is , C< T > & l )
 {
  int k = 0;
  is >> eatcomments;
@@ -1884,45 +1882,6 @@ std::istream & operator>>( std::istream & is , std::vector< T > & l )
  return( is );
  }
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-
-template< typename T >
-std::istream & operator>>( std::istream & is , std::list< T > & l )
-{
- int k = 0;
- is >> eatcomments;
- if( ! is.eof() )
-  is >> k;
-
- if( ! k ) {
-  l.clear();
-  return( is );
-  }
-
- if( k > 0 ) {
-  l.resize( k );
-  for( auto & li : l )
-   is >> eatcomments >> li;
-   }
- else {
-  l.resize( -k );
-  unsigned int h;
-  is >> eatcomments >> h;
-  auto lit = l.begin();
-  for( unsigned int p = 0 ; h-- ; ++p ) {
-   unsigned int j;
-   is >> eatcomments >> j;
-   for( ; p < j ; ++p )
-    *(lit++) = T();
-   is >> eatcomments >> *(lit++);   
-   }
-  while( lit != l.end() )
-   *(lit++) = T();
-  }
- 
- return( is );
- }
-
 /**@} ----------------------------------------------------------------------*/
 /*------------------ DE/SERIALIZING FROM/TO netCDF FILES -------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1932,6 +1891,124 @@ std::istream & operator>>( std::istream & is , std::list< T > & l )
  * The following functions are intended to help in the execution of typical
  * tasks that must be performed when serializing and deserializing objects.
  *  @{ */
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+template< typename T >
+netCDF::NcType typ2nCDF( void ) { return( netCDF::NcOpaqueType() ); }
+
+template<>
+inline netCDF::NcType typ2nCDF< int >( void ) { return( netCDF::NcInt() ); }
+
+template<>
+inline netCDF::NcType typ2nCDF< double >( void ) {
+ return( netCDF::NcDouble() );
+ }
+
+template<>
+inline netCDF::NcType typ2nCDF< std::string >( void ) {
+ return( netCDF::NcString() );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// deserialize a simple value out of a given group
+/** Deserialize a "simple" value, one for which NcGroup::getVar() is
+ * defined, out of the given \p group and into \p data. This is supposed to
+ * live in the netCDF variable with name \p name. */
+
+template< typename T >
+void deserialize( const netCDF::NcGroup & group , T & data ,
+		  const std::string & name = "value" )
+{
+ ( group.getVar( name ) ).getVar( & data );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// serialize a simple value into a given group
+/** Serialize a "simple" value, one for which NcGroup::putVar() is defined,
+ * out of \p data and into of the variable with name \p name of the given
+ * \p group. */
+
+template< typename T >
+void serialize( netCDF::NcGroup & group , const T & data ,
+		const std::string & name = "value" )
+{
+ ( group.addVar( name , typ2nCDF< T >() ) ).putVar( & data );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// deserialize a std::pair value into a given group
+/** Deserialize a std::pair of values for which deserialize() is well-defined
+ * (e.g., "simple" values) out of the given \p group and into \p data. This
+ * is done by calling deserialize() for data.first on "<name>_f" and for
+ * data.second on"<name>_s". */
+
+template< typename T1 , typename T2 >
+void deserialize( const netCDF::NcGroup & group ,
+		  std::pair< T1 , T2 > & data ,
+		  const std::string & name = "value" )
+{
+ deserialize( group , data.first , name + "_f" );
+ deserialize( group , data.second , name + "_s" );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// serialize a std::pair value into a given group
+/** Serialize a std::pair of values for which deserialize() is well-defined
+ * (e.g., "simple" values) out of \p data and into of the two variables with
+ * name "<name>_f" and "<name>_s" of the given \p group. */
+
+template< typename T1 , typename T2 >
+void serialize( netCDF::NcGroup & group , const std::pair< T1 , T2 > & data ,
+		const std::string & name = "value" )
+{
+ serialize( group , data.first , name + "_f" );
+ serialize( group , data.second , name + "_s" );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// deserialize a std::vector into a given group
+/** Deserialize a std::vector of "simple" values, for which
+ * NcGroup::getVar() is defined, out of the given \p group and into \p data. 
+ * This is supposed to be represented by the dimension with name \p size
+ * giving the size of the std::vector, and by the variable with name \p name
+ * containing the actual values. */
+
+template< typename T >
+void deserialize( const netCDF::NcGroup & group , std::vector< T > & data ,
+		  const std::string & size = "size" ,
+		  const std::string & name = "value" )
+{
+ auto dim = group.getDim( size );
+ if( dim.isNull() ) {
+  data.clear();
+  return;
+  }
+ size_t sz = dim.getSize();
+ data.resize( sz );
+ std::vector< size_t > start = { 0 };
+ std::vector< size_t > count = { sz };
+ ( group.getVar( name ) ).getVar( start , count , data.data() );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// serialize a std::vector into a given group
+/** serialize a std::vector of "simple" values, for which NcGroup::putVar()
+ * is defined  (e.g., "simple" values) out of \p data and into the dimension
+ * with name \p size, giving the size of the std::vector, and the variable
+ * with name \p name, containing the actual values, of the given \p group. */
+
+template< typename T >
+void serialize( netCDF::NcGroup & group , const std::vector< T > & data ,
+		const std::string & size = "size" ,
+		const std::string & name = "value" )
+{
+ auto sz = group.addDim( size , data.size() );
+ std::vector< size_t > startp = { 0 };
+ std::vector< size_t > countp = { data.size() };
+ ( group.addVar( name , typ2nCDF< T >() , sz )
+   ).putVar( startp , countp , data.data() );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /*- - - - - - - - - - - - - - - DESERIALIZING - - - - - - - - - - - - - - -*/

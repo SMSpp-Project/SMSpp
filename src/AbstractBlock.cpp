@@ -898,7 +898,7 @@ void AbstractBlock::print( std::ostream & output ) const
 
 /*--------------------------------------------------------------------------*/
 
-void AbstractBlock::guts_of_deserialize( netCDF::NcGroup & group )
+void AbstractBlock::guts_of_deserialize( const netCDF::NcGroup & group )
 {
  // deserialize the "abstract only inner Block"
  netCDF::NcDim nib = group.getDim( "NumberInnerBlock" );

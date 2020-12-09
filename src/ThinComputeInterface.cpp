@@ -200,7 +200,7 @@ ComputeConfig * ThinComputeInterface::get_ComputeConfig(
 /*------------------------ METHODS of ComputeConfig ------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void ComputeConfig::deserialize( netCDF::NcGroup & group )
+void ComputeConfig::deserialize( const netCDF::NcGroup & group )
 {
  // call the method of the base class, which does not much
  Configuration::deserialize( group );

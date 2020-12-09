@@ -35,7 +35,7 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void ColRowSolution::deserialize( netCDF::NcGroup & group ) {
+void ColRowSolution::deserialize( const netCDF::NcGroup & group ) {
  throw( std::logic_error( "ColRowSolution::deserialize not ready yet" ) );
 }
 

@@ -959,7 +959,8 @@ class Block : public Observer {
   * i.e., without any reference to any specific Block (and, therefore, it can
   * be used to construct the very first Block if needed). */
 
- static Block * deserialize( netCDF::NcFile & f , unsigned int idx = 0 ,
+ static Block * deserialize( const netCDF::NcFile & f ,
+			     unsigned int idx = 0 ,
 			     Block * father = nullptr );
 
 /*--------------------------------------------------------------------------*/
@@ -997,7 +998,7 @@ class Block : public Observer {
   *
   * If anything goes wrong with the process, nullptr is returned. */
 
- static Block * new_Block( netCDF::NcGroup & group ,
+ static Block * new_Block( const netCDF::NcGroup & group ,
                            Block * father = nullptr );
 
 /*--------------------------------------------------------------------------*/
@@ -1120,7 +1121,7 @@ class Block : public Observer {
   * necessarily be derived from. In this case deserialize() in the base class
   * should not call Block::deserialize(), leaving this to derived ones. */
 
- virtual void deserialize( netCDF::NcGroup & group )
+ virtual void deserialize( const netCDF::NcGroup & group )
  {
   netCDF::NcGroupAtt gname = group.getAtt( "name" );
   if( gname.isNull() )
@@ -8026,7 +8027,7 @@ class BlockConfig : public Configuration {
   * the "default" configuration (whatever that may mean for the :Block in
   * question) has to be used. */
 
- virtual void deserialize( netCDF::NcGroup & group ) override;
+ virtual void deserialize( const netCDF::NcGroup & group ) override;
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
@@ -8359,12 +8360,99 @@ class BlockConfig : public Configuration {
 
 /** @}  end( group( Block_CLASSES ) ) */
 /*--------------------------------------------------------------------------*/
-/*------------------------------ TYPEDEFS ----------------------------------*/
+/*------------------------- Block-RELATED TYPES ----------------------------*/
 /*--------------------------------------------------------------------------*/
-/** @defgroup Block_TYPEDEFS Type definitions in Block.h
+/** @defgroup Block_TYPES Type definitions in Block.h
  *  @{ */
 
-/** @}  end( group( Block_TYPEDEFS ) ) */
+ 
+/** @}  end( group( Block_TYPES ) ) */
+/*--------------------------------------------------------------------------*/
+/*---------------------- Block-RELATED FUNCTIONS ---------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @defgroup Block_FUNCTIONS Block-related functions.
+ *  @{ */
+
+/// deserialize a Block (*) out of a given group
+/** Deserialize a Block (*) , out of the given \p group and into \p data.
+ * This is is done by calling Block::new_Block() on the given \p group if
+ * \p name is empty, and otherwise on the sub.group of \p group with the
+ * given \p name. */
+
+inline void deserialize( const netCDF::NcGroup & group , Block * & data ,
+			 const std::string & name = "" )
+{
+ if( name.empty() )
+  data = Block::new_Block( group );
+ else
+  data = Block::new_Block( group.getGroup( name ) );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// serialize a Block (*) into a given group
+/** Serialize a Block (*) out of \p data. This is done by serializing the
+ * Block in \p group if \p name is empty, and otherwise by creating the
+ * sub-group of \p group with the given \p name and serializing the Block
+ * there. */
+
+inline void serialize( netCDF::NcGroup & group , const Block * data ,
+		       const std::string & name = "" )
+{
+ if( name.empty() )
+  data->serialize( group );
+ else {
+  auto gr = group.addGroup( name );
+  data->serialize( gr );
+  }
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// deserialize basically any STL container of Block (*)
+/** Deserialize basically any STL container of Block (*) out of the given
+ * \p group and into \p data. This is supposed to be represented by the
+ * dimension with name \p size giving the size of the container, plus by as
+ * many sub-groups of \p group with name <name>0, <name>1, ..., each one
+ * containing one of the Block. */
+
+template< template < class ... > class C >
+void deserialize( const netCDF::NcGroup & group , C< Block * > & data ,
+		  const std::string & size = "size" ,
+		  const std::string & name = "Block_" )
+{
+ for( auto el : data )
+  delete el;
+ auto dim = group.getDim( size );
+ if( dim.isNull() ) {
+  data.clear();
+  return;
+  }
+ data.resize( dim.getSize() );
+ size_t i = 0;
+ for( auto & el : data )
+  el = Block::new_Block( group.getGroup( name + std::to_string( i++ ) ) );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// serialize basically any STL container of Block (*)
+/** Serialize basically any STL container of Block (*) into the given
+ * \p group and into \p data. This is supposed to be represented by the
+ * dimension with name \p size giving the size of the container, plus by as
+ * many sub-groups of \p group with name <name>0, <name>1, ..., each one
+ * containing one of the Block. */
+
+template< template < class ... > class C >
+void serialize( netCDF::NcGroup & group , const C< Block * > & data ,
+		const std::string & size = "size" ,
+		const std::string & name = "Block_" )
+{
+ group.addDim( size , data.size() );
+ size_t i = 0;
+ for( auto el : data )
+  el->serialize( group.addGroup( name + std::to_string( i++ ) ) );
+ }
+
+
+/** @} end( group( Block_FUNCTIONS ) ) */
 /*--------------------------------------------------------------------------*/
 /*---------------------- INLINE METHODS IMPLEMENTATION ---------------------*/
 /*--------------------------------------------------------------------------*/

@@ -108,7 +108,7 @@ Block * Block::deserialize( const std::string & filename , Block * father )
 
 /*--------------------------------------------------------------------------*/
 
-Block * Block::deserialize( netCDF::NcFile & f , unsigned int idx ,
+Block * Block::deserialize( const netCDF::NcFile & f , unsigned int idx ,
 			    Block * father )
 {
  try {
@@ -151,7 +151,7 @@ Block * Block::deserialize( netCDF::NcFile & f , unsigned int idx ,
 
 /*--------------------------------------------------------------------------*/
 
-Block * Block::new_Block( netCDF::NcGroup & group , Block * father )
+Block * Block::new_Block( const netCDF::NcGroup & group , Block * father )
 {
  try {
   if( group.isNull() )
@@ -781,7 +781,7 @@ void BlockConfig::serialize( netCDF::NcGroup & group ) const
 
 /*--------------------------------------------------------------------------*/
 
-void BlockConfig::deserialize( netCDF::NcGroup & group )
+void BlockConfig::deserialize( const netCDF::NcGroup & group )
 {
  if( ! empty() )
   throw( std::logic_error( "deserializing a non-empty BlockConfig" ) );

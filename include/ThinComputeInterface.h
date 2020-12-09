@@ -1526,7 +1526,7 @@ class ComputeConfig : public Configuration {
   *   however, they can still do if they want); the group is optional, if it
   *   does not exist the corresponding Configuration * is set to nullptr. */
 
- void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( const netCDF::NcGroup & group ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// extends Configuration::serialize( netCDF::NcGroup )

@@ -332,7 +332,7 @@ class BlockSolverConfig : public Configuration {
   *   are optional; if "SolverConfig_<i>" is not provided, then nullptr is
   *   considered for the i-th ComputeConfig. */
 
- void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
  /// destructor
@@ -980,7 +980,7 @@ class RBlockSolverConfig : public BlockSolverConfig {
   * that the size of the vector of sub-BlockSolverConfig is allowed to be
   * different than the number of sub-Block. */
 
- void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( const netCDF::NcGroup & group ) override;
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
  /// destructor

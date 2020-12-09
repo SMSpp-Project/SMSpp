@@ -400,7 +400,7 @@ void LagBFunction::set_par( const idx_type par , const double value )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::deserialize( netCDF::NcGroup & group )
+void LagBFunction::deserialize( const netCDF::NcGroup & group )
 {
  throw( std::logic_error( "LagBFunction::deserialize not implemented yet" ) );
 

@@ -141,7 +141,7 @@ static void checkfail( std::istream & input )
 /*--------------------------- METHODS of RHandler --------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void RHandler::deserialize( netCDF::NcGroup & group )
+void RHandler::deserialize( const netCDF::NcGroup & group )
 {
  auto n_sub_Block = group.getDim( "n_sub_Block" );
 
@@ -335,7 +335,7 @@ void RHandler::load( std::istream & input )
 /*-------------------------- METHODS of CHandler --------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void CHandler::deserialize( netCDF::NcGroup & group )
+void CHandler::deserialize( const netCDF::NcGroup & group )
 {
  // Configuration for Constraint
 
@@ -532,7 +532,7 @@ void CHandler::load( std::istream & input )
 /*--------------------------- METHODS of OHandler --------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void OHandler::deserialize( netCDF::NcGroup & group )
+void OHandler::deserialize( const netCDF::NcGroup & group )
 {
  if( f_Config_Objective )
   throw( std::logic_error( "deserializing a non-empty *OBlockConfig." ) );

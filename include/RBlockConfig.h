@@ -138,7 +138,7 @@ class RHandler
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  // deserialize
 
- void deserialize( netCDF::NcGroup & group );
+ void deserialize( const netCDF::NcGroup & group );
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
@@ -358,7 +358,7 @@ class CHandler {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  // deserialize
 
- void deserialize( netCDF::NcGroup & group );
+ void deserialize( const netCDF::NcGroup & group );
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
@@ -595,7 +595,7 @@ class OHandler {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  // deserialize
 
- void deserialize( netCDF::NcGroup & group );
+ void deserialize( const netCDF::NcGroup & group );
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
@@ -814,7 +814,7 @@ class OCRBlockConfig : public BlockConfig ,
   * @param group The netCDF::NcGroup containing the description of the
   *        OCRBlockConfig. */
 
- explicit OCRBlockConfig( netCDF::NcGroup & group ) : BlockConfig() ,
+ explicit OCRBlockConfig( const netCDF::NcGroup & group ) : BlockConfig() ,
   OHandler() , CHandler() , RHandler() {
   OCRBlockConfig::deserialize( group );
   }
@@ -901,7 +901,7 @@ class OCRBlockConfig : public BlockConfig ,
   * - all that is needed to describe a RBlockConfig
   *   (see RBlockConfig::deserialize()). */
 
- void deserialize( netCDF::NcGroup & group ) override {
+ void deserialize( const netCDF::NcGroup & group ) override {
   if( ! ( BlockConfig::empty() && OHandler::empty() &&
 	  CHandler::empty() && RHandler::empty() ) )
    throw( std::logic_error( "deserializing a non-empty OCRBlockConfig" ) );
@@ -1114,7 +1114,7 @@ class CRBlockConfig : public BlockConfig ,
   * @param group The netCDF::NcGroup containing the description of the
   *        CRBlockConfig. */
 
- explicit CRBlockConfig( netCDF::NcGroup & group )
+ explicit CRBlockConfig( const netCDF::NcGroup & group )
   : BlockConfig() , CHandler() , RHandler() {
    CRBlockConfig::deserialize( group );
    }
@@ -1192,7 +1192,7 @@ class CRBlockConfig : public BlockConfig ,
   * - all that is needed to describe a RBlockConfig
   *   (see RBlockConfig::deserialize()). */
 
- void deserialize( netCDF::NcGroup & group ) override {
+ void deserialize( const netCDF::NcGroup & group ) override {
   if( ! ( BlockConfig::empty() && CHandler::empty() && RHandler::empty() ) )
    throw( std::logic_error( "deserializing a non-empty CRBlockConfig" ) );
 
@@ -1398,7 +1398,7 @@ class ORBlockConfig : public BlockConfig ,
   * @param group The netCDF::NcGroup containing the description of the
   *        ORBlockConfig. */
 
- explicit ORBlockConfig( netCDF::NcGroup & group ) : BlockConfig() ,
+ explicit ORBlockConfig( const netCDF::NcGroup & group ) : BlockConfig() ,
   OHandler() , RHandler() { ORBlockConfig::deserialize( group ); }
 
 /*--------------------------------------------------------------------------*/
@@ -1471,7 +1471,7 @@ class ORBlockConfig : public BlockConfig ,
   * - all that is needed to describe a RBlockConfig
   *   (see RBlockConfig::deserialize()). */
 
- void deserialize( netCDF::NcGroup & group ) override {
+ void deserialize( const netCDF::NcGroup & group ) override {
   if( ! ( BlockConfig::empty() && OHandler::empty() && RHandler::empty() ) )
    throw( std::logic_error( "deserializing a non-empty ORBlockConfig" ) );
 
@@ -1657,7 +1657,7 @@ class OCBlockConfig : public BlockConfig ,
   * @param group The netCDF::NcGroup containing the description of the
   *        OCBlockConfig. */
 
- explicit OCBlockConfig( netCDF::NcGroup & group ) : BlockConfig() ,
+ explicit OCBlockConfig( const netCDF::NcGroup & group ) : BlockConfig() ,
   OHandler() , CHandler() { OCBlockConfig::deserialize( group ); }
 
 /*--------------------------------------------------------------------------*/
@@ -1731,7 +1731,7 @@ class OCBlockConfig : public BlockConfig ,
   * - all that is needed to describe a CBlockConfig
   *   (see CBlockConfig::deserialize()). */
 
- void deserialize( netCDF::NcGroup & group ) override {
+ void deserialize( const netCDF::NcGroup & group ) override {
   if( ! ( BlockConfig::empty() && OHandler::empty() && CHandler::empty() ) )
    throw( std::logic_error( "deserializing a non-empty OCBlockConfig" ) );
 
@@ -1914,7 +1914,7 @@ class OBlockConfig : public BlockConfig ,
   * @param group The netCDF::NcGroup containing the description of the
   *        OBlockConfig. */
 
- explicit OBlockConfig( netCDF::NcGroup & group ) : BlockConfig() ,
+ explicit OBlockConfig( const netCDF::NcGroup & group ) : BlockConfig() ,
   OHandler() { OBlockConfig::deserialize( group ); }
 
 /*--------------------------------------------------------------------------*/
@@ -1981,7 +1981,7 @@ class OBlockConfig : public BlockConfig ,
   *   group is optional; if it is not provided, then nullptr (default
   *   configuration) is assumed. */
 
- void deserialize( netCDF::NcGroup & group ) override {
+ void deserialize( const netCDF::NcGroup & group ) override {
   BlockConfig::deserialize( group );
   OHandler::deserialize( group );
   }
@@ -2155,7 +2155,7 @@ class CBlockConfig : public BlockConfig ,
   * @param group the netCDF::NcGroup containing the description of the
   *        CBlockConfig. */
 
- explicit CBlockConfig( netCDF::NcGroup & group )
+ explicit CBlockConfig( const netCDF::NcGroup & group )
   : BlockConfig() , CHandler() { CBlockConfig::deserialize( group ); }
 
 /*--------------------------------------------------------------------------*/
@@ -2270,7 +2270,7 @@ class CBlockConfig : public BlockConfig ,
   *   "Config_Constraint_<i>" is not provided, then nullptr (default
   *   configuration) is assumed for the i-th Constraint. */
 
- void deserialize( netCDF::NcGroup & group ) override {
+ void deserialize( const netCDF::NcGroup & group ) override {
   if( ( ! v_Config_Constraint.empty() ) || ( ! v_Constraint_id.empty() ) )
    throw( std::logic_error( "CBlockConfig::deserialize: deserializing a "
 			    "non-empty CBlockConfig" ) );
@@ -2498,7 +2498,7 @@ class RBlockConfig : public BlockConfig ,
   * @param group The netCDF::NcGroup containing the description of the
   *        RBlockConfig. */
 
- explicit RBlockConfig( netCDF::NcGroup & group )
+ explicit RBlockConfig( const netCDF::NcGroup & group )
   : BlockConfig() , RHandler() { RBlockConfig::deserialize( group ); }
 
 /*--------------------------------------------------------------------------*/
@@ -2587,7 +2587,7 @@ class RBlockConfig : public BlockConfig ,
   *       IF THE NAME OF THE Block IS USED AS ITS IDENTIFICATION, THEN
   *       THE FIRST CHARACTER OF THIS NAME CANNOT BE A DIGIT. */
 
- void deserialize( netCDF::NcGroup & group ) override {
+ void deserialize( const netCDF::NcGroup & group ) override {
   if( ! ( BlockConfig::empty() && RHandler::empty() ) )
    throw( std::logic_error( "deserializing a non-empty RBlockConfig" ) );
 
