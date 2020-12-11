@@ -1,3 +1,7 @@
+# Build this with:
+# docker build -t registry.gitlab.com/smspp/smspp .
+# Run with:
+# docker run --rm -it registry.gitlab.com/smspp/smspp:latest
 FROM buildpack-deps:scm
 
 # Install required packages
