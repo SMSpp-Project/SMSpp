@@ -156,7 +156,7 @@ class Solution {
   * This method is pure virtual, as it clearly has to be implemented by
   * derived classes. */
 
- virtual void deserialize( netCDF::NcGroup & group ) = 0;
+ virtual void deserialize( const netCDF::NcGroup & group ) = 0;
 
 /*--------------------------------------------------------------------------*/
 

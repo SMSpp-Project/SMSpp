@@ -11,9 +11,9 @@
  * paradigm. Also, since a Function depends on a set of "active" Variable, it
  * implements the ThinVarDepInterface paradigm.
  *
- * \version 0.41
+ * \version 0.42
  *
- * \date 31 - 10 - 2019
+ * \date 02 - 12 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -31,7 +31,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __Function
-#define __Function  /* self-identification: #endif at the end of the file */
+ #define __Function  /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -44,9 +44,10 @@
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
-
 /// namespace for the Structured Modeling System++ (SMS++)
+
 namespace SMSpp_di_unipi_it {
+
 class Observer;  // forward definition of Observer
 
 class Variable;  // forward definition of Variable
@@ -137,7 +138,7 @@ class Variable;  // forward definition of Variable
  * copying a Function to a different memory location makes a distinct
  * Function. */
 
-class Function : public ThinComputeInterface, public ThinVarDepInterface {
+class Function : public ThinComputeInterface , public ThinVarDepInterface {
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
@@ -151,61 +152,57 @@ class Function : public ThinComputeInterface, public ThinVarDepInterface {
 /** @name Public Types
     @{ */
 
- /// type of the returned value
- using FunctionValue = double;
+ using FunctionValue = double;  ///< type of the returned value
 
  using c_FunctionValue = const FunctionValue;  ///< a const FunctionValue
 
  /// a std::vector of FunctionValue
  using Vec_FunctionValue = std::vector< FunctionValue >;
 
+ /// a const Vec_FunctionValue
  using c_Vec_FunctionValue = const Vec_FunctionValue;
- ///< a const Vec_FunctionValue
 
 /*--------------------------------------------------------------------------*/
  /// public enum for the int algorithmic parameters of Function
  /** Public enum describing the different parameters of "int" type that a
   * Function must have (although specific Function may choose to ignore some
   * of them). The value intLastParFun is provided so that the list can be
-  * easily further extended by derived classes.
-  */
+  * easily further extended by derived classes. */
 
  enum int_par_type_F {
-  intMaxIter = 0,  ///< maximum iterations for the next call to compute()
-  /**< The algorithmic parameter for setting the maximum
-   * number of iterations in the next call to compute().
+  intMaxIter = 0 ,  ///< maximum iterations for the next call to compute()
+                    /**< The algorithmic parameter for setting the maximum
+		     * number of iterations in the next call to compute().
    * The concept of "what exactly an iteration is" is clearly dependent on the
    * Function, and it may not even make sense for all Function. However, some
    * Function will actually be iterative processes, and therefore it makes
    * sense to offer support for this notion in the base class. The default is
-   * Inf<int>() = no limits.
-   */
+   * Inf<int>() = no limits. */
 
-  intMaxThread,  ///< maximum number of threads that compute() can spawn
-  /**< The algorithmic parameter for setting the maximum
-   * number of threads that the next call to compute() is
+  intMaxThread ,  ///< maximum number of threads that compute() can spawn
+                  /**< The algorithmic parameter for setting the maximum
+		   * number of threads that the next call to compute() is
    * allowed to spawn while computinf the function. Actually "thread" here
    * is intended in a loose sense, since each :Function will decide if and how
    * to implememnt any asynchronous part, and hence which tools will be used
    * to manage it. If std::asynch is used, for instance, then what is easily
    * kept under control is the number of tasks, which may or may not coincide
    * with the number of threads depending on the scheduler implementation.
-   * Specific :Function requiring more fine control of these aspects can define
-   * their own specific algorithmic parameters, but the concept of "maximum
-   * allowed amount of computational resources" (as governed by a simple int)
-   * should be general enough as to warrant a parameter in the base Function
-   * class. The default is 0, which means that compute() must only use the
-   * thread/task that is calling it. Note that this does not prevent the
-   * caller to call compute() in an asynchronous way, see e.g.
+   * Specific :Function requiring more fine control of these aspects can
+   * define their own specific algorithmic parameters, but the concept of
+   * "maximum allowed amount of computational resources" (as governed by a
+   * simple int) should be general enough as to warrant a parameter in the
+   * base Function class. The default is 0, which means that compute() must
+   * only use the thread/task that is calling it. Note that this does not
+   * prevent the caller to call compute() in an asynchronous way, see e.g.
    * ThinComputeInterface::compute_async() for an example, but in this case
    * the responsibility of spawning (and then controlling) the new task is on
    * the caller, while this parameter controls what happens inside compute().
    */
 
   intLastParFun   ///< first allowed new int parameter for derived classes
-  /**< Convenience value for easily allow derived classes
-   * to extend the set of int algorithmic parameters.
-   */
+                  /**< Convenience value for easily allow derived classes
+		   * to extend the set of int algorithmic parameters. */
 
  };  // end( int_par_type_F )
 
@@ -217,31 +214,29 @@ class Function : public ThinComputeInterface, public ThinVarDepInterface {
   * easily further extended by derived classes. */
 
  enum dbl_par_type_F {
-  dblMaxTime = 0,  ///< maximum time for the next call to compute()
-  /**< The parameter for setting the maximum time limit for
-   * the next call to compute(). The value is assumed to be
+  dblMaxTime = 0 ,  ///< maximum time for the next call to compute()
+                    /**< The parameter for setting the maximum time limit for
+		     * the next call to compute(). The value is assumed to be
    * in seconds, and it's a double (so both very fast and very slow
    * computations are supported). The Function class (so far) does not
-   * explicitly distinguish between "wall-clock time" and "CPU time", which may
-   * be rather different especially in a parallel environment. The default is
-   * Inf<double>().
-   */
+   * explicitly distinguish between "wall-clock time" and "CPU time", which
+   * may be rather different especially in a parallel environment. The
+   * default is Inf<double>(). */
 
-  dblRelAcc,    ///< relative accuracy for the value of the function
-  /**< The parameter for setting the *relative* accuracy
-   * required to the function value. That is, if both an upper
+  dblRelAcc ,    ///< relative accuracy for the value of the function
+                 /**< The parameter for setting the *relative* accuracy
+		  * required to the function value. That is, if both an upper
    * bound "ub" [see get_upper_estimate()] and a lower bound "lb" [see
    * get_lower_estimate()] on the value have been found, then compute() can
    * stop as soon as
    *
    *    ub - lb <= dblRelAcc * max( abs( lb ) , 1 )
    *
-   * The default is 1e-6.
-   */
+   * The default is 1e-6. */
 
-  dblAbsAcc,  ///< absolute accuracy for the value of the function
-  /**< The parameter for setting the *absolute* accuracy
-   * required to the function value. That is, if both an upper
+  dblAbsAcc ,  ///< absolute accuracy for the value of the function
+               /**< The parameter for setting the *absolute* accuracy
+		* required to the function value. That is, if both an upper
    * bound "ub" [see get_upper_estimate()] and a lower bound "lb" [see
    * get_lower_estimate()] on the value have been found, then compute() can
    * stop as soon as
@@ -249,12 +244,11 @@ class Function : public ThinComputeInterface, public ThinVarDepInterface {
    *    ub - lb <= dblRelAcc
    *
    * The default is Inf<OFValue>(), which is intended to mean that the only
-   * working accuracy is the relative one.
-   */
+   * working accuracy is the relative one. */
 
-  dblUpCutOff,  ///< upper cutoff on the value of the function
-  /**< The parameter for setting the "upper cut off" of the
-   * computation; that is, if a lower bound "lb" [see
+  dblUpCutOff ,  ///< upper cutoff on the value of the function
+                 /**< The parameter for setting the "upper cut off" of the
+		  * computation; that is, if a lower bound "lb" [see
    * get_lower_estimate()] on the value has been found, then compute() can
    * stop as soon as
    *
@@ -264,23 +258,85 @@ class Function : public ThinComputeInterface, public ThinVarDepInterface {
    * default is Inf<OFValue>(), i.e., no upper cut off.
    */
 
-  dblLwCutOff,  ///< lower cutoff on the value of the function
-  /**< The parameter for setting the "lower cut off" of the
-   * computation; that is, if an upper bound "ub" [see
+  dblLwCutOff ,  ///< lower cutoff on the value of the function
+                 /**< The parameter for setting the "lower cut off" of the
+                  * computation; that is, if an upper bound "ub" [see
    * get_upper_estimate()] on the value has been found, then compute() can
    * stop as soon as
    *
    *   ub <= dblLwCutOff
    *
    * This is a *certificate* that the value is at *most* dblLwCutOff. The
-   * default is -Inf<OFValue>(), i.e., no lower cut off.
-   */
+   * default is -Inf<OFValue>(), i.e., no lower cut off. */
 
   dblLastParFun   ///< first allowed new double parameter for derived classes
-  /**< Convenience value for easily allow derived classes
-   * to extend the set of double algorithmic parameters.
-   */
+                  /**< Convenience value for easily allow derived classes
+		   * to extend the set of double algorithmic parameters. */
  };  // end( dbl_par_type_F )
+
+/*--------------------------------------------------------------------------*/
+ /// public enum for the string algorithmic parameters
+ /** Public enum describing the different algorithmic parameters of "string"
+  * type that any Function should reasonably have (none so far). The value
+  * strLastAlgPar is provided so that the list can be easily extended by
+  * derived classes. */
+
+ enum str_par_type_F {
+  strLastAlgPar = 0   ///< first allowed new string parameter
+                      /**< Convenience value for easily allow derived classes
+		       * to extend the set of string algorithmic parameters.
+   * Actually, so far thare are no string algorithmic parameters in the base
+   * Function class, but this may change in the future, so using this makes
+   * code resistant to that. */
+ };  // end( str_par_type_F )
+
+/*--------------------------------------------------------------------------*/
+ /// public enum for vector-of-int algorithmic parameters
+ /** Public enum describing the different algorithmic parameters that are
+  * vectors of int that any Function should reasonably have (none so far).
+  * The value vintLastAlgPar is provided so that the list can be easily
+  * extended by derived classes. */
+
+ enum vint_par_type_F {
+  vintLastAlgPar = 0  ///< first allowed new  vector-of-int parameter
+                      /**< Convenience value for easily allow derived classes
+                       * to extend the set of vector-of-int parameters.
+   * Actually, so far thare are no such parameters in the base Function class,
+   * but this may change in the future, so using this makes code resistant to
+   * that. */
+ };  // end( vint_par_type_F )
+
+/*--------------------------------------------------------------------------*/
+ /// public enum for vector-of-double algorithmic parameters
+ /** Public enum describing the different algorithmic parameters that are
+  * vectors of double that any Function should reasonably have (none so far).
+  * The value vdblLastAlgPar is provided so that the list can be easily
+  * extended by derived classes. */
+
+ enum vdbl_par_type_F {
+  vdblLastAlgPar = 0  ///< first allowed new  vector-of-double parameter
+                      /**< Convenience value for easily allow derived classes
+                       * to extend the set of vector-of-double parameters.
+   * Actually, so far thare are no such parameters in the base Function class,
+   * but this may change in the future, so using this makes code resistant to
+   * that. */
+ };  // end( vdbl_par_type_S )
+
+/*--------------------------------------------------------------------------*/
+ /// public enum for vector-of-string algorithmic parameters
+ /** Public enum describing the different algorithmic parameters that are
+  * vectors of string that any Function should reasonably have (none so far).
+  * The value vdblLastAlgPar is provided so that the list can be easily
+  * extended by derived classes. */
+
+ enum vstr_par_type_F {
+  vstrLastAlgPar = 0  ///< first allowed new  vector-of-string parameter
+                      /**< Convenience value for easily allow derived classes
+                       * to extend the set of vector-of-string parameters.
+   * Actually, so far thare are no such parameters in the base Function class,
+   * but this may change in the future, so using this makes code resistant to
+   * that. */
+ };  // end( vstr_par_type_S )
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
@@ -298,13 +354,8 @@ class Function : public ThinComputeInterface, public ThinVarDepInterface {
   * just setting the pointer, such as registering the Observer, if it also is
   * a ThinVarDepInterface, to the Variable of the Function). */
 
- explicit Function( Observer * const observer = nullptr )
-  : ThinComputeInterface(),
-    ThinVarDepInterface(), f_Observer( nullptr ) {
-  if( observer )
-   // register_Observer( observer );
-   f_Observer = observer;
- }
+ explicit Function( Observer * observer = nullptr )
+  : ThinComputeInterface() , ThinVarDepInterface() , f_Observer( observer ) {}
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: it cannot be used, but it is not deleted
@@ -312,10 +363,10 @@ class Function : public ThinComputeInterface, public ThinVarDepInterface {
   * cannot be deleted because it is required to resize() empty vectors of
   * :Function. */
 
- Function( const Function & ) : ThinComputeInterface(),
-                                ThinVarDepInterface() {
-  throw std::logic_error( "copy constructor of Function invoked" );
- }
+ Function( const Function & )
+  : ThinComputeInterface() , ThinVarDepInterface() {
+  throw( std::logic_error( "copy constructor of Function invoked" ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// destructor: it is virtual, and empty
@@ -447,7 +498,7 @@ class Function : public ThinComputeInterface, public ThinVarDepInterface {
   * computed in the most recent call to compute(); if the latter has never
   * been invoked, then the value returned by this method is meaningless. */
 
- [[nodiscard]] virtual FunctionValue get_value() const = 0;
+ [[nodiscard]] virtual FunctionValue get_value( void ) const = 0;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns a lower estimate of the value of the Function
@@ -458,9 +509,9 @@ class Function : public ThinComputeInterface, public ThinVarDepInterface {
   * "easy" functions for which get_value() always returns "exact" (save
   * possibly unavoidable numerical errors) values. */
 
- [[nodiscard]] virtual FunctionValue get_lower_estimate() const {
-  return ( get_value() );
- }
+ [[nodiscard]] virtual FunctionValue get_lower_estimate( void ) const {
+  return( get_value() );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns an upper estimate of the value of the Function
@@ -471,9 +522,9 @@ class Function : public ThinComputeInterface, public ThinVarDepInterface {
   * "easy" functions for which get_value() always returns "exact" (save
   * possibly unavoidable numerical errors) values. */
 
- [[nodiscard]] virtual FunctionValue get_upper_estimate() const {
-  return ( get_value() );
- }
+ [[nodiscard]] virtual FunctionValue get_upper_estimate( void ) const {
+  return( get_value() );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns a valid global lower bound on the Function value
@@ -489,9 +540,9 @@ class Function : public ThinComputeInterface, public ThinVarDepInterface {
   * quickly if no change has happened that changed it. Thus, the method has
   * to be able to write into the fields of the class. */
 
- virtual FunctionValue get_global_lower_bound() {
-  return ( -Inf< FunctionValue >() );
- }
+ virtual FunctionValue get_global_lower_bound( void ) {
+  return( -Inf< FunctionValue >() );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns a valid global upper bound on the Function value
@@ -507,9 +558,9 @@ class Function : public ThinComputeInterface, public ThinVarDepInterface {
   * quickly if no change has happened that changed it. Thus, the method has
   * to be able to write into the fields of the class. */
 
- virtual FunctionValue get_global_upper_bound() {
-  return ( Inf< FunctionValue >() );
- }
+ virtual FunctionValue get_global_upper_bound( void ) {
+  return( Inf< FunctionValue >() );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns a (global) Lipschitz constant for the Function
@@ -529,9 +580,9 @@ class Function : public ThinComputeInterface, public ThinVarDepInterface {
   * quickly if no change has happened that changed it. Thus, the method has
   * to be able to write into the fields of the class. */
 
- virtual FunctionValue get_Lipschitz_constant() {
-  return ( std::numeric_limits< FunctionValue >::infinity() );
- }
+ virtual FunctionValue get_Lipschitz_constant( void ) {
+  return( std::numeric_limits< FunctionValue >::infinity() );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns true only if this Function is convex
@@ -539,7 +590,7 @@ class Function : public ThinComputeInterface, public ThinVarDepInterface {
   * false (convexity being good for optimization, in particular minimization,
   * often too good to be true). */
 
- [[nodiscard]] virtual bool is_convex() const { return ( false ); }
+ [[nodiscard]] virtual bool is_convex( void ) const { return( false ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns true only if this Function is concave
@@ -547,7 +598,7 @@ class Function : public ThinComputeInterface, public ThinVarDepInterface {
   * false (concavity being good for optimization, in particular maximization,
   * often too good to be true). */
 
- [[nodiscard]] virtual bool is_concave() const { return ( false ); }
+ [[nodiscard]] virtual bool is_concave( void ) const { return( false ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns true only if this Function is linear
@@ -556,9 +607,9 @@ class Function : public ThinComputeInterface, public ThinVarDepInterface {
   * functions that are both convex and concave is precisely that of linear
   * functions (and therefore this method is not very useful ... ) */
 
- [[nodiscard]] virtual bool is_linear() const {
-  return ( this->is_convex() && this->is_concave() );
- }
+ [[nodiscard]] virtual bool is_linear( void ) const {
+  return( this->is_convex() && this->is_concave() );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns true only if this Function is lower semi-continuous
@@ -566,7 +617,9 @@ class Function : public ThinComputeInterface, public ThinVarDepInterface {
   * semi-continuous. The default is true (continuity being an important
   * property for optimization). */
 
- [[nodiscard]] virtual bool is_lower_semicontinuous() const { return ( true ); }
+ [[nodiscard]] virtual bool is_lower_semicontinuous( void ) const {
+  return( true );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns true only if this Function is upper semi-continuous
@@ -574,7 +627,9 @@ class Function : public ThinComputeInterface, public ThinVarDepInterface {
   * semi-continuous. The default is true (continuity being an important
   * property for optimization). */
 
- [[nodiscard]] virtual bool is_upper_semicontinuous() const { return ( true ); }
+ [[nodiscard]] virtual bool is_upper_semicontinuous( void ) const {
+  return( true );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns true only if this Function is continuous
@@ -583,10 +638,10 @@ class Function : public ThinComputeInterface, public ThinVarDepInterface {
   * is both upper semi-continuous and lower semi-continuous (and therefore
   * this method is not very useful ... ) */
 
- [[nodiscard]] bool is_continuous() const {
-  return ( this->is_lower_semicontinuous() &&
-           this->is_upper_semicontinuous() );
- }
+ [[nodiscard]] bool is_continuous( void ) const {
+  return( this->is_lower_semicontinuous() &&
+	  this->is_upper_semicontinuous() );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
@@ -594,101 +649,97 @@ class Function : public ThinComputeInterface, public ThinVarDepInterface {
 /** @name Handling the parameters of the Function
  *  @{ */
 
- [[nodiscard]] idx_type get_num_int_par() const override {
-  return ( idx_type( intLastParFun ) );
- }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
- [[nodiscard]] idx_type get_num_dbl_par() const override {
-  return ( idx_type( dblLastParFun ) );
- }
-
-/*--------------------------------------------------------------------------*/
-
- [[nodiscard]] int get_dflt_int_par( const idx_type par ) const override {
-  if( par == intMaxIter )
-   return ( std::numeric_limits< int >::infinity() );
-  if( par == intMaxThread )
-   return ( 0 );
-
-  return ( ThinComputeInterface::get_dflt_int_par( par ) );
- }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
- [[nodiscard]] double get_dflt_dbl_par( const idx_type par ) const override {
-  switch( par ) {
-   case dblMaxTime :
-    return ( std::numeric_limits< double >::infinity() );
-   case dblRelAcc :
-    return ( 1e-6 );
-   case dblAbsAcc :
-   case dblUpCutOff :
-    return ( std::numeric_limits< double >::infinity() );
-   case dblLwCutOff :
-    return ( -std::numeric_limits< double >::infinity() );
-   default:;
+ [[nodiscard]] idx_type get_num_int_par( void ) const override {
+  return( idx_type( intLastParFun ) );
   }
-  return ( ThinComputeInterface::get_dflt_dbl_par( par ) );
- }
-
-/*--------------------------------------------------------------------------*/
-
- [[nodiscard]] idx_type
- int_par_str2idx( const std::string & name ) const override {
-  if( name == "intMaxIter" )
-   return ( intMaxIter );
-  if( name == "intMaxThread" )
-   return ( intMaxThread );
-
-  return ( ThinComputeInterface::int_par_str2idx( name ) );
- }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- [[nodiscard]] idx_type
- dbl_par_str2idx( const std::string & name ) const override {
-  if( name == "dblMaxTime" )
-   return ( dblMaxTime );
-  if( name == "dblRelAcc" )
-   return ( dblRelAcc );
-  if( name == "dblAbsAcc" )
-   return ( dblAbsAcc );
-  if( name == "dblUpCutOff" )
-   return ( dblUpCutOff );
-  if( name == "dblLwCutOff" )
-   return ( dblLwCutOff );
-
-  return ( ThinComputeInterface::dbl_par_str2idx( name ) );
- }
+ [[nodiscard]] idx_type get_num_dbl_par( void ) const override {
+  return( idx_type( dblLastParFun ) );
+  }
 
 /*--------------------------------------------------------------------------*/
 
- [[nodiscard]] const std::string &
- int_par_idx2str( const idx_type idx ) const override {
+ [[nodiscard]] int get_dflt_int_par( idx_type par ) const override {
+  if( par == intMaxIter )
+   return( std::numeric_limits< int >::infinity() );
+  if( par == intMaxThread )
+   return( 0 );
+
+  return( ThinComputeInterface::get_dflt_int_par( par ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] double get_dflt_dbl_par( idx_type par ) const override {
+  switch( par ) {
+   case( dblMaxTime ):  return( std::numeric_limits< double >::infinity() );
+   case( dblRelAcc ):   return( 1e-6 );
+   case( dblAbsAcc ):
+   case( dblUpCutOff ): return( std::numeric_limits< double >::infinity() );
+   case( dblLwCutOff ):  return( -std::numeric_limits< double >::infinity() );
+   }
+
+  return( ThinComputeInterface::get_dflt_dbl_par( par ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ [[nodiscard]] idx_type int_par_str2idx( const std::string & name )
+  const override {
+  if( name == "intMaxIter" )
+   return( intMaxIter );
+  if( name == "intMaxThread" )
+   return( intMaxThread );
+
+  return( ThinComputeInterface::int_par_str2idx( name ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] idx_type dbl_par_str2idx( const std::string & name )
+  const override {
+  if( name == "dblMaxTime" )
+   return( dblMaxTime );
+  if( name == "dblRelAcc" )
+   return( dblRelAcc );
+  if( name == "dblAbsAcc" )
+   return( dblAbsAcc );
+  if( name == "dblUpCutOff" )
+   return( dblUpCutOff );
+  if( name == "dblLwCutOff" )
+   return( dblLwCutOff );
+
+  return( ThinComputeInterface::dbl_par_str2idx( name ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ [[nodiscard]] const std::string & int_par_idx2str( idx_type idx )
+  const override {
   static const std::string mi = "intMaxIter";
   static const std::string mt = "intMaxThread";
   if( idx == intMaxIter )
-   return ( mi );
+   return( mi );
   if( idx == intMaxThread )
-   return ( mt );
+   return( mt );
 
-  return ( ThinComputeInterface::int_par_idx2str( idx ) );
- }
+  return( ThinComputeInterface::int_par_idx2str( idx ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- [[nodiscard]] const std::string &
- dbl_par_idx2str( const idx_type idx ) const override {
-  static const std::vector< std::string > pars =
-   { "dblMaxTime", "dblRelAcc", "dblAbsAcc", "dblUpCutOff", "dblLwCutOff" };
+ [[nodiscard]] const std::string & dbl_par_idx2str( idx_type idx )
+  const override {
+  static const std::vector< std::string > pars = { "dblMaxTime" ,
+       "dblRelAcc" , "dblAbsAcc" , "dblUpCutOff" , "dblLwCutOff" };
 
-  if( idx >= dblMaxTime && idx <= dblLwCutOff )
-   return ( pars[ idx ] );
-  else
-   return ( ThinComputeInterface::dbl_par_idx2str( idx ) );
- }
+  if( ( idx >= dblMaxTime ) && ( idx <= dblLwCutOff ) )
+   return( pars[ idx ] );
+
+  return( ThinComputeInterface::dbl_par_idx2str( idx ) );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE DATA OF THE Function ---------------*/
@@ -697,7 +748,7 @@ class Function : public ThinComputeInterface, public ThinVarDepInterface {
  *  @{ */
 
  /// returns the pointer to the Observer of this Function
- [[nodiscard]] Observer * get_Observer() const { return ( f_Observer ); }
+ [[nodiscard]] Observer * get_Observer( void ) const { return( f_Observer ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR LOADING, PRINTING & SAVING THE Function ----------*/
@@ -711,10 +762,10 @@ class Function : public ThinComputeInterface, public ThinVarDepInterface {
   * is defined for each Function, but its behavior can be customized by
   * derived classes. */
 
- friend std::ostream & operator<<( std::ostream & out, const Function & o ) {
+ friend std::ostream & operator<<( std::ostream & out , const Function & o ) {
   o.print( out );
   return ( out );
- }
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -843,19 +894,18 @@ class FunctionMod : public AModification {
 /*----------------------------- CONSTANTS ----------------------------------*/
 
  static constexpr FunctionValue NaNshift
-  = std::numeric_limits< FunctionValue >::quiet_NaN();
+                          = std::numeric_limits< FunctionValue >::quiet_NaN();
  ///< convenience constexpr for "NaN", *not* to be used with ==
 
  static constexpr FunctionValue INFshift
-  = std::numeric_limits< FunctionValue >::infinity();
+                           = std::numeric_limits< FunctionValue >::infinity();
  ///< convenience constexpr for "Infty"
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
 
- explicit FunctionMod( Function * f,
-                       FunctionValue shift = NaNshift,
+ explicit FunctionMod( Function * f , FunctionValue shift = NaNshift ,
                        bool cB = true )
-  : AModification( cB ), f_function( f ), f_shift( shift ) {}
+  : AModification( cB ) , f_function( f ) , f_shift( shift ) {}
 
  ///< constructor: takes a Function pointer and a shift
  /**< Constructor: takes a pointer to the affected Function and the value of
@@ -874,12 +924,12 @@ class FunctionMod : public AModification {
 
  /// returns the Block to which the Observer of the Function belongs
 
- [[nodiscard]] Block * get_Block() const override;
+ [[nodiscard]] Block * get_Block( void ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to (the pointer to) the affected Constraint
 
- [[nodiscard]] Function * function() const { return ( f_function ); }
+ [[nodiscard]] Function * function( void ) const { return( f_function ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to the type of Modification
@@ -911,7 +961,7 @@ class FunctionMod : public AModification {
  *   equal to the value that would have been returned prior to the
  *   Modification. */
 
- [[nodiscard]] FunctionValue shift() const { return ( f_shift ); }
+ [[nodiscard]] FunctionValue shift( void ) const { return ( f_shift ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -920,7 +970,7 @@ class FunctionMod : public AModification {
 /*-------------------------- PROTECTED METHODS -----------------------------*/
  /// print the FunctionMod
 
- inline void print( std::ostream & output ) const override {
+ void print( std::ostream & output ) const override {
   output << "FunctionMod[";
   if( concerns_Block() )
    output << "t";
@@ -935,7 +985,7 @@ class FunctionMod : public AModification {
    output << "(-)";
   else
    output << " by " << f_shift;
- }
+  }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
@@ -1135,11 +1185,11 @@ class FunctionModVars : public AModification {
 /*----------------------------- CONSTANTS ----------------------------------*/
 
  static constexpr FunctionValue NaNshift =
-  std::numeric_limits< FunctionValue >::quiet_NaN();
+                            std::numeric_limits< FunctionValue >::quiet_NaN();
  ///< convenience constexpr for "NaN", *not* to be used with ==
 
  static constexpr FunctionValue INFshift =
-  std::numeric_limits< FunctionValue >::infinity();
+                             std::numeric_limits< FunctionValue >::infinity();
  ///< convenience constexpr for "Infty"
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
@@ -1158,9 +1208,9 @@ class FunctionModVars : public AModification {
   * bunch of Variable in one blow" operation; still, any such operaton must
   * define what the addition order conceptually is). */
 
- FunctionModVars( Function * f, Vec_p_Var && vars,
-                  FunctionValue shift = NaNshift, bool cB = true )
-  : AModification( cB ), f_function( f ), f_shift( shift ),
+ FunctionModVars( Function * f , Vec_p_Var && vars ,
+                  FunctionValue shift = NaNshift , bool cB = true )
+  : AModification( cB ) , f_function( f ) , f_shift( shift ) ,
     v_vars( std::move( vars ) ) {}
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
@@ -1171,12 +1221,12 @@ class FunctionModVars : public AModification {
 
  /// returns the Block to which the Observer of the Function belongs
 
- [[nodiscard]] Block * get_Block() const override;
+ [[nodiscard]] Block * get_Block( void ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to (the pointer to) the affected Function
 
- [[nodiscard]] Function * function() const { return ( f_function ); }
+ [[nodiscard]] Function * function( void ) const { return( f_function ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// tells if the Modification was quasi-additive
@@ -1201,12 +1251,12 @@ class FunctionModVars : public AModification {
   *   value of the Function has changed "unpredictably" all over the space,
   *   the change is "downward monotone". */
 
- [[nodiscard]] FunctionValue shift() const { return ( f_shift ); }
+ [[nodiscard]] FunctionValue shift( void ) const { return( f_shift ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to the vector of pointers to affected Variable
 
- [[nodiscard]] c_Vec_p_Var & vars() const { return ( v_vars ); }
+ [[nodiscard]] c_Vec_p_Var & vars( void ) const { return( v_vars ); }
 
  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method telling if the Variables have been added or removed
@@ -1218,7 +1268,7 @@ class FunctionModVars : public AModification {
   * to understand what has happened, rather than going through the problem of
   * "catching" each of the derived classes individually. */
 
- [[nodiscard]] virtual bool added() const = 0;
+ [[nodiscard]] virtual bool added( void ) const = 0;
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1228,7 +1278,7 @@ class FunctionModVars : public AModification {
 
  /// print the FunctionModVars
 
- inline void print( std::ostream & output ) const override {
+ void print( std::ostream & output ) const override {
   output << "FunctionModVars[";
   if( concerns_Block() )
    output << "t";
@@ -1250,7 +1300,7 @@ class FunctionModVars : public AModification {
    output << "deleting ";
 
   output << v_vars.size() << " variables" << std::endl;
- }
+  }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
@@ -1318,9 +1368,10 @@ class FunctionModVarsAddd : public FunctionModVars {
   * define what the addition order conceptually is, and this must be
   * reflected in the order of vars[]. */
 
- FunctionModVarsAddd( Function * f, Vec_p_Var && vars, Index first,
-                      FunctionValue shift = NaNshift, bool cB = true )
-  : FunctionModVars( f, std::move( vars ), shift, cB ), f_first( first ) {}
+ FunctionModVarsAddd( Function * f , Vec_p_Var && vars , Index first ,
+                      FunctionValue shift = NaNshift , bool cB = true )
+  : FunctionModVars( f , std::move( vars ) , shift , cB ) , f_first( first )
+ {}
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
@@ -1330,12 +1381,12 @@ class FunctionModVarsAddd : public FunctionModVars {
 
  /// accessor to the index obtained by the first added Variable
 
- [[nodiscard]] Index first() const { return ( f_first ); }
+ [[nodiscard]] Index first( void ) const { return( f_first ); }
 
  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method telling that the Variables have been added
 
- [[nodiscard]] bool added() const override { return ( true ); }
+ [[nodiscard]] bool added( void ) const override { return( true ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1345,7 +1396,7 @@ class FunctionModVarsAddd : public FunctionModVars {
 
  /// print the FunctionModVarsAddd
 
- inline void print( std::ostream & output ) const override {
+ void print( std::ostream & output ) const override {
   output << "FunctionModVarsAddd[";
   if( concerns_Block() )
    output << "t";
@@ -1368,7 +1419,7 @@ class FunctionModVarsAddd : public FunctionModVars {
   else
    output << " " << f_first;
   output << std::endl;
- }
+  }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
@@ -1422,12 +1473,12 @@ class FunctionModVarsRngd : public FunctionModVars {
   * range, vars[ 1 ] had index range + 1 ..., which implies that
   * vars.size() == stop - start. */
 
- FunctionModVarsRngd( Function * f, Vec_p_Var && vars, c_Range & range,
-                      FunctionValue shift = NaNshift, bool cB = true )
-  : FunctionModVars( f, std::move( vars ), shift, cB ), f_range( range ) {
+ FunctionModVarsRngd( Function * f , Vec_p_Var && vars , c_Range & range ,
+                      FunctionValue shift = NaNshift , bool cB = true )
+  : FunctionModVars( f, std::move( vars ) , shift , cB ) , f_range( range ) {
   if( v_vars.size() != f_range.second - f_range.first )
-   throw std::invalid_argument( "vars and range sizes do not match" );
- }
+   throw( std::invalid_argument( "vars and range sizes do not match" ) );
+  }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
@@ -1437,12 +1488,12 @@ class FunctionModVarsRngd : public FunctionModVars {
 
  /// accessor to the range of the deleted Variable
 
- [[nodiscard]] c_Range & range() const { return ( f_range ); }
+ [[nodiscard]] c_Range & range( void ) const { return( f_range ); }
 
  /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method telling that the Variables have been removed
 
- [[nodiscard]] bool added() const override { return ( false ); }
+ [[nodiscard]] bool added( void ) const override { return( false ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1452,7 +1503,7 @@ class FunctionModVarsRngd : public FunctionModVars {
 
  /// print the FunctionModVarsRngd
 
- inline void print( std::ostream & output ) const override {
+ void print( std::ostream & output ) const override {
   output << "FunctionModVarsRngd[";
   if( concerns_Block() )
    output << "t";
@@ -1470,7 +1521,7 @@ class FunctionModVarsRngd : public FunctionModVars {
 
   output << "deleting variables [ " << f_range.first << " , "
          << f_range.second << " ]" << std::endl;
- }
+  }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
@@ -1526,32 +1577,32 @@ class FunctionModVarsSbst : public FunctionModVars {
   * it is ordered in the constructor. Of course, this means that vars gets
   * re-ordered at the same time. */
 
- FunctionModVarsSbst( Function * f, Vec_p_Var && vars, Subset && subset,
-                      bool ordered = false, FunctionValue shift = NaNshift,
+ FunctionModVarsSbst( Function * f, Vec_p_Var && vars , Subset && subset ,
+                      bool ordered = false , FunctionValue shift = NaNshift ,
                       bool cB = true )
-  : FunctionModVars( f, std::move( vars ), shift, cB ),
+  : FunctionModVars( f , std::move( vars ) , shift , cB ),
     v_subset( std::move( subset ) ) {
-  if( ( !v_subset.empty() ) && ( v_vars.size() != v_subset.size() ) )
-   throw ( std::invalid_argument( "vars and subset sizes do not match" ) );
-  if( ( !ordered ) && ( !v_subset.empty() ) && ( v_vars.size() > 1 ) ) {
-   using IdxVar = std::pair< Index, Variable * >;
+  if( ( ! v_subset.empty() ) && ( v_vars.size() != v_subset.size() ) )
+   throw( ( std::invalid_argument( "vars and subset sizes do not match" ) ) );
+  if( ( ! ordered ) && ( ! v_subset.empty() ) && ( v_vars.size() > 1 ) ) {
+   using IdxVar = std::pair< Index,  Variable * >;
    std::vector< IdxVar > tmp( v_vars.size() );
-   for( Index i = 0; i < v_vars.size(); ++i )
-    tmp[ i ] = IdxVar( v_subset[ i ], v_vars[ i ] );
-   std::sort( tmp.begin(), tmp.end(),
-              []( auto & a, auto & b ) {
+   for( Index i = 0 ; i < v_vars.size() ; ++i )
+    tmp[ i ] = IdxVar( v_subset[ i ] , v_vars[ i ] );
+   std::sort( tmp.begin() , tmp.end() ,
+              []( auto & a , auto & b ) {
                return ( ( a.first < b.first ) );
               } );
-   for( Index i = 0; i < v_vars.size(); ++i ) {
+   for( Index i = 0 ; i < v_vars.size() ; ++i ) {
     v_subset[ i ] = tmp[ i ].first;
     v_vars[ i ] = tmp[ i ].second;
    }
   }
-#ifndef NDEBUG
-  for( Index i = 1; i < v_subset.size(); ++i )
+ #ifndef NDEBUG
+  for( Index i = 1 ; i < v_subset.size() ; ++i )
    if( v_subset[ i - 1 ] >= v_subset[ i ] )
-    throw std::invalid_argument( "unordered or repeated subset" );
-#endif
+    throw std::invalid_argument( "unordered or repeated index in subset" );
+ #endif
  }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
@@ -1562,12 +1613,12 @@ class FunctionModVarsSbst : public FunctionModVars {
 
  /// accessor to the subset of the deleted Variable
 
- [[nodiscard]] c_Subset & subset() const { return ( v_subset ); }
+ [[nodiscard]] c_Subset & subset( void ) const { return( v_subset ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method telling that the Variables have been removed
 
- [[nodiscard]] bool added() const override { return ( false ); }
+ [[nodiscard]] bool added( void ) const override { return( false ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1577,7 +1628,7 @@ class FunctionModVarsSbst : public FunctionModVars {
 
  /// print the FunctionModVarsSbst
 
- inline void print( std::ostream & output ) const override {
+ void print( std::ostream & output ) const override {
   output << "FunctionModVarsSbst[";
   if( concerns_Block() )
    output << "t";
@@ -1593,7 +1644,7 @@ class FunctionModVarsSbst : public FunctionModVars {
   else
    output << "quasi-additively (" << f_shift << ") ";
   output << "deleting " << v_subset.size() << " variables" << std::endl;
- }
+  }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 

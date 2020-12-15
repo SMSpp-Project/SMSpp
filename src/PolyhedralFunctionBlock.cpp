@@ -65,7 +65,7 @@ void PolyhedralFunctionBlock::generate_abstract_variables(
  if( f_rep & 1 ) {  // use linearized representation
   // note: the static ColVariable "v" is added "in front"
   f_1st_stat_var = 1;
-  add_static_variable( f_v , "" , true );
+  add_static_variable( f_v , "PolyF_v" , true );
   }
 
  f_rep |= 2;

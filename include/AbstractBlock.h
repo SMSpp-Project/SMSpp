@@ -266,10 +266,10 @@ class AbstractBlock : public Block {
   * their deserialize() is they so need; see comments to
   * Block::deserialize() for a complete discussion. */
 
- void deserialize( netCDF::NcGroup & group ) override {
+ void deserialize( const netCDF::NcGroup & group ) override {
   guts_of_deserialize( group );
   Block::deserialize( group );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// destructor of AbstractBlock, destroys the abstract representation
@@ -635,7 +635,7 @@ class AbstractBlock : public Block {
 /*--------------------------------------------------------------------------*/
  /// do all the dirty work for deserialize()
 
- void guts_of_deserialize( netCDF::NcGroup & group );
+ void guts_of_deserialize( const netCDF::NcGroup & group );
 
 /*--------------------------------------------------------------------------*/
 

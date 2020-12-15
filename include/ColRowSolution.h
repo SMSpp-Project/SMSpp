@@ -104,7 +104,7 @@ public:
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  // TODO This method is not implemented yet.
- virtual void deserialize( netCDF::NcGroup & group ) override final;
+ virtual void deserialize( const netCDF::NcGroup & group ) override final;
 
 /*--------------------------------------------------------------------------*/
 

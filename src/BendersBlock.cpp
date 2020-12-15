@@ -43,7 +43,7 @@ SMSpp_insert_in_factory_cpp_1( BendersBlock );
 /*--------------- CONSTRUCTING AND DESTRUCTING BendersBlock ----------------*/
 /*--------------------------------------------------------------------------*/
 
-void BendersBlock::deserialize( netCDF::NcGroup & group ) {
+void BendersBlock::deserialize( const netCDF::NcGroup & group ) {
 
  auto ncDim_NumVar = group.getDim( "NumVar" );
 

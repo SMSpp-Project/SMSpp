@@ -53,7 +53,7 @@ using namespace SMSpp_di_unipi_it;
 /*------------ CONSTRUCTING AND DESTRUCTING PolyhedralFunction -------------*/
 /*--------------------------------------------------------------------------*/
 
-void PolyhedralFunction::deserialize( netCDF::NcGroup & group ,
+void PolyhedralFunction::deserialize( const netCDF::NcGroup & group ,
 				      ModParam issueMod  )
 {
  auto nv = group.getDim( "PolyFunction_NumVar" );

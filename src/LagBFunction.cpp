@@ -262,80 +262,85 @@ void LagBFunction::set_default_inner_BlockSolverConfig( void )
 
 void LagBFunction::set_ComputeConfig( ComputeConfig * scfg )
 {
- ThinComputeInterface::set_ComputeConfig( scfg );
-
  auto inner_block = get_inner_block();
  if( ! inner_block )
   throw( std::logic_error( "incomplete LagBFunction configured" ) );
 
- if( ! scfg ) {  // scfg is nullptr
-  set_default_inner_Block_configuration();
-  return;
-  }
+ if( scfg )
+  if( scfg->f_extra_Configuration ) {
+   BlockConfig * BC = nullptr;
+   BlockSolverConfig * BSC = nullptr;
+    
+   if( auto scpp = dynamic_cast< SConf_p_p * >(
+			                   scfg->f_extra_Configuration ) ) {
+    if( scpp->f_value.first ) {
+     BSC = dynamic_cast< BlockSolverConfig * >( scpp->f_value.first );
+     if( ! BSC ) throw( std::invalid_argument(
+      "LagBFunction::set_ComputeConfig: invalid extra_Configuration.fist" ) );
+     }
+    else
+     if( ! scfg->f_diff )  // if not in differential mode
+      set_default_inner_BlockSolverConfig();  // reset the BlockSolverConfig
 
- if( ! scfg->f_extra_Configuration ) {
-  // scfg->f_extra_Configuration is nullptr
-  if( ! scfg->f_diff )
-   set_default_inner_Block_configuration();
-  return;
-  }
-
- // if the extra_Configuration is a std::pair of Configuration *
- if( auto config = dynamic_cast< SConf_p_p * >( scfg->f_extra_Configuration
-						) ) {
-  // set the BlockConfig of the inner Block
-  if( config->f_value.first ) {  // if it was provided in extra_Configuration
-   if( auto bc = dynamic_cast< BlockConfig * >( config->f_value.first ) )
-    bc->apply( inner_block );
+    if( scpp->f_value.second ) {
+     BC = dynamic_cast< BlockConfig * >( scpp->f_value.second );
+     if( ! BC ) throw( std::invalid_argument(
+     "LagBFunction::set_ComputeConfig: invalid extra_Configuration.second" ) );
+     }
+    else
+     if( ! scfg->f_diff )  // if not in differential mode
+      set_default_inner_BlockConfig();  // reset the BlockConfig
+    }
    else
-    throw( std::invalid_argument( "LagBFunction::set_ComputeConfig: scfg "
-				  "extra_Configuration.first must be a "
-				  "BlockConfig *" ) );
-   }
-  else                           // it was not provided in extra_Configuration
-   if( ! scfg->f_diff )          // and scfg is in set mode
-    set_default_inner_BlockConfig();  // reset to default
+    if( ! ( BC = dynamic_cast< BlockConfig * >(
+				            scfg->f_extra_Configuration ) ) )
+     if( ! ( BSC = dynamic_cast< BlockSolverConfig * >(
+				            scfg->f_extra_Configuration ) ) )
+      throw( std::invalid_argument(
+	   "LagBFunction::set_ComputeConfig: invalid extra_Configuration" ) );
 
-  // set the BlockSolverConfig of the inner Block
-  if( config->f_value.second ) {  // if it was provided in extra_Configuration
-   if( auto bsc = dynamic_cast< BlockSolverConfig * >(
-                                                 config->f_value.second ) ) {
+   if( BC )     // set the BlockConfig of the inner Block, if any
+    BC->apply( inner_block );
 
-    // there are no ComputeConfig, add any "empty" one. if the LagBFunction
-    // is compute()-d in this state an error will ensue, as a Solver
-    // registered to the inner Block is required for that, but it's the user's
-    // responsibility to ensure this does not happen (this call to
-    // set_ComputeConfig() may be happening right before destruction, or no
-    // call to compute() may be done
-    if( ! bsc->num_ComputeConfig() )
-     bsc->add_ComputeConfig( "" , new ComputeConfig );
-
-    if( f_BSC_changed && ( f_BSC->is_diff() ) )
+   if( BSC ) {  // set the BlockSolverConfig of the inner Block, if any
+    if( f_BSC_changed && ( ! BSC->is_diff() ) )
      // if some changes still had to be applied do that now, unless the new
      // BlockSolverConfig is in "set mode", since this would reset everything
      f_BSC->apply( inner_block );
+
     f_BSC_changed = false;             // done
     delete f_BSC;                      // delete the old one
-    bsc->apply( inner_block );         // apply the new BlockSolverConfig
-    f_BSC = bsc;                       // keep the new BlockSolverConfig
-    config->f_value.second = nullptr;  // take possession
-    f_BSC->clear();                    // clear it
-    f_BSC->set_diff( true );           // set it in "diff mode"
-    f_BSC->get_SolverConfig( 0 )->f_diff = true;
+    BSC->apply( inner_block );         // apply the new BlockSolverConfig
+    f_BSC = BSC->clone();              // keep a copy of the new one
+    f_BSC->clear();                    // but clear it
+    f_BSC->set_diff( true );           // and set it in "diff mode"
+
+    // if there are no ComputeConfig, add any "empty" one that serves to
+    // store the parameters that get passed to LagBFunction but that need to
+    // be "forwarded" to the first Solver registered to the inner Block;
+    // note that one would expect the ComputeConfig to be there since the
+    // LagBFunction needs at least a Solver registered to the inner Block to
+    // be compute()-d, but it's the user's responsibility to ensure that this
+    /// does happen (this call to set_ComputeConfig() may be happening right
+    // before destruction, or no call to compute() may be done
+    if( ! f_BSC->num_ComputeConfig() )
+     f_BSC->add_ComputeConfig( "" , new ComputeConfig );
     // set the first ComputeConfig in "diff mode", too
+    f_BSC->get_SolverConfig( 0 )->f_diff = true;
     }
-   else
-    throw( std::invalid_argument( "LagBFunction::set_ComputeConfig: scfg "
-				  "extra_Configuration.second must be a "
-				  "BlockSolverConfig *" ) );
    }
-  else                           // it was not provided in extra_Configuration
-   if( ! scfg->f_diff )          // and scfg is in set mode
-    set_default_inner_BlockSolverConfig();  // reset to default
-  }
- else
-  throw( std::invalid_argument( "LagBFunction::set_ComputeConfig: "
-                                "invalid extra Configuration" ) );
+  else {  // scfg->f_extra_Configuration is nullptr
+   if( ! scfg->f_diff )  // if not in differential mode
+    set_default_inner_Block_configuration();  // reset everything
+   }
+ else     // scfg == nullptr
+  set_default_inner_Block_configuration();  // reset everything
+
+ // finally, set the parameters of LagBFunction itself: this needs to be
+ // done last because it may change some of the parameters of the Solver
+ // used to solve the inner Block, that may not exist before the
+ // extra Configuration is apply()-ed to the inner Block
+ ThinComputeInterface::set_ComputeConfig( scfg );
 
  }  // end( LagBFunction::set_ComputeConfig )
 
@@ -395,7 +400,7 @@ void LagBFunction::set_par( const idx_type par , const double value )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::deserialize( netCDF::NcGroup & group )
+void LagBFunction::deserialize( const netCDF::NcGroup & group )
 {
  throw( std::logic_error( "LagBFunction::deserialize not implemented yet" ) );
 

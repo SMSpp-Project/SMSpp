@@ -608,23 +608,31 @@ class LagBFunction : public C05Function , public Block {
   * the Solver, each one of which (again) corresponds to a linearization.
   *
   * Furthermore, LagBFunction also uses the f_extra_Configuration field of the
-  * provided ComputeConfig. That field, if non-nullptr, is assumed to be a
+  * provided ComputeConfig. That field, if non-nullptr, is assumed to be:
+  *
+  * - either (a pointer to) a
   *
   *     SimpleConfiguration< std::pair< Configuration * , Configuration * > >
   *
-  * If this happens, then
+  *   in which case, f_extra_Configuration->f_value.first is assumed to be a
+  *   BlockSolverConfig *, and f_extra_Configuration->f_value.second is
+  *   assumed to be a BlockConfig *
   *
-  *     f_extra_Configuration->f_value.first
+  * - or a BlockConfig *
   *
-  * is assumed to be a :BlockSolverConfig, and
+  * - or a BlockSolverConfig *
   *
-  *     f_extra_Configuration->f_value.second
+  * Note that passing nullptr resets the inner Block, as does passing a
+  * non-nullptr scfg with a nullptr f_extra_Configuration if scfg->f_diff == 
+  * false.  Also, if a pair of Configuration * is passed, any one of those is
+  * nullptr and scfg->f_diff == false, then the corresponding part of the
+  * inner Block (BlockConfig or BlockSolverConfig) is reset.
   *
-  * is assumed to be a :BlockConfig (note that exception will be thrown if
-  * f_extra_Configuration or its two inner Configuration are not of the right
-  * type). These are used to configure the inner Block of the LagBFunction. */
+  * These are used to configure the inner Block of the LagBFunction. Note that
+  * exception will be thrown if any of the non-null pointers turns out not to
+  * be of the right type. */
 
- void set_ComputeConfig( ComputeConfig *scfg = nullptr ) override;
+ void set_ComputeConfig( ComputeConfig * scfg = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
  /// set a given integer (int) numerical parameter (see set_ComputeConfig())
@@ -638,7 +646,7 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- void deserialize( netCDF::NcGroup& group ) override;
+ void deserialize( const netCDF::NcGroup& group ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------- METHODS FOR MODIFYING THE LagBFunction ------------------*/
@@ -897,30 +905,34 @@ class LagBFunction : public C05Function , public Block {
   return( is_convex() ? get_upper_estimate() : get_lower_estimate() );
   }
 
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  FunctionValue get_lower_estimate( void ) const override {
-  auto lb = v_Block.front()->get_registered_solvers().front()->get_lb();
+  auto slvr = v_Block.front()->get_registered_solvers().front();
+  if( ! slvr )
+   throw( std::logic_error( "get_lower_estimate called with no Solver" ) );
+  auto lb = slvr->get_lb();
   if( lb == -Inf<FunctionValue>() )
    return( lb );
   else {
    if( std::isnan( f_yb ) )
-    throw( std::logic_error( "get_upper_estimate() ccalled before compute() "
-			     ) );
+    throw( std::logic_error( "get_lower_estimate called before compute" ) );
    return( f_yb > -Inf<FunctionValue>() ? lb + f_yb : lb );
    }
   }
 
-/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
+/* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  FunctionValue get_upper_estimate( void ) const override {
-  auto ub = v_Block.front()->get_registered_solvers().front()->get_ub();
+ auto slvr = v_Block.front()->get_registered_solvers().front();
+  if( ! slvr )
+   throw( std::logic_error( "get_upper_estimate called with no Solver" ) );
+  auto ub = slvr->get_ub();
   if( ub == Inf<FunctionValue>() )
    return( ub );
   else {
    if( std::isnan( f_yb ) )
-    throw( std::logic_error( "get_upper_estimate() ccalled before compute() "
-			     ) );
+    throw( std::logic_error( "get_upper_estimate called before compute" ) );
    return( f_yb > -Inf<FunctionValue>() ? ub + f_yb : ub );
    }
   }

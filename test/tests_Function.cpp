@@ -34,8 +34,8 @@ TEST( FunctionTest, GetsNumberOfParameters ) {
  ASSERT_EQ( fun.ThinComputeInterface::get_num_str_par(), 0 );
  ASSERT_EQ( fun.Function::get_num_int_par(), Function::intLastParFun );
  ASSERT_EQ( fun.Function::get_num_dbl_par(), Function::dblLastParFun );
- ASSERT_EQ( fun.C05Function::get_num_int_par(), C05Function::intLastParC0F );
- ASSERT_EQ( fun.C05Function::get_num_dbl_par(), C05Function::dblLastParC0F );
+ ASSERT_EQ( fun.C05Function::get_num_int_par(), C05Function::intLastParC05F );
+ ASSERT_EQ( fun.C05Function::get_num_dbl_par(), C05Function::dblLastParC05F );
 }
 
 TEST( FunctionTest, GetsParameterDefaultValues ) {
@@ -71,11 +71,11 @@ TEST( FunctionTest, ChecksParameterValues ) {
              fun.Function::get_dflt_dbl_par( i ) );
  }
 
- for( int i = 0; i < C05Function::intLastParC0F; ++i ) {
+ for( int i = 0; i < C05Function::intLastParC05F; ++i ) {
   ASSERT_EQ( fun.C05Function::get_int_par( i ),
              fun.C05Function::get_dflt_int_par( i ) );
  }
- for( int i = 0; i < C05Function::dblLastParC0F; ++i ) {
+ for( int i = 0; i < C05Function::dblLastParC05F; ++i ) {
   ASSERT_EQ( fun.C05Function::get_dbl_par( i ),
              fun.C05Function::get_dflt_dbl_par( i ) );
  }

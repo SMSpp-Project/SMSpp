@@ -270,6 +270,12 @@ class RowConstraint : public Constraint {
 
  typedef const RHSValue c_RHSValue;  ///< a const VarValue
 
+/*----------------------------- CONSTANTS ----------------------------------*/
+
+ static constexpr RHSValue RHSINF
+                                = std::numeric_limits< RHSValue >::infinity();
+ ///< convenience constexpr for "Infty"
+
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -302,7 +308,7 @@ class RowConstraint : public Constraint {
   * The parameter issueMod decides if and how any Modification is issued, as
   * described in Observer::make_par(). */
 
- virtual void set_rhs( RHSValue rhs_value,
+ virtual void set_rhs( RHSValue rhs_value ,
                        ModParam issueMod = eModBlck ) = 0;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -313,7 +319,7 @@ class RowConstraint : public Constraint {
   * The parameter issueMod decides if and how any Modification is issued, as
   * described in Observer::make_par(). */
 
- virtual void set_lhs( RHSValue lhs_value,
+ virtual void set_lhs( RHSValue lhs_value ,
                        ModParam issueMod = eModBlck ) = 0;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -325,7 +331,7 @@ class RowConstraint : public Constraint {
   * The parameter issueMod decides if and how any Modification is issued, as
   * described in Observer::make_par(). */
 
- virtual void set_both( RHSValue both_value,
+ virtual void set_both( RHSValue both_value ,
                         ModParam issueMod = eModBlck ) = 0;
 
 /*--------------------------------------------------------------------------*/
@@ -344,10 +350,10 @@ class RowConstraint : public Constraint {
     @{ */
 
  /// pure virtual method to get the RHS of the RowConstraint
- [[nodiscard]] virtual RHSValue get_rhs() const = 0;
+ [[nodiscard]] virtual RHSValue get_rhs( void ) const = 0;
 
  /// pure virtual method to get the LHS of the RowConstraint
- [[nodiscard]] virtual RHSValue get_lhs() const = 0;
+ [[nodiscard]] virtual RHSValue get_lhs( void ) const = 0;
 
 /**@} ---------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A RowConstraint -----------*/
@@ -364,24 +370,24 @@ class RowConstraint : public Constraint {
  /** Method to get the value of variable part of the RowConstraint. It is
   * virtual, so that derived classes can store it as they best see fit. */
 
- [[nodiscard]] virtual RHSValue value() const = 0;
+ [[nodiscard]] virtual RHSValue value( void ) const = 0;
 
 /*--------------------------------------------------------------------------*/
 
- [[nodiscard]] bool feasible() const override {
+ [[nodiscard]] bool feasible( void ) const override {
   bool feas = true;
   c_RHSValue val = value();
   c_RHSValue lhs = get_lhs();
   c_RHSValue rhs = get_rhs();
 
-  if( lhs > -Inf< RHSValue >() )
+  if( lhs > -RHSINF )
    feas &= ( val >= lhs );
 
-  if( rhs < Inf< RHSValue >() )
+  if( rhs < RHSINF )
    feas &= ( val <= rhs );
 
-  return ( feas );
- }
+  return( feas );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the absolute violation of the RowConstraint
@@ -389,9 +395,8 @@ class RowConstraint : public Constraint {
   * RowConstraint corresponding to its current value [see value()]. The
   * value is positive if one of the two bounds is violated (of course not
   * both can be) and it is the amount of violation; otherwise. An infinite
-  * bound (lhs == - Inf<RHSValue>() or rhs == Inf<RHSValue>()) corresponds to
-  * a - Inf<RHSValue>() violation whatever the value (even if it is the same
-  * infinity). 
+  * bound (lhs == - RHSINF or rhs == RHSINF) corresponds to a - RHSINF
+  * violation whatever the value (even if it is the same infinity). 
   *
   * This method is provided because checking feasibility of a RowConstraint
   * should reasonably require numerical tolerances, which are not there in
@@ -405,20 +410,19 @@ class RowConstraint : public Constraint {
   * outside of the RowConstraint, which for the time being we consider the
   * better alternative. */
 
- [[nodiscard]] virtual RHSValue abs_viol() const {
-  RHSValue viol = -Inf< RHSValue >();
+ [[nodiscard]] virtual RHSValue abs_viol( void ) const {
+  RHSValue viol = -RHSINF;
   c_RHSValue val = value();
   c_RHSValue lhs = get_lhs();
   c_RHSValue rhs = get_rhs();
 
-  if( ( lhs > -Inf< RHSValue >() ) && ( val < Inf< RHSValue >() ) )
-   viol = ( val <= -Inf< RHSValue >() ? Inf< RHSValue >() : lhs - val );
+  if( ( lhs > -RHSINF ) && ( val < RHSINF ) )
+   viol = ( val <= -RHSINF ? RHSINF : lhs - val );
 
-  if( ( rhs < Inf< RHSValue >() ) && ( val > -Inf< RHSValue >() ) )
-   viol = std::max( viol, ( val >= Inf< RHSValue >() ? Inf< RHSValue >() :
-                            val - rhs ) );
-  return ( viol );
- }
+  if( ( rhs < RHSINF ) && ( val > -RHSINF ) )
+   viol = std::max( viol, ( val >= RHSINF ? RHSINF : val - rhs ) );
+  return( viol );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the relative violation of the RowConstraint
@@ -432,47 +436,48 @@ class RowConstraint : public Constraint {
   *
   * See abs_viol() for the rationale of providing such a method. */
 
- [[nodiscard]] virtual RHSValue rel_viol() const {
+ [[nodiscard]] virtual RHSValue rel_viol( void ) const {
   c_RHSValue rhs = get_rhs();
   c_RHSValue val = value();
 
   // if the value is +INF, then if the RHS is < +INF then the constraint is
   // infinitely violated, otherwise is infinitely slackened
-  if( val >= Inf< RHSValue >() )
-   return ( rhs < Inf< RHSValue >() ? Inf< RHSValue >() : -Inf< RHSValue >() );
+  if( val >= RHSINF )
+   return( rhs < RHSINF ? RHSINF : -RHSINF );
 
   c_RHSValue lhs = get_lhs();
   // if the value is -INF, then if the LHS is > -INF then the constraint is
   // infinitely violated, otherwise is infinitely slackened
-  if( val <= -Inf< RHSValue >() )
-   return ( lhs > -Inf< RHSValue >() ? Inf< RHSValue >() : -Inf< RHSValue >() );
+  if( val <= -RHSINF )
+   return( lhs > -RHSINF ? RHSINF : -RHSINF );
 
   // the value is finite
-  if( lhs <= -Inf< RHSValue >() )
-   if( rhs >= Inf< RHSValue >() )
-    return ( -Inf< RHSValue >() );
+  if( lhs <= -RHSINF )
+   if( rhs >= RHSINF )
+    return ( -RHSINF );
    else
     return ( rhs == 0 ? val : ( val - rhs ) / std::abs( rhs ) );
-  else if( rhs >= Inf< RHSValue >() )
+  else if( rhs >= RHSINF )
    return ( lhs == 0 ? -val : ( lhs - val ) / std::abs( lhs ) );
 
   // both LHS and RHS are finite
   if( lhs == 0 )
    if( rhs == 0 )
-    return ( std::abs( val ) );
+    return( std::abs( val ) );
    else
     return ( std::max( -val, val - rhs ) / std::abs( rhs ) );
-  else if( rhs == 0 )
-   return ( std::max( lhs - val, val ) / std::abs( lhs ) );
   else
-   return ( std::max( ( lhs - val ) / std::abs( lhs ),
+   if( rhs == 0 )
+    return( std::max( lhs - val, val ) / std::abs( lhs ) );
+   else
+    return( std::max( ( lhs - val ) / std::abs( lhs ),
                       ( val - rhs ) / std::abs( rhs ) ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// get the dual value (the Lagrangian multiplier) of the RowConstraint
 
- [[nodiscard]] RHSValue get_dual() const { return ( d_value ); }
+ [[nodiscard]] RHSValue get_dual( void ) const { return ( d_value ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -496,7 +501,7 @@ class RowConstraint : public Constraint {
    output << "unfeasible";
 
   output << " (value = " << value() << ")" << std::endl;
- }
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
@@ -547,9 +552,9 @@ class RowConstraintMod : public ConstraintMod {
 
  /// constructor: just calls that of ConstraintMod
 
- explicit RowConstraintMod( RowConstraint * cnst, int mod = eChgLHS,
-                            const bool cB = true )
-  : ConstraintMod( cnst, mod, cB ) {}
+ explicit RowConstraintMod( RowConstraint * cnst , int mod = eChgLHS ,
+			    bool cB = true )
+  : ConstraintMod( cnst , mod , cB ) {}
 
  ~RowConstraintMod() override = default;  ///< destructor: does nothing
 
@@ -579,7 +584,7 @@ class RowConstraintMod : public ConstraintMod {
   }
 
   output << " of RowConstraint [" << f_constraint << "]" << std::endl;
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 

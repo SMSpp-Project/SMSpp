@@ -41,7 +41,7 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void ColVariableSolution::deserialize( netCDF::NcGroup & group )
+void ColVariableSolution::deserialize( const netCDF::NcGroup & group )
 {
  throw( std::logic_error( " ColVariableSolution::deserialize not ready yet" )
 	);
