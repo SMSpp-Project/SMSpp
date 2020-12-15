@@ -42,7 +42,8 @@ include(FindPackageHandleStandardArgs)
 # NetCDF's configuration file has a bug that prevents it from working
 # under macOS 11.0, so in that case we use our own find module.
 # TODO: This should be a temporary fix
-if (${CMAKE_SYSTEM} MATCHES "Darwin-20.1.0")
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin" AND
+    ${CMAKE_SYSTEM_VERSION} VERSION_GREATER_EQUAL 20.1.0)
     find_package(netCDF REQUIRED)
     set(ncTarget "netCDF::netcdf")
 else ()

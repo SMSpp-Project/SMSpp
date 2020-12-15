@@ -77,8 +77,9 @@ target_compile_features(${modName} PUBLIC cxx_std_17)
 # This definition is needed because the version of Clang shipped with
 # macOS Big Sur has an issue with boost::any type recognition.
 # TODO: Remove this when it's not needed anymore
-if (CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang" AND
-    CMAKE_SYSTEM STREQUAL "Darwin-20.1.0")
+if (${CMAKE_CXX_COMPILER_ID} MATCHES "AppleClang" AND
+    ${CMAKE_SYSTEM_NAME} MATCHES "Darwin" AND
+    ${CMAKE_SYSTEM_VERSION} VERSION_GREATER_EQUAL 20.1.0)
     target_compile_definitions(${modName} PUBLIC CLANG_1200_0_32_27_PATCH)
 endif ()
 
