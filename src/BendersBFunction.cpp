@@ -42,8 +42,8 @@
 #include <cmath>
 #include <queue>
 
-const bool LOG = false;
-const double equality_sign = 1.0;
+const double dual_sign = -1.0; // TODO The Solver must provide the duals with
+                               // the right sign
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
@@ -134,7 +134,7 @@ BendersBFunction::~BendersBFunction() {
  *      POINTER TO A Constraint IS NEEDED.
  */
 
-void BendersBFunction::deserialize( netCDF::NcGroup & group ,
+void BendersBFunction::deserialize( const netCDF::NcGroup & group ,
                                     ModParam issueMod ) {
 
  c_Index nvar = get_num_active_var();
@@ -1935,25 +1935,28 @@ void BendersBFunction::write_dual_solution( Index name ) {
 
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::get_linearization_coefficients( FunctionValue * g ,
-                                                       Range range ,
-                                                       Index name ) {
+bool ignore_constraint( RowConstraint * constraint ) {
+ if( constraint->is_relaxed() )
+  return true;
+ if( constraint->get_lhs() == - Inf<RowConstraint::RHSValue>() &&
+     constraint->get_rhs() ==   Inf<RowConstraint::RHSValue>() )
+  return true;
+ return false;
+}
 
- range.second = std::min( range.second , Index( v_constraints.size() ) );
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::get_linearization_coefficients
+( FunctionValue * g , Range range , Index name ) {
+
+ range.second = std::min( range.second , Index( v_x.size() ) );
  if( range.second <= range.first )
   return;
 
  write_dual_solution( name );
 
- auto ignore_constraint =
-  []( RowConstraint * constraint ) {
-   if( constraint->is_relaxed() )
-    return true;
-   if( constraint->get_lhs() == - Inf<RowConstraint::RHSValue>() &&
-       constraint->get_rhs() ==   Inf<RowConstraint::RHSValue>() )
-    return true;
-   return false;
-  };
+ const auto obj_sign =
+  ( v_Block.front()->get_objective_sense() == Objective::eMin ) ? - 1 : 1;
 
  for( Index i = range.first ; i < range.second ; ++i )
   g[ i ] = 0;
@@ -1964,28 +1967,33 @@ void BendersBFunction::get_linearization_coefficients( FunctionValue * g ,
   if( ignore_constraint( constraint ) )
    continue;
 
-  const auto dual_value = constraint->get_dual();
-  for( Index i = range.first ; i < range.second ; ++i )
-   g[ i - range.first ] += equality_sign * dual_value * v_A[ j ][ i ];
+  const auto dual_value = constraint->get_dual() * dual_sign;
+
+  if( obj_sign * dual_value >= 0 && v_sides[ j ] == eRHS )
+   continue;
+
+  if( obj_sign * dual_value <= 0 && v_sides[ j ] == eLHS )
+   continue;
+
+  for( Index i = range.first ; i < range.second ; ++i ) {
+   g[ i - range.first ] += - dual_value * v_A[ j ][ i ];
+  }
  }
-
- if( LOG )
-  for( Index i = range.first ; i < range.second ; ++i )
-   std::cout << "g[ " << ( i - range.first ) << " ] = "
-             << g[ i - range.first ] << std::endl;
-
 }  // end( BendersBFunction::get_linearization_coefficients( * , range ) )
 
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::get_linearization_coefficients( SparseVector & g ,
-                                                       Range range ,
-                                                       Index name ) {
- range.second = std::min( range.second , Index( v_constraints.size() ) );
+void BendersBFunction::get_linearization_coefficients
+( SparseVector & g , Range range , Index name ) {
+
+ range.second = std::min( range.second , Index( v_x.size() ) );
  if( range.second <= range.first )
   return;
 
  write_dual_solution( name );
+
+ const auto obj_sign =
+  ( v_Block.front()->get_objective_sense() == Objective::eMin ) ? - 1 : 1;
 
  if( g.nonZeros() == 0 ) {  // g contains no non-zero element
   g.resize( v_x.size() );
@@ -2003,19 +2011,33 @@ void BendersBFunction::get_linearization_coefficients( SparseVector & g ,
  }
 
  for( Index j = 0; j < v_constraints.size(); ++j ) {
-  const auto dual_value = get_dual_value( get_constraint( j ) , v_sides[ j ] );
+
+  auto constraint = get_constraint( j );
+  if( ignore_constraint( constraint ) )
+   continue;
+
+  const auto dual_value = constraint->get_dual() * dual_sign;
+
+  if( obj_sign * dual_value >= 0 && v_sides[ j ] == eRHS )
+   continue;
+
+  if( obj_sign * dual_value <= 0 && v_sides[ j ] == eLHS )
+   continue;
+
   for( Index i = range.first ; i < range.second ; ++i )
-   g.coeffRef( i ) += dual_value * v_A[ j ][ i ];
+   g.coeffRef( i ) += - dual_value * v_A[ j ][ i ];
  }
 }  // end( BendersBFunction::get_linearization_coefficients( sv , range ) )
 
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::get_linearization_coefficients( FunctionValue * g ,
-                                                       c_Subset & subset ,
-                                                       const bool ordered ,
-                                                       Index name ) {
+void BendersBFunction::get_linearization_coefficients
+( FunctionValue * g , c_Subset & subset , const bool ordered , Index name ) {
+
  write_dual_solution( name );
+
+ const auto obj_sign =
+  ( v_Block.front()->get_objective_sense() == Objective::eMin ) ? - 1 : 1;
 
  for( auto i : subset ) {
   if( i >= v_x.size() )
@@ -2026,20 +2048,33 @@ void BendersBFunction::get_linearization_coefficients( FunctionValue * g ,
  }
 
  for( Index j = 0; j < v_constraints.size(); ++j ) {
-  const auto dual_value = get_dual_value( get_constraint( j ) , v_sides[ j ] );
+
+  auto constraint = get_constraint( j );
+  if( ignore_constraint( constraint ) )
+   continue;
+
+  const auto dual_value = constraint->get_dual() * dual_sign;
+
+  if( obj_sign * dual_value >= 0 && v_sides[ j ] == eRHS )
+   continue;
+
+  if( obj_sign * dual_value <= 0 && v_sides[ j ] == eLHS )
+   continue;
+
   for( auto i : subset )
-   g[ i ] += dual_value * v_A[ j ][ i ];
+   g[ i ] += - dual_value * v_A[ j ][ i ];
  }
 }  // end( BendersBFunction::get_linearization_coefficients( * , subset ) )
 
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::get_linearization_coefficients( SparseVector & g ,
-                                                       c_Subset & subset ,
-                                                       const bool ordered ,
-                                                       Index name ) {
+void BendersBFunction::get_linearization_coefficients
+( SparseVector & g , c_Subset & subset , const bool ordered , Index name ) {
 
  write_dual_solution( name );
+
+ const auto obj_sign =
+  ( v_Block.front()->get_objective_sense() == Objective::eMin ) ? - 1 : 1;
 
  if( g.nonZeros() == 0 ) {  // g contains no non-zero element
   g.resize( v_x.size() );
@@ -2067,7 +2102,19 @@ void BendersBFunction::get_linearization_coefficients( SparseVector & g ,
  }
 
  for( Index j = 0; j < v_constraints.size(); ++j ) {
-  const auto dual_value = get_dual_value( get_constraint( j ) , v_sides[ j ] );
+
+  auto constraint = get_constraint( j );
+  if( ignore_constraint( constraint ) )
+   continue;
+
+  const auto dual_value = constraint->get_dual() * dual_sign;
+
+  if( obj_sign * dual_value >= 0 && v_sides[ j ] == eRHS )
+   continue;
+
+  if( obj_sign * dual_value <= 0 && v_sides[ j ] == eLHS )
+   continue;
+
   for( auto i : subset )
    g.coeffRef( i ) += dual_value * v_A[ j ][ i ];
  }
@@ -2075,84 +2122,51 @@ void BendersBFunction::get_linearization_coefficients( SparseVector & g ,
 
 /*--------------------------------------------------------------------------*/
 
-Function::FunctionValue BendersBFunction::get_dual_value
-( const RowConstraint * constraint , const ConstraintSide & side ) {
-
- const auto dual_value = constraint->get_dual();
-
- if( constraint->get_lhs() == constraint->get_rhs() )
-  return dual_value;
-
- else if( constraint->get_lhs() > - Inf<RowConstraint::RHSValue>() &&
-          constraint->get_rhs() <   Inf<RowConstraint::RHSValue>() ) {
-  // Two constraints (lower and upper)
-
-  RowConstraint::RHSValue sign =
-   ( v_Block.front()->get_objective_sense() == Objective::eMin ) ? - 1 : 1;
-
-  assert( side != eBoth );
-
-  if( ( side == eLHS && sign * dual_value > 0 ) ||
-      ( side == eRHS && sign * dual_value < 0 ) )
-   return std::abs( dual_value );
-  else
-   return 0;
- }
-
- return std::abs( dual_value );
-}  // end( BendersBFunction::get_dual_value )
-
-/*--------------------------------------------------------------------------*/
-
 Function::FunctionValue BendersBFunction::compute_linearization_constant() {
 
  Function::FunctionValue alpha = 0;
 
- if( LOG )
-  std::cout << "\nduals = [ ";
+ // The given dual value is associated with either the lower bound or the
+ // upper bound constraint. This will help determine to which bound the given
+ // dual is associated with.
+ const auto obj_sign =
+  ( this->v_Block.front()->get_objective_sense() == Objective::eMin ) ?
+  - 1 : 1;
 
  auto update_alpha =
-  [ &alpha , this ]( FRowConstraint & c ) {
+  [ &alpha , this , obj_sign ]( auto & c ) {
 
-   if( c.is_relaxed() )
-    return;
-   if( c.get_lhs() == - Inf<RowConstraint::RHSValue>() &&
-       c.get_rhs() ==   Inf<RowConstraint::RHSValue>() )
+   if( ignore_constraint( & c ) )
     return;
 
-   const auto dual_value = c.get_dual();
-
-   if( LOG )
-    std::cout << dual_value << std::endl;
+   const auto dual_value = c.get_dual() * dual_sign;
 
    if( c.get_lhs() == c.get_rhs() ) { // Equality constraint
 
     auto b = c.get_lhs();
-    auto index = get_constraint_index( &c );
+
+    Index index = Inf<Index>();
+    if( obj_sign * dual_value > 0 )
+     index = get_constraint_index( &c , eLHS );
+    if( obj_sign * dual_value < 0 )
+     index = get_constraint_index( &c , eRHS );
+    if( index == Inf<Index>() )
+     index = get_constraint_index( &c );
+
     if( index < Inf<Index>() ) {
      // This is a RowConstraint that is handled by this BendersBFunction
-     b = v_sides[ index ];
+     b = v_b[ index ];
     }
 
-    alpha += equality_sign * dual_value * b;
-
-    if( LOG )
-     std::cout << "(Equality) alpha += " << equality_sign * dual_value * b << std::endl;
+    alpha += - dual_value * b;
     return;
    }
    else if( c.get_lhs() > - Inf<RowConstraint::RHSValue>() &&
             c.get_rhs() <   Inf<RowConstraint::RHSValue>() ) {
     // Two constraints (lower and upper bound).
 
-    // The given dual value is associated with either the lower bound or the
-    // upper bound constraint. This will help determine to which bound the
-    // given dual is associated with.
-    const auto sign =
-     ( this->v_Block.front()->get_objective_sense() == Objective::eMin ) ?
-     - 1 : 1;
-
     RowConstraint::RHSValue b = 0;
-    if( sign * dual_value >= 0 ) { // lower bound constraint
+    if( obj_sign * dual_value >= 0 ) { // lower bound constraint
      auto index = get_constraint_index( &c , eLHS );
      if( index < Inf<Index>() )
       // Constraint handled by the BendersBFunction
@@ -2170,14 +2184,13 @@ Function::FunctionValue BendersBFunction::compute_linearization_constant() {
     }
 
     alpha += - dual_value * b;
-
-    if( LOG )
-     std::cout << "alpha += " << - dual_value * b << std::endl;
+    return;
    }
-   else {
-    auto side = ( c.get_rhs() < Inf<RowConstraint::RHSValue>() ) ? eRHS : eLHS;
+   else { // Single inequality constraint
+    const auto side = ( c.get_rhs() < Inf<RowConstraint::RHSValue>() ) ? eRHS : eLHS;
+
     RowConstraint::RHSValue b;
-    auto index = get_constraint_index( &c , side );
+    const auto index = get_constraint_index( &c , side );
     if( index < Inf<Index>() )
      // Constraint handled by the BendersBFunction
      b = v_b[ index ];
@@ -2185,9 +2198,7 @@ Function::FunctionValue BendersBFunction::compute_linearization_constant() {
      b = ( side == eRHS ) ? c.get_rhs() : c.get_lhs();
 
     alpha += - dual_value * b;
-
-    if( LOG )
-     std::cout << "alpha += " << - dual_value * b << std::endl;
+    return;
    }
   };
 
@@ -2199,18 +2210,27 @@ Function::FunctionValue BendersBFunction::compute_linearization_constant() {
   for( auto * sub_block : block->get_nested_Blocks() )
    Q.push( sub_block );
 
-  // TODO We should be able to deal with any RowConstraint.
-
   for( const auto & i : block->get_static_constraints() )
-   un_any_const_static( i , update_alpha , un_any_type< FRowConstraint >() );
+   un_any_const_static( i , update_alpha , un_any_type< FRowConstraint >() )
+    || un_any_const_static( i , update_alpha , un_any_type< BoxConstraint >() )
+    || un_any_const_static( i , update_alpha , un_any_type< ZOConstraint >() )
+    || un_any_const_static( i , update_alpha , un_any_type< LB0Constraint >() )
+    || un_any_const_static( i , update_alpha , un_any_type< UB0Constraint >() )
+    || un_any_const_static( i , update_alpha , un_any_type< LBConstraint >() )
+    || un_any_const_static( i , update_alpha , un_any_type< UBConstraint >() )
+    || un_any_const_static( i , update_alpha , un_any_type< NNConstraint >() )
+    || un_any_const_static( i , update_alpha , un_any_type< NPConstraint >() );
 
   for( const auto & i : block->get_dynamic_constraints() )
-   un_any_const_dynamic( i , update_alpha , un_any_type< FRowConstraint >() );
- }
-
- if( LOG ) {
-  std::cout << "]" << std::endl;
-  std::cout << "alpha = " << alpha << std::endl;
+   un_any_const_dynamic( i , update_alpha , un_any_type< FRowConstraint >() )
+    || un_any_const_dynamic( i , update_alpha , un_any_type< BoxConstraint >() )
+    || un_any_const_dynamic( i , update_alpha , un_any_type< ZOConstraint >() )
+    || un_any_const_dynamic( i , update_alpha , un_any_type< LB0Constraint >() )
+    || un_any_const_dynamic( i , update_alpha , un_any_type< UB0Constraint >() )
+    || un_any_const_dynamic( i , update_alpha , un_any_type< LBConstraint >() )
+    || un_any_const_dynamic( i , update_alpha , un_any_type< UBConstraint >() )
+    || un_any_const_dynamic( i , update_alpha , un_any_type< NNConstraint >() )
+    || un_any_const_dynamic( i , update_alpha , un_any_type< NPConstraint >() );
  }
 
  return alpha;

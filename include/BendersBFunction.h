@@ -462,7 +462,7 @@ class BendersBFunction : public C05Function , public Block {
   *        since the method is mostly thought to be used during initialization
   *        when "no one is listening". */
 
- void deserialize( netCDF::NcGroup & group , ModParam issueMod = eNoMod );
+ void deserialize( const netCDF::NcGroup & group , ModParam issueMod = eNoMod );
 
 /*--------------------------------------------------------------------------*/
  /// destructor of BendersBFunction
@@ -1730,7 +1730,7 @@ class BendersBFunction : public C05Function , public Block {
    return nullptr;
 
   return dynamic_cast< T * >
-   ( v_Block.front()->get_registered_solvers().back() );
+   ( v_Block.front()->get_registered_solvers().front() );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2254,22 +2254,6 @@ class BendersBFunction : public C05Function , public Block {
   */
 
  void write_dual_solution_from_global_pool( Index name );
-
-/*--------------------------------------------------------------------------*/
-
- /// returns the dual value associated with the given RowConstraint
- /** This function returns the dual value associated with the given \p
-  * constraint and its specific \c side.
-  *
-  * @param constraint a pointer to the RowConstraint.
-  *
-  * @param side the side of the RowConstraint.
-  *
-  * @return the dual value associated with the given \p constraint and \p side.
-  */
-
- FunctionValue get_dual_value( const RowConstraint * constraint ,
-                               const ConstraintSide & side );
 
 /*--------------------------------------------------------------------------*/
 
