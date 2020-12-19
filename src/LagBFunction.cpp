@@ -109,7 +109,7 @@ SMSpp_insert_in_factory_cpp_1( LagBFunction );
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-LagBFunction::LagBFunction( Block* innerblock , Observer * const observer )
+LagBFunction::LagBFunction( Block * innerblock , Observer * const observer )
  : C05Function() , obj( nullptr ) , IsConvex( true ) , f_max_glob( 0 ) ,
    LastSolution( 0 ) , VarSol( true ) , f_yb( -INF ) , f_play_dumb( false ) ,
    f_dirty_Lc( false ) , LPMaxSz( 0 ) , RAccLin( 0 ) , AAccLin( 0 ) ,

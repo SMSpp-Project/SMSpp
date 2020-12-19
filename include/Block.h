@@ -4518,37 +4518,36 @@ class Block : public Observer {
   * in case there is any doubt that the :Block is actually able to produce the
   * required R3 one. */
 
- virtual Block * get_R3_Block( Configuration * r3bc = nullptr,
-                               Block * base = nullptr,
+ virtual Block * get_R3_Block( Configuration * r3bc = nullptr ,
+                               Block * base = nullptr ,
                                Block * father = nullptr ) {
-  if( !v_Block.empty() ) {
+  if( ! v_Block.empty() ) {
    // automate the creation of R3 Block for the sub-Block, hence do nothing
    // if there aren't any
 
    // base must be given because the base Block class is virtual
-   if( !base )
+   if( ! base )
     throw ( std::invalid_argument( "Block::get_R3_Block with no base" ) );
 
    // ensure that eny existing sub-Block is deleted (there should not be any)
    base->reset_nested_Block();
 
-   auto cv =
-    dynamic_cast< SimpleConfiguration< std::vector< Configuration * > > *
-     >( r3bc );
+   auto cv = dynamic_cast< SimpleConfiguration< std::vector< Configuration * >
+                                                > * >( r3bc );
 
    // set the i-th sub-Block of base as the R3 Block of the i-th sub-Block
    // of this, using base as its father and the i-th entry of the r3bc
    // vector (if any) as Configuration; however, no base can be provided,
    // so the sub-Block must be able to provide one itself (this cannot
    // recourse)
-   for( Index i = 0; i < v_Block.size(); ++i )
+   for( Index i = 0 ; i < v_Block.size() ; ++i )
     base->add_nested_Block( v_Block[ i ]->get_R3_Block(
-     ( cv && ( cv->f_value.size() > i ) ) ? cv->f_value[ i ] : nullptr,
-     nullptr, base ) );
-  }
+     ( cv && ( cv->f_value.size() > i ) ) ? cv->f_value[ i ] : nullptr ,
+     nullptr , base ) );
+   }
 
-  return ( base );
- }
+  return( base );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// maps back solution information from an R3 Block to the original Block
