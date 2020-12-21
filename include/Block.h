@@ -2638,21 +2638,21 @@ class Block : public Observer {
   * in the first place (likely, the current derived Block class itself) must
   * take responsibility for this. */
 
- c_Vec_Block & get_nested_Blocks() const { return ( v_Block ); }
+ c_Vec_Block & get_nested_Blocks( void ) const { return( v_Block ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the number of sub-Block of the Block
 
- Index get_number_nested_Blocks() const { return ( v_Block.size() ); }
+ Index get_number_nested_Blocks( void ) const { return( v_Block.size() ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the i-th sub-Block of the Block (nullptr if not there)
 
  Block * get_nested_Block( Index i ) const {
   if( i >= v_Block.size() )
-   return ( nullptr );
-  return ( v_Block[ i ] );
- }
+   return( nullptr );
+  return( v_Block[ i ] );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns a pointer to the sub-Block with given \p name, nullptr if none
@@ -5215,27 +5215,28 @@ class Block : public Observer {
   * registered Solver, unless \p tofront is set to true, in which case it is
   * pushed to the front. */
 
- virtual void register_Solver( Solver * newSolver, bool tofront = false ) {
-  if( !newSolver )
-   throw ( std::invalid_argument( "registering nullptr Solver not allowed" ) );
+ virtual void register_Solver( Solver * newSolver , bool tofront = false ) {
+  if( ! newSolver )
+   throw( std::invalid_argument( "registering nullptr Solver" ) );
 
   if( v_Solver.empty() ) {    // this is the first Solver listening to me
-   if( !f_at ) {             // and no one was listening from above already
+   if( ! f_at ) {             // and no one was listening from above already
     for( auto el : v_Block )  // now someone is listening to all my sons
      el->anyone_there( true );
+    }
    }
-  } else {                      // there are other Solver listening to me
+  else {                      // there are other Solver listening to me
    auto it = find( v_Solver.begin(), v_Solver.end(), newSolver );
    if( it != v_Solver.end() )  // the Solver is already there
     return;                    // silently return
-  }
+   }
 
   newSolver->set_Block( this );
   if( tofront )
    v_Solver.push_front( newSolver );
   else
    v_Solver.push_back( newSolver );
- }
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// removing all Solver from the set of those currently registered
@@ -5260,7 +5261,7 @@ class Block : public Observer {
   if( !f_at )                 // nobody is listening from above
    for( auto el : v_Block )    // now no one is listening to all my sons
     el->anyone_there( false );
- }
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// removing oldSolver from the set of those currently registered
@@ -5274,9 +5275,9 @@ class Block : public Observer {
   * why the converse is not done (see Solver.h). Note that the method is
   * virtual because derived classes may have to do more. */
 
- virtual void unregister_Solver( Solver * oldSolver,
+ virtual void unregister_Solver( Solver * oldSolver ,
                                  bool deleteold = false ) {
-  auto it = find( v_Solver.begin(), v_Solver.end(), oldSolver );
+  auto it = find( v_Solver.begin() , v_Solver.end() , oldSolver );
   if( it == v_Solver.end() )  // the Solver is not there
    return;                    // silently return
 
@@ -5285,13 +5286,13 @@ class Block : public Observer {
    delete oldSolver;
   v_Solver.erase( it );
 
-  if( v_Solver.empty() && ( !f_at ) ) {
+  if( v_Solver.empty() && ( ! f_at ) ) {
    // this was the last solver listening to me, and nobody is listening
    // from above
    for( auto el : v_Block )    // now no one is listening to all my sons
     el->anyone_there( false );
+   }
   }
- }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// removing the solver in position it of the set of the registered ones
@@ -5314,11 +5315,11 @@ class Block : public Observer {
   * with something that is not an iterator of that list results in indefinite
   * behaviour. */
 
- virtual void unregister_Solver( c_Lst_Solver_it it,
+ virtual void unregister_Solver( c_Lst_Solver_it it ,
                                  bool deleteold = false ) {
   // cast away const-ness and call the protected version
-  unregister_Solver( v_Solver.erase( it, it ), deleteold );
- }
+  unregister_Solver( v_Solver.erase( it , it ) , deleteold );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// replace an old Solver with a new Solver
@@ -5337,11 +5338,10 @@ class Block : public Observer {
   * with something that is not an iterator of that list results in indefinite
   * behaviour. */
 
- virtual void replace_Solver( Solver * newSolver,
-                              c_Lst_Solver_it it,
-                              bool deleteold = false ) {
-  if( !newSolver )
-   throw ( std::invalid_argument( "registering nullptr Solver not allowed" ) );
+ virtual void replace_Solver( Solver * newSolver ,
+                              c_Lst_Solver_it it , bool deleteold = false ) {
+  if( ! newSolver )
+   throw( std::invalid_argument( "registering nullptr Solver not allowed" ) );
 
   // cast away const-ness and call the protected version
   replace_Solver( newSolver, v_Solver.erase( it, it ), deleteold );

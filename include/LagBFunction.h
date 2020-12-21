@@ -565,9 +565,12 @@ class LagBFunction : public C05Function , public Block {
  /// sets the inner Block (B)
  /** Method to set the inner Block (B). This is supposed to be called before
   * the LagBFunction gets an Observer, as it does not issue any Modification
-  * to signal that the LagBFunction has (very radically) changed. */
+  * to signal that the LagBFunction has (very radically) changed.
+  *
+  * If \p deleteold == true and there already is an inner Block in the
+  * LagBFunction, it is deleted. */
 
- void set_inner_block( Block * innerblock );
+ void set_inner_block( Block * innerblock , bool deleteold = true );
 
 /*--------------------------------------------------------------------------*/
  /// set the Lagrangian term < y , g(x) >, hence the active Variable
@@ -586,29 +589,29 @@ class LagBFunction : public C05Function , public Block {
  /// set the whole set of parameters in one blow
  /** LagBFunction "listens" to the following parameters:
   *
-  * - intLPMaxSz
+  * - intLPMaxSz: the value of intLPMaxSz is passed to the (first) Solver
+  *               registered to the inner Block as the Solver::intMaxSol
+  *    parameter, since each different Variable Solution produced by the
+  *    Solver immediately translates into a linearization of the LagBFunction
   *
-  * - intGPMaxSz
+  * - intGPMaxSz: controls the maximum number of stored Solution from
+  *               the Solver, each one of which (again) corresponds to a
+  *               linearization
   *
-  * - dblRAccLin
+  * - dblRAccLin: the value of dblRAccLin is passed to the (first) Solver
+  *               registered to the inner Block as the Solver::dblRelAcc
+  *   parameter, since the relative error made by the Solver in computing
+  *   the Variable Solution immediately translates into the accuracy of the
+  *   corresponding linearization.
   *
-  * - dblAAccLin
+  * - dblAAccLin: the value of dblAAccLin is passed to the (first) Solver
+  *               registered to the inner Block as the Solver::dblAbsAcc
+  *   parameter, since the absolute error made by the Solver in computing
+  *   the Variable Solution immediately translates into the accuracy of the
+  *   corresponding linearization.
   *
-  * Note that the value of intLPMaxSz is passed to the (first) Solver
-  * registered to the inner Block as the Solver::intMaxSol parameter, since
-  * each different Variable Solution produced by the Solver immediately
-  * translates into a linearization of the LagBFunction. Similarly,
-  * dblRAccLin and dblAAccLin are passed to the (...) Solver as the
-  * Solver::dblRelAcc and Solver::dblAbsAcc parameters, respectively, since 
-  * the error (relative or absolute) made by the Solver in computing the
-  * Variable Solutio immediately translates into the accuracy of the
-  * corresponding linearization.
-  *
-  * Instead, intGPMaxSz controls the maximum number of stored Solution from
-  * the Solver, each one of which (again) corresponds to a linearization.
-  *
-  * Furthermore, LagBFunction also uses the f_extra_Configuration field of the
-  * provided ComputeConfig. That field, if non-nullptr, is assumed to be:
+  * LagBFunction also uses the f_extra_Configuration field of the provided
+  * ComputeConfig. That field, if non-nullptr, is assumed to be:
   *
   * - either (a pointer to) a
   *
@@ -635,14 +638,14 @@ class LagBFunction : public C05Function , public Block {
  void set_ComputeConfig( ComputeConfig * scfg = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
- /// set a given integer (int) numerical parameter (see set_ComputeConfig())
+ /// set a given int numerical parameter (see set_ComputeConfig())
 
- void set_par( const idx_type par , const int value ) override;
+ void set_par( idx_type par , int value ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// set a given integer (int) numerical parameter (see set_ComputeConfig())
+ /// set a given double numerical parameter (see set_ComputeConfig())
 
- void set_par( const idx_type par , const double value ) override;
+ void set_par( idx_type par , double value ) override;
 
 /*--------------------------------------------------------------------------*/
 

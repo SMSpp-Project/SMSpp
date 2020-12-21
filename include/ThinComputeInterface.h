@@ -217,16 +217,17 @@ class ThinComputeInterface {
   eBeforeTermination = 0,   ///< event to be called just prior to terminating
                             /**< Type of events that will be called right
                              * before compute() terminates. This is provided
-   * in particular to handle cases such as a computation entailing the solution
-   * of an optimization problem whose model is dynamically generated (say, row
-   * and/or column generation). In such a case the optimality conditions may
-   * have been satisfied for the current partial model (master problem) which
-   * would lead compute() to terminate; before doing this, these events are
-   * invoked, which allows to trigger the generation of new rows and/or columns
-   * (separation, pricing). The event can then return eForceContinue [see] to
-   * instruct compute() to incorporate the new information into the model
-   * (provided, of course, that this makes any sense for the compute() at hand)
-   * and check the stopping conditions again. */
+   * in particular to handle cases such as a computation entailing the
+   * solution of an optimization problem whose model is dynamically generated
+   * (say, row and/or column generation). In such a case the optimality
+   * conditions may have been satisfied for the current partial model (master
+   * problem) which would lead compute() to terminate; before doing this,
+   * these events are invoked, which allows to trigger the generation of new
+   * rows and/or columns (separation, pricing). The event can then return
+   * eForceContinue [see] to instruct compute() to incorporate the new
+   * information into the model (provided, of course, that this makes any
+   * sense for the compute() at hand) and check the stopping conditions
+   * again. */
 
   eEverykIteration = 1,   ///< events to be called every k iterations
                           /**< Type of events that will be called every
@@ -241,11 +242,11 @@ class ThinComputeInterface {
    * set with a separate algorithmic parameter, properly defined by derived
    * classes actually implementing the mechanism. Note that in general one
    * does not expect derived classes to be very "tight" in heeding to the time
-   * interval T, in the sense that they will typically check periodically (say,
-   * every iteration) whether the elapsed time has passed, and call the event
-   * of it has. If iterations are much longer than T this may cause some events
-   * not to be called at all, although of course a derived class may place
-   * appropriate checks in multiple places to try to avoid this. */
+   * interval T, in the sense that they will typically check periodically
+   * (say, every iteration) whether the elapsed time has passed, and call the
+   * event of it has. If iterations are much longer than T this may cause
+   * some events not to be called at all, although of course a derived class
+   * may place appropriate checks in multiple places to try to avoid this. */
 
   e_last_event_type = 4     ///< conveniemce value to define new events
                             /**< conveniemce value to allow derived classes
@@ -296,15 +297,16 @@ class ThinComputeInterface {
    * This allows the event handler to more finely specify "what kind of good
    * stop has occurred", in case compute() supports more than one (say,
    * compute() requires solving a Block which may have an optimal solution, or
-   * be empty, or be unbounded). The event handler needs to know which compute()
-   * it is handling, and therefore ensure that the return value is valid for
-   * that compute(). Furthermore, obviously the event handler has to force
-   * this termination "for good reasons", possibly providing to compute() the
-   * extra information it needs to properly function after termination (say,
-   * compute() requires solving a Block, and the event handler has can detect
-   * termination early by ab ad-hoc computation of a dual solution; then, the
-   * dual solution will have to be provided to compute() if it can be required
-   * by the user after compute() terminates.) */
+   * be empty, or be unbounded). The event handler needs to know which
+   * compute() it is handling, and therefore ensure that the return value is
+   * valid for that compute(). Furthermore, obviously the event handler has
+   * to force this termination "for good reasons", possibly providing to
+   * compute() the extra information it needs to properly function after
+   * termination (say, compute() requires solving a Block, and the event
+   * handler has can detect termination early by ab ad-hoc computation of a
+   * dual solution; then, the dual solution will have to be provided to
+   * compute() if it can be required by the user after compute()
+   * terminates.) */
 
   eStopError = kError     ///< force compute() to stop returning error
                           /**< If the event handler returns any value
@@ -320,18 +322,19 @@ class ThinComputeInterface {
    *
    * This allows the event handler to more finely specify "what kind of bad
    * stop has occurred", in case compute() supports more than one. In
-   * particular, values >= eStopError (which is taken equal to kError) are meant
-   * to represent "irrecoverable" errors, from which compute() is not likely to
-   * be able to ever recover. Instead, values between eStopOK and eStopError,
-   * extremes excluded, are left for "recoverable error states" where compute()
-   * was not able to conclusively obtain all of the desired answer (although it
-   * may have already obtained a part of it), but this was due to some reason
-   * that forced it to stop early on, such as a limit imposed on the available
-   * computational resources. By relaxing the limit, which may be as simple as
-   * calling compute() again, compute() may further proceed in the computation
-   * process, possibly finally providing a "good" answer. The event handler
-   * needs to know which compute() it is handling, and therefore ensure that
-   * the return value is valid for that compute(). */
+   * particular, values >= eStopError (which is taken equal to kError) are
+   * meant to represent "irrecoverable" errors, from which compute() is not
+   * likely to be able to ever recover. Instead, values between eStopOK and
+   * eStopError, extremes excluded, are left for "recoverable error states"
+   * where compute() was not able to conclusively obtain all of the desired
+   * answer (although it may have already obtained a part of it), but this
+   * was due to some reason that forced it to stop early on, such as a limit
+   * imposed on the available computational resources. By relaxing the limit,
+   * which may be as simple as calling compute() again, compute() may
+   *further proceed in the computation process, possibly finally providing a
+   * "good" answer. The event handler needs to know which compute() it is
+   * handling, and therefore ensure that the return value is valid for that
+   * compute(). */
 
   };  // end( compute_type )
 
@@ -642,8 +645,8 @@ class ThinComputeInterface {
   * slots for the given type. The method of the base class always throws
   * exception. */
 
- virtual EventID set_event_handler( int type, EventHandler && event ) {
-  throw ( std::logic_error( "ThinComputeInterface::set_event_handler called"
+ virtual EventID set_event_handler( int type , EventHandler && event ) {
+  throw( std::logic_error( "ThinComputeInterface::set_event_handler called"
 			    ) );
   }
 
@@ -654,7 +657,7 @@ class ThinComputeInterface {
   * given id for the given type, exception will be thrown. The method of the
   * base class always throws exception. */
 
- virtual void reset_event_handler( int type, EventID id ) {
+ virtual void reset_event_handler( int type , EventID id ) {
   throw( std::logic_error( "ThinComputeInterface::reset_event_handler called"
 			   ) );
   }

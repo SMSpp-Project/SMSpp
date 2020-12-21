@@ -1597,8 +1597,8 @@ class Solver : public ThinComputeInterface {
   * any :Solver will be added to the factory. Actually, since
   * Solver::private_name() is pure virtual, this ensures that it is not
   * possible to forget to call the appropriate SMSpp_insert_in_factory_cpp_*
-  * for any :Solver because otherwise it is a pure virtual class (unless
-  * the programmer purposely defines private_name() without calling the macro,
+  * for any :Solver because otherwise it is a pure virtual class (unless the
+  * programmer purposely defines private_name() without calling the macro,
   * which seems rather pointless). */
 
  const std::string & classname( void ) { return( private_name() ); }

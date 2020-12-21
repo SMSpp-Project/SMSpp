@@ -158,7 +158,7 @@ void LagBFunction::clear( void )
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::set_inner_block( Block * innerblock )
+void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
 {
  // consistency checks
  if( ! innerblock )
@@ -180,7 +180,8 @@ void LagBFunction::set_inner_block( Block * innerblock )
  else
   if( v_Block.front() ) {
    v_Block.front()->set_f_Block( nullptr );
-   delete v_Block.front();
+   if( deleteold )
+    delete v_Block.front();
    }
 
  // set the inner Block

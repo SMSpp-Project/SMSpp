@@ -300,7 +300,7 @@ class LinearFunction : public C15Function {
 
  /// returns the vector of pairs (ColVariable *, Coefficient)
 
- [[nodiscard]] v_c_coeff_pair & get_v_var() const { return ( v_pairs ); }
+ [[nodiscard]] v_c_coeff_pair & get_v_var( void ) const { return( v_pairs ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the Coefficient of the i-th Variable in this LinearFunction
@@ -311,8 +311,8 @@ class LinearFunction : public C15Function {
   * @param i Index of the Variable whose coefficient is desired. */
 
  [[nodiscard]] Coefficient get_coefficient( Index i ) const {
-  return ( ( v_pairs.begin() + i )->second );
- }
+  return( ( v_pairs.begin() + i )->second );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF THE LinearFunction ----------*/
