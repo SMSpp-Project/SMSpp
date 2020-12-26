@@ -320,7 +320,7 @@ Observer::ChnlName Block::open_channel( GroupModification * gmpmod )
   }
  else {
   *it = gmpmod;
-  chnl = std::distance( it, v_current_GroupMod.begin() ) + 1;
+  chnl = std::distance( it , v_current_GroupMod.begin() ) + 1;
   }
 
  return( chnl );
@@ -359,7 +359,7 @@ void Block::un_nest_channel( ChnlName chnl )
 
  if( ( chnl > v_current_GroupMod.size() ) ||
      ( v_current_GroupMod[ chnl - 1 ] == nullptr ) )
-  throw ( std::invalid_argument( "wrong channel name" ) );
+  throw( std::invalid_argument( "wrong channel name" ) );
 
  // the father of the current GroupModification
  auto father = v_current_GroupMod[ chnl - 1 ]->father();
@@ -381,11 +381,11 @@ void Block::un_nest_channel( ChnlName chnl )
 void Block::close_channel( ChnlName chnl )
 {
  if( ! chnl )
-  throw ( std::invalid_argument( "cannot close default channel" ) );
+  throw( std::invalid_argument( "cannot close default channel" ) );
 
  if( ( chnl > v_current_GroupMod.size() ) ||
      ( v_current_GroupMod[ chnl - 1 ] == nullptr ) )
-  throw ( std::invalid_argument( "wrong channel name" ) );
+  throw( std::invalid_argument( "wrong channel name" ) );
 
  Block::add_Modification( std::shared_ptr< GroupModification >(
   v_current_GroupMod[ chnl - 1 ] ) );
@@ -397,21 +397,21 @@ void Block::close_channel( ChnlName chnl )
 
  if( chnl == v_current_GroupMod.size() ) {
   ChnlName i = chnl - 1;
-  while( ( i > 0 ) && ( !v_current_GroupMod[ i - 1 ] ) )
+  while( ( i > 0 ) && ( ! v_current_GroupMod[ i - 1 ] ) )
    i--;
 
   if( i )
    v_current_GroupMod.resize( i );
   else
    v_current_GroupMod.clear();
- }
-}  // end( Block::close_channel )
+  }
+ }  // end( Block::close_channel )
 
 /*--------------------------------------------------------------------------*/
 
 void Block::set_default_channel( ChnlName chnl )
 {
- if( ( !chnl ) || ( chnl > v_current_GroupMod.size() ) ||
+ if( ( ! chnl ) || ( chnl > v_current_GroupMod.size() ) ||
      ( v_current_GroupMod[ chnl - 1 ] == nullptr ) )
   throw( std::invalid_argument( "wrong channel name" ) );
 

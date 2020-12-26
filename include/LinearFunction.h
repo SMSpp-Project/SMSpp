@@ -325,37 +325,39 @@ class LinearFunction : public C15Function {
 /*--------------------------------------------------------------------------*/
  /// returns the value of the LinearFunction
 
- [[nodiscard]] FunctionValue get_value() const override { return ( f_value ); }
+ [[nodiscard]] FunctionValue get_value( void ) const override {
+  return( f_value );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the LinearFunction is exact, hence lower_estimate == value
 
- [[nodiscard]] FunctionValue get_lower_estimate() const override {
-  return ( f_value );
- }
+ [[nodiscard]] FunctionValue get_lower_estimate( void ) const override {
+  return( f_value );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// the LinearFunction is exact, hence upper_estimate == value
 
- [[nodiscard]] FunctionValue get_upper_estimate() const override {
-  return ( f_value );
- }
+ [[nodiscard]] FunctionValue get_upper_estimate( void ) const override {
+  return( f_value );
+  }
 
 /*--------------------------------------------------------------------------*/
 
- FunctionValue get_Lipschitz_constant() override;
+ FunctionValue get_Lipschitz_constant( void ) override;
 
 /*--------------------------------------------------------------------------*/
 
- [[nodiscard]] bool is_convex() const final { return ( true ); }
+ [[nodiscard]] bool is_convex( void ) const final { return( true ); }
 
 /*--------------------------------------------------------------------------*/
 
- [[nodiscard]] bool is_concave() const final { return true; }
+ [[nodiscard]] bool is_concave( void ) const final { return( true ); }
 
 /*--------------------------------------------------------------------------*/
 
- void compute_hessian_approximation() final {};
+ void compute_hessian_approximation( void ) final {};
 
 /*--------------------------------------------------------------------------*/
 
@@ -367,39 +369,38 @@ class LinearFunction : public C15Function {
 
 /*--------------------------------------------------------------------------*/
 
- [[nodiscard]] bool is_continuously_differentiable() const final {
-  return ( true );
- }
+ [[nodiscard]] bool is_continuously_differentiable( void ) const final {
+  return( true );
+  }
 
 /*--------------------------------------------------------------------------*/
 
- [[nodiscard]] bool is_twice_continuously_differentiable() const final {
-  return ( true );
- }
+ [[nodiscard]] bool is_twice_continuously_differentiable( void ) const final {
+  return( true );
+  }
 
 /*--------------------------------------------------------------------------*/
 
  void get_linearization_coefficients( FunctionValue * g,
-                                      Range range = std::make_pair( 0, Inf< Index >() ),
+                                   Range range = Range( 0 , Inf< Index >() ),
                                       Index name = Inf< Index >() ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- void get_linearization_coefficients( SparseVector & g,
-                                      Range range = std::make_pair( 0, Inf< Index >() ),
+ void get_linearization_coefficients( SparseVector & g ,
+                                  Range range = Range( 0 , Inf< Index >() ) ,
                                       Index name = Inf< Index >() ) override;
 
 /*--------------------------------------------------------------------------*/
 
- void get_linearization_coefficients( FunctionValue * g, c_Subset & subset,
-                                      const bool ordered = false,
+ void get_linearization_coefficients( FunctionValue * g , c_Subset & subset ,
+                                      bool ordered = false,
                                       Index name = Inf< Index >() ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- void get_linearization_coefficients( SparseVector & g,
-                                      c_Subset & subset,
-                                      const bool ordered = false,
+ void get_linearization_coefficients( SparseVector & g , c_Subset & subset ,
+                                      bool ordered = false ,
                                       Index name = Inf< Index >() ) override;
 
 /*--------------------------------------------------------------------------*/
@@ -408,14 +409,14 @@ class LinearFunction : public C15Function {
   * constant is equal to the constant term of the LinearFunction. */
 
  FunctionValue get_linearization_constant( Index name = Inf< Index >() )
- override { return ( f_constant_term ); }
+  override { return( f_constant_term ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the value of the constant term of this LinearFunction.
 
- [[nodiscard]] FunctionValue get_constant_term() const {
-  return ( f_constant_term );
- }
+ [[nodiscard]] FunctionValue get_constant_term( void ) const {
+  return( f_constant_term );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
@@ -428,8 +429,8 @@ class LinearFunction : public C15Function {
   * "listens to no-one"; hence, the implementation of get_ComputeConfig() is
   * quite a trivial one. */
 
- ComputeConfig * get_ComputeConfig( bool all, ComputeConfig * ocfg )
- const override { return ( nullptr ); }
+ ComputeConfig * get_ComputeConfig( bool all , ComputeConfig * ocfg )
+  const override { return( nullptr ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE LinearFunction -------*/
@@ -439,55 +440,55 @@ class LinearFunction : public C15Function {
  * vector v_pairs of pairs.
  * @{ */
 
- [[nodiscard]] Index get_num_active_var() const override {
-  return ( v_pairs.size() );
- }
+ [[nodiscard]] Index get_num_active_var( void ) const override {
+  return( v_pairs.size() );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- Index is_active( const Variable * const var ) const override {
-  auto idx = std::find_if( v_pairs.begin(), v_pairs.end(),
+ Index is_active( const Variable * var ) const override {
+  auto idx = std::find_if( v_pairs.begin() , v_pairs.end() ,
                            [ & var ]( const auto & p ) -> bool {
-                            return ( p.first == var );
-                           } );
-  return ( idx != v_pairs.end() ? std::distance( v_pairs.begin(), idx )
-                                : Inf< Index >() );
- }
+                            return( p.first == var );
+                            } );
+  return( idx != v_pairs.end() ? std::distance( v_pairs.begin() , idx )
+                               : Inf< Index >() );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- void map_active( c_Vec_p_Var & vars, Subset & map, bool ordered )
- const override;
+ void map_active( c_Vec_p_Var & vars , Subset & map , bool ordered )
+  const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- [[nodiscard]] Variable * get_active_var( const Index i ) const override {
-  return ( v_pairs[ i ].first );
+ [[nodiscard]] Variable * get_active_var( Index i ) const override {
+  return( v_pairs[ i ].first );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ v_iterator * v_begin( void ) override {
+  return( new LinearFunction::v_iterator( v_pairs.begin() ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] v_const_iterator * v_begin( void ) const override {
+  return( new LinearFunction::v_const_iterator( v_pairs.begin() ) );
  }
 
 /*--------------------------------------------------------------------------*/
 
- v_iterator * v_begin() override {
-  return ( new LinearFunction::v_iterator( v_pairs.begin() ) );
- }
+ v_iterator * v_end( void ) override {
+  return( new LinearFunction::v_iterator( v_pairs.end() ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- [[nodiscard]] v_const_iterator * v_begin() const override {
-  return ( new LinearFunction::v_const_iterator( v_pairs.begin() ) );
- }
-
-/*--------------------------------------------------------------------------*/
-
- v_iterator * v_end() override {
-  return ( new LinearFunction::v_iterator( v_pairs.end() ) );
- }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
- [[nodiscard]] v_const_iterator * v_end() const override {
-  return ( new LinearFunction::v_const_iterator( v_pairs.end() ) );
- }
+ [[nodiscard]] v_const_iterator * v_end( void ) const override {
+  return( new LinearFunction::v_const_iterator( v_pairs.end() ) );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------- METHODS FOR MODIFYING THE LinearFunction ------------------*/
@@ -520,7 +521,7 @@ class LinearFunction : public C15Function {
   * is additive, and therefore strongly quasi-additive, which is why a
   * C05FunctionModVarsAddd (rather than a FunctionModVarsAddd) is issued. */
 
- void add_variables( v_coeff_pair && vars, ModParam issueMod = eModBlck );
+ void add_variables( v_coeff_pair && vars , ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// add one single new Variable to the LinearFunction
@@ -531,7 +532,7 @@ class LinearFunction : public C15Function {
   * issued, as described in Observer::make_par(). Note that a linear function
   * is additive, and therefore strongly quasi-additive. */
 
- void add_variable( ColVariable * var, Coefficient coeff,
+ void add_variable( ColVariable * var , Coefficient coeff ,
                     ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -542,7 +543,7 @@ class LinearFunction : public C15Function {
   * The parameter issueMod decides if and how the C05FunctionModLin is issued,
   * as described in Observer::make_par(). */
 
- void modify_coefficient( Index i, Coefficient coeff,
+ void modify_coefficient( Index i , Coefficient coeff ,
                           ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -559,8 +560,8 @@ class LinearFunction : public C15Function {
   * The parameter issueMod decides if and how the C05FunctionModLinSbst is
   * issued, as described in Observer::make_par(). */
 
- void modify_coefficients( Vec_FunctionValue && NCoef, Subset && nms,
-                           bool ordered = false,
+ void modify_coefficients( Vec_FunctionValue && NCoef , Subset && nms ,
+                           bool ordered = false ,
                            ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -574,8 +575,8 @@ class LinearFunction : public C15Function {
   * The parameter issueMod decides if and how the C05FunctionModLinRngd is
   * issued, as described in Observer::make_par(). */
 
- void modify_coefficients( Vec_FunctionValue && NCoef,
-                           Range range = std::make_pair( 0, Inf< Index >() ),
+ void modify_coefficients( Vec_FunctionValue && NCoef ,
+                           Range range = Range( 0 , Inf< Index >() ) ,
                            ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -592,7 +593,7 @@ class LinearFunction : public C15Function {
   * C05FunctionModVarsRngd is issued as opposed to a FunctionModVarsRngd
   * one. */
 
- void remove_variable( Index i, ModParam issueMod = eModBlck ) override;
+ void remove_variable( Index i , ModParam issueMod = eModBlck ) override;
 
 /*--------------------------------------------------------------------------*/
  /// remove a range of "active" Variable
@@ -606,7 +607,7 @@ class LinearFunction : public C15Function {
   * C05FunctionModVarsRngd is issued as opposed to a FunctionModVarsRngd
   * one. */
 
- void remove_variables( Range range, ModParam issueMod = eModBlck ) override;
+ void remove_variables( Range range , ModParam issueMod = eModBlck ) override;
 
 /*--------------------------------------------------------------------------*/
  /// remove the given subset of Variable
@@ -628,7 +629,7 @@ class LinearFunction : public C15Function {
   * is additive, and therefore strongly quasi-additive, which is why a
   * C05FunctionModVarSbst is issued as opposed to a FunctionModVarSbst one. */
 
- void remove_variables( Subset && nms, bool ordered = false,
+ void remove_variables( Subset && nms , bool ordered = false ,
                         ModParam issueMod = eModBlck ) override;
 
 /*--------------------------------------------------------------------------*/

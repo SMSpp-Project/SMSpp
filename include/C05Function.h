@@ -380,7 +380,7 @@ class C05Function : public Function {
  using SparseVector = Eigen::SparseVector< FunctionValue >;
 
  /// type used to define linear combinations of linearizations
- using LinearCombination = std::vector< std::pair< Index, FunctionValue > >;
+ using LinearCombination = std::vector< std::pair< Index , FunctionValue > >;
 
  /// a const LinearCombination
  using c_LinearCombination = const LinearCombination;
@@ -564,18 +564,17 @@ class C05Function : public Function {
   * nothing needs to be done, not even checking that the parameters (which
   * the base class does not even store) are changed. */
 
- void set_par( const idx_type par, const int value ) override {
+ void set_par( idx_type par , int value ) override {
   switch( par ) {
-   case ( intLPMaxSz ):
+   case( intLPMaxSz ):
     if( value != 1 )
-     throw ( std::invalid_argument( "intLPMaxSz cannot be changed" ) );
+     throw( std::invalid_argument( "intLPMaxSz cannot be changed" ) );
     break;
-   case ( intGPMaxSz ):
+   case( intGPMaxSz ):
     if( value != 0 )
-     throw ( std::invalid_argument( "intGPMaxSz cannot be changed" ) );
+     throw( std::invalid_argument( "intGPMaxSz cannot be changed" ) );
     break;
-   default:
-    Function::set_par( par, value );
+   default: Function::set_par( par, value );
   }
  }
 
@@ -587,14 +586,13 @@ class C05Function : public Function {
   * yet, setting any (non-negative) number allows these functions to just
   * keep doing the same, so whatever number is set can just be ignored. */
 
- void set_par( const idx_type par, const double value ) override {
+ void set_par( idx_type par , double value ) override {
   switch( par ) {
-   case ( dblRAccLin ):
-   case ( dblAAccLin ):
-   case ( dblAAccMlt ):
+   case( dblRAccLin ):
+   case( dblAAccLin ):
+   case( dblAAccMlt ):
     break;
-   default:
-    Function::set_par( par, value );
+   default: Function::set_par( par, value );
   }
  }
 
@@ -662,9 +660,9 @@ class C05Function : public Function {
   * (gradient) is well-defined and always easily computable as soon as the
   * value of the active Variable is set. */
 
- virtual bool has_linearization( const bool diagonal = true ) {
-  return ( diagonal );
- }
+ virtual bool has_linearization( bool diagonal = true ) {
+  return( diagonal );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// compute a new linearization for this Function
@@ -715,9 +713,9 @@ class C05Function : public Function {
   * information allowing to compute them) is the task of the "global" pool
   * of linearizations. */
 
- virtual bool compute_new_linearization( const bool diagonal = true ) {
-  return ( false );
- }
+ virtual bool compute_new_linearization( bool diagonal = true ) {
+  return( false );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// store a linearization in the global pool 
@@ -751,7 +749,7 @@ class C05Function : public Function {
   * "physical representation" of the C05Function, but only its (partial)
   * "abstract represenation" that the global pool provides. */
 
- virtual void store_linearization( Index name,
+ virtual void store_linearization( Index name ,
                                    ModParam issueMod = eModBlck ) {}
 
 /*--------------------------------------------------------------------------*/
@@ -762,8 +760,8 @@ class C05Function : public Function {
   * does not store linearization at all. */
 
  [[nodiscard]] virtual bool is_linearization_there( Index name ) const {
-  return ( false );
- }
+  return( false );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// tells if the linearization in the global pool with that name is vertical
@@ -777,8 +775,8 @@ class C05Function : public Function {
   * never evaluates to +/- INF), or does not store linearization at all. */
 
  [[nodiscard]] virtual bool is_linearization_vertical( Index name ) const {
-  return ( false );
- }
+  return( false );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// stores a combination of the given linearizations
@@ -840,7 +838,7 @@ class C05Function : public Function {
   * "abstract represenation" that the global pool provides. */
 
  virtual void store_combination_of_linearizations(
-  LinearCombination & coefficients, Index name,
+  LinearCombination & coefficients , Index name ,
   ModParam issueMod = eModBlck ) {}
 
 /*--------------------------------------------------------------------------*/
@@ -945,8 +943,8 @@ class C05Function : public Function {
   * optimal dual solutions, this method may be called more than once at the
   * end of an optimization to retrieve them all, one by one. */
 
- virtual void
- set_important_linearization( LinearCombination && coefficients ) {}
+ virtual void set_important_linearization(
+				       LinearCombination && coefficients ) {}
 
 /*--------------------------------------------------------------------------*/
  /// return (the combination used to form) "the important linearization"
@@ -959,10 +957,10 @@ class C05Function : public Function {
   * one, comprised the one with name 0). */
 
  [[nodiscard]] virtual c_LinearCombination &
- get_important_linearization_coefficients() const {
-  static c_LinearCombination _tmp = { std::make_pair( 0, 1 ) };
-  return ( _tmp );
- }
+ get_important_linearization_coefficients( void ) const {
+  static c_LinearCombination _tmp = { std::make_pair( 0 , 1 ) };
+  return( _tmp );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// delete the given linearization from the global pool of linearizations
@@ -981,7 +979,7 @@ class C05Function : public Function {
   * only its (partial) "abstract represenation" that the global pool
   * provides. */
 
- virtual void delete_linearization( Index name,
+ virtual void delete_linearization( Index name ,
                                     ModParam issueMod = eModBlck ) {}
 
 /*--------------------------------------------------------------------------*/
@@ -1005,7 +1003,7 @@ class C05Function : public Function {
   * individual calls to not generate individual C05FunctionMod; rather, an
   * unique one is issued at the end. */
 
- virtual void delete_linearizations( Subset && which, bool ordered = true,
+ virtual void delete_linearizations( Subset && which , bool ordered = true ,
                                      ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -1067,9 +1065,9 @@ class C05Function : public Function {
   *   get_linearization_coefficients( G[ i ].data() , mod->range() , i )
   */
 
- virtual void get_linearization_coefficients( FunctionValue * g,
-                                              Range range = Range( 0, Inf< Index >() ),
-                                              Index name = Inf< Index >() ) = 0;
+ virtual void get_linearization_coefficients( FunctionValue * g ,
+                                  Range range = Range( 0 , Inf< Index >() ) ,
+                                  Index name = Inf< Index >() ) = 0;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get a range of coefficients of a linearization in a SparseVector
@@ -1103,9 +1101,9 @@ class C05Function : public Function {
   * "rough" version. Derived classes are welcome to provide specialized
   * implementations avoiding the copy for efficiency. */
 
- virtual void get_linearization_coefficients( SparseVector & g,
-                                              Range range = Range( 0, Inf< Index >() ),
-                                              Index name = Inf< Index >() ) {
+ virtual void get_linearization_coefficients( SparseVector & g ,
+                                Range range = Range( 0 , Inf< Index >() ) ,
+                                Index name = Inf< Index >() ) {
   range.second = std::min( range.second, get_num_active_var() );
   if( range.second <= range.first )  // range is empty
    return;                           // cowardly (and silently) return
@@ -1121,19 +1119,20 @@ class C05Function : public Function {
 
    g.reserve( range.second - range.first );
 
-   for( Index i = range.first; i < range.second; ++i, ++ggp )
+   for( Index i = range.first ; i < range.second ; ++i , ++ggp )
     if( *ggp )
      g.insert( i ) = *ggp;
-  } else {                  // g has some nonzeroes
+   }
+  else {                  // g has some nonzeroes
    if( g.size() != get_num_active_var() )
-    throw ( std::invalid_argument( "wrong size of nonempty SparseVector g" ) );
+    throw( std::invalid_argument( "wrong size of nonempty SparseVector g" ) );
 
    for( Index i = range.first; i < range.second; ++i )
     g.coeffRef( i ) = *( ggp++ );
 
    g.prune( 0 );
+   }
   }
- }
 
 /*--------------------------------------------------------------------------*/
  /// get a subset of coefficients (g vector) of a linearization in an array
@@ -1191,10 +1190,9 @@ class C05Function : public Function {
   *   get_linearization_coefficients( G[ i ].data() , mod->subset() , i  )
   */
 
- virtual void get_linearization_coefficients( FunctionValue * g,
-                                              c_Subset & subset,
-                                              const bool ordered = false,
-                                              Index name = Inf< Index >() ) = 0;
+ virtual void get_linearization_coefficients( FunctionValue * g ,
+                                  c_Subset & subset , bool ordered = false ,
+                                  Index name = Inf< Index >() ) = 0;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get a subset of coefficients of a linearization in a SparseVector
@@ -1228,10 +1226,9 @@ class C05Function : public Function {
   * "rough" version. Derived classes are welcome to provide specialized
   * implementations avoiding the copy for efficiency. */
 
- virtual void get_linearization_coefficients( SparseVector & g,
-                                              c_Subset & subset,
-                                              const bool ordered = false,
-                                              Index name = Inf< Index >() ) {
+ virtual void get_linearization_coefficients( SparseVector & g ,
+                                    c_Subset & subset , bool ordered = false ,
+                                    Index name = Inf< Index >() ) {
   if( subset.empty() )  // subset is empty
    return;              // cowardly (and silently) return
 
@@ -1252,20 +1249,21 @@ class C05Function : public Function {
     auto gi = *( ggp++ );
     if( gi )
      g.insert( i ) = gi;
+    }
    }
-  } else {                  // g has some nonzeroes
+  else {                  // g has some nonzeroes
    if( g.size() != get_num_active_var() )
-    throw ( std::invalid_argument( "wrong size of nonempty SparseVector g" ) );
+    throw( std::invalid_argument( "wrong size of nonempty SparseVector g" ) );
 
    for( auto i : subset ) {
     if( i >= get_num_active_var() )
      throw ( std::invalid_argument( "wrong index in subset" ) );
     g.coeffRef( i ) = *( ggp++ );
-   }
+    }
 
    g.prune( 0 );
+   }
   }
- }
 
 /*--------------------------------------------------------------------------*/
  /// return the constant term of a linearization
@@ -1302,9 +1300,9 @@ class C05Function : public Function {
   * single linearization per compute(), as the only exact linearization is
   * the gradient, which is unique. */
 
- [[nodiscard]] virtual bool is_continuously_differentiable() const {
-  return ( false );
- }
+ [[nodiscard]] virtual bool is_continuously_differentiable( void ) const {
+  return( false );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
@@ -1358,17 +1356,17 @@ class C05Function : public Function {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- [[nodiscard]] idx_type
- dbl_par_str2idx( const std::string & name ) const override {
+ [[nodiscard]] idx_type dbl_par_str2idx( const std::string & name )
+  const override {
   if( name == "dblRAccLin" )
-   return ( dblRAccLin );
+   return( dblRAccLin );
   if( name == "dblAAccLin" )
-   return ( dblAAccLin );
+   return( dblAAccLin );
   if( name == "dblAAccMlt" )
-   return ( dblAAccMlt );
+   return( dblAAccMlt );
 
-  return ( Function::dbl_par_str2idx( name ) );
- }
+  return( Function::dbl_par_str2idx( name ) );
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -1378,12 +1376,12 @@ class C05Function : public Function {
    { "intLPMaxSz", "intGPMaxSz" };
 
   if( idx == intLPMaxSz )
-   return ( pars[ 0 ] );
+   return( pars[ 0 ] );
   if( idx == intGPMaxSz )
-   return ( pars[ 1 ] );
+   return( pars[ 1 ] );
 
-  return ( Function::int_par_idx2str( idx ) );
- }
+  return( Function::int_par_idx2str( idx ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -1948,32 +1946,33 @@ class C05FunctionModSbst : public C05FunctionMod {
   * "naturally" ordered, then it is ordered in the constructor. Of course,
   * this means that vars gets re-ordered at the same time. */
 
- C05FunctionModSbst( C05Function * f, int type, Vec_p_Var && vars,
-                     Subset && subset, bool ordered = false,
-                     Subset && which = {}, FunctionValue shift = NaNshift,
+ C05FunctionModSbst( C05Function * f , int type , Vec_p_Var && vars ,
+                     Subset && subset , bool ordered = false ,
+                     Subset && which = {} , FunctionValue shift = NaNshift ,
                      bool cB = true )
-  : C05FunctionMod( f, type, std::move( which ), shift, cB ),
-    v_vars( std::move( vars ) ), v_subset( std::move( subset ) ) {
-  if( ( !v_subset.empty() ) && ( v_vars.size() != v_subset.size() ) )
-   throw ( std::invalid_argument( "vars and subset sizes do not match" ) );
-  if( ( !ordered ) && ( !v_subset.empty() ) && ( v_vars.size() > 1 ) ) {
-   using IdxVar = std::pair< Index, Variable * >;
+  : C05FunctionMod( f , type , std::move( which ) , shift, cB ) ,
+    v_vars( std::move( vars ) ) , v_subset( std::move( subset ) ) {
+  if( ( ! v_subset.empty() ) && ( v_vars.size() != v_subset.size() ) )
+   throw( std::invalid_argument( "vars and subset sizes do not match" ) );
+
+  if( ( ! ordered ) && ( ! v_subset.empty() ) && ( v_vars.size() > 1 ) ) {
+   using IdxVar = std::pair< Index , Variable * >;
    std::vector< IdxVar > tmp( v_vars.size() );
-   for( Index i = 0; i < v_vars.size(); ++i )
-    tmp[ i ] = IdxVar( v_subset[ i ], v_vars[ i ] );
-   std::sort( tmp.begin(), tmp.end(),
-              []( auto & a, auto & b ) { return ( a.first < b.first ); } );
-   for( Index i = 0; i < v_vars.size(); ++i ) {
+   for( Index i = 0 ; i < v_vars.size() ; ++i )
+    tmp[ i ] = IdxVar( v_subset[ i ] , v_vars[ i ] );
+   std::sort( tmp.begin() , tmp.end() ,
+              []( auto & a , auto & b ) { return( a.first < b.first ); } );
+   for( Index i = 0 ; i < v_vars.size() ; ++i ) {
     v_subset[ i ] = tmp[ i ].first;
     v_vars[ i ] = tmp[ i ].second;
+    }
    }
+  #ifndef NDEBUG
+   for( Index i = 1; i < v_subset.size(); ++i )
+    if( v_subset[ i - 1 ] >= v_subset[ i ] )
+     throw( std::invalid_argument( "unordered or repeated subset" ) );
+  #endif
   }
-#ifndef NDEBUG
-  for( Index i = 1; i < v_subset.size(); ++i )
-   if( v_subset[ i - 1 ] >= v_subset[ i ] )
-    throw ( std::invalid_argument( "unordered or repeated subset" ) );
-#endif
- }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
@@ -2262,9 +2261,9 @@ class C05FunctionModVarsAddd : public FunctionModVarsAddd {
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: identical to that of FunctionModVarsAddd
 
- C05FunctionModVarsAddd( C05Function * f, Vec_p_Var && vars, Index first,
-                         FunctionValue shift = NaNshift, bool cB = true )
-  : FunctionModVarsAddd( f, std::move( vars ), first, shift, cB ) {}
+ C05FunctionModVarsAddd( C05Function * f , Vec_p_Var && vars , Index first ,
+                         FunctionValue shift = NaNshift , bool cB = true )
+  : FunctionModVarsAddd( f , std::move( vars ) , first , shift , cB ) {}
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
@@ -2298,11 +2297,11 @@ class C05FunctionModVarsAddd : public FunctionModVarsAddd {
 
   output << ") adding variables [ " << f_first << " , "
          << f_first + v_vars.size() << " ]" << std::endl;
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
-};  // end( class( C05FunctionModVarsAddd ) )
+ };  // end( class( C05FunctionModVarsAddd ) )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- Class C05FunctionModVarsRngd ------------------------*/

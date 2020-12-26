@@ -3629,7 +3629,7 @@ class Block : public Observer {
  template< class Const >
  void add_dynamic_constraints( std::list< Const > & list ,
                                std::list< Const > & newlist ,
-                               c_ModParam issueMod = eModBlck );
+                               ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// adds a bunch of new Variable at the end of the given list
@@ -3654,7 +3654,7 @@ class Block : public Observer {
  template< class Var >
  void add_dynamic_variables( std::list< Var > & list ,
                              std::list< Var > & newlist ,
-                             c_ModParam issueMod = eModBlck );
+                             ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// removes a bunch of Constraint from the given list
@@ -3729,7 +3729,7 @@ class Block : public Observer {
  template< class Const >
  void remove_dynamic_constraints( std::list< Const > & list ,
 	    std::vector< typename std::list< Const >::iterator > & rmvd ,
-				  c_ModParam issueMod = eModBlck );
+				  ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// like remove_dynamic_constraint*s*( iterators ), just only one of them
@@ -3737,7 +3737,7 @@ class Block : public Observer {
  template< class Const >
  void remove_dynamic_constraint( std::list< Const > & list ,
                                  typename std::list< Const >::iterator rmvd ,
-                                 c_ModParam issueMod = eModBlck );
+                                 ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// remove a range of dynamic Constraint
@@ -3751,7 +3751,7 @@ class Block : public Observer {
 
  template< class Const >
  void remove_dynamic_constraints( std::list< Const > & list , Range range ,
-                                  c_ModParam issueMod = eModBlck );
+                                  ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// remove a subset of dynamic Constraint
@@ -3768,7 +3768,7 @@ class Block : public Observer {
  template< class Const >
  void remove_dynamic_constraints( std::list< Const > & list ,
 				  Subset && subset , bool ordered = false ,
-                                  c_ModParam issueMod = eModBlck );
+                                  ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// removes a bunch of Variable from the given list
@@ -3862,8 +3862,8 @@ class Block : public Observer {
  template< class Var >
  void remove_dynamic_variables( std::list< Var > & list ,
           std::vector< typename std::list< Var >::iterator > & rmvd ,
-				c_ModParam issueMod = eModBlck ,
-				c_ModParam issueindMod = eModBlck );
+				ModParam issueMod = eModBlck ,
+				ModParam issueindMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// like remove_dynamic_variable*s*( iterators ), just only one of them
@@ -3871,8 +3871,8 @@ class Block : public Observer {
  template< class Var >
  void remove_dynamic_variable( std::list< Var > & list ,
                                typename std::list< Var >::iterator rmvd ,
-                               c_ModParam issueMod = eModBlck ,
-                               c_ModParam issueindMod = eModBlck );
+                               ModParam issueMod = eModBlck ,
+                               ModParam issueindMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// remove a range of dynamic Variable
@@ -3886,8 +3886,8 @@ class Block : public Observer {
 
  template< class Var >
  void remove_dynamic_variables( std::list< Var > & list , Range range ,
-                                c_ModParam issueMod = eModBlck ,
-                                c_ModParam issueindMod = eModBlck );
+                                ModParam issueMod = eModBlck ,
+                                ModParam issueindMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// remove a subset of dynamic Variable
@@ -3904,8 +3904,8 @@ class Block : public Observer {
  template< class Var >
  void remove_dynamic_variables( std::list< Var > & list , Subset && subset ,
                                 bool ordered = false ,
-                                c_ModParam issueMod = eModBlck ,
-                                c_ModParam issueindMod = eModBlck );
+				ModParam issueMod = eModBlck ,
+                                ModParam issueindMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// change the Objective of the Block
@@ -3923,7 +3923,7 @@ class Block : public Observer {
   * The parameter issueMod decides if and how the BlockMod is issued, as
   * described in Observer::make_par(). */
 
- void set_objective( Objective * newOF , c_ModParam issueMod = eModBlck );
+ void set_objective( Objective * newOF , ModParam issueMod = eModBlck );
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- Methods for checking the Block ---------------------*/
@@ -5158,7 +5158,7 @@ class Block : public Observer {
   * This assumption can drastically simplify the logic that a :Block has
   * to deploy to handle "abstract" Modification. */
 
- void add_Modification( sp_Mod mod, ChnlName chnl = 0 ) override;
+ void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
 
 /*--------------------------------------------------------------------------*/
 
@@ -5166,7 +5166,7 @@ class Block : public Observer {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
- void nest_channel( ChnlName chnl, GroupModification * gmpmod = nullptr )
+ void nest_channel( ChnlName chnl , GroupModification * gmpmod = nullptr )
  override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -7181,8 +7181,7 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
 /// derived class from Modification for "simple" modifications to a Block
 /** Derived class from Modification to describe "simple" modifications to a
- *  Block, i.e., the Objective has changed.
- */
+ *  Block, i.e., the Objective has changed. */
 
 class BlockMod : public AModification
 {
@@ -7205,7 +7204,7 @@ class BlockMod : public AModification
 
  /// accessor to the pointer to the Block to which the Modification refers
 
- Block * get_Block() const override { return ( f_Block ); }
+ Block * get_Block( void ) const override { return( f_Block ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -7221,7 +7220,7 @@ class BlockMod : public AModification
   else
    output << "f";
   output << "] on Block [" << &f_Block << "]: obj changed" << std::endl;
- }
+  }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
@@ -7386,10 +7385,10 @@ class BlockModAdd : public BlockModAD
  BlockModAdd( std::list< ConstOrVar > & whc ,
 	      std::vector< ConstOrVar * > && add , Block::Index first ,
               bool cB = false )
-  : BlockModAD( cB ) , whc_list( whc ), add_vec( std::move( add ) ) ,
+  : BlockModAD( cB ) , whc_list( whc ) , add_vec( std::move( add ) ) ,
     f_first( first ) {
-  static_assert( std::is_base_of< Variable, ConstOrVar >::value ||
-                 std::is_base_of< Constraint, ConstOrVar >::value ,
+  static_assert( std::is_base_of< Variable , ConstOrVar >::value ||
+                 std::is_base_of< Constraint , ConstOrVar >::value ,
                  "BlockModAD: must inherit from Variable or Constraint" );
   }
 
@@ -7531,6 +7530,7 @@ class BlockModAdd : public BlockModAD
 
 template< class ConstOrVar >
 class BlockModRmv : public BlockModAD {
+
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
  public:
@@ -7556,13 +7556,13 @@ class BlockModRmv : public BlockModAD {
   * other information that the Modification contains, and therefore is not
   * needed. */
 
- BlockModRmv( std::list< ConstOrVar > & whc,
-              std::list< ConstOrVar > && rmvd, bool cB = false )
-  : BlockModAD( cB ), f_whc( whc ), f_rmvd( std::move( rmvd ) ) {
-  static_assert( std::is_base_of< Variable, ConstOrVar >::value ||
-                 std::is_base_of< Constraint, ConstOrVar >::value,
+ BlockModRmv( std::list< ConstOrVar > & whc ,
+              std::list< ConstOrVar > && rmvd , bool cB = false )
+  : BlockModAD( cB ) , f_whc( whc ) , f_rmvd( std::move( rmvd ) ) {
+  static_assert( std::is_base_of< Variable , ConstOrVar >::value ||
+                 std::is_base_of< Constraint , ConstOrVar >::value,
                  "BlockModRmv: must inherit from Variable or Constraint" );
- }
+  }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
  /// destructor, *apparently* doing nothing
@@ -7579,30 +7579,28 @@ class BlockModRmv : public BlockModAD {
 /*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
  Block * get_Block() const override final {
-  return ( f_rmvd.front().get_Block() );
- }
+  return( f_rmvd.front().get_Block() );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
  /// accessor to (the reference to) the affected list of Constraint/Variable
 
- std::list< ConstOrVar > & whc() const { return ( f_whc ); }
+ std::list< ConstOrVar > & whc( void ) const { return( f_whc ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
  /// accessor to the list of the removed Constraint/Variable
 
- const std::list< ConstOrVar > & removed() const { return ( f_rmvd ); }
+ const std::list< ConstOrVar > & removed( void ) const { return( f_rmvd ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- bool is_variable() const override final {
-  return ( std::is_base_of< Variable, ConstOrVar >::value );
- }
+ bool is_variable( void ) const override final {
+  return( std::is_base_of< Variable , ConstOrVar >::value );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- bool is_added() const override final { return ( false ); }
+ bool is_added( void ) const override final { return( false ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -7637,19 +7635,20 @@ class BlockModRmv : public BlockModAD {
 
  template< class T >
  void get_elements_( std::vector< T * > & elements ) const {
-  if constexpr( std::is_base_of< T, ConstOrVar >::value ) {
+  if( constexpr( std::is_base_of< T, ConstOrVar >::value ) ) {
    elements.resize( f_rmvd.size() );
    auto it = elements.begin();
    auto it2 = f_rmvd.begin();
    while( it != elements.end() )
     *it++ = const_cast< ConstOrVar * >( &*it2++ );
-  } else
+   }
+  else
    elements.clear();
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
-};  // end( class( BlockModRmv ) )
+ };  // end( class( BlockModRmv ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ CLASS BlockModRmvRngd ---------------------------*/
@@ -8457,12 +8456,12 @@ void serialize( netCDF::NcGroup & group , const C< Block * > & data ,
 /*--------------------------------------------------------------------------*/
 
 template< class Const >
-void Block::add_dynamic_constraints( std::list< Const > & list,
-                                     std::list< Const > & newlist,
-                                     c_ModParam issueMod ) {
+void Block::add_dynamic_constraints( std::list< Const > & list ,
+                                     std::list< Const > & newlist ,
+                                     ModParam issueMod ) {
  // ensure Const is a derivate of Constraint
- static_assert( std::is_base_of< Constraint, Const >::value,
-                "add_dynamic_constraints: newc must inherit from Constraint" );
+ static_assert( std::is_base_of< Constraint, Const >::value ,
+              "add_dynamic_constraints: newc must inherit from Constraint" );
 
  if( newlist.empty() )  // actually no Constraint to add
   return;               // cowardly (and silently) return
@@ -8474,7 +8473,7 @@ void Block::add_dynamic_constraints( std::list< Const > & list,
   auto it = names.begin();
   for( auto & el : newlist ) {  // all the new Constraint
    el.set_Block( this );        // now belong to this Block
-   *( it++ ) = &el;               // keep their names
+   *( it++ ) = &el;             // keep their names
    }
 
   // add them at the end, *before* issuing the BlockModAdd
@@ -8501,7 +8500,7 @@ void Block::add_dynamic_variables( std::list< Var > & list ,
                                    std::list< Var > & newlist ,
                                    c_ModParam issueMod ) {
  // ensure Var is a derivate of Variables
- static_assert( std::is_base_of< Variable, Var >::value,
+ static_assert( std::is_base_of< Variable, Var >::value ,
                 "add_dynamic_variables: must inherit from Variable" );
 
  if( newlist.empty() )  // actually no Variable to add
@@ -8524,22 +8523,22 @@ void Block::add_dynamic_variables( std::list< Var > & list ,
   add_Modification( std::make_shared< BlockModAdd< Var > >( list ,
                                        std::move( names ) , first ,
                                        Observer::par2concern( issueMod ) ) ,
-   Observer::par2chnl( issueMod ) );
- } else {
+		    Observer::par2chnl( issueMod ) );
+  }
+ else {
   for( auto & el : newlist )    // all the new Variable
    el.set_Block( this );        // now belong to this Block
 
   list.splice( list.end(), newlist );  // add them at the end
- }
-}  // end( Block::add_dynamic_variables( Var ) )
+  }
+ }  // end( Block::add_dynamic_variables( Var ) )
 
 /*--------------------------------------------------------------------------*/
 
 template< class Const >
-void Block::remove_dynamic_constraints(
- std::list< Const > & list,
- std::vector< typename std::list< Const >::iterator > & rmvd,
- c_ModParam issueMod ) {
+void Block::remove_dynamic_constraints( std::list< Const > & list ,
+                std::vector< typename std::list< Const >::iterator > & rmvd ,
+					ModParam issueMod ) {
  // ensure Const is a derivate of Constraint
  static_assert( std::is_base_of< Constraint, Const >::value,
                 "remove_dynamic_constraints: must inherit from Constraint" );
@@ -8553,7 +8552,7 @@ void Block::remove_dynamic_constraints(
  for( const auto & const_it : rmvd ) {
   remove_constraint_from_variables( &( *const_it ) );
   const_it->clear();
- }
+  }
 
  if( issue_mod( issueMod ) ) {  // somebody is listening
   std::list< Const > removed;
@@ -8566,13 +8565,14 @@ void Block::remove_dynamic_constraints(
   Index i = 0;
   auto rit = rmvd.begin();
   auto sit = subset.begin();
-  for( auto lit = list.begin();
-       ( lit != list.end() ) && ( rit != rmvd.end() ); ++i )
+  for( auto lit = list.begin() ;
+       ( lit != list.end() ) && ( rit != rmvd.end() ) ; ++i )
    if( &( *lit ) == &( *( *rit ) ) ) {
     ++lit;  // increment the iterator before removing
     removed.splice( removed.end(), list, *( rit++ ) );  // move element
     *( sit++ ) = i;                                       // record position
-   } else
+    }
+   else
     ++lit;
 
   if( rit != rmvd.end() )
@@ -8583,48 +8583,45 @@ void Block::remove_dynamic_constraints(
   if( list.empty() ) {  // unless the list has been emptyed
    isr = false;
    subset.clear();
-  } else
-   for( i = subset.front(), sit = subset.begin(); ++sit != subset.end(); )
+   }
+  else
+   for( i = subset.front() , sit = subset.begin() ; ++sit != subset.end() ; )
     if( *sit != ++i ) {
      isr = false;
      break;
-    }
+     }
 
   // now issue the BlockModRmv*
   if( isr )
-   add_Modification(
-    std::make_shared< BlockModRmvRngd< Const > >(
-     list,
-     std::move( removed ),
-     Range( subset.front(), subset.back() + 1 ),
-     Observer::par2concern( issueMod ) ),
-    Observer::par2chnl( issueMod ) );
+   add_Modification( std::make_shared< BlockModRmvRngd< Const > >( list ,
+		                  std::move( removed ) ,
+		                  Range( subset.front() , subset.back() + 1 ) ,
+				  Observer::par2concern( issueMod ) ) ,
+		     Observer::par2chnl( issueMod ) );
   else
-   add_Modification(
-    std::make_shared< BlockModRmvSbst< Const > >(
-     list,
-     std::move( removed ), std::move( subset ),
-     Observer::par2concern( issueMod ) ),
-    Observer::par2chnl( issueMod ) );
- } else                           // nobody is listening, just do it
+   add_Modification( std::make_shared< BlockModRmvSbst< Const > >( list ,
+                                  std::move( removed ) , std::move( subset ) ,
+				  Observer::par2concern( issueMod ) ) ,
+		     Observer::par2chnl( issueMod ) );
+  }
+ else                           // nobody is listening, just do it
   for( auto & el : rmvd )
    list.erase( el );
 
-}  // end( Block::remove_dynamic_constraints( iterators ) )
+ }  // end( Block::remove_dynamic_constraints( iterators ) )
 
 /*--------------------------------------------------------------------------*/
 
 template< class Const >
-void Block::remove_dynamic_constraint(
- std::list< Const > & list,
- typename std::list< Const >::iterator rmvd,
- c_ModParam issueMod ) {
+void Block::remove_dynamic_constraint( std::list< Const > & list ,
+				  typename std::list< Const >::iterator rmvd ,
+				       ModParam issueMod ) {
  // ensure Const is a derivate of Constraint
- static_assert( std::is_base_of< Constraint, Const >::value,
+ static_assert( std::is_base_of< Constraint, Const >::value ,
                 "remove_dynamic_constraint: must inherit from Constraint" );
 
  if( list.empty() )
-  throw ( std::invalid_argument( "removing from empty list" ) );
+  throw( std::invalid_argument( "removing from empty list" ) );
 
  remove_constraint_from_variables( &( *rmvd ) );
  rmvd->clear();
@@ -8639,42 +8636,37 @@ void Block::remove_dynamic_constraint(
 
   Index i = 0;
   auto lit = list.begin();
-  for( ; lit != list.end(); ++lit, ++i )
+  for( ; lit != list.end() ; ++lit , ++i )
    if( &( *lit ) == &( *rmvd ) ) {
-    removed.splice( removed.end(), list, rmvd );
+    removed.splice( removed.end() , list , rmvd );
     break;
-   }
+    }
 
   if( lit == list.end() )
-   throw ( std::invalid_argument( "invalid removed iterator" ) );
+   throw( std::invalid_argument( "invalid removed iterator" ) );
 
   // now issue the BlockModRmv*
   if( list.empty() )
-   add_Modification(
-    std::make_shared< BlockModRmvSbst< Const > >(
-     list,
-     std::move( removed ),
-     Subset(),
-     Observer::par2concern( issueMod ) ),
-    Observer::par2chnl( issueMod ) );
+   add_Modification( std::make_shared< BlockModRmvSbst< Const > >( list,
+                                        std::move( removed ) , Subset() ,
+                                        Observer::par2concern( issueMod ) ) ,
+		     Observer::par2chnl( issueMod ) );
   else
-   add_Modification(
-    std::make_shared< BlockModRmvRngd< Const > >(
-     list,
-     std::move( removed ),
-     Range( i, i + 1 ),
-     Observer::par2concern( issueMod ) ),
-    Observer::par2chnl( issueMod ) );
- } else                           // nobody is listening, just do it
+   add_Modification( std::make_shared< BlockModRmvRngd< Const > >( list ,
+                                  std::move( removed ) , Range( i , i + 1 ) ,
+				  Observer::par2concern( issueMod ) ) ,
+		     Observer::par2chnl( issueMod ) );
+  }
+ else                           // nobody is listening, just do it
   list.erase( rmvd );
 
-}  // end( Block::remove_dynamic_constraint )
+ }  // end( Block::remove_dynamic_constraint )
 
 /*--------------------------------------------------------------------------*/
 
 template< class Const >
-void Block::remove_dynamic_constraints( std::list< Const > & list,
-                                        Range range, c_ModParam issueMod ) {
+void Block::remove_dynamic_constraints( std::list< Const > & list ,
+                                        Range range , ModParam issueMod ) {
  // ensure Const is a derivate of Constraint
  static_assert( std::is_base_of< Constraint, Const >::value,
                 "remove_dynamic_constraints: must inherit from Constraint" );
@@ -8683,10 +8675,10 @@ void Block::remove_dynamic_constraints( std::list< Const > & list,
   return;                           // cowardly (and silently) return
 
  if( list.empty() )
-  throw ( std::invalid_argument( "removing from empty list" ) );
+  throw( std::invalid_argument( "removing from empty list" ) );
 
  if( range.second > list.size() )
-  throw ( std::invalid_argument( "invalid removing range" ) );
+  throw( std::invalid_argument( "invalid removing range" ) );
 
  // construct iterators to range.first and range.second at minimum cost
  typename std::list< Const >::iterator sit;
@@ -8697,53 +8689,51 @@ void Block::remove_dynamic_constraints( std::list< Const > & list,
    sit = std::prev( eit, range.second - range.first );
   else
    sit = std::next( list.begin(), range.first );
- } else {
+  }
+ else {
   sit = std::next( list.begin(), range.first );
   if( range.second - range.first < list.size() - range.second )
    eit = std::next( sit, range.second - range.first );
   else
    eit = std::prev( list.end(), list.size() - range.second );
- }
+  }
 
  // cleanup
- for( auto it = sit; it != eit; ++it ) {
+ for( auto it = sit ; it != eit ; ++it ) {
   remove_constraint_from_variables( &( *it ) );
   it->clear();
- }
+  }
 
  if( issue_mod( issueMod ) ) {  // somebody is listening
   std::list< Const > removed;
 
   // remove all the Constraint in the range and add them to the removed list
-  removed.splice( removed.end(), list, sit, eit );
+  removed.splice( removed.end() , list , sit , eit );
 
   if( list.empty() )
-   add_Modification(
-    std::make_shared< BlockModRmvSbst< Const > >(
-     list,
-     std::move( removed ), Subset(),
-     Observer::par2concern( issueMod ) ),
-    Observer::par2chnl( issueMod ) );
+   add_Modification( std::make_shared< BlockModRmvSbst< Const > >( list ,
+                                        std::move( removed ) , Subset() ,
+                                        Observer::par2concern( issueMod ) ) ,
+		     Observer::par2chnl( issueMod ) );
   else
-   add_Modification(
-    std::make_shared< BlockModRmvRngd< Const > >(
-     list,
-     std::move( removed ), range,
-     Observer::par2concern( issueMod ) ),
-    Observer::par2chnl( issueMod ) );
- } else                             // nobody is listening, just do it
+   add_Modification( std::make_shared< BlockModRmvRngd< Const > >( list ,
+                                        std::move( removed ) , range ,
+                                        Observer::par2concern( issueMod ) ) ,
+		     Observer::par2chnl( issueMod ) );
+  }
+ else                             // nobody is listening, just do it
   list.erase( sit, eit );
 
-}  // end( Block::remove_dynamic_constraints( range ) )
+ }  // end( Block::remove_dynamic_constraints( range ) )
 
 /*--------------------------------------------------------------------------*/
 
 template< class Const >
-void Block::remove_dynamic_constraints( std::list< Const > & list,
-                                        Subset && subset, bool ordered,
-                                        c_ModParam issueMod ) {
+void Block::remove_dynamic_constraints( std::list< Const > & list ,
+                                        Subset && subset , bool ordered ,
+                                        ModParam issueMod ) {
  // ensure Const is a derivate of Constraint
- static_assert( std::is_base_of< Constraint, Const >::value,
+ static_assert( std::is_base_of< Constraint , Const >::value ,
                 "remove_dynamic_constraints: must inherit from Constraint" );
 
  if( subset.empty() ) {  // completely cleanup the list
@@ -8754,60 +8744,58 @@ void Block::remove_dynamic_constraints( std::list< Const > & list,
   for( auto & c : list ) {
    remove_constraint_from_variables( &c );
    c.clear();
-  }
+   }
 
   if( issue_mod( issueMod ) ) {  // somebody is listening
    std::list< Const > removed;
 
    // remove all the Constraint add them to the removed list
-   removed.splice( removed.begin(), std::move( list ) );
+   removed.splice( removed.begin() , std::move( list ) );
 
-   add_Modification(
-    std::make_shared< BlockModRmvSbst< Const > >(
-     list,
-     std::move( removed ), Subset(),
-     Observer::par2concern( issueMod ) ),
-    Observer::par2chnl( issueMod ) );
-  } else                             // nobody is listening, just do it
+   add_Modification( std::make_shared< BlockModRmvSbst< Const > >( list ,
+                                        std::move( removed ) , Subset() ,
+                                        Observer::par2concern( issueMod ) ) ,
+		     Observer::par2chnl( issueMod ) );
+   }
+  else                             // nobody is listening, just do it
    list.clear();
 
   return;
- }
+  }
 
  if( list.empty() )
-  throw ( std::invalid_argument( "removing from empty list" ) );
+  throw( std::invalid_argument( "removing from empty list" ) );
 
- if( !ordered )
+ if( ! ordered )
   std::sort( subset.begin(), subset.end() );
 
  if( subset.back() >= list.size() )
-  throw ( std::invalid_argument( "invalid index in removing subset" ) );
+  throw( std::invalid_argument( "invalid index in removing subset" ) );
 
  // check if subset actually is a range
  bool isr = true;
  Index i = subset.front();
- for( auto sit = subset.begin(); ++sit != subset.end(); )
+ for( auto sit = subset.begin() ; ++sit != subset.end() ; )
   if( *sit != ++i ) {
    isr = false;
    break;
-  }
+   }
 
  // if so, defer to the simpler range version of the method
  if( isr ) {
-  remove_dynamic_constraints( list,
-                              Range( subset.front(), subset.back() + 1 ),
+  remove_dynamic_constraints( list ,
+                              Range( subset.front() , subset.back() + 1 ) ,
                               issueMod );
   return;
- }
+  }
 
  // deletion is easier if performed backwards; note that, unusually,
  // eit points to list[ subset.back() ] and not one position to the right
  i = subset.size() - 1;
  Index pos = subset.back();
- typename std::list< Const >::iterator eit =
-  list.size() - pos < pos ?
-  std::prev( list.end(), list.size() - pos ) :
-  std::next( list.begin(), pos );
+ typename std::list< Const >::iterator eit = list.size() - pos < pos
+  ? std::prev( list.end(), list.size() - pos )
+  : std::next( list.begin(), pos );
 
  if( issue_mod( issueMod ) ) {  // somebody is listening
   std::list< Const > removed;
@@ -8827,23 +8815,22 @@ void Block::remove_dynamic_constraints( std::list< Const > & list,
    removed.splice( removed.begin(), list, eit );
    pos = npos;
    eit = nit;
-  }
+   }
 
   // the last element has to be done offline
   remove_constraint_from_variables( &( *eit ) );
   eit->clear();
-  removed.splice( removed.begin(), list, eit );
+  removed.splice( removed.begin() , list , eit );
 
   // note that the list cannot be empty, since this would mean that
   // subset was the complete range 0, 1, ..., list.size() - 1, which
   // would have been discovered and acted upon before
-  add_Modification(
-   std::make_shared< BlockModRmvSbst< Const > >(
-    list,
-    std::move( removed ), std::move( subset ),
-    Observer::par2concern( issueMod ) ),
-   Observer::par2chnl( issueMod ) );
- } else {                             // nobody is listening, just do it
+  add_Modification( std::make_shared< BlockModRmvSbst< Const > >( list ,
+                                std::move( removed ) , std::move( subset ) ,
+                                Observer::par2concern( issueMod ) ) ,
+		    Observer::par2chnl( issueMod ) );
+  }
+ else {                             // nobody is listening, just do it
   while( i > 0 ) {
    // the next value of the iterator has to be found before removing *eit
    // from the list, since this may invalidate the iterator
@@ -8854,35 +8841,34 @@ void Block::remove_dynamic_constraints( std::list< Const > & list,
    list.erase( eit );
    pos = npos;
    eit = nit;
-  }
+   }
 
   // the last element has to be done offline
   remove_constraint_from_variables( &( *eit ) );
   eit->clear();
   list.erase( eit );
- }
-}  // end( Block::remove_dynamic_constraints( subset ) )
+  }
+ }  // end( Block::remove_dynamic_constraints( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
 template< class Var >
-void Block::remove_dynamic_variables(
- std::list< Var > & list,
- std::vector< typename std::list< Var >::iterator > & rmvd,
- c_ModParam issueMod,
- c_ModParam issueindMod ) {
+void Block::remove_dynamic_variables( std::list< Var > & list ,
+                  std::vector< typename std::list< Var >::iterator > & rmvd ,
+				      ModParam issueMod ,
+				      ModParam issueindMod ) {
  // ensure Var is a derivate of Variable
- static_assert( std::is_base_of< Variable, Var >::value,
+ static_assert( std::is_base_of< Variable, Var >::value ,
                 "remove_dynamic_variables: must inherit from Variable" );
 
  if( rmvd.empty() )  // actually no Variables to remove
   return;            // cowardly (and silently) return
 
  if( list.empty() )
-  throw ( std::invalid_argument( "removing from empty list" ) );
+  throw( std::invalid_argument( "removing from empty list" ) );
 
  for( const auto & var_it : rmvd )
-  remove_variable_from_stuff( &( *var_it ), issueindMod );
+  remove_variable_from_stuff( &( *var_it ) , issueindMod );
 
  if( issue_mod( issueMod ) ) {  // somebody is listening
   std::list< Var > removed;
@@ -8895,67 +8881,66 @@ void Block::remove_dynamic_variables(
   Index i = 0;
   auto rit = rmvd.begin();
   auto sit = subset.begin();
-  for( auto lit = list.begin();
-       ( lit != list.end() ) && ( rit != rmvd.end() ); ++i )
+  for( auto lit = list.begin() ;
+       ( lit != list.end() ) && ( rit != rmvd.end() ) ; ++i )
    if( &( *lit ) == &( *( *rit ) ) ) {
     ++lit;  // increment the iterator before removing
     removed.splice( removed.end(), list, *( rit++ ) );  // move element
     *( sit++ ) = i;                                       // record position
-   } else
+    }
+   else
     ++lit;
 
   if( rit != rmvd.end() )
-   throw ( std::invalid_argument( "invalid or unordered removed list" ) );
+   throw( std::invalid_argument( "invalid or unordered removed list" ) );
 
   // now check if this actually was a range
   bool isr = true;
   if( list.empty() ) {  // unless the list has been emptyed
    isr = false;
    subset.clear();
-  } else
-   for( i = subset.front(), sit = subset.begin(); ++sit != subset.end(); )
+   }
+  else
+   for( i = subset.front() , sit = subset.begin() ; ++sit != subset.end() ; )
     if( *sit != ++i ) {
      isr = false;
      break;
-    }
+     }
 
   // now issue the BlockModRmv*
   if( isr )
-   add_Modification(
-    std::make_shared< BlockModRmvRngd< Var > >(
-     list,
-     std::move( removed ),
-     Range( subset.front(), subset.back() + 1 ),
-     Observer::par2concern( issueMod ) ),
-    Observer::par2chnl( issueMod ) );
+   add_Modification( std::make_shared< BlockModRmvRngd< Var > >( list ,
+                                std::move( removed ) ,
+				Range( subset.front() , subset.back() + 1 ) ,
+                                Observer::par2concern( issueMod ) ) ,
+		     Observer::par2chnl( issueMod ) );
   else
-   add_Modification(
-    std::make_shared< BlockModRmvSbst< Var > >(
-     list,
-     std::move( removed ), std::move( subset ),
-     Observer::par2concern( issueMod ) ),
-    Observer::par2chnl( issueMod ) );
- } else                           // nobody is listening, just do it
+   add_Modification( std::make_shared< BlockModRmvSbst< Var > >( list ,
+                                std::move( removed ) , std::move( subset ) ,
+                                Observer::par2concern( issueMod ) ) ,
+		     Observer::par2chnl( issueMod ) );
+  }
+ else                           // nobody is listening, just do it
   for( auto & el : rmvd )
    list.erase( el );
 
-}  // end( Block::remove_dynamic_variables( iterators ) )
+ }  // end( Block::remove_dynamic_variables( iterators ) )
 
 /*--------------------------------------------------------------------------*/
 
 template< class Var >
-void Block::remove_dynamic_variable( std::list< Var > & list,
-                                     typename std::list< Var >::iterator rmvd,
-                                     c_ModParam issueMod,
-                                     c_ModParam issueindMod ) {
+void Block::remove_dynamic_variable( std::list< Var > & list ,
+                                   typename std::list< Var >::iterator rmvd ,
+				     ModParam issueMod ,
+                                     ModParam issueindMod ) {
  // ensure Var is a derivate of Variable
- static_assert( std::is_base_of< Variable, Var >::value,
+ static_assert( std::is_base_of< Variable, Var >::value ,
                 "remove_dynamic_variable: must inherit from Variable" );
 
  if( list.empty() )
-  throw ( std::invalid_argument( "removing from empty list" ) );
+  throw( std::invalid_argument( "removing from empty list" ) );
 
- remove_variable_from_stuff( &( *rmvd ), issueindMod );
+ remove_variable_from_stuff( &( *rmvd ) , issueindMod );
 
  if( issue_mod( issueMod ) ) {  // somebody is listening
   std::list< Var > removed;
@@ -8967,54 +8952,50 @@ void Block::remove_dynamic_variable( std::list< Var > & list,
 
   Index i = 0;
   auto lit = list.begin();
-  for( ; lit != list.end(); ++lit, ++i )
+  for( ; lit != list.end() ; ++lit , ++i )
    if( &( *lit ) == &( *rmvd ) ) {
-    removed.splice( removed.end(), list, rmvd );
+    removed.splice( removed.end() , list , rmvd );
     break;
-   }
+    }
 
   if( lit == list.end() )
-   throw ( std::invalid_argument( "invalid removed iterator" ) );
+   throw( std::invalid_argument( "invalid removed iterator" ) );
 
   // now issue the BlockModRmv*
   if( list.empty() )
-   add_Modification(
-    std::make_shared< BlockModRmvSbst< Var > >(
-     list,
-     std::move( removed ), Subset(),
-     Observer::par2concern( issueMod ) ),
-    Observer::par2chnl( issueMod ) );
+   add_Modification( std::make_shared< BlockModRmvSbst< Var > >( list ,
+                                       std::move( removed ) , Subset() ,
+                                       Observer::par2concern( issueMod ) ) ,
+		     Observer::par2chnl( issueMod ) );
   else
-   add_Modification(
-    std::make_shared< BlockModRmvRngd< Var > >(
-     list,
-     std::move( removed ), Range( i, i + 1 ),
-     Observer::par2concern( issueMod ) ),
-    Observer::par2chnl( issueMod ) );
- } else                           // nobody is listening, just do it
+   add_Modification( std::make_shared< BlockModRmvRngd< Var > >( list ,
+                                  std::move( removed ) , Range( i , i + 1 ) ,
+				  Observer::par2concern( issueMod ) ) ,
+		     Observer::par2chnl( issueMod ) );
+  }
+ else                           // nobody is listening, just do it
   list.erase( rmvd );
 
-}  // end( Block::remove_dynamic_variable )
+ }  // end( Block::remove_dynamic_variable )
 
 /*--------------------------------------------------------------------------*/
 
 template< class Var >
-void Block::remove_dynamic_variables( std::list< Var > & list,
-                                      Range range,
-                                      c_ModParam issueMod,
-                                      c_ModParam issueindMod ) {
+void Block::remove_dynamic_variables( std::list< Var > & list , Range range ,
+                                      ModParam issueMod ,
+                                      ModParam issueindMod ) {
  // ensure Var is a derivate of Variable
- static_assert( std::is_base_of< Variable, Var >::value,
+ static_assert( std::is_base_of< Variable , Var >::value ,
                 "remove_dynamic_variable: must inherit from Variable" );
 
  if( range.second <= range.first )  // actually no Constraints to remove
   return;                           // cowardly (and silently) return
 
  if( list.empty() )
-  throw ( std::invalid_argument( "removing from empty list" ) );
+  throw( std::invalid_argument( "removing from empty list" ) );
 
  if( range.second > list.size() )
-  throw ( std::invalid_argument( "invalid removing range" ) );
+  throw( std::invalid_argument( "invalid removing range" ) );
 
  // construct iterators to range.first and range.second at minimum cost
  typename std::list< Var >::iterator sit;
@@ -9025,52 +9006,50 @@ void Block::remove_dynamic_variables( std::list< Var > & list,
    sit = std::prev( eit, range.second - range.first );
   else
    sit = std::next( list.begin(), range.first );
- } else {
+  }
+ else {
   sit = std::next( list.begin(), range.first );
   if( range.second - range.first < list.size() - range.second )
    eit = std::next( sit, range.second - range.first );
   else
    eit = std::prev( list.end(), list.size() - range.second );
- }
+  }
 
  // cleanup
- for( auto it = sit; it != eit; ++it )
-  remove_variable_from_stuff( &( *it ), issueindMod );
+ for( auto it = sit ; it != eit ; ++it )
+  remove_variable_from_stuff( &( *it ) , issueindMod );
 
  if( issue_mod( issueMod ) ) {  // somebody is listening
   std::list< Var > removed;
 
   // remove all the Variable in the range and add them to the removed list
-  removed.splice( removed.end(), list, sit, eit );
+  removed.splice( removed.end() , list , sit , eit );
 
   if( list.empty() )
-   add_Modification(
-    std::make_shared< BlockModRmvSbst< Var > >(
-     list,
-     std::move( removed ), Subset(),
-     Observer::par2concern( issueMod ) ),
-    Observer::par2chnl( issueMod ) );
+   add_Modification( std::make_shared< BlockModRmvSbst< Var > >( list ,
+                                       std::move( removed ) , Subset() ,
+                                       Observer::par2concern( issueMod ) ) ,
+		     Observer::par2chnl( issueMod ) );
   else
-   add_Modification(
-    std::make_shared< BlockModRmvRngd< Var > >(
-     list,
-     std::move( removed ), range,
-     Observer::par2concern( issueMod ) ),
-    Observer::par2chnl( issueMod ) );
- } else                             // nobody is listening, just do it
-  list.erase( sit, eit );
+   add_Modification( std::make_shared< BlockModRmvRngd< Var > >( list ,
+                                        std::move( removed ) , range ,
+                                        Observer::par2concern( issueMod ) ) ,
+		     Observer::par2chnl( issueMod ) );
+  }
+ else                             // nobody is listening, just do it
+  list.erase( sit , eit );
 
-}  // end( Block::remove_dynamic_variables( range ) )
+ }  // end( Block::remove_dynamic_variables( range ) )
 
 /*--------------------------------------------------------------------------*/
 
 template< class Var >
-void Block::remove_dynamic_variables( std::list< Var > & list,
-                                      Subset && subset, bool ordered,
-                                      c_ModParam issueMod,
-                                      c_ModParam issueindMod ) {
+void Block::remove_dynamic_variables( std::list< Var > & list ,
+                                      Subset && subset , bool ordered ,
+                                      ModParam issueMod ,
+                                      ModParam issueindMod ) {
  // ensure Var is a derivate of Variable
- static_assert( std::is_base_of< Variable, Var >::value,
+ static_assert( std::is_base_of< Variable , Var >::value ,
                 "remove_dynamic_variable: must inherit from Variable" );
 
  if( subset.empty() ) {  // completely cleanup the list
@@ -9085,54 +9064,52 @@ void Block::remove_dynamic_variables( std::list< Var > & list,
    std::list< Var > removed;
 
    // remove all the Constraint add them to the removed list
-   removed.splice( removed.begin(), std::move( list ) );
+   removed.splice( removed.begin() , std::move( list ) );
 
-   add_Modification(
-    std::make_shared< BlockModRmvSbst< Var > >(
-     list,
-     std::move( removed ), Subset(),
-     Observer::par2concern( issueMod ) ),
-    Observer::par2chnl( issueMod ) );
-  } else                             // nobody is listening, just do it
+   add_Modification( std::make_shared< BlockModRmvSbst< Var > >( list ,
+                                       std::move( removed ) , Subset() ,
+                                       Observer::par2concern( issueMod ) ) ,
+		     Observer::par2chnl( issueMod ) );
+   }
+  else                             // nobody is listening, just do it
    list.clear();
 
   return;
- }
+  }
 
  if( list.empty() )
-  throw ( std::invalid_argument( "removing from empty list" ) );
+  throw( std::invalid_argument( "removing from empty list" ) );
 
- if( !ordered )
+ if( ! ordered )
   std::sort( subset.begin(), subset.end() );
 
  if( subset.back() >= list.size() )
-  throw ( std::invalid_argument( "invalid index in removing subset" ) );
+  throw( std::invalid_argument( "invalid index in removing subset" ) );
 
  // check if subset actually is a range
  bool isr = true;
  Index i = subset.front();
- for( auto sit = subset.begin(); ++sit != subset.end(); )
+ for( auto sit = subset.begin() ; ++sit != subset.end() ; )
   if( *sit != ++i ) {
    isr = false;
    break;
-  }
+   }
 
  // if so, defer to the simpler range version of the method
  if( isr ) {
-  remove_dynamic_variables( list,
-                            Range( subset.front(), subset.back() + 1 ),
+  remove_dynamic_variables( list ,
+                            Range( subset.front() , subset.back() + 1 ) ,
                             issueMod, issueindMod );
   return;
- }
+  }
 
  // deletion is easier if performed backwards; note that, unusually,
  // eit points to list[ subset.back() ] and not one position to the right
  i = subset.size() - 1;
  Index pos = subset.back();
- typename std::list< Var >::iterator eit =
-  list.size() - pos < pos ?
-  std::prev( list.end(), list.size() - pos ) :
-  std::next( list.begin(), pos );
+ typename std::list< Var >::iterator eit = list.size() - pos < pos
+  ? std::prev( list.end(), list.size() - pos )
+  : std::next( list.begin(), pos );
 
  if( issue_mod( issueMod ) ) {  // somebody is listening
   std::list< Var > removed;
@@ -9148,42 +9125,41 @@ void Block::remove_dynamic_variables( std::list< Var > & list,
    auto npos = subset[ --i ];
    auto nit = std::prev( eit, pos - npos );
    remove_variable_from_stuff( &( *eit ), issueindMod );
-   removed.splice( removed.begin(), list, eit );
+   removed.splice( removed.begin() , list , eit );
    pos = npos;
    eit = nit;
-  }
+   }
 
   // the last element has to be done offline
-  remove_variable_from_stuff( &( *eit ), issueindMod );
+  remove_variable_from_stuff( &( *eit ) , issueindMod );
   eit->clear();
-  removed.splice( removed.begin(), list, eit );
+  removed.splice( removed.begin() , list , eit );
 
   // note that the list cannot be empty, since this would mean that
   // subset was the complete range 0, 1, ..., list.size() - 1, which
   // would have been discovered and acted upon before
-  add_Modification(
-   std::make_shared< BlockModRmvSbst< Var > >(
-    list,
-    std::move( removed ), std::move( subset ),
-    Observer::par2concern( issueMod ) ),
-   Observer::par2chnl( issueMod ) );
- } else {                             // nobody is listening, just do it
+  add_Modification( std::make_shared< BlockModRmvSbst< Var > >( list ,
+                                std::move( removed ) , std::move( subset ) ,
+                                Observer::par2concern( issueMod ) ) ,
+		    Observer::par2chnl( issueMod ) );
+  }
+ else {                             // nobody is listening, just do it
   while( i > 0 ) {
    // the next value of the iterator has to be found before removing *eit
    // from the list, since this may invalidate the iterator
    auto npos = subset[ --i ];
-   auto nit = std::prev( eit, pos - npos );
-   remove_variable_from_stuff( &( *eit ), issueindMod );
+   auto nit = std::prev( eit , pos - npos );
+   remove_variable_from_stuff( &( *eit ) , issueindMod );
    list.erase( eit );
    pos = npos;
    eit = nit;
-  }
+   }
 
   // the last element has to be done offline
-  remove_variable_from_stuff( &( *eit ), issueindMod );
+  remove_variable_from_stuff( &( *eit ) , issueindMod );
   list.erase( eit );
- }
-}  // end( Block::remove_dynamic_variables( subset ) )
+  }
+ }  // end( Block::remove_dynamic_variables( subset ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

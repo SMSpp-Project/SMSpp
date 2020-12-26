@@ -714,6 +714,20 @@ class LagBFunction : public C05Function , public Block {
  void remove_variables( Subset && nms , bool ordered = false ,
 			ModParam issueMod = eModBlck )  override;
 
+/*--------------------------------------------------------------------------*/
+ /// stores the Solution in position i of the global pool to the Block
+ /** Given a position \p i into the global pool, writes back the corresponding
+  * Solution into the Block. */
+
+ void global_pool_to_block( Index i ) {
+  if( ( i >= f_max_glob ) || ( !  g_pool[ i ].first ) )
+   throw( std::invalid_argument( "global_pool_to_block: invalid index" ) );
+  if( i == LastSolution )  // already there
+   return;                 // nothing to do
+  g_pool[ i ].first->write( v_Block.front() );
+  LastSolution = i;  // and recall what's there
+  }
+
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- Methods for handling Modification -------------------*/
 /*--------------------------------------------------------------------------*/
@@ -927,7 +941,7 @@ class LagBFunction : public C05Function , public Block {
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  FunctionValue get_upper_estimate( void ) const override {
- auto slvr = v_Block.front()->get_registered_solvers().front();
+  auto slvr = v_Block.front()->get_registered_solvers().front();
   if( ! slvr )
    throw( std::logic_error( "get_upper_estimate called with no Solver" ) );
   auto ub = slvr->get_ub();

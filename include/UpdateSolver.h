@@ -98,16 +98,24 @@ public:
   *        Modification, coded bit-wise:
   *
   *        - bit 0: if 0 the Modification are map_forward from f_Block to
-  *                 R3B, if 1 the Modification are map_back from R3B to f_Block
+  *                 R3B, if 1 the Modification are map_back from R3B to
+  *                 f_Block
+ *
+  *        - bit 1: if 0 Modification are mapped (either _forward or _back),
+  *                 if 1 Modification are just passed to the R3B unchanged
   *
-  *        - bit 1: if 0 all Modification are mapped, if 1 only Modification
+  *        - bit 2: if 0 all Modification are mapped, if 1 only Modification
   *                 whose block() is f_Block (i.e., not its inner Block) are
   *                 mapped
   *
-  *        - bit 2:  if 0 all Modification are mapped, if 1 only Modification
+  *        - bit 3: if 0 all Modification are mapped, if 1 only Modification
+  *                 whose block() is *not* f_Block (i.e., its inner Block
+  *                 but not f_Block itself) are mapped
+  *
+  *        - bit 4:  if 0 all Modification are mapped, if 1 only Modification
   *                  with concerns_Block() == true are mapped
   *
-  *        - bit 3:  if 0 all Modification are mapped, if 1 only Modification
+  *        - bit 5:  if 0 all Modification are mapped, if 1 only Modification
   *                  with concerns_Block() == false are mapped
   *
   * @param issuePMod is the value of the issuePMod parameter to be passed to
@@ -185,19 +193,31 @@ public:
   if( f_no_Mod || ( ! f_Block )  || ( ! f_R3B ) )
    return;
 
-  if( ( f_options & 2 ) && ( mod->get_Block() != f_Block ) )
+  // check the various cases where the Modification has to be ignored
+  auto blck = mod->get_Block();
+  if( ( f_options & 4 ) && ( blck != f_Block ) )
    return;
 
-  if( ( f_options & 4 ) && ( ! mod->concerns_Block() ) )
+  if( ( f_options & 8 ) && ( blck == f_Block ) )
    return;
 
-  if( ( f_options & 8 ) && mod->concerns_Block() )
+  if( ( f_options & 16 ) && ( ! mod->concerns_Block() ) )
    return;
+
+  if( ( f_options & 32 ) && mod->concerns_Block() )
+   return;
+
+  // if the Modification just has to be forwarded (instead of mapped), do it
+  if( f_options & 2 ) {
+   f_R3B->add_Modification( mod );
+   return;
+   }
 
   // first, lock the R3B
   bool owned = f_R3B->is_owned_by( f_id );
   if( ( ! owned ) && ( ! f_R3B->lock( f_id ) ) )
-   throw( std::logic_error( "can't lock the R3B" ) );
+   throw( std::logic_error(
+		    "UpdateSolver::add_Modification can't lock the R3B" ) );
 
   // now map the Modification
   if( f_options & 1 )
@@ -235,6 +255,8 @@ public:
  ModParam f_iPM;         ///< the value of the issuePMod parmeter
 
  ModParam f_iAM;         ///< the value of the issueAMod parmeter
+
+/*--------------------------------------------------------------------------*/
 
  SMSpp_insert_in_factory_h;
 

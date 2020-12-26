@@ -365,7 +365,7 @@ class Modification {
 
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
- Modification() = default;           ///< constructor: does nothing
+ Modification( void ) = default;     ///< constructor: does nothing
 
  virtual ~Modification() = default;  ///< destructor: does nothing
 
@@ -381,7 +381,7 @@ class Modification {
   * so that this can be immediately asked to any Modification, whatever its
   * type. */
 
- [[nodiscard]] virtual Block * get_Block() const = 0;
+ [[nodiscard]] virtual Block * get_Block( void ) const = 0;
 
 /*--------------------------------------------------------------------------*/
  /// returns true if the :Block needs to process this Modification
@@ -574,6 +574,7 @@ class NModification : public Modification {
   * "abstract" representation) change at once. */
 
 class NBModification : public NModification {
+
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
  public:
@@ -582,15 +583,15 @@ class NBModification : public NModification {
 
  /// constructor: takes the Block
 
- explicit NBModification( Block * fblock ) :
-  NModification(), f_Block( fblock ) {}
+ explicit NBModification( Block * fblock ) : NModification() ,
+  f_Block( fblock ) {}
 
  ~NBModification() override = default;   ///< destructor, does nothing
 
 /*--------------------------------------------------------------------------*/
  /// returns the Block this Modification was originated from
 
- [[nodiscard]] Block * get_Block() const override { return ( f_Block ); }
+ [[nodiscard]] Block * get_Block( void ) const override { return( f_Block ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -601,7 +602,7 @@ class NBModification : public NModification {
 
  void print( std::ostream & output ) const override {
   output << "NBModification on Block [" << &f_Block << "]" << std::endl;
- }
+  }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
@@ -609,7 +610,7 @@ class NBModification : public NModification {
 
 /*--------------------------------------------------------------------------*/
 
-};  // end( class( NBModification ) )
+ };  // end( class( NBModification ) )
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- CLASS GroupModification ---------------------------*/
@@ -649,7 +650,7 @@ class GroupModification : public AModification {
   * inserted in the GroupModification has concerns_Block() == true. */
 
  explicit GroupModification( GroupModification * father = nullptr )
-  : AModification( false ), f_father( father ) {}
+  : AModification( false ) , f_father( father ) {}
 
  /// destructor: does nothing
  ~GroupModification() override = default;
@@ -660,21 +661,22 @@ class GroupModification : public AModification {
   * refer to the same Block, hence GroupModification returns the Block of
   * the first one of them (if any, nullptr otherwise). */
 
- [[nodiscard]] Block * get_Block() const override {
-  return ( v_sub_Modifications.empty() ?
-           nullptr : v_sub_Modifications.front()->get_Block() );
- }
+ [[nodiscard]] Block * get_Block( void ) const override {
+  return( v_sub_Modifications.empty() ?
+	  nullptr : v_sub_Modifications.front()->get_Block() );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns a const reference to the list of sub-Modification
 
- std::list< std::shared_ptr< Modification > > &
- sub_Modifications() { return ( v_sub_Modifications ); }
+ std::list< std::shared_ptr< Modification > > & sub_Modifications( void ) {
+  return( v_sub_Modifications );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns (a pointer to) the "father" GroupModification (may be nullptr)
 
- GroupModification * father() { return ( f_father ); }
+ GroupModification * father( void ) { return( f_father ); }
 
 /*------------------------ FRIENDS OF THE CLASS ----------------------------*/
  /** Opening, closing, nesting and un-nesting channels, and sending a

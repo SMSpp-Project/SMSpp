@@ -1015,6 +1015,9 @@ void LagBFunction::store_combination_of_linearizations(
  g_pool[ name ].first = convex_combination;  // store the Solution
  g_pool[ name ].second = type;               // store the type
 
+ if( name == LastSolution )    // if this was the Solution in the inner Block
+  LastSolution = g_pool.size();  // it is no longer valid
+
  if( name >= f_max_glob )      // update f_max_glob
   f_max_glob = name + 1;
 
@@ -1593,7 +1596,6 @@ bool LagBFunction::flush_v_tmpCP( void )
  }
 
 /*--------------------------------------------------------------------------*/
-
 
 void LagBFunction::add_to_CostMatrix( v_c_dual_pair & newdp )
 {

@@ -256,30 +256,31 @@ void LinearFunction::add_variables( v_coeff_pair && vars,
 
 /*--------------------------------------------------------------------------*/
 
-void LinearFunction::add_variable( ColVariable * const var,
-                                   const Coefficient coeff,
-                                   ModParam issueMod ) {
+void LinearFunction::add_variable( ColVariable * var , Coefficient coeff ,
+				   ModParam issueMod )
+{
  if( var == nullptr )  // actually nothing to add
   return;              // cowardly (and silently) return
 
  v_pairs.push_back( std::make_pair( var, coeff ) );
 
- if( ( !f_Observer ) || ( !f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
 
  // a linear function is additive ==> strongly quasi-additive
  f_Observer->add_Modification( std::make_shared< C05FunctionModVarsAddd >(
-  this, Vec_p_Var( { var } ),
-  v_pairs.size() - 1, 0,
-  Observer::par2concern( issueMod ) ),
+					this , Vec_p_Var( { var } ) ,
+				        v_pairs.size() - 1 , 0 ,
+					Observer::par2concern( issueMod ) ) ,
                                Observer::par2chnl( issueMod ) );
 
-}  // end( LinearFunction::add_variable )
+ }  // end( LinearFunction::add_variable )
 
 /*--------------------------------------------------------------------------*/
 
-void LinearFunction::modify_coefficient( Index i, Coefficient coeff,
-                                         ModParam issueMod ) {
+void LinearFunction::modify_coefficient( Index i , Coefficient coeff ,
+                                         ModParam issueMod )
+{
  if( i >= v_pairs.size() )
   throw ( std::invalid_argument( "LinearFunction::modify_coefficient: invalid"
                                  " index: " + std::to_string( i ) ) );
@@ -294,25 +295,26 @@ void LinearFunction::modify_coefficient( Index i, Coefficient coeff,
   return; // no one is there: all done
 
  f_Observer->add_Modification( std::make_shared< C05FunctionModLinRngd >(
-  this, Vec_FunctionValue( { diff } ),
-  Vec_p_Var( { v_pairs[ i ].first } ),
-  Range( i, i + 1 ), FunctionMod::NaNshift,
-  Observer::par2concern( issueMod ) ),
+				  this , Vec_FunctionValue( { diff } ) ,
+                                  Vec_p_Var( { v_pairs[ i ].first } ) ,
+                                  Range( i , i + 1 ) , FunctionMod::NaNshift ,
+				  Observer::par2concern( issueMod ) ) ,
                                Observer::par2chnl( issueMod ) );
 
-}  // end( LinearFunction::modify_coefficient )
+ }  // end( LinearFunction::modify_coefficient )
 
 /*--------------------------------------------------------------------------*/
 
-void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef,
-                                          Subset && nms, bool ordered,
-                                          ModParam issueMod ) {
+void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
+                                          Subset && nms , bool ordered ,
+                                          ModParam issueMod )
+{
  if( nms.empty() )
   return;
 
  if( NCoef.size() < nms.size() )
-  throw ( std::invalid_argument( "LinearFunction::modify_coefficients: "
-                                 "NCoef.size < nms.size" ) );
+  throw( std::invalid_argument(
+	  "LinearFunction::modify_coefficients: NCoef.size < nms.size" ) );
 
  auto NCit = NCoef.begin();
 
@@ -324,42 +326,46 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef,
 
   for( auto i : nms ) {
    if( i >= v_pairs.size() )
-    throw ( std::invalid_argument( "LinearFunction::modify_coefficients: "
-                                   "invalid index: " + std::to_string( i ) ) );
+    throw( std::invalid_argument(
+		   "LinearFunction::modify_coefficients: invalid index: "
+		   + std::to_string( i ) ) );
    *( vpit++ ) = v_pairs[ i ].first;
    auto di = *NCit - v_pairs[ i ].second;
    v_pairs[ i ].second = *NCit;
    *( NCit++ ) = di;
-  }
+   }
 
   // now issue the Modification
   f_Observer->add_Modification( std::make_shared< C05FunctionModLinSbst >(
-   this, std::move( NCoef ), std::move( vp ),
-   std::move( nms ), ordered,
-   FunctionMod::NaNshift,
-   Observer::par2concern( issueMod ) ),
+                               this , std::move( NCoef ) , std::move( vp ) ,
+                               std::move( nms ) , ordered ,
+                               FunctionMod::NaNshift ,
+                               Observer::par2concern( issueMod ) ) ,
                                 Observer::par2chnl( issueMod ) );
- } else  // noone is there: just do it
+  }
+ else  // noone is there: just do it
   for( auto i : nms ) {
    if( i >= v_pairs.size() )
-    throw ( std::invalid_argument( "LinearFunction::modify_coefficients: "
-                                   "invalid index: " + std::to_string( i ) ) );
+    throw( std::invalid_argument(
+		 "LinearFunction::modify_coefficients: invalid index: "
+		 + std::to_string( i ) ) );
    v_pairs[ i ].second = *( NCit++ );
-  }
+   }
 
-}  // end( LinearFunction::modify_coefficients( subset ) )
+ }  // end( LinearFunction::modify_coefficients( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
-void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef,
-                                          Range range, ModParam issueMod ) {
+void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef ,
+                                          Range range , ModParam issueMod )
+{
  range.second = std::min( range.second, c_Index( v_pairs.size() ) );
  if( range.second <= range.first )
   return;
 
  if( NCoef.size() < range.second - range.first )
-  throw ( std::invalid_argument( "LinearFunction::modify_coefficients: "
-                                 "NCoef.size is too small" ) );
+  throw( std::invalid_argument(
+	"LinearFunction::modify_coefficients:  NCoef.size is too small" ) );
 
  auto NCit = NCoef.begin();
  auto strtit = v_pairs.begin() + range.first;
@@ -376,32 +382,34 @@ void LinearFunction::modify_coefficients( Vec_FunctionValue && NCoef,
    auto di = *NCit - strtit->second;
    ( strtit++ )->second = *NCit;
    *( NCit++ ) = di;
-  }
+   }
 
   // now issue the Modification
   f_Observer->add_Modification( std::make_shared< C05FunctionModLinRngd >(
-   this, std::move( NCoef ), std::move( vp ),
-   range, FunctionMod::NaNshift,
-   Observer::par2concern( issueMod ) ),
+                                 this, std::move( NCoef ) , std::move( vp ) ,
+                                 range , FunctionMod::NaNshift ,
+                                 Observer::par2concern( issueMod ) ) ,
                                 Observer::par2chnl( issueMod ) );
- } else  // noone is there: just do it
+  }
+ else  // noone is there: just do it
   while( strtit < stopit )
    ( *( strtit++ ) ).second = *( NCit++ );
 
-}  // end( LinearFunction::modify_coefficients( range ) )
+ }  // end( LinearFunction::modify_coefficients( range ) )
 
 /*--------------------------------------------------------------------------*/
 
-void LinearFunction::remove_variable( Index i, ModParam issueMod ) {
+void LinearFunction::remove_variable( Index i , ModParam issueMod )
+{
  if( v_pairs.size() <= i )
-  throw ( std::logic_error( "LinearFunction::remove_variable: there is no "
-                            "Variable with index " + std::to_string( i ) ) );
+  throw( std::logic_error( "LinearFunction::remove_variable: there is no "
+			   "Variable with index " + std::to_string( i ) ) );
 
  auto itv = v_pairs.begin() + i;
  auto var = ( *itv ).first;
  v_pairs.erase( itv );       // erase it
 
- if( ( !f_Observer ) || ( !f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
 
  // a linear function is additive ==> strongly quasi-additive
@@ -411,12 +419,13 @@ void LinearFunction::remove_variable( Index i, ModParam issueMod ) {
   Observer::par2concern( issueMod ) ),
                                Observer::par2chnl( issueMod ) );
 
-}  // end( LinearFunction::remove_variable( index ) )
+ }  // end( LinearFunction::remove_variable( index ) )
 
 /*--------------------------------------------------------------------------*/
 
-void LinearFunction::remove_variables( Range range, ModParam issueMod ) {
- range.second = std::min( range.second, Index( v_pairs.size() ) );
+void LinearFunction::remove_variables( Range range , ModParam issueMod )
+{
+ range.second = std::min( range.second , Index( v_pairs.size() ) );
  if( range.second <= range.first )
   return;
 

@@ -1312,7 +1312,7 @@ class FunctionModVars : public AModification {
 
 /*--------------------------------------------------------------------------*/
 
-};  // end( class( FunctionModVars ) )
+ };  // end( class( FunctionModVars ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ CLASS FunctionModVarsAddd -----------------------*/

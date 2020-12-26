@@ -327,10 +327,9 @@ class ConstraintMod : public AModification {
   * order to allow derived classes to "extend" the set of possible types of
   * modifications. */
 
- explicit ConstraintMod( Constraint * cnst,
-                         int mod = eRelaxConst,
+ explicit ConstraintMod( Constraint * cnst , int mod = eRelaxConst, 
                          bool cB = true )
-  : AModification( cB ), f_constraint( cnst ), f_type( mod ) {}
+  : AModification( cB ) , f_constraint( cnst ) , f_type( mod ) {}
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
@@ -340,19 +339,21 @@ class ConstraintMod : public AModification {
 
  /// returns the Block to which the Constraint belongs
 
- [[nodiscard]] Block * get_Block() const override {
-  return ( f_constraint->get_Block() );
- }
+ [[nodiscard]] Block * get_Block( void ) const override {
+  return( f_constraint->get_Block() );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to (the pointer to) the affected Constraint
 
- [[nodiscard]] Constraint * constraint() const { return ( f_constraint ); }
+ [[nodiscard]] Constraint * constraint( void ) const {
+  return( f_constraint );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to the type of Modification
 
- [[nodiscard]] int type() const { return ( f_type ); }
+ [[nodiscard]] int type( void ) const { return( f_type ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -373,17 +374,17 @@ class ConstraintMod : public AModification {
    output << "enforcing";
 
   output << " Constraint [" << f_constraint << "] " << std::endl;
- }
+  }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
  Constraint * f_constraint;   ///< pointer to the modified Constraint
 
- int f_type;                 ///< type of modification
+ int f_type;                  ///< type of modification
 
 /*--------------------------------------------------------------------------*/
 
-};  // end( class( ConstraintMod ) )
+ };  // end( class( ConstraintMod ) )
 
 /** @} end( group( Constraint_CLASSES ) ) ----------------------------------*/
 /*--------------------------------------------------------------------------*/

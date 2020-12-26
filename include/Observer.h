@@ -403,7 +403,7 @@ class Observer {
   * make_par( iM , 0 ) == iM, so this method is only needed when sending to
   * a non-default channel. */
 
- static ModParam make_par( c_ModParam iM, c_ChnlName chnl ) {
+ static ModParam make_par( c_ModParam iM , c_ChnlName chnl ) {
   return( iM + 4 * chnl );
   }
 
