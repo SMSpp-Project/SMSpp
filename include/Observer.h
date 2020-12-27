@@ -556,10 +556,9 @@ class Observer {
     f_ch_lock.clear( std::memory_order_release );
     return;
     }
-   for( auto rit = v_free_chnl.rend() ;
-	( rit != v_free_chnl.rbegin() ) && ( *rit == f_next_chnl - 1 ) ;
-	rit = v_free_chnl.rend() ) {
-    v_free_chnl.erase( rit.base() );
+   for( auto rit = v_free_chnl.rbegin() ;
+	( rit != v_free_chnl.rend() ) && ( *rit == f_next_chnl - 1 ) ; ) {
+    rit = decltype( rit )( v_free_chnl.erase( std::next( rit ).base() ) );
     --f_next_chnl;
     #ifndef NDEBUG
      if( ! f_next_chnl ) {
