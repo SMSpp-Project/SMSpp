@@ -3610,10 +3610,10 @@ class Block : public Observer {
  /// adds a bunch of new Constraint at the end of the given list
  /** Adds a bunch of new Constraint at the end of the given list.
   *
-  * The parameter list is obviously not "const", as the list will be updated.
-  * Note that the base class implementation of this method just does this and
-  * possibly issues the appropriate BlockModAdd; as list is supposed to be a
-  * part of the "abstract representation", this means that the "physical
+  * \p list is obviously not "const", as the list will be updated. Note that
+  * the base class implementation of this method just does this and possibly
+  * issues the appropriate BlockModAdd; as list is supposed to be a part of
+  * the "abstract representation", this means that the "physical
   * representation" of the corresponding dynamic Constraint (if any exists)
   * is not updated, as this should clearly be responsibility of the derived
   * class (maybe within the corresponding implementation of this method).
@@ -3621,7 +3621,9 @@ class Block : public Observer {
   * Note that the new Constraint must already be organized in a list, which
   * is "spliced" into the given one. This is crucial because splicing is the
   * only way in which elements can be added to a list without being copied,
-  * i.e., their memory address being changed.
+  * i.e., their memory address being changed. As a consequence of using
+  * std::list::splice(), existing iterators in \p newlist are still valid
+  * after the call and can be used, now iterating into \p list.
   *
   * The parameter issueMod decides if and how the BlockModAdd is issued, as
   * described in Observer::make_par(). */
@@ -3635,10 +3637,10 @@ class Block : public Observer {
  /// adds a bunch of new Variable at the end of the given list
  /** Adds a bunch of new Variable at the end of the given list.
   *
-  * The parameter list is obviously not "const", as the list will be updated.
-  * Note that the base class implementation of this method just does this and
-  * possibly issues the appropriate BlockModAdd; as list is supposed to be a
-  * part of the "abstract representation", this means that the "physical
+  * \p list is obviously not "const", as the list will be updated. Note that
+  * the base class implementation of this method just does this and possibly
+  * issues the appropriate BlockModAdd; as list is supposed to be a part of
+  * the "abstract representation", this means that the "physical
   * representation" of the corresponding dynamic Variable (if any exists) is
   * not updated, as this should clearly be responsibility of the derived
   * class (maybe within the corresponding implementation of this method).
@@ -3646,7 +3648,9 @@ class Block : public Observer {
   * Note that the new Variables must already be organized in a list, which
   * is "spliced" into the given one. This is crucial because splicing is the
   * only way in which elements can be added to a list without being copied,
-  * i.e., their memory address being changed.
+  * i.e., their memory address being changed. As a consequence of using
+  * std::list::splice(), existing iterators in \p newlist are still valid
+  * after the call and can be used, now iterating into \p list.
   *
   * The parameter issueMod decides if and how the BlockModAdd is issued, as
   * described in Observer::make_par(). */
@@ -8471,8 +8475,8 @@ template< class Const >
 void Block::add_dynamic_constraints( std::list< Const > & list ,
                                      std::list< Const > & newlist ,
                                      ModParam issueMod ) {
- // ensure Const is a derivate of Constraint
- static_assert( std::is_base_of< Constraint, Const >::value ,
+ // ensure Const derives from Constraint
+ static_assert( std::is_base_of< Constraint , Const >::value ,
               "add_dynamic_constraints: newc must inherit from Constraint" );
 
  if( newlist.empty() )  // actually no Constraint to add
@@ -8489,7 +8493,7 @@ void Block::add_dynamic_constraints( std::list< Const > & list ,
    }
 
   // add them at the end, *before* issuing the BlockModAdd
-  list.splice( list.end(), newlist );
+  list.splice( list.end() , newlist );
 
   // now issue the BlockModAdd
   add_Modification( std::make_shared< BlockModAdd< Const > >( list ,
@@ -8511,8 +8515,8 @@ template< class Var >
 void Block::add_dynamic_variables( std::list< Var > & list ,
                                    std::list< Var > & newlist ,
                                    c_ModParam issueMod ) {
- // ensure Var is a derivate of Variables
- static_assert( std::is_base_of< Variable, Var >::value ,
+ // ensure Var is derives from Variables
+ static_assert( std::is_base_of< Variable , Var >::value ,
                 "add_dynamic_variables: must inherit from Variable" );
 
  if( newlist.empty() )  // actually no Variable to add
@@ -8529,7 +8533,7 @@ void Block::add_dynamic_variables( std::list< Var > & list ,
    }
 
   // add them at the end, *before* issuing the BlockModAdd
-  list.splice( list.end(), newlist );
+  list.splice( list.end() , newlist );
 
   // now issue the BlockModAdd
   add_Modification( std::make_shared< BlockModAdd< Var > >( list ,
