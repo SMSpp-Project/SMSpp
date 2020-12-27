@@ -1178,7 +1178,7 @@ class Block : public Observer {
 
  virtual ~Block() {
   set_BlockConfig();
-  for( auto ptr : v_current_GroupMod )
+  for( auto ptr : v_GroupMod )
    delete ptr;
   }
 
@@ -5109,13 +5109,22 @@ class Block : public Observer {
  /** Block::add_Modification() implements the main mechanics of Modification
   * handling; in particular:
   *
-  * - if chnl != 0, it "packs" the Modification into the appropriate
-  *   GroupModification and does nothing else, which in particular means
-  *   that it does *not* dispatch it to its father and the attached Solver
-  *   (this being done by close_channel);
+  * - if chnl != 0 is one of the channels defined by this very Block, it
+  *   "packs" the Modification into the appropriate GroupModification and does
+  *   nothing else, which in particular means that it does *not* dispatch it
+  *   to its father and the attached Solver (this being done by close_channel);
   *
-  * - if chnl == 0, it rather immediately dispatches the Modification to its
-  *   father and the attached Solver.
+  * - if chnl == 0 or it is not one of the channels defined by this very Block,
+  *   it rather immediately dispatches the Modification to its father (on the
+  *   very same channel) and the attached Solver.
+  *
+  * Note that
+  *
+  *     IT IS AN ERROR IF chnl != 0 IS NOT ONE OF THE CHANNELS DEFINED IN THIS
+  *     VERY Block AND THE Block HAS NO FATHER, BECAUSE IT MEANS THE
+  *     Modification HAS NOWHERE TO GO TO; MORE IN GENERAL, IT IS AN ERROR TO
+  *     SEND A Modification TO A CHANNEL THAT IS NOT DEFINED IN SOME ANCESTOR
+  *     OF THE Block. 
   *
   * While this mechanism is not thought to be modified by derived classes,
   * these *will* have to redefine add_Modification() to "catch" the
@@ -5137,7 +5146,7 @@ class Block : public Observer {
   *
   *     SomeBlock WILL "SEE" THE "ABSTRACT" Modification IMMEDIATELY,
   *     I.E., BEFORE IT IS "PACKED" INTO A GroupModification, EVEN IF
-  *     IT IS BEING SENT TO SOME NON-0 CHANNEL
+  *     IT IS BEING SENT TO SOME NON-0 CHANNEL DEFINED IN THE Block
   *
   * (since the latter operation is handled by Block::add_Modification()).
   * This means that if SomeBlock handles some "atomic" :Modification that
@@ -5721,12 +5730,12 @@ class Block : public Observer {
   * @param void Dummy arg_packer_helper<Args...> parameter to specify the
   *             parameter type list of the function to be registered. */
 
- template< class dBlock, typename ... Args >
- static void register_method( std::string && name,
-                              MemberFunctionType< dBlock, Args... > fnct,
+ template< class dBlock , typename ... Args >
+ static void register_method( std::string && name ,
+                              MemberFunctionType< dBlock , Args... > fnct ,
                               arg_packer_helper< Args... > ) {
-  register_method< dBlock, Args... >( std::move( name ), fnct );
- }
+  register_method< dBlock, Args... >( std::move( name ) , fnct );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the function with the given name in the methods factory
@@ -5757,8 +5766,8 @@ class Block : public Observer {
  template< class F >
  static const F * get_method( const std::string & name ) {
   auto it = methods< F >().left.find( name );
-  return ( it != methods< F >().left.end() ? it->second : nullptr );
- }
+  return( it != methods< F >().left.end() ? it->second : nullptr );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the function with the given name in the methods factory
@@ -5790,8 +5799,8 @@ class Block : public Observer {
  template< typename... Args >
  static const FunctionType< Args... > *
  get_method_fs( const std::string & name ) {
-  return get_method< FunctionType< Args... > >( name );
- }
+  return( get_method< FunctionType< Args... > >( name ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the function associated with the given name in the methods factory
@@ -5823,9 +5832,9 @@ class Block : public Observer {
 
  template< typename... Args >
  static const FunctionType< Args... > *
- get_method_fs( const std::string & name, arg_packer_helper< Args... > ) {
-  return get_method< FunctionType< Args... > >( name );
- }
+ get_method_fs( const std::string & name , arg_packer_helper< Args... > ) {
+  return( get_method< FunctionType< Args... > >( name ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the name that is associated with the given function
@@ -5841,8 +5850,8 @@ class Block : public Observer {
  static const std::string & get_method_name( const F * fnct ) {
   static const std::string empty;
   auto it = methods< F >().right.find( fnct );
-  return ( it != methods< F >().right.end() ? it->second : empty );
- }
+  return( it != methods< F >().right.end() ? it->second : empty );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the name that is associated with the given function
@@ -5855,10 +5864,10 @@ class Block : public Observer {
   * @param fnct A pointer to the function whose associated name is desired. */
 
  template< typename... Args >
- static const std::string &
- get_method_name_fs( const FunctionType< Args... > * fnct ) {
-  return get_method_name< FunctionType< Args... > >( fnct );
- }
+ static const std::string & get_method_name_fs(
+				     const FunctionType< Args... > * fnct ) {
+  return( get_method_name< FunctionType< Args... > >( fnct ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns the name that is associated with the given function
@@ -5873,11 +5882,11 @@ class Block : public Observer {
   *             desired. */
 
  template< typename... Args >
- static const std::string &
- get_method_name_fs( const FunctionType< Args... > * fnct,
-                     arg_packer_helper< Args... > ) {
-  return get_method_name< FunctionType< Args... > >( fnct );
- }
+ static const std::string & get_method_name_fs(
+				       const FunctionType< Args... > * fnct ,
+				       arg_packer_helper< Args... > ) {
+  return( get_method_name< FunctionType< Args... > >( fnct ) );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR LOADING, PRINTING & SAVING THE Block ------------*/
@@ -5903,10 +5912,10 @@ class Block : public Observer {
   * operator<<() is defined for each Block, but its behavior can be
   * customized by derived classes. */
 
- friend std::ostream & operator<<( std::ostream & out, const Block & b ) {
+ friend std::ostream & operator<<( std::ostream & out , const Block & b ) {
   b.print( out );
-  return ( out );
- }
+  return( out );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// friend operator>>(), dispatching to *pure* virtual protected load()
@@ -5917,10 +5926,10 @@ class Block : public Observer {
    * actually implemented load() (because they have some actual data to
    * load). */
 
- friend std::istream & operator>>( std::istream & in, Block & b ) {
+ friend std::istream & operator>>( std::istream & in , Block & b ) {
   b.load( in );
-  return ( in );
- }
+  return( in );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// friend operator>>() for pointers
@@ -6241,12 +6250,12 @@ class Block : public Observer {
   for( auto bi : v_Block )
    delete bi;
   v_Block.clear();
- }
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// add a single sub-Block
 
- void add_nested_Block( Block * newb, bool front = false ) {
+ void add_nested_Block( Block * newb , bool front = false ) {
   if( newb->get_f_Block() != this )
    newb->set_f_Block( this );
 
@@ -6254,66 +6263,66 @@ class Block : public Observer {
    v_Block.insert( v_Block.begin(), newb );
   else
    v_Block.push_back( newb );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// removes any existing static Constraint; to be used with care
 
- void reset_static_constraints() {
+ void reset_static_constraints( void ) {
   v_s_Constraint.clear();
   v_s_Constraint_names.clear();
- }
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// removes any existing static Variable; to be used with care
 
- void reset_static_variables() {
+ void reset_static_variables( void ) {
   v_s_Variable.clear();
   v_s_Variable_names.clear();
- }
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// removes any existing dynamic Constraint; to be used with care
 
- void reset_dynamic_constraints() {
+ void reset_dynamic_constraints( void ) {
   v_d_Constraint.clear();
   v_d_Constraint_names.clear();
- }
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// removes any existing dynamic Variable; to be used with care
 
- void reset_dynamic_variables() {
+ void reset_dynamic_variables( void ) {
   v_d_Variable.clear();
   v_d_Variable_names.clear();
- }
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// removes any existing objective; to be used with care
 
- void reset_objective() { f_Objective = nullptr; }
+ void reset_objective( void ) { f_Objective = nullptr; }
 
 /*--------------------------------------------------------------------------*/
  /// empty slot
 
- void add_static_constraint( std::string && name = "",
+ void add_static_constraint( std::string && name = "" ,
                              bool front = false ) {
   if( front ) {
    v_s_Constraint.insert( v_s_Constraint.begin(), boost::any() );
-   v_s_Constraint_names.insert( v_s_Constraint_names.begin(),
+   v_s_Constraint_names.insert( v_s_Constraint_names.begin() ,
                                 std::move( name ) );
-  } else {
+   }
+  else {
    v_s_Constraint.push_back( boost::any() );
    v_s_Constraint_names.emplace_back( std::move( name ) );
+   }
   }
- }
 
 /*--------------------------------------------------------------------------*/
  /// single object of class (derived from) Constraint
 
  template< class Const >
- void add_static_constraint( Const & newc,
-                             std::string && name = "",
+ void add_static_constraint( Const & newc , std::string && name = "" ,
                              bool front = false ) {
   // ensure derived classes insert a derivate of Constraint
   static_assert( std::is_base_of< Constraint, Const >::value,
@@ -6322,42 +6331,41 @@ class Block : public Observer {
   newc.set_Block( this );
   Const * cnewc = &newc;
   if( front ) {
-   v_s_Constraint.insert( v_s_Constraint.begin(), cnewc );
-   v_s_Constraint_names.insert( v_s_Constraint_names.begin(),
+   v_s_Constraint.insert( v_s_Constraint.begin() , cnewc );
+   v_s_Constraint_names.insert( v_s_Constraint_names.begin() ,
                                 std::move( name ) );
-  } else {
+   }
+  else {
    v_s_Constraint.push_back( cnewc );
    v_s_Constraint_names.emplace_back( std::move( name ) );
+   }
   }
- }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// single object of class (derived from) Constraint
 
  template< class Const >
- void set_static_constraint( Index i,
-                             Const & newc,
+ void set_static_constraint( Index i , Const & newc ,
                              std::string && name = "" ) {
   // ensure derived classes insert a derivate of Constraint
-  static_assert( std::is_base_of< Constraint, Const >::value,
+  static_assert( std::is_base_of< Constraint, Const >::value ,
                  "add_static_constraint: newc must inherit from Constraint" );
   if( i >= v_s_Constraint.size() )
-   throw ( std::invalid_argument( "wrong index into v_s_Constraint" ) );
+   throw( std::invalid_argument( "wrong index into v_s_Constraint" ) );
 
   newc.set_Block( this );
   Const * cnewc = &newc;
   v_s_Constraint[ i ] = cnewc;
   v_s_Constraint_names[ i ] = std::move( name );
- }
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// std::vector of (derived class from) Constraint
 
  template< class Const >
- void add_static_constraint( std::vector< Const > & newc,
-                             std::string && name = "",
-                             bool front = false ) {
-  static_assert( std::is_base_of< Constraint, Const >::value,
+ void add_static_constraint( std::vector< Const > & newc ,
+                             std::string && name = "" , bool front = false ) {
+  static_assert( std::is_base_of< Constraint, Const >::value ,
                  "add_static_constraint: newc must inherit from Constraint" );
 
   for( auto & c : newc )
@@ -6365,26 +6373,26 @@ class Block : public Observer {
 
   std::vector< Const > * cnewc = &newc;
   if( front ) {
-   v_s_Constraint.insert( v_s_Constraint.begin(), cnewc );
+   v_s_Constraint.insert( v_s_Constraint.begin() , cnewc );
    v_s_Constraint_names.insert( v_s_Constraint_names.begin(),
                                 std::move( name ) );
-  } else {
+   }
+  else {
    v_s_Constraint.push_back( cnewc );
    v_s_Constraint_names.emplace_back( std::move( name ) );
+   }
   }
- }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// std::vector of (derived class from) Constraint
 
  template< class Const >
- void set_static_constraint( Index i,
-                             std::vector< Const > & newc,
+ void set_static_constraint( Index i , std::vector< Const > & newc ,
                              std::string && name = "" ) {
-  static_assert( std::is_base_of< Constraint, Const >::value,
+  static_assert( std::is_base_of< Constraint, Const >::value ,
                  "add_static_constraint: newc must inherit from Constraint" );
   if( i >= v_s_Constraint.size() )
-   throw ( std::invalid_argument( "wrong index into v_s_Constraint" ) );
+   throw( std::invalid_argument( "wrong index into v_s_Constraint" ) );
 
   for( auto & c : newc )
    c.set_Block( this );
@@ -6392,43 +6400,42 @@ class Block : public Observer {
   std::vector< Const > * cnewc = &newc;
   v_s_Constraint[ i ] = cnewc;
   v_s_Constraint_names[ i ] = std::move( name );
- }
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// boost::multi_array<K> of (...) Constraint
 
- template< class Const, unsigned long K >
- void add_static_constraint( boost::multi_array< Const, K > & newc,
-                             std::string && name = "",
-                             bool front = false ) {
-  static_assert( std::is_base_of< Constraint, Const >::value,
+ template< class Const , unsigned long K >
+ void add_static_constraint( boost::multi_array< Const, K > & newc ,
+                             std::string && name = "" , bool front = false ) {
+  static_assert( std::is_base_of< Constraint, Const >::value ,
                  "add_static_constraint: newc must inherit from Constraint" );
 
-  for( auto i = newc.data(); i < ( newc.data() + newc.num_elements() ); ++i )
+  for( auto i = newc.data() ; i < ( newc.data() + newc.num_elements() ) ; ++i )
    i->set_Block( this );
 
   boost::multi_array< Const, K > * cnewc = &newc;
   if( front ) {
    v_s_Constraint.insert( v_s_Constraint.begin(), cnewc );
-   v_s_Constraint_names.insert( v_s_Constraint_names.begin(),
+   v_s_Constraint_names.insert( v_s_Constraint_names.begin() ,
                                 std::move( name ) );
-  } else {
+   }
+  else {
    v_s_Constraint.push_back( cnewc );
    v_s_Constraint_names.emplace_back( std::move( name ) );
+   }
   }
- }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// boost::multi_array<K> of (...) Constraint
 
- template< class Const, unsigned long K >
- void set_static_constraint( Index i,
-                             boost::multi_array< Const, K > & newc,
+ template< class Const , unsigned long K >
+ void set_static_constraint( Index i , boost::multi_array< Const, K > & newc ,
                              std::string && name = "" ) {
-  static_assert( std::is_base_of< Constraint, Const >::value,
+  static_assert( std::is_base_of< Constraint, Const >::value ,
                  "add_static_constraint: newc must inherit from Constraint" );
   if( i >= v_s_Constraint.size() )
-   throw ( std::invalid_argument( "wrong index into v_s_Constraint" ) );
+   throw( std::invalid_argument( "wrong index into v_s_Constraint" ) );
 
   for( auto & c : newc )
    c.set_Block( this );
@@ -6436,70 +6443,70 @@ class Block : public Observer {
   boost::multi_array< Const, K > * cnewc = &newc;
   v_s_Constraint[ i ] = cnewc;
   v_s_Constraint_names[ i ] = std::move( name );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// empty slot
 
- void add_static_variable( std::string && name = "", bool front = false ) {
+ void add_static_variable( std::string && name = "" , bool front = false ) {
   if( front ) {
-   v_s_Variable.insert( v_s_Variable.begin(), boost::any() );
+   v_s_Variable.insert( v_s_Variable.begin() , boost::any() );
    v_s_Variable_names.insert( v_s_Variable_names.begin(),
                               std::move( name ) );
-  } else {
+   }
+  else {
    v_s_Variable.push_back( boost::any() );
    v_s_Variable_names.emplace_back( std::move( name ) );
+   }
   }
- }
 
 /*--------------------------------------------------------------------------*/
  /// single object of class (derived from) Variable
 
  template< class Var >
- void add_static_variable( Var & newv,
-                           std::string && name = "",
+ void add_static_variable( Var & newv , std::string && name = "",
                            bool front = false ) {
   // ensure derived classes insert a derivate of Variable
-  static_assert( std::is_base_of< Variable, Var >::value,
+  static_assert( std::is_base_of< Variable, Var >::value ,
                  "add_static_variable: newv must inherit from Variable" );
 
   newv.set_Block( this );
   Var * cnewv = &newv;
   if( front ) {
-   v_s_Variable.insert( v_s_Variable.begin(), cnewv );
-   v_s_Variable_names.insert( v_s_Variable_names.begin(),
+   v_s_Variable.insert( v_s_Variable.begin() , cnewv );
+   v_s_Variable_names.insert( v_s_Variable_names.begin() ,
                               std::move( name ) );
-  } else {
+   }
+  else {
    v_s_Variable.push_back( cnewv );
    v_s_Variable_names.emplace_back( std::move( name ) );
+   }
   }
- }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// single object of class (derived from) Variable
 
  template< class Var >
- void set_static_variable( Index i, Var & newv, std::string && name = "" ) {
+ void set_static_variable( Index i , Var & newv , std::string && name = "" ) {
   // ensure derived classes insert a derivate of Variable
-  static_assert( std::is_base_of< Variable, Var >::value,
+  static_assert( std::is_base_of< Variable, Var >::value ,
                  "add_static_variable: newv must inherit from Variable" );
   if( i >= v_s_Variable.size() )
-   throw ( std::invalid_argument( "wrong index into v_s_Variable" ) );
+   throw( std::invalid_argument( "wrong index into v_s_Variable" ) );
 
   newv.set_Block( this );
   Var * cnewv = &newv;
   v_s_Variable[ i ] = cnewv;
   v_s_Variable_names[ i ] = std::move( name );
- }
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// std::vector of (derived class from) Variable
 
  template< class Var >
- void add_static_variable( std::vector< Var > & newv,
-                           std::string && name = "",
-                           bool front = false ) {
-  static_assert( std::is_base_of< Variable, Var >::value,
+ void add_static_variable( std::vector< Var > & newv ,
+                           std::string && name = "" , bool front = false ) {
+  static_assert( std::is_base_of< Variable, Var >::value ,
                  "add_static_variable: newv must inherit from Variable" );
 
   for( auto & v : newv )
@@ -6508,25 +6515,25 @@ class Block : public Observer {
   std::vector< Var > * cnewv = &newv;
   if( front ) {
    v_s_Variable.insert( v_s_Variable.begin(), cnewv );
-   v_s_Variable_names.insert( v_s_Variable_names.begin(),
+   v_s_Variable_names.insert( v_s_Variable_names.begin() ,
                               std::move( name ) );
-  } else {
+   }
+  else {
    v_s_Variable.push_back( cnewv );
    v_s_Variable_names.emplace_back( std::move( name ) );
+   }
   }
- }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// std::vector of (derived class from) Variable
 
  template< class Var >
- void set_static_variable( Index i,
-                           std::vector< Var > & newv,
+ void set_static_variable( Index i , std::vector< Var > & newv ,
                            std::string && name = "" ) {
-  static_assert( std::is_base_of< Variable, Var >::value,
+  static_assert( std::is_base_of< Variable, Var >::value ,
                  "add_static_variable: newv must inherit from Variable" );
   if( i >= v_s_Variable.size() )
-   throw ( std::invalid_argument( "wrong index into v_s_Variable" ) );
+   throw( std::invalid_argument( "wrong index into v_s_Variable" ) );
 
   for( auto & v : newv )
    v.set_Block( this );
@@ -6534,51 +6541,50 @@ class Block : public Observer {
   std::vector< Var > * cnewv = &newv;
   v_s_Variable[ i ] = cnewv;
   v_s_Variable_names[ i ] = std::move( name );
- }
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// boost::multi_array<K> of (...) Variable
 
- template< class Var, unsigned long K >
- void add_static_variable( boost::multi_array< Var, K > & newv,
-                           std::string && name = "",
-                           bool front = false ) {
-  static_assert( std::is_base_of< Variable, Var >::value,
+ template< class Var , unsigned long K >
+ void add_static_variable( boost::multi_array< Var , K > & newv ,
+                           std::string && name = "", bool front = false ) {
+  static_assert( std::is_base_of< Variable, Var >::value ,
                  "add_static_variable: newv must inherit from Variable" );
 
-  for( auto i = newv.data(); i < ( newv.data() + newv.num_elements() ); )
+  for( auto i = newv.data() ; i < ( newv.data() + newv.num_elements() ) ; )
    ( i++ )->set_Block( this );
 
   boost::multi_array< Var, K > * cnewv = &newv;
   if( front ) {
-   v_s_Variable.insert( v_s_Variable.begin(), cnewv );
-   v_s_Variable_names.insert( v_s_Variable_names.begin(),
+   v_s_Variable.insert( v_s_Variable.begin() , cnewv );
+   v_s_Variable_names.insert( v_s_Variable_names.begin() ,
                               std::move( name ) );
-  } else {
+   }
+  else {
    v_s_Variable.push_back( cnewv );
    v_s_Variable_names.emplace_back( std::move( name ) );
+   }
   }
- }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// boost::multi_array<K> of (...) Variable
 
- template< class Var, unsigned long K >
- void set_static_variable( Index i,
-                           boost::multi_array< Var, K > & newv,
+ template< class Var , unsigned long K >
+ void set_static_variable( Index i , boost::multi_array< Var , K > & newv ,
                            std::string && name = "" ) {
-  static_assert( std::is_base_of< Variable, Var >::value,
+  static_assert( std::is_base_of< Variable, Var >::value ,
                  "add_static_variable: newv must inherit from Variable" );
   if( i >= v_s_Variable.size() )
-   throw ( std::invalid_argument( "wrong index into v_s_Variable" ) );
+   throw( std::invalid_argument( "wrong index into v_s_Variable" ) );
 
   for( auto & v : newv )
    v.set_Block( this );
 
-  boost::multi_array< Var, K > * cnewv = &newv;
+  boost::multi_array< Var , K > * cnewv = &newv;
   v_s_Variable[ i ] = cnewv;
   v_s_Variable_names[ i ] = std::move( name );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// empty slot
@@ -7091,8 +7097,14 @@ class Block : public Observer {
 
  BlockConfig * f_BlockConfig;        ///< the BlockConfig for this Block
 
- std::vector< GroupModification * > v_current_GroupMod;
+ std::vector< std::pair< ChnlName , GroupModification * > > v_GroupMod;
  ///< the vector of current GroupModification of the Block
+ /** This vector contains all the GroupModification corresponding to all the
+  * channels defined in this Block, with the corresponding unique channel
+  * name. The vector has to be scanned to find if a channel has been defined
+  * in the Block, which has a linear cost on the number of such channels;
+  * however, this number is expected to be very low, and therefore using a
+  * vector is preferred to, say, a std::map for the lower memory overhead. */
 
  unsigned int f_channel;   ///< the "default GroupModification channel"
 

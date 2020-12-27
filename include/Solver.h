@@ -1877,28 +1877,30 @@ class Solver : public ThinComputeInterface {
 
  /// returns the front sp_Mod on the Modification queue, nullptr if empty
 
- sp_Mod front() {
+ sp_Mod front( void ) {
   // try to acquire lock, spin on failure
-  while( f_mod_lock.test_and_set( std::memory_order_acquire ) );
+  while( f_mod_lock.test_and_set( std::memory_order_acquire ) )
+   ;
 
   auto mod = v_mod.empty() ? sp_Mod() : v_mod.front();
 
   f_mod_lock.clear( std::memory_order_release );  // release lock
 
-  return ( mod );
- }
+  return( mod );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// removes the front sp_Mod from the Modification queue
 
- void pop_front() {
+ void pop_front( void ) {
   // try to acquire lock, spin on failure
-  while( f_mod_lock.test_and_set( std::memory_order_acquire ) );
+  while( f_mod_lock.test_and_set( std::memory_order_acquire ) )
+   ;
 
   v_mod.pop_front();  // remove the first Modification
 
   f_mod_lock.clear( std::memory_order_release );  // release lock
- }
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /** @name Protected methods for handling static fields
@@ -1913,7 +1915,7 @@ class Solver : public ThinComputeInterface {
   * The rationale for using a method is that this is the "Construct On First
   * Use Idiom" that solves the "static initialization order problem". */
 
- static SolverFactoryMap & f_factory();
+ static SolverFactoryMap & f_factory( void );
 
 /*--------------------------------------------------------------------------*/
  /// empty placeholder for class-specific static initialization
@@ -1946,7 +1948,7 @@ class Solver : public ThinComputeInterface {
   * may just be the same as what the compiler does during the initialization
   * of static variables without telling you). */
 
- static void static_initialization() {}
+ static void static_initialization( void ) {}
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------------------- PROTECTED FIELDS  ---------------------------*/
@@ -2000,11 +2002,11 @@ class Solver : public ThinComputeInterface {
 /*--------------------------------------------------------------------------*/
  // Definition of Solver::private_name() (pure virtual)
 
- [[nodiscard]] virtual const std::string & private_name() const = 0;
+ [[nodiscard]] virtual const std::string & private_name( void ) const = 0;
 
 /*--------------------------------------------------------------------------*/
 
-};   // end( class Solver )
+ };   // end( class Solver )
 
 /** @} end( group( Solver_CLASSES ) ) */
 /*--------------------------------------------------------------------------*/

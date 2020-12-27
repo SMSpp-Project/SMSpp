@@ -45,7 +45,17 @@ using namespace SMSpp_di_unipi_it;
 using namespace std;
 
 /*--------------------------------------------------------------------------*/
-/*----------------------------- STATIC MEMBERS -----------------------------*/
+/*------------------------ STATIC MEMBERS OF Observer ----------------------*/
+/*--------------------------------------------------------------------------*/
+
+static Observer::f_ch_lock;
+
+static Observer::f_next_chnl = 1;
+
+static Observer::v_free_chnl;
+
+/*--------------------------------------------------------------------------*/
+/*------------------------- STATIC MEMBERS OF Block ------------------------*/
 /*--------------------------------------------------------------------------*/
 
 // register BlockConfig to the Configuration factory
@@ -285,22 +295,32 @@ void Block::add_Modification( sp_Mod mod , ChnlName chnl )
  if( ! chnl )                           // the default channel
   chnl = f_channel;                     // possibly silently hijack it
 
- if( ! chnl ) {                         // (still) the default channel
-  if( f_Block )                         // if there is a father
-   f_Block->add_Modification( mod );    // pass it above
+ 
+ if( chnl ) {                           // a channel is specified
+  if( ! v_GroupMod.empty() ) {
+   // check if it is one of the "local channels"
+   auto GMit = std::find( v_GroupMod.begin() , v_GroupMod.end() ,
+			  [] ( auto & a , auto & b ) -> bool {
+			   return( a.first == b.first );
+			   } );
 
-  for( Solver * slv : v_Solver )        // if there is any Solver
-   slv->add_Modification( mod );        // pass it to them
+   if( GMit != v_GroupMod.end() ) {     // if so
+    GMit->second->add( mod );           // add it to the GroupModification
+    return;                             // all done
+    }
+   }
 
-  return;                               // all done
+  // it is an error if it is not a "local" channel and there is no father,
+  // since it cannot be a channel of the father (any ancestor) too
+  if( ! f_Block )
+   throw( std::invalid_argument( "wrong channel name" ) );
   }
 
- if( ( chnl > v_current_GroupMod.size() ) ||
-     ( v_current_GroupMod[ chnl - 1 ] == nullptr ) )
-  throw( std::invalid_argument( "wrong channel name" ) );
+ if( f_Block )                          // if there is a father
+  f_Block->add_Modification( mod , chnl );    // pass it above (on chnl)
 
- // append it to the sub_Modifications of the appropriate GroupModification
- v_current_GroupMod[ chnl - 1 ]->add( mod );
+ for( Solver * slv : v_Solver )         // if there is any Solver
+  slv->add_Modification( mod );         // also pass it to them
 
  }  // end( Block::add_Modification )
 
@@ -308,20 +328,12 @@ void Block::add_Modification( sp_Mod mod , ChnlName chnl )
 
 Observer::ChnlName Block::open_channel( GroupModification * gmpmod )
 {
+ // if a GroupModification is not provided, create one
  if( ! gmpmod )
-  gmpmod = new GroupModification();
+  gmpmod = new GroupModification;
 
- auto it = std::find( v_current_GroupMod.begin() ,
-                      v_current_GroupMod.end() , nullptr );
- ChnlName chnl;
- if( it == v_current_GroupMod.end() ) {
-  v_current_GroupMod.push_back( gmpmod );
-  chnl = v_current_GroupMod.size();
-  }
- else {
-  *it = gmpmod;
-  chnl = std::distance( it , v_current_GroupMod.begin() ) + 1;
-  }
+ ChnlName chnl = Observer::new_channel_name();
+ v_GroupMod.push_back( std::pair( chnl , gmpmod ) );
 
  return( chnl );
 
@@ -331,22 +343,36 @@ Observer::ChnlName Block::open_channel( GroupModification * gmpmod )
 
 void Block::nest_channel( ChnlName chnl , GroupModification * gmpmod )
 {
- if( ( ! chnl ) || ( chnl > v_current_GroupMod.size() ) ||
-     ( v_current_GroupMod[ chnl - 1 ] == nullptr ) )
-  throw( std::invalid_argument( "wrong channel name" ) );
-
  // if a GroupModification is not provided, create one
  if( ! gmpmod )
-  gmpmod = new GroupModification();
+  gmpmod = new GroupModification;
 
- // set the father of the GroupModification to the current channel
- gmpmod->set_father( v_current_GroupMod[ chnl - 1 ] );
+ if( ! v_GroupMod.empty() ) {
+  // check if it is one of the "local channels"
+  auto GMit = std::find( v_GroupMod.begin() , v_GroupMod.end() ,
+			 [] ( auto & a , auto & b ) -> bool {
+			  return( a.first == b.first );
+			  } );
 
- // add the new GroupModification to the current channel
- v_current_GroupMod[ chnl - 1 ]->add( std::shared_ptr< GroupModification >(
-                                                                  gmpmod ) );
- // the current channel becomes the new GroupModification
- v_current_GroupMod[ chnl - 1 ] = gmpmod;
+  if( GMit != v_GroupMod.end() ) {  // if so
+   // set the father of the GroupModification to the current channel
+   gmpmod->set_father( GMit->second );
+
+   // add the new GroupModification to the current channel
+   GMit->second->add( std::shared_ptr< GroupModification >( gmpmod ) );
+
+   // the current channel becomes the new GroupModification
+   GMit->second = gmpmod;
+   }
+  }
+
+ // it is an error if it is not a "local" channel and there is no father,
+ // since it cannot be a channel of the father (any ancestor) too
+ if( ! f_Block )
+  throw( std::invalid_argument( "wrong channel name" ) );
+
+ // pass the message up to the father
+ f_Block->nest_channel( chnl , gmpmod );
 
  }  // end( Block::nest_channel )
 
@@ -357,22 +383,36 @@ void Block::un_nest_channel( ChnlName chnl )
  if( ! chnl )
   throw( std::invalid_argument( "cannot un-nest default channel" ) );
 
- if( ( chnl > v_current_GroupMod.size() ) ||
-     ( v_current_GroupMod[ chnl - 1 ] == nullptr ) )
+ if( ! v_GroupMod.empty() ) {
+  // check if it is one of the "local channels"
+  auto GMit = std::find( v_GroupMod.begin() , v_GroupMod.end() ,
+			 [] ( auto & a , auto & b ) -> bool {
+			  return( a.first == b.first );
+			  } );
+
+  if( GMit != v_GroupMod.end() ) {  // if so
+   // the father of the current GroupModification
+   auto father = GMit->second->father();
+   if( ! father )
+    throw( std::invalid_argument( "channel is at root level" ) );
+
+   // if concerns_Block() of the current GroupModification is true, ensure
+   // that the concerns_Block() of father is also true
+   if( GMit->second->concerns_Block() )
+    father->concerns_Block( true );
+
+   // move back the channel to being the father
+   GMit->second = father;
+   }
+  }
+
+ // it is an error if it is not a "local" channel and there is no father,
+ // since it cannot be a channel of the father (any ancestor) too
+ if( ! f_Block )
   throw( std::invalid_argument( "wrong channel name" ) );
 
- // the father of the current GroupModification
- auto father = v_current_GroupMod[ chnl - 1 ]->father();
- if( ! father )
-  throw( std::invalid_argument( "channel is at root level" ) );
-
- // if concerns_Block() of the current GroupModification is true, ensure
- // that the concerns_Block() of father is also true
- if( v_current_GroupMod[ chnl - 1 ]->concerns_Block() )
-  father->concerns_Block( true );
-
- // move back the channel to being the father
- v_current_GroupMod[ chnl - 1 ] = father;
+ // pass the message up to the father
+ f_Block->un_nest_channel( chnl , gmpmod );
 
  }  // end( Block::un_nest_channel )
 
@@ -383,38 +423,42 @@ void Block::close_channel( ChnlName chnl )
  if( ! chnl )
   throw( std::invalid_argument( "cannot close default channel" ) );
 
- if( ( chnl > v_current_GroupMod.size() ) ||
-     ( v_current_GroupMod[ chnl - 1 ] == nullptr ) )
+ if( ! v_GroupMod.empty() ) {
+  // check if it is one of the "local channels"
+  auto GMit = std::find( v_GroupMod.begin() , v_GroupMod.end() ,
+			 [] ( auto & a , auto & b ) -> bool {
+			  return( a.first == b.first );
+			  } );
+
+  if( GMit != v_GroupMod.end() ) {  // if so
+   // finally pass the GroupModification to the Block
+   Block::add_Modification( std::shared_ptr< GroupModification >(
+							     GMit->second ) );
+   if( chnl == f_channel )  // if it was the default channel
+    f_channel = 0;          // reset it
+
+   // give back the channel name
+   Observer::release_channel_name( chnl );
+
+   // delete the local channel
+   v_GroupMod.erase( GMit );
+   }
+  }
+
+ // it is an error if it is not a "local" channel and there is no father,
+ // since it cannot be a channel of the father (any ancestor) too
+ if( ! f_Block )
   throw( std::invalid_argument( "wrong channel name" ) );
 
- Block::add_Modification( std::shared_ptr< GroupModification >(
-  v_current_GroupMod[ chnl - 1 ] ) );
- // there is no longer an "open" chnl GroupModification
- v_current_GroupMod[ chnl - 1 ] = nullptr;
+ // pass the message up to the father
+ f_Block->close_channel( chnl , gmpmod );
 
- if( chnl == f_channel )  // if it was the default channel
-  f_channel = 0;          // reset it
-
- if( chnl == v_current_GroupMod.size() ) {
-  ChnlName i = chnl - 1;
-  while( ( i > 0 ) && ( ! v_current_GroupMod[ i - 1 ] ) )
-   i--;
-
-  if( i )
-   v_current_GroupMod.resize( i );
-  else
-   v_current_GroupMod.clear();
-  }
  }  // end( Block::close_channel )
 
 /*--------------------------------------------------------------------------*/
 
 void Block::set_default_channel( ChnlName chnl )
 {
- if( ( ! chnl ) || ( chnl > v_current_GroupMod.size() ) ||
-     ( v_current_GroupMod[ chnl - 1 ] == nullptr ) )
-  throw( std::invalid_argument( "wrong channel name" ) );
-
  f_channel = chnl;
  }
 
