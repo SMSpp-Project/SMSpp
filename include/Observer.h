@@ -33,6 +33,8 @@
 
 #include "Modification.h"
 
+#include <set>
+
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -512,8 +514,10 @@ class Observer {
    ;
 
   if( v_free_chnl.empty() ) {
-   if( f_next_chnl >= max_channel_name )
+   if( f_next_chnl >= max_channel_name ) {
+    f_ch_lock.clear( std::memory_order_release );
     throw( std::logic_error( "Observer: max number of channels exhausted" ) );
+    }
    retval = f_next_chnl++;
    }
   else {
@@ -535,25 +539,33 @@ class Observer {
   while( f_ch_lock.test_and_set( std::memory_order_acquire ) )
    ;
 
-  if( chnl >= f_next_chnl )
+  if( chnl >= f_next_chnl ) {
+   f_ch_lock.clear( std::memory_order_release );
    throw( std::invalid_argument( "Observer: wrong channel name" ) );
+   }
   
   if( chnl == f_next_chnl - 1 ) {
    --f_next_chnl;
    #ifndef NDEBUG
-    if( ! f_next_chnl )
+    if( ! f_next_chnl ) {
+     f_ch_lock.clear( std::memory_order_release );
      throw( std::logic_error( "Observer: error in channels management" ) );
+     }
    #endif
-   if( v_free_chnl.empty() )
+   if( v_free_chnl.empty() ) {
+    f_ch_lock.clear( std::memory_order_release );
     return;
+    }
    for( auto rit = v_free_chnl.rend() ;
 	( rit != v_free_chnl.rbegin() ) && ( *rit == f_next_chnl - 1 ) ;
 	rit = v_free_chnl.rend() ) {
     v_free_chnl.erase( rit.base() );
     --f_next_chnl;
     #ifndef NDEBUG
-     if( ! f_next_chnl )
+     if( ! f_next_chnl ) {
+      f_ch_lock.clear( std::memory_order_release );
       throw( std::logic_error( "Observer: error in channels management" ) );
+      }
     #endif
     }
    }

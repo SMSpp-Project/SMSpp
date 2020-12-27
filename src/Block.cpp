@@ -48,11 +48,11 @@ using namespace std;
 /*------------------------ STATIC MEMBERS OF Observer ----------------------*/
 /*--------------------------------------------------------------------------*/
 
-static Observer::f_ch_lock;
+std::atomic_flag Observer::f_ch_lock;
 
-static Observer::f_next_chnl = 1;
+Observer::ChnlName Observer::f_next_chnl = 1;
 
-static Observer::v_free_chnl;
+std::set< Observer::ChnlName > Observer::v_free_chnl;
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- STATIC MEMBERS OF Block ------------------------*/
@@ -299,10 +299,10 @@ void Block::add_Modification( sp_Mod mod , ChnlName chnl )
  if( chnl ) {                           // a channel is specified
   if( ! v_GroupMod.empty() ) {
    // check if it is one of the "local channels"
-   auto GMit = std::find( v_GroupMod.begin() , v_GroupMod.end() ,
-			  [] ( auto & a , auto & b ) -> bool {
-			   return( a.first == b.first );
-			   } );
+   auto GMit = std::find_if( v_GroupMod.begin() , v_GroupMod.end() ,
+			     [ chnl ] ( auto & a ) -> bool {
+			      return( a.first == chnl );
+			      } );
 
    if( GMit != v_GroupMod.end() ) {     // if so
     GMit->second->add( mod );           // add it to the GroupModification
@@ -349,10 +349,10 @@ void Block::nest_channel( ChnlName chnl , GroupModification * gmpmod )
 
  if( ! v_GroupMod.empty() ) {
   // check if it is one of the "local channels"
-  auto GMit = std::find( v_GroupMod.begin() , v_GroupMod.end() ,
-			 [] ( auto & a , auto & b ) -> bool {
-			  return( a.first == b.first );
-			  } );
+  auto GMit = std::find_if( v_GroupMod.begin() , v_GroupMod.end() ,
+			    [ chnl ] ( auto & a ) -> bool {
+			     return( a.first == chnl );
+			     } );
 
   if( GMit != v_GroupMod.end() ) {  // if so
    // set the father of the GroupModification to the current channel
@@ -363,6 +363,8 @@ void Block::nest_channel( ChnlName chnl , GroupModification * gmpmod )
 
    // the current channel becomes the new GroupModification
    GMit->second = gmpmod;
+
+   return;
    }
   }
 
@@ -385,10 +387,10 @@ void Block::un_nest_channel( ChnlName chnl )
 
  if( ! v_GroupMod.empty() ) {
   // check if it is one of the "local channels"
-  auto GMit = std::find( v_GroupMod.begin() , v_GroupMod.end() ,
-			 [] ( auto & a , auto & b ) -> bool {
-			  return( a.first == b.first );
-			  } );
+  auto GMit = std::find_if( v_GroupMod.begin() , v_GroupMod.end() ,
+			    [ chnl ] ( auto & a ) -> bool {
+			     return( a.first == chnl );
+			     } );
 
   if( GMit != v_GroupMod.end() ) {  // if so
    // the father of the current GroupModification
@@ -403,6 +405,8 @@ void Block::un_nest_channel( ChnlName chnl )
 
    // move back the channel to being the father
    GMit->second = father;
+
+   return;
    }
   }
 
@@ -412,7 +416,7 @@ void Block::un_nest_channel( ChnlName chnl )
   throw( std::invalid_argument( "wrong channel name" ) );
 
  // pass the message up to the father
- f_Block->un_nest_channel( chnl , gmpmod );
+ f_Block->un_nest_channel( chnl );
 
  }  // end( Block::un_nest_channel )
 
@@ -425,10 +429,10 @@ void Block::close_channel( ChnlName chnl )
 
  if( ! v_GroupMod.empty() ) {
   // check if it is one of the "local channels"
-  auto GMit = std::find( v_GroupMod.begin() , v_GroupMod.end() ,
-			 [] ( auto & a , auto & b ) -> bool {
-			  return( a.first == b.first );
-			  } );
+  auto GMit = std::find_if( v_GroupMod.begin() , v_GroupMod.end() ,
+			    [ chnl ] ( auto & a ) -> bool {
+			     return( a.first == chnl );
+			     } );
 
   if( GMit != v_GroupMod.end() ) {  // if so
    // finally pass the GroupModification to the Block
@@ -442,6 +446,8 @@ void Block::close_channel( ChnlName chnl )
 
    // delete the local channel
    v_GroupMod.erase( GMit );
+
+   return;
    }
   }
 
@@ -451,7 +457,7 @@ void Block::close_channel( ChnlName chnl )
   throw( std::invalid_argument( "wrong channel name" ) );
 
  // pass the message up to the father
- f_Block->close_channel( chnl , gmpmod );
+ f_Block->close_channel( chnl );
 
  }  // end( Block::close_channel )
 

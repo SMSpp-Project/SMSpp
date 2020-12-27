@@ -1178,8 +1178,8 @@ class Block : public Observer {
 
  virtual ~Block() {
   set_BlockConfig();
-  for( auto ptr : v_GroupMod )
-   delete ptr;
+  for( auto &el : v_GroupMod )
+   delete el.second;
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -7647,7 +7647,7 @@ class BlockModRmv : public BlockModAD {
 
  template< class T >
  void get_elements_( std::vector< T * > & elements ) const {
-  if( constexpr( std::is_base_of< T, ConstOrVar >::value ) ) {
+  if constexpr( std::is_base_of< T , ConstOrVar >::value ) {
    elements.resize( f_rmvd.size() );
    auto it = elements.begin();
    auto it2 = f_rmvd.begin();
