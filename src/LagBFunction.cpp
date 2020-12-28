@@ -50,6 +50,8 @@ using namespace SMSpp_di_unipi_it;
 
 using p_LF = LinearFunction *;
 
+using p_QF = DQuadFunction *;
+
 using SConf_p_p = SimpleConfiguration< std::pair< Configuration * ,
 						  Configuration * > >;
 
@@ -109,11 +111,11 @@ SMSpp_insert_in_factory_cpp_1( LagBFunction );
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-LagBFunction::LagBFunction( Block * innerblock , Observer * const observer )
- : C05Function() , obj( nullptr ) , IsConvex( true ) , f_max_glob( 0 ) ,
-   LastSolution( 0 ) , VarSol( true ) , f_yb( -INF ) , f_play_dumb( false ) ,
-   f_dirty_Lc( false ) , LPMaxSz( 0 ) , RAccLin( 0 ) , AAccLin( 0 ) ,
-   f_BSC( new BlockSolverConfig ) , f_BSC_changed( false )
+LagBFunction::LagBFunction( Block * innerblock , Observer * observer )
+ : C05Function() , obj( nullptr ) , qobj( nullptr ) , IsConvex( true ) ,
+   f_max_glob( 0 ) , LastSolution( 0 ) , VarSol( true ) , f_yb( -INF ) ,
+   f_play_dumb( false ) , f_dirty_Lc( false ) , LPMaxSz( 0 ) , RAccLin( 0 ) ,
+   AAccLin( 0 ) , f_BSC( new BlockSolverConfig ) , f_BSC_changed( false )
 {
  // set the pointer to the sub-Block (B) - - - - - - - - - - - - - - - - - - -
 
@@ -154,7 +156,6 @@ void LagBFunction::clear( void )
  }
 
 /*--------------------------------------------------------------------------*/
-/*--------------------------------- METHODS --------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -172,9 +173,12 @@ void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
  IsConvex = ( frobj->get_sense() == Objective::eMax );
 
  obj = dynamic_cast< p_LF >( frobj->get_function() );
- if( ! obj )
-  throw( std::invalid_argument( "inner Block Objective not a LinearFunction"
-				) );
+ if( ! obj ) {
+  qobj = dynamic_cast< p_QF >( frobj->get_function() );
+  if( ! qobj )
+   throw( std::invalid_argument( "unmanaged inner Block Objective" ) );
+  }
+
  if( v_Block.empty() )
   v_Block.resize( 1 );
  else
@@ -189,13 +193,24 @@ void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
  innerblock->set_f_Block( this );
 
   // construct CostMatrix whose size is that of active variables in (obj_B)
- const auto & rp = obj->get_v_var();
- CostMatrix.resize( rp.size() );
+ if( obj ) {  // the linear case
+  const auto & rp = obj->get_v_var();
+  CostMatrix.resize( rp.size() );
 
- // save in CostMatrix[ i ].first is the original coefficient on the i-th
- // ColVariable in (obj_B)
- for( Index i = 0 ; i < rp.size() ; ++i )
-  CostMatrix[ i ].first = rp[ i ].second;
+  // save in CostMatrix[ i ].first is the original coefficient on the i-th
+  // ColVariable in (obj_B)
+  for( Index i = 0 ; i < rp.size() ; ++i )
+   CostMatrix[ i ].first = rp[ i ].second;
+  }
+ else {       // the quadratic case
+  const auto & rp = qobj->get_v_var();
+  CostMatrix.resize( rp.size() );
+
+  // save in CostMatrix[ i ].first is the original linear coefficient on
+  // the i-th ColVariable in (obj_B)
+  for( Index i = 0 ; i < rp.size() ; ++i )
+   CostMatrix[ i ].first = std::get< 1 >( rp[ i ] );
+  }
 
  v_tmpCP.clear();    // no terms to be stealthily added to obj yet
 
@@ -347,7 +362,7 @@ void LagBFunction::set_ComputeConfig( ComputeConfig * scfg )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::set_par( const idx_type par , const int value )
+void LagBFunction::set_par( idx_type par , int value )
 {
  switch( par ) {
   case( intLPMaxSz ):
@@ -380,7 +395,7 @@ void LagBFunction::set_par( const idx_type par , const int value )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::set_par( const idx_type par , const double value )
+void LagBFunction::set_par( idx_type par , double value )
 {
  switch( par ) {
   case( dblRAccLin ):
@@ -398,7 +413,7 @@ void LagBFunction::set_par( const idx_type par , const double value )
   default: Function::set_par( par , value );
   }
  }  // end( LagBFunction::set_par( double ) )
-
+\
 /*--------------------------------------------------------------------------*/
 
 void LagBFunction::deserialize( const netCDF::NcGroup & group )
@@ -855,7 +870,7 @@ void LagBFunction::serialize( netCDF::NcGroup & group ) const
  // now the inner Block - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  if( v_Block.size() != 1 )
-  throw( std::invalid_argument( "it is expected 1 sub-block " ) );
+  throw( std::invalid_argument( "exactly one sub-Block expected" ) );
 
  // temporarily put back the original costs into the Objective of the
  // inner Block before deserialising, and then restore the current one,
@@ -875,15 +890,30 @@ void LagBFunction::serialize( netCDF::NcGroup & group ) const
 
  // The costs saved in (obj_B) are the Lagrangian ones. Hence, we need
  // to restore the original ones before serializing (B).
- const auto & ov_pair = obj->get_v_var();
- const auto nv = obj->get_num_active_var();
+ Vec_FunctionValue NCoef1;
+ Vec_FunctionValue NCoef2;
 
- Vec_FunctionValue NCoef1( nv );
- Vec_FunctionValue NCoef2( nv );
+ if( obj ) {  // the linear case
+  const auto & ov_pair = obj->get_v_var();
+  const auto nv = obj->get_num_active_var();
+  NCoef1.resize( nv );
+  NCoef2.resize( nv );
 
- for( Index i = 0 ; i < nv ; ++i ) {
-  NCoef1[ i ] = CostMatrix[ i ].first;
-  NCoef2[ i ] = ov_pair[ i ].second;
+  for( Index i = 0 ; i < nv ; ++i ) {
+   NCoef1[ i ] = CostMatrix[ i ].first;
+   NCoef2[ i ] = ov_pair[ i ].second;
+   }
+  }
+ else {       // the quadratic case
+  const auto & ov_triples = qobj->get_v_var();
+  const auto nv = qobj->get_num_active_var();
+  NCoef1.resize( nv );
+  NCoef2.resize( nv );
+
+  for( Index i = 0 ; i < nv ; ++i ) {
+   NCoef1[ i ] = CostMatrix[ i ].first;
+   NCoef2[ i ] = std::get< 1 >( ov_triples[ i ] );
+   }
   }
 
  // ignore any ensuing Modification: note the horribly dirty trick of
@@ -892,14 +922,20 @@ void LagBFunction::serialize( netCDF::NcGroup & group ) const
  const_cast< LagBFunction * >( this )->f_play_dumb = true;
 
  // put back the original costs
- obj->modify_coefficients( std::move( NCoef1 ) , Range( 0 , nv ) );
+ if( obj )
+  obj->modify_coefficients( std::move( NCoef1 ) );
+ else
+  qobj->modify_linear_coefficients( std::move( NCoef1 ) );
 
  // serialize the sub-block
  netCDF::NcGroup sb = group.addGroup( "B" );
  v_Block.front()->serialize( sb );
 
  // put back the Lagrangian costs
- obj->modify_coefficients( std::move( NCoef2 ) , Range( 0 , nv) );
+ if( obj )
+  obj->modify_coefficients( std::move( NCoef2 ) );
+ else
+  qobj->modify_linear_coefficients( std::move( NCoef2 ) );
 
  // back to normal operations
  const_cast< LagBFunction * >( this )->f_play_dumb = true;
@@ -1175,9 +1211,13 @@ int LagBFunction::compute( bool changedvars )
 
   f_play_dumb = true;                // ignore any ensuing Modification
 
-  // modify the coefficients in the LinearFunction
-  obj->modify_coefficients( std::move( NCoef ) ,
-			    Range( 0 , CostMatrix.size() ) );
+  // modify the coefficients in the Objective
+  if( obj )
+   obj->modify_coefficients( std::move( NCoef ) ,
+			     Range( 0 , CostMatrix.size() ) );
+  else
+   qobj->modify_linear_coefficients( std::move( NCoef ) ,
+				     Range( 0 , CostMatrix.size() ) );
   
   f_play_dumb = false;               // back to normal operations
   f_dirty_Lc = false;                // Lagrangian costs are current
@@ -1346,18 +1386,30 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
  // linear term b is not involved)
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- auto alpha = obj->get_constant_term();
+ if( obj ) {  // the linear case
+  auto alpha = obj->get_constant_term();
+  const auto & rp = obj->get_v_var();
+  #ifndef NDEBUG
+   if( rp.size() > CostMatrix.size() )
+    throw( std::logic_error( "CostMatrix inconsistent with obj" ) );
+  #endif
+  for( Index i = 0 ; i < rp.size() ; ++i )
+   alpha += rp[ i ].first->get_value() * CostMatrix[ i ].first;
 
- const auto & rp = obj->get_v_var();
- #ifndef NDEBUG
-  if( rp.size() > CostMatrix.size() )
-   throw( std::logic_error( "CostMatrix inconsistent with obj" ) );
- #endif
- for( Index i = 0 ; i < rp.size() ; ++i )
-  alpha += rp[ i ].first->get_value() * CostMatrix[ i ].first;
+  return( alpha );
+  }
+ else {       // the quadratic case
+  auto alpha = qobj->get_constant_term();
+  const auto & rp = qobj->get_v_var();
+  #ifndef NDEBUG
+   if( rp.size() > CostMatrix.size() )
+    throw( std::logic_error( "CostMatrix inconsistent with obj" ) );
+  #endif
+  for( Index i = 0 ; i < rp.size() ; ++i )
+   alpha += std::get< 0 >( rp[ i ] )->get_value() * CostMatrix[ i ].first;
 
- return( alpha );
-
+  return( alpha );
+  }
  }  // end( LagBFunction::get_linearization_constant )
 
 /*--------------------------------------------------------------------------*/
@@ -1458,14 +1510,9 @@ void LagBFunction::get_MatDesc( int * Abeg , int * Aind , double * Aval ,
 int LagBFunction::get_int_par( const idx_type par ) const
 {
  switch( par ) {
-  case( intLPMaxSz ):
-   return( LPMaxSz );
-   break;
-  case( intGPMaxSz ):
-   return( g_pool.size() );
-   break;
-  default:
-   return( C05Function::get_dflt_int_par( par ) );
+  case( intLPMaxSz ): return( LPMaxSz ); break;
+  case( intGPMaxSz ): return( g_pool.size() ); break;
+  default:            return( C05Function::get_dflt_int_par( par ) );
   }
  }  // end( LagBFunction::get_int_par )
 
@@ -1474,14 +1521,9 @@ int LagBFunction::get_int_par( const idx_type par ) const
 double LagBFunction::get_dbl_par( const idx_type par ) const
 {
  switch( par ) {
-  case( dblRAccLin ):
-    return( RAccLin );
-    break;
-  case( dblAAccLin ):
-   return( AAccLin );
-   break;
-  default:
-   return( C05Function::get_dflt_dbl_par( par ) );
+  case( dblRAccLin ): return( RAccLin ); break;
+  case( dblAAccLin ): return( AAccLin ); break;
+  default:            return( C05Function::get_dflt_dbl_par( par ) );
   }
  }  // end( LagBFunction::get_dbl_par )
 
@@ -1501,8 +1543,8 @@ double LagBFunction::get_dflt_dbl_par( const idx_type par ) const {
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE LagBFunction ---------*/
 /*--------------------------------------------------------------------------*/
 
-ThinVarDepInterface::Index LagBFunction::is_active(
-					   const Variable * const var ) const
+ThinVarDepInterface::Index LagBFunction::is_active( const Variable * var )
+ const
 {
  auto idx = std::find_if( LagPairs.begin() , LagPairs.end() ,
 			  [ & var ]( const auto & p )
@@ -1531,16 +1573,14 @@ void LagBFunction::map_active( c_Vec_p_Var & vars , Subset & map ,
    if( itvi != vars.end() )
     map[ std::distance( vars.begin() , itvi ) ] = i;
    else
-    throw( std::invalid_argument( "map_active: some Variable is not active"
-				  ) );
+    throw( std::invalid_argument( "map_active: some Variable not active" ) );
    }
  else {
   auto it = map.begin();
   for( auto var : vars ) {
    Index i = LagBFunction::is_active( var );
    if( i >= LagPairs.size() )
-    throw( std::invalid_argument( "map_active: some Variable is not active"
-				  ) );
+    throw( std::invalid_argument( "map_active: some Variable not active" ) );
    *(it++) = i;
    }
   }
@@ -1584,10 +1624,22 @@ bool LagBFunction::flush_v_tmpCP( void )
 
  f_play_dumb = true;                // ignore any ensuing Modification
 
- if( v_tmpCP.size() == 1 )
-  obj->add_variable( v_tmpCP.front().first , v_tmpCP.front().second );
- else
-  obj->add_variables( std::move( v_tmpCP ) );
+ if( obj )  // the linear case
+  if( v_tmpCP.size() == 1 )
+   obj->add_variable( v_tmpCP.front().first , v_tmpCP.front().second );
+  else
+   obj->add_variables( std::move( v_tmpCP ) );
+ else       // the quadratic case
+  if( v_tmpCP.size() == 1 )
+   qobj->add_variable( v_tmpCP.front().first , v_tmpCP.front().second , 0 );
+  else {
+   v_coeff_triple vars( v_tmpCP.size() , coeff_triple( nullptr , 0 , 0 ) );
+   for( Index i = 0 ; i < v_tmpCP.size() ; ++i ) {
+    std::get< 0 >( vars[ i ] ) = v_tmpCP[ i ].first;
+    std::get< 1 >( vars[ i ] ) = v_tmpCP[ i ].second;
+    }
+   qobj->add_variables( std::move( vars ) );
+   }
 
  f_play_dumb = false;               // back to normal operations
  v_tmpCP.clear();                   // done
@@ -1621,10 +1673,18 @@ void LagBFunction::add_to_CostMatrix( v_c_dual_pair & newdp )
    // newdp[ i ].first will get is LagPairs.size() + i
    const auto y_pair = mon_pair( LagPairs.size() + i , rpj.second );
 
-   // find the position of x_j in (obj_B)
-   auto j = obj->is_active( rpj.first );
+   Index nv;    // number of active variables in the Objective
+   Index j;     // the position of x_j in (obj_B)
+   if( obj ) {  // the linear case
+    nv = obj->get_num_active_var();
+    j = obj->is_active( rpj.first );
+    }
+   else {       // the quadratic case
+    nv = qobj->get_num_active_var();
+    j = qobj->is_active( rpj.first );
+    }
 
-   if( j >= obj->get_num_active_var() ) {
+   if( j >= nv ) {
     // the variable x_j is not (yet) in obj, but it may be in v_tmpCP already
     auto it = std::find_if( v_tmpCP.begin() , v_tmpCP.end() ,
 			    [ & ]( const auto & el )
@@ -1638,7 +1698,7 @@ void LagBFunction::add_to_CostMatrix( v_c_dual_pair & newdp )
      j = Inf<Index>();
      }
     else
-     j = obj->get_num_active_var() + std::distance( v_tmpCP.begin() , it );
+     j = nv + std::distance( v_tmpCP.begin() , it );
     }
 
    if( j < Inf<Index>() ) {
@@ -1689,10 +1749,18 @@ void LagBFunction::mod_CostMatrix( Index i , Index first )
   // construct the pair < y_i , a_{ij} > to be added to CostMatrix[ j ]
   const auto y_pair = mon_pair( i , rp[ h ].second );
 
-  // find the position of x_j in (obj_B)
-  auto j = obj->is_active( rp[ h ].first );
+  Index nv;    // number of active variables in the Objective
+  Index j;     // the position of x_j in (obj_B)
+  if( obj ) {  // the linear case
+   nv = obj->get_num_active_var();
+   j = obj->is_active( rp[ h ].first );
+   }
+  else {       // the quadratic case
+   nv = qobj->get_num_active_var();
+   j = qobj->is_active( rp[ h ].first );
+   }
 
-  if( j >= obj->get_num_active_var() ) {
+  if( j >= nv ) {
    // the variable x_j is not (yet) in obj, but it may be in v_tmpCP already
    auto it = std::find_if( v_tmpCP.begin() , v_tmpCP.end() ,
 			   [ & ]( const auto & el )
@@ -1706,7 +1774,7 @@ void LagBFunction::mod_CostMatrix( Index i , Index first )
     j = Inf<Index>();
     }
    else
-    j = obj->get_num_active_var() + std::distance( v_tmpCP.begin() , it );
+    j = nv + std::distance( v_tmpCP.begin() , it );
    }
 
   if( j < Inf<Index>() ) {
@@ -1780,7 +1848,8 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
  // checked before FunctionMod (because C05FunctionModLin is a FunctionMod)
  // in case they come from:
  //
- // - the (LinearFunction inside the) Objective of the inner Block;
+ // - the (LinearFunction or DQuadFunction inside the) Objective of the inner
+ //   Block;
  //
  // - the LinearFunction that defines one of the Lagrangian terms
  //   < y_i , g_i( x ) = A_i x + b_i >
@@ -1814,64 +1883,9 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
   if( const auto lf = dynamic_cast< p_LF >( tmod->function() ) ) {
    // only deal with C05FunctionModLinRngd coming from LinearFunction ...
    if( lf == obj ) {  // ... inside the Objective of the inner Block - - - - -
-    // note that one may think to update the corresponding Range of original
-    // costs by adding delta(), but this would be wrong because delta() is
-    // computed w.r.t. the last value of the costs, which is in general a
-    // Lagrangian one. one may alernatively think to just mark the cost as
-    // in need for refreshing and do it later (say, in compute()), but this
-    // would be wrong as well because the costs that have *not* been changed
-    // are the Lagrangian ones, and one would end up "fixing" them as the
-    // true costs. hence, the only option is to read the costs now (since the
-    // Modification is the only place where the information about which costs
-    // have actually changed is), although reading the costs from obj is
-    // nontrovial since the Range may not be current if Variable have been
-    // added/deleted
 
-    const auto & rc = lf->get_v_var();
-
-    // first check if by chance the Range is still current
-    bool current = true;
-    auto it = tmod->vars().begin();
-    for( Index j = tmod->range().first ; j < tmod->range().second ; ++j )
-     if( rc[ j ].first != *(it++) ) { current = false; break; }
-
-    if( current )  // if Range is still current, it's easy
-     for( Index j = tmod->range().first ; j < tmod->range().second ; ++j )
-      CostMatrix[ j ].first = rc[ j ].second;
-    else {         // if Range is no longer current, it's compicated
-     // however, note that CostMatrix is still "aligned" with the indices
-     // found in the Modification, since if Variable have been added/removed
-     // in obj by changes occurring prior to this the corresponding
-     // Modification have been already "seen" before this and acted upon
-     it = tmod->vars().begin();
-     for( Index j = tmod->range().first ; j < tmod->range().second ; ++j ) {
-      auto vi = *(it++);          // the Variable whose cost has changed
-      if( rc[ j ].first == vi )   // if vi is still in the same place
-       CostMatrix[ j ].first = rc[ j ].second;  // still easy
-      else {                      // if not, look up for it
-       // start looking up before j, since it's where it most likely is
-       Index h = j;
-       while( h )
-	if( rc[ --h ].first == vi )
-	 break;
-
-       if( rc[ h ].first == vi )  // if it is found
-	CostMatrix[ j ].first = rc[ h ].second;  // all done
-       else {                     // otherwise
-	// look up after j, it still could be there
-	for( h = j + 1 ; h < rc.size() ; ++h )
-	 if( rc[ h ].first == vi )
-	  break;
-
-	if( h < rc.size() )       // if it is found
-	 CostMatrix[ j ].first = rc[ h ].second;  // all done
-	// otherwise, do nothing: the changed Variable is no longer in obj
-	// at this point, which means that the corresponding Modification
-	// is waiting in the queue to be discovered and acted upon
-        }
-       }
-      }
-     }
+    update_CostMatrix_ModLinRngd( lf->get_v_var() , tmod->vars() ,
+				  tmod->range() );
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
     // with what() == 1: the Lagrangian function unpredictably changes
@@ -1940,7 +1954,27 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
     }  // end( coming from( < y_i , g_i(x) > ) )
    }  // end( coming from a LinearFunction )
-  
+
+  if( const auto qf = dynamic_cast< p_QF >( tmod->function() ) )
+   // only deal with C05FunctionModLinRngd coming from DQuadFunction ...
+   if( qf == qobj ) {  // ... inside the Objective of the inner Block- - - - -
+    v_coeff_pair rc;
+    triple_to_pair( qf->get_v_var() , rc );
+    update_CostMatrix_ModLinRngd( rc , tmod->vars() , tmod->range() );
+
+    // issue a LagBFunctionMod modification of the type AlphaChanged and
+    // with what() == 1: the Lagrangian function unpredictably changes
+    // (f_shift == NaN), and the constant terms \alpha =  c x^* of the
+    // linearizations ( g , \alpha ) have to be computed again since
+    // c has changed (while g remains unchanged)
+    if( f_Observer )
+     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
+				     C05FunctionMod::AlphaChanged , Subset() ,
+				     1 , NaN , true ) , chnl );
+    return( 0 );  // all done
+
+    }  // end( coming from qobj )
+
   // note: since we do know this is a C05FunctionModLinRngd we should now
   //       avoid checking for all clearly incompatible types like
   //       C05FunctionModLinSbst, but this would mess up too much with the
@@ -1956,64 +1990,8 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
   if( const auto lf = dynamic_cast< p_LF >( tmod->function() ) ) {
    // only deal with C05FunctionModLinSbst coming from LinearFunction ...
    if( lf == obj ) {  // ... inside the Objective of the inner Block - - - - -
-    // note that one may think to update the corresponding Subset of original
-    // costs by adding delta(), but this would be wrong because delta() is
-    // computed w.r.t. the last value of the costs, which is in general a
-    // Lagrangian one. one may alernatively think to just mark the cost as
-    // in need for refreshing and do it later (say, in compute()), but this
-    // would be wrong as well because the costs that have *not* been changed
-    // are the Lagrangian ones, and one would end up "fixing" them as the
-    // true costs. hence, the only option is to read the costs now (since the
-    // Modification is the only place where the information about which costs
-    // have actually changed is), although reading the costs from obj is
-    // nontrovial since the Subset may not be current if Variable have been
-    // added/deleted
-
-    const auto & rc = lf->get_v_var();
-
-    // first check if by chance the Subset is still current
-    bool current = true;
-    auto it = tmod->vars().begin();
-    for( Index j : tmod->subset() )
-     if( rc[ j ].first != *(it++) ) { current = false; break; }
-
-    if( current )  // if Subset is still current, it's easy
-     for( Index j : tmod->subset() )
-      CostMatrix[ j ].first = rc[ j ].second;
-    else {         // if Subset is no longer current, it's compicated
-     // however, note that CostMatrix is still "aligned" with the indices
-     // found in the Modification, since if Variable have been added/removed
-     // in obj by changes occurring prior to this the corresponding
-     // Modification have been already "seen" before this and acted upon
-     it = tmod->vars().begin();
-     for( Index j : tmod->subset() ) {
-      auto vi = *(it++);          // the Variable whose cost has changed
-      if( rc[ j ].first == vi )   // if vi is still in the same place
-       CostMatrix[ j ].first = rc[ j ].second;  // still easy
-      else {                      // if not, look up for it
-       // start looking up before j, since it's where it most likely is
-       Index h = j;
-       while( h )
-	if( rc[ --h ].first == vi )
-	 break;
-
-       if( rc[ h ].first == vi )  // if it is found
-	CostMatrix[ j ].first = rc[ h ].second;  // all done
-       else {                     // otherwise
-	// look up after j, it still could be there
-	for( h = j + 1 ; h < rc.size() ; ++h )
-	 if( rc[ h ].first == vi )
-	  break;
-
-	if( h < rc.size() )       // if it is found
-	 CostMatrix[ j ].first = rc[ h ].second;  // all done
-	// otherwise, do nothing: the changed Variable is no longer in obj
-	// at this point, which means that the corresponding Modification
-	// is waiting in the queue to be discovered and acted upon
-        }
-       }
-      }
-     }
+    update_CostMatrix_ModLinSbst( lf->get_v_var() , tmod->vars() ,
+				  tmod->subset() );
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
     // with what() == 1: the Lagrangian function unpredictably changes
@@ -2083,15 +2061,84 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
     }  // end( coming from( < y_i , g_i(x) > ) )
    }  // end( coming from a LinearFunction )
+
+  if( const auto qf = dynamic_cast< p_QF >( tmod->function() ) )
+   // only deal with C05FunctionModLinSbst coming from DQuadFunction ...
+   if( qf == qobj ) {  // ... inside the Objective of the inner Block- - - - -
+    v_coeff_pair rc;
+    triple_to_pair( qf->get_v_var() , rc );
+    update_CostMatrix_ModLinSbst( rc , tmod->vars() , tmod->subset() );
+
+    // issue a LagBFunctionMod modification of the type AlphaChanged and
+    // with what() == 1: the Lagrangian function unpredictably changes
+    // (f_shift == NaN), and the constant terms \alpha =  c x^* of the
+    // linearizations ( g , \alpha ) have to be computed again since
+    // c has changed (while g remains unchanged)
+    if( f_Observer )
+     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
+				   C05FunctionMod::AlphaChanged , Subset() ,
+				   1 , NaN , true ) , chnl );
+    return( 0 );  // all done
+
+    }  // end( coming from qobj )
+
   }  // end( C05FunctionModLinSbst )
+
+ // C05FunctionModRngd - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // the interesting case for a C05FunctionModRngd is when it signals the
+ // changes the *quadratic* coefficients (and, possibly the linear ones as
+ // well) in the DQuadFunction inside the Objective of the inner Block
+ if( const auto tmod = dynamic_cast< const C05FunctionModRngd * >( mod ) )
+  if( const auto qf = dynamic_cast< p_QF >( tmod->function() ) )
+   if( qf == qobj ) {
+    v_coeff_pair rc;
+    triple_to_pair( qf->get_v_var() , rc );
+    update_CostMatrix_ModLinRngd( rc , tmod->vars() , tmod->range() );
+
+    // issue a LagBFunctionMod modification of the type AlphaChanged and
+    // with what() == 1: the Lagrangian function unpredictably changes
+    // (f_shift == NaN), and the constant terms \alpha =  c x^* of the
+    // linearizations ( g , \alpha ) have to be computed again since
+    // c has changed (while g remains unchanged)
+    if( f_Observer )
+     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
+				     C05FunctionMod::AlphaChanged , Subset() ,
+				     1 , NaN , true ) , chnl );
+    return( 0 );  // all done
+    }
+
+ // C05FunctionModSbst - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // the interesting case for a C05FunctionModSbst is when it signals the
+ // changes the *quadratic* coefficients (and, possibly the linear ones as
+ // well) in the DQuadFunction inside the Objective of the inner Block
+ if( const auto tmod = dynamic_cast< const C05FunctionModSbst * >( mod ) )
+  if( const auto qf = dynamic_cast< p_QF >( tmod->function() ) )
+   if( qf == qobj ) {
+    v_coeff_pair rc;
+    triple_to_pair( qf->get_v_var() , rc );
+    update_CostMatrix_ModLinSbst( rc , tmod->vars() , tmod->subset() );
+
+    // issue a LagBFunctionMod modification of the type AlphaChanged and
+    // with what() == 1: the Lagrangian function unpredictably changes
+    // (f_shift == NaN), and the constant terms \alpha =  c x^* of the
+    // linearizations ( g , \alpha ) have to be computed again since
+    // c has changed (while g remains unchanged)
+    if( f_Observer )
+     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
+				     C05FunctionMod::AlphaChanged , Subset() ,
+				     1 , NaN , true ) , chnl );
+    return( 0 );  // all done
+    }
 
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  // FunctionMod: a Function has been changed
  // changes in a Function can come from three different components:
  //
- // - the (LinearFunction inside the) Objective of the inner Block, or any
- //   of its sub-Block (recursively); if it is obj, the only remaining
- //   FunctionMod is the C05FunctionMod with type() == NothingChanged
+ // - the (LinearFunction od DQuadFunction inside the) Objective of the inner
+ //   Block, or any of its sub-Block (recursively); if it is obj, the only
+ //   remaining FunctionMod is the C05FunctionMod with type() == NothingChanged
  //   corresponding to the change of the constant term
  //
  // - the LinearFunction that defines a Lagrangian term < y_i , g_i( x ) >;
@@ -2116,10 +2163,26 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
 				      C05FunctionMod::NothingChanged ,
 				      Subset() , 1 , tmod->shift() , true ) ,
-				    chnl );
+				  chnl );
    return( 0 );  // all done
 
    }  // end( if( from obj ) )
+
+  if( static_cast< p_QF >( f ) == qobj ) {  // if it is qobj - - - - - - - - -
+   // the only remaining FunctionMod is the C05FunctionMod with type() ==
+   // NothingChanged corresponding to the change of the constant term from
+   // c_0 to c'_0; hence the whole Lagrangian function is shifted by the
+   // same amount, i.e., issue a LagBFunctionMod with type() ==
+   // NothingChanged, what() == 1 and the very same shift() == c'_0 - c_0
+
+   if( f_Observer )
+    f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
+				      C05FunctionMod::NothingChanged ,
+				      Subset() , 1 , tmod->shift() , true ) ,
+				  chnl );
+   return( 0 );  // all done
+
+   }  // end( if( from qobj ) )
 
   if( dynamic_cast< Objective * >( f->get_Observer() ) ) {
    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -2220,7 +2283,8 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
  // checked before FunctionModVars (because C05FunctionModVars is a
  // FunctionModVars) in case they come from:
  //
- // - the (LinearFunction inside the) Objective of the inner Block;
+ // - the (LinearFunction or DQuadFunction inside the) Objective of the inner
+ //   Block;
  //
  // - the LinearFunction that defines one of the Lagrangian terms
  //   < y_i , g_i( x ) >
@@ -2242,42 +2306,8 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
   if( const auto lf = dynamic_cast< const p_LF >( tmod->function() ) ) {
    // only deal with C05FunctionModVarsAddd coming from LinearFunction ...
    if( lf == obj ) {  // ... inside the Objective of the inner Block - - - - -
-    // update CostMatrix accordingly. note that the new rows are empty,
-    // because if a new term is added, it means it was not there
-    // IN FACT WE ARE SHIFTING ON WHO IS DOING THIS THE BURDEN OF NOT
-    // INTERFERING WITH THE "AUTOMATIC" ADDITION OF Variable TO obj
-
-    if( v_tmpCP.empty() ) {
-     // there are no variables to be "stealthily" added to obj, hence
-     // CostMatrix.size() == obj->gen_num_active_var()
-
-     #ifndef NDEBUG
-      if( tmod->first() != CostMatrix.size() )
-       throw( std::logic_error( "inconsistent CostMatrix" ) );
-     #endif
-
-     CostMatrix.resize( CostMatrix.size() + tmod->vars().size() );
-     }
-    else {
-     // some variables must be "stealthily" added to obj: thus, the entries
-     // of CostMatrix have not to be added at the end, and we have to check
-     // that the thusly added variables are not among these, because in case
-     // the list of variables to be added has to be changed, and CostMatrix
-     // has to be changed accordingly
-
-     c_Index first = tmod->first();
-     c_Index nv = tmod->vars().size();
-     CostMatrix.insert( CostMatrix.begin() + first , nv , col_pair() );
-
-     for( Index i = 0 ; i < v_tmpCP.size() ; ++i )
-      for( Index j = 0 ; j < nv ; ++j )
-       if( tmod->vars()[ j ] == v_tmpCP[ i ].first ) {
-	v_tmpCP.erase( v_tmpCP.begin() + i );
-	CostMatrix[ first + j ] = std::move( CostMatrix[ first + nv + j ] );
-	CostMatrix.erase( CostMatrix.begin() + first + nv + i );
-	break;
-        }
-     }
+    // update CostMatrix accordingly
+    update_CostMatrix_ModVarsAddd( tmod->vars() , tmod->first() );
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
     // with what() == 1: the Lagrangian function unpredictably changes
@@ -2321,7 +2351,26 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
     }  // end( coming from( < y_i , g_i(x) > ) )
    }  // end( coming from a LinearFunction )
-  
+
+  if( const auto qf = dynamic_cast< const p_QF >( tmod->function() ) )
+   // only deal with C05FunctionModVarsAddd coming from DQuadFunction ...
+   if( qf == qobj ) {  // ... inside the Objective of the inner Block- - - - -
+    // update CostMatrix accordingly
+    update_CostMatrix_ModVarsAddd( tmod->vars() , tmod->first() );
+
+    // issue a LagBFunctionMod modification of the type AlphaChanged and
+    // with what() == 1: the Lagrangian function unpredictably changes
+    // (f_shift == NaN), and the constant terms \alpha =  c x^* of the
+    // linearizations ( g , \alpha ) have to be computed again since
+    // c has changed (while g remains unchanged)
+    if( f_Observer )
+     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
+				     C05FunctionMod::AlphaChanged , Subset() ,
+				     1 , NaN , true ) , chnl );
+    return( 0 );  // all done
+
+    }  // end( coming from qobj )
+
   // note: since we do know this is a C05FunctionModVarsAddd we should now
   //       avoid checking for all clearly incompatible types like
   //       C05FunctionModVarsRngd and C05FunctionModVarsSbst, but this would
@@ -2336,44 +2385,8 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
   if( const auto lf = dynamic_cast< p_LF >( tmod->function() ) ) {
    // only deal with C05FunctionModVarsRngd coming from LinearFunction ...
    if( lf == obj ) {  // ... inside the Objective of the inner Block - - - - -
-    // remove the range of rows from CostMatrix accordingly; however, if the
-    // Lagrangian term y A^j in a removed CostMatrix entry is not empty, then
-    // the corresponding variable x_j is immediately re-added, with 0
-    // coefficient, at the back of the objective of the inner Block, and
-    // therefore the corresponding row of CostMatrix shares the same fate
-    //
-    // note that there is no need to check if the variables being deleted are
-    // those in the part of CostMatrix holding information about the variables
-    // still to be added, because if they are still to be added they cannot
-    // have beendeleted
-
-    #ifndef NDEBUG
-     if( tmod->range().second > CostMatrix.size() )
-      throw( std::logic_error( "inconsistent CostMatrix" ) );
-    #endif
-
-    m_column tempCM;     // CostMatrix elements to be re-added
-
-    // check if are nonempty elements of CostMatrix are being deleted, if so
-    // save the corresponding information to sneakily add them back
-    auto strtit = CostMatrix.begin() + tmod->range().first; 
-    auto stpit = CostMatrix.begin() + tmod->range().second;
-    for( auto it = strtit ; it != stpit ; ++it )
-     if( ! it->second.empty() ) {
-      tempCM.push_back( std::move( *it ) );
-      tempCM.back().first = 0;
-      v_tmpCP.push_back( coeff_pair( static_cast< ColVariable * >(
-			    tmod->vars()[ std::distance( strtit , it ) ] ) ,
-				     Coefficient( 0 ) ) );
-      }
-
-    CostMatrix.erase( strtit , stpit );
-
-    if( ! tempCM.empty() )  // some nonempty elements have been deleted
-                            // add them back at the end
-     CostMatrix.insert( CostMatrix.end() ,
-			std::make_move_iterator( tempCM.begin() ),
-			std::make_move_iterator( tempCM.end() ) );
+    // remove the range of rows from CostMatrix accordingly
+    update_CostMatrix_ModVarsRngd( tmod->vars() , tmod->range() );
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
     // with what() == 1: the Lagrangian function unpredictably changes
@@ -2455,7 +2468,26 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
     }  // end( coming from( < y_i , g_i(x) > ) )
    }  // end( coming from a LinearFunction )
-  
+
+  if( const auto qf = dynamic_cast< p_QF >( tmod->function() ) )
+   // only deal with C05FunctionModVarsRngd coming from DQuadFunction ...
+   if( qf == qobj ) {  // ... inside the Objective of the inner Block- - - - -
+    // remove the range of rows from CostMatrix accordingly
+    update_CostMatrix_ModVarsRngd( tmod->vars() , tmod->range() );
+
+    // issue a LagBFunctionMod modification of the type AlphaChanged and
+    // with what() == 1: the Lagrangian function unpredictably changes
+    // (f_shift == NaN), and the constant terms \alpha = c x^* of the
+    // linearizations ( g , \alpha ) have to be computed again since c has
+    // changed (while g remains unchanged)
+    if( f_Observer )
+     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
+				     C05FunctionMod::AlphaChanged , Subset() ,
+				     1 , NaN , true ) , chnl );
+    return( 0 );  // all done
+
+    }  // end( coming from qobj )
+
   // note: we should now avoid checking for C05FunctionModVarsSbst, but
   // the hell with it
   }  // end( C05FunctionModVarsRngd )
@@ -2468,42 +2500,8 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
   if( const auto lf = dynamic_cast< p_LF >( tmod->function() ) ) {
    // only deal with C05FunctionModVarsSbst coming from LinearFunction ...
    if( lf == obj ) {  // ... inside the Objective of the inner Block - - - - -
-    // remove the range of subset from CostMatrix accordingly; however, if the
-    // Lagrangian term y A^j in a remoced CostMatrix entry is not empty, then
-    // the corresponding variable x_j is immediately re-added, with 0
-    // coefficient, at the back of the objective of the inner Block, and
-    // therefore the corresponding row of CostMatrix shares the same fate
-    //
-    // note that there is no need to check if the variables being deleted are
-    // those in the part of CostMatrix holding information about the variables
-    // still to be added, because if they are still to be added they cannot
-    // have beendeleted
-
-    #ifndef NDEBUG
-     if( tmod->subset().back() >= CostMatrix.size() )
-      throw( std::logic_error( "inconsistent CostMatrix" ) );
-    #endif
-
-    m_column tempCM;     // CostMatrix elements to be re-added
-
-    // check if are nonempty elements of CostMatrix are being deleted, if so
-    // save the corresponding information to sneakily add them back
-    for( Index i = 0 ; i < tmod->subset().size() ; ++i )
-     if( ! CostMatrix[ tmod->subset()[ i ] ].second.empty() ) {
-      tempCM.push_back( std::move( CostMatrix[ tmod->subset()[ i ] ] ) );
-      tempCM.back().first = 0;
-      v_tmpCP.push_back( coeff_pair(
-			 static_cast< ColVariable * >( tmod->vars()[ i ] ) ,
-			 Coefficient( 0 ) ) );
-      }
-
-    Compact( CostMatrix , tmod->subset() );
-
-    if( ! tempCM.empty() )  // some nonempty elements have been deleted
-                            // add them back at the end
-     CostMatrix.insert( CostMatrix.end() ,
-			std::make_move_iterator( tempCM.begin() ),
-			std::make_move_iterator( tempCM.end() ) );
+    // remove the range of subset from CostMatrix accordingly
+    update_CostMatrix_ModVarsSbst( tmod->vars() , tmod->subset() );
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
     // with what() == 1: the Lagrangian function unpredictably changes
@@ -2585,6 +2583,26 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
     }  // end( coming from( < y_i , g_i(x) > ) )
    }  // end( coming from a LinearFunction )
+
+  if( const auto qf = dynamic_cast< p_QF >( tmod->function() ) )
+   // only deal with C05FunctionModVarsSbst coming from DQuadFunction ...
+   if( qf == qobj ) {  // ... inside the Objective of the inner Block- - - - -
+    // remove the range of subset from CostMatrix accordingly
+    update_CostMatrix_ModVarsSbst( tmod->vars() , tmod->subset() );
+
+    // issue a LagBFunctionMod modification of the type AlphaChanged and
+    // with what() == 1: the Lagrangian function unpredictably changes
+    // (f_shift == NaN), and the constant terms \alpha =  c x^* of the
+    // linearizations ( g , \alpha ) have to be computed again since
+    // c has changed (while g remains unchanged)
+    if( f_Observer )
+     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
+				     C05FunctionMod::AlphaChanged , Subset() ,
+				     1 , NaN , true ) , chnl );
+    return( 0 );  // all done
+
+    }  // end( coming from qobj )
+  
   }  // end( C05FunctionModVarsSbst )
 
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -2592,7 +2610,8 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
  //
  // The Function can *not* be
  //
- // - the (LinearFunction inside the) Objective of the inner Block
+ // - the (LinearFunction or DQuadFunction inside the) Objective of the inner
+ //   Block
  //
  // - a LinearFunction that define the Lagrangian term < y_i , g_i( x ) > for
  //
@@ -2606,7 +2625,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
   if( dynamic_cast< Objective * >( f->get_Observer() ) ) {
    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-   // the Function inside the Objective of a sub-Block of the/ inner Block
+   // the Function inside the Objective of a sub-Block of the inner Block
 
    // issue a LagBFunctionMod modification of the type AlphaChanged and
    // with what() == 1: the Lagrangian function unpredictably changes
@@ -2717,6 +2736,269 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
  // they can exert on the model
 
  }  // end( LagBFunction::guts_of_guts_of_add_Modification )
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::update_CostMatrix_ModLinRngd( const v_coeff_pair & rc ,
+						 c_Vec_p_Var & vars ,
+						 c_Range & rng )
+{
+ // note that one may think to update the corresponding Range of original
+ // costs by adding delta(), but this would be wrong because delta() is
+ // computed w.r.t. the last value of the costs, which is in general a
+ // Lagrangian one. one may alernatively think to just mark the cost as in
+ // need for refreshing and do it later (say, in compute()), but this would
+ // be wrong as well because the costs that have *not* been changed are the
+ // Lagrangian ones, and one would end up "fixing" them as the true costs.
+ // hence, the only option is to read the costs now (since the Modification
+ // is the only place where the information about which costs have actually
+ // changed is), although reading the costs from obj is nontrovial since the
+ // Range may not be current if Variable have been added/deleted
+
+ // first check if by chance the Range is still current
+ bool current = true;
+ auto it = vars.begin();
+ for( Index j = rng.first ; j < rng.second ; ++j )
+  if( rc[ j ].first != *(it++) ) { current = false; break; }
+
+ if( current ) {  // if Range is still current, it's easy
+  for( Index j = rng.first ; j < rng.second ; ++j )
+   CostMatrix[ j ].first = rc[ j ].second;
+  }
+
+ // if Range is no longer current, it's compicated
+ // however, note that CostMatrix is still "aligned" with the indices
+ // found in the Modification, since if Variable have been added/removed
+ // in obj by changes occurring prior to this the corresponding
+ // Modification have been already "seen" before this and acted upon
+ it = vars.begin();
+ for( Index j = rng.first ; j < rng.second ; ++j ) {
+  auto vi = *(it++);          // the Variable whose cost has changed
+  if( rc[ j ].first == vi )   // if vi is still in the same place
+   CostMatrix[ j ].first = rc[ j ].second;  // still easy
+  else {                      // if not, look up for it
+   // start looking up before j, since it's where it most likely is
+   Index h = j;
+   while( h )
+    if( rc[ --h ].first == vi )
+     break;
+
+   if( rc[ h ].first == vi )  // if it is found
+    CostMatrix[ j ].first = rc[ h ].second;  // all done
+   else {                     // otherwise
+    // look up after j, it still could be there
+    for( h = j + 1 ; h < rc.size() ; ++h )
+     if( rc[ h ].first == vi )
+      break;
+
+    if( h < rc.size() )       // if it is found
+     CostMatrix[ j ].first = rc[ h ].second;  // all done
+    // otherwise, do nothing: the changed Variable is no longer in obj
+    // at this point, which means that the corresponding Modification
+    // is waiting in the queue to be discovered and acted upon
+    }
+   }
+  }
+ }  // end( LagBFunction::update_CostMatrix_ModLinRngd )
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::update_CostMatrix_ModLinSbst( const v_coeff_pair & rc ,
+						 c_Vec_p_Var & vars ,
+						 c_Subset & sbst )
+{
+ // note that one may think to update the corresponding Subset of original
+ // costs by adding delta(), but this would be wrong because delta() is
+ // computed w.r.t. the last value of the costs, which is in general a
+ // Lagrangian one. one may alernatively think to just mark the cost as in
+ // need for refreshing and do it later (say, in compute()), but this would
+ // be wrong as well because the costs that have *not* been changed are the
+ // Lagrangian ones, and one would end up "fixing" them as the true costs.
+ // hence, the only option is to read the costs now (since the Modification
+ // is the only place where the information about which costs have actually
+ // changed is), although reading the costs from obj is nontrovial since the
+ // Subset may not be current if Variable have been added/deleted
+
+ // first check if by chance the Subset is still current
+ bool current = true;
+ auto it = vars.begin();
+ for( Index j : sbst )
+  if( rc[ j ].first != *(it++) ) { current = false; break; }
+
+ if( current ) {  // if Subset is still current, it's easy
+  for( Index j : sbst )
+   CostMatrix[ j ].first = rc[ j ].second;
+  return;
+  }
+
+ // if Subset is no longer current, it's compicated
+ // however, note that CostMatrix is still "aligned" with the indices found
+ // in the Modification, since if Variable have been added/removed in obj by
+ // changes occurring prior to this the corresponding Modification have been
+ // already "seen" before this and acted upon
+ it = vars.begin();
+ for( Index j : sbst ) {
+  auto vi = *(it++);          // the Variable whose cost has changed
+  if( rc[ j ].first == vi )   // if vi is still in the same place
+   CostMatrix[ j ].first = rc[ j ].second;  // still easy
+  else {                      // if not, look up for it
+   // start looking up before j, since it's where it most likely is
+   Index h = j;
+   while( h )
+    if( rc[ --h ].first == vi )
+     break;
+
+   if( rc[ h ].first == vi )  // if it is found
+    CostMatrix[ j ].first = rc[ h ].second;  // all done
+   else {                     // otherwise
+    // look up after j, it still could be there
+    for( h = j + 1 ; h < rc.size() ; ++h )
+     if( rc[ h ].first == vi )
+      break;
+
+    if( h < rc.size() )       // if it is found
+     CostMatrix[ j ].first = rc[ h ].second;  // all done
+    // otherwise, do nothing: the changed Variable is no longer in obj
+    // at this point, which means that the corresponding Modification
+    // is waiting in the queue to be discovered and acted upon
+    }
+   }
+  }
+ }  // end( LagBFunction::update_CostMatrix_ModLinSbst )
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::update_CostMatrix_ModVarsAddd( c_Vec_p_Var & vars ,
+						  Index first )
+{
+ // update CostMatrix for the addition of new variables. note that the new
+ // rows are empty, because if a new term is added, it means it was not
+ // there before
+ // IN FACT WE ARE SHIFTING ON WHO IS DOING THIS THE BURDEN OF NOT
+ // INTERFERING WITH THE "AUTOMATIC" ADDITION OF Variable TO obj
+
+ if( v_tmpCP.empty() ) {
+  // there are no variables to be "stealthily" added to obj, hence
+  // CostMatrix.size() == [q]obj->gen_num_active_var()
+
+  #ifndef NDEBUG
+   if( first != CostMatrix.size() )
+     throw( std::logic_error( "inconsistent CostMatrix" ) );
+  #endif
+
+   CostMatrix.resize( CostMatrix.size() + vars.size() );
+   }
+ else {
+  // some variables must be "stealthily" added to obj: thus, the entries
+  // of CostMatrix have not to be added at the end, and we have to check
+  // that the thusly added variables are not among these, because in case
+  // the list of variables to be added has to be changed, and CostMatrix
+  // has to be changed accordingly
+
+  c_Index nv = vars.size();
+  CostMatrix.insert( CostMatrix.begin() + first , nv , col_pair() );
+
+  for( Index i = 0 ; i < v_tmpCP.size() ; ++i )
+   for( Index j = 0 ; j < nv ; ++j )
+    if( vars[ j ] == v_tmpCP[ i ].first ) {
+     v_tmpCP.erase( v_tmpCP.begin() + i );
+     CostMatrix[ first + j ] = std::move( CostMatrix[ first + nv + j ] );
+     CostMatrix.erase( CostMatrix.begin() + first + nv + i );
+     break;
+     }
+  }
+ }  // end( LagBFunction::update_CostMatrix_ModVarsAddd )
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::update_CostMatrix_ModVarsRngd( c_Vec_p_Var & vars ,
+						  c_Range & rng )
+{
+ // remove the range of rows from CostMatrix corresponding to receiving a
+ // C05FunctionModVarsRngd; however, if the Lagrangian term y A^j in a
+ // removed CostMatrix entry is not empty, then the corresponding variable
+ // x_j is immediately re-added, with 0 coefficient, at the back of the
+ // objective of the inner Block, and therefore the corresponding row of
+ // CostMatrix shares the same fate
+ //
+ // note that there is no need to check if the variables being deleted are
+ // those in the part of CostMatrix holding information about the variables
+ // still to be added, because if they are still to be added they cannot
+ // have been deleted
+
+ #ifndef NDEBUG
+  if( rng.second > CostMatrix.size() )
+   throw( std::logic_error( "inconsistent CostMatrix" ) );
+ #endif
+
+ m_column tempCM;     // CostMatrix elements to be re-added
+
+ // check if are nonempty elements of CostMatrix are being deleted, if so
+ // save the corresponding information to sneakily add them back
+ auto strtit = CostMatrix.begin() + rng.first; 
+ auto stpit = CostMatrix.begin() + rng.second;
+ for( auto it = strtit ; it != stpit ; ++it )
+  if( ! it->second.empty() ) {
+   tempCM.push_back( std::move( *it ) );
+   tempCM.back().first = 0;
+   v_tmpCP.push_back( coeff_pair( static_cast< ColVariable * >(
+				    vars[ std::distance( strtit , it ) ] ) ,
+				    Coefficient( 0 ) ) );
+   }
+
+ CostMatrix.erase( strtit , stpit );
+
+ if( ! tempCM.empty() )  // some nonempty elements have been deleted
+                         // add them back at the end
+  CostMatrix.insert( CostMatrix.end() ,
+		     std::make_move_iterator( tempCM.begin() ),
+		     std::make_move_iterator( tempCM.end() ) );
+
+ }  // end( LagBFunction::update_CostMatrix_ModVarsRngd )
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::update_CostMatrix_ModVarsSbst( c_Vec_p_Var & vars ,
+						  c_Subset & sbst )
+{
+ // remove the range of rows from CostMatrix corresponding to receiving a
+ // C05FunctionModVarsSbst; however, if the Lagrangian term y A^j in a
+ // removed CostMatrix entry is not empty, then the corresponding variable
+ // x_j is immediately re-added, with 0 coefficient, at the back of the
+ // objective of the inner Block, and therefore the corresponding row of
+ // CostMatrix shares the same fate
+ //
+ // note that there is no need to check if the variables being deleted are
+ // those in the part of CostMatrix holding information about the variables
+ // still to be added, because if they are still to be added they cannot
+ // have been deleted
+
+ #ifndef NDEBUG
+  if( sbst.back() >= CostMatrix.size() )
+   throw( std::logic_error( "inconsistent CostMatrix" ) );
+ #endif
+
+ m_column tempCM;     // CostMatrix elements to be re-added
+
+ // check if are nonempty elements of CostMatrix are being deleted, if so
+ // save the corresponding information to sneakily add them back
+ for( Index i = 0 ; i < sbst.size() ; ++i )
+  if( ! CostMatrix[ sbst[ i ] ].second.empty() ) {
+   tempCM.push_back( std::move( CostMatrix[ sbst[ i ] ] ) );
+   tempCM.back().first = 0;
+   v_tmpCP.push_back( coeff_pair( static_cast< ColVariable * >( vars[ i ] ) ,
+				  Coefficient( 0 ) ) );
+   }
+
+ Compact( CostMatrix , sbst );
+
+ if( ! tempCM.empty() )  // some nonempty elements have been deleted
+                         // add them back at the end
+  CostMatrix.insert( CostMatrix.end() ,
+		     std::make_move_iterator( tempCM.begin() ),
+		     std::make_move_iterator( tempCM.end() ) );
+
+ }  // end( LagBFunction::update_CostMatrix_ModVarsSbst )
 
 /*--------------------------------------------------------------------------*/
 

@@ -656,7 +656,7 @@ class DQuadFunction : public C15Function {
   * (possibly to be immediately dispatched to the issued C05FunctionModSbst).
   * The ordered parameter tells if subset is ordered by increasing Index,
   * which is actually *not* helpful for DQuadFunction but it may be for 
-  * Block/Solver having to deal with the FunctionModVarsSbst.
+  * Block/Solver having to deal with the C05FunctionModSbst.
 
   * The parameter issueMod decides if and how the C05FunctionModSbst is
   * issued, as described in Observer::make_par(). */
@@ -675,7 +675,7 @@ class DQuadFunction : public C15Function {
   * C05FunctionModLinSbst). The ordered parameter tells if subset is ordered
   * by increasing Index, which is actually *not* helpful for DQuadFunction
   * but it may be for a Block/Solver having to deal with the
-  * FunctionModVarsSbst.
+  * C05FunctionModLinSbst.
   *
   * The parameter issueMod decides if and how the C05FunctionModLinSbst is
   * issued, as described in Observer::make_par(). This is precisely the

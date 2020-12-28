@@ -200,7 +200,7 @@ class Objective : public ThinComputeInterface, public ThinVarDepInterface {
 
  /// returns the pointer of the Block to which the Objective belongs
 
- Block * get_Block() const { return ( f_Block ); }
+ Block * get_Block() const { return( f_Block ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the sense (min/max) of the Objective
@@ -210,7 +210,7 @@ class Objective : public ThinComputeInterface, public ThinVarDepInterface {
   * method, in order to allow derived classes to "extend" the set of possible
   * types. */
 
- [[nodiscard]] virtual int get_sense() const { return ( f_sense ); }
+ [[nodiscard]] virtual int get_sense( void ) const { return( f_sense ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF AN Objective ------------*/

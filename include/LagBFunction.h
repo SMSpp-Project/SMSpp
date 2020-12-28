@@ -37,6 +37,8 @@
 
 #include "C05Function.h"
 
+#include "DQuadFunction.h"
+
 #include "FRealObjective.h"
 
 #include "LinearFunction.h"
@@ -141,6 +143,8 @@ namespace SMSpp_di_unipi_it
  *
  *   = FRealObjective whose inside Function is a LinearFunction
  *
+ *   = FRealObjective whose inside Function is a DQuadFunction
+ *
  * - each g[ i ] is a generic Function (*), but the Function has to be 
  *   "simple" function, i.e., belonging to following classes:
  *
@@ -178,19 +182,20 @@ namespace SMSpp_di_unipi_it
  * Block that can be used as (B):
  *
  * - THE LAGRANGIAN TERM c(x) + \sum_{ i \in I } y_i g_i(x) FOR FIXED VALUE
- *   OF y_i AND LINEAR c(x), g_i(x) BECOMES A LinearFunction THAT IS WRITTEN
- *   IN THE OBJECTIVE OF (B).
+ *   OF y_i AND LINEAR c(x), g_i(x) BECOMES EITHER A LinearFunction OR A
+ *   DQuadFunction (DEPENDING ON WHAT IT WAS ORIGINALLY) THAT IS WRITTEN IN
+ *   THE OBJECTIVE OF (B).
  *
  *   The first, obvious consequence is that (B) must necessarily have an
- *   "abstract") Objective that is a FRealObjective whose Function is a
- *   LinearFunction, as as already stated. This also means that if (B) has
- *   a "physical" representation, it must reflect all changes of its
- *   Objective resulting from the Lagrangian term into it. Some :Block may
- *   make assumptions on the form of its Objective (say, a certain set of
- *   Variable is *not* in it) that are satisfied by c(x) but are no longer
- *   so when the Lagrangian term is added; these cannot be used as (B).
- *   However, note that ALL "EXTRA" TERMS IN THE Objective OF (B) WILL BE
- *   ADDED "AFTER" THE ORIGINAL ONES, which may make it possible for a
+ *   "abstract") Objective that is a FRealObjective whose Function is either
+ *   a LinearFunction or a DQuadFunction, as as already stated. This also
+ *   means that if (B) has a "physical" representation, it must reflect all
+ *   changes of its Objective resulting from the Lagrangian term into it.
+ *   Some :Block may make assumptions on the form of its Objective (say, a
+ *   certain set of Variable is *not* in it) that are satisfied by c(x) but
+ *   are no longer so when the Lagrangian term is added; these cannot be used
+ *   as (B). However, note that ALL "EXTRA" TERMS IN THE Objective OF (B) WILL
+ *   BE ADDED "AFTER" THE ORIGINAL ONES, which may make it possible for a
  *   Block/Solver to ignore them since THE ORIGINAL ONES WILL STILL BE IN
  *   THEIR ORIGINAL POSITION.
  *
@@ -206,8 +211,8 @@ namespace SMSpp_di_unipi_it
  *   but there may be :Solver that do not allow such an arrangement. On the
  *   plus side, however, note that in such a case THE Objective OF THE
  *   sub-Block IN NEVER MODIFIED, and therefore it CAN IN PRINCIPLE BE ANY
- *   KIND OF Function, NOT NECESSARILY A LinearFunction (provided that the
- *   Solver attached to (B) can deal with it).
+ *   KIND OF Function, NOT NECESSARILY A LinearFunction OR A DQuadFunction
+ *   (provided that the Solver attached to (B) can deal with it).
  *
  * - THE LAGRANGIAN TERM MAY HAVE A DIFFERENT "SHAPE" THAN THE ORIGINAL
  *   LinearFunction c(x) (i.e., more ColVariable may have a nonzero
@@ -226,30 +231,29 @@ namespace SMSpp_di_unipi_it
  * - THE LagBFunction WILL ONLY *ADD* TERMS TO c(x), BUT NEVER REMOVE THEM.
  *   In particular, it may happen that a coefficient is added to c(x) for
  *   some variable x_j due to some term g_i(x) having a nonzero coefficient
- *   in x_j, while, say, the original coefficient of x_j in c(x) was 0,
+ *   in x_j, while, say, the original coefficient(s) of x_j in c(x) was 0,
  *   i.e., x_j was *not* in c(x). Later, the Lagrangian term(s) g_i(x) may be
  *   changed and x_j may no longer have a nonzero coefficient in the
  *   Lagrangian term for any value of y. YET, x_j IS KEPT IN THE
- *   LinearFunction IN THE Objective OF (B) WITH 0 COEFFICIENT: no attempt
- *   is made to "optimize away" such Variable. The reason is that it is
- *   hard to distinguish whether or not the 0 coefficient was there in the
- *   original c(x) or x_j was not in c(x). While the two things are
- *   mathematically equivalent, they may not be so for a Block/Solver
- *   assuming that some Variable *are* in the Objective even if their
- *   coefficient is 0. Optimizing away these Variable would not allow such
- *   a Block/Solver to be used, so it is just not done. In the odd case
- *   where this is not appropriate, the external process changing the
+ *   LinearFunction / DQuadFunction IN THE Objective OF (B) WITH 0
+ *   COEFFICIENT(S): no attempt is made to "optimize away" such Variable. The
+ *   rationale is that it is hard to distinguish whether or not the 0
+ *   coefficient(s) was there in the original c(x) or x_j was not in c(x).
+ *   While the two things are mathematically equivalent, they may not be so
+ *   for a Block/Solver assuming that some Variable *are* in the Objective
+ *   even if their coefficient(s) is 0. Optimizing away these Variable would
+ *   not allow such a Block/Solver to be used, so it is just not done. In the
+ *   odd case where this is not appropriate, the external process changing the
  *   g_i(x) (which is what may cause this to happen) also has to do the
- *   cleanup of c(x). Indeed, removing ColVariable from c(x) is allowed,
- *   with the only provision that if the ColVariable is present in any
- *   Lagrangian term g_i(x) it will be automatically re-added.
+ *   cleanup of c(x). Indeed, removing ColVariable from c(x) is allowed, with
+ *   the only provision that if the ColVariable is present in any Lagrangian
+ *   term g_i(x) it will be automatically re-added.
  *
  * - Similarly, A TERM < x_j , a_{ij} > IN g_i(x) WILL GIVE RISE TO AN
  *   EXPLICIT TERM < y_i , a_{ij} > IN THE (LINEAR) EXPRESSION FOR THE
- *   LAGRANGIAN COST OF x_j EVEN IF a_{ij} == 0; no attemp is done to
- *   optimize away zero coefficients from g_i(x), in case the entity
- *   producing them relies on their position in the LinearFunction to
- *   handle them.
+ *   LAGRANGIAN COST OF x_j EVEN IF a_{ij} == 0; no attemp is done to optimize
+ *   away zero coefficients from g_i(x), in case the entity producing them
+ *   relies on their position in the LinearFunction to handle them.
  *
  * We finish with a LARGELY THEORETICAL, BUT STILL POSSIBLY INTERESTING NOTE.
  * The LagBFunction is both a C05Function and a Block. This is done in order
@@ -389,6 +393,11 @@ class LagBFunction : public C05Function , public Block {
  using v_dual_pair = std::vector< dual_pair >;  ///< a vector of dual_pair
  using v_c_dual_pair = const v_dual_pair;       ///< a const v_dual_pair
 
+ /* LagBFunction also uses stuff from DQuadFunction, hence "import" here
+  * corresponding names. */
+ using coeff_triple = DQuadFunction::coeff_triple;
+ using v_coeff_triple = DQuadFunction::v_coeff_triple;
+  
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// an element of the global pool
  /** An element of the global pool ia a Solution equipped with a boolean
@@ -673,7 +682,7 @@ class LagBFunction : public C05Function , public Block {
   * issued, as described in Observer::make_par(); note that a Lagrangian
   * function is strongly quasi-additive. */
 
- void add_dual_pairs( v_dual_pair && lp, ModParam issueMod = eNoBlck );
+ void add_dual_pairs( v_dual_pair && lp , ModParam issueMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// remove the i-th Lagrangian term < y_i , g_i(x) > from the LagBFunction
@@ -712,7 +721,7 @@ class LagBFunction : public C05Function , public Block {
   * strongly quasi-additive. */
 
  void remove_variables( Subset && nms , bool ordered = false ,
-			ModParam issueMod = eModBlck )  override;
+			ModParam issueMod = eModBlck ) override;
 
 /*--------------------------------------------------------------------------*/
  /// stores the Solution in position i of the global pool to the Block
@@ -775,9 +784,9 @@ class LagBFunction : public C05Function , public Block {
   *   Modification are bunched together in a GroupModification, because in
   *   this case only one LagBFunctionMod is produced for them all. Hence
   *
-  *     IF MANY CHANGES ARE MADE TO THE INNER Block., IT IS MOST DEFINITELY
+  *     IF MANY CHANGES ARE MADE TO THE INNER Block, IT IS MOST DEFINITELY
   *     A GOOD IDEA TO BUNCH AS MANY AS POSSIBLE OF THE CORRESPONDING
-  *     Modification INTO AN AS SMALL AS POSSIBLE NUMBER OF GroupModification
+  *     Modification INTO AS FEW AS POSSIBLE GroupModification
   *
   *   in order to reduce the number of produced LagBFunctionMod. */
 
@@ -851,8 +860,8 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- void delete_linearization( Index name ,
-			    ModParam issueMod = eModBlck ) override;
+ void delete_linearization( Index name , ModParam issueMod = eModBlck )
+  override;
 
 /*--------------------------------------------------------------------------*/
 
@@ -981,7 +990,7 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  void get_linearization_coefficients( FunctionValue * g , c_Subset & subset  ,
-				      const bool ordered = false ,
+				      bool ordered = false ,
 				      Index name = Inf<Index>() ) override;
 
 /*--------------------------------------------------------------------------*/
@@ -1042,6 +1051,9 @@ class LagBFunction : public C05Function , public Block {
   * method will not bother and still return nullptr. */
 
  const col_pair * get_A_by_col( const ColVariable * xj ) {
+  if( qobj )
+   throw( std::logic_error(
+	   "matrix representation not available for quadratic objective" ) );
   auto j = obj->is_active( xj );
   if( j >= obj->get_num_active_var() )
    return( nullptr );
@@ -1099,11 +1111,11 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- int get_int_par( const idx_type par ) const override;
+ int get_int_par( idx_type par ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- double get_dbl_par( const idx_type par ) const override;
+ double get_dbl_par( idx_type par ) const override;
 
 /*--------------------------------------------------------------------------*/
 
@@ -1136,7 +1148,7 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- Variable * get_active_var( const Index i ) const override {
+ Variable * get_active_var( Index i ) const override {
   return( LagPairs[ i ].first );
   }
 
@@ -1217,6 +1229,38 @@ class LagBFunction : public C05Function , public Block {
  char guts_of_guts_of_add_Modification( p_Mod mod , ChnlName chnl );
 
 /*--------------------------------------------------------------------------*/
+
+ void triple_to_pair( const v_coeff_triple & orig , v_coeff_pair & vc ) {
+  vc.resize( orig.size() );
+  for( Index i = 0 ; i < orig.size() ; ++i ) {
+   vc[ i ].first = std::get< 0 >( orig[ i ] );
+   vc[ i ].second = std::get< 1 >( orig[ i ] );
+   }
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ void update_CostMatrix_ModLinRngd( const v_coeff_pair & rc ,
+				    c_Vec_p_Var & vars , c_Range & rng );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ void update_CostMatrix_ModLinSbst( const v_coeff_pair & rc ,
+				    c_Vec_p_Var & vars , c_Subset & sbst );
+
+/*--------------------------------------------------------------------------*/
+
+ void update_CostMatrix_ModVarsAddd( c_Vec_p_Var & vars , Index first );
+
+/*--------------------------------------------------------------------------*/
+
+ void update_CostMatrix_ModVarsRngd( c_Vec_p_Var & vars , c_Range & rng );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ void update_CostMatrix_ModVarsSbst( c_Vec_p_Var & vars , c_Subset & sbst );
+
+/*--------------------------------------------------------------------------*/
  /// reset the BlockConfig of the inner Block to the default one
 
  void set_default_inner_BlockConfig( void );
@@ -1254,6 +1298,8 @@ class LagBFunction : public C05Function , public Block {
 
  LinearFunction * obj;  ///< the (LinearFunction inside the) Objective of (B)
 
+ DQuadFunction * qobj;  ///< the (DQuadFunction inside the) Objective of (B)
+
  bool IsConvex;         ///< true if the LagBFunction is convex
  
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -1273,12 +1319,13 @@ class LagBFunction : public C05Function , public Block {
  * if there is no such linearization, while g_pool[ i ].second is a bool
  * telling if the linearization is diagonal. */
 
- Index f_max_glob;           ///< 1 + maximum active name in the global pool
- /**< f_max_glob is strictly larger than the maximum index h such that
-  * g_pool[ h ].first != nullptr, i.e., g_pool[ f_max_glob ].first == nullptr
-  * while g_pool[ f_max_glob - 1 ] != nullptr. Note that one should never
-  * check g_pool[ f_max_glob ], as f_max_glob == g_pool.size() may
-  * happen (in particular when g_pool.empty() and f_max_glob == 0). */
+ Index f_max_glob;      ///< 1 + maximum active name in the global pool
+                        /**< f_max_glob is strictly larger than the maximum
+			 * index h such that g_pool[ h ].first != nullptr,
+  * i.e., g_pool[ f_max_glob ].first == nullptr while
+  * g_pool[ f_max_glob - 1 ] != nullptr. Note that one should never check
+  * g_pool[ f_max_glob ], as f_max_glob == g_pool.size() may happen (in
+  * particular when g_pool.empty() and f_max_glob == 0). */
 
  m_column CostMatrix;
  ///< the matrix < c_j , y A^j > used to update the Lagrangian cost vector
@@ -1499,8 +1546,7 @@ class LagBFunctionMod : public C05FunctionMod {
 /*-------------------------- PROTECTED METHODS -----------------------------*/
  /// print the LagBFunctionMod
 
- void print( std::ostream &output ) const override
- {
+ void print( std::ostream &output ) const override {
   output << "LagBFunctionMod[";
   if( concerns_Block() )
    output << "t";
