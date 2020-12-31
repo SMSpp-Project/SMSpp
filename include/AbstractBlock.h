@@ -43,8 +43,8 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __AbstractBlock
-#define __AbstractBlock
-/* self-identification: #endif at the end of the file */
+ #define __AbstractBlock
+                      /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/

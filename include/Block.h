@@ -129,7 +129,8 @@
 /*--------------------------------------------------------------------------*/
 
 /// namespace for the Structured Modeling System++ (SMS++)
-namespace SMSpp_di_unipi_it {
+namespace SMSpp_di_unipi_it
+{
 class Variable;            // forward definition of Variable
 
 class Constraint;          // forward definition of Constraint
@@ -9115,7 +9116,7 @@ void Block::remove_dynamic_variables( std::list< Var > & list ,
  if( isr ) {
   remove_dynamic_variables( list ,
                             Range( subset.front() , subset.back() + 1 ) ,
-                            issueMod, issueindMod );
+                            issueMod , issueindMod );
   return;
   }
 
@@ -9148,7 +9149,6 @@ void Block::remove_dynamic_variables( std::list< Var > & list ,
 
   // the last element has to be done offline
   remove_variable_from_stuff( &( *eit ) , issueindMod );
-  eit->clear();
   removed.splice( removed.begin() , list , eit );
 
   // note that the list cannot be empty, since this would mean that

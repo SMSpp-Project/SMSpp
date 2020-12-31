@@ -845,8 +845,9 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- void store_combination_of_linearizations( LinearCombination & coefficients ,
-			Index name  , ModParam issueMod = eModBlck ) override;
+ void store_combination_of_linearizations(
+		           c_LinearCombination & coefficients , Index name  ,
+		           ModParam issueMod = eModBlck ) override;
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 

@@ -1618,9 +1618,9 @@ class BendersBFunction : public C05Function , public Block {
   * the second case it is a diagonal linearization. If none of the above two
   * conditions are met, an exception is thrown. */
 
- void store_combination_of_linearizations( LinearCombination & coefficients ,
-                                           const Index name ,
-                                           ModParam issueMod = eModBlck )
+ void store_combination_of_linearizations(
+			    c_LinearCombination & coefficients , Index name ,
+			    ModParam issueMod = eModBlck )
   override final;
 
 /*--------------------------------------------------------------------------*/
@@ -2039,12 +2039,11 @@ class BendersBFunction : public C05Function , public Block {
    * @param name the name under which the combination of linearizations will
    *        be stored.
    *
-   * @param AAccMlt the maximum absolute error in the multipliers.
-   */
+   * @param AAccMlt the maximum absolute error in the multipliers. */
 
-  void store_combination_of_linearizations( LinearCombination & coefficients ,
-                                            const Index name ,
-                                            const FunctionValue AAccMlt );
+  void store_combination_of_linearizations(
+				        c_LinearCombination & coefficients ,
+                                        Index name , FunctionValue AAccMlt );
 
 /*--------------------------------------------------------------------------*/
   /// deletes the linearization with the given name
@@ -2052,8 +2051,8 @@ class BendersBFunction : public C05Function , public Block {
    * destroying the Solution associated with it. If the given \p name is
    * invalid, an exception is thrown.
    *
-   * @param name the name of the linearization to be deleted.
-   */
+   * @param name the name of the linearization to be deleted. */
+
   void delete_linearization( Index name );
 
 /*--------------------------------------------------------------------------*/

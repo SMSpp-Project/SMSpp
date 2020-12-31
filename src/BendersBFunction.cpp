@@ -1860,8 +1860,10 @@ void BendersBFunction::store_linearization( Index name , ModParam issueMod ) {
 
 /*--------------------------------------------------------------------------*/
 
-void BendersBFunction::store_combination_of_linearizations
-( LinearCombination & coefficients , const Index name , ModParam issueMod ) {
+void BendersBFunction::store_combination_of_linearizations(
+		            c_LinearCombination & coefficients , Index name ,
+			    ModParam issueMod )
+{
  global_pool.store_combination_of_linearizations( coefficients , name ,
                                                   AAccMlt );
 
@@ -2692,8 +2694,9 @@ bool BendersBFunction::GlobalPool::is_linearization_vertical( Index name )
 /*--------------------------------------------------------------------------*/
 
 void BendersBFunction::GlobalPool::store_combination_of_linearizations(
-                        LinearCombination & coefficients , const Index name ,
-                        const FunctionValue AAccMlt ) {
+                                         c_LinearCombination & coefficients ,
+			                 Index name , FunctionValue AAccMlt )
+{
  if( name >= size() )
   throw( std::invalid_argument( "BendersBFunction::GlobalPool::store_combinati"
                                 "on_of_linearizations: invalid global pool "

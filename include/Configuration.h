@@ -788,6 +788,11 @@ class SimpleConfiguration : public Configuration
 
  void clear( void ) override {}
 
+/*--------------------------------------------------------------------------*/
+ /// accessor to the "simple" value contained in the SimpleConfiguration
+
+ SimpleConfiguration_value_type & value( void ) { return( f_value ); }
+
 /*---------------------- PUBLIC FIELDS OF THE CLASS ------------------------*/
 
  SimpleConfiguration_value_type f_value;  // the value

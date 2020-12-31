@@ -685,10 +685,9 @@ class PolyhedralFunction : public C05Function {
   * immediate removal from the global pool of all the linearizations obtained
   * by linear combination. */
 
- void store_combination_of_linearizations( LinearCombination & coefficients ,
-					   Index name ,
-					   ModParam issueMod = eModBlck )
-  override;
+ void store_combination_of_linearizations(
+			    c_LinearCombination & coefficients , Index name ,
+			    ModParam issueMod = eModBlck ) override;
 
 /*--------------------------------------------------------------------------*/
 

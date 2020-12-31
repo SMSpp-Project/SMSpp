@@ -1023,7 +1023,7 @@ void LagBFunction::store_linearization( Index name , ModParam issueMod )
 /*--------------------------------------------------------------------------*/
 
 void LagBFunction::store_combination_of_linearizations(
-	LinearCombination & coefficients , Index name , ModParam issueMod )
+	c_LinearCombination & coefficients , Index name , ModParam issueMod )
 {
  if( name >= g_pool.size() )
   throw( std::logic_error( "max size of global pool already exceed" ) );

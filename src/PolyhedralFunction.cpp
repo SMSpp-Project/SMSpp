@@ -256,8 +256,7 @@ void PolyhedralFunction::store_linearization( Index name ,
 /*--------------------------------------------------------------------------*/
 
 void PolyhedralFunction::store_combination_of_linearizations(
-					   LinearCombination & coefficients ,
-					   Index name ,	ModParam issueMod )
+        c_LinearCombination & coefficients , Index name , ModParam issueMod )
 {
  if( name >= v_glob.size() )
   throw( std::invalid_argument( "invalid global pool name" ) );

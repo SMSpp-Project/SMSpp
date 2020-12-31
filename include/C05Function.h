@@ -838,7 +838,7 @@ class C05Function : public Function {
   * "abstract represenation" that the global pool provides. */
 
  virtual void store_combination_of_linearizations(
-  LinearCombination & coefficients , Index name ,
+  c_LinearCombination & coefficients , Index name ,
   ModParam issueMod = eModBlck ) {}
 
 /*--------------------------------------------------------------------------*/
