@@ -2020,7 +2020,7 @@ void serialize( netCDF::NcGroup & group , const std::vector< T > & data ,
 template< class T >
 bool deserialize_dim( const netCDF::NcGroup & group ,
 		      const std::string & dim_name , T & data ,
-		      const bool optional = true )
+		      bool optional = true )
 {
  netCDF::NcDim ncDim = group.getDim( dim_name );
  if( ncDim.isNull() ) {

@@ -158,7 +158,7 @@ class Configuration
  }
 
 /*--------------------------------------------------------------------------*/
- /// de-serialize a :Configuration out of a netCDF file
+ /// de-serialize a :Configuration out of a file
  /** Top-level de-serialization method: takes the \p filename of a file
   * (possibly also encoding a position into it), and returns the complete
   * :Configuration object whose description is the one found (at the

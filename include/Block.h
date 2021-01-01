@@ -974,7 +974,7 @@ class Block : public Observer {
   *
   * The method works with two different kinds of netCDF::NcGroup:
   *
- * - A "direct" group that contains at least the string attribute "type";
+  * - A "direct" group that contains at least the string attribute "type";
   *   this is used it in the factory to construct an "empty" :Block of that
   *   type (and with the given \p father, if any) [see
   *   new_Block( std::string & [ , Block * ] )], and then the method

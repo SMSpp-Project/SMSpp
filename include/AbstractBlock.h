@@ -57,8 +57,8 @@
 /*--------------------------------------------------------------------------*/
 
 /// namespace for the Structured Modeling System++ (SMS++)
-namespace SMSpp_di_unipi_it {
-
+namespace SMSpp_di_unipi_it
+{
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS AbstractBlock ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -223,17 +223,10 @@ class AbstractBlock : public Block {
   * Block constructor, and does little else except initializing all the
   * fields to default values. */
 
- explicit AbstractBlock( Block * father = nullptr ) :
-  Block( father ),
-  f_ub( Inf< double >() ),
-  f_lb( -Inf< double >() ),
-  f_ub_cond( false ),
-  f_lb_cond( false ),
-  f_1st_stat_var( 0 ),
-  f_1st_dyn_var( 0 ),
-  f_1st_stat_cnst( 0 ),
-  f_1st_dyn_cnst( 0 ),
-  f_res_obj( false ),
+ explicit AbstractBlock( Block * father = nullptr ) : Block( father ) ,
+  f_ub( Inf< double >() ) , f_lb( -Inf< double >() ) , f_ub_cond( false ) ,
+  f_lb_cond( false ) , f_1st_stat_var( 0 ) , f_1st_dyn_var( 0 ) ,
+  f_1st_stat_cnst( 0 ) , f_1st_dyn_cnst( 0 ) , f_res_obj( false ) ,
   f_1st_sub_block( 0 ) {}
 
 /*--------------------------------------------------------------------------*/
@@ -306,11 +299,11 @@ class AbstractBlock : public Block {
   * the conditionally valid one otherwise, with the other being automatically
   * set to + infinity. */
 
- void set_valid_upper_bound( double newub = +Inf< double >(),
+ void set_valid_upper_bound( double newub = +Inf< double >() ,
                              bool conditional = false ) {
   f_ub = newub;
   f_ub_cond = conditional;
- }
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set a (either globally valid or conditionally valid) lower bound
@@ -325,11 +318,11 @@ class AbstractBlock : public Block {
   * the conditionally valid one otherwise, with the other being automatically
   * set to - infinity. */
 
- void set_valid_lower_bound( double newlb = -Inf< double >(),
+ void set_valid_lower_bound( double newlb = -Inf< double >() ,
                              bool conditional = false ) {
   f_lb = newlb;
   f_lb_cond = conditional;
- }
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- Methods for reading the data of the AbstractBlock ----------*/
@@ -343,7 +336,9 @@ class AbstractBlock : public Block {
   * the corresponding field. Setting which, however, is responsibility of
   * the derived classes. */
 
- Index get_first_static_Constraint() const { return( f_1st_stat_cnst ); }
+ Index get_first_static_Constraint( void ) const {
+  return( f_1st_stat_cnst );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the index of the first group of "available" dynamic Constraint
@@ -352,7 +347,9 @@ class AbstractBlock : public Block {
   * the corresponding field. Setting which, however, is responsibility of
   * the derived classes. */
 
- Index get_first_dynamic_Constraint() const { return( f_1st_dyn_cnst ); }
+ Index get_first_dynamic_Constraint( void ) const {
+  return( f_1st_dyn_cnst );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the index of the first group of "available" static Variable
@@ -361,7 +358,7 @@ class AbstractBlock : public Block {
   * the corresponding field. Setting which, however, is responsibility of
   * the derived classes. */
 
- Index get_first_static_Variable() const { return( f_1st_stat_var ); }
+ Index get_first_static_Variable( void ) const { return( f_1st_stat_var ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the index of the first group of "available" dynamic Variable
@@ -370,7 +367,7 @@ class AbstractBlock : public Block {
   * the corresponding field. Setting which, however, is responsibility of
   * the derived classes. */
 
- Index get_first_dynamic_Variable() const { return( f_1st_dyn_var ); }
+ Index get_first_dynamic_Variable( void ) const { return( f_1st_dyn_var ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the index of the first "available" inner Block
@@ -379,7 +376,7 @@ class AbstractBlock : public Block {
   * the corresponding field. Setting which, however, is responsibility of
   * the derived classes. */
 
- Index get_first_inner_Block() const { return( f_1st_sub_block ); }
+ Index get_first_inner_Block( void ) const { return( f_1st_sub_block ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// tells if the Objective is reserved
@@ -388,7 +385,7 @@ class AbstractBlock : public Block {
   * just returning the value of the corresponding field. Setting which,
   * however, is responsibility of the derived classes. */
 
- bool is_Objective_reserved() const { return( f_res_obj ); }
+ bool is_Objective_reserved( void ) const { return( f_res_obj ); }
 
 /*--------------------------------------------------------------------------*/
  /// allow unfettered access to nested Block
@@ -510,7 +507,7 @@ class AbstractBlock : public Block {
   *
   * - otherwise, it is 0. */
 
- bool is_feasible( bool useabstract = false,
+ bool is_feasible( bool useabstract = false ,
                    Configuration * fsbc = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
@@ -541,7 +538,7 @@ class AbstractBlock : public Block {
   * boost::any, and one of the reasins why these will be put to the wall when
   * the revolution will come. */
 
- void is_correct();
+ void is_correct( void );
 
 /**@} ----------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
@@ -576,7 +573,7 @@ class AbstractBlock : public Block {
   *
   * - otherwise, it is 0. */
 
- Solution * get_Solution( Configuration * solc = nullptr,
+ Solution * get_Solution( Configuration * solc = nullptr ,
                           bool emptys = true ) override;
 
 /**@} ----------------------------------------------------------------------*/
@@ -629,8 +626,8 @@ class AbstractBlock : public Block {
   * concrete. */
 
  void load( std::istream & input ) override {
-  throw ( std::logic_error( "AbstractBlock::load not implemented yet" ) );
- }
+  throw( std::logic_error( "AbstractBlock::load not implemented yet" ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// do all the dirty work for deserialize()

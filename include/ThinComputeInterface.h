@@ -1445,7 +1445,7 @@ class ComputeConfig : public Configuration {
 
  [[nodiscard]] ComputeConfig * clone( void ) const override {
   return( new ComputeConfig( *this ) );
- }
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// extends Configuration::deserialize( netCDF::NcGroup )

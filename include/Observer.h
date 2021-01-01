@@ -5,9 +5,9 @@
  * Header file for the Observer class, an abstract base class implementing
  * the concept of an observer which can be notified about Modifications.
  *
- * \version 0.31
+ * \version 0.40
  *
- * \date 02 - 02 - 2019
+ * \date 01 - 01 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -40,8 +40,8 @@
 /*--------------------------------------------------------------------------*/
 
 /// namespace for the Structured Modeling System++ (SMS++)
-namespace SMSpp_di_unipi_it {
-
+namespace SMSpp_di_unipi_it
+{
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -106,8 +106,7 @@ class Observer {
  /// the "name" of a Modification "channel"
  typedef unsigned short int ChnlName;
 
- /// a const ChnlName
- typedef const ChnlName c_ChnlName;
+ typedef const ChnlName c_ChnlName;  ///< a const ChnlName
 
 /*--------------------------------------------------------------------------*/
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
@@ -117,7 +116,7 @@ class Observer {
 
  /// constructor of Observer, it has nothing to do
 
- Observer() = default;
+ Observer( void ) = default;
 
 /*--------------------------------------------------------------------------*/
  ///< copy constructor, it has nothing to do either
@@ -139,7 +138,7 @@ class Observer {
  /** Any Observer either is a Block, or belongs to one. This method has to
   * return a pointer to such Block. */
 
- [[nodiscard]] virtual Block * get_Block() const = 0;
+ [[nodiscard]] virtual Block * get_Block( void ) const = 0;
 
 /*--------------------------------------------------------------------------*/
  /// returns true if there is "anybody listening to Modification"
@@ -152,7 +151,7 @@ class Observer {
   * Modification themselves because they need to "intercept them and change
   * them along the way". */
 
- [[nodiscard]] virtual bool anyone_there() const = 0;
+ [[nodiscard]] virtual bool anyone_there( void ) const = 0;
 
 /*--------------------------------------------------------------------------*/
  /// notify this Observer about a Modification
