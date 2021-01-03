@@ -2,12 +2,14 @@
 /*------------------------- File LagBFunction.h ----------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Header file for the class LagBFunction, which implements the C05Function
- * interface for a Lagrangian function.
+ * Header file for the LagBFunction class, which is derived from both a
+ * C05Function and a Block and implements the concept of the Lagrangian of
+ * some Block (the unique sub-Block of LagBFunction when "seen" as a Block)
+ * w.r.t. a given set of linear terms.
  *
- * \version 0.10
+ * \version 0.20
  *
- * \date 13 - 09 - 2020
+ * \date 03 - 01 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -157,11 +159,12 @@ namespace SMSpp_di_unipi_it
  *     SINCE LagBFunction RELIES ON THE Solver ATTACHED TO THE INNER Block TO
  *     COMPUTE ITSELF, THERE MUST BE SUCH A Solver BY THE TIME compute() IS
  *     FIRST CALLED. IF MORE THAN ONE Solver IS ATTACHED TO THE INNER Block,
- *     LagBFunction ALWAYS USES THE FIRST OF THEM. REGISTERING OR
- *     UN-REGISTERING Solver FROM THE INNER Block OF THE LagBFunction MUST
- *     NEVER CAUSE THE LIST TO BECOME EMPTY OR THE FIRST Solver IN THE LIST
- *     TO CHANGE IF INFORMATION PRODUCED IN THE LAST compute() (FUNCTION
- *     VALUES, LINEARIZATIONS, ...) IS STILL TO BE RETRIEVED.
+ *     LagBFunction USES THE ONE SPECIFIED BY THE InnrSlvr PARAMETER (by
+ *     default the forst of them). REGISTERING OR UN-REGISTERING Solver FROM
+ *     THE INNER Block OF THE LagBFunction MUST NEVER CAUSE InnrSlvr TO
+ *     BECOME INVALID, OR TO CHANGE IF INFORMATION PRODUCED IN THE LAST
+ *     compute() (FUNCTION VALUES, LINEARIZATIONS, ...) IS STILL TO BE
+ *     RETRIEVED.
  *
  * It should, however, in principle be possible to change the Solver at every
  * call of compute(), provided this is done "right before the call".
@@ -531,6 +534,23 @@ class LagBFunction : public C05Function , public Block {
   v_dual_pair::const_iterator itr_;
   };
 
+/*--------------------------------------------------------------------------*/
+ /// public enum for the int algorithmic parameters
+ /** Public enum describing the different algorithmic parameters of int type
+  * that LagBFunction has in addition to these of CDASolver. The 
+  * value intLastLDSSlvPar is provided so that the list can be easily further
+  * extended by derived classes. */
+
+ enum int_par_type_LagBF {
+
+ intInnrSlvr = intLastParC05F ,  ///< index of the inner Solver
+
+ intLastLagBFPar   ///< first allowed new int parameter for derived classes
+                   /**< Convenience value for easily allow derived classes
+		    * to extend the set of int algorithmic parameters. */
+
+ };  // end( int_par_type_LagBF )
+
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -598,26 +618,27 @@ class LagBFunction : public C05Function , public Block {
  /// set the whole set of parameters in one blow
  /** LagBFunction "listens" to the following parameters:
   *
-  * - intLPMaxSz: the value of intLPMaxSz is passed to the (first) Solver
-  *               registered to the inner Block as the Solver::intMaxSol
-  *    parameter, since each different Variable Solution produced by the
-  *    Solver immediately translates into a linearization of the LagBFunction
+  * - intInnrSlvr: the index of the inner Solver, i.e., its position in the
+  *                list of registered Solver in the inner Block
+  *
+  * - intLPMaxSz: the value of intLPMaxSz is passed to theinner Solver as
+  *               the Solver::intMaxSol parameter, since each different
+  *   Variable Solution produced by the Solver immediately translates into
+  *   a linearization of the LagBFunction
   *
   * - intGPMaxSz: controls the maximum number of stored Solution from
   *               the Solver, each one of which (again) corresponds to a
   *               linearization
   *
-  * - dblRAccLin: the value of dblRAccLin is passed to the (first) Solver
-  *               registered to the inner Block as the Solver::dblRelAcc
-  *   parameter, since the relative error made by the Solver in computing
-  *   the Variable Solution immediately translates into the accuracy of the
-  *   corresponding linearization.
+  * - dblRAccLin: the value of dblRAccLin is passed to the inner Solver as
+  *               the Solver::dblRelAcc parameter, since the relative error
+  *   made by the Solver in computing the Variable Solution immediately
+  *   translates into the accuracy of the corresponding linearization.
   *
-  * - dblAAccLin: the value of dblAAccLin is passed to the (first) Solver
-  *               registered to the inner Block as the Solver::dblAbsAcc
-  *   parameter, since the absolute error made by the Solver in computing
-  *   the Variable Solution immediately translates into the accuracy of the
-  *   corresponding linearization.
+  * - dblAAccLin: the value of dblAAccLin is passed to the inner Solver as
+  *               the Solver::dblAbsAcc parameter, since the absolute error
+  *   made by the Solver in computing the Variable Solution immediately
+  *   translates into the accuracy of the corresponding linearization.
   *
   * LagBFunction also uses the f_extra_Configuration field of the provided
   * ComputeConfig. That field, if non-nullptr, is assumed to be:
@@ -874,7 +895,7 @@ class LagBFunction : public C05Function , public Block {
  /** Compute the LagBFunction: this amounts at computing the Lagrangian costs
   * and changing the costs in the inner Block accordingly (if the Lagrangian
   * variables have changed, i.t., \p changedvars == true), and then using the
-  * Solver attached to the inner Block to solve it.
+  * specified Solver attached to the inner Block to solve it.
   *
   * Note that LagBFunction "stealthily" adds [Col]Variable to the Objective
   * of the inner Block in case there are Lagrangian terms involving some
@@ -935,10 +956,7 @@ class LagBFunction : public C05Function , public Block {
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  FunctionValue get_lower_estimate( void ) const override {
-  auto slvr = v_Block.front()->get_registered_solvers().front();
-  if( ! slvr )
-   throw( std::logic_error( "get_lower_estimate called with no Solver" ) );
-  auto lb = slvr->get_lb();
+  auto lb = inner_Solver()->get_lb();
   if( lb == -Inf<FunctionValue>() )
    return( lb );
   else {
@@ -951,10 +969,7 @@ class LagBFunction : public C05Function , public Block {
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  FunctionValue get_upper_estimate( void ) const override {
-  auto slvr = v_Block.front()->get_registered_solvers().front();
-  if( ! slvr )
-   throw( std::logic_error( "get_upper_estimate called with no Solver" ) );
-  auto ub = slvr->get_ub();
+  auto ub = inner_Solver()->get_ub();
   if( ub == Inf<FunctionValue>() )
    return( ub );
   else {
@@ -1120,11 +1135,11 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- // int get_dflt_int_par( const idx_type par ) const override;
+ int get_dflt_int_par( idx_type par ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- // double get_dflt_dbl_par( const idx_type par ) const override;
+ // double get_dflt_dbl_par( idx_type par ) const override;
 
 /**@} ----------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE LagBFunction ---------*/
@@ -1293,6 +1308,24 @@ class LagBFunction : public C05Function , public Block {
  template< typename par_type >
  void add_par( std::string && name , par_type value );
  
+/*--------------------------------------------------------------------------*/
+
+ Solver * inner_Solver( void ) const {
+  if( ! p_InnrSlvr ) {
+   if( v_Block.empty() )
+    throw( std::logic_error( "inner Solver invoked with no inner Block" ) );
+   auto & rs = v_Block.front()->get_registered_solvers();
+   if( rs.size() <= InnrSlvr )
+    throw( std::logic_error( "wrong inner Solver index" ) );
+   auto rsit = rs.begin();
+   std::next( rsit , InnrSlvr );
+   // note the horribly dirty trick of casting away const-ness from this
+   // to allow inner_Solver() to be const and therefore used in const methods
+   const_cast< LagBFunction * >( this )->p_InnrSlvr = *rsit;
+   }
+  return( p_InnrSlvr );
+  }
+
 /**@} ----------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1302,7 +1335,11 @@ class LagBFunction : public C05Function , public Block {
  DQuadFunction * qobj;  ///< the (DQuadFunction inside the) Objective of (B)
 
  bool IsConvex;         ///< true if the LagBFunction is convex
- 
+
+ Index InnrSlvr;        ///< [index of the] Solver of the inner Block
+
+ Solver * p_InnrSlvr;   ///< [pointer to the] Solver of the inner Block
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  v_dual_pair LagPairs;  ///< vector of Lagrangian dual pairs

@@ -2,13 +2,14 @@
 /*------------------------ File LagBFunction.cpp ---------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Implementation of the LagBFunction class, which is derived from
- * both a C05Function and a Block. The class is an interface for a
- * Lagrangian function.
+ * Implementation of the LagBFunction class, which is derived from both a
+ * C05Function and a Block and implements the concept of the Lagrangian of
+ * some Block (the unique sub-Block of LagBFunction when "seen" as a Block)
+ * w.r.t. a given set of linear terms.
  *
  * \version 0.20
  *
- * \date 18 - 09 - 2020
+ * \date 03 - 01 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -113,17 +114,16 @@ SMSpp_insert_in_factory_cpp_1( LagBFunction );
 
 LagBFunction::LagBFunction( Block * innerblock , Observer * observer )
  : C05Function() , obj( nullptr ) , qobj( nullptr ) , IsConvex( true ) ,
-   f_max_glob( 0 ) , LastSolution( 0 ) , VarSol( true ) , f_yb( -INF ) ,
-   f_play_dumb( false ) , f_dirty_Lc( false ) , LPMaxSz( 0 ) , RAccLin( 0 ) ,
-   AAccLin( 0 ) , f_BSC( new BlockSolverConfig ) , f_BSC_changed( false )
+   InnrSlvr( 0 ) , p_InnrSlvr( nullptr ) , f_max_glob( 0 ) ,
+   LastSolution( 0 ) , VarSol( true ) , f_yb( -INF ) , f_play_dumb( false ) ,
+   f_dirty_Lc( false ) , LPMaxSz( 0 ) , RAccLin( 0 ) , AAccLin( 0 ) ,
+   f_BSC( new BlockSolverConfig ) , f_BSC_changed( false )
 {
  // set the pointer to the sub-Block (B) - - - - - - - - - - - - - - - - - - -
-
  if( innerblock )
   set_inner_block( innerblock );
 
  // set the observer pointer - - - - - - - - - - - - - - - - - - - - - - - - -
-
  if( observer )
   register_Observer( observer );
 
@@ -336,7 +336,7 @@ void LagBFunction::set_ComputeConfig( ComputeConfig * scfg )
     f_BSC->clear();                    // but clear it
     f_BSC->set_diff( true );           // and set it in "diff mode"
 
-    // if there are no ComputeConfig, add any "empty" one that serves to
+    // ensure there is a ComputeConfig in diff mode ready that serves to
     // store the parameters that get passed to LagBFunction but that need to
     // be "forwarded" to the first Solver registered to the inner Block;
     // note that one would expect the ComputeConfig to be there since the
@@ -344,10 +344,11 @@ void LagBFunction::set_ComputeConfig( ComputeConfig * scfg )
     // be compute()-d, but it's the user's responsibility to ensure that this
     /// does happen (this call to set_ComputeConfig() may be happening right
     // before destruction, or no call to compute() may be done
-    if( ! f_BSC->num_ComputeConfig() )
-     f_BSC->add_ComputeConfig( "" , new ComputeConfig );
-    // set the first ComputeConfig in "diff mode", too
-    f_BSC->get_SolverConfig( 0 )->f_diff = true;
+    while( f_BSC->num_ComputeConfig() <= InnrSlvr ) {
+     auto cc = new ComputeConfig;
+     cc->f_diff = true;
+     f_BSC->add_ComputeConfig( "" , cc );
+     }
     }
    }
   else {  // scfg->f_extra_Configuration is nullptr
@@ -361,6 +362,15 @@ void LagBFunction::set_ComputeConfig( ComputeConfig * scfg )
  // done last because it may change some of the parameters of the Solver
  // used to solve the inner Block, that may not exist before the
  // extra Configuration is apply()-ed to the inner Block
+ //
+ // note that the inner Solver may be changing and some other parameters
+ // actually are parameters of the inner Solver; thus, ensure that the
+ // change in InnrSlvr is acted upon first
+ for( const auto & pair : scfg->int_pars )
+  if( pair.first == "intInnrSlvr" )
+   set_par( intInnrSlvr , pair.second );
+
+ // now do all the rest
  ThinComputeInterface::set_ComputeConfig( scfg );
 
  }  // end( LagBFunction::set_ComputeConfig )
@@ -392,7 +402,18 @@ void LagBFunction::set_par( idx_type par , int value )
      }    
     }
    g_pool.resize( value , gpool_el( nullptr , true ) );
-
+   break;
+  case( intInnrSlvr ):
+   if( InnrSlvr != Index( value ) ) {
+    InnrSlvr = Index( value );
+    p_InnrSlvr = nullptr;
+    // ensure there is a ComputeConfig in diff mode ready
+    while( f_BSC->num_ComputeConfig() <= InnrSlvr ) {
+     auto cc = new ComputeConfig;
+     cc->f_diff = true;
+     f_BSC->add_ComputeConfig( "" , cc );
+     }
+    }
    break;
   default: Function::set_par( par , value );
   }
@@ -955,10 +976,9 @@ void LagBFunction::serialize( netCDF::NcGroup & group ) const
 
 bool LagBFunction::has_linearization( const bool diagonal )
 {
+ auto is = inner_Solver();
  // true if the first linearization of the related type exists
- bool newlin = diagonal
-  ? v_Block.front()->get_registered_solvers().front()->has_var_solution()
-  : v_Block.front()->get_registered_solvers().front()->has_var_direction();
+ bool newlin = diagonal ? is->has_var_solution() : is->has_var_direction();
 
  if( newlin ) {                  // the Solver has the desired stuff
   VarSol = diagonal;             // set the type of the Solution
@@ -973,10 +993,10 @@ bool LagBFunction::has_linearization( const bool diagonal )
 
 bool LagBFunction::compute_new_linearization( const bool diagonal )
 {
+ auto is = inner_Solver();
+
  // true if another linearization of the related type exists
- bool newlin = diagonal
-  ? v_Block.front()->get_registered_solvers().front()->new_var_solution()
-  : v_Block.front()->get_registered_solvers().front()->new_var_direction();
+ bool newlin = diagonal ? is->new_var_solution() : is->new_var_direction();
 
  if( newlin ) {                  // the Solver has the desired stuff
   VarSol = diagonal;             // set the type of the Solution
@@ -1256,8 +1276,7 @@ int LagBFunction::compute( bool changedvars )
  // Solver to properly check to avoid doing useless work
 
  // return the status of the Solver as the status of the LagBFunction
- return( v_Block.front()->get_registered_solvers().front()->compute( false )
-	 );
+ return( inner_Solver()->compute( false ) );
 
  }  // end( LagBFunction::compute() )
 
@@ -1277,10 +1296,11 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
 
   // get solution/direction from the solver
   if( LastSolution != Inf<Index>() ) {  // ... if necessary
+   auto is = inner_Solver();
    if( VarSol )
-    v_Block.front()->get_registered_solvers().front()->get_var_solution();
+    is->get_var_solution();
    else
-    v_Block.front()->get_registered_solvers().front()->get_var_direction();
+    is->get_var_direction();
 
    LastSolution = Inf<Index>();
    }
@@ -1321,10 +1341,11 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
 
   // get solution/direction from the solver
   if( LastSolution != Inf<Index>() ) {  // ... if necessary
+   auto is = inner_Solver();
    if( VarSol )
-    v_Block.front()->get_registered_solvers().front()->get_var_solution();
+    is->get_var_solution();
    else
-    v_Block.front()->get_registered_solvers().front()->get_var_direction();
+    is->get_var_direction();
 
    LastSolution = Inf<Index>();
    }
@@ -1363,10 +1384,11 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
 
   // get solution/direction from the solver
   if( LastSolution != Inf<Index>() ) {  // ... if necessary
+   auto is = inner_Solver();
    if( VarSol )
-    v_Block.front()->get_registered_solvers().front()->get_var_solution();
+    is->get_var_solution();
    else
-    v_Block.front()->get_registered_solvers().front()->get_var_direction();
+    is->get_var_direction();
 
    LastSolution = Inf<Index>();
    }
@@ -1515,8 +1537,9 @@ void LagBFunction::get_MatDesc( int * Abeg , int * Aind , double * Aval ,
 int LagBFunction::get_int_par( const idx_type par ) const
 {
  switch( par ) {
-  case( intLPMaxSz ): return( LPMaxSz ); break;
-  case( intGPMaxSz ): return( g_pool.size() ); break;
+  case( intLPMaxSz ):  return( LPMaxSz ); break;
+  case( intGPMaxSz ):  return( g_pool.size() ); break;
+  case( intInnrSlvr ): return( InnrSlvr ); break;
   default:            return( C05Function::get_dflt_int_par( par ) );
   }
  }  // end( LagBFunction::get_int_par )
@@ -1533,11 +1556,13 @@ double LagBFunction::get_dbl_par( const idx_type par ) const
  }  // end( LagBFunction::get_dbl_par )
 
 /*--------------------------------------------------------------------------*/
-/*
-int LagBFunction::get_dflt_int_par( const idx_type par ) const {
+
+int LagBFunction::get_dflt_int_par( idx_type par ) const {
+ if( par == intInnrSlvr )
+  return( 0 );
  return( C05Function::get_dflt_int_par( par ) ) ;
  }
-*/
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /*
 double LagBFunction::get_dflt_dbl_par( const idx_type par ) const {
@@ -3010,7 +3035,7 @@ void LagBFunction::update_CostMatrix_ModVarsSbst( c_Vec_p_Var & vars ,
 template< typename par_type >
 void LagBFunction::add_par( std::string && name , par_type value )
 {
- f_BSC->get_SolverConfigs().front()->set_par( std::move( name ) , value );
+ f_BSC->get_SolverConfigs()[ InnrSlvr ]->set_par( std::move( name ) , value );
  f_BSC_changed = true;
  }
  
