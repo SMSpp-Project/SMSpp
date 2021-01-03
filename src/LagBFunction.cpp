@@ -165,6 +165,11 @@ void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
  if( ! innerblock )
   throw( std::invalid_argument( "empty inner Block not allowed" ) );
 
+ // ensure the Objective of the inner Block is defined (and therefore the
+ // Variable need to) because LagBFunction checks it
+ innerblock->generate_abstract_variables();
+ innerblock->generate_objective();
+
  const auto frobj = innerblock->get_objective< FRealObjective >();
  if( ! frobj )
   throw( std::invalid_argument( "inner Block Objective not a FRealObjective"
