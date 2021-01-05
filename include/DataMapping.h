@@ -9,7 +9,7 @@
  *
  * \version 0.1
  *
- * \date 20 - 09 - 2020
+ * \date 05 - 01 - 2021
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -883,11 +883,13 @@ public:
    }
   }
 
-  if( cardinality( set_to ) < cardinality( set_from ) ||
-      cardinality( set_to ) % cardinality( set_from ) != 0 ) {
-   throw( std::logic_error( "SimpleDataMapping::deserialize: the cardinality "
-                            "of 'SetTo' must be a positive multiple of the "
-                            "cardinality of 'SetFrom'." ) );
+  if( cardinality( set_from ) != 0 ) {
+   if( cardinality( set_to ) < cardinality( set_from ) ||
+       cardinality( set_to ) % cardinality( set_from ) != 0 ) {
+    throw( std::logic_error( "SimpleDataMapping::deserialize: the cardinality "
+                             "of 'SetTo' must be a positive multiple of the "
+                             "cardinality of 'SetFrom'." ) );
+   }
   }
  }
 
@@ -974,11 +976,13 @@ public:
    next_index += set_to.size();
   }
 
-  if( cardinality( set_to ) < cardinality( set_from ) ||
-      cardinality( set_to ) % cardinality( set_from ) != 0 ) {
-   throw( std::logic_error( "SimpleDataMapping::deserialize: the cardinality "
-                            "of 'SetTo' must be a positive multiple of the "
-                            "cardinality of 'SetFrom'." ) );
+  if( cardinality( set_from ) != 0 ) {
+   if( cardinality( set_to ) < cardinality( set_from ) ||
+       cardinality( set_to ) % cardinality( set_from ) != 0 ) {
+    throw( std::logic_error( "SimpleDataMapping::deserialize: the cardinality "
+                             "of 'SetTo' must be a positive multiple of the "
+                             "cardinality of 'SetFrom'." ) );
+   }
   }
 
   set_elements_start_index = next_index;
