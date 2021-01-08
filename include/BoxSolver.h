@@ -15,7 +15,7 @@
  * not box ones: rather than protesting for their existance and refusing to
  * load, it plainly ignores them. This means that the computed optimal value
  * possibly is a(n hopefully finite) valid bound (lower or upper, according
- * to the verse of the original Objective) on the true optimal value. Yet,
+ * to the sense of the original Objective) on the true optimal value. Yet,
  * this bound is obtained quickly.
  *
  * \version 0.10
@@ -34,14 +34,13 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __BoxSolver
- #define __BoxSolver
-                      /* self-identification: #endif at the end of the file */
+ #define __BoxSolver  /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#include "Solver.h"
+#include "CDASolver.h"
 
 /*--------------------------------------------------------------------------*/
 /*----------------------------- NAMESPACE ----------------------------------*/
@@ -76,7 +75,7 @@ namespace SMSpp_di_unipi_it
  * not box ones: rather than protesting for their existance and refusing to
  * load, it plainly ignores them. This means that the computed optimal value
  * possibly is a(n hopefully finite) valid bound (lower or upper, according
- * to the verse of the original Objective) on the true optimal value. Yet,
+ * to the sense of the original Objective) on the true optimal value. Yet,
  * this bound is obtained quickly.
  *
  * In fact, for the problems solved by BoxSolver have the very uncommon
@@ -84,7 +83,28 @@ namespace SMSpp_di_unipi_it
  * max of the Objective, and to compute *both* the min and the max. So, this
  * is what BoxSolver does: each time compute() is called, it computes and
  * makes it available both the minimum and the maximum of the objective,
- * (almost) regardless to what the original verse was. */
+ * (almost) regardless to what the original sense was.
+ *
+ * Note that, albeit very simple due to separability, the problem is not
+ * necessarily convex: the ColVariable may have integrality constraints, and
+ * a quadratic function is not equivalent to minimize or maximise as it is a
+ * linear one. Thus, while BoxSolver derives from CDASolver,
+ *
+ *    IT WILL ONLY REPORT DUAL SOLUTIONS FOR THOSE ColVariable WHOSE
+ *    OPTIMIZATION LEADS TO EXACT DUALITY (no integrality constraints,
+ *    minimization of convex / maximization of concave.
+ *
+ * Furthermore
+ *
+ *    DUAL VALUES CAN ONLY BE RETURNED IF THE "ACTIVE" BOX CONSTRAINT IS
+ *    A OneVarConstraint, WHICH MAY NOT ALWAYS BE SO
+ *
+ * In fact, ColVariable has "built-in" bound constraints which may be the
+ * ones dictating the optimal solution (the box constraints dictated by the
+ * OneVarConstraint being looser, ar not being there at all). In this case,
+ * the optimal dual value "has nowhere to go" and is lost for good. If this
+ * is not acceptable, the user must ensure that a OneVarConstraint always
+ * exists that is at least as tight as the "built-in" bound constraints. */
 
 class BoxSolver : public CDASolver
 {
@@ -117,9 +137,9 @@ public:
  *  @{ */
 
  /// empty constructor
- BoxSolver( void ) : CDASolver() , f_sol( 0 ) , f_status( kUnEval ) ,
+ BoxSolver( void ) : CDASolver() , f_sol( 0 ) , f_wcmp( 0 ) ,
   f_max_val( - Inf< OFValue >() ) , f_min_val( Inf< OFValue >() ) ,
-  f_verse( -1 ) {}
+  f_sense( -1 ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor: it really does nothing since v_mod is empty
@@ -134,7 +154,7 @@ public:
 
  void set_Block( Block * block ) override {
   CDASolver::set_Block( block );
-  f_verse = -1;
+  f_sense = -1;
   reset();
   }
 
@@ -143,26 +163,29 @@ public:
 
  void set_par( idx_type par , int value ) override {
   if( par == intPDSol ) {
-   sol = char( value );
+   f_sol = char( value );
    return;
    }
   CDASolver::set_par( par , value );
   }
 
 /*--------------------------------------------------------------------------*/
- /// decide if the primal and/or dual solution is computed
- /** Decide if the primal and/or dual solution is computed. Since this has
-  * the same cost as producing the bound(s), it is EITHER DONE DURING THE
-  * SOLUTION PROCESS AND THE OPTIMAL PRIMAL AND / OR DUAL SOLUTION IS
-  * IMMEDIATELY WRITTEN IN THE ColVariable / DUAL VALUES OF THE
+ /// set what is computed (primal/dual solution, opposite bound)
+ /** Decides what is computed besides the optimal value: the primal and/or
+  * dual solution and/or the opposite bound (with the opposite sense).
+  *
+  * Since computing solutions has the same cost as producing the bound(s), it
+  * IS EITHER DONE INSIDE compute(), AND THE OPTIMAL PRIMAL AND / OR DUAL
+  * SOLUTION IS IMMEDIATELY WRITTEN IN THE ColVariable / DUAL VALUES OF THE
   * :OneVarConstraint, OR NOT AT ALL.
   *
-  * @param sol is a char, coded bit-wise, that decides if BoxSolver produces
-  *        a primal and/or dual optimal solution 
+  * @param sol is a char, coded bit-wise, that decides what is computed:
   *
-  *        - bit 0: the primal optimal solution is produced
+  *        - bit 0: the opposite bound
   *
-  *        - bit 1: the primal dual solution is produced
+  *        - bit 1: the primal solution is produced
+  *
+  *        - bit 2: the dual solution is produced
   *
   * Note that there is the usual issue with dual solutions: if one of the
   * "inherent" bounds of a ColVariable has a nonzero dual value but there is
@@ -193,22 +216,20 @@ public:
 /*---------------------- METHODS FOR READING RESULTS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
- bool has_var_solution( void ) override { return( f_sol & 1 ); }
+ bool has_var_solution( void ) override { return( f_sol & 2 ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- bool has_dual_solution( void ) override { return( f_sol & 2 ); }
+ bool has_dual_solution( void ) override { return( f_sol & 4 ); }
 
 /*--------------------------------------------------------------------------*/
 
  OFValue get_var_value( void ) override {
-  return( f_verse == 1 ? : f_max_val : f_min_val );
+  if( ! ( f_wcmp & 1 ) 
+   throw( std::logic_error( "BoxSolver: compute() not called" ) );
+
+  return( f_sense == 1 ? : f_max_val : f_min_val );
   }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
-
-
 
 /*--------------------------------------------------------------------------*/
 
@@ -221,24 +242,23 @@ public:
 /*--------------------------------------------------------------------------*/
 
  OFValue get_lb( void ) override {
-  return( f_verse == 1 ? : f_max_val : f_min_val );
+  return( f_sense == 1 ? : f_max_val : f_min_val );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  OFValue get_ub( void ) override {
-  return( f_verse == 1 ? : f_max_val : f_min_val );
+  return( f_sense == 1 ? : f_max_val : f_min_val );
   }
 
 /*--------------------------------------------------------------------------*/
- /// return the "opposite" bound w.r.t. get_[lb/ub]()
- /** While get_[lb/ub]() return the same value, corresponding to the
-  * optimization with the verse specified by the objective,
-  * get_opposite_bound() returns the value corresponding to the optimization
-  * with the opposite verse. */
+ /// return the "opposite" bound w.r.t. get_var_value()
+ /** While get_var_value() returns the value corresponding to the optimization
+  * with the sense specified by the Objective, get_opposite_value() returns
+  * the value corresponding to the optimization with the opposite sense. */
 
- OFValue get_opposite_bound( void ) override {
-  return( f_verse == 0 ? : f_max_val : f_min_val );
+ OFValue get_opposite_value( void ) override {
+  return( f_sense == 0 ? : f_max_val : f_min_val );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -246,6 +266,13 @@ public:
 /*--------------------------------------------------------------------------*/
 /** @name Handling the parameters of the Solver
  *  @{ */
+
+ /// returns the current value controlling what is computed
+
+ [[nodiscard]] char get_sol( void ) const { return( f_sol ); }
+
+/*--------------------------------------------------------------------------*/
+
 
  [[nodiscard]] idx_type get_num_int_par( void ) const override {
   return( CDASolver::get_num_int_par() + 1 );
@@ -298,14 +325,15 @@ public:
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- void check_verse( Block * blck );
- 
+ void check_sense( Block * blck );
+
 /*--------------------------------------------------------------------------*/
 
- void reset( void ) {
-  f_max_val = - Inf< OFValue >();
-  f_min_val = Inf< OFValue >();
-  }
+ void reset( void ) { f_wcmp = 0; }
+
+/*--------------------------------------------------------------------------*/
+
+ void process_variable( ColVariable & var );
  
 /*--------------------------------------------------------------------------*/
 /*--------------------------- PRIVATE FIELDS -------------------------------*/
@@ -313,11 +341,16 @@ public:
 
  char f_sol;        ///< whether the primal and/or dual solution is computed
 
+ char f_wcmp;       ///< what has been computed so far
+                    /**< bit-coded field telling what has bin computed:
+		     * - bit 0 = 1: the value of the "nominal" bound
+		     * - bit 1 = 1: the value of the "opposite" bound */
+
  OFValue f_max_val;    ///< maximum of the Objective over the box
 
  OFValue f_min_val;    ///< minimum of the Objective over the box
 
- int f_verse;
+ int f_sense;
  ///< 1 if the Objective is max, 0 if it is min, -1 if it has to be computed
 
 /*--------------------------------------------------------------------------*/
