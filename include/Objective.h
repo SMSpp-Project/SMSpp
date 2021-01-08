@@ -103,8 +103,8 @@ class Variable;    // forward definition
  * copying an Objective to a different memory location makes a distinct
  * Objective. */
 
-class Objective : public ThinComputeInterface, public ThinVarDepInterface {
-
+class Objective : public ThinComputeInterface , public ThinVarDepInterface
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -128,9 +128,9 @@ class Objective : public ThinComputeInterface, public ThinVarDepInterface {
   * class. Also, Objective supports ways (see set_sense() and get_sense())
   * to easily "extend" the set of supported senses. */
  enum of_type {
-  eMin = 0,   ///< minimize the objective function
-  eMax = 1    ///< maximize the objective function
- };
+  eMin = 0 ,   ///< minimize the objective function
+  eMax = 1     ///< maximize the objective function
+  };
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
@@ -144,11 +144,11 @@ class Objective : public ThinComputeInterface, public ThinVarDepInterface {
   * void constructor. If nullptr is passed, then set_Block() [see below] will
   * have to be used later to initialize it. */
 
- explicit Objective( Block * my_block = nullptr ) : ThinComputeInterface(),
+ explicit Objective( Block * my_block = nullptr ) : ThinComputeInterface() ,
                                                     ThinVarDepInterface() {
   set_Block( my_block );
   f_sense = eMin;
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: it cannot be used, but it is not deleted
@@ -156,10 +156,10 @@ class Objective : public ThinComputeInterface, public ThinVarDepInterface {
   * cannot be deleted because it is required to resize() empty vectors of
   * :Objective. */
 
- Objective( const Objective & ) : ThinComputeInterface(),
-                                  ThinVarDepInterface() {
-  throw ( std::logic_error( "copy constructor of Objective invoked" ) );
- }
+ Objective( const Objective & )
+  : ThinComputeInterface() , ThinVarDepInterface() {
+  throw( std::logic_error( "copy constructor of Objective invoked" ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// destructor of Objective: it is virtual, and empty
@@ -171,12 +171,12 @@ class Objective : public ThinComputeInterface, public ThinVarDepInterface {
 /** @name Other initializations
  *  @{ */
 
- void set_Block( Block * fblock ) { f_Block = fblock; }
-
- ///< set the pointer to the Block to which the Objective belongs
- /**< Method to set the pointer to the Block to which the Objective belongs.
+ /// set the pointer to the Block to which the Objective belongs
+ /** Method to set the pointer to the Block to which the Objective belongs.
   * If the pointer is not provided in the constructor, it should be called
   * before any other method of the class. */
+
+ void set_Block( Block * fblock ) { f_Block = fblock; }
 
 /*--------------------------------------------------------------------------*/
  ///< change the "sense" (min/max) of the problem
@@ -190,7 +190,7 @@ class Objective : public ThinComputeInterface, public ThinVarDepInterface {
   * The parameter issueMod decides if and how the ObjectiveMod is issued, as
   * described in Observer::make_par(). */
 
- virtual void set_sense( int new_sense, c_ModParam issueMod = eModBlck );
+ virtual void set_sense( int new_sense , c_ModParam issueMod = eModBlck );
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE DATA OF THE Objective --------------*/
@@ -200,7 +200,7 @@ class Objective : public ThinComputeInterface, public ThinVarDepInterface {
 
  /// returns the pointer of the Block to which the Objective belongs
 
- Block * get_Block() const { return( f_Block ); }
+ Block * get_Block( void ) const override { return( f_Block ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the sense (min/max) of the Objective
@@ -371,7 +371,7 @@ class RealObjective : public Objective {
   * responsibility to ensure that compute() has been called at the proper
   * time. */
 
- virtual OFValue value() const = 0;
+ virtual OFValue value( void ) const = 0;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -393,11 +393,11 @@ class RealObjective : public Objective {
   else
    output << "maximize;";
   output << "current value = " << value();
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
-};  // end( class( RealObjective ) )
+ };  // end( class( RealObjective ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- CLASS ObjectiveMod ---------------------------*/
@@ -406,8 +406,8 @@ class RealObjective : public Objective {
 /** Derived class from AModification to describe modifications to an
  * Objective, i.e., changing the sense of the problem. */
 
-class ObjectiveMod : public AModification {
-
+class ObjectiveMod : public AModification
+{
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
  public:

@@ -446,6 +446,19 @@ class ThinVarDepInterface {
  virtual void clear( void ) {}
 
 /**@} ----------------------------------------------------------------------*/
+/*-------- METHODS FOR READING THE DATA OF THE ThinVarDepInterface ---------*/
+/*--------------------------------------------------------------------------*/
+/** @name Reading the data of the ThinVarDepInterface
+    @{ */
+
+ /// returns a pointer to the Block to which the ThinVarDepInterface belongs
+ /** Every ThinVarDepInterface belongs to a Block; return a pointer to it.
+  * The base class implementation is pure virtual so as to allow derived
+  * casses full flexibility. */
+
+ [[nodiscard]] virtual Block * get_Block( void ) const = 0;
+
+/**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE SET OF "ACTIVE" Variable ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for reading the set of "active" Variable
@@ -607,8 +620,8 @@ class ThinVarDepInterface {
     if( itvi != vars.end() ) {
      map[ std::distance( vars.begin(), itvi ) ] = i;
      ++found;
+     }
     }
-   }
 
    if( found < vars.size() )
     throw( std::invalid_argument( "map_active: some Variable is not active"
@@ -622,9 +635,9 @@ class ThinVarDepInterface {
      throw( std::invalid_argument( "map_active: some Variable is not active"
 				   ) );
     *( it++ ) = i;
+    }
    }
   }
- }
 
 /*--------------------------------------------------------------------------*/
  /// get a pointer to the i-th "active" Variable
@@ -706,7 +719,7 @@ class ThinVarDepInterface {
  virtual iterator end( void ) { return( iterator( v_end() ) ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// get a const iterator for for the end of the "active" Variable
+ /// get a const iterator for the end of the "active" Variable
  /** Const version of end(), see the comments there. */
 
  [[nodiscard]] virtual const_iterator end( void ) const {
@@ -781,7 +794,7 @@ class ThinVarDepInterface {
   //       changes the "names" of all the variable with larger name
   for( Index i = range.second; i > range.first; )
    remove_variable( --i, issueMod );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// remove a set of variables
@@ -806,8 +819,8 @@ class ThinVarDepInterface {
   *        described in Observer::make_par().
   *
   * The method is not pure virtual in that the base class provides the obvious
-  * implementation calling remove_variable( i ) for all i in nms. However, this
-  * results in many Modification being issued instead of one, and it is
+  * implementation calling remove_variable( i ) for all i in nms. However,
+  * this results in many Modification being issued instead of one, and it is
   * generally less efficient. Yet, more efficient implementations require
   * knowledge of the actual implementation of the set of active Variable of
   * the ThinVarDepInterface, and therefore necessarily need be demanded to
@@ -828,13 +841,13 @@ class ThinVarDepInterface {
 
    for( auto it = nms.rbegin() ; it != nms.rend() ; ++it )
     remove_variable( *it , issueMod );
+   }
   }
- }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-};  // end( class( ThinVarDepInterface ) )
+ };  // end( class( ThinVarDepInterface ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

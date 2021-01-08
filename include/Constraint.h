@@ -103,7 +103,7 @@ class Constraint;  // forward definition
  * POSSIBLE: copying a Constraint to a different memory location makes a
  * distinct Constraint. */
 
-class Constraint : public ThinComputeInterface, public ThinVarDepInterface {
+class Constraint : public ThinComputeInterface , public ThinVarDepInterface {
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
@@ -178,7 +178,9 @@ class Constraint : public ThinComputeInterface, public ThinVarDepInterface {
     @{ */
 
  /// returns the pointer to the Block to which the Constraint belongs
- [[nodiscard]] Block * get_Block() const { return ( f_Block ); }
+ [[nodiscard]] Block * get_Block( void ) const override {
+  return( f_Block );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------ METHODS DESCRIBING THE BEHAVIOR OF THE Constraint -----------*/

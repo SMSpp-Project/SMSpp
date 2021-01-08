@@ -36,10 +36,16 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-Block * FunctionMod::get_Block() const {
- return f_function->get_Observer() ?
-        f_function->get_Observer()->get_Block() : nullptr;
-}
+Block * Function::get_Block( void ) const {
+ return( f_Observer ? f_Observer->get_Block() : nullptr  );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+Block * FunctionMod::get_Block( void ) const {
+ return( f_function->get_Observer() ?
+	 f_function->get_Observer()->get_Block() : nullptr );
+ }
 
 /*--------------------------------------------------------------------------*/
 

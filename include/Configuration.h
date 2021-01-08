@@ -143,19 +143,15 @@ class Configuration
   * @param classname The name of the :Configuration class that must be
   *        constructed. */
 
- static Configuration * new_Configuration( const std::string & classname )
- {
-  std::string classname_( classname );
-  classname_.erase( std::remove_if( classname_.begin(), classname_.end(),
-                                    ::isspace ), classname_.end() );
-
+ static Configuration * new_Configuration( const std::string & classname ) {
+  const std::string classname_( SMSpp_classname_normalise(
+						std::string( classname ) ) );
   const auto it = Configuration::f_factory().find( classname_ );
   if( it == Configuration::f_factory().end() )
    throw( std::invalid_argument( classname +
-                  std::string( " not present in Configuration factory" ) ) );
-
- return( ( it->second )() );
- }
+				 " not present in Configuration factory" ) );
+  return( ( it->second )() );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Configuration out of a file

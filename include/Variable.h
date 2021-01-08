@@ -266,8 +266,8 @@ class Variable {
  /// method to tell whether a state is that of a fixed Variable
 
  [[nodiscard]] static bool is_fixed( var_type state ) {
-  return ( state & var_type( 1 ) );
- }
+  return( state & var_type( 1 ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// tells whether the Variable is fixed
@@ -276,9 +276,9 @@ class Variable {
   * leave the other bits free to be used by derived classes to store any
   * other information about the "state" of the :Variable. */
 
- [[nodiscard]] bool is_fixed() const {
-  return ( is_fixed( f_state ) );
- }
+ [[nodiscard]] bool is_fixed( void ) const {
+  return( is_fixed( f_state ) );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------- METHODS FOR HANDLING "STUFF" THE Variable IS ACTIVE IN ---------*/
@@ -319,7 +319,7 @@ class Variable {
   * classes complete freedom in the way they implement the list of "active"
   * stuff. */
 
- [[nodiscard]] virtual Index get_num_active() const = 0;
+ [[nodiscard]] virtual Index get_num_active( void ) const = 0;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// tells if the given Variable is "active" in this ThinVarDepInterface
@@ -344,8 +344,7 @@ class Variable {
   * It is pure virtual to allow derived classes complete freedom in the way
   * they implement the list of "active" stuff. */
 
- [[nodiscard]] virtual ThinVarDepInterface *
- get_active( const Index i ) const = 0;
+ [[nodiscard]] virtual ThinVarDepInterface * get_active( Index i ) const = 0;
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR LOADING, PRINTING & SAVING THE Variable ----------*/
@@ -363,10 +362,11 @@ class Variable {
   * operator<<() is defined for each Variable, but its behavior can be
   * customized by derived classes. */
 
- friend std::ostream & operator<<( std::ostream & out, const Variable & v ) {
+ friend std::ostream & operator<<( std::ostream & out ,
+				   const Variable & v ) {
   v.print( out );
-  return ( out );
- }
+  return( out );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -388,7 +388,7 @@ class Variable {
  virtual void print( std::ostream & output ) const {
   output << "Variable [" << this << "] of Block [" << f_Block << "] with "
          << get_num_active() << " active stuff" << std::endl;
- }
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
@@ -401,7 +401,7 @@ class Variable {
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-};  // end( class( Variable ) )
+ };  // end( class( Variable ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS VariableMod ------------------------------*/
@@ -422,8 +422,8 @@ class Variable {
  * whatever change was done has been undone in the meantime, and therefore
  * can better react to it (say, doing nothing). */
 
-class VariableMod : public AModification {
-
+class VariableMod : public AModification
+{
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
  public:
@@ -446,19 +446,19 @@ class VariableMod : public AModification {
 
  /// returns the Block to which the Variable belongs
 
- [[nodiscard]] Block * get_Block() const override {
-  return ( f_variable->get_Block() );
- }
+ [[nodiscard]] Block * get_Block( void ) const override {
+  return( f_variable->get_Block() );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to (the pointer to) the affected Variable
 
- [[nodiscard]] Variable * variable() const { return ( f_variable ); }
+ [[nodiscard]] Variable * variable( void ) const { return( f_variable ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to the previous state of the Variable
 
- [[nodiscard]] var_type old_state() const { return ( f_old_state ); }
+ [[nodiscard]] var_type old_state( void ) const { return( f_old_state ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -475,7 +475,7 @@ class VariableMod : public AModification {
    output << "f";
   output << "]: changing state of :Variable [" << f_variable << "]"
          << std::endl;
- }
+  }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
@@ -485,7 +485,7 @@ class VariableMod : public AModification {
 
 /*--------------------------------------------------------------------------*/
 
-};  // end( class( VariableMod ) )
+ };  // end( class( VariableMod ) )
 
 /** @} end( group( Variable_CLASSES ) ) ------------------------------------*/
 /*--------------------------------------------------------------------------*/

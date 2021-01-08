@@ -88,8 +88,8 @@ namespace SMSpp_di_unipi_it
  *       faster to just re-read all the coefficients than to skip the
  *       few non-changed ones. */
 
-class LinearFunction : public C15Function {
-
+class LinearFunction : public C15Function
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -124,7 +124,8 @@ class LinearFunction : public C15Function {
   * implementing the concrete iterator for sifting through the "active"
   * Variable of a LinearFunction. */
 
- class v_iterator : public ThinVarDepInterface::v_iterator {
+ class v_iterator : public ThinVarDepInterface::v_iterator
+ {
   public:
 
   explicit v_iterator( v_coeff_pair::iterator & itr ) : itr_( itr ) {}
@@ -132,46 +133,38 @@ class LinearFunction : public C15Function {
   explicit v_iterator( v_coeff_pair::iterator && itr )
    : itr_( std::move( itr ) ) {}
 
-  v_iterator * clone() final {
-   return ( new v_iterator( itr_ ) );
-  }
+  v_iterator * clone( void ) final { return( new v_iterator( itr_ ) ); }
 
-  void operator++() override final { ++( itr_ ); }
-
-  reference operator*() const final {
-   return ( *( *itr_ ).first );
-  }
-
-  pointer operator->() const final {
-   return ( ( *itr_ ).first );
-  }
+  void operator++( void ) override final { ++( itr_ ); }
+  reference operator*( void ) const final { return( *( *itr_ ).first ); }
+  pointer operator->( void ) const final { return( ( *itr_ ).first ); }
 
   bool operator==( const ThinVarDepInterface::v_iterator & rhs )
-  const final {
-#ifdef NDEBUG
-   auto tmp = static_cast< const LinearFunction::v_iterator * >( & rhs );
-   return( itr_ == tmp->itr_ );
-#else
-   auto tmp = dynamic_cast< const LinearFunction::v_iterator * >( &rhs );
-   return ( tmp ? itr_ == tmp->itr_ : false );
-#endif
-  }
+   const final {
+   #ifdef NDEBUG
+    auto tmp = static_cast< const LinearFunction::v_iterator * >( & rhs );
+    return( itr_ == tmp->itr_ );
+   #else
+    auto tmp = dynamic_cast< const LinearFunction::v_iterator * >( &rhs );
+    return ( tmp ? itr_ == tmp->itr_ : false );
+   #endif
+   }
 
   bool operator!=( const ThinVarDepInterface::v_iterator & rhs )
-  const final {
-#ifdef NDEBUG
-   auto tmp = static_cast<const LinearFunction::v_iterator *>( & rhs );
-   return( itr_ != tmp->itr_ );
-#else
-   auto tmp = dynamic_cast<const LinearFunction::v_iterator *>( &rhs );
-   return ( tmp ? itr_ != tmp->itr_ : true );
-#endif
-  }
+   const final {
+   #ifdef NDEBUG
+    auto tmp = static_cast<const LinearFunction::v_iterator *>( & rhs );
+    return( itr_ != tmp->itr_ );
+   #else
+    auto tmp = dynamic_cast<const LinearFunction::v_iterator *>( &rhs );
+    return ( tmp ? itr_ != tmp->itr_ : true );
+   #endif
+   }
 
   private:
 
   v_coeff_pair::iterator itr_;
- };
+  };
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// virtualized concrete const_iterator
@@ -179,7 +172,8 @@ class LinearFunction : public C15Function {
   * implementing the concrete iterator for sifting through the "active"
   * Variable of a LinearFunction. */
 
- class v_const_iterator : public ThinVarDepInterface::v_const_iterator {
+ class v_const_iterator : public ThinVarDepInterface::v_const_iterator
+ {
   public:
 
   explicit v_const_iterator( v_c_coeff_pair::const_iterator & itr ) :
@@ -188,41 +182,35 @@ class LinearFunction : public C15Function {
   explicit v_const_iterator( v_c_coeff_pair::const_iterator && itr ) :
    itr_( std::move( itr ) ) {}
 
-  v_const_iterator * clone() final {
-   return ( new v_const_iterator( itr_ ) );
-  }
+  v_const_iterator * clone( void ) final {
+   return( new v_const_iterator( itr_ ) );
+   }
 
-  void operator++() final { ++( itr_ ); }
-
-  reference operator*() const final {
-   return ( *( *itr_ ).first );
-  }
-
-  pointer operator->() const final {
-   return ( ( *itr_ ).first );
-  }
+  void operator++( void ) final { ++( itr_ ); }
+  reference operator*( void ) const final { return( *( *itr_ ).first ); }
+  pointer operator->( void ) const final { return( ( *itr_ ).first ); }
 
   bool operator==( const ThinVarDepInterface::v_const_iterator & rhs )
-  const final {
-#ifdef NDEBUG
-   auto tmp = static_cast<const LinearFunction::v_const_iterator *>( & rhs );
-   return( itr_ == tmp->itr_ );
-#else
-   auto tmp = dynamic_cast<const LinearFunction::v_const_iterator *>( &rhs );
-   return ( tmp ? itr_ == tmp->itr_ : false );
-#endif
-  }
+   const final {
+   #ifdef NDEBUG
+    auto tmp = static_cast<const LinearFunction::v_const_iterator *>( & rhs );
+    return( itr_ == tmp->itr_ );
+   #else
+    auto tmp = dynamic_cast<const LinearFunction::v_const_iterator *>( &rhs );
+    return ( tmp ? itr_ == tmp->itr_ : false );
+   #endif
+   }
 
   bool operator!=( const ThinVarDepInterface::v_const_iterator & rhs )
-  const final {
-#ifdef NDEBUG
-   auto tmp = static_cast<const LinearFunction::v_const_iterator *>( & rhs );
-   return( itr_ != tmp->itr_ );
-#else
-   auto tmp = dynamic_cast<const LinearFunction::v_const_iterator *>( &rhs );
-   return ( tmp ? itr_ != tmp->itr_ : true );
-#endif
-  }
+   const final {
+   #ifdef NDEBUG
+    auto tmp = static_cast<const LinearFunction::v_const_iterator *>( & rhs );
+    return( itr_ != tmp->itr_ );
+   #else
+    auto tmp = dynamic_cast<const LinearFunction::v_const_iterator *>( &rhs );
+    return ( tmp ? itr_ != tmp->itr_ : true );
+   #endif
+   }
 
   private:
 

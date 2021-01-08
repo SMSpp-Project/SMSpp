@@ -861,17 +861,13 @@ class Block : public Observer {
   *        constructed. */
 
  static Block * new_Block( const std::string & classname ,
-                           Block * father = nullptr )
- {
-  std::string classname_( classname );
-  classname_.erase( std::remove_if( classname_.begin() , classname_.end(), 
-                                    ::isspace ) , classname_.end() );
-
+                           Block * father = nullptr ) {
+  const std::string classname_( SMSpp_classname_normalise(
+						std::string( classname ) ) );
   const auto it = Block::f_factory().find( classname_ );
   if( it == Block::f_factory().end() )
    throw( std::invalid_argument( classname +
-                           std::string( " not present in Block factory" ) ) );
-
+				 " not present in Block factory" ) );
   return( ( it->second )( father ) );
   }
 

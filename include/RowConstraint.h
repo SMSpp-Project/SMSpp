@@ -288,12 +288,13 @@ class RowConstraint : public Constraint {
   * Constrain (default nullptr, so that this can be used as the void
   * constructor). */
 
- explicit RowConstraint( Block * my_block = nullptr ) : Constraint( my_block ),
-                                                        d_value( 0 ) {}
+ explicit RowConstraint( Block * my_block = nullptr )
+  : Constraint( my_block ), d_value( 0 ) {}
 
 /*--------------------------------------------------------------------------*/
 
- ~RowConstraint() override = default;  ///< destructor: it is virtual, and empty
+ ~RowConstraint() override = default;
+ ///< destructor: it is virtual, and empty
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -454,18 +455,19 @@ class RowConstraint : public Constraint {
   // the value is finite
   if( lhs <= -RHSINF )
    if( rhs >= RHSINF )
-    return ( -RHSINF );
+    return( -RHSINF );
    else
-    return ( rhs == 0 ? val : ( val - rhs ) / std::abs( rhs ) );
-  else if( rhs >= RHSINF )
-   return ( lhs == 0 ? -val : ( lhs - val ) / std::abs( lhs ) );
+    return( rhs == 0 ? val : ( val - rhs ) / std::abs( rhs ) );
+  else
+   if( rhs >= RHSINF )
+    return( lhs == 0 ? -val : ( lhs - val ) / std::abs( lhs ) );
 
   // both LHS and RHS are finite
   if( lhs == 0 )
    if( rhs == 0 )
     return( std::abs( val ) );
    else
-    return ( std::max( -val, val - rhs ) / std::abs( rhs ) );
+    return( std::max( -val, val - rhs ) / std::abs( rhs ) );
   else
    if( rhs == 0 )
     return( std::max( lhs - val, val ) / std::abs( lhs ) );
@@ -539,14 +541,14 @@ class RowConstraintMod : public ConstraintMod {
   * thrown by a RowConstraint. */
 
  enum RowC_mod_type {
-  eChgLHS = eConstModLastParam,    ///< change the LHS
-  eChgRHS,                         ///< change the RHS
-  eChgBTS,                         ///< change both the RHS and the LHS
+  eChgLHS = eConstModLastParam ,   ///< change the LHS
+  eChgRHS ,                        ///< change the RHS
+  eChgBTS ,                        ///< change both the RHS and the LHS
   eRowConstModLastParam  ///< first allowed value for derived classes
-  /**< Convenience value for easily allow derived
-   * classes to further extend the set of types of
-   * Modification. */
- };
+                         /**< Convenience value for easily allow derived
+                          * classes to further extend the set of types of
+                          * Modification. */
+  };
 
 /*---------------------- CONSTRUCTOR & DESTRUCTOR --------------------------*/
 

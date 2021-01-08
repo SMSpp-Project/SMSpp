@@ -747,7 +747,12 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
 /** @name Reading the data of the Function
  *  @{ */
 
+ /// returns the pointer to the Block to which the Function belongs
+ [[nodiscard]] Block * get_Block( void ) const override;
+
+/*--------------------------------------------------------------------------*/
  /// returns the pointer to the Observer of this Function
+
  [[nodiscard]] Observer * get_Observer( void ) const { return( f_Observer ); }
 
 /**@} ----------------------------------------------------------------------*/
