@@ -3,7 +3,7 @@
 /*--------------------------------------------------------------------------*/
 /** @file
  * Header file for the BoxSolver class, which implements a CDASolver for
- * problems (or relaxations of problems) with an extremely simple structure:
+ * problems (or relaxations thereof) with an extremely simple structure:
  * only bound (box) Constraint on the ColVariable and a separable Objective
  * (a FRealObjective with either a LinearFunction or a DQuadFunction inside).
  * This only rarely is a significant problem in itself (although it may
@@ -20,7 +20,7 @@
  *
  * \version 0.10
  *
- * \date 04 - 01 - 2021
+ * \date 09 - 01 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -120,10 +120,10 @@ public:
 /** @name Public Types
     @{ */
 
- /// public enum "extending" int_par_type_CDAS to BoxSolvers
+ /// public enum "extending" int_par_type_CDAS to BoxSolver
 
  enum int_par_type_BoxS {
-  intPDSol = intLastParCDAS ,
+  intPDSol = intLastParCDAS ,   ///< what is computed besides the bound
 
   intLastParBoxS    ///< first allowed parameter value for derived classes
                     /**< convenience value for easily allow derived classes
@@ -137,7 +137,7 @@ public:
  *  @{ */
 
  /// empty constructor
- BoxSolver( void ) : CDASolver() , f_sol( 0 ) , f_wcmp( 0 ) ,
+ BoxSolver( void ) : CDASolver() , f_sol( 0 ) , f_state( kUnEval ) ,
   f_max_val( - Inf< OFValue >() ) , f_min_val( Inf< OFValue >() ) ,
   f_sense( -1 ) {}
 
@@ -170,9 +170,9 @@ public:
   }
 
 /*--------------------------------------------------------------------------*/
- /// set what is computed (primal/dual solution, opposite bound)
+ /// set what is computed (primal/dual solution)
  /** Decides what is computed besides the optimal value: the primal and/or
-  * dual solution and/or the opposite bound (with the opposite sense).
+  * dual solution.
   *
   * Since computing solutions has the same cost as producing the bound(s), it
   * IS EITHER DONE INSIDE compute(), AND THE OPTIMAL PRIMAL AND / OR DUAL
@@ -181,11 +181,9 @@ public:
   *
   * @param sol is a char, coded bit-wise, that decides what is computed:
   *
-  *        - bit 0: the opposite bound
+  *        - bit 0: the primal solution is produced
   *
-  *        - bit 1: the primal solution is produced
-  *
-  *        - bit 2: the dual solution is produced
+  *        - bit 1: the dual solution is produced
   *
   * Note that there is the usual issue with dual solutions: if one of the
   * "inherent" bounds of a ColVariable has a nonzero dual value but there is
@@ -216,16 +214,20 @@ public:
 /*---------------------- METHODS FOR READING RESULTS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
- bool has_var_solution( void ) override { return( f_sol & 2 ); }
+ bool has_var_solution( void ) override {
+  return( ( f_sol & 1 ) && ( f_state == kOK ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- bool has_dual_solution( void ) override { return( f_sol & 4 ); }
+ bool has_dual_solution( void ) override {
+  return( ( f_sol & 2 ) && ( f_state == kOK ) );
+  }
 
 /*--------------------------------------------------------------------------*/
 
  OFValue get_var_value( void ) override {
-  if( ! ( f_wcmp & 1 ) 
+  if( f_state == kUnEval )
    throw( std::logic_error( "BoxSolver: compute() not called" ) );
 
   return( f_sense == 1 ? : f_max_val : f_min_val );
@@ -233,21 +235,33 @@ public:
 
 /*--------------------------------------------------------------------------*/
 
- void get_var_solution( Configuration *solc = nullptr ) override {}
+ void get_var_solution( Configuration *solc = nullptr ) override {
+  if( ! has_var_solution() )
+   throw( std::logic_error( "BoxSolver: Variable solution not available" ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- void get_dual_solution( Configuration *solc = nullptr ) override {}
+ void get_dual_solution( Configuration *solc = nullptr ) override {
+  if( ! has_dual_solution() )
+   throw( std::logic_error( "BoxSolver: dual solution not available" ) );
+  }
 
 /*--------------------------------------------------------------------------*/
 
  OFValue get_lb( void ) override {
+  if( f_state == kUnEval )
+   throw( std::logic_error( "BoxSolver: compute() not called" ) );
+
   return( f_sense == 1 ? : f_max_val : f_min_val );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  OFValue get_ub( void ) override {
+  if( f_state == kUnEval )
+   throw( std::logic_error( "BoxSolver: compute() not called" ) );
+
   return( f_sense == 1 ? : f_max_val : f_min_val );
   }
 
@@ -258,6 +272,9 @@ public:
   * the value corresponding to the optimization with the opposite sense. */
 
  OFValue get_opposite_value( void ) override {
+  if( f_state == kUnEval )
+   throw( std::logic_error( "BoxSolver: compute() not called" ) );
+
   return( f_sense == 0 ? : f_max_val : f_min_val );
   }
 
@@ -329,7 +346,7 @@ public:
 
 /*--------------------------------------------------------------------------*/
 
- void reset( void ) { f_wcmp = 0; }
+ void reset( void ) { f_state = kUnEval; }
 
 /*--------------------------------------------------------------------------*/
 
@@ -341,10 +358,7 @@ public:
 
  char f_sol;        ///< whether the primal and/or dual solution is computed
 
- char f_wcmp;       ///< what has been computed so far
-                    /**< bit-coded field telling what has bin computed:
-		     * - bit 0 = 1: the value of the "nominal" bound
-		     * - bit 1 = 1: the value of the "opposite" bound */
+ int f_state;       ///< the return status
 
  OFValue f_max_val;    ///< maximum of the Objective over the box
 

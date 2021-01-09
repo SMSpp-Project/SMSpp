@@ -3,13 +3,13 @@
 /*--------------------------------------------------------------------------*/
 /** @file
  * Implementation of the BoxSolver class, which implements a CDASolver for
- * problems (or relaxations of problems) with an extremely simple structure:
+ * problems (or relaxations thereof) with an extremely simple structure:
  * only bound (box) Constraint on the ColVariable and a separable Objective
  * (a FRealObjective with either a LinearFunction or a DQuadFunction inside).
  *
  * \version 0.10
  *
- * \date 05 - 01 - 2021
+ * \date 09 - 01 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -71,131 +71,44 @@ int BoxSolver::compute( bool changedvars )
  if( f_sense < 0 )  // have to compute/update the sense
   check_sense( f_Block );
 
- const char stp = ( f_sol & 1 ) ? 3 : 1;
+ if( f_state != kUnEval )  // done already
+  return( f_state );
 
- if( f_wcmp >= stp )  // done already
-  return( kOK );
- 
  f_max_val = f_min_val = 0;
+
+ auto f = std::bind( &BoxSolver::process_variable , this , _1 );
 
  // process static variables
  for( const auto & el : f_Block->get_static_variables() ) {
-  // Singles
-  if( un_any_thing_0( ColVariable , el , process_variable( var ) ) ) {
-   if( f_wcmp >= stp )
-    break;
-   else
-    continue;
-   }
-  // Vectors
-  if( un_any_thing_1( ColVariable , el ,
-		      {
-		       for( auto & v : var ) {
-			process_variable( v );
-			if( f_wcmp >= stp )
-			 break;
-		        }
-		       } ) ) {
-   if( f_wcmp >= stp )
-    break;
-   else
-    continue;
-   }
-  // Multiarrays
-  if( un_any_thing_K( ColVariable , el ,
-		      {
-		       for( auto vit = var.data() ;
-			    vit != var.data() + var.num_elements() ;
-			    ++vit ) {
-			process_variable( *vit );
-			if( f_wcmp >= stp )
-			 break;
-		        }
-		       } ) ) {
-   if( f_wcmp >= stp )
-    break;
-   else
-    continue;
-   }
+  if( un_any_static( el , f , un_any_type< ColVariable > ) )
+   continue;
   throw( std::invalid_argument(
 		       "BoxSolver: static variable not a ColVariable" ) );
   }
 
  // process dynamic variables
  for( const auto & el : f_Block->get_dynamic_variables() ) {
-  // Singles
-  if( un_any_thing_0( std::list< ColVariable > , el ,
-		      {
-		       for( auto & v : var ) {
-			process_variable( v );
-			if( f_wcmp >= stp )
-			 break;
-		        }
-		       } ) ) {
-   if( f_wcmp >= stp )
-    break;
-   else
-    continue;
-   }
-  // Vectors
-  if( un_any_thing_1( std::list< ColVariable > , el ,
-		      {
-		       for( auto & vl : var ) {
-			for( auto & v : vl ) {
-			 process_variable( v );
-			 if( f_wcmp >= stp )
-			  break;
-			 }
-			if( f_wcmp >= stp )
-			 break;
-		        }
-		       } ) ) {
-   if( f_wcmp >= stp )
-    break;
-   else
-    continue;
-   }
-  // Multiarrays
-  if( un_any_thing_K( std::list< ColVariable > , el ,
-		      {
-		       for( auto vit = var.data() ;
-			    vit != var.data() + var.num_elements() ;
-			    ++vit ) {
-			for( auto & v : *vit ) {
-			 process_variable( v );
-			 if( f_wcmp >= stp )
-			  break;
-			 }
-			if( f_wcmp >= stp )
-			 break;
-		        }
-		       } ) ) {
-   if( f_wcmp >= stp )
-    break;
-   else
-    continue;
-   }
+  if( un_any_dynamic( el , f , un_any_type< ColVariable > ) )
+   continue;
   throw( std::invalid_argument(
 		       "BoxSolver: dynamic variable not a ColVariable" ) );
   }
 
  // now see what value must be returned
- if( f_sense )  // maximization
-  if( f_max_val == INF )
-   return( kUnbounded );
-  else
-   if( f_max_val == - INF )
-    return( kInfeasible );
+ if( f_state != kInfeasible ) {
+  if( f_sense )  // maximization
+   if( f_max_val == INF )
+    f_state = kUnbounded;
    else
-    return( kOK );
- else           // minimization
-  if( f_min_val == - INF )
-   return( kUnbounded );
-  else
-   if( f_in_val == INF )
-    return( kInfeasible );
+    f_state = kOK;
+  else           // minimization
+   if( f_min_val == - INF )
+    f_state = kUnbounded;
    else
-    return( kOK );
+    f_state = kOK;
+  }
+
+ return( f_state );
 
  }  // end( BoxSolver::compute )
 
@@ -342,21 +255,21 @@ void BoxSolver::process_variable( ColVariable & var )
 
     if( f_sol & 4 )       // if the dual solution is computed
      ovr->set_dual( 0 );  // it is 0 unless otherwise proven
+    continue;
     }
 
    if( f_sol & 4 )        // if the dual solution is computed
     if( auto rc = dynamic_cast< RowConstraint * >( ai ) )
      ovr->set_dual( 0 );  // it is 0 on all RowConstraint
      
-   // any other Constraint is ignored
-   continue;
+   continue;              // any other Constraint is ignored
    }
 
   // Objective
   if( auto oi = dynamic_cast< Objective * >( ai ) ) {
    auto fro = dynamic_cast< FRealObjective * >( oi );
    if( ! fro )
-    throw( std::invalid_argument( "BoxSolver:: not a FRealObjective" ) );
+    throw( std::invalid_argument( "BoxSolver: not a FRealObjective" ) );
 
    if( auto lf = dynamic_cast< LinearFunction * >( fro->get_function() ) ) {
     // WARNING: INEFFICIENT!!
@@ -365,16 +278,18 @@ void BoxSolver::process_variable( ColVariable & var )
     }
 
    if( auto qf = dynamic_cast< DQuadFunction * >( fro->get_function() ) ) {
-    // WARNING: INEFFICIENT!!
-    auto p = qf->is_active( & var );
+    auto p = qf->is_active( & var );    // WARNING: INEFFICIENT!!
     b += qf->get_linear_coefficient( p );
     a += qf->get_quadratic_coefficient( p );
     continue;
     }
    
    throw( std::invalid_argument(
-	       "BoxSolver:: invalid Function inside the FRealObjective" ) );
+	       "BoxSolver: invalid Function inside the FRealObjective" ) );
    }
+
+  throw( std::invalid_argument( "BoxSolver: invalid ThinVarDepInterface" ) );
+  
   }  // end( for( i ) ) 
 
  // now finally perform the minimization / maximization
@@ -391,139 +306,257 @@ void BoxSolver::process_variable( ColVariable & var )
  //
  // with the only delicate choice, as usual, being the sign
 
- // if the variable is integer, start with shrinking the interval
- // appropriately; note that if, say, l == u == a fractional number, this
- // immediately makes the interval empty, as it should be
+ // if the variable is integer, start with appropriately shrinking the
+ // interval by making the extremes integer; note that if, say, l == u ==
+ // a fractional number, this immediately makes the interval empty, as it
+ // should be
  if( var.is_integer() ) {
   l = std::ceil( l );
   u = std::floor( u );
   }
 
- // now check unfeasibility: if l > u for even a single ColVariable
- // the whole problem is unfeasible, and it is so for both senses
+ // now check unfeasibility: if l > u then the whole problem is unfeasible,
+ // and it is so for both senses
  if( l > u ) {
-  f_sol = 3;
+  f_state = kInfeasible;
   return
   }
 
- if( a == 0 ) {   // the easy case: the problem is linear
-  if( b == 0 ) {  // the easy-easy-case: it actually is constant
-   if( f_sol & 2 )       // in case you want an optimal value
-                         // any finite value is fine, take it "close to 0"
-    var.set_value( std::min( u , std::max( l , 0 ) ) );
-   return;        // this ColVariable changes nothing; note that the dual
-                  // solution, if required, is already set to 0, which is OK
-   }
-  else {          // linear and nontrivial
-   if( f_sense == 1 ) {               // maximization
-    if( b > 0 ) {                     // with b > 0
-     if( u == INF ) {                 // if the upper bound is +INF
-      f_max_val == INF;               // max is unbounded above
-      f_wcmp |= 1;                    // original problem "solved"
+ if( ( a == 0 ) && ( b == 0 ) ) {  // the easy-easy-case: constant obj
+  if( f_sol & 1 )  // in case you want an optimal value
+                   // any finite value is fine, take it "close to 0"
+   var.set_value( std::min( u , std::max( l , 0 ) ) );
+  return;        // this ColVariable changes nothing; note that the dual
+                 // solution, if required, is already set to 0, which is OK
+  }
+
+ if( a == 0 ) {  // linear but nontrivial: b != 0
+  if( f_sense == 1 ) {               // maximization
+   if( b > 0 ) {                     // with b > 0
+    // the original problem
+    if( u == INF )                   // if the upper bound is +INF
+     f_max_val == INF;               // max is unbounded above
+    else {                           // if the upper bound is finite
+     if( f_max_val < INF ) {         // problem not unbounded already
+      f_max_val += b * u;            // add the contribution
+      if( f_sol & 1 )
+       var.set_value( u );           // primal solution
+      if( ( f_sol & 2 ) && cu )
+       cu->set_dual( b );            // dual solution
       }
-     else {                           // if the upper bound is finite
-      if( f_max_val < INF ) {         // problem not unbounded already
-       f_max_val += b * u;            // add the contribution
-       if( f_sol & 2 )
-	var.set_value( u );           // primal solution
-       if( ( f_sol & 4 ) && cu )
-	cu->set_dual( b );            // dual solution
-       }
-      }
-     if( l == - INF ) {               // if the lower bound is -INF
-      f_min_val == - INF;             // min is unbounded below
-      f_wcmp |= 2;                    // opposite problem "solved"
-      }
-     else                             // if the lower bound is finite
-      if( f_min_val > - INF )         // problem not unbounded already
-       f_min_val += b * l;            // add the contribution
      }
-    else {                            // [maximization] with b < 0
-     if( l == - INF ) {               // if the lower bound is -INF
-      f_max_val == INF;               // max is unbounded above
-      f_wcmp |= 1;                    // original problem "solved"
-      }
-     else {                           // if the lower bound is finite
-      if( f_max_val < INF ) {         // problem not unbounded already
-       f_max_val += b * l;            // add the contribution
-       if( f_sol & 2 )
-	var.set_value( l );           // primal solution
-       if( ( f_sol & 4 ) && cl )
-	cl->set_dual( b );            // dual solution
-       }
-      }
-     if( u == INF ) {                 // if the upper bound is INF
-      f_min_val == - INF;             // min is unbounded below
-      f_wcmp |= 3;                    // opposite problem "solved"
-      }
-     else                             // if the upper bound is finite
-      if( f_min_val > - INF )         // problem is unbounded already
-       f_min_val += b * u;            // add the contribution
-     }
+    // the opposite problem
+    if( l == - INF )                 // if the lower bound is -INF
+     f_min_val == - INF;             // min is unbounded below
+    else                             // if the lower bound is finite
+     if( f_min_val > - INF )         // problem not unbounded already
+      f_min_val += b * l;            // add the contribution
     }
-   else {                             // minimization
-    if( b > 0 ) {                     // with b > 0
-     if( l == - INF ) {               // if the lower bound is -INF
-      f_min_val == - INF;             // min is unbounded below
-      f_wcmp |= 1;                    // original problem "solved"
+   else {                            // [maximization] with b < 0
+    // the original problem
+    if( l == - INF )                 // if the lower bound is -INF
+     f_max_val == INF;               // max is unbounded above
+    else {                           // if the lower bound is finite
+     if( f_max_val < INF ) {         // problem not unbounded already
+      f_max_val += b * l;            // add the contribution
+      if( f_sol & 1 )
+       var.set_value( l );           // primal solution
+      if( ( f_sol & 2 ) && cl )
+       cl->set_dual( b );            // dual solution
       }
-     else {                           // if the lower bound is finite
-      if( f_min_val > - INF ) {       // problem not unbounded already
-       f_max_val += b * l;            // add the contribution
-       if( f_sol & 2 )
-	var.set_value( l );           // primal solution
-       if( ( f_sol & 4 ) && cu )
-	cu->set_dual( b );            // dual solution
-       }
-      }
-     if( u == INF ) {                 // if the upper bound is INF
-      f_max_val == INF;               // max is unbounded below
-      f_wcmp |= 2;                    // opposite problem "solved"
-      }
-     else                             // if the lower bound is finite
-      if( f_max_val < INF )           // problem not unbounded already
-       f_max_val += b * u;            // add the contribution
      }
-    else {                            // [minimization] with b < 0
-     if( u == INF ) {                 // if the upper bound is INF
-      f_min_val == - INF;             // min is unbounded below
-      f_wcmp |= 1;                    // original problem "solved"
+    // the opposite problem
+    if( u == INF )                   // if the upper bound is INF
+     f_min_val == - INF;             // min is unbounded below
+    else                             // if the upper bound is finite
+     if( f_min_val > - INF )         // problem is unbounded already
+      f_min_val += b * u;            // add the contribution
+    }
+   }
+  else {                             // minimization
+   if( b > 0 ) {                     // with b > 0
+    // the original problem
+    if( l == - INF )                 // if the lower bound is -INF
+     f_min_val == - INF;             // min is unbounded below
+    else {                           // if the lower bound is finite
+     if( f_min_val > - INF ) {       // problem not unbounded already
+      f_max_val += b * l;            // add the contribution
+      if( f_sol & 1 )
+       var.set_value( l );           // primal solution
+      if( ( f_sol & 2 ) && cu )
+       cu->set_dual( b );            // dual solution
       }
-     else {                           // if the upper bound is finite
-      if( f_min_val > - INF ) {       // problem not unbounded already
-       f_max_val += b * u;            // add the contribution
-       if( f_sol & 2 )
-	var.set_value( u );           // primal solution
-       if( ( f_sol & 4 ) && cl )
-	cl->set_dual( b );            // dual solution
-       }
-      }
-     if( l == - INF ) {               // if the lower bound is - INF
-      f_max_val == INF;               // max is unbounded above
-      f_wcmp |= 3;                    // opposite problem "solved"
-      }
-     else                             // if the lower bound is finite
-      if( f_max_val < INF )           // problem is unbounded already
-       f_max_val += b * l;            // add the contribution
      }
+    // the opposite problem
+    if( u == INF )                   // if the upper bound is INF
+     f_max_val == INF;               // max is unbounded below
+    else                             // if the lower bound is finite
+     if( f_max_val < INF )           // problem not unbounded already
+      f_max_val += b * u;            // add the contribution
+    }
+   else {                            // [minimization] with b < 0
+    // the original problem
+    if( u == INF )                   // if the upper bound is INF
+     f_min_val == - INF;             // min is unbounded below
+    else {                           // if the upper bound is finite
+     if( f_min_val > - INF ) {       // problem not unbounded already
+      f_max_val += b * u;            // add the contribution
+      if( f_sol & 1 )
+       var.set_value( u );           // primal solution
+      if( ( f_sol & 2 ) && cl )
+       cl->set_dual( b );            // dual solution
+      }
+     }
+    // the opposite problem
+    if( l == - INF )                 // if the lower bound is - INF
+     f_max_val == INF;               // max is unbounded above
+    else                             // if the lower bound is finite
+     if( f_max_val < INF )           // problem is unbounded already
+      f_max_val += b * l;            // add the contribution
     }
    }
 
-  return;  // the easy linear case has been dealt with
+  return;  // the nontrivial linear case has been dealt with
   }
 
  // deal with the quadratic case: a != 0
+ // the unique stationary point (max or min depending on the sign of a)
+ // of a x^2 + b is at x = - b / ( 2 * a );
+ OFValue x = - b / ( 2 * a );
+ auto q = [ & ]( OFValue y ) -> OFValue { return( ( a * y + b ) * y ); };
+ 
  if( f_sense == 1 ) {               // maximization
-  if( a > 0 ) {                     // with a > 0
+  if( a < 0 ) {                     // with a < 0
+   OFValue vxmax;
+
+   // the original problem
+   if( var.is_integer() ) {         // on an integer variable
+    OFValue xm = std::max( l , std::floor( x ) );
+    OFValue vxm = q( xm );
+    OFValue xp = std::min( u , std::ceil( x ) );
+    OFValue vxp = q( xp );
+    if( vxm > vxp ) { x = xm; vxmax = vxm; }
+    else            { x = xp; vxmax = vxp; }
+    // note: no dual solution since it's integer
+    }
+   else {                           // on a continuous variable
+    if( x > u ) {
+     x = u;
+     if( ( f_sol & 2 ) && cu )
+      cu->set_dual( 2 * a * x + b );  // dual solution
+     }
+    else
+     if( x < l ) {
+      x = l;
+      if( ( f_sol & 2 ) && cl )
+       cl->set_dual( 2 * a * x + b );  // dual solution
+      }
+
+    vxmax = q( x );
+    }
+
+   if( f_sol & 1 )
+    var.set_value( x );
+   f_max_val += vxmax;
+
+   // the opposite problem
+   if( ( l == - INF ) || ( u == INF ) )
+    f_min_val = - INF;
+   else
+    f_min_val += std::min( q( l ) , q( u ) );
    }
-  else {                            // [maximization] with a < 0
+  else {                            // [maximization] with a > 0
+   // the original problem
+   // note: no dual solution since it's convex maximization
+   if( ( l == - INF ) || ( u == INF ) )
+    f_max_val = INF;
+   else {
+    OFValue vl = q( l );
+    OFValue vu = q( u );
+    f_max_val += std::max( vl , vu );
+    if( f_sol & 1 )
+     var.set_value( vl > vu ? l : u );
+    }
+
+   // the opposite problem
+   if( var.is_integer() ) {         // on an integer variable
+    OFValue xm = std::max( l , std::floor( x ) );
+    OFValue xp = std::min( u , std::ceil( x ) );
+    f_min_val += std::min( q( xm ) , q( xp ) );
+    }
+   else {                           // on a continuous variable
+    x = std::min( u , std::max( l , x ) );
+    f_min_val += q( x );
+    }
    }
 
   return;  // the quadratic maximization case has been dealt with
   }
 
  // deal with the quadratic minimization case
+ if( a > 0 ) {                     // with a > 0
+  OFValue vxmin;
 
+  // the original problem
+  if( var.is_integer() ) {         // on an integer variable
+   OFValue xm = std::max( l , std::floor( x ) );
+   OFValue vxm = q( xm );
+   OFValue xp = std::min( u , std::ceil( x ) );
+   OFValue vxp = q( xp );
+   if( vxm < vxp ) { x = xm; vxmin = vxm; }
+   else            { x = xp; vxmin = vxp; }
+   // note: no dual solution since it's integer
+   }
+  else {                           // on a continuous variable
+   if( x > u ) {
+    x = u;
+    if( ( f_sol & 2 ) && cu )
+     cu->set_dual( - 2 * a * x - b );  // dual solution
+    }
+   else
+    if( x < l ) {
+     x = l;
+     if( ( f_sol & 2 ) && cl )
+      cl->set_dual( - 2 * a * x - b );  // dual solution
+     }
+
+   vxmin = q( x );
+   }
+
+  if( f_sol & 1 )
+   var.set_value( x );
+  f_min_val += vxmin;
+
+  // the opposite problem
+  if( ( l == - INF ) || ( u == INF ) )
+   f_max_val = INF;
+  else
+   f_max_val += std::max( q( l ) , q( u ) );
+  }
+ else {                            // [minimization] with a < 0
+  // the original problem
+  // note: no dual solution since it's concave minimization
+  if( ( l == - INF ) || ( u == INF ) )
+   f_min_val = - INF;
+  else {
+   OFValue vl = q( l );
+   OFValue vu = q( u );
+   f_min_val += std::min( vl , vu );
+   if( f_sol & 1 )
+    var.set_value( vl < vu ? l : u );
+   }
+
+  // the opposite problem
+  if( var.is_integer() ) {         // on an integer variable
+   OFValue xm = std::max( l , std::floor( x ) );
+   OFValue xp = std::min( u , std::ceil( x ) );
+   f_max_val += std::max( q( xm ) , q( xp ) );
+   }
+  else {                           // on a continuous variable
+   x = std::min( u , std::max( l , x ) );
+   f_max_val += q( x );
+   }
+  }
  }  // end( BoxSolver::process_variable )
 
 /*--------------------------------------------------------------------------*/
