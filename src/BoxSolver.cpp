@@ -401,7 +401,7 @@ void BoxSolver::process_variable( ColVariable & var )
      f_min_val = - INF;              // min is unbounded below
     else {                           // if the upper bound is finite
      if( f_min_val > - INF ) {       // problem not unbounded already
-      f_max_val += b * u;            // add the contribution
+      f_min_val += b * u;            // add the contribution
       if( f_sol & 1 )
        var.set_value( u );           // primal solution
       if( ( f_sol & 2 ) && cl )
