@@ -42,6 +42,8 @@
 
 #include "CDASolver.h"
 
+#include "ColVariable.h"
+
 /*--------------------------------------------------------------------------*/
 /*----------------------------- NAMESPACE ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -230,7 +232,7 @@ public:
   if( f_state == kUnEval )
    throw( std::logic_error( "BoxSolver: compute() not called" ) );
 
-  return( f_sense == 1 ? : f_max_val : f_min_val );
+  return( f_sense == 1 ? f_max_val : f_min_val );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -253,7 +255,7 @@ public:
   if( f_state == kUnEval )
    throw( std::logic_error( "BoxSolver: compute() not called" ) );
 
-  return( f_sense == 1 ? : f_max_val : f_min_val );
+  return( f_sense == 1 ? f_max_val : f_min_val );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -262,7 +264,7 @@ public:
   if( f_state == kUnEval )
    throw( std::logic_error( "BoxSolver: compute() not called" ) );
 
-  return( f_sense == 1 ? : f_max_val : f_min_val );
+  return( f_sense == 1 ? f_max_val : f_min_val );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -271,11 +273,11 @@ public:
   * with the sense specified by the Objective, get_opposite_value() returns
   * the value corresponding to the optimization with the opposite sense. */
 
- OFValue get_opposite_value( void ) override {
+ OFValue get_opposite_value( void ) const {
   if( f_state == kUnEval )
    throw( std::logic_error( "BoxSolver: compute() not called" ) );
 
-  return( f_sense == 0 ? : f_max_val : f_min_val );
+  return( f_sense == 0 ? f_max_val : f_min_val );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -319,8 +321,8 @@ public:
 
  [[nodiscard]] const std::string & int_par_idx2str( idx_type idx )
   const override {
-  return( idx == intPDSol ?  "intPDSol"
-	                  : CDASolver:::int_par_idx2str( idx ) );
+  static std::string _parnm( "intPDSol" );
+  return( idx == intPDSol ? _parnm : CDASolver::int_par_idx2str( idx ) );
   }
 
 

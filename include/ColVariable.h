@@ -104,8 +104,8 @@ namespace SMSpp_di_unipi_it {
  * significant amount of memory by not having to implement them through an
  * explicit :Constraint object. */
 
-class ColVariable : public Variable {
-
+class ColVariable : public Variable
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/

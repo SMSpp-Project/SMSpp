@@ -22,8 +22,8 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __ThinVarDepInterface
-#define __ThinVarDepInterface
-/* self-identification: #endif at the end of the file */
+ #define __ThinVarDepInterface
+                      /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -37,21 +37,9 @@
 /*--------------------------------------------------------------------------*/
 
 /// namespace for the Structured Modeling System++ (SMS++)
-namespace SMSpp_di_unipi_it {
-class Variable;  // forward definition of Variable
-
-/*--------------------------------------------------------------------------*/
-/*------------------ ThinVarDepInterface-RELATED TYPES ---------------------*/
-/*--------------------------------------------------------------------------*/
-/** @defgroup ThinVarDepInterface_TYPES ThinVarDepInterface-related types.
- *  @{ */
-
-/** @} end( group( ThinVarDepInterface_TYPES ) ) */
-/*--------------------------------------------------------------------------*/
-/*------------------------------- CLASSES ----------------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @defgroup ThinVarDepInterface_CLASSES Classes in ThinVarDepInterface.h
- *  @{ */
+namespace SMSpp_di_unipi_it
+{
+ class Variable;  // forward definition of Variable
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- CLASS ThinVarDepInterface -------------------------*/

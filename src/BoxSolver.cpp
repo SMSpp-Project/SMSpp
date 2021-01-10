@@ -45,7 +45,7 @@ using namespace SMSpp_di_unipi_it;
 /*------------------------------- CONSTANTS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-static consexpr auto INF = Inf< OFValue >();
+static constexpr auto INF = Inf< BoxSolver::OFValue >();
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- FUNCTIONS --------------------------------*/
@@ -76,11 +76,12 @@ int BoxSolver::compute( bool changedvars )
 
  f_max_val = f_min_val = 0;
 
- auto f = std::bind( &BoxSolver::process_variable , this , _1 );
+ auto f = std::bind( &BoxSolver::process_variable , this ,
+		     std::placeholders::_1 );
 
  // process static variables
  for( const auto & el : f_Block->get_static_variables() ) {
-  if( un_any_static( el , f , un_any_type< ColVariable > ) )
+  if( un_any_const_static( el , f , un_any_type< ColVariable >() ) )
    continue;
   throw( std::invalid_argument(
 		       "BoxSolver: static variable not a ColVariable" ) );
@@ -88,7 +89,7 @@ int BoxSolver::compute( bool changedvars )
 
  // process dynamic variables
  for( const auto & el : f_Block->get_dynamic_variables() ) {
-  if( un_any_dynamic( el , f , un_any_type< ColVariable > ) )
+  if( un_any_const_dynamic( el , f , un_any_type< ColVariable >() ) )
    continue;
   throw( std::invalid_argument(
 		       "BoxSolver: dynamic variable not a ColVariable" ) );
@@ -146,7 +147,7 @@ void BoxSolver::add_Modification( sp_Mod & mod )
  // changes in a Function
  if( auto tmod = std::dynamic_pointer_cast< const FunctionMod >( mod ) ) {
   // the Function is inside an Objective
-  if( dynamic_cast< Objective * >( tmod->function->get_observer() ) )
+  if( dynamic_cast< Objective * >( tmod->function()->get_Observer() ) )
    reset();
 
   // else ignore it, the Function is in a Constraint that is ignored
@@ -157,7 +158,7 @@ void BoxSolver::add_Modification( sp_Mod & mod )
  if( auto tmod = std::dynamic_pointer_cast< const FunctionModVars >( mod )
      ) {
   // the Function is inside an Objective
-  if( dynamic_cast< Objective * >( tmod->function->get_observer() ) )
+  if( dynamic_cast< Objective * >( tmod->function()->get_Observer() ) )
    reset();
 
   // else ignore it, the Function is in a Constraint that is ignored
@@ -195,7 +196,7 @@ void BoxSolver::check_sense( Block * blck )
 		     "BoxSolver: Block with non-uniform Objective sense" ) );
   }
 
- for( b : v_Block )
+ for( auto b :  blck->get_nested_Blocks() )
   check_sense( b );
  }
  
@@ -203,7 +204,7 @@ void BoxSolver::check_sense( Block * blck )
 
 void BoxSolver::process_variable( ColVariable & var )
 {
- using VarValue = ColVariable::VarValue
+ using VarValue = ColVariable::VarValue;
  
  OFValue a = 0;  // quadratic term
  OFValue b = 0;  // linear term
@@ -224,7 +225,7 @@ void BoxSolver::process_variable( ColVariable & var )
  // and upper bounds, in a and b the total (sum of) quadratic and linear
  // coefficients, and in cl, cu the pointer to the OneVarConstraint that
  // correspond to the "tight" cl / cu (if any)
- for( Index i = 0 ; i < var.get_num_active() ; ++i ) {
+ for( Block::Index i = 0 ; i < var.get_num_active() ; ++i ) {
   auto ai = var.get_active( i );
 
   // check that the ThinVarDepInterface belongs to the Block (or any of
@@ -260,7 +261,7 @@ void BoxSolver::process_variable( ColVariable & var )
 
    if( f_sol & 4 )        // if the dual solution is computed
     if( auto rc = dynamic_cast< RowConstraint * >( ai ) )
-     ovr->set_dual( 0 );  // it is 0 on all RowConstraint
+     rc->set_dual( 0 );  // it is 0 on all RowConstraint
      
    continue;              // any other Constraint is ignored
    }
@@ -319,13 +320,13 @@ void BoxSolver::process_variable( ColVariable & var )
  // and it is so for both senses
  if( l > u ) {
   f_state = kInfeasible;
-  return
+  return;
   }
 
  if( ( a == 0 ) && ( b == 0 ) ) {  // the easy-easy-case: constant obj
   if( f_sol & 1 )  // in case you want an optimal value
                    // any finite value is fine, take it "close to 0"
-   var.set_value( std::min( u , std::max( l , 0 ) ) );
+   var.set_value( std::min( u , std::max( l , VarValue( 0 ) ) ) );
   return;        // this ColVariable changes nothing; note that the dual
                  // solution, if required, is already set to 0, which is OK
   }
@@ -335,7 +336,7 @@ void BoxSolver::process_variable( ColVariable & var )
    if( b > 0 ) {                     // with b > 0
     // the original problem
     if( u == INF )                   // if the upper bound is +INF
-     f_max_val == INF;               // max is unbounded above
+     f_max_val = INF;                // max is unbounded above
     else {                           // if the upper bound is finite
      if( f_max_val < INF ) {         // problem not unbounded already
       f_max_val += b * u;            // add the contribution
@@ -347,7 +348,7 @@ void BoxSolver::process_variable( ColVariable & var )
      }
     // the opposite problem
     if( l == - INF )                 // if the lower bound is -INF
-     f_min_val == - INF;             // min is unbounded below
+     f_min_val = - INF;              // min is unbounded below
     else                             // if the lower bound is finite
      if( f_min_val > - INF )         // problem not unbounded already
       f_min_val += b * l;            // add the contribution
@@ -355,7 +356,7 @@ void BoxSolver::process_variable( ColVariable & var )
    else {                            // [maximization] with b < 0
     // the original problem
     if( l == - INF )                 // if the lower bound is -INF
-     f_max_val == INF;               // max is unbounded above
+     f_max_val = INF;                // max is unbounded above
     else {                           // if the lower bound is finite
      if( f_max_val < INF ) {         // problem not unbounded already
       f_max_val += b * l;            // add the contribution
@@ -367,7 +368,7 @@ void BoxSolver::process_variable( ColVariable & var )
      }
     // the opposite problem
     if( u == INF )                   // if the upper bound is INF
-     f_min_val == - INF;             // min is unbounded below
+     f_min_val = - INF;              // min is unbounded below
     else                             // if the upper bound is finite
      if( f_min_val > - INF )         // problem is unbounded already
       f_min_val += b * u;            // add the contribution
@@ -377,7 +378,7 @@ void BoxSolver::process_variable( ColVariable & var )
    if( b > 0 ) {                     // with b > 0
     // the original problem
     if( l == - INF )                 // if the lower bound is -INF
-     f_min_val == - INF;             // min is unbounded below
+     f_min_val = - INF;              // min is unbounded below
     else {                           // if the lower bound is finite
      if( f_min_val > - INF ) {       // problem not unbounded already
       f_max_val += b * l;            // add the contribution
@@ -389,7 +390,7 @@ void BoxSolver::process_variable( ColVariable & var )
      }
     // the opposite problem
     if( u == INF )                   // if the upper bound is INF
-     f_max_val == INF;               // max is unbounded below
+     f_max_val = INF;                // max is unbounded below
     else                             // if the lower bound is finite
      if( f_max_val < INF )           // problem not unbounded already
       f_max_val += b * u;            // add the contribution
@@ -397,7 +398,7 @@ void BoxSolver::process_variable( ColVariable & var )
    else {                            // [minimization] with b < 0
     // the original problem
     if( u == INF )                   // if the upper bound is INF
-     f_min_val == - INF;             // min is unbounded below
+     f_min_val = - INF;              // min is unbounded below
     else {                           // if the upper bound is finite
      if( f_min_val > - INF ) {       // problem not unbounded already
       f_max_val += b * u;            // add the contribution
@@ -409,7 +410,7 @@ void BoxSolver::process_variable( ColVariable & var )
      }
     // the opposite problem
     if( l == - INF )                 // if the lower bound is - INF
-     f_max_val == INF;               // max is unbounded above
+     f_max_val = INF;                // max is unbounded above
     else                             // if the lower bound is finite
      if( f_max_val < INF )           // problem is unbounded already
       f_max_val += b * l;            // add the contribution
