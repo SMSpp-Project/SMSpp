@@ -59,9 +59,9 @@ namespace SMSpp_di_unipi_it
 /// a linear Function
 /**< The class LinearFunction implements C15Function with a simple linear
  * function of the form
- * \[
+ * \f[
  *  f(x) = c + sum_{ i = 1, ..., n } a_i * x_i
- * \]
+ * \f]
  * where the scalar c is the constant term of the Function, and a_i is the
  * fixed real coefficient of the ColVariable x_i (since the return value
  * need be a real and the a_i are reals, so must be the x_i).

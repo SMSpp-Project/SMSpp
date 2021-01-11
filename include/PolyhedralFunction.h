@@ -53,34 +53,34 @@ namespace SMSpp_di_unipi_it
  * forms. In other words, if the PolyhedralFunction depends on a set of n
  * ColVariable, its input data is a m \times n matrix A and a m \times 1
  * vector b (with m given and "small"), so that
- * \$[
+ * \f[
  *     pf( x ) = max \{ a_i x + b_i : i = 0, ... , m - 1 \}
- * \$]
+ * \f]
  * in the convex case (pointwise maximum of linear functions), and
- * \$[
+ * \f[
  *     pf( x ) = min \{ a_i x + b_i : i = 0, ... , m - 1 \}
- * \$]
+ * \f]
  * in the concave one (pointwise minimum of linear functions). A "special",
- * all-0 linearization (i.e., \$f 0 x + b_m \$f) is separately handled with a
+ * all-0 linearization (i.e., \f$ 0 x + b_m \f$) is separately handled with a
  * dedicated mechanism. This could be explicitly represented as "any one" of
- * the linearizations that just so happened to have \$f A_i = 0 \$f, but the
+ * the linearizations that just so happened to have \f$ A_i = 0 \f$, but the
  * dedicated mechanism both saves a tiny bit of memory, and especially
  * provides a finite lower (if the function is convex, upper otherwise) bound
  * on the value of the function everywhere that can be returned by
  *  get_global_[lower/upper]_bound().
  *
  * The function is anyhow finite-valued everywhere, and each of the pairs
- * \$f ( A_i , b_i ) \$f define one of the possible diagonal linearizations
+ * \f$ ( A_i , b_i ) \f$ define one of the possible diagonal linearizations
  * (comprised the "flat" all-0 one associated with the lower/upper bound
- * \$f b_m \$f, if defined); thus far vertical linearizations are not handled,
+ * \f$ b_m \f$, if defined); thus far vertical linearizations are not handled,
  * but adding them would not be too much of an issue. The only exception is
- * when \$f m = 0 \$f and \$f b_m = - \infty \$f (in the convex case), in
- * which case the function evaluates to \$f - \infty \$f (\$f + \infty \$f in
+ * when \f$ m = 0 \f$ and \f$ b_m = - \infty \f$ (in the convex case), in
+ * which case the function evaluates to \f$ - \infty \f$ (\f$ + \infty \f$ in
  * the concave one with the obvious change).
  *
  * When the function is evaluated, all the m ( + 1 if the lower/upper bound is
  * defined) linearizations enter the local pool in order of their value
- * \$f v_i = A_i x + b_i \$f (non-increasing in the convex case,
+ * \f$ v_i = A_i x + b_i \f$ (non-increasing in the convex case,
  * non-decreasing in the concave one), and are reported in that order. The
  * global pool is just a subset of the fixed index set 0, ..., m - 1 (, m if
  * the lower/upper bound is defined), *except if aggregate linearizations are

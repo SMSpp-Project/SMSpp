@@ -972,9 +972,9 @@ public:
   * sizes (n_0, ..., n_{k-1}), the element at position (i_0, ..., i_{k-1})
   * would have an element index equal to
   *
-  * \[
+  * \f[
   *    \sum_{r = 0}^{k-1} ( \prod_{s = r + 1}^{k-1} n_s ) i_r.
-  * \]
+  * \f]
   *
   * A dynamic group can be one of three types:
   *
@@ -990,9 +990,9 @@ public:
   * an element at position j of the k-th list of the vector, element_index[i]
   * is given by
   *
-  * \[
+  * \f[
   *    j + \sum_{t = 0}^{k-1} s_t
-  * \]
+  * \f]
   *
   * where s_t is the number of elements in the t-th list of the vector. The
   * last case is analogous.

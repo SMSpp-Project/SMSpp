@@ -753,9 +753,9 @@ class Block : public Observer {
   * the Constraint at position (i_0, ..., i_{k-1}) would have an index equal
   * to
   *
-  * \[
+  * \f[
   *    \sum_{r = 0}^{k-1} ( \prod_{s = r + 1}^{k-1} n_s ) i_r.
-  * \]
+  * \f]
   *
   * A dynamic group of Constraint can be one of three types:
   *
@@ -770,9 +770,9 @@ class Block : public Observer {
   * which the group is a vector of lists of Constraint, for a Constraint at
   * position j of the k-th list of the vector, its index is given by
   *
-  * \[
+  * \f[
   *    j + \sum_{t = 0}^{k-1} s_t
-  * \]
+  * \f]
   *
   * where s_t is the number of Constraint in the t-th list of the vector. The
   * last case is analogous.

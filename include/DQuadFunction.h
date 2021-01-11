@@ -62,9 +62,9 @@ namespace SMSpp_di_unipi_it {
 /// a diagonal quadratic Function
 /**< The class DQuadFunction implements C15Function with a diagonal
  * quadratic function of the form
- * \[
+ * \f[
  * f(x) = c + sum{i = 1, ..., n} ( a_i * x_i^2 + b_i * x_i )
- * \]
+ * \f]
  * where the scalar c is the constant term of the Function, and a_i and b_i
  * are the coefficients of the Variable x_i in the quadratic and linear
  * terms, respectively.

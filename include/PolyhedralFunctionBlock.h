@@ -80,21 +80,21 @@ namespace SMSpp_di_unipi_it
  *
  * Indeed, having a PolyhedralFunction as objective is equivalent to the
  * linear program
- * \$[
+ * \f[
  *     \min \{ v : v >= a_i x + b_i \}    \qquad     i = 0, ... , m - 1
- * \$]
+ * \f]
  * in the convex case, as this corresponds to
- * \$[
+ * \f[
  *     pf( x ) = max \{ a_i x + b_i : i = 0, ... , m - 1 \}
- * \$]
+ * \f]
  * (pointwise maximum of a finite set of linear functions), and
- * \$[
+ * \f[
  *     max \{ v : v <= a_i x + b_i \}     \qquad     i = 0, ... , m - 1
- * \$]
+ * \f]
  * in the concave one, as this corresponds to
- * \$[
+ * \f[
  *     pf( x ) = min \{ a_i x + b_i : i = 0, ... , m - 1 \}
- * \$]
+ * \f]
  * (pointwise minimum of a finite set of linear functions). Note that above
  *
  *     x IS FIXED AND v IS THE ONLY Variable
