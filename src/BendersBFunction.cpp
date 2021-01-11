@@ -1678,6 +1678,8 @@ void BendersBFunction::serialize( netCDF::NcGroup & group ) const {
                NcDim_NumRow , v_sides );
  }
 
+ auto abstract_path_group = group.addGroup( "AbstractPath" );
+
  if( v_paths_to_constraints.empty() ) {
   // Construct the paths to the Constraint
   std::vector< AbstractPath > paths;
@@ -1685,11 +1687,11 @@ void BendersBFunction::serialize( netCDF::NcGroup & group ) const {
   for( const auto constraint : v_constraints ) {
    paths.emplace_back( constraint , get_inner_block() );
   }
-  AbstractPath::serialize( paths , group );
+  AbstractPath::serialize( paths , abstract_path_group );
  }
  else {
   // Use the paths we have
-  AbstractPath::serialize( v_paths_to_constraints , group );
+  AbstractPath::serialize( v_paths_to_constraints , abstract_path_group );
  }
 
  if( auto inner_block = get_inner_block() ) {
@@ -1971,6 +1973,9 @@ void BendersBFunction::get_linearization_coefficients
 
   const auto dual_value = constraint->get_dual() * dual_sign;
 
+  if( dual_value == 0 )
+   continue;
+
   if( obj_sign * dual_value >= 0 && v_sides[ j ] == eRHS )
    continue;
 
@@ -2020,6 +2025,9 @@ void BendersBFunction::get_linearization_coefficients
 
   const auto dual_value = constraint->get_dual() * dual_sign;
 
+  if( dual_value == 0 )
+   continue;
+
   if( obj_sign * dual_value >= 0 && v_sides[ j ] == eRHS )
    continue;
 
@@ -2056,6 +2064,9 @@ void BendersBFunction::get_linearization_coefficients
    continue;
 
   const auto dual_value = constraint->get_dual() * dual_sign;
+
+  if( dual_value == 0 )
+   continue;
 
   if( obj_sign * dual_value >= 0 && v_sides[ j ] == eRHS )
    continue;
@@ -2111,6 +2122,9 @@ void BendersBFunction::get_linearization_coefficients
 
   const auto dual_value = constraint->get_dual() * dual_sign;
 
+  if( dual_value == 0 )
+   continue;
+
   if( obj_sign * dual_value >= 0 && v_sides[ j ] == eRHS )
    continue;
 
@@ -2142,6 +2156,9 @@ Function::FunctionValue BendersBFunction::compute_linearization_constant() {
     return;
 
    const auto dual_value = c.get_dual() * dual_sign;
+
+   if( dual_value == 0 )
+    return;
 
    if( c.get_lhs() == c.get_rhs() ) { // Equality constraint
 
