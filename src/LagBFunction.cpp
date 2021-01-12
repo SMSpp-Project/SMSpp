@@ -161,9 +161,16 @@ void LagBFunction::clear( void )
 
 void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
 {
- // consistency checks
- if( ! innerblock )
-  throw( std::invalid_argument( "empty inner Block not allowed" ) );
+ // if there is an existing inner Block, cleanup it
+ if( ! v_Block.empty() )
+  guts_of_destructor( deleteold );
+
+ if( ! innerblock )  // was a cleanup
+  return;            // all done
+
+ v_Block.resize( 1 );
+ v_Block.front() = innerblock;
+ innerblock->set_f_Block( this );
 
  // ensure the Objective of the inner Block is defined (and therefore the
  // Variable need to) because LagBFunction checks it
@@ -184,20 +191,7 @@ void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
    throw( std::invalid_argument( "unmanaged inner Block Objective" ) );
   }
 
- if( v_Block.empty() )
-  v_Block.resize( 1 );
- else
-  if( v_Block.front() ) {
-   v_Block.front()->set_f_Block( nullptr );
-   if( deleteold )
-    delete v_Block.front();
-   }
-
- // set the inner Block
- v_Block.front() = innerblock;
- innerblock->set_f_Block( this );
-
-  // construct CostMatrix whose size is that of active variables in (obj_B)
+ // construct CostMatrix whose size is that of active variables in (obj_B)
  if( obj ) {  // the linear case
   const auto & rp = obj->get_v_var();
   CostMatrix.resize( rp.size() );
@@ -216,6 +210,10 @@ void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
   for( Index i = 0 ; i < rp.size() ; ++i )
    CostMatrix[ i ].first = std::get< 1 >( rp[ i ] );
   }
+
+ // ensure a "default" f_BSC is there
+ if( ! f_BSC )
+  init_BSC();
 
  v_tmpCP.clear();    // no terms to be stealthily added to obj yet
 
@@ -449,12 +447,7 @@ void LagBFunction::deserialize( const netCDF::NcGroup & group )
  guts_of_destructor();  // cleanup whatever is there now
 
  // ensure a "default" f_BSC is there (it is deleted in guts_of)
- f_BSC = new BlockSolverConfig;  // create a new ampty one
- f_BSC->set_diff( true );        // set it in "diff mode"
- auto cc = new ComputeConfig;    // ensure there is a ComputeConfig
- cc->f_diff = true;              // also in "diff mode"
- f_BSC->add_ComputeConfig( "" , cc );
- f_BSC_changed = false;
+ init_BSC();
 
  f_dirty_Lc = true;     // Lagrangian costs have to be updated
  f_yb = INF;            // have to check if b == 0 or not
@@ -1823,25 +1816,45 @@ void LagBFunction::mod_CostMatrix( Index i , Index first )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::guts_of_destructor( void )
+void LagBFunction::init_BSC( void )
+{
+ f_BSC = new BlockSolverConfig;  // create a new ampty one
+ f_BSC->set_diff( true );        // set it in "diff mode"
+ auto cc = new ComputeConfig;    // ensure there is a ComputeConfig
+ cc->f_diff = true;              // also in "diff mode"
+ f_BSC->add_ComputeConfig( "" , cc );
+ f_BSC_changed = false;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::guts_of_destructor( bool deleteinner )
 {
  // clear() all the LagBFunction - - - - - - - - - - - - - - - - - - - - - - -
 
  clear();
 
- // delete the inner Block - - - - - - - - - - - - - - - - - - - - - - - - - -
+ // cleanup and poossibly delete the inner Block - - - - - - - - - - - - - - -
 
- // use the BlockSolverConfig to delete all the Solver
- f_BSC->clear();
- f_BSC->set_diff( false );
- f_BSC->apply( v_Block.front() );
+ if( ! v_Block.empty() ) {  // ... if any
+  // the inner Block is orphan
+  v_Block.front()->set_f_Block( nullptr );
 
- delete f_BSC;  // then delete it
+  // use the BlockSolverConfig to delete all the Solver
+  if( f_BSC ) {
+   f_BSC->clear();
+   f_BSC->set_diff( false );
+   f_BSC->apply( v_Block.front() );
+   }
 
- // now finally the inner Block can be deleted
- if( ! v_Block.empty() )
-  delete v_Block.front();
+  // now finally the inner Block can be deleted
+  if( deleteinner )
+   delete v_Block.front();
+  }
+
  v_Block.clear();
+ delete f_BSC;
+ f_BSC = nullptr;
 
  }  // end( LagBFunction::guts_of_destructor )
 

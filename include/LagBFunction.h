@@ -1230,7 +1230,11 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- void guts_of_destructor( void );
+ void init_BSC( void );
+
+/*--------------------------------------------------------------------------*/
+
+ void guts_of_destructor( bool deleteinner = true );
 
 /*--------------------------------------------------------------------------*/
  /** handle every Modification, comprised GroupModification. returns true if
