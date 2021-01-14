@@ -135,18 +135,21 @@ namespace SMSpp_di_unipi_it {
  * depends on the difference \f$ z - w \f$; that is, any choice of \f$ z \f$
  * and \f$ w \f$ that have the same difference provides exactly the same value
  * of the minimization problem (the Lagrangian relaxation) in the computation
- * of \f$ L() \f$. Besides, the set of optimal solutions is the same, and so is
- * the set of supergradients of (the concave function) \f$ L() \f$. Of course,
- * due to the term \f$  w l - z  u \f$ in the objective, and the fact that
- * \f$  l <  u \f$, different choices of \f$ z \f$ and \f$ w\f$ with the
+ * of \f$ L() \f$. Besides, the set of optimal solutions is the same, and so
+ * is the set of supergradients of (the concave function) \f$ L() \f$. Of
+ * course, due to the term \f$  w l - z  u \f$ in the objective, and the fact
+ * that \f$  l <  u \f$, different choices of \f$ z \f$ and \f$ w\f$ with the
  * same difference do have an impact on the value of \f$ L() \f$, but a
  * very predictable one. Indeed, assume that one has a feasible solution
  * \f$ ( \bar{w} , \bar{z} ) \f$ for (D) such that \f$ \bar{w} > 0 \f$ and
  * \f$ \bar{z} > 0 \f$: it is easy to prove that it cannot be an optimal
  * solution for (D). In fact, define
- * \f$ ( w' = \max \{ 0 , \bar{w} - \bar{z} \} ,
- *       z' = \max \{ 0 , \bar{z} - \bar{w} \} ) \f$. It is immediate to
- * check that \f$ ( w' , z' ) \ge 0 \f$ (is feasible), and that
+ * \f[
+ *   ( w' = \max \{ 0 , \bar{w} - \bar{z} \} ,
+ *     z' = \max \{ 0 , \bar{z} - \bar{w} \} )
+ * \f].
+ * It is immediate to check that \f$ ( w' , z' ) \ge 0 \f$ (is feasible),
+ * and that
  * \f[
  *   z' - w' = \bar{z} - \bar{w} \qquad\qquad (*)
  * \f]
