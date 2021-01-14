@@ -249,8 +249,8 @@ namespace SMSpp_di_unipi_it {
  * Thus, the methods for setting and changing these values (which are the
  * ones to throw these Modification) are pure virtual. */
 
-class RowConstraint : public Constraint {
-
+class RowConstraint : public Constraint
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -264,9 +264,9 @@ class RowConstraint : public Constraint {
   *  @{ */
 
  typedef double RHSValue;  ///< type of the LHS/RHS of the RowConstraint
- /**< type of the LHS/RHS of the RowConstraint,
-  * and therefore also of the attached dual
-  * information (Lagrangian multiplier). */
+                           /**< type of the LHS/RHS of the RowConstraint,
+                            * and therefore also of the attached dual
+                            * information (Lagrangian multiplier). */
 
  typedef const RHSValue c_RHSValue;  ///< a const VarValue
 

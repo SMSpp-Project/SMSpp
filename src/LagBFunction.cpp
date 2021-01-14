@@ -813,6 +813,22 @@ void LagBFunction::remove_variables( Subset && nms , bool ordered ,
 
 /*--------------------------------------------------------------------------*/
 
+void LagBFunction::cleanup_inner_objective( void )
+{
+ Vec_FunctionValue NC( CostMatrix.size() );
+ for( Index i = 0 ; i < CostMatrix.size() ; ++i )
+  NC[ i ] = CostMatrix[ i ].first;
+
+ if( obj )
+  obj->modify_coefficients( std::move( NC ) );
+ else
+  qobj->modify_linear_coefficients( std::move( NC ) );
+
+ f_dirty_Lc = true;  // Lagrangian costs will have to be updated
+ }
+
+/*--------------------------------------------------------------------------*/
+
 void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
 {
  // if f_play_dumb == true, ignore any Modification coming directly from the

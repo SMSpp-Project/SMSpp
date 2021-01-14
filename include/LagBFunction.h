@@ -81,7 +81,7 @@ namespace SMSpp_di_unipi_it
  *    it should be thought as [a part of] the "complicating constraints" of
  *    some original problem
  *
- *      (O)  max { c(x) [+ ...] : g(x) [+ ...] [<]= 0 , x \in X [, ...] }
+ *      (O)  max { c(x) [+ ...] : g(x) [+ ...] [<]=[>] 0 , x \in X [, ...] }
  *
  *    that are relaxed to make it easier. The "[...]" are meant to convey the
  *    fact that (O) may have other groups of variables besides x, but when
@@ -91,18 +91,23 @@ namespace SMSpp_di_unipi_it
  *    Lagrangian relaxations. Each of them clearly makes a different and
  *    independent Lagrangian function (of y), and here we are focussing on
  *    just an arbitrary one of them. In the comments, the relaxed constraints
- *    will sometimes be also referred to as (RCs). The notation "[<]=" means
- *    that the constraints can (almost) indifferently be equalities or
+ *    will sometimes be also referred to as (RCs). The notation "[<]=[>]"
+ *    means that the constraints can (almost) indifferently be equalities or
  *    inequalities, the difference simply yielding (or not) sign constraints
- *    on the Lagrangian multipliers [see right below]. The vector
- *    y = [ y_i ]_{ i \in I } of Lagrangian multipliers, real-valued Variable
- *    (ColVariable) each one associated to one of the complicating
- *    constraints. Note that these must *not* be Variable of the LagBFunction
- *    seen as a Block, because they are conceptually fixed when the Block is
- *    solved. The y corresponding to inequality constraints will have an
- *    appropriate sign constraint on them; however, this will be a concern of
+ *    (on either direction) on the Lagrangian multipliers. This also depends
+ *    on whether g(x) is the original constraint or is opposite (- g(x)).
+ *    LagBFunction assumes that the right choices regarding to the signs are
+ *    done by whomever constructed the g(x) it is passed and takes no
+ *    responsibility for this. The vector y = [ y_i ]_{ i \in I } of
+ *    Lagrangian multipliers, real-valued Variable (ColVariable) each one
+ *    associated to one of the complicating terms g_i(x), must *not* be of
+ *    Variable of the LagBFunction seen as a Block, because they are
+ *    conceptually fixed when the Block is solved. The y_i corresponding to
+ *    inequality constraints will have an appropriate sign constraint (either
+ *    by y_i being is_positive)= or is_negative() or by, say, some appropriate
+ *    :OneVarConstraint regarding y_i); however, this will be a concern of
  *    the "outer" Block defining them, and therefore is not a concern of the
- *    <LagBFunction.
+ *    LagBFunction.
  *
  * 3) A list of pairs of relaxed functions and their Lagrangian multipliers:
  *    { ( y_i , g_i (x) ) }_{ i \in \bar{I} } which handle the  dynamic
@@ -129,8 +134,8 @@ namespace SMSpp_di_unipi_it
  * at y is well-defined only if x(y) is unique, which may easily not happen.
  * This is why in general LagBFunction is a C05Function depending on the
  * variables y; note that the LagBFunction can still easily declare to be
- * smooth [see C05Function::is_continuously_differentiable()] is it knows it
- * is the case.
+ * smooth [see C05Function::is_continuously_differentiable()] if it knows it
+ * to be the case (say, c(x) is strictly concave).
  *
  * The aim of LagBFunction is to automate the process of turning the block B
  * (given g and y) into the Lagrangian function l( y ), implementing all the
@@ -758,6 +763,23 @@ class LagBFunction : public C05Function , public Block {
   LastSolution = i;  // and recall what's there
   }
 
+/*--------------------------------------------------------------------------*/
+ /// returns the objective of the inner Block to its "pristine" state
+ /** This method removes the effect of all the Lagrangian terms from the
+  * Objective of the inner Block, which is basically equivalent to forcing
+  * all the y to be 0 (but without explicitly changing their value, which is
+  * not something LagBFunction is supposed to do since they are not its
+  * Variable). This supposedly returns the inner Block to a state completely
+  * equivalent to its "initial" one.
+  *
+  * Note: this is not necessarily true. In fact, the Objective of the inner
+  * Block may have "extra" active Variable that were not initially present,
+  * save with a 0 coefficient. We are implicitly assuming that this difference
+  * is irrelevant "to the outside", which is a somewhat reasonable but not
+  * completely watertight assumption. */
+ 
+ void cleanup_inner_objective( void );
+ 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- Methods for handling Modification -------------------*/
 /*--------------------------------------------------------------------------*/
