@@ -819,11 +819,14 @@ void LagBFunction::cleanup_inner_objective( void )
  for( Index i = 0 ; i < CostMatrix.size() ; ++i )
   NC[ i ] = CostMatrix[ i ].first;
 
+ f_play_dumb = true;  // ignore any ensuing Modification
+
  if( obj )
   obj->modify_coefficients( std::move( NC ) );
  else
   qobj->modify_linear_coefficients( std::move( NC ) );
 
+ f_play_dumb = false;  // back to normal operations
  f_dirty_Lc = true;  // Lagrangian costs will have to be updated
  }
 
@@ -973,7 +976,7 @@ void LagBFunction::serialize( netCDF::NcGroup & group ) const
   qobj->modify_linear_coefficients( std::move( NCoef2 ) );
 
  // back to normal operations
- const_cast< LagBFunction * >( this )->f_play_dumb = true;
+ const_cast< LagBFunction * >( this )->f_play_dumb = false;
  if( ! owned )
   v_Block.front()->unlock( this );  // unlock it
 
