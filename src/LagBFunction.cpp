@@ -2817,6 +2817,8 @@ void LagBFunction::update_CostMatrix_ModLinRngd( const v_coeff_pair & rc ,
  // changed is), although reading the costs from obj is nontrovial since the
  // Range may not be current if Variable have been added/deleted
 
+ f_dirty_Lc = true;  // Lagrangian costs will have to be recomputed
+
  // first check if by chance the Range is still current
  bool current = true;
  auto it = vars.begin();
@@ -2880,6 +2882,8 @@ void LagBFunction::update_CostMatrix_ModLinSbst( const v_coeff_pair & rc ,
  // is the only place where the information about which costs have actually
  // changed is), although reading the costs from obj is nontrovial since the
  // Subset may not be current if Variable have been added/deleted
+
+ f_dirty_Lc = true;  // Lagrangian costs will have to be recomputed
 
  // first check if by chance the Subset is still current
  bool current = true;
