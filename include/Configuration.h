@@ -154,6 +154,31 @@ class Configuration
   }
 
 /*--------------------------------------------------------------------------*/
+ /// set the executable-wide prefix for all Configuration filenames
+ /** Loading a Configuration from file (either text or netCDF) is likely to
+  * be one of the most common way to create one, and the static method
+  * deserialize( std::string ) is provided for this purpose. That method is
+  * in turn used for "file redirection"; a Configuration file (either text or
+  * netCDF) can contain one (or many) filenames in which a parts of the
+  * description of that Configuration (typically a Configuration inside the
+  * Configuration) can be found, see new_Configuration( netCDF::NcGroup ) and
+  * deserialize( std::istream ). It could arguably be convenient to be able
+  * to specify filenames relative to some given prefix, so as to be able to
+  * freely move the description of a Configuration (which can be a rather
+  * large object, and therefore require many files) across the filesystem.
+  * Configuration provides a *static* member for this purpose, that can be
+  * set with this (static) method. Note that
+  *
+  *     BEING THE MEMBER STATIC, THE PREFIX IS APPLIED TO ALL LOADING 
+  *     OPERATIONS OF ANY Configuration IN THE EXECUTABLE
+  *
+  * Use of this feature therefore requires care. */
+
+ static void set_filename_prefix( std::string && prefix ) {
+  f_prefix = prefix;
+  }
+
+/*--------------------------------------------------------------------------*/
  /// de-serialize a :Configuration out of a file
  /** Top-level de-serialization method: takes the \p filename of a file
   * (possibly also encoding a position into it), and returns the complete
@@ -637,6 +662,12 @@ class Configuration
   * of static variables without telling you). */
 
  static void static_initialization( void ) {}
+
+/**@} ----------------------------------------------------------------------*/
+/*--------------------------- PROTECTED FIELDS  ----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ static std::string f_prefix;  ///< the executable-wide filename prefix
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/

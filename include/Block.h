@@ -872,6 +872,31 @@ class Block : public Observer {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// set the executable-wide prefix for all Block filenames
+ /** Loading a Block from file (either text or netCDF) is likely to be one of
+  * the most common way to create one, and the static method
+  * deserialize( std::string [ , Block * ] ) is provided for this purpose.
+  * That method is in turn used for "file redirection"; a Block file (either
+  * text or netCDF) can contain one (or many) filenames in which a partw of
+  * the description of that Block (typically a sub-Block) can be found, see
+  * new_Block( netCDF::NcGroup [ , Block * ] ) and
+  * deserialize( std::istream [ , Block * ] ). It could arguably be
+  * convenient to be able to specify filenames relative to some given prefix,
+  * so as to be able to freely move the description of a Block (which can be
+  * a rather large object, and therefore require many files) across the
+  * filesystem. Block provides a *static* member for this purpose, that can be
+  * set with this (static) method. Note that
+  *
+  *     BEING THE MEMBER STATIC, THE PREFIX IS APPLIED TO ALL LOADING 
+  *     OPERATIONS OF ANY Block IN THE EXECUTABLE
+  *
+  * Use of this feature therefore requires care. */
+
+ static void set_filename_prefix( std::string && prefix ) {
+  f_prefix = prefix;
+  }
+
+/*--------------------------------------------------------------------------*/
  /// de-serialize a :Block out of a file
  /** Top-level de-serialization method: takes the \p filename of a file
   * (possibly also encoding a position into it), and possibly a \p father,
@@ -7111,6 +7136,8 @@ class Block : public Observer {
 
  unsigned int f_channel;   ///< the "default GroupModification channel"
 
+ static std::string f_prefix;  ///< the executable-wide filename prefix
+ 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
 /*--------------------------------------------------------------------------*/

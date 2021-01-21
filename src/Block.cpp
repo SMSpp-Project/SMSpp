@@ -62,6 +62,10 @@ std::set< Observer::ChnlName > Observer::v_free_chnl;
 
 SMSpp_insert_in_factory_cpp_0( BlockConfig );
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+std::string Block::f_prefix;  // the filename prefix
+
 /*--------------------------------------------------------------------------*/
 /*------------------------------- FUNCTIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -77,28 +81,29 @@ Block * Block::deserialize( const std::string & filename , Block * father )
  try {
   if( ( filename.size() > 4 ) &&
       ( ! filename.compare( filename.size() - 4 , 4 , ".txt" ) ) ) {
-   std::ifstream f( filename , std::fstream::in );
+   std::ifstream f( f_prefix.empty() ? filename : f_prefix + filename ,
+		    std::fstream::in );
    if( ! f.is_open() ) {
-    std::cerr << "Error: cannot open text file " << filename << std::endl;
+    std::cerr << "Error: cannot open text file " << f_prefix + filename
+	      << std::endl;
     return( nullptr );
     }
    return( Block::deserialize( f , father ) );
    }
   else {
    int idx = 0;
-   std::string fn;
-   if( filename.back() == ']' ) {
-    auto pos = filename.find_last_of( '[' );
+   std::string fn = f_prefix + filename;
+   if( fn.back() == ']' ) {
+    auto pos = fn.find_last_of( '[' );
     if( pos != std::string::npos ) {
      try {
-      idx = std::stoi( filename.substr( pos + 1 ) );
-      fn = filename.substr( 0 , pos );
+      idx = std::stoi( fn.substr( pos + 1 ) );
+      fn.erase( pos );
       }
      catch( ... ) { idx = 0; }
      }
     }
-   netCDF::NcFile f( fn.empty() ? filename.c_str() : fn.c_str() ,
-		     netCDF::NcFile::read );
+   netCDF::NcFile f( fn.c_str() , netCDF::NcFile::read );
    return( Block::deserialize( f , idx , father ) );
    }
   }
