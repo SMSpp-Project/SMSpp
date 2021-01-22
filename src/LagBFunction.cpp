@@ -1958,7 +1958,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
     // with what() == 1: the Lagrangian function unpredictably changes
-    // (f_shift == NaN), and the constant terms \alpha =  c x^* of the
+    // (f_shift == NaN), and the constant terms \alpha = c x^* of the
     // linearizations ( g , \alpha ) have to be computed again since
     // c has changed (while g remains unchanged)
     if( f_Observer )
@@ -2005,9 +2005,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
      }  // end( for( all the changed a_{ij} ) )
 
-    // since b_i has changed, b may no longer be all-0 if it previously was,
-    // and the linear term has to be recomputed (or b == 0 checked first)
-    f_yb = f_yb == -INF ? INF : NaN;
+    f_dirty_Lc = true;  // Lagrangian costs will have to be recomputed
 
     // issue a C05FunctionModRngd saying that the entry i of all
     // the linearizations in the global pool has changed (the value of
@@ -2111,9 +2109,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
      }  // end( for( all the changed a_{ij} ) )
 
-    // since b_i has changed, b may no longer be all-0 if it previously was,
-    // and the linear term has to be recomputed (or b == 0 checked first)
-    f_yb = f_yb == -INF ? INF : NaN;
+    f_dirty_Lc = true;  // Lagrangian costs will have to be recomputed
 
     // issue a C05FunctionModRngd (yes, it is Rngd, even if the originating
     // C05FunctionModLin was a Sbst one) saying that the entry i of all
