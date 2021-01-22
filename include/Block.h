@@ -877,15 +877,15 @@ class Block : public Observer {
   * the most common way to create one, and the static method
   * deserialize( std::string [ , Block * ] ) is provided for this purpose.
   * That method is in turn used for "file redirection"; a Block file (either
-  * text or netCDF) can contain one (or many) filenames in which a partw of
+  * text or netCDF) can contain one (or many) filenames in which a part of
   * the description of that Block (typically a sub-Block) can be found, see
   * new_Block( netCDF::NcGroup [ , Block * ] ) and
   * deserialize( std::istream [ , Block * ] ). It could arguably be
   * convenient to be able to specify filenames relative to some given prefix,
   * so as to be able to freely move the description of a Block (which can be
   * a rather large object, and therefore require many files) across the
-  * filesystem. Block provides a *static* member for this purpose, that can be
-  * set with this (static) method. Note that
+  * filesystem. Block provides a *static* member for this purpose, that can
+  * be set with this (static) method. Note that
   *
   *     BEING THE MEMBER STATIC, THE PREFIX IS APPLIED TO ALL LOADING 
   *     OPERATIONS OF ANY Block IN THE EXECUTABLE
@@ -931,9 +931,13 @@ class Block : public Observer {
   *
   * If anything goes wrong with the entire operation, nullptr is returned.
   *
+  * Note that if a filename prefix has been defined (for all Block) by means
+  * of set_filename_prefix(), then \p filename has to be intended as relative
+  * to that prefix (in the sense that the prefix is prefix to \p filename).
+  *
   * Note that the method is static, hence it is to be called as
   *
-  *       Block * myBlock = Block::deserialize( somefile [ , father ] );
+  *       auto myBlock = Block::deserialize( somefile [ , father ] );
   *
   * i.e., without any reference to any specific Block (and, therefore, it can
   * be used to construct the very first Block if needed, in which case there

@@ -415,9 +415,9 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
   * are ThinVarDepInterface, and not all ThinVarDepInterface use a Function).
   */
 
- virtual void register_Observer( Observer * const observer = nullptr ) {
+ virtual void register_Observer( Observer * observer = nullptr ) {
   f_Observer = observer;
- }
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF A Function --------------*/

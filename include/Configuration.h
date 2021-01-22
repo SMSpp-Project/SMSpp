@@ -213,9 +213,14 @@ class Configuration
   *
   * If anything goes wrong with the entire operation, nullptr is returned.
   *
+  * Note that if a filename prefix has been defined (for all Configuration)
+  * by means of set_filename_prefix(), then \p filename has to be intended
+  * as relative to that prefix (in the sense that the prefix is prefix to
+  * \p filename).
+  *
   * Note that the method is static, hence it is to be called as
   *
-  *     Configuration * myConfig = Configuration::deserialize( somefile );
+  *     auto myConfig = Configuration::deserialize( somefile );
   *
   * i.e., without any reference to any specific Configuration (and, therefore,
   * it can be used to construct the very first Configuration if needed). */

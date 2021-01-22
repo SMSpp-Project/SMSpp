@@ -242,8 +242,11 @@ void LagBFunction::set_dual_pairs( v_dual_pair && dp )
  add_to_CostMatrix( dp );
 
  // save the dual pairs in the LagPairs data structure
-
  LagPairs = std::move( dp );
+
+ // ensure that LagBFunction is the Observer of the LinearFunction
+ for( auto & p : LagPairs )
+  p.second->register_Observer( this );
 
  f_yb = -INF;                       // b == 0
  for( auto const & lp : LagPairs )  // ... unless otherwise proven
@@ -490,6 +493,10 @@ void LagBFunction::add_dual_pairs( v_dual_pair && dp , ModParam issueMod )
     }
 
  f_dirty_Lc = true;  // Lagrangian costs have to be updated
+
+ // ensure that LagBFunction is the Observer of the new LinearFunction
+ for( auto & p : dp )
+  p.second->register_Observer( this );
 
  // merge the list of dual Lagrangian pairs  - - - - - - - - - - - - - - - - -
  // be sure to use std::make_move_iterator() to have the contents of lp moved
