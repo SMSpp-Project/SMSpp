@@ -42,7 +42,6 @@
 /*--------------------------------------------------------------------------*/
 
 using namespace SMSpp_di_unipi_it;
-using namespace std;
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ STATIC MEMBERS OF Observer ----------------------*/
@@ -506,21 +505,21 @@ void Block::set_BlockConfig( BlockConfig * newBC, bool deleteold )
 
 /*--------------------------------------------------------------------------*/
 
-void Block::print( ostream & output ) const
+void Block::print( std::ostream & output ) const
 {
- output << endl << "Block with: ";
- output << endl << v_s_Variable.size() << " types of static Variables, "
+ output << std::endl << "Block with: ";
+ output << std::endl << v_s_Variable.size() << " types of static Variables, "
         << v_d_Variable.size() << " types of dynamic Variables, "
-        << endl << v_s_Constraint.size() << " types of static Constraints, "
+        << std::endl << v_s_Constraint.size() << " types of static Constraints, "
         << v_d_Constraint.size() << " types of dynamic Constraints, "
-        << endl << v_Block.size() << " nested Blocks, and "
+        << std::endl << v_Block.size() << " nested Blocks, and "
         << v_Solver.size() << " registered Solvers"
-        << endl;
+        << std::endl;
 
  if( verbosity_lvl == Block::medium || verbosity_lvl == Block::high ) {
   /*
   // the static Constraints of the Block- - - - - - - - - - - - - - - - - - -
-  output << "Static Constraints:" << endl;
+  output << "Static Constraints:" << std::endl;
   for( unsigned int i = 0 ; i < v_s_Constraint.size() ; ++i ) {
    output << i;
    if( ! v_s_Constraint_names[ i ].empty() )
@@ -529,11 +528,11 @@ void Block::print( ostream & output ) const
     output << ": ";
 
    un_any_static_constraint( v_s_Constraint[ i ] , { output << *var; } );
-   output << endl;
+   output << std::endl;
    }
 
   // the static Variables of the Block- - - - - - - - - - - - - - - - - - - -
-  output << "Static Variables:" << endl;
+  output << "Static Variables:" << std::endl;
   for( unsigned int i = 0 ; i < v_s_Variable.size() ; ++i ) {
    output << i;
    if( ! v_s_Variable_names[ i ].empty() )
@@ -542,11 +541,11 @@ void Block::print( ostream & output ) const
     output << ": ";
 
    un_any_static_Variable( v_s_Variable[ i ] , { output << *var; } );
-   output << endl;
+   output << std::endl;
    }
 
   // the dynamic Constraints of the Block- - - - - - - - - - - - - - - - - -
-  output << "Dynamic Constraints:" << endl;
+  output << "Dynamic Constraints:" << std::endl;
   for( unsigned int i = 0 ; i < v_d_Constraint.size() ; ++i ) {
    output << i;
    if( ! v_d_Constraint_names[ i ].empty() )
@@ -555,11 +554,11 @@ void Block::print( ostream & output ) const
     output << ": ";
 
    un_any_static_Constraint( v_d_Constraint[ i ] , { output << *var; } );
-   output << endl;
+   output << std::endl;
    }
 
   // the dynamic Variables of the Block - - - - - - - - - - - - - - - - - - -
-  output << "Dynamic Variables:" << endl;
+  output << "Dynamic Variables:" << std::endl;
   for( unsigned int i = 0 ; i < v_d_Variable.size() ; ++i ) {
    output << i;
    if( ! v_d_Variable_names[ i ].empty() )
@@ -568,12 +567,12 @@ void Block::print( ostream & output ) const
     output << ": ";
 
    un_any_static_Variable( v_d_Variable[ i ] , { output << *var; } );
-   output << endl;
+   output << std::endl;
    }
   */
 
   // the inner Blocks - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  output << endl << "Nested Blocks:" << endl;
+  output << std::endl << "Nested Blocks:" << std::endl;
   for( p_Block blk : v_Block )
    output << *blk;
   }

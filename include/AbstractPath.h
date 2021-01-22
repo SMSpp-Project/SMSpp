@@ -525,6 +525,16 @@ public:
 
 /*--------------------------------------------------------------------------*/
 
+ /// returns true if and only if this AbstractPath is empty
+ /** This function returns true if and only if this AbstractPath is empty,
+  * i.e., it does not represent a path to any object.
+  */
+ inline bool empty() const {
+  return length() == 0;
+ }
+
+/*--------------------------------------------------------------------------*/
+
  /// clears this AbstractPath
  /** This function clears this AbstractPath making it an empty path.
   */
