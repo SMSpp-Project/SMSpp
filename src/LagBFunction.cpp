@@ -1899,10 +1899,11 @@ void LagBFunction::guts_of_destructor( bool deleteinner )
   // the inner Block is orphan
   v_Block.front()->set_f_Block( nullptr );
 
-  // use the BlockSolverConfig to delete all the Solver
+  // use the clear()-ed BlockSolverConfig to delete all the Solver that were
+  // registered by it (hence, be sure it is in f_diff == true mode)
   if( f_BSC ) {
    f_BSC->clear();
-   f_BSC->set_diff( false );
+   f_BSC->set_diff( true );
    f_BSC->apply( v_Block.front() );
    }
 
