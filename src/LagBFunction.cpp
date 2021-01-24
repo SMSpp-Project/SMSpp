@@ -1076,16 +1076,16 @@ bool LagBFunction::compute_new_linearization( const bool diagonal )
 void LagBFunction::store_linearization( Index name , ModParam issueMod )
 {
  if( name >= g_pool.size() )
-  throw( std::logic_error( "invalid linearization name" ) );
+  throw( std::logic_error( "LagBFunction: invalid linearization name" ) );
 
  // throw exception if the solution does not exist or has been already stored
  if( LastSolution < Inf<Index>() )
-  throw( std::logic_error( "the linearization is unvailable" ) );
+  throw( std::logic_error( "LagBFunction: unvailable linearization" ) );
 
  // get the current Solution from the Solver - - - - - - - - - - - - - - - - -
 
  if( NoSol )
-  // put there any non-nullptr to mark the slot is taken
+  // put there any non-nullptr to mark the slot as taken
   g_pool[ name ].first = reinterpret_cast< Solution * >( this );
  else {
   delete g_pool[ name ].first;  // delete the Solution already there (if any)
@@ -1093,6 +1093,8 @@ void LagBFunction::store_linearization( Index name , ModParam issueMod )
   // get a "fully loaded" Solution out of the inner Block, using the default
   // f_solution_Configuration in the BlockConfig of the inner Block
   g_pool[ name ].first = v_Block.front()->get_Solution( nullptr , false );
+  if( ! g_pool[ name ].first )
+   throw( std::logic_error( "LagBFunction: no Solution provided by Block" ) );
   }
 
  g_pool[ name ].second = VarSol;  // record the Solution type
