@@ -207,7 +207,7 @@ namespace SMSpp_di_unipi_it
  *   Block/Solver to ignore them since THE ORIGINAL ONES WILL STILL BE IN
  *   THEIR ORIGINAL POSITION.
  *
- * - ALL THE INDICIDUAL TERMS c'_j x_j OF THE LAGRANGIAN TERM (WITH c_'j THE
+ * - ALL THE INDIVIDUAL TERMS c'_j x_j OF THE LAGRANGIAN TERM (WITH c_'j THE
  *   LAGRANGIAN COST FOR FIXED y) ARE ADDED TO/MODIFIED INTO THE OBJECTIVE
  *   OF (B), EVEN THOUGH THE Variable MAY IN FACT BE DEFINED IN A SUB-Block
  *   OF (B)
@@ -550,6 +550,8 @@ class LagBFunction : public C05Function , public Block {
 
  intInnrSlvr = intLastParC05F ,  ///< index of the inner Solver
 
+ intNoSol ,        ///< whether Solution are required from the inner Block
+
  intLastLagBFPar   ///< first allowed new int parameter for derived classes
                    /**< Convenience value for easily allow derived classes
 		    * to extend the set of int algorithmic parameters. */
@@ -624,7 +626,18 @@ class LagBFunction : public C05Function , public Block {
  /** LagBFunction "listens" to the following parameters:
   *
   * - intInnrSlvr: the index of the inner Solver, i.e., its position in the
-  *                list of registered Solver in the inner Block
+  *                list of registered Solver in the inner Block; the default
+  *                is 0 (first position);
+  *
+  * - intNoSol: if nonzero, it is taken to mean that the inner Block will not
+  *             produce workable Solution objects and therefore that
+  *   LagBFunction should not store them and use them; this severely cripples
+  *   the ability of LagBFunction to efficiently respond to Modification from
+  *   the inner Block, as almost every change there will have to result in a
+  *   "very bad" C05FunctionMod being issued invalidting all previous
+  *   information since it is impossible to update it, which is why the default
+  *   value is 0 (false), which requires a working get_Solution() from the
+  *   inner Block;
   *
   * - intLPMaxSz: the value of intLPMaxSz is passed to theinner Solver as
   *               the Solver::intMaxSol parameter, since each different
@@ -755,6 +768,8 @@ class LagBFunction : public C05Function , public Block {
   * Solution into the Block. */
 
  void global_pool_to_block( Index i ) {
+  if( NoSol )
+   throw( std::invalid_argument( "LagBFunction: Solution not stored" ) );
   if( ( i >= f_max_glob ) || ( !  g_pool[ i ].first ) )
    throw( std::invalid_argument( "global_pool_to_block: invalid index" ) );
   if( i == LastSolution )  // already there
@@ -815,7 +830,7 @@ class LagBFunction : public C05Function , public Block {
   *     planned re-haul of the Modification system).
   *
   * - Most of the changes made to the inner Block result in a C05FunctionMod
-  *   (actually, LagBFunctionMod) withtype() == GlobalPoolRemoved because
+  *   (actually, LagBFunctionMod) with type() == GlobalPoolRemoved because
   *   they mess up with feasibility of the previous solutions / directions. 
   *   Thus, there is a risk of a long stream of basically identical
   *   Modification to be be produced, which is clearly useless. It would be
@@ -831,7 +846,14 @@ class LagBFunction : public C05Function , public Block {
   *     A GOOD IDEA TO BUNCH AS MANY AS POSSIBLE OF THE CORRESPONDING
   *     Modification INTO AS FEW AS POSSIBLE GroupModification
   *
-  *   in order to reduce the number of produced LagBFunctionMod. */
+  *   in order to reduce the number of produced LagBFunctionMod.
+  *
+  * - If the intNoSol parameter is set to nonzero (true), then basically all
+  *   changes made to the inner Block will result in a C05FunctionMod
+  *   (actually, LagBFunctionMod) with type() == GlobalPoolRemoved and
+  *   which().empty() meaning that all the global pool need be reset since
+  *   there is no way of checking if the previous Solution are still
+  *   feasible. */
 
  void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
 
@@ -1149,19 +1171,70 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- int get_int_par( idx_type par ) const override;
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
- double get_dbl_par( idx_type par ) const override;
+ [[nodiscard]] idx_type get_num_int_par( void ) const override {
+  return( intLastLagBFPar );
+  }
 
 /*--------------------------------------------------------------------------*/
 
- int get_dflt_int_par( idx_type par ) const override;
+ [[nodiscard]] int get_int_par( idx_type par ) const override {
+  switch( par ) {
+   case( intLPMaxSz ):  return( LPMaxSz ); break;
+   case( intGPMaxSz ):  return( g_pool.size() ); break;
+   case( intInnrSlvr ): return( InnrSlvr ); break;
+   case( intNoSol ):    return( NoSol ? 1 : 0 ); break;
+   default:             return( C05Function::get_dflt_int_par( par ) );
+   }
+  } 
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] double get_dbl_par( idx_type par ) const override {
+  switch( par ) {
+   case( dblRAccLin ): return( RAccLin ); break;
+   case( dblAAccLin ): return( AAccLin ); break;
+   default:            return( C05Function::get_dflt_dbl_par( par ) );
+   }
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ [[nodiscard]] int get_dflt_int_par( idx_type par ) const override {
+  if( ( par == intInnrSlvr ) || ( par == intNoSol ) )
+   return( 0 );
+  return( C05Function::get_dflt_int_par( par ) ) ;
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  // double get_dflt_dbl_par( idx_type par ) const override;
+
+ /*--------------------------------------------------------------------------*/
+
+ [[nodiscard]] idx_type int_par_str2idx( const std::string & name )
+  const override {
+  if( name == "intInnrSlvr" )
+   return( intInnrSlvr );
+  if( name == "intNoSol" )
+   return( intNoSol );
+
+  return( C05Function::int_par_str2idx( name ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ [[nodiscard]] const std::string & int_par_idx2str( idx_type idx )
+  const override {
+  static const std::vector< std::string > pars =
+   { "intInnrSlvr", "intNoSol" };
+
+  if( idx == intInnrSlvr )
+   return( pars[ 0 ] );
+  if( idx == intNoSol )
+   return( pars[ 1 ] );
+
+  return( C05Function::int_par_idx2str( idx ) );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE LagBFunction ---------*/
@@ -1364,6 +1437,8 @@ class LagBFunction : public C05Function , public Block {
 
  Index InnrSlvr;        ///< [index of the] Solver of the inner Block
 
+ bool NoSol;            ///< true if no Solution are stored
+
  Solver * p_InnrSlvr;   ///< [pointer to the] Solver of the inner Block
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -1381,7 +1456,9 @@ class LagBFunction : public C05Function , public Block {
 			 * g_pool[ i ].first is (a pointer to) the Solution
  * corresponding to the i-th linearization of the global pool, or nullptr
  * if there is no such linearization, while g_pool[ i ].second is a bool
- * telling if the linearization is diagonal. */
+ * telling if the linearization is diagonal. If NoSol == true,
+ * g_pool[ i ].first contains "any" non-nullptr when the linearization is
+ * there. */
 
  Index f_max_glob;      ///< 1 + maximum active name in the global pool
                         /**< f_max_glob is strictly larger than the maximum
@@ -1435,14 +1512,17 @@ class LagBFunction : public C05Function , public Block {
  *
  * - \in [ 0 , g_pool.size() ): is the index of a Solution of the global pool
  *
- * - \in [ g_pool.size() , INF ): the Solution is not significant */
+ * - \in [ g_pool.size() , INF ): the Solution is not significant
+ *
+ * It of course only makes sense if NoSol == false. */
 
  bool VarSol;         ///< true if Variable in the inner Block are a solution
                       /**< true if the values of the Variable in the inner
 		       * Block describe a feasible solution, i.e., they
  * correspond to a diagonal linearization; false if the values of the 
  * Variable in the inner Block describe a direction of the feasible set,
- * i.e., they correspond to a vertical linearization */
+ * i.e., they correspond to a vertical linearization. It of course only makes
+ * sense if NoSol == false. */
 
  LinearCombination zLC;
  ///< the LinearCombination of the important linearization

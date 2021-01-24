@@ -5096,10 +5096,10 @@ class Block : public Observer {
   * "general-purpose" Solution objects that only use the abstract
   * representation of the Variable and Constraint to work. */
 
- virtual Solution * get_Solution( Configuration * solc = nullptr,
+ virtual Solution * get_Solution( Configuration * solc = nullptr ,
                                   bool emptys = true ) {
-  return ( nullptr );
- }
+  return( nullptr );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF AN Observer -------------*/

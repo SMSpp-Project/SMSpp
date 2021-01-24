@@ -114,7 +114,7 @@ SMSpp_insert_in_factory_cpp_1( LagBFunction );
 
 LagBFunction::LagBFunction( Block * innerblock , Observer * observer )
  : C05Function() , obj( nullptr ) , qobj( nullptr ) , IsConvex( true ) ,
-   InnrSlvr( 0 ) , p_InnrSlvr( nullptr ) , f_max_glob( 0 ) ,
+   InnrSlvr( 0 ) , NoSol( false ) , p_InnrSlvr( nullptr ) , f_max_glob( 0 ) ,
    LastSolution( 0 ) , VarSol( true ) , f_yb( -INF ) , f_play_dumb( false ) ,
    f_dirty_Lc( false ) , LPMaxSz( 0 ) , RAccLin( 0 ) , AAccLin( 0 ) ,
    f_BSC( new BlockSolverConfig ) , f_BSC_changed( false )
@@ -148,8 +148,9 @@ void LagBFunction::clear( void )
  // delete the global pool (do not issue any Modification because clear()
  // is only meant to be called right before destroying the Function, any
  // Solver attached to it should have been done with long ago
- for( Index i = 0 ; i < f_max_glob ; ++i )
-  delete g_pool[ i ].first;
+ if( ! NoSol )  // ... if there is anything to delete
+  for( Index i = 0 ; i < f_max_glob ; ++i )
+   delete g_pool[ i ].first;
  g_pool.clear();
  f_max_glob = 0;
  f_yb = -INF;  // since b is empty, there are no nonzeros
@@ -394,8 +395,9 @@ void LagBFunction::set_par( idx_type par , int value )
    // note: if the global pool shrinks and LastSolution is one of the deleted
    //       ones it is >= value, which automatically means "undefined"
    if( g_pool.size() > Index( value ) ) {
-    for( auto it = g_pool.begin() + value ; it != g_pool.end() ; ++it  )
-     delete it->first;
+    if( ! NoSol )  // ... if there are Solution a all
+     for( auto it = g_pool.begin() + value ; it != g_pool.end() ; ++it  )
+      delete it->first;
 
     if( f_max_glob > Index( value ) ) {
      f_max_glob = value;
@@ -414,6 +416,39 @@ void LagBFunction::set_par( idx_type par , int value )
      cc->f_diff = true;
      f_BSC->add_ComputeConfig( "" , cc );
      }
+    }
+   break;
+  case( intNoSol ):
+   if( ( value > 0 ) && ( NoSol == false ) ) {
+    NoSol = true;
+    // setting NoSol == true when it was false: throw away all Solution
+    // currently stored in the global pool
+    for( Index i = 0 ; i < f_max_glob ; ++i )
+     if( g_pool[ i ].first ) {
+      delete g_pool[ i ].first;
+      // any surely nonzero address
+      g_pool[ i ].first = reinterpret_cast < Solution * >( this );
+      }
+    break;
+    }
+   if( ( value == 0 ) && ( NoSol == true ) ) {
+    NoSol = false;
+    // setting NoSol == false when it was true: has to cleanup all the
+    // global pool since the information there is not reliable (no
+    // Solution is a real Solution)
+    for( Index i = 0 ; i < f_max_glob ; ++i )
+     g_pool[ i ].first = nullptr;
+    f_max_glob = 0;
+
+    // if somebody is listening (assuming issueMod == eModBlck) 
+    if( f_Observer && ( f_Observer->issue_mod( eModBlck ) ) )
+     // issue a LagBFunctionMod with type() == GlobalPoolRemoved and
+     // which().empty(); however, shift() == 0 since the function itself
+     // has not really changed
+     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
+				        C05FunctionMod::GlobalPoolRemoved ,
+					Subset() , 64 , 0 , true ) ,
+				   eModBlck );
     }
    break;
   default: Function::set_par( par , value );
@@ -855,22 +890,32 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
   Index cnt = 0;  // how many linearizations are there
   Subset which;   // which ones get eliminated
 
-  for( Index i = 0 ; i < f_max_glob ; ++i )
-   if( g_pool[ i ].first ) {  // a Solution is there
-    ++cnt;
+  // only run the elimination loop if Solution are there, otherwise assume
+  // the worst and remove everything
+  if( NoSol ) {
+   for( Index i = 0 ; i < f_max_glob ; ++i )
+    g_pool[ i ].first = nullptr;
+   f_max_glob = 0;
+   }
+  else
+   for( Index i = 0 ; i < f_max_glob ; ++i ) {
+    if( g_pool[ i ].first ) {  // a Solution is there
+     ++cnt;
 
-    // write it in the Variable of the inner Block
-    g_pool[ i ].first->write( v_Block.front() );
-    LastSolution = i;  // and recall what's there
+     // write it in the Variable of the inner Block
+     g_pool[ i ].first->write( v_Block.front() );
+     LastSolution = i;  // and recall what's there
 
-    // check it's still a feasible solution/direction
-    bool feas = g_pool[ i ].second ? v_Block.front()->is_feasible()
-                                   : v_Block.front()->is_unbounded();
-    if( ! feas ) {              // if not
-     delete g_pool[ i ].first;  // eliminate it
-     g_pool[ i ].first = nullptr;
-     which.push_back( i );      // recall its name
+     // check it's still a feasible solution/direction
+     bool feas = g_pool[ i ].second ? v_Block.front()->is_feasible()
+                                    : v_Block.front()->is_unbounded();
+     if( ! feas ) {              // if not
+      delete g_pool[ i ].first;  // eliminate it
+      g_pool[ i ].first = nullptr;
+      which.push_back( i );      // recall its name
+      }
      }
+    update_f_max_glob();
     }
 
   // if nobody is listening (assuming issueMod == eModBlck)
@@ -993,7 +1038,7 @@ void LagBFunction::serialize( netCDF::NcGroup & group ) const
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF THE LagBFunction ------------*/
 /*--------------------------------------------------------------------------*/
 
-bool LagBFunction::has_linearization( const bool diagonal )
+bool LagBFunction::has_linearization( bool diagonal )
 {
  auto is = inner_Solver();
  // true if the first linearization of the related type exists
@@ -1039,11 +1084,16 @@ void LagBFunction::store_linearization( Index name , ModParam issueMod )
 
  // get the current Solution from the Solver - - - - - - - - - - - - - - - - -
 
- delete g_pool[ name ].first;  // delete the Solution already there (if any)
+ if( NoSol )
+  // put there any non-nullptr to mark the slot is taken
+  g_pool[ name ].first = reinterpret_cast< Solution * >( this );
+ else {
+  delete g_pool[ name ].first;  // delete the Solution already there (if any)
 
- // get a "fully loaded" Solution out of the inner Block, using the default
- // f_solution_Configuration in the BlockConfig of the inner Block
- g_pool[ name ].first = v_Block.front()->get_Solution( nullptr , false );
+  // get a "fully loaded" Solution out of the inner Block, using the default
+  // f_solution_Configuration in the BlockConfig of the inner Block
+  g_pool[ name ].first = v_Block.front()->get_Solution( nullptr , false );
+  }
 
  g_pool[ name ].second = VarSol;  // record the Solution type
  LastSolution = name;             // record that the Solution has been stored
@@ -1075,6 +1125,15 @@ void LagBFunction::store_combination_of_linearizations(
  if( coefficients.empty() )
   throw( std::invalid_argument( "the convex combination is empty" ) );
 
+ if( name >= f_max_glob )      // update f_max_glob
+  f_max_glob = name + 1;
+
+ if( NoSol ) {  // only pretend you are doing it
+  g_pool[ name ].first = reinterpret_cast< Solution * >( this );
+  g_pool[ name ].second = true;
+  return;
+  }
+
  bool type = true;         // a diagonal one unless oherwise proven
  bool unfeasible = false;  // feasible unless oherwise proven
 
@@ -1098,9 +1157,6 @@ void LagBFunction::store_combination_of_linearizations(
  if( name == LastSolution )    // if this was the Solution in the inner Block
   LastSolution = g_pool.size();  // it is no longer valid
 
- if( name >= f_max_glob )      // update f_max_glob
-  f_max_glob = name + 1;
-
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
 
@@ -1119,7 +1175,8 @@ void LagBFunction::delete_linearization( Index name , ModParam issueMod )
  if( ( name >= g_pool.size() ) || ( ! g_pool[ name ].first ) )
   throw( std::invalid_argument( "invalid linearization name" ) );
 
- delete g_pool[ name ].first;     // delete the Solution
+ if( ! NoSol )                    // if the Solution is there
+  delete g_pool[ name ].first;    // delete it
  g_pool[ name ].first = nullptr;  // mark that the position is empty
 
  if( name == LastSolution )    // if this was the Solution in the inner Block
@@ -1144,11 +1201,15 @@ void LagBFunction::delete_linearizations( Subset && which , bool ordered ,
 					  ModParam issueMod )
 {
  if( which.empty() ) {  // delete them all
-  for( auto & el : g_pool )
-   if( el.first ) {
-    delete el.first;
-    el.first = nullptr;
-    }
+  if( NoSol )
+   for( Index i = 0 ; i < f_max_glob ; ++i )
+    g_pool[ i ].first = nullptr;
+  else
+   for( Index i = 0 ; i < f_max_glob ; ++i )
+    if( g_pool[ i ].first ) {
+     delete g_pool[ i ].first;
+     g_pool[ i ].first = nullptr;
+     }
 
   f_max_glob = 0;
   if( LastSolution < Inf<Index>() )  // LastSolution was in the global pool
@@ -1177,7 +1238,8 @@ void LagBFunction::delete_linearizations( Subset && which , bool ordered ,
   if( i == LastSolution )    // if this was the Solution in the inner Block
    LastSolution = g_pool.size();  // it is no longer valid
 
-  delete g_pool[ i ].first;
+  if( ! NoSol )               // if a Solution really is there
+   delete g_pool[ i ].first;  // delete it
   g_pool[ i ].first = nullptr;
   }
 
@@ -1325,7 +1387,9 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
    }
   }
  else {  // a linearization of the global pool - - - - - - - - - - - - - - - -
-
+  if( NoSol )
+   throw( std::logic_error( "LagBFunction: Solutions are not stored" ) );
+   
   // assign Solution to the sub-Block in such a way the linearization
   // associated with the given name will be retrieved from the global pool
 
@@ -1370,6 +1434,8 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
    }
   }
  else {  // a linearization of the global pool - - - - - - - - - - - - - - - -
+  if( NoSol )
+   throw( std::logic_error( "LagBFunction: Solutions are not stored" ) );
 
   // assign Solution to the sub-Block in such a way the linearization
   // associated with the given name will be retrieved from the global pool
@@ -1413,6 +1479,8 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
    }
   }
  else {  // a linearization of the global pool - - - - - - - - - - - - - - - -
+  if( NoSol )
+   throw( std::logic_error( "LagBFunction: Solutions are not stored" ) );
 
   if( ! g_pool[ name ].first )  // if no such linearization
    return( NaN );               // return NaN
@@ -1551,43 +1619,6 @@ void LagBFunction::get_MatDesc( int * Abeg , int * Aind , double * Aval ,
 
  }  // end( LagBFunction::get_MatDesc )
 
-/*--------------------------------------------------------------------------*/
-
-int LagBFunction::get_int_par( const idx_type par ) const
-{
- switch( par ) {
-  case( intLPMaxSz ):  return( LPMaxSz ); break;
-  case( intGPMaxSz ):  return( g_pool.size() ); break;
-  case( intInnrSlvr ): return( InnrSlvr ); break;
-  default:            return( C05Function::get_dflt_int_par( par ) );
-  }
- }  // end( LagBFunction::get_int_par )
-
-/*--------------------------------------------------------------------------*/
-
-double LagBFunction::get_dbl_par( const idx_type par ) const
-{
- switch( par ) {
-  case( dblRAccLin ): return( RAccLin ); break;
-  case( dblAAccLin ): return( AAccLin ); break;
-  default:            return( C05Function::get_dflt_dbl_par( par ) );
-  }
- }  // end( LagBFunction::get_dbl_par )
-
-/*--------------------------------------------------------------------------*/
-
-int LagBFunction::get_dflt_int_par( idx_type par ) const {
- if( par == intInnrSlvr )
-  return( 0 );
- return( C05Function::get_dflt_int_par( par ) ) ;
- }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/*
-double LagBFunction::get_dflt_dbl_par( const idx_type par ) const {
- return( C05Function::get_dflt_dbl_par( par ) ) ;
- }
-*/
 /*--------------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE LagBFunction ---------*/
 /*--------------------------------------------------------------------------*/
