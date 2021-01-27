@@ -1647,7 +1647,7 @@ class Solver : public ThinComputeInterface {
   const override {
   const auto it = int_pars_map.find( name );
   if( it == int_pars_map.end() )
-   throw( std::invalid_argument( "unknown int parameter " + name ) );
+   return( Inf< idx_type >());
   return( it->second );
   }
 
@@ -1657,7 +1657,7 @@ class Solver : public ThinComputeInterface {
   const override {
   const auto it = dbl_pars_map.find( name );
   if( it == dbl_pars_map.end() )
-   throw( std::invalid_argument( "unknown dbl parameter " + name ) );
+   return( Inf< idx_type >());
   return( it->second );
   }
 
