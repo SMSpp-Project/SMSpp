@@ -1527,9 +1527,10 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
    if( rp.size() > CostMatrix.size() )
     throw( std::logic_error( "CostMatrix inconsistent with obj" ) );
   #endif
-  for( Index i = 0 ; i < rp.size() ; ++i )
-   alpha += std::get< 0 >( rp[ i ] )->get_value() * CostMatrix[ i ].first;
-
+  for( Index i = 0 ; i < rp.size() ; ++i ) {
+   auto val = std::get< 0 >( rp[ i ] )->get_value();
+   alpha += ( std::get< 2 >( rp[ i ] ) * val + CostMatrix[ i ].first ) * val;
+   }
   return( alpha );
   }
  }  // end( LagBFunction::get_linearization_constant )
