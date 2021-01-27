@@ -567,6 +567,8 @@ void LagBFunction::remove_variable( Index i , ModParam issueMod )
 
  // update CostMatrix- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+ auto nv = obj ? obj->get_num_active_var() : qobj->get_num_active_var();
+ 
  for( Index h = 0 ; h < CostMatrix.size() ; ) {
   auto & CMh = CostMatrix[ h ];
   // find the position of the term < i , a_{ij} > in CMj
@@ -583,9 +585,9 @@ void LagBFunction::remove_variable( Index i , ModParam issueMod )
    // if this leaves the term empty and the term actually was of some variable
    // that still had to be added to obj, just don't do that: rather, erase
    // the row of CostMatrix amd the corresponding one in v_tmpCP
-   if( CMh.second.empty() && ( h >= obj->get_num_active_var() ) ) {
+   if( CMh.second.empty() && ( h >= nv ) ) {
     CostMatrix.erase( CostMatrix.begin() + h );
-    v_tmpCP.erase( v_tmpCP.begin() + ( h - obj->get_num_active_var() ) );
+    v_tmpCP.erase( v_tmpCP.begin() + ( h - nv ) );
     continue;  // do not increase h, since CostMatrix has shortened
     }
    }
@@ -657,6 +659,8 @@ void LagBFunction::remove_variables( Range range , ModParam issueMod )
  // this is not a complete reset
  // update CostMatrix- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+ auto nv = obj ? obj->get_num_active_var() : qobj->get_num_active_var();
+ 
  for( Index h = 0 ; h < CostMatrix.size() ; ) {
   auto & CMh = CostMatrix[ h ];
   // find the position of the term < range.first , a_{*j} > in CMj
@@ -680,9 +684,9 @@ void LagBFunction::remove_variables( Range range , ModParam issueMod )
    // if this leaves the term empty and the term actually was of some variable
    // that still had to be added to obj, just don't do that: rather, erase
    // the row of CostMatrix amd the corresponding one in v_tmpCP
-   if( CMh.second.empty() && ( h >= obj->get_num_active_var() ) ) {
+   if( CMh.second.empty() && ( h >= nv ) ) {
     CostMatrix.erase( CostMatrix.begin() + h );
-    v_tmpCP.erase( v_tmpCP.begin() + ( h - obj->get_num_active_var() ) );
+    v_tmpCP.erase( v_tmpCP.begin() + ( h - nv ) );
     continue;  // do not increase h, since CostMatrix has shortened
     }
    }
@@ -764,6 +768,8 @@ void LagBFunction::remove_variables( Subset && nms , bool ordered ,
 
  // update CostMatrix- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+ auto nv = obj ? obj->get_num_active_var() : qobj->get_num_active_var();
+
  for( Index h = 0 ; h < CostMatrix.size() ; ) {
   auto & CMh = CostMatrix[ h ];
   // find the position of the term < nms.front() , a_{*j} > in CMj
@@ -798,9 +804,9 @@ void LagBFunction::remove_variables( Subset && nms , bool ordered ,
   // if this leaves the term empty and the term actually was of some variable
   // that still had to be added to obj, just don't do that: rather, erase
   // the row of CostMatrix amd the corresponding one in v_tmpCP
-  if( CMh.second.empty() && ( h >= obj->get_num_active_var() ) ) {
+  if( CMh.second.empty() && ( h >= nv ) ) {
    CostMatrix.erase( CostMatrix.begin() + h );
-   v_tmpCP.erase( v_tmpCP.begin() + ( h - obj->get_num_active_var() ) );
+   v_tmpCP.erase( v_tmpCP.begin() + ( h - nv ) );
    continue;  // do not increase h, since CostMatrix has shortened
    }
 
@@ -2022,7 +2028,8 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
     // for all the coefficients a_{ij} in A_j that have changed
     for( Index h = tmod->range().first ; h < tmod->range().second ; ++h ) {
-     auto j = obj->is_active( rc[ h ].first );  // find x_j
+     auto j = obj ? obj->is_active( rc[ h ].first )
+                  : qobj->is_active( rc[ h ].first );  // find x_j
 
      // find the place of < y_i , a_{ij} > in A_j (has to be there)
      auto ajit = std::lower_bound( CostMatrix[ j ].second.begin() ,
@@ -2126,7 +2133,8 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
     // for all the coefficients a_{ij} in A_j that have changed
     for( auto h : tmod->subset() ) {
-     auto j = obj->is_active( rc[ h ].first );  // find x_j
+     auto j = obj ? obj->is_active( rc[ h ].first )
+                  : qobj->is_active( rc[ h ].first );  // find x_j
 
      // find the place of < y_i , a_{ij} > in A_j (has to be there)
      auto ajit = std::lower_bound( CostMatrix[ j ].second.begin() ,
@@ -2513,11 +2521,11 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
     #endif
 
     c_Index i = std::distance( LagPairs.begin() , it );
-    c_Index nv = obj->get_num_active_var();
+    c_Index nv = obj ? obj->get_num_active_var() : qobj->get_num_active_var();
 
     // for all the Variable that have been eliminated
     for( auto xj : tmod->vars() ) {
-     auto j = obj->is_active( xj );
+     auto j =  obj ? obj->is_active( xj ) : qobj->is_active( xj );
      if( j >= nv ) {
       // the deleted variable is not in obj yet, but it may be in v_tmpCP
       // waiting to be added to obj
@@ -2628,11 +2636,11 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
     #endif
 
     c_Index i = std::distance( LagPairs.begin() , it );
-    c_Index nv = obj->get_num_active_var();
+    c_Index nv = obj ? obj->get_num_active_var() : qobj->get_num_active_var();
 
      // for all the Variable that have been eliminated
     for( auto xj : tmod->vars() ) {
-     auto j = obj->is_active( xj );
+     auto j = obj ? obj->is_active( xj ) : qobj->is_active( xj );
      if( j >= nv ) {
       // the deleted variable is not in obj yet, but it may be in v_tmpCP
       // waiting to be added to obj

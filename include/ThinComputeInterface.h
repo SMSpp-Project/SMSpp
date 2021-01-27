@@ -1093,109 +1093,81 @@ class ThinComputeInterface {
 
 /*--------------------------------------------------------------------------*/
  /// get the index of the int parameter with given string name
- /** This method takes a string, which is assumed to be the name of an int
-  * parameter, and returns its index, i.e., the integer value in the range
+ /** This method takes a string: if \n name contains the name of an int
+  * parameter then its index - i.e., the integer value in the range
   * [ 0 , get_num_int_par() ) that can be used in set_par( int ) and
-  * get_[dflt_]int_par() to set/get it. The method is given a "void"
-  * implementation (throwing exception), rather than being pure virtual, so
-  * that derived classes not having any int parameter do not have to bother
-  * with implementing it. The method should anyway throw exception if
-  * \p name does not correspond to the string name of any int parameter. */
+  * get_[dflt_]int_par() to set/get it - is returned, otherwise
+  * Inf< idx_type >() is returned. The method is given a "void"
+  * implementation "understanding no names", i.e., always returning
+  * Inf< idx_type >(). */
 
  [[nodiscard]] virtual idx_type int_par_str2idx( const std::string & name )
-  const {
-  throw( std::invalid_argument( std::string( "int parameter " ) + name +
-				std::string( " unknown" ) ) );
-  }
+  const { return( Inf< idx_type >() ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get the index of the double parameter with given string name
- /** This method takes a string, which is assumed to be the name of a double
-  * parameter, and returns its index, i.e., the integer value in the range
+ /** This method takes a string: if \n name contains the name of a double
+  * parameter then its index - i.e., the integer value in the range
   * [ 0 , get_num_dbl_par() ) that can be used in set_par( double ) and
-  * get_[dflt_]dbl_par() to set/get it. The method is given a "void"
-  * implementation (throwing exception), rather than being pure virtual, so
-  * that derived classes not having any double parameter do not have to bother
-  * with implementing it. The method should anyway throw exception if
-  * \p name does not correspond to the string name of any double parameter. */
+  * get_[dflt_]dbl_par() to set/get it - is returned, otherwise
+  * Inf< idx_type >() is returned. The method is given a "void"
+  * implementation "understanding no names", i.e., always returning
+  * Inf< idx_type >(). */
 
  [[nodiscard]] virtual idx_type dbl_par_str2idx( const std::string & name )
-  const {
-  throw( std::invalid_argument( std::string( "double parameter " ) + name +
-				std::string( " unknown" ) ) );
-  }
+  const { return( Inf< idx_type >() ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get the index of the string parameter with given string name
- /** This method takes a string, which is assumed to be the name of a string
-  * parameter, and returns its index, i.e., the integer value in the range
-  * [ 0 , get_num_str_par() ) that can be used in set_par( std::string ) and
-  * get_[dflt_]str_par() to set/get it. The method is given a "void"
-  * implementation (throwing exception), rather than being pure virtual, so
-  * that derived classes not having any string parameter do not have to bother
-  * with implementing it. The method should anyway throw exception if \p name
-  * does not correspond to the string name of any string parameter. */
+ /** This method takes a string: if \n name contains the name of a string
+  * parameter then its index - i.e., the integer value in the range
+  * [ 0 , get_num_str_par() ) that can be used in set_par( std::string )
+  * and get_[dflt_]str_par() to set/get it - is returned, otherwise
+  * Inf< idx_type >() is returned. The method is given a "void"
+  * implementation "understanding no names", i.e., always returning
+  * Inf< idx_type >(). */
 
  [[nodiscard]] virtual idx_type str_par_str2idx( const std::string & name )
-  const {
-  throw( std::invalid_argument( std::string( "string parameter " ) + name +
-				std::string( " unknown" ) ) );
-  }
+  const { return( Inf< idx_type >() ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get the index of the std::vector< int > parameter with given name
- /** This method takes a string, which is assumed to be the name of a
-  * std::vector< int > parameter, and returns its index, i.e., the integer
-  * value in the range [ 0 , get_num_vint_par() ) that can be used in
-  * set_par( std::vector< int > &[&] ) and get_[dflt_]vint_par() to set/get
-  * it. The method is given a "void" implementation (throwing exception),
-  * rather than being pure virtual, so that derived classes not having any
-  * std::vector< int > parameter do not have to bother with implementing it.
-  * The method should anyway throw exception if \p name does not correspond
-  * to the string name of any std::vector< int > parameter. */
+ /** This method takes a string: if \n name contains the name of a
+  * vector-of-int parameter then its index - i.e., the integer value in the
+  * range [ 0 , get_num_vint_par() ) that can be used in
+  * set_par( std::vector< int > ) and get_[dflt_]vint_par() to set/get it -
+  * is returned, otherwise Inf< idx_type >() is returned. The method is
+  * given a "void" implementation "understanding no names", i.e., always
+  * returning Inf< idx_type >(). */
 
  [[nodiscard]] virtual idx_type vint_par_str2idx( const std::string & name )
-  const {
-  throw( std::invalid_argument( std::string( "vector-of-int parameter " )
-				+ name + std::string( " unknown" ) ) );
-  }
+  const { return( Inf< idx_type >() ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get the index of the std::vector< double > parameter with given name
- /** This method takes a string, which is assumed to be the name of a
-  * std::vector< double > parameter, and returns its index, i.e., the integer
-  * value in the range [ 0 , get_num_vdbl_par() ) that can be used in
-  * set_par( std::vector< double > &[&] ) and get_[dflt_]vdbl_par() to set/get
-  * it. The method is given a "void" implementation (throwing exception),
-  * rather than being pure virtual, so that derived classes not having any
-  * std::vector< double > parameter do not have to bother with implementing
-  * it. The method should anyway throw exception if \p name does not
-  *correspond to the string name of any std::vector< double > parameter. */
+ /** This method takes a string: if \n name contains the name of a
+  * vector-of-double parameter then its index - i.e., the integer value in
+  * the range [ 0 , get_num_vdbl_par() ) that can be used in
+  * set_par( std::vector< double > ) and get_[dflt_]vdbl_par() to set/get it
+  * - is returned, otherwise Inf< idx_type >() is returned. The method is
+  * given a "void" implementation "understanding no names", i.e., always
+  * returning Inf< idx_type >(). */
 
  [[nodiscard]] virtual idx_type vdbl_par_str2idx( const std::string & name )
-  const {
-  throw( std::invalid_argument( std::string( "vector-of-double parameter " )
-				+ name + std::string( " unknown" ) ) );
-  }
+  const { return( Inf< idx_type >() ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get the index of the std::vector< std::string > parameter named name
- /** This method takes a string, which is assumed to be the name of a
-  * std::vector< std::string > parameter, and returns its index, i.e., the
-  * integer value in the range [ 0 , get_num_vstr_par() ) that can be used in
-  * set_par( std::vector< std::string > &[&] ) and get_[dflt_]vstr_par() to
-  * set/get it. The method is given a "void" implementation (throwing
-  * exception), rather than being pure virtual, so that derived classes not
-  * having any std::vector< std::string > parameter do not have to bother
-  * with implementing it. The method should anyway throw exception if \p name
-  * does not correspond to the string name of any std::vector< std::string >
-  * parameter. */
+ /** This method takes a string: if \n name contains the name of a
+  * vector-of-string parameter then its index - i.e., the integer value in
+  * the range [ 0 , get_num_vstr_par() ) that can be used in
+  * set_par( std::vector< std::string > ) and get_[dflt_]vstr_par() to
+  * set/get it - is returned, otherwise Inf< idx_type >() is returned. The
+  * method is given a "void" implementation "understanding no names", i.e.,
+  * always returning Inf< idx_type >(). */
 
  [[nodiscard]] virtual idx_type vstr_par_str2idx( const std::string & name )
-  const {
-  throw( std::invalid_argument( std::string( "vector-of-string parameter " )
-				+ name + std::string( " unknown" ) ) );
-  }
+  const { return( Inf< idx_type >() ); }
 
 /*--------------------------------------------------------------------------*/
  /// get the string name of the int parameter with given index
