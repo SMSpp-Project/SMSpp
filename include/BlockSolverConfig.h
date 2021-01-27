@@ -736,7 +736,8 @@ class BlockSolverConfig : public Configuration {
   * - a binary number b to determine the value of #f_diff. If b == 0 then
   *   #f_diff = false, otherwise, #f_diff = true.
   *
-  * - the number k of the names of Solver for the Block
+  * - the number k of the names of Solver for the Block; if k == 0 then an
+  *   empty BlockSolverConfig (no names or ComputeConfig in it)
   *
   * - for i = 1 ... k
   *   a string containing the class type of a Solver object, '*' means

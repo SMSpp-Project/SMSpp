@@ -456,6 +456,8 @@ void BlockSolverConfig::load( std::istream & input )
 
  for( unsigned int i = 0 ; i < k ; ++i ) {
   auto cfg = Configuration::deserialize( input );
+  if( ! cfg )  // empty Configuration
+   continue;   // that's OK, but a nonempty one must be a ComputeConfig
   v_SolverConfigs[ i ] = dynamic_cast< ComputeConfig * >( cfg );
   if( ! v_SolverConfigs[ i ] ) {
    delete cfg;
