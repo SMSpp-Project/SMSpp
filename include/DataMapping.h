@@ -9,7 +9,7 @@
  *
  * \version 0.1
  *
- * \date 05 - 01 - 2021
+ * \date 31 - 01 - 2021
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -814,9 +814,17 @@ public:
 
   // FunctionName
 
-  std::string function_name;
-  ::SMSpp_di_unipi_it::deserialize< std::string >( group , FunctionName_name ,
-                                                   & function_name , false );
+  auto FunctionName_var = group.getVar( FunctionName_name );
+  if( FunctionName_var.isNull() ) {
+   throw( std::logic_error( "SimpleDataMapping::deserialize: variable '" +
+                            FunctionName_name + "' is not present." ) );
+  }
+
+  char * fname = nullptr;
+  FunctionName_var.getVar( & fname );
+  std::string function_name( fname );
+  delete fname;
+
   function = Block::get_method< F >( function_name );
 
   // AbstractPath
@@ -913,10 +921,11 @@ public:
 
   // FunctionName
 
-  auto fname = new char[ 1000 ];
+  char * fname = nullptr;
   sdmb_netCDF.FunctionName.getVar( { index } , { 1 } , & fname );
   std::string function_name( fname );
-  delete[] fname;
+  delete fname;
+
   function = Block::get_method< F >( function_name );
 
   // AbstractPath
