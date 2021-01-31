@@ -435,6 +435,8 @@ class AbstractBlock : public Block {
  *
  * - add_dynamic_constraint (all versions)
  *
+ * - add_dynamic_constraints (all versions)
+ *
  * - add_dynamic_variable (all versions)
  *
  * - set_static_constraint (all versions)
@@ -444,6 +446,8 @@ class AbstractBlock : public Block {
  * - set_dynamic_constraint (all versions)
  *
  * - set_dynamic_variable (all versions)
+ *
+ * - remove_dynamic_constraint (all versions)
  *
  * are made public in AbstractBlock, so that they can be used "from outside"
  * the AbstractBlock to manage its abstract representation;
@@ -469,6 +473,8 @@ class AbstractBlock : public Block {
 
  using Block::add_dynamic_constraint;
 
+ using Block::add_dynamic_constraints;
+
  using Block::add_dynamic_variable;
 
  using Block::set_static_constraint;
@@ -478,6 +484,8 @@ class AbstractBlock : public Block {
  using Block::set_dynamic_constraint;
 
  using Block::set_dynamic_variable;
+
+ using Block::remove_dynamic_constraint;
 
 /**@} ----------------------------------------------------------------------*/
 /*----------------- Methods for checking the AbstractBlock -----------------*/
