@@ -91,6 +91,7 @@ endif ()
 # Note: do not GLOB files here.
 target_sources(${modName} PRIVATE
                src/AbstractBlock.cpp
+               src/BoxSolver.cpp
                src/Block.cpp
                src/BlockSolverConfig.cpp
                src/C05Function.cpp
