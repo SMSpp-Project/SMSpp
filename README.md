@@ -11,6 +11,10 @@ exclusively, decomposition approaches and structured Interior-Point methods).
 For a more detailed description of SMS++ see
 [the Wiki pages](https://gitlab.com/smspp/smspp/wikis/home).
 
+> **Note:** This is the repository of the *SMS++ core library*.
+> If you are looking for the *SMS++ Project*, you will find it
+> [here](https://gitlab.com/smspp/smspp-project).
+
 
 ## Getting started
 
