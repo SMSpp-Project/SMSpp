@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 17 - 09 - 2020
+ * \date 03 - 02 - 2021
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -238,15 +238,18 @@ void test_everyone_has_function( Block * block ) {
 void print_tree( Block * block , std::string spaces = "" ) {
  std::cout << block << std::endl;
 
- if( const auto objective = dynamic_cast< FRealObjective * >( block->get_objective() ) ) {
-  if( const auto function = dynamic_cast< BendersBFunction * >( objective->get_function() ) ) {
+ if( const auto objective =
+     dynamic_cast< FRealObjective * >( block->get_objective() ) ) {
+  if( const auto function =
+      dynamic_cast< BendersBFunction * >( objective->get_function() ) ) {
    if( const auto inner_block = function->get_inner_block() ) {
     std::cout << spaces << "-> BendersBFunction " << function << std::endl;
     std::cout << spaces + "   " << "-> ";
     print_tree( inner_block , spaces + "   "  + "   " );
    }
   }
-  else if( const auto function = dynamic_cast< LagBFunction * >( objective->get_function() ) )
+  else if( const auto function =
+           dynamic_cast< LagBFunction * >( objective->get_function() ) )
    if( const auto inner_block = function->get_inner_block() ) {
     std::cout << spaces << "-> LagBFunction " << function << std::endl;
     std::cout << spaces + "   " << "-> ";
@@ -270,25 +273,26 @@ void simple_full_test() {
  AbstractBlockRandomNumberGenerator generator;
 
  generator.static_constraint_generator =
-  new ElementGenerator( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 3 } ,
-                        { 3 , 6 } , { 4 , 7 } , 0 );
+  new ElementGenerator< std::mt19937 , Int >
+  ( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 3 } , { 3 , 6 } , { 4 , 7 } , 0 );
 
  generator.static_variable_generator =
-  new ElementGenerator( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 4 } ,
-                        { 3 , 6 } , { 4 , 7 } , 2 );
+  new ElementGenerator< std::mt19937 , Int >
+  ( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 4 } , { 3 , 6 } , { 4 , 7 } , 2 );
 
  generator.dynamic_constraint_generator =
-  new ElementGenerator( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 3 } ,
-                        { 3 , 6 } , { 4 , 7 } , 3 );
+  new ElementGenerator< std::mt19937 , Int >
+  ( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 3 } , { 3 , 6 } , { 4 , 7 } , 3 );
 
  generator.dynamic_variable_generator =
-  new ElementGenerator( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 4 } ,
-                        { 3 , 6 } , { 4 , 7 } , 4 );
+  new ElementGenerator< std::mt19937 , Int >
+  ( { 4 , 7 } , { 0 , 2 } , { 4 , 7 } , { 2 , 4 } , { 3 , 6 } , { 4 , 7 } , 4 );
 
- generator.function_generator = new FunctionGenerator( { 0 , 2 } , 5 );
+ generator.function_generator =
+  new FunctionGenerator< std::mt19937 , Int >( { 0 , 2 } , 5 );
 
  generator.num_nested_block_generator =
-  new NumNestedBlockGenerator( { 4 , 7 } , 6 );
+  new NumNestedBlockGenerator< std::mt19937 , Int >( { 4 , 7 } , 6 );
 
  AbstractBlockGenerator ab_generator( & generator );
  auto block = ab_generator.generate( 2 );
