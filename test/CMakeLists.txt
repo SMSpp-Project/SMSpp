@@ -15,18 +15,15 @@
 # --------------------------------------------------------------------------- #
 
 # ----- Standard unit tests ------------------------------------------------- #
-
 add_executable(AbstractPath_test tests_AbstractPath.cpp)
 target_link_libraries(AbstractPath_test PRIVATE SMS++::SMSpp)
-
-#add_test(NAME AbstractPath_test
-#         COMMAND AbstractPath_test)
+add_test(NAME AbstractPath_test
+         COMMAND AbstractPath_test)
 
 add_executable(ClassFactory_test ClassFactory/main.cpp)
 target_link_libraries(ClassFactory_test PRIVATE SMS++::SMSpp)
-
-#add_test(NAME ClassFactory_test
-#         COMMAND ClassFactory_test)
+add_test(NAME ClassFactory_test
+         COMMAND ClassFactory_test)
 
 # ----- GoogleTest unit tests ----------------------------------------------- #
 # The following tests are built using the GoogleTest framework,

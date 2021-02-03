@@ -73,6 +73,12 @@ Some unit tests will be built with the library.
 Launch `ctest` from the build directory to run them.
 To disable them, set the option `BUILD_TESTING` to `OFF`.
 
+> **Note:**
+> Some tests use [Google Test](https://github.com/google/googletest).
+> CMake will fetch and build it automatically.
+
+> **Note:**
+> The test `AbstractPath_test` may take 10 minutes or more.
 
 ### Build and install with makefiles
 
