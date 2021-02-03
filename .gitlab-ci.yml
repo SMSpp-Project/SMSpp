@@ -1,3 +1,6 @@
+# GitLab CI/CD pipeline configuration file
+# See: https://docs.gitlab.com/ee/ci/yaml/README.html
+
 default:
   image: registry.gitlab.com/smspp/smspp
 
@@ -15,7 +18,11 @@ build:
     paths:
       - build
   only:
+    refs:
+      - master
+      - develop
     changes:
+      - cmake/*
       - include/*
       - src/*
       - test/*
@@ -26,7 +33,11 @@ test:
   script:
     - cmake --build build --target test
   only:
+    refs:
+      - master
+      - develop
     changes:
+      - cmake/*
       - include/*
       - src/*
       - test/*
@@ -50,8 +61,6 @@ pages:
   before_script:
     - apk update
     - apk add doxygen
-  ### Uncomment the following line if you use graphviz dot graphs
-  ##- apk add ttf-freefont graphviz
   script:
     - doxygen doxygen/Doxyfile
     - mv doc/html/ public/
