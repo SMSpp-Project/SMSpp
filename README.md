@@ -162,6 +162,11 @@ conduct, and the process for submitting merge requests to us.
 - **Utz-Uwe Haus**  
   Cray EMEA Research Lab
 
+- **Niccolò Iardella**  
+  *Operations Research Group*  
+  Dipartimento di Informatica  
+  Università di Pisa
+
 
 ## License
 
