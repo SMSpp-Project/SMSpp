@@ -80,21 +80,21 @@ namespace SMSpp_di_unipi_it
  *
  * Indeed, having a PolyhedralFunction as objective is equivalent to the
  * linear program
- * \$[
+ * \f[
  *     \min \{ v : v >= a_i x + b_i \}    \qquad     i = 0, ... , m - 1
- * \$]
+ * \f]
  * in the convex case, as this corresponds to
- * \$[
+ * \f[
  *     pf( x ) = max \{ a_i x + b_i : i = 0, ... , m - 1 \}
- * \$]
+ * \f]
  * (pointwise maximum of a finite set of linear functions), and
- * \$[
+ * \f[
  *     max \{ v : v <= a_i x + b_i \}     \qquad     i = 0, ... , m - 1
- * \$]
+ * \f]
  * in the concave one, as this corresponds to
- * \$[
+ * \f[
  *     pf( x ) = min \{ a_i x + b_i : i = 0, ... , m - 1 \}
- * \$]
+ * \f]
  * (pointwise minimum of a finite set of linear functions). Note that above
  *
  *     x IS FIXED AND v IS THE ONLY Variable
@@ -226,7 +226,7 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   * - any other data necessary to represent the "arbitrary" part of the
   *   AbstractBlock, see AbstractBlock::deserialize() for details. */
 
- void deserialize( netCDF::NcGroup & group ) override
+ void deserialize( const netCDF::NcGroup & group ) override
  {
   // have the PolyhedralFunction do all the dirty work for us
   // don't bother issuing individual Modification, since a NBModification will
@@ -384,7 +384,11 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   * FRealObjective, but its Function is a LinearFunction having a single
   * nonzero coefficient (that of v, which is 1). Note that the "verse" of
   * the Objective depends on PolyhedralFunction->is_convex(); if it is true
-  * then it is minimization, otherwise it is maximization. */
+  * then it is minimization, otherwise it is maximization. This is the
+  * "natural verse", which is mandatory if the "linearised representation" is
+  * used (because an LP can only represent convex or concave functions);
+  * nonetheless, the verse can in principle be changed manually after that the
+  * method is called (at your own risk). */
 
  void generate_objective( Configuration *objc = nullptr ) override;
 

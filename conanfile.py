@@ -3,7 +3,7 @@ from conans import ConanFile, CMake, tools
 
 class SmsppConan(ConanFile):
     name = "smspp"
-    version = "0.3.2"
+    version = "0.4.0"
     description = "A C++ library for modeling and solving mathematical models"
     topics = ("conan", "smspp")
     url = "https://gitlab.com/smspp/smspp"
@@ -16,8 +16,8 @@ class SmsppConan(ConanFile):
     default_options = {"shared": False, "fPIC": True}
 
     requires = (
-        "boost/1.71.0@conan/stable",
-        "eigen/3.3.7@conan/stable",
+        "boost/1.74.0",
+        "eigen/3.3.8",
         "netcdf-cxx4/4.3.1@smspp/testing"
     )
 
@@ -25,15 +25,14 @@ class SmsppConan(ConanFile):
         "CMakeLists.txt",
         "src/*",
         "include/*",
-        "cmake/SMSppConfig.cmake.in",
-        "cmake/FindnetCDFCxx.cmake"
+        "cmake/*"
     ]
 
     def source(self):
         tools.replace_in_file(
             "CMakeLists.txt",
-            '''project(SMS++ VERSION 0.3.2 LANGUAGES CXX)''',
-            '''project(SMS++ VERSION 0.3.2 LANGUAGES CXX)\n''' +
+            '''LANGUAGES C CXX)''',
+            '''LANGUAGES C CXX)\n''' +
             '''include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)\n''' +
             '''conan_basic_setup()'''
         )

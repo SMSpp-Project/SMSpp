@@ -29,8 +29,8 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#include "Modification.h"
 #include <iterator>
+#include "Modification.h"
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
@@ -41,19 +41,6 @@ namespace SMSpp_di_unipi_it
 {
  class Variable;  // forward definition of Variable
 
-/*--------------------------------------------------------------------------*/
-/*------------------ ThinVarDepInterface-RELATED TYPES ---------------------*/
-/*--------------------------------------------------------------------------*/
-/** @defgroup ThinVarDepInterface_TYPES ThinVarDepInterface-related types.
- *  @{ */
-
-/** @} end( group( ThinVarDepInterface_TYPES ) ) */
-/*--------------------------------------------------------------------------*/
-/*------------------------------- CLASSES ----------------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @defgroup ThinVarDepInterface_CLASSES Classes in ThinVarDepInterface.h
- *  @{ */
- 
 /*--------------------------------------------------------------------------*/
 /*---------------------- CLASS ThinVarDepInterface -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -112,7 +99,7 @@ class ThinVarDepInterface {
  /** Note: the Range type is supposed to be identical to the same-name type
   * defined in Block; it is not "imported from Block" because
   * ThinVarDepInterface.h does not include Block.h. */
- using Range = std::pair< Index , Index >;
+ using Range = std::pair< Index, Index >;
 
  using c_Range = const Range;    ///< a const Range
 
@@ -141,25 +128,24 @@ class ThinVarDepInterface {
   * cannot be done via standard copy constructors/assignments, and a clone()
   * method is requird. */
 
- class v_iterator
- {
+ class v_iterator {
   public:
 
   typedef Variable value_type;
-  typedef Variable& reference;
-  typedef Variable* pointer;
+  typedef Variable & reference;
+  typedef Variable * pointer;
   typedef std::forward_iterator_tag iterator_category;
   typedef int difference_type;
 
-  v_iterator( void ) { }                                       ///< constructor
-  virtual ~v_iterator() { };                                   ///< destructor
-  virtual v_iterator * clone( void ) = 0;                      ///< cloner
-  virtual void operator++( void ) = 0;                         ///< increment
-  virtual reference operator*( void ) const = 0;               ///< operator*
-  virtual pointer operator->( void ) const = 0;                ///< operator->
-  virtual bool operator==( const v_iterator& rhs ) const = 0;  ///< operator==
-  virtual bool operator!=( const v_iterator& rhs ) const = 0;  ///< operator!=
-  };
+  v_iterator() = default;                                      ///< constructor
+  virtual ~v_iterator() = default;                             ///< destructor
+  virtual v_iterator * clone() = 0;                            ///< cloner
+  virtual void operator++() = 0;                               ///< increment
+  virtual reference operator*() const = 0;                     ///< operator*
+  virtual pointer operator->() const = 0;                      ///< operator->
+  virtual bool operator==( const v_iterator & rhs ) const = 0; ///< operator==
+  virtual bool operator!=( const v_iterator & rhs ) const = 0; ///< operator!=
+ };
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// virtualized standard const iterator
@@ -175,27 +161,26 @@ class ThinVarDepInterface {
   * there is only one version doing the increment. This single version is
   * then transformed into the ordinary two by the "normal" const_iterator. */
 
- class v_const_iterator
- {
+ class v_const_iterator {
   public:
 
   typedef const Variable value_type;
-  typedef const Variable& reference;
-  typedef const Variable* pointer;
+  typedef const Variable & reference;
+  typedef const Variable * pointer;
   typedef int difference_type;
   typedef std::forward_iterator_tag iterator_category;
 
-  v_const_iterator( void ) { }                                ///< constructor
-  virtual ~v_const_iterator() { };                            ///< destructor
-  virtual v_const_iterator * clone( void ) = 0;               ///< cloner
-  virtual void operator++( void ) = 0;                        ///< increment
-  virtual reference operator*( void ) const = 0;              ///< operator*
-  virtual pointer operator->( void ) const = 0;               ///< Operator->
-  virtual bool operator==( const v_const_iterator & rhs ) const = 0;
-  ///< operator==
-  virtual bool operator!=( const v_const_iterator& rhs ) const = 0;
-  ///< operator!=
-  };
+  v_const_iterator() = default;                                ///< constructor
+  virtual ~v_const_iterator() = default;;                      ///< destructor
+  virtual v_const_iterator * clone() = 0;                      ///< cloner
+  virtual void operator++() = 0;                               ///< increment
+  virtual reference operator*() const = 0;                     ///< operator*
+  virtual pointer operator->() const = 0;                      ///< Operator->
+  virtual bool
+  operator==( const v_const_iterator & rhs ) const = 0;        ///< operator==
+  virtual bool
+  operator!=( const v_const_iterator & rhs ) const = 0;        ///< operator!=
+ };
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// standard iterator (redirecting a v_iterator)
@@ -208,57 +193,73 @@ class ThinVarDepInterface {
   * onto; hence, copy constructor, copy assignment operator and post-increment
   * operators all both use clone() to make a copy. */
 
- class iterator
- {
+ class iterator {
   public:
 
   typedef Variable value_type;
-  typedef Variable& reference;
-  typedef Variable* pointer;
+  typedef Variable & reference;
+  typedef Variable * pointer;
   typedef std::forward_iterator_tag iterator_category;
   typedef int difference_type;
 
   // constructor taking a v_iterator, which becomes property
-  iterator( v_iterator * itr ) : itr_( itr ) { }
+  explicit iterator( v_iterator * itr ) : itr_( itr ) {}
+
   // standard copy constructor, note the clone()
   iterator( iterator & itr ) { itr_ = itr.itr_->clone(); }
+
   // standard move constructor
-  iterator( iterator && itr ) { itr_ = itr.itr_; itr.itr_ = nullptr; }
+  iterator( iterator && itr ) noexcept {
+   itr_ = itr.itr_;
+   itr.itr_ = nullptr;
+  }
 
   // destructor, deletes the virtual iterator
-  ~iterator( ) { delete itr_; }
+  ~iterator() { delete itr_; }
 
   // standard assignment, note the clone()
   iterator & operator=( iterator & itr ) {
-   itr_ = itr.itr_->clone(); return( *this );
-   }
+   itr_ = itr.itr_->clone();
+   return ( *this );
+  }
+
   // standard move assignment
   iterator & operator=( iterator && itr ) {
-   itr_ = itr.itr_; itr.itr_ = nullptr; return( *this );
-   }
+   itr_ = itr.itr_;
+   itr.itr_ = nullptr;
+   return ( *this );
+  }
 
   // pre-increment operator ++it, use this preferably
-  iterator & operator++( void ) { itr_->operator++(); return( *this ); }
+  iterator & operator++() {
+   itr_->operator++();
+   return ( *this );
+  }
+
   // post-increment operator it++, avoid this if possible
   iterator operator++( int ) {
    // note that the copy need be disjoint, hence the clone()
-   iterator i( itr_->clone() ); itr_->operator++(); return( i );
-   }
+   iterator i( itr_->clone() );
+   itr_->operator++();
+   return ( i );
+  }
 
-  reference operator*( void ) const { return( *(*itr_) ); }
-  pointer operator->( void ) const { return( itr_->operator->() ); }
+  reference operator*() const { return ( *( *itr_ ) ); }
+
+  pointer operator->() const { return ( itr_->operator->() ); }
 
   bool operator==( const iterator & rhs ) const {
-   return( *itr_ == *(rhs.itr_) );
-   }
+   return ( *( rhs.itr_ ) == *itr_ );
+  }
+
   bool operator!=( const iterator & rhs ) const {
-   return( *itr_ != *(rhs.itr_) );
-   }
+   return ( *itr_ != *( rhs.itr_ ) );
+  }
 
   private:
-  
+
   v_iterator * itr_;
-  };
+ };
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// standard const iterator (redirecting a v_const_iterator)
@@ -271,59 +272,73 @@ class ThinVarDepInterface {
   * depends onto; hence, copy constructor and assignment operators both use
   * clone() to make a copy. */
 
- class const_iterator
- {
+ class const_iterator {
   public:
 
   typedef const Variable value_type;
-  typedef const Variable& reference;
-  typedef const Variable* pointer;
+  typedef const Variable & reference;
+  typedef const Variable * pointer;
   typedef int difference_type;
   typedef std::forward_iterator_tag iterator_category;
 
   // constructor taking a v_iterator, which becomes property
-  const_iterator( v_const_iterator * itr ) : itr_( itr ) { }
+  explicit const_iterator( v_const_iterator * itr ) : itr_( itr ) {}
+
   // standard copy constructor, note the clone()
   const_iterator( const_iterator & itr ) { itr_ = itr.itr_->clone(); }
+
   // standard move constructor
-  const_iterator( const_iterator && itr ) {
-   itr_ = itr.itr_; itr.itr_ = nullptr;
-   }
+  const_iterator( const_iterator && itr ) noexcept {
+   itr_ = itr.itr_;
+   itr.itr_ = nullptr;
+  }
 
   // destructor, deletes the virtual iterator
-  ~const_iterator( ) { delete itr_; }
-  
+  ~const_iterator() { delete itr_; }
+
   // standard assignment, note the clone()
   const_iterator & operator=( const_iterator & itr ) {
-   itr_ = itr.itr_->clone(); return( *this );
-   }
+   itr_ = itr.itr_->clone();
+   return ( *this );
+  }
+
   // standard move assignment
   const_iterator & operator=( const_iterator && itr ) {
-   itr_ = itr.itr_; itr.itr_ = nullptr; return( *this );
-   }
+   itr_ = itr.itr_;
+   itr.itr_ = nullptr;
+   return ( *this );
+  }
 
   // pre-increment operator ++it, use this preferably
-  const_iterator & operator++( void ) { itr_->operator++(); return( *this ); }
+  const_iterator & operator++() {
+   itr_->operator++();
+   return ( *this );
+  }
+
   // post-increment operator it++, avoid this if possible
   const_iterator operator++( int ) {
    // note that the copy need be disjoint, hence the clone()
-   const_iterator i( itr_->clone() ); itr_->operator++(); return( i );
-   }
+   const_iterator i( itr_->clone() );
+   itr_->operator++();
+   return ( i );
+  }
 
-  reference operator*( void ) const { return( *(*itr_) ); }
-  pointer operator->( void ) const { return( itr_->operator->() ); }
+  reference operator*() const { return ( *( *itr_ ) ); }
+
+  pointer operator->() const { return ( itr_->operator->() ); }
 
   bool operator==( const const_iterator & rhs ) const {
-   return( *itr_ == *(rhs.itr_) );
-   }
+   return ( *itr_ == *( rhs.itr_ ) );
+  }
+
   bool operator!=( const const_iterator & rhs ) const {
-   return( *itr_ != *(rhs.itr_) );
-   }
+   return ( *itr_ != *( rhs.itr_ ) );
+  }
 
   private:
 
   v_const_iterator * itr_;
-  };
+ };
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -364,7 +379,7 @@ class ThinVarDepInterface {
  *  @{ */
 
  /// constructor of ThinVarDepInterface; does nothing
- ThinVarDepInterface( void ) {}
+ ThinVarDepInterface( void ) = default;
 
 /*--------------------------------------------------------------------------*/
  /// destructor: it is virtual, and empty
@@ -415,8 +430,21 @@ class ThinVarDepInterface {
   * register themselves as "active stuff" into Variable, see Function). Also,
   * this mathod should only be called when the underlying assumption is
   * guaranteed to be satisfied; in doubt, do not call it. */
- 
- virtual void clear( void ) { }
+
+ virtual void clear( void ) {}
+
+/**@} ----------------------------------------------------------------------*/
+/*-------- METHODS FOR READING THE DATA OF THE ThinVarDepInterface ---------*/
+/*--------------------------------------------------------------------------*/
+/** @name Reading the data of the ThinVarDepInterface
+    @{ */
+
+ /// returns a pointer to the Block to which the ThinVarDepInterface belongs
+ /** Every ThinVarDepInterface belongs to a Block; return a pointer to it.
+  * The base class implementation is pure virtual so as to allow derived
+  * casses full flexibility. */
+
+ [[nodiscard]] virtual Block * get_Block( void ) const = 0;
 
 /**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE SET OF "ACTIVE" Variable ------------*/
@@ -513,7 +541,7 @@ class ThinVarDepInterface {
   * is stored in order to leave complete freedom to derived classes to
   * implement as they best see fit. */
 
- virtual Index get_num_active_var( void ) const = 0;
+ [[nodiscard]] virtual Index get_num_active_var( void ) const = 0;
 
 /*--------------------------------------------------------------------------*/
  /// returns the Index of a given "active" Variable
@@ -529,7 +557,7 @@ class ThinVarDepInterface {
   * is stored in order to leave complete freedom to derived classes to
   * implement as they best see fit. */
 
- virtual Index is_active( const Variable * const var ) const = 0;
+ virtual Index is_active( const Variable * var ) const = 0;
 
 /*--------------------------------------------------------------------------*/
  /// returns the set of indices of a given set "active" Variable
@@ -564,13 +592,12 @@ class ThinVarDepInterface {
   * implementation (if the one of the base class is used) if it is for any
   * reason preferable to do so. */
 
- virtual void map_active( const std::vector<Variable *> & vars ,
-			  Subset & map , const bool ordered = false ) const
- {
+ virtual void map_active( const std::vector< Variable * > & vars ,
+                          Subset & map , bool ordered = false ) const {
   if( vars.empty() )
    return;
 
- if( map.size() < vars.size() )
+  if( map.size() < vars.size() )
    map.resize( vars.size() );
 
   if( ordered ) {
@@ -579,24 +606,25 @@ class ThinVarDepInterface {
     auto vi = get_active_var( i );
     auto itvi = std::lower_bound( vars.begin() , vars.end() , vi );
     if( itvi != vars.end() ) {
-     map[ std::distance( vars.begin() , itvi ) ] = i;
+     map[ std::distance( vars.begin(), itvi ) ] = i;
      ++found;
      }
     }
+
    if( found < vars.size() )
-     throw( std::invalid_argument( "map_active: some Variable is not active" )
-	    );
+    throw( std::invalid_argument( "map_active: some Variable is not active"
+				  ) );
    }
   else {
    auto it = map.begin();
    for( auto var : vars ) {
     Index i = is_active( var );
     if( i >= get_num_active_var() )
-     throw( std::invalid_argument( "map_active: some Variable is not active" )
-	    );
-    *(it++) = i;
+     throw( std::invalid_argument( "map_active: some Variable is not active"
+				   ) );
+    *( it++ ) = i;
     }
-   }   
+   }
   }
 
 /*--------------------------------------------------------------------------*/
@@ -613,7 +641,7 @@ class ThinVarDepInterface {
   * class, subject to the assumptions stated in the general comments to this
   * section. */
 
- virtual Variable * get_active_var( const Index i ) const = 0;
+ [[nodiscard]] virtual Variable * get_active_var( Index i ) const = 0;
 
 /*--------------------------------------------------------------------------*/
  /// get (a pointer to) a v_iterator for scanning the "active" Variable
@@ -633,7 +661,7 @@ class ThinVarDepInterface {
  /// get (a pointer to) a v_const_iterator for scanning the "active" Variable
  /** Const version of v_begin(), see the comments there. */
 
- virtual v_const_iterator * v_begin( void ) const = 0;
+ [[nodiscard]] virtual v_const_iterator * v_begin( void ) const = 0;
 
 /*--------------------------------------------------------------------------*/
  /// get (a pointer to) a v_iterator for the end of the "active" Variable
@@ -652,7 +680,7 @@ class ThinVarDepInterface {
  /// get (a pointer to) a v_const_iterator for the end the "active" Variable
  /** Const version of v_end(), see the comments there. */
 
- virtual v_const_iterator * v_end( void ) const = 0;
+ [[nodiscard]] virtual v_const_iterator * v_end( void ) const = 0;
 
 /*--------------------------------------------------------------------------*/
  /// get an iterator for scanning the "active" Variable
@@ -660,13 +688,13 @@ class ThinVarDepInterface {
   * returns the latter. However it is virtual, so that derived classes may
   * redefine it if needed. */
 
- virtual iterator begin( void ) { return( iterator( v_begin() ) ); }
+ virtual iterator begin( void ) { return ( iterator( v_begin() ) ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get a const iterator for scanning the "active" Variable
  /** Const version of end(), see the comments there. */
 
- virtual const_iterator begin( void ) const {
+ [[nodiscard]] virtual const_iterator begin( void ) const {
   return( const_iterator( v_begin() ) );
   }
 
@@ -679,10 +707,10 @@ class ThinVarDepInterface {
  virtual iterator end( void ) { return( iterator( v_end() ) ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// get a const iterator for for the end of the "active" Variable
+ /// get a const iterator for the end of the "active" Variable
  /** Const version of end(), see the comments there. */
 
- virtual const_iterator end( void ) const {
+ [[nodiscard]] virtual const_iterator end( void ) const {
   return( const_iterator( v_end() ) );
   }
 
@@ -742,21 +770,20 @@ class ThinVarDepInterface {
   * knowledge of the actual implementation of the set of active Variable of
   * the ThinVarDepInterface, and therefore necessarily need be demanded to
   * the derived classes. */
- 
- virtual void remove_variables( Range range , ModParam issueMod = eModBlck )
- {
+
+ virtual void remove_variables( Range range , ModParam issueMod = eModBlck ) {
   if( range.second <= range.first )  // empty range
    return;                           // silently (and cowardly) return
 
   if( range.second >= get_num_active_var() )
-   throw( std::invalid_argument( "remove_variables: invalid range" ) );
+   throw std::invalid_argument( "remove_variables: invalid range" );
 
   // note: the removal loop goes backward, since eliminating a variable
   //       changes the "names" of all the variable with larger name
-  for( Index i = range.second ; i > range.first ; )
-   remove_variable( --i , issueMod );
+  for( Index i = range.second; i > range.first; )
+   remove_variable( --i, issueMod );
   }
- 
+
 /*--------------------------------------------------------------------------*/
  /// remove a set of variables
  /** Remove all the Variable in the given set of indices.
@@ -780,16 +807,15 @@ class ThinVarDepInterface {
   *        described in Observer::make_par().
   *
   * The method is not pure virtual in that the base class provides the obvious
-  * implementation calling remove_variable( i ) for all i in nms. However, this
-  * results in many Modification being issued instead of one, and it is
+  * implementation calling remove_variable( i ) for all i in nms. However,
+  * this results in many Modification being issued instead of one, and it is
   * generally less efficient. Yet, more efficient implementations require
   * knowledge of the actual implementation of the set of active Variable of
   * the ThinVarDepInterface, and therefore necessarily need be demanded to
   * the derived classes. */
- 
+
  virtual void remove_variables( Subset && nms , bool ordered = false ,
-				ModParam issueMod = eModBlck )
- {
+                                ModParam issueMod = eModBlck ) {
   // note: the removal loop goes backward, since eliminating a variable
   //       changes the "names" of all the variable with larger name;
   //       this is why nms need be ordered (if nonempty)
@@ -805,11 +831,11 @@ class ThinVarDepInterface {
     remove_variable( *it , issueMod );
    }
   }
- 
+
 /**@} ----------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-  };  // end( class( ThinVarDepInterface ) )
+ };  // end( class( ThinVarDepInterface ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

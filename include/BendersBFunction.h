@@ -7,7 +7,7 @@
  *
  * \version 0.01
  *
- * \date 15 - 09 - 2020
+ * \date 17 - 09 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -48,6 +48,7 @@
 namespace SMSpp_di_unipi_it
 {
 
+ class AbstractPath;       // forward declaration of AbstractPath
  class ConstraintMod;      // forward declaration of ConstraintMod
  class RowConstraint;      // forward declaration of RowConstraint
  class Solution;           // forward declaration of Solution
@@ -75,8 +76,9 @@ namespace SMSpp_di_unipi_it
  *        (B)    min { c(y) : w <= E(y) <= z, y \in Y },
  *
  *    where c, w, and z are vectors of appropriate sizes, E is a function of
- *    y, and Y is a convex set. This will be the one, and only, sub-Block of
- *    BendersBFunction (when "seen" as a Block).
+ *    y, and Y is a convex set. We assume that the set Y is represented by a
+ *    set of RowConstraint and bounds on the variables y. This will be the
+ *    one, and only, sub-Block of BendersBFunction (when "seen" as a Block).
  *
  * 2) A matrix A with m rows and n columns, a vector b with m rows, and a
  *    vector of pairs [ ( C_i , S_i ) ]_{i \in I}, each pair being formed by a
@@ -411,15 +413,7 @@ class BendersBFunction : public C05Function , public Block {
                    RealVector && b = {} ,
                    ConstraintVector && constraints = {} ,
                    ConstraintSideVector && sides = {} ,
-                   Observer * const observer = nullptr )
-  : C05Function( observer ) , constraints_are_updated( false ) ,
-    solver_status ( 0 ) , diagonal_linearization_required( false )
- {
-  set_inner_block( inner_block );
-  set_variables( std::move( x ) );
-  set_mapping( std::move( A ) , std::move( b ) , std::move( constraints ) ,
-               std::move( sides ) , eNoMod );
- }
+                   Observer * const observer = nullptr );
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a BendersBFunction out of netCDF::NcGroup
@@ -468,7 +462,7 @@ class BendersBFunction : public C05Function , public Block {
   *        since the method is mostly thought to be used during initialization
   *        when "no one is listening". */
 
- void deserialize( netCDF::NcGroup & group , ModParam issueMod = eNoMod );
+ void deserialize( const netCDF::NcGroup & group , ModParam issueMod = eNoMod );
 
 /*--------------------------------------------------------------------------*/
  /// destructor of BendersBFunction
@@ -479,11 +473,7 @@ class BendersBFunction : public C05Function , public Block {
   * passing \c nullptr as a pointer to the new inner Block and \c false to the
   * \c destroy_previous_block parameter. */
 
- virtual ~BendersBFunction( void ) {
-  if( ! v_Block.empty() )
-   delete v_Block.front();
-  v_Block.clear();
- }
+ virtual ~BendersBFunction();
 
 /*--------------------------------------------------------------------------*/
  /// clear method: clears the v_x field
@@ -1102,7 +1092,7 @@ class BendersBFunction : public C05Function , public Block {
   *        nothing). */
 
  void modify_constants( c_RealVector & nb , Range range ,
-                        ModParam issueMod = eModBlck );
+                        c_ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// modify only the constant term of a subset of rows of the linear mapping
@@ -1137,7 +1127,7 @@ class BendersBFunction : public C05Function , public Block {
   *        nothing). */
 
  void modify_constants( c_RealVector & nb , Subset && rows ,
-                        bool ordered , ModParam issueMod );
+                        const bool ordered , ModParam issueMod );
 
 /*--------------------------------------------------------------------------*/
  /// modify only the constant term of a range of rows of the linear mapping
@@ -1169,10 +1159,10 @@ class BendersBFunction : public C05Function , public Block {
   *        shift is NANshift (unless all the values are equal, in which case
   *        the function value has not changed and the method does nothing). */
 
- void modify_constants( std::vector< double >::const_iterator nb ,
-                        Range range = Range( 0, Inf< Index >() ) ,
-                        ModParam issuePMod = eNoBlck ,
-                        ModParam issueAMod = eNoBlck );
+ void modify_constants( MF_dbl_it nb ,
+			Range range = Range( 0, Inf< Index >() ) ,
+                        c_ModParam issuePMod = eNoBlck ,
+                        c_ModParam issueAMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
  /// modify only the constant term of a subset of rows of the linear mapping
@@ -1211,8 +1201,8 @@ class BendersBFunction : public C05Function , public Block {
   *        the function value has not changed and the method does
   *        nothing). */
 
- void modify_constants( std::vector< double >::const_iterator nb ,
-                        Subset && rows , bool ordered = false ,
+ void modify_constants( MF_dbl_it nb , Subset && rows ,
+			const bool ordered = false ,
                         ModParam issuePMod = eNoBlck ,
                         ModParam issueAMod = eNoBlck );
 
@@ -1628,9 +1618,9 @@ class BendersBFunction : public C05Function , public Block {
   * the second case it is a diagonal linearization. If none of the above two
   * conditions are met, an exception is thrown. */
 
- void store_combination_of_linearizations( LinearCombination & coefficients ,
-                                           const Index name ,
-                                           ModParam issueMod = eModBlck )
+ void store_combination_of_linearizations(
+			    c_LinearCombination & coefficients , Index name ,
+			    ModParam issueMod = eModBlck )
   override final;
 
 /*--------------------------------------------------------------------------*/
@@ -1740,7 +1730,7 @@ class BendersBFunction : public C05Function , public Block {
    return nullptr;
 
   return dynamic_cast< T * >
-   ( v_Block.front()->get_registered_solvers().back() );
+   ( v_Block.front()->get_registered_solvers().front() );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1762,6 +1752,12 @@ class BendersBFunction : public C05Function , public Block {
   * If an appropriate extra Configuration is provided, then it is used to
   * obtain the BlockConfig (see BlockConfig::get()) and the BlockSolverConfig
   * (see BlockSolverConfig::get()) of the inner Block.
+  *
+  * The parameters of this BendersBFunction (that are not related with its
+  * inner Block), are obtained via a call to
+  * ThinComputeInterface::get_ComputeConfig(). So, please take a look at
+  * ThinComputeInterface::get_ComputeConfig() to understand the behavior of
+  * this method and how it may affect the (possibly) given \p ocfg.
   *
   * @param all see ThinComputeInterface::get_ComputeConfig().
   *
@@ -1815,22 +1811,27 @@ class BendersBFunction : public C05Function , public Block {
  ConstraintVector v_constraints;
  ///< the pointers to RowConstraint
 
+ std::vector< std::unique_ptr< AbstractPath > > v_paths_to_constraints;
+ ///< The AbstractPath to the affected RowConstraint
+
  ConstraintSideVector v_sides;
  ///< the affected sides of the affected RowConstraint
  /**< The affected sides of the affected RowConstraint. There is a
   * correspondence between the vectors v_side and v_constraints: v_sides[i] is
   * associated with v_constraints[i]. */
 
- bool constraints_are_updated = false;
+ bool f_constraints_are_updated = false;
  ///< indicates whether the constraints of the sub-Block are updated
 
- int solver_status = 0;
+ int f_solver_status = 0;
  ///< the most recent status returned by the Solver of the sub-Block
 
- bool diagonal_linearization_required = false;
+ bool f_diagonal_linearization_required = false;
  ///< indicates whether a diagonal linearization is required
 
  FunctionValue AAccMlt;  ///< maximum absolute error in the multipliers
+
+ bool f_ignore_modifications = false; ///< ignore any Modification
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -2038,12 +2039,11 @@ class BendersBFunction : public C05Function , public Block {
    * @param name the name under which the combination of linearizations will
    *        be stored.
    *
-   * @param AAccMlt the maximum absolute error in the multipliers.
-   */
+   * @param AAccMlt the maximum absolute error in the multipliers. */
 
-  void store_combination_of_linearizations( LinearCombination & coefficients ,
-                                            const Index name ,
-                                            const FunctionValue AAccMlt );
+  void store_combination_of_linearizations(
+				        c_LinearCombination & coefficients ,
+                                        Index name , FunctionValue AAccMlt );
 
 /*--------------------------------------------------------------------------*/
   /// deletes the linearization with the given name
@@ -2051,8 +2051,8 @@ class BendersBFunction : public C05Function , public Block {
    * destroying the Solution associated with it. If the given \p name is
    * invalid, an exception is thrown.
    *
-   * @param name the name of the linearization to be deleted.
-   */
+   * @param name the name of the linearization to be deleted. */
+
   void delete_linearization( Index name );
 
 /*--------------------------------------------------------------------------*/
@@ -2256,22 +2256,6 @@ class BendersBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- /// returns the dual value associated with the given RowConstraint
- /** This function returns the dual value associated with the given \p
-  * constraint and its specific \c side.
-  *
-  * @param constraint a pointer to the RowConstraint.
-  *
-  * @param side the side of the RowConstraint.
-  *
-  * @return the dual value associated with the given \p constraint and \p side.
-  */
-
- FunctionValue get_dual_value( const RowConstraint * constraint ,
-                               const ConstraintSide & side );
-
-/*--------------------------------------------------------------------------*/
-
  /// compute the linearization constant
  /** Compute the linearization constant considering the dual solution
   * currently stored in the sub-Block.
@@ -2379,6 +2363,30 @@ class BendersBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
+ /// return the index of the given  RowConstraint
+ Index get_constraint_index( RowConstraint * constraint ) {
+  retrieve_constraints();
+  auto it = std::find( std::begin( v_constraints ) , std::end( v_constraints ) ,
+                       constraint );
+  if( it != std::end( v_constraints ) )
+   return std::distance( std::begin( v_constraints ) , it );
+  return Inf<Index>();
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// return the index of the given RowConstraint
+ Index get_constraint_index( RowConstraint * constraint ,
+                             ConstraintSide side ) {
+  retrieve_constraints();
+  for( Index i = 0 ; i < v_constraints.size() ; ++i )
+   if( v_constraints[ i ] == constraint && v_sides[ i ] == side )
+    return i;
+  return Inf<Index>();
+ }
+
+/*--------------------------------------------------------------------------*/
+
  /// add the pointers to the Constraint in the given vector
  void add_constraints( const ConstraintVector & nc );
 
@@ -2395,6 +2403,9 @@ class BendersBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  /// remove all the Constraint indicated in \p rows
+ /** This function removes all the Constrant indicated in \p rows. It is
+  * assumed that \p rows is ordered.
+  */
  void remove_constraints( const Subset & rows );
 
 /*--------------------------------------------------------------------------*/
@@ -2429,7 +2440,14 @@ class BendersBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- static void static_initialization() {
+ static void static_initialization()
+ {
+  /*!!
+   * Not all C++ compilers enjoy the template wizardry behind the three-args
+   * version of register_method<> with the compact MS_*_*::args(), so we just
+   * use the slightly less compact one with the explicit argument and be done
+   * with it.
+
   register_method< BendersBFunction >( "BendersBFunction::modify_constants" ,
                                        & BendersBFunction::modify_constants ,
                                        MS_dbl_sbst::args() );
@@ -2437,6 +2455,14 @@ class BendersBFunction : public C05Function , public Block {
   register_method< BendersBFunction >( "BendersBFunction::modify_constants" ,
                                        & BendersBFunction::modify_constants ,
                                        MS_dbl_rngd::args() );
+				       !!*/
+  register_method< BendersBFunction , MF_dbl_it , Subset && , const bool >(
+				       "BendersBFunction::modify_constants" ,
+                                       & BendersBFunction::modify_constants );
+
+  register_method< BendersBFunction , MF_dbl_it , Range >(
+				       "BendersBFunction::modify_constants" ,
+                                       & BendersBFunction::modify_constants );
  }
 
 /*--------------------------------------------------------------------------*/

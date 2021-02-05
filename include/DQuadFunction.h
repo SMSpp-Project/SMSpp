@@ -62,9 +62,9 @@ namespace SMSpp_di_unipi_it {
 /// a diagonal quadratic Function
 /**< The class DQuadFunction implements C15Function with a diagonal
  * quadratic function of the form
- * \[
+ * \f[
  * f(x) = c + sum{i = 1, ..., n} ( a_i * x_i^2 + b_i * x_i )
- * \]
+ * \f]
  * where the scalar c is the constant term of the Function, and a_i and b_i
  * are the coefficients of the Variable x_i in the quadratic and linear
  * terms, respectively.
@@ -656,7 +656,7 @@ class DQuadFunction : public C15Function {
   * (possibly to be immediately dispatched to the issued C05FunctionModSbst).
   * The ordered parameter tells if subset is ordered by increasing Index,
   * which is actually *not* helpful for DQuadFunction but it may be for 
-  * Block/Solver having to deal with the FunctionModVarsSbst.
+  * Block/Solver having to deal with the C05FunctionModSbst.
 
   * The parameter issueMod decides if and how the C05FunctionModSbst is
   * issued, as described in Observer::make_par(). */
@@ -675,7 +675,7 @@ class DQuadFunction : public C15Function {
   * C05FunctionModLinSbst). The ordered parameter tells if subset is ordered
   * by increasing Index, which is actually *not* helpful for DQuadFunction
   * but it may be for a Block/Solver having to deal with the
-  * FunctionModVarsSbst.
+  * C05FunctionModLinSbst.
   *
   * The parameter issueMod decides if and how the C05FunctionModLinSbst is
   * issued, as described in Observer::make_par(). This is precisely the
@@ -782,8 +782,10 @@ class DQuadFunction : public C15Function {
  /** Method that sets the new value to the constant term of this
   * diagonal quadratic Function to constant_term.
   *
-  * The parameter issueMod decides if and how the DQuadFunctionMod is
-  * issued, as described in Observer::make_par(). */
+  * The parameter issueMod decides if and how the C05FunctionMod (with
+  * type() == NothingChanged and therefore clearly which().empty, and with
+  * shift() == constant_term - < old constant term >) is issued, as
+  * described in Observer::make_par(). */
 
  void set_constant_term( FunctionValue constant_term ,
                          ModParam issueMod = eModBlck );

@@ -42,7 +42,7 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------------------------------------------------*/
 
 void FRealObjective::set_function( Function * const function ,
-				   ModParam issueMod , bool deleteold )
+                                   ModParam issueMod , bool deleteold )
 {
  if( function == f_function )  // changing nothing
   return;                      // all done
@@ -54,7 +54,7 @@ void FRealObjective::set_function( Function * const function ,
 
   // also, this Objective is no longer active in the Variable of the Function
   const auto vend = f_function->end();
-  for( auto vbeg = f_function->begin() ; vbeg != vend ; ++vbeg )
+  for( auto vbeg = f_function->begin(); vbeg != vend; ++vbeg )
    vbeg->remove_active( this );
   }
 
@@ -77,9 +77,9 @@ void FRealObjective::set_function( Function * const function ,
 
  // if so instructed, issue the FRealObjectiveMod
  if( f_Block && f_Block->issue_mod( issueMod ) )
-  f_Block->add_Modification( std::make_shared<FRealObjectiveMod>( this ,
-				        FRealObjectiveMod::eFunctionChanged ,
-					Observer::par2concern( issueMod ) ) ,
+  f_Block->add_Modification( std::make_shared< FRealObjectiveMod >( this ,
+                                        FRealObjectiveMod::eFunctionChanged ,
+                                        Observer::par2concern( issueMod ) ) ,
 			     Observer::par2chnl( issueMod ) );
 
  }  // end( FRealObjective::set_function )
@@ -88,68 +88,64 @@ void FRealObjective::set_function( Function * const function ,
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE FRealObjective -------*/
 /*--------------------------------------------------------------------------*/
 
-void FRealObjective::remove_variable( Index i , ModParam issueMod )
-{
+void FRealObjective::remove_variable( Index i, ModParam issueMod ) {
  /* FRealObjective typically relies on FunctionModVars to know if something
   * has happened to the Variable of the Function and register/unregister
   * itself from them. However, in this case it knows beforehand what is
   * happening. If there is no real reason to have the Modification issued,
   * it will instruct the Function not to and do the unregistering herein. */
 
- if( ! f_function )
+ if( !f_function )
   return;
 
  if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
-  f_function->remove_variable( i , issueMod );
+  f_function->remove_variable( i, issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
   // ignores this information
   f_function->get_active_var( i )->remove_active( this );
-  f_function->remove_variable( i , eNoMod );
-  }
- }  // end( FRealObjective::remove_variable )
+  f_function->remove_variable( i, eNoMod );
+ }
+}  // end( FRealObjective::remove_variable )
 
 /*--------------------------------------------------------------------------*/
 
-void FRealObjective::remove_variables( Range range , ModParam issueMod )
-{
- if( ! f_function )
+void FRealObjective::remove_variables( Range range, ModParam issueMod ) {
+ if( !f_function )
   return;
 
  if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
-  f_function->remove_variables( range , issueMod );
+  f_function->remove_variables( range, issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
   // ignores this information
-  for( Index i = range.first ; i < range.second ; )
+  for( Index i = range.first; i < range.second; )
    f_function->get_active_var( i++ )->remove_active( this );
-  f_function->remove_variables( range , eNoMod );
-  }
- }  // end( FRealObjective::remove_variables( range ) )
+  f_function->remove_variables( range, eNoMod );
+ }
+}  // end( FRealObjective::remove_variables( range ) )
 
 /*--------------------------------------------------------------------------*/
 
-void FRealObjective::remove_variables( Subset && nms , bool ordered ,
-				       ModParam issueMod )
-{
- if( ! f_function )
+void FRealObjective::remove_variables( Subset && nms, bool ordered,
+                                       ModParam issueMod ) {
+ if( !f_function )
   return;
 
  if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
-  f_function->remove_variables( std::move( nms ) , ordered , issueMod );
+  f_function->remove_variables( std::move( nms ), ordered, issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
   // ignores this information
   for( auto i : nms )
    f_function->get_active_var( i++ )->remove_active( this );
-  f_function->remove_variables( std::move( nms ) , ordered , eNoMod );
-  }
- }  // end( FRealObjective::remove_variables( subset ) )
+  f_function->remove_variables( std::move( nms ), ordered, eNoMod );
+ }
+}  // end( FRealObjective::remove_variables( subset ) )
 
 /*--------------------------------------------------------------------------*/
 
-void FRealObjective::add_Modification( sp_Mod mod , c_ChnlName chnl )
-{
+void FRealObjective::add_Modification( sp_Mod mod , c_ChnlName chnl ) {
  // first check if mod is some :FunctionModVars, and if it is- - - - - - - - -
  // register/unregister this FRowConstraintwith the added/removed Variable
  /* Use a Lambda to define a "guts" of the method that can be called
@@ -158,14 +154,14 @@ void FRealObjective::add_Modification( sp_Mod mod , c_ChnlName chnl )
     which allows recursive calls. Note the need to explicitly capture
     "this" to use fields/methods of the class. */
 
- std::function< void( sp_Mod )> guts_of_aM;
- guts_of_aM = [ this , & guts_of_aM ]( sp_Mod mod ) {
+ std::function< void( sp_Mod ) > guts_of_aM;
+ guts_of_aM = [ this , & guts_of_aM ]( const sp_Mod & mod ) {
   // process Modification- - - - - - - - - - - - - - - - - - - - - - - - - - -
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /* This requires to patiently sift through the possible Modification types
      to find what this Modification exactly is; for the :FunctionModVars
      ones, Variable registration/unregistration has to ensue. */
-  
+
   // GroupModification - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   {
    const auto tmod = std::dynamic_pointer_cast< GroupModification >( mod );
@@ -178,7 +174,7 @@ void FRealObjective::add_Modification( sp_Mod mod , c_ChnlName chnl )
   // FunctionModVars - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   {
    const auto tmod = std::dynamic_pointer_cast< FunctionModVars >( mod );
-   if( ! tmod )
+   if( !tmod )
     return;
 
    if( tmod->added() )
@@ -206,8 +202,7 @@ void FRealObjective::add_Modification( sp_Mod mod , c_ChnlName chnl )
 /*--------------------------------------------------------------------------*/
 /// just dispatch to open_channel() of the Block (if any)
 
-Observer::ChnlName FRealObjective::open_channel( GroupModification * gmpmod )
-{
+Observer::ChnlName FRealObjective::open_channel( GroupModification * gmpmod ) {
  return( f_Block ? f_Block->open_channel( gmpmod ) : 0 );
  }
 

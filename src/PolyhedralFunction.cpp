@@ -53,27 +53,29 @@ using namespace SMSpp_di_unipi_it;
 /*------------ CONSTRUCTING AND DESTRUCTING PolyhedralFunction -------------*/
 /*--------------------------------------------------------------------------*/
 
-void PolyhedralFunction::deserialize( netCDF::NcGroup & group ,
+void PolyhedralFunction::deserialize( const netCDF::NcGroup & group ,
 				      ModParam issueMod  )
 {
- c_Index nvar = get_num_active_var();
-
- netCDF::NcDim nv = group.getDim( "PolyFunction_NumVar" );
+ auto nv = group.getDim( "PolyFunction_NumVar" );
  if( nv.isNull() )
   throw( std::logic_error( "PolyFunction_NumVar dimension is required" ) );
- if( nv.getSize() != nvar )
-  throw( std::invalid_argument( "wrong A col size in netCDF::NcGroup" ) );
+
+ Index nvar = nv.getSize();
+ if( auto av = get_num_active_var() )  // if there are active variable
+  if( av != nvar )                     // they must agree with the data
+   throw( std::invalid_argument(
+    "A col size in netCDF::NcGroup does not match with active variable" ) );
 
  MultiVector tA;
  RealVector tb;
 
- netCDF::NcDim nr = group.getDim( "PolyFunction_NumRow" );
+ auto nr = group.getDim( "PolyFunction_NumRow" );
  if( ( ! nr.isNull() ) && ( nr.getSize() ) ) {
-   netCDF::NcVar ncdA = group.getVar( "PolyFunction_A" );
+   auto ncdA = group.getVar( "PolyFunction_A" );
    if( ncdA.isNull() )
     throw( std::logic_error( "PolyFunction_A not found" ) );
 
-   netCDF::NcVar ncdb = group.getVar( "PolyFunction_b" );
+   auto ncdb = group.getVar( "PolyFunction_b" );
    if( ncdb.isNull() )
     throw( std::logic_error( "PolyFunction_b not found" ) );
 
@@ -88,15 +90,17 @@ void PolyhedralFunction::deserialize( netCDF::NcGroup & group ,
   }
 
  bool cnvx = true;
- netCDF::NcDim sgn = group.getDim( "PolyFunction_sign" );
+ auto sgn = group.getDim( "PolyFunction_sign" );
  if( ! sgn.isNull() )
   cnvx = sgn.getSize() > 0 ? true : false;
 
- FunctionValue bound = cnvx ? - Inf<FunctionValue>() : Inf<FunctionValue>();
- netCDF::NcVar nclb = group.getVar( "PolyFunction_lb" );
- if( ! nclb.isNull() )
-  nclb.getVar( & f_bound );
-    
+ FunctionValue bound;
+ auto nclb = group.getVar( "PolyFunction_lb" );
+ if( nclb.isNull() )
+  bound = cnvx ? - Inf<FunctionValue>() : Inf<FunctionValue>();
+ else
+  nclb.getVar( & bound );
+
  set_PolyhedralFunction( std::move( tA ) , std::move( tb ) , bound , cnvx ,
 			 issueMod );
 
@@ -252,8 +256,7 @@ void PolyhedralFunction::store_linearization( Index name ,
 /*--------------------------------------------------------------------------*/
 
 void PolyhedralFunction::store_combination_of_linearizations(
-					   LinearCombination & coefficients ,
-					   Index name ,	ModParam issueMod )
+        c_LinearCombination & coefficients , Index name , ModParam issueMod )
 {
  if( name >= v_glob.size() )
   throw( std::invalid_argument( "invalid global pool name" ) );

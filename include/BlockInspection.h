@@ -502,8 +502,8 @@ namespace SMSpp_di_unipi_it::inspection
   if( father ) {
    const auto & nb = father->get_nested_Blocks();
    const auto nbit = std::find( nb.begin() , nb.end() , block );
-   assert( nbit != nb.end() );
-   return( std::distance( nb.begin() , nbit ) );
+   if( nbit != nb.end() )
+    return( std::distance( nb.begin() , nbit ) );
   }
   return Inf<Index>();
  }

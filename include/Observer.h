@@ -5,9 +5,9 @@
  * Header file for the Observer class, an abstract base class implementing
  * the concept of an observer which can be notified about Modifications.
  *
- * \version 0.31
+ * \version 0.40
  *
- * \date 02 - 02 - 2019
+ * \date 01 - 01 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -33,6 +33,8 @@
 
 #include "Modification.h"
 
+#include <set>
+
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -40,7 +42,6 @@
 /// namespace for the Structured Modeling System++ (SMS++)
 namespace SMSpp_di_unipi_it
 {
-
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -88,8 +89,7 @@ namespace SMSpp_di_unipi_it
  *
  * - The Observer provides a few convenience methods for formatting in an
  *   uniform way the parameter of calls to methods that produce Modification
- *   which specifies if, how and where the Modification has to be issued.
- */
+ *   which specifies if, how and where the Modification has to be issued. */
 
 class Observer {
 
@@ -106,8 +106,7 @@ class Observer {
  /// the "name" of a Modification "channel"
  typedef unsigned short int ChnlName;
 
- /// a const ChnlName
- typedef const ChnlName c_ChnlName;
+ typedef const ChnlName c_ChnlName;  ///< a const ChnlName
 
 /*--------------------------------------------------------------------------*/
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
@@ -116,15 +115,18 @@ class Observer {
  *  @{ */
 
  /// constructor of Observer, it has nothing to do
- Observer() { }
+
+ Observer( void ) = default;
 
 /*--------------------------------------------------------------------------*/
  ///< copy constructor, it has nothing to do either
- Observer( const Observer & ) { }
+
+ Observer( const Observer & ) = default;
 
 /*--------------------------------------------------------------------------*/
  ///< destructor: it is virtual, and empty
- virtual ~Observer() { }
+
+ virtual ~Observer() = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF AN Observer -------------*/
@@ -136,10 +138,9 @@ class Observer {
  /** Any Observer either is a Block, or belongs to one. This method has to
   * return a pointer to such Block. */
 
- virtual Block * get_Block( void ) const = 0;
+ [[nodiscard]] virtual Block * get_Block( void ) const = 0;
 
 /*--------------------------------------------------------------------------*/
- 
  /// returns true if there is "anybody listening to Modification"
  /** Returns true if there is "anybody listening to Modification". In case of
   * a Block, this typically means that there is some Solver "listening to
@@ -150,7 +151,7 @@ class Observer {
   * Modification themselves because they need to "intercept them and change
   * them along the way". */
 
- virtual bool anyone_there( void ) const = 0;
+ [[nodiscard]] virtual bool anyone_there( void ) const = 0;
 
 /*--------------------------------------------------------------------------*/
  /// notify this Observer about a Modification
@@ -255,9 +256,26 @@ class Observer {
   * of "abstract" Modification, since it is very useful that that :Block 
   * (and that :Block only) is able to "see the Modification immediately" to
   * handle the corresponding changes to the "physical representation". See
-  * the comments to Block::add_Modification() for more details. */
+  * the comments to Block::add_Modification() for more details.
+  *
+  * Note that channel names are unique within all SMS++, and that
+  *
+  *     CHANNEL NAMES ARE UNIQUE WITHIN ALL SMS++, AND THEREFORE EACH CHANNEL
+  *     IS DEFINED IN A SPECIFIC Block. THIS IMPLIES THAT SUB-Block OF THE
+  *     Block CAN STILL SEND Modification TO THAT VERY CHANNEL: THE
+  *     Modification WILL TRAVEL UP IN THE Block TREE (MEANWHILE BEING SENT
+  *     TO ALL ATTACHED Solver) UNENCUMBERED UP UNTIL IT REACHES THE Block
+  *     WHERE THE CHANNEL IS DEFINED, AND ONLY THEN IT IS BUNCHED INTO THE
+  *     GroupModification. IT IS AN ERROR TO SEND A Modification TO A CHANNEL
+  *     THAT IS NOT DEFINED IN SOME ANCESTOR OF THE Block. */
 
  virtual void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) = 0;
+
+/*--------------------------------------------------------------------------*/
+ /// maximum channel name
+
+ static constexpr ChnlName max_channel_name =
+  std::numeric_limits< ChnlName >::max() / 4;
 
 /*--------------------------------------------------------------------------*/
  /// "open" a channel
@@ -403,7 +421,7 @@ class Observer {
   * make_par( iM , 0 ) == iM, so this method is only needed when sending to
   * a non-default channel. */
 
- static inline ModParam make_par( c_ModParam iM , c_ChnlName chnl ) {
+ static ModParam make_par( ModParam iM , ChnlName chnl ) {
   return( iM + 4 * chnl );
   }
 
@@ -412,26 +430,22 @@ class Observer {
  /** Given a "composite" parameter as produced by make_par(), this method
   * returns the channel information alone. */
 
- static inline ChnlName par2chnl( c_ModParam issueMod ) {
-  return( issueMod / 4 );
-  }
+ static ChnlName par2chnl( ModParam issueMod ) { return( issueMod / 4 ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
  /// method extracting the ModParam information
  /** Given a "composite" parameter as produced by make_par(), this method
   * returns the ModParam information alone. */
 
- static inline ModParam par2mod( c_ModParam issueMod ) {
-  return( issueMod & 3 );
-  }
+ static ModParam par2mod( ModParam issueMod ) { return( issueMod & 3 ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
  /// method extracting the concerns_Block information
  /** Given a "composite" parameter as produced by make_par(), this method
   * returns the boolean to become the concerns_Block. */
 
- static inline bool par2concern( c_ModParam issueMod ) {
-  return( ( par2mod( issueMod ) == eModBlck ) );
+ static bool par2concern( ModParam issueMod ) {
+  return( par2mod( issueMod ) == eModBlck );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -442,7 +456,7 @@ class Observer {
   * value eModBlck only makes sense for them. This also depends on the value
   * reported by anyone_there(), which is why the method is not static. */
 
- inline bool issue_mod( c_ModParam issueMod ) {
+ [[nodiscard]] bool issue_mod( ModParam issueMod ) const {
   return( ( par2mod( issueMod ) == eModBlck ) ||
 	  ( ( par2mod( issueMod ) == eNoBlck ) && anyone_there() ) );
   }
@@ -456,7 +470,7 @@ class Observer {
   * the value reported by anyone_there(), which is why the method is not
   * static. */
 
- inline bool issue_pmod( c_ModParam issueMod ) {
+ [[nodiscard]] bool issue_pmod( ModParam issueMod ) const {
   return( par2mod( issueMod ) && anyone_there() );
   }
 
@@ -473,14 +487,106 @@ class Observer {
   * is reacting to one AModification implying that the "abstract" one has
   * changed already). */
 
- inline bool not_dry_run( c_ModParam issueMod ) {
+ static bool not_dry_run( ModParam issueMod ) {
   return( par2mod( issueMod ) );
   }
 
 /**@} ----------------------------------------------------------------------*/
+/*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 
-  };  // end( class( Observer ) )
+ protected:
+
+/*--------------------------------------------------------------------------*/
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Protected methods for channel names
+ *
+ * Protected methods to acquire and release new channel names.
+ * @{ */
+
+ static ChnlName new_channel_name( void ) {
+  ChnlName retval;
+
+  // try to acquire lock, spin on failure
+  while( f_ch_lock.test_and_set( std::memory_order_acquire ) )
+   ;
+
+  if( v_free_chnl.empty() ) {
+   if( f_next_chnl >= max_channel_name ) {
+    f_ch_lock.clear( std::memory_order_release );
+    throw( std::logic_error( "Observer: max number of channels exhausted" ) );
+    }
+   retval = f_next_chnl++;
+   }
+  else {
+   auto rit = v_free_chnl.rend();
+   retval = *rit;
+   v_free_chnl.erase( rit.base() );
+   }
+  
+  f_ch_lock.clear( std::memory_order_release );  // release lock
+
+  return( retval );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// release an existing channel name to be available again
+
+ static void release_channel_name( ChnlName chnl ) {
+  // try to acquire lock, spin on failure
+  while( f_ch_lock.test_and_set( std::memory_order_acquire ) )
+   ;
+
+  if( chnl >= f_next_chnl ) {
+   f_ch_lock.clear( std::memory_order_release );
+   throw( std::invalid_argument( "Observer: wrong channel name" ) );
+   }
+  
+  if( chnl == f_next_chnl - 1 ) {
+   --f_next_chnl;
+   #ifndef NDEBUG
+    if( ! f_next_chnl ) {
+     f_ch_lock.clear( std::memory_order_release );
+     throw( std::logic_error( "Observer: error in channels management" ) );
+     }
+   #endif
+   if( v_free_chnl.empty() ) {
+    f_ch_lock.clear( std::memory_order_release );
+    return;
+    }
+   for( auto rit = v_free_chnl.rbegin() ;
+	( rit != v_free_chnl.rend() ) && ( *rit == f_next_chnl - 1 ) ; ) {
+    rit = decltype( rit )( v_free_chnl.erase( std::next( rit ).base() ) );
+    --f_next_chnl;
+    #ifndef NDEBUG
+     if( ! f_next_chnl ) {
+      f_ch_lock.clear( std::memory_order_release );
+      throw( std::logic_error( "Observer: error in channels management" ) );
+      }
+    #endif
+    }
+   }
+  else
+   v_free_chnl.insert( chnl );
+  
+  f_ch_lock.clear( std::memory_order_release );  // release lock
+  }
+
+/**@} ----------------------------------------------------------------------*/
+/*---------------------------- PROTECTED FIELDS  ---------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ static std::atomic_flag f_ch_lock;  ///< active lock for channel names
+
+ static ChnlName f_next_chnl;        ///< next free chanel
+
+ static std::set< ChnlName > v_free_chnl;  ///< set of freed chanels
+
+/**@} ----------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( Observer ) )
 
 /*--------------------------------------------------------------------------*/
 

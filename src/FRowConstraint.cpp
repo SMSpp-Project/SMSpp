@@ -41,7 +41,7 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------------------------------------------------*/
 
 void FRowConstraint::set_function( Function * const function ,
-				   ModParam issueMod , bool deleteold )
+                                   ModParam issueMod , bool deleteold )
 {
  if( function == f_function )  // changing nothing
   return;                      // all done
@@ -76,9 +76,9 @@ void FRowConstraint::set_function( Function * const function ,
 
  // if so instructed, issue the FRowConstraintMod
  if( f_Block && f_Block->issue_mod( issueMod ) )
-  f_Block->add_Modification( std::make_shared<FRowConstraintMod>( this ,
-				        FRowConstraintMod::eFunctionChanged ,
-					Observer::par2concern( issueMod ) ) ,
+  f_Block->add_Modification( std::make_shared< FRowConstraintMod >( this ,
+                                        FRowConstraintMod::eFunctionChanged ,
+                                        Observer::par2concern( issueMod ) ) ,
 			     Observer::par2chnl( issueMod ) );
 
  }  // end( FRowConstraint::set_function )
@@ -95,13 +95,14 @@ void FRowConstraint::set_rhs( c_RHSValue rhs_value , ModParam issueMod )
  if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
   return;
 
- f_Block->add_Modification( std::make_shared<RowConstraintMod>( this ,
-	    RowConstraintMod::eChgRHS , Observer::par2concern( issueMod ) ) ,
+ f_Block->add_Modification( std::make_shared< RowConstraintMod >( this ,
+                                        RowConstraintMod::eChgRHS ,
+                                        Observer::par2concern( issueMod ) ) ,
 			    Observer::par2chnl( issueMod ) );
  }
 
 /*--------------------------------------------------------------------------*/
- 
+
 void FRowConstraint::set_lhs( c_RHSValue lhs_value , ModParam issueMod )
 {
  if( f_lhs == lhs_value )  // actually doing nothing
@@ -112,8 +113,9 @@ void FRowConstraint::set_lhs( c_RHSValue lhs_value , ModParam issueMod )
  if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
   return;
 
- f_Block->add_Modification( std::make_shared<RowConstraintMod>( this ,
-	    RowConstraintMod::eChgLHS , Observer::par2concern( issueMod ) ) ,
+ f_Block->add_Modification( std::make_shared< RowConstraintMod >( this ,
+                                        RowConstraintMod::eChgLHS ,
+                                        Observer::par2concern( issueMod ) ) ,
 			    Observer::par2chnl( issueMod ) );
  }
 
@@ -130,8 +132,9 @@ void FRowConstraint::set_both( c_RHSValue both_value , ModParam issueMod )
  if( ( ! f_Block ) || ( ! f_Block->issue_mod( issueMod ) ) )
   return;
 
- f_Block->add_Modification( std::make_shared<RowConstraintMod>( this ,
-	    RowConstraintMod::eChgBTS , Observer::par2concern( issueMod ) ) ,
+ f_Block->add_Modification( std::make_shared< RowConstraintMod >( this ,
+                                        RowConstraintMod::eChgBTS ,
+                                        Observer::par2concern( issueMod ) ) ,
 			    Observer::par2chnl( issueMod ) );
  }
 
@@ -146,8 +149,8 @@ void FRowConstraint::remove_variable( Index i , ModParam issueMod )
   * itself from them. However, in this case it knows beforehand what is
   * happening. If there is no real reason to have the Modification issued,
   * it will instruct the Function not to and do the unregistering herein. */
-  
- if( ! f_function )
+
+ if( !f_function )
   return;
 
  if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
@@ -156,7 +159,7 @@ void FRowConstraint::remove_variable( Index i , ModParam issueMod )
   // unregistration can preceed removal, since the Function completely
   // ignores this information
   f_function->get_active_var( i )->remove_active( this );
-  f_function->remove_variable( i , eNoMod );
+  f_function->remove_variable( i, eNoMod );
   }
  }  // end( FRowConstraint::remove_variable )
 
@@ -168,20 +171,20 @@ void FRowConstraint::remove_variables( Range range , ModParam issueMod )
   return;
 
  if( ( par2mod( issueMod ) > eNoMod ) && f_Block->anyone_there() )
-  f_function->remove_variables( range , issueMod );
+  f_function->remove_variables( range, issueMod );
  else {
   // unregistration can preceed removal, since the Function completely
   // ignores this information
   for( Index i = range.first ; i < range.second ; )
    f_function->get_active_var( i++ )->remove_active( this );
-  f_function->remove_variables( range , eNoMod );
+  f_function->remove_variables( range, eNoMod );
   }
  }  // end( FRowConstraint::remove_variables( range ) )
 
 /*--------------------------------------------------------------------------*/
 
 void FRowConstraint::remove_variables( Subset && nms , bool ordered ,
-				       ModParam issueMod )
+                                       ModParam issueMod )
 {
  if( ! f_function )
   return;
@@ -211,14 +214,14 @@ void FRowConstraint::add_Modification( sp_Mod mod , c_ChnlName chnl )
     which allows recursive calls. Note the need to explicitly capture
     "this" to use fields/methods of the class. */
 
- std::function< void( sp_Mod )> guts_of_aM;
- guts_of_aM = [ this , & guts_of_aM ]( sp_Mod mod ) {
+ std::function< void( sp_Mod ) > guts_of_aM;
+ guts_of_aM = [ this , & guts_of_aM ]( const sp_Mod & mod ) {
   // process Modification- - - - - - - - - - - - - - - - - - - - - - - - - - -
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   /* This requires to patiently sift through the possible Modification types
      to find what this Modification exactly is; for the :FunctionModVars
      ones, Variable registration/unregistration has to ensue. */
-  
+
   // GroupModification - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   {
    const auto tmod = std::dynamic_pointer_cast< GroupModification >( mod );

@@ -42,15 +42,28 @@
 /*--------------------------------------------------------------------------*/
 
 using namespace SMSpp_di_unipi_it;
-using namespace std;
 
 /*--------------------------------------------------------------------------*/
-/*----------------------------- STATIC MEMBERS -----------------------------*/
+/*------------------------ STATIC MEMBERS OF Observer ----------------------*/
+/*--------------------------------------------------------------------------*/
+
+std::atomic_flag Observer::f_ch_lock;
+
+Observer::ChnlName Observer::f_next_chnl = 1;
+
+std::set< Observer::ChnlName > Observer::v_free_chnl;
+
+/*--------------------------------------------------------------------------*/
+/*------------------------- STATIC MEMBERS OF Block ------------------------*/
 /*--------------------------------------------------------------------------*/
 
 // register BlockConfig to the Configuration factory
 
 SMSpp_insert_in_factory_cpp_0( BlockConfig );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+std::string Block::f_prefix;  // the filename prefix
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- FUNCTIONS --------------------------------*/
@@ -60,6 +73,178 @@ SMSpp_insert_in_factory_cpp_0( BlockConfig );
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- METHODS of Block ------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+Block * Block::deserialize( const std::string & filename , Block * father )
+{
+ try {
+  if( ( filename.size() > 4 ) &&
+      ( ! filename.compare( filename.size() - 4 , 4 , ".txt" ) ) ) {
+   std::ifstream f( f_prefix.empty() ? filename : f_prefix + filename ,
+		    std::fstream::in );
+   if( ! f.is_open() ) {
+    std::cerr << "Error: cannot open text file " << f_prefix + filename
+	      << std::endl;
+    return( nullptr );
+    }
+   return( Block::deserialize( f , father ) );
+   }
+  else {
+   int idx = 0;
+   std::string fn = f_prefix + filename;
+   if( fn.back() == ']' ) {
+    auto pos = fn.find_last_of( '[' );
+    if( pos != std::string::npos ) {
+     try {
+      idx = std::stoi( fn.substr( pos + 1 ) );
+      fn.erase( pos );
+      }
+     catch( ... ) { idx = 0; }
+     }
+    }
+   netCDF::NcFile f( fn.c_str() , netCDF::NcFile::read );
+   return( Block::deserialize( f , idx , father ) );
+   }
+  }
+ catch( netCDF::exceptions::NcException & e ) {
+  std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
+  }
+ catch( std::exception & e ) {
+  std::cerr << "error " << e.what() << " in deserialize" << std::endl;
+  }
+ catch( ... ) {
+  std::cerr << "unknown error in deserialize" << std::endl;
+  }
+
+ return( nullptr );
+
+ }  // end( Block::deserialize( const std::string ) )
+
+/*--------------------------------------------------------------------------*/
+
+Block * Block::deserialize( const netCDF::NcFile & f , unsigned int idx ,
+			    Block * father )
+{
+ try {
+  netCDF::NcGroupAtt gtype = f.getAtt( "SMS++_file_type" );
+  if( gtype.isNull() )
+   return( nullptr );
+
+  int type;
+  gtype.getValues( & type );
+
+  if( ( type != eProbFile ) && ( type != eBlockFile ) )
+   return( nullptr );
+
+  netCDF::NcGroup bg;
+  if( type == eProbFile ) {
+   netCDF::NcGroup dg = f.getGroup( "Prob_" + std::to_string( idx ) );
+   if( dg.isNull() )
+    return( nullptr );
+
+   bg = dg.getGroup( "Block" );
+   }
+  else
+   bg = f.getGroup( "Block_" + std::to_string( idx ) );
+
+  return( new_Block( bg , father ) );
+  }
+ catch( netCDF::exceptions::NcException & e ) {
+  std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
+  }
+ catch( std::exception & e ) {
+  std::cerr << "error " << e.what() << " in deserialize" << std::endl;
+  }
+ catch( ... ) {
+  std::cerr << "unknown error in deserialize" << std::endl;
+  }
+
+ return( nullptr );
+
+ }  // end( Block::deserialize( netCDF::NcFile ) )
+
+/*--------------------------------------------------------------------------*/
+
+Block * Block::new_Block( const netCDF::NcGroup & group , Block * father )
+{
+ try {
+  if( group.isNull() )
+   return( nullptr );
+
+  std::string tmp;
+  auto gtype = group.getAtt( "type" );
+  if( gtype.isNull() ) {
+   auto gfile = group.getAtt( "filename" );
+   if( gfile.isNull() )
+    return( nullptr );
+
+   gfile.getValues( tmp );
+
+   return( deserialize( tmp , father ) );
+   }
+
+  gtype.getValues( tmp );
+  auto result = new_Block( tmp , father );
+  result->deserialize( group );
+  return( result );
+  }
+ catch( netCDF::exceptions::NcException & e ) {
+  std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
+  }
+ catch( std::exception & e ) {
+  std::cerr << "error " << e.what() << " in deserialize" << std::endl;
+  }
+ catch( ... ) {
+  std::cerr << "unknown error in deserialize" << std::endl;
+  }
+
+ return( nullptr );
+
+ }  // end( Block::new_Block( netCDF::NcGroup ) )
+
+/*--------------------------------------------------------------------------*/
+
+Block * Block::deserialize( std::istream & input , Block * father )
+{
+ input >> eatcomments;
+ if( input.eof() )
+  return( nullptr );
+ 
+ static std::string sre( "Block::deserialize: stream read error" );
+
+ if( input.fail() )
+  throw( std::invalid_argument( sre ) );
+
+ std::string tmp;
+ if( input.peek() == input.widen( '*' ) ) {
+  input.get();
+
+  if( input.eof() )
+   return( nullptr );
+  
+  if( input.fail() )
+   throw( std::invalid_argument( sre ) );
+
+  if( std::isspace( input.peek() ) )
+   return( nullptr );
+ 
+  input >> tmp;
+  if( input.fail() )
+    throw( std::invalid_argument( sre ) );
+
+  return( Block::deserialize( tmp , father ) );
+  }
+ else {
+  input >> tmp;
+  if( input.fail() )
+    throw( std::invalid_argument( sre ) );
+
+  auto block = Block::new_Block( tmp , father );
+  input >> *block;
+  return( block );
+  }
+ }  // end( Block::deserialize( std::istream ) )
+
 /*--------------------------------------------------------------------------*/
 /*----------------- Methods for reading the data of the Block --------------*/
 /*--------------------------------------------------------------------------*/
@@ -77,29 +262,30 @@ void Block::set_objective( Objective * newOF , c_ModParam issueMod )
  newOF->set_Block( this );
 
  if( issue_mod( issueMod ) )
-  add_Modification(
-     std::make_shared<BlockMod>( this , Observer::par2concern( issueMod ) ) );
+  add_Modification( std::make_shared< BlockMod >( this ,
+				       Observer::par2concern( issueMod ) ) );
  }
- 
+
 /*--------------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF AN Observer -------------*/
 /*--------------------------------------------------------------------------*/
 
-void Block::anyone_there( bool isthere ) {
+void Block::anyone_there( bool isthere )
+{
  if( isthere ) {              // somebody is listening to father now
   if( f_at )                  // it was already so
    return;                    // nothing changes
   f_at = true;                // now I know it
-  if( ! v_Solver.empty() )    // but my sons don't care because there
+  if( !v_Solver.empty() )     // but my sons don't care because there
    return;                    // was already someone listening to me
   for( auto el : v_Block )    // now someone is listening to all my sons
    el->anyone_there( true );
   }
  else {                       // nobody is listening to father now
-  if( ! f_at )                // it was already so
+  if( !f_at )                 // it was already so
    return;                    // nothing changes
   f_at = false;               // now I know it
-  if( ! v_Solver.empty() )    // but my sons don't care because there
+  if( !v_Solver.empty() )     // but my sons don't care because there
    return;                    // is still someone listening to me
   for( auto el : v_Block )    // now no one is listening to all my sons
    el->anyone_there( false );
@@ -113,43 +299,45 @@ void Block::add_Modification( sp_Mod mod , ChnlName chnl )
  if( ! chnl )                           // the default channel
   chnl = f_channel;                     // possibly silently hijack it
 
- if( ! chnl ) {                         // (still) the default channel
-  if( f_Block )                         // if there is a father
-   f_Block->add_Modification( mod );    // pass it above
+ 
+ if( chnl ) {                           // a channel is specified
+  if( ! v_GroupMod.empty() ) {
+   // check if it is one of the "local channels"
+   auto GMit = std::find_if( v_GroupMod.begin() , v_GroupMod.end() ,
+			     [ chnl ] ( auto & a ) -> bool {
+			      return( a.first == chnl );
+			      } );
 
-  for( Solver *slv : v_Solver )         // if there is any Solver
-   slv->add_Modification( mod );        // pass it to them
+   if( GMit != v_GroupMod.end() ) {     // if so
+    GMit->second->add( mod );           // add it to the GroupModification
+    return;                             // all done
+    }
+   }
 
-  return;                               // all done
+  // it is an error if it is not a "local" channel and there is no father,
+  // since it cannot be a channel of the father (any ancestor) too
+  if( ! f_Block )
+   throw( std::invalid_argument( "wrong channel name" ) );
   }
 
- if( ( chnl > v_current_GroupMod.size() ) ||
-     ( v_current_GroupMod[ chnl - 1 ] == nullptr ) )
-  throw( std::invalid_argument( "wrong channel name" ) );
+ if( f_Block )                          // if there is a father
+  f_Block->add_Modification( mod , chnl );    // pass it above (on chnl)
 
- // append it to the sub_Modifications of the appropriate GroupModification
- v_current_GroupMod[ chnl - 1 ]->add( mod );
-  
+ for( Solver * slv : v_Solver )         // if there is any Solver
+  slv->add_Modification( mod );         // also pass it to them
+
  }  // end( Block::add_Modification )
 
 /*--------------------------------------------------------------------------*/
 
 Observer::ChnlName Block::open_channel( GroupModification * gmpmod )
 {
+ // if a GroupModification is not provided, create one
  if( ! gmpmod )
-  gmpmod = new GroupModification();
+  gmpmod = new GroupModification;
 
- auto it = std::find( v_current_GroupMod.begin() ,
-		      v_current_GroupMod.end() , nullptr );
- ChnlName chnl;
- if( it == v_current_GroupMod.end() ) {
-  v_current_GroupMod.push_back( gmpmod );
-  chnl = v_current_GroupMod.size();
-  }
- else {
-  *it = gmpmod;
-  chnl = std::distance( it , v_current_GroupMod.begin() ) + 1;
-  }
+ ChnlName chnl = Observer::new_channel_name();
+ v_GroupMod.push_back( std::pair( chnl , gmpmod ) );
 
  return( chnl );
 
@@ -157,50 +345,82 @@ Observer::ChnlName Block::open_channel( GroupModification * gmpmod )
 
 /*--------------------------------------------------------------------------*/
 
-void Block::nest_channel( c_ChnlName chnl , GroupModification * gmpmod )
+void Block::nest_channel( ChnlName chnl , GroupModification * gmpmod )
 {
- if( ( ! chnl ) || ( chnl > v_current_GroupMod.size() ) ||
-     ( v_current_GroupMod[ chnl - 1 ] == nullptr ) )
-  throw( std::invalid_argument( "wrong channel name" ) );
-
  // if a GroupModification is not provided, create one
  if( ! gmpmod )
-  gmpmod = new GroupModification();
+  gmpmod = new GroupModification;
 
- // set the father of the GroupModification to the current channel
- gmpmod->set_father( v_current_GroupMod[ chnl - 1 ] );
+ if( ! v_GroupMod.empty() ) {
+  // check if it is one of the "local channels"
+  auto GMit = std::find_if( v_GroupMod.begin() , v_GroupMod.end() ,
+			    [ chnl ] ( auto & a ) -> bool {
+			     return( a.first == chnl );
+			     } );
 
- // add the new GroupModification to the current channel
- v_current_GroupMod[ chnl - 1 ]->add( std::shared_ptr< GroupModification >(
-								   gmpmod ) );
- // the current channel becomes the new GroupModification
- v_current_GroupMod[ chnl - 1 ] = gmpmod;
+  if( GMit != v_GroupMod.end() ) {  // if so
+   // set the father of the GroupModification to the current channel
+   gmpmod->set_father( GMit->second );
+
+   // add the new GroupModification to the current channel
+   GMit->second->add( std::shared_ptr< GroupModification >( gmpmod ) );
+
+   // the current channel becomes the new GroupModification
+   GMit->second = gmpmod;
+
+   return;
+   }
+  }
+
+ // it is an error if it is not a "local" channel and there is no father,
+ // since it cannot be a channel of the father (any ancestor) too
+ if( ! f_Block )
+  throw( std::invalid_argument( "wrong channel name" ) );
+
+ // pass the message up to the father
+ f_Block->nest_channel( chnl , gmpmod );
 
  }  // end( Block::nest_channel )
 
 /*--------------------------------------------------------------------------*/
 
-void Block::un_nest_channel( c_ChnlName chnl )
+void Block::un_nest_channel( ChnlName chnl )
 {
  if( ! chnl )
   throw( std::invalid_argument( "cannot un-nest default channel" ) );
 
- if( ( chnl > v_current_GroupMod.size() ) ||
-     ( v_current_GroupMod[ chnl - 1 ] == nullptr ) )
+ if( ! v_GroupMod.empty() ) {
+  // check if it is one of the "local channels"
+  auto GMit = std::find_if( v_GroupMod.begin() , v_GroupMod.end() ,
+			    [ chnl ] ( auto & a ) -> bool {
+			     return( a.first == chnl );
+			     } );
+
+  if( GMit != v_GroupMod.end() ) {  // if so
+   // the father of the current GroupModification
+   auto father = GMit->second->father();
+   if( ! father )
+    throw( std::invalid_argument( "channel is at root level" ) );
+
+   // if concerns_Block() of the current GroupModification is true, ensure
+   // that the concerns_Block() of father is also true
+   if( GMit->second->concerns_Block() )
+    father->concerns_Block( true );
+
+   // move back the channel to being the father
+   GMit->second = father;
+
+   return;
+   }
+  }
+
+ // it is an error if it is not a "local" channel and there is no father,
+ // since it cannot be a channel of the father (any ancestor) too
+ if( ! f_Block )
   throw( std::invalid_argument( "wrong channel name" ) );
 
- // the father of the current GroupModification
- auto father = v_current_GroupMod[ chnl - 1 ]->father();
- if( ! father )
-  throw( std::invalid_argument( "channel is at root level" ) );
-
- // if concerns_Block() of the current GroupModification is true, ensure
- // that the concerns_Block() of father is also true
- if( v_current_GroupMod[ chnl - 1 ]->concerns_Block() )
-  father->concerns_Block( true );
-
- // move back the channel to being the father
- v_current_GroupMod[ chnl - 1 ] = father;
+ // pass the message up to the father
+ f_Block->un_nest_channel( chnl );
 
  }  // end( Block::un_nest_channel )
 
@@ -211,38 +431,44 @@ void Block::close_channel( ChnlName chnl )
  if( ! chnl )
   throw( std::invalid_argument( "cannot close default channel" ) );
 
- if( ( chnl > v_current_GroupMod.size() ) ||
-     ( v_current_GroupMod[ chnl - 1 ] == nullptr ) )
+ if( ! v_GroupMod.empty() ) {
+  // check if it is one of the "local channels"
+  auto GMit = std::find_if( v_GroupMod.begin() , v_GroupMod.end() ,
+			    [ chnl ] ( auto & a ) -> bool {
+			     return( a.first == chnl );
+			     } );
+
+  if( GMit != v_GroupMod.end() ) {  // if so
+   // finally pass the GroupModification to the Block
+   Block::add_Modification( std::shared_ptr< GroupModification >(
+							     GMit->second ) );
+   if( chnl == f_channel )  // if it was the default channel
+    f_channel = 0;          // reset it
+
+   // give back the channel name
+   Observer::release_channel_name( chnl );
+
+   // delete the local channel
+   v_GroupMod.erase( GMit );
+
+   return;
+   }
+  }
+
+ // it is an error if it is not a "local" channel and there is no father,
+ // since it cannot be a channel of the father (any ancestor) too
+ if( ! f_Block )
   throw( std::invalid_argument( "wrong channel name" ) );
 
- Block::add_Modification( std::shared_ptr< GroupModification >(
-				          v_current_GroupMod[ chnl - 1 ] ) );
- // there is no longer an "open" chnl GroupModification
- v_current_GroupMod[ chnl - 1 ] = nullptr;
+ // pass the message up to the father
+ f_Block->close_channel( chnl );
 
- if( chnl == f_channel )  // if it was the default channel
-  f_channel = 0;          // reset it
-
- if( chnl == v_current_GroupMod.size() ) {
-  ChnlName i = chnl - 1;
-  while( ( i > 0 ) && ( ! v_current_GroupMod[ i - 1 ] ) )
-   i--;
-
-  if( i )
-   v_current_GroupMod.resize( i );
-  else
-   v_current_GroupMod.clear();
-  }
  }  // end( Block::close_channel )
 
 /*--------------------------------------------------------------------------*/
 
 void Block::set_default_channel( ChnlName chnl )
 {
- if( ( ! chnl ) || ( chnl > v_current_GroupMod.size() ) ||
-     ( v_current_GroupMod[ chnl - 1 ] == nullptr ) )
-  throw( std::invalid_argument( "wrong channel name" ) );
-
  f_channel = chnl;
  }
 
@@ -250,7 +476,7 @@ void Block::set_default_channel( ChnlName chnl )
 /*------------ METHODS FOR LOADING, PRINTING & SAVING THE Block ------------*/
 /*--------------------------------------------------------------------------*/
 
-void Block::set_BlockConfig( BlockConfig *newBC , const bool deleteold )
+void Block::set_BlockConfig( BlockConfig * newBC, bool deleteold )
 {
  if( f_BlockConfig == newBC )
   return;
@@ -262,17 +488,15 @@ void Block::set_BlockConfig( BlockConfig *newBC , const bool deleteold )
   return;
   }
 
- if( newBC->is_diff() ) {
-  // "differential mode"
-  if( ! f_BlockConfig )
+ if( newBC->is_diff() ) {  // "differential mode"
+  if( !f_BlockConfig )
    f_BlockConfig = newBC;
   else {
-   newBC->move_non_null_configuration_to( f_BlockConfig , deleteold );
+   newBC->move_non_null_configuration_to( f_BlockConfig, deleteold );
    delete newBC;
    }
   }
- else {
-  // "setting mode"
+ else {                    // "setting mode"
   if( deleteold )
    delete f_BlockConfig;
   f_BlockConfig = newBC;
@@ -281,21 +505,21 @@ void Block::set_BlockConfig( BlockConfig *newBC , const bool deleteold )
 
 /*--------------------------------------------------------------------------*/
 
-void Block::print( ostream &output ) const
+void Block::print( std::ostream & output ) const
 {
- output << endl << "Block with: ";
- output << endl << v_s_Variable.size() << " types of static Variables, "
-                << v_d_Variable.size() << " types of dynamic Variables, "
-        << endl << v_s_Constraint.size() << " types of static Constraints, "
-                << v_d_Constraint.size() << " types of dynamic Constraints, "
-        << endl << v_Block.size() << " nested Blocks, and "
-                << v_Solver.size() << " registered Solvers"
-        << endl;
+ output << std::endl << "Block with: ";
+ output << std::endl << v_s_Variable.size() << " types of static Variables, "
+        << v_d_Variable.size() << " types of dynamic Variables, "
+        << std::endl << v_s_Constraint.size() << " types of static Constraints, "
+        << v_d_Constraint.size() << " types of dynamic Constraints, "
+        << std::endl << v_Block.size() << " nested Blocks, and "
+        << v_Solver.size() << " registered Solvers"
+        << std::endl;
 
  if( verbosity_lvl == Block::medium || verbosity_lvl == Block::high ) {
   /*
   // the static Constraints of the Block- - - - - - - - - - - - - - - - - - -
-  output << "Static Constraints:" << endl;
+  output << "Static Constraints:" << std::endl;
   for( unsigned int i = 0 ; i < v_s_Constraint.size() ; ++i ) {
    output << i;
    if( ! v_s_Constraint_names[ i ].empty() )
@@ -304,11 +528,11 @@ void Block::print( ostream &output ) const
     output << ": ";
 
    un_any_static_constraint( v_s_Constraint[ i ] , { output << *var; } );
-   output << endl;
+   output << std::endl;
    }
 
   // the static Variables of the Block- - - - - - - - - - - - - - - - - - - -
-  output << "Static Variables:" << endl;
+  output << "Static Variables:" << std::endl;
   for( unsigned int i = 0 ; i < v_s_Variable.size() ; ++i ) {
    output << i;
    if( ! v_s_Variable_names[ i ].empty() )
@@ -317,11 +541,11 @@ void Block::print( ostream &output ) const
     output << ": ";
 
    un_any_static_Variable( v_s_Variable[ i ] , { output << *var; } );
-   output << endl;
+   output << std::endl;
    }
 
   // the dynamic Constraints of the Block- - - - - - - - - - - - - - - - - -
-  output << "Dynamic Constraints:" << endl;
+  output << "Dynamic Constraints:" << std::endl;
   for( unsigned int i = 0 ; i < v_d_Constraint.size() ; ++i ) {
    output << i;
    if( ! v_d_Constraint_names[ i ].empty() )
@@ -330,11 +554,11 @@ void Block::print( ostream &output ) const
     output << ": ";
 
    un_any_static_Constraint( v_d_Constraint[ i ] , { output << *var; } );
-   output << endl;
+   output << std::endl;
    }
 
   // the dynamic Variables of the Block - - - - - - - - - - - - - - - - - - -
-  output << "Dynamic Variables:" << endl;
+  output << "Dynamic Variables:" << std::endl;
   for( unsigned int i = 0 ; i < v_d_Variable.size() ; ++i ) {
    output << i;
    if( ! v_d_Variable_names[ i ].empty() )
@@ -343,12 +567,12 @@ void Block::print( ostream &output ) const
     output << ": ";
 
    un_any_static_Variable( v_d_Variable[ i ] , { output << *var; } );
-   output << endl;
+   output << std::endl;
    }
   */
 
   // the inner Blocks - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  output  << endl << "Nested Blocks:" << endl;
+  output << std::endl << "Nested Blocks:" << std::endl;
   for( p_Block blk : v_Block )
    output << *blk;
   }
@@ -379,15 +603,15 @@ void Block::remove_constraint_from_variables( Constraint * constraint )
 /*--------------------------------------------------------------------------*/
 
 void Block::remove_variable_from_stuff( Variable * const variable ,
-					const int issueindMod  )
+                                        const int issueindMod )
 {
  for( Variable::Index i = 0 ; i < variable->get_num_active() ; ) {
   auto si = variable->get_active( i++ );
   auto ivar = si->is_active( variable );
   if( ivar >= si->get_num_active_var() )
-   throw( std::logic_error( "inconsistency between active lists" ) );
+   throw ( std::logic_error( "inconsistency between active lists" ) );
 
-  si->remove_variable( ivar , issueindMod );
+  si->remove_variable( ivar, issueindMod );
   }
  }
 
@@ -395,87 +619,66 @@ void Block::remove_variable_from_stuff( Variable * const variable ,
 /*------------------------- METHODS of BlockConfig -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-BlockConfig::BlockConfig( const BlockConfig &old ) : BlockConfig()
+BlockConfig::BlockConfig( const BlockConfig & old )
 {
  f_diff = old.f_diff;
- clone_sub_Configuration( & old );
+ clone_sub_Configuration( old );
  }
 
 /*--------------------------------------------------------------------------*/
 
-void BlockConfig::get( Block * block ) {
+BlockConfig::BlockConfig( BlockConfig && old )
+{
+ f_diff = old.f_diff;
+ f_static_constraints_Configuration = old.f_static_constraints_Configuration;
+ old.f_static_constraints_Configuration = nullptr;
 
+ f_dynamic_constraints_Configuration =
+  old.f_dynamic_constraints_Configuration;
+ old.f_dynamic_constraints_Configuration = nullptr;
+
+ f_static_variables_Configuration = old.f_static_variables_Configuration;
+ old.f_static_variables_Configuration = nullptr;
+
+ f_dynamic_variables_Configuration = old.f_dynamic_variables_Configuration;
+ old.f_dynamic_variables_Configuration = nullptr;
+
+ f_objective_Configuration = old.f_objective_Configuration;
+ old.f_objective_Configuration = nullptr;
+
+ f_is_feasible_Configuration = old.f_is_feasible_Configuration;
+ old.f_is_feasible_Configuration = nullptr;
+
+ f_is_optimal_Configuration = old.f_is_optimal_Configuration;
+ old.f_is_optimal_Configuration = nullptr;
+
+ f_solution_Configuration = old.f_solution_Configuration;
+ old.f_solution_Configuration = nullptr;
+
+ f_extra_Configuration = old.f_extra_Configuration;
+ old.f_extra_Configuration = nullptr;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void BlockConfig::get( Block * block )
+{
  // clear this BlockConfig
  delete_sub_Configuration();
 
  if( ! block )
   return;
 
- auto block_config = block->get_BlockConfig();
-
- if( ! block_config )
-  return;
-
- set_diff( block_config->is_diff() );
-
- // clone the Configuration from Block
- this->clone_sub_Configuration( block_config );
- } // end( BlockConfig::get( block ) )
+ if( auto block_config = block->get_BlockConfig() ) {
+  set_diff( block_config->is_diff() );
+  // clone the Configuration from Block
+  clone_sub_Configuration( *block_config );
+  }
+ }  // end( BlockConfig::get )
 
 /*--------------------------------------------------------------------------*/
 
-BlockConfig * BlockConfig::deserialize( netCDF::NcFile & f ,
-					const unsigned int idx )
-{
- try {
-  netCDF::NcGroupAtt ftype = f.getAtt( "SMS++_file_type" );
-  if( ftype.isNull() )
-   return( nullptr );
-
-  int type;
-  ftype.getValues( & type );
-
-  if( ( type != eProbFile ) && ( type != eConfigFile ) )
-   return( nullptr );
-
-  netCDF::NcGroup cg;
- 
-  if( type == eProbFile ) {
-   netCDF::NcGroup dg = f.getGroup( "Config_" + std::to_string( idx ) );
-   if( dg.isNull() )
-    return( nullptr );
-
-   cg = dg.getGroup( "BlockConfig" );
-   }
-  else
-   cg = f.getGroup( "Config_" + std::to_string( idx ) );
-
-  auto result = new_Configuration( cg );
-  auto bcresult = dynamic_cast< BlockConfig * >( result );
-  if( ! bcresult ) {
-   delete result;
-   return( nullptr );
-   }
-
-  return( bcresult );
-  }
- catch( netCDF::exceptions::NcException & e ) {
-  std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
-  }
- catch( std::exception & e ) {
-  std::cerr << "error " << e.what() << " in deserialize" << std::endl;
-  }
- catch( ... ) {
-  std::cerr << "unknown error in deserialize" << std::endl;
-  }
-
- return( nullptr );
-
- } // end( BlockConfig::deserialize( file ) ) 
-
-/*--------------------------------------------------------------------------*/
-
-void BlockConfig::serialize( netCDF::NcFile & f , const int type ) const
+void BlockConfig::serialize( netCDF::NcFile & f , int type ) const
 {
  if( type == eConfigFile ) {
   Configuration::serialize( f , type );
@@ -483,14 +686,14 @@ void BlockConfig::serialize( netCDF::NcFile & f , const int type ) const
   }
 
  auto cg = ( f.addGroup( "Config_" + std::to_string( f.getGroupCount() )
-			 ) ).addGroup( "BlockConfig" );
+ ) ).addGroup( "BlockConfig" );
  serialize( cg );
 
  }  // end( BlockConfig::serialize( file ) )
 
 /*--------------------------------------------------------------------------*/
 
-void BlockConfig::print( std::ostream &output ) const
+void BlockConfig::print( std::ostream & output ) const
 {
  output << private_name();
  if( f_diff ) output << "[diff]";
@@ -506,7 +709,7 @@ void BlockConfig::print( std::ostream &output ) const
  if( f_objective_Configuration )
   output << *f_objective_Configuration;
  if( f_is_feasible_Configuration )
-   output << *f_is_feasible_Configuration;
+  output << *f_is_feasible_Configuration;
  if( f_is_optimal_Configuration )
   output << *f_is_optimal_Configuration;
  if( f_solution_Configuration )
@@ -514,125 +717,67 @@ void BlockConfig::print( std::ostream &output ) const
  if( f_extra_Configuration )
   output << *f_extra_Configuration;
  output << std::endl;
+
  }  // end( BlockConfig::print )
 
 /*--------------------------------------------------------------------------*/
 
-void BlockConfig::load( std::istream & input ) {
- input >> eatcomments >> f_diff;
+void BlockConfig::load( std::istream & input )
+{
+ if( ! empty() )
+  clear();
 
  input >> eatcomments;
- if( input.peek() == input.widen( '*' ) ) {
-  f_static_constraints_Configuration = nullptr;
-  input.ignore( std::numeric_limits< std::streamsize >::max(),
-                input.widen( '\n' ) );
- } else {
-  std::string cname;
-  input >> cname;
-  f_static_constraints_Configuration =
-   Configuration::new_Configuration( cname );
-  input >> *f_static_constraints_Configuration;
- }
+ if( input.eof() )
+  return;
 
- input >> eatcomments;
- if( input.peek() == input.widen( '*' ) ) {
-  f_dynamic_constraints_Configuration = nullptr;
-  input.ignore( std::numeric_limits< std::streamsize >::max(),
-                input.widen( '\n' ) );
- } else {
-  std::string cname;
-  input >> cname;
-  f_dynamic_constraints_Configuration =
-   Configuration::new_Configuration( cname );
-  input >> *f_dynamic_constraints_Configuration;
- }
+ input >> f_diff;
+ if( input.fail() )
+  throw( std::invalid_argument( "BlockConfig::load: stream read error" ) );
 
+ f_static_constraints_Configuration = Configuration::deserialize( input );
  input >> eatcomments;
- if( input.peek() == input.widen( '*' ) ) {
-  f_static_variables_Configuration = nullptr;
-  input.ignore( std::numeric_limits< std::streamsize >::max(),
-                input.widen( '\n' ) );
- } else {
-  std::string cname;
-  input >> cname;
-  f_static_variables_Configuration =
-   Configuration::new_Configuration( cname );
-  input >> *f_static_variables_Configuration;
- }
+ if( input.eof() )
+  return;
 
+ f_dynamic_constraints_Configuration = Configuration::deserialize( input );
  input >> eatcomments;
- if( input.peek() == input.widen( '*' ) ) {
-  f_dynamic_variables_Configuration = nullptr;
-  input.ignore( std::numeric_limits< std::streamsize >::max(),
-                input.widen( '\n' ) );
- } else {
-  std::string cname;
-  input >> cname;
-  f_dynamic_variables_Configuration =
-   Configuration::new_Configuration( cname );
-  input >> *f_dynamic_variables_Configuration;
- }
+ if( input.eof() )
+  return;
 
+ f_static_variables_Configuration = Configuration::deserialize( input );
  input >> eatcomments;
- if( input.peek() == input.widen( '*' ) ) {
-  f_objective_Configuration = nullptr;
-  input.ignore( std::numeric_limits< std::streamsize >::max(),
-                input.widen( '\n' ) );
- } else {
-  std::string cname;
-  input >> cname;
-  f_objective_Configuration = Configuration::new_Configuration( cname );
-  input >> *f_objective_Configuration;
- }
+ if( input.eof() )
+  return;
 
+ f_dynamic_variables_Configuration = Configuration::deserialize( input );
  input >> eatcomments;
- if( input.peek() == input.widen( '*' ) ) {
-  f_is_feasible_Configuration = nullptr;
-  input.ignore( std::numeric_limits< std::streamsize >::max(),
-                input.widen( '\n' ) );
- } else {
-  std::string cname;
-  input >> cname;
-  f_is_feasible_Configuration = Configuration::new_Configuration( cname );
-  input >> *f_is_feasible_Configuration;
- }
+ if( input.eof() )
+  return;
 
+ f_objective_Configuration = Configuration::deserialize( input );
  input >> eatcomments;
- if( input.peek() == input.widen( '*' ) ) {
-  f_is_optimal_Configuration = nullptr;
-  input.ignore( std::numeric_limits< std::streamsize >::max(),
-                input.widen( '\n' ) );
- } else {
-  std::string cname;
-  input >> cname;
-  f_is_optimal_Configuration = Configuration::new_Configuration( cname );
-  input >> *f_is_optimal_Configuration;
- }
+ if( input.eof() )
+  return;
 
+ f_is_feasible_Configuration = Configuration::deserialize( input );
  input >> eatcomments;
- if( input.peek() == input.widen( '*' ) ) {
-  f_solution_Configuration = nullptr;
-  input.ignore( std::numeric_limits< std::streamsize >::max(),
-                input.widen( '\n' ) );
- } else {
-  std::string cname;
-  input >> cname;
-  f_solution_Configuration = Configuration::new_Configuration( cname );
-  input >> *f_solution_Configuration;
- }
+ if( input.eof() )
+  return;
 
+ f_is_optimal_Configuration = Configuration::deserialize( input );
  input >> eatcomments;
- if( input.peek() == input.widen( '*' ) ) {
-  f_extra_Configuration = nullptr;
-  input.ignore( std::numeric_limits< std::streamsize >::max(),
-                input.widen( '\n' ) );
- } else {
-  std::string cname;
-  input >> cname;
-  f_extra_Configuration = Configuration::new_Configuration( cname );
-  input >> *f_extra_Configuration;
- }
-}  // end( BlockConfig::load )
+ if( input.eof() )
+  return;
+
+ f_solution_Configuration = Configuration::deserialize( input );
+ input >> eatcomments;
+ if( input.eof() )
+  return;
+
+ f_extra_Configuration = Configuration::deserialize( input );
+
+ }  // end( BlockConfig::load )
 
 /*--------------------------------------------------------------------------*/
 
@@ -640,9 +785,9 @@ void BlockConfig::serialize( netCDF::NcGroup & group ) const
 {
  Configuration::serialize( group );
 
- group.putAtt( "diff" , netCDF::NcInt() , int( f_diff ) );
+ group.putAtt( "diff", netCDF::NcInt() , int( f_diff ) );
 
-if( f_static_constraints_Configuration ) {
+ if( f_static_constraints_Configuration ) {
   auto cg = group.addGroup( "static_constraints" );
   f_static_constraints_Configuration->serialize( cg );
   }
@@ -690,14 +835,9 @@ if( f_static_constraints_Configuration ) {
 
 /*--------------------------------------------------------------------------*/
 
-void BlockConfig::deserialize( netCDF::NcGroup & group )
+void BlockConfig::deserialize( const netCDF::NcGroup & group )
 {
- if( f_static_constraints_Configuration ||
-     f_dynamic_constraints_Configuration ||
-     f_static_variables_Configuration || f_dynamic_variables_Configuration ||
-     f_objective_Configuration || f_is_feasible_Configuration ||
-     f_is_optimal_Configuration || f_solution_Configuration ||
-     f_extra_Configuration )
+ if( ! empty() )
   throw( std::logic_error( "deserializing a non-empty BlockConfig" ) );
 
  netCDF::NcGroupAtt diff = group.getAtt( "diff" );

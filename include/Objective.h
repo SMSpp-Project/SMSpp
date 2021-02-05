@@ -37,7 +37,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __Objective
- #define __Objective  /* self-identification: #endif at the end of the file */
+#define __Objective  /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -51,15 +51,14 @@
 /*--------------------------------------------------------------------------*/
 
 ///< namespace for the Structured Modeling System++ (SMS++)
-namespace SMSpp_di_unipi_it
-{
+namespace SMSpp_di_unipi_it {
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- Objective-RELATED TYPES ---------------------------*/
 /*--------------------------------------------------------------------------*/
 
- class Block;       // forward definition
- class Variable;    // forward definition
+class Block;       // forward definition
+class Variable;    // forward definition
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
@@ -104,8 +103,8 @@ namespace SMSpp_di_unipi_it
  * copying an Objective to a different memory location makes a distinct
  * Objective. */
 
-class Objective : public ThinComputeInterface , public ThinVarDepInterface {
-
+class Objective : public ThinComputeInterface , public ThinVarDepInterface
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -129,8 +128,8 @@ class Objective : public ThinComputeInterface , public ThinVarDepInterface {
   * class. Also, Objective supports ways (see set_sense() and get_sense())
   * to easily "extend" the set of supported senses. */
  enum of_type {
-  eMin = 0 ,  ///< minimize the objective function
-  eMax = 1    ///< maximize the objective function
+  eMin = 0 ,   ///< minimize the objective function
+  eMax = 1     ///< maximize the objective function
   };
 
 /**@} ----------------------------------------------------------------------*/
@@ -145,8 +144,8 @@ class Objective : public ThinComputeInterface , public ThinVarDepInterface {
   * void constructor. If nullptr is passed, then set_Block() [see below] will
   * have to be used later to initialize it. */
 
- Objective( Block *my_block = nullptr ) : ThinComputeInterface() ,
-                                          ThinVarDepInterface() {
+ explicit Objective( Block * my_block = nullptr ) : ThinComputeInterface() ,
+                                                    ThinVarDepInterface() {
   set_Block( my_block );
   f_sense = eMin;
   }
@@ -157,14 +156,14 @@ class Objective : public ThinComputeInterface , public ThinVarDepInterface {
   * cannot be deleted because it is required to resize() empty vectors of
   * :Objective. */
 
- Objective( const Objective & ) : ThinComputeInterface() ,
-                                    ThinVarDepInterface() {
+ Objective( const Objective & )
+  : ThinComputeInterface() , ThinVarDepInterface() {
   throw( std::logic_error( "copy constructor of Objective invoked" ) );
   }
 
 /*--------------------------------------------------------------------------*/
  /// destructor of Objective: it is virtual, and empty
- virtual ~Objective() {}
+ ~Objective() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -172,12 +171,12 @@ class Objective : public ThinComputeInterface , public ThinVarDepInterface {
 /** @name Other initializations
  *  @{ */
 
- void set_Block( Block *fblock ) { f_Block = fblock; }
-
- ///< set the pointer to the Block to which the Objective belongs
- /**< Method to set the pointer to the Block to which the Objective belongs.
+ /// set the pointer to the Block to which the Objective belongs
+ /** Method to set the pointer to the Block to which the Objective belongs.
   * If the pointer is not provided in the constructor, it should be called
   * before any other method of the class. */
+
+ void set_Block( Block * fblock ) { f_Block = fblock; }
 
 /*--------------------------------------------------------------------------*/
  ///< change the "sense" (min/max) of the problem
@@ -201,7 +200,7 @@ class Objective : public ThinComputeInterface , public ThinVarDepInterface {
 
  /// returns the pointer of the Block to which the Objective belongs
 
- Block *get_Block( void ) const { return( f_Block ); }
+ Block * get_Block( void ) const override { return( f_Block ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the sense (min/max) of the Objective
@@ -211,7 +210,7 @@ class Objective : public ThinComputeInterface , public ThinVarDepInterface {
   * method, in order to allow derived classes to "extend" the set of possible
   * types. */
 
- virtual int get_sense( void ) const { return( f_sense ); }
+ [[nodiscard]] virtual int get_sense( void ) const { return( f_sense ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF AN Objective ------------*/
@@ -257,10 +256,10 @@ class Objective : public ThinComputeInterface , public ThinVarDepInterface {
   * operator<<() is defined for each Objective, but its behavior can be
   * customized by derived classes. */
 
- friend std::ostream& operator<< ( std::ostream& out , const Objective &o ) {
+ friend std::ostream & operator<<( std::ostream & out, const Objective & o ) {
   o.print( out );
-  return( out );
-  }
+  return ( out );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -281,32 +280,32 @@ class Objective : public ThinComputeInterface , public ThinVarDepInterface {
   * information can be controlled looking at the appropriate information in
   * the Block to which this Objective belongs [see Block.h]. */
 
- virtual void print( std::ostream &output ) const {
+ virtual void print( std::ostream & output ) const {
   output << "Objective [" << this << "] of Block [" << f_Block
-	 << "] with " << get_num_active_var() << " active variables, to "
-	 << std::endl;
+         << "] with " << get_num_active_var() << " active variables, to "
+         << std::endl;
   if( f_sense == eMin )
    output << "minimize" << std::endl;
   else
    output << "maximize" << std::endl;
-  }
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
- Block *f_Block;  ///< reference to the Block where the Objective is defined
+ Block * f_Block{};  ///< reference to the Block where the Objective is defined
 
- int f_sense;  ///< type of the problem
-               /**< type of the problem. Note that while the enum of_type is
-		* provided to encode the "classical" values (max/min), the
-		* field f_sense is of type "int" in order to allow derived
-		* classes to "extend" the set of possible types. */
+ int f_sense{};  ///< type of the problem
+ /**< type of the problem. Note that while the enum of_type is
+  * provided to encode the "classical" values (max/min), the
+  * field f_sense is of type "int" in order to allow derived
+  * classes to "extend" the set of possible types. */
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( Objective ) )
+};  // end( class( Objective ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS RealObjective ----------------------------*/
@@ -346,7 +345,7 @@ class RealObjective : public Objective {
  /** @name Constructor and destructor
      @{ */
 
- RealObjective( Block *my_block = nullptr ) : Objective( my_block ) { }
+ explicit RealObjective( Block * my_block = nullptr ) : Objective( my_block ) {}
 
  ///< constructor of RealObjective: takes a pointer to its Block
  /**< Constructor of RealObjective: it does nothing but throw that of
@@ -354,7 +353,7 @@ class RealObjective : public Objective {
 
 /*--------------------------------------------------------------------------*/
 
- virtual ~RealObjective() { }  ///< destructor, virtual and empty
+ ~RealObjective() override = default;  ///< destructor, virtual and empty
 
 /*--------------------------------------------------------------------------*/
 /*------------ METHODS DESCRIBING THE BEHAVIOR OF A RealObjective ----------*/
@@ -385,10 +384,10 @@ class RealObjective : public Objective {
 /*--------------------------------------------------------------------------*/
 
  /// print the RealObjective
- virtual void print( std::ostream &output ) const override {
+ void print( std::ostream & output ) const override {
   output << "RealObjective [" << this << "] of Block ["
-	 << f_Block << "] with " << get_num_active_var()
-	 << " active variables, to ";
+         << f_Block << "] with " << get_num_active_var()
+         << " active variables, to ";
   if( f_sense == eMin )
    output << "minimize;";
   else
@@ -407,8 +406,8 @@ class RealObjective : public Objective {
 /** Derived class from AModification to describe modifications to an
  * Objective, i.e., changing the sense of the problem. */
 
-class ObjectiveMod : public AModification {
-
+class ObjectiveMod : public AModification
+{
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
  public:
@@ -417,12 +416,12 @@ class ObjectiveMod : public AModification {
 
  /// Definition of the possible type of Modification
  enum of_mod_type {
-  eSetMin ,        ///< minimize the objective function
-  eSetMax ,        ///< maximize the objective function
+  eSetMin,        ///< minimize the objective function
+  eSetMax,        ///< maximize the objective function
   eOFModLastParam  ///< first allowed parameter value for derived classes
-                   /**< convenience value for easily allow derived classes
-		    * to extend the set of types of modifications */
-  };
+  /**< convenience value for easily allow derived classes
+   * to extend the set of types of modifications */
+ };
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// Constructor: takes a Objective * and the type of Modification
@@ -432,30 +431,32 @@ class ObjectiveMod : public AModification {
   * "int", and therefore so is the parameter of the constructor, in order to
   * allow derived classes to "extend" the set of possible types of changes. */
 
- ObjectiveMod( Objective *of , int mod = eSetMin , const bool cB = true )
-  : AModification( cB ) , f_of( of ) , f_type( mod ) { }
+ explicit ObjectiveMod( Objective * of,
+                        int mod = eSetMin,
+                        const bool cB = true )
+  : AModification( cB ), f_of( of ), f_type( mod ) {}
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
- virtual ~ObjectiveMod() { }  ///< destructor: does nothing
+ ~ObjectiveMod() override = default;  ///< destructor: does nothing
 
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
  /// returns the Block to which the Objective belongs
 
- Block * get_Block( void ) const override {
-  return( f_of->get_Block() );
-  }
+ [[nodiscard]] Block * get_Block() const override {
+  return ( f_of->get_Block() );
+ }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to (the pointer to) the affected Objective
 
- Objective * of( void ) const { return( f_of ); }
+ [[nodiscard]] Objective * of() const { return ( f_of ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to type of Modificatiom
 
- int type( void ) const { return( f_type ); }
+ [[nodiscard]] int type() const { return ( f_type ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -464,7 +465,7 @@ class ObjectiveMod : public AModification {
 /*-------------------------- PROTECTED METHODS -----------------------------*/
  /// print the ObjectiveMod
 
- void print( std::ostream &output ) const override {
+ void print( std::ostream & output ) const override {
   output << "ObjectiveMod[";
   if( concerns_Block() )
    output << "t";
@@ -475,17 +476,17 @@ class ObjectiveMod : public AModification {
    output << "minimization" << std::endl;
   else
    output << "maximization" << std::endl;
-  }
+ }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
- Objective *f_of;   ///< pointer to the Objective where the change occurs
+ Objective * f_of;   ///< pointer to the Objective where the change occurs
 
  int f_type;        ///< type of Modification
 
 /*--------------------------------------------------------------------------*/
 
-  };  // end( class( ObjectiveMod ) )
+};  // end( class( ObjectiveMod ) )
 
 /** @} end( group( Objective_CLASSES ) ) */
 /*--------------------------------------------------------------------------*/
@@ -496,7 +497,7 @@ class ObjectiveMod : public AModification {
 
 /*--------------------------------------------------------------------------*/
 
- typedef Objective *p_ObjF;  ///< a pointer to Objective
+typedef Objective * p_ObjF;  ///< a pointer to Objective
 
 /** @} end( group( Objective_TYPES ) ) -------------------------------------*/
 /*--------------------------------------------------------------------------*/

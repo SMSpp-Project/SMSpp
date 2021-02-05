@@ -109,7 +109,7 @@ public:
   *        in the comments of deserialize().
   */
 
- void deserialize( netCDF::NcGroup & group ) override;
+ void deserialize( const netCDF::NcGroup & group ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -191,9 +191,9 @@ public:
  /// sets the values of the Variable of this BendersBlock
  /** This function sets the values of the Variable defined in this
   * BendersBlock according to the given \p values. The size of the \p values
-  * vector parameter must be equal to the number of Variable defined in this
+  * vector parameter must be at least the number of Variable defined in this
   * BendersBlock, so that the value of the i-th Variable will be values[ i ],
-  * for each i in {0, ..., get_number_variables()}.
+  * for each i in {0, ..., get_number_variables() - 1}.
   *
   * @param values The vector containing the values of the Variable.
   */
@@ -211,9 +211,9 @@ public:
  /// sets the values of the Variable of this BendersBlock
  /** This function sets the values of the Variable defined in this
   * BendersBlock according to the given \p values. The size of the \p values
-  * array parameter must be equal to the number of Variable defined in this
+  * array parameter must be at least the number of Variable defined in this
   * BendersBlock, so that the value of the i-th Variable will be values( i ),
-  * for each i in {0, ..., get_number_variables()}.
+  * for each i in {0, ..., get_number_variables() - 1}.
   *
   * @param values The Eigen::ArrayXd containing the values of the Variable.
   */
@@ -223,6 +223,24 @@ public:
             v_variables.size() ) );
   for( Index i = 0 ; i < v_variables.size() ; ++i )
    v_variables[ i ].set_value( values( i ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// sets the values of the Variable of this BendersBlock
+ /** This function sets the values of the Variable defined in this
+  * BendersBlock according to the values given by the iterator \p it. The
+  * number of successors (before the past-the-end iterator) of the given
+  * iterator must be at least get_number_variables() - 1, so that the value of
+  * the i-th Variable will be given by std::next( it , i ), for each i in {0,
+  * ..., get_number_variables() - 1}.
+  *
+  * @param values The vector containing the values of the Variable.
+  */
+ template< class Iterator >
+ void set_variable_values( Iterator it ) {
+  for( Index i = 0 ; i < v_variables.size() ; ++i , std::advance( it , 1 ) )
+   v_variables[ i ].set_value( * it );
  }
 
 /**@} ----------------------------------------------------------------------*/

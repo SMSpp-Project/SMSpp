@@ -59,7 +59,6 @@
 /// namespace for the Structured Modeling System++ (SMS++)
 namespace SMSpp_di_unipi_it
 {
-
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS AbstractBlock ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -224,12 +223,11 @@ class AbstractBlock : public Block {
   * Block constructor, and does little else except initializing all the
   * fields to default values. */
 
- AbstractBlock( Block * father = nullptr ) : Block( father ) ,
-  f_ub( Inf<double>() ) , f_lb( - Inf<double>() ) ,
-  f_ub_cond( false ) , f_lb_cond( false ) ,
-  f_1st_stat_var( 0 ) , f_1st_dyn_var( 0 ) ,
-  f_1st_stat_cnst( 0 ) , f_1st_dyn_cnst( 0 ) ,
-  f_res_obj( false ) , f_1st_sub_block( 0 ) { }
+ explicit AbstractBlock( Block * father = nullptr ) : Block( father ) ,
+  f_ub( Inf< double >() ) , f_lb( -Inf< double >() ) , f_ub_cond( false ) ,
+  f_lb_cond( false ) , f_1st_stat_var( 0 ) , f_1st_dyn_var( 0 ) ,
+  f_1st_stat_cnst( 0 ) , f_1st_dyn_cnst( 0 ) , f_res_obj( false ) ,
+  f_1st_sub_block( 0 ) {}
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize the current :AbstractBlock out of netCDF::NcGroup
@@ -261,8 +259,7 @@ class AbstractBlock : public Block {
   * their deserialize() is they so need; see comments to
   * Block::deserialize() for a complete discussion. */
 
- virtual void deserialize( netCDF::NcGroup & group ) override
- {
+ void deserialize( const netCDF::NcGroup & group ) override {
   guts_of_deserialize( group );
   Block::deserialize( group );
   }
@@ -282,7 +279,7 @@ class AbstractBlock : public Block {
   * specific structures have been dealt with and happily proceeds with
   * deleting the "arbitrary part". */
 
- virtual ~AbstractBlock( );
+ ~AbstractBlock() override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -302,10 +299,10 @@ class AbstractBlock : public Block {
   * the conditionally valid one otherwise, with the other being automatically
   * set to + infinity. */
 
- void set_valid_upper_bound( double newub = + Inf<double>() ,
-			     bool conditional = false )
- {
-  f_ub = newub; f_ub_cond = conditional;
+ void set_valid_upper_bound( double newub = +Inf< double >() ,
+                             bool conditional = false ) {
+  f_ub = newub;
+  f_ub_cond = conditional;
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -321,10 +318,10 @@ class AbstractBlock : public Block {
   * the conditionally valid one otherwise, with the other being automatically
   * set to - infinity. */
 
- void set_valid_lower_bound( double newlb = - Inf<double>() ,
-			     bool conditional = false )
- {
-  f_lb = newlb; f_lb_cond = conditional;
+ void set_valid_lower_bound( double newlb = -Inf< double >() ,
+                             bool conditional = false ) {
+  f_lb = newlb;
+  f_lb_cond = conditional;
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -397,20 +394,18 @@ class AbstractBlock : public Block {
   * great care, and *not* as soon as there is any solver attached to the
   * AbstractBlock. */
 
- Vec_Block & access_nested_Blocks( void ) { return( v_Block ); }
+ Vec_Block & access_nested_Blocks() { return( v_Block ); }
 
 /*--------------------------------------------------------------------------*/
 
- double get_valid_upper_bound( bool conditional = false ) override
- {
-  return( f_ub_cond == conditional ? f_ub : + Inf<double>() );
+ double get_valid_upper_bound( bool conditional = false ) override {
+  return( f_ub_cond == conditional ? f_ub : +Inf< double >() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- double get_valid_lower_bound( bool conditional = false ) override
- {
-  return( f_lb_cond == conditional ? f_lb : - Inf<double>() );
+ double get_valid_lower_bound( bool conditional = false ) override {
+  return( f_lb_cond == conditional ? f_lb : -Inf< double >() );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -440,6 +435,8 @@ class AbstractBlock : public Block {
  *
  * - add_dynamic_constraint (all versions)
  *
+ * - add_dynamic_constraints (all versions)
+ *
  * - add_dynamic_variable (all versions)
  *
  * - set_static_constraint (all versions)
@@ -450,10 +447,12 @@ class AbstractBlock : public Block {
  *
  * - set_dynamic_variable (all versions)
  *
+ * - remove_dynamic_constraint (all versions)
+ *
  * are made public in AbstractBlock, so that they can be used "from outside"
  * the AbstractBlock to manage its abstract representation;
  *  @{ */
- 
+
  using Block::reset_nested_Block;
 
  using Block::add_nested_Block;
@@ -474,6 +473,8 @@ class AbstractBlock : public Block {
 
  using Block::add_dynamic_constraint;
 
+ using Block::add_dynamic_constraints;
+
  using Block::add_dynamic_variable;
 
  using Block::set_static_constraint;
@@ -483,6 +484,8 @@ class AbstractBlock : public Block {
  using Block::set_dynamic_constraint;
 
  using Block::set_dynamic_variable;
+
+ using Block::remove_dynamic_constraint;
 
 /**@} ----------------------------------------------------------------------*/
 /*----------------- Methods for checking the AbstractBlock -----------------*/
@@ -513,7 +516,37 @@ class AbstractBlock : public Block {
   * - otherwise, it is 0. */
 
  bool is_feasible( bool useabstract = false ,
-		   Configuration *fsbc = nullptr ) override;
+                   Configuration * fsbc = nullptr ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// several sanity checks
+ /** This debug method implements a bunch of sanity checks on the "abstract"
+  * (which is the only) representation of the AbstractBlock, such as:
+  *
+  * - every Variable and Constraint of the AbstractBlock belongs to the
+  *   AbstractBlock;
+  *
+  * - every sub-Block of the AbstractBlock belongs to the AbstractBlock;
+  *
+  * - for any Variable of the AbstractBlock, and for any of the "active stuff"
+  *   of that Variable, the Variable is found among the list of "active"
+  *   Variable of that stuff;
+  *
+  * - for each Constraint and for the Objective, and for each of the "active"
+  *   Variable in that, the Constraint / Objective if found among the "active
+  *   stuff" of that Variable;
+  *
+  * - ...
+  *
+  * These are very generic checks that should be done at the level of Block,
+  * but they can not because it is not possible to just "extract Variable"
+  * or "extract Constraint" from the "abstract representaion": one can only
+  * extract :Variable (say, ColVariable) or :Constraint (say, FRowConstraint).
+  * This is a very bad consequence of the initial design choice about using
+  * boost::any, and one of the reasins why these will be put to the wall when
+  * the revolution will come. */
+
+ void is_correct( void );
 
 /**@} ----------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
@@ -524,11 +557,32 @@ class AbstractBlock : public Block {
  /// returns a Solution representing the current solution of this Block
  /** This method must construct and return a (pointer to a) Solution object
   * representing the current "solution state" of this Block. For an
-  * AbstractBlock, the "only reasonable" Solution is a ColVariableSolution.
-  */
+  * AbstractBlock, the "only reasonable" Solution are ColVariableSolution,
+  * RowConstraintSolution, and ColRowSolution.
+  *
+  * The parameter for deciding which kind of Solution must be returned is a
+  * single int value. If this value is
+  *
+  * - 1, then a RowConstraintSolution is returned;
+  *
+  * - 2, then a ColRowSolution is returned;
+  *
+  * - any other value, then a ColVariable Solution is returned.
+  *
+  * This value is to be found as:
+  *
+  * - if solc is not nullptr and it is a SimpleConfiguration<int>, then it is
+  *   solc->f_value;
+  *
+  * - otherwise, if f_BlockConfig is not nullptr,
+  *   f_BlockConfig->f_solution_Configuration is not nullptr and it is a
+  *   SimpleConfiguration<int>, then it is
+  *   f_BlockConfig->f_solution_Configuration->f_value;
+  *
+  * - otherwise, it is 0. */
 
- Solution * get_Solution( Configuration *solc = nullptr ,
-			  bool emptys = true ) override;
+ Solution * get_Solution( Configuration * solc = nullptr ,
+                          bool emptys = true ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------- METHODS FOR LOADING, PRINTING & SAVING THE AbstractBlock --------*/
@@ -568,7 +622,7 @@ class AbstractBlock : public Block {
   * Variable and Constraint, Objective, and inner Block) and asks everyone to
   * print itself. */
 
- void print( std::ostream &output ) const override;
+ void print( std::ostream & output ) const override;
 
 /*--------------------------------------------------------------------------*/
  /// load the AbstractBlock out of an istream
@@ -579,15 +633,23 @@ class AbstractBlock : public Block {
   * but it still have to be defined (throwing exception) to make the class
   * concrete. */
 
- virtual void load( std::istream &input ) override {
+ void load( std::istream & input ) override {
   throw( std::logic_error( "AbstractBlock::load not implemented yet" ) );
   }
 
 /*--------------------------------------------------------------------------*/
  /// do all the dirty work for deserialize()
 
- void guts_of_deserialize( netCDF::NcGroup & group );
- 
+ void guts_of_deserialize( const netCDF::NcGroup & group );
+
+/*--------------------------------------------------------------------------*/
+
+ void check_Variable( Variable * var );
+
+ void check_Constraint( Constraint * cnst );
+
+ void check_Objective( Objective * obj );
+
 /*--------------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -622,7 +684,7 @@ class AbstractBlock : public Block {
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( AbstractBlock ) )
+};  // end( class( AbstractBlock ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

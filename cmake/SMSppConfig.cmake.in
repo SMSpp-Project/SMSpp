@@ -14,22 +14,32 @@
 #                         Dipartimento di Informatica                         #
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #
-get_filename_component(SMSpp_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
+get_filename_component(@modName@_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
 include(CMakeFindDependencyMacro)
 
 # ----- Requirements -------------------------------------------------------- #
-# This is needed to find the custom modules we provide
-list(APPEND CMAKE_MODULE_PATH ${SMSpp_CMAKE_DIR})
+find_dependency(Boost)
 
-find_dependency(Boost REQUIRED)
-find_dependency(Eigen3 REQUIRED)
-find_dependency(netCDFCxx REQUIRED)
+# This is needed to find the find modules we provide
+list(APPEND CMAKE_MODULE_PATH ${@modName@_CMAKE_DIR})
+
+# This will try first with Eigen3 own configuration file,
+# then with the find module we provide.
+# Don't use find_dependency() because it will call return().
+find_package(Eigen3 QUIET NO_MODULE)
+if (NOT Eigen3_FOUND)
+    find_dependency(Eigen3)
+endif ()
+
+# This will straight use our find module, as netCDF-C++
+# configuration file doesn't work.
+find_dependency(netCDFCxx)
 
 list(REMOVE_AT CMAKE_MODULE_PATH -1)
 
 # ----- Import target ------------------------------------------------------- #
-if (NOT TARGET SMS++::SMSpp)
-    include("${SMSpp_CMAKE_DIR}/SMSppTargets.cmake")
-endif ()
+if (NOT TARGET @modNamespace@::@modName@)
+    include("${@modName@_CMAKE_DIR}/@modName@Targets.cmake")
+endif()
 
-set(SMSpp_LIBRARIES SMS++::SMSpp)
+set(@modName@_LIBRARIES @modNamespace@::@modName@)

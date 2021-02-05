@@ -9,7 +9,7 @@
  *
  * \version 0.1
  *
- * \date 25 - 05 - 2020
+ * \date 31 - 01 - 2021
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -55,19 +55,15 @@ namespace SMSpp_di_unipi_it
 /// DataMapping defines an interface for all types of data mappings.
 /** DataMapping defines an interface for all types of data mappings. The idea
  * of a data mapping is to allow, in particular, to map the values given by a
- * vector of double into the data of some object. It has four pure virtual
- * functions. The first two are set_data(), which have the following
+ * vector of double into the data of some object. It has three pure virtual
+ * functions. The first one is set_data(), which has the following
  * signature:
  *
- *    virtual void set_data( const std::vector< double > & data ,
+ *    virtual void set_data( std::vector< double >::const_iterator ,
  *                           c_ModParam issueMod = eModBlck ,
  *                           c_ModParam issueAMod = eModBlck ) const;
  *
- *    virtual void set_data( const Eigen::ArrayXd & data ,
- *                           c_ModParam issueMod = eModBlck ,
- *                           c_ModParam issueAMod = eModBlck ) const;
- *
- * The idea of these functions is that the values of some data of an object can
+ * The idea of this function is that the values of some data of an object can
  * be modified considering the given "data" parameter. The other two functions
  * are for serializing and deserializing a DataMapping. Typically, a
  * DataMapping could be used to set the data of a Block. In this case, a
@@ -127,32 +123,13 @@ public:
 /** @name Methods describing the behavior of the DataMapping
  *  @{ */
 
- /// sets the value of the associated data
- /** This function sets the value of the data associated with this
-  * DataMapping.
-  *
-  * @param data a (const) reference to the vector that stores the value of the
-  *        data that will be set.
-  *
-  * @param issueMod indicates if and how the a "physical" Modification should
-  *        be issued.
-  *
-  * @param issueAMod indicates if and how the an "abstract" Modification
-  *        should be issued.
-  */
-
- virtual void set_data( const std::vector< double > & data ,
-                        c_ModParam issueMod = eModBlck ,
-                        c_ModParam issueAMod = eModBlck ) const = 0;
-
 /*--------------------------------------------------------------------------*/
 
  /// sets the value of the associated data
  /** This function sets the value of the data associated with this
   * DataMapping.
   *
-  * @param data a (const) reference to the Eigen::ArrayXd that stores the
-  *        value of the data that will be set.
+  * @param data An iterator to the first element of the data.
   *
   * @param issueMod indicates if and how the a "physical" Modification should
   *        be issued.
@@ -161,7 +138,7 @@ public:
   *        should be issued.
   */
 
- virtual void set_data( const Eigen::ArrayXd & data ,
+ virtual void set_data( std::vector< double >::const_iterator data ,
                         c_ModParam issueMod = eModBlck ,
                         c_ModParam issueAMod = eModBlck ) const = 0;
 
@@ -503,28 +480,9 @@ public:
 
 /*--------------------------------------------------------------------------*/
 
+ // Specializations for this method are defined below, outside the class.
  template< class T >
  static constexpr char get_id();
-
-/*--------------------------------------------------------------------------*/
-
- template<>
- constexpr char get_id< Block::Range >() { return 'R'; }
-
-/*--------------------------------------------------------------------------*/
-
- template<>
- constexpr char get_id< Block::Subset >() { return 'S'; }
-
-/*--------------------------------------------------------------------------*/
-
- template<>
- constexpr char get_id< double >() { return 'D'; }
-
-/*--------------------------------------------------------------------------*/
-
- template<>
- constexpr char get_id< int >() { return 'I'; }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------------------- PRIVATE PART OF THE CLASS ------------------------*/
@@ -650,6 +608,23 @@ private:
 };  // end( class( SimpleDataMappingBase ) )
 
 /*--------------------------------------------------------------------------*/
+
+ // Apparently, GCC wants template specializations
+ // outside the class declaration.
+template<>
+constexpr char SimpleDataMappingBase::get_id< Block::Range >() { return 'R'; }
+
+template<>
+constexpr char SimpleDataMappingBase::get_id< Block::Subset >() { return 'S'; }
+
+template<>
+constexpr char SimpleDataMappingBase::get_id< double >() { return 'D'; }
+
+template<>
+constexpr char SimpleDataMappingBase::get_id< int >() { return 'I'; }
+
+
+/*--------------------------------------------------------------------------*/
 /*------------------------ CLASS SimpleDataMapping -------------------------*/
 /*--------------------------------------------------------------------------*/
 /*----------------------------- GENERAL NOTES ------------------------------*/
@@ -660,8 +635,9 @@ private:
  * SimpleDataMapping is a template class that derives from
  * SimpleDataMappingBase and is used to define some common kinds of data
  * mapping. We define two vectors: the large one and the small one. The large
- * vector refers to the vector that is given as input to the set_data()
- * method. This is the vector containing all the data that can be used by the
+ * vector refers to the vector that is given as input to the set_data() method
+ * (by means of an iterator to the beginning of this vector). This is the
+ * vector containing all the data that can be used by the
  * SimpleDataMapping. The small vector is a vector formed by a subset of the
  * elements of the large vector. This is the vector that will effectively be
  * used to perform some computation. This computation is typically the task of
@@ -833,14 +809,22 @@ public:
   *        obtaining the pointer to the caller together with its AbstractPath.
   */
 
- virtual void deserialize( const netCDF::NcGroup & group ,
-                           Block * block_reference ) override {
+ void deserialize( const netCDF::NcGroup & group ,
+                   Block * block_reference ) override {
 
   // FunctionName
 
-  std::string function_name;
-  ::SMSpp_di_unipi_it::deserialize< std::string >( group , FunctionName_name ,
-                                                   & function_name , false );
+  auto FunctionName_var = group.getVar( FunctionName_name );
+  if( FunctionName_var.isNull() ) {
+   throw( std::logic_error( "SimpleDataMapping::deserialize: variable '" +
+                            FunctionName_name + "' is not present." ) );
+  }
+
+  char * fname = nullptr;
+  FunctionName_var.getVar( & fname );
+  std::string function_name( fname );
+  delete fname;
+
   function = Block::get_method< F >( function_name );
 
   // AbstractPath
@@ -851,9 +835,9 @@ public:
     std::logic_error( "SimpleDataMapping::deserialize: group '" +
                       AbstractPath_name + "' was not found." );
 
-   const auto path = AbstractPath::deserialize( path_group );
+   AbstractPath path( path_group );
 
-   caller = AbstractPath::get_element< Caller >( path , block_reference );
+   caller = path.get_element< Caller >( block_reference );
   }
 
   // SetFrom and SetTo
@@ -907,19 +891,21 @@ public:
    }
   }
 
-  if( cardinality( set_to ) < cardinality( set_from ) ||
-      cardinality( set_to ) % cardinality( set_from ) != 0 ) {
-   throw( std::logic_error( "SimpleDataMapping::deserialize: the cardinality "
-                            "of 'SetTo' must be a positive multiple of the "
-                            "cardinality of 'SetFrom'." ) );
+  if( cardinality( set_from ) != 0 ) {
+   if( cardinality( set_to ) < cardinality( set_from ) ||
+       cardinality( set_to ) % cardinality( set_from ) != 0 ) {
+    throw( std::logic_error( "SimpleDataMapping::deserialize: the cardinality "
+                             "of 'SetTo' must be a positive multiple of the "
+                             "cardinality of 'SetFrom'." ) );
+   }
   }
  }
 
 /*--------------------------------------------------------------------------*/
 
- virtual void deserialize( const SDMBnetCDF & sdmb_netCDF ,
-                           Index index , Index & set_elements_start_index ,
-                           Block * block_reference ) override {
+ void deserialize( const SDMBnetCDF & sdmb_netCDF , Index index ,
+                   Index & set_elements_start_index ,
+                   Block * block_reference ) override {
 
   if( ! sdmb_netCDF.NumberDataMappings.isNull() ) {
    // a vector of SimpleDataMappingBase
@@ -935,16 +921,17 @@ public:
 
   // FunctionName
 
-  auto fname = new char[ 1000 ];
+  char * fname = nullptr;
   sdmb_netCDF.FunctionName.getVar( { index } , { 1 } , & fname );
   std::string function_name( fname );
-  delete[] fname;
+  delete fname;
+
   function = Block::get_method< F >( function_name );
 
   // AbstractPath
 
-  auto path = AbstractPath::deserialize( index , sdmb_netCDF.ap_netCDF );
-  caller = AbstractPath::get_element< Caller >( path , block_reference );
+  AbstractPath path( index , sdmb_netCDF.ap_netCDF );
+  caller = path.get_element< Caller >( block_reference );
 
   // SetFrom and SetTo
 
@@ -998,11 +985,13 @@ public:
    next_index += set_to.size();
   }
 
-  if( cardinality( set_to ) < cardinality( set_from ) ||
-      cardinality( set_to ) % cardinality( set_from ) != 0 ) {
-   throw( std::logic_error( "SimpleDataMapping::deserialize: the cardinality "
-                            "of 'SetTo' must be a positive multiple of the "
-                            "cardinality of 'SetFrom'." ) );
+  if( cardinality( set_from ) != 0 ) {
+   if( cardinality( set_to ) < cardinality( set_from ) ||
+       cardinality( set_to ) % cardinality( set_from ) != 0 ) {
+    throw( std::logic_error( "SimpleDataMapping::deserialize: the cardinality "
+                             "of 'SetTo' must be a positive multiple of the "
+                             "cardinality of 'SetFrom'." ) );
+   }
   }
 
   set_elements_start_index = next_index;
@@ -1014,50 +1003,52 @@ public:
 /** @name Methods describing the behavior of the SimpleDataMapping
  *  @{ */
 
- virtual void set_data( const std::vector< double > & data ,
-                        c_ModParam issueMod = eModBlck ,
-                        c_ModParam issueAMod = eModBlck ) const override {
-  auto sub_data = extract< DataType >( data, set_from );
+ void set_data( std::vector< double >::const_iterator data ,
+                c_ModParam issueMod = eModBlck ,
+                c_ModParam issueAMod = eModBlck ) const override {
 
-  if( cardinality( set_to ) > cardinality( set_from ) ) {
-   assert( cardinality( set_to ) % cardinality( set_from ) == 0 );
+  std::vector< DataType > sub_data;
+  decltype( sub_data.cbegin() ) begin;
+
+  if( ( std::is_same_v< SetFrom , Subset > ) ||
+      ( cardinality( set_to ) > cardinality( set_from ) ) ) {
+
+   /* Subset usually contains a non-range set, so we cannot pass an iterator
+    * to the given data forward to the function. Also, when the cardinality of
+    * the SetFrom set is smaller than that of the SetTo set, we have to expand
+    * the given data. In both cases, we need to construct a new vector to
+    * accomodate the data to be passed to the function. */
+
+   assert( empty( set_from ) ||
+           cardinality( set_to ) % cardinality( set_from ) == 0 );
+
+   sub_data = extract< DataType >( data , set_from );
    expand( sub_data , cardinality( set_to ) );
+   begin = sub_data.cbegin();
+  }
+  else if constexpr( std::is_same_v< SetFrom , Range > ) {
+   if constexpr( std::is_same_v< DataType , double > )
+    begin = std::next( data , set_from.first );
+   else {
+    // Convert the data type.
+    sub_data.assign( std::next( data , set_from.first ) ,
+                     std::next( data , set_from.second ) );
+    begin = sub_data.cbegin();
+   }
   }
 
   if constexpr( std::is_same_v< SetTo , Subset > )
-   std::invoke( * function , caller , sub_data.cbegin() ,
-                Subset( set_to ) , ordered , issueMod , issueAMod );
+   std::invoke( * function , caller , begin , Subset( set_to ) ,
+                ordered , issueMod , issueAMod );
   else
-   std::invoke( * function , caller , sub_data.cbegin() ,
-                set_to , issueMod , issueAMod );
+   std::invoke( * function , caller , begin , set_to , issueMod , issueAMod );
  }
 
 /*--------------------------------------------------------------------------*/
 
- virtual void set_data( const Eigen::ArrayXd & data ,
-                        c_ModParam issueMod = eModBlck ,
-                        c_ModParam issueAMod = eModBlck ) const override {
-  auto sub_data = extract< DataType >( data, set_from );
-
-  if( cardinality( set_to ) > cardinality( set_from ) ) {
-   assert( cardinality( set_to ) % cardinality( set_from ) == 0 );
-   expand( sub_data , cardinality( set_to ) );
-  }
-
-  if constexpr( std::is_same_v< SetTo , Subset > )
-   std::invoke( * function , caller , sub_data.cbegin() ,
-                Subset( set_to ) , ordered , issueMod , issueAMod );
-  else
-   std::invoke( * function , caller , sub_data.cbegin() ,
-                set_to , issueMod , issueAMod );
- }
-
-/*--------------------------------------------------------------------------*/
-
- virtual void serialize( SDMBnetCDF & sdmb_netCDF ,
-                         Index index , Index & set_elements_start_index ,
-                         Index & path_start_index ,
-                         Block * block_reference ) const override {
+ void serialize( SDMBnetCDF & sdmb_netCDF , Index index ,
+                 Index & set_elements_start_index , Index & path_start_index ,
+                 Block * block_reference ) const override {
   // FunctionName
 
   auto function_name = Block::get_method_name( function );
@@ -1067,14 +1058,14 @@ public:
 
   AbstractPath path;
   if constexpr( std::is_base_of_v< Function , Caller > ) {
-   path = AbstractPath::build_path< Function >( caller , block_reference );
+   path.build< Function >( caller , block_reference );
   }
   else {
-   path = AbstractPath::build_path< Caller >( caller , block_reference );
+   path.build< Caller >( caller , block_reference );
   }
 
   sdmb_netCDF.ap_netCDF.PathStart.putVar( { index } , path_start_index );
-  AbstractPath::serialize( path , index , sdmb_netCDF.ap_netCDF );
+  path.serialize( index , sdmb_netCDF.ap_netCDF );
   path_start_index += path.length();
 
   // SetFrom and SetTo
@@ -1115,14 +1106,18 @@ public:
 
   // DataType
 
-  sdmb_netCDF.DataType.putVar( { index } , get_id< DataType >() );
+  auto data_type = get_id< DataType >();
+  sdmb_netCDF.DataType.putVar( { index } , & data_type );
 
   // Caller type
 
+  char caller_type;
   if constexpr( std::is_base_of_v< Function , Caller > )
-   sdmb_netCDF.Caller.putVar( { index } , 'F' );
+   caller_type = 'F';
   else
-   sdmb_netCDF.Caller.putVar( { index } , 'B' );
+   caller_type = 'B';
+
+  sdmb_netCDF.Caller.putVar( { index } , & caller_type );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1188,8 +1183,8 @@ public:
   *        construct the AbstractPath to the caller object.
   */
 
- virtual void serialize( netCDF::NcGroup & group ,
-                         Block * block_reference ) const override {
+ void serialize( netCDF::NcGroup & group ,
+                 Block * block_reference ) const override {
 
   // FunctionName
 
@@ -1200,16 +1195,16 @@ public:
   // AbstractPath
 
   if constexpr( std::is_base_of_v< Function , Caller > ) {
-   const auto path = AbstractPath::build_path< Function >( caller ,
-                                                           block_reference );
+   AbstractPath path;
+   path.build< Function >( caller , block_reference );
    auto path_group = group.addGroup( AbstractPath_name );
-   AbstractPath::serialize( path , path_group );
+   path.serialize( path_group );
   }
   else {
-   const auto path = AbstractPath::build_path< Caller >( caller ,
-                                                         block_reference );
+   AbstractPath path;
+   path.build< Caller >( caller , block_reference );
    auto path_group = group.addGroup( AbstractPath_name );
-   AbstractPath::serialize( path , path_group );
+   path.serialize( path_group );
   }
 
   // SetFrom and SetTo (SetSize and SetElements)
@@ -1323,84 +1318,28 @@ private:
 /*--------------------------------------------------------------------------*/
 
  template< class S = double , class T = double >
- static std::vector< S > extract( const std::vector< T > & data ,
-                                  const Block::Range & range ) {
-  if( range.first >= range.second )
-   return {};
-  assert( range.second <= data.size() );
-  return std::vector< S >
-   ( data.begin() + range.first ,
-     data.begin() + std::min<decltype( data.size() )>( range.second ,
-                                                       data.size() ) );
- }
-
-/*--------------------------------------------------------------------------*/
-
- template< class S = double >
- static std::vector< S > extract( const Eigen::ArrayXd & data ,
-                                  const Block::Range & range ) {
-  if( range.first >= range.second )
-   return {};
-  assert( range.second <= data.size() );
-  return std::vector< S >
-   ( data.data() + range.first ,
-     data.data() + std::min<decltype( data.size() )>( range.second ,
-                                                      data.size() ) );
- }
-
-/*--------------------------------------------------------------------------*/
-
- template< class S = double , class T = double >
  static std::vector< S > extract
- ( const typename std::vector< T >::const_iterator & begin ,
+ ( const typename std::vector< T >::const_iterator & data ,
    const Block::Range & range ) {
   if( range.first >= range.second )
    return {};
-  return std::vector< S >( begin + range.first , begin + range.second );
- }
-
-/*--------------------------------------------------------------------------*/
-
- template< class S = double , class T = double >
- static std::vector< S > extract( const std::vector< T > & data ,
-                                  const Block::Subset & subset ) {
-  std::size_t size = subset.size();
-  std::vector< S > output( size );
-  for(std::size_t i = 0; i < size; ++i) {
-   assert( subset[ i ] >= 0 && subset[ i ] < data.size() );
-   output[ i ] = data[ subset[ i ] ];
-  }
-  return output;
- }
-
-/*--------------------------------------------------------------------------*/
-
- template< class S = double >
- static std::vector< S > extract( const Eigen::ArrayXd & data ,
-                                  const Block::Subset & subset ) {
-  std::size_t size = subset.size();
-  std::vector< S > output( size );
-  for(std::size_t i = 0; i < size; ++i) {
-   assert( subset[ i ] >= 0 && subset[ i ] < data.size() );
-   output[ i ] = data( subset[ i ] );
-  }
-  return output;
+  return std::vector< S >( data + range.first , data + range.second );
  }
 
 /*--------------------------------------------------------------------------*/
 
  template< class S = double , class T = double >
  static std::vector< S > extract_from_ordered_subset
- ( const typename std::vector< T >::const_iterator & begin ,
+ ( const typename std::vector< T >::const_iterator & data ,
    const Block::Subset & subset ) {
   std::size_t size = subset.size();
   std::vector< S > output( size );
-  std::size_t j = 0;
-  auto it = begin;
+  auto it = data;
+  Block::Subset::size_type previous = 0;
   for( std::size_t i = 0 ; i < size ; ++i ) {
-   assert( j <= subset[ i ] );
-   while( j++ < subset[ i ] ) ++it;
-   output[ i ] = *it++;
+   it = std::next( it , subset[ i ] - previous );
+   output[ i ] = *it;
+   previous = subset[ i ];
   }
   return output;
  }
@@ -1409,14 +1348,14 @@ private:
 
  template< class S = double , class T = double >
  static std::vector< S > extract
- ( const typename std::vector< T >::const_iterator & begin ,
+ ( const typename std::vector< T >::const_iterator & data ,
    const Block::Subset & subset, bool subset_is_ordered = false ) {
   if( subset_is_ordered )
-   return extract_from_ordered_subset< S , T >( begin , subset );
+   return extract_from_ordered_subset< S , T >( data , subset );
   else {
    auto ordered_subset = Block::Subset( subset );
    std::sort( ordered_subset.begin() , ordered_subset.end() );
-   return extract_from_ordered_subset< S , T >( begin , ordered_subset );
+   return extract_from_ordered_subset< S , T >( data , ordered_subset );
   }
  }
 
@@ -1432,6 +1371,13 @@ private:
 
  static Index cardinality( const Subset & subset ) {
   return subset.size();
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ template<class T>
+ static bool empty( const T & t ) {
+  return( cardinality( t ) == 0 );
  }
 
 /**@} ----------------------------------------------------------------------*/
@@ -1535,48 +1481,7 @@ public:
   */
 
  static SimpleDataMappingBase * new_SimpleDataMapping
- ( const std::string & types ) {
-
-  if( types.size() == 4 && types[ 3 ] == 'F' ) {
-   const auto t = types.substr( 0, 3 );
-   if( t == "RRD" )
-    return new SimpleDataMapping<Range ,Range ,double,BendersBFunction>;
-   else if( t == "RRI" )
-    return new SimpleDataMapping<Range ,Range ,int   ,BendersBFunction>;
-   else if( t == "RSD" )
-    return new SimpleDataMapping<Range ,Subset,double,BendersBFunction>;
-   else if( t == "RSI" )
-    return new SimpleDataMapping<Range ,Subset,int   ,BendersBFunction>;
-   else if( t == "SRD" )
-    return new SimpleDataMapping<Subset,Range ,double,BendersBFunction>;
-   else if( t == "SRI" )
-    return new SimpleDataMapping<Subset,Range ,int   ,BendersBFunction>;
-   else if( t == "SSD" )
-    return new SimpleDataMapping<Subset,Subset,double,BendersBFunction>;
-   else if( t == "SSI" )
-    return new SimpleDataMapping<Subset,Subset,int   ,BendersBFunction>;
-   else
-    throw std::invalid_argument( "new_SimpleDataMapping: invalid template "
-                                 "parameter types string: " + types );
-  }
-  else if( types.size() == 3 || ( types.size() == 4 && types[ 3 ] == 'B' ) ) {
-   const auto t = types.substr( 0, 3 );
-        if( t == "RRD" ) return new SimpleDataMapping<Range ,Range ,double>;
-   else if( t == "RRI" ) return new SimpleDataMapping<Range ,Range ,int>;
-   else if( t == "RSD" ) return new SimpleDataMapping<Range ,Subset,double>;
-   else if( t == "RSI" ) return new SimpleDataMapping<Range ,Subset,int>;
-   else if( t == "SRD" ) return new SimpleDataMapping<Subset,Range ,double>;
-   else if( t == "SRI" ) return new SimpleDataMapping<Subset,Range ,int>;
-   else if( t == "SSD" ) return new SimpleDataMapping<Subset,Subset,double>;
-   else if( t == "SSI" ) return new SimpleDataMapping<Subset,Subset,int>;
-   else
-    throw std::invalid_argument( "new_SimpleDataMapping: invalid template "
-                                 "parameter types string: " + types );
-  }
-  else
-   throw std::invalid_argument( "new_SimpleDataMapping: invalid template "
-                                "parameter types string: " + types );
- }
+ ( const std::string & types );
 
 /*--------------------------------------------------------------------------*/
 
@@ -1591,32 +1496,7 @@ public:
   */
 
  static DataMapping * deserialize( const netCDF::NcGroup & group ,
-                                   Block * block_reference ) {
-
-  // DataType
-
-  char data_type;
-  if( ! ::SMSpp_di_unipi_it::deserialize( group , "DataType" ,
-                                          & data_type , true ) )
-   data_type = SimpleDataMappingBase::get_id< double >();
-
-  // Caller type
-
-  char caller_type;
-  if( ! ::SMSpp_di_unipi_it::deserialize( group , "Caller" ,
-                                          & caller_type , true ) )
-   caller_type = 'B';
-
-  char set_from_type, set_to_type;
-  get_sets_type( group , set_from_type , set_to_type );
-
-  auto data_mapping = new_SimpleDataMapping( { set_from_type , set_to_type ,
-                                               data_type , caller_type } );
-
-  data_mapping->deserialize( group , block_reference );
-
-  return data_mapping;
- }
+                                   Block * block_reference );
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/

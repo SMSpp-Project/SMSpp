@@ -1,3 +1,14 @@
+/** @file
+ * Unit tests for Block and AbstractBlock.
+ *
+ * \author Niccolò Iardella \n
+ *         Operations Research Group \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * Copyright &copy; by Niccolò Iardella
+ */
+
 #include <gtest/gtest.h>
 
 #include "AbstractBlock.h"

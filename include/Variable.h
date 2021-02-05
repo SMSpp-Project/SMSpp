@@ -32,7 +32,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __Variable
- #define __Variable /* self-identification: #endif at the end of the file */
+#define __Variable /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -40,7 +40,7 @@
 
 #include <list>
 #include <vector>
-#include <boost/multi_array.hpp>
+
 #include "Modification.h"
 
 /*--------------------------------------------------------------------------*/
@@ -50,9 +50,9 @@
 /// namespace for the Structured Modeling System++ (SMS++)
 namespace SMSpp_di_unipi_it {
 
- class ThinVarDepInterface;  // forward definition of ThinVarDepInterface
- class Variable;             // forward definition of Variable
- class Block;                // forward definition of Block
+class ThinVarDepInterface;  // forward definition of ThinVarDepInterface
+class Variable;             // forward definition of Variable
+class Block;                // forward definition of Block
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
@@ -104,7 +104,7 @@ class Variable {
 /*--------------------------------------------------------------------------*/
  /// type for the "type" of the Variable
  /** The base class has a protected field f_state of type var_type, which is
-  * only meant to store one but of information, i.e., if the Variable is fixed
+  * only meant to store one bit of information, i.e., if the Variable is fixed
   * or not. Since there is no way to store a single bit, this leaves "a lot of
   * free space" available to derived classes to store other information about
   * their specific :Variable, provided they don't mess up with the LSB of that
@@ -163,8 +163,8 @@ class Variable {
  * have to be used later to initialize it. Variable are "born free", but they
  * can be fixed (see is_fixed()). */
 
- Variable( Block * my_block = nullptr )
-  : f_Block( my_block ) , f_state( var_type( 0 ) ) {}
+ explicit Variable( Block * my_block = nullptr )
+  : f_Block( my_block ), f_state( var_type( 0 ) ) {}
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor
@@ -175,7 +175,7 @@ class Variable {
  Variable( const Variable & v ) {
   f_state = v.f_state;
   f_Block = v.f_Block;
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// destructor: it is virtual, and empty
@@ -204,7 +204,7 @@ class Variable {
   * to be destroyed without having to pointlessly update the data structures
   * linking them just before destruction. */
 
- virtual ~Variable() {}
+ virtual ~Variable() = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -217,7 +217,7 @@ class Variable {
   * If the pointer is not provided in the constructor, it should be called
   * before any other method of the class. */
 
- void set_Block( Block *fblock ) { f_Block = fblock; }
+ void set_Block( Block * fblock ) { f_Block = fblock; }
 
 /*--------------------------------------------------------------------------*/
  /// sets the value of this Variable to its default value
@@ -227,7 +227,7 @@ class Variable {
   * dynamic variables not explicitly generated are implicitly present in the
   * Block set at their default value. */
 
- virtual void set_to_default_value( void ) = 0;
+ virtual void set_to_default_value() = 0;
 
 /*--------------------------------------------------------------------------*/
  /// fix or un-fix the Variable
@@ -240,7 +240,7 @@ class Variable {
   * The parameter issueMod decides if and how the VariableMod is issued, as
   * described in Observer::make_par(). */
 
- virtual void is_fixed( const bool fixed , c_ModParam issueMod = eModBlck );
+ virtual void is_fixed( const bool fixed, c_ModParam issueMod = eModBlck );
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE DATA OF THE Variable ---------------*/
@@ -249,7 +249,8 @@ class Variable {
  *  @{ */
 
  /// returns the pointer to the Block to which the Variable belongs
- Block *get_Block( void ) const { return( f_Block ); }
+
+ [[nodiscard]] Block * get_Block() const { return ( f_Block ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF A Variable --------------*/
@@ -257,13 +258,27 @@ class Variable {
 /** @name Methods describing the behavior of a Variable
  *  @{ */
 
- /// tells whether the Variable is fixed
- /** Method to get the current state of the Variable, i.e., whether or not it
-  * is fixed. This is plainly encoded into the LSB of the f_state protected
-  * field, so as to leave the other bits free to be used by derived classes
-  * to store any other information about the "state" of the :Variable. */
+ /// method to get the state of the Variable
 
- bool is_fixed( void ) const { return( f_state & var_type( 1 ) ); }
+ [[nodiscard]] var_type get_state() const { return ( f_state ); }
+
+/*--------------------------------------------------------------------------*/
+ /// method to tell whether a state is that of a fixed Variable
+
+ [[nodiscard]] static bool is_fixed( var_type state ) {
+  return( state & var_type( 1 ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// tells whether the Variable is fixed
+ /** Method to get the current fixed/unfixed state of the Variable. This is
+  * plainly encoded into the LSB of the f_state protected field, so as to
+  * leave the other bits free to be used by derived classes to store any
+  * other information about the "state" of the :Variable. */
+
+ [[nodiscard]] bool is_fixed( void ) const {
+  return( is_fixed( f_state ) );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------- METHODS FOR HANDLING "STUFF" THE Variable IS ACTIVE IN ---------*/
@@ -271,7 +286,7 @@ class Variable {
 /** @Name Methods for handling the set of "stuff" the Variable is active in
  *  @{ */
 
- virtual void add_active( ThinVarDepInterface *stuff ) = 0;
+ virtual void add_active( ThinVarDepInterface * stuff ) = 0;
 
  ///< add a pointer to the list of "active" stuff
  /**< Pure virtual method that adds a pointer to a new "active" something (a
@@ -285,7 +300,7 @@ class Variable {
 
 /*--------------------------------------------------------------------------*/
 
- virtual void remove_active( ThinVarDepInterface *stuff ) = 0;
+ virtual void remove_active( ThinVarDepInterface * stuff ) = 0;
 
  ///< removes a pointer from the list of "active" stuff
  /**< Pure virtual method that removes the pointer of the given stuff (a
@@ -304,7 +319,7 @@ class Variable {
   * classes complete freedom in the way they implement the list of "active"
   * stuff. */
 
- virtual Index get_num_active( void ) const = 0;
+ [[nodiscard]] virtual Index get_num_active( void ) const = 0;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// tells if the given Variable is "active" in this ThinVarDepInterface
@@ -329,7 +344,7 @@ class Variable {
   * It is pure virtual to allow derived classes complete freedom in the way
   * they implement the list of "active" stuff. */
 
- virtual ThinVarDepInterface * get_active( const Index i ) const = 0;
+ [[nodiscard]] virtual ThinVarDepInterface * get_active( Index i ) const = 0;
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR LOADING, PRINTING & SAVING THE Variable ----------*/
@@ -347,7 +362,8 @@ class Variable {
   * operator<<() is defined for each Variable, but its behavior can be
   * customized by derived classes. */
 
- friend std::ostream& operator<< ( std::ostream& out , const Variable& v ) {
+ friend std::ostream & operator<<( std::ostream & out ,
+				   const Variable & v ) {
   v.print( out );
   return( out );
   }
@@ -369,7 +385,7 @@ class Variable {
   * is virtual so that derived classes can print their specific information
   * in the format they choose. */
 
- virtual void print( std::ostream &output ) const {
+ virtual void print( std::ostream & output ) const {
   output << "Variable [" << this << "] of Block [" << f_Block << "] with "
          << get_num_active() << " active stuff" << std::endl;
   }
@@ -378,7 +394,7 @@ class Variable {
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
- Block *f_Block;    ///< pointer to the Block to which the Variable belongs
+ Block * f_Block;   ///< pointer to the Block to which the Variable belongs
 
  var_type f_state;  ///< current state of the Variable
 
@@ -392,36 +408,57 @@ class Variable {
 /*--------------------------------------------------------------------------*/
 /// class to describe modifications specific to a Variable
 /** Derived class from AModification to describe modifications to a Variable,
- * i.e., changing its state. */
+ * i.e., changing its state.
+ *
+ * While Modification are not required to store information about the state of
+ * the modified thing prior to the change, VariableMod does; old_state()
+ * returns the value of the f_state field before the change. This has a very
+ * little memory cost, but it can be quite useful to whomever has to manage
+ * the Modification because it allows to completely describe what kind of
+ * change happened, and therefore efficiently react to it. The point is that
+ * without that field, the Variable may have undergone several changes, of
+ * which one is seeing only one at the time. If, say, at the moment in which
+ * the Modification is processed old_state() == f_state, then one knows that
+ * whatever change was done has been undone in the meantime, and therefore
+ * can better react to it (say, doing nothing). */
 
-class VariableMod : public AModification {
-
+class VariableMod : public AModification
+{
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
  public:
 
+/*---------------------------- PUBLIC TYPES --------------------------------*/
+
+ using var_type = Variable::var_type;  ///< "import" var_type from Variable
+
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: takes the new state of the Variable and a pointer to it
 
- VariableMod( Variable *var , bool cB = true )
-  : AModification( cB ) , f_variable( var ) {}
+ VariableMod( Variable * var, var_type old_state, bool cB = true )
+  : AModification( cB ), f_variable( var ), f_old_state( old_state ) {}
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
- virtual ~VariableMod() = default;  ///< destructor: does nothing
+ ~VariableMod() override = default;  ///< destructor: does nothing
 
 /*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
  /// returns the Block to which the Variable belongs
 
- Block * get_Block( void ) const override {
+ [[nodiscard]] Block * get_Block( void ) const override {
   return( f_variable->get_Block() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to (the pointer to) the affected Variable
 
- Variable * variable( void ) const { return( f_variable ); }
+ [[nodiscard]] Variable * variable( void ) const { return( f_variable ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// accessor to the previous state of the Variable
+
+ [[nodiscard]] var_type old_state( void ) const { return( f_old_state ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -430,19 +467,21 @@ class VariableMod : public AModification {
 /*-------------------------- PROTECTED METHODS -----------------------------*/
  /// print the VariableMod
 
- void print( std::ostream &output ) const override {
+ void print( std::ostream & output ) const override {
   output << "VariableMod[";
   if( concerns_Block() )
    output << "t";
   else
    output << "f";
   output << "]: changing state of :Variable [" << f_variable << "]"
-	 << std::endl;
+         << std::endl;
   }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
- Variable *f_variable;      ///< Variable where the modification occurs
+ Variable * f_variable;      ///< Variable where the modification occurs
+
+ var_type f_old_state;      ///< the previous state of the Variable
 
 /*--------------------------------------------------------------------------*/
 

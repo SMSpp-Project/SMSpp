@@ -30,6 +30,7 @@
 /*--------------------------------------------------------------------------*/
 
 #include "C05Function.h"
+
 #include "ColVariable.h"
 
 /*--------------------------------------------------------------------------*/
@@ -52,34 +53,34 @@ namespace SMSpp_di_unipi_it
  * forms. In other words, if the PolyhedralFunction depends on a set of n
  * ColVariable, its input data is a m \times n matrix A and a m \times 1
  * vector b (with m given and "small"), so that
- * \$[
+ * \f[
  *     pf( x ) = max \{ a_i x + b_i : i = 0, ... , m - 1 \}
- * \$]
+ * \f]
  * in the convex case (pointwise maximum of linear functions), and
- * \$[
+ * \f[
  *     pf( x ) = min \{ a_i x + b_i : i = 0, ... , m - 1 \}
- * \$]
+ * \f]
  * in the concave one (pointwise minimum of linear functions). A "special",
- * all-0 linearization (i.e., \$f 0 x + b_m \$f) is separately handled with a
+ * all-0 linearization (i.e., \f$ 0 x + b_m \f$) is separately handled with a
  * dedicated mechanism. This could be explicitly represented as "any one" of
- * the linearizations that just so happened to have \$f A_i = 0 \$f, but the
+ * the linearizations that just so happened to have \f$ A_i = 0 \f$, but the
  * dedicated mechanism both saves a tiny bit of memory, and especially
  * provides a finite lower (if the function is convex, upper otherwise) bound
  * on the value of the function everywhere that can be returned by
  *  get_global_[lower/upper]_bound().
  *
  * The function is anyhow finite-valued everywhere, and each of the pairs
- * \$f ( A_i , b_i ) \$f define one of the possible diagonal linearizations
+ * \f$ ( A_i , b_i ) \f$ define one of the possible diagonal linearizations
  * (comprised the "flat" all-0 one associated with the lower/upper bound
- * \$f b_m \$f, if defined); thus far vertical linearizations are not handled,
+ * \f$ b_m \f$, if defined); thus far vertical linearizations are not handled,
  * but adding them would not be too much of an issue. The only exception is
- * when \$f m = 0 \$f and \$f b_m = - \infty \$f (in the convex case), in
- * which case the function evaluates to \$f - \infty \$f (\$f + \infty \$f in
+ * when \f$ m = 0 \f$ and \f$ b_m = - \infty \f$ (in the convex case), in
+ * which case the function evaluates to \f$ - \infty \f$ (\f$ + \infty \f$ in
  * the concave one with the obvious change).
  *
  * When the function is evaluated, all the m ( + 1 if the lower/upper bound is
  * defined) linearizations enter the local pool in order of their value
- * \$f v_i = A_i x + b_i \$f (non-increasing in the convex case,
+ * \f$ v_i = A_i x + b_i \f$ (non-increasing in the convex case,
  * non-decreasing in the concave one), and are reported in that order. The
  * global pool is just a subset of the fixed index set 0, ..., m - 1 (, m if
  * the lower/upper bound is defined), *except if aggregate linearizations are
@@ -390,7 +391,8 @@ class PolyhedralFunction : public C05Function {
   *        since the method is mostly thought to be used during initialization
   *        when "no one is listening". */
 
- void deserialize( netCDF::NcGroup & group , ModParam issueMod = eNoMod );
+ void deserialize( const netCDF::NcGroup & group ,
+		   ModParam issueMod = eNoMod );
 
 /*--------------------------------------------------------------------------*/
  /// destructor: it is virtual, and empty
@@ -473,8 +475,8 @@ class PolyhedralFunction : public C05Function {
    case( intLPMaxSz ):
     if( value < 1 )
      throw( std::invalid_argument( "intLPMaxSz must be positive" ) );
-    if( value != f_loc_pool_sz ) {
-     f_loc_pool_sz = value;
+    if( Index( value ) != f_loc_pool_sz ) {
+     f_loc_pool_sz = Index( value );
      reset_v_ord();
      }
     break;
@@ -487,7 +489,7 @@ class PolyhedralFunction : public C05Function {
 
     // check if any of the linearizations that will be lost (if any) is an
     // aggregated one and manage v_aA and v_ab accordingly
-    for( int i = value ; i < f_max_glob ; ++i )
+    for( Index i = value ; i < f_max_glob ; ++i )
      if( v_glob[ i ] < 0 )          // it is an aggregated item
       // mark its position in v_ab[] with INF to signal it's not needed
       v_ab[ - v_glob[ i ] - 1 ] = Inf<FunctionValue>();
@@ -505,7 +507,7 @@ class PolyhedralFunction : public C05Function {
 
     v_glob.resize( value , Inf<int>() );  // resize v_glob
 
-    if( f_max_glob >= value ) {  // some linearizatons are lost
+    if( f_max_glob >= Index( value ) ) {  // some linearizatons are lost
      f_max_glob = value ? value - 1 : 0;  // value could be 0 ...
 
      update_f_max_glob();
@@ -683,10 +685,9 @@ class PolyhedralFunction : public C05Function {
   * immediate removal from the global pool of all the linearizations obtained
   * by linear combination. */
 
- void store_combination_of_linearizations( LinearCombination & coefficients ,
-					   Index name ,
-					   ModParam issueMod = eModBlck )
-  override;
+ void store_combination_of_linearizations(
+			    c_LinearCombination & coefficients , Index name ,
+			    ModParam issueMod = eModBlck ) override;
 
 /*--------------------------------------------------------------------------*/
 
@@ -1635,9 +1636,10 @@ class PolyhedralFunctionMod : public C05FunctionMod {
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: identical to that of C05FunctionMod
- /** Constructor: takes a pointer to the affected C05Function, the type of the
-  * Modification, the value of the shift, and the "concerns Block" value. No
-  * other PolyhedralFunction-specific information is needed. */
+ /** Constructor: takes a pointer to the affected PolyhedralFunction, the type
+  * of the Modification, the Subset of affected linearizations, the value of
+  * the shift, and the "concerns Block" value. No PolyhedralFunction-specific
+  * information is added. */
 
  PolyhedralFunctionMod( PolyhedralFunction * f , int type ,
 			Subset && which = {} ,

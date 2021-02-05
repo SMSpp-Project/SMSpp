@@ -31,7 +31,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __Solver
- #define __Solver  /* self-identification: #endif at the end of the file */
+#define __Solver  /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -45,9 +45,8 @@
 /*--------------------------------------------------------------------------*/
 
 /// namespace for the Structured Modeling System++ (SMS++)
-namespace SMSpp_di_unipi_it
-{
- class Block;                // forward definition of Block
+namespace SMSpp_di_unipi_it {
+class Block;                // forward definition of Block
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
@@ -156,7 +155,7 @@ class Solver : public ThinComputeInterface {
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-public:
+ public:
 
 /*--------------------------------------------------------------------------*/
 /*---------------------------- PUBLIC TYPES --------------------------------*/
@@ -195,103 +194,102 @@ public:
   *   optimality. */
 
  enum sol_type {
- kUnbounded = kUnEval + 1 ,  ///< the model is provably unbounded
-                             /**< Means that the problem does not have any
-			      * optimal solution, i.e., that for each real
- * value M (large enough or small enough, respectively if the problem is a
- * maximization or minimization one) it is possible to produce a feasible
- * solution with that value. The Solver is able to *prove* that this is true,
- * which means it should be able to explicitly produce solutions with any
- * chosen (large or small enough) value, see set_unbounded_threshold(). This
- * is by no means a "failure" to find an optimal solution, but rather one of
- * the "good ways" in which compute() can end. Also, note that this usually
- * means that Solver has some "certificate of infeasibility", which may be of
- * extreme interest for the user. However, the actual form of the certificate
- * (a ray of the polyhedron, a directed cycle of negative weight, ...) is
- * highly dependent on the nature of the problem solved, and therefore it is
- * not possible to provide a specific method for that in the general
- * interface. */
+  kUnbounded = kUnEval + 1 ,  ///< the model is provably unbounded
+                              /**< Means that the problem does not have any
+                               * optimal solution, i.e., that for each real
+  * value M (large enough or small enough, respectively if the problem is a
+  * maximization or minimization one) it is possible to produce a feasible
+  * solution with that value. The Solver is able to *prove* that this is true,
+  * which means it should be able to explicitly produce solutions with any
+  * chosen (large or small enough) value, see set_unbounded_threshold(). This
+  * is by no means a "failure" to find an optimal solution, but rather one of
+  * the "good ways" in which compute() can end. Also, note that this usually
+  * means that Solver has some "certificate of infeasibility", which may be of
+  * extreme interest for the user. However, the actual form of the certificate
+  * (a ray of the polyhedron, a directed cycle of negative weight, ...) is
+  * highly dependent on the nature of the problem solved, and therefore it is
+  * not possible to provide a specific method for that in the general
+  * interface. */
 
- kInfeasible ,   ///< the model is provably infeasible
-                 /**< Means that the problem does not have any optimal
-		  * solution because it does not have any solution at all, and
- * the Solver is able to *prove* that this is true. Note that this means that
- * the Solver has some "certificate of infeasibility", which may be of extreme
- * interest for the user. However, the actual form of the certificate (a ray
- * of the dual polyhedron, a cut showing that no feasible flow can exist, ...)
- * is highly dependent on the nature of the problem solved, and therefore it
- * is not possible to provide a specific method for that in the general
- * interface. */
+  kInfeasible ,   ///< the model is provably infeasible
+                  /**< Means that the problem does not have any optimal
+                   * solution because it does not have any solution at all,
+  * and the Solver is able to *prove* that this is true. Note that this means
+  * that the Solver has some "certificate of infeasibility", which may be of
+  * extreme interest for the user. However, the actual form of the certificate
+  * (a ray of the dual polyhedron, a cut showing that no feasible flow can
+  * exist, ...) is highly dependent on the nature of the problem solved, and
+  * therefore it is not possible to provide a specific method for that in the
+  * general interface. */
 
- kStopTime = kOK + 1 ,  ///< stopped because of time limit
-                        /**< The Solver didn't manage to either obtain any
-			 * feasible solution (to within the required
- * tolerance for each Block) and/or to reach the required accuracy, not
- * because it is not in principle capable of doing so (see kLowPrecision) or
- * for some kind of error (see kError), but because the maximum running time
- * it is allowed to operate [see SetPar() and the corresponding dblMaxTime
- * value] is elapsed. Note that calling compute() again resets the time
- * counter, allowing the Solver to proceed further in the solution process.
- * An *exact* Solver should always eventually return one among kOK, kUnbounded
- * and kInfeasible given enough time (although "enough" can be longer than the
- * thermal death of the universe), unless an error occurs, but not all
- * problems are even decidable and therefore allow an extact Solver. Besides,
- * non-exact Solver also make full sense in many cases. */
+  kStopTime = kOK + 1 ,  ///< stopped because of time limit
+                         /**< The Solver didn't manage to either obtain any
+                          * feasible solution (to within the required
+  * tolerance for each Block) and/or to reach the required accuracy, not
+  * because it is not in principle capable of doing so (see kLowPrecision) or
+  * for some kind of error (see kError), but because the maximum running time
+  * it is allowed to operate [see SetPar() and the corresponding dblMaxTime
+  * value] is elapsed. Note that calling compute() again resets the time
+  * counter, allowing the Solver to proceed further in the solution process.
+  * An *exact* Solver should always eventually return one among kOK,
+  * kUnbounded and kInfeasible given enough time (although "enough" can be
+  * longer than the thermal death of the universe), unless an error occurs,
+  * but not all problems are even decidable and therefore allow an exact
+  * Solver. Besides, non-exact Solver also make full sense in many cases. */
 
- kStopIter ,   ///< stopped because of iteration limit
+  kStopIter ,  ///< stopped because of iteration limit
                /**< The Solver didn't manage to either obtain any feasible
-		* solution (to within the required tolerance for each 
- * Block) and/or to reach the required accuracy, not because it is not in
- * principle capable of doing so (see kLowPrecision) or for some kind of
- * error (see kError), but because the maximum "number of iterations" it is
- * allowed to execute [see SetPar() and the corresponding intMaxIter value]
- * has been expended already. The concept of "what exactly an iteration is"
- * is clearly solver-dependent, and the user of the Solver need supposedly be
- * aware of which concrete :Solver it is actually using to be able to sensibly
- * set this parameter. Note that calling compute() again resets the iterations
- * counter, allowing the Solver to proceed further in the solution process. An
- * *exact* solver will always eventually return kOK/kUnbounded/kInfeasible
- * (although "eventually" may be after the thermal death of the universe)
- * given enough resources, unless an error occurs, but not all problems are
- * decidable and therefore allow an extact Solver. */
+                * solution (to within the required tolerance for each
+  * Block) and/or to reach the required accuracy, not because it is not in
+  * principle capable of doing so (see kLowPrecision) or for some kind of
+  * error (see kError), but because the maximum "number of iterations" it is
+  * allowed to execute [see SetPar() and the corresponding intMaxIter value]
+  * has been expended already. The concept of "what exactly an iteration is"
+  * is clearly solver-dependent, and the user of the Solver need supposedly be
+  * aware of which concrete :Solver it is actually using to be able to
+  * sensibly set this parameter. Note that calling compute() again resets the
+  * iterations counter, allowing the Solver to proceed further in the solution
+  * process. An *exact* solver will always eventually return kOK / kUnbounded
+  * / kInfeasible (although "eventually" may be after the thermal death of the
+  * universe) given enough resources, unless an error occurs, but not all
+  * problems are decidable and therefore allow an extact Solver. */
 
- kStillRunning = kError + 1 ,  ///< not stopped yet
-                               /**< compute() was called again while it has
-			        * not already terminated, for instance from
- * within an event handler. This is in general not allowed, and the only
- * recourse is to return an error. */
+  kStillRunning = kError + 1 ,  ///< not stopped yet
+                                /**< compute() was called again while it has
+                                 * not already terminated, for instance from
+  * within an event handler. This is in general not allowed, and the only
+  * recourse is to return an error. */
 
- kBlockLocked ,  ///< could not acquire the lock on the Block
-                 /**< compute() needed to lock the Block to work, but
-		  * acquiring the lock was unsuccessful and the Solver does
- * not have in place any mechanism to overcome this issue. */
+  kBlockLocked ,  ///< could not acquire the lock on the Block
+                  /**< compute() needed to lock the Block to work, but
+                   * acquiring the lock was unsuccessful and the Solver does
+  * not have in place any mechanism to overcome this issue. */
 
- kLowPrecision , ///< a solution found but not provably optimal
-                 /**< The Solver was indeed able to obtain 
-		  * feasible solution (to within the required tolerance for
- * each Block) but *not* to reach the required accuracy, and this not for an
- * issue relative to limits on the available resources (see kStopTime and
- * kStopIter) or for some kind of error (see kError), but because the Solver
- * is an intrinsically heuristic approach which cannot guarantee to always be
- * able to solve the model. Heuristic Solver are still very useful because
- * they can be "fast", and some kind of problems may not allow for any exact
- * solver anyway. The specific information that kLowPrecision provides over
- * kError, besides the fact that the error is not due to "strange"
- * occurrences but to the nature of the Solver, is that at least one solution
- * has been found. */
+  kLowPrecision ,  ///< a solution found but not provably optimal
+                   /**< The Solver was indeed able to obtain 
+                    * feasible solution (to within the required tolerance for
+  * each Block) but *not* to reach the required accuracy, and this not for an
+  * issue relative to limits on the available resources (see kStopTime and
+  * kStopIter) or for some kind of error (see kError), but because the Solver
+  * is an intrinsically heuristic approach which cannot guarantee to always be
+  * able to solve the model. Heuristic Solver are still very useful because
+  * they can be "fast", and some kind of problems may not allow for any exact
+  * solver anyway. The specific information that kLowPrecision provides over
+  * kError, besides the fact that the error is not due to "strange"
+  * occurrences but to the nature of the Solver, is that at least one solution
+  * has been found. */
 
- kLastSolverError  ///< first allowed new error code for derived classes
-                   /**< Convenience value for easily allow derived classes
-		    * to extend the set of error codes. */
+  kLastSolverError  ///< first allowed new error code for derived classes
+                    /**< Convenience value for easily allow derived classes
+  * to extend the set of error codes. */
 
- };  // end( sol_type )
+  };  // end( sol_type )
 
 /*--------------------------------------------------------------------------*/
  /// public enum for the int algorithmic parameters
- /** Public enum describing the different types of algorithmic parameters
-  * of "int" type that any Solver should reasonably have. The value
-  * intLastAlgPar is provided so that the list can be easily further extended
-  * by derived classes.
+ /** Public enum describing the different algorithmic parameters of "int" type
+  * that any Solver should reasonably have. The value intLastAlgPar is
+  * provided so that the list can be easily extended by derived classes.
   *
   * Note: WHILE THE BASE Solver CLASS DEFINES THESE VALUES, IT DOES NOT
   *       HANDLE THEM SAVE FOR PROVIDING THE DEFAULT VALUES.
@@ -303,77 +301,77 @@ public:
   * value. */
 
  enum int_par_type_S {
- intMaxIter = 0 ,  ///< maximum iterations for the next call to compute()
-                   /**< The algorithmic parameter for setting the maximum
-		    * number of iterations that the next call to compute() is
- * allowed to execute for trying to solve the Block. The concept of "what
- * exactly an iteration is" is clearly Solver-dependent, and the user of the
- * Solver need supposedly be aware of which concrete Solver it is actually
- * using to be able to sensibly set this parameter; however, because most
- * Solver will actually be iterative processes, it makes sense to offer
- * support for this notion in the base class. More refined ones can easily
- * be added by derived classes (see intLastAlgPar and dblLastAlgPar). The
- * default is Inf<int>(). */
+  intMaxIter = 0 ,  ///< maximum iterations for the next call to compute()
+                    /**< The algorithmic parameter for setting the maximum
+                     * number of iterations that the next call to compute() is
+  * allowed to execute for trying to solve the Block. The concept of "what
+  * exactly an iteration is" is clearly Solver-dependent, and the user of the
+  * Solver need supposedly be aware of which concrete Solver it is actually
+  * using to be able to sensibly set this parameter; however, because most
+  * Solver will actually be iterative processes, it makes sense to offer
+  * support for this notion in the base class. More refined ones can easily
+  * be added by derived classes (see intLastAlgPar and dblLastAlgPar). The
+  * default is Inf<int>(). */
 
- intMaxThread ,  ///< maximum number of threads that compute() can spawn
-                 /**< The algorithmic parameter for setting the maximum
-		  * number of threads that the next call to compute() is
- * allowed to spawn while trying to solve the Block. Actually "thread" here
- * is intended in a loose sense, since each :Solver will decide if and how
- * to implememnt any asynchronous part, and hence which tools will be used
- * to manage it. If std::asynch is used, for instance, then what is easily
- * kept under control is the number of tasks, which may or may not coincide
- * with the number of threads depending on the scheduler implementation.
- * Specific :Solver requiring more fine control of these aspects can define
- * their own specific algorithmic parameters, but the concept of "maximum
- * allowed amount of computational resources" (as governed by a simple int)
- * should be general enough as to warrant a parameter in the base Solver
- * class. The default is 0, which means that compute() must only use the
- * thread/task that is calling it. Note that this does not prevent the
- * caller to call compute() in an asynchronous way, see e.g.
- * ThinComputeInterface::compute_async() for an example, but in this case
- * the responsibility of spawning (and then controlling) the new task is on
- * the caller, while this parameter controls what happens inside compute(). */
+  intMaxThread ,  ///< maximum number of threads that compute() can spawn
+                  /**< The algorithmic parameter for setting the maximum
+                   * number of threads that the next call to compute() is
+  * allowed to spawn while trying to solve the Block. Actually "thread" here
+  * is intended in a loose sense, since each :Solver will decide if and how
+  * to implememnt any asynchronous part, and hence which tools will be used
+  * to manage it. If std::asynch is used, for instance, then what is easily
+  * kept under control is the number of tasks, which may or may not coincide
+  * with the number of threads depending on the scheduler implementation.
+  * Specific :Solver requiring more fine control of these aspects can define
+  * their own specific algorithmic parameters, but the concept of "maximum
+  * allowed amount of computational resources" (as governed by a simple int)
+  * should be general enough as to warrant a parameter in the base Solver
+  * class. The default is 0, which means that compute() must only use the
+  * thread/task that is calling it. Note that this does not prevent the
+  * caller to call compute() in an asynchronous way, see e.g.
+  * ThinComputeInterface::compute_async() for an example, but in this case
+  * the responsibility of spawning (and then controlling) the new task is on
+  * the caller, while this parameter controls what happens inside compute().
+  */
 
- intMaxSol ,    ///< maximum number of different solutions to report
-		/**< The algorithmic parameter for setting the maximum 
-		 * number of different solutions to the Block that the
- * Solver should attempt to obtain and store. Mathematical models can have
- * (very) many solutions: an objective function precisely helps in selecting
- * among them, but even that may not be enough to narrow the choice down to
- * a single solution (multiple optima may exist, or quasi-optimal solutions
- * may also be sought for for any number of reasons). On the other hand, a
- * solution can be a "big" object, and storing it may be costly. It may be
- * therefore helpful for a Solver to know beforehand how many different
- * solutions the user would like to get. Among the reasonable values for
- * this parameter, 1 says "I don't care of multiple solutions, give me only
- * the best one", and 0 says "I don't care of solutions at all, just tell
- * me if there is any, and what its value is". The default is 1. */
+  intMaxSol ,   ///< maximum number of different solutions to report
+                /**< The algorithmic parameter for setting the maximum 
+                 * number of different solutions to the Block that the
+  * Solver should attempt to obtain and store. Mathematical models can have
+  * (very) many solutions: an objective function precisely helps in selecting
+  * among them, but even that may not be enough to narrow the choice down to
+  * a single solution (multiple optima may exist, or quasi-optimal solutions
+  * may also be sought for for any number of reasons). On the other hand, a
+  * solution can be a "big" object, and storing it may be costly. It may be
+  * therefore helpful for a Solver to know beforehand how many different
+  * solutions the user would like to get. Among the reasonable values for
+  * this parameter, 1 says "I don't care of multiple solutions, give me only
+  * the best one", and 0 says "I don't care of solutions at all, just tell
+  * me if there is any, and what its value is". The default is 1. */
 
- intEverykIt ,  ///< how often call events of type eEverykIteration
+  intEverykIt,  ///< how often call events of type eEverykIteration
                 /**< This parameter decides every how many iterations the
-		 * events of type eEverykIteration are called. The default
+                 * events of type eEverykIteration are called. The default
   * value is 0, meaning that events of that type are never called. A value of
   * 1 rather means that the events are called at every iteration. */
 
- intLogVerb ,   ///< "verbosity" of the log
+  intLogVerb,   ///< "verbosity" of the log
                 /**< An integer parameter dictating how "verbose" the log of
-		 * the Solver [see set_log()] has to be. The specific meaning
- * of each value is Solver-dependent, but it is intended that 0 means "no log
- * at all", and increasing values correspond to increasing verbosity. The
- * default value is 0 (no log). */
+                 * the Solver [see set_log()] has to be. The specific meaning
+  * of each value is Solver-dependent, but it is intended that 0 means "no log
+  * at all", and increasing values correspond to increasing verbosity. The
+  * default value is 0 (no log). */
 
- intLastAlgPar   ///< first allowed new int parameter for derived classes
-                 /**< Convenience value for easily allow derived classes
-		  * to extend the set of int algorithmic parameters. */
- };  // end( int_par_type_S )
+  intLastAlgPar   ///< first allowed new int parameter for derived classes
+                  /**< Convenience value for easily allow derived classes to
+		   * extend the set of int algorithmic parameters. */
+  };  // end( int_par_type_S )
 
 /*--------------------------------------------------------------------------*/
  /// public enum for the double algorithmic parameters
- /** Public enum describing the different types of algorithmic parameters
-  * of "double" type that any Solver should reasonably have. The value
-  * dblLastAlgPar is provided so that the list can be easily further extended
-  * by derived classes.
+ /** Public enum describing the different algorithmic parameters of "double"
+  * type that any Solver should reasonably have. The value dblLastAlgPar is
+  * provided so that the list can be easily extended by derived classes.
   *
   * Note: WHILE THE BASE Solver CLASS DEFINES THESE VALUES, IT DOES NOT
   *       HANDLE THEM SAVE FOR PROVIDING THE DEFAULT VALUES.
@@ -385,175 +383,225 @@ public:
   * value. */
 
  enum dbl_par_type_S {
- dblMaxTime = 0 ,  ///< maximum time for the next call to solve()
-                   /**< the algorithmic parameter for setting the maximum time
-		    * limit that the next call to solve() can expend in trying
- * to solve the Block. The value is assumed to be in seconds, and it's a
- * double (so both very quick and very slow solvers are supported). The base
- * Solver class does not explicitly distinguish between "wall-clock time" and
- * "CPU time", which may be rather different especially in a parallel
- * environment, but this concept can be easily added by derived classes (see
- * intLastAlgPar and dblLastAlgPar). The default is Inf<double>(). */
+  dblMaxTime = 0 ,  ///< maximum time for the next call to solve()
+                    /**< the algorithmic parameter for setting the maximum 
+		     * time limit that the next call to solve() can expend
+  * in trying to solve the Block. The value is assumed to be in seconds, and
+  * it's a double (so both very quick and very slow solvers are supported).
+  * The base Solver class does not explicitly distinguish between "wall-clock
+  * time" and "CPU time", which may be rather different especially in a
+  * parallel environment, but this concept can be easily added by derived
+  * classes (see intLastAlgPar and dblLastAlgPar). The default is
+  * Inf<double>(). */
 
- dblRelAcc ,    ///< relative accuracy for declaring a solution optimal
-		/**< The algorithmic parameter for setting the *relative*
-		 * accuracy required to the solution of the Block. This is
- * geared towards single-objective optimization problems, and it is defined
- * as follows: a solution for a *minimization* problem has a relative
- * accuracy of \eps if a feasible (to within the required tolerance for each
- * Block) solution has been obtained, an upper bound "ub" on its objective
- * function value has been found [see get_ub()], a lower bound "lb" on the
- * *optimal* value of the problem has been found [see get_lb()], and
- *
- *    ub - lb <= \eps * max( abs( lb ) , 1 )
- *
- * The roles of ub and lb are suitably reversed for a maximization problem
- * [see the comments to get_ub(), get_lb() and Objective::set_sense()]. The
- * default is 1e-6. */
+  dblRelAcc ,    ///< relative accuracy for declaring a solution optimal
+                 /**< The algorithmic parameter for setting the *relative*
+  * accuracy required to the solution of the Block. This is
+  * geared towards single-objective optimization problems, and it is defined
+  * as follows: a solution for a *minimization* problem has a relative
+  * accuracy of \eps if a feasible (to within the required tolerance for each
+  * Block) solution has been obtained, an upper bound "ub" on its objective
+  * function value has been found [see get_ub()], a lower bound "lb" on the
+  * *optimal* value of the problem has been found [see get_lb()], and
+  *
+  *    ub - lb <= \eps * max( abs( lb ) , 1 )
+  *
+  * The roles of ub and lb are suitably reversed for a maximization problem
+  * [see the comments to get_ub(), get_lb() and Objective::set_sense()]. The
+  * default is 1e-6. */
 
- dblAbsAcc   ,  ///< absolute accuracy for declaring a solution optimal
-		/**< The algorithmic parameter for setting the *absolute*
-		 * accuracy required to the solution of the model. This is
- * geared towards single-objective optimization problems, and it is defined
- * as follows: a solution for a *minimization* problem has a absolute
- * accuracy of \eps if a feasible  (to within the required tolerance for
- * each Block) solution has been obtained, an upper bound "ub" on its
- * objective function value has been found [see get_ub()], a lower bound
- * "lb" on the *optimal* value of the problem has been found [see get_lb()],
- * and
- *
- *    ub - lb <= \eps
- *
- * The roles of ub and lb are suitably reversed for a maximization problem
- * [see the comments to get_ub(), get_lb() and Objective::set_sense()]. The
- * default is Inf<OFValue>(), which is intended to mean that the only working
- * accuracy is the relative one. */
+  dblAbsAcc ,    ///< absolute accuracy for declaring a solution optimal
+                 /**< The algorithmic parameter for setting the *absolute*
+                  * accuracy required to the solution of the model. This is
+  * geared towards single-objective optimization problems, and it is defined
+  * as follows: a solution for a *minimization* problem has a absolute
+  * accuracy of \eps if a feasible  (to within the required tolerance for
+  * each Block) solution has been obtained, an upper bound "ub" on its
+  * objective function value has been found [see get_ub()], a lower bound
+  * "lb" on the *optimal* value of the problem has been found [see get_lb()],
+  * and
+  *
+  *    ub - lb <= \eps
+  *
+  * The roles of ub and lb are suitably reversed for a maximization problem
+  * [see the comments to get_ub(), get_lb() and Objective::set_sense()]. The
+  * default is Inf<OFValue>(), which is intended to mean that the only working
+  * accuracy is the relative one. */
 
- dblUpCutOff ,  ///< upper cutoff for stopping the algorithm
-		/**< The algorithmic parameter for setting the "upper cut 
-		 * off" of the solution process. This is a value basically
- * telling the Solver "when enough is enough". In particular, if the Solver
- * obtains a certified lower bound "lb" on the optimal value such that
- *
- *   lb >= \eps
- *
- * with the provided parameter \eps, then it can stop. This is a
- * *certificate* that the optimal value is at *least* \eps. For a
- * maximization problem the condition says: I actually needed a solution
- * with objective function value at least as good as (i.e., larger than)
- * \eps, now that I have found one the problem is as good as solved to me.
- * Hence this parameter is analogous to the maximum absolute accuracy (see
- * dblAbsAcc), but "weaker" in that it does not not require any upper bound
- * to work. For a minimization problem, instead, the condition says: I
- * actually needed a solution with objective function value at least as
- * good as (i.e., smaller than) \eps, now that I have know for sure that
- * this is never going to happen the problem is as good as unfeasible to me.
- * The default is Inf<OFValue>(). */
+  dblUpCutOff ,  ///< upper cutoff for stopping the algorithm
+                 /**< The algorithmic parameter for setting the "upper cut 
+                  * off" of the solution process. This is a value basically
+  * telling the Solver "when enough is enough". In particular, if the Solver
+  * obtains a certified lower bound "lb" on the optimal value such that
+  *
+  *   lb >= \eps
+  *
+  * with the provided parameter \eps, then it can stop. This is a
+  * *certificate* that the optimal value is at *least* \eps. For a
+  * maximization problem the condition says: I actually needed a solution
+  * with objective function value at least as good as (i.e., larger than)
+  * \eps, now that I have found one the problem is as good as solved to me.
+  * Hence this parameter is analogous to the maximum absolute accuracy (see
+  * dblAbsAcc), but "weaker" in that it does not not require any upper bound
+  * to work. For a minimization problem, instead, the condition says: I
+  * actually needed a solution with objective function value at least as
+  * good as (i.e., smaller than) \eps, now that I have know for sure that
+  * this is never going to happen the problem is as good as unfeasible to me.
+  * The default is Inf<OFValue>(). */
 
- dblLwCutOff ,  ///< lower cutoff for stopping the algorithm
-		/**< The algorithmic parameter for setting the "lower cut 
-		 * off" of the solution process. This is a value basically
- * telling the Solver "when enough is enough". In particular, if the Solver
- * obtains a certified upper bound "ub" on the optimal value such that
- *
- *   ub <= \eps
- *
- * with the provided parameter \eps, then it can stop. This is a
- * *certificate* that the optimal value is at *most* \eps. For a
- * minimization problem the condition says: I actually needed a solution
- * with objective function value at least as good as (i.e., smaller than)
- * \eps, now that I have found one the problem is as good as solved to me.
- * Hence this parameter is analogous to the maximum absolute accuracy (see
- * dblAbsAcc), but "weaker" in that it does not not require any lower bound
- * to work. For a maximization problem, instead, the condition says: I
- * actually needed a solution with objective function value at least as
- * good as (i.e., larger than) \eps, now that I have know for sure that
- * this is never going to happen the problem is as good as unfeasible to me.
- * The default is - Inf<OFValue>(). */
+  dblLwCutOff ,  ///< lower cutoff for stopping the algorithm
+                 /**< The algorithmic parameter for setting the "lower cut 
+                  * off" of the solution process. This is a value basically
+  * telling the Solver "when enough is enough". In particular, if the Solver
+  * obtains a certified upper bound "ub" on the optimal value such that
+  *
+  *   ub <= \eps
+  *
+  * with the provided parameter \eps, then it can stop. This is a
+  * *certificate* that the optimal value is at *most* \eps. For a
+  * minimization problem the condition says: I actually needed a solution
+  * with objective function value at least as good as (i.e., smaller than)
+  * \eps, now that I have found one the problem is as good as solved to me.
+  * Hence this parameter is analogous to the maximum absolute accuracy (see
+  * dblAbsAcc), but "weaker" in that it does not not require any lower bound
+  * to work. For a maximization problem, instead, the condition says: I
+  * actually needed a solution with objective function value at least as
+  * good as (i.e., larger than) \eps, now that I have know for sure that
+  * this is never going to happen the problem is as good as unfeasible to me.
+  * The default is - Inf<OFValue>(). */
 
- dblRAccSol ,   ///< maximum relative error in any reported solution
-		/**< The algorithmic parameter for setting the relative
-		 * accuracy of the accepted solutions. It instructs the
- * Solver not to even consider a solution among the ones to be reported (see
- * intMaxSol) if its objective function value is "too" bad. For a minimization
- * problem, the objective function value of a feasible solution provides an
- * upper bound "ub" on the optimal value. Assuming a lower bound "lb" on the
- * *optimal* value of the problem has been found [see get_lb()], a solution
- * is deemed acceptable with the provided parameter \eps if
- *
- *    ub - lb <= \eps * max( abs( ub ) , abs( lb ) , 1 )
- *
- * Note that if no lb is available, the above formula can be replaced with
- *
- *    ub - fbest <= \eps * max( abs( ub ) , abs( fbest ) , 1 )
- *
- * where fbest is the value of the best (with smallest objective value)
- * solution found so far. The roles of ub and lb are suitably reversed for
- * a maximization problem. The default is Inf<OFValue>(). */
+  dblRAccSol ,   ///< maximum relative error in any reported solution
+                 /**< The algorithmic parameter for setting the relative
+                  * accuracy of the accepted solutions. It instructs the
+  * Solver not to even consider a solution among the ones to be reported (see
+  * intMaxSol) if its objective function value is "too" bad. For a
+  * minimization problem, the objective function value of a feasible solution
+  * provides an upper bound "ub" on the optimal value. Assuming a lower bound
+  * "lb" on the *optimal* value of the problem has been found [see get_lb()],
+  * a solution is deemed acceptable with the provided parameter \eps if
+  *
+  *    ub - lb <= \eps * max( abs( ub ) , abs( lb ) , 1 )
+  *
+  * Note that if no lb is available, the above formula can be replaced with
+  *
+  *    ub - fbest <= \eps * max( abs( ub ) , abs( fbest ) , 1 )
+  *
+  * where fbest is the value of the best (with smallest objective value)
+  * solution found so far. The roles of ub and lb are suitably reversed for
+  * a maximization problem. The default is Inf<OFValue>(). */
 
- dblAAccSol ,   ///< maximum absolute error in any reported solution
-		/**< Similar to dblRAccSol but for an *absolute* accuracy;
+  dblAAccSol ,   ///< maximum absolute error in any reported solution
+                 /**< Similar to dblRAccSol but for an *absolute* accuracy;
                   * that is, a solution is deemed acceptable with the
- * provided parameter \eps if
- *
- *    ub - lb <= \eps
- *
- * or
- *
- *    ub - fbest <= \eps
- *
- * with the same notation as in dblRAccSol and the same provisions about the
- * case of a maximization problem. The default is Inf<OFValue>(). */
+  * provided parameter \eps if
+  *
+  *    ub - lb <= \eps
+  *
+  * or
+  *
+  *    ub - fbest <= \eps
+  *
+  * with the same notation as in dblRAccSol and the same provisions about the
+  * case of a maximization problem. The default is Inf<OFValue>(). */
 
- dblFAccSol ,   ///< maximum constraint violation in any reported solution
-		/**< The algorithmic parameter for setting the maximum
-		 * relative allowed violation of constraints. Whenever the
- * Solver is uncapable of finding feasible solutions (maybe because there is
- * none), it may still be useful that it returns the "least unfeasible" ones.
- * This parameter instructs the Solver not to even consider a solution among
- * the ones to be reported (see intMaxSol) if its violation is "too" bad.
- * The actual meaning of this parameter may be Solver-dependent, but it can be
- * thought to work as the "relative constraint violation". A setting of 0 may
- * be taken as a way to tell the Solver not to bother to produce unfeasible
- * solutions at all, which is why this is the default value of the parameter.
- */
+  dblFAccSol ,   ///< maximum constraint violation in any reported solution
+                 /**< The algorithmic parameter for setting the maximum
+                  * relative allowed violation of constraints. Whenever the
+  * Solver is uncapable of finding feasible solutions (maybe because there is
+  * none), it may still be useful that it returns the "least unfeasible" ones.
+  * This parameter instructs the Solver not to even consider a solution among
+  * the ones to be reported (see intMaxSol) if its violation is "too" bad.
+  * The actual meaning of this parameter may be Solver-dependent, but it can
+  * be thought to work as the "relative constraint violation". A setting of 0
+  * may be taken as a way to tell the Solver not to bother to produce
+  * unfeasible solutions at all, which is why this is the default value of
+  * the parameter. */
 
- dblEveryTTm ,  ///< how often call events of type eEveryTTime
-                /**< This parameter sets the period (amount of time) T with
-		 * which events of type eEveryTTime are called. The default
+  dblEveryTTm ,  ///< how often call events of type eEveryTTime
+                 /**< This parameter sets the period (amount of time) T with
+                  * which events of type eEveryTTime are called. The default
   * value is 0, meaning that events of that type are never called. */
 
- dblLastAlgPar   ///< first allowed new double parameter for derived classes
-                 /**< Convenience value for easily allow derived classes
-		  * to extend the set of double algorithmic parameters. */
- };  // end( dbl_par_type_S )
+  dblLastAlgPar   ///< first allowed new double parameter for derived classes
+                  /**< Convenience value for easily allow derived classes to
+		   * extend the set of double algorithmic parameters. */
+  };  // end( dbl_par_type_S )
 
 /*--------------------------------------------------------------------------*/
  /// public enum for the string algorithmic parameters
- /** Public enum describing the different types of algorithmic parameters
-  * of "string" type that any Solver should reasonably have (none so far).
-  * The value strLastAlgPar is provided so that the list can be easily
-  * further extended by derived classes. */
+ /** Public enum describing the different algorithmic parameters of "string"
+  * type that any Solver should reasonably have (none so far). The value
+  * strLastAlgPar is provided so that the list can be easily extended by
+  * derived classes. */
 
  enum str_par_type_S {
- strLastAlgPar = 0 ///< first allowed new string parameter for derived classes
-                    /**< Convenience value for easily allow derived classes
-		     * to extend the set of string algorithmic parameters.
-		     * Actually, so far thare are no string algorithmic
-		     * parameters in the base Solver class, but this may
-		     * change in the future, so using this makes code
-		     * resistant to that. */
- };  // end( str_par_type_S )
+  strLastAlgPar = 0   ///< first allowed new string parameter
+                      /**< Convenience value for easily allow derived classes
+		       * to extend the set of string algorithmic parameters.
+  * Actually, so far thare are no string algorithmic parameters in the base
+  * Solver class, but this may change in the future, so using this makes code
+  * resistant to that. */
+
+  };  // end( str_par_type_S )
+
+/*--------------------------------------------------------------------------*/
+ /// public enum for vector-of-int algorithmic parameters
+ /** Public enum describing the different algorithmic parameters that are
+  * vectors of int that any Solver should reasonably have (none so far). The
+  * value vintLastAlgPar is provided so that the list can be easily extended
+  * by derived classes. */
+
+ enum vint_par_type_S {
+  vintLastAlgPar = 0  ///< first allowed new  vector-of-int parameter
+                      /**< Convenience value for easily allow derived classes
+                       * to extend the set of vector-of-int parameters.
+  * Actually, so far thare are no such parameters in the base Solver class,
+  * but this may change in the future, so using this makes code resistant to
+  * that. */
+
+  };  // end( vint_par_type_S )
+
+/*--------------------------------------------------------------------------*/
+ /// public enum for vector-of-double algorithmic parameters
+ /** Public enum describing the different algorithmic parameters that are
+  * vectors of double that any Solver should reasonably have (none so far).
+  * The value vdblLastAlgPar is provided so that the list can be easily
+  * extended by derived classes. */
+
+ enum vdbl_par_type_S {
+  vdblLastAlgPar = 0  ///< first allowed new  vector-of-double parameter
+                      /**< Convenience value for easily allow derived classes
+                       * to extend the set of vector-of-double parameters.
+  * Actually, so far thare are no such parameters in the base Solver class,
+  * but this may change in the future, so using this makes code resistant to
+  * that. */
+
+  };  // end( vdbl_par_type_S )
+
+/*--------------------------------------------------------------------------*/
+ /// public enum for vector-of-string algorithmic parameters
+ /** Public enum describing the different algorithmic parameters that are
+  * vectors of string that any Solver should reasonably have (none so far).
+  * The value vdblLastAlgPar is provided so that the list can be easily
+  * extended by derived classes. */
+
+ enum vstr_par_type_S {
+  vstrLastAlgPar = 0  ///< first allowed new  vector-of-string parameter
+                      /**< Convenience value for easily allow derived classes
+                       * to extend the set of vector-of-string parameters.
+  * Actually, so far thare are no such parameters in the base Solver class,
+  * but this may change in the future, so using this makes code resistant to
+  * that. */
+
+  };  // end( vstr_par_type_S )
 
 /*--------------------------------------------------------------------------*/
 
- typedef double OFValue;
+ typedef double OFValue;  ///< type of the objective function value
+                          /**< This is the type of the value of the objective
+			   * function, generically "a real". One may expect
+ * this to be defined exactly like the same-named type in RealObjective. */
 
- ///< type of the objective function value
- /**< This is the type of the value of the objective function, generically
-  * "a real". One may expect this to be defined exactly like the same-named
-  * type in RealObjective. */
- 
 /**@} ----------------------------------------------------------------------*/
 /*------------------ CONSTRUCTING AND DESTRUCTING Solver -------------------*/
 /*--------------------------------------------------------------------------*/
@@ -564,11 +612,6 @@ public:
  Solver( void ) : f_Block( nullptr ) , f_log( nullptr ) , f_no_Mod( false ) {
   f_id = this;
   f_mod_lock.clear();
-
-  if( v_events.empty() )
-   v_events.resize( max_event_number() );
-
-
   }
 
 /*--------------------------------------------------------------------------*/
@@ -609,18 +652,14 @@ public:
   * @param classname The name of the :Solver class that must be
   *        constructed. */
 
- static Solver *new_Solver( const std::string &classname )
- {
-  std::string classname_( classname );
-  classname_.erase( std::remove_if( classname_.begin() , classname_.end() ,
-                                    ::isspace ) , classname_.end() );
-
+ static Solver * new_Solver( const std::string & classname ) {
+  const std::string classname_( SMSpp_classname_normalise(
+					        std::string( classname ) ) );
   const auto it = Solver::f_factory().find( classname_ );
   if( it == Solver::f_factory().end() )
    throw( std::invalid_argument( classname +
-			  std::string( " not present in Solver factory" ) ) );
-
-  return( (it->second)() );
+				 " not present in Solver factory" ) );
+  return( ( it->second )() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -634,7 +673,7 @@ public:
   * and in so doing it also destroys all its elements (you don't explicitly
   * delete a std::shared_ptr<>, you just destroy the object). */
 
- virtual ~Solver() { }
+ ~Solver() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------------- LOCKING AND UNLOCKING Solver ----------------------*/
@@ -718,14 +757,17 @@ public:
  /** Method to set the (pointer to the) Block that the Solver has to solve.
   * If there were any other block attached to Block this Solver, any
   * information about solutions to the previous Block the Solver had
-  * computed is lost for good. This is why the method is virtual: derived
-  * classes may need to do more to reach to such an abrupt change.
+  * computed is lost for good. This is one reasin why the method is virtual:
+  * derived classes may need to do more to reach to such an abrupt change.
+  * In general, a :Solver may have to (lock and) read (data from) the Block
+  * to be stored in its internal data structures, hence this method is
+  * likely to be a rather costly one.
   *
-  * Passing block == nullptr signals to the Solver to discard every
+  * Passing \p block == nullptr signals to the Solver to discard every
   * information related to the solution process of the previous Block (if
   * any), and sit down quietly in a corner waiting for new orders.
   *
-  * Important note: the moment when the Block is passed to the Solver, the
+  * IMPORTANT NOTE: the moment when the Block is passed to the Solver, the
   * Solver should in principle do all the necessary initializations, since
   * immediately afterwords compute() may be called already. However, some of
   * the initializations could be heavily impacted by the algorithmic
@@ -735,30 +777,32 @@ public:
   *     set_Block() IS
   *
   * so that when set_Block() is finally called, the Solver fully knows how to
-  * initialize itsefl. This is in fact how this is done in
-  * Block::set_SolverConfig().
+  * initialize itself.
   *
-  * Important note: set_Block( < some Block > ) does *not* call
+  * IMPORTANT NOTE: set_Block( block ) is *not* expected call
   *
-  *      < some Block >->register_Solver( this )
+  *      block->register_Solver( this )
   *
   * to register the Solver to the Block, and likewise set_Block( nullptr )
-  * does *not* call
+  * is *not* expected to call
   *
   *      f_Block->unregister_Solver( this )
   *
-  * to unregister the Solver from the Block. This is because this method is
-  * called when the Solver is [un/registered to the Block (see
-  * Block::register_Solver(), Block::unregister_Solver() and
-  * Block::replace_Solver()). Hence, the preferred way to set/rescind the ties
+  * to unregister the Solver from the previous Block (if any). This is
+  * because this method is called when the Solver is un/registered to the
+  * Block; see Block::register_Solver(), Block::unregister_Solver() and
+  * Block::replace_Solver(). Hence, the preferred way to set/rescind the ties
   * between a Block and a Solver is to do that via the Block; if set_Block()
   * is called before that, the methods of the Block will still have to be
-  * called to make the Block aware of the changes.
+  * called to make the Block aware of the changes. However, this means that
   *
-  * The method is virtual because :Solver may have to be more to react to
-  * the changes. */
+  *     Solver::set_Block( block ) COULD BE CALLED TWICE FOR THE SAME block
+  *     (IF IT IS CALLED FIRST, AND THEN Block::register_Solver() IS CALLED
+  *     TO MAKE block AWARE OF THIS), WHICH MEANS THAT ANY :Solver SHOULD
+  *     CHECK IF THE block BEING SET IS THE SAME ONE ALREADY SET AND DO
+  *     NOTHING IN CASE (which is easy, cheap and very reasonable). */
 
- virtual void set_Block( Block *block );
+ virtual void set_Block( Block * block );
 
 /*--------------------------------------------------------------------------*/
  /// set the ostream for the Solver log
@@ -769,10 +813,10 @@ public:
   * equivalent to setting f_log = nullptr.
   *
   * The method is virtual because derived classes may need to do something to
-  * react to changes of the output log than storing the new log stream. */
+  * react to changes of the output log other than storing the new log
+  * stream. */
 
- virtual void set_log( std::ostream *log_stream = nullptr )
- {
+ virtual void set_log( std::ostream * log_stream = nullptr ) {
   f_log = log_stream;
   }
 
@@ -818,7 +862,7 @@ public:
   * knows and controls the Solver it has leant it) to handle any such issues
   * using the appropriate synchronization tools. */
 
- virtual void set_id( void *id = nullptr ) { f_id = id ? id : this; }
+ virtual void set_id( void * id = nullptr ) { f_id = id ? id : this; }
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------------- METHODS FOR EVENTS HANDLING -----------------------*/
@@ -846,7 +890,7 @@ public:
  *   constructor of the base Solver class, but this cannot be done because
  *   "virtual methods do not work in the constructor": during construction of
  *   the base class, called by the constructor of a derived one, the base
- *   class version of the constructor is called).
+ *   class version of any method is called).
  *
  * - of course
  *
@@ -876,7 +920,7 @@ public:
   * resetting of event handlers automatically handled by the base class
   * implementation. */
 
- virtual EventID max_event_number( void ) const { return( 0 ); }
+ [[nodiscard]] virtual EventID max_event_number( void ) const { return( 0 ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// register a new event handler, returning its id
@@ -892,13 +936,12 @@ public:
   * that it has exhausted the available maximum number of event handlers
   * slots for the given type. */
 
- EventID set_event_handler( int type , EventHandler && event ) override
- {
+ EventID set_event_handler( int type , EventHandler && event ) override {
   if( type >= max_event_number() )
    throw( std::invalid_argument( "unsupported event type " +
 				 std::to_string( type ) ) );
 
-  if( v_events[ type ].size() > std::numeric_limits<EventID>::max() )
+  if( v_events[ type ].size() > std::numeric_limits< EventID >::max() )
    throw( std::invalid_argument( "too many event handlers for type" +
 				 std::to_string( type ) ) );
 
@@ -912,8 +955,7 @@ public:
  /// unregister an existing event handler
  /** Removes the event handler with the given id from the list of those
   * registered for the given type. If there is no event handler with the
-  * given id for the given type, exception will be thrown. The method of the
-  * base class always throws exception. */
+  * given id for the given type, exception will be thrown. */
 
  void reset_event_handler( int type , EventID id ) override;
 
@@ -1109,7 +1151,7 @@ public:
   * concept of real objective function. */
 
  virtual OFValue get_lb( void ) {
-  return( - std::numeric_limits<OFValue>::infinity() );
+  return( -std::numeric_limits< OFValue >::infinity() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1130,7 +1172,7 @@ public:
   *   Variable of the Block, the upper bound is not assumed to change if
   *   get_var_solution() [see below] is called again. In several cases the
   *   upper bound is attached to a *dual* solution, but this concept is not
-  *   general enough to be supported in the base class [see DASolver.h].
+  *   general enough to be supported in the base class [see CDASolver.h].
   *
   * - any value, comprised Inf<OFValue> (meaning that no upper bound is
   *   currently available), if compute() returned any other value.
@@ -1187,8 +1229,8 @@ public:
   * should be safe for any derived classes which simply don't have the
   * concept of real objective function. */
 
- virtual OFValue get_ub( void )  {
-  return( std::numeric_limits<OFValue>::infinity() );
+ virtual OFValue get_ub( void ) {
+  return( std::numeric_limits< OFValue >::infinity() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1241,10 +1283,10 @@ public:
   *
   * This method is provided with a standard implementation that just looks
   * if the problem is a minimization or a maximization one, and calls
-  * get_ub() and get_lb() accordingly (for a minimization problem each feasible
-  * solution provides a valid upper bound, for a maximization one a feasible
-  * lower bound). However the method is virtual and can be redefined by
-  * derived classes. */
+  * get_ub() and get_lb() accordingly (for a minimization problem each
+  * feasible solution provides a valid upper bound, for a maximization one a
+  * feasible lower bound). However the method is virtual and can be redefined
+  * by derived classes. */
 
  virtual OFValue get_var_value( void );
 
@@ -1312,7 +1354,7 @@ public:
   * if it so chooses) keep track of which "parts" of the solution have been
   * retrieved already; hence, this is better avoided. */
 
- virtual void get_var_solution( Configuration *solc = nullptr ) = 0;
+ virtual void get_var_solution( Configuration * solc = nullptr ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// returns true if it is possible to generate a new solution
@@ -1411,7 +1453,7 @@ public:
   * unboundedness certificates. A (largish) step in this direction is
   * provided by the [has/get/new]_var_direction() methods. */
 
- virtual void set_unbounded_threshold( const OFValue thr ) { }
+ virtual void set_unbounded_threshold( OFValue thr ) {}
 
 /*--------------------------------------------------------------------------*/
  /// tells whether an unbounded direction is available
@@ -1494,7 +1536,7 @@ public:
   * The method is given a default implementation in the base Solver class
   * doing nothing, for solvers that cannot produce any unbounded direction. */
 
- virtual void get_var_direction( Configuration *dirc = nullptr ) {}
+ virtual void get_var_direction( Configuration * dirc = nullptr ) {}
 
 /*--------------------------------------------------------------------------*/
  ///< returns true if it is possible to generate a new unbounded direction
@@ -1527,7 +1569,7 @@ public:
   * reasonable definition of an appropriate notion of "better direction"
   * that might be employed. */
 
- virtual bool new_var_direction( void ) { return( false ); }
+ virtual bool new_var_direction( void ) { return ( false ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------- METHODS FOR READING THE DATA OF THE Solver ----------------*/
@@ -1537,7 +1579,7 @@ public:
 
  /// retrieve the Block this Solver is attached to (if any)
 
- virtual Block *get_Block ( void ) const { return( f_Block ); }
+ [[nodiscard]] virtual Block * get_Block( void ) const { return( f_Block ); }
 
 /*--------------------------------------------------------------------------*/
  /// getting the "identity" of this Solver
@@ -1557,89 +1599,80 @@ public:
   * any :Solver will be added to the factory. Actually, since
   * Solver::private_name() is pure virtual, this ensures that it is not
   * possible to forget to call the appropriate SMSpp_insert_in_factory_cpp_*
-  * for any :Solver because otherwise it is a pure virtual class (unless
-  * the programmer purposely defines private_name() without calling the macro,
+  * for any :Solver because otherwise it is a pure virtual class (unless the
+  * programmer purposely defines private_name() without calling the macro,
   * which seems rather pointless). */
 
- inline const std::string & classname( void ) {
-  return( private_name() );
-  }
- 
+ const std::string & classname( void ) { return( private_name() ); }
+
 /**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the parameters of the Solver
  *  @{ */
 
- idx_type get_num_int_par( void ) const override
- {
+ [[nodiscard]] idx_type get_num_int_par( void ) const override {
   return( idx_type( intLastAlgPar ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- idx_type get_num_dbl_par( void ) const override
- {
+ [[nodiscard]] idx_type get_num_dbl_par( void ) const override {
   return( idx_type( dblLastAlgPar ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- idx_type get_num_str_par( void ) const override
- {
+ [[nodiscard]] idx_type get_num_str_par( void ) const override {
   return( idx_type( strLastAlgPar ) );
-  }
+  } 
 
 /*--------------------------------------------------------------------------*/
 
- int get_dflt_int_par( const idx_type par ) const override
- {
+ [[nodiscard]] int get_dflt_int_par( idx_type par ) const override {
   return( par < intLastAlgPar ? dflt_int_par[ par ] :
 	  ThinComputeInterface::get_dflt_int_par( par ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- double get_dflt_dbl_par( const idx_type par ) const override
- {
+ [[nodiscard]] double get_dflt_dbl_par( idx_type par ) const override {
   return( par < dblLastAlgPar ? dflt_dbl_par[ par ] :
 	  ThinComputeInterface::get_dflt_dbl_par( par ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
- idx_type int_par_str2idx( const std::string & name ) const override
- {
+ [[nodiscard]] idx_type int_par_str2idx( const std::string & name )
+  const override {
   const auto it = int_pars_map.find( name );
   if( it == int_pars_map.end() )
-   throw( std::invalid_argument( std::string( "int parameter " ) + name +
-				 std::string( " unknown" ) ) );
+   return( Inf< idx_type >());
   return( it->second );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- idx_type dbl_par_str2idx( const std::string & name ) const override
- {
+ [[nodiscard]] idx_type dbl_par_str2idx( const std::string & name )
+  const override {
   const auto it = dbl_pars_map.find( name );
   if( it == dbl_pars_map.end() )
-   throw( std::invalid_argument( std::string( "dbl parameter " ) + name +
-				 std::string( " unknown" ) ) );
+   return( Inf< idx_type >());
   return( it->second );
   }
 
 /*--------------------------------------------------------------------------*/
 
- const std::string & int_par_idx2str( const idx_type idx ) const override
- {
+ [[nodiscard]] const std::string & int_par_idx2str( idx_type idx )
+  const override {
   return( idx < intLastAlgPar ? int_pars_str[ idx ] :
 	  ThinComputeInterface::int_par_idx2str( idx ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- const std::string & dbl_par_idx2str( const idx_type idx ) const override
- {
+ [[nodiscard]] const std::string & dbl_par_idx2str( idx_type idx )
+  const override {
   return( idx < dblLastAlgPar ? dbl_pars_str[ idx ] :
 	  ThinComputeInterface::dbl_par_idx2str( idx ) );
   }
@@ -1790,8 +1823,8 @@ public:
   if( f_no_Mod )
    return;
 
-  while( f_mod_lock.test_and_set( std::memory_order_acquire ) )
-   ;  // try to acquire lock, spin on failure
+  // try to acquire lock, spin on failure
+  while( f_mod_lock.test_and_set( std::memory_order_acquire ) );
 
   const auto tmod = std::dynamic_pointer_cast< NBModification >( mod );
   if( tmod )
@@ -1807,7 +1840,7 @@ public:
  /** inhibit_Modification( true ) makes the Solver temporarily ignore any
   * Modification from the Block, the idea being that these are Modification
   * corresponding to changes made by itself; see the comments to
-  * add_Modification() for details.  inhibit_Modification( false ) restores
+  * add_Modification() for details. inhibit_Modification( false ) restores
   * the usual storing of any received Modification.
   *
   * There should be no reason why derived classes should mess up with this
@@ -1819,16 +1852,16 @@ public:
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 
-protected:
+ protected:
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- PROTECTED TYPES ------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- typedef boost::function<Solver*()> SolverFactory;
+ typedef boost::function< Solver *() > SolverFactory;
  // type of the factory of Solver
 
- typedef std::map<std::string,SolverFactory> SolverFactoryMap;
+ typedef std::map< std::string, SolverFactory > SolverFactoryMap;
  // type of the map between strings and the factory of Solver
 
 /*--------------------------------------------------------------------------*/
@@ -1845,10 +1878,11 @@ protected:
  * @{ */
 
  /// returns the front sp_Mod on the Modification queue, nullptr if empty
- 
+
  sp_Mod front( void ) {
+  // try to acquire lock, spin on failure
   while( f_mod_lock.test_and_set( std::memory_order_acquire ) )
-   ;  // try to acquire lock, spin on failure
+   ;
 
   auto mod = v_mod.empty() ? sp_Mod() : v_mod.front();
 
@@ -1861,8 +1895,9 @@ protected:
  /// removes the front sp_Mod from the Modification queue
 
  void pop_front( void ) {
+  // try to acquire lock, spin on failure
   while( f_mod_lock.test_and_set( std::memory_order_acquire ) )
-   ;  // try to acquire lock, spin on failure
+   ;
 
   v_mod.pop_front();  // remove the first Modification
 
@@ -1915,7 +1950,7 @@ protected:
   * may just be the same as what the compiler does during the initialization
   * of static variables without telling you). */
 
- static void static_initialization( void ) { }
+ static void static_initialization( void ) {}
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------------------- PROTECTED FIELDS  ---------------------------*/
@@ -1923,27 +1958,27 @@ protected:
 
  std::recursive_mutex f_mutex;  ///< the mutex for locking the Solver
 
- Block *f_Block;       ///< pointer to the Block
+ Block * f_Block;       ///< pointer to the Block
 
- std::ostream *f_log;  ///< pointer to the stream where the log is done
+ std::ostream * f_log;  ///< pointer to the stream where the log is done
 
- void *f_id;           ///< the "identity" of the Solver 
+ void * f_id;           ///< the "identity" of the Solver 
 
  bool f_no_Mod;        ///< if Solver should ignore (its own) Modification
 
- std::atomic_flag f_mod_lock;  ///< active lock for v_mod
- 
+ std::atomic_flag f_mod_lock{};  ///< active lock for v_mod
+
  Lst_sp_Mod v_mod;     ///< list of (shared pointers to) Modification
 
  std::vector< std::vector< EventHandler > > v_events;
-                       ///< container of event handlers
-                       /**< v_events[ h ][ i ] contains the event handler of
-			* ID i for the event type h. */
- 
- const static std::vector<int> dflt_int_par;
+ ///< container of event handlers
+ /**< v_events[ h ][ i ] contains the event handler of
+* ID i for the event type h. */
+
+ const static std::vector< int > dflt_int_par;
  ///< the (static const) vector of int parameters default values
 
- const static std::vector<double> dflt_dbl_par;
+ const static std::vector< double > dflt_dbl_par;
  ///< the (static const) vector of double parameters default values
 
  const static std::vector< std::string > int_pars_str;
@@ -1952,10 +1987,10 @@ protected:
  const static std::vector< std::string > dbl_pars_str;
  ///< the (static const) vector of double parameters names
 
- const static std::map< std::string , idx_type > int_pars_map;
+ const static std::map< std::string, idx_type > int_pars_map;
  ///< the (static const) map for int parameters names
 
- const static std::map< std::string , idx_type > dbl_pars_map;
+ const static std::map< std::string, idx_type > dbl_pars_map;
  ///< the (static const) map for double parameters names
 
 /*--------------------------------------------------------------------------*/
@@ -1969,7 +2004,7 @@ protected:
 /*--------------------------------------------------------------------------*/
  // Definition of Solver::private_name() (pure virtual)
 
- virtual const std::string & private_name( void ) const = 0;
+ [[nodiscard]] virtual const std::string & private_name( void ) const = 0;
 
 /*--------------------------------------------------------------------------*/
 
@@ -1985,31 +2020,31 @@ protected:
 typedef Solver * p_Solver;
 ///< a pointer to Solver
 
-typedef std::vector<p_Solver> Vec_Solver;
+typedef std::vector< p_Solver > Vec_Solver;
 ///< a vector of pointers to Solver
 
 typedef Vec_Solver::iterator Vec_Solver_it;
 ///< iterator for a Vec_Solver
 
-typedef const std::vector<p_Solver> c_Vec_Solver;
+typedef const std::vector< p_Solver > c_Vec_Solver;
 ///< a const vector of pointers to Solver
 
 typedef Vec_Solver::const_iterator c_Vec_Solver_it;
 ///< iterator for a c_Vec_Solver
 
-typedef std::list<p_Solver> Lst_Solver;
+typedef std::list< p_Solver > Lst_Solver;
 ///< a vector of pointers to Solver
 
 typedef Lst_Solver::iterator Lst_Solver_it;
 ///< iterator for a Vec_Solver
 
-typedef const std::list<p_Solver> c_Lst_Solver;
+typedef const std::list< p_Solver > c_Lst_Solver;
 ///< a const vector of pointers to Solver
 
 typedef Lst_Solver::const_iterator c_Lst_Solver_it;
 ///< iterator for a c_Vec_Solver
 
-/** @} end( group( Solver_TYPES ) ) */ 
+/** @} end( group( Solver_TYPES ) ) */
 /*--------------------------------------------------------------------------*/
 /*------------------- inline methods implementation ------------------------*/
 /*--------------------------------------------------------------------------*/

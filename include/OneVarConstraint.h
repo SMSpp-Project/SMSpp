@@ -17,6 +17,11 @@
  *
  * - BoxConstraint has user-defined LHS and RHS;
  *
+ * - LB0Constraint has 0 LHS and user-defined RHS (which is how the vast
+ *   majority of bound constraints in applications are);
+ *
+ * - UB0Constraint has user-defined LHS and 0 RHS;
+ *
  * - LBConstraint has user-defined LHS and RHS = +Infty (Lower Bound);
  *
  * - UBConstraint has LHS = -Infty and user-defined RHS (Upper Bound);
@@ -30,10 +35,9 @@
  * Besides saving a bit of space, the classes with fixed LHS and/or RHS
  * guarantee that it can never be changed, which might be useful.
  *
+ * \version 0.20
  *
- * \version 0.10
- *
- * \date 16 - 08 - 2018
+ * \date 02 - 12 - 2020
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -55,15 +59,15 @@
 /*--------------------------------------------------------------------------*/
 
 #include "ColVariable.h"
+
 #include "RowConstraint.h"
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
+/// namespace for the Structured Modeling System++ (SMS++)
 
-///< namespace for the Structured Modeling System++ (SMS++)
-namespace SMSpp_di_unipi_it
-{
+namespace SMSpp_di_unipi_it {
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
@@ -118,42 +122,32 @@ class OneVarConstraint : public RowConstraint {
   * implementing the concrete iterator for "sifting through" (!!) the (only
   * one) "active" ColVariable of a OneVarConstraint. */
 
- class v_iterator : public ThinVarDepInterface::v_iterator
- {
+ class v_iterator : public ThinVarDepInterface::v_iterator {
   public:
 
-  v_iterator( ColVariable * ptr ) : ptr_( ptr ) { }
-  virtual v_iterator * clone( void ) override {
-   return( new v_iterator( ptr_ ) );
-   }
-
-  virtual void operator++( void ) override final { (ptr_)++; }
-  virtual reference operator*( void ) const override final {
-   return( *ptr_ );
-   }
-  virtual pointer operator->( void ) const override final {
-   return( ptr_ );
-   }
-  virtual bool operator==( const ThinVarDepInterface::v_iterator & rhs )
-   const override final {
-   const OneVarConstraint::v_iterator * tmp =
+  explicit v_iterator( ColVariable * ptr ) : ptr_( ptr ) {}
+  v_iterator * clone( void ) override { return( new v_iterator( ptr_ ) ); }
+  void operator++( void ) final { ( ptr_ )++; }
+  reference operator*( void ) const final { return( *ptr_ ); }
+  pointer operator->( void ) const final { return( ptr_ ); }
+  bool operator==( const ThinVarDepInterface::v_iterator & rhs ) const final {
+   const auto * tmp =
    #ifdef NDEBUG
-                  static_cast<const OneVarConstraint::v_iterator *>( & rhs );
-   return( ptr_ == tmp->ptr_ );
+    static_cast<const OneVarConstraint::v_iterator *>( & rhs );
+    return( ptr_ == tmp->ptr_ );
    #else
-                  dynamic_cast<const OneVarConstraint::v_iterator *>( & rhs );
-   return( tmp ? ptr_ == tmp->ptr_ : false );
+    dynamic_cast<const OneVarConstraint::v_iterator *>( &rhs );
+    return ( tmp ? ptr_ == tmp->ptr_ : false );
    #endif
    }
-  virtual bool operator!=( const ThinVarDepInterface::v_iterator & rhs )
-   const override final {
-   const OneVarConstraint::v_iterator * tmp =
+  bool operator!=( const ThinVarDepInterface::v_iterator & rhs ) const final {
+   const auto * tmp =
    #ifdef NDEBUG
-                  static_cast<const OneVarConstraint::v_iterator *>( & rhs );
-   return( ptr_ != tmp->ptr_ );
+    static_cast<const OneVarConstraint::v_iterator *>( & rhs );
+    return( ptr_ != tmp->ptr_ );
    #else
-                  dynamic_cast<const OneVarConstraint::v_iterator *>( & rhs );
-   return( tmp ? ptr_ != tmp->ptr_ : false );
+    dynamic_cast<const OneVarConstraint::v_iterator *>( &rhs );
+    return ( tmp ? ptr_ != tmp->ptr_ : false );
    #endif
    }
 
@@ -168,42 +162,36 @@ class OneVarConstraint : public RowConstraint {
   * implementing the concrete iterator for "sifting through" (!!) the (only
   * one) "active" ColVariable of a OneVarConstraint. */
 
- class v_const_iterator : public ThinVarDepInterface::v_const_iterator
- {
+ class v_const_iterator : public ThinVarDepInterface::v_const_iterator {
   public:
 
-  v_const_iterator( ColVariable * ptr ) : ptr_( ptr ) { }
-  virtual v_const_iterator * clone( void ) override {
+  explicit v_const_iterator( ColVariable * ptr ) : ptr_( ptr ) {}
+  v_const_iterator * clone( void ) override {
    return( new v_const_iterator( ptr_ ) );
    }
- 
-  virtual void operator++( void ) override final { (ptr_)++; }
-  virtual reference operator*( void ) const override final {
-   return( *ptr_ );
-   }
-  virtual pointer operator->( void ) const override final {
-   return( ptr_ );
-   }
-  virtual bool operator==( const ThinVarDepInterface::v_const_iterator & rhs )
-   const override final {
-   const OneVarConstraint::v_const_iterator * tmp =
+  void operator++( void ) final { ( ptr_ )++; }
+  reference operator*( void ) const final { return( *ptr_ ); }
+  pointer operator->( void ) const final { return ( ptr_ ); }
+  bool operator==( const ThinVarDepInterface::v_const_iterator & rhs )
+   const final {
+   const auto * tmp =
    #ifdef NDEBUG
-            static_cast<const OneVarConstraint::v_const_iterator *>( & rhs );
-   return( ptr_ == tmp->ptr_ );
+    static_cast<const OneVarConstraint::v_const_iterator *>( & rhs );
+    return( ptr_ == tmp->ptr_ );
    #else
-            dynamic_cast<const OneVarConstraint::v_const_iterator *>( & rhs );
-   return( tmp ? ptr_ == tmp->ptr_ : false );
+    dynamic_cast<const OneVarConstraint::v_const_iterator *>( &rhs );
+    return( tmp ? ptr_ == tmp->ptr_ : false );
    #endif
    }
-  virtual bool operator!=( const ThinVarDepInterface::v_const_iterator & rhs )
-   const override final {
-   const OneVarConstraint::v_const_iterator * tmp =
+  bool operator!=( const ThinVarDepInterface::v_const_iterator & rhs )
+   const final {
+   const auto * tmp =
    #ifdef NDEBUG
-            static_cast<const OneVarConstraint::v_const_iterator *>( & rhs );
-   return( ptr_ != tmp->ptr_ );
+    static_cast<const OneVarConstraint::v_const_iterator *>( & rhs );
+    return( ptr_ != tmp->ptr_ );
    #else
-            dynamic_cast<const OneVarConstraint::v_const_iterator *>( & rhs );
-   return( tmp ? ptr_ != tmp->ptr_ : false );
+    dynamic_cast<const OneVarConstraint::v_const_iterator *>( &rhs );
+    return( tmp ? ptr_ != tmp->ptr_ : false );
    #endif
    }
 
@@ -224,21 +212,22 @@ class OneVarConstraint : public RowConstraint {
   * defines the constraint. Everything has a default (nullptr and nullptr,
   * respectively) so that this can be used as the void constructor. */
 
- OneVarConstraint( Block *my_block = nullptr ,
-		   ColVariable * const variable = nullptr )
-  : RowConstraint( my_block ) , f_variable( nullptr )
- {
+ explicit OneVarConstraint( Block * my_block = nullptr ,
+                            ColVariable * const variable = nullptr )
+  : RowConstraint( my_block ) , f_variable( nullptr ) {
   if( variable )
-   this->set_variable( variable , eNoMod );
+   set_variable( variable , eNoMod );
   }
 
 /*--------------------------------------------------------------------------*/
  /// destructor: unregister the OneVarConstraint from the ColVariable
- virtual ~OneVarConstraint() { set_variable( nullptr , eNoMod ); }
+
+ ~OneVarConstraint() override { set_variable( nullptr , eNoMod ); }
 
 /*--------------------------------------------------------------------------*/
  /// "guts of destructor", not unregistering from the ColVariable
- virtual void clear( void ) override { f_variable = nullptr; }
+
+ void clear( void ) override { f_variable = nullptr; }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -262,8 +251,8 @@ class OneVarConstraint : public RowConstraint {
   * OneVarConstraint (as it is to be destroyed anyway). See the comments to
   * remove_variable(). */
 
- virtual void set_variable( ColVariable * const variable = nullptr ,
-			    ModParam issueMod = eModBlck );
+ void set_variable( ColVariable * const variable = nullptr ,
+		    ModParam issueMod = eModBlck );
 
 /**@} ----------------------------------------------------------------------*/
 /*---------- METHODS DESCRIBING THE BEHAVIOR OF A OneVarConstraint ---------*/
@@ -276,14 +265,14 @@ class OneVarConstraint : public RowConstraint {
   * OneVarConstraint ... i.e., do nothing, as it is just the value of the
   * given ColVariable. */
 
- virtual int compute( bool changedvars = true ) override { return( kOK ); }
+ int compute( bool changedvars = true ) override { return ( kOK ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to get the value of variable part of the OneVarConstraint
  /** Method to get the value of variable part of the OneVarConstraint, which
   * is just the value of the value of the given ColVariable. */
 
- virtual RHSValue value( void ) const override {
+ [[nodiscard]] RHSValue value( void ) const override {
   return( f_variable ? f_variable->get_value() : 0 );
   }
 
@@ -294,22 +283,19 @@ class OneVarConstraint : public RowConstraint {
  * OneVarConstraint, which is not very hard ...
  *  @{ */
 
- Index get_num_active_var( void ) const override
- {
+ [[nodiscard]] Index get_num_active_var( void ) const override {
   return( f_variable ? 1 : 0 );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- Index is_active( const Variable * const variable ) const override
- {
-  return( f_variable == variable ? 0 : Inf<Index>() );
+ Index is_active( const Variable * variable ) const override {
+  return( f_variable == variable ? 0 : Inf< Index >() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- Variable * get_active_var( const Index i ) const override
- {
+ [[nodiscard]] Variable * get_active_var( Index i ) const override {
   return( i == 0 ? f_variable : nullptr );
   }
 
@@ -321,7 +307,7 @@ class OneVarConstraint : public RowConstraint {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- v_const_iterator * v_begin( void ) const override {
+ [[nodiscard]] v_const_iterator * v_begin( void ) const override {
   return( new OneVarConstraint::v_const_iterator( f_variable ) );
   }
 
@@ -335,49 +321,42 @@ class OneVarConstraint : public RowConstraint {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- v_const_iterator * v_end( void ) const override {
+ [[nodiscard]] v_const_iterator * v_end( void ) const override {
   // f_variable == nullptr ==> v_end() = v_iterator( nullptr ) == v_begin()
   return( new OneVarConstraint::v_const_iterator( f_variable ? f_variable + 1
-					                     : nullptr ) );
+                                                             : nullptr ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
- void remove_variable( Index i , ModParam issueMod = eModBlck )
-  override final {
+ void remove_variable( Index i , ModParam issueMod = eModBlck ) final {
   if( i == 0 )
    set_variable( nullptr , issueMod );
   else
    throw( std::invalid_argument(
-		 "OneVarConstraint:remove_variable wrong Variable index" ) );
-
-  }  // end( OneVarConstraint::remove_variable )
+                 "OneVarConstraint:remove_variable wrong Variable index" ) );
+  }
 
 /*--------------------------------------------------------------------------*/
 
- void remove_variables( Range range , ModParam issueMod = eModBlck )
-  override final
- {
+ void remove_variables( Range range , ModParam issueMod = eModBlck ) final {
   if( ( range.first != 0 ) || ( range.second != 1 ) )
    throw( std::invalid_argument(
-		"OneVarConstraint:remove_variables wrong Variable index" ) );
+                 "OneVarConstraint:remove_variables wrong Variable index" ) );
 
   set_variable( nullptr , issueMod );
-
-  }  // end( OneVarConstraint::remove_variables( range ) )
+  }
 
 /*--------------------------------------------------------------------------*/
 
  void remove_variables( Subset && nms , bool ordered = false ,
-			ModParam issueMod = eModBlck )  override final
- {
+                        ModParam issueMod = eModBlck ) final {
   if( ( ! nms.empty() ) && ( ( nms.size() != 1 ) || ( nms[ 0 ] != 0 ) ) )
    throw( std::invalid_argument(
-		"OneVarConstraint:remove_variables wrong Variable index" ) );
+                 "OneVarConstraint:remove_variables wrong Variable index" ) );
 
   set_variable( nullptr , issueMod );
-
-  }  // end( FRowConstraint::remove_variables( subset ) )
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -392,9 +371,9 @@ class OneVarConstraint : public RowConstraint {
  *  @{ */
 
  /// print information about the OneVarConstraint on an ostream
- virtual void print( std::ostream &output ) const override {
+ void print( std::ostream & output ) const override {
   output << "OneVarConstraint [" << this << "] of Block [" << f_Block
-	 << "] with ColVariable [" << f_variable << "], ";
+         << "] with ColVariable [" << f_variable << "], ";
   if( feasible() )
    output << "feasible";
   else
@@ -412,7 +391,7 @@ class OneVarConstraint : public RowConstraint {
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( OneVarConstraint ) )
+};  // end( class( OneVarConstraint ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS BoxConstraint ----------------------------*/
@@ -441,19 +420,17 @@ class BoxConstraint : public OneVarConstraint {
  /** Constructor of BoxConstraint. It receives a pointer to the Block to
   * which the BoxConstraint belongs, a pointer to the ColVariable that
   * defines the constraint, the LHS and the RHS. Everything has a default
-  * (nullptr, nullptr, 0, and Inf<RHSValue>, respectively) so that this can
-  * be used as the void constructor. */
+  * (nullptr, nullptr, 0, and RHSINF, respectively) so that this can be used
+  * as the void constructor. */
 
- BoxConstraint( Block *my_block = nullptr ,
-		ColVariable * const variable = nullptr ,
-		c_RHSValue lhs = 0 ,
-		c_RHSValue rhs = std::numeric_limits<RHSValue>::infinity() )
-  : OneVarConstraint( my_block , variable ) ,
-    f_lhs( lhs ) , f_rhs( rhs ) {}
+ explicit BoxConstraint( Block * my_block = nullptr ,
+                         ColVariable * const variable = nullptr ,
+                         c_RHSValue lhs = 0 , c_RHSValue rhs = RHSINF )
+  : OneVarConstraint( my_block, variable ) , f_lhs( lhs ) , f_rhs( rhs ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor: does nothing special
- virtual ~BoxConstraint() { }
+ ~BoxConstraint() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -468,8 +445,8 @@ class BoxConstraint : public OneVarConstraint {
   * aware of this specific kind of RowConstraint can react in specialized
   * ways. */
 
- virtual void set_rhs( c_RHSValue rhs_value ,
-		       ModParam issueMod = eModBlck ) override;
+ void set_rhs( c_RHSValue rhs_value ,
+               ModParam issueMod = eModBlck ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set the LHS of this to BoxConstraint
@@ -479,8 +456,8 @@ class BoxConstraint : public OneVarConstraint {
   * aware of this specific kind of RowConstraint can react in specialized
   * ways. */
 
- virtual void set_lhs( c_RHSValue lhs_value ,
-		       ModParam issueMod = eModBlck ) override;
+ void set_lhs( c_RHSValue lhs_value ,
+               ModParam issueMod = eModBlck ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set both the LHS and the RHS of this to BoxConstraint
@@ -491,8 +468,8 @@ class BoxConstraint : public OneVarConstraint {
   * "regular" RowConstraintMod, but a Solver aware of this specific
   * kind of RowConstraint can react in specialized ways. */
 
- virtual void set_both( c_RHSValue both_value ,
-			ModParam issueMod = eModBlck ) override;
+ void set_both( c_RHSValue both_value ,
+                ModParam issueMod = eModBlck ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE BoxConstraint -----------*/
@@ -501,10 +478,10 @@ class BoxConstraint : public OneVarConstraint {
  *  @{ */
 
  /// method to get the RHS of the BoxConstraint
- virtual RHSValue get_rhs( void ) const override { return( f_rhs ); }
+ [[nodiscard]] RHSValue get_rhs( void ) const override { return( f_rhs ); }
 
  /// method to get the LHS of the BoxConstraint
- virtual RHSValue get_lhs( void ) const override { return( f_lhs ); }
+ [[nodiscard]] RHSValue get_lhs( void ) const override { return( f_lhs ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -519,11 +496,11 @@ class BoxConstraint : public OneVarConstraint {
  *  @{ */
 
  /// print information about the OneVarConstraint on an ostream
- virtual void print( std::ostream &output ) const override {
+ void print( std::ostream & output ) const override {
   output << "BoxConstraint [" << this << "] of Block [" << f_Block
-	 << "] with ColVariable [" << f_variable << "], LHS = "
-	 << f_lhs << ", RHS = " << f_rhs <<  ", value = " << value()
-	 << std::endl;
+         << "] with ColVariable [" << f_variable << "], LHS = "
+         << f_lhs << ", RHS = " << f_rhs << ", value = " << value()
+         << std::endl;
   }
 
 /*--------------------------------------------------------------------------*/
@@ -535,7 +512,7 @@ class BoxConstraint : public OneVarConstraint {
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( BoxConstraint ) )
+};  // end( class( BoxConstraint ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS LB0Constraint ----------------------------*/
@@ -567,14 +544,15 @@ class LB0Constraint : public OneVarConstraint {
   * nullptr, and Inf<RHSValue>, respectively) so that this can be used as
   * the void constructor. */
 
- LB0Constraint( Block *my_block = nullptr ,
-		ColVariable * const variable = nullptr ,
-		c_RHSValue rhs = std::numeric_limits<RHSValue>::infinity() )
+ explicit LB0Constraint( Block * my_block = nullptr ,
+                         ColVariable * const variable = nullptr ,
+                         c_RHSValue rhs = RHSINF )
   : OneVarConstraint( my_block , variable ) , f_rhs( rhs ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor: does nothing special
- virtual ~LB0Constraint() { }
+
+ ~LB0Constraint() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -589,25 +567,23 @@ class LB0Constraint : public OneVarConstraint {
   * Solver aware of this specific kind of RowConstraint can react in
   * specialized ways. */
 
- virtual void set_rhs( c_RHSValue rhs_value ,
-		       ModParam issueMod = eModBlck ) override final;
+ void set_rhs( c_RHSValue rhs_value , ModParam issueMod = eModBlck ) final;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set the LHS of this to LB0Constraint: this throws exception
 
- virtual void set_lhs( c_RHSValue lhs_value ,
-		       ModParam issueMod = eModBlck ) override final {
+ void set_lhs( c_RHSValue lhs_value , ModParam issueMod = eModBlck ) final {
   if( lhs_value != 0 )
    throw( std::invalid_argument( "cannot change LHS in a LB0Constraint" ) );
-   }
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set both the LHS and the RHS of this to LB0Constraint
 
- virtual void set_both( c_RHSValue both_value ,
-			ModParam issueMod = eModBlck  ) override final {
+ void set_both( c_RHSValue both_value , ModParam issueMod = eModBlck )
+  final {
   if( both_value == 0 )
-   set_rhs( both_value , issueMod );
+   set_rhs( both_value, issueMod );
   else
    throw( std::invalid_argument( "cannot change LHS in a LB0Constraint" ) );
   }
@@ -619,10 +595,10 @@ class LB0Constraint : public OneVarConstraint {
     @{ */
 
  /// method to get the RHS of the LB0Constraint
- virtual RHSValue get_rhs( void ) const override final { return( f_rhs ); }
+ [[nodiscard]] RHSValue get_rhs( void ) const final { return( f_rhs ); }
 
  /// method to get the LHS of the LB0Constraint
- virtual RHSValue get_lhs( void ) const override final { return( 0 ); }
+ [[nodiscard]] RHSValue get_lhs( void ) const final { return( 0 ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -637,10 +613,10 @@ class LB0Constraint : public OneVarConstraint {
  *  @{ */
 
  /// print information about the LB0Constraint on an ostream
- virtual void print( std::ostream &output ) const override final {
+ void print( std::ostream & output ) const final {
   output << "LB0Constraint [" << this << "] of Block [" << f_Block
-	 << "] with ColVariable [" << f_variable << "], RHS = "
-	 << f_rhs <<  ", value = " << value() << std::endl;
+         << "] with ColVariable [" << f_variable << "], RHS = "
+         << f_rhs << ", value = " << value() << std::endl;
   }
 
 /*--------------------------------------------------------------------------*/
@@ -651,7 +627,7 @@ class LB0Constraint : public OneVarConstraint {
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( LB0Constraint ) )
+};  // end( class( LB0Constraint ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS UB0Constraint ----------------------------*/
@@ -683,14 +659,15 @@ class UB0Constraint : public OneVarConstraint {
   * nullptr, and -Inf<RHSValue>, respectively) so that this can be used as
   * the void constructor. */
 
- UB0Constraint( Block *my_block = nullptr ,
-		ColVariable * const variable = nullptr ,
-		c_RHSValue lhs = -std::numeric_limits<RHSValue>::infinity() )
+ explicit UB0Constraint( Block * my_block = nullptr ,
+                         ColVariable * const variable = nullptr ,
+                         c_RHSValue lhs = -RHSINF )
   : OneVarConstraint( my_block , variable ) , f_lhs( lhs ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor: does nothing special
- virtual ~UB0Constraint() { }
+
+ ~UB0Constraint() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -700,8 +677,7 @@ class UB0Constraint : public OneVarConstraint {
 
  /// set the RHS of this to UB0Constraint: this throws exception
 
- virtual void set_rhs( c_RHSValue rhs_value ,
-		       ModParam issueMod = eModBlck ) override final {
+ void set_rhs( c_RHSValue rhs_value , ModParam issueMod = eModBlck ) final {
   if( rhs_value != 0 )
    throw( std::invalid_argument( "cannot change RHS in a UB0Constraint" ) );
   }
@@ -714,16 +690,15 @@ class UB0Constraint : public OneVarConstraint {
   * Solver aware of this specific kind of RowConstraint can react in
   * specialized ways. */
 
- virtual void set_lhs( c_RHSValue lhs_value ,
-		       ModParam issueMod = eModBlck ) override final;
+ void set_lhs( c_RHSValue lhs_value , ModParam issueMod = eModBlck ) final;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set both the LHS and the RHS of this to UB0Constraint
 
- virtual void set_both( c_RHSValue both_value ,
-			ModParam issueMod = eModBlck ) override final {
+ void set_both( c_RHSValue both_value , ModParam issueMod = eModBlck )
+  final {
   if( both_value == 0 )
-   set_lhs( both_value , issueMod );
+   set_lhs( both_value, issueMod );
   else
    throw( std::invalid_argument( "cannot change RHS in a UB0Constraint" ) );
   }
@@ -735,10 +710,10 @@ class UB0Constraint : public OneVarConstraint {
     @{ */
 
  /// method to get the RHS of the UB0Constraint
- virtual RHSValue get_rhs( void ) const override { return( 0 ); }
+ [[nodiscard]] RHSValue get_rhs( void ) const override { return( 0 ); }
 
  /// method to get the LHS of the UB0Constraint
- virtual RHSValue get_lhs( void ) const override { return( f_lhs ); }
+ [[nodiscard]] RHSValue get_lhs( void ) const override { return( f_lhs ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -753,10 +728,10 @@ class UB0Constraint : public OneVarConstraint {
  *  @{ */
 
  /// print information about the OneVarConstraint on an ostream
- virtual void print( std::ostream &output ) const override {
+ void print( std::ostream & output ) const override {
   output << "UB0Constraint [" << this << "] of Block [" << f_Block
-	 << "] with ColVariable [" << f_variable << "], LHS = "
-	 << f_lhs <<  ", value = " << value() << std::endl;
+         << "] with ColVariable [" << f_variable << "], LHS = "
+         << f_lhs << ", value = " << value() << std::endl;
   }
 
 /*--------------------------------------------------------------------------*/
@@ -767,7 +742,7 @@ class UB0Constraint : public OneVarConstraint {
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( UB0Constraint ) )
+};  // end( class( UB0Constraint ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS LBConstraint -----------------------------*/
@@ -799,13 +774,15 @@ class LBConstraint : public OneVarConstraint {
   * nullptr, and 0, respectively) so that this can be used as the void
   * constructor. */
 
- LBConstraint( Block *my_block = nullptr ,
-	       ColVariable * const variable = nullptr , c_RHSValue lhs = 0 )
-  : OneVarConstraint( my_block , variable ) , f_lhs( lhs ) { }
+ explicit LBConstraint( Block * my_block = nullptr ,
+                        ColVariable * const variable = nullptr ,
+                        c_RHSValue lhs = 0 )
+  : OneVarConstraint( my_block , variable ) , f_lhs( lhs ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor: does nothing special
- virtual ~LBConstraint() { }
+
+ ~LBConstraint() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -815,11 +792,10 @@ class LBConstraint : public OneVarConstraint {
 
  /// set the RHS of this to LBConstraint: this throws exception
 
- virtual void set_rhs( c_RHSValue rhs_value ,
-		       ModParam issueMod = eModBlck ) override {
-  if( rhs_value < std::numeric_limits<RHSValue>::infinity() )
+ void set_rhs( c_RHSValue rhs_value , ModParam issueMod = eModBlck ) final {
+  if( rhs_value < RHSINF )
    throw( std::invalid_argument( "cannot change RHS in a LBConstraint" ) );
-   }
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set the LHS of this to LBConstraint
@@ -829,16 +805,15 @@ class LBConstraint : public OneVarConstraint {
   * Solver aware of this specific kind of RowConstraint can react in
   * specialized ways. */
 
- virtual void set_lhs( c_RHSValue lhs_value ,
-		       ModParam issueMod = eModBlck ) override final;
+ void set_lhs( c_RHSValue lhs_value , ModParam issueMod = eModBlck ) final;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set both the LHS and the RHS of this to LBConstraint
 
- virtual void set_both( c_RHSValue both_value ,
-			ModParam issueMod = eModBlck ) override final {
-  if( both_value >= std::numeric_limits<RHSValue>::infinity() )
-   set_lhs( both_value , issueMod );
+ void set_both( c_RHSValue both_value , ModParam issueMod = eModBlck )
+  final {
+  if( both_value >= RHSINF )
+   set_lhs( both_value, issueMod );
   else
    throw( std::invalid_argument( "cannot change RHS in a LBConstraint" ) );
   }
@@ -850,12 +825,10 @@ class LBConstraint : public OneVarConstraint {
     @{ */
 
  /// method to get the RHS of the LBConstraint
- virtual RHSValue get_rhs( void ) const override final {
-  return( std::numeric_limits<RHSValue>::infinity() );
-  }
+ [[nodiscard]] RHSValue get_rhs( void ) const final { return( RHSINF ); }
 
  /// method to get the LHS of the LBConstraint
- virtual RHSValue get_lhs( void ) const override final { return( f_lhs ); }
+ [[nodiscard]] RHSValue get_lhs( void ) const final { return( f_lhs ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A LBConstraint ------------*/
@@ -863,33 +836,32 @@ class LBConstraint : public OneVarConstraint {
 /** @name Methods describing the behavior of a LBConstraint
     @{ */
 
- virtual bool feasible( void ) const override final {
-  return( ( f_lhs <= - Inf<double>() ) ||
-	  ( f_variable->get_value() >= f_lhs ) );
+ [[nodiscard]] bool feasible( void ) const final {
+  return( ( f_lhs <= -RHSINF ) || ( f_variable->get_value() >= f_lhs ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
- virtual RHSValue abs_viol( void ) const override final {
-  if( f_lhs <= - Inf<double>() )
-   return( - Inf<double>() );
-  
+ [[nodiscard]] RHSValue abs_viol( void ) const final {
+  if( f_lhs <= -RHSINF )
+   return( -RHSINF );
+
   c_RHSValue val = f_variable->get_value();
-  return( val <= -Inf<double>() ? Inf<double>() : f_lhs - val );
+  return( val <= -RHSINF ? RHSINF : f_lhs - val );
   }
 
 /*--------------------------------------------------------------------------*/
 
- virtual RHSValue rel_viol( void ) const override final {
-  if( f_lhs <= -Inf<double>() )
-   return( -Inf<double>() );
+ [[nodiscard]] RHSValue rel_viol( void ) const final {
+  if( f_lhs <= -RHSINF )
+   return( -RHSINF );
 
   c_RHSValue val = f_variable->get_value();
-  if( val >= Inf<double>() )
-   return( -Inf<double>() );
+  if( val >= RHSINF )
+   return( -RHSINF );
 
-  if( val <= -Inf<double>() )
-   return( Inf<double>() );
+  if( val <= -RHSINF )
+   return( RHSINF );
 
   return( f_lhs == 0 ? f_lhs - val : ( f_lhs - val ) / std::abs( f_lhs ) );
   }
@@ -907,10 +879,10 @@ class LBConstraint : public OneVarConstraint {
  *  @{ */
 
  /// print information about the LBConstraint on an ostream
- virtual void print( std::ostream &output ) const override {
+ void print( std::ostream & output ) const override {
   output << "LBConstraint [" << this << "] of Block [" << f_Block
-	 << "] with ColVariable [" << f_variable << "], LHS = "
-	 << f_lhs << ", value = " << value() << std::endl;
+         << "] with ColVariable [" << f_variable << "], LHS = "
+         << f_lhs << ", value = " << value() << std::endl;
   }
 
 /*--------------------------------------------------------------------------*/
@@ -921,7 +893,7 @@ class LBConstraint : public OneVarConstraint {
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( LBConstraint ) )
+};  // end( class( LBConstraint ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS UBConstraint -----------------------------*/
@@ -953,13 +925,15 @@ class UBConstraint : public OneVarConstraint {
   * nullptr, and 0, respectively) so that this can be used as the void
   * constructor. */
 
- UBConstraint( Block *my_block = nullptr ,
-	       ColVariable * const variable = nullptr , c_RHSValue rhs = 0 )
-  : OneVarConstraint( my_block , variable ) , f_rhs( rhs ) { }
+ explicit UBConstraint( Block * my_block = nullptr ,
+                        ColVariable * const variable = nullptr ,
+                        c_RHSValue rhs = 0 )
+  : OneVarConstraint( my_block , variable ) , f_rhs( rhs ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor: does nothing special
- virtual ~UBConstraint() { }
+
+ ~UBConstraint() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -974,24 +948,22 @@ class UBConstraint : public OneVarConstraint {
   * Solver aware of this specific kind of RowConstraint can react in
   * specialized ways. */
 
- virtual void set_rhs( c_RHSValue rhs_value ,
-		       ModParam issueMod = eModBlck ) override final;
+ void set_rhs( c_RHSValue rhs_value , ModParam issueMod = eModBlck ) final;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set the LHS of this to UBConstraint: this throws exception
 
- virtual void set_lhs( c_RHSValue lhs_value ,
-		       ModParam issueMod = eModBlck ) override final {
-  if( lhs_value > - std::numeric_limits<RHSValue>::infinity() )
+ void set_lhs( c_RHSValue lhs_value , ModParam issueMod = eModBlck ) final {
+  if( lhs_value > -RHSINF )
    throw( std::invalid_argument( "cannot change LHS in a UBConstraint" ) );
-   }
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set both the LHS and the RHS of this to LBConstraint
 
- virtual void set_both( c_RHSValue both_value ,
-			ModParam issueMod = eModBlck ) override final {
-  if( both_value <= - std::numeric_limits<RHSValue>::infinity() )
+ void set_both( c_RHSValue both_value , ModParam issueMod = eModBlck )
+  final {
+  if( both_value <= -RHSINF )
    set_rhs( both_value , issueMod );
   else
    throw( std::invalid_argument( "cannot change LHS in a UBConstraint" ) );
@@ -1004,12 +976,12 @@ class UBConstraint : public OneVarConstraint {
     @{ */
 
  /// method to get the RHS of the UBConstraint
- virtual RHSValue get_rhs( void ) const override final { return( f_rhs ); }
+
+ [[nodiscard]] RHSValue get_rhs( void ) const final { return( f_rhs ); }
 
  /// method to get the LHS of the LBConstraint
- virtual RHSValue get_lhs( void ) const override final {
-  return( - std::numeric_limits<RHSValue>::infinity() );
-  }
+
+ [[nodiscard]] RHSValue get_lhs( void ) const final { return( -RHSINF ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A UBConstraint ------------*/
@@ -1017,33 +989,32 @@ class UBConstraint : public OneVarConstraint {
 /** @name Methods describing the behavior of a UBConstraint
     @{ */
 
- virtual bool feasible( void ) const override final {
-  return( ( f_rhs >= Inf<double>() ) ||
-	  ( f_variable->get_value() <= f_rhs ) );
+ [[nodiscard]] bool feasible( void ) const final {
+  return( ( f_rhs >= RHSINF ) || ( f_variable->get_value() <= f_rhs ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
- virtual RHSValue abs_viol( void ) const override final {
-  if( f_rhs >= Inf<double>() )
-   return( - Inf<double>() );
-  
+ [[nodiscard]] RHSValue abs_viol( void ) const final {
+  if( f_rhs >= RHSINF )
+   return( -RHSINF );
+
   c_RHSValue val = f_variable->get_value();
-  return( val >= Inf<double>() ? Inf<double>() : val - f_rhs );
+  return( val >= RHSINF ? RHSINF : val - f_rhs );
   }
 
 /*--------------------------------------------------------------------------*/
 
- virtual RHSValue rel_viol( void ) const override final {
-  if( f_rhs >= Inf<double>() )
-   return( -Inf<double>() );
+ [[nodiscard]] RHSValue rel_viol( void ) const final {
+  if( f_rhs >= RHSINF )
+   return( -RHSINF );
 
   c_RHSValue val = f_variable->get_value();
-  if( val <= -Inf<double>() )
-   return( -Inf<double>() );
+  if( val <= -RHSINF )
+   return( -RHSINF );
 
-  if( val <= -Inf<double>() )
-   return( Inf<double>() );
+  if( val <= -RHSINF )
+   return( Inf< double >() );
 
   return( f_rhs == 0 ? val - f_rhs : ( val - f_rhs ) / std::abs( f_rhs ) );
   }
@@ -1061,10 +1032,10 @@ class UBConstraint : public OneVarConstraint {
  *  @{ */
 
  /// print information about the UBConstraint on an ostream
- virtual void print( std::ostream &output ) const override {
+ void print( std::ostream & output ) const override {
   output << "UBConstraint [" << this << "] of Block [" << f_Block
-	 << "] with ColVariable [" << f_variable << "], RHS = "
-	 << f_rhs << ", value = " << value() << std::endl;
+         << "] with ColVariable [" << f_variable << "], RHS = "
+         << f_rhs << ", value = " << value() << std::endl;
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1075,7 +1046,7 @@ class UBConstraint : public OneVarConstraint {
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( UBConstraint ) )
+};  // end( class( UBConstraint ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS NNConstraint -----------------------------*/
@@ -1107,13 +1078,14 @@ class NNConstraint : public OneVarConstraint {
   * defines the constraint. Everything has a default (nullptr and nullptr,
   * respectively) so that this can be used as the void constructor. */
 
- NNConstraint( Block *my_block = nullptr ,
-	       ColVariable * const variable = nullptr )
-  : OneVarConstraint( my_block , variable ) { }
+ explicit NNConstraint( Block * my_block = nullptr ,
+                        ColVariable * const variable = nullptr )
+  : OneVarConstraint( my_block , variable ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor: does nothing special
- virtual ~NNConstraint() { }
+
+ ~NNConstraint() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -1123,26 +1095,24 @@ class NNConstraint : public OneVarConstraint {
 
  /// set the RHS of this to NNConstraint: this throws exception
 
- virtual void set_rhs( c_RHSValue rhs_value ,
-		       ModParam issueMod = eModBlck ) override final {
-  if( rhs_value < std::numeric_limits<RHSValue>::infinity() )
+ void set_rhs( c_RHSValue rhs_value , ModParam issueMod = eModBlck ) final {
+  if( rhs_value < RHSINF )
    throw( std::invalid_argument( "cannot change RHS in a NNConstraint" ) );
-   }
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set the LHS of this to NNConstraint: this throws exception
 
- virtual void set_lhs( c_RHSValue lhs_value ,
-		       ModParam issueMod = eModBlck ) override final {
+ void set_lhs( c_RHSValue lhs_value , ModParam issueMod = eModBlck ) final {
   if( lhs_value != 0 )
    throw( std::invalid_argument( "cannot change LHS in a NNConstraint" ) );
-   }
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set both the LHS and the RHS of this to NNConstraint: throws exception
 
- virtual void set_both( c_RHSValue both_value ,
-			ModParam issueMod = eModBlck ) override final {
+ void set_both( c_RHSValue both_value , ModParam issueMod = eModBlck )
+  final {
   throw( std::invalid_argument( "LHS == RHS impossible in a NNConstraint" ) );
   }
 
@@ -1153,12 +1123,12 @@ class NNConstraint : public OneVarConstraint {
     @{ */
 
  /// method to get the RHS of the NNConstraint
- virtual RHSValue get_rhs( void ) const override final {
-  return( std::numeric_limits<RHSValue>::infinity() );
-  }
+
+ [[nodiscard]] RHSValue get_rhs( void ) const final { return( RHSINF ); }
 
  /// method to get the LHS of the NNConstraint
- virtual RHSValue get_lhs( void ) const override final { return( 0 ); }
+ 
+ [[nodiscard]] RHSValue get_lhs( void ) const final { return( 0 ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A NNConstraint ------------*/
@@ -1166,20 +1136,20 @@ class NNConstraint : public OneVarConstraint {
 /** @name Methods describing the behavior of a NNConstraint
     @{ */
 
- virtual bool feasible( void ) const override final {
+ [[nodiscard]] bool feasible( void ) const final {
   return( f_variable->get_value() >= 0 );
   }
 
 /*--------------------------------------------------------------------------*/
 
- virtual RHSValue abs_viol( void ) const override final {
+ [[nodiscard]] RHSValue abs_viol( void ) const final {
   c_RHSValue val = f_variable->get_value();
-  return( val <= -Inf<double>() ? Inf<double>() : - val );
+  return( val <= -RHSINF ? RHSINF : -val );
   }
 
 /*--------------------------------------------------------------------------*/
 
- virtual RHSValue rel_viol( void ) const override final {
+ [[nodiscard]] RHSValue rel_viol( void ) const final {
   return( NNConstraint::abs_viol() );
   }
 
@@ -1194,14 +1164,14 @@ class NNConstraint : public OneVarConstraint {
 /*--------------------------------------------------------------------------*/
 
  /// print information about the NNConstraint on an ostream
- virtual void print( std::ostream &output ) const override {
+ void print( std::ostream & output ) const override {
   output << "NNConstraint [" << this << "] of Block [" << f_Block
-	 << "] with ColVariable [" << f_variable << "]" << std::endl;
+         << "] with ColVariable [" << f_variable << "]" << std::endl;
   }
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( NNConstraint ) )
+};  // end( class( NNConstraint ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS NPConstraint -----------------------------*/
@@ -1233,13 +1203,14 @@ class NPConstraint : public OneVarConstraint {
   * defines the constraint. Everything has a default (nullptr and nullptr,
   * respectively) so that this can be used as the void constructor. */
 
- NPConstraint( Block *my_block = nullptr ,
-	       ColVariable * const variable = nullptr )
-  : OneVarConstraint( my_block , variable ) { }
+ explicit NPConstraint( Block * my_block = nullptr ,
+                        ColVariable * const variable = nullptr )
+  : OneVarConstraint( my_block , variable ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor: does nothing special
- virtual ~NPConstraint() { }
+
+ ~NPConstraint() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -1249,26 +1220,24 @@ class NPConstraint : public OneVarConstraint {
 
  /// set the RHS of this to NPConstraint: this throws exception
 
- virtual void set_rhs( c_RHSValue rhs_value ,
-		       ModParam issueMod = eModBlck ) override final {
+ void set_rhs( c_RHSValue rhs_value , ModParam issueMod = eModBlck ) final {
   if( rhs_value != 0 )
-   throw( std::invalid_argument( "cannot change RHS in a NPConstraint" ) );
-   }
+   throw ( std::invalid_argument( "cannot change RHS in a NPConstraint" ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set the LHS of this to NNConstraint: this throws exception
 
- virtual void set_lhs( c_RHSValue lhs_value ,
-		       ModParam issueMod = eModBlck ) override final {
-  if( lhs_value > - std::numeric_limits<RHSValue>::infinity() )
+ void set_lhs( c_RHSValue lhs_value , ModParam issueMod = eModBlck ) final {
+  if( lhs_value > -RHSINF )
    throw( std::invalid_argument( "cannot change LHS in a NPConstraint" ) );
-   }
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set both the LHS and the RHS of this to NPConstraint: throws exception
 
- virtual void set_both( c_RHSValue both_value ,
-			ModParam issueMod = eModBlck ) override final {
+ void set_both( c_RHSValue both_value , ModParam issueMod = eModBlck )
+  final {
   throw( std::invalid_argument( "LHS == RHS impossible in a NPConstraint" ) );
   }
 
@@ -1279,12 +1248,10 @@ class NPConstraint : public OneVarConstraint {
  *  @{ */
 
  /// method to get the RHS of the NNConstraint
- virtual RHSValue get_rhs( void ) const override final { return( 0 ); }
+ [[nodiscard]] RHSValue get_rhs( void ) const final { return( 0 ); }
 
  /// method to get the LHS of the NNConstraint
- virtual RHSValue get_lhs( void ) const override final {
-  return( - std::numeric_limits<RHSValue>::infinity( ) );
-  }
+ [[nodiscard]] RHSValue get_lhs( void ) const final { return( -RHSINF ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A NPConstraint ------------*/
@@ -1292,20 +1259,20 @@ class NPConstraint : public OneVarConstraint {
 /** @name Methods describing the behavior of a NPConstraint
     @{ */
 
- virtual bool feasible( void ) const override final {
+ [[nodiscard]] bool feasible( void ) const final {
   return( f_variable->get_value() <= 0 );
   }
 
 /*--------------------------------------------------------------------------*/
 
- virtual RHSValue abs_viol( void ) const override final {
+ [[nodiscard]] RHSValue abs_viol( void ) const final {
   c_RHSValue val = f_variable->get_value();
-  return( val >= Inf<double>() ? Inf<double>() : val );
+  return( val >= RHSINF ? RHSINF : val );
   }
 
 /*--------------------------------------------------------------------------*/
 
- virtual RHSValue rel_viol( void ) const override final {
+ [[nodiscard]] RHSValue rel_viol( void ) const final {
   return( NPConstraint::abs_viol() );
   }
 
@@ -1320,14 +1287,14 @@ class NPConstraint : public OneVarConstraint {
 /*--------------------------------------------------------------------------*/
 
  /// print information about the NPConstraint on an ostream
- virtual void print( std::ostream &output ) const override {
+ void print( std::ostream & output ) const override {
   output << "NPConstraint [" << this << "] of Block [" << f_Block
-	 << "] with ColVariable [" << f_variable << "]" << std::endl;
+         << "] with ColVariable [" << f_variable << "]" << std::endl;
   }
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( NPConstraint ) )
+};  // end( class( NPConstraint ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS ZOConstraint -----------------------------*/
@@ -1358,13 +1325,14 @@ class ZOConstraint : public OneVarConstraint {
   * defines the constraint. Everything has a default (nullptr and nullptr,
   * respectively) so that this can be used as the void constructor. */
 
- ZOConstraint( Block *my_block = nullptr ,
-	       ColVariable * const variable = nullptr )
-  : OneVarConstraint( my_block , variable ) { }
+ explicit ZOConstraint( Block * my_block = nullptr ,
+                        ColVariable * const variable = nullptr )
+  : OneVarConstraint( my_block , variable ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor: does nothing special
- virtual ~ZOConstraint() { }
+
+ ~ZOConstraint() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -1374,26 +1342,24 @@ class ZOConstraint : public OneVarConstraint {
 
  /// set the RHS of this to ZOConstraint: this throws exception
 
- virtual void set_rhs( c_RHSValue rhs_value ,
-		       ModParam issueMod = eModBlck ) override {
+ void set_rhs( c_RHSValue rhs_value , ModParam issueMod = eModBlck ) final {
   if( rhs_value != 1 )
    throw( std::invalid_argument( "cannot change RHS in a ZOConstraint" ) );
-   }
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set the LHS of this to ZOConstraint: this throws exception
 
- virtual void set_lhs( c_RHSValue lhs_value ,
-		       ModParam issueMod = eModBlck ) override {
+ void set_lhs( c_RHSValue lhs_value , ModParam issueMod = eModBlck ) final {
   if( lhs_value != 0 )
    throw( std::invalid_argument( "cannot change LHS in a ZOConstraint" ) );
-   }
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set both the LHS and the RHS of this to ZOConstraint: throws exception
 
- virtual void set_both( c_RHSValue both_value ,
-			ModParam issueMod = eModBlck ) override final {
+ void set_both( c_RHSValue both_value , ModParam issueMod = eModBlck )
+  final {
   throw( std::invalid_argument( "LHS == RHS impossible in a ZOConstraint" ) );
   }
 
@@ -1404,10 +1370,10 @@ class ZOConstraint : public OneVarConstraint {
     @{ */
 
  /// method to get the RHS of the ZOConstraint
- virtual RHSValue get_rhs( void ) const override final { return( 1 ); }
+ [[nodiscard]] RHSValue get_rhs( void ) const final { return( 1 ); }
 
  /// method to get the LHS of the ZOConstraint
- virtual RHSValue get_lhs( void ) const override final { return( 0 ); }
+ [[nodiscard]] RHSValue get_lhs( void ) const final { return( 0 ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A ZOConstraint ------------*/
@@ -1415,21 +1381,21 @@ class ZOConstraint : public OneVarConstraint {
 /** @name Methods describing the behavior of a ZOConstraint
     @{ */
 
- virtual bool feasible( void ) const override final {
+ [[nodiscard]] bool feasible( void ) const final {
   c_RHSValue val = f_variable->get_value();
   return( ( val >= 0 ) && ( val <= 1 ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
- virtual RHSValue abs_viol( void ) const override final {
+ [[nodiscard]] RHSValue abs_viol( void ) const final {
   c_RHSValue val = f_variable->get_value();
-  return( std::max( - val , val - 1 ) );
+  return( std::max( -val , val - 1 ) );
   }
 
 /*--------------------------------------------------------------------------*/
 
- virtual RHSValue rel_viol( void ) const override final {
+ [[nodiscard]] RHSValue rel_viol( void ) const final {
   return( ZOConstraint::abs_viol() );
   }
 
@@ -1444,14 +1410,14 @@ class ZOConstraint : public OneVarConstraint {
 /*--------------------------------------------------------------------------*/
 
  /// print information about the ZOConstraint on an ostream
- virtual void print( std::ostream &output ) const override {
+ void print( std::ostream & output ) const override {
   output << "ZOConstraint [" << this << "] of Block [" << f_Block
-	 << "] with ColVariable [" << f_variable << "]" << std::endl;
+         << "] with ColVariable [" << f_variable << "]" << std::endl;
   }
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( ZOConstraint ) )
+};  // end( class( ZOConstraint ) )
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- CLASS OneVarConstraintMod -------------------------*/
@@ -1467,8 +1433,7 @@ class ZOConstraint : public OneVarConstraint {
  * handle it (at the very least, it directly knows it comes from a
  * OneVarConstraint without having to check it). */
 
-class OneVarConstraintMod : public RowConstraintMod
-{
+class OneVarConstraintMod : public RowConstraintMod {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
@@ -1480,25 +1445,26 @@ class OneVarConstraintMod : public RowConstraintMod
   * thrown by OneVarConstraint. */
 
  enum OVC_cons_mod_type {
-  eVariableChanged = eRowConstModLastParam ,
+  eVariableChanged = eRowConstModLastParam,
   ///< the Function underlying this OneVarConstraint changed whole
 
   eOVCConstModLastParam
   ///< first allowed parameter value for derived classes
   /**< Convenience value for easily allow derived classes to extend the set
    * of types of Modification. */
-  };
+ };
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: just calls that of RowConstraintMod
 
- OneVarConstraintMod( OneVarConstraint *cnst , int type = eVariableChanged ,
-		      bool cB = true )
-  : RowConstraintMod( cnst , type , cB ) { }
+ explicit OneVarConstraintMod( OneVarConstraint * cnst ,
+                               int type = eVariableChanged ,
+                               bool cB = true )
+  : RowConstraintMod( cnst , type , cB ) {}
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
- virtual ~OneVarConstraintMod() = default;  ///< destructor: does nothing
+ ~OneVarConstraintMod() override = default;  ///< destructor: does nothing
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1507,25 +1473,32 @@ class OneVarConstraintMod : public RowConstraintMod
 /*-------------------------- PROTECTED METHODS -----------------------------*/
  /// print the OneVarConstraintMod
 
- virtual inline void print( std::ostream &output ) const {
+ void print( std::ostream & output ) const override {
   output << "OneVarConstraintMod[";
   if( concerns_Block() )
    output << "t";
   else
-   output << "f";  
+   output << "f";
   output << "] on OneVarConstraint[" << f_constraint << "]: changing ";
   switch( f_type ) {
-   case( eChgLHS ): output << "LHS";  break;
-   case( eChgRHS ): output << "RHS";  break;
-   case( eChgBTS ): output << "both"; break;
-   default:         output << "Var";
+   case( eChgLHS ):
+    output << "LHS";
+    break;
+   case( eChgRHS ):
+    output << "RHS";
+    break;
+   case( eChgBTS ):
+    output << "both";
+    break;
+   default:
+    output << "Var";
    }
   output << std::endl;
   }
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( OneVarConstraintMod ) )
+};  // end( class( OneVarConstraintMod ) )
 
 /*--------------------------------------------------------------------------*/
 

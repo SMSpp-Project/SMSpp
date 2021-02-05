@@ -1,3 +1,65 @@
+2020-08-12 [low] add configuration and vector-of-configuration parameters
+
+	Rather than one single "extra" Configuration, ComputeConfig could have
+	an arbitrary number of Configuration parameters and even
+	vector-of-configuration parameters. This would, I'd say, make it almost
+	infinitely flexible, thereby negating every reasonable need for having
+	:ComputeConfig (of which we have none even now). Since this would break a
+	number of things, it is best left for the future.
+
+
+2020-10-22 [low] add explicit support for non-handled parameters
+
+	Add methods bool is_*_par() to ThinComputeInterface that return true if that
+	parameter is actually handled. The methods return false in the base class, so
+	that a derived class not handling the parameters "explicitly tells it".
+	They are used by ComputeConfiguration to avoid dealing with parameters that
+	are explicitly not handled.
+
+	Breaks the interface in the sense that :ThinComputeInterface that *do* deal
+	with the parameters must now tell which ones they deal with. Simple version
+	is just to always return true and then possibly still ignore some, so not a
+	big deal (but still to be done).
+
+	Useful side effect is that one can then "intentionally leave holes" in the
+	range of parameter indices, which may be useful e.g. when dealing with
+	existing Solver with intricate parameters (say, Cplex).
+
+
+2020-10-01 [low, unfortunately] Add MultiFunction and MultiRowConstraint
+
+	A MultiFunction is "just" the equivalent of a std::vector< Function >, its
+	value being a std::vector< FunctionValue >. However, by being a unique object
+	it can be managed more efficiently when "all the underlying Function change in
+	the same way". The obvious use case is a LinearMultiFunction, whose obvious
+	implementation is a std::vector< std::pair< ColVariable * , std::vector< 
+	FunctionValue > > >; that is, a *column* in a coefficient matrix. This could
+	be used in a MultiRowConstraint whose LHS and RHS are themselves
+	std::vector< FunctionValue >. According to what kind of operations are
+	done on the constrant, this may provide huge benefits in terms of many fewer
+	Modification and much more streamlined operations.
+
+	Such a LinearMultiFunction would be a "dense" one, hence one should probably
+	also have a LinearSparseMultiFunction; this may use Eigen sparse vectors,
+	although I'm not really convinced by these yet.
+
+	MultiFunction could/should have a way to add and remove Function (rows),
+	thereby making them "dynamic" even if used inside a static MultiRowConstraint.
+	This may create issues, tough.
+
+	Another advantage would be to make it easier to handle "shared Constraint"
+	between Block. A "shared Constraint" could be a [Multi]RowConstraint to the
+	[Multi]Function to which all [sub-]Block contribute some term (variable).
+	Each [sub-]Block could mind its own business (Variable) without bothering what
+	the other [sub-]Block do, allowing a "distributed management of a shared
+	Constraint". Perhaps this should be put as a separate TODO, although in
+	principle it does not seem to need tools that do not exist yet to work.
+	But one should probably mention the possibility somewhere, and possibly even
+	have methods of the Block that provide their "shared Constraint", although
+	it is not clear how that could be done (Function is not even mentioned in
+	Block, in principle with good reasons).
+
+
 2020-09-10 [low] Retrieving the "abstract name" of a Variable and printing the model
 
         In many cases, printing the full model would be useful. In particular,
@@ -12,27 +74,34 @@
         infrastructure for printing only specific parts of the model could be
         imagined.
 
+
 2020-02-17 [high] LagrangianDualBlock, BendersDecompositionBlock
+2020-08-20 [updated] LagrangianDualSolver, BendersDecompositionSolver
 
 	SMS++ is motivated by decomposition, and it offers LagBFunction and
 	BendersBFunction to handle a large part of the complications about
 	transforming an optimization problem into a C05Function (Lagrangian
 	or value one). However, the step from a :Block with appropriate
 	structure and the corresponding collection of C05Functions still
-	have to be done manually. LagrangianDualBlock and
-	BendersDecompositionBlock should automate this. The idea is that
-	they take an inner :Block with appropriate structure and "hyjack"
-	its sons, storing them into appropriate LagBFunction or
+	have to be done manually. LagrangianDualSolver and
+	BendersDecompositionSolver should automate this. The idea is that
+	they take a inner Block with appropriate structure (in the Lagrangian
+	case, no variables in the father and no other links between the sons but
+	the linear constraints in the father) and construct an appropriate :Block
+	(say, an AbstractBlock) representing the Lagrangian Dual / Benders'
+	Reformulation of the original Block. This is done by either "hyjacking"
+	or copying (R3B) its sons, storing them into appropriate LagBFunction or
 	BendersBFunction that are then stuffed into newly constructed
-	AbstractBlock and put as its sons. The original :Block may *not*
+	AbstractBlock and put as its sons. The original :Block will *not*
 	be destroied but rather kept, with its sons now referring to the
 	LagrangianDualBlock / BendersDecompositionBlock as their father,
 	but the original :Block "still believing" they are its sons. This
-	may allow a user having a reference to the original :Block to keep
+	will allow a user having a reference to the original :Block to keep
 	working with it and keeping using it without even realising that its
 	Lagrangian Dual / Benders Reformulation are being solved instead.
-	This is a possible alternative to having the :Block to manually
-	produce an appropriately structured R3Block of its.
+	This is a great alternative to having the :Block to manually produce
+	an appropriately structured R3Block of its, because it is all done
+	transparently inside a Solver that is attached to the original Block.
 
 
 2019-11-01 [medium-high] Block and Solver specify which kinds of Modification
@@ -239,13 +308,6 @@
 	Maybe solution information could need to have a specific signature,
 	maybe not. This is relatively quick to do, but quite some comments
 	around Block will have to be updated.
-
-2018-03-22 [medium, pre-requisite LagrangianBlock] LagrangianUCBlock
-
-	Simply, the concrete implementation of get_r3_Block() in
-	UCBlock that produces the Lagrangian dual w.r.t. the energy
-	constraints, with all the methods to pass information back and
-	forth between this and the original one.
 
 
 2019-03-17 [medium] Variable[Index]Set
@@ -653,3 +715,12 @@
 #-------------------------------- DISCARDED -----------------------------------#
 ################################################################################
 ################################################################################
+
+2018-03-22 [medium, pre-requisite LagrangianBlock] LagrangianUCBlock
+
+	Simply, the concrete implementation of get_r3_Block() in
+	UCBlock that produces the Lagrangian dual w.r.t. the energy
+	constraints, with all the methods to pass information back and
+	forth between this and the original one.
+
+

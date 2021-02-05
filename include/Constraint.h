@@ -37,7 +37,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __Constraint
- #define __Constraint /* self-identification: #endif at the end of the file */
+#define __Constraint /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -57,9 +57,9 @@
 /// namespace for the Structured Modeling System++ (SMS++)
 namespace SMSpp_di_unipi_it {
 
- class Block;       // forward definition
- class Variable;    // forward definition
- class Constraint;  // forward definition
+class Block;       // forward definition
+class Variable;    // forward definition
+class Constraint;  // forward definition
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
@@ -125,8 +125,10 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface {
   * the void constructor. If nullptr is passed, then set_Block() [see below]
   * will have to be used later to initialize it. */
 
- Constraint( Block *my_block = nullptr ) : ThinComputeInterface() ,
-  ThinVarDepInterface() , f_Block( my_block ) , f_is_relaxed( false ) { }
+ explicit Constraint( Block * my_block = nullptr ) : ThinComputeInterface(),
+                                                     ThinVarDepInterface(),
+                                                     f_Block( my_block ),
+                                                     f_is_relaxed( false ) {}
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: it cannot be used, but it is not deleted
@@ -134,14 +136,14 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface {
   * cannot be deleted because it is required to resize() empty vectors of
   * :Constraint. */
 
- Constraint( const Constraint & ) : ThinComputeInterface() ,
+ Constraint( const Constraint & ) : ThinComputeInterface(),
                                     ThinVarDepInterface() {
-  throw( std::logic_error( "copy constructor of Constraint invoked" ) );
-  }
- 
+  throw ( std::logic_error( "copy constructor of Constraint invoked" ) );
+ }
+
 /*--------------------------------------------------------------------------*/
  /// destructor of Constraint: it is virtual, and empty
- virtual ~Constraint() {};
+ ~Constraint() override = default;;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -154,7 +156,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface {
   * If the pointer is not provided in the constructor, it should be called
   * before any other method of the class. */
 
- void set_Block( Block *fblock ) { f_Block = fblock; }
+ void set_Block( Block * fblock ) { f_Block = fblock; }
 
 /*--------------------------------------------------------------------------*/
  /// method to relax or enforce the Constraint
@@ -167,7 +169,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface {
   * The parameter issueMod decides if and how the ConstraintMod is issued, as
   * described in Observer::make_par(). */
 
- virtual void relax( bool relax_it , c_ModParam issueMod = eModBlck );
+ virtual void relax( bool relax_it, c_ModParam issueMod = eModBlck );
 
 /**@} ----------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE Constraint --------------*/
@@ -176,8 +178,10 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface {
     @{ */
 
  /// returns the pointer to the Block to which the Constraint belongs
- Block *get_Block( void ) const { return( f_Block ); }
- 
+ [[nodiscard]] Block * get_Block( void ) const override {
+  return( f_Block );
+  }
+
 /**@} ----------------------------------------------------------------------*/
 /*------------ METHODS DESCRIBING THE BEHAVIOR OF THE Constraint -----------*/
 /*--------------------------------------------------------------------------*/
@@ -202,7 +206,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface {
   * call to this method, and between two calls depending on the value of the
   * changedvars parameter. */
 
- virtual int compute( bool changedvars = true  ) override = 0;
+ int compute( bool changedvars = true ) override = 0;
 
 /*--------------------------------------------------------------------------*/
  /// returns true if Constraint is feasible
@@ -215,12 +219,12 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface {
   * users' responsibility to ensure that compute() has been called at the
   * proper time. */
 
- virtual bool feasible( void ) const = 0;
+ [[nodiscard]] virtual bool feasible() const = 0;
 
 /*--------------------------------------------------------------------------*/
  /// returns true if the Constraint is relaxed, i.e., not really a Constraint
 
- bool is_relaxed( void ) const { return( f_is_relaxed ); }
+ [[nodiscard]] bool is_relaxed() const { return ( f_is_relaxed ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*---------- METHODS FOR LOADING, PRINTING & SAVING THE Constraint ---------*/
@@ -240,10 +244,10 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface {
   * operator<<() is defined for each Constraint, but its behavior can be
   * customized by derived classes. */
 
- friend std::ostream& operator<< ( std::ostream& out , const Constraint& c ) {
+ friend std::ostream & operator<<( std::ostream & out, const Constraint & c ) {
   c.print( out );
-  return( out );
-  }
+  return ( out );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -265,19 +269,19 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface {
   * looking at the appropriate information in the Block to which this
   * Constraint belongs [see Block.h]. */
 
- virtual void print( std::ostream &output ) const {
+ virtual void print( std::ostream & output ) const {
   output << "Constraint [" << this << "] of Block [" << f_Block
-	 << "] with " << get_num_active_var() << " active variables"
-	 << std::endl;
-  }
+         << "] with " << get_num_active_var() << " active variables"
+         << std::endl;
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
- Block *f_Block;  ///< pointer to the Block to which the Constraint belongs
+ Block * f_Block{};   ///< pointer to the Block to which the Constraint belongs
 
- bool f_is_relaxed;  ///< true if the Constraint is relaxed
+ bool f_is_relaxed{}; ///< true if the Constraint is relaxed
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -291,7 +295,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface {
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( Constraint ) )
+};  // end( class( Constraint ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ CLASS ConstraintMod -----------------------------*/
@@ -300,8 +304,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface {
 /** Derived class from AModification to describe modifications to a
  * Constraint, i.e., relaxing and enforcing it. */
 
-class ConstraintMod : public AModification
-{
+class ConstraintMod : public AModification {
 
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
@@ -310,12 +313,12 @@ class ConstraintMod : public AModification
 /*---------------------------- PUBLIC TYPES --------------------------------*/
  /// Definition of the possible type of Modification
  enum cons_mod_type {
-  eRelaxConst ,       ///< relax the Constraint
-  eEnforceConst ,     ///< enforce the Constraint
-  eConstModLastParam  ///< first allowed parameter value for derived classes
-                      /**< convenience value for easily allow derived classes
-  		       * to extend the set of types of modifications */
-  };
+  eRelaxConst,       ///< relax the Constraint
+  eEnforceConst,     ///< enforce the Constraint
+  eConstModLastParam ///< first allowed parameter value for derived classes
+  /**< convenience value for easily allow derived classes
+    * to extend the set of types of modifications */
+ };
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: takes the type of Modification and a Constraint pointer
@@ -326,30 +329,33 @@ class ConstraintMod : public AModification
   * order to allow derived classes to "extend" the set of possible types of
   * modifications. */
 
- ConstraintMod( Constraint *cnst , int mod = eRelaxConst , bool cB = true )
-  : AModification( cB ) , f_constraint( cnst ) , f_type( mod ) { }
+ explicit ConstraintMod( Constraint * cnst , int mod = eRelaxConst, 
+                         bool cB = true )
+  : AModification( cB ) , f_constraint( cnst ) , f_type( mod ) {}
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
- virtual ~ConstraintMod() = default;  ///< destructor: does nothing
+ ~ConstraintMod() override = default;  ///< destructor: does nothing
 
 /*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
  /// returns the Block to which the Constraint belongs
 
- Block * get_Block( void ) const override  {
+ [[nodiscard]] Block * get_Block( void ) const override {
   return( f_constraint->get_Block() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to (the pointer to) the affected Constraint
 
- Constraint * constraint( void ) const { return( f_constraint ); }
+ [[nodiscard]] Constraint * constraint( void ) const {
+  return( f_constraint );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to the type of Modification
 
- int type( void ) const { return( f_type ); }
+ [[nodiscard]] int type( void ) const { return( f_type ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -358,12 +364,12 @@ class ConstraintMod : public AModification
 /*-------------------------- PROTECTED METHODS -----------------------------*/
  /// print the ConstraintMod
 
- void print( std::ostream &output ) const override {
+ void print( std::ostream & output ) const override {
   output << "ConstraintMod[";
   if( concerns_Block() )
    output << "t]:";
   else
-   output << "f]:";  
+   output << "f]:";
   if( f_type == eRelaxConst )
    output << "relaxing";
   else
@@ -374,9 +380,9 @@ class ConstraintMod : public AModification
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
- Constraint *f_constraint;   ///< pointer to the modified Constraint
+ Constraint * f_constraint;   ///< pointer to the modified Constraint
 
- int f_type;                 ///< type of modification
+ int f_type;                  ///< type of modification
 
 /*--------------------------------------------------------------------------*/
 

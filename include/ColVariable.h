@@ -31,23 +31,24 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __ColVariable
- #define __ColVariable
-                      /* self-identification: #endif at the end of the file */
+#define __ColVariable
+/* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#include "Variable.h"
+#include <algorithm>
 #include <cmath>
+
+#include "Variable.h"
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 ///< namespace for the Structured Modeling System++ (SMS++)
-namespace SMSpp_di_unipi_it
-{
+namespace SMSpp_di_unipi_it {
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
@@ -103,8 +104,8 @@ namespace SMSpp_di_unipi_it
  * significant amount of memory by not having to implement them through an
  * explicit :Constraint object. */
 
-class ColVariable : public Variable {
-
+class ColVariable : public Variable
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -160,7 +161,7 @@ class ColVariable : public Variable {
   kZeroIntU    = 15 ,  ///< any int value between -1 and 1 provided it is 0
   ColVarLastType       ///< first allowed parameter value for derived classes
                        /**< Convenience value for easily allow derived classes
-			* to extend the set of types of real subsets. */
+                        * to extend the set of types of real subsets. */
   };
 
 /*--------------------------------------------------------------------------*/
@@ -186,11 +187,12 @@ class ColVariable : public Variable {
   *
   * The constructor sets the value of the ColVariable to its default. */
 
- ColVariable( Block *my_block = nullptr , const var_type type = kContinuous )
+ explicit ColVariable( Block * my_block = nullptr ,
+                       var_type type = kContinuous )
   : Variable( my_block ) {
   f_state &= var_type( 1 );
   f_state |= type * 2;
-  set_to_default_value();
+  f_value = 0;
   }
 
 /*--------------------------------------------------------------------------*/
@@ -216,7 +218,7 @@ class ColVariable : public Variable {
   * to be destroyed without having to pointlessly update the data structures
   * linking them just before destruction. */
 
- virtual ~ColVariable() {}
+ ~ColVariable() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -238,7 +240,7 @@ class ColVariable : public Variable {
   * reported by a Modification, and other mechanisms must be put in place to
   * (avoid) deal(ing) with it; see the discussion in ThinComputeInterface. */
 
- virtual void set_value( c_VarValue new_value = 0 ) { f_value = new_value; }
+ virtual void set_value( VarValue new_value = 0 ) { f_value = new_value; }
 
 /*--------------------------------------------------------------------------*/
  /// sets the "type" of the ColVariable
@@ -251,28 +253,27 @@ class ColVariable : public Variable {
   * The parameter issueMod decides if and how the VariableMod is issued, as
   * described in Observer::make_par(). */
 
- virtual void set_type( const var_type type ,
-			c_ModParam issueMod = eModBlck );
+ virtual void set_type( var_type type , ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// method to set whether the ColVariable is integer-valued
 
- virtual void is_integer( const bool yn , c_ModParam issueMod = eModBlck );
+ virtual void is_integer( bool yn , ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to set whether the ColVariable is non-negative
 
- virtual void is_positive( const bool yn , c_ModParam issueMod = eModBlck );
+ virtual void is_positive( bool yn , ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to set whether the ColVariable is non-positive
 
- virtual void is_negative( const bool yn , c_ModParam issueMod = eModBlck );
+ virtual void is_negative( bool yn , ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to set whether the max absolute value of the ColVariable is 1
 
- virtual void is_unitary( const bool yn , c_ModParam issueMod = eModBlck );
+ virtual void is_unitary( bool yn , ModParam issueMod = eModBlck );
 
 /**@} ----------------------------------------------------------------------*/
 /*------------ METHODS DESCRIBING THE BEHAVIOR OF A ColVariable ------------*/
@@ -281,7 +282,8 @@ class ColVariable : public Variable {
  *  @{ */
 
  /// method to get the value of the ColVariable (a real, i.e., a VarValue)
- VarValue get_value( void ) const { return( f_value ); }
+
+ [[nodiscard]] VarValue get_value( void ) const { return( f_value ); }
 
 /*--------------------------------------------------------------------------*/
  /// method to check feasibility of a ColVariable
@@ -291,13 +293,13 @@ class ColVariable : public Variable {
   * that is, a non-negative ColVariable is feasible if its value is >= - eps,
   * and so on. */
 
- bool is_feasible( const var_type eps = 0 ) const {
+ [[nodiscard]] bool is_feasible( var_type eps = 0 ) const {
   if( is_integer() && ( std::abs( std::round( f_value ) - f_value ) > eps ) )
    return( false );
 
-  if( is_positive() && ( f_value < - eps ) )
+  if( is_positive() && ( f_value < -eps ) )
    return( false );
-		       
+
   if( is_negative() && ( f_value > eps ) )
    return( false );
 
@@ -312,46 +314,79 @@ class ColVariable : public Variable {
  /** Returns the "type" of the ColVariable, encoded accordingly to the enum
   * col_var_type. */
 
- var_type get_type( void ) const { return( f_state / 2 ); }
+ [[nodiscard]] var_type get_type( void ) const { return( f_state / 2 ); }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method to tell whether a state is that of an integer-valued ColVariable
+
+ static bool is_integer( var_type state ) {
+  return( state & var_type( 2 ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to tell whether the ColVariable is integer-valued
 
- bool is_integer( void ) const { return( f_state & var_type( 2 ) ); }
+ [[nodiscard]] bool is_integer( void ) const {
+  return( is_integer( f_state ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method to tell whether a state is that of a non-negative ColVariable
+
+ static bool is_positive( var_type state ) {
+  return( state & var_type( 4 ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to tell whether the ColVariable is non-negative
+ 
+ [[nodiscard]] bool is_positive( void ) const {
+  return( is_positive( f_state ) );
+  }
 
- bool is_positive( void ) const { return( f_state & var_type( 4 ) ); }
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method to tell whether a state is that of a non-positive ColVariable
+ static bool is_negative( var_type state ) {
+  return( state & var_type( 8 ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to tell whether the ColVariable is non-positive
 
- bool is_negative( void ) const { return( f_state & var_type( 8 ) ); }
+ [[nodiscard]] bool is_negative( void ) const {
+  return( is_negative( f_state ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method to tell whether a state is that of a unitary ColVariable
+
+ static bool is_unitary( var_type state ) {
+  return( state & var_type( 16 ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to tell whether the max absolute value of the ColVariable is 1
 
- bool is_unitary( void ) const { return( f_state & var_type( 16 ) ); }
+ [[nodiscard]] bool is_unitary( void ) const {
+  return( is_unitary( f_state ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// method to return the lower bound on the ColVariable implied by its type
 
- VarValue get_lb( void ) const
- {
+ [[nodiscard]] VarValue get_lb( void ) const {
   return( is_positive() ? VarValue( 0 ) :
-	                  ( is_unitary() ? VarValue( -1 ) :
-			      -std::numeric_limits<VarValue>::infinity() ) );
+           ( is_unitary() ? VarValue( -1 ) :
+             -std::numeric_limits< VarValue >::infinity() ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to return the upper bound on the ColVariable implied by its type
 
- VarValue get_ub( void ) const
- {
+ [[nodiscard]] VarValue get_ub( void ) const {
   return( is_negative() ? VarValue( 0 ) :
-	                  ( is_unitary() ? VarValue( 1 ) :
-			        std::numeric_limits<VarValue>::infinity() ) );
+	  ( is_unitary() ? VarValue( 1 ) :
+	    std::numeric_limits< VarValue >::infinity() ) );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -360,24 +395,24 @@ class ColVariable : public Variable {
 /** @name Methods for handling the set of "active" stuff
  *  @{ */
 
- virtual Index get_num_active( void ) const override {
+ [[nodiscard]] Index get_num_active( void ) const override {
   return( v_active.size() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual Index is_active( ThinVarDepInterface * stuff ) const override {
-  auto idx = std::lower_bound( v_active.begin() , v_active.end() , stuff );
+ Index is_active( ThinVarDepInterface * stuff ) const override {
+  auto idx = std::lower_bound( v_active.begin(), v_active.end(), stuff );
 
-  if( idx < v_active.end() )
-   return( std::distance( idx , v_active.begin() ) );
+  if( idx != v_active.end() )
+   return( std::distance( v_active.begin() , idx ) );
   else
-   return( std::numeric_limits<Index>::infinity() );
+   return( std::numeric_limits< Index >::infinity() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- virtual ThinVarDepInterface * get_active( const Index i ) const override {
+ [[nodiscard]] ThinVarDepInterface * get_active( Index i ) const override {
   return( v_active[ i ] );
   }
 
@@ -387,7 +422,8 @@ class ColVariable : public Variable {
   * stuff, which is ordered in increasing sense (using as key the "name"
   * of the ThinVarDepInterface, i.e., the pointer itself). */
 
- const std::vector<ThinVarDepInterface *> & active_stuff( void ) const {
+ [[nodiscard]] const std::vector< ThinVarDepInterface * > & active_stuff(
+							      void ) const {
   return( v_active );
   }
 
@@ -396,9 +432,9 @@ class ColVariable : public Variable {
  /**< Method that adds a pointer to a new active "stuff" in the proper
   * vector, keeping it sorted. */
 
- void add_active( ThinVarDepInterface *stuff ) override {
-   // find proper position in ascending order
-  auto it = std::upper_bound( v_active.begin() , v_active.end() , stuff );
+ void add_active( ThinVarDepInterface * stuff ) override {
+  // find proper position in ascending order
+  auto it = std::upper_bound( v_active.begin(), v_active.end(), stuff );
 
   v_active.insert( it , stuff );  // insert before it
   }
@@ -420,7 +456,7 @@ class ColVariable : public Variable {
  /** Method that removes a pointer to an active ThinVarDepInterface from the
   * proper vector, keeping it sorted: the input is the iterator */
 
- void remove_active( std::vector<ThinVarDepInterface *>::iterator it ) {
+ void remove_active( std::vector< ThinVarDepInterface * >::iterator it ) {
   v_active.erase( it );  // just remove it
   }
 
@@ -436,7 +472,7 @@ class ColVariable : public Variable {
   * - create a class that derives from ColVariable and overrides this method.
   */
 
- virtual void set_to_default_value() override {
+ void set_to_default_value( void ) override {
   this->set_value( VarValue( 0 ) );
   }
 
@@ -454,30 +490,30 @@ class ColVariable : public Variable {
 
  /// print the ColVariable
 
- virtual void print( std::ostream &output ) const override {
+ void print( std::ostream & output ) const override {
   output << "ColVariable [" << this << "] of Block [" << f_Block
-	 << "] with " << get_num_active()
-	 << " active stuff, value = " << f_value << std::endl;
-  }
+         << "] with " << get_num_active()
+         << " active stuff, value = " << f_value << std::endl;
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-  VarValue f_value;     ///< value of the variable
+ VarValue f_value;     ///< value of the variable
 
-  std::vector<ThinVarDepInterface *> v_active;  ///< set of active stiff
+ std::vector< ThinVarDepInterface * > v_active;  ///< set of active stiff
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( ColVariable ) )
+};  // end( class( ColVariable ) )
 
 /** @} end( group( ColVariable_CLASSES ) ) ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- }  /* namespace SMSpp_di_unipi_it */
+}  /* namespace SMSpp_di_unipi_it */
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
