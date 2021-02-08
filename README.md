@@ -191,3 +191,9 @@ the code cannot be considered liable, either directly or indirectly, for
 any damage or loss that anybody could suffer for having used it. More
 details about the non-warranty attached to this code are available in the
 license description file.
+
+## Acknowledgements
+
+For a list of contributions to the development of this module, see the
+corresponding section in the
+[SMS++ umbrella project](https://gitlab.com/smspp/smspp-project)
