@@ -19,8 +19,8 @@ build:
       - build
   only:
     refs:
-      - master
       - develop
+      - tags
     changes:
       - cmake/*
       - include/*
@@ -34,8 +34,8 @@ test:
     - cmake --build build --target test
   only:
     refs:
-      - master
       - develop
+      - tags
     changes:
       - cmake/*
       - include/*
@@ -54,18 +54,3 @@ deploy:
       - build/*.zip
   only:
     - tags
-
-pages:
-  image: alpine
-  stage: deploy
-  before_script:
-    - apk update
-    - apk add doxygen
-  script:
-    - doxygen doxygen/Doxyfile
-    - mv doc/html/ public/
-  artifacts:
-    paths:
-      - public
-  only:
-    - master
