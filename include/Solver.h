@@ -820,49 +820,27 @@ class Solver : public ThinComputeInterface {
   f_log = log_stream;
   }
 
+/**@} ----------------------------------------------------------------------*/
+/*----------------- METHODS FOR MANAGING THE "IDENTITY" --------------------*/
 /*--------------------------------------------------------------------------*/
- /// set the "identity" of the Solver
- /** Each time that a Solver needs to operate on a Block, it has to "lock and
-  * own" it. The Block stores the "identity" of its owner, so that if the
-  * same owner comes back and try to "own" it, the operation suceeds even if
-  * the Block is locked already. When a Block is "owned", all its sub-Block
-  * (recursively) are "owned" by the same entity.
-  *
-  * In general, each entity willing to "lock and own" a Block will have to
-  * provide a unique "identity", under the form of a void *. For a Solver,
-  * this is "this", i.e., the pointer to the Solver itself. There can be the
-  * case where a Solver for a Block relies on sub-Solver that solve sub-Block
-  * of the given Block. However, when the "master" Solver "owns" the Block,
-  * its sub-Solver cannot "own" the sub-Block since they are already "owned"
-  * by the "master" Solver. The "master" solver could temporarily "unlock and
-  * disown" the Block before calling any method of the sub-Solver that tries
-  * to "own" it (typically, compute()), but this opens the chance that
-  * another entity which had tried to acquire the lock may step in and get it
-  * before the sub-Solver has a chance to, which may lead to issues and
-  * possibly even deadlocks.
-  *
-  * This method allows an entity "owning" a Block (say, the above "master"
-  * Solver) to "lend its identity" to the Solver. The identity is stored in
-  * a protected field of Solver, initialized with "this" and returned by
-  * id(). Each Solver should always use id() to try to "lock and own" the
-  * Block. This method allows to change the id() ("lend another identity")
-  * of the Solver to any value; when called with nullptr argument, the id()
-  * is reset to the default "this". Note that a Solver should always lend
-  * its id() to its sub-Solver, so that "lending can be propagated downwards"
-  * along a chain of sub-Solver. However, if this is done permanently (as
-  * opposed to an on-need basis), changing or resetting the id() of a Solver
-  * may require doing the same to its sub-Solver; this is why this method is
-  * virtual.
-  *
-  * Note that the "lock and own" mechanism also protects a Block from
-  * concurrent accesses from different threads. Thus, this mechanism removes
-  * such protection in case a (say) Solver running in a thread lends its
-  * identity to a (say) sub-Solver running in a different thread. It clearly
-  * is responsibility of the entity lending the identity (which presumably
-  * knows and controls the Solver it has leant it) to handle any such issues
-  * using the appropriate synchronization tools. */
+/** @name Managing the "identity" of a Solver
+ *
+ * Actually implement the methods of ThinComputeInterface relative to
+ * temporarily changing the "identity" of the Solver.
+ *
+ *  @{ */
 
- virtual void set_id( void * id = nullptr ) { f_id = id ? id : this; }
+ /// set the "identity" of the Solver
+ /** Actually implement the ThinComputeInterface::set_id() by setting the
+  * f_id member of the Solver class , which is initialized with "this" and
+  * returned by id(). Each :Solver should always use id() to try to "lock
+  * and own" the Block. This method allows to change the id() ("lend another
+  * identity") of the Solver to any value; when called with nullptr argument,
+  * the id() is reset to the default "this". Note that a Solver should always
+  * lend its id() to its sub-Solver, if any, so that "lending can be
+  * propagated downwards" along a chain of sub-Solver. */
+
+ void set_id( void * id = nullptr ) override { f_id = id ? id : this; }
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------------- METHODS FOR EVENTS HANDLING -----------------------*/

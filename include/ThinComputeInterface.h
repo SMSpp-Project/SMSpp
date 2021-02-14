@@ -70,9 +70,15 @@ namespace SMSpp_di_unipi_it
  *   not changed their value since the last call without having to check this
  *   explicitly;
  *
- * - the operations may be performed asyncronously on a different thread
- *   (although this aspect is not treated yet, and left for a future revision
- *   of the class).
+ * - the computation may be "long", which means that the caller may want to
+ *   be able to periodically check what is happening and possibly react,
+ *   which is provided by the "event handlers" mechanics;
+ *
+ * - the computation may take time (or other computational resources) that
+ *   the caller may want to be able to know;
+ *
+ * - the operations may be performed asyncronously on a different thread,
+ *   which implies some kind of synchronization e.g. via Block::lock().
  *
  * Objects with this behaviour are (obviously) Solver [see Solver.h], but also
  * possibly Function [see Function.h], Constraint [see Constraint.h] and
@@ -82,7 +88,8 @@ namespace SMSpp_di_unipi_it
  * requiring a Solver. Yet, not all Function (and hence, Constraint and
  * Objective) are computationally heavy enough to warrant such a complex
  * interface, and although likely most Solver are, there might be Solver
- * that have low enough complexity to allow foregoing it.
+ * that have low enough complexity to allow foregoing at least some part of
+ * the general ThinComputeInterface.
  *
  * The *abstract* ThinComputeInterface class is meant to factor out many of
  * the methods required to deal with these aspects. Factoring them is
@@ -96,21 +103,14 @@ namespace SMSpp_di_unipi_it
  * either pure virtual, or are given a thin default implementation suiting
  * the case where the computational cost of the object is low. The idea is
  * that the actual implementation of the methods is deferred until towards
- * the end of the derivatiobn chain, so that classes that do not have a
+ * the end of the derivation chain, so that classes that do not have a
  * computational cost warranting the complex interface (say, LinearFunction)
  * do not have to pay any implementation cost for features that are not
  * justified. The exception to this rule is the definition of the
  * ComputeConfig class and the methods for reading and writing a
  * ComputeConfig; these can be implemented using the abstract part of
- * the interface, and therefore potentially need to be implemented only once.
- *
- * A reason for introducing the class at this point of the design cycle is
- * that SMS++ will eventually have to cater for asyncronous calls, which is
- * going to be expecially important for the computationally-heavy objects
- * that ThinComputeInterface targets. However, how this is to be accomplished
- * is not decided yet. By factoring all aspects of the computational interface
- * into a single class, the effort to later refactor the interfaces to allow
- * for asyncronous calls should be decreased. */
+ * the interface, and therefore potentially need to be implemented only
+ * once. */
 
 class ThinComputeInterface {
 
@@ -331,7 +331,7 @@ class ThinComputeInterface {
    * was due to some reason that forced it to stop early on, such as a limit
    * imposed on the available computational resources. By relaxing the limit,
    * which may be as simple as calling compute() again, compute() may
-   *further proceed in the computation process, possibly finally providing a
+   * further proceed in the computation process, possibly finally providing a
    * "good" answer. The event handler needs to know which compute() it is
    * handling, and therefore ensure that the return value is valid for that
    * compute(). */
@@ -526,6 +526,91 @@ class ThinComputeInterface {
   * nullptr-ed, so that scfg can be safely deleted after the call. */
 
  virtual void set_ComputeConfig( ComputeConfig * scfg = nullptr );
+
+/**@} ----------------------------------------------------------------------*/
+/*----------------- METHODS FOR MANAGING THE "IDENTITY" --------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Managing the "identity" of a ThinComputeInterface
+ *
+ * The base mechanism provided by Block to support asynchronous computation
+ * is the "lock and own" one: each time that an "entity" needs to operate on
+ * a Block to change it, it has to lock() it. The Block stores the "identity"
+ * of its owner, so that if the same owner comes back and try to "own" it,
+ * the operation suceeds even if the Block is locked already. When a Block is
+ * "owned", all its sub-Block (recursively) are "owned" by the same entity.
+ * While compute()-ing something does not in general require to change the
+ * underlying Block, it is possible that this may be needed. Hence, a
+ * :ThinComputeInterface may have to lock() a Block.
+ *
+ * In general, each entity willing to "lock and own" a Block will have to
+ * provide a unique "identity", under the form of a void *. If the entity is
+ * an object, the typical "identity" is "this", i.e., the pointer to the
+ * object itself. There can be the the case where :ThinComputeInterface
+ * having loacked a Block relies on some other :ThinComputeInterface that
+ * needs to do the same, for instance because it operates on some of the
+ * sub-Block of the given Block. However, when the "master"
+ * :ThinComputeInterface" lock()s the Block, the other :ThinComputeInterface 
+ * cannot lock() it again since it is already "owned". The "master"
+ * :ThinComputeInterface could temporarily "unlock and disown" the Block
+ * before calling any method of the other :ThinComputeInterface that tries to
+ * "own" it, but this opens the chance that another entity which had tried
+ * to acquire the lock may step in and get it before the other
+ * :ThinComputeInterface has a chance to, which may lead to issues and
+ * possibly even deadlocks.
+ *
+ * The following methods allow to solve this issue by letting the "master"
+ * :ThinComputeInterface to "temporarily lend its identity" to the current
+ * :ThinComputeInterface, as well as to "end the lease".
+ *
+ *  @{ */
+
+
+ /// set the "identity" of the ThinComputeInterface
+ /** This method allows an entity "owning" a Block to "temporarily lend its
+  * identity" to the ThinComputeInterface. After the call, the
+  * ThinComputeInterface should always use the "lent identity" to "lock and
+  * own" the Block, as well as to "unlock and disown" it when done. Recall
+  * that the standard usage pattern of lock() is
+  *
+  *     bool owned = block->is_owned_by( me );
+  *     if( ( ! owned ) && ( ! block->lock( me ) ) )
+  *      < something happens, typcally a disaster >
+  *
+  *     < block is mine, do whatever I want with it >
+  *
+  *     if( ! owned )
+  *      block->unlock( me );
+  *
+  * where "me" is precisely the identity that this method is changing. The
+  * relevant point is that in this way the ThinComputeInterface can get
+  * access to the Block; i.e., not so much "lock and own" it, since it is
+  * already "locked and own" by the entity lending its identity, but be
+  * confirmed that it has the permission to change it. When the
+  * ThinComputeInterface is done, is *must not* unlock() the Block, which
+  * is what the above scheme does, because the entity having lent its
+  * identity is still assuming it is lock()-ed, and it will unlock() it
+  * when it is done (unless the entity in turn had the identity lent to,
+  * in which case the process will repear above).
+  *
+  * If the method is called with the (default) nullptr argument, the "lease
+  * of the identity expires" (typically, because the Block is no longer
+  * lock()-ed by that owner), and if the ThinComputeInterface has to "lock
+  * and own" the Block it has to do so with its normal identity (this).
+  *
+  * Note that the "lock and own" mechanism also protects a Block from
+  * concurrent accesses from different threads. Thus, this mechanism removes
+  * such protection in case a :ThinComputeInterface running in a thread lends
+  * its identity to another :ThinComputeInterface running in a different
+  * thread. It clearly is responsibility of the entity lending the identity
+  * (which presumably knows and controls the :ThinComputeInterface it has
+  * leant it) to handle any such issues using any appropriate synchronization
+  * tool, which is not a concern of the base ThinComputeInterface class.
+  *
+  * The method is virtual and given an empty implementation doing nothing
+  * which is fully appropriate for "easy" :ThinComputeInterface that never
+  * do any change on the Block to compute() it. */
+
+ virtual void set_id( void * id = nullptr ) {}
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------------- METHODS FOR EVENTS HANDLING -----------------------*/
@@ -784,11 +869,17 @@ class ThinComputeInterface {
  /// (try to) compute whatever the object is supposed to, asynchronously
  /** This is just an one-line wrapper over compute() that runs it into a
   * separate task and returns a std::future< int > upon which the caller can
-  * wait() for the result. Not really a significant contribution (it is not
-  * even virtual), and by no means the only way to make an asynchronous call
-  * to compute(); just a little convenience method that conveys what is
-  * perhaps the most convenient current C++ technique for asynchronous calls
-  * to compute(). */
+  * wait() for the result. That is, asynchronously compute()-ing any
+  * ThinComputeInterface can be done by just
+  *
+  *     auto f = MyThinComputeInterface.compute_async( ... );
+  *     f.wait();
+  *     int res = f.get;
+  *
+  * This is not really a significant contribution (it is not even virtual),
+  * and by no means the only way to make an asynchronous call to compute();
+  * just a little convenience method that conveys what is perhaps the most
+  * convenient current C++ technique for asynchronous calls to compute(). */
 
  std::future< int > compute_async( bool changedvars = true ) {
   return( std::async( std::launch::async ,

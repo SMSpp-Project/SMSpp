@@ -27,15 +27,18 @@
 
 #ifndef __FRowConstraint
 #define __FRowConstraint
-/* self-identification: #endif at the end of the file */
+                      /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 #include "Block.h"
+
 #include "Function.h"
+
 #include "RowConstraint.h"
+
 #include "Variable.h"
 
 /*--------------------------------------------------------------------------*/
@@ -43,8 +46,8 @@
 /*--------------------------------------------------------------------------*/
 
 ///< namespace for the Structured Modeling System++ (SMS++)
-namespace SMSpp_di_unipi_it {
-
+namespace SMSpp_di_unipi_it
+{
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -106,13 +109,13 @@ class FRowConstraint : public RowConstraint, public Observer {
   * default (nullptr, 0 and 0, nullptr, respectively) so that this can be
   * used as the void constructor. */
 
- explicit FRowConstraint( Block * block = nullptr,
-                          RHSValue lhs = 0, RHSValue rhs = 0,
+ explicit FRowConstraint( Block * block = nullptr ,
+                          RHSValue lhs = 0 , RHSValue rhs = 0 ,
                           Function * const function = nullptr )
-  : RowConstraint( block ), f_lhs( lhs ), f_rhs( rhs ),
+  : RowConstraint( block ) , f_lhs( lhs ),  f_rhs( rhs ) ,
     f_function( nullptr ) {
-  set_function( function, eNoMod );
- }
+  set_function( function , eNoMod );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// destructor: deletes the Function and un-registers with the Variable

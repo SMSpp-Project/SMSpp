@@ -380,6 +380,7 @@ class LagBFunction : public C05Function , public Block {
   * same, but compilers still don't like it. Disambiguate by declaring we
   * use the ThinVarDepInterface versions (but it could have been the Block
   * versions, as they are the same. */
+
  using Index = ThinVarDepInterface::Index;
  using c_Index = ThinVarDepInterface::c_Index;
 
@@ -698,6 +699,38 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  void deserialize( const netCDF::NcGroup& group ) override;
+
+/**@} ----------------------------------------------------------------------*/
+/*----------------- METHODS FOR MANAGING THE "IDENTITY" --------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Managing the "identity" of the LagBFunction
+ *
+ * Actually implement the methods of ThinComputeInterface relative to
+ * temporarily changing the "identity" of the LagBFunction.
+ *
+ *  @{ */
+
+ /// set the "identity" of the LagBFunction
+ /** Actually implement the ThinComputeInterface::set_id() by setting the
+  * f_id member of the LagBFunction class, which is initialized with "this"
+  * in the constructor. LagBFunction always uses f_id to try to "lock and
+  * own" the Block. This method allows to change f_id ("lend another
+  * identity"); when called with nullptr argument, the id() is reset to the
+  * default "this". Also, if the inner Block is set and has registered
+  * Solver, their identity is also set (or reset) in anticipation that they
+  * also may have to lock() the inner Block during their line of work. */
+
+ void set_id( void * id = nullptr ) override {
+  if( f_id == id )  // nothing to do
+   return;          // silently (and cowardly) return
+
+  f_id = id ? id : this;
+
+  // propagate downwards the id change
+  if( ! v_Block.empty() )
+   for( auto s : v_Block.front()->get_registered_solvers() )
+    s->set_id( id );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------- METHODS FOR MODIFYING THE LagBFunction ------------------*/
@@ -1564,6 +1597,8 @@ class LagBFunction : public C05Function , public Block {
  BlockSolverConfig * f_BSC;  ///< a BlockSolverConfig for the inner Block
 
  bool f_BSC_changed;         ///< true if the BlockSolverConfig has changed
+
+ void * f_id;           ///< the "identity" of the LagBFunction 
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/

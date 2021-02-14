@@ -71,27 +71,30 @@ void BendersBFunction::load( std::istream &input ) {
 /*------------- CONSTRUCTING AND DESTRUCTING BendersBFunction --------------*/
 /*--------------------------------------------------------------------------*/
 
-BendersBFunction::BendersBFunction
-( Block * inner_block , VarVector && x , MultiVector && A , RealVector && b ,
-  ConstraintVector && constraints , ConstraintSideVector && sides ,
-  Observer * const observer )
+BendersBFunction::BendersBFunction( Block * inner_block , VarVector && x ,
+				    MultiVector && A , RealVector && b ,
+				    ConstraintVector && constraints ,
+				    ConstraintSideVector && sides ,
+				    Observer * const observer )
  : C05Function( observer ) , f_constraints_are_updated( false ) ,
-   f_solver_status ( 0 ) , f_diagonal_linearization_required( false ) {
-
+   f_solver_status( 0 ) , f_diagonal_linearization_required( false ) ,
+   f_id( this )
+{
  set_inner_block( inner_block );
  set_variables( std::move( x ) );
  set_mapping( std::move( A ) , std::move( b ) , std::move( constraints ) ,
               std::move( sides ) , eNoMod );
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 
-BendersBFunction::~BendersBFunction() {
+BendersBFunction::~BendersBFunction()
+{
  if( ! v_Block.empty() ) {
   assert( v_Block.size() == 1 );
   delete v_Block.front();
+  }
  }
-}
 
 /*--------------------------------------------------------------------------*/
 
@@ -1719,30 +1722,29 @@ int BendersBFunction::compute( bool changedvars ) {
  auto solver = get_solver();
 
  if( ! solver )
-  throw( std::logic_error( "BendersBFunction::compute: It is not possible to "
-                           "compute. The sub-Block has no Solver attached to "
-                           "it." ) );
+  throw( std::logic_error(
+             "BendersBFunction::compute: no Solver attached to sub-Block" ) );
 
  if( changedvars || ! f_constraints_are_updated ) {
   // update the constraints
 
   // try to lock the inner Block: if this does not work
-  auto owned = v_Block.front()->is_owned_by( this );
-  if( ( ! owned ) && ( ! v_Block.front()->lock( this ) ) )
+  auto owned = v_Block.front()->is_owned_by( f_id );
+  if( ( ! owned ) && ( ! v_Block.front()->lock( f_id ) ) )
    return( kError );     // that's clearly an error
 
   update_constraints();
 
   if( ! owned )
-   v_Block.front()->unlock( this );  // unlock the inner Block
+   v_Block.front()->unlock( f_id );  // unlock the inner Block
  }
 
  // TODO can we assume that the variables of the sub-Block haven't changed?
  f_solver_status = solver->compute( true );
 
- return f_solver_status;
+ return( f_solver_status );
 
-}  // end( BendersBFunction::compute )
+ }  // end( BendersBFunction::compute )
 
 /*--------------------------------------------------------------------------*/
 

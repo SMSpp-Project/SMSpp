@@ -117,7 +117,7 @@ LagBFunction::LagBFunction( Block * innerblock , Observer * observer )
    InnrSlvr( 0 ) , NoSol( false ) , p_InnrSlvr( nullptr ) , f_max_glob( 0 ) ,
    LastSolution( 0 ) , VarSol( true ) , f_yb( -INF ) , f_play_dumb( false ) ,
    f_dirty_Lc( false ) , LPMaxSz( 0 ) , RAccLin( 0 ) , AAccLin( 0 ) ,
-   f_BSC( new BlockSolverConfig ) , f_BSC_changed( false )
+   f_BSC( new BlockSolverConfig ) , f_BSC_changed( false ) , f_id( this )
 {
  // set the pointer to the sub-Block (B) - - - - - - - - - - - - - - - - - - -
  if( innerblock )
@@ -980,8 +980,8 @@ void LagBFunction::serialize( netCDF::NcGroup & group ) const
  //       would therefore not be serialised correctly
  // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- bool owned = v_Block.front()->is_owned_by( this );
- if( ( ! owned ) && ( ! v_Block.front()->lock( this ) ) )
+ bool owned = v_Block.front()->is_owned_by( f_id );
+ if( ( ! owned ) && ( ! v_Block.front()->lock( f_id ) ) )
   throw( std::logic_error( "cannot lock inner Block" ) );
 
  // The costs saved in (obj_B) are the Lagrangian ones. Hence, we need
@@ -1036,7 +1036,7 @@ void LagBFunction::serialize( netCDF::NcGroup & group ) const
  // back to normal operations
  const_cast< LagBFunction * >( this )->f_play_dumb = false;
  if( ! owned )
-  v_Block.front()->unlock( this );  // unlock it
+  v_Block.front()->unlock( f_id );  // unlock it
 
  }  // end( LagBFunction::serialize() )
 
@@ -1317,8 +1317,8 @@ int LagBFunction::compute( bool changedvars )
    }
 
   // if the inner Block has not been locked yet and it is not owned
-  if( ( ! tounlock ) && ( ! v_Block.front()->is_owned_by( this ) ) ) {
-   if( ! v_Block.front()->lock( this ) )  // try to lock it; failure
+  if( ( ! tounlock ) && ( ! v_Block.front()->is_owned_by( f_id ) ) ) {
+   if( ! v_Block.front()->lock( f_id ) )  // try to lock it; failure
     return( kError );                     // clearly is an error
    tounlock = true;                       // it'll have to be unlocked
    }
@@ -1339,7 +1339,7 @@ int LagBFunction::compute( bool changedvars )
 
  // if the inner Block had to be locked, for whatever reason
  if( tounlock )
-  v_Block.front()->unlock( this );  // unlock it
+  v_Block.front()->unlock( f_id );  // unlock it
 
  // if necessary, recompute the linear term- - - - - - - - - - - - - - - - - -
  if( std::isnan( f_yb ) ) {
@@ -1705,8 +1705,8 @@ void LagBFunction::load( std::istream &input )
 bool LagBFunction::flush_v_tmpCP( void )
 {
  bool tounlock = false;
- if( ! v_Block.front()->is_owned_by( this ) ) {  // if the inner Block is free
-  if( ! v_Block.front()->lock( this ) )          // try to lock it
+ if( ! v_Block.front()->is_owned_by( f_id ) ) {  // if the inner Block is free
+  if( ! v_Block.front()->lock( f_id ) )          // try to lock it
    throw( std::logic_error( "LagBFunction: cannot lock inner Block" ) );
   tounlock = true;                               // it'll have to be unlocked
   }
@@ -1808,7 +1808,7 @@ void LagBFunction::add_to_CostMatrix( v_c_dual_pair & newdp )
  // if needed, immediately flush the set of variables to be re-added to obj;
  // if the inner Block had to be locked for this, unlock it
  if( ( ! v_tmpCP.empty() ) && flush_v_tmpCP() )
-   v_Block.front()->unlock( this );
+   v_Block.front()->unlock( f_id );
 
  }  // end( LagBFunction::add_to_CostMatrix )
 

@@ -5113,8 +5113,8 @@ class Block : public Observer {
   * which is const in a const method. */
 
  Block * get_Block() const override {
-  return ( const_cast< Block * >( this ) );
- }
+  return( const_cast< Block * >( this ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns true if there is any Solver "listening to this Block"
@@ -5123,8 +5123,8 @@ class Block : public Observer {
   * (father, father of father, ...) of this Block. */
 
  bool anyone_there() const override {
-  return ( f_at || ( !v_Solver.empty() ) );
- }
+  return( f_at || ( ! v_Solver.empty() ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// tell a Block if someone "listening to" its father
@@ -5240,7 +5240,7 @@ class Block : public Observer {
  /** Method for reading the list of (pointers to) the Solvers currently
   * registered with the Block. */
 
- c_Lst_Solver & get_registered_solvers() const { return ( v_Solver ); }
+ c_Lst_Solver & get_registered_solvers( void ) const { return( v_Solver ); }
 
 /*--------------------------------------------------------------------------*/
  /// adding a Solver to the set of those currently registered

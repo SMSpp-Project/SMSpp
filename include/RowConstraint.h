@@ -285,19 +285,20 @@ class RowConstraint : public Constraint
 /** @name Constructor and destructor
     @{ */
 
- /// constructor of RowConstraint, taking the Block, LHS and RHS
+ /// constructor of RowConstraint, taking the Block
  /** Constructor of RowConstraint. Takes the pointer to the Block to which
   * the RowConstraint belongs, to be passed to the constructor of
   * Constrain (default nullptr, so that this can be used as the void
-  * constructor). */
+  * constructor). Since the base class does not directly handles LHS and
+  * RHS, there is no point for them to be passed here. */
 
  explicit RowConstraint( Block * my_block = nullptr )
-  : Constraint( my_block ), d_value( 0 ) {}
+  : Constraint( my_block ) , d_value( 0 ) {}
 
 /*--------------------------------------------------------------------------*/
+ /// destructor: it is virtual, and empty
 
  ~RowConstraint() override = default;
- ///< destructor: it is virtual, and empty
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/

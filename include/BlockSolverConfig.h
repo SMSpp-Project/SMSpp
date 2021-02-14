@@ -700,7 +700,7 @@ class BlockSolverConfig : public Configuration {
  [[nodiscard]] ComputeConfig * get_SolverConfig( Index index ) const {
   if( index >= v_SolverConfigs.size() )
    throw( std::invalid_argument(
-	           "BlockSolverConfig::get_SolverConfig:  invalid index: " +
+	           "BlockSolverConfig::get_SolverConfig: invalid index: " +
 		   std::to_string( index ) ) );
   return( v_SolverConfigs[ index ] );
   }

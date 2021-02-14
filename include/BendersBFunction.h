@@ -47,10 +47,12 @@
 /// namespace for the Structured Modeling System++ (SMS++)
 namespace SMSpp_di_unipi_it
 {
-
  class AbstractPath;       // forward declaration of AbstractPath
+
  class ConstraintMod;      // forward declaration of ConstraintMod
+
  class RowConstraint;      // forward declaration of RowConstraint
+
  class Solution;           // forward declaration of Solution
 
 /*--------------------------------------------------------------------------*/
@@ -212,13 +214,15 @@ class BendersBFunction : public C05Function , public Block {
   * actually the same, but compilers still don't like it. Disambiguate by
   * declaring we use the ThinVarDepInterface versions (but it could have been
   * the Block versions, as they are the same). */
+
  using Index    = ThinVarDepInterface::Index;
  using c_Index  = ThinVarDepInterface::c_Index;
+
  using Range    = ThinVarDepInterface::Range;
  using c_Range  = ThinVarDepInterface::c_Range;
+
  using Subset   = ThinVarDepInterface::Subset;
  using c_Subset = ThinVarDepInterface::c_Subset;
-
 
  /// public enum representing the sides of a RowConstraint
  /** Public enum representing the sides of a RowConstraint. */
@@ -543,8 +547,8 @@ class BendersBFunction : public C05Function , public Block {
   * @param destroy_previous_block indicates whether the previous inner Block
   *        must be destroyed. The default value of this parameter is \c true,
   *        which means that the previous inner Block (if any) is destroyed and
-  *        its allocated memory is released.
-  */
+  *        its allocated memory is released. */
+
  void set_inner_block( Block * block , bool destroy_previous_block = true ) {
   if( ( ! v_Block.empty() ) && block == v_Block.front() &&
       ( ! destroy_previous_block ) )
@@ -560,7 +564,7 @@ class BendersBFunction : public C05Function , public Block {
    block->set_f_Block( this );
 
   send_nuclear_modification();
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// set a given integer (int) numerical parameter
@@ -585,10 +589,9 @@ class BendersBFunction : public C05Function , public Block {
   *
   * @param par The parameter to be set.
   *
-  * @return The value of the parameter.
-  */
+  * @return The value of the parameter. */
 
- void set_par( const idx_type par , const int value ) override;
+ void set_par( idx_type par , int value ) override;
 
 /*--------------------------------------------------------------------------*/
  /// set a given float (double) numerical parameter
@@ -615,12 +618,11 @@ class BendersBFunction : public C05Function , public Block {
   *
   * @param par The parameter to be set.
   *
-  * @return The value of the parameter.
-  */
+  * @return The value of the parameter. */
 
- void set_par( const idx_type par , const double value ) override {
+ void set_par( idx_type par , double value ) override {
 
-  auto solver = get_solver<CDASolver>();
+  auto solver = get_solver< CDASolver >();
   if( ! solver )
    throw( std::invalid_argument( "BendersBFunction::set_par: the inner Block "
                                  "must have a CDASolver attached to it." ) );
@@ -680,10 +682,9 @@ class BendersBFunction : public C05Function , public Block {
   *
   * @param par The parameter whose value is desired.
   *
-  * @return The value of the required parameter.
-  */
+  * @return The value of the required parameter. */
 
- int get_int_par( const idx_type par ) const override {
+ int get_int_par( idx_type par ) const override {
   switch( par ) {
    case( intMaxIter ):
     return get_solver_int_par( Solver::intMaxIter );
@@ -713,10 +714,9 @@ class BendersBFunction : public C05Function , public Block {
   *
   * @param par The parameter whose value is desired.
   *
-  * @return The value of the required parameter.
-  */
+  * @return The value of the required parameter. */
 
- double get_dbl_par( const idx_type par ) const override {
+ double get_dbl_par( idx_type par ) const override {
   switch( par ) {
    case( dblAAccMlt ):
     return AAccMlt;
@@ -737,7 +737,40 @@ class BendersBFunction : public C05Function , public Block {
   }
 
   return C05Function::get_dbl_par( par );
- }
+  }
+
+/**@} ----------------------------------------------------------------------*/
+/*----------------- METHODS FOR MANAGING THE "IDENTITY" --------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Managing the "identity" of the BendersBFunction
+ *
+ * Actually implement the methods of ThinComputeInterface relative to
+ * temporarily changing the "identity" of the BendersBFunction.
+ *
+ *  @{ */
+
+ /// set the "identity" of the BendersBFunction
+ /** Actually implement the ThinComputeInterface::set_id() by setting the
+  * f_id member of the BendersBFunction class, which is initialized with
+  * "this" in the constructor. BendersBFunction always uses f_id to try to
+  * "lock and own" the Block. This method allows to change f_id ("lend
+  * another identity"); when called with nullptr argument, the id() is reset
+  * to the default "this". Also, if the inner Block is set and has
+  * registered Solver, their identity is also set (or reset) in anticipation
+  * that they also may have to lock() the inner Block during their line of
+  * work. */
+
+ void set_id( void * id = nullptr ) override {
+  if( f_id == id )  // nothing to do
+   return;          // silently (and cowardly) return
+
+  f_id = id ? id : this;
+
+  // propagate downwards the id change
+  if( ! v_Block.empty() )
+   for( auto s : v_Block.front()->get_registered_solvers() )
+    s->set_id( id );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE BendersBFunction -----*/
@@ -1796,8 +1829,6 @@ class BendersBFunction : public C05Function , public Block {
 
  void load( std::istream &input ) override final;
 
-/*--------------------------------------------------------------------------*/
-
 /**@} ----------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1832,6 +1863,8 @@ class BendersBFunction : public C05Function , public Block {
  FunctionValue AAccMlt;  ///< maximum absolute error in the multipliers
 
  bool f_ignore_modifications = false; ///< ignore any Modification
+
+ void * f_id;           ///< the "identity" of the BendersBFunction 
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -2084,8 +2117,8 @@ class BendersBFunction : public C05Function , public Block {
  }; // end( class( GlobalPool ) )
 
 /*--------------------------------------------------------------------------*/
-
  /// convenience class used to serialize the A matrix in sparse format
+
  template< class T >
  class SparseMatrix {
  public:
@@ -2138,15 +2171,13 @@ class BendersBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
-
  /// set a given integer (int) numerical parameter of the inner Block's Solver
  /** Set a given integer (int) numerical parameter of the Solver of the inner
   * Block.
   *
   * @param par The parameter whose value must be set.
   *
-  * @param value The value of the parameter.
-  */
+  * @param value The value of the parameter. */
 
  void set_solver_par( const idx_type par , const int value ) {
   auto solver = get_solver<CDASolver>();
@@ -2155,18 +2186,16 @@ class BendersBFunction : public C05Function , public Block {
                                  "Block must have a CDASolver attached "
                                  "to it." ) );
   solver->set_par( par , value );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// set a given float (double) numerical parameter of the inner Block's Solver
  /** Set a given float (double) numerical parameter of the Solver of the inner
   * Block.
   *
   * @param par The parameter whose value must be set.
   *
-  * @param value The value of the parameter.
-  */
+  * @param value The value of the parameter. */
 
  void set_solver_par( const idx_type par , const double value ) {
   auto solver = get_solver<CDASolver>();
@@ -2175,20 +2204,18 @@ class BendersBFunction : public C05Function , public Block {
                                  "Block must have a CDASolver attached "
                                  "to it." ) );
   solver->set_par( par , value );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// get a specific integer numerical parameter of the inner Block's Solver
  /** Get a specific integer (int) numerical parameter of the Solver of the
   * inner Block.
   *
   * @param par The parameter whose value is desired.
   *
-  * @return The value of the parameter.
-  */
+  * @return The value of the parameter. */
 
- inline int get_solver_int_par( const idx_type par ) const {
+ int get_solver_int_par( const idx_type par ) const {
   auto solver = get_solver<CDASolver>();
   if( ! solver )
    throw( std::invalid_argument( "BendersBFunction::get_solver_int_par: the "
@@ -2198,27 +2225,24 @@ class BendersBFunction : public C05Function , public Block {
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// get a specific double  numerical parameter of the inner Block's Solver
  /** Get a specific float (double) numerical parameter of the Solver of the
   * inner Block.
   *
   * @param par The parameter whose value is desired.
   *
-  * @return The value of the parameter.
-  */
+  * @return The value of the parameter. */
 
- inline double get_solver_dbl_par( const idx_type par ) const {
+ double get_solver_dbl_par( const idx_type par ) const {
   auto solver = get_solver<CDASolver>();
   if( ! solver )
    throw( std::invalid_argument( "BendersBFunction::get_solver_dbl_par: the "
                                  "inner Block must have a CDASolver attached "
                                  "to it." ) );
   return solver->get_dbl_par( par );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// update the RowConstraint of the sub-Block
  /** This function updates the RowConstraint of the sub-Block to reflect the
   * current mapping and values of the x variables.
@@ -2436,12 +2460,11 @@ class BendersBFunction : public C05Function , public Block {
  void set_default_inner_Block_configuration() {
   set_default_inner_Block_BlockSolverConfig();
   set_default_inner_Block_BlockConfig();
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
- static void static_initialization()
- {
+ static void static_initialization() {
   /*!!
    * Not all C++ compilers enjoy the template wizardry behind the three-args
    * version of register_method<> with the compact MS_*_*::args(), so we just
@@ -2463,7 +2486,7 @@ class BendersBFunction : public C05Function , public Block {
   register_method< BendersBFunction , MF_dbl_it , Range >(
 				       "BendersBFunction::modify_constants" ,
                                        & BendersBFunction::modify_constants );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
