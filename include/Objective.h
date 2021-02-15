@@ -323,8 +323,8 @@ class Objective : public ThinComputeInterface , public ThinVarDepInterface
  * different return value than double can rather re-define a similar class to
  * this. */
 
-class RealObjective : public Objective {
-
+class RealObjective : public Objective
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -345,7 +345,8 @@ class RealObjective : public Objective {
  /** @name Constructor and destructor
      @{ */
 
- explicit RealObjective( Block * my_block = nullptr ) : Objective( my_block ) {}
+ explicit RealObjective( Block * my_block = nullptr ) :
+ Objective( my_block ) {}
 
  ///< constructor of RealObjective: takes a pointer to its Block
  /**< Constructor of RealObjective: it does nothing but throw that of

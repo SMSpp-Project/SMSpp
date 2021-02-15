@@ -157,6 +157,17 @@ namespace SMSpp_di_unipi_it
  *
  *   = LinearFunction
  *
+ * - If (B) has sub-Block, each of them having a nonempty "physical Objective"
+ *   must also have an abstract Objective, which must be a :RealObjective,
+ *   so that the value() of all the Objective can be summed up to that of
+ *   the modified FRealObjective of (B) to compute the cost of each Solution
+ *   (this is not really needed for the Lagrangian cost, since this is
+ *   supposedly done by the solver, but rather for the original cost of a
+ *   solution which is necessary to compute the linearization_constant;
+ *   note that only the "root" (B) Objective is modified, so that for all the
+ *   Objective of the sub-Block of (B) the Lagrangian cost and the original
+ *   cost are the same).
+ *
  * Under these assumptions, LagBFunction can implement the required machinery
  * to use the inner Block (B), with any attached Solver, to implement the
  * C05Function interface for the Lagrangian function l( y ).
@@ -389,6 +400,8 @@ class LagBFunction : public C05Function , public Block {
 
  using Subset = ThinVarDepInterface::Subset;
  using c_Subset = ThinVarDepInterface::c_Subset;
+
+ using OFValue = RealObjective::OFValue;
 
  /* LagBFunction uses stuff from LinearFunction a lot, hence "import" here
   * corresponding names. */
@@ -1363,6 +1376,18 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  void guts_of_destructor( bool deleteinner = true );
+
+/*--------------------------------------------------------------------------*/
+
+ OFValue get_objective_value( Block * blck ) {
+  OFValue ret = 0;
+  for( auto sb : blck->get_nested_Blocks() ) {
+   if( auto ro = dynamic_cast< RealObjective * >( sb->get_objective() ) )
+    ret += ro->value();
+   ret += get_objective_value( sb );
+   }
+  return( ret );
+  }
 
 /*--------------------------------------------------------------------------*/
  /** handle every Modification, comprised GroupModification. returns true if

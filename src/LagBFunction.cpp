@@ -1508,8 +1508,15 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
  // linear term b is not involved)
   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+ // start by collecting the Objective value of all the sub-Block of the inner
+ // Block: since they are un-modified, that's the original value
+ OFValue alpha = get_objective_value( get_inner_block() );
+
+ // now add the Objective value of the inner Block: since that is modified
+ // one cannot rely on the value() of the Objective but has to compute it
+ // "by hand" using the original coefficients stored in CostMatrix
  if( obj ) {  // the linear case
-  auto alpha = obj->get_constant_term();
+  alpha += obj->get_constant_term();
   const auto & rp = obj->get_v_var();
   #ifndef NDEBUG
    if( rp.size() > CostMatrix.size() )
@@ -1517,11 +1524,9 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
   #endif
   for( Index i = 0 ; i < rp.size() ; ++i )
    alpha += rp[ i ].first->get_value() * CostMatrix[ i ].first;
-
-  return( alpha );
   }
  else {       // the quadratic case
-  auto alpha = qobj->get_constant_term();
+  alpha += qobj->get_constant_term();
   const auto & rp = qobj->get_v_var();
   #ifndef NDEBUG
    if( rp.size() > CostMatrix.size() )
@@ -1531,8 +1536,10 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
    auto val = std::get< 0 >( rp[ i ] )->get_value();
    alpha += ( std::get< 2 >( rp[ i ] ) * val + CostMatrix[ i ].first ) * val;
    }
-  return( alpha );
   }
+
+ return( alpha );
+
  }  // end( LagBFunction::get_linearization_constant )
 
 /*--------------------------------------------------------------------------*/
