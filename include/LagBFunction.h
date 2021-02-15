@@ -1382,8 +1382,10 @@ class LagBFunction : public C05Function , public Block {
  OFValue get_objective_value( Block * blck ) {
   OFValue ret = 0;
   for( auto sb : blck->get_nested_Blocks() ) {
-   if( auto ro = dynamic_cast< RealObjective * >( sb->get_objective() ) )
+   if( auto ro = dynamic_cast< RealObjective * >( sb->get_objective() ) ) {
+    ro->compute();
     ret += ro->value();
+    }
    ret += get_objective_value( sb );
    }
   return( ret );
