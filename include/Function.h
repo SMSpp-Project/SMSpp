@@ -163,44 +163,17 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
  using c_Vec_FunctionValue = const Vec_FunctionValue;
 
 /*--------------------------------------------------------------------------*/
- /// public enum for the int algorithmic parameters of Function
- /** Public enum describing the different parameters of "int" type that a
-  * Function must have (although specific Function may choose to ignore some
-  * of them). The value intLastParFun is provided so that the list can be
-  * easily further extended by derived classes. */
+ /// public enum for the int algorithmic parameters of Solver
+ /** Public enum "extending" int_par_type_TCI to describe the different
+  * algorithmic parameters of "int" type that any Function should reasonably
+  * have on top of those defined by ThinComputeInterface (although specific
+  * :Function may choose to ignore some of them); currently none. The value
+  * intLastParFun is provided so that the list can be easily extended by
+  * derived classes. */
 
  enum int_par_type_F {
-  intMaxIter = 0 ,  ///< maximum iterations for the next call to compute()
-                    /**< The algorithmic parameter for setting the maximum
-		     * number of iterations in the next call to compute().
-   * The concept of "what exactly an iteration is" is clearly dependent on the
-   * Function, and it may not even make sense for all Function. However, some
-   * Function will actually be iterative processes, and therefore it makes
-   * sense to offer support for this notion in the base class. The default is
-   * Inf<int>() = no limits. */
-
-  intMaxThread ,  ///< maximum number of threads that compute() can spawn
-                  /**< The algorithmic parameter for setting the maximum
-		   * number of threads that the next call to compute() is
-   * allowed to spawn while computinf the function. Actually "thread" here
-   * is intended in a loose sense, since each :Function will decide if and how
-   * to implememnt any asynchronous part, and hence which tools will be used
-   * to manage it. If std::asynch is used, for instance, then what is easily
-   * kept under control is the number of tasks, which may or may not coincide
-   * with the number of threads depending on the scheduler implementation.
-   * Specific :Function requiring more fine control of these aspects can
-   * define their own specific algorithmic parameters, but the concept of
-   * "maximum allowed amount of computational resources" (as governed by a
-   * simple int) should be general enough as to warrant a parameter in the
-   * base Function class. The default is 0, which means that compute() must
-   * only use the thread/task that is calling it. Note that this does not
-   * prevent the caller to call compute() in an asynchronous way, see e.g.
-   * ThinComputeInterface::compute_async() for an example, but in this case
-   * the responsibility of spawning (and then controlling) the new task is on
-   * the caller, while this parameter controls what happens inside compute().
-   */
-
-  intLastParFun   ///< first allowed new int parameter for derived classes
+  intLastParFun = intLastAlgParTCI
+                  ///< first allowed new int parameter for derived classes
                   /**< Convenience value for easily allow derived classes
 		   * to extend the set of int algorithmic parameters. */
 
@@ -208,24 +181,18 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
 
 /*--------------------------------------------------------------------------*/
  /// public enum for the double algorithmic parameters of Function
- /** Public enum describing the different parameters of "double" type that a
-  * Function must have (although specific Function may choose to ignore some
-  * of them). The value dblLastParFun is provided so that the list can be
-  * easily further extended by derived classes. */
+ /** Public enum "extending" dbl_par_type_TCI to describe the different
+  * algorithmic parameters of "double" type that any Function should
+  * reasonably have on top of those defined by ThinComputeInterface (although 
+  * specific Function may choose to ignore some of them). The value
+  * dblLastParFun is provided so that the list can be easily extended by
+  * derived classes. */
 
  enum dbl_par_type_F {
-  dblMaxTime = 0 ,  ///< maximum time for the next call to compute()
-                    /**< The parameter for setting the maximum time limit for
-		     * the next call to compute(). The value is assumed to be
-   * in seconds, and it's a double (so both very fast and very slow
-   * computations are supported). The Function class (so far) does not
-   * explicitly distinguish between "wall-clock time" and "CPU time", which
-   * may be rather different especially in a parallel environment. The
-   * default is Inf<double>(). */
-
-  dblRelAcc ,    ///< relative accuracy for the value of the function
+  dblRelAcc = dblLastAlgParTCI  ,
+                 ///< relative accuracy for the value of the Function
                  /**< The parameter for setting the *relative* accuracy
-		  * required to the function value. That is, if both an upper
+		  * required to the Function value. That is, if both an upper
    * bound "ub" [see get_upper_estimate()] and a lower bound "lb" [see
    * get_lower_estimate()] on the value have been found, then compute() can
    * stop as soon as
@@ -662,12 +629,13 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
 /*--------------------------------------------------------------------------*/
 
  [[nodiscard]] int get_dflt_int_par( idx_type par ) const override {
-  if( par == intMaxIter )
-   return( std::numeric_limits< int >::infinity() );
-  if( par == intMaxThread )
-   return( 0 );
+  switch( par ) {
+   case( intMaxIter ):   return( std::numeric_limits< int >::infinity() );
+   case( intMaxThread ): return( 0 );
+   case( intEverykIt ):  return( 0 );
+   }
 
-  return( ThinComputeInterface::get_dflt_int_par( par ) );
+  throw( std::invalid_argument( "invalid int parameter name" ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -675,13 +643,14 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
  [[nodiscard]] double get_dflt_dbl_par( idx_type par ) const override {
   switch( par ) {
    case( dblMaxTime ):  return( std::numeric_limits< double >::infinity() );
+   case( dblEveryTTm ): return( 0 );
    case( dblRelAcc ):   return( 1e-6 );
    case( dblAbsAcc ):
    case( dblUpCutOff ): return( std::numeric_limits< double >::infinity() );
-   case( dblLwCutOff ):  return( -std::numeric_limits< double >::infinity() );
+   case( dblLwCutOff ): return( -std::numeric_limits< double >::infinity() );
    }
 
-  return( ThinComputeInterface::get_dflt_dbl_par( par ) );
+  throw( std::invalid_argument( "invalid double parameter name" ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -692,8 +661,10 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
    return( intMaxIter );
   if( name == "intMaxThread" )
    return( intMaxThread );
+  if( name == "intEverykIt" )
+   return( intEverykIt );
 
-  return( ThinComputeInterface::int_par_str2idx( name ) );
+  return( Inf< idx_type >() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -702,6 +673,8 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
   const override {
   if( name == "dblMaxTime" )
    return( dblMaxTime );
+  if( name == "dblEveryTTm" )
+   return( dblEveryTTm );
   if( name == "dblRelAcc" )
    return( dblRelAcc );
   if( name == "dblAbsAcc" )
@@ -711,21 +684,20 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
   if( name == "dblLwCutOff" )
    return( dblLwCutOff );
 
-  return( ThinComputeInterface::dbl_par_str2idx( name ) );
+  return( Inf< idx_type >() );
   }
 
 /*--------------------------------------------------------------------------*/
 
  [[nodiscard]] const std::string & int_par_idx2str( idx_type idx )
   const override {
-  static const std::string mi = "intMaxIter";
-  static const std::string mt = "intMaxThread";
-  if( idx == intMaxIter )
-   return( mi );
-  if( idx == intMaxThread )
-   return( mt );
+  static const std::vector< std::string > pars = { "intMaxIter" ,
+						   "intMaxThread" ,
+						   "intEverykIt" };
+  if( ( idx >= intMaxIter ) && ( idx <= intEverykIt ) )
+   return( pars[ idx ] );
 
-  return( ThinComputeInterface::int_par_idx2str( idx ) );
+  throw( std::invalid_argument( "invalid int parameter name" ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -733,12 +705,12 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
  [[nodiscard]] const std::string & dbl_par_idx2str( idx_type idx )
   const override {
   static const std::vector< std::string > pars = { "dblMaxTime" ,
-       "dblRelAcc" , "dblAbsAcc" , "dblUpCutOff" , "dblLwCutOff" };
+  "dblEveryTTm" , "dblRelAcc" , "dblAbsAcc" , "dblUpCutOff" , "dblLwCutOff" };
 
   if( ( idx >= dblMaxTime ) && ( idx <= dblLwCutOff ) )
    return( pars[ idx ] );
 
-  return( ThinComputeInterface::dbl_par_idx2str( idx ) );
+  throw( std::invalid_argument( "invalid double parameter name" ) );
   }
 
 /**@} ----------------------------------------------------------------------*/

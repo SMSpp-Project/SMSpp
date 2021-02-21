@@ -103,8 +103,8 @@ class Constraint;  // forward definition
  * POSSIBLE: copying a Constraint to a different memory location makes a
  * distinct Constraint. */
 
-class Constraint : public ThinComputeInterface , public ThinVarDepInterface {
-
+class Constraint : public ThinComputeInterface , public ThinVarDepInterface
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/

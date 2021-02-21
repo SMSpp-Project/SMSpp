@@ -47,7 +47,7 @@ using namespace SMSpp_di_unipi_it;
 /* Used in reset_event_handler(). For some unfathomable reason need be
  * defined as a function rather than as a Lambda. */
 
-int do_nothing() { return ( Solver::eContinue ); };
+int do_nothing( void ) { return( Solver::eContinue ); };
 
 /*--------------------------------------------------------------------------*/
 /*----------------------------- STATIC MEMBERS -----------------------------*/
@@ -65,57 +65,55 @@ SMSpp_insert_in_factory_cpp_0( UpdateSolver );
 /*--------------------------------------------------------------------------*/
 // define and initialize here the vector of int parameters names
 const std::vector< std::string > Solver::int_pars_str = {
- "intMaxIter", "intMaxThread", "intMaxSol", "intEverykIt", "intLogVerb" };
+ "intMaxIter" , "intMaxThread" , "intEverykIt" , "intMaxSol" , "intLogVerb" };
 
 // define and initialize here the vector of double parameters names
 const std::vector< std::string > Solver::dbl_pars_str =
- { "dblMaxTime", "dblRelAcc", "dblAbsAcc",
-   "dblUpCutOff", "dblLwCutOff", "dblRAccSol",
-   "dblAAccSol", "dblFAccSol", "dblEveryTTm"
- };
+ { "dblMaxTime" ,  "dblEveryTTm" , "dblRelAcc" , "dblAbsAcc" , "dblUpCutOff" ,
+   "dblLwCutOff" , "dblRAccSol" , "dblAAccSol" , "dblFAccSol"  };
 
 // define and initialize here the map for int parameters names
 const std::map< std::string, Solver::idx_type > Solver::int_pars_map =
  { { "intMaxIter",   Solver::intMaxIter },
    { "intMaxThread", Solver::intMaxThread },
-   { "intMaxSol",    Solver::intMaxSol },
    { "intEverykIt",  Solver::intEverykIt },
+   { "intMaxSol",    Solver::intMaxSol },
    { "intLogVerb",   Solver::intLogVerb }
  };
 
 // define and initialize here the map for double parameters names
 const std::map< std::string, Solver::idx_type > Solver::dbl_pars_map =
- { { "dblMaxTime",  Solver::dblMaxTime },
-   { "dblRelAcc",   Solver::dblRelAcc },
-   { "dblAbsAcc",   Solver::dblAbsAcc },
-   { "dblUpCutOff", Solver::dblUpCutOff },
-   { "dblLwCutOff", Solver::dblLwCutOff },
-   { "dblRAccSol",  Solver::dblRAccSol },
-   { "dblAAccSol",  Solver::dblAAccSol },
-   { "dblFAccSol",  Solver::dblFAccSol },
-   { "dblEveryTTm", Solver::dblEveryTTm }
+ { { "dblMaxTime",  Solver::dblMaxTime } ,
+   { "dblEveryTTm", Solver::dblEveryTTm } ,
+   { "dblRelAcc",   Solver::dblRelAcc } ,
+   { "dblAbsAcc",   Solver::dblAbsAcc } ,
+   { "dblUpCutOff", Solver::dblUpCutOff } ,
+   { "dblLwCutOff", Solver::dblLwCutOff } ,
+   { "dblRAccSol",  Solver::dblRAccSol } ,
+   { "dblAAccSol",  Solver::dblAAccSol } ,
+   { "dblFAccSol",  Solver::dblFAccSol }
  };
 
 // define and initialize here the default int parameters
 const std::vector< int > Solver::dflt_int_par =
- { Inf< int >(),  // intMaxIter
-   0,           // intMaxThread
-   1,           // intMaxSol
-   0,           // intEverykIt
-   0             // intLogVerb
- };
+ { Inf< int >() ,  // intMaxIter
+   0 ,             // intEverykIt
+   0 ,             // intMaxThread
+   1 ,             // intMaxSol
+   0               // intLogVerb
+  };
 
 // define and initialize here the default double parameters
 const std::vector< double > Solver::dflt_dbl_par =
- { Inf< double >(),             // dblMaxTime
-   1e-6,                        // dblRelAcc
-   Inf< Solver::OFValue >(),    // dblAbsAcc
-   Inf< Solver::OFValue >(),    // dblUpCutOff
-   -Inf< Solver::OFValue >(),   // dblLwCutOff
-   Inf< Solver::OFValue >(),    // dblRAccSol
-   Inf< Solver::OFValue >(),    // dblAAccSol
-   0,                           // dblFAccSol
-   0                            // dblEveryTTm
+ { Inf< double >() ,            // dblMaxTime
+   0 ,                          // dblEveryTTm
+   1e-6 ,                       // dblRelAcc
+   Inf< Solver::OFValue >() ,   // dblAbsAcc
+   Inf< Solver::OFValue >() ,   // dblUpCutOff
+   -Inf< Solver::OFValue >() ,  // dblLwCutOff
+   Inf< Solver::OFValue >() ,   // dblRAccSol
+   Inf< Solver::OFValue >() ,   // dblAAccSol
+   0                            // dblFAccSol
  };
 
 /*--------------------------------------------------------------------------*/

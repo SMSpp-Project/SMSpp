@@ -58,11 +58,11 @@ namespace SMSpp_di_unipi_it
  * computational component, i.e., some operations are computationally
  * demanding and therefore require being dealt with care:
  *
- * - the operations have parameters (possibly, many and complex) determining
- *   how exactly they are performed;
+ * - the computation has parameters (possibly, many and complex) determining
+ *   how exactly it is performed;
  *
- * - the operations may not necessarily suceed, especially if only allowed a
- *   limited the amount of computational resources (which may be done by
+ * - the computation may not necessarily suceed, especially if only allowed
+ *   a limited the amount of computational resources (which may be done by
  *   setting some of the above parameters);
  *
  * - the computation may depend on the value of some set of Variable, and a
@@ -75,10 +75,11 @@ namespace SMSpp_di_unipi_it
  *   which is provided by the "event handlers" mechanics;
  *
  * - the computation may take time (or other computational resources) that
- *   the caller may want to be able to know;
+ *   the caller may want to be able to measure;
  *
- * - the operations may be performed asyncronously on a different thread,
- *   which implies some kind of synchronization e.g. via Block::lock().
+ * - the operations may be performed asyncronously on one or more different
+ *   threads, which implies some kind of synchronization, e.g. via
+ *   Block::lock().
  *
  * Objects with this behaviour are (obviously) Solver [see Solver.h], but also
  * possibly Function [see Function.h], Constraint [see Constraint.h] and
@@ -108,12 +109,11 @@ namespace SMSpp_di_unipi_it
  * do not have to pay any implementation cost for features that are not
  * justified. The exception to this rule is the definition of the
  * ComputeConfig class and the methods for reading and writing a
- * ComputeConfig; these can be implemented using the abstract part of
- * the interface, and therefore potentially need to be implemented only
- * once. */
+ * ComputeConfig; these can be implemented using the abstract part of the
+ * interface, and therefore potentially need to be implemented only once. */
 
-class ThinComputeInterface {
-
+class ThinComputeInterface
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -130,52 +130,72 @@ class ThinComputeInterface {
 
 /*--------------------------------------------------------------------------*/
  /// public enum for the possible return values of compute()
+ /** The enum compute_type is used to define the meaning of the return value
+  * of the compute() method. The values are subdivided in four different
+  * segments intended to represent four differen sets of conditions:
+  *
+  * - All return values <= kUnEval mean that the process of compute() has not
+  *   finished yet. This may mean a few different things (which is why kUnEval
+  *   is not 0), like "compute() has not been called", "compute() is actually
+  *   running right now", or "compute() had been called and it did finish, but
+  *   the thing that had to be compute()-d changed in the meantime" (like,
+  *   this was solving a Block that has undergone some change). The specific
+  *   values are left to derived classes (save for kStillRunning), but the
+  *   general gist is that any value <= kUnEval means that the solution
+  *   process has not yet reached a state where a solution can be declared,
+  *   or such a state was reached but has been lost for some reason. It has
+  *   to be remarked that these values are not really expected as return
+  *   values of compute(), since by definition when compute() returns the
+  *   evaluation has finished (albeit possibly with an error state); rather
+  *   these are values that the "status variable inside of compute()" can
+  *   take while compute() is running, and that can be useful e.g. in
+  *   conjunction with event handlers.
+  *
+  * - Any return value between kUnEval (excluded) and kOK (included) means
+  *   that the computation ran smoothly, obtaining the desired answer within
+  *   the allowed limits on the available limits on computational resources
+  *   (if any). The fact that multiple values are allowed corresponds to the
+  *   fact that "the desired answer" may in fact be of different types, such
+  *   as that some optimization problem has been conclusively solved to
+  *   optimality, or conclusively shown to be empty, or conclusively shown to
+  *   be unbounded. The details are again left to derived classes.
+  *
+  * - Any return value between kOK and kError, extremes excluded, means that
+  *   the computation terminated in a "recoverable error state" whereby
+  *   compute() was not able to conclusively obtain all of the desired answer
+  *   (although it may have already obtained a part of it), but this was due
+  *   to some reason that forced it to stop early on, such as a limit imposed
+  *   on the available computational resources. By relaxing the limit, which
+  *   may be as simple as calling compute() again, compute() may further
+  *   proceed in the computation process, possibly providing a kOK-type
+  *   answer.
+  *
+  * - Finally, any return value >= kError means that the computation was
+  *   forced to stop due to some error for which there is no readily
+  *   available recourse, say a numerical issue or being required to lock()
+  *   the corresponding Block and being unable to do so. The computation is
+  *   assumed to have not been able to obtain all of the desired answer,
+  *   although it may have obtained a part of it; say, proving that an
+  *   optimization problem is not unfeasible by producing at least a feasible
+  *   solution, but not being able to certify that it is an optimal solution.
+  *   Yet, as opposed to kOK < return code < kError, calling again compute()
+  *   is not supposed to be able to solve the issue, which is therefore not
+  *   simply one of lack of computational resources. Specific values > kError
+  *   can be used to specify more information about the specific kind of
+  *   error that the ThinComputeInterface is experiencing. */
 
  enum compute_type {
-  kUnEval = 3,   ///< compute() has not been called yet
-  /**< Any return value between 0 and kUnEval (extremes included) means that
-   * the process of compute() has not finished yet. This may mean a few
-   * different things (which is why kUnEval is not 0), like "compute() has
-   * not been called", "compute() is actually running right now", or
-   * "compute() had been called and it did finish, but the thing that had to
-   * be compute()-d changed in the meantime" (like, this was solving a Block
-   * that has undergone some change). The specific values are left to derived
-   * classes, but the general gist is that any value <= kUnEval means that
-   *the solution process has not yet reached a state where a solution can be
-   * declared (or such a state has been lost for some reason). */
+  kStillRunning = 2 ,  ///< not stopped yet
+                       /**< compute() was called again while it has not
+			* already terminated, for instance from within an
+			* event handler. */
 
-  kOK = 10,      ///< successful compute()
-  /**< Any return value between kUnEval (excluded) and kOK (included) means
-   * that the object ran smoothly, obtaining the desired answer within the
-   * allowed limits on the available limits on computational resources (if
-   * any). The fact that multiple values are allowed corresponds to the fact
-   * that "the desired answer" may in fact be of different types, such as
-   * that some optimization problem has been conclusively solved to
-   * optimality, or conclusively shown to be empty, or conclusively shown to
-   * be unbounded. */
+  kUnEval = 3 ,   ///< compute() has not been called yet
 
-  kError = 18,   ///< compute() stopped because of unrecoverable error
-  /**< Any return value >= kError means that the object was forced to stop
-   * due to some error, e.g. of numerical nature or because of lack of some
-   * crucial resource (say, memory or CPU time). The error is of the
-   * irrecoverable type, i.e., the computation is assumed to have not been
-   * able to obtain all of the desired answer (although it may have obtained a
-   * part of it, say proving that an optimization problem is not unfeasible by
-   * producing at least a feasible solution, but not being able to certify an
-   * optimal solution). Specific values > kError can be used to specify more
-   * information about the specific kind of error that the object is
-   * experiencing.
-   *
-   * Note that this leaves out all return values comprised between kOK and
-   * kError, extremes excluded. These are left for "recoverable error states"
-   * where compute() was not able to conclusively obtain all of the desired
-   * answer (although it may have already obtained a part of it), but this was
-   * due to some reason that forced it to stop early on, such as a limit
-   * imposed on the available computational resources. By relaxing the limit,
-   * which may be as simple as calling compute() again, compute() may further
-   * proceed in the computation process, possibly providing a kOK-type
-   * answer. */
+  kOK = 10 ,      ///< successful compute()
 
+  kError = 18     ///< compute() stopped because of unrecoverable error
+ 
   };  // end( compute_type )
 
 /*--------------------------------------------------------------------------*/
@@ -200,7 +220,7 @@ class ThinComputeInterface {
   * a unique ID that can be, and should, used later on to un-register it. One
   * does not expect more than 65536 event handlers being registered to any
   * sentible ThinComputeInterface, but should it be so, the definition of
-  * EventID could be changed accordingly. */
+  * EventID could be changed accordingly here. */
 
  using EventID = unsigned short int;
 
@@ -214,7 +234,7 @@ class ThinComputeInterface {
   * support. */
 
  enum event_type {
-  eBeforeTermination = 0,   ///< event to be called just prior to terminating
+  eBeforeTermination = 0 ,  ///< event to be called just prior to terminating
                             /**< Type of events that will be called right
                              * before compute() terminates. This is provided
    * in particular to handle cases such as a computation entailing the
@@ -229,14 +249,14 @@ class ThinComputeInterface {
    * sense for the compute() at hand) and check the stopping conditions
    * again. */
 
-  eEverykIteration = 1,   ///< events to be called every k iterations
+  eEverykIteration = 1 ,  ///< events to be called every k iterations
                           /**< Type of events that will be called every
                            * k iterations, whatever "iteration" means for
    * the compute() at hand. The value of k is to be set with a separate
    * algorithmic parameter, properly defined by derived classes actually
    * implementing the mechanism. */
 
-  eEveryTTime = 2,   ///< events to be called periodically in time
+  eEveryTTime = 2 ,  ///< events to be called periodically in time
                      /**< Type of events that will be called periodically
 		      * every fixed amount T of time. The value of T is to be
    * set with a separate algorithmic parameter, properly defined by derived
@@ -262,7 +282,7 @@ class ThinComputeInterface {
   * by the return value of the event handler. */
 
  enum action_type {
-  eForceContinue = 0,   ///< force compute() to continue even if it would stop
+  eForceContinue = 0 ,  ///< force compute() to continue even if it would stop
                         /**< If compute() was going to stop because it
                          * considered the computation to be over, force it
    * to reconsider this. A typical case in which this can happen is if the
@@ -274,7 +294,7 @@ class ThinComputeInterface {
    * value instructs compute() to check if this has happened (provided, of
    * course, that this makes any sense for the compute() at hand). */
 
-  eContinue = kUnEval,   ///< continue compute()
+  eContinue = kUnEval ,  ///< continue compute()
                          /**< If the event handler returns any value
                           * comprised between 0 and eContinue (extremes
    * included, then compute() will continue. In particular, eContinue means
@@ -283,7 +303,7 @@ class ThinComputeInterface {
    * kUnEval to simplify handling of return errors between the event handler
    * and compute(), see eStopOK and eStopError for details. */
 
-  eStopOK = kOK,         ///< force compute() to stop returning success
+  eStopOK = kOK ,        ///< force compute() to stop returning success
                          /**< If the event handler returns any value
                           * comprised between eContinue (excluded) and
    * eStopOK (included), compute() should immediately stop (some delay is
@@ -336,7 +356,102 @@ class ThinComputeInterface {
    * handling, and therefore ensure that the return value is valid for that
    * compute(). */
 
-  };  // end( compute_type )
+  };  // end( action_type )
+
+/*--------------------------------------------------------------------------*/
+ /// public enum for the int algorithmic parameters
+ /** Public enum describing the different algorithmic parameters of "int" type
+  * that any ThinComputeInterface could reasonably have. The value
+  * intLastAlgParTCI is provided so that the list can be easily extended by
+  * derived classes.
+  *
+  * In the true spirit of a "thin" base class, ThinComputeInterface defines
+  * these values but it does *not* handle them, not even returning the right
+  * default values; this is entirely demanded to derived classes (however,
+  * it is expected that the abstract base classes deriving from
+  * ThinComputeInterface like Function, Solver, etc. will do part of the job
+  * for their concrete implementations further down the derivation chain. */
+
+ enum int_par_type_TCI {
+  intMaxIter = 0 ,  ///< maximum iterations for the next call to compute()
+                    /**< The algorithmic parameter for setting the maximum
+                     * number of iterations that the next call to compute() is
+  * allowed to execute for trying to solve the Block. The concept of "what
+  * exactly an iteration is" is clearly :ThinComputeInterface-dependent, and
+  * the user of the :ThinComputeInterface need supposedly be aware of which
+  * concrete :ThinComputeInterface it is actually using to be able to
+  * sensibly set this parameter. Yet, because most complex computation
+  * processes are inherently iterative, hence it makes sense to offer
+  * support for this notion in the base class. More refined ones can easily
+  * be added by derived classes. The default is Inf<int>(). */
+
+  intMaxThread ,  ///< maximum number of threads that compute() can spawn
+                  /**< The algorithmic parameter for setting the maximum
+                   * number of threads that the next call to compute() is
+  * allowed to spawn while trying to solve the Block. Actually "thread" here
+  * is intended in a loose sense, since each ::ThinComputeInterface will
+  * decide if and how to implememnt any asynchronous part, and hence which
+  * tools will be used to manage it. If std::asynch is used, for instance,
+  * then what is easily kept under control is the number of tasks, which may
+  * or may not coincide with the number of threads depending on the scheduler
+  * implementation. Specific :ThinComputeInterface requiring more fine
+  * control of these aspects can define their own specific algorithmic
+  * parameters, but the concept of "maximum allowed amount of computational
+  * resources" (as governed by a simple int) should be general enough as to
+  * warrant a parameter in the base class. The default is 0, which means that
+  * compute() must only use the thread/task that is calling it. Note that
+  * this does not prevent the caller to call compute() in an asynchronous
+  * way, see e.g. compute_async() for an example, but in this case the
+  * responsibility of spawning (and then controlling) the new task is on
+  * the caller, while this parameter controls what happens inside compute().
+  */
+
+  intEverykIt,  ///< how often call events of type eEverykIteration
+                /**< This parameter decides every how many iterations the
+                 * events of type eEverykIteration are called. The default
+  * value is 0, meaning that events of that type are never called. A value of
+  * 1 rather means that the events are called at every iteration. */
+
+  intLastAlgParTCI   ///< first allowed new int parameter for derived classes
+                     /**< Convenience value for easily allow derived classes
+		      * to extend the set of int algorithmic parameters. */
+  };  // end( int_par_type_TCI )
+
+/*--------------------------------------------------------------------------*/
+ /// public enum for the double algorithmic parameters
+ /** Public enum describing the different algorithmic parameters of "double"
+  * type that any ThinComputeInterface could reasonably have. The value
+  * dblLastAlgParTCI is provided so that the list can be easily extended by
+  * derived classes.
+  *
+  * In the true spirit of a "thin" base class, ThinComputeInterface defines
+  * these values but it does *not* handle them, not even returning the right
+  * default values; this is entirely demanded to derived classes (however,
+  * it is expected that the abstract base classes deriving from
+  * ThinComputeInterface like Function, Solver, etc. will do part of the job
+  * for their concrete implementations further down the derivation chain. */
+
+ enum dbl_par_type_TCI {
+  dblMaxTime = 0 ,  ///< maximum time for the next call to compute()
+                    /**< the algorithmic parameter for setting the maximum 
+		     * time limit that the next call to compute() can expend.
+  * The value is assumed to be in seconds, and it's a double (so both very
+  * quick and very slow compute() are supported). ThinComputeInterface does
+  * not explicitly distinguish between "wall-clock time" and "CPU time",
+  * which may be rather different especially in a parallel environment, but
+  * this concept can be easily added by derived classes. The default is
+  * Inf<double>(). */
+
+  dblEveryTTm ,  ///< how often call events of type eEveryTTime
+                 /**< This parameter sets the period (amount of time) T with
+                  * which events of type eEveryTTime are called. The default
+  * value is 0, meaning that events of that type are never called. */
+
+  dblLastAlgParTCI
+                 ///< first allowed new double parameter for derived classes
+                 /**< Convenience value for easily allow derived classes to
+		  * extend the set of double algorithmic parameters. */
+  };  // end( dbl_par_type_TCI )
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- CONSTRUCTING AND DESTRUCTING ThinComputeInterface ------------*/

@@ -2365,7 +2365,7 @@ class Block : public Observer {
   * non-nullptr) the abstract representation of the Objective must have been
   * constructed, cf. generate_objective(). */
 
- Objective * get_objective() const { return ( f_Objective ); }
+ Objective * get_objective( void ) const { return( f_Objective ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// template method to get the the current Objective
