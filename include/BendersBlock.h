@@ -9,7 +9,7 @@
  *
  * \version 0.1
  *
- * \date 25 - 03 - 2020
+ * \date 09 - 03 - 2021
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -163,23 +163,43 @@ public:
 /** @name Reading the data of the BendersBlock
     @{ */
 
- /// Returns the number of Variable of this BendersBlock
+ /// Return the number of Variable of this BendersBlock
  /** This function returns the number of Variable of this BendersBlock.
-  */
+  *
+  * @return The number of Variable of this BendersBlock. */
 
- inline Index get_number_variables() const {
+ Index get_number_variables() const {
   return v_variables.size();
  }
 
 /*--------------------------------------------------------------------------*/
 
  /// returns the vector of ColVariable of this BendersBlock
- /** Returns a const reference to the vector of ColVariable of this
-  * BendersBlock.
-  */
+ /** This function returns a const reference to the vector of ColVariable of
+  * this BendersBlock.
+  *
+  * @return A const reference to the vector of ColVariable of
+  *         this BendersBlock. */
 
- inline const std::vector< ColVariable > & get_variables() const {
+ const std::vector< ColVariable > & get_variables() const {
   return v_variables;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns a vector with the values of the ColVariable of this BendersBlock
+ /** This function return a vector containing the values of the of ColVariable
+  * of this BendersBlock.
+  *
+  * @return A vector containing the values of the of ColVariable
+  *         of this BendersBlock. */
+
+ std::vector< double > get_variable_values() const {
+  std::vector< double > variable_values;
+  variable_values.reserve( v_variables.size() );
+  for( const auto & variable : v_variables )
+   variable_values.push_back( variable.get_value() );
+  return variable_values;
  }
 
 /**@} ----------------------------------------------------------------------*/
