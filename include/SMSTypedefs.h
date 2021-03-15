@@ -319,13 +319,25 @@ using KD_c_Vec_List_p_Const = const boost::multi_array< List_p_Const, K >;
  * it has to be actually included in the final executable. If a component
  * using this feature is not *explicitly* referenced anywhere in all the
  * linked objects, the linker may decide to exclude it from the final
- * executable. If this happens, the code inserting it in the factory is not
- * included. In this case, one must either forcibly include an object of the
- * specific type in the final main, or use the option of the linker that
- * disables this optimization (e.g., at the time of writing "whole-archive"
- * for g++ and "force_load" for clang++).
- * @{
- */
+ * executable. This is particularly common when the unit containing the object
+ * is contained in a dynamic library. In this case you may end up seeing an
+ * error of the kind
+ *
+ *     terminate called after throwing an instance of 'std::invalid_argument'
+ *      what():  XXXX not present in YYYY factory
+ *
+ * If this happens, it is because the code inserting it in the factory has not
+ * been included due to having been aggressively optimised out by the linker.
+ * In this case, one must either forcibly include an object of the specific
+ * type in the final main (which requires also #include-ing the corresponding
+ * headers, and it is therefore best avoided), or use options of the linker
+ * that disable this optimization; at the time of writing this is
+ * "--no-as-needed" for g++ (to be passed as "-Wl,--no-as-needed" if the
+ * linker is invoked via the compiler), and "-all_load" for clang++. Note that
+ * the behaviour depends on the default settings of the linker and therefore
+ * it may change even for the same compiler toolchain on different OS
+ * distributions
+ * @{ */
 
 /** The macro defines a very small, "fake" class _init. Its only meaning is to
  * define a static member _initializer that is initialized in whatever object
