@@ -7,7 +7,7 @@
  *
  * \version 0.01
  *
- * \date 17 - 09 - 2020
+ * \date 17 - 03 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -462,11 +462,21 @@ class BendersBFunction : public C05Function , public Block {
   *
   * @param issueMod which decides if and how the FunctionMod (with shift()
   *        == FunctionMod::NaNshift, i.e., "everything changed") is issued,
-  *        as described in Observer::make_par(). The default is eNoMod,
-  *        since the method is mostly thought to be used during initialization
-  *        when "no one is listening". */
+  *        as described in Observer::make_par(). */
 
- void deserialize( const netCDF::NcGroup & group , ModParam issueMod = eNoMod );
+ void deserialize( const netCDF::NcGroup & group , ModParam issueMod );
+
+/*--------------------------------------------------------------------------*/
+
+ /// de-serialize a BendersBFunction out of netCDF::NcGroup
+ /** This method simply calls deserialize( group , eNoMod ). Please refer to
+  * the comments to that method for details. The value eNoMod is passed as
+  * argument, since this method is mostly thought to be used during
+  * initialization when "no one is listening". */
+
+ void deserialize( const netCDF::NcGroup & group ) override {
+  deserialize( group , eNoMod );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// destructor of BendersBFunction
@@ -1864,7 +1874,7 @@ class BendersBFunction : public C05Function , public Block {
 
  bool f_ignore_modifications = false; ///< ignore any Modification
 
- void * f_id;           ///< the "identity" of the BendersBFunction 
+ void * f_id;           ///< the "identity" of the BendersBFunction
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
