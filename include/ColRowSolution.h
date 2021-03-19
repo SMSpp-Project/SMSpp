@@ -191,13 +191,14 @@ public:
  /// adds a multiple of the given \p solution to this ColRowSolution
  /** This method adds a multiple of the primal and dual values stored in \p
   * solution to the values stored in this ColRowSolution. The Solution
-  * provided as argument must have the same structure as this ColRowSolution.
-  * If the value associated with a Variable is "v" in this ColRowSolution and
-  * "v2" in the Solution provided as argument, then it will become "v +
-  * multiplier * v2" in this ColRowSolution. Analogously, if the dual value
-  * associated with a RowConstraint is "v" in this ColRowSolution and "v2" in
-  * the Solution provided as argument, then it will become "v + multiplier *
-  * v2" in this ColRowSolution. */
+  * provided as argument must have the same structure as this ColRowSolution,
+  * unless this ColRowSolution is empty, in which case this ColRowSolution
+  * gets the same structure as that of \p solution.  If the value associated
+  * with a Variable is "v" in this ColRowSolution and "v2" in \p solution,
+  * then it will become "v + multiplier * v2" in this
+  * ColRowSolution. Analogously, if the dual value associated with a
+  * RowConstraint is "v" in this ColRowSolution and "v2" in \p solution, then
+  * it will become "v + multiplier * v2" in this ColRowSolution. */
 
  virtual void sum( const Solution * solution , double multiplier ) override;
 
