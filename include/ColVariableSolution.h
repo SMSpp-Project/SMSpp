@@ -11,7 +11,7 @@
  *
  * \version 0.10
  *
- * \date 11 - 05 - 2018
+ * \date 19 - 03 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -165,7 +165,7 @@ public:
   *
   * - The dimension "xxx" containing ... The dimension
   *   is optional, if it is not specified then the corresponding variable
-  *   "yyy" is not read 
+  *   "yyy" is not read
   *
   *
   * - The variable "yyy", of type double and indexed over the
@@ -202,12 +202,14 @@ public:
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// adds a multiple of the given Solution to this Solution
- /** This method adds a multiple of the values of the Variables stored in
-  * the Solution provided as argument to the values stored in this
-  * Solution. The Solution provided as argument must have the same structure
-  * as this Solution. If the value associated with a Variable is "v" in this
-  * Solution and "v2" in the Solution provided as argument, then it will
-  * become "v + multiplier * v2" in this Solution. */
+ /** This method adds a multiple of the values of the Variables stored in the
+  * Solution provided as argument to the values stored in this
+  * ColVariableSolution.  The Solution provided as argument must have the same
+  * structure as this ColVariableSolution, unless this ColVariableSolution is
+  * empty, in which case this ColVariableSolution gets the same structure as
+  * that of \p solution. If the value associated with a Variable is "v" in
+  * this ColVariableSolution and "v2" in \p solution, then it will become "v +
+  * multiplier * v2" in this ColVariableSolution. */
 
  void sum( const Solution * solution , double multiplier ) override;
 
@@ -308,7 +310,7 @@ public:
 
  /// friend operator<<(), dispatching to virtual protected print()
  /** Not really a method, but a friend operator<<() that just dispatches the
-  * ostream to the protected virtual method print(). This way the operator<<() 
+  * ostream to the protected virtual method print(). This way the operator<<()
   * is defined for each ColVariableSolution, but its behavior can be
   * customized by derived classes. */
 
@@ -331,8 +333,12 @@ public:
  template<class F1 , class F2>
  void apply_static( const Block * const block , F1 f1 , F2 f2 );
 
+/*--------------------------------------------------------------------------*/
+
  template<class F1 , class F2>
  void apply_dynamic( const Block * const block , F1 f1 , F2 f2 );
+
+/*--------------------------------------------------------------------------*/
 
  /// initialize the solution from the given Block
  /** This method initializes this ColVariableSolution in order for it
@@ -342,11 +348,17 @@ public:
 
  void initialize( const Block * const block , bool read );
 
+/*--------------------------------------------------------------------------*/
+
  void initialize_static_variable_values( const Block * const block ,
 					 bool read );
 
+/*--------------------------------------------------------------------------*/
+
  void initialize_dynamic_variable_values( const Block * const block ,
 					  bool read );
+
+/*--------------------------------------------------------------------------*/
 
  /// delete all vectors created for this Solution
  /** This method deletes every object currently "stored" in the vectors
@@ -355,6 +367,21 @@ public:
   * to 0. */
 
  void delete_vectors();
+
+/*--------------------------------------------------------------------------*/
+
+ /// returns true if and only if this ColVariableSolution is empty
+ /** A ColVariableSolution is empty if and only if its structure is empty.
+  * That is, it is empty if and only if the vectors returned by
+  * get_static_variable_values(), get_dynamic_variable_values() and
+  * get_nested_solutions() are all empty.
+  *
+  * @return true if and only if this ColVariableSolution is empty. */
+
+ bool empty() const {
+  return static_variable_values.empty() && dynamic_variable_values.empty() &&
+   nested_solutions.empty();
+  }
 
 /*--------------------------------------------------------------------------*/
 /** @name Protected methods for printing and serializing

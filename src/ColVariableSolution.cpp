@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 11 - 05 - 2018
+ * \date 19 - 03 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -431,13 +431,17 @@ void ColVariableSolution::serialize( netCDF::NcGroup & group )
 
 void ColVariableSolution::sum( const Solution * solution, double multiplier ) {
 
-  const ColVariableSolution * other_solution =
-    dynamic_cast< const ColVariableSolution * >( solution );
+  auto other_solution = dynamic_cast< const ColVariableSolution * >( solution );
 
   if( ! other_solution )
     throw std::invalid_argument
       ( "ColVariableSolution::sum: "
         "given Solution must be a ColVariableSolution" );
+
+  if( empty() ) {
+   scale( other_solution , 1.0 );
+   return;
+   }
 
   if( this->static_variable_values.size() !=
       other_solution->static_variable_values.size() )
@@ -458,7 +462,7 @@ void ColVariableSolution::sum( const Solution * solution, double multiplier ) {
     if( ! un_any_static_2
         ( this->static_variable_values[i] ,
           other_solution->static_variable_values[i] ,
-          [&multiplier]( double & this_value , double & other_value ) {
+          [multiplier]( double & this_value , double & other_value ) {
           this_value += multiplier * other_value;
         } ,
           un_any_type<double>() , un_any_type<double>() ) )
@@ -476,8 +480,8 @@ void ColVariableSolution::sum( const Solution * solution, double multiplier ) {
     if( ! un_any_static_2
         ( this->dynamic_variable_values[i] ,
           other_solution->dynamic_variable_values[i] ,
-          [&multiplier]( std::vector<double> & this_values ,
-                         std::vector<double> & other_values ) {
+          [multiplier]( std::vector<double> & this_values ,
+                        std::vector<double> & other_values ) {
 
           // Reserve space in case the other solution has more dynamic
           // Variable values
@@ -561,8 +565,8 @@ void ColVariableSolution::scale( const ColVariableSolution * const solution ,
         ( solution->static_variable_values[i] ,
           this->static_variable_values[i] ,
           un_any_type<double>() , un_any_type<double>() ,
-          [&factor]( double & this_value , double & scaled_value ) {
-          scaled_value = factor * this_value;
+          [factor]( double & given_solution_value , double & scaled_value ) {
+          scaled_value = factor * given_solution_value;
         } ,
           true ) )
 
@@ -585,11 +589,11 @@ void ColVariableSolution::scale( const ColVariableSolution * const solution ,
           this->dynamic_variable_values[i] ,
           un_any_type<std::vector<double>>() ,
           un_any_type<std::vector<double>>() ,
-          [&factor]( std::vector<double> & this_values ,
-                     std::vector<double> & scaled_values ) {
+          [factor]( std::vector<double> & given_solution_values ,
+                    std::vector<double> & scaled_values ) {
           scaled_values.resize(0);
-          scaled_values.reserve(this_values.size());
-          for( auto & value : this_values )
+          scaled_values.reserve(given_solution_values.size());
+          for( auto & value : given_solution_values )
             scaled_values.push_back( factor * value );
         } ) )
 
