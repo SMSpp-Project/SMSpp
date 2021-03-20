@@ -439,7 +439,7 @@ void ColVariableSolution::sum( const Solution * solution, double multiplier ) {
         "given Solution must be a ColVariableSolution" );
 
   if( empty() ) {
-   scale( other_solution , 1.0 );
+   scale( other_solution , multiplier );
    return;
    }
 

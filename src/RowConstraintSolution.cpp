@@ -597,7 +597,7 @@ void RowConstraintSolution::sum( const Solution * solution,
                                "must be a RowConstraintSolution" );
 
  if( empty() ) {
-  scale( other_solution , 1.0 );
+  scale( other_solution , multiplier );
   return;
   }
 
