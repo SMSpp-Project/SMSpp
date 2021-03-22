@@ -1535,12 +1535,12 @@ class ThinComputeInterface
 /*--------------------------------------------------------------------------*/
 /** @name Handling the State of the ThinComputeInterface
  *
- * The base class ThinComputeInterface is intended to provide an interface
+ * The base class ThinComputeInterface is intended to provide an interface to
  * many different computing processes, among which "very heavy" ones. Such
  * processes may require a (very large) "internal state" to work. Once the
  * computation is finished, the internal state (in part or in whole) is
  * usually retained for the purpose of "reoptimization": if the underlying
- * data carachterising it (typically, a Block or a fragment thereof) changes
+ * data characterising it (typically, a Block or a fragment thereof) changes
  * "just a little", re-starting the computation from the previous "internal
  * state" has the potential (but is not guaranteed) to significantly improve
  * the efficiency of the computation.
@@ -1556,8 +1556,8 @@ class ThinComputeInterface
  * performed more efficiently.
  *
  * A different use case for the capability of extracting and saving the
- * "internal state" is the one where the computation is be "long" and/or
- * performed on a not completely reliable system (maybe a massively parrallel
+ * "internal state" is the one where the computation is "long" and/or
+ * performed on a not completely reliable system (maybe a massively parallel
  * one), so that there is a significant risk that the system may fail before
  * the computation ends. In this case, periodically saving the "internal
  * state" of the computation may allow to re-start it with limited losses,
@@ -1568,7 +1568,7 @@ class ThinComputeInterface
  * and read it back. State is a basically empty class [see] which is only
  * meant to be stored, either in memory or on file, but not otherwise
  * manipulated by any other entity except the ThinComputeInterface that
- * produced it, and therefore it only explicitly supports being loading and
+ * produced it, and therefore it only explicitly supports being loaded and
  * saved.
  *
  * Note that no strong explicit provision is made about the behaviour of a
@@ -1592,12 +1592,12 @@ class ThinComputeInterface
  * could better be avoided). On the same note, there is in general no
  * guarantee that the State is "complete", and therefore that, even if the
  * data is identical, re-computing after that a State is restored provides
- * exactly the same result (althouhg individual ThinComputeInterface may
+ * exactly the same result (although individual ThinComputeInterface may
  * provide such guarantee). Similarly, there can be no guarantee that
  * setting back a State, on "very similar" or even identical data, yields
  * better efficiency/effectiveness than not doing it, although this can be
  * expected to happen often, and individual ThinComputeInterface (especially
- * those for "easy" problem where the "internal state" fully encodes an
+ * those for "easy" problems where the "internal state" fully encodes an
  * optimal solution and its optimality certificate) may indeed provide some
  * guarantee in this sense. Finally, it is entirely dependent on the
  * specific :ThinComputeInterface whether or not a State gotten out of some
@@ -1634,7 +1634,7 @@ class ThinComputeInterface
   *
   * @param state A State for this ThinComputeInterface. Since a const
   *              reference is provided, \p state will be unchanged after
-  *               the end of the call. */
+  *              the end of the call. */
 
  virtual void put_State( const State & state ) {}
 
@@ -1678,7 +1678,7 @@ class ThinComputeInterface
   * (except for the fact that get_State() may return nullptr). Yet, the
   * rationale for this version of the method is that the "internal state"
   * of a ThinComputeInterface may be an arbitrarily "large" object. Since
-  * a State is supposed to "live independently" from it original
+  * a State is supposed to "live independently" from its original
   * ThinComputeInterface, it must contain a copy of the relevant information,
   * which may be costly in time and/or memory. If the State is only
   * constructed in order to be immediately serialized and destroyed -- which
@@ -2292,7 +2292,7 @@ class ComputeConfig : public Configuration {
  *   these modifications are un-done and the computation starts with a new set
  *   of different modifications from the state that the :Block had "a long
  *   time ago".
-*
+ *
  * Note that no strong explicit provision is made about the behaviour of a
  * ThinComputeInterface when a State is set to it. The specific conditions
  * under which it is allowed, or sensible, to set back a State into a
@@ -2307,7 +2307,7 @@ class ComputeConfig : public Configuration {
  * may come from it (and therefore it could better be avoided). On the same
  * note, there is in general no guarantee that the State is "complete", and
  * therefore that, even if the data is identical, re-computing after that a
- * State is restored provides exactly the same result (althouhg individual
+ * State is restored provides exactly the same result (although individual
  * ThinComputeInterface may provide such guarantee). Similarly, there can be
  * no guarantee that setting back a State, on "very similar" or even identical
  * data, yields better efficiency/effectiveness than not doing it, although
