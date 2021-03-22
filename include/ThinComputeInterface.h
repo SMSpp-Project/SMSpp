@@ -10,7 +10,7 @@
  *
  * \version 0.20
  *
- * \date 02 - 12 - 2020
+ * \date 22 - 03 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -40,7 +40,8 @@
 
 namespace SMSpp_di_unipi_it
 {
- class ComputeConfig;  // forward definition of ComputeConfig
+ class ComputeConfig;  // forward declaration of ComputeConfig
+ class State;          // forward declaration of State
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
@@ -1519,6 +1520,84 @@ class ThinComputeInterface
   const;
 
 /**@} ----------------------------------------------------------------------*/
+/*------- METHODS FOR HANDLING THE State OF THE ThinComputeInterface -------*/
+/*--------------------------------------------------------------------------*/
+/** @name Handling the State of the ThinComputeInterface
+ *
+ *  The base class ThinComputeInterface declares and defines some methods for
+ *  handling the State of a ThinComputeInterface. Each of these methods has a
+ *  default implementation that could or should be overriden by classes
+ *  derived from ThinComputeInterface that have an associated (non-empty)
+ *  State.
+ *  @{ */
+
+ /// returns a pointer to the current State of this ThinComputeInterface
+ /** This method must construct and return a pointer to a State representing
+  * the current state of this ThinComputeInterface. The default implementation
+  * of this method simply returns a nullptr, as not every
+  * :ThinComputeInterface may have an associated State. This method should be
+  * re-implemented by derived classes of ThinComputeInterface that contains a
+  * (non-empty) State. */
+
+ virtual State * get_State( void ) const {
+  return( nullptr );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ /// sets the current State of this ThinComputeInterface
+ /** This method must update the current state of this ThinComputeInterface to
+  * reflect that of the given \p state. The default implementation is empty,
+  * as not all ThinComputeInterface may have an associated State. Any
+  * :ThinComputeInterface that has a non-empty State should override this
+  * method.
+  *
+  * @param state A State for this ThinComputeInterface. */
+
+ virtual void put_State( const State & state ) {};
+
+/*--------------------------------------------------------------------------*/
+
+ /// sets the current State of this ThinComputeInterface
+ /** This method must update the current state of this ThinComputeInterface to
+  * reflect that of the given \p state. The default implementation is empty,
+  * as not all ThinComputeInterface may have an associated State. Any
+  * :ThinComputeInterface that has a non-empty State should override this
+  * method. As the the && tells, the given \p state is "consumed" by this
+  * method and its resources become property of this ThinComputeInterface.
+  *
+  * @param state A State for this ThinComputeInterface. */
+
+ virtual void put_State( State && state ) {};
+
+/*--------------------------------------------------------------------------*/
+
+ /// serialize a :State into a netCDF::NcGroup
+ /** This method serializes the current State (if any) of this
+  * ThinComputeInterface into the given \p group, so that it can possibly be
+  * read by State::deserialize() or put (see put_State()) into this
+  * ThinComputeInterface. If this ThinComputeInterface has a State and a
+  * non-empty \p sub_group_name is provided, then a sub-group called \p
+  * sub_group_name is created in \p group and the State is serialized into
+  * this sub-group. Notice that if this ThinComputeInterface has no State,
+  * then the netCDF sub-group should not even be created.
+  *
+  * Although it is expected that derived classes re-implement this method, a
+  * general (and therefore possibly inefficient) working default
+  * implementation is provided for convenience, which makes use of the
+  * get_State() and State::serialize() methods.
+  *
+  * @param group The netCDF group in which the State of this
+  *        ThinComputeInterface should be serialized.
+  *
+  * @param sub_group_name If a non-empty name is provided, then the State of
+  *        this ThinComputeInterface is serialized into a sub-group of the
+  *        given \p group having this name. */
+
+ virtual void serialize_State( netCDF::NcGroup & group ,
+                               const std::string & sub_group_name = "" ) const;
+
+ /**@} ----------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 // empty, this is a thin interface
