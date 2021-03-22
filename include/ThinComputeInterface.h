@@ -75,6 +75,17 @@ namespace SMSpp_di_unipi_it
  *   be able to periodically check what is happening and possibly react,
  *   which is provided by the "event handlers" mechanics;
  *
+ * - the computation may be "long", which means that extracting and saving
+ *   the "internal state" of the computation may be useful e.g. for
+ *   checkpointing purposes;
+ *
+ * - the computation may be repeated many times as the underlying data
+ *   carachterising it (typically, a Block or a fragment thereof) may change
+ *   significantly, but then the data may be brought back to a state similar
+ *   to one occurred "a long time before", which makes it useful to extract
+ *   and save the "internal state" of the computation for reoptimization
+ *   purposes;
+ *
  * - the computation may take time (or other computational resources) that
  *   the caller may want to be able to measure;
  *
@@ -1524,75 +1535,185 @@ class ThinComputeInterface
 /*--------------------------------------------------------------------------*/
 /** @name Handling the State of the ThinComputeInterface
  *
- *  The base class ThinComputeInterface declares and defines some methods for
- *  handling the State of a ThinComputeInterface. Each of these methods has a
- *  default implementation that could or should be overriden by classes
- *  derived from ThinComputeInterface that have an associated (non-empty)
- *  State.
+ * The base class ThinComputeInterface is intended to provide an interface
+ * many different computing processes, among which "very heavy" ones. Such
+ * processes may require a (very large) "internal state" to work. Once the
+ * computation is finished, the internal state (in part or in whole) is
+ * usually retained for the purpose of "reoptimization": if the underlying
+ * data carachterising it (typically, a Block or a fragment thereof) changes
+ * "just a little", re-starting the computation from the previous "internal
+ * state" has the potential (but is not guaranteed) to significantly improve
+ * the efficiency of the computation.
+ *
+ * In several use cases, a ThinComputeInterface can be used to perform a long
+ * series of computations where the underlying data changes incrementally,
+ * ultimately accruing significantly changes. Yet, occasionally the data may
+ * be knowingly brought back to a state similar to one occurred "a long time
+ * before". In this case, the capability of extracting and saving the
+ * "internal state" of the computation at arbitrary times during the series of
+ * computations and then passing back to the ThinComputeInterface a properly
+ * chosen state among the saved ones may allow "reoptimization" to be
+ * performed more efficiently.
+ *
+ * A different use case for the capability of extracting and saving the
+ * "internal state" is the one where the computation is be "long" and/or
+ * performed on a not completely reliable system (maybe a massively parrallel
+ * one), so that there is a significant risk that the system may fail before
+ * the computation ends. In this case, periodically saving the "internal
+ * state" of the computation may allow to re-start it with limited losses,
+ * a strategy known as "checkpointing".
+ *
+ * Both use cases are served by the following methods, which allow a
+ * ThinComputeInterface to produce an object of class (derived from) State
+ * and read it back. State is a basically empty class [see] which is only
+ * meant to be stored, either in memory or on file, but not otherwise
+ * manipulated by any other entity except the ThinComputeInterface that
+ * produced it, and therefore it only explicitly supports being loading and
+ * saved.
+ *
+ * Note that no strong explicit provision is made about the behaviour of a
+ * ThinComputeInterface when a State is set to it. This starts with the fact
+ * that many ThinComputeInterface do not implement "heavy" computations, and
+ * therefore do not have a significant "internal state"; hence, each of these
+ * methods has a default implementation "doing nothing". ThinComputeInterface
+ * that have a significant "internal state" will have to override these
+ * methods.
+ *
+ * More in general, the specific conditions under which it is allowed, or
+ * sensible, to set back a State into a ThinComputeInterface will be
+ * exclusively dictated by the ThinComputeInterface in question. For instance,
+ * some ThinComputeInterface may require the underlying data (Block or a
+ * fragment thereof) to be exactly identical to what it was when the State
+ * was created, but this should not be the norm: a ThinComputeInterface can
+ * always unilaterally decide that the just-passed State is "not interesting"
+ * and just plainly ignore it. For this reason, passing back a State even if
+ * the data is not identical (and possibly rather different) should be
+ * allowed, even though little benefit may come from it (and therefore it
+ * could better be avoided). On the same note, there is in general no
+ * guarantee that the State is "complete", and therefore that, even if the
+ * data is identical, re-computing after that a State is restored provides
+ * exactly the same result (althouhg individual ThinComputeInterface may
+ * provide such guarantee). Similarly, there can be no guarantee that
+ * setting back a State, on "very similar" or even identical data, yields
+ * better efficiency/effectiveness than not doing it, although this can be
+ * expected to happen often, and individual ThinComputeInterface (especially
+ * those for "easy" problem where the "internal state" fully encodes an
+ * optimal solution and its optimality certificate) may indeed provide some
+ * guarantee in this sense. Finally, it is entirely dependent on the
+ * specific :ThinComputeInterface whether or not a State gotten out of some
+ * :ThinComputeInterface instance can be set into a different
+ * :ThinComputeInterface instance (clearly at least of the same type or of a
+ * closely related one).
  *  @{ */
 
  /// returns a pointer to the current State of this ThinComputeInterface
  /** This method must construct and return a pointer to a State representing
-  * the current state of this ThinComputeInterface. The default implementation
-  * of this method simply returns a nullptr, as not every
-  * :ThinComputeInterface may have an associated State. This method should be
-  * re-implemented by derived classes of ThinComputeInterface that contains a
-  * (non-empty) State. */
+  * the current "internal state" of this ThinComputeInterface. Since not
+  * every :ThinComputeInterface has a significant internal State, the default
+  * implementation of this method simply returns a nullptr.
+  *
+  * Note that there may exist different options while saving a State; say
+  * "saving more state" or "saving less state" with some trade-off between
+  * the required memory/cost and the chances of being effective at
+  * reoptimization/checkpointing. If this is the case, the options can be
+  * set by means of standard int/double/string/... parameters of the
+  * specific :ThinComputeInterface; the base class does not offer any
+  * pre-defined parameter for this task. */
 
- virtual State * get_State( void ) const {
-  return( nullptr );
-  }
+ virtual State * get_State( void ) const { return( nullptr ); }
 
 /*--------------------------------------------------------------------------*/
-
  /// sets the current State of this ThinComputeInterface
- /** This method must update the current state of this ThinComputeInterface to
-  * reflect that of the given \p state. The default implementation is empty,
-  * as not all ThinComputeInterface may have an associated State. Any
-  * :ThinComputeInterface that has a non-empty State should override this
-  * method.
+ /** This method should read the State in the given \p state and try to use
+  * it as effectively as possible to improve the current "internal state" of
+  * this ThinComputeInterface. Since not every :ThinComputeInterface has a
+  * significant internal State, the default implementation of this method
+  * simply does nothing (although a :ThinComputeInterface not having a
+  * significant State should just return nullptr in get_State(), which means
+  * that this method should never really be called).
   *
-  * @param state A State for this ThinComputeInterface. */
+  * @param state A State for this ThinComputeInterface. Since a const
+  *              reference is provided, \p state will be unchanged after
+  *               the end of the call. */
 
  virtual void put_State( const State & state ) {}
 
 /*--------------------------------------------------------------------------*/
-
- /// sets the current State of this ThinComputeInterface
- /** This method must update the current state of this ThinComputeInterface to
-  * reflect that of the given \p state. The default implementation is empty,
-  * as not all ThinComputeInterface may have an associated State. Any
-  * :ThinComputeInterface that has a non-empty State should override this
-  * method. As the the && tells, the given \p state is "consumed" by this
-  * method and its resources become property of this ThinComputeInterface.
+ /// sets the current State of this ThinComputeInterface, "consuming" it
+ /** This method should read the State in the given \p state and try to use
+  * it as effectively as possible to improve the current "internal state" of
+  * this ThinComputeInterface. Since not every :ThinComputeInterface has a
+  * significant internal State, the default implementation of this method
+  * simply does nothing (although a :ThinComputeInterface not having a
+  * significant State should just return nullptr in get_State(), which means
+  * that this method should never really be called).
   *
-  * @param state A State for this ThinComputeInterface. */
+  * @param state A State for this ThinComputeInterface. Since an rvalue is
+  *              is provided (&&), \p state may be "consumed" by the
+  *              process: at the end of the call it will still be a valid
+  *              object but it may be "empty".
+  *
+  * The rationale for this version of the method is that a State may be an
+  * arbitrarily "large" object; moving it(s pieces) in appropriate places
+  * inside the ThinComputeInterface may be significantly more efficient than
+  * copying them and then deleting the originals. */
 
  virtual void put_State( State && state ) {}
 
 /*--------------------------------------------------------------------------*/
-
  /// serialize a :State into a netCDF::NcGroup
- /** This method serializes the current State (if any) of this
-  * ThinComputeInterface into the given \p group, so that it can possibly be
-  * read by State::deserialize() or put (see put_State()) into this
-  * ThinComputeInterface. If this ThinComputeInterface has a State and a
-  * non-empty \p sub_group_name is provided, then a sub-group called \p
-  * sub_group_name is created in \p group and the State is serialized into
-  * this sub-group. Notice that if this ThinComputeInterface has no State,
-  * then the netCDF sub-group should not even be created.
+ /** This method serializes the current "internal state" (if any) of this
+  * ThinComputeInterface under the form of a :State (of appropriate type)
+  * into the given \p group, so that it can possibly be later on read back
+  * by State::deserialize() and put back (see put_State()) into this
+  * ThinComputeInterface.
   *
-  * Although it is expected that derived classes re-implement this method, a
-  * general (and therefore possibly inefficient) working default
-  * implementation is provided for convenience, which makes use of the
-  * get_State() and State::serialize() methods.
+  * This method is in principle not strictly necessary, since it is
+  * semantically equivalent to
+  *
+  *     auto s = this->get_State();
+  *     s->serialize( g );
+  *     delete s;
+  *
+  * (except for the fact that get_State() may return nullptr). Yet, the
+  * rationale for this version of the method is that the "internal state"
+  * of a ThinComputeInterface may be an arbitrarily "large" object. Since
+  * a State is supposed to "live independently" from it original
+  * ThinComputeInterface, it must contain a copy of the relevant information,
+  * which may be costly in time and/or memory. If the State is only
+  * constructed in order to be immediately serialized and destroyed -- which
+  * is e.g. what happens in the "checkpointing" use case -- as in the code
+  * above, a :ThinComputeInterface may be able to produce the same result
+  * without these copying operations, and therefore more efficiently.
+  * However, a :ThinComputeInterface is completely free to completely ignore
+  * the issue and rather use the (possibly inefficient) working default
+  * implementation, provided for convenience, which makes use of the
+  * get_State() and State::serialize() methods along the lines of the
+  * snippet above.
   *
   * @param group The netCDF group in which the State of this
-  *        ThinComputeInterface should be serialized.
+  *        ThinComputeInterface (if any) should be serialized.
   *
   * @param sub_group_name If a non-empty name is provided, then the State of
-  *        this ThinComputeInterface is serialized into a sub-group of the
-  *        given \p group having this name. */
+  *        this ThinComputeInterface (if any) is serialized into a newly
+  *        created sub-group of the given \p group having this name; if,
+  *        instead, sub_group_name.empty() then the State is deserialised in
+  *        \p group directly. Note that if this ThinComputeInterface does
+  *        not have any "internal state" (get_State() returns nullptr)
+  *        then the sub-group is never created even if a name is provided.
+  *
+  * Note that it is somewhat unusual to provide the sub_group_name in a
+  * deserialize() method. However, this is sensible here since a
+  * ThinComputeInterface may have no State at all (this being the default).
+  * If the caller does not know whether or not this is the case, it would
+  * have to create the netCDF sub-group, at the risk of this ending up empty.
+  * By providing the "father" group and the name of the sub-group this can
+  * be avoided, as the sub-group is only created if a State exists.
+  *
+  * A possible downside of this approach is that the caller cannot be sure
+  * that the sub-group is there after the call. If this is a problem, it
+  * is always possible to externally create the sub-group and then pass it
+  * as \p group with empty name. */
 
  virtual void serialize_State( netCDF::NcGroup & group ,
                                const std::string & sub_group_name = "" ) const;
@@ -2131,6 +2252,168 @@ class ComputeConfig : public Configuration {
 /*--------------------------------------------------------------------------*/
 
 };  // end( class( ComputeConfig ) )
+
+/*--------------------------------------------------------------------------*/
+/*---------------------------- CLASS State ---------------------------------*/
+/*--------------------------------------------------------------------------*/
+/*--------------------------- GENERAL NOTES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+/// the "internal state" of a ThinComputeInterface
+/** The State class is intended to represent the "internal state" of a
+ * ThinComputeInterface. In general, the "internal state" of a
+ * ThinComputeInterface can be composed by any data that can influence the
+ * computation of this ThinComputeInterface, i.e., anything that may help
+ * the next call to ThinComputeInterface::compute() to be more efficient
+ * and/or effective. The obvious example is the optimal basis of a Linear
+ * Program having been already solved and then "slightly modified".
+ *
+ * The State of a :ThinComputeInterface is entirely determined by each
+ * particular :State for that :ThinComputeInterface, and the general State
+ * class makes no provisions on what a State can be or do, except that it
+ * can be serialized and de-serialized.
+ *
+ * The main idea is that a State of a ThinComputeInterface should represent
+ * anything that this ThinComputeInterface can use to better restart its
+ * computation considering the current state of the system. Some of the
+ * possible uses of State are the following:
+ *
+ * - To allow a controlled interruption a complex computation process
+ *   (computing, changing, re-computing, re-changing, ...), by saving the
+ *   current state on file, and recovering it later for restarting the
+ *   process.
+ *
+ * - To allow checkpointing, where the State of a ThinComputeInterface is
+ *   saved from time to time and can be used to restart the computation
+ *   process in case the computation is abruptly interrupted due to a system
+ *   failure.
+ *
+ * - To allow the improvement of performance in cases where some object (for
+ *   instance, a :Block) is submitted to numerous modifications, but then
+ *   these modifications are un-done and the computation starts with a new set
+ *   of different modifications from the state that the :Block had "a long
+ *   time ago".
+*
+ * Note that no strong explicit provision is made about the behaviour of a
+ * ThinComputeInterface when a State is set to it. The specific conditions
+ * under which it is allowed, or sensible, to set back a State into a
+ * ThinComputeInterface will be exclusively dictated by the
+ * :ThinComputeInterface in question. For instance, some :ThinComputeInterface
+ * may require the underlying data (Block or a fragment thereof) to be exactly
+ * identical to what it was when the State was created, but this should not be
+ * the norm: a ThinComputeInterface can always unilaterally decide that the
+ * just-passed State is "not interesting" and just plainly ignore it. For this
+ * reason, passing back a State even if the data is not identical (and
+ * possibly rather different) should be allowed, even though little benefit
+ * may come from it (and therefore it could better be avoided). On the same
+ * note, there is in general no guarantee that the State is "complete", and
+ * therefore that, even if the data is identical, re-computing after that a
+ * State is restored provides exactly the same result (althouhg individual
+ * ThinComputeInterface may provide such guarantee). Similarly, there can be
+ * no guarantee that setting back a State, on "very similar" or even identical
+ * data, yields better efficiency/effectiveness than not doing it, although
+ * this can be expected to happen often, and individual ThinComputeInterface
+ * (especially those for "easy" problem where the "internal state" fully
+ * encodes an optimal solution and its optimality certificate) may indeed
+ * provide some guarantee in this sense. Finally, it is entirely dependent on
+ * the specific :ThinComputeInterface whether or not a State gotten out of some
+ * :ThinComputeInterface instance can be set into a different
+ * :ThinComputeInterface instance (clearly at least of the same type or of a
+ * closely related one). */
+
+class State {
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ public:
+
+/*@} -----------------------------------------------------------------------*/
+/*------------------ CONSTRUCTING AND DESTRUCTING State --------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Constructing and destructing State
+ *  @{ */
+
+ State( void ) { }  ///< constructor of State, it has nothing to do
+
+/*--------------------------------------------------------------------------*/
+ /// de-serialize a :State out of netCDF::NcGroup
+ /** The method takes a netCDF::NcGroup supposedly containing all the
+  * information required to de-serialize the :State, and produces a "full"
+  * State object as a result. Most likely, the netCDF::NcGroup has been
+  * produced by calling serialize() with a previously existing :State (of the
+  * very same type as this one), but individual :State should openly declare
+  * the format of their :State so that possibly a netCDF::NcGroup containing
+  * some initial state can be constructed from scratch whenever this is
+  * useful.
+  *
+  * This method is pure virtual, as it clearly has to be implemented by
+  * derived classes. */
+
+ virtual void deserialize( const netCDF::NcGroup & group ) = 0;
+
+/*--------------------------------------------------------------------------*/
+
+ virtual ~State() { }  ///< destructor: it is virtual, and empty
+
+/*@} -----------------------------------------------------------------------*/
+/*--------------- METHODS DESCRIBING THE BEHAVIOR OF A State ---------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods describing the behavior of a State
+ *  @{ */
+
+/*--------------------------------------------------------------------------*/
+ /// serialize a :State into a netCDF::NcGroup
+ /** The method takes a (supposedly, "full") State object and serializes
+  * it into the provided netCDF::NcGroup, so that it can possibly be read by
+  * deserialize() (of a :State of the very same type as this one).
+  *
+  * This method is pure virtual, as it clearly has to be implemented by
+  * derived classes. */
+
+ virtual void serialize( netCDF::NcGroup & group ) = 0;
+
+/*@} -----------------------------------------------------------------------*/
+/*------------ METHODS FOR LOADING, PRINTING & SAVING THE State ------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for printing the State
+ */
+
+ /// friend operator<<(), dispatching to virtual protected print()
+ /** Not really a method, but a friend operator<<() that just dispatches the
+  * ostream to the protected virtual method print(). This way operator<<() is
+  * defined for each State, but its behavior can be customized by derived
+  * classes. */
+
+ friend std::ostream& operator<<( std::ostream& out , const State &s ) {
+  s.print( out );
+  return( out );
+  }
+
+/*@}------------------------------------------------------------------------*/
+/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+protected:
+
+/*--------------------------------------------------------------------------*/
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Protected methods for printing and serializing
+    @{ */
+
+ /// print information about the State on an ostream
+ /** Protected method intended to print information about the State; it is
+  * virtual so that derived classes can print their specific information in
+  * the format they choose. */
+
+ virtual void print( std::ostream &output ) const {
+  output << "State [" << this << "]";
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( State ) )
 
 /** @} end( group( ThinComputeInterface_CLASSES ) ) ------------------------*/
 /*--------------------------------------------------------------------------*/
