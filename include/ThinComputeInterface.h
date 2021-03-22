@@ -1710,10 +1710,10 @@ class ThinComputeInterface
   * By providing the "father" group and the name of the sub-group this can
   * be avoided, as the sub-group is only created if a State exists.
   *
-  * A possible downside of this approach is that the caller cannot be sure
-  * that the sub-group is there after the call. If this is a problem, it
-  * is always possible to externally create the sub-group and then pass it
-  * as \p group with empty name. */
+  * A possible downside of this approach is that the caller cannot be sure a
+  * priori that the sub-group will be there after the call. If this is a
+  * problem, it is always possible to externally create the sub-group and then
+  * pass it as \p group with empty name. */
 
  virtual void serialize_State( netCDF::NcGroup & group ,
                                const std::string & sub_group_name = "" ) const;
