@@ -112,15 +112,6 @@ class State {
  State( void ) { }  ///< constructor of State, it has nothing to do
 
 /*--------------------------------------------------------------------------*/
-
- State( const State & ) = delete;  ///< inhibit copy constructor
-
-/*--------------------------------------------------------------------------*/
-
- /// inhibit assignment operator
- State & operator=( const State & ) = delete;
-
-/*--------------------------------------------------------------------------*/
  /// de-serialize a :State out of netCDF::NcGroup
  /** The method takes a netCDF::NcGroup supposedly containing all the
   * information required to de-serialize the :State, and produces a "full"
