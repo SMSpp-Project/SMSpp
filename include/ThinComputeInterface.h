@@ -1554,7 +1554,7 @@ class ThinComputeInterface
   *
   * @param state A State for this ThinComputeInterface. */
 
- virtual void put_State( const State & state ) {};
+ virtual void put_State( const State & state ) {}
 
 /*--------------------------------------------------------------------------*/
 
@@ -1568,7 +1568,7 @@ class ThinComputeInterface
   *
   * @param state A State for this ThinComputeInterface. */
 
- virtual void put_State( State && state ) {};
+ virtual void put_State( State && state ) {}
 
 /*--------------------------------------------------------------------------*/
 
