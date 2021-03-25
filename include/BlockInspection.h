@@ -27,7 +27,7 @@
  *
  * \version 0.10
  *
- * \date 18 - 07 - 2020
+ * \date 25 - 03 - 2021
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -219,7 +219,7 @@ namespace SMSpp_di_unipi_it::inspection
    if( group_found && index < Inf<Index>()  )
     return index;
   }
-  else if constexpr( sizeof...(Rest) != 0 )
+  if constexpr( sizeof...(Rest) != 0 )
    return get_static_index<S , Rest...>( s , group );
   return Inf<Index>();
  }
@@ -235,7 +235,7 @@ namespace SMSpp_di_unipi_it::inspection
    if( group_found && index < Inf<Index>()  )
     return index;
   }
-  else if constexpr( sizeof...(Rest) != 0 )
+  if constexpr( sizeof...(Rest) != 0 )
    return get_dynamic_index<S , Rest...>( s , group );
   return Inf<Index>();
  }
@@ -274,7 +274,7 @@ namespace SMSpp_di_unipi_it::inspection
    if( group_found )
     return element;
   }
-  else if constexpr( sizeof...(Rest) != 0 )
+  if constexpr( sizeof...(Rest) != 0 )
    return get_static_element<S , Rest...>( group , index );
   return nullptr;
  }
@@ -291,7 +291,7 @@ namespace SMSpp_di_unipi_it::inspection
    if( group_found )
     return element;
   }
-  else if constexpr( sizeof...(Rest) != 0 )
+  if constexpr( sizeof...(Rest) != 0 )
    return get_dynamic_element<S , Rest...>( group , index );
   return nullptr;
  }
