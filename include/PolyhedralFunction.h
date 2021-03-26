@@ -40,6 +40,14 @@
 // namespace for the Structured Modeling System++ (SMS++)
 namespace SMSpp_di_unipi_it
 {
+ class PolyhedralFunctionState;
+ // forward declaration of PolyhedralFunctionState
+ 
+/*--------------------------------------------------------------------------*/
+/*------------------------------- CLASSES ----------------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @defgroup PolyhedralFunction_CLASSES Classes in PolyhedralFunction.h
+ *  @{ */
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- CLASS PolyhedralFunction --------------------------*/
@@ -469,7 +477,7 @@ class PolyhedralFunction : public C05Function {
   *       f_shift == 0 because the PolyhedralFunction did not really change,
   *       only the stored linearizations were. */
 
- void set_par( const idx_type par , const int value ) override
+ void set_par( idx_type par , int value ) override
  {
   switch( par ) {
    case( intLPMaxSz ):
@@ -531,7 +539,7 @@ class PolyhedralFunction : public C05Function {
   * ignores the C05Function-specific dblRAccLin and dblAAccLin, handles
   * dblAAccMlt, and leaves all the rest to Function. */
 
- void set_par( const idx_type par , const double value ) override
+ void set_par( idx_type par , double value ) override
  {
   switch( par ) {
    case( dblAAccMlt ):
@@ -820,6 +828,28 @@ class PolyhedralFunction : public C05Function {
   else
    return( C05Function::get_dbl_par( par ) );
   }
+
+/**@} ----------------------------------------------------------------------*/
+/*-------- METHODS FOR HANDLING THE State OF THE PolyhedralFunction --------*/
+/*--------------------------------------------------------------------------*/
+/** @name Handling the State of the PolyhedralFunction
+ *  @{ */
+
+ State * get_State( void ) const override;
+
+/*--------------------------------------------------------------------------*/
+
+ void put_State( const State & state ) override;
+
+/*--------------------------------------------------------------------------*/
+
+ void put_State( State && state ) override;
+
+/*--------------------------------------------------------------------------*/
+
+ void serialize_State( netCDF::NcGroup & group ,
+		       const std::string & sub_group_name = "" )
+  const override;
 
 /**@} ----------------------------------------------------------------------*/
 /*---- METHODS FOR HANDLING "ACTIVE" Variable IN THE PolyhedralFunction ----*/
@@ -1440,6 +1470,12 @@ class PolyhedralFunction : public C05Function {
 
  void delete_rows( ModParam issueMod = eModBlck );
 
+/*--------------------------------------------------------------------------*/
+/*-------------------------------- FRIENDS ---------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ friend class PolyhedralFunctionState;  // make PolihedralFunctionState friend
+
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1463,6 +1499,10 @@ class PolyhedralFunction : public C05Function {
 	 << " with " << get_num_active_var() << " columns and"
 	 << get_nrows() << " rows";
   }
+
+/*--------------------------------------------------------------------------*/
+
+ void guts_of_put_State( const PolyhedralFunctionState & state );
 
 /*--------------------------------------------------------------------------*/
 
@@ -1802,7 +1842,7 @@ class PolyhedralFunctionModRngd : public PolyhedralFunctionMod {
 
  /// print the PolyhedralFunctionModRngd
 
- virtual inline void print( std::ostream &output ) const override
+ void print( std::ostream &output ) const override
  {
   output << "PolyhedralFunctionModRngd[";
   if( concerns_Block() )
@@ -1892,7 +1932,7 @@ class PolyhedralFunctionModSbst : public PolyhedralFunctionMod {
 
  /// print the PolyhedralFunctionModSbst
 
- virtual inline void print( std::ostream &output ) const override
+ void print( std::ostream &output ) const override
  {
   output << "PolyhedralFunctionModRng[";
   if( concerns_Block() )
@@ -1922,6 +1962,135 @@ class PolyhedralFunctionModSbst : public PolyhedralFunctionMod {
 
  };  // end( class( PolyhedralFunctionModSbst ) )
 
+
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- CLASS PolyhedralFunctionState ----------------------*/
+/*--------------------------------------------------------------------------*/
+/// class to describe the "internal state" of a PoluhedralFunction
+/** Derived class from State to describe the "internal state" of a
+ * PoluhedralFunction, i.e., its global pool. This means which of the
+ * original cuts are in the global pool, and the aggregated ones that are
+ * also there. */
+
+class PolyhedralFunctionState : public State {
+
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*--------- CONSTRUCTING AND DESTRUCTING PolyhedralFunctionState -----------*/
+
+ /// constructor, doing everything
+ /** Constructor of PolyhedralFunctionState: takes a pointer to a
+  * PolyhedralFunction and immediately copies its "internal state". */
+
+ PolyhedralFunctionState( const PolyhedralFunction * pf ) : State() ,
+  f_nvar( pf->get_num_active_var() ) {
+  v_glob = pf->v_glob;
+  v_aA = pf->v_aA;
+  v_ab = pf->v_ab;
+  f_imp_coeff = pf->f_imp_coeff;
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// de-serialize a PolyhedralFunctionState out of netCDF::NcGroup
+ /** De-serialize a PolyhedralFunctionState out of netCDF::NcGroup; see
+  * PolyhedralFunctionState::serialize() for a description of the format. */
+
+ void deserialize( const netCDF::NcGroup & group ) override;
+
+/*--------------------------------------------------------------------------*/
+ ///< destructor
+
+ virtual ~PolyhedralFunctionState() { }
+
+/*------ METHODS DESCRIBING THE BEHAVIOR OF A PolyhedralFunctionState ------*/
+
+ /// serialize a PolyhedralFunctionState into a netCDF::NcGroup
+ /** The method serializes the PolyhedralFunctionState into the provided
+  * netCDF::NcGroup, so that it can later be read back by deserialize().
+  *
+  * After the call, \p will contain:
+  *
+  * - The dimension "PolyFunction_GlobSize" containing the size of the global
+  *   pool.
+  *
+  * - The variable "PolyFunction_Glob", of type integer and indexed over the
+  *   dimension GlobSize, which contains the vector v_glob representing the
+  *   global pool of the PolyhedralFunction.
+  *
+  * - The dimension "PolyFunction_NumVar" containing the number of columns of
+  *   the aA matrix, i.e., the number of active variables.
+  *
+  * - The dimension "PolyFunction_ANumRow" containing the number of rows of
+  *   the aA (aggregated rows) matrix. The dimension is optional, if it is
+  *   not provided than 0 (no rows) is assumed. This imples that the global
+  *   pool does not contain any aggregated linearization, i.e., there are no
+  *   negative elements of Glob.
+  *
+  * - The variable "PolyFunction_aA", of type double and indexed over both
+  *   the dimensions ANumRow and NumVar (in this order); it contains the
+  *   (row-major) representation of the matrix aA. The variable is only
+  *   optional if NumRow == 0.
+  *
+  * - The variable "PolyFunction_ab", of type double and indexed over the
+  *   dimension NumRow, which contains the vector ab (RHS of the aggregated
+  *   rows. The variable is only optional if NumRow == 0.
+  *
+  * - The dimension "PolyFunction_ImpCoeffNum" containing the number of
+  *   elements of the important coefficients. The dimension is optional, if
+  *   it is not provided than 0 (no important coefficients) is assumed.
+  *
+  * - The variable "PolyFunction_ImpCoeffInd", of type integer and indexed
+  *   over the dimension ImpCoeffNum, which contains the vector of indices
+  *   of the important coefficients.
+  *
+  * - The variable "PolyFunction_ImpCoeffVal", of type double and indexed
+  *   over the dimension ImpCoeffNum, which contains the vector of real
+  *   values of the important coefficients. */
+
+ void serialize( netCDF::NcGroup & group ) const override;
+
+/*-------------------------------- FRIENDS ---------------------------------*/
+
+ friend class PolyhedralFunction;  // make PolihedralFunction friend
+
+/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ void print( std::ostream &output ) const override {
+  output << "PolyhedralFunctionState [" << this << "] with " << f_nvar
+	 << " variables, global pool size " << v_glob.size() << " and "
+	 << v_aA.size() << " aggregated rows";
+  }
+
+/*--------------------------- PROTECTED FIELDS -----------------------------*/
+
+ PolyhedralFunction::Index f_nvar;
+ ///< number of variables in the PolyhedralFunction
+
+ std::vector< int > v_glob;  ///< the global pool, 
+ 
+ PolyhedralFunction::MultiVector v_aA;
+ ///< the A matrix for aggregated linearizations
+ 
+ PolyhedralFunction::RealVector v_ab;
+ ///< the b vector for aggregated linearizations
+
+ PolyhedralFunction::LinearCombination f_imp_coeff;
+ ///< coefficients of the important lineariration
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( PolyhedralFunctionState ) )
+
+/** @} end( group( PoluhedralFunction_CLASSES ) ) --------------------------*/
+/*--------------------------------------------------------------------------*/
+
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1930,8 +2099,8 @@ class PolyhedralFunctionModSbst : public PolyhedralFunctionMod {
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-#endif  /* C05Function.h included */
+#endif  /* PoluhedralFunction.h included */
 
 /*--------------------------------------------------------------------------*/
-/*------------------------ End File C05Function.h --------------------------*/
+/*--------------------- End File PoluhedralFunction.h ----------------------*/
 /*--------------------------------------------------------------------------*/

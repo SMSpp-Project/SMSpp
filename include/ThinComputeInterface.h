@@ -2371,7 +2371,7 @@ class State {
   * This method is pure virtual, as it clearly has to be implemented by
   * derived classes. */
 
- virtual void serialize( netCDF::NcGroup & group ) = 0;
+ virtual void serialize( netCDF::NcGroup & group ) const = 0;
 
 /*@} -----------------------------------------------------------------------*/
 /*------------ METHODS FOR LOADING, PRINTING & SAVING THE State ------------*/
@@ -2394,7 +2394,7 @@ class State {
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-protected:
+ protected:
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PROTECTED METHODS -----------------------------*/
