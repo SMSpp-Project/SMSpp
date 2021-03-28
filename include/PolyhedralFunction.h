@@ -1964,8 +1964,6 @@ class PolyhedralFunctionModSbst : public PolyhedralFunctionMod {
 
  };  // end( class( PolyhedralFunctionModSbst ) )
 
-
-
 /*--------------------------------------------------------------------------*/
 /*--------------------- CLASS PolyhedralFunctionState ----------------------*/
 /*--------------------------------------------------------------------------*/
@@ -2018,9 +2016,9 @@ class PolyhedralFunctionState : public State {
   * - The dimension "PolyFunction_GlobSize" containing the size of the global
   *   pool.
   *
-  * - The variable "PolyFunction_Glob", of type integer and indexed over the
-  *   dimension GlobSize, which contains the vector v_glob representing the
-  *   global pool of the PolyhedralFunction.
+  * - The variable "PolyFunction_Glob", of type netCDF::NcInt and indexed over
+  *   the dimension PolyFunction_GlobSize, which contains the vector v_glob
+  *   representing the global pool of the PolyhedralFunction.
   *
   * - The dimension "PolyFunction_NumVar" containing the number of columns of
   *   the aA matrix, i.e., the number of active variables.
@@ -2031,26 +2029,29 @@ class PolyhedralFunctionState : public State {
   *   pool does not contain any aggregated linearization, i.e., there are no
   *   negative elements of Glob.
   *
-  * - The variable "PolyFunction_aA", of type double and indexed over both
-  *   the dimensions ANumRow and NumVar (in this order); it contains the
-  *   (row-major) representation of the matrix aA. The variable is only
-  *   optional if NumRow == 0.
+  * - The variable "PolyFunction_aA", of type netCDF::NcDouble and indexed
+  *   over both the dimensions PolyFunction_ANumRow and PolyFunction_NumVar
+  *   (in this order); it contains the (row-major) representation of the
+  *   matrix aA. The variable is only optional if PolyFunction_NumRow == 0.
   *
-  * - The variable "PolyFunction_ab", of type double and indexed over the
-  *   dimension NumRow, which contains the vector ab (RHS of the aggregated
-  *   rows. The variable is only optional if NumRow == 0.
+  * - The variable "PolyFunction_ab", of type netCDF::NcDouble and indexed
+  *   over the dimension PolyFunction_NumRow, which contains the vector ab
+  *   (RHS of the aggregated rows. The variable is only optional if
+  *   PolyFunction_NumRow == 0.
   *
   * - The dimension "PolyFunction_ImpCoeffNum" containing the number of
   *   elements of the important coefficients. The dimension is optional, if
   *   it is not provided than 0 (no important coefficients) is assumed.
   *
-  * - The variable "PolyFunction_ImpCoeffInd", of type integer and indexed
-  *   over the dimension ImpCoeffNum, which contains the vector of indices
-  *   of the important coefficients.
+  * - The variable "PolyFunction_ImpCoeffInd", of type netCDF::NcInt and
+  *   indexed over the dimension PolyFunction_ImpCoeffNum, which contains the
+  *   vector of indices of the important coefficients. The variable is
+  *   optional if PolyFunction_ImpCoeffNum == 0.
   *
-  * - The variable "PolyFunction_ImpCoeffVal", of type double and indexed
-  *   over the dimension ImpCoeffNum, which contains the vector of real
-  *   values of the important coefficients. */
+  * - The variable "PolyFunction_ImpCoeffVal", of type netCDF::NcDouble and
+  *   indexed over the dimension PolyFunction_ImpCoeffNum, which contains the
+  *   vector of real values of the important coefficients. The variable is
+  *   optional if PolyFunction_ImpCoeffNum == 0. */
 
  void serialize( netCDF::NcGroup & group ) const override;
 

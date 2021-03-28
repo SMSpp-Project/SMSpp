@@ -56,6 +56,14 @@ namespace SMSpp_di_unipi_it
 {
  class BlockSolverConfig;  // forward definition of BlockSolverConfig
 
+ class LagBFunctionState;  // forward declaration of LagBFunctionState
+
+/*--------------------------------------------------------------------------*/
+/*------------------------------- CLASSES ----------------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @defgroup LagBFunction_CLASSES Classes in LagBFunction.h
+ *  @{ */
+
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS LagBFunction -----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1255,7 +1263,7 @@ class LagBFunction : public C05Function , public Block {
 
  // double get_dflt_dbl_par( idx_type par ) const override;
 
- /*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 
  [[nodiscard]] idx_type int_par_str2idx( const std::string & name )
   const override {
@@ -1281,6 +1289,28 @@ class LagBFunction : public C05Function , public Block {
 
   return( C05Function::int_par_idx2str( idx ) );
   }
+
+/**@} ----------------------------------------------------------------------*/
+/*----------- METHODS FOR HANDLING THE State OF THE LagBFunction -----------*/
+/*--------------------------------------------------------------------------*/
+/** @name Handling the State of the LagBFunction
+ *  @{ */
+
+ State * get_State( void ) const override;
+
+/*--------------------------------------------------------------------------*/
+
+ void put_State( const State & state ) override;
+
+/*--------------------------------------------------------------------------*/
+
+ void put_State( State && state ) override;
+
+/*--------------------------------------------------------------------------*/
+
+ void serialize_State( netCDF::NcGroup & group ,
+		       const std::string & sub_group_name = "" )
+  const override;
 
 /**@} ----------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE LagBFunction ---------*/
@@ -1333,6 +1363,12 @@ class LagBFunction : public C05Function , public Block {
   return( new LagBFunction::v_const_iterator( LagPairs.end() ) );
   }
 
+/*--------------------------------------------------------------------------*/
+/*-------------------------------- FRIENDS ---------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ friend class LagBFunctionState;  // make LagBFunctionState friend
+
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1348,6 +1384,12 @@ class LagBFunction : public C05Function , public Block {
  void print( std::ostream &output ) const override;
 
  void load( std::istream &input ) override;
+
+/*--------------------------------------------------------------------------*/
+ // returns the subset of elements in the global pool to be removed and added
+
+ std::pair< Subset , Subset > guts_of_put_State(
+				           const LagBFunctionState & state );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/  /// delete all the Lagrangian terms (and the ColVariable with them)
 
@@ -1771,6 +1813,124 @@ class LagBFunctionMod : public C05FunctionMod {
 
  };  // end( class( LagBFunctionMod ) )
 
+/*--------------------------------------------------------------------------*/
+/*------------------------ CLASS LagBFunctionState -------------------------*/
+/*--------------------------------------------------------------------------*/
+/// class to describe the "internal state" of a LagBFunction
+/** Derived class from State to describe the "internal state" of a
+ * LagBFunction, i.e., its global pool. This means savng the stored Solution
+ * (and their type). */
+
+class LagBFunctionState : public State {
+
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*------------ CONSTRUCTING AND DESTRUCTING LagBFunctionState --------------*/
+
+ /// constructor, doing everything
+ /** Constructor of LagBFunctionState: takes a pointer to a LagBFunction and
+  * immediately copies its "internal state". */
+
+ LagBFunctionState( const LagBFunction * lbf ) : State() ,
+  f_max_glob( lbf->f_max_glob ) {
+  g_pool.resize( f_max_glob );
+  auto gpit = lbf->g_pool.begin();
+  for( auto & el : g_pool ) {
+   if( gpit->first )
+    el.first = gpit->first->clone();
+   else
+    el.first = nullptr;
+   el.second = gpit->second;
+   ++gpit;
+   }
+  zLC = lbf->zLC;
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// de-serialize a LagBFunctionState out of netCDF::NcGroup
+ /** De-serialize a LagBFunctionState out of netCDF::NcGroup; see
+  * LagBFunctionState::serialize() for a description of the format. */
+
+ void deserialize( const netCDF::NcGroup & group ) override;
+
+/*--------------------------------------------------------------------------*/
+ ///< destructor
+
+ virtual ~LagBFunctionState() { }
+
+/*--------- METHODS DESCRIBING THE BEHAVIOR OF A LagBFunctionState ---------*/
+
+ /// serialize a PolyhedralFunctionState into a netCDF::NcGroup
+ /** The method serializes the LagBFunctionState into the provided
+  * netCDF::NcGroup, so that it can later be read back by deserialize().
+  *
+  * After the call, \p will contain:
+  *
+  * - The dimension "LagBFunction_MaxGlob" containing 1 + the maximum active
+  *   name in the global pool; this means that there can be only
+  *   LagBFunction_MaxGlob nonempty entries in the global pool, and the
+  *   largest possible name of an active entry is LagBFunction_MaxGlob - 1.
+  *   The variable is optional, if not present then 0 (empty global pool) is
+  *   assumed.
+  *
+  * - The variable "LagBFunction_Type", of type netCDF::NcByte and indexed
+  *   over the dimension LagBFunction_MaxGlob, which contains the vector of
+  *   booleans specifying the type (solution/direction) of each element in
+  *   the global pool. The variable is optional if LagBFunction_MaxGlob == 0.
+  *
+  * - At most LagBFunction_MaxGlob netCDF::NcGroup with name
+  *   "LagBFunction_Sol_X", with X an integer between 0 and
+  *   LagBFunction_MaxGlob - 1, each one containing the deserialization of
+  *   the Solution in the corresponding position of the global pool. If the
+  *   group ".._X" is not there, then position X in the global pool is empty
+  *
+  * - The dimension "LagBFunction_ImpCoeffNum" containing the number of
+  *   elements of the important coefficients. The dimension is optional, if
+  *   it is not provided than 0 (no important coefficients) is assumed.
+  *
+  * - The variable "LagBFunction_ImpCoeffInd", of type netCDF::NcInt and
+  *   indexed over the dimension LagBFunction_ImpCoeffNum, which contains
+  *   the vector of indices of the important coefficients. The variable is
+  *   optional if LagBFunction_ImpCoeffNum == 0.
+  *
+  * - The variable "LagBFunction_ImpCoeffVal", of type netCDF::NcDouble and
+  *   indexed over the dimension LagBFunction_ImpCoeffNum, which contains
+  *   the vector of real values of the important coefficients. The variable
+  *   is optional if LagBFunction_ImpCoeffNum == 0.*/
+
+ void serialize( netCDF::NcGroup & group ) const override;
+
+/*-------------------------------- FRIENDS ---------------------------------*/
+
+ friend class LagBFunction;  // make LagBFunction friend
+
+/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ void print( std::ostream &output ) const override {
+  output << "LagBFunctionState [" << this << "] with max global pool element "
+	 << f_max_glob;
+  }
+
+/*--------------------------- PROTECTED FIELDS -----------------------------*/
+
+ LagBFunction::Index f_max_glob;      ///< 1 + maximum active name
+
+ LagBFunction::v_gpool_el g_pool;     ///< the global pool
+
+ LagBFunction::LinearCombination zLC;
+ ///< the LinearCombination of the important linearization
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( LagBFunctionState ) )
+
+/** @} end( group( LagBFunction_CLASSES ) ) --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
  }  // end( namespace SMSpp_di_unipi_it )

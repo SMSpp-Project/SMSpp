@@ -1041,6 +1041,162 @@ void LagBFunction::serialize( netCDF::NcGroup & group ) const
  }  // end( LagBFunction::serialize() )
 
 /*--------------------------------------------------------------------------*/
+/*----------- METHODS FOR HANDLING THE State OF THE LagBFunction -----------*/
+/*--------------------------------------------------------------------------*/
+
+State * LagBFunction::get_State( void ) const {
+  return( new LagBFunctionState( this ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::put_State( const State & state )
+{
+ // if state is not a LagBFunctionState &, exception will be thrown
+ auto s = dynamic_cast< const LagBFunctionState & >( state );
+
+ // find out which elements are removed from / added to the global pool
+ auto res = guts_of_put_State( s );
+
+ // now actually change the data
+ f_max_glob = s.f_max_glob;
+ auto gpit = g_pool.begin();
+ for( auto el : s.g_pool ) {
+  delete gpit->first;
+  if( el.first )
+   gpit->first = el.first->clone();
+  else
+   gpit->first = nullptr;
+  gpit->second = el.second;
+  ++gpit;
+  }
+
+ for( ; gpit != g_pool.end() ; ++gpit )
+  *gpit = std::make_pair( nullptr , 0 );
+ 
+ zLC = s.zLC;
+
+ // if there is no Observer, no-one is looking at what just happened
+ if( ! f_Observer )
+  return;
+
+ // but if there is an Observer the Modification have to be issued *after*
+ // the data change, which is why this is not done in guts_of_put_State()
+ // first tell about removals (if there is anything to remove)
+ // note that the GlobalPoolRemoved Modification is issued with
+ // what == 0, i.e., nothing really has changed in the inner Block
+ if( ! res.first.empty() )
+  f_Observer->add_Modification( std::make_shared<LagBFunctionMod>( this ,
+				   C05FunctionMod::GlobalPoolRemoved ,
+				   std::move( res.first ) , 0 , 0 ) );
+
+ // then tell about additions (if there is anything to add), so that the
+ // aggregated linearizations are substituted with the new ones
+ if( ! res.second.empty() )
+  f_Observer->add_Modification( std::make_shared<LagBFunctionMod>( this ,
+				   C05FunctionMod::GlobalPoolAdded ,
+				   std::move( res.second ) , 0 , 0 ) );
+
+ }  // end( LagBFunction::put_State( const & ) )
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::put_State( State && state )
+{
+ // if state is not a LagBFunctionState &&, exception will be thrown
+ auto s = dynamic_cast< LagBFunctionState && >( state );
+
+ // find out which elements are removed from / added to the global pool
+ auto res = guts_of_put_State( s );
+
+ // now actually change the data
+ f_max_glob = s.f_max_glob;
+ auto gpit = g_pool.begin();
+ for( auto el : s.g_pool ) {
+  delete gpit->first;
+  if( el.first )
+   gpit->first = el.first;
+  else
+   gpit->first = nullptr;
+  gpit->second = el.second;
+  ++gpit;
+  }
+
+ for( ; gpit != g_pool.end() ; ++gpit )
+  *gpit = std::make_pair( nullptr , 0 );
+ 
+ zLC = std::move( s.zLC );
+
+ // if there is no Observer, no-one is looking at what just happened
+ if( ! f_Observer )
+  return;
+
+ // but if there is an Observer the Modification have to be issued *after*
+ // the data change, which is why this is not done in guts_of_put_State()
+ // first tell about removals (if there is anything to remove)
+ // note that the GlobalPoolRemoved Modification is issued with
+ // what == 0, i.e., nothing really has changed in the inner Block
+ if( ! res.first.empty() )
+  f_Observer->add_Modification( std::make_shared<LagBFunctionMod>( this ,
+				   C05FunctionMod::GlobalPoolRemoved ,
+				   std::move( res.first ) , 0 , 0 ) );
+
+ // then tell about additions (if there is anything to add), so that the
+ // aggregated linearizations are substituted with the new ones
+ if( ! res.second.empty() )
+  f_Observer->add_Modification( std::make_shared<LagBFunctionMod>( this ,
+				   C05FunctionMod::GlobalPoolAdded ,
+				   std::move( res.second ) , 0 , 0 ) );
+
+ }  // end( LagBFunction::put_State( && ) )
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::serialize_State( netCDF::NcGroup & group ,
+				    const std::string & sub_group_name ) const
+{
+ if( ! sub_group_name.empty() ) {
+  auto gr = group.addGroup( sub_group_name );
+  serialize_State( gr );
+  return;
+  }
+
+ if( f_max_glob ) {
+  netCDF::NcDim gs = group.addDim( "LagBFunction_MaxGlob" , f_max_glob );
+
+  std::vector< char > typ( f_max_glob );
+  for( Index i = 0 ; i < f_max_glob ; ++i )
+   typ[ i ] = g_pool[ i ].second ? char( 1 ) : char( 0 );
+ 
+    ( group.addVar( "LagBFunction_Type" , netCDF::NcByte() , gs ) ).putVar(
+			          { 0 } , {  f_max_glob } , typ.data() );
+
+  for( Index i = 0 ; i < f_max_glob ; ++i ) {
+   if( ! g_pool[ i ].first )
+    continue;
+
+   auto gi = group.addGroup( "LagBFunction_Sol_" + std::to_string( i ) );
+   g_pool[ i ].first->serialize( gi );
+   }
+  }
+
+ if( ! zLC.empty() ) {
+  netCDF::NcDim cn = group.addDim( "LagBFunction_ImpCoeffNum" , zLC.size() );
+  
+  auto ncCI = group.addVar( "LagBFunction_ImpCoeffInd" , netCDF::NcInt() ,
+			    cn );
+
+  auto ncCV = group.addVar( "LagBFunction_ImpCoeffVal" , netCDF::NcDouble() ,
+			    cn );
+ 
+  for( Index i = 0 ; i < zLC.size() ; ++i ) {
+   ncCI.putVar( { i } , zLC[ i ].first );
+   ncCV.putVar( { i } , zLC[ i ].second );
+   }
+  }
+ }  // end( LagBFunction::serialize_State )
+
+/*--------------------------------------------------------------------------*/
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF THE LagBFunction ------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1704,6 +1860,42 @@ void LagBFunction::load( std::istream &input )
  input >> RAccLin;
 
  }  // end( LagBFunction::load() )
+
+/*--------------------------------------------------------------------------*/
+
+std::pair< Function::Subset , Function::Subset >
+LagBFunction::guts_of_put_State( const LagBFunctionState & state )
+{
+ if( state.f_max_glob > g_pool.size() )
+  g_pool.resize( f_max_glob , std::make_pair( nullptr , true ) );
+
+ // if there is no Observer, no-one is looking at what happens
+ if( ! f_Observer )
+  return( std::make_pair( Subset() , Subset() ) );
+
+ // handle the changes in the global pool
+
+ Subset Addd;
+ Subset Rmvd;
+
+ // process the common part between current and new v_glob
+ Index i = 0;
+ for( ; state.f_max_glob ; ++i ) {
+  if( g_pool[ i ].first )
+   Rmvd.push_back( i );
+
+  if( state.g_pool[ i ].first )
+   Addd.push_back( i );
+  }
+
+ // process what is in the current but not in the new (if any)
+ for( ; i < g_pool.size() ; ++i )
+  if( g_pool[ i ].first )
+   Rmvd.push_back( i );
+
+ return( std::make_pair( Rmvd , Addd ) );
+
+ }  // end( LagBFunction::guts_of_put_State )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
@@ -3127,7 +3319,99 @@ void LagBFunction::add_par( std::string && name , par_type value )
  f_BSC->get_SolverConfigs()[ InnrSlvr ]->set_par( std::move( name ) , value );
  f_BSC_changed = true;
  }
+
+/*--------------------------------------------------------------------------*/
+/*------------------------ CLASS LagBFunctionState -------------------------*/
+/*--------------------------------------------------------------------------*/
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+void LagBFunctionState::deserialize( const netCDF::NcGroup & group )
+{
+ auto gs = group.getDim( "LagBFunction_MaxGlob" );
+ f_max_glob = gs.isNull() ? 0 : gs.getSize();
+
+ g_pool.resize( f_max_glob );
+
+ if( f_max_glob ) {
+  auto nct = group.getVar( "LagBFunction_Type" );
+  if( nct.isNull() )
+   throw( std::logic_error( "LagBFunction_Type not found" ) );
+
+  for( Index i = 0 ; i < f_max_glob ; ++i ) {
+   char ti;
+   nct.getVar( { i } , &ti );
+   g_pool[ i ].second = ( ti > 0 );
+
+   auto gi = group.getGroup( "LagBFunction_Sol_" + std::to_string( i ) );
+   if( gi.isNull() )
+    g_pool[ i ].first = nullptr;
+   else
+    g_pool[ i ].first = Solution::new_Solution( gi );
+   }
+  }
+
+ auto nic = group.getDim( "LagBFunction_ImpCoeffNum" );
+ if( ( ! nic.isNull() ) && ( nic.getSize() ) ) {
+  zLC.resize( nic.getSize() );
+
+  auto ncCI = group.getVar( "LagBFunction_ImpCoeffInd" );
+  if( ncCI.isNull() )
+   throw( std::logic_error( "LagBFunction_ImpCoeffInd not found" ) );
+
+  auto ncCV = group.getVar( "LagBFunction_ImpCoeffVal" );
+  if( ncCV.isNull() )
+   throw( std::logic_error( "LagBFunction_ImpCoeffVal not found" ) );
+
+  for( LagBFunction::Index i = 0 ; i < zLC.size() ; ++i ) {
+   ncCI.getVar( { i } , &(zLC[ i ].first) );
+   ncCV.getVar( { i } , &(zLC[ i ].second) );
+   }
+  }
+ else
+  zLC.clear();
  
+ }  // end( LagBFunctionState::deserialize )
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunctionState::serialize( netCDF::NcGroup & group ) const
+{
+ if( f_max_glob ) {
+  netCDF::NcDim gs = group.addDim( "LagBFunction_MaxGlob" , f_max_glob );
+
+  std::vector< char > typ( f_max_glob );
+  for( Index i = 0 ; i < f_max_glob ; ++i )
+   typ[ i ] = g_pool[ i ].second ? char( 1 ) : char( 0 );
+ 
+    ( group.addVar( "LagBFunction_Type" , netCDF::NcByte() , gs ) ).putVar(
+			          { 0 } , {  f_max_glob } , typ.data() );
+
+  for( Index i = 0 ; i < f_max_glob ; ++i ) {
+   if( ! g_pool[ i ].first )
+    continue;
+
+   auto gi = group.addGroup( "LagBFunction_Sol_" + std::to_string( i ) );
+   g_pool[ i ].first->serialize( gi );
+   }
+  }
+
+ if( ! zLC.empty() ) {
+  netCDF::NcDim cn = group.addDim( "LagBFunction_ImpCoeffNum" , zLC.size() );
+  
+  auto ncCI = group.addVar( "LagBFunction_ImpCoeffInd" , netCDF::NcInt() ,
+			    cn );
+
+  auto ncCV = group.addVar( "LagBFunction_ImpCoeffVal" , netCDF::NcDouble() ,
+			    cn );
+ 
+  for( Index i = 0 ; i < zLC.size() ; ++i ) {
+   ncCI.putVar( { i } , zLC[ i ].first );
+   ncCV.putVar( { i } , zLC[ i ].second );
+   }
+  }
+ }  // end( LagBFunctionState::serialize )
+
 /*--------------------------------------------------------------------------*/
 /*---------------------- End File LagBFunction.cpp -------------------------*/
 /*--------------------------------------------------------------------------*/

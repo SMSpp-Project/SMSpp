@@ -173,7 +173,7 @@ public:
   *   then ...
   */
 
- void serialize( netCDF::NcGroup & group ) override final;
+ void serialize( netCDF::NcGroup & group ) const override final;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns a scaled version of this ColVariableSolution
@@ -410,6 +410,12 @@ public:
 
  Vec_ColVariableSolution nested_solutions;
  ///< vector of ColVariableSolutions of the nested Blocks
+
+/*--------------------------------------------------------------------------*/
+
+ SMSpp_insert_in_factory_h;
+
+/*--------------------------------------------------------------------------*/
 
  };  // end( class( ColVariableSolution ) )
 

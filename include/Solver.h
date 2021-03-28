@@ -1526,7 +1526,7 @@ class Solver : public ThinComputeInterface {
   * programmer purposely defines private_name() without calling the macro,
   * which seems rather pointless). */
 
- const std::string & classname( void ) { return( private_name() ); }
+ const std::string & classname( void ) const { return( private_name() ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/

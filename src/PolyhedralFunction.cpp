@@ -2405,7 +2405,10 @@ void PolyhedralFunctionState::deserialize( const netCDF::NcGroup & group )
    ncCV.getVar( { i } , &(f_imp_coeff[ i ].second) );
    }
   }
- }  // end( PolyhedralFunctionState::deserialize )
+ else
+  f_imp_coeff.clear();
+
+}  // end( PolyhedralFunctionState::deserialize )
 
 /*--------------------------------------------------------------------------*/
 
