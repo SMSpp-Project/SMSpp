@@ -1501,8 +1501,10 @@ class PolyhedralFunction : public C05Function {
   }
 
 /*--------------------------------------------------------------------------*/
+ // returns the subset of elements in the global pool to be removed and added
 
- void guts_of_put_State( const PolyhedralFunctionState & state );
+ std::pair< Subset , Subset > guts_of_put_State(
+				      const PolyhedralFunctionState & state );
 
 /*--------------------------------------------------------------------------*/
 

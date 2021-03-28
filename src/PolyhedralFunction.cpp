@@ -671,8 +671,10 @@ void PolyhedralFunction::put_State( const State & state )
  // if state is not a PolyhedralFunctionState &, exception will be thrown
  auto s = dynamic_cast< const PolyhedralFunctionState & >( state );
 
- guts_of_put_State( s );
+ // find out which elements are removed from / added to the global pool
+ auto res = guts_of_put_State( s );
 
+ // now actually change the data
  if( v_glob.size() > s.v_glob.size() )
   std::copy( s.v_glob.begin() , s.v_glob.end() , v_glob.begin() );
  else
@@ -680,6 +682,25 @@ void PolyhedralFunction::put_State( const State & state )
  v_aA = s.v_aA;
  v_ab = s.v_ab;
  f_imp_coeff = s.f_imp_coeff;
+
+ // if there is no Observer, no-one is looking at what just happened
+ if( ! f_Observer )
+  return;
+
+ // but if there is an Observer the Modification have to be issued *after*
+ // the data change, which is why this is not done in guts_of_put_State()
+ // first tell about removals (if there is anything to remove)
+ if( ! res.first.empty() )
+  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionMod>(
+				   this , C05FunctionMod::GlobalPoolRemoved ,
+				   std::move( res.first ) , 0 ) );
+
+ // then tell about additions (if there is anything to add), so that the
+ // aggregated linearizations are substituted with the new ones
+ if( ! res.second.empty() )
+  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionMod>(
+				   this , C05FunctionMod::GlobalPoolAdded ,
+				   std::move( res.second ) , 0 ) );
 
  }  // end( PolyhedralFunction::put_State( const & ) )
 
@@ -690,8 +711,10 @@ void PolyhedralFunction::put_State( State && state )
  // if state is not a PolyhedralFunctionState &, exception will be thrown
  auto s = dynamic_cast< PolyhedralFunctionState && >( state );
 
- guts_of_put_State( s );
+ // find out which elements are removed from / added to the global pool
+ auto res = guts_of_put_State( s );
 
+ // now actually change the data
  if( v_glob.size() > s.v_glob.size() )
   std::copy( s.v_glob.begin() , s.v_glob.end() , v_glob.begin() );
  else
@@ -699,6 +722,25 @@ void PolyhedralFunction::put_State( State && state )
  v_aA = std::move( s.v_aA );
  v_ab = std::move( s.v_ab );
  f_imp_coeff = std::move( s.f_imp_coeff );
+ 
+ // if there is no Observer, no-one is looking at what just happened
+ if( ! f_Observer )
+  return;
+
+ // but if there is an Observer the Modification have to be issued *after*
+ // the data change, which is why this is not done in guts_of_put_State()
+ // first tell about removals (if there is anything to remove)
+ if( ! res.first.empty() )
+  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionMod>(
+				   this , C05FunctionMod::GlobalPoolRemoved ,
+				   std::move( res.first ) , 0 ) );
+
+ // then tell about additions (if there is anything to add), so that the
+ // aggregated linearizations are substituted with the new ones
+ if( ! res.second.empty() )
+  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionMod>(
+				   this , C05FunctionMod::GlobalPoolAdded ,
+				   std::move( res.second ) , 0 ) );
 
  }  // end( PolyhedralFunction::put_State( && ) )
 
@@ -2165,8 +2207,8 @@ void PolyhedralFunction::delete_rows( ModParam issueMod )
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void PolyhedralFunction::guts_of_put_State(
-				     const PolyhedralFunctionState & state )
+std::pair< Function::Subset , Function::Subset >
+PolyhedralFunction::guts_of_put_State( const PolyhedralFunctionState & state )
 {
  if( state.f_nvar != get_num_active_var() )
   throw( std::invalid_argument(
@@ -2177,9 +2219,9 @@ void PolyhedralFunction::guts_of_put_State(
    throw( std::invalid_argument(
 	             "PolyhedralFunctionState global pool inconsistent" ) );
 
- // if there is no Observer, no-one is looking at what happens to
- if( f_Observer )
-  return;
+ // if there is no Observer, no-one is looking at what happens
+ if( ! f_Observer )
+  return( std::make_pair( Subset() , Subset() ) );
 
  // handle the changes in the global pool. all aggregated linearizations
  // in the current global pool need be deleted since they are replaced by
@@ -2223,19 +2265,8 @@ void PolyhedralFunction::guts_of_put_State(
   if( v_glob[ i ] < Inf<int>() )
    Rmvd.push_back( i );
 
- // first remove (if there is anything to remove)
- if( ! Rmvd.empty() )
-  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionMod>( this ,
-				            C05FunctionMod::GlobalPoolRemoved ,
-					    std::move( Rmvd ) , 0 ) );
+ return( std::make_pair( Rmvd , Addd ) );
 
- // then add (if there is anything to add), so that aggregated linearizations
- // are substituted with the new ones
- if( ! Addd.empty() )
-  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionMod>( this ,
-				              C05FunctionMod::GlobalPoolAdded ,
-					      std::move( Addd ) , 0 ) );
- 
  }  // end( PolyhedralFunction::guts_of_put_State )
 
 /*--------------------------------------------------------------------------*/
