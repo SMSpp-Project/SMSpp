@@ -574,6 +574,8 @@ class LagBFunction : public C05Function , public Block {
 
  intNoSol ,        ///< whether Solution are required from the inner Block
 
+ intChkState ,     ///< whether to check the Solution in the put_State
+
  intLastLagBFPar   ///< first allowed new int parameter for derived classes
                    /**< Convenience value for easily allow derived classes
 		    * to extend the set of int algorithmic parameters. */
@@ -657,11 +659,23 @@ class LagBFunction : public C05Function , public Block {
   *   the ability of LagBFunction to efficiently respond to Modification from
   *   the inner Block, as almost every change there will have to result in a
   *   "very bad" C05FunctionMod being issued invalidting all previous
-  *   information since it is impossible to update it, which is why the default
-  *   value is 0 (false), which requires a working get_Solution() from the
-  *   inner Block;
+  *   information since it is impossible to update it, which is why the
+  *   default value is 0 (false), which requires a working get_Solution()
+  *   from the inner Block;
   *
-  * - intLPMaxSz: the value of intLPMaxSz is passed to theinner Solver as
+  * - intChkState: if nonzero, it is taken to mean that the LagBFunction
+  *                should check the Solution contained in its State, when
+  *   the latter is put back (cf. put_State()), to verify that they are
+  *   still feasible/correct directions. The default is 0, meaning that the
+  *   LagBFunction will trust this being true; ensuring this is then the
+  *   user's responsibility, requiring to keep a close watch on the state of
+  *   the inner Block when the State is read (get_State) and put back but
+  *   saving the potentially costly feasibility check. By setting this
+  *   parameter to nonzero (true) the user gains considerable feasibility in
+  *   re-using a State even if the inner Block is not completely identical
+  *   (constraint-wise) to what it was when it was created, at a cost.
+  *
+  * - intLPMaxSz: the value of intLPMaxSz is passed to the inner Solver as
   *               the Solver::intMaxSol parameter, since each different
   *   Variable Solution produced by the Solver immediately translates into
   *   a linearization of the LagBFunction
@@ -1237,6 +1251,7 @@ class LagBFunction : public C05Function , public Block {
    case( intGPMaxSz ):  return( g_pool.size() ); break;
    case( intInnrSlvr ): return( InnrSlvr ); break;
    case( intNoSol ):    return( NoSol ? 1 : 0 ); break;
+  case( intChkState ):  return( ChkState ? 1 : 0 ); break;
    default:             return( C05Function::get_dflt_int_par( par ) );
    }
   } 
@@ -1254,7 +1269,8 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  [[nodiscard]] int get_dflt_int_par( idx_type par ) const override {
-  if( ( par == intInnrSlvr ) || ( par == intNoSol ) )
+  if( ( par == intInnrSlvr ) || ( par == intNoSol ) ||
+      ( par == intChkState ) )
    return( 0 );
   return( C05Function::get_dflt_int_par( par ) ) ;
   }
@@ -1271,6 +1287,8 @@ class LagBFunction : public C05Function , public Block {
    return( intInnrSlvr );
   if( name == "intNoSol" )
    return( intNoSol );
+  if( name == "intChkState" )
+   return( intChkState );
 
   return( C05Function::int_par_str2idx( name ) );
   }
@@ -1280,12 +1298,14 @@ class LagBFunction : public C05Function , public Block {
  [[nodiscard]] const std::string & int_par_idx2str( idx_type idx )
   const override {
   static const std::vector< std::string > pars =
-   { "intInnrSlvr", "intNoSol" };
+   { "intInnrSlvr", "intNoSol" , "intChkState" };
 
   if( idx == intInnrSlvr )
    return( pars[ 0 ] );
   if( idx == intNoSol )
    return( pars[ 1 ] );
+  if( idx == intChkState )
+   return( pars[ 2 ] );
 
   return( C05Function::int_par_idx2str( idx ) );
   }
@@ -1384,12 +1404,6 @@ class LagBFunction : public C05Function , public Block {
  void print( std::ostream &output ) const override;
 
  void load( std::istream &input ) override;
-
-/*--------------------------------------------------------------------------*/
- // returns the subset of elements in the global pool to be removed and added
-
- std::pair< Subset , Subset > guts_of_put_State(
-				           const LagBFunctionState & state );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/  /// delete all the Lagrangian terms (and the ColVariable with them)
 
@@ -1540,6 +1554,8 @@ class LagBFunction : public C05Function , public Block {
  Index InnrSlvr;        ///< [index of the] Solver of the inner Block
 
  bool NoSol;            ///< true if no Solution are stored
+
+ bool ChkState;         ///< true if the State is checked for correctness
 
  Solver * p_InnrSlvr;   ///< [pointer to the] Solver of the inner Block
 
@@ -1833,17 +1849,21 @@ class LagBFunctionState : public State {
  /** Constructor of LagBFunctionState: takes a pointer to a LagBFunction and
   * immediately copies its "internal state". */
 
- LagBFunctionState( const LagBFunction * lbf ) : State() ,
-  f_max_glob( lbf->f_max_glob ) {
-  g_pool.resize( f_max_glob );
-  auto gpit = lbf->g_pool.begin();
-  for( auto & el : g_pool ) {
-   if( gpit->first )
-    el.first = gpit->first->clone();
-   else
-    el.first = nullptr;
-   el.second = gpit->second;
-   ++gpit;
+ LagBFunctionState( const LagBFunction * lbf ) : State() {
+  if( lbf->NoSol )
+   f_max_glob = 0;
+  else {
+   f_max_glob = lbf->f_max_glob;
+   g_pool.resize( f_max_glob );
+   auto gpit = lbf->g_pool.begin();
+   for( auto & el : g_pool ) {
+    if( gpit->first )
+     el.first = gpit->first->clone();
+    else
+     el.first = nullptr;
+    el.second = gpit->second;
+    ++gpit;
+    }
    }
   zLC = lbf->zLC;
   }
@@ -1856,13 +1876,16 @@ class LagBFunctionState : public State {
  void deserialize( const netCDF::NcGroup & group ) override;
 
 /*--------------------------------------------------------------------------*/
- ///< destructor
+ /// destructor
 
- virtual ~LagBFunctionState() { }
+ virtual ~LagBFunctionState() {
+  for( auto el : g_pool )
+   delete el.first;
+  }
 
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF A LagBFunctionState ---------*/
 
- /// serialize a PolyhedralFunctionState into a netCDF::NcGroup
+ /// serialize a LagBFunctionState into a netCDF::NcGroup
  /** The method serializes the LagBFunctionState into the provided
   * netCDF::NcGroup, so that it can later be read back by deserialize().
   *

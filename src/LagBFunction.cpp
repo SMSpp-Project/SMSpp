@@ -114,8 +114,9 @@ SMSpp_insert_in_factory_cpp_1( LagBFunction );
 
 LagBFunction::LagBFunction( Block * innerblock , Observer * observer )
  : C05Function() , obj( nullptr ) , qobj( nullptr ) , IsConvex( true ) ,
-   InnrSlvr( 0 ) , NoSol( false ) , p_InnrSlvr( nullptr ) , f_max_glob( 0 ) ,
-   LastSolution( 0 ) , VarSol( true ) , f_yb( -INF ) , f_play_dumb( false ) ,
+   InnrSlvr( 0 ) , NoSol( false ) , ChkState( false ) ,
+   p_InnrSlvr( nullptr ) , f_max_glob( 0 ) , LastSolution( 0 ) ,
+   VarSol( true ) , f_yb( -INF ) , f_play_dumb( false ) ,
    f_dirty_Lc( false ) , LPMaxSz( 0 ) , RAccLin( 0 ) , AAccLin( 0 ) ,
    f_BSC( new BlockSolverConfig ) , f_BSC_changed( false ) , f_id( this )
 {
@@ -450,6 +451,9 @@ void LagBFunction::set_par( idx_type par , int value )
 					Subset() , 64 , 0 , true ) ,
 				   eModBlck );
     }
+   break;
+  case( intChkState ):
+   ChkState = ( value > 0 );
    break;
   default: Function::set_par( par , value );
   }
@@ -1055,47 +1059,83 @@ void LagBFunction::put_State( const State & state )
  // if state is not a LagBFunctionState &, exception will be thrown
  auto s = dynamic_cast< const LagBFunctionState & >( state );
 
- // find out which elements are removed from / added to the global pool
- auto res = guts_of_put_State( s );
+ // ensure g_pool is large enough
+ if( s.f_max_glob > g_pool.size() )
+  g_pool.resize( s.f_max_glob , std::make_pair( nullptr , true ) );
 
- // now actually change the data
- f_max_glob = s.f_max_glob;
- auto gpit = g_pool.begin();
- for( auto el : s.g_pool ) {
-  delete gpit->first;
-  if( el.first )
-   gpit->first = el.first->clone();
-  else
-   gpit->first = nullptr;
-  gpit->second = el.second;
-  ++gpit;
-  }
-
- for( ; gpit != g_pool.end() ; ++gpit )
-  *gpit = std::make_pair( nullptr , 0 );
- 
+ // copy the important linearization information
  zLC = s.zLC;
+
+ bool gpempty = ( f_max_glob > 0 );
+ Subset Addd;
+
+ // first void the current global pool
+ if( NoSol ) {
+  std::fill( g_pool.begin() , g_pool.end() ,
+	     std::make_pair( nullptr , true ) );
+  f_max_glob = 0;
+  }
+ else {
+  for( auto & el : g_pool ) {
+   delete el.first;
+   el.first = nullptr;
+   el.second = true;
+   }
+
+  // now add back all the Solution in the State (possibly after a check)
+  auto gpit = g_pool.begin();
+
+  if( ChkState )  // is Solutions are checked
+   for( Index i = 0 ; i < s.g_pool.size() ; ++i ) {
+    if( s.g_pool[ i ].first ) {
+     // write the Solution to the inner Block
+     s.g_pool[ i ].first->write( v_Block.front() );
+
+     // if it's still a feasible solution/direction, copy it
+     if( ( s.g_pool[ i ].second ? v_Block.front()->is_feasible()
+	                        : v_Block.front()->is_unbounded() ) ) {
+      gpit->first = s.g_pool[ i ].first->clone();  // clone() the Solution in
+      gpit->second = s.g_pool[ i ].second;
+      Addd.push_back( i );
+      f_max_glob = i + 1;
+      }
+     }
+    ++gpit;
+    }
+  else {        // it is trusted that Solution are correct
+   for( Index i = 0 ; i < s.g_pool.size() ; ++i ) {
+    if( s.g_pool[ i ].first ) {
+     gpit->first = s.g_pool[ i ].first->clone();  // clone() the Solution in
+     gpit->second = s.g_pool[ i ].second;
+     Addd.push_back( i );
+     }
+    ++gpit;
+    }
+
+   f_max_glob = s.f_max_glob;
+   }
+  }  // end( else( NoSol ) )
 
  // if there is no Observer, no-one is looking at what just happened
  if( ! f_Observer )
   return;
 
  // but if there is an Observer the Modification have to be issued *after*
- // the data change, which is why this is not done in guts_of_put_State()
- // first tell about removals (if there is anything to remove)
+ // the data change; first tell that all previous linearizations have been
+ // removed, provided there was any
  // note that the GlobalPoolRemoved Modification is issued with
  // what == 0, i.e., nothing really has changed in the inner Block
- if( ! res.first.empty() )
+ if( ! gpempty )
   f_Observer->add_Modification( std::make_shared<LagBFunctionMod>( this ,
 				   C05FunctionMod::GlobalPoolRemoved ,
-				   std::move( res.first ) , 0 , 0 ) );
+				   std::move( Subset() ) , 0 , 0 ) );
 
  // then tell about additions (if there is anything to add), so that the
  // aggregated linearizations are substituted with the new ones
- if( ! res.second.empty() )
+ if( ! Addd.empty() )
   f_Observer->add_Modification( std::make_shared<LagBFunctionMod>( this ,
 				   C05FunctionMod::GlobalPoolAdded ,
-				   std::move( res.second ) , 0 , 0 ) );
+				   std::move( Addd ) , 0 , 0 ) );
 
  }  // end( LagBFunction::put_State( const & ) )
 
@@ -1106,47 +1146,85 @@ void LagBFunction::put_State( State && state )
  // if state is not a LagBFunctionState &&, exception will be thrown
  auto s = dynamic_cast< LagBFunctionState && >( state );
 
- // find out which elements are removed from / added to the global pool
- auto res = guts_of_put_State( s );
+ // ensure g_pool is large enough
+ if( s.f_max_glob > g_pool.size() )
+  g_pool.resize( s.f_max_glob , std::make_pair( nullptr , true ) );
 
- // now actually change the data
- f_max_glob = s.f_max_glob;
- auto gpit = g_pool.begin();
- for( auto el : s.g_pool ) {
-  delete gpit->first;
-  if( el.first )
-   gpit->first = el.first;
-  else
-   gpit->first = nullptr;
-  gpit->second = el.second;
-  ++gpit;
-  }
-
- for( ; gpit != g_pool.end() ; ++gpit )
-  *gpit = std::make_pair( nullptr , 0 );
- 
+ // move the important linearization information
  zLC = std::move( s.zLC );
+
+ bool gpempty = ( f_max_glob > 0 );
+ Subset Addd;
+
+ // first void the current global pool
+ if( NoSol ) {
+  std::fill( g_pool.begin() , g_pool.end() ,
+	     std::make_pair( nullptr , true ) );
+  f_max_glob = 0;
+  }
+ else {
+  for( auto & el : g_pool ) {
+   delete el.first;
+   el.first = nullptr;
+   el.second = true;
+   }
+
+  // now add back all the Solution in the State (possibly after a check)
+  auto gpit = g_pool.begin();
+
+  if( ChkState )  // is Solutions are checked
+   for( Index i = 0 ; i < s.g_pool.size() ; ++i ) {
+    if( s.g_pool[ i ].first ) {
+     // write the Solution to the inner Block
+     s.g_pool[ i ].first->write( v_Block.front() );
+
+     // if it's still a feasible solution/direction, copy it
+     if( ( s.g_pool[ i ].second ? v_Block.front()->is_feasible()
+	                        : v_Block.front()->is_unbounded() ) ) {
+      gpit->first = s.g_pool[ i ].first;  // move the Solution in
+      s.g_pool[ i ].first = nullptr;      // delete it from the State
+      gpit->second = s.g_pool[ i ].second;
+      Addd.push_back( i );
+      f_max_glob = i + 1;
+      }
+     }
+    ++gpit;
+    }
+  else {        // it is trusted that Solution are correct
+   for( Index i = 0 ; i < s.g_pool.size() ; ++i ) {
+    if( s.g_pool[ i ].first ) {
+     gpit->first = s.g_pool[ i ].first;  // move the Solution in
+     s.g_pool[ i ].first = nullptr;      // delete it from the State
+     gpit->second = s.g_pool[ i ].second;
+     Addd.push_back( i );
+     }
+    ++gpit;
+    }
+
+   f_max_glob = s.f_max_glob;
+   }
+  }  // end( else( NoSol ) )
 
  // if there is no Observer, no-one is looking at what just happened
  if( ! f_Observer )
   return;
 
  // but if there is an Observer the Modification have to be issued *after*
- // the data change, which is why this is not done in guts_of_put_State()
- // first tell about removals (if there is anything to remove)
+ // the data change; first tell that all previous linearizations have been
+ // removed, provided there was any
  // note that the GlobalPoolRemoved Modification is issued with
  // what == 0, i.e., nothing really has changed in the inner Block
- if( ! res.first.empty() )
+ if( ! gpempty )
   f_Observer->add_Modification( std::make_shared<LagBFunctionMod>( this ,
 				   C05FunctionMod::GlobalPoolRemoved ,
-				   std::move( res.first ) , 0 , 0 ) );
+				   std::move( Subset() ) , 0 , 0 ) );
 
  // then tell about additions (if there is anything to add), so that the
  // aggregated linearizations are substituted with the new ones
- if( ! res.second.empty() )
+ if( ! Addd.empty() )
   f_Observer->add_Modification( std::make_shared<LagBFunctionMod>( this ,
 				   C05FunctionMod::GlobalPoolAdded ,
-				   std::move( res.second ) , 0 , 0 ) );
+				   std::move( Addd ) , 0 , 0 ) );
 
  }  // end( LagBFunction::put_State( && ) )
 
@@ -1860,42 +1938,6 @@ void LagBFunction::load( std::istream &input )
  input >> RAccLin;
 
  }  // end( LagBFunction::load() )
-
-/*--------------------------------------------------------------------------*/
-
-std::pair< Function::Subset , Function::Subset >
-LagBFunction::guts_of_put_State( const LagBFunctionState & state )
-{
- if( state.f_max_glob > g_pool.size() )
-  g_pool.resize( f_max_glob , std::make_pair( nullptr , true ) );
-
- // if there is no Observer, no-one is looking at what happens
- if( ! f_Observer )
-  return( std::make_pair( Subset() , Subset() ) );
-
- // handle the changes in the global pool
-
- Subset Addd;
- Subset Rmvd;
-
- // process the common part between current and new v_glob
- Index i = 0;
- for( ; state.f_max_glob ; ++i ) {
-  if( g_pool[ i ].first )
-   Rmvd.push_back( i );
-
-  if( state.g_pool[ i ].first )
-   Addd.push_back( i );
-  }
-
- // process what is in the current but not in the new (if any)
- for( ; i < g_pool.size() ; ++i )
-  if( g_pool[ i ].first )
-   Rmvd.push_back( i );
-
- return( std::make_pair( Rmvd , Addd ) );
-
- }  // end( LagBFunction::guts_of_put_State )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
