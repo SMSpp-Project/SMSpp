@@ -2468,8 +2468,19 @@ class State {
   * it into the provided netCDF::NcGroup, so that it can possibly be read by
   * deserialize() (of a :State of the very same type as this one).
   *
-  * This method is pure virtual, as it clearly has to be implemented by
-  * derived classes. */
+  * The method of the base class just creates and fills the "type" attribute
+  * (with the right name, thanks to the classname() method) and the optional
+  * "name" attribute. Yet
+  *
+  *     serialize() OF ANY :State SHOULD CALL State::serialize()
+  *
+  * While this currently does so little that one might well be tempted to
+  * skip the call and just copy the three lines of code, enforcing this
+  * standard is forward-looking since in this way any future revision of the
+  * base State class may add other mandatory/optional fields: as soon as
+  * they are managed by the (revised) method of the base class, they would
+  * then be automatically dealt with by the derived classes without them even
+  * knowing it happened. */
 
  virtual void serialize( netCDF::NcGroup & group ) const {
   group.putAtt( "type" , classname() );
