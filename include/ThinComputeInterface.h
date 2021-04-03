@@ -1697,13 +1697,13 @@ class ThinComputeInterface
   * @param sub_group_name If a non-empty name is provided, then the State of
   *        this ThinComputeInterface (if any) is serialized into a newly
   *        created sub-group of the given \p group having this name; if,
-  *        instead, sub_group_name.empty() then the State is deserialised in
+  *        instead, sub_group_name.empty() then the State is serialised in
   *        \p group directly. Note that if this ThinComputeInterface does
   *        not have any "internal state" (get_State() returns nullptr)
   *        then the sub-group is never created even if a name is provided.
   *
   * Note that it is somewhat unusual to provide the sub_group_name in a
-  * deserialize() method. However, this is sensible here since a
+  * serialize() method. However, this is sensible here since a
   * ThinComputeInterface may have no State at all (this being the default).
   * If the caller does not know whether or not this is the case, it would
   * have to create the netCDF sub-group, at the risk of this ending up empty.
@@ -1718,7 +1718,7 @@ class ThinComputeInterface
  virtual void serialize_State( netCDF::NcGroup & group ,
                                const std::string & sub_group_name = "" ) const;
 
- /**@} ----------------------------------------------------------------------*/
+/**@} ----------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 // empty, this is a thin interface
