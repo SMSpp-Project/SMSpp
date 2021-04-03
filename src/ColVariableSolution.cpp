@@ -432,6 +432,9 @@ void ColVariableSolution::write( Block * const block ) {
 
 void ColVariableSolution::serialize( netCDF::NcGroup & group ) const
 {
+ // always call the method of the base class first
+ Solution::serialize( group );
+
  throw( std::logic_error( " ColVariableSolution::serialize not ready yet" ) );
  }
 

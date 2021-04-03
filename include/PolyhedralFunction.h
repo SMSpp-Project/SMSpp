@@ -1981,12 +1981,21 @@ class PolyhedralFunctionState : public State {
 
 /*--------- CONSTRUCTING AND DESTRUCTING PolyhedralFunctionState -----------*/
 
- /// constructor, doing everything
- /** Constructor of PolyhedralFunctionState: takes a pointer to a
-  * PolyhedralFunction and immediately copies its "internal state". */
+ /// constructor, doing everything or nothing.
+ /** Constructor of PolyhedralFunctionState. If provided with a pointer to a
+  * PolyhedralFunction it immediately copies its "internal state", which is
+  * the only way in which the PolyhedralFunctionState can be initialised out
+  * of an existing PolyhedralFunction. If nullptr is passed (as by default),
+  * then an "empty" PolyhedralFunctionState is constructed that can only be
+  * filled by calling deserialize(). */
 
- PolyhedralFunctionState( const PolyhedralFunction * pf ) : State() ,
-  f_nvar( pf->get_num_active_var() ) {
+ PolyhedralFunctionState( const PolyhedralFunction * pf = nullptr )
+  : State() {
+  if( ! pf ) {
+   f_nvar = 0;
+   return;
+   }
+  f_nvar = pf->get_num_active_var();
   v_glob = pf->v_glob;
   v_aA = pf->v_aA;
   v_ab = pf->v_ab;
@@ -2086,6 +2095,14 @@ class PolyhedralFunctionState : public State {
 
  PolyhedralFunction::LinearCombination f_imp_coeff;
  ///< coefficients of the important lineariration
+
+/*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
+
+ private:
+
+/*---------------------------- PRIVATE FIELDS ------------------------------*/
+
+ SMSpp_insert_in_factory_h;
 
 /*--------------------------------------------------------------------------*/
 

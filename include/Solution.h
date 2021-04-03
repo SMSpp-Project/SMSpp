@@ -208,9 +208,9 @@ class Solution {
   * what is found in the file. The netCDF::NcGroup \p group must contain at
   * least the string attribute "type"; this is used it in the factory
   * to construct an "empty" :Solution of that type, see new_Solution(
-  * std::string &, and then the method deserialize( netCDF::NcGroup ) of the
-  * newly minted :Solution is invoked (with argument \p group) to finish the
-  * work.
+  * std::string & ), and then the method deserialize( netCDF::NcGroup ) of
+  * the newly minted :Solution is invoked (with argument \p group) to finish
+  * the work.
   *
   * Note that this method is static (see the previous versions for comments
   * about it) and returns a pointer to Solution, hence it has to have a
@@ -311,7 +311,7 @@ class Solution {
   * knowing it happened. */
 
  virtual void serialize( netCDF::NcGroup & group ) const {
-  group.putAtt( "type", classname() );
+  group.putAtt( "type" , classname() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -541,7 +541,7 @@ class Solution {
 /*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-// private:
+ private:
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/

@@ -1943,7 +1943,7 @@ class ComputeConfig : public Configuration {
 
  // returns true if the ComputeConfig is "completely empty" of any data
 
- [[nodiscard]] virtual bool empty() const {
+ [[nodiscard]] virtual bool empty( void ) const {
   return( int_pars.empty() && dbl_pars.empty() && str_pars.empty() &&
 	  vint_pars.empty() && vdbl_pars.empty() && vstr_pars.empty() &&
 	  ( ! f_extra_Configuration ) );
@@ -1966,7 +1966,7 @@ class ComputeConfig : public Configuration {
    int_pars.emplace_back( std::move( name ) , value );
   else
    it->second = value;
- }
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set the given float (double) numerical parameter
@@ -2004,7 +2004,7 @@ class ComputeConfig : public Configuration {
    str_pars.emplace_back( std::move( name ) , std::move( value ) );
   else
    it->second = std::move( value );
- }
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set the given vector-of-integer numerical parameter
@@ -2315,8 +2315,8 @@ class ComputeConfig : public Configuration {
  * (especially those for "easy" problem where the "internal state" fully
  * encodes an optimal solution and its optimality certificate) may indeed
  * provide some guarantee in this sense. Finally, it is entirely dependent on
- * the specific :ThinComputeInterface whether or not a State gotten out of some
- * :ThinComputeInterface instance can be set into a different
+ * the specific :ThinComputeInterface whether or not a State gotten out of
+ * some :ThinComputeInterface instance can be set into a different
  * :ThinComputeInterface instance (clearly at least of the same type or of a
  * closely related one). */
 
@@ -2337,15 +2337,116 @@ class State {
  State( void ) { }  ///< constructor of State, it has nothing to do
 
 /*--------------------------------------------------------------------------*/
+ /// construct a :State of specific type using the State factory
+ /** Use the State factory to construct a :State object of type specified by
+  * \p classname (a std::string with the name of the class inside). Note that
+  * the method is static because the factory is static, hence it is to be 
+  * called as
+  *
+  *   State * myState = State::new_State( someclass );
+  *
+  * i.e., without any reference to any specific State (and, therefore, it can
+  * be used to construct the very first State if needed).
+  * 
+  * For this to work, each :State has to:
+  *
+  * - add the line
+  *
+  *     SMSpp_insert_in_factory_h;
+  *
+  *   to its definition (typically, in the private part in its .h file);
+  *
+  * - add the line
+  *
+  *     SMSpp_insert_in_factory_cpp_0( name_of_the_class );
+  *
+  *   to exactly *one* .cpp file, typically the .cpp file of the
+  *   :ThinComputeInterface the State of which is represented. If the name
+  *   of the class contains any parentheses, then one must enclose the name
+  *   of the class in parentheses and instead add the line
+  *
+  *     SMSpp_insert_in_factory_cpp_0( ( name_of_the_class ) );
+  *
+  * Any whitespaces that the given \p classname may contain is ignored. So,
+  * for example, to create an instance of the class MyState< int > one could
+  * indifferently pass "MyState<int>", "MyState< int >", or even
+  * " M y S t a t e < int > ".
+  *
+  * Note that :State objects are generally constructed by their
+  * :ThinComputeInterface, and therefore there is often no need to use this
+  * method. However, a :State may have to be serialized (see serialize()),
+  * and then deserialized without the help of its :ThinComputeInterface.
+  * This is possible with the new_State( netCDF::NcGroup ) method, which
+  * requires this one (and therefore the factory) to work.
+  *
+  * @param classname The name of the :State class that must be constructed. */
+
+ static State * new_State( const std::string & classname ) {
+  const std::string classname_( SMSpp_classname_normalise(
+					        std::string( classname ) ) );
+  const auto it = State::f_factory().find( classname_ );
+  if( it == State::f_factory().end() )
+   throw( std::invalid_argument( classname + " not present in State factory"
+				 ) );
+  return( ( it->second )() );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// de-serialize a :State out of netCDF::NcGroup, returns it
+ /** First-level, static de-serialization method: takes a netCDF::NcGroup
+  * supposedly containing  (all the information describing) a :State and
+  * returns a pointer to a newly minted :State object corresponding to what
+  * is found in the file. The netCDF::NcGroup \p group must contain at least
+  * the string attribute "type"; this is used it in the factory to construct
+  * an "empty" :State of that type, see new_Solution( std::string & ), and
+  * then the method deserialize( netCDF::NcGroup ) of the newly minted
+  * :State is invoked (with argument \p group) to finish the work.
+  *
+  * Note that this method is static (see the previous versions for comments
+  * about it) and returns a pointer to State, hence it has to have a
+  * different name from deserialize( netCDF::NcGroup ) (since the signature
+  * is the same but for the return type).
+  *
+  * If anything goes wrong with the process, nullptr is returned. */
+
+ static State * new_State( const netCDF::NcGroup & group ) {
+  if( group.isNull() )
+   return( nullptr );
+
+  auto gtype = group.getAtt( "type" );
+  if( gtype.isNull() )
+   return( nullptr );
+
+  std::string tmp;
+  gtype.getValues( tmp );
+  auto result = new_State( tmp );
+  try {
+   result->deserialize( group );
+   return( result );
+   }
+  catch( netCDF::exceptions::NcException & e ) {
+   std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
+   }
+  catch( std::exception & e ) {
+   std::cerr << "error " << e.what() << " in deserialize" << std::endl;
+   }
+  catch( ... ) {
+   std::cerr << "unknown error in deserialize" << std::endl;
+   }
+
+  return( nullptr );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// de-serialize a :State out of netCDF::NcGroup
- /** The method takes a netCDF::NcGroup supposedly containing all the
-  * information required to de-serialize the :State, and produces a "full"
-  * State object as a result. Most likely, the netCDF::NcGroup has been
-  * produced by calling serialize() with a previously existing :State (of the
-  * very same type as this one), but individual :State should openly declare
-  * the format of their :State so that possibly a netCDF::NcGroup containing
-  * some initial state can be constructed from scratch whenever this is
-  * useful.
+ /** Second-level deserialization method: takes a netCDF::NcGroup supposedly
+  * containing all the information required to de-serialize the :State, and
+  * produces a "full" State object as a result. The netCDF::NcGroup has been
+  * produced either by calling serialize() with a previously existing :State
+  * (of the very same type as this one), or by directly calling
+  * serialize_State() in the corresponding :ThinComputeInterface, which is why
+  * individual :State should openly declare the format of the netCDF::NcGroup
+  * they produce.
   *
   * This method is pure virtual, as it clearly has to be implemented by
   * derived classes. */
@@ -2362,7 +2463,6 @@ class State {
 /** @name Methods describing the behavior of a State
  *  @{ */
 
-/*--------------------------------------------------------------------------*/
  /// serialize a :State into a netCDF::NcGroup
  /** The method takes a (supposedly, "full") State object and serializes
   * it into the provided netCDF::NcGroup, so that it can possibly be read by
@@ -2371,7 +2471,9 @@ class State {
   * This method is pure virtual, as it clearly has to be implemented by
   * derived classes. */
 
- virtual void serialize( netCDF::NcGroup & group ) const = 0;
+ virtual void serialize( netCDF::NcGroup & group ) const {
+  group.putAtt( "type" , classname() );
+  }
 
 /*@} -----------------------------------------------------------------------*/
 /*------------ METHODS FOR LOADING, PRINTING & SAVING THE State ------------*/
@@ -2390,11 +2492,40 @@ class State {
   return( out );
   }
 
+/*--------------------------------------------------------------------------*/
+ /// getting the classname of this State
+ /** Given a State, this method returns a string with its class name; unlike
+  * std::type_info.name(), there *are* guarantees, i.e., the name will
+  * always be the same.
+  *
+  * The method works by dispatching the private virtual method private_name().
+  * The latter is automatically implemented by the 
+  * SMSpp_insert_in_factory_cpp_* macros [see SMSTypedefs.h], hence this
+  * comes at no cost since these have to be called somewhere to ensure that
+  * any :State will be added to the factory. Actually, since
+  * State::private_name() is pure virtual, this ensures that it is not
+  * possible to forget to call the appropriate SMSpp_insert_in_factory_cpp_*
+  * for any :State because otherwise it is a pure virtual class (unless the
+  * programmer purposely defines private_name() without calling the macro,
+  * which seems rather pointless). */
+
+ const std::string & classname( void ) const { return( private_name() ); }
+
 /*@}------------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
  protected:
+
+/*--------------------------------------------------------------------------*/
+/*--------------------------- PROTECTED TYPES ------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ using StateFactory = boost::function< State *() >;
+ // type of the factory of State
+
+ using StateFactoryMap = std::map< std::string , StateFactory >;
+ // type of the map between strings and the factory of State
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PROTECTED METHODS -----------------------------*/
@@ -2410,6 +2541,70 @@ class State {
  virtual void print( std::ostream &output ) const {
   output << "State [" << this << "]";
   }
+
+/**@} ----------------------------------------------------------------------*/
+/** @name Protected methods for handling static fields
+ *
+ * These methods allow derived classes to partake into static initialization
+ * procedures performed once and for all at the start of the program. These
+ * are typically related with factories.
+ * @{ */
+
+ /// method incapsulating the State factory
+ /** This method returns the State factory, which is a static object. The
+  * rationale for using a method is that this is the "Construct On First Use
+  * Idiom" that solves the "static initialization order problem". */
+
+ static StateFactoryMap & f_factory( void ) {
+  static StateFactoryMap s_factory;
+  return( s_factory );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// empty placeholder for class-specific static initialization
+ /** The method static_initialization() is an empty placeholder which is made
+  * available to derived classes that need to perform some class-specific
+  * static initialization besides these of any :State class, i.e., the
+  * management of the factory. This method is invoked by the
+  * SMSpp_insert_in_factory_cpp_* macros [see SMSTypedefs.h] during the
+  * standard initialization procedures. If a derived class needs to perform
+  * any static initialization it just have to do this into its version of
+  * this method; if not it just has nothing to do, as the (empty) method of
+  * the base class will be called.
+  *
+  * This mechanism has a potential drawback in that a redefined
+  * static_initialization() may be called multiple times. Assume that a
+  * derived class X redefines the method to perform something, and that a
+  * further class Y is derived from X that has to do nothing, and that
+  * therefore will not define Y::static_initialization(): them, within the
+  * SMSpp_insert_in_factory_cpp_* of Y, X::static_initialization() will be
+  * called again.
+  *
+  * If this is undesirable, X will have to explicitly instruct derived classes
+  * to redefine their (empty) static_initialization(). Alternatively,
+  * X::static_initialization() may contain mechanisms to ensure that it will
+  * actually do things only the very first time it is called. One standard
+  * trick is to do everything within the initialisation of a static local
+  * variable of X::static_initialization(): this is guaranteed by the
+  * compiler to happen only once, regardless of how many times the function
+  * is called. Alternatively, an explicit static boolean could be used (this
+  * may just be the same as what the compiler does during the initialization
+  * of static variables without telling you). */
+
+ static void static_initialization( void ) {}
+
+/**@} ----------------------------------------------------------------------*/
+/*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ private:
+
+/*--------------------------------------------------------------------------*/
+/*-------------------------- PRIVATE METHODS -------------------------------*/
+/*--------------------------------------------------------------------------*/
+ // Definition of State::private_name() (pure virtual)
+
+ [[nodiscard]] virtual const std::string & private_name( void ) const = 0;
 
 /*--------------------------------------------------------------------------*/
 

@@ -64,8 +64,11 @@ void ColRowSolution::write( Block * const block ) {
 /*--------------------------------------------------------------------------*/
 
 void ColRowSolution::serialize( netCDF::NcGroup & group ) const {
+ // always call the method of the base class first
+ Solution::serialize( group );
+
  throw( std::logic_error( " ColRowSolution::serialize not ready yet" ) );
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 

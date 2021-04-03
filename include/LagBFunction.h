@@ -1845,11 +1845,19 @@ class LagBFunctionState : public State {
 
 /*------------ CONSTRUCTING AND DESTRUCTING LagBFunctionState --------------*/
 
- /// constructor, doing everything
- /** Constructor of LagBFunctionState: takes a pointer to a LagBFunction and
-  * immediately copies its "internal state". */
+ /// constructor, doing everything or nothing.
+ /** Constructor of LagBFunctionState. If provided with a pointer to a
+  * LagBFunction it immediately copies its "internal state", which is the
+  * only way in which the LagBFunctionState can be initialised out of an
+  * existing LagBFunction. If nullptr is passed (as by default), then an
+  * "empty" LagBFunctionState is constructed that can only be filled by
+  * calling deserialize(). */
 
- LagBFunctionState( const LagBFunction * lbf ) : State() {
+ LagBFunctionState( const LagBFunction * lbf = nullptr ) : State() {
+  if( ! lbf ) {
+   f_max_glob = 0;
+   return;
+   }  
   if( lbf->NoSol )
    f_max_glob = 0;
   else {
@@ -1948,6 +1956,14 @@ class LagBFunctionState : public State {
 
  LagBFunction::LinearCombination zLC;
  ///< the LinearCombination of the important linearization
+
+/*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
+
+ private:
+
+/*---------------------------- PRIVATE FIELDS ------------------------------*/
+
+ SMSpp_insert_in_factory_h;
 
 /*--------------------------------------------------------------------------*/
 

@@ -50,6 +50,14 @@
 using namespace SMSpp_di_unipi_it;
 
 /*--------------------------------------------------------------------------*/
+/*----------------------------- STATIC MEMBERS -----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+// register PolyhedralFunctionState to the State factory
+
+SMSpp_insert_in_factory_cpp_0( PolyhedralFunctionState );
+
+/*--------------------------------------------------------------------------*/
 /*------------ CONSTRUCTING AND DESTRUCTING PolyhedralFunction -------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -755,6 +763,10 @@ void PolyhedralFunction::serialize_State( netCDF::NcGroup & group ,
   serialize_State( gr );
   return;
   }
+
+ // do it "by hand" since there is no PolyhedralFunctionState available
+ // to call State::serialize() from
+ group.putAtt( "type", "PolyhedralFunctionState" );
 
  netCDF::NcDim gs = group.addDim( "PolyFunction_GlobSize" , v_glob.size() );
 
@@ -2414,6 +2426,9 @@ void PolyhedralFunctionState::deserialize( const netCDF::NcGroup & group )
 
 void PolyhedralFunctionState::serialize( netCDF::NcGroup & group ) const
 {
+ // always call the method of the base class first
+ State::serialize( group );
+
  netCDF::NcDim gs = group.addDim( "PolyFunction_GlobSize" , v_glob.size() );
 
  ( group.addVar( "PolyFunction_Glob" , netCDF::NcInt() , gs ) ).putVar(
