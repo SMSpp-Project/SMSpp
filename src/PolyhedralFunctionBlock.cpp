@@ -843,14 +843,8 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
  assert( std::isnan( mod->shift() ) );
 
  // set upper/lower bound on v
-  if( f_polyf.is_convex() ) {
-   f_bcv.set_lhs( f_polyf.get_lower_estimate() , eNoMod );
-   f_bcv.set_rhs( Inf< Function::FunctionValue >() , eNoMod );
-   }
-  else {
-   f_bcv.set_lhs( - Inf< Function::FunctionValue >() , eNoMod );
-   f_bcv.set_rhs( f_polyf.get_upper_estimate() , eNoMod );
-   }
+ f_bcv.set_lhs( f_polyf.get_global_lower_bound() , eNoMod );
+ f_bcv.set_rhs( f_polyf.get_global_upper_bound() , eNoMod );
 
  // clear out the linear constraints
  for( auto & ci : f_const )
