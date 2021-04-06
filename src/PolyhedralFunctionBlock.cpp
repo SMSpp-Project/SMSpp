@@ -854,8 +854,10 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
  // now add the linear constraints back again
  f_const.resize( f_polyf.get_A().size() );
  auto cit = f_const.begin();
- for( Index i = 0 ; i < f_polyf.get_A().size() ; )
+ for( Index i = 0 ; i < f_polyf.get_A().size() ; ) {
+  cit->set_Block( this );
   ConstructLPConstraint( i++ , *(cit++) );
+  }
  
  // finally issue a NBModification
  AbstractBlock::add_Modification( std::make_shared< NBModification >( this )
