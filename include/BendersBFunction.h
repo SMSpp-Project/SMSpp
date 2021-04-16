@@ -7,7 +7,7 @@
  *
  * \version 0.01
  *
- * \date 17 - 03 - 2021
+ * \date 16 - 04 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1914,6 +1914,72 @@ class BendersBFunction : public C05Function , public Block {
   ~GlobalPool();
 
 /*--------------------------------------------------------------------------*/
+  /// de-serialize a GlobalPool out of the given netCDF::NcGroup
+  /** De-serialize a GlobalPool out of the given netCDF::NcGroup; see
+   * GlobalPool::serialize() for a description of the format.
+   *
+   * @param group a netCDF::NcGroup out of which the GlobalPool will be
+   *        de-serialized. */
+
+  void deserialize( const netCDF::NcGroup & group );
+
+/*--------------------------------------------------------------------------*/
+  /// serialize this GlobalPool into the given netCDF::NcGroup
+  /** This function serializes this GlobalPool into the given
+   * netCDF::NcGroup. The netCDF::NcGroup \p group will contain the following
+   * data:
+   *
+   * - The dimension "BendersBFunction_MaxGlob" containing 1 + the maximum
+   *   active name in the global pool; this means that there can be only
+   *   BendersBFunction_MaxGlob nonempty entries in the global pool, and the
+   *   largest possible name of an active entry is BendersBFunction_MaxGlob -
+   *   1. This variable is optional. If it is not present then 0 (empty
+   *   global pool) is assumed.
+   *
+   * - The variable "BendersBFunction_Type", of type netCDF::NcByte and
+   *   indexed over the dimension BendersBFunction_MaxGlob, which contains the
+   *   vector of booleans specifying the type (diagonal/vertical) of each
+   *   linearization in the global pool. The i-th element of this vector
+   *   indicates the type of the i-th linearization: if it is zero, then the
+   *   linearization is vertical; otherwise, the linearization is
+   *   diagonal. This variable is optional only if
+   *   BendersBFunction_MaxGlob == 0.
+   *
+   * - The variable "BendersBFunction_Constants", of type netCDF::NcDouble and
+   *   indexed over the dimension BendersBFunction_MaxGlob, which contains the
+   *   constants of the linearizations. This variable is optional only if
+   *   BendersBFunction_MaxGlob == 0.
+   *
+   * - At most BendersBFunction_MaxGlob netCDF::NcGroup with name
+   *   "BendersBFunction_Sol_X", with X being an integer between 0 and
+   *   BendersBFunction_MaxGlob - 1, each one containing the serialization of
+   *   the Solution in the corresponding position of the global pool. If the
+   *   group "BendersBFunction_Sol_X" is not present, then position X in the
+   *   global pool is empty.
+   *
+   * - The dimension "BendersBFunction_ImpCoeffNum" containing the number of
+   *   coefficients of the important combination of linearizations. This
+   *   dimension is optional. If it is not provided then 0 (no important
+   *   linearization) is assumed.
+   *
+   * - The variable "BendersBFunction_ImpCoeffInd", of type netCDF::NcInt and
+   *   indexed over the dimension BendersBFunction_ImpCoeffNum, which contains
+   *   indices of the linearizations that are part of the important
+   *   combination. This variable is optional only if
+   *   BendersBFunction_ImpCoeffNum == 0.
+   *
+   * - The variable "BendersBFunction_ImpCoeffVal", of type netCDF::NcDouble
+   *   and indexed over the dimension BendersBFunction_ImpCoeffNum, which
+   *   contains the coefficients of the important combination of
+   *   linearizations. The variable is optional only if
+   *   BendersBFunction_ImpCoeffNum == 0.
+   *
+   * @param group a netCDF::NcGroup into which this GlobalPool will be
+   *        serialized. */
+
+  void serialize( netCDF::NcGroup & group ) const;
+
+/*--------------------------------------------------------------------------*/
   // resizes the global pool
   /** Resize the global pool to have the given \p size. It is important to
    * notice that
@@ -2032,7 +2098,7 @@ class BendersBFunction : public C05Function , public Block {
    * feasible (and, therefore, the recalculation of the linearizations based
    * on these dual solutions may not provide valid linearizations. The dual
    * solutions, however, remain stored in this global pool. If they should be
-   * destroyed, explicity calls to delete_linearization() must be made.
+   * destroyed, explicit calls to delete_linearization() must be made.
    */
 
   void invalidate( void ) {
