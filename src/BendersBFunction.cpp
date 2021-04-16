@@ -58,6 +58,7 @@ using namespace SMSpp_di_unipi_it;
 // register BendersBFunction to the Block factory
 
 SMSpp_insert_in_factory_cpp_1( BendersBFunction );
+SMSpp_insert_in_factory_cpp_1( BendersBFunctionState );
 
 /*--------------------------------------------------------------------------*/
 /*---------------------------------TODO-------------------------------------*/
@@ -2664,7 +2665,7 @@ void BendersBFunction::remove_constraint( Block::Index index ) {
 }
 
 /*--------------------------------------------------------------------------*/
-/*----------------------------- GLOBALPOOL ---------------------------------*/
+/*----------------------------- GlobalPool ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 void BendersBFunction::GlobalPool::resize( Index size ) {
@@ -2952,6 +2953,51 @@ void BendersBFunction::GlobalPool::serialize( netCDF::NcGroup & group ) const {
   }
  }
 }  // end( BendersBFunction::GlobalPool::serialize )
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::GlobalPool::clone( const GlobalPool & global_pool ) {
+ linearization_constants = global_pool.linearization_constants;
+ important_linearization_lin_comb =
+  global_pool.important_linearization_lin_comb;
+ is_diagonal = global_pool.is_diagonal;
+
+ for( auto & solution : solutions )
+  delete solution;
+
+ solutions.resize( global_pool.solutions.size() , nullptr );
+ auto global_pool_solution = global_pool.solutions.begin();
+ for( auto & solution : solutions ) {
+  if( *global_pool_solution )
+   solution = ( *global_pool_solution )->clone();
+  else
+   solution = nullptr;
+ }
+}  // end( BendersBFunction::GlobalPool::clone )
+
+/*--------------------------------------------------------------------------*/
+/*------------------------- BendersBFunctionState --------------------------*/
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunctionState::deserialize( const netCDF::NcGroup & group ) {
+ global_pool.deserialize( group );
+}
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunctionState::serialize( netCDF::NcGroup & group ) const {
+ State::serialize( group );
+ global_pool.serialize( group );
+}
+
+/*--------------------------------------------------------------------------*/
+
+BendersBFunctionState::BendersBFunctionState( const BendersBFunction * f ) {
+ if( ! f )
+  return;
+
+ global_pool.clone( f->global_pool );
+}
 
 /*--------------------------------------------------------------------------*/
 /*-------------------- End File BendersBFunction.cpp -----------------------*/

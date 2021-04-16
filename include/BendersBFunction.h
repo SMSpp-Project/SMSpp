@@ -204,6 +204,12 @@ class BendersBFunction : public C05Function , public Block {
  public:
 
 /*--------------------------------------------------------------------------*/
+/*-------------------------------- FRIENDS ---------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ friend class BendersBFunctionState;
+
+/*--------------------------------------------------------------------------*/
 /*---------------------- PUBLIC TYPES OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Public Types
@@ -1980,6 +1986,11 @@ class BendersBFunction : public C05Function , public Block {
   void serialize( netCDF::NcGroup & group ) const;
 
 /*--------------------------------------------------------------------------*/
+
+  /// clone the given GlobalPool into this one
+  void clone( const GlobalPool & global_pool );
+
+/*--------------------------------------------------------------------------*/
   // resizes the global pool
   /** Resize the global pool to have the given \p size. It is important to
    * notice that
@@ -2938,7 +2949,89 @@ class BendersBFunctionModSbst : public BendersBFunctionMod {
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( BendersBFunctionModSbst ) )
+};  // end( class( BendersBFunctionModSbst ) )
+
+/*--------------------------------------------------------------------------*/
+/*---------------------- CLASS BendersBFunctionState -----------------------*/
+/*--------------------------------------------------------------------------*/
+/// class to describe the "internal state" of a BendersBFunction
+/** Derived class from State to describe the "internal state" of a
+ * BendersBFunction, i.e., its global pool. This means saving the
+ * linearization constants, the types of the linearizations, the associated
+ * Solution, and the coefficients of the important combination of
+ * linearizations. */
+
+class BendersBFunctionState : public State {
+
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+public:
+
+/*---------- CONSTRUCTING AND DESTRUCTING BendersBFunctionState ------------*/
+
+ /// constructor, doing everything or nothing.
+ /** Constructor of BendersBFunctionState. If provided with a pointer to a
+  * BendersBFunction, it immediately copies its "internal state", which is the
+  * only way in which the BendersBFunctionState can be initialised out of an
+  * existing BendersBFunction. If nullptr is passed (as by default), then an
+  * "empty" BendersBFunctionState is constructed that can only be filled by
+  * calling deserialize(). */
+
+ BendersBFunctionState( const BendersBFunction * function = nullptr );
+
+/*--------------------------------------------------------------------------*/
+ /// de-serialize a BendersBFunctionState out of netCDF::NcGroup
+ /** De-serialize a BendersBFunctionState out of netCDF::NcGroup; see
+  * BendersBFunctionState::serialize() for a description of the format. */
+
+ void deserialize( const netCDF::NcGroup & group ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// destructor
+
+ virtual ~BendersBFunctionState() {}
+
+/*------- METHODS DESCRIBING THE BEHAVIOR OF A BendersBFunctionState -------*/
+
+ /// serialize a BendersBFunctionState into a netCDF::NcGroup
+ /** This method serializes this BendersBFunctionState into the provided
+  * netCDF::NcGroup, so that it can later be read back by deserialize(). After
+  * the call, \p group will contain the attribute "type", common to all State,
+  * and everything necessary to describe a GlobalPool (see
+  * BendersBFunction::GlobalPool::serialize()).
+  *
+  * @group The netCDF::NcGroup into which into which this
+  *        BendersBFunctionState will be serialized. */
+
+ void serialize( netCDF::NcGroup & group ) const override;
+
+/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
+
+protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ void print( std::ostream &output ) const override {
+  output << "BendersBFunctionState [" << this
+         << "] with max global pool element " << global_pool.size();
+  }
+
+/*--------------------------- PROTECTED FIELDS -----------------------------*/
+
+ /// global pool of linearizations
+ BendersBFunction::GlobalPool global_pool;
+
+/*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
+
+private:
+
+/*---------------------------- PRIVATE FIELDS ------------------------------*/
+
+ SMSpp_insert_in_factory_h;
+
+/*--------------------------------------------------------------------------*/
+
+};  // end( class( BendersBFunctionState ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -2946,7 +3039,7 @@ class BendersBFunctionModSbst : public BendersBFunctionMod {
 /** @} end( group( BendersBFun_CLASSES ) ) ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- }  // end( namespace SMSpp_di_unipi_it )
+}  // end( namespace SMSpp_di_unipi_it )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
