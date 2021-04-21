@@ -7,7 +7,7 @@
  *
  * \version 0.01
  *
- * \date 16 - 04 - 2021
+ * \date 21 - 04 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -754,6 +754,28 @@ class BendersBFunction : public C05Function , public Block {
 
   return C05Function::get_dbl_par( par );
   }
+
+/**@} ----------------------------------------------------------------------*/
+/*--------- METHODS FOR HANDLING THE State OF THE BendersBFunction ---------*/
+/*--------------------------------------------------------------------------*/
+/** @name Handling the State of the BendersBFunction
+ */
+
+ State * get_State( void ) const override;
+
+/*--------------------------------------------------------------------------*/
+
+ void put_State( const State & state ) override;
+
+/*--------------------------------------------------------------------------*/
+
+ void put_State( State && state ) override;
+
+/*--------------------------------------------------------------------------*/
+
+ void serialize_State( netCDF::NcGroup & group ,
+		       const std::string & sub_group_name = "" )
+  const override;
 
 /**@} ----------------------------------------------------------------------*/
 /*----------------- METHODS FOR MANAGING THE "IDENTITY" --------------------*/
@@ -1986,9 +2008,14 @@ class BendersBFunction : public C05Function , public Block {
   void serialize( netCDF::NcGroup & group ) const;
 
 /*--------------------------------------------------------------------------*/
-
   /// clone the given GlobalPool into this one
+
   void clone( const GlobalPool & global_pool );
+
+/*--------------------------------------------------------------------------*/
+  /// clone the given GlobalPool into this one
+
+  void clone( GlobalPool && global_pool );
 
 /*--------------------------------------------------------------------------*/
   // resizes the global pool
@@ -2008,6 +2035,14 @@ class BendersBFunction : public C05Function , public Block {
   /// returns the the size of the global pool
 
   Index size() const { return( solutions.size() ); }
+
+/*--------------------------------------------------------------------------*/
+  /// returns true if and only if this GlobalPool contains no Solution
+
+  bool empty() const {
+   return std::all_of( solutions.cbegin() , solutions.cend() ,
+                       []( const auto & solution ) { return ! solution; } );
+  }
 
 /*--------------------------------------------------------------------------*/
   /// stores the given linearization constant and solution in the global pool
@@ -2966,6 +3001,10 @@ class BendersBFunctionState : public State {
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
 public:
+
+/*-------------------------------- FRIENDS ---------------------------------*/
+
+ friend BendersBFunction;
 
 /*---------- CONSTRUCTING AND DESTRUCTING BendersBFunctionState ------------*/
 
