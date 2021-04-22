@@ -3393,9 +3393,9 @@ void LagBFunctionState::deserialize( const netCDF::NcGroup & group )
    throw( std::logic_error( "LagBFunction_Type not found" ) );
 
   for( Index i = 0 ; i < f_max_glob ; ++i ) {
-   char ti;
+   int ti;
    nct.getVar( { i } , &ti );
-   g_pool[ i ].second = ( ti > 0 );
+   g_pool[ i ].second = ( ti != 0 );
 
    auto gi = group.getGroup( "LagBFunction_Sol_" + std::to_string( i ) );
    if( gi.isNull() )
@@ -3437,12 +3437,12 @@ void LagBFunctionState::serialize( netCDF::NcGroup & group ) const
  if( f_max_glob ) {
   netCDF::NcDim gs = group.addDim( "LagBFunction_MaxGlob" , f_max_glob );
 
-  std::vector< char > typ( f_max_glob );
+  std::vector< int > typ( f_max_glob );
   for( Index i = 0 ; i < f_max_glob ; ++i )
    typ[ i ] = g_pool[ i ].second ? char( 1 ) : char( 0 );
  
-    ( group.addVar( "LagBFunction_Type" , netCDF::NcByte() , gs ) ).putVar(
-			          { 0 } , {  f_max_glob } , typ.data() );
+  ( group.addVar( "LagBFunction_Type" , netCDF::NcByte() , gs ) ).putVar(
+				      { 0 } , {  f_max_glob } , typ.data() );
 
   for( Index i = 0 ; i < f_max_glob ; ++i ) {
    if( ! g_pool[ i ].first )
