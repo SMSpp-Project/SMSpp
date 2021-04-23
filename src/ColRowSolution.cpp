@@ -32,6 +32,14 @@
 using namespace SMSpp_di_unipi_it;
 
 /*--------------------------------------------------------------------------*/
+/*----------------------------- STATIC MEMBERS -----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+// register ColRowSolution to the Solution factory
+
+SMSpp_insert_in_factory_cpp_0( ColRowSolution );
+
+/*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -55,9 +63,12 @@ void ColRowSolution::write( Block * const block ) {
 
 /*--------------------------------------------------------------------------*/
 
-void ColRowSolution::serialize( netCDF::NcGroup & group ) {
+void ColRowSolution::serialize( netCDF::NcGroup & group ) const {
+ // always call the method of the base class first
+ Solution::serialize( group );
+
  throw( std::logic_error( " ColRowSolution::serialize not ready yet" ) );
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 

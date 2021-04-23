@@ -55,6 +55,14 @@
 using namespace SMSpp_di_unipi_it;
 
 /*--------------------------------------------------------------------------*/
+/*----------------------------- STATIC MEMBERS -----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+// register RowConstraintSolution to the Solution factory
+
+SMSpp_insert_in_factory_cpp_0( RowConstraintSolution );
+
+/*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -580,9 +588,14 @@ void RowConstraintSolution::write( Block * const block ) {
 
 /*--------------------------------------------------------------------------*/
 
-void RowConstraintSolution::serialize( netCDF::NcGroup & group ) {
- throw( std::logic_error( " RowConstraintSolution::serialize not ready yet" ) );
-}
+void RowConstraintSolution::serialize( netCDF::NcGroup & group ) const
+{
+ // always call the method of the base class first
+ Solution::serialize( group );
+
+ throw( std::logic_error( " RowConstraintSolution::serialize not ready yet"
+			  ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 

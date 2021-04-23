@@ -7,7 +7,7 @@
  *
  * \version 0.01
  *
- * \date 17 - 03 - 2021
+ * \date 21 - 04 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -202,6 +202,12 @@ class BendersBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  public:
+
+/*--------------------------------------------------------------------------*/
+/*-------------------------------- FRIENDS ---------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ friend class BendersBFunctionState;
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- PUBLIC TYPES OF THE CLASS -------------------------*/
@@ -748,6 +754,28 @@ class BendersBFunction : public C05Function , public Block {
 
   return C05Function::get_dbl_par( par );
   }
+
+/**@} ----------------------------------------------------------------------*/
+/*--------- METHODS FOR HANDLING THE State OF THE BendersBFunction ---------*/
+/*--------------------------------------------------------------------------*/
+/** @name Handling the State of the BendersBFunction
+ */
+
+ State * get_State( void ) const override;
+
+/*--------------------------------------------------------------------------*/
+
+ void put_State( const State & state ) override;
+
+/*--------------------------------------------------------------------------*/
+
+ void put_State( State && state ) override;
+
+/*--------------------------------------------------------------------------*/
+
+ void serialize_State( netCDF::NcGroup & group ,
+		       const std::string & sub_group_name = "" )
+  const override;
 
 /**@} ----------------------------------------------------------------------*/
 /*----------------- METHODS FOR MANAGING THE "IDENTITY" --------------------*/
@@ -1914,6 +1942,82 @@ class BendersBFunction : public C05Function , public Block {
   ~GlobalPool();
 
 /*--------------------------------------------------------------------------*/
+  /// de-serialize a GlobalPool out of the given netCDF::NcGroup
+  /** De-serialize a GlobalPool out of the given netCDF::NcGroup; see
+   * GlobalPool::serialize() for a description of the format.
+   *
+   * @param group a netCDF::NcGroup out of which the GlobalPool will be
+   *        de-serialized. */
+
+  void deserialize( const netCDF::NcGroup & group );
+
+/*--------------------------------------------------------------------------*/
+  /// serialize this GlobalPool into the given netCDF::NcGroup
+  /** This function serializes this GlobalPool into the given
+   * netCDF::NcGroup. The netCDF::NcGroup \p group will contain the following
+   * data:
+   *
+   * - The dimension "BendersBFunction_MaxGlob" containing 1 + the maximum
+   *   active name in the global pool; this means that there can be only
+   *   BendersBFunction_MaxGlob nonempty entries in the global pool, and the
+   *   largest possible name of an active entry is BendersBFunction_MaxGlob -
+   *   1. This variable is optional. If it is not present then 0 (empty
+   *   global pool) is assumed.
+   *
+   * - The variable "BendersBFunction_Type", of type netCDF::NcByte and
+   *   indexed over the dimension BendersBFunction_MaxGlob, which contains the
+   *   vector of booleans specifying the type (diagonal/vertical) of each
+   *   linearization in the global pool. The i-th element of this vector
+   *   indicates the type of the i-th linearization: if it is zero, then the
+   *   linearization is vertical; otherwise, the linearization is
+   *   diagonal. This variable is optional only if
+   *   BendersBFunction_MaxGlob == 0.
+   *
+   * - The variable "BendersBFunction_Constants", of type netCDF::NcDouble and
+   *   indexed over the dimension BendersBFunction_MaxGlob, which contains the
+   *   constants of the linearizations. This variable is optional only if
+   *   BendersBFunction_MaxGlob == 0.
+   *
+   * - At most BendersBFunction_MaxGlob netCDF::NcGroup with name
+   *   "BendersBFunction_Sol_X", with X being an integer between 0 and
+   *   BendersBFunction_MaxGlob - 1, each one containing the serialization of
+   *   the Solution in the corresponding position of the global pool. If the
+   *   group "BendersBFunction_Sol_X" is not present, then position X in the
+   *   global pool is empty.
+   *
+   * - The dimension "BendersBFunction_ImpCoeffNum" containing the number of
+   *   coefficients of the important combination of linearizations. This
+   *   dimension is optional. If it is not provided then 0 (no important
+   *   linearization) is assumed.
+   *
+   * - The variable "BendersBFunction_ImpCoeffInd", of type netCDF::NcInt and
+   *   indexed over the dimension BendersBFunction_ImpCoeffNum, which contains
+   *   indices of the linearizations that are part of the important
+   *   combination. This variable is optional only if
+   *   BendersBFunction_ImpCoeffNum == 0.
+   *
+   * - The variable "BendersBFunction_ImpCoeffVal", of type netCDF::NcDouble
+   *   and indexed over the dimension BendersBFunction_ImpCoeffNum, which
+   *   contains the coefficients of the important combination of
+   *   linearizations. The variable is optional only if
+   *   BendersBFunction_ImpCoeffNum == 0.
+   *
+   * @param group a netCDF::NcGroup into which this GlobalPool will be
+   *        serialized. */
+
+  void serialize( netCDF::NcGroup & group ) const;
+
+/*--------------------------------------------------------------------------*/
+  /// clone the given GlobalPool into this one
+
+  void clone( const GlobalPool & global_pool );
+
+/*--------------------------------------------------------------------------*/
+  /// clone the given GlobalPool into this one
+
+  void clone( GlobalPool && global_pool );
+
+/*--------------------------------------------------------------------------*/
   // resizes the global pool
   /** Resize the global pool to have the given \p size. It is important to
    * notice that
@@ -1931,6 +2035,14 @@ class BendersBFunction : public C05Function , public Block {
   /// returns the the size of the global pool
 
   Index size() const { return( solutions.size() ); }
+
+/*--------------------------------------------------------------------------*/
+  /// returns true if and only if this GlobalPool contains no Solution
+
+  bool empty() const {
+   return std::all_of( solutions.cbegin() , solutions.cend() ,
+                       []( const auto & solution ) { return ! solution; } );
+  }
 
 /*--------------------------------------------------------------------------*/
   /// stores the given linearization constant and solution in the global pool
@@ -2032,7 +2144,7 @@ class BendersBFunction : public C05Function , public Block {
    * feasible (and, therefore, the recalculation of the linearizations based
    * on these dual solutions may not provide valid linearizations. The dual
    * solutions, however, remain stored in this global pool. If they should be
-   * destroyed, explicity calls to delete_linearization() must be made.
+   * destroyed, explicit calls to delete_linearization() must be made.
    */
 
   void invalidate( void ) {
@@ -2872,7 +2984,93 @@ class BendersBFunctionModSbst : public BendersBFunctionMod {
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( BendersBFunctionModSbst ) )
+};  // end( class( BendersBFunctionModSbst ) )
+
+/*--------------------------------------------------------------------------*/
+/*---------------------- CLASS BendersBFunctionState -----------------------*/
+/*--------------------------------------------------------------------------*/
+/// class to describe the "internal state" of a BendersBFunction
+/** Derived class from State to describe the "internal state" of a
+ * BendersBFunction, i.e., its global pool. This means saving the
+ * linearization constants, the types of the linearizations, the associated
+ * Solution, and the coefficients of the important combination of
+ * linearizations. */
+
+class BendersBFunctionState : public State {
+
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+public:
+
+/*-------------------------------- FRIENDS ---------------------------------*/
+
+ friend BendersBFunction;
+
+/*---------- CONSTRUCTING AND DESTRUCTING BendersBFunctionState ------------*/
+
+ /// constructor, doing everything or nothing.
+ /** Constructor of BendersBFunctionState. If provided with a pointer to a
+  * BendersBFunction, it immediately copies its "internal state", which is the
+  * only way in which the BendersBFunctionState can be initialised out of an
+  * existing BendersBFunction. If nullptr is passed (as by default), then an
+  * "empty" BendersBFunctionState is constructed that can only be filled by
+  * calling deserialize(). */
+
+ BendersBFunctionState( const BendersBFunction * function = nullptr );
+
+/*--------------------------------------------------------------------------*/
+ /// de-serialize a BendersBFunctionState out of netCDF::NcGroup
+ /** De-serialize a BendersBFunctionState out of netCDF::NcGroup; see
+  * BendersBFunctionState::serialize() for a description of the format. */
+
+ void deserialize( const netCDF::NcGroup & group ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// destructor
+
+ virtual ~BendersBFunctionState() {}
+
+/*------- METHODS DESCRIBING THE BEHAVIOR OF A BendersBFunctionState -------*/
+
+ /// serialize a BendersBFunctionState into a netCDF::NcGroup
+ /** This method serializes this BendersBFunctionState into the provided
+  * netCDF::NcGroup, so that it can later be read back by deserialize(). After
+  * the call, \p group will contain the attribute "type", common to all State,
+  * and everything necessary to describe a GlobalPool (see
+  * BendersBFunction::GlobalPool::serialize()).
+  *
+  * @group The netCDF::NcGroup into which into which this
+  *        BendersBFunctionState will be serialized. */
+
+ void serialize( netCDF::NcGroup & group ) const override;
+
+/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
+
+protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ void print( std::ostream &output ) const override {
+  output << "BendersBFunctionState [" << this
+         << "] with max global pool element " << global_pool.size();
+  }
+
+/*--------------------------- PROTECTED FIELDS -----------------------------*/
+
+ /// global pool of linearizations
+ BendersBFunction::GlobalPool global_pool;
+
+/*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
+
+private:
+
+/*---------------------------- PRIVATE FIELDS ------------------------------*/
+
+ SMSpp_insert_in_factory_h;
+
+/*--------------------------------------------------------------------------*/
+
+};  // end( class( BendersBFunctionState ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -2880,7 +3078,7 @@ class BendersBFunctionModSbst : public BendersBFunctionMod {
 /** @} end( group( BendersBFun_CLASSES ) ) ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- }  // end( namespace SMSpp_di_unipi_it )
+}  // end( namespace SMSpp_di_unipi_it )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

@@ -38,6 +38,14 @@
 using namespace SMSpp_di_unipi_it;
 
 /*--------------------------------------------------------------------------*/
+/*----------------------------- STATIC MEMBERS -----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+// register ColVariableSolution to the Solution factory
+
+SMSpp_insert_in_factory_cpp_0( ColVariableSolution );
+
+/*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -422,8 +430,11 @@ void ColVariableSolution::write( Block * const block ) {
 
 /*--------------------------------------------------------------------------*/
 
-void ColVariableSolution::serialize( netCDF::NcGroup & group )
+void ColVariableSolution::serialize( netCDF::NcGroup & group ) const
 {
+ // always call the method of the base class first
+ Solution::serialize( group );
+
  throw( std::logic_error( " ColVariableSolution::serialize not ready yet" ) );
  }
 

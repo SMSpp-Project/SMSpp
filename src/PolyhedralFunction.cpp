@@ -50,6 +50,14 @@
 using namespace SMSpp_di_unipi_it;
 
 /*--------------------------------------------------------------------------*/
+/*----------------------------- STATIC MEMBERS -----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+// register PolyhedralFunctionState to the State factory
+
+SMSpp_insert_in_factory_cpp_0( PolyhedralFunctionState );
+
+/*--------------------------------------------------------------------------*/
 /*------------ CONSTRUCTING AND DESTRUCTING PolyhedralFunction -------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -655,6 +663,149 @@ void PolyhedralFunction::serialize( netCDF::NcGroup & group ) const
 								  &f_bound );
 
  }  // end( PolyhedralFunction::serialize )
+
+/*--------------------------------------------------------------------------*/
+/*-------- METHODS FOR HANDLING THE State OF THE PolyhedralFunction --------*/
+/*--------------------------------------------------------------------------*/
+
+State * PolyhedralFunction::get_State( void ) const {
+  return( new PolyhedralFunctionState( this ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunction::put_State( const State & state )
+{
+ // if state is not a PolyhedralFunctionState &, exception will be thrown
+ auto s = dynamic_cast< const PolyhedralFunctionState & >( state );
+
+ // find out which elements are removed from / added to the global pool
+ auto res = guts_of_put_State( s );
+
+ // now actually change the data
+ if( v_glob.size() > s.v_glob.size() )
+  std::copy( s.v_glob.begin() , s.v_glob.end() , v_glob.begin() );
+ else
+  v_glob = s.v_glob;
+ v_aA = s.v_aA;
+ v_ab = s.v_ab;
+ f_imp_coeff = s.f_imp_coeff;
+
+ // if there is no Observer, no-one is looking at what just happened
+ if( ! f_Observer )
+  return;
+
+ // but if there is an Observer the Modification have to be issued *after*
+ // the data change, which is why this is not done in guts_of_put_State()
+ // first tell about removals (if there is anything to remove)
+ if( ! res.first.empty() )
+  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionMod>(
+				   this , C05FunctionMod::GlobalPoolRemoved ,
+				   std::move( res.first ) , 0 ) );
+
+ // then tell about additions (if there is anything to add), so that the
+ // aggregated linearizations are substituted with the new ones
+ if( ! res.second.empty() )
+  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionMod>(
+				   this , C05FunctionMod::GlobalPoolAdded ,
+				   std::move( res.second ) , 0 ) );
+
+ }  // end( PolyhedralFunction::put_State( const & ) )
+
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunction::put_State( State && state )
+{
+ // if state is not a PolyhedralFunctionState &, exception will be thrown
+ auto s = dynamic_cast< PolyhedralFunctionState && >( state );
+
+ // find out which elements are removed from / added to the global pool
+ auto res = guts_of_put_State( s );
+
+ // now actually change the data
+ if( v_glob.size() > s.v_glob.size() )
+  std::copy( s.v_glob.begin() , s.v_glob.end() , v_glob.begin() );
+ else
+  v_glob = std::move( s.v_glob );
+ v_aA = std::move( s.v_aA );
+ v_ab = std::move( s.v_ab );
+ f_imp_coeff = std::move( s.f_imp_coeff );
+ 
+ // if there is no Observer, no-one is looking at what just happened
+ if( ! f_Observer )
+  return;
+
+ // but if there is an Observer the Modification have to be issued *after*
+ // the data change, which is why this is not done in guts_of_put_State()
+ // first tell about removals (if there is anything to remove)
+ if( ! res.first.empty() )
+  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionMod>(
+				   this , C05FunctionMod::GlobalPoolRemoved ,
+				   std::move( res.first ) , 0 ) );
+
+ // then tell about additions (if there is anything to add), so that the
+ // aggregated linearizations are substituted with the new ones
+ if( ! res.second.empty() )
+  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionMod>(
+				   this , C05FunctionMod::GlobalPoolAdded ,
+				   std::move( res.second ) , 0 ) );
+
+ }  // end( PolyhedralFunction::put_State( && ) )
+
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunction::serialize_State( netCDF::NcGroup & group ,
+					  const std::string & sub_group_name
+					  ) const
+{
+ if( ! sub_group_name.empty() ) {
+  auto gr = group.addGroup( sub_group_name );
+  serialize_State( gr );
+  return;
+  }
+
+ // do it "by hand" since there is no PolyhedralFunctionState available
+ // to call State::serialize() from
+ group.putAtt( "type", "PolyhedralFunctionState" );
+
+ netCDF::NcDim gs = group.addDim( "PolyFunction_GlobSize" , v_glob.size() );
+
+ ( group.addVar( "PolyFunction_Glob" , netCDF::NcInt() , gs ) ).putVar(
+			       { 0 } , {  v_glob.size() } , v_glob.data() );
+
+
+ c_Index nvar = get_num_active_var();
+ netCDF::NcDim nv = group.addDim( "PolyFunction_NumVar" , nvar );
+
+ if( ! v_aA.empty() ) {
+  netCDF::NcDim nr = group.addDim( "PolyFunction_ANumRow" , v_aA.size() );
+
+  auto ncdA = group.addVar( "PolyFunction_aA" , netCDF::NcDouble() ,
+			    { nr , nv } );
+
+  for( Index i = 0 ; i < v_aA.size() ; ++i )
+   ncdA.putVar( { i , 0 } , { 1 , nvar } , v_aA[ i ].data() );
+
+  ( group.addVar( "PolyFunction_ab" , netCDF::NcDouble() , nr ) ).putVar(
+				    { 0 } , {  v_ab.size() } , v_ab.data() );
+  }
+
+ if( ! f_imp_coeff.empty() ) {
+  netCDF::NcDim cn = group.addDim( "PolyFunction_ImpCoeffNum" ,
+				   f_imp_coeff.size() );
+  
+  auto ncCI = group.addVar( "PolyFunction_ImpCoeffInd" , netCDF::NcInt() ,
+			    cn );
+
+  auto ncCV = group.addVar( "PolyFunction_ImpCoeffVal" , netCDF::NcDouble() ,
+			    cn );
+ 
+  for( Index i = 0 ; i < f_imp_coeff.size() ; ++i ) {
+   ncCI.putVar( { i } , f_imp_coeff[ i ].first );
+   ncCV.putVar( { i } , f_imp_coeff[ i ].second );
+   }
+  }
+ }  // end( PolyhedralFunction::serialize_State )
 
 /*--------------------------------------------------------------------------*/
 /*--- METHODS FOR HANDLING "ACTIVE" Variable IN THE PolyhedralFunction -----*/
@@ -2068,6 +2219,70 @@ void PolyhedralFunction::delete_rows( ModParam issueMod )
 /*-------------------------- PROTECTED METHODS -----------------------------*/
 /*--------------------------------------------------------------------------*/
 
+std::pair< Function::Subset , Function::Subset >
+PolyhedralFunction::guts_of_put_State( const PolyhedralFunctionState & state )
+{
+ if( state.f_nvar != get_num_active_var() )
+  throw( std::invalid_argument(
+	        "PolyhedralFunctionState has wrong number of variables" ) );
+
+ for( auto i : state.v_glob )
+  if( ( i < Inf<int>() ) && ( i > get_nrows() ) )
+   throw( std::invalid_argument(
+	             "PolyhedralFunctionState global pool inconsistent" ) );
+
+ // if there is no Observer, no-one is looking at what happens
+ if( ! f_Observer )
+  return( std::make_pair( Subset() , Subset() ) );
+
+ // handle the changes in the global pool. all aggregated linearizations
+ // in the current global pool need be deleted since they are replaced by
+ // entirely new ones and we don't want to check if they are equal (although
+ // we could); this also applies if they happen to have the same name
+
+ Subset Addd;
+ Subset Rmvd;
+
+ // process the common part between current and new v_glob
+ for( Index i = 0 ; ( i < v_glob.size() ) && ( i < state.v_glob.size() ) ;
+      ++i ) {
+  if( v_glob[ i ] < 0 ) {
+   Rmvd.push_back( i );
+   if( state.v_glob[ i ] < Inf<int>() )
+    Addd.push_back( i );
+   continue;
+   }
+
+  if( v_glob[ i ] == state.v_glob[ i ] )
+   continue;
+
+  if( v_glob[ i ] == Inf<int>() ) {
+   if( state.v_glob[ i ] < Inf<int>() )
+    Addd.push_back( i );
+   continue;
+   }
+
+  Rmvd.push_back( i );
+  if( state.v_glob[ i ] < Inf<int>() )
+   Addd.push_back( i );
+  }
+
+ // process what is in the new but not in the current (if any)
+ for( Index i = v_glob.size() ; i < state.v_glob.size() ; ++i )
+  if( state.v_glob[ i ] < Inf<int>() )
+   Addd.push_back( i );
+
+ // process what is in the current but not in the new (if any)
+ for( Index i = state.v_glob.size() ; i < v_glob.size() ; ++i )
+  if( v_glob[ i ] < Inf<int>() )
+   Rmvd.push_back( i );
+
+ return( std::make_pair( Rmvd , Addd ) );
+
+ }  // end( PolyhedralFunction::guts_of_put_State )
+
+/*--------------------------------------------------------------------------*/
+
 Function::FunctionValue * PolyhedralFunction::get_ai( Index name )
 {
  int gn = name >= v_glob.size() ? v_ord[ f_next ] : v_glob[ name ];
@@ -2135,6 +2350,121 @@ void PolyhedralFunction::reset_aggregate_linearizations( ModParam issueMod )
 			       Observer::par2chnl( issueMod ) );
 
  }  // end( PolyhedralFunction::reset_aggregate_linearizations( ModParam ) )
+
+/*--------------------------------------------------------------------------*/
+/*--------------------- CLASS PolyhedralFunctionState ----------------------*/
+/*--------------------------------------------------------------------------*/
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunctionState::deserialize( const netCDF::NcGroup & group )
+{
+ auto gs = group.getDim( "PolyFunction_GlobSize" );
+ if( gs.isNull() )
+  throw( std::logic_error( "PolyFunction_GlobSize dimension is required" ) );
+
+ auto ncg = group.getVar( "PolyFunction_Glob" );
+ if( ncg.isNull() )
+  throw( std::logic_error( "PolyFunction_Glob not found" ) );
+
+ v_glob.resize( gs.getSize() );
+ ncg.getVar( v_glob.data() );
+
+ auto nv = group.getDim( "PolyFunction_NumVar" );
+ if( nv.isNull() )
+  throw( std::logic_error( "PolyFunction_NumVar dimension is required" ) );
+
+ f_nvar = nv.getSize();
+
+ auto nr = group.getDim( "PolyFunction_ANumRow" );
+ if( ( ! nr.isNull() ) && ( nr.getSize() ) ) {
+   auto ncdA = group.getVar( "PolyFunction_aA" );
+   if( ncdA.isNull() )
+    throw( std::logic_error( "PolyFunction_aA not found" ) );
+
+   auto ncdb = group.getVar( "PolyFunction_ab" );
+   if( ncdb.isNull() )
+    throw( std::logic_error( "PolyFunction_ab not found" ) );
+
+  v_aA.resize( nr.getSize() );
+  for( PolyhedralFunction::Index i = 0 ; i < v_aA.size() ; ++i ) {
+   v_aA[ i ].resize( f_nvar );
+   ncdA.getVar( { i , 0 } , { 1 , f_nvar } , v_aA[ i ].data() );
+   }
+
+  v_ab.resize( nr.getSize() );
+  ncdb.getVar( v_ab.data() );
+  }
+ else {
+  v_aA.clear();
+  v_ab.clear();
+  }
+
+ auto nic = group.getDim( "PolyFunction_ImpCoeffNum" );
+ if( ( ! nic.isNull() ) && ( nic.getSize() ) ) {
+  f_imp_coeff.resize( nic.getSize() );
+
+  auto ncCI = group.getVar( "PolyFunction_ImpCoeffInd" );
+  if( ncCI.isNull() )
+   throw( std::logic_error( "PolyFunction_ImpCoeffInd not found" ) );
+
+  auto ncCV = group.getVar( "PolyFunction_ImpCoeffVal" );
+  if( ncCV.isNull() )
+   throw( std::logic_error( "PolyFunction_ImpCoeffVal not found" ) );
+
+  for( PolyhedralFunction::Index i = 0 ; i < f_imp_coeff.size() ; ++i ) {
+   ncCI.getVar( { i } , &(f_imp_coeff[ i ].first) );
+   ncCV.getVar( { i } , &(f_imp_coeff[ i ].second) );
+   }
+  }
+ else
+  f_imp_coeff.clear();
+
+}  // end( PolyhedralFunctionState::deserialize )
+
+/*--------------------------------------------------------------------------*/
+
+void PolyhedralFunctionState::serialize( netCDF::NcGroup & group ) const
+{
+ // always call the method of the base class first
+ State::serialize( group );
+
+ netCDF::NcDim gs = group.addDim( "PolyFunction_GlobSize" , v_glob.size() );
+
+ ( group.addVar( "PolyFunction_Glob" , netCDF::NcInt() , gs ) ).putVar(
+			       { 0 } , {  v_glob.size() } , v_glob.data() );
+
+ netCDF::NcDim nv = group.addDim( "PolyFunction_NumVar" , f_nvar );
+
+ if( ! v_aA.empty() ) {
+  netCDF::NcDim nr = group.addDim( "PolyFunction_ANumRow" , v_aA.size() );
+
+  auto ncdA = group.addVar( "PolyFunction_aA" , netCDF::NcDouble() ,
+			    { nr , nv } );
+
+  for( PolyhedralFunction::Index i = 0 ; i < v_aA.size() ; ++i )
+   ncdA.putVar( { i , 0 } , { 1 , f_nvar } , v_aA[ i ].data() );
+
+  ( group.addVar( "PolyFunction_ab" , netCDF::NcDouble() , nr ) ).putVar(
+				    { 0 } , {  v_ab.size() } , v_ab.data() );
+  }
+
+ if( ! f_imp_coeff.empty() ) {
+  netCDF::NcDim cn = group.addDim( "PolyFunction_ImpCoeffNum" ,
+				   f_imp_coeff.size() );
+  
+  auto ncCI = group.addVar( "PolyFunction_ImpCoeffInd" , netCDF::NcInt() ,
+			    cn );
+
+  auto ncCV = group.addVar( "PolyFunction_ImpCoeffVal" , netCDF::NcDouble() ,
+			    cn );
+ 
+  for( PolyhedralFunction::Index i = 0 ; i < f_imp_coeff.size() ; ++i ) {
+   ncCI.putVar( { i } , f_imp_coeff[ i ].first );
+   ncCV.putVar( { i } , f_imp_coeff[ i ].second );
+   }
+  }
+ }  // end( PolyhedralFunctionState::serialize )
 
 /*--------------------------------------------------------------------------*/
 /*------------------- End File PolyhedralFunction.cpp ----------------------*/

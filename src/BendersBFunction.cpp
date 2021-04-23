@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 22 - 11 - 2020
+ * \date 21 - 04 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -58,6 +58,7 @@ using namespace SMSpp_di_unipi_it;
 // register BendersBFunction to the Block factory
 
 SMSpp_insert_in_factory_cpp_1( BendersBFunction );
+SMSpp_insert_in_factory_cpp_1( BendersBFunctionState );
 
 /*--------------------------------------------------------------------------*/
 /*---------------------------------TODO-------------------------------------*/
@@ -339,7 +340,7 @@ void BendersBFunction::set_par( const idx_type par , const int value ) {
 
    global_pool.resize( value );
 
-   if( f_Observer && ( decltype( old_size)( value ) < old_size ) ) {
+   if( f_Observer && ( decltype( old_size )( value ) < old_size ) ) {
     // The size of the global pool is being reduced. We store in "which" the
     // indices of the deleted linearizations.
     Subset which( global_pool.size() - value );
@@ -354,6 +355,103 @@ void BendersBFunction::set_par( const idx_type par , const int value ) {
   default: C05Function::set_par( par , value );
  }
 }  // end( BendersBFunction::set_par )
+
+/*--------------------------------------------------------------------------*/
+/*--------- METHODS FOR HANDLING THE State OF THE BendersBFunction ---------*/
+/*--------------------------------------------------------------------------*/
+
+State * BendersBFunction::get_State( void ) const {
+ return new BendersBFunctionState( this );
+}  // end( BendersBFunction::get_State )
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::put_State( const State & state ) {
+
+ auto s = dynamic_cast< const BendersBFunctionState & >( state );
+
+ const bool global_pool_was_empty = global_pool.empty();
+
+ global_pool.clone( s.global_pool );
+
+ if( ! f_Observer )
+  return;
+
+ // If the global pool was not initially empty, issue a Modification telling
+ // that all previous linearizations have been removed.
+
+ if( ! global_pool_was_empty )
+  f_Observer->add_Modification( std::make_shared<BendersBFunctionMod>
+                                ( this , C05FunctionMod::GlobalPoolRemoved ,
+                                  Subset() , 0 , 0 ) );
+
+ // Collect the indices of all linearizations that were added and issue the
+ // Modification.
+
+ Subset added;
+ added.reserve( global_pool.size() );
+ for( Index i = 0 ; i < global_pool.size() ; ++i )
+  if( global_pool.get_solution( i ) )
+   added.push_back( i );
+
+ if( ! added.empty() )
+  f_Observer->add_Modification( std::make_shared<BendersBFunctionMod>
+                                ( this , C05FunctionMod::GlobalPoolAdded ,
+                                  std::move( added ) , 0 , 0 ) );
+
+}  // end( BendersBFunction::put_State )
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::put_State( State && state ) {
+
+ auto s = dynamic_cast< const BendersBFunctionState && >( state );
+
+ const bool global_pool_was_empty = global_pool.empty();
+
+ global_pool.clone( std::move( s.global_pool ) );
+
+ if( ! f_Observer )
+  return;
+
+ // If the global pool was not initially empty, issue a Modification telling
+ // that all previous linearizations have been removed.
+
+ if( ! global_pool_was_empty )
+  f_Observer->add_Modification( std::make_shared<BendersBFunctionMod>
+                                ( this , C05FunctionMod::GlobalPoolRemoved ,
+                                  Subset() , 0 , 0 ) );
+
+ // Collect the indices of all linearizations that were added and issue the
+ // Modification.
+
+ Subset added;
+ added.reserve( global_pool.size() );
+ for( Index i = 0 ; i < global_pool.size() ; ++i )
+  if( global_pool.get_solution( i ) )
+   added.push_back( i );
+
+ if( ! added.empty() )
+  f_Observer->add_Modification( std::make_shared<BendersBFunctionMod>
+                                ( this , C05FunctionMod::GlobalPoolAdded ,
+                                  std::move( added ) , 0 , 0 ) );
+}  // end( BendersBFunction::put_State )
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::serialize_State
+( netCDF::NcGroup & group , const std::string & sub_group_name ) const {
+
+ if( ! sub_group_name.empty() ) {
+  auto g = group.addGroup( sub_group_name );
+  serialize_State( g );
+  return;
+ }
+
+ group.putAtt( "type" , "BendersBFunctionState" );
+ global_pool.serialize( group );
+
+}  // end( BendersBFunction::serialize_State )
 
 /*--------------------------------------------------------------------------*/
 /*---- METHODS FOR HANDLING "ACTIVE" Variable IN THE BendersBFunction ------*/
@@ -2664,7 +2762,7 @@ void BendersBFunction::remove_constraint( Block::Index index ) {
 }
 
 /*--------------------------------------------------------------------------*/
-/*----------------------------- GLOBALPOOL ---------------------------------*/
+/*----------------------------- GlobalPool ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 void BendersBFunction::GlobalPool::resize( Index size ) {
@@ -2844,6 +2942,205 @@ void BendersBFunction::GlobalPool::delete_linearizations( Subset & which ,
 BendersBFunction::GlobalPool::~GlobalPool() {
 for( auto solution : solutions )
  delete solution;
+}
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::GlobalPool::deserialize
+( const netCDF::NcGroup & group ) {
+
+ auto gs = group.getDim( "BendersBFunction_MaxGlob" );
+ const auto global_pool_size = gs.isNull() ? 0 : gs.getSize();
+
+ for( auto & solution : solutions )
+  delete solution;
+
+ solutions.assign( global_pool_size , nullptr );
+ linearization_constants.assign( global_pool_size , NaN );
+ is_diagonal.assign( global_pool_size , true );
+
+ if( global_pool_size ) {
+
+  ::deserialize( group , "BendersBFunction_Constants" , { global_pool_size } ,
+                 linearization_constants , false , false );
+
+  auto nct = group.getVar( "BendersBFunction_Type" );
+  if( nct.isNull() )
+   throw( std::logic_error( "BendersBFunction::GlobalPool::deserialize: "
+                            "BendersBFunction_Type was not found." ) );
+
+  for( Index i = 0 ; i < global_pool_size ; ++i ) {
+   int type;
+   nct.getVar( { i } , &type );
+   is_diagonal[ i ] = ( type != 0 );
+
+   auto gi = group.getGroup( "BendersBFunction_Sol_" + std::to_string( i ) );
+   if( ! gi.isNull() )
+    solutions[ i ] = Solution::new_Solution( gi );
+  }
+ }
+
+ auto nic = group.getDim( "BendersBFunction_ImpCoeffNum" );
+ if( ( ! nic.isNull() ) && ( nic.getSize() ) ) {
+  important_linearization_lin_comb.resize( nic.getSize() );
+
+  auto ncCI = group.getVar( "BendersBFunction_ImpCoeffInd" );
+  if( ncCI.isNull() )
+   throw( std::logic_error( "BendersBFunction::GlobalPool::deserialize: "
+                            "BendersBFunction_ImpCoeffInd was not found." ) );
+
+  auto ncCV = group.getVar( "BendersBFunction_ImpCoeffVal" );
+  if( ncCV.isNull() )
+   throw( std::logic_error( "BendersBFunction::GlobalPool::deserialize: "
+                            "BendersBFunction_ImpCoeffVal was not found." ) );
+
+  for( Index i = 0 ; i < important_linearization_lin_comb.size() ; ++i ) {
+   ncCI.getVar( { i } , &( important_linearization_lin_comb[ i ].first ) );
+   ncCV.getVar( { i } , &( important_linearization_lin_comb[ i ].second ) );
+  }
+ }
+ else
+  important_linearization_lin_comb.clear();
+
+}  // end( BendersBFunction::GlobalPool::deserialize )
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::GlobalPool::serialize( netCDF::NcGroup & group ) const {
+
+ const auto global_pool_size = size();
+
+ if( global_pool_size ) {
+  auto size_dim = group.addDim( "BendersBFunction_MaxGlob" , global_pool_size );
+
+  std::vector< int > type( global_pool_size );
+  for( Index i = 0 ; i < global_pool_size ; ++i )
+   type[ i ] = is_diagonal[ i ] ? 1 : 0;
+
+  group.addVar( "BendersBFunction_Type" , netCDF::NcByte() , size_dim )
+   .putVar( { 0 } , { global_pool_size } , type.data() );
+
+  group.addVar( "BendersBFunction_Constants" , netCDF::NcDouble() , size_dim )
+   .putVar( { 0 } , { global_pool_size } , linearization_constants.data() );
+
+  for( Index i = 0 ; i < global_pool_size ; ++i ) {
+   if( ! solutions[ i ] )
+    continue;
+
+   auto gi = group.addGroup( "BendersBFunction_Sol_" + std::to_string( i ) );
+   solutions[ i ]->serialize( gi );
+  }
+ }
+
+ if( ! important_linearization_lin_comb.empty() ) {
+  auto linearization_dim = group.addDim
+   ( "BendersBFunction_ImpCoeffNum" , important_linearization_lin_comb.size() );
+
+  auto linearization_coeff_index = group.addVar
+   ( "BendersBFunction_ImpCoeffInd" , netCDF::NcInt() , linearization_dim );
+
+  auto linearization_coeff_value = group.addVar
+   ( "BendersBFunction_ImpCoeffVal" , netCDF::NcDouble() , linearization_dim );
+
+  for( Index i = 0 ; i < important_linearization_lin_comb.size() ; ++i ) {
+   linearization_coeff_index.putVar
+    ( { i } , important_linearization_lin_comb[ i ].first );
+   linearization_coeff_value.putVar
+    ( { i } , important_linearization_lin_comb[ i ].second );
+  }
+ }
+}  // end( BendersBFunction::GlobalPool::serialize )
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::GlobalPool::clone( const GlobalPool & global_pool ) {
+
+ for( auto & solution : solutions ) {
+  delete solution;
+  solution = nullptr;
+ }
+
+ if( this->size() < global_pool.size() ) {
+  // resize this GlobalPool to accomodate the given elements
+  this->resize( global_pool.size() );
+ }
+
+ std::copy( global_pool.is_diagonal.cbegin() ,
+            global_pool.is_diagonal.cend() ,
+            is_diagonal.begin() );
+
+ std::copy( global_pool.linearization_constants.cbegin() ,
+            global_pool.linearization_constants.cend() ,
+            linearization_constants.begin() );
+
+ std::copy( global_pool.important_linearization_lin_comb.cbegin() ,
+            global_pool.important_linearization_lin_comb.cend() ,
+            important_linearization_lin_comb.begin() );
+
+ auto this_solution = solutions.begin();
+ for( const auto & given_solution : global_pool.solutions ) {
+  if( given_solution )
+   *this_solution = given_solution->clone();
+  else
+   *this_solution = nullptr;
+  ++this_solution;
+ }
+}  // end( BendersBFunction::GlobalPool::clone )
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunction::GlobalPool::clone( GlobalPool && global_pool ) {
+
+ for( auto & solution : solutions ) {
+  delete solution;
+  solution = nullptr;
+ }
+
+ // The size of the GlobalPool will be at least the size it currently has.
+ const auto size = std::max( this->size() , global_pool.size() );
+
+ is_diagonal = std::move( global_pool.is_diagonal );
+
+ linearization_constants = std::move( global_pool.linearization_constants );
+
+ important_linearization_lin_comb =
+  std::move( global_pool.important_linearization_lin_comb );
+
+ auto this_solution = solutions.begin();
+ for( auto & given_solution : global_pool.solutions ) {
+  *this_solution++ = given_solution;
+  given_solution = nullptr;
+ }
+
+ // Possibly resize this GlobalPool so that it has at least the same size it
+ // had before.
+
+ this->resize( size );
+
+}  // end( BendersBFunction::GlobalPool::clone )
+
+/*--------------------------------------------------------------------------*/
+/*------------------------- BendersBFunctionState --------------------------*/
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunctionState::deserialize( const netCDF::NcGroup & group ) {
+ global_pool.deserialize( group );
+}
+
+/*--------------------------------------------------------------------------*/
+
+void BendersBFunctionState::serialize( netCDF::NcGroup & group ) const {
+ State::serialize( group );
+ global_pool.serialize( group );
+}
+
+/*--------------------------------------------------------------------------*/
+
+BendersBFunctionState::BendersBFunctionState( const BendersBFunction * f ) {
+ if( ! f )
+  return;
+
+ global_pool.clone( f->global_pool );
 }
 
 /*--------------------------------------------------------------------------*/

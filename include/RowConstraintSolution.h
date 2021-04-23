@@ -176,7 +176,7 @@ public:
   *   then ...
   */
 
- virtual void serialize( netCDF::NcGroup & group ) override final;
+ virtual void serialize( netCDF::NcGroup & group ) const override final;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns a scaled version of this RowConstraintSolution
@@ -414,6 +414,12 @@ protected:
 
  Vec_RowConstraintSolution nested_solutions;
  ///< vector of RowConstraintSolutions of the nested Blocks
+
+/*--------------------------------------------------------------------------*/
+
+ SMSpp_insert_in_factory_h;
+
+/*--------------------------------------------------------------------------*/
 
 };  // end( class( RowConstraintSolution ) )
 

@@ -10,7 +10,7 @@
  *
  * \version 0.20
  *
- * \date 02 - 12 - 2020
+ * \date 22 - 03 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -40,7 +40,8 @@
 
 namespace SMSpp_di_unipi_it
 {
- class ComputeConfig;  // forward definition of ComputeConfig
+ class ComputeConfig;  // forward declaration of ComputeConfig
+ class State;          // forward declaration of State
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
@@ -73,6 +74,17 @@ namespace SMSpp_di_unipi_it
  * - the computation may be "long", which means that the caller may want to
  *   be able to periodically check what is happening and possibly react,
  *   which is provided by the "event handlers" mechanics;
+ *
+ * - the computation may be "long", which means that extracting and saving
+ *   the "internal state" of the computation may be useful e.g. for
+ *   checkpointing purposes;
+ *
+ * - the computation may be repeated many times as the underlying data
+ *   carachterising it (typically, a Block or a fragment thereof) may change
+ *   significantly, but then the data may be brought back to a state similar
+ *   to one occurred "a long time before", which makes it useful to extract
+ *   and save the "internal state" of the computation for reoptimization
+ *   purposes;
  *
  * - the computation may take time (or other computational resources) that
  *   the caller may want to be able to measure;
@@ -1519,6 +1531,194 @@ class ThinComputeInterface
   const;
 
 /**@} ----------------------------------------------------------------------*/
+/*------- METHODS FOR HANDLING THE State OF THE ThinComputeInterface -------*/
+/*--------------------------------------------------------------------------*/
+/** @name Handling the State of the ThinComputeInterface
+ *
+ * The base class ThinComputeInterface is intended to provide an interface to
+ * many different computing processes, among which "very heavy" ones. Such
+ * processes may require a (very large) "internal state" to work. Once the
+ * computation is finished, the internal state (in part or in whole) is
+ * usually retained for the purpose of "reoptimization": if the underlying
+ * data characterising it (typically, a Block or a fragment thereof) changes
+ * "just a little", re-starting the computation from the previous "internal
+ * state" has the potential (but is not guaranteed) to significantly improve
+ * the efficiency of the computation.
+ *
+ * In several use cases, a ThinComputeInterface can be used to perform a long
+ * series of computations where the underlying data changes incrementally,
+ * ultimately accruing significantly changes. Yet, occasionally the data may
+ * be knowingly brought back to a state similar to one occurred "a long time
+ * before". In this case, the capability of extracting and saving the
+ * "internal state" of the computation at arbitrary times during the series of
+ * computations and then passing back to the ThinComputeInterface a properly
+ * chosen state among the saved ones may allow "reoptimization" to be
+ * performed more efficiently.
+ *
+ * A different use case for the capability of extracting and saving the
+ * "internal state" is the one where the computation is "long" and/or
+ * performed on a not completely reliable system (maybe a massively parallel
+ * one), so that there is a significant risk that the system may fail before
+ * the computation ends. In this case, periodically saving the "internal
+ * state" of the computation may allow to re-start it with limited losses,
+ * a strategy known as "checkpointing".
+ *
+ * Both use cases are served by the following methods, which allow a
+ * ThinComputeInterface to produce an object of class (derived from) State
+ * and read it back. State is a basically empty class [see] which is only
+ * meant to be stored, either in memory or on file, but not otherwise
+ * manipulated by any other entity except the ThinComputeInterface that
+ * produced it, and therefore it only explicitly supports being loaded and
+ * saved.
+ *
+ * Note that no strong explicit provision is made about the behaviour of a
+ * ThinComputeInterface when a State is set to it. This starts with the fact
+ * that many ThinComputeInterface do not implement "heavy" computations, and
+ * therefore do not have a significant "internal state"; hence, each of these
+ * methods has a default implementation "doing nothing". ThinComputeInterface
+ * that have a significant "internal state" will have to override these
+ * methods.
+ *
+ * More in general, the specific conditions under which it is allowed, or
+ * sensible, to set back a State into a ThinComputeInterface will be
+ * exclusively dictated by the ThinComputeInterface in question. For instance,
+ * some ThinComputeInterface may require the underlying data (Block or a
+ * fragment thereof) to be exactly identical to what it was when the State
+ * was created, but this should not be the norm: a ThinComputeInterface can
+ * always unilaterally decide that the just-passed State is "not interesting"
+ * and just plainly ignore it. For this reason, passing back a State even if
+ * the data is not identical (and possibly rather different) should be
+ * allowed, even though little benefit may come from it (and therefore it
+ * could better be avoided). On the same note, there is in general no
+ * guarantee that the State is "complete", and therefore that, even if the
+ * data is identical, re-computing after that a State is restored provides
+ * exactly the same result (although individual ThinComputeInterface may
+ * provide such guarantee). Similarly, there can be no guarantee that
+ * setting back a State, on "very similar" or even identical data, yields
+ * better efficiency/effectiveness than not doing it, although this can be
+ * expected to happen often, and individual ThinComputeInterface (especially
+ * those for "easy" problems where the "internal state" fully encodes an
+ * optimal solution and its optimality certificate) may indeed provide some
+ * guarantee in this sense. Finally, it is entirely dependent on the
+ * specific :ThinComputeInterface whether or not a State gotten out of some
+ * :ThinComputeInterface instance can be set into a different
+ * :ThinComputeInterface instance (clearly at least of the same type or of a
+ * closely related one).
+ *  @{ */
+
+ /// returns a pointer to the current State of this ThinComputeInterface
+ /** This method must construct and return a pointer to a State representing
+  * the current "internal state" of this ThinComputeInterface. Since not
+  * every :ThinComputeInterface has a significant internal State, the default
+  * implementation of this method simply returns a nullptr.
+  *
+  * Note that there may exist different options while saving a State; say
+  * "saving more state" or "saving less state" with some trade-off between
+  * the required memory/cost and the chances of being effective at
+  * reoptimization/checkpointing. If this is the case, the options can be
+  * set by means of standard int/double/string/... parameters of the
+  * specific :ThinComputeInterface; the base class does not offer any
+  * pre-defined parameter for this task. */
+
+ virtual State * get_State( void ) const { return( nullptr ); }
+
+/*--------------------------------------------------------------------------*/
+ /// sets the current State of this ThinComputeInterface
+ /** This method should read the State in the given \p state and try to use
+  * it as effectively as possible to improve the current "internal state" of
+  * this ThinComputeInterface. Since not every :ThinComputeInterface has a
+  * significant internal State, the default implementation of this method
+  * simply does nothing (although a :ThinComputeInterface not having a
+  * significant State should just return nullptr in get_State(), which means
+  * that this method should never really be called).
+  *
+  * @param state A State for this ThinComputeInterface. Since a const
+  *              reference is provided, \p state will be unchanged after
+  *              the end of the call. */
+
+ virtual void put_State( const State & state ) {}
+
+/*--------------------------------------------------------------------------*/
+ /// sets the current State of this ThinComputeInterface, "consuming" it
+ /** This method should read the State in the given \p state and try to use
+  * it as effectively as possible to improve the current "internal state" of
+  * this ThinComputeInterface. Since not every :ThinComputeInterface has a
+  * significant internal State, the default implementation of this method
+  * simply does nothing (although a :ThinComputeInterface not having a
+  * significant State should just return nullptr in get_State(), which means
+  * that this method should never really be called).
+  *
+  * @param state A State for this ThinComputeInterface. Since an rvalue is
+  *              is provided (&&), \p state may be "consumed" by the
+  *              process: at the end of the call it will still be a valid
+  *              object but it may be "empty".
+  *
+  * The rationale for this version of the method is that a State may be an
+  * arbitrarily "large" object; moving it(s pieces) in appropriate places
+  * inside the ThinComputeInterface may be significantly more efficient than
+  * copying them and then deleting the originals. */
+
+ virtual void put_State( State && state ) {}
+
+/*--------------------------------------------------------------------------*/
+ /// serialize a :State into a netCDF::NcGroup
+ /** This method serializes the current "internal state" (if any) of this
+  * ThinComputeInterface under the form of a :State (of appropriate type)
+  * into the given \p group, so that it can possibly be later on read back
+  * by State::deserialize() and put back (see put_State()) into this
+  * ThinComputeInterface.
+  *
+  * This method is in principle not strictly necessary, since it is
+  * semantically equivalent to
+  *
+  *     auto s = this->get_State();
+  *     s->serialize( g );
+  *     delete s;
+  *
+  * (except for the fact that get_State() may return nullptr). Yet, the
+  * rationale for this version of the method is that the "internal state"
+  * of a ThinComputeInterface may be an arbitrarily "large" object. Since
+  * a State is supposed to "live independently" from its original
+  * ThinComputeInterface, it must contain a copy of the relevant information,
+  * which may be costly in time and/or memory. If the State is only
+  * constructed in order to be immediately serialized and destroyed -- which
+  * is e.g. what happens in the "checkpointing" use case -- as in the code
+  * above, a :ThinComputeInterface may be able to produce the same result
+  * without these copying operations, and therefore more efficiently.
+  * However, a :ThinComputeInterface is completely free to completely ignore
+  * the issue and rather use the (possibly inefficient) working default
+  * implementation, provided for convenience, which makes use of the
+  * get_State() and State::serialize() methods along the lines of the
+  * snippet above.
+  *
+  * @param group The netCDF group in which the State of this
+  *        ThinComputeInterface (if any) should be serialized.
+  *
+  * @param sub_group_name If a non-empty name is provided, then the State of
+  *        this ThinComputeInterface (if any) is serialized into a newly
+  *        created sub-group of the given \p group having this name; if,
+  *        instead, sub_group_name.empty() then the State is serialised in
+  *        \p group directly. Note that if this ThinComputeInterface does
+  *        not have any "internal state" (get_State() returns nullptr)
+  *        then the sub-group is never created even if a name is provided.
+  *
+  * Note that it is somewhat unusual to provide the sub_group_name in a
+  * serialize() method. However, this is sensible here since a
+  * ThinComputeInterface may have no State at all (this being the default).
+  * If the caller does not know whether or not this is the case, it would
+  * have to create the netCDF sub-group, at the risk of this ending up empty.
+  * By providing the "father" group and the name of the sub-group this can
+  * be avoided, as the sub-group is only created if a State exists.
+  *
+  * A possible downside of this approach is that the caller cannot be sure a
+  * priori that the sub-group will be there after the call. If this is a
+  * problem, it is always possible to externally create the sub-group and then
+  * pass it as \p group with empty name. */
+
+ virtual void serialize_State( netCDF::NcGroup & group ,
+                               const std::string & sub_group_name = "" ) const;
+
+/**@} ----------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 // empty, this is a thin interface
@@ -1743,7 +1943,7 @@ class ComputeConfig : public Configuration {
 
  // returns true if the ComputeConfig is "completely empty" of any data
 
- [[nodiscard]] virtual bool empty() const {
+ [[nodiscard]] virtual bool empty( void ) const {
   return( int_pars.empty() && dbl_pars.empty() && str_pars.empty() &&
 	  vint_pars.empty() && vdbl_pars.empty() && vstr_pars.empty() &&
 	  ( ! f_extra_Configuration ) );
@@ -1766,7 +1966,7 @@ class ComputeConfig : public Configuration {
    int_pars.emplace_back( std::move( name ) , value );
   else
    it->second = value;
- }
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set the given float (double) numerical parameter
@@ -1804,7 +2004,7 @@ class ComputeConfig : public Configuration {
    str_pars.emplace_back( std::move( name ) , std::move( value ) );
   else
    it->second = std::move( value );
- }
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set the given vector-of-integer numerical parameter
@@ -2052,6 +2252,374 @@ class ComputeConfig : public Configuration {
 /*--------------------------------------------------------------------------*/
 
 };  // end( class( ComputeConfig ) )
+
+/*--------------------------------------------------------------------------*/
+/*---------------------------- CLASS State ---------------------------------*/
+/*--------------------------------------------------------------------------*/
+/*--------------------------- GENERAL NOTES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+/// the "internal state" of a ThinComputeInterface
+/** The State class is intended to represent the "internal state" of a
+ * ThinComputeInterface. In general, the "internal state" of a
+ * ThinComputeInterface can be composed by any data that can influence the
+ * computation of this ThinComputeInterface, i.e., anything that may help
+ * the next call to ThinComputeInterface::compute() to be more efficient
+ * and/or effective. The obvious example is the optimal basis of a Linear
+ * Program having been already solved and then "slightly modified".
+ *
+ * The State of a :ThinComputeInterface is entirely determined by each
+ * particular :State for that :ThinComputeInterface, and the general State
+ * class makes no provisions on what a State can be or do, except that it
+ * can be serialized and de-serialized.
+ *
+ * The main idea is that a State of a ThinComputeInterface should represent
+ * anything that this ThinComputeInterface can use to better restart its
+ * computation considering the current state of the system. Some of the
+ * possible uses of State are the following:
+ *
+ * - To allow a controlled interruption a complex computation process
+ *   (computing, changing, re-computing, re-changing, ...), by saving the
+ *   current state on file, and recovering it later for restarting the
+ *   process.
+ *
+ * - To allow checkpointing, where the State of a ThinComputeInterface is
+ *   saved from time to time and can be used to restart the computation
+ *   process in case the computation is abruptly interrupted due to a system
+ *   failure.
+ *
+ * - To allow the improvement of performance in cases where some object (for
+ *   instance, a :Block) is submitted to numerous modifications, but then
+ *   these modifications are un-done and the computation starts with a new set
+ *   of different modifications from the state that the :Block had "a long
+ *   time ago".
+ *
+ * Note that no strong explicit provision is made about the behaviour of a
+ * ThinComputeInterface when a State is set to it. The specific conditions
+ * under which it is allowed, or sensible, to set back a State into a
+ * ThinComputeInterface will be exclusively dictated by the
+ * :ThinComputeInterface in question. For instance, some :ThinComputeInterface
+ * may require the underlying data (Block or a fragment thereof) to be exactly
+ * identical to what it was when the State was created, but this should not be
+ * the norm: a ThinComputeInterface can always unilaterally decide that the
+ * just-passed State is "not interesting" and just plainly ignore it. For this
+ * reason, passing back a State even if the data is not identical (and
+ * possibly rather different) should be allowed, even though little benefit
+ * may come from it (and therefore it could better be avoided). On the same
+ * note, there is in general no guarantee that the State is "complete", and
+ * therefore that, even if the data is identical, re-computing after that a
+ * State is restored provides exactly the same result (although individual
+ * ThinComputeInterface may provide such guarantee). Similarly, there can be
+ * no guarantee that setting back a State, on "very similar" or even identical
+ * data, yields better efficiency/effectiveness than not doing it, although
+ * this can be expected to happen often, and individual ThinComputeInterface
+ * (especially those for "easy" problem where the "internal state" fully
+ * encodes an optimal solution and its optimality certificate) may indeed
+ * provide some guarantee in this sense. Finally, it is entirely dependent on
+ * the specific :ThinComputeInterface whether or not a State gotten out of
+ * some :ThinComputeInterface instance can be set into a different
+ * :ThinComputeInterface instance (clearly at least of the same type or of a
+ * closely related one). */
+
+class State {
+
+/*--------------------------------------------------------------------------*/
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ public:
+
+/*@} -----------------------------------------------------------------------*/
+/*------------------ CONSTRUCTING AND DESTRUCTING State --------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Constructing and destructing State
+ *  @{ */
+
+ State( void ) { }  ///< constructor of State, it has nothing to do
+
+/*--------------------------------------------------------------------------*/
+ /// construct a :State of specific type using the State factory
+ /** Use the State factory to construct a :State object of type specified by
+  * \p classname (a std::string with the name of the class inside). Note that
+  * the method is static because the factory is static, hence it is to be 
+  * called as
+  *
+  *   State * myState = State::new_State( someclass );
+  *
+  * i.e., without any reference to any specific State (and, therefore, it can
+  * be used to construct the very first State if needed).
+  * 
+  * For this to work, each :State has to:
+  *
+  * - add the line
+  *
+  *     SMSpp_insert_in_factory_h;
+  *
+  *   to its definition (typically, in the private part in its .h file);
+  *
+  * - add the line
+  *
+  *     SMSpp_insert_in_factory_cpp_0( name_of_the_class );
+  *
+  *   to exactly *one* .cpp file, typically the .cpp file of the
+  *   :ThinComputeInterface the State of which is represented. If the name
+  *   of the class contains any parentheses, then one must enclose the name
+  *   of the class in parentheses and instead add the line
+  *
+  *     SMSpp_insert_in_factory_cpp_0( ( name_of_the_class ) );
+  *
+  * Any whitespaces that the given \p classname may contain is ignored. So,
+  * for example, to create an instance of the class MyState< int > one could
+  * indifferently pass "MyState<int>", "MyState< int >", or even
+  * " M y S t a t e < int > ".
+  *
+  * Note that :State objects are generally constructed by their
+  * :ThinComputeInterface, and therefore there is often no need to use this
+  * method. However, a :State may have to be serialized (see serialize()),
+  * and then deserialized without the help of its :ThinComputeInterface.
+  * This is possible with the new_State( netCDF::NcGroup ) method, which
+  * requires this one (and therefore the factory) to work.
+  *
+  * @param classname The name of the :State class that must be constructed. */
+
+ static State * new_State( const std::string & classname ) {
+  const std::string classname_( SMSpp_classname_normalise(
+					        std::string( classname ) ) );
+  const auto it = State::f_factory().find( classname_ );
+  if( it == State::f_factory().end() )
+   throw( std::invalid_argument( classname + " not present in State factory"
+				 ) );
+  return( ( it->second )() );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// de-serialize a :State out of netCDF::NcGroup, returns it
+ /** First-level, static de-serialization method: takes a netCDF::NcGroup
+  * supposedly containing  (all the information describing) a :State and
+  * returns a pointer to a newly minted :State object corresponding to what
+  * is found in the file. The netCDF::NcGroup \p group must contain at least
+  * the string attribute "type"; this is used it in the factory to construct
+  * an "empty" :State of that type, see new_Solution( std::string & ), and
+  * then the method deserialize( netCDF::NcGroup ) of the newly minted
+  * :State is invoked (with argument \p group) to finish the work.
+  *
+  * Note that this method is static (see the previous versions for comments
+  * about it) and returns a pointer to State, hence it has to have a
+  * different name from deserialize( netCDF::NcGroup ) (since the signature
+  * is the same but for the return type).
+  *
+  * If anything goes wrong with the process, nullptr is returned. */
+
+ static State * new_State( const netCDF::NcGroup & group ) {
+  if( group.isNull() )
+   return( nullptr );
+
+  auto gtype = group.getAtt( "type" );
+  if( gtype.isNull() )
+   return( nullptr );
+
+  std::string tmp;
+  gtype.getValues( tmp );
+  auto result = new_State( tmp );
+  try {
+   result->deserialize( group );
+   return( result );
+   }
+  catch( netCDF::exceptions::NcException & e ) {
+   std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
+   }
+  catch( std::exception & e ) {
+   std::cerr << "error " << e.what() << " in deserialize" << std::endl;
+   }
+  catch( ... ) {
+   std::cerr << "unknown error in deserialize" << std::endl;
+   }
+
+  return( nullptr );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// de-serialize a :State out of netCDF::NcGroup
+ /** Second-level deserialization method: takes a netCDF::NcGroup supposedly
+  * containing all the information required to de-serialize the :State, and
+  * produces a "full" State object as a result. The netCDF::NcGroup has been
+  * produced either by calling serialize() with a previously existing :State
+  * (of the very same type as this one), or by directly calling
+  * serialize_State() in the corresponding :ThinComputeInterface, which is why
+  * individual :State should openly declare the format of the netCDF::NcGroup
+  * they produce.
+  *
+  * This method is pure virtual, as it clearly has to be implemented by
+  * derived classes. */
+
+ virtual void deserialize( const netCDF::NcGroup & group ) = 0;
+
+/*--------------------------------------------------------------------------*/
+
+ virtual ~State() { }  ///< destructor: it is virtual, and empty
+
+/*@} -----------------------------------------------------------------------*/
+/*--------------- METHODS DESCRIBING THE BEHAVIOR OF A State ---------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods describing the behavior of a State
+ *  @{ */
+
+ /// serialize a :State into a netCDF::NcGroup
+ /** The method takes a (supposedly, "full") State object and serializes
+  * it into the provided netCDF::NcGroup, so that it can possibly be read by
+  * deserialize() (of a :State of the very same type as this one).
+  *
+  * The method of the base class just creates and fills the "type" attribute
+  * (with the right name, thanks to the classname() method) and the optional
+  * "name" attribute. Yet
+  *
+  *     serialize() OF ANY :State SHOULD CALL State::serialize()
+  *
+  * While this currently does so little that one might well be tempted to
+  * skip the call and just copy the three lines of code, enforcing this
+  * standard is forward-looking since in this way any future revision of the
+  * base State class may add other mandatory/optional fields: as soon as
+  * they are managed by the (revised) method of the base class, they would
+  * then be automatically dealt with by the derived classes without them even
+  * knowing it happened. */
+
+ virtual void serialize( netCDF::NcGroup & group ) const {
+  group.putAtt( "type" , classname() );
+  }
+
+/*@} -----------------------------------------------------------------------*/
+/*------------ METHODS FOR LOADING, PRINTING & SAVING THE State ------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for printing the State
+ */
+
+ /// friend operator<<(), dispatching to virtual protected print()
+ /** Not really a method, but a friend operator<<() that just dispatches the
+  * ostream to the protected virtual method print(). This way operator<<() is
+  * defined for each State, but its behavior can be customized by derived
+  * classes. */
+
+ friend std::ostream& operator<<( std::ostream& out , const State &s ) {
+  s.print( out );
+  return( out );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// getting the classname of this State
+ /** Given a State, this method returns a string with its class name; unlike
+  * std::type_info.name(), there *are* guarantees, i.e., the name will
+  * always be the same.
+  *
+  * The method works by dispatching the private virtual method private_name().
+  * The latter is automatically implemented by the 
+  * SMSpp_insert_in_factory_cpp_* macros [see SMSTypedefs.h], hence this
+  * comes at no cost since these have to be called somewhere to ensure that
+  * any :State will be added to the factory. Actually, since
+  * State::private_name() is pure virtual, this ensures that it is not
+  * possible to forget to call the appropriate SMSpp_insert_in_factory_cpp_*
+  * for any :State because otherwise it is a pure virtual class (unless the
+  * programmer purposely defines private_name() without calling the macro,
+  * which seems rather pointless). */
+
+ const std::string & classname( void ) const { return( private_name() ); }
+
+/*@}------------------------------------------------------------------------*/
+/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ protected:
+
+/*--------------------------------------------------------------------------*/
+/*--------------------------- PROTECTED TYPES ------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ using StateFactory = boost::function< State *() >;
+ // type of the factory of State
+
+ using StateFactoryMap = std::map< std::string , StateFactory >;
+ // type of the map between strings and the factory of State
+
+/*--------------------------------------------------------------------------*/
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Protected methods for printing and serializing
+    @{ */
+
+ /// print information about the State on an ostream
+ /** Protected method intended to print information about the State; it is
+  * virtual so that derived classes can print their specific information in
+  * the format they choose. */
+
+ virtual void print( std::ostream &output ) const {
+  output << "State [" << this << "]";
+  }
+
+/**@} ----------------------------------------------------------------------*/
+/** @name Protected methods for handling static fields
+ *
+ * These methods allow derived classes to partake into static initialization
+ * procedures performed once and for all at the start of the program. These
+ * are typically related with factories.
+ * @{ */
+
+ /// method incapsulating the State factory
+ /** This method returns the State factory, which is a static object. The
+  * rationale for using a method is that this is the "Construct On First Use
+  * Idiom" that solves the "static initialization order problem". */
+
+ static StateFactoryMap & f_factory( void ) {
+  static StateFactoryMap s_factory;
+  return( s_factory );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// empty placeholder for class-specific static initialization
+ /** The method static_initialization() is an empty placeholder which is made
+  * available to derived classes that need to perform some class-specific
+  * static initialization besides these of any :State class, i.e., the
+  * management of the factory. This method is invoked by the
+  * SMSpp_insert_in_factory_cpp_* macros [see SMSTypedefs.h] during the
+  * standard initialization procedures. If a derived class needs to perform
+  * any static initialization it just have to do this into its version of
+  * this method; if not it just has nothing to do, as the (empty) method of
+  * the base class will be called.
+  *
+  * This mechanism has a potential drawback in that a redefined
+  * static_initialization() may be called multiple times. Assume that a
+  * derived class X redefines the method to perform something, and that a
+  * further class Y is derived from X that has to do nothing, and that
+  * therefore will not define Y::static_initialization(): them, within the
+  * SMSpp_insert_in_factory_cpp_* of Y, X::static_initialization() will be
+  * called again.
+  *
+  * If this is undesirable, X will have to explicitly instruct derived classes
+  * to redefine their (empty) static_initialization(). Alternatively,
+  * X::static_initialization() may contain mechanisms to ensure that it will
+  * actually do things only the very first time it is called. One standard
+  * trick is to do everything within the initialisation of a static local
+  * variable of X::static_initialization(): this is guaranteed by the
+  * compiler to happen only once, regardless of how many times the function
+  * is called. Alternatively, an explicit static boolean could be used (this
+  * may just be the same as what the compiler does during the initialization
+  * of static variables without telling you). */
+
+ static void static_initialization( void ) {}
+
+/**@} ----------------------------------------------------------------------*/
+/*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ private:
+
+/*--------------------------------------------------------------------------*/
+/*-------------------------- PRIVATE METHODS -------------------------------*/
+/*--------------------------------------------------------------------------*/
+ // Definition of State::private_name() (pure virtual)
+
+ [[nodiscard]] virtual const std::string & private_name( void ) const = 0;
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( State ) )
 
 /** @} end( group( ThinComputeInterface_CLASSES ) ) ------------------------*/
 /*--------------------------------------------------------------------------*/

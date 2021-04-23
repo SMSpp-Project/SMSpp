@@ -156,7 +156,7 @@ public:
   * TODO This method is not implemented yet.
   */
 
- virtual void serialize( netCDF::NcGroup & group ) override final;
+ virtual void serialize( netCDF::NcGroup & group ) const override final;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns a scaled version of this ColRowSolution
@@ -269,6 +269,12 @@ protected:
 
  RowConstraintSolution f_constraint_solution;
  ///< the Solution associated with the RowConstraint of the Block
+
+/*--------------------------------------------------------------------------*/
+
+ SMSpp_insert_in_factory_h;
+
+/*--------------------------------------------------------------------------*/
 
 };  // end( class( ColRowSolution ) )
 
