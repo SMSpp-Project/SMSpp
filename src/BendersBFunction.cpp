@@ -3073,9 +3073,8 @@ void BendersBFunction::GlobalPool::clone( const GlobalPool & global_pool ) {
             global_pool.linearization_constants.cend() ,
             linearization_constants.begin() );
 
- std::copy( global_pool.important_linearization_lin_comb.cbegin() ,
-            global_pool.important_linearization_lin_comb.cend() ,
-            important_linearization_lin_comb.begin() );
+ important_linearization_lin_comb =
+  global_pool.important_linearization_lin_comb;
 
  auto this_solution = solutions.begin();
  for( const auto & given_solution : global_pool.solutions ) {
