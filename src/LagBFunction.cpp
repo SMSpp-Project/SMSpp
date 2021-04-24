@@ -9,7 +9,7 @@
  *
  * \version 0.20
  *
- * \date 03 - 01 - 2021
+ * \date 24 - 04 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1254,9 +1254,9 @@ void LagBFunction::serialize_State( netCDF::NcGroup & group ,
  if( f_max_glob ) {
   netCDF::NcDim gs = group.addDim( "LagBFunction_MaxGlob" , f_max_glob );
 
-  std::vector< char > typ( f_max_glob );
+  std::vector< int > typ( f_max_glob );
   for( Index i = 0 ; i < f_max_glob ; ++i )
-   typ[ i ] = g_pool[ i ].second ? char( 1 ) : char( 0 );
+   typ[ i ] = g_pool[ i ].second ? 1 : 0;
  
     ( group.addVar( "LagBFunction_Type" , netCDF::NcByte() , gs ) ).putVar(
 			          { 0 } , {  f_max_glob } , typ.data() );
@@ -3439,7 +3439,7 @@ void LagBFunctionState::serialize( netCDF::NcGroup & group ) const
 
   std::vector< int > typ( f_max_glob );
   for( Index i = 0 ; i < f_max_glob ; ++i )
-   typ[ i ] = g_pool[ i ].second ? char( 1 ) : char( 0 );
+   typ[ i ] = g_pool[ i ].second ? 1 : 0;
  
   ( group.addVar( "LagBFunction_Type" , netCDF::NcByte() , gs ) ).putVar(
 				      { 0 } , {  f_max_glob } , typ.data() );
