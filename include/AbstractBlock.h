@@ -606,6 +606,21 @@ class AbstractBlock : public Block {
 
  void serialize( netCDF::NcGroup & group ) const override;
 
+/*--------------------------------------------------------------------------*/
+
+ /// Loads the AbstractBlock from an LP or MPS file
+ /**
+  * It loads the AbstractBlock from a CPLEX LP file or a
+  * MPS (Mathematical Programming System) file.
+  * The ext parameter should be a case-insensitive string containing the
+  * type of the file (either "lp" or "mps"). It may be empty, in which case
+  * the file type is inferred from the extension in the file name.
+  *
+  * @param filename The path of the file to read
+  * @param ext      The file type
+  */
+ void read( const std::string & filename, const std::string & ext = "" );
+
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -674,6 +689,12 @@ class AbstractBlock : public Block {
 /*--------------------------------------------------------------------------*/
 
  private:
+
+ /// Loads the block from a MPS file
+ void read_mps( const std::string & filename );
+
+ /// Loads the block from an LP file
+ void read_lp( const std::string & filename );
 
 /*--------------------------------------------------------------------------*/
 /*---------------------------- PRIVATE FIELDS ------------------------------*/

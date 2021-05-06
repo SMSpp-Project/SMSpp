@@ -23,10 +23,13 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <boost/algorithm/string.hpp> // Used in read()
+
 #include "AbstractBlock.h"
 
 #include "ColVariable.h"
 
+#include "LinearFunction.h"
 #include "FRowConstraint.h"
 #include "OneVarConstraint.h"
 
@@ -895,6 +898,448 @@ void AbstractBlock::print( std::ostream & output ) const
    output << *v_Block[ i ];
   }
  }  // end( AbstractBlock::print )
+
+/*--------------------------------------------------------------------------*/
+
+void AbstractBlock::read( const std::string & filename,
+                          const std::string & ext ) {
+
+ // Check for explicit LP
+ if( boost::iequals( ext, "lp" ) ) {
+  read_lp( filename );
+  return;
+ }
+
+ // Check for explicit MPS
+ if( boost::iequals( ext, "mps" ) ) {
+  read_mps( filename );
+  return;
+ }
+
+ // Infer from file extension
+ if( ext.empty() ) {
+  std::size_t pos = filename.find_last_of( '.' );
+  if( pos != std::string::npos ) {
+   auto e = filename.substr( pos + 1 );
+   if( boost::iequals( e, "lp" ) ) {
+    read_lp( filename );
+    return;
+   }
+   if( boost::iequals( e, "mps" ) ) {
+    read_mps( filename );
+    return;
+   }
+  }
+  throw std::invalid_argument( "Cannot infer file type from extension" );
+ }
+
+ throw std::invalid_argument( "Specify a valid file type" );
+}
+
+/*--------------------------------------------------------------------------*/
+
+void AbstractBlock::read_mps( const std::string & filename ) {
+ std::ifstream file( filename );
+ if( !file.is_open() ) {
+  throw std::invalid_argument( "Cannot open file" );
+ }
+
+ int num_rows = 0;
+ int num_cols = 0;
+
+ auto * of = new FRealObjective();
+ std::string of_name;
+
+ std::vector< FRowConstraint > * rows;
+ std::vector< std::string > row_names;
+ std::vector< char > row_type;
+
+ std::vector< ColVariable > * cols;
+ std::vector< std::string > col_names;
+ std::vector< BoxConstraint > * bounds;
+
+ std::string rhs_name; // Only one RHS vector is supported
+ std::string rng_name; // Only one RANGES vector is supported
+ std::string bnd_name; // Only one BOUNDS vector is supported
+ std::vector< double > rhs;
+ std::vector< double > rng;
+
+ // Read NAME
+ std::string line;
+ getline( file, line );
+ if( line.substr( 0, 4 ) == "NAME" ) {
+  // TODO
+ } else {
+  throw std::invalid_argument( "Invalid syntax in MPS file" );
+ }
+ getline( file, line );
+
+ /*
+  * First pass: get rows and columns number
+  */
+
+ // Read ROWS
+ if( line.substr( 0 ) == "ROWS" ) {
+  while( getline( file, line ) && line.at( 0 ) == ' ' ) {
+   auto type = line.at( 1 );
+   switch( type ) {
+    case 'E':
+    case 'L':
+    case 'G':
+     ++num_rows;
+     break;
+    case 'N':
+     break;
+    default:
+     throw std::invalid_argument( "Invalid syntax in MPS file" );
+   }
+  }
+ } else {
+  throw std::invalid_argument( "Invalid syntax in MPS file" );
+ }
+
+ // Read COLUMNS
+ if( line.substr( 0 ) == "COLUMNS" ) {
+  std::string name;
+  while( getline( file, line ) && line.substr( 0, 4 ) == "    " ) {
+   auto tmp = boost::algorithm::trim_right_copy( line.substr( 4, 10 ) );
+   if( tmp != name ) {
+    name = tmp;
+    ++num_cols;
+   }
+  }
+ } else {
+  throw std::invalid_argument( "Invalid syntax in MPS file" );
+ }
+
+ row_names.resize( num_rows );
+ row_type.resize( num_rows );
+ rows = new std::vector< FRowConstraint >( num_rows );
+
+ for( auto & r: *rows ) {
+  r.set_function( new LinearFunction(), eNoMod );
+  r.set_Block( this );
+ }
+ of->set_function( new LinearFunction(), eNoMod );
+
+ cols = new std::vector< ColVariable >( num_cols );
+ col_names.resize( num_cols );
+ bounds = new std::vector< BoxConstraint >( num_cols );
+
+ for( int i = 0; i < num_cols; ++i ) {
+  ( *bounds )[ i ].set_variable( &( *cols )[ i ], eNoMod );
+  ( *bounds )[ i ].set_Block( this );
+  ( *cols )[ i ].set_Block( this );
+ }
+
+ rhs.resize( num_rows, Inf< double >() );
+ rng.resize( num_rows, Inf< double >() );
+
+ /*
+ * Second pass: fill data
+ */
+
+ file.seekg( 0, file.beg );
+ getline( file, line ); // NAME
+ getline( file, line ); // ROWS
+
+ // Read ROWS
+ int i = 0;
+ while( getline( file, line ) && line.at( 0 ) == ' ' ) {
+  auto type = line.at( 1 );
+  std::string row_name = boost::algorithm::trim_right_copy( line.substr( 4 ) );
+  switch( type ) {
+   case 'E':
+   case 'L':
+   case 'G':
+    row_names[ i ] = row_name;
+    row_type[ i ] = type;
+    ++i;
+    break;
+   case 'N':
+    if( of_name.empty() ) {
+     of_name = row_name;
+    }
+    // FIXME: Other N rows are ignored
+    break;
+   default:;
+  }
+ }
+
+ // Read COLUMNS
+ i = 0;
+ std::string x_name;
+ ColVariable * v;
+ LinearFunction * f;
+ while( getline( file, line ) && line.substr( 0, 4 ) == "    " ) {
+
+  // Column name
+  auto tmp = boost::algorithm::trim_right_copy( line.substr( 4, 10 ) );
+  if( tmp != x_name ) {
+   x_name = tmp;
+   col_names[ i ] = x_name;
+   v = &( *cols )[ i ];
+   ++i;
+  }
+
+  std::string row;
+  double value;
+
+  // First name/value pair
+  row = boost::algorithm::trim_right_copy( line.substr( 14, 8 ) );
+  value = std::stod( boost::algorithm::trim_copy( line.substr( 24, 12 ) ) );
+
+  if( row == of_name ) {
+   f = static_cast<LinearFunction *>(of->get_function());
+  } else {
+   auto it = std::find( row_names.begin(), row_names.end(), row );
+   if( it != row_names.end() ) {
+    auto j = std::distance( row_names.begin(), it );
+    f = static_cast<LinearFunction *>(( *rows )[ j ].get_function());
+   } else {
+    throw std::invalid_argument( "Invalid syntax in MPS file" );
+   }
+  }
+  f->add_variable( v, value, eNoMod );
+
+  // Optional second name/value pair
+  if( line.size() > 36 ) {
+   row = boost::algorithm::trim_right_copy( line.substr( 39, 8 ) );
+   value = std::stod( boost::algorithm::trim_copy( line.substr( 49, 12 ) ) );
+
+   if( row == of_name ) {
+    // Will add to OF
+    f = static_cast<LinearFunction *>(of->get_function());
+   } else {
+    // Will add to a constraint
+    auto it = std::find( row_names.begin(), row_names.end(), row );
+    if( it != row_names.end() ) {
+     auto j = std::distance( row_names.begin(), it );
+     f = static_cast<LinearFunction *>(( *rows )[ j ].get_function());
+    } else {
+     throw std::invalid_argument( "Invalid syntax in MPS file" );
+    }
+   }
+   f->add_variable( v, value, eNoMod );
+  }
+ }
+
+ /*
+  * Continue with RHS and RANGES
+  */
+
+ // Read RHS
+ if( line.substr( 0 ) == "RHS" ) {
+  while( getline( file, line ) && line.substr( 0, 4 ) == "    " ) {
+
+   // RHS name
+   auto tmp = boost::algorithm::trim_right_copy( line.substr( 4, 10 ) );
+   if( rhs_name.empty() ) {
+    rhs_name = tmp;
+   } else if( tmp != rhs_name ) {
+    throw std::invalid_argument( "Only one RHS vector is supported" );
+   }
+
+   std::string row;
+   double value;
+
+   // First name/value pair
+   row = boost::algorithm::trim_right_copy( line.substr( 14, 8 ) );
+   value = std::stod( boost::algorithm::trim_copy( line.substr( 24, 12 ) ) );
+
+   auto it = std::find( row_names.begin(), row_names.end(), row );
+   if( it != row_names.end() ) {
+    auto j = std::distance( row_names.begin(), it );
+    rhs[ j ] = value;
+   } else {
+    throw std::invalid_argument( "Invalid syntax in MPS file" );
+   }
+
+   // Optional second name/value pair
+   if( line.size() > 36 ) {
+    row = boost::algorithm::trim_right_copy( line.substr( 39, 8 ) );
+    value = std::stod( boost::algorithm::trim_copy( line.substr( 49, 12 ) ) );
+
+    it = std::find( row_names.begin(), row_names.end(), row );
+    if( it != row_names.end() ) {
+     auto j = std::distance( row_names.begin(), it );
+     rhs[ j ] = value;
+    } else {
+     throw std::invalid_argument( "Invalid syntax in MPS file" );
+    }
+   }
+  }
+ } else {
+  throw std::invalid_argument( "Invalid syntax in MPS file" );
+ }
+
+ // Read RANGES
+ if( line.substr( 0 ) == "RANGES" ) {
+  while( getline( file, line ) && line.substr( 0, 4 ) == "    " ) {
+
+   // RANGES name
+   auto tmp = boost::algorithm::trim_right_copy( line.substr( 4, 10 ) );
+   if( rng_name.empty() ) {
+    rng_name = tmp;
+   } else if( tmp != rng_name ) {
+    throw std::invalid_argument( "Only one RANGES vector is supported" );
+   }
+
+   std::string row;
+   double value;
+
+   // First name/value pair
+   row = boost::algorithm::trim_right_copy( line.substr( 14, 8 ) );
+   value = std::stod( boost::algorithm::trim_copy( line.substr( 24, 12 ) ) );
+
+   auto it = std::find( row_names.begin(), row_names.end(), row );
+   if( it != row_names.end() ) {
+    auto j = std::distance( row_names.begin(), it );
+    rng[ j ] = value;
+   } else {
+    throw std::invalid_argument( "Invalid syntax in MPS file" );
+   }
+
+   // Optional second name/value pair
+   if( line.size() > 36 ) {
+    row = boost::algorithm::trim_right_copy( line.substr( 39, 8 ) );
+    value = std::stod( boost::algorithm::trim_copy( line.substr( 49, 12 ) ) );
+
+    it = std::find( row_names.begin(), row_names.end(), row );
+    if( it != row_names.end() ) {
+     auto j = std::distance( row_names.begin(), it );
+     rng[ j ] = value;
+    } else {
+     throw std::invalid_argument( "Invalid syntax in MPS file" );
+    }
+   }
+  }
+ }
+
+ // Process RHS and ranges
+ for( int r = 0; r < num_rows; ++r ) {
+  auto & row = ( *rows )[ r ];
+
+  switch( row_type[ r ] ) {
+   case 'G' :
+    // G: rhs =< f() =< rhs + |rng|
+    row.set_lhs( rhs[ r ], eNoMod );
+    if( rng[ r ] == Inf< double >() ) {
+     row.set_rhs( Inf< double >(), eNoMod );
+    } else {
+     row.set_rhs( rhs[ r ] + std::abs( rng[ r ] ), eNoMod );
+    }
+    break;
+
+   case 'L' :
+    // L: rhs - |rng| =< f() =< rhs
+    row.set_rhs( rhs[ r ], eNoMod );
+    if( rng[ r ] == Inf< double >() ) {
+     row.set_lhs( -Inf< double >(), eNoMod );
+    } else {
+     row.set_lhs( rhs[ r ] - std::abs( rng[ r ] ), eNoMod );
+    }
+    break;
+
+   case 'E' :
+    if( rng[ r ] == Inf< double >() || rng[ r ] == 0 ) {
+     // E (no range): rhs =< f() =< rhs
+     row.set_both( rhs[ r ], eNoMod );
+    } else if( rng[ r ] > 0 ) {
+     // E+: rhs + rng =< f() =< rhs
+     row.set_lhs( rhs[ r ] + rng[ r ], eNoMod );
+     row.set_rhs( rhs[ r ], eNoMod );
+    } else {
+     // E-: rhs =< f() =< rhs + rng
+     row.set_lhs( rhs[ r ], eNoMod );
+     row.set_rhs( rhs[ r ] + rng[ r ], eNoMod );
+    }
+    break;
+   default:;
+  }
+ }
+
+ /*
+  * Continue with BOUNDS
+  */
+ if( line.substr( 0 ) == "BOUNDS" ) {
+
+  while( getline( file, line ) && line.at( 0 ) == ' ' ) {
+
+   // BOUNDS name
+   auto tmp = boost::algorithm::trim_right_copy( line.substr( 4, 10 ) );
+   if( bnd_name.empty() ) {
+    bnd_name = tmp;
+   } else if( tmp != bnd_name ) {
+    throw std::invalid_argument( "Only one BOUNDS vector is supported" );
+   }
+
+   auto type = line.substr( 1, 2 );
+   auto col = boost::algorithm::trim_right_copy( line.substr( 14, 8 ) );
+   auto value =
+    std::stod( boost::algorithm::trim_copy( line.substr( 24, 12 ) ) );
+
+   auto it = std::find( col_names.begin(), col_names.end(), col );
+   if( it != col_names.end() ) {
+    auto j = std::distance( col_names.begin(), it );
+    auto & b = ( *bounds )[ j ];
+    auto & c = ( *cols )[ j ];
+    if( type == "LO" ) {        // Lower bound
+     b.set_lhs( value, eNoMod );
+    } else if( type == "UP" ) { // Upper bound
+     b.set_rhs( value, eNoMod );
+    } else if( type == "FX" ) { // Fixed variable
+     b.set_both( value, eNoMod );
+     c.is_fixed( true, eNoMod );
+    } else if( type == "FR" ) { // Free variable
+     b.set_lhs( -Inf< double >(), eNoMod );
+     b.set_rhs( Inf< double >(), eNoMod );
+    } else if( type == "MI" ) { // Lower bound -inf
+     b.set_lhs( -Inf< double >(), eNoMod );
+     b.set_rhs( 0, eNoMod );
+    } else if( type == "PL" ) { // Upper bound +inf
+     b.set_lhs( 0, eNoMod );
+     b.set_rhs( Inf< double >(), eNoMod );
+    } else if( type == "BV" ) { // Binary variable
+     c.set_type( ColVariable::kBinary, eNoMod );
+    } else if( type == "LI" ) { // Integer variable
+     c.set_type( ColVariable::kInteger, eNoMod );
+     b.set_lhs( value, eNoMod );
+    } else if( type == "UI" ) { // Integer variable
+     c.set_type( ColVariable::kInteger, eNoMod );
+     b.set_rhs( value, eNoMod );
+    } else {
+     throw std::invalid_argument( "Invalid syntax in MPS file" );
+    }
+   } else {
+    throw std::invalid_argument( "Invalid syntax in MPS file" );
+   }
+  }
+ }
+
+ // Reset and set abstract representation
+ reset_static_constraints();
+ reset_static_variables();
+ reset_objective();
+
+ set_objective( of, eNoMod );
+ add_static_variable( *cols );
+ add_static_constraint( *rows );
+ add_static_constraint( *bounds );
+
+ // Issue the NBModification
+ if( anyone_there() ) {
+  add_Modification( std::make_shared< NBModification >( this ) );
+ }
+
+ file.close();
+}
+
+/*--------------------------------------------------------------------------*/
+
+void AbstractBlock::read_lp( const std::string & filename ) {
+ throw std::logic_error( "AbstractBlock::read_lp() not implemented yet" );
+}
 
 /*--------------------------------------------------------------------------*/
 
