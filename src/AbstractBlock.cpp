@@ -944,6 +944,7 @@ void AbstractBlock::read_mps( const std::string & filename ) {
   throw std::invalid_argument( "Cannot open file" );
  }
 
+ std::string problem_name;
  int num_rows = 0;
  int num_cols = 0;
 
@@ -964,53 +965,88 @@ void AbstractBlock::read_mps( const std::string & filename ) {
  std::vector< double > rhs;
  std::vector< double > rng;
 
+ std::string word;
+ auto max = std::numeric_limits< std::streamsize >::max();
+
+ // Eat initial comments
+ while( file.peek() == file.widen( '*' ) ) {
+  file.ignore( max, '\n' );
+ }
+
  // Read NAME
- std::string line;
- getline( file, line );
- if( line.substr( 0, 4 ) == "NAME" ) {
-  // TODO
- } else {
+ file >> word;
+ if( word != "NAME" ) {
   throw std::invalid_argument( "Invalid syntax in MPS file" );
  }
- getline( file, line );
+ file >> word;
+ if( word != "OBJSENSE" ) {
+  problem_name = word;
+  file >> word;
+ }
+
+ // Read OBJSENSE (optional)
+ if( word == "OBJSENSE" ) {
+  file >> word;
+  if( word == "MAX" || word == "MAXIMIZE" ) {
+   of->set_sense( Objective::eMax, eNoMod );
+  } else if( word == "MIN" || word == "MINIMIZE" ) {
+   of->set_sense( Objective::eMin, eNoMod );
+  } else {
+   throw std::invalid_argument( "Invalid syntax in MPS file" );
+  }
+  file >> word;
+ } else {
+  // Minimize by default
+  of->set_sense( Objective::eMin, eNoMod );
+ }
+
+ // Read OBJNAME (optional)
+ if( word == "OBJNAME" ) {
+  file >> of_name;
+  file >> word;
+ }
 
  /*
   * First pass: get rows and columns number
   */
 
  // Read ROWS
- if( line.substr( 0 ) == "ROWS" ) {
-  while( getline( file, line ) && line.at( 0 ) == ' ' ) {
-   auto type = line.at( 1 );
-   switch( type ) {
-    case 'E':
-    case 'L':
-    case 'G':
-     ++num_rows;
-     break;
-    case 'N':
-     break;
-    default:
-     throw std::invalid_argument( "Invalid syntax in MPS file" );
-   }
-  }
- } else {
+ if( word != "ROWS" ) {
   throw std::invalid_argument( "Invalid syntax in MPS file" );
+ }
+ file.ignore( max, '\n' );
+ auto pos = file.tellg(); // Save it for later
+ while( file.peek() == file.widen( ' ' ) ) {
+  file >> word;
+  if( word == "E" || word == "L" || word == "G" ) {
+   ++num_rows;
+   file.ignore( max, '\n' ); // Skip row name for now
+  } else if( word == "N" ) {
+   file.ignore( max, '\n' ); // Skip row name for now
+  } else {
+   throw std::invalid_argument( "Invalid syntax in MPS file" );
+  }
  }
 
  // Read COLUMNS
- if( line.substr( 0 ) == "COLUMNS" ) {
-  std::string name;
-  while( getline( file, line ) && line.substr( 0, 4 ) == "    " ) {
-   auto tmp = boost::algorithm::trim_right_copy( line.substr( 4, 10 ) );
-   if( tmp != name ) {
-    name = tmp;
-    ++num_cols;
-   }
-  }
- } else {
+ file >> word;
+ if( word != "COLUMNS" ) {
   throw std::invalid_argument( "Invalid syntax in MPS file" );
  }
+ file.ignore( max, '\n' );
+ std::string tmp;
+ while( file.peek() == file.widen( ' ' ) ) {
+  file >> word;
+  if( word != tmp ) {
+   tmp = word;
+   ++num_cols;
+  }
+  file.ignore( max, '\n' );
+ }
+
+ /*
+  * Initialize stuff
+  */
 
  row_names.resize( num_rows );
  row_type.resize( num_rows );
@@ -1036,59 +1072,54 @@ void AbstractBlock::read_mps( const std::string & filename ) {
  rng.resize( num_rows, Inf< double >() );
 
  /*
- * Second pass: fill data
- */
-
- file.seekg( 0, file.beg );
- getline( file, line ); // NAME
- getline( file, line ); // ROWS
+  * Second pass: fill data
+  */
 
  // Read ROWS
+ file.seekg( pos, file.beg ); // Go back to line after "ROWS"
  int i = 0;
- while( getline( file, line ) && line.at( 0 ) == ' ' ) {
-  auto type = line.at( 1 );
-  std::string row_name = boost::algorithm::trim_right_copy( line.substr( 4 ) );
-  switch( type ) {
-   case 'E':
-   case 'L':
-   case 'G':
-    row_names[ i ] = row_name;
-    row_type[ i ] = type;
-    ++i;
-    break;
-   case 'N':
-    if( of_name.empty() ) {
-     of_name = row_name;
-    }
-    // FIXME: Other N rows are ignored
-    break;
-   default:;
+ while( file.peek() == file.widen( ' ' ) ) {
+
+  file >> word;
+  if( word == "E" || word == "L" || word == "G" ) {
+   row_type[ i ] = word[ 0 ];
+   file >> row_names[ i ];
+   ++i;
+   file.ignore( max, '\n' );
+  } else if( word == "N" ) {
+   if( of_name.empty() ) {
+    file >> of_name;
+   }
+   // FIXME: Other N rows are ignored
+   file.ignore( max, '\n' );
+  } else {
+   throw std::invalid_argument( "Invalid syntax in MPS file" );
   }
  }
 
  // Read COLUMNS
+ file.ignore( max, '\n' ); // Ignore "COLUMNS" line
  i = 0;
- std::string x_name;
+ tmp.clear();
  ColVariable * v;
  LinearFunction * f;
- while( getline( file, line ) && line.substr( 0, 4 ) == "    " ) {
+ while( file.peek() == file.widen( ' ' ) ) {
 
   // Column name
-  auto tmp = boost::algorithm::trim_right_copy( line.substr( 4, 10 ) );
-  if( tmp != x_name ) {
-   x_name = tmp;
-   col_names[ i ] = x_name;
+  file >> word;
+  if( word != tmp ) {
+   tmp = word;
+   col_names[ i ] = tmp;
    v = &( *cols )[ i ];
    ++i;
   }
 
   std::string row;
-  double value;
+  std::string value;
 
   // First name/value pair
-  row = boost::algorithm::trim_right_copy( line.substr( 14, 8 ) );
-  value = std::stod( boost::algorithm::trim_copy( line.substr( 24, 12 ) ) );
-
+  file >> row;
+  file >> value;
   if( row == of_name ) {
    f = static_cast<LinearFunction *>(of->get_function());
   } else {
@@ -1100,13 +1131,12 @@ void AbstractBlock::read_mps( const std::string & filename ) {
     throw std::invalid_argument( "Invalid syntax in MPS file" );
    }
   }
-  f->add_variable( v, value, eNoMod );
+  f->add_variable( v, std::stod( value ) );
 
   // Optional second name/value pair
-  if( line.size() > 36 ) {
-   row = boost::algorithm::trim_right_copy( line.substr( 39, 8 ) );
-   value = std::stod( boost::algorithm::trim_copy( line.substr( 49, 12 ) ) );
-
+  if( file.peek() != file.widen( '\n' ) ) {
+   file >> row;
+   file >> value;
    if( row == of_name ) {
     // Will add to OF
     f = static_cast<LinearFunction *>(of->get_function());
@@ -1120,8 +1150,9 @@ void AbstractBlock::read_mps( const std::string & filename ) {
      throw std::invalid_argument( "Invalid syntax in MPS file" );
     }
    }
-   f->add_variable( v, value, eNoMod );
+   f->add_variable( v, std::stod( value ) );
   }
+  file.ignore( max, '\n' );
  }
 
  /*
@@ -1129,91 +1160,93 @@ void AbstractBlock::read_mps( const std::string & filename ) {
   */
 
  // Read RHS
- if( line.substr( 0 ) == "RHS" ) {
-  while( getline( file, line ) && line.substr( 0, 4 ) == "    " ) {
-
-   // RHS name
-   auto tmp = boost::algorithm::trim_right_copy( line.substr( 4, 10 ) );
-   if( rhs_name.empty() ) {
-    rhs_name = tmp;
-   } else if( tmp != rhs_name ) {
-    throw std::invalid_argument( "Only one RHS vector is supported" );
-   }
-
-   std::string row;
-   double value;
-
-   // First name/value pair
-   row = boost::algorithm::trim_right_copy( line.substr( 14, 8 ) );
-   value = std::stod( boost::algorithm::trim_copy( line.substr( 24, 12 ) ) );
-
-   auto it = std::find( row_names.begin(), row_names.end(), row );
-   if( it != row_names.end() ) {
-    auto j = std::distance( row_names.begin(), it );
-    rhs[ j ] = value;
-   } else {
-    throw std::invalid_argument( "Invalid syntax in MPS file" );
-   }
-
-   // Optional second name/value pair
-   if( line.size() > 36 ) {
-    row = boost::algorithm::trim_right_copy( line.substr( 39, 8 ) );
-    value = std::stod( boost::algorithm::trim_copy( line.substr( 49, 12 ) ) );
-
-    it = std::find( row_names.begin(), row_names.end(), row );
-    if( it != row_names.end() ) {
-     auto j = std::distance( row_names.begin(), it );
-     rhs[ j ] = value;
-    } else {
-     throw std::invalid_argument( "Invalid syntax in MPS file" );
-    }
-   }
-  }
- } else {
+ file >> word;
+ if( word != "RHS" ) {
   throw std::invalid_argument( "Invalid syntax in MPS file" );
  }
+ file.ignore( max, '\n' );
+ while( file.peek() == file.widen( ' ' ) ) {
 
- // Read RANGES
- if( line.substr( 0 ) == "RANGES" ) {
-  while( getline( file, line ) && line.substr( 0, 4 ) == "    " ) {
+  // RHS name
+  file >> word;
+  if( rhs_name.empty() ) {
+   rhs_name = word;
+  } else if( word != rhs_name ) {
+   throw std::invalid_argument( "Only one RHS vector is supported" );
+  }
+
+  std::string row;
+  std::string value;
+
+  // First name/value pair
+  file >> row;
+  file >> value;
+  auto it = std::find( row_names.begin(), row_names.end(), row );
+  if( it != row_names.end() ) {
+   auto j = std::distance( row_names.begin(), it );
+   rhs[ j ] = std::stod( value );
+  } else {
+   throw std::invalid_argument( "Invalid syntax in MPS file" );
+  }
+
+  // Optional second name/value pair
+  if( file.peek() != file.widen( '\n' ) ) {
+   file >> row;
+   file >> value;
+   it = std::find( row_names.begin(), row_names.end(), row );
+   if( it != row_names.end() ) {
+    auto j = std::distance( row_names.begin(), it );
+    rhs[ j ] = std::stod( value );
+   } else {
+    throw std::invalid_argument( "Invalid syntax in MPS file" );
+   }
+  }
+  file.ignore( max, '\n' );
+ }
+
+ // Read RANGES (optional)
+ file >> word;
+ if( word == "RANGES" ) {
+  file.ignore( max, '\n' );
+  while( file.peek() == file.widen( ' ' ) ) {
 
    // RANGES name
-   auto tmp = boost::algorithm::trim_right_copy( line.substr( 4, 10 ) );
+   file >> word;
    if( rng_name.empty() ) {
-    rng_name = tmp;
-   } else if( tmp != rng_name ) {
-    throw std::invalid_argument( "Only one RANGES vector is supported" );
+    rng_name = word;
+   } else if( word != rng_name ) {
+    throw std::invalid_argument( "Only one RANGE vector is supported" );
    }
 
    std::string row;
-   double value;
+   std::string value;
 
    // First name/value pair
-   row = boost::algorithm::trim_right_copy( line.substr( 14, 8 ) );
-   value = std::stod( boost::algorithm::trim_copy( line.substr( 24, 12 ) ) );
-
+   file >> row;
+   file >> value;
    auto it = std::find( row_names.begin(), row_names.end(), row );
    if( it != row_names.end() ) {
     auto j = std::distance( row_names.begin(), it );
-    rng[ j ] = value;
+    rng[ j ] = std::stod( value );
    } else {
     throw std::invalid_argument( "Invalid syntax in MPS file" );
    }
 
    // Optional second name/value pair
-   if( line.size() > 36 ) {
-    row = boost::algorithm::trim_right_copy( line.substr( 39, 8 ) );
-    value = std::stod( boost::algorithm::trim_copy( line.substr( 49, 12 ) ) );
-
+   if( file.peek() != file.widen( '\n' ) ) {
+    file >> row;
+    file >> value;
     it = std::find( row_names.begin(), row_names.end(), row );
     if( it != row_names.end() ) {
      auto j = std::distance( row_names.begin(), it );
-     rng[ j ] = value;
+     rng[ j ] = std::stod( value );
     } else {
      throw std::invalid_argument( "Invalid syntax in MPS file" );
     }
    }
+   file.ignore( max, '\n' );
   }
+  file >> word;
  }
 
  // Process RHS and ranges
@@ -1259,25 +1292,29 @@ void AbstractBlock::read_mps( const std::string & filename ) {
   }
  }
 
+
  /*
   * Continue with BOUNDS
   */
- if( line.substr( 0 ) == "BOUNDS" ) {
+ if( word == "BOUNDS" ) {
+  file.ignore( max, '\n' );
+  while( file.peek() == file.widen( ' ' ) ) {
 
-  while( getline( file, line ) && line.at( 0 ) == ' ' ) {
+   std::string type;
+   file >> type;
 
    // BOUNDS name
-   auto tmp = boost::algorithm::trim_right_copy( line.substr( 4, 10 ) );
+   file >> word;
    if( bnd_name.empty() ) {
-    bnd_name = tmp;
-   } else if( tmp != bnd_name ) {
+    bnd_name = word;
+   } else if( word != bnd_name ) {
     throw std::invalid_argument( "Only one BOUNDS vector is supported" );
    }
 
-   auto type = line.substr( 1, 2 );
-   auto col = boost::algorithm::trim_right_copy( line.substr( 14, 8 ) );
-   auto value =
-    std::stod( boost::algorithm::trim_copy( line.substr( 24, 12 ) ) );
+   std::string col;
+   std::string value;
+   file >> col;
+   file >> value;
 
    auto it = std::find( col_names.begin(), col_names.end(), col );
    if( it != col_names.end() ) {
@@ -1285,11 +1322,11 @@ void AbstractBlock::read_mps( const std::string & filename ) {
     auto & b = ( *bounds )[ j ];
     auto & c = ( *cols )[ j ];
     if( type == "LO" ) {        // Lower bound
-     b.set_lhs( value, eNoMod );
+     b.set_lhs( std::stod( value ), eNoMod );
     } else if( type == "UP" ) { // Upper bound
-     b.set_rhs( value, eNoMod );
+     b.set_rhs( std::stod( value ), eNoMod );
     } else if( type == "FX" ) { // Fixed variable
-     b.set_both( value, eNoMod );
+     b.set_both( std::stod( value ), eNoMod );
      c.is_fixed( true, eNoMod );
     } else if( type == "FR" ) { // Free variable
      b.set_lhs( -Inf< double >(), eNoMod );
@@ -1304,17 +1341,25 @@ void AbstractBlock::read_mps( const std::string & filename ) {
      c.set_type( ColVariable::kBinary, eNoMod );
     } else if( type == "LI" ) { // Integer variable
      c.set_type( ColVariable::kInteger, eNoMod );
-     b.set_lhs( value, eNoMod );
+     b.set_lhs( std::stod( value ), eNoMod );
     } else if( type == "UI" ) { // Integer variable
      c.set_type( ColVariable::kInteger, eNoMod );
-     b.set_rhs( value, eNoMod );
+     b.set_rhs( std::stod( value ), eNoMod );
     } else {
      throw std::invalid_argument( "Invalid syntax in MPS file" );
     }
    } else {
     throw std::invalid_argument( "Invalid syntax in MPS file" );
    }
+   file.ignore( max, '\n' );
   }
+  file >> word;
+ }
+
+ file.close();
+
+ if( word != "ENDATA" ) {
+  throw std::invalid_argument( "Invalid syntax in MPS file" );
  }
 
  // Reset and set abstract representation
@@ -1331,8 +1376,6 @@ void AbstractBlock::read_mps( const std::string & filename ) {
  if( anyone_there() ) {
   add_Modification( std::make_shared< NBModification >( this ) );
  }
-
- file.close();
 }
 
 /*--------------------------------------------------------------------------*/
