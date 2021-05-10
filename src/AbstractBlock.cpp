@@ -1036,7 +1036,16 @@ void AbstractBlock::read_mps( const std::string & filename ) {
  file.ignore( max, '\n' );
  std::string tmp;
  while( file.peek() == file.widen( ' ' ) ) {
+  std::string row;
+
   file >> word;
+  file >> row;
+
+  if( row == "\'MARKER\'" ) {
+   file.ignore( max, '\n' );
+   continue; // Skip integrality markers for now
+  }
+
   if( word != tmp ) {
    tmp = word;
    ++num_cols;
@@ -1068,7 +1077,7 @@ void AbstractBlock::read_mps( const std::string & filename ) {
   ( *cols )[ i ].set_Block( this );
  }
 
- rhs.resize( num_rows, Inf< double >() );
+ rhs.resize( num_rows, 0 );
  rng.resize( num_rows, Inf< double >() );
 
  /*
@@ -1100,26 +1109,43 @@ void AbstractBlock::read_mps( const std::string & filename ) {
  // Read COLUMNS
  file.ignore( max, '\n' ); // Ignore "COLUMNS" line
  i = 0;
+ bool marker = false;
  tmp.clear();
  ColVariable * v;
  LinearFunction * f;
  while( file.peek() == file.widen( ' ' ) ) {
+  std::string row;
+  std::string value;
+
+  file >> word;
+  file >> row;
+  file >> value;
+
+  // Check integrality marker
+  if( row == "\'MARKER\'" ) {
+   if( value == "\'INTORG\'" ) {
+    marker = true;
+   } else if( value == "\'INTEND\'" ) {
+    marker = false;
+   } else {
+    throw std::invalid_argument( "Invalid syntax in MPS file" );
+   }
+   file.ignore( max, '\n' );
+   continue;
+  }
 
   // Column name
-  file >> word;
   if( word != tmp ) {
    tmp = word;
    col_names[ i ] = tmp;
    v = &( *cols )[ i ];
+   if( marker ) {
+    v->set_type( ColVariable::kInteger, eNoMod );
+   }
    ++i;
   }
 
-  std::string row;
-  std::string value;
-
   // First name/value pair
-  file >> row;
-  file >> value;
   if( row == of_name ) {
    f = static_cast<LinearFunction *>(of->get_function());
   } else {
@@ -1292,7 +1318,6 @@ void AbstractBlock::read_mps( const std::string & filename ) {
   }
  }
 
-
  /*
   * Continue with BOUNDS
   */
@@ -1314,7 +1339,6 @@ void AbstractBlock::read_mps( const std::string & filename ) {
    std::string col;
    std::string value;
    file >> col;
-   file >> value;
 
    auto it = std::find( col_names.begin(), col_names.end(), col );
    if( it != col_names.end() ) {
@@ -1322,10 +1346,13 @@ void AbstractBlock::read_mps( const std::string & filename ) {
     auto & b = ( *bounds )[ j ];
     auto & c = ( *cols )[ j ];
     if( type == "LO" ) {        // Lower bound
+     file >> value;
      b.set_lhs( std::stod( value ), eNoMod );
     } else if( type == "UP" ) { // Upper bound
+     file >> value;
      b.set_rhs( std::stod( value ), eNoMod );
     } else if( type == "FX" ) { // Fixed variable
+     file >> value;
      b.set_both( std::stod( value ), eNoMod );
      c.is_fixed( true, eNoMod );
     } else if( type == "FR" ) { // Free variable
@@ -1340,9 +1367,11 @@ void AbstractBlock::read_mps( const std::string & filename ) {
     } else if( type == "BV" ) { // Binary variable
      c.set_type( ColVariable::kBinary, eNoMod );
     } else if( type == "LI" ) { // Integer variable
+     file >> value;
      c.set_type( ColVariable::kInteger, eNoMod );
      b.set_lhs( std::stod( value ), eNoMod );
     } else if( type == "UI" ) { // Integer variable
+     file >> value;
      c.set_type( ColVariable::kInteger, eNoMod );
      b.set_rhs( std::stod( value ), eNoMod );
     } else {
