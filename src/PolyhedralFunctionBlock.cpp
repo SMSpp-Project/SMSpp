@@ -557,7 +557,7 @@ void PolyhedralFunctionBlock::guts_of_destructor( void )
 
 /*--------------------------------------------------------------------------*/
 
-void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
+bool PolyhedralFunctionBlock::guts_of_add_Modification_PF(
 				    FunctionMod * const mod , ChnlName chnl )
 {
  // process a FunctionMod produced by the PolyhedralFunction- - - - - - - - -
@@ -597,7 +597,7 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
    else
     close_channel( ichnl );
    }
-  return;
+  return( false );
   }
 
  // C05FunctionModVarsRngd- - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -622,7 +622,7 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
    else
     close_channel( ichnl );
    }
-  return;
+  return( false );
   }
 
  // C05FunctionModVarsSbst- - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -648,7 +648,7 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
    else
     close_channel( ichnl );
    }
-  return;
+  return( false );
   }
 
  // PolyhedralFunctionModRngd - - - - - - - - - - - - - - - - - - - - - - - -
@@ -663,7 +663,7 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
     f_bcv.set_lhs( f_polyf.get_global_bound() , make_par( eNoBlck , chnl ) );
    else                       // concave ==> upper bound
     f_bcv.set_rhs( f_polyf.get_global_bound() , make_par( eNoBlck , chnl ) );
-   return;
+   return( false );
    }
 
   // open a new GroupModification, not concerning PolyhedralFunctionBlock
@@ -714,7 +714,7 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
    else
     close_channel( ichnl );
    }
-  return;
+  return( false );
   }
 
  // PolyhedralFunctionModSbst - - - - - - - - - - - - - - - - - - - - - - - -
@@ -772,7 +772,7 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
    else
     close_channel( ichnl );
    }
-  return;
+  return( false );
   }
 
  // PolyhedralFunctionModAddd - - - - - - - - - - - - - - - - - - - - - - - -
@@ -786,7 +786,7 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
    ConstructLPConstraint( i++ , *(cit++) );
 
   add_dynamic_constraints( f_const , newc , make_par( eNoBlck , chnl ) );
-  return;
+  return( false );
   }
 
  // C05FunctionMod- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -833,7 +833,7 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
    un_nest_channel( ichnl );
   else
    close_channel( ichnl );
-  return;
+  return( false );
   }
 
  // FunctionMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -862,6 +862,7 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
  // finally issue a NBModification
  AbstractBlock::add_Modification( std::make_shared< NBModification >( this )
 				  );
+ return( true );
 
  }  // end( PolyhedralFunctionBlock::guts_of_add_Modification_PF )
 
