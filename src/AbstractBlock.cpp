@@ -944,6 +944,19 @@ void AbstractBlock::read_mps( const std::string & filename ) {
   throw std::invalid_argument( "Cannot open file" );
  }
 
+ auto dbl_val = []( std::string & s ) {
+  assert( !s.empty() );
+  if( s[ 0 ] == '.') {
+   s.insert( 0, "0" );
+  } else if( s[ 0 ] == '-' && s[ 1 ] == '.' ) {
+   s.insert( 1, "0" );
+  }
+  if( s.back() == '.' ) {
+   s.pop_back();
+  }
+  return std::stod( s );
+ };
+
  std::string problem_name;
  int num_rows = 0;
  int num_cols = 0;
@@ -981,6 +994,7 @@ void AbstractBlock::read_mps( const std::string & filename ) {
  file >> word;
  if( word != "OBJSENSE" ) {
   problem_name = word;
+  file.ignore( max, '\n' );
   file >> word;
  }
 
@@ -1157,7 +1171,7 @@ void AbstractBlock::read_mps( const std::string & filename ) {
     throw std::invalid_argument( "Invalid syntax in MPS file" );
    }
   }
-  f->add_variable( v, std::stod( value ) );
+  f->add_variable( v, dbl_val( value ) );
 
   // Optional second name/value pair
   if( file.peek() != file.widen( '\n' ) ) {
@@ -1176,7 +1190,7 @@ void AbstractBlock::read_mps( const std::string & filename ) {
      throw std::invalid_argument( "Invalid syntax in MPS file" );
     }
    }
-   f->add_variable( v, std::stod( value ) );
+   f->add_variable( v, dbl_val( value ) );
   }
   file.ignore( max, '\n' );
  }
@@ -1210,7 +1224,7 @@ void AbstractBlock::read_mps( const std::string & filename ) {
   auto it = std::find( row_names.begin(), row_names.end(), row );
   if( it != row_names.end() ) {
    auto j = std::distance( row_names.begin(), it );
-   rhs[ j ] = std::stod( value );
+   rhs[ j ] = dbl_val( value );
   } else {
    throw std::invalid_argument( "Invalid syntax in MPS file" );
   }
@@ -1222,7 +1236,7 @@ void AbstractBlock::read_mps( const std::string & filename ) {
    it = std::find( row_names.begin(), row_names.end(), row );
    if( it != row_names.end() ) {
     auto j = std::distance( row_names.begin(), it );
-    rhs[ j ] = std::stod( value );
+    rhs[ j ] = dbl_val( value );
    } else {
     throw std::invalid_argument( "Invalid syntax in MPS file" );
    }
@@ -1253,7 +1267,7 @@ void AbstractBlock::read_mps( const std::string & filename ) {
    auto it = std::find( row_names.begin(), row_names.end(), row );
    if( it != row_names.end() ) {
     auto j = std::distance( row_names.begin(), it );
-    rng[ j ] = std::stod( value );
+    rng[ j ] = dbl_val( value );
    } else {
     throw std::invalid_argument( "Invalid syntax in MPS file" );
    }
@@ -1265,7 +1279,7 @@ void AbstractBlock::read_mps( const std::string & filename ) {
     it = std::find( row_names.begin(), row_names.end(), row );
     if( it != row_names.end() ) {
      auto j = std::distance( row_names.begin(), it );
-     rng[ j ] = std::stod( value );
+     rng[ j ] = dbl_val( value );
     } else {
      throw std::invalid_argument( "Invalid syntax in MPS file" );
     }
@@ -1347,13 +1361,14 @@ void AbstractBlock::read_mps( const std::string & filename ) {
     auto & c = ( *cols )[ j ];
     if( type == "LO" ) {        // Lower bound
      file >> value;
-     b.set_lhs( std::stod( value ), eNoMod );
+     b.set_lhs( dbl_val( value ), eNoMod );
     } else if( type == "UP" ) { // Upper bound
      file >> value;
-     b.set_rhs( std::stod( value ), eNoMod );
+     b.set_rhs( dbl_val( value ), eNoMod );
     } else if( type == "FX" ) { // Fixed variable
      file >> value;
-     b.set_both( std::stod( value ), eNoMod );
+     b.set_both( dbl_val( value ), eNoMod );
+     c.set_value( dbl_val( value ) );
      c.is_fixed( true, eNoMod );
     } else if( type == "FR" ) { // Free variable
      b.set_lhs( -Inf< double >(), eNoMod );
@@ -1369,11 +1384,11 @@ void AbstractBlock::read_mps( const std::string & filename ) {
     } else if( type == "LI" ) { // Integer variable
      file >> value;
      c.set_type( ColVariable::kInteger, eNoMod );
-     b.set_lhs( std::stod( value ), eNoMod );
+     b.set_lhs( dbl_val( value ), eNoMod );
     } else if( type == "UI" ) { // Integer variable
      file >> value;
      c.set_type( ColVariable::kInteger, eNoMod );
-     b.set_rhs( std::stod( value ), eNoMod );
+     b.set_rhs( dbl_val( value ), eNoMod );
     } else {
      throw std::invalid_argument( "Invalid syntax in MPS file" );
     }
