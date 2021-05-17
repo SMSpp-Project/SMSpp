@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 21 - 04 - 2021
+ * \date 16 - 05 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1946,6 +1946,9 @@ void BendersBFunction::store_linearization( Index name , ModParam issueMod ) {
 
  // Lazy computation of the linearization constant
 
+ // TODO If the linearization constant has just been computed, use this
+ // computed value instead of Inf.
+
  global_pool.store( Inf<FunctionValue>() , solution , name ,
                     f_diagonal_linearization_required );
 
@@ -2067,7 +2070,7 @@ void BendersBFunction::get_linearization_coefficients
 
  for( Index j = 0 ; j < v_constraints.size() ; ++j ) {
 
-  auto constraint = get_constraint( j );
+  const auto constraint = get_constraint( j );
   if( ignore_constraint( constraint ) )
    continue;
 
@@ -2119,7 +2122,7 @@ void BendersBFunction::get_linearization_coefficients
 
  for( Index j = 0; j < v_constraints.size(); ++j ) {
 
-  auto constraint = get_constraint( j );
+  const auto constraint = get_constraint( j );
   if( ignore_constraint( constraint ) )
    continue;
 
@@ -2159,7 +2162,7 @@ void BendersBFunction::get_linearization_coefficients
 
  for( Index j = 0; j < v_constraints.size(); ++j ) {
 
-  auto constraint = get_constraint( j );
+  const auto constraint = get_constraint( j );
   if( ignore_constraint( constraint ) )
    continue;
 
@@ -2216,7 +2219,7 @@ void BendersBFunction::get_linearization_coefficients
 
  for( Index j = 0; j < v_constraints.size(); ++j ) {
 
-  auto constraint = get_constraint( j );
+  const auto constraint = get_constraint( j );
   if( ignore_constraint( constraint ) )
    continue;
 
@@ -2238,6 +2241,38 @@ void BendersBFunction::get_linearization_coefficients
 
 /*--------------------------------------------------------------------------*/
 
+Function::FunctionValue
+BendersBFunction::compute_linearization_constant_from_bound() {
+
+ // Since a diagonal linearization has been required, the sub-Block must be
+ // feasible and, therefore, we can compute the linearization constant as
+ // f(x) - g'x, where x are the active Variables of this BendersBFunction
+ // and g are the coefficients of the linearization.
+
+ std::vector< FunctionValue > g( v_x.size() );
+ get_linearization_coefficients( g.data() );
+
+ auto solver = get_solver<CDASolver>();
+
+ if( ! solver )
+  throw( std::logic_error( "BendersBFunction::compute_linearization_constant_"
+                           "from_bound: The sub-Block (if present) has no "
+                           "Solver attached to it." ) );
+
+ FunctionValue linearization_constant = 0;
+ if( v_Block.front()->get_objective_sense() == Objective::eMin )
+  linearization_constant = solver->get_lb();
+ else
+  linearization_constant = solver->get_ub();
+
+ for( Index i = 0 ; i < v_x.size() ; ++i )
+  linearization_constant -= g[ i ] * v_x[ i ]->get_value();
+
+ return linearization_constant;
+}
+
+/*--------------------------------------------------------------------------*/
+
 Function::FunctionValue BendersBFunction::compute_linearization_constant() {
 
  Function::FunctionValue alpha = 0;
@@ -2246,8 +2281,7 @@ Function::FunctionValue BendersBFunction::compute_linearization_constant() {
  // upper bound constraint. This will help determine to which bound the given
  // dual is associated with.
  const auto obj_sign =
-  ( this->v_Block.front()->get_objective_sense() == Objective::eMin ) ?
-  - 1 : 1;
+  ( v_Block.front()->get_objective_sense() == Objective::eMin ) ? - 1 : 1;
 
  auto update_alpha =
   [ &alpha , this , obj_sign ]( auto & c ) {
@@ -2306,7 +2340,8 @@ Function::FunctionValue BendersBFunction::compute_linearization_constant() {
     return;
    }
    else { // Single inequality constraint
-    const auto side = ( c.get_rhs() < Inf<RowConstraint::RHSValue>() ) ? eRHS : eLHS;
+    const auto side = ( c.get_rhs() < Inf<RowConstraint::RHSValue>() ) ?
+     eRHS : eLHS;
 
     RowConstraint::RHSValue b;
     const auto index = get_constraint_index( &c , side );
@@ -2378,25 +2413,38 @@ void BendersBFunction::write_dual_solution_from_global_pool( Index name ) {
 Function::FunctionValue BendersBFunction::get_linearization_constant(
                                                                   Index name ) {
 
- auto solver = get_solver<CDASolver>();
-
- if( ! solver )
-  throw( std::logic_error( "BendersBFunction::get_linearization_constant: The "
-                           "sub-Block (if present) has no Solver attached "
-                           "to it." ) );
-
  if( name == Inf<Index>() ) {
   // Linearization just computed and not in the global pool yet.
 
-  // TODO check whether the solution has already been written into the Block
+  auto solver = get_solver<CDASolver>();
 
-  if( f_diagonal_linearization_required )
-   solver->get_dual_solution();
-  else
+  if( ! solver )
+   throw( std::logic_error( "BendersBFunction::get_linearization_constant: "
+                            "The sub-Block (if present) has no Solver "
+                            "attached to it." ) );
+
+  // TODO check whether the dual solution has already been written into the
+  // Block so that it is not written again.
+
+  // TODO Maybe store the linearization computed below in case this
+  // linearization is later inserted into the global pool
+
+  if( f_diagonal_linearization_required ) {
+   if( f_compute_linearization_constant_from_bound ) {
+    // Compute the linearization constant from the linearization coefficients
+    return compute_linearization_constant_from_bound();
+   }
+   else {
+    // Compute the linearization constant from the dual solution
+    solver->get_dual_solution();
+    return compute_linearization_constant();
+   }
+  }
+  else {
+   // "vertical" linearization
    solver->get_dual_direction();
-
-  // TODO Maybe store it for (perhaps) inserting it later in the global pool
-  return compute_linearization_constant();
+   return compute_linearization_constant();
+  }
  }
  else {
   auto constant = global_pool.get_linearization_constant( name );
@@ -2432,8 +2480,8 @@ ComputeConfig * BendersBFunction::get_ComputeConfig
  if( ! extra_config ) {
   // replace the extra Configuration
   delete ccfg->f_extra_Configuration;
-  extra_config = new
-   SimpleConfiguration< std::pair< Configuration * , Configuration * > >;
+  extra_config = new SimpleConfiguration< std::pair< Configuration * ,
+                                                     Configuration * > >;
   ccfg->f_extra_Configuration = extra_config;
  }
 

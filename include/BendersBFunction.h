@@ -7,7 +7,7 @@
  *
  * \version 0.01
  *
- * \date 21 - 04 - 2021
+ * \date 16 - 05 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1904,6 +1904,13 @@ class BendersBFunction : public C05Function , public Block {
 
  void * f_id;           ///< the "identity" of the BendersBFunction
 
+ bool f_compute_linearization_constant_from_bound = true;
+ ///< indicates whether the linearization constant must be computed from bound
+ /**< This variable indicates whether the linearization constant must be
+  * computed by using the bound provided by the Solver of the inner Block and
+  * the linearization coefficients (instead of computing it from the full dual
+  * solution of the inner Block). */
+
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -2410,6 +2417,31 @@ class BendersBFunction : public C05Function , public Block {
   */
 
  FunctionValue compute_linearization_constant();
+
+
+/*--------------------------------------------------------------------------*/
+
+ /// compute the linearization constant
+ /** Compute the linearization constant considering a bound to the function
+  * value and the dual solution of the RowConstraint handled by this
+  * BendersBFunction. The linearization constant is computed as
+  *
+  *     bound - g'x
+  *
+  * where x is the vector with the values of the active Variable of this
+  * BendersBFunction, g are the linearization coefficients associated with the
+  * last call to compute(), and "bound" is a bound on the function value
+  * obtained in the last call to compute(). If the inner Block of this
+  * BendersBFunction represents a minimization problem, then "bound" must be a
+  * lower bound on the value of this BendersBFunction at x. Otherwise, "bound"
+  * must be an upper bound on the value of this BendersBFunction at x. If the
+  * computation of the value of this BendersBFunction is exact, then this
+  * bound is typically the value of this BendersBFunction.
+  *
+  * @return the computed linearization constant.
+  */
+
+ FunctionValue compute_linearization_constant_from_bound();
 
 /*--------------------------------------------------------------------------*/
 
