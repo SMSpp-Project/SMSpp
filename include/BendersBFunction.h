@@ -7,7 +7,7 @@
  *
  * \version 0.01
  *
- * \date 16 - 05 - 2021
+ * \date 26 - 05 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -368,6 +368,23 @@ class BendersBFunction : public C05Function , public Block {
   VarVector::const_iterator itr_;
   };
 
+/*--------------------------------------------------------------------------*/
+ /// public enum for the int algorithmic parameters
+ /** Public enum describing the different algorithmic parameters of int type
+  * that BendersBFunction has in addition to those of C05Function. The value
+  * intLastBendersBFPar is provided so that the list can be easily further
+  * extended by derived classes. */
+
+ enum int_par_type_BendersBF {
+
+  intLinComp = intLastParC05F , ///< determines how linearizations are computed
+
+  intLastBendersBFPar ///< first allowed new int parameter for derived classes
+                      /**< Convenience value for easily allow derived classes
+                       * to extend the set of int algorithmic parameters. */
+
+ };  // end( int_par_type_LagBF )
+
 /**@} ----------------------------------------------------------------------*/
 /*------------- CONSTRUCTING AND DESTRUCTING BendersBFunction --------------*/
 /*--------------------------------------------------------------------------*/
@@ -588,20 +605,53 @@ class BendersBFunction : public C05Function , public Block {
   * care of the following parameters:
   *
   * - intMaxIter
+  *
   * - intLPMaxSz
+  *
   * - intGPMaxSz
   *
-  * Any other parameter is handled by the C05Function. The first two
-  * parameters are associated with parameters of the CDASolver of the
-  * sub-Block. The intMaxIter parameter is associated with the
-  * Solver::intMaxIter parameter and the intLPMaxSz parameter is associated
-  * with the CDASolver::intMaxDSol parameter. Setting any of these parameters
-  * causes the corresponding parameter of the CDASolver of the sub-Block to be
-  * overwritten. The setting of these two parameters only take effect if this
-  * BendersBFunction has a sub-Block and this sub-Block has a CDASolver
-  * attached to it. If the inner Block of this BendersBFunction has not yet
-  * been constructed or it has no CDASolver attached to it, attempting setting
-  * any of these three parameters will raise an exception.
+  * - intLinComp [7]: This parameter, coded bit-wise, determines how
+  *                   linearizations are computed. This parameter specifies
+  *   how linearization constants are computed and whether the Solution of the
+  *   inner Block stored in the global pool are enough to re-compute the
+  *   linearization coefficients and/or the linearization constant.
+  *
+  *   If the first bit is set to 1, then the linearization constants are
+  *   computed by using the bound provided by the Solver of the inner Block
+  *   and the dual values of the Constraint handled by this
+  *   BendersBFunction. If the first bit is 0, the linearization constant is
+  *   computed based on the dual values of all Constraint of the inner Block
+  *   (and its sub-Block, recursively) instead, and does not use any bound
+  *   provided by the Solver of the inner Block.
+  *
+  *   If the second bit is set to 1, it indicates that the Solution of the
+  *   inner Block stored in the global pool contain enough information to
+  *   compute the linearization coefficients. If it is set to 0, it indicates
+  *   that changes made to the inner Block that affect the linearization
+  *   coefficients will result in the deletion of the linearization from the
+  *   global pool.
+  *
+  *   If the third bit is set to 1, it indicates that the Solution of the
+  *   inner Block stored in the global pool contain enough information to
+  *   re-compute the linearization constants. If it is set to 0, it indicates
+  *   that changes made to the inner Block that affect the linearization
+  *   constants will result in the deletion of the linearization from the
+  *   global pool.
+  *
+  *   The default value for this parameter is 7, which means that all bits
+  *   mentioned above are set to 1.
+  *
+  * Any other parameter is handled by the C05Function. The parameters
+  * #intMaxIter and #intLPMaxSz are associated with parameters of the
+  * CDASolver of the sub-Block. The #intMaxIter parameter is associated with
+  * the Solver::intMaxIter parameter and the #intLPMaxSz parameter is
+  * associated with the CDASolver::intMaxDSol parameter. Setting any of these
+  * parameters causes the corresponding parameter of the CDASolver of the
+  * sub-Block to be overwritten. The setting of these two parameters only take
+  * effect if this BendersBFunction has a sub-Block and this sub-Block has a
+  * CDASolver attached to it. If the inner Block of this BendersBFunction has
+  * not yet been constructed or it has no CDASolver attached to it, attempting
+  * setting any of these two parameters will raise an exception.
   *
   * @param par The parameter to be set.
   *
@@ -686,6 +736,12 @@ class BendersBFunction : public C05Function , public Block {
 /** @name Handling the parameters of the BendersBFunction
  *  @{ */
 
+ [[nodiscard]] idx_type get_num_int_par( void ) const override {
+  return( intLastBendersBFPar );
+ }
+
+/*--------------------------------------------------------------------------*/
+
  /// get a specific integer (int) numerical parameter
  /** Get a specific integer (int) numerical parameter. BendersBFunction takes
   * care of the following parameters:
@@ -693,6 +749,7 @@ class BendersBFunction : public C05Function , public Block {
   * - intMaxIter
   * - intLPMaxSz
   * - intGPMaxSz
+  * - intLinComp
   *
   * Any other parameter is handled by the C05Function.
   *
@@ -700,7 +757,7 @@ class BendersBFunction : public C05Function , public Block {
   *
   * @return The value of the required parameter. */
 
- int get_int_par( idx_type par ) const override {
+ [[nodiscard]] int get_int_par( idx_type par ) const override {
   switch( par ) {
    case( intMaxIter ):
     return get_solver_int_par( Solver::intMaxIter );
@@ -708,6 +765,8 @@ class BendersBFunction : public C05Function , public Block {
     return get_solver_int_par( CDASolver::intMaxDSol );
    case( intGPMaxSz ):
     return global_pool.size();
+   case( intLinComp ):
+    return LinComp;
   }
   return C05Function::get_int_par( par );
  }
@@ -732,7 +791,7 @@ class BendersBFunction : public C05Function , public Block {
   *
   * @return The value of the required parameter. */
 
- double get_dbl_par( idx_type par ) const override {
+ [[nodiscard]] double get_dbl_par( idx_type par ) const override {
   switch( par ) {
    case( dblAAccMlt ):
     return AAccMlt;
@@ -754,6 +813,35 @@ class BendersBFunction : public C05Function , public Block {
 
   return C05Function::get_dbl_par( par );
   }
+
+/*--------------------------------------------------------------------------*/
+
+ [[nodiscard]] int get_dflt_int_par( idx_type par ) const override {
+  if( par == intLinComp )
+   return( 7 );
+  return( C05Function::get_dflt_int_par( par ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ [[nodiscard]] idx_type int_par_str2idx( const std::string & name )
+  const override {
+  if( name == "intLinComp" )
+   return( intLinComp );
+  return( C05Function::int_par_str2idx( name ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ [[nodiscard]] const std::string & int_par_idx2str( idx_type idx )
+  const override {
+  static const std::vector< std::string > pars = { "intLinComp" };
+
+  if( idx == intLinComp )
+   return( pars[ 0 ] );
+
+  return( C05Function::int_par_idx2str( idx ) );
+ }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------- METHODS FOR HANDLING THE State OF THE BendersBFunction ---------*/
@@ -1910,6 +1998,9 @@ class BendersBFunction : public C05Function , public Block {
   * computed by using the bound provided by the Solver of the inner Block and
   * the linearization coefficients (instead of computing it from the full dual
   * solution of the inner Block). */
+
+ int LinComp;
+ ///< determines how linearizations are computed
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/

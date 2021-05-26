@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 16 - 05 - 2021
+ * \date 26 - 05 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -85,6 +85,9 @@ BendersBFunction::BendersBFunction( Block * inner_block , VarVector && x ,
  set_variables( std::move( x ) );
  set_mapping( std::move( A ) , std::move( b ) , std::move( constraints ) ,
               std::move( sides ) , eNoMod );
+
+ // default parameter values
+ LinComp = get_dflt_int_par( intLinComp );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -352,6 +355,11 @@ void BendersBFunction::set_par( const idx_type par , const int value ) {
 
    break;
   }
+
+  case( intLinComp ):
+   LinComp = value;
+   break;
+
   default: C05Function::set_par( par , value );
  }
 }  // end( BendersBFunction::set_par )
