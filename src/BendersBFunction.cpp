@@ -2438,7 +2438,7 @@ Function::FunctionValue BendersBFunction::get_linearization_constant(
   // linearization is later inserted into the global pool
 
   if( f_diagonal_linearization_required ) {
-   if( f_compute_linearization_constant_from_bound ) {
+   if( is_linearization_constant_computed_from_bound() ) {
     // Compute the linearization constant from the linearization coefficients
     return compute_linearization_constant_from_bound();
    }
@@ -2996,8 +2996,8 @@ void BendersBFunction::GlobalPool::delete_linearizations( Subset & which ,
 /*--------------------------------------------------------------------------*/
 
 BendersBFunction::GlobalPool::~GlobalPool() {
-for( auto solution : solutions )
- delete solution;
+ for( auto solution : solutions )
+  delete solution;
 }
 
 /*--------------------------------------------------------------------------*/

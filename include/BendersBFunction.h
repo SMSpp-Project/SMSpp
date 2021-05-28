@@ -604,11 +604,32 @@ class BendersBFunction : public C05Function , public Block {
  /** Set a given integer (int) numerical parameter. BendersBFunction takes
   * care of the following parameters:
   *
-  * - intMaxIter
+  * - intMaxIter: This parameter is associated with the Solver::intMaxIter
+  *               parameter of the CDASolver attached to the inner Block.
+  *   Setting this parameter causes the corresponding parameter of the
+  *   CDASolver of the inner Block to be overwritten. The setting of this
+  *   parameter only takes effect if this BendersBFunction has an inner Block
+  *   and this inner Block has a CDASolver attached to it. If the inner Block
+  *   of this BendersBFunction has not yet been constructed or it has no
+  *   CDASolver attached to it, attempting setting this parameter will raise
+  *   an exception. The default value for this parameter is defined by the
+  *   C05Function.
   *
-  * - intLPMaxSz
+  * - intLPMaxSz: This parameter is associated with the CDASolver::intMaxDSol
+  *               parameter of the CDASolver attached to the inner Block.
+  *   Setting this parameter causes the corresponding parameter of the
+  *   CDASolver of the inner Block to be overwritten. The setting of this
+  *   parameter only takes effect if this BendersBFunction has an inner Block
+  *   and this inner Block has a CDASolver attached to it. If the inner Block
+  *   of this BendersBFunction has not yet been constructed or it has no
+  *   CDASolver attached to it, attempting setting this parameter will raise
+  *   an exception. The default value for this parameter is defined by the
+  *   C05Function.
   *
-  * - intGPMaxSz
+  * - intGPMaxSz: This parameter specifies the maximum number of Solution from
+  *               the Solver of the inner Block that can be stored in the
+  *   global pool, each one of which corresponds to a linearization. The
+  *   default value for this parameter is defined by the C05Function.
   *
   * - intLinComp [7]: This parameter, coded bit-wise, determines how
   *                   linearizations are computed. This parameter specifies
@@ -616,42 +637,45 @@ class BendersBFunction : public C05Function , public Block {
   *   inner Block stored in the global pool are enough to re-compute the
   *   linearization coefficients and/or the linearization constant.
   *
-  *   If the first bit is set to 1, then the linearization constants are
-  *   computed by using the bound provided by the Solver of the inner Block
-  *   and the dual values of the Constraint handled by this
-  *   BendersBFunction. If the first bit is 0, the linearization constant is
-  *   computed based on the dual values of all Constraint of the inner Block
-  *   (and its sub-Block, recursively) instead, and does not use any bound
-  *   provided by the Solver of the inner Block.
+  *   The first bit indicates how a linearization constant associated with the
+  *   most recent call to has_linearization() must be computed. If it is set
+  *   to 1, then the linearization constant is computed by using the bound
+  *   provided by the Solver of the inner Block and the dual values of the
+  *   Constraint handled by this BendersBFunction. More specifically, in this
+  *   case, the linearization constant is computed as
+  *
+  *     bound - g'x
+  *
+  *   where x is the vector with the values of the active Variable of this
+  *   BendersBFunction, g are the linearization coefficients associated with
+  *   the last call to has_linearization(), and "bound" is a bound on the
+  *   function value obtained in the last call to compute(). The computation
+  *   of g involves only the RowConstraint handled by this BendersBFunction
+  *   and the mapping matrix A.
+  *
+  *   If the first bit is 0, the linearization constant is computed based on
+  *   the dual values of all RowConstraint of the inner Block (and its
+  *   sub-Block, recursively) instead, and does not use any bound provided by
+  *   the Solver of the inner Block.
   *
   *   If the second bit is set to 1, it indicates that the Solution of the
-  *   inner Block stored in the global pool contain enough information to
-  *   compute the linearization coefficients. If it is set to 0, it indicates
-  *   that changes made to the inner Block that affect the linearization
-  *   coefficients will result in the deletion of the linearization from the
-  *   global pool.
+  *   inner Block stored in the global pool contains enough information to
+  *   recompute the linearization coefficients. If it is set to 0, it
+  *   indicates that changes made to the inner Block that affect the
+  *   linearization coefficients will result in the deletion of the
+  *   linearization from the global pool.
   *
   *   If the third bit is set to 1, it indicates that the Solution of the
-  *   inner Block stored in the global pool contain enough information to
-  *   re-compute the linearization constants. If it is set to 0, it indicates
+  *   inner Block stored in the global pool contains enough information to
+  *   recompute the linearization constant. If it is set to 0, it indicates
   *   that changes made to the inner Block that affect the linearization
-  *   constants will result in the deletion of the linearization from the
+  *   constant will result in the deletion of the linearization from the
   *   global pool.
   *
   *   The default value for this parameter is 7, which means that all bits
   *   mentioned above are set to 1.
   *
-  * Any other parameter is handled by the C05Function. The parameters
-  * #intMaxIter and #intLPMaxSz are associated with parameters of the
-  * CDASolver of the sub-Block. The #intMaxIter parameter is associated with
-  * the Solver::intMaxIter parameter and the #intLPMaxSz parameter is
-  * associated with the CDASolver::intMaxDSol parameter. Setting any of these
-  * parameters causes the corresponding parameter of the CDASolver of the
-  * sub-Block to be overwritten. The setting of these two parameters only take
-  * effect if this BendersBFunction has a sub-Block and this sub-Block has a
-  * CDASolver attached to it. If the inner Block of this BendersBFunction has
-  * not yet been constructed or it has no CDASolver attached to it, attempting
-  * setting any of these two parameters will raise an exception.
+  * Any other parameter is handled by the C05Function.
   *
   * @param par The parameter to be set.
   *
@@ -1986,21 +2010,13 @@ class BendersBFunction : public C05Function , public Block {
  bool f_diagonal_linearization_required = false;
  ///< indicates whether a diagonal linearization is required
 
- FunctionValue AAccMlt;  ///< maximum absolute error in the multipliers
+ FunctionValue AAccMlt; ///< maximum absolute error in the multipliers
 
  bool f_ignore_modifications = false; ///< ignore any Modification
 
- void * f_id;           ///< the "identity" of the BendersBFunction
+ void * f_id; ///< the "identity" of the BendersBFunction
 
- bool f_compute_linearization_constant_from_bound = true;
- ///< indicates whether the linearization constant must be computed from bound
- /**< This variable indicates whether the linearization constant must be
-  * computed by using the bound provided by the Solver of the inner Block and
-  * the linearization coefficients (instead of computing it from the full dual
-  * solution of the inner Block). */
-
- int LinComp;
- ///< determines how linearizations are computed
+ int LinComp; ///< determines how linearizations are computed
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -2509,7 +2525,6 @@ class BendersBFunction : public C05Function , public Block {
 
  FunctionValue compute_linearization_constant();
 
-
 /*--------------------------------------------------------------------------*/
 
  /// compute the linearization constant
@@ -2533,6 +2548,50 @@ class BendersBFunction : public C05Function , public Block {
   */
 
  FunctionValue compute_linearization_constant_from_bound();
+
+/*--------------------------------------------------------------------------*/
+
+ /// indicate whether the linearization constant must be computed from bound
+ /** This method indicates whether linearization constants must be computed by
+  * using the bound provided by the Solver attached to the inner Block
+  * and the duals of the RowConstraint handled by this BendersBFunction.
+  *
+  * @return true if and only if linearization constants should be computed
+  *         from the bound provided by the inner Solver and the duals of the
+  *         RowConstraint handled by this BendersBFunction.
+  */
+
+ bool is_linearization_constant_computed_from_bound() const {
+  return LinComp & 1;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// indicate whether linearization constants can be recomputed
+ /** This method indicates whether linearization constants can be recomputed
+  * from a Solution stored in the global pool.
+  *
+  * @return true only if linearization constants can be recomputed from the
+  *         Solution stored in the global pool.
+  */
+
+ bool can_recompute_linearization_constant() const {
+  return LinComp & 2;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// indicate whether linearization coefficients can be recomputed
+ /** This method indicates whether linearization coefficients can be
+  * recomputed from a Solution stored in the global pool.
+  *
+  * @return true only if linearization coefficients can be recomputed from the
+  *         Solution stored in the global pool.
+  */
+
+ bool can_recompute_linearization_coefficients() const {
+  return LinComp & 4;
+ }
 
 /*--------------------------------------------------------------------------*/
 
