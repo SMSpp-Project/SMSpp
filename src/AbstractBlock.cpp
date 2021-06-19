@@ -213,11 +213,8 @@ AbstractBlock::~AbstractBlock()
 
 /*--------------------------------------------------------------------------*/
 
-bool AbstractBlock::is_feasible( bool useabstract, Configuration * fsbc )
+bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
 {
- if( ! useabstract )
-  return( false );
-
  // compute the accuracy parameter- - - - - - - - - - - - - - - - - - - - - -
  double eps = 0;
  auto tfsbc = dynamic_cast<SimpleConfiguration< double > *>( fsbc );
@@ -439,7 +436,7 @@ bool AbstractBlock::is_feasible( bool useabstract, Configuration * fsbc )
  // the inner Blocks - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
  for( Index i = get_first_inner_Block() ; i < v_Block.size() ; ++i )
-  if( ! v_Block[ i ]->is_feasible( true ) )
+  if( ! v_Block[ i ]->is_feasible( useabstract ) )
    return( false );
 
  return( true );
