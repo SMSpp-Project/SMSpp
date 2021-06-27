@@ -8,9 +8,9 @@
  * A template version SimpleConfiguration is immediately provided for simple
  * configurations boiling down to one single value of some type.
  *
- * \version 0.11
+ * \version 0.12
  *
- * \date 05 - 09 - 2020
+ * \date 27 - 06 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -723,8 +723,10 @@ class Configuration
  *  - SimpleConfiguration< std::list< double > >
  *  - SimpleConfiguration< std::pair< Configuration * , Configuration * > >
  *  - SimpleConfiguration< std::vector< Configuration * > >
+ *  - SimpleConfiguration< std::vector< std::pair< int , Configuration * > > >
+ *  - SimpleConfiguration< std::map< std::string , Configuration * > >
  *
- * but whomever is using a different SimpleConfiguration<something> for the
+ * but whomever is using a different SimpleConfiguration< something > for the
  * first time has the responsibility of doing it for their variant.
  *
  * Besides this, the main issue with this class are the serialize() and
@@ -799,8 +801,14 @@ class SimpleConfiguration : public Configuration
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// default destructor, apparently does nothing
+/** The destructor must not be defined "default" since it is redefined by the
+ * classes handling Configuration * as they muat delete them. However it must
+ * be explicitly defined so that template specializations for those classes
+ * are allowed. The default implementation does nothing, which means it
+ * deletes f_value, whatever that is. */
 
- ~SimpleConfiguration() override = default;  ///< destructor: does nothing
+ ~SimpleConfiguration() override {};
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// clone method
@@ -1005,8 +1013,16 @@ void serialize( netCDF::NcGroup & group , const C< Configuration * > & data ,
  *  exact same ways in which you work with non-pointer types.
  *  @{ */
 
+// std::pair< Configuration * , Configuration * >
 template<>
-void SimpleConfiguration< std::pair< Configuration *, Configuration * >
+SimpleConfiguration< std::pair< Configuration * , Configuration * >
+ >::~SimpleConfiguration< std::pair< Configuration * , Configuration * > >() {
+ delete f_value.second;
+ delete f_value.first;
+ }
+
+template<>
+void SimpleConfiguration< std::pair< Configuration * , Configuration * >
                                      >::serialize( netCDF::NcGroup & group )
  const;
 
@@ -1018,8 +1034,63 @@ template<>
 void SimpleConfiguration< std::pair< Configuration * , Configuration * >
                           >::clear( void );
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+// std::vector< Configuration * >
+
+template<>
+SimpleConfiguration< std::vector< Configuration * >
+ >::~SimpleConfiguration< std::vector< Configuration * > >();
+
 template<>
 void SimpleConfiguration< std::vector< Configuration * > >::clear( void );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+// std::vector< std::pair< int , Configuration * > >
+
+template<>
+SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
+ >::~SimpleConfiguration< std::vector< std::pair< int , Configuration * > > >();
+
+template<>
+void SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
+                          >::serialize( netCDF::NcGroup & group )
+ const;
+
+template<>
+void SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
+                          >::deserialize( const netCDF::NcGroup & group );
+
+template<>
+void SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
+                          >::clear( void );
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+// std::map< std::string , Configuration * >
+
+template<>
+SimpleConfiguration< std::map< std::string , Configuration * >
+ >::~SimpleConfiguration< std::map< std::string , Configuration * > >();
+
+template<>
+void SimpleConfiguration< std::map< std::string , Configuration * >
+                          >::serialize( netCDF::NcGroup & group )
+ const;
+
+template<>
+void SimpleConfiguration< std::map< std::string , Configuration * >
+                          >::deserialize( const netCDF::NcGroup & group );
+
+template<>
+void SimpleConfiguration< std::map< std::string , Configuration * >
+                          >::clear( void );
+
+template<>
+void SimpleConfiguration< std::map< std::string , Configuration * >
+                          >::load( std::istream & input );
+
+template<>
+void SimpleConfiguration< std::map< std::string , Configuration * >
+                          >::print( std::ostream & output ) const;
 
 /** @} end( group( SimpleConfiguration_SPECIALIZATIONS ) ) */
 /*--------------------------------------------------------------------------*/
