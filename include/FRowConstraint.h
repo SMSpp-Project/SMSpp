@@ -319,112 +319,32 @@ class FRowConstraint : public RowConstraint, public Observer {
     @{ */
 
  /// compute the value of variable part of the FRowConstraint
- /** It evaluates the Function that defines this FRowConstraint, and
-  * the value of the Function is is then stored into the protected
-  * field f_value and returned by value(). */
+ /** Compute the value of variable part of the FRowConstraint by
+  * compute()-ing the Function that defines this FRowConstraint. */
 
  int compute( bool changedvars = true ) override {
   return( f_function ? f_function->compute( changedvars ) : kUnEval );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// method to get the value of variable part of the FRowConstraint
- /** Method to get the value of variable part of the FRowConstraint, which is
-  * just the value of the value of the underlying Function. */
+ /// method to get a lower bound on the value of the variable part
+ /** Method to get a lower bound on the value of variable part of the
+  * OneVarConstraint, which is the lower estimate on the value of the
+  * Function that defines this FRowConstraint. */
 
- [[nodiscard]] RHSValue value( void ) const override {
-  return( f_function ? f_function->get_value() : 0 );
+ [[nodiscard]] RHSValue lb( void ) const override {
+  return( f_function ? f_function->get_lower_estimate() : -RHSINF );
   }
 
-/*--------------------------------------------------------------------------*/
- /// returns true if the FRowConstraint is feasible
- /** As opposed to the implementation of the base RowConstraint class, which
-  * only considers a single value, takes into account both the upper and
-  * the lower estimate prodiced by the Function; the FRowConstraint is only
-  * deemed feasible if upper_estimate <= f_rhs and lower_estimete >= f_lhs. */
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method to get an upper bound on the value of the variable part
+ /** Method to get an upper bound on the value of variable part of the
+  * OneVarConstraint, which is the upper estimate on the value of the
+  * Function that defines this FRowConstraint. */
 
- [[nodiscard]] bool feasible( void ) const override {
-  bool feas = true;
-  if( f_lhs > -RHSINF )
-   feas &= f_function->get_lower_estimate() >= f_lhs;
-
-  if( f_rhs < RHSINF )
-   feas &= f_function->get_upper_estimate() <= f_rhs;
-
-  return ( feas );
+ [[nodiscard]] RHSValue ub( void ) const override {
+  return( f_function ? f_function->get_upper_estimate() : RHSINF );
   }
-
-/*--------------------------------------------------------------------------*/
- /// returns the absolute violation of the FRowConstraint
- /** As opposed to the implementation of the base RowConstraint class, which
-  * only considers a single value, takes into account both the upper and
-  * the lower estimate prodiced by the Function to compute the absolute
-  * violation of the FRowConstraint. */
-
- [[nodiscard]] RHSValue abs_viol( void ) const override {
-  RHSValue viol = -RHSINF;
-
-  if( f_lhs > -RHSINF ) {
-   RHSValue lval = f_function->get_lower_estimate();
-   if( lval < RHSINF )
-    viol = ( lval <= -Inf< double >() ? Inf< double >() : f_lhs - lval );
-   }
-
-  if( f_rhs < RHSINF ) {
-   RHSValue uval = f_function->get_upper_estimate();
-   if( uval > -RHSINF )
-    viol = std::max( viol, ( uval >= RHSINF ? RHSINF : uval - f_rhs ) );
-   }
-
-  return( viol );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// returns the relative violation of the FRowConstraint
- /** As opposed to the implementation of the base RowConstraint class, which
-  * only considers a single value, takes into account both the upper and
-  * the lower estimate prodiced by the Function to compute the relative
-  * violation of the FRowConstraint. */
-
- [[nodiscard]] RHSValue rel_viol( void ) const override {
-  RHSValue uval = f_function->get_upper_estimate();
-
-  // if the upper estimate is +INF, then if the RHS is < +INF then the
-  // constraint is infinitely violated, otherwise is infinitely slackened
-  if( uval >= RHSINF )
-   return( f_rhs < RHSINF ? RHSINF : -RHSINF );
-
-  RHSValue lval = f_function->get_lower_estimate();
-  // if the lower estimate is -INF, then if the LHS is > -INF then the
-  // constraint is infinitely violated, otherwise is infinitely slackened
-  if( lval <= -RHSINF )
-   return( f_lhs > -RHSINF ? RHSINF : -RHSINF );
-
-  // both upper and lower estimate are finite
-  if( f_lhs <= -RHSINF )
-   if( f_rhs >= RHSINF )
-    return( -RHSINF );
-   else
-    return( f_rhs == 0 ? uval - f_rhs
-	               : ( uval - f_rhs ) / std::abs( f_rhs ) );
-  else
-   if( f_rhs >= RHSINF )
-    return ( f_lhs == 0 ? f_lhs - lval
-	                : ( f_lhs - lval ) / std::abs( f_lhs ) );
-
-  // both LHS and RHS are finite
-  if( f_lhs == 0 )
-   if( f_rhs == 0 )
-    return( std::max( f_lhs - lval, uval - f_rhs ) );
-   else
-    return( std::max( f_lhs - lval, uval - f_rhs ) / std::abs( f_rhs ) );
-  else
-   if( f_rhs == 0 )
-    return( std::max( f_lhs - lval, uval - f_rhs ) / std::abs( f_lhs ) );
-   else
-    return( std::max( ( f_lhs - lval ) / std::abs( f_lhs ),
-                      ( uval - f_rhs ) / std::abs( f_rhs ) ) );
- }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
@@ -790,13 +710,7 @@ class FRowConstraint : public RowConstraint, public Observer {
   output << "FRowConstraint [" << this << "] of Block [" << f_Block
          << "] with Function [" << f_function << "] with "
          << ( f_function ? f_function->get_num_active_var() : 0 )
-         << " active variables, ";
-  if( feasible() )
-   output << "feasible";
-  else
-   output << "unfeasible";
-
-  output << " (value = " << value() << ")" << std::endl;
+         << " active variables" << std::endl;
   }
 
 /*--------------------------------------------------------------------------*/

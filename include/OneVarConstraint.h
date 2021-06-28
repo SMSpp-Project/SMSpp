@@ -265,14 +265,27 @@ class OneVarConstraint : public RowConstraint {
   * OneVarConstraint ... i.e., do nothing, as it is just the value of the
   * given ColVariable. */
 
- int compute( bool changedvars = true ) override { return ( kOK ); }
+ int compute( bool changedvars = true ) override { return( kOK ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// method to get the value of variable part of the OneVarConstraint
- /** Method to get the value of variable part of the OneVarConstraint, which
-  * is just the value of the value of the given ColVariable. */
+ /// method to get a lower bound on the value of the variable part
+ /** Method to get a lower bound on the value of variable part of the
+  * OneVarConstraint, which is just the value of the given ColVariable. Note
+  * that this is always up-to-date, with no need of calling compute() before
+  * it (indeed, compute() does nothing. */
 
- [[nodiscard]] RHSValue value( void ) const override {
+ [[nodiscard]] RHSValue lb( void ) const override {
+  return( f_variable ? f_variable->get_value() : 0 );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method to get an upper bound on the value of the variable part
+ /** Method to get an upper bound on the value of variable part of the
+  * OneVarConstraint, which is just the value of the given ColVariable. Note
+  * that this is always up-to-date, with no need of calling compute() before
+  * it (indeed, compute() does nothing. */
+
+ [[nodiscard]] RHSValue ub( void ) const override {
   return( f_variable ? f_variable->get_value() : 0 );
   }
 
@@ -373,13 +386,7 @@ class OneVarConstraint : public RowConstraint {
  /// print information about the OneVarConstraint on an ostream
  void print( std::ostream & output ) const override {
   output << "OneVarConstraint [" << this << "] of Block [" << f_Block
-         << "] with ColVariable [" << f_variable << "], ";
-  if( feasible() )
-   output << "feasible";
-  else
-   output << "unfeasible";
-
-  output << " (value = " << value() << ")" << std::endl;
+         << "] with ColVariable [" << f_variable << "]" << std::endl;
   }
 
 /*--------------------------------------------------------------------------*/
@@ -495,12 +502,11 @@ class BoxConstraint : public OneVarConstraint {
 /** @name Protected methods for printing and serializing
  *  @{ */
 
- /// print information about the OneVarConstraint on an ostream
+ /// print information about the BoxConstraint on an ostream
  void print( std::ostream & output ) const override {
   output << "BoxConstraint [" << this << "] of Block [" << f_Block
          << "] with ColVariable [" << f_variable << "], LHS = "
-         << f_lhs << ", RHS = " << f_rhs << ", value = " << value()
-         << std::endl;
+         << f_lhs << ", RHS = " << f_rhs << std::endl;
   }
 
 /*--------------------------------------------------------------------------*/
@@ -616,7 +622,7 @@ class LB0Constraint : public OneVarConstraint {
  void print( std::ostream & output ) const final {
   output << "LB0Constraint [" << this << "] of Block [" << f_Block
          << "] with ColVariable [" << f_variable << "], RHS = "
-         << f_rhs << ", value = " << value() << std::endl;
+         << f_rhs << std::endl;
   }
 
 /*--------------------------------------------------------------------------*/
@@ -731,7 +737,7 @@ class UB0Constraint : public OneVarConstraint {
  void print( std::ostream & output ) const override {
   output << "UB0Constraint [" << this << "] of Block [" << f_Block
          << "] with ColVariable [" << f_variable << "], LHS = "
-         << f_lhs << ", value = " << value() << std::endl;
+         << f_lhs << std::endl;
   }
 
 /*--------------------------------------------------------------------------*/
@@ -882,7 +888,7 @@ class LBConstraint : public OneVarConstraint {
  void print( std::ostream & output ) const override {
   output << "LBConstraint [" << this << "] of Block [" << f_Block
          << "] with ColVariable [" << f_variable << "], LHS = "
-         << f_lhs << ", value = " << value() << std::endl;
+         << f_lhs << std::endl;
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1035,7 +1041,7 @@ class UBConstraint : public OneVarConstraint {
  void print( std::ostream & output ) const override {
   output << "UBConstraint [" << this << "] of Block [" << f_Block
          << "] with ColVariable [" << f_variable << "], RHS = "
-         << f_rhs << ", value = " << value() << std::endl;
+         << f_rhs << std::endl;
   }
 
 /*--------------------------------------------------------------------------*/

@@ -1015,7 +1015,7 @@ void serialize( netCDF::NcGroup & group , const C< Configuration * > & data ,
 
 // std::pair< Configuration * , Configuration * >
 template<>
-SimpleConfiguration< std::pair< Configuration * , Configuration * >
+inline SimpleConfiguration< std::pair< Configuration * , Configuration * >
  >::~SimpleConfiguration< std::pair< Configuration * , Configuration * > >() {
  delete f_value.second;
  delete f_value.first;
@@ -1049,7 +1049,8 @@ void SimpleConfiguration< std::vector< Configuration * > >::clear( void );
 
 template<>
 SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
- >::~SimpleConfiguration< std::vector< std::pair< int , Configuration * > > >();
+ >::~SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
+ >();
 
 template<>
 void SimpleConfiguration< std::vector< std::pair< int , Configuration * > >

@@ -36,8 +36,8 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __RowConstraint
-#define __RowConstraint
-/* self-identification: #endif at the end of the file */
+ #define __RowConstraint
+                      /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -81,6 +81,27 @@ namespace SMSpp_di_unipi_it {
  * ranged constraints. In this base class, *no assumption is done upon the
  * form of the function*: typical examples are linear functions, quadratic
  * functions etc., but this is dealt with in derived classes.
+ *
+ * It is expected that, in general, compute()-ing a RowConstraint is "hard";
+ * this clearly means that what is hard is compute()-ing its variable part,
+ * i.e., the "some function from Variable to reals". The exact form of it is
+ * not specified by RowConstraint as it is expected to be implemented in
+ * derived classes. However, due to the expectation that the computation is
+ * hard, RowConstraint supports the notion that the actual value of the
+ * variable part may not be known exactly; rather, a lower bound and an upper
+ * bound on it will be computed (which may of course coincide in "easy"
+ * cases). In fact, with lb() <= ub() being these two values, of course the
+ * RowConstraint is guaranteed to be satisfied as long as
+ *
+ *   LHS <= lb()    and    ub() <= RHS
+ *
+ * which clearly does not require lb() == ub() to hold, thereby potentially
+ * allowing to save computation time by avoiding to compute the real value
+ * with high precision. Of course, equality constraints with LHS == RHS do
+ * force lb() == ub() to hold if they are to be declared satisfied, but since
+ * numerical tolerances are necessarily involved anyway (see abs_viol() and
+ * rel_viol()) even equality constraints can be deemed to be satisfied with
+ * lb() < ub() if the difference is "small" / the tolerances are "loose".
  *
  * For many classes of problems this kind of Constraint naturally have a
  * "dual" information attached [see CDASolver.h], which typically has the
@@ -371,25 +392,51 @@ class RowConstraint : public Constraint
  int compute( bool changedvars = true ) override = 0;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// method to get the value of variable part of the RowConstraint
- /** Method to get the value of variable part of the RowConstraint. It is
-  * virtual, so that derived classes can store it as they best see fit. */
+ /// method to get a lower bound on the value of the variable part
+ /** Method to get a lower bound on the value of variable part of the
+  * RowConstraint. This is likely the value having been computed in compute(),
+  * and stored somewhere to avoid having to recompute it, which is potentially
+  * a costly process (as any compute() can be). However, whether or not this
+  * is true depends on the specific :RowConstraint, which is why the method is
+  * virtual: to allow derived classes to store the value as they best see fit.
+  * However, in general it must be understood that lb() does not necessarily
+  * need to be a valid lower bound corresponding to the current value of the
+  * Variable in the RowConstraint, but rather to what their vakue was at the
+  * last time in which compute() has been called; in other words, compute()
+  * must be called prior to lb() to ensure that the value is the up-to-date
+  * one. Yet, because derived classes are free to implement this as they
+  * choose, one *must not* assume that the value *does not* change when the
+  * Variable in the RowConstraint do, as derived classes where the value of
+  * the variable part is "easy" to compute may decide to do just that.
+  *
+  * It is however expected that lb() <= ub(), because this is easy for
+  * derived classes to ensure and there is no real reason not to. */
 
- [[nodiscard]] virtual RHSValue value( void ) const = 0;
+ [[nodiscard]] virtual RHSValue lb( void ) const = 0;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// method to get an upper bound on the value of the variable part
+ /** Method to get an upper bound on the value of variable part of the
+  * RowConstraint; see lb() for comments about the relationships between the
+  * value returned by this method and compute().
+  *
+  * Note that it is expected that lb() <= ub(), because this is easy for
+  * derived classes to ensure and there is no real reason not to. */
+
+ [[nodiscard]] virtual RHSValue ub( void ) const = 0;
 
 /*--------------------------------------------------------------------------*/
 
  [[nodiscard]] bool feasible( void ) const override {
   bool feas = true;
-  c_RHSValue val = value();
-  c_RHSValue lhs = get_lhs();
-  c_RHSValue rhs = get_rhs();
+  auto lhs = get_lhs();
+  auto rhs = get_rhs();
 
   if( lhs > -RHSINF )
-   feas &= ( val >= lhs );
+   feas &= ( lb() >= lhs );
 
   if( rhs < RHSINF )
-   feas &= ( val <= rhs );
+   feas &= ( ub() <= rhs );
 
   return( feas );
   }
@@ -397,87 +444,93 @@ class RowConstraint : public Constraint
 /*--------------------------------------------------------------------------*/
  /// returns the absolute violation of the RowConstraint
  /** The method computes and returns the absolute violation of the 
-  * RowConstraint corresponding to its current value [see value()]. The
-  * value is positive if one of the two bounds is violated (of course not
-  * both can be) and it is the amount of violation; otherwise. An infinite
-  * bound (lhs == - RHSINF or rhs == RHSINF) corresponds to a - RHSINF
-  * violation whatever the value (even if it is the same infinity). 
+  * RowConstraint corresponding to the currently available upper and lower
+  * bounds on the value of the variable part [see lb() and ub()]. The value
+  * is positive if at least one of the two bounds is violated; note that
+  * both can be since lb() < lhs <= rhs < ub() can happen, and the violation
+  * is the maximum among the two. An infinite bound (lhs == - RHSINF or
+  * rhs == RHSINF) corresponds to a 0 violation whatever the lb()/ub()
+  * (even if it is the same infinity). 
   *
   * This method is provided because checking feasibility of a RowConstraint
   * should reasonably require numerical tolerances, which are not there in
   * the feasible() method (because in general constraints could be checked
   * "exactly", say if only integer arithmetic is involved). This is somehow
-  * against the grain of ThinComputeInterface: there could be parameters
-  * for doing this. However, this would complicate the interface, and
-  * could mean that each RowConstraint need to carry its own values of
-  * the parameters (while they are generally constant across many constraints
-  * of "the same type" in a model); via this method checking can be done
-  * outside of the RowConstraint, which for the time being we consider the
-  * better alternative. */
+  * against the grain of ThinComputeInterface: there could be parameters for
+  * doing this. However, this would complicate the interface, and could mean
+  * that each RowConstraint need to carry its own values of the parameters
+  * (while they are generally constant across many constraints of "the same
+  * type" in a model). Via this method checking can be done outside of the
+  * RowConstraint, which for the time being we consider the better choice.
+  *
+  * Note that since in general lb()/ub() may not return a valid lower/upper
+  * bound on the value that the variable part has corresponding to the
+  * *current* value of the Variable in the RowConstraint, but rather on the
+  * value that is had the last time that compute() was called, compute()
+  * must be called "right before" this method to ensure that the lb()/ub()
+  * are "up to date"; see the comments to lb(). */
 
  [[nodiscard]] virtual RHSValue abs_viol( void ) const {
-  RHSValue viol = -RHSINF;
-  c_RHSValue val = value();
-  c_RHSValue lhs = get_lhs();
-  c_RHSValue rhs = get_rhs();
+  RHSValue viol = 0;
 
-  if( ( lhs > -RHSINF ) && ( val < RHSINF ) )
-   viol = ( val <= -RHSINF ? RHSINF : lhs - val );
+  if( auto lhs = get_lhs() ; lhs > -RHSINF )
+   if( auto lbv = lb() ; lbv < RHSINF ) {
+    if( lbv <= -RHSINF )
+     return( RHSINF );
+    viol = std::max( viol , lhs - lbv );
+    }
 
-  if( ( rhs < RHSINF ) && ( val > -RHSINF ) )
-   viol = std::max( viol, ( val >= RHSINF ? RHSINF : val - rhs ) );
+  if( auto rhs = get_rhs() ; rhs < RHSINF )
+   if( auto ubv = ub() ; ubv > -RHSINF ) {
+    if( ubv >= RHSINF )
+     return( RHSINF );
+    viol = std::max( viol , ubv - rhs );
+    }
+ 
   return( viol );
   }
 
 /*--------------------------------------------------------------------------*/
  /// returns the relative violation of the RowConstraint
  /** The method computes and returns the relative violation of the 
-  * RowConstraint corresponding to its current value [see value()]. This is
+  * RowConstraint corresponding to the currently available upper and lower
+  * bounds on the value of the variable part [see lb() and ub()]. This is
   * the same value as abs_viol() returns, except each violation is divided
-  * for the absolute value of the corresponding bound. If one bound is zero
-  * then its violation is divided by the absolute value of the other bound,
-  * and if both are zero then the absolute violation is returned (the
-  * scaling factor is 1). Only finite bound are considered.
+  * by the absolute value of the corresponding bound. If one bound is zero
+  * then its absolute violation is used (the scaling factor is 1). Only
+  * finite bound are considered.
   *
-  * See abs_viol() for the rationale of providing such a method. */
+  * See abs_viol() for the rationale of providing such a method and for the
+  * need to properly call compute() before calling it to ensure the
+  * correctness of the result. */
 
  [[nodiscard]] virtual RHSValue rel_viol( void ) const {
-  c_RHSValue rhs = get_rhs();
-  c_RHSValue val = value();
+  RHSValue viol = 0;
 
-  // if the value is +INF, then if the RHS is < +INF then the constraint is
-  // infinitely violated, otherwise is infinitely slackened
-  if( val >= RHSINF )
-   return( rhs < RHSINF ? RHSINF : -RHSINF );
+  if( auto lhs = get_lhs() ; lhs > -RHSINF )
+   if( auto lbv = lb() ; lbv < RHSINF ) {
+    if( lbv <= -RHSINF )
+     return( RHSINF );
+    if( auto tv = lhs - lbv ; tv > 0 ) {
+     if( lhs != 0 )
+      tv /= std::abs( lhs );
+     viol = tv;
+     }
+    }
 
-  c_RHSValue lhs = get_lhs();
-  // if the value is -INF, then if the LHS is > -INF then the constraint is
-  // infinitely violated, otherwise is infinitely slackened
-  if( val <= -RHSINF )
-   return( lhs > -RHSINF ? RHSINF : -RHSINF );
-
-  // the value is finite
-  if( lhs <= -RHSINF )
-   if( rhs >= RHSINF )
-    return( -RHSINF );
-   else
-    return( rhs == 0 ? val : ( val - rhs ) / std::abs( rhs ) );
-  else
-   if( rhs >= RHSINF )
-    return( lhs == 0 ? -val : ( lhs - val ) / std::abs( lhs ) );
-
-  // both LHS and RHS are finite
-  if( lhs == 0 )
-   if( rhs == 0 )
-    return( std::abs( val ) );
-   else
-    return( std::max( -val, val - rhs ) / std::abs( rhs ) );
-  else
-   if( rhs == 0 )
-    return( std::max( lhs - val, val ) / std::abs( lhs ) );
-   else
-    return( std::max( ( lhs - val ) / std::abs( lhs ),
-                      ( val - rhs ) / std::abs( rhs ) ) );
+  if( auto rhs = get_rhs() ; rhs < RHSINF )
+   if( auto ubv = ub() ; ubv > -RHSINF ) {
+    if( ubv >= RHSINF )
+     return( RHSINF );
+    if( auto tv = ubv - rhs ; tv > 0 ) {
+     if( rhs != 0 )
+      tv /= std::abs( rhs );
+     if( tv > viol )
+      viol = tv;
+     }
+    }
+ 
+  return( viol );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -500,13 +553,8 @@ class RowConstraint : public Constraint
  /// print information about the RowConstraint on an ostream
  void print( std::ostream & output ) const override {
   output << "RowConstraint [" << this << "] of Block [" << f_Block
-         << "] with " << get_num_active_var() << " active variables, ";
-  if( feasible() )
-   output << "feasible";
-  else
-   output << "unfeasible";
-
-  output << " (value = " << value() << ")" << std::endl;
+         << "] with " << get_num_active_var() << " active variables"
+	 << std::endl;
   }
 
 /**@} ----------------------------------------------------------------------*/

@@ -217,7 +217,7 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
 {
  // compute the accuracy parameter- - - - - - - - - - - - - - - - - - - - - -
  double eps = 0;
- auto tfsbc = dynamic_cast<SimpleConfiguration< double > *>( fsbc );
+ auto tfsbc = dynamic_cast< SimpleConfiguration< double > * >( fsbc );
 
  if( ( ! tfsbc ) && f_BlockConfig &&
      f_BlockConfig->f_is_feasible_Configuration )
@@ -233,7 +233,14 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
  for( Index i = get_first_static_Constraint() ; i < sc.size() ; ++i ) {
   if( un_any_const_static( sc[ i ] ,
 			   [ & feas , eps ]( FRowConstraint & cnst ) {
-                            feas = ( cnst.rel_viol() <= eps );
+			    if( ( ! feas ) || cnst.is_relaxed() )
+			     return;
+			    if( auto ret = cnst.compute() ;
+				( ret <= FRowConstraint::kUnEval ) ||
+				( ret > FRowConstraint::kOK ) )
+			     feas = false;
+			    else
+			     feas = ( cnst.rel_viol() <= eps );
                             } ,
                            un_any_type< FRowConstraint >() ) ) {
    if( ! feas )
@@ -242,6 +249,8 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
    }
   if( un_any_const_static( sc[ i ] ,
 			   [ & feas , eps ]( BoxConstraint & cnst ) {
+			    if( ( ! feas ) || cnst.is_relaxed() )
+			     return;
                             feas = ( cnst.rel_viol() <= eps );
                             } ,
                            un_any_type< BoxConstraint >() ) ) {
@@ -251,6 +260,8 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
    }
   if( un_any_const_static( sc[ i ] ,
 			   [ & feas , eps ]( LB0Constraint & cnst ) {
+			    if( ( ! feas ) || cnst.is_relaxed() )
+			     return;
                             feas = ( cnst.rel_viol() <= eps );
                             } ,
                            un_any_type< LB0Constraint >() ) ) {
@@ -260,6 +271,8 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
    }
   if( un_any_const_static( sc[ i ] ,
 			   [ & feas , eps ]( UB0Constraint & cnst ) {
+			    if( ( ! feas ) || cnst.is_relaxed() )
+			     return;
                             feas = ( cnst.rel_viol() <= eps );
                             } ,
                            un_any_type< UB0Constraint >() ) ) {
@@ -269,6 +282,8 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
    }
   if( un_any_const_static( sc[ i ] ,
 			   [ & feas , eps ]( LBConstraint & cnst ) {
+			    if( ( ! feas ) || cnst.is_relaxed() )
+			     return;
                             feas = ( cnst.rel_viol() <= eps );
                             } ,
                            un_any_type< LBConstraint >() ) ) {
@@ -278,7 +293,9 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
    }
   if( un_any_const_static( sc[ i ] ,
 			   [ & feas , eps ]( UBConstraint & cnst ) {
-                            feas = ( cnst.rel_viol() <= eps );
+			    if( ( ! feas ) || cnst.is_relaxed() )
+			     return;
+                           feas = ( cnst.rel_viol() <= eps );
                             } ,
                            un_any_type< UBConstraint >() ) ) {
    if( ! feas )
@@ -287,6 +304,8 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
    }
   if( un_any_const_static( sc[ i ] ,
 			   [ & feas , eps ]( NNConstraint & cnst ) {
+			    if( ( ! feas ) || cnst.is_relaxed() )
+			     return;
                             feas = ( cnst.rel_viol() <= eps );
                             } ,
                            un_any_type< NNConstraint >() ) ) {
@@ -294,16 +313,21 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
     return( false );
    continue;
    }
-  if( un_any_const_static( sc[ i ], [ & feas, eps ]( NPConstraint & cnst ) {
+  if( un_any_const_static( sc[ i ] ,
+			   [ & feas , eps ]( NPConstraint & cnst ) {
+			    if( ( ! feas ) || cnst.is_relaxed() )
+			     return;
                             feas = ( cnst.rel_viol() <= eps );
-                           },
+                            } ,
                            un_any_type< NPConstraint >() ) ) {
-   if( !feas )
-    return ( false );
+   if( ! feas )
+    return( false );
    continue;
-  }
+   }
   if( un_any_const_static( sc[ i ] ,
 			   [ & feas , eps ]( ZOConstraint & cnst ) {
+			    if( ( ! feas ) || cnst.is_relaxed() )
+			     return;
                             feas = ( cnst.rel_viol() <= eps );
                             } ,
                            un_any_type< ZOConstraint >() ) ) {
@@ -320,7 +344,7 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
  for( Index i = get_first_static_Variable() ; i < sv.size() ; ++i ) {
   if( un_any_const_static( sv[ i ] ,
 			   [ & feas , eps ]( ColVariable & var ) {
-                            feas = var.is_feasible( eps );
+                            feas = feas && var.is_feasible( eps );
                             } ,
                            un_any_type< ColVariable >() ) ) {
    if( ! feas )
@@ -334,8 +358,15 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
  auto & dc = get_dynamic_constraints();
  for( Index i = get_first_dynamic_Constraint() ; i < dc.size() ; ++i ) {
   if( un_any_const_dynamic( dc[ i ] ,
-                            [ & feas, eps ]( FRowConstraint & cnst ) {
-                             feas = ( cnst.rel_viol() <= eps );
+                            [ & feas , eps ]( FRowConstraint & cnst ) {
+			     if( ( ! feas ) || cnst.is_relaxed() )
+			      return;
+			     if( auto ret = cnst.compute() ;
+				 ( ret <= FRowConstraint::kUnEval ) ||
+				 ( ret > FRowConstraint::kOK ) )
+			      feas = false;
+			     else
+			      feas = ( cnst.rel_viol() <= eps );
                              } ,
                             un_any_type< FRowConstraint >() ) ) {
    if( ! feas )
@@ -344,7 +375,9 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
    }
   if( un_any_const_dynamic( dc[ i ] ,
 			    [ & feas , eps ]( BoxConstraint & cnst ) {
-                             feas = ( cnst.rel_viol() <= eps );
+			     if( ( ! feas ) || cnst.is_relaxed() )
+			      return;
+			     feas = ( cnst.rel_viol() <= eps );
                              } ,
                             un_any_type< BoxConstraint >() ) ) {
    if( ! feas )
@@ -353,6 +386,8 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
    }
   if( un_any_const_dynamic( dc[ i ] ,
 			    [ & feas , eps ]( LB0Constraint & cnst ) {
+			     if( ( ! feas ) || cnst.is_relaxed() )
+			      return;
                              feas = ( cnst.rel_viol() <= eps );
                              } ,
                             un_any_type< LB0Constraint >() ) ) {
@@ -362,7 +397,9 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
    }
   if( un_any_const_dynamic( dc[ i ] ,
 			    [ & feas , eps ]( UB0Constraint & cnst ) {
-                             feas = ( cnst.rel_viol() <= eps );
+			     if( ( ! feas ) || cnst.is_relaxed() )
+			      return;
+			     feas = ( cnst.rel_viol() <= eps );
                              } ,
                             un_any_type< UB0Constraint >() ) ) {
    if( ! feas )
@@ -371,6 +408,8 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
    }
   if( un_any_const_dynamic( dc[ i ] ,
 			    [ & feas , eps ]( LBConstraint & cnst ) {
+			     if( ( ! feas ) || cnst.is_relaxed() )
+			      return;
                              feas = ( cnst.rel_viol() <= eps );
                              } ,
                             un_any_type< LBConstraint >() ) ) {
@@ -380,6 +419,8 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
    }
   if( un_any_const_dynamic( dc[ i ] ,
 			    [ & feas , eps ]( UBConstraint & cnst ) {
+			     if( ( ! feas ) || cnst.is_relaxed() )
+			      return;
                              feas = ( cnst.rel_viol() <= eps );
                              } ,
                             un_any_type< UBConstraint >() ) ) {
@@ -389,6 +430,8 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
    }
   if( un_any_const_dynamic( dc[ i ] ,
 			    [ & feas , eps ]( NNConstraint & cnst ) {
+			     if( ( ! feas ) || cnst.is_relaxed() )
+			      return;
                              feas = ( cnst.rel_viol() <= eps );
                              },
                             un_any_type< NNConstraint >() ) ) {
@@ -398,7 +441,9 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
    }
   if( un_any_const_dynamic( dc[ i ] ,
 			    [ & feas , eps ]( NPConstraint & cnst ) {
-                             feas = ( cnst.rel_viol() <= eps );
+			     if( ( ! feas ) || cnst.is_relaxed() )
+			      return;
+			     feas = ( cnst.rel_viol() <= eps );
                              } ,
                             un_any_type< NPConstraint >() ) ) {
    if( ! feas )
@@ -407,7 +452,9 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
    }
   if( un_any_const_dynamic( dc[ i ] ,
 			    [ & feas, eps ]( ZOConstraint & cnst ) {
-                             feas = ( cnst.rel_viol() <= eps );
+			     if( ( ! feas ) || cnst.is_relaxed() )
+			      return;
+			     feas = ( cnst.rel_viol() <= eps );
                              } ,
                             un_any_type< ZOConstraint >() ) ) {
    if( ! feas )
@@ -423,7 +470,7 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
  for( Index i = get_first_dynamic_Variable() ; i < dv.size() ; ++i ) {
   if( un_any_const_dynamic( dv[ i ] ,
 			    [ & feas , eps ]( ColVariable & var ) {
-                             feas = var.is_feasible( eps );
+                             feas = feas && var.is_feasible( eps );
                              } ,
                             un_any_type< ColVariable >() ) ) {
    if( ! feas )
