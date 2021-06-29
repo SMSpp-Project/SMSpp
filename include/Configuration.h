@@ -1015,7 +1015,7 @@ void serialize( netCDF::NcGroup & group , const C< Configuration * > & data ,
 
 // std::pair< Configuration * , Configuration * >
 template<>
-SimpleConfiguration< std::pair< Configuration * , Configuration * >
+inline SimpleConfiguration< std::pair< Configuration * , Configuration * >
  >::~SimpleConfiguration< std::pair< Configuration * , Configuration * > >() {
  delete f_value.second;
  delete f_value.first;
@@ -1038,8 +1038,11 @@ void SimpleConfiguration< std::pair< Configuration * , Configuration * >
 // std::vector< Configuration * >
 
 template<>
-SimpleConfiguration< std::vector< Configuration * >
- >::~SimpleConfiguration< std::vector< Configuration * > >();
+inline SimpleConfiguration< std::vector< Configuration * >
+ >::~SimpleConfiguration< std::vector< Configuration * > >() {
+ for( auto rit = f_value.rbegin() ; rit != f_value.rend() ; ++rit )
+  delete *rit;
+ }
 
 template<>
 void SimpleConfiguration< std::vector< Configuration * > >::clear( void );
@@ -1048,8 +1051,12 @@ void SimpleConfiguration< std::vector< Configuration * > >::clear( void );
 // std::vector< std::pair< int , Configuration * > >
 
 template<>
-SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
- >::~SimpleConfiguration< std::vector< std::pair< int , Configuration * > > >();
+inline SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
+ >::~SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
+ >() {
+ for( auto rit = f_value.rbegin() ; rit != f_value.rend() ; ++rit )
+  delete rit->second;
+ }
 
 template<>
 void SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
@@ -1068,8 +1075,11 @@ void SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
 // std::map< std::string , Configuration * >
 
 template<>
-SimpleConfiguration< std::map< std::string , Configuration * >
- >::~SimpleConfiguration< std::map< std::string , Configuration * > >();
+inline SimpleConfiguration< std::map< std::string , Configuration * >
+ >::~SimpleConfiguration< std::map< std::string , Configuration * > >() {
+ for( auto & [ key , val ] : f_value )
+  delete val;
+ }
 
 template<>
 void SimpleConfiguration< std::map< std::string , Configuration * >

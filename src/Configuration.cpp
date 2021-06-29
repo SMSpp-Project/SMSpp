@@ -316,16 +316,6 @@ void SimpleConfiguration< std::pair< Configuration * , Configuration * >
 /*--------------------------------------------------------------------------*/
 
 template<>
-SimpleConfiguration< std::vector< Configuration * >
- >::~SimpleConfiguration< std::vector< Configuration * > >()
-{
- for( auto rit = f_value.rbegin() ; rit != f_value.rend() ; ++rit )
-  delete *rit;
- }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-
-template<>
 void SimpleConfiguration< std::vector< Configuration * > >::clear( void ) {
  for( auto config : f_value )
   if( config )
@@ -333,17 +323,6 @@ void SimpleConfiguration< std::vector< Configuration * > >::clear( void ) {
  }
 
 /*--------------------------------------------------------------------------*/
-
-template<>
-SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
- >::~SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
-			  >()
-{
- for( auto rit = f_value.rbegin() ; rit != f_value.rend() ; ++rit )
-  delete rit->second;
- }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 template<>
 void SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
@@ -415,16 +394,6 @@ void SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
  }
 
 /*--------------------------------------------------------------------------*/
-
-template<>
-SimpleConfiguration< std::map< std::string , Configuration * >
- >::~SimpleConfiguration< std::map< std::string , Configuration * > >()
-{
- for( auto & [ key , val ] : f_value )
-  delete val;
- }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 template<>
 void SimpleConfiguration< std::map< std::string , Configuration * >
