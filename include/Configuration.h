@@ -1014,6 +1014,12 @@ void serialize( netCDF::NcGroup & group , const C< Configuration * > & data ,
  *  @{ */
 
 // std::pair< Configuration * , Configuration * >
+
+template<>
+SimpleConfiguration< std::pair< Configuration * , Configuration * > > *
+ SimpleConfiguration< std::pair< Configuration * , Configuration * >
+ >::clone( void ) const;
+
 template<>
 inline SimpleConfiguration< std::pair< Configuration * , Configuration * >
  >::~SimpleConfiguration< std::pair< Configuration * , Configuration * > >() {
@@ -1038,6 +1044,10 @@ void SimpleConfiguration< std::pair< Configuration * , Configuration * >
 // std::vector< Configuration * >
 
 template<>
+SimpleConfiguration< std::vector< Configuration * > > *
+SimpleConfiguration< std::vector< Configuration * > >::clone( void ) const;
+
+template<>
 inline SimpleConfiguration< std::vector< Configuration * >
  >::~SimpleConfiguration< std::vector< Configuration * > >() {
  for( auto rit = f_value.rbegin() ; rit != f_value.rend() ; ++rit )
@@ -1049,6 +1059,11 @@ void SimpleConfiguration< std::vector< Configuration * > >::clear( void );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 // std::vector< std::pair< int , Configuration * > >
+
+template<>
+SimpleConfiguration< std::vector< std::pair< int , Configuration * > > > *
+ SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
+ >::clone( void ) const;
 
 template<>
 inline SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
@@ -1073,6 +1088,11 @@ void SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 // std::map< std::string , Configuration * >
+
+template<>
+SimpleConfiguration< std::map< std::string , Configuration * > > *
+ SimpleConfiguration< std::map< std::string , Configuration * >
+                      >::clone( void ) const;
 
 template<>
 inline SimpleConfiguration< std::map< std::string , Configuration * >
