@@ -84,8 +84,8 @@ namespace SMSpp_di_unipi_it
  *
  * 2) A matrix A with m rows and n columns, a vector b with m rows, and a
  *    vector of pairs [ ( C_i , S_i ) ]_{i \in I}, each pair being formed by a
- *    pointer to a RowConstraint of Block B and a #ConstraintSide, where I =
- *    {0, ..., m-1}.
+ *    pointer C_i to a RowConstraint of Block B and a #ConstraintSide S_i,
+ *    where I = {0, ..., m-1}.
  *
  *    Problem (B) would typically be associated with an original problem
  *
@@ -112,10 +112,10 @@ namespace SMSpp_di_unipi_it
  *
  *    These mappings are bunched together into a single mapping M defined by
  *    the matrix A and the vector b such that M(x) = Ax + b. The i-th
- *    component of this mapping, M_i(x) = [ Ax + b ]_i, is associated with the
- *    left- or right-hand side (or both) of the RowConstraint of Block B
- *    pointed by C_i. The #ConstraintSide S_i indicates which sides of the
- *    RowConstraint (pointed by) C_i are affected, as follows:
+ *    component of this mapping, namely M_i(x) = [ Ax + b ]_i, is associated
+ *    with the left- or right-hand side (or both) of the RowConstraint of
+ *    Block B pointed by C_i. The #ConstraintSide S_i indicates which sides of
+ *    the RowConstraint (pointed by) C_i are affected, as follows:
  *
  *    - If S_i = eLHS, then M_i(x) gives the value of the left-hand side of
  *      the RowConstraint (pointed by) C_i.
@@ -1470,7 +1470,7 @@ class BendersBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
  /// deletes a range of rows from the linear mapping in the BendersBFunction
- /**< Deletes a range rows from the linear mapping in the BendersBFunction,
+ /** Deletes a range rows from the linear mapping in the BendersBFunction,
   * leaving the current set of n = get_num_active_var() input Variable and
   * all rows that are not explicitly deleted:
   *
@@ -1488,7 +1488,7 @@ class BendersBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
  /// deletes a subset of rows from the linear mapping
- /**< Deletes a subset of rows from the linear mapping in the
+ /** Deletes a subset of rows from the linear mapping in the
   * BendersBFunction, leaving the current set of n = get_num_active_var()
   * input Variable and all rows that are not explicitly deleted:
   *
@@ -1526,7 +1526,7 @@ class BendersBFunction : public C05Function , public Block {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// deletes all rows from the linear mapping in the BendersBFunction
- /**< Like delete_rows( range ), but immediately removes *all* the matrix A
+ /** Like delete_rows( range ), but immediately removes *all* the matrix A
   * and vector b, leaving the mapping "empty". Since no previous linearization
   * is valid after deleting all rows, a FunctionMod with shift() ==
   * FunctionMod::NaNshift, i.e., "everything changed", is issued. */
@@ -1538,10 +1538,66 @@ class BendersBFunction : public C05Function , public Block {
  /// set the whole set of parameters of this BendersBFunction
  /** The extra Configuration of the given ComputeConfig (see
   * ComputeConfig::f_extra_Configuration), if not nullptr, is assumed to be of
-  * type SimpleConfiguration < std::pair< Configuration * , Configuration * >
-  * >. If it is not of this type, an exception is thrown. The first element of
-  * that pair must be a pointer to a BlockConfig and the second one must be a
-  * pointer to a BlockSolverConfig.
+  * type SimpleConfiguration< std::map< std::string , Configuration * > >. If
+  * it is not of this type, an exception is thrown. The map in that
+  * SimpleConfiguration is meant to provide pointers to a number of
+  * Configuration, that should be used in different situations. The following
+  * keys, and their corresponding Configuration, are considered:
+  *
+  * - "BlockConfig": a pointer to a BlockConfig to be applied to the inner
+  *    Block of this BendersBFunction.
+  *
+  * - "BlockSolverConfig": a pointer to a BlockSolverConfig to be applied to
+  *    the inner Block of this BendersBFunction.
+  *
+  * - "get_dual_solution_partial": a pointer to a Configuration to be passed
+  *    to the method Solver::get_dual_solution() of the Solver attached to the
+  *    inner Block, whenever this method is invoked for obtaining the dual
+  *    values of the RowConstraint handled by this BendersBFunction (i.e., the
+  *    RowConstraint that are affected by the active Variable of this
+  *    BendersBFunction).
+  *
+  * - "get_dual_direction_partial": a pointer to a Configuration to be passed
+  *    to the method Solver::get_dual_direction() of the Solver attached to
+  *    the inner Block, whenever this method is invoked for obtaining the dual
+  *    values of the RowConstraint handled by this BendersBFunction (i.e., the
+  *    RowConstraint that are affected by the active Variable of this
+  *    BendersBFunction).
+  *
+  * - "get_dual_partial": a pointer to a Configuration to be passed to the
+  *    methods Solver::get_dual_solution() and Solver::get_dual_direction() of
+  *    the Solver attached to the inner Block, whenever these methods are
+  *    invoked for obtaining the dual values of the RowConstraint handled by
+  *    this BendersBFunction (i.e., the RowConstraint that are affected by the
+  *    active Variable of this BendersBFunction). Clearly, this key is defined
+  *    for convenience, so as to avoid the need of passing two identical
+  *    Configuration by means of the "get_dual_solution_partial" and
+  *    "get_dual_direction_partial" keys.
+  *
+  * - "get_dual_solution": a pointer to a Configuration to be passed to the
+  *    method Solver::get_dual_solution() of the Solver attached to the inner
+  *    Block, whenever this method is invoked for obtaining the dual values of
+  *    all RowConstraint of the inner Block (and their sub-Block,
+  *    recursively).
+  *
+  * - "get_dual_direction": a pointer to a Configuration to be passed to the
+  *    method Solver::get_dual_direction() of the Solver attached to the inner
+  *    Block, whenever this method is invoked for obtaining the dual values of
+  *    all RowConstraint of the inner Block (and their sub-Block,
+  *    recursively).
+  *
+  * - "get_dual": a pointer to a Configuration to be passed to the methods
+  *    Solver::get_dual_solution() and Solver::get_dual_direction() of the
+  *    Solver attached to the inner Block, whenever these methods are invoked
+  *    for obtaining the dual values of all RowConstraint of the inner Block
+  *    (and their sub-Block, recursively). Clearly, this key is defined for
+  *    convenience, so as to avoid the need of passing two identical
+  *    Configuration by means of the "get_dual_solution" and
+  *    "get_dual_direction" keys.
+  *
+  * If a key, that is not any of the above, is provided, an exception is
+  * thrown. No pointer is kept by the BendersBFunction, so the caller can (and
+  * is responsible to) delete any pointer provided.
   *
   * If the given pointer to the ComputeConfig is nullptr, then the
   * Configuration of the BendersBFunction is reset to its default. This means
@@ -1557,9 +1613,10 @@ class BendersBFunction : public C05Function , public Block {
   *
   * If the given pointer to the ComputeConfig is not nullptr but its extra
   * Configuration is nullptr, then (2) and (3) above are performed. If the
-  * pointer to the BlockConfig in the extra Configuration is nullptr, then (2)
-  * above is performed. If the pointer to the BlockSolverConfig in the extra
-  * Configuration is nullptr, then (3) above is performed.
+  * pointer to the BlockConfig (if provided) in the extra Configuration is
+  * nullptr, then (2) above is performed. If the pointer to the
+  * BlockSolverConfig (if provided) in the extra Configuration is nullptr,
+  * then (3) above is performed.
   *
   * @param scfg a pointer to a ComputeConfig.
   */
@@ -2017,6 +2074,36 @@ class BendersBFunction : public C05Function , public Block {
  void * f_id; ///< the "identity" of the BendersBFunction
 
  int LinComp; ///< determines how linearizations are computed
+
+ Configuration * f_get_dual_solution_config = nullptr;
+ ///< Configuration to be passed to Solver::get_dual_solution()
+ /**< Configuration to be passed to the method Solver::get_dual_solution() of
+  * the Solver attached to the inner Block, whenever this method is invoked
+  * for obtaining the dual values of all RowConstraint of the inner Block (and
+  * their sub-Block, recursively). */
+
+ Configuration * f_get_dual_direction_config = nullptr;
+ ///< Configuration to be passed to Solver::get_dual_direction()
+ /**< Configuration to be passed to the method Solver::get_dual_direction() of
+  * the Solver attached to the inner Block, whenever this method is invoked
+  * for obtaining the dual values of all RowConstraint of the inner Block (and
+  * their sub-Block, recursively). */
+
+ Configuration * f_get_dual_solution_partial_config = nullptr;
+ ///< Configuration to be passed to Solver::get_dual_solution()
+ /**< Configuration to be passed to the method Solver::get_dual_solution() of
+  * the Solver attached to the inner Block, whenever this method is invoked
+  * for obtaining the dual values of the RowConstraint handled by this
+  * BendersBFunction (i.e., the RowConstraint that are affected by the active
+  * Variable of this BendersBFunction). */
+
+ Configuration * f_get_dual_direction_partial_config = nullptr;
+ ///< Configuration to be passed to Solver::get_dual_direction()
+ /**< Configuration to be passed to the method Solver::get_dual_direction() of
+  * the Solver attached to the inner Block, whenever this method is invoked
+  * for obtaining the dual values of the RowConstraint handled by this
+  * BendersBFunction (i.e., the RowConstraint that are affected by the active
+  * Variable of this BendersBFunction). */
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -2490,11 +2577,15 @@ class BendersBFunction : public C05Function , public Block {
 
  /// write the Solution with the given name in the sub-Block
  /** If <tt>name == Inf<Index>()</tt>, this function writes the dual solution
-  * associated with the last computed linearization in the sub-Block. If
-  * <tt>name != Inf<Index>()</tt>, then it writes the Solution that is stored
-  * in the global pool under the given \p name in the sub-Block. In the last
-  * case, if the given \p name is invalid or the Solution is not present in
-  * the global pool, an exception is thrown.
+  * associated with the last computed linearization in the sub-Block. In this
+  * case, only the dual solution associated with the Constraint handled by
+  * this BendersBFunction may be considered (see
+  * #f_get_dual_solution_partial_config and
+  * #f_get_dual_direction_partial_config). If <tt>name != Inf<Index>()</tt>,
+  * then it writes the Solution that is stored in the global pool under the
+  * given \p name in the sub-Block. In the last case, if the given \p name is
+  * invalid or the Solution is not present in the global pool, an exception is
+  * thrown.
   *
   * @param name the name of the solution to be written
   */

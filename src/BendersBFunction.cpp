@@ -92,13 +92,17 @@ BendersBFunction::BendersBFunction( Block * inner_block , VarVector && x ,
 
 /*--------------------------------------------------------------------------*/
 
-BendersBFunction::~BendersBFunction()
-{
+BendersBFunction::~BendersBFunction() {
  if( ! v_Block.empty() ) {
   assert( v_Block.size() == 1 );
   delete v_Block.front();
-  }
  }
+
+ delete f_get_dual_solution_partial_config;
+ delete f_get_dual_direction_partial_config;
+ delete f_get_dual_solution_config;
+ delete f_get_dual_direction_config;
+}
 
 /*--------------------------------------------------------------------------*/
 
@@ -1407,20 +1411,22 @@ void BendersBFunction::delete_rows( ModParam issueMod ) {
 
 void BendersBFunction::set_default_inner_Block_BlockConfig() {
  if( auto inner_block = get_inner_block() ) {
-   auto config = new OCRBlockConfig( inner_block );
-   config->clear();
-   config->apply( inner_block );
-  }
+  auto config = new OCRBlockConfig( inner_block );
+  config->clear();
+  config->apply( inner_block );
+  delete config;
+ }
 }
 
 /*--------------------------------------------------------------------------*/
 
 void BendersBFunction::set_default_inner_Block_BlockSolverConfig() {
  if( auto inner_block = get_inner_block() ) {
-   auto solver_config = new RBlockSolverConfig( inner_block );
-   solver_config->clear();
-   solver_config->apply( inner_block );
-  }
+  auto solver_config = new RBlockSolverConfig( inner_block );
+  solver_config->clear();
+  solver_config->apply( inner_block );
+  delete solver_config;
+ }
 }
 
 /*--------------------------------------------------------------------------*/
@@ -1445,51 +1451,90 @@ void BendersBFunction::set_ComputeConfig( ComputeConfig * scfg ) {
   return;
  }
 
- // Set the BlockConfig of the inner Block
+ auto config_map = dynamic_cast
+  < SimpleConfiguration< std::map< std::string , Configuration * > > * >
+  ( scfg->f_extra_Configuration );
 
- if( auto config = dynamic_cast< SimpleConfiguration
-     < std::pair< Configuration * , Configuration * > > * >
-     ( scfg->f_extra_Configuration ) ) {
+ if( ! config_map ) {
+  // The extra Configuration has not been provided. If not in differential
+  // mode, reset the BlockConfig and the BlockSolverConfig of the inner Block.
+  if( ! scfg->f_diff ) {
+   set_default_inner_Block_BlockConfig();
+   set_default_inner_Block_BlockSolverConfig();
+  }
+  return;
+ }
 
-  if( config->f_value.first ) {
-   if( auto block_config = dynamic_cast< BlockConfig * >
-       ( config->f_value.first ) )
+ for( const auto & [ key , config ] : config_map->f_value ) {
+
+  if( key == "BlockConfig" ) {
+   if( ! config ) {
+    if( ! scfg->f_diff )
+     // A BlockConfig for the inner Block was not provided. The inner Block is
+     // configured to its default configuration.
+     set_default_inner_Block_BlockConfig();
+   }
+   else if( auto block_config = dynamic_cast< BlockConfig * >( config ) )
+    // A BlockConfig for the inner Block has been provided. Apply it.
     block_config->apply( inner_block );
    else
+    // An invalid Configuration has been provided.
     throw( std::invalid_argument
-           ( "BendersBFunction::set_ComputeConfig: the first element "
-             "of the pair of the extra Configuration must be a pointer "
-             "to a :BlockConfig." ) );
+           ( "BendersBFunction::set_ComputeConfig: the Configuration "
+             "associated with key \"BlockConfig\" is not a BlockConfig." ) );
   }
-  else {
-   // A BlockConfig for the inner Block was not provided
-   // scfg->f_extra_Configuration->f_value.first is nullptr
-   if( ! scfg->f_diff )
-    set_default_inner_Block_BlockConfig();
-  }
-
-  // Set the BlockSolverConfig of the inner Block
-
-  if( config->f_value.second ) {
-   if( auto block_config = dynamic_cast< BlockSolverConfig * >
-       ( config->f_value.second ) )
-    block_config->apply( inner_block );
+  else if( key == "BlockSolverConfig" ) {
+   if( ! config ) {
+    if( ! scfg->f_diff )
+     // A BlockSolverConfig for the inner Block was not provided. The Solver
+     // of the inner Block (and their sub-Block, recursively) are unregistered
+     // and deleted.
+     set_default_inner_Block_BlockSolverConfig();
+   }
+   else if( auto bsc = dynamic_cast< BlockSolverConfig * >( config ) )
+    // A BlockSolverConfig for the inner Block has been provided. Apply it.
+    bsc->apply( inner_block );
    else
+    // An invalid Configuration has been provided.
     throw( std::invalid_argument
-           ( "BendersBFunction::set_ComputeConfig: the second element "
-             "of the pair of the extra Configuration must be a pointer "
-             "to a :BlockSolverConfig." ) );
+           ( "BendersBFunction::set_ComputeConfig: the Configuration "
+             "associated with key \"BlockSolverConfig\" is not a "
+             "BlockSolverConfig." ) );
+  }
+  else if( key == "get_dual_solution" ) {
+   delete f_get_dual_solution_config;
+   f_get_dual_solution_config = config->clone();
+  }
+  else if( key == "get_dual_direction" ) {
+   delete f_get_dual_direction_config;
+   f_get_dual_direction_config = config->clone();
+  }
+  else if( key == "get_dual" ) {
+   delete f_get_dual_solution_config;
+   delete f_get_dual_direction_config;
+   f_get_dual_solution_config = config->clone();
+   f_get_dual_direction_config = config->clone();
+  }
+  else if( key == "get_dual_solution_partial" ) {
+   delete f_get_dual_solution_partial_config;
+   f_get_dual_solution_partial_config = config->clone();
+  }
+  else if( key == "get_dual_direction_partial" ) {
+   delete f_get_dual_direction_partial_config;
+   f_get_dual_direction_partial_config = config->clone();
+  }
+  else if( key == "get_dual_partial" ) {
+   delete f_get_dual_solution_partial_config;
+   delete f_get_dual_direction_partial_config;
+   f_get_dual_solution_partial_config = config->clone();
+   f_get_dual_direction_partial_config = config->clone();
   }
   else {
-   // A BlockSolverConfig for the inner Block was not provided
-   // scfg->f_extra_Configuration->f_value.second is nullptr
-   if( ! scfg->f_diff )
-    set_default_inner_Block_BlockSolverConfig();
+   // An invalid key has been provided.
+   throw( std::invalid_argument( "BendersBFunction::set_ComputeConfig: "
+                                 "invalid key: " + key ) );
   }
  }
- else
-  throw( std::invalid_argument( "BendersBFunction::set_ComputeConfig: "
-                                "invalid type of extra Configuration." ) );
 }  // end( BendersBFunction::set_ComputeConfig )
 
 /*--------------------------------------------------------------------------*/
@@ -1942,9 +1987,9 @@ void BendersBFunction::store_linearization( Index name , ModParam issueMod ) {
  // TODO check whether the solution has already been written into the Block
 
  if( f_diagonal_linearization_required )
-  solver->get_dual_solution();
+  solver->get_dual_solution( f_get_dual_solution_config );
  else
-  solver->get_dual_direction();
+  solver->get_dual_direction( f_get_dual_direction_config );
 
  Solution * solution = nullptr;
 
@@ -2034,14 +2079,16 @@ void BendersBFunction::write_dual_solution( Index name ) {
                            "ck (if present) has no Solver attached to it." ) );
 
  if( name == Inf<Index>() ) {
-  // Last computed linearization
+  // Last computed linearization. Notice that only the dual solution
+  // associated with the Constraint handled by this BendersBFunction are being
+  // required.
 
   // TODO check whether the solution has already been written into the Block
 
   if( f_diagonal_linearization_required )
-   solver->get_dual_solution();
+   solver->get_dual_solution( f_get_dual_solution_partial_config );
   else
-   solver->get_dual_direction();
+   solver->get_dual_direction( f_get_dual_direction_partial_config );
  }
  else
   // Linearization stored in the global pool
@@ -2444,13 +2491,13 @@ Function::FunctionValue BendersBFunction::get_linearization_constant(
    }
    else {
     // Compute the linearization constant from the dual solution
-    solver->get_dual_solution();
+    solver->get_dual_solution( f_get_dual_solution_config );
     return compute_linearization_constant();
    }
   }
   else {
    // "vertical" linearization
-   solver->get_dual_direction();
+   solver->get_dual_direction( f_get_dual_direction_config );
    return compute_linearization_constant();
   }
  }
@@ -2482,14 +2529,15 @@ ComputeConfig * BendersBFunction::get_ComputeConfig
  }
 
  auto extra_config = dynamic_cast< SimpleConfiguration<
-  std::pair< Configuration * , Configuration * > > * >
+  std::map< std::string , Configuration * > > * >
   ( ccfg->f_extra_Configuration );
 
  if( ! extra_config ) {
-  // replace the extra Configuration
+  // The given extra Configuration pointer is either nullptr or does not have
+  // the right type. Replace the extra Configuration with an appropriate one.
   delete ccfg->f_extra_Configuration;
-  extra_config = new SimpleConfiguration< std::pair< Configuration * ,
-                                                     Configuration * > >;
+  extra_config =
+   new SimpleConfiguration< std::map< std::string , Configuration * > >;
   ccfg->f_extra_Configuration = extra_config;
  }
 
@@ -2497,31 +2545,72 @@ ComputeConfig * BendersBFunction::get_ComputeConfig
 
  // Retrieve the BlockConfig of the inner Block
 
- if( auto bc = dynamic_cast< BlockConfig * >( extra_config->f_value.first ) )
-  bc->get( inner_block ); // use the given BlockConfig
+ BlockConfig * bc = nullptr;
+
+ auto bc_it = extra_config->f_value.find( "BlockConfig" );
+ if( bc_it != extra_config->f_value.end() ) {
+  // The map has a "BlockConfig" key. Try to cast the corresponding value.
+  if( ( bc = dynamic_cast< BlockConfig * >( bc_it->second ) ) ) {
+   bc->get( inner_block ); // use the given BlockConfig
+  }
+  else {
+   // Whatever value is there, it is not a pointer to a BlockConfig.
+   // Delete it.
+   delete bc_it->second;
+   bc_it->second = nullptr;
+   if( inner_block ) {
+    // If this BendersBFunction has an inner Block, extract a BlockConfig
+    // from it.
+    bc = OCRBlockConfig::get_right_BlockConfig( inner_block );
+    bc_it->second = bc;
+   }
+  }
+ }
  else {
-  delete extra_config->f_value.first;
-  extra_config->f_value.first = nullptr;
-  if( inner_block )
-   extra_config->f_value.first =
-    OCRBlockConfig::get_right_BlockConfig( inner_block );
+  // The map has no "BlockConfig" key.
+  if( inner_block ) {
+   // If this BendersBFunction has an inner Block, extract a BlockConfig
+   // from it and add it to the map.
+   bc = OCRBlockConfig::get_right_BlockConfig( inner_block );
+   extra_config->f_value[ "BlockConfig" ] = bc;
+  }
  }
 
  // Retrieve the BlockSolverConfig of the inner Block
 
- if( auto bsc = dynamic_cast< BlockSolverConfig * >
-     ( extra_config->f_value.second ) )
-  bsc->get( inner_block ); // use the given BlockSolverConfig
+ BlockSolverConfig * bsc = nullptr;
+
+ auto bsc_it = extra_config->f_value.find( "BlockSolverConfig" );
+ if( bsc_it != extra_config->f_value.end() ) {
+  // The map has a "BlockSolverConfig" key. Try to cast the corresponding
+  // value.
+  if( ( bsc = dynamic_cast< BlockSolverConfig * >( bsc_it->second ) ) ) {
+   bsc->get( inner_block ); // use the given BlockSolverConfig
+  }
+  else {
+   // Whatever value is there, it is not a pointer to a BlockSolverConfig.
+   // Delete it.
+   delete bsc_it->second;
+   bsc_it->second = nullptr;
+   if( inner_block ) {
+    // If this BendersBFunction has an inner Block, extract a
+    // BlockSolverConfig from it.
+    bsc = RBlockSolverConfig::get_right_BlockSolverConfig( inner_block , ! all );
+    bsc_it->second = bsc;
+   }
+  }
+ }
  else {
-  delete extra_config->f_value.second;
-  extra_config->f_value.second = nullptr;
-  if( inner_block )
-   extra_config->f_value.second =
-    RBlockSolverConfig::get_right_BlockSolverConfig( inner_block , ! all );
+  // The map has no "BlockSolverConfig" key.
+  if( inner_block ) {
+   // If this BendersBFunction has an inner Block, extract a BlockSolverConfig
+   // from it and add it to the map.
+   bsc = RBlockSolverConfig::get_right_BlockSolverConfig( inner_block , ! all );
+   extra_config->f_value[ "BlockSolverConfig" ] = bsc;
+  }
  }
 
- if( default_config && ( ! extra_config->f_value.first ) &&
-     ( ! extra_config->f_value.first ) ) {
+ if( default_config && ( ! bc ) && ( ! bsc ) ) {
   delete ccfg;
   ccfg = nullptr;
  }
