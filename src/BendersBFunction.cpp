@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 26 - 05 - 2021
+ * \date 06 - 07 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -2571,8 +2571,8 @@ ComputeConfig * BendersBFunction::get_ComputeConfig
   if( inner_block ) {
    // If this BendersBFunction has an inner Block, extract a BlockConfig
    // from it and add it to the map.
-   bc = OCRBlockConfig::get_right_BlockConfig( inner_block );
-   extra_config->f_value[ "BlockConfig" ] = bc;
+   if( ( bc = OCRBlockConfig::get_right_BlockConfig( inner_block ) ) )
+    extra_config->f_value[ "BlockConfig" ] = bc;
   }
  }
 
@@ -2606,11 +2606,32 @@ ComputeConfig * BendersBFunction::get_ComputeConfig
    // If this BendersBFunction has an inner Block, extract a BlockSolverConfig
    // from it and add it to the map.
    bsc = RBlockSolverConfig::get_right_BlockSolverConfig( inner_block , ! all );
-   extra_config->f_value[ "BlockSolverConfig" ] = bsc;
+   if( bsc )
+    extra_config->f_value[ "BlockSolverConfig" ] = bsc;
   }
  }
 
- if( default_config && ( ! bc ) && ( ! bsc ) ) {
+ // Configuration for dual solution/direction
+
+ if( f_get_dual_solution_config )
+  extra_config->f_value[ "get_dual_solution" ] =
+   f_get_dual_solution_config->clone();
+
+ if( f_get_dual_direction_config )
+  extra_config->f_value[ "get_dual_direction" ] =
+   f_get_dual_direction_config->clone();
+
+ if( f_get_dual_solution_partial_config )
+  extra_config->f_value[ "get_dual_solution_partial" ] =
+   f_get_dual_solution_partial_config->clone();
+
+ if( f_get_dual_direction_partial_config )
+  extra_config->f_value[ "get_dual_direction_partial" ] =
+   f_get_dual_direction_partial_config->clone();
+
+ // If this is the default Configuration, return nullptr
+
+ if( default_config && extra_config->f_value.empty() ) {
   delete ccfg;
   ccfg = nullptr;
  }
