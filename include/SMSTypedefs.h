@@ -19,9 +19,9 @@
  * - some templates to simplify handling serialization and deserialization
  *   to/from a netCDF file;
  *
- * \version 0.13
+ * \version 0.14
  *
- * \date 21 - 08 - 2020
+ * \date 07 - 07 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -336,7 +336,20 @@ using KD_c_Vec_List_p_Const = const boost::multi_array< List_p_Const, K >;
  * linker is invoked via the compiler), and "-all_load" for clang++. Note that
  * the behaviour depends on the default settings of the linker and therefore
  * it may change even for the same compiler toolchain on different OS
- * distributions
+ * distributions. Yet, activating said options may have unwanted side effects
+ * that one may want to do without. This is why the further macro
+ *
+ *   SMSpp_ensure_load( < class name > )
+ *
+ * is provided. By adding it at the beginning of a .cpp, it does some dirty
+ * but hopefully not terribly costly things that ensure that < class name >
+ * is added to the corresponding factory. However, note that for this to
+ * work the corresponding headed must be explicitly included; it is not
+ * possible to automatically include files using a macro due to the fact that
+ * the C preprocessor only does one pass, and while there are some very dirty
+ * hacks around that we prefer to steer well clear of those. Anyway this
+ * mechanism should only be used as last resort since it has a (hopefully,
+ * little but) nonzero cost at runtime. 
  * @{ */
 
 /** The macro defines a very small, "fake" class _init. Its only meaning is to
@@ -552,7 +565,7 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
  SMSpp_type_traits::t<void(ClassName)>::type::_private_name( void ) {        \
   static const std::string _name( SMSpp_classname_normalise(                 \
 				              std::string( #ClassName ) ) ); \
-  return( _name );                                                         \
+  return( _name );                                                           \
   }                                                                          \
                                                                              \
  const std::string &                                                         \
@@ -642,6 +655,30 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
  template<>                                                                  \
  SMSpp_type_traits::t<void(ClassName)>::type::_init                          \
  SMSpp_type_traits::t<void(ClassName)>::type::_initializer{}
+
+/*--------------------------------------------------------------------------*/
+// definition of auxiliary template variable (don't you just love C++?), which
+// serves to avoid having duplicated names in case SMSpp_ensure_load() is
+// called for multiple classes in the same .cpp
+
+template< class ClassName >
+bool SMSpp_ensure_load_var;
+
+// the SMSpp_ensure_load() creates an empty object of the given class and
+// immediately destroys it; in all our cases, the empty constructor exists
+// and should be relatively cheap. we tried to avoid it by taking the
+// address of some method of the class, but this is not enough in all
+// case to force the linker to include the relevant object, while creating
+// an object of the class damn sure is
+ 
+#define SMSpp_ensure_load( ClassName )                                      \
+ template<>                                                                 \
+ bool SMSpp_ensure_load_var< SMSpp_type_traits::t<void(ClassName)>::type > =\
+  []( void ) -> bool {		                                            \
+   if( auto p = new SMSpp_type_traits::t<void(ClassName)>::type() ) {       \
+    delete p; return( true ); }                                             \
+   else	return( false ); \
+   }()
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------- HANDLE boost::any SPECIALIZATIONS --------------------*/
