@@ -2513,7 +2513,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
  if( const auto tmod = dynamic_cast< const FunctionMod * >( mod ) ) {
   auto f = tmod->function();  // the Function it comes from
 
-  if( static_cast< p_LF >( f ) == obj ) {  // if it is obj - - - - - - - - - -
+  if( obj && ( dynamic_cast< p_LF >( f ) == obj ) ) {  // if it is obj - - - -
    // the only remaining FunctionMod is the C05FunctionMod with type() ==
    // NothingChanged corresponding to the change of the constant term from
    // c_0 to c'_0; hence the whole Lagrangian function is shifted by the
@@ -2529,7 +2529,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
    }  // end( if( from obj ) )
 
-  if( static_cast< p_QF >( f ) == qobj ) {  // if it is qobj - - - - - - - - -
+  if( qobj && ( dynamic_cast< p_QF >( f ) == qobj ) ) {  // if it is qobj- - -
    // the only remaining FunctionMod is the C05FunctionMod with type() ==
    // NothingChanged corresponding to the change of the constant term from
    // c_0 to c'_0; hence the whole Lagrangian function is shifted by the
