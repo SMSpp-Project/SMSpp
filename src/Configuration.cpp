@@ -272,6 +272,23 @@ Configuration::ConfigurationFactoryMap & Configuration::f_factory( void ) {
 // "basic" versions of SimpleConfiguration
 
 template<>
+SimpleConfiguration< std::pair< Configuration * , Configuration * > > *
+ SimpleConfiguration< std::pair< Configuration * , Configuration * >
+		      >::clone( void ) const
+{
+ auto sc = new SimpleConfiguration< std::pair< Configuration * ,
+					       Configuration * > >( *this );
+ if( sc->f_value.first )
+  sc->f_value.first = sc->f_value.first->clone();
+ if( sc->f_value.second )
+  sc->f_value.second = sc->f_value.second->clone();
+
+ return( sc );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
 void SimpleConfiguration< std::pair< Configuration * , Configuration * >
 			  >::serialize( netCDF::NcGroup & group ) const
 {
@@ -316,13 +333,46 @@ void SimpleConfiguration< std::pair< Configuration * , Configuration * >
 /*--------------------------------------------------------------------------*/
 
 template<>
-void SimpleConfiguration< std::vector< Configuration * > >::clear( void ) {
- for( auto config : f_value )
-  if( config )
-   config->clear();
+SimpleConfiguration< std::vector< Configuration * > > *
+ SimpleConfiguration< std::vector< Configuration * > >::clone( void ) const
+{
+ auto sc = new SimpleConfiguration< std::vector< Configuration * > >( *this );
+
+ for( auto & c : sc->f_value )
+  if( c )
+   c = c->clone();
+
+ return( sc );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::vector< Configuration * > >::clear( void )
+{
+ for( auto c : f_value )
+  if( c )
+   c->clear();
  }
 
 /*--------------------------------------------------------------------------*/
+
+template<>
+SimpleConfiguration< std::vector< std::pair< int , Configuration * > > > *
+ SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
+		      >::clone( void ) const
+{
+ auto sc = new SimpleConfiguration<
+               std::vector< std::pair< int , Configuration * > > >( *this );
+
+ for( auto & [ i , c ] : sc->f_value )
+  if( c )
+   c = c->clone();
+
+ return( sc );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 template<>
 void SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
@@ -394,6 +444,23 @@ void SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
  }
 
 /*--------------------------------------------------------------------------*/
+
+template<>
+SimpleConfiguration< std::map< std::string , Configuration * > > *
+ SimpleConfiguration< std::map< std::string , Configuration * >
+		      >::clone( void ) const
+{
+ auto sc = new SimpleConfiguration< std::map< std::string , Configuration * >
+				    >( *this );
+
+ for( auto & [ key , val ] : sc->f_value )
+  if( val )
+   val = val->clone();
+
+ return( sc );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 template<>
 void SimpleConfiguration< std::map< std::string , Configuration * >

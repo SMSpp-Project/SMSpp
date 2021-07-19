@@ -1602,6 +1602,13 @@ int LagBFunction::compute( bool changedvars )
   f_BSC_changed = false;
   }
 
+ // if the solution in the Block was the one out of the last call to
+ // compute(), signal that it is no longer correct; this is done by
+ // has_linearization(), but it is possible that get_linearization_*() is
+ // called (on "old" linearizations) without calling it
+ if( LastSolution == Inf< Index >() )
+  LastSolution = g_pool.size();
+
  // finally, compute() the inner Block - - - - - - - - - - - - - - - - - - - -
  // it is assumed that the inner Block (B) does not have Variable defined in
  // other Blocks: then, the re-optimization of (B) can be performed starting
@@ -3127,6 +3134,7 @@ void LagBFunction::update_CostMatrix_ModLinRngd( const v_coeff_pair & rc ,
  if( current ) {  // if Range is still current, it's easy
   for( Index j = rng.first ; j < rng.second ; ++j )
    CostMatrix[ j ].first = rc[ j ].second;
+  return;
   }
 
  // if Range is no longer current, it's compicated
