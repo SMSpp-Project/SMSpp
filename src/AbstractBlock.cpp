@@ -229,9 +229,17 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
  bool feas = true;
 
  // the static Constraints of the Block - - - - - - - - - - - - - - - - - - -
- auto & sc = get_static_constraints();
- for( Index i = get_first_static_Constraint() ; i < sc.size() ; ++i ) {
-  if( un_any_const_static( sc[ i ] ,
+ // note: AbstractBlock::is_feasible() is now checking *all* the abstract
+ //       representation, both the "reserved" part and all the rest. another
+ //       aproach would be to leave the "reserved" part to derived classes
+ //       and only test here the "non reserved" part. this might be
+ //       fractionally more efficient but it would require every derived
+ //       class to implement is_feasible(); so far we prefer the general
+ //       even if possibly slower solution
+ // auto & sc = get_static_constraints();
+ //!! for( Index i = get_first_static_Constraint() ; i < sc.size() ; ++i ) {
+ for( auto & sci : get_static_constraints() ) {
+  if( un_any_const_static( sci ,
 			   [ & feas , eps ]( FRowConstraint & cnst ) {
 			    if( ( ! feas ) || cnst.is_relaxed() )
 			     return;
@@ -247,7 +255,7 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
     return( false );
    continue;
    }
-  if( un_any_const_static( sc[ i ] ,
+  if( un_any_const_static( sci ,
 			   [ & feas , eps ]( BoxConstraint & cnst ) {
 			    if( ( ! feas ) || cnst.is_relaxed() )
 			     return;
@@ -258,7 +266,7 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
     return( false );
    continue;
    }
-  if( un_any_const_static( sc[ i ] ,
+  if( un_any_const_static( sci ,
 			   [ & feas , eps ]( LB0Constraint & cnst ) {
 			    if( ( ! feas ) || cnst.is_relaxed() )
 			     return;
@@ -269,7 +277,7 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
     return( false );
    continue;
    }
-  if( un_any_const_static( sc[ i ] ,
+  if( un_any_const_static( sci ,
 			   [ & feas , eps ]( UB0Constraint & cnst ) {
 			    if( ( ! feas ) || cnst.is_relaxed() )
 			     return;
@@ -280,7 +288,7 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
     return( false );
    continue;
    }
-  if( un_any_const_static( sc[ i ] ,
+  if( un_any_const_static( sci ,
 			   [ & feas , eps ]( LBConstraint & cnst ) {
 			    if( ( ! feas ) || cnst.is_relaxed() )
 			     return;
@@ -291,7 +299,7 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
     return( false );
    continue;
    }
-  if( un_any_const_static( sc[ i ] ,
+  if( un_any_const_static( sci ,
 			   [ & feas , eps ]( UBConstraint & cnst ) {
 			    if( ( ! feas ) || cnst.is_relaxed() )
 			     return;
@@ -302,7 +310,7 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
     return( false );
    continue;
    }
-  if( un_any_const_static( sc[ i ] ,
+  if( un_any_const_static( sci ,
 			   [ & feas , eps ]( NNConstraint & cnst ) {
 			    if( ( ! feas ) || cnst.is_relaxed() )
 			     return;
@@ -313,7 +321,7 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
     return( false );
    continue;
    }
-  if( un_any_const_static( sc[ i ] ,
+  if( un_any_const_static( sci ,
 			   [ & feas , eps ]( NPConstraint & cnst ) {
 			    if( ( ! feas ) || cnst.is_relaxed() )
 			     return;
@@ -324,7 +332,7 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
     return( false );
    continue;
    }
-  if( un_any_const_static( sc[ i ] ,
+  if( un_any_const_static( sci ,
 			   [ & feas , eps ]( ZOConstraint & cnst ) {
 			    if( ( ! feas ) || cnst.is_relaxed() )
 			     return;
@@ -340,9 +348,11 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
   }
 
  // the static Variables of the Block - - - - - - - - - - - - - - - - - - - -
- auto & sv = get_static_variables();
- for( Index i = get_first_static_Variable() ; i < sv.size() ; ++i ) {
-  if( un_any_const_static( sv[ i ] ,
+ // auto & sv = get_static_variables();
+ //!! for( Index i = get_first_static_Variable() ; i < sv.size() ; ++i ) {
+ // see above for comments
+ for( auto & svi : get_static_variables() ) {
+  if( un_any_const_static( svi ,
 			   [ & feas , eps ]( ColVariable & var ) {
                             feas = feas && var.is_feasible( eps );
                             } ,
@@ -355,9 +365,11 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
   }
 
  // the dynamic Constraints of the Block-  - - - - - - - - - - - - - - - - - -
- auto & dc = get_dynamic_constraints();
- for( Index i = get_first_dynamic_Constraint() ; i < dc.size() ; ++i ) {
-  if( un_any_const_dynamic( dc[ i ] ,
+ // auto & dc = get_dynamic_constraints();
+ //!! for( Index i = get_first_dynamic_Constraint() ; i < dc.size() ; ++i ) {
+ // see above for comments
+ for( auto & dci : get_dynamic_constraints() ) {
+  if( un_any_const_dynamic( dci ,
                             [ & feas , eps ]( FRowConstraint & cnst ) {
 			     if( ( ! feas ) || cnst.is_relaxed() )
 			      return;
@@ -373,7 +385,7 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
     return( false );
    continue;
    }
-  if( un_any_const_dynamic( dc[ i ] ,
+  if( un_any_const_dynamic( dci ,
 			    [ & feas , eps ]( BoxConstraint & cnst ) {
 			     if( ( ! feas ) || cnst.is_relaxed() )
 			      return;
@@ -384,7 +396,7 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
     return( false );
    continue;
    }
-  if( un_any_const_dynamic( dc[ i ] ,
+  if( un_any_const_dynamic( dci ,
 			    [ & feas , eps ]( LB0Constraint & cnst ) {
 			     if( ( ! feas ) || cnst.is_relaxed() )
 			      return;
@@ -395,7 +407,7 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
     return( false );
    continue;
    }
-  if( un_any_const_dynamic( dc[ i ] ,
+  if( un_any_const_dynamic( dci ,
 			    [ & feas , eps ]( UB0Constraint & cnst ) {
 			     if( ( ! feas ) || cnst.is_relaxed() )
 			      return;
@@ -406,7 +418,7 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
     return( false );
    continue;
    }
-  if( un_any_const_dynamic( dc[ i ] ,
+  if( un_any_const_dynamic( dci ,
 			    [ & feas , eps ]( LBConstraint & cnst ) {
 			     if( ( ! feas ) || cnst.is_relaxed() )
 			      return;
@@ -417,7 +429,7 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
     return( false );
    continue;
    }
-  if( un_any_const_dynamic( dc[ i ] ,
+  if( un_any_const_dynamic( dci ,
 			    [ & feas , eps ]( UBConstraint & cnst ) {
 			     if( ( ! feas ) || cnst.is_relaxed() )
 			      return;
@@ -428,7 +440,7 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
     return( false );
    continue;
    }
-  if( un_any_const_dynamic( dc[ i ] ,
+  if( un_any_const_dynamic( dci ,
 			    [ & feas , eps ]( NNConstraint & cnst ) {
 			     if( ( ! feas ) || cnst.is_relaxed() )
 			      return;
@@ -439,7 +451,7 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
     return( false );
    continue;
    }
-  if( un_any_const_dynamic( dc[ i ] ,
+  if( un_any_const_dynamic( dci ,
 			    [ & feas , eps ]( NPConstraint & cnst ) {
 			     if( ( ! feas ) || cnst.is_relaxed() )
 			      return;
@@ -450,7 +462,7 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
     return( false );
    continue;
    }
-  if( un_any_const_dynamic( dc[ i ] ,
+  if( un_any_const_dynamic( dci ,
 			    [ & feas, eps ]( ZOConstraint & cnst ) {
 			     if( ( ! feas ) || cnst.is_relaxed() )
 			      return;
@@ -466,9 +478,11 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
  }
 
  // the dynamic Variables of the Block- - - - - - - - - - - - - - - - - - - -
- auto & dv = get_dynamic_variables();
- for( Index i = get_first_dynamic_Variable() ; i < dv.size() ; ++i ) {
-  if( un_any_const_dynamic( dv[ i ] ,
+ // auto & dv = get_dynamic_variables();
+ //!! for( Index i = get_first_dynamic_Variable() ; i < dv.size() ; ++i ) {
+ // see above for comments
+ for( auto & dvi : get_dynamic_variables() ) {
+  if( un_any_const_dynamic( dvi ,
 			    [ & feas , eps ]( ColVariable & var ) {
                              feas = feas && var.is_feasible( eps );
                              } ,
@@ -482,8 +496,10 @@ bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
 
  // the inner Blocks - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- for( Index i = get_first_inner_Block() ; i < v_Block.size() ; ++i )
-  if( ! v_Block[ i ]->is_feasible( useabstract ) )
+ //!! for( Index i = get_first_inner_Block() ; i < v_Block.size() ; ++i )
+ // see above for comments
+ for( auto bi : v_Block )
+  if( ! bi->is_feasible( useabstract ) )
    return( false );
 
  return( true );
