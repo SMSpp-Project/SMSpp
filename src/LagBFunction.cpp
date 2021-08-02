@@ -909,8 +909,8 @@ void LagBFunction::remove_variables( Subset && nms , bool ordered ,
 
 void LagBFunction::cleanup_inner_objective( void )
 {
- if( f_c_changed )  // Lagrangian costs are already == to original costs
-  return;           // nothing to do
+ if( ! f_c_changed )  // Lagrangian costs are already == to original costs
+  return;             // nothing to do
 
  Vec_FunctionValue NC( CostMatrix.size() );
  for( Index i = 0 ; i < CostMatrix.size() ; ++i )
