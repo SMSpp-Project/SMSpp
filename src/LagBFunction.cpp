@@ -264,9 +264,9 @@ void LagBFunction::set_dual_pairs( v_dual_pair && dp )
    f_yb = NaN; break;               // if so, yb has to be computed
    }
 
- f_dirty_Lc = f_c_changed || ( ! LagPairs.empty() );
  // Lagrangian costs have to be updated unless by chance they are still the
  // original ones and the newly set Lagrangian term is actually empty
+ f_dirty_Lc = f_c_changed || ( ! LagPairs.empty() );
 
  }  // end( LagBFunction::set_dual_pairs )
 
@@ -924,7 +924,7 @@ void LagBFunction::cleanup_inner_objective( void )
   qobj->modify_linear_coefficients( std::move( NC ) );
 
  f_play_dumb = false;  // back to normal operations
- f_c_changed = true;   // Lagrangian costs are now == to original costs
+ f_c_changed = false;  // Lagrangian costs are now == to original costs
  f_dirty_Lc = ! LagPairs.empty();  // ... hence they have to be updated,
                                    // unless the Lagrangian term is empty
  }
@@ -1630,7 +1630,7 @@ int LagBFunction::compute( bool changedvars )
   
   f_play_dumb = false;               // back to normal operations
   f_dirty_Lc = false;                // Lagrangian costs are current
-  f_c_changed = false;               // ... and hence no longer original
+  f_c_changed = true;                // ... and hence no longer original
   }
 
  // if the inner Block had to be locked, for whatever reason
