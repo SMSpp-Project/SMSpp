@@ -693,8 +693,24 @@ namespace SMSpp_di_unipi_it::inspection
 
 /*--------------------------------------------------------------------------*/
 
+ /// returns the indices of the Constraint that are not satisfied
+ /** The given \p group must contain a group of Constraint (static or dynamic,
+  * according to \p static_constraints). This function returns a vector
+  * containing the indices of the Constraint in \p group that are not
+  * satisfied at the current solution. If the given \p group is not a valid
+  * group of static or dynamic Constraint, then this function returns an empty
+  * vector.
+  *
+  * @param group A boost::any containing a group of Constraint.
+  *
+  * @param static_constraints If it is true, then the given \p group contains
+  *        a group of static Constraint. Otherwise, it indicates that \p group
+  *        contains a group of dynamic Constraint. */
+
  template<class T , class... Rest>
- static std::vector< Index > get_infeasibility( boost::any & group ) {
+ static std::vector< Index > get_infeasibility
+ ( boost::any & group , const bool static_constraints ) {
+
   std::vector< Index > indices;
   Index constraint_index = 0;
   const auto fill_indices =
@@ -704,15 +720,34 @@ namespace SMSpp_di_unipi_it::inspection
      indices.push_back( constraint_index );
     ++constraint_index;
    };
-  bool group_found = un_any_static( group , fill_indices , un_any_type< T >() );
+  bool group_found;
+  if( static_constraints )
+   group_found = un_any_static( group , fill_indices , un_any_type< T >() );
+  else
+   group_found = un_any_dynamic( group , fill_indices , un_any_type< T >() );
   if( group_found )
    return indices;
   if constexpr( sizeof...(Rest) != 0 )
-   return get_infeasibility<Rest...>( group );
+   return get_infeasibility<Rest...>( group , static_constraints );
   return {};
  }
 
 /*--------------------------------------------------------------------------*/
+
+ /// returns the static or dynamic Constraint of \p block
+ /** This function returns a vector of boost::any containing the static or
+  * dynamic Constraint of \p block. If \p static_constraints is true, then the
+  * static Constraint are returned. Otherwise, the dynamic Constraint are
+  * returned.
+  *
+  * @param block A pointer to a Block whose Constraint will be checked.
+  *
+  * @param static_constraints If it is true, then the static Constraint of the
+  *        given Block are returned. Otherwise, the dynamic Constraint are
+  *        returned.
+  *
+  * @return A vector of boost::any containing the static or dynamic Constraint
+  *         of the given Block. */
 
  static auto & get_constraints( const Block * block ,
                                 const bool static_constraints ) {
@@ -723,26 +758,49 @@ namespace SMSpp_di_unipi_it::inspection
 
 /*--------------------------------------------------------------------------*/
 
+ /// displays all Constraint of \p block that are not satisfied
+ /** This function displays the indices of the Constraint of \p block
+  * (ignoring those of its sub-Blocks) that are not satisfied at the current
+  * solution (given by the values of the Variable of \p block). The parameter
+  * \p static_constraints indicates which constraints should be checked
+  * (static or dynamic ones). If a Constraint is not satisfied at the current
+  * solution, its index together with the name of the group to which this
+  * Constraint belong and the name of \p block (if not empty) are
+  * displayed. If the name of \p block (see Block::name()) is empty, then the
+  * name of the class of the \p block is displayed instead (see
+  * Block::classname()).
+  *
+  * @param block A pointer to a Block whose Constraint will be checked.
+  *
+  * @param static_constraints If it is true, then the static Constraint of the
+  *        given Block are checked. Otherwise, the dynamic Constraint are
+  *        checked.
+  *
+  * @param stream An stream to which the description of the unsatisfied
+  *        Constraint will be output. */
+
  static void show_infeasibility( const Block * block ,
-                                 const bool static_constraints ) {
+                                 const bool static_constraints ,
+                                 std::ostream & stream = std::cout ) {
   std::string constraint_type = static_constraints ? "static" : "dynamic";
   std::string block_name = block->name();
   if( block_name.empty() )
    block_name = block->classname();
   Index i = 0;
   for( auto & group : get_constraints( block , static_constraints ) ) {
-   auto indices = get_infeasibility< Constraint_Derived_Classes >( group );
+   auto indices = get_infeasibility< Constraint_Derived_Classes >
+    ( group , static_constraints );
    if( ! indices.empty() ) {
     const auto & group_name = block->get_s_const_name( i );
-    std::cout << "Unsatisfied " << constraint_type << " constraints in '"
-              << group_name << "' of Block '" << block_name << "': ";
+    stream << "Unsatisfied " << constraint_type << " constraints in '"
+           << group_name << "' of Block '" << block_name << "': ";
     bool add_comma = false;
     for( const auto & index : indices ) {
-     if( add_comma ) std::cout << ", ";
-     std::cout << index;
+     if( add_comma ) stream << ", ";
+     stream << index;
      add_comma = true;
     }
-    std::cout << std::endl;
+    stream << std::endl;
    }
    ++i;
   }
@@ -750,11 +808,22 @@ namespace SMSpp_di_unipi_it::inspection
 
 /*--------------------------------------------------------------------------*/
 
- static void show_infeasibility( const Block * block ) {
-  show_infeasibility( block , true );
-  show_infeasibility( block , false );
+ /// displays all Constraint of \p block that are not satisfied
+ /** This function displays the indices of the Constraint of \p block (and
+  * those of its sub-Blocks, recursively) that are not satisfied at the
+  * current solution (given by the values of the Variable of \p block).
+  *
+  * @param block A pointer to a Block whose Constraint will be checked.
+  *
+  * @param stream An stream to which the description of the unsatisfied
+  *        Constraint will be output. */
+
+ static void show_infeasibility( const Block * block ,
+                                 std::ostream & stream = std::cout ) {
+  show_infeasibility( block , true , stream );
+  show_infeasibility( block , false , stream );
   for( auto sub_block : block->get_nested_Blocks() )
-   show_infeasibility( sub_block );
+   show_infeasibility( sub_block , stream );
  }
 
 /*--------------------------------------------------------------------------*/
