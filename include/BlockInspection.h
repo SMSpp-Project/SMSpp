@@ -27,7 +27,7 @@
  *
  * \version 0.10
  *
- * \date 25 - 03 - 2021
+ * \date 16 - 08 - 2021
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -690,6 +690,74 @@ namespace SMSpp_di_unipi_it::inspection
       convert_index_type( group_index + group_index_offset ) , configs , ids );
   }
  }
+
+/*--------------------------------------------------------------------------*/
+
+ template<class T , class... Rest>
+ static std::vector< Index > get_infeasibility( boost::any & group ) {
+  std::vector< Index > indices;
+  Index constraint_index = 0;
+  const auto fill_indices =
+   [ &indices , &constraint_index ]( T & constraint ) {
+    constraint.compute();
+    if( ! constraint.feasible() )
+     indices.push_back( constraint_index );
+    ++constraint_index;
+   };
+  bool group_found = un_any_static( group , fill_indices , un_any_type< T >() );
+  if( group_found )
+   return indices;
+  if constexpr( sizeof...(Rest) != 0 )
+   return get_infeasibility<Rest...>( group );
+  return {};
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ static auto & get_constraints( const Block * block ,
+                                const bool static_constraints ) {
+  if( static_constraints )
+   return const_cast< Vec_any & >( block->get_static_constraints() );
+  return const_cast< Vec_any & >( block->get_dynamic_constraints() );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ static void show_infeasibility( const Block * block ,
+                                 const bool static_constraints ) {
+  std::string constraint_type = static_constraints ? "static" : "dynamic";
+  std::string block_name = block->name();
+  if( block_name.empty() )
+   block_name = block->classname();
+  Index i = 0;
+  for( auto & group : get_constraints( block , static_constraints ) ) {
+   auto indices = get_infeasibility< Constraint_Derived_Classes >( group );
+   if( ! indices.empty() ) {
+    const auto & group_name = block->get_s_const_name( i );
+    std::cout << "Unsatisfied " << constraint_type << " constraints in '"
+              << group_name << "' of Block '" << block_name << "': ";
+    bool add_comma = false;
+    for( const auto & index : indices ) {
+     if( add_comma ) std::cout << ", ";
+     std::cout << index;
+     add_comma = true;
+    }
+    std::cout << std::endl;
+   }
+   ++i;
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ static void show_infeasibility( const Block * block ) {
+  show_infeasibility( block , true );
+  show_infeasibility( block , false );
+  for( auto sub_block : block->get_nested_Blocks() )
+   show_infeasibility( sub_block );
+ }
+
+/*--------------------------------------------------------------------------*/
 
 }  // end( namespace SMSpp_di_unipi_it::inspection )
 
