@@ -765,7 +765,7 @@ namespace SMSpp_di_unipi_it::inspection
   * \p static_constraints indicates which constraints should be checked
   * (static or dynamic ones). If a Constraint is not satisfied at the current
   * solution, its index together with the name of the group to which this
-  * Constraint belong and the name of \p block (if not empty) are
+  * Constraint belongs and the name of \p block (if not empty) are
   * displayed. If the name of \p block (see Block::name()) is empty, then the
   * name of the class of the \p block is displayed instead (see
   * Block::classname()).
@@ -811,7 +811,13 @@ namespace SMSpp_di_unipi_it::inspection
  /// displays all Constraint of \p block that are not satisfied
  /** This function displays the indices of the Constraint of \p block (and
   * those of its sub-Blocks, recursively) that are not satisfied at the
-  * current solution (given by the values of the Variable of \p block).
+  * current solution (given by the values of the Variable of \p block). If a
+  * Constraint is not satisfied at the current solution, its index together
+  * with the name of the group to which this Constraint belongs and the name
+  * (if not empty) of the Block in which it is defined are displayed. If the
+  * name of the Block (see Block::name()) in which the Constraint is defined
+  * is empty, then the name of the class of the Block is displayed instead
+  * (see Block::classname()).
   *
   * @param block A pointer to a Block whose Constraint will be checked.
   *
