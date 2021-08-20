@@ -3,13 +3,9 @@
 /*--------------------------------------------------------------------------*/
 /** @file
  * Implementation of the LagBFunction class, which is derived from both a
- * C05Function and a Block and implements the concept of the Lagrangian of
- * some Block (the unique sub-Block of LagBFunction when "seen" as a Block)
- * w.r.t. a given set of linear terms.
- *
- * \version 0.20
- *
- * \date 24 - 04 - 2021
+ * C05Function and a Block and implements the concept of the Lagrangian 
+ * function of some Block (the unique sub-Block of LagBFunction when "seen"
+ * as a Block) w.r.t. a given set of linear terms.
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -125,8 +121,9 @@ LagBFunction::LagBFunction( Block * innerblock , Observer * observer )
    InnrSlvr( 0 ) , NoSol( false ) , ChkState( false ) ,
    p_InnrSlvr( nullptr ) , f_max_glob( 0 ) , LastSolution( 0 ) ,
    VarSol( true ) , f_yb( -INF ) , f_play_dumb( false ) ,
-   f_dirty_Lc( false ) , LPMaxSz( 0 ) , RAccLin( 0 ) , AAccLin( 0 ) ,
-   f_BSC( new BlockSolverConfig ) , f_BSC_changed( false ) , f_id( this )
+   f_dirty_Lc( false ) , f_c_changed( false ) ,  LPMaxSz( 0 ) , RAccLin( 0 ) ,
+   AAccLin( 0 ) , f_BSC( new BlockSolverConfig ) , f_BSC_changed( false ) ,
+   f_id( this )
 {
  // set the pointer to the sub-Block (B) - - - - - - - - - - - - - - - - - - -
  if( innerblock )
@@ -198,7 +195,8 @@ void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
  if( ! obj ) {
   qobj = dynamic_cast< p_QF >( frobj->get_function() );
   if( ! qobj )
-   throw( std::invalid_argument( "unmanaged inner Block Objective" ) );
+   throw( std::invalid_argument(
+			 "unmanaged inner Block FRealObjective Function" ) );
   }
 
  // construct CostMatrix whose size is that of active variables in (obj_B)
@@ -225,9 +223,11 @@ void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
  if( ! f_BSC )
   init_BSC();
 
- v_tmpCP.clear();    // no terms to be stealthily added to obj yet
+ v_tmpCP.clear();      // no terms to be stealthily added to obj yet
 
- f_dirty_Lc = true;  // Lagrangian costs have to be updated
+ f_c_changed = false;  // Lagrangian costs are still == to original costs
+ f_dirty_Lc = ! LagPairs.empty();  // ... hence they have to be updated,
+                                   // unless the Lagrangian term is empty
 
  }  // end( LagBFunction::set_inner_block )
 
@@ -264,7 +264,9 @@ void LagBFunction::set_dual_pairs( v_dual_pair && dp )
    f_yb = NaN; break;               // if so, yb has to be computed
    }
 
- f_dirty_Lc = true;                 // Lagrangian costs have to be updated
+ // Lagrangian costs have to be updated unless by chance they are still the
+ // original ones and the newly set Lagrangian term is actually empty
+ f_dirty_Lc = f_c_changed || ( ! LagPairs.empty() );
 
  }  // end( LagBFunction::set_dual_pairs )
 
@@ -499,7 +501,9 @@ void LagBFunction::deserialize( const netCDF::NcGroup & group )
  // ensure a "default" f_BSC is there (it is deleted in guts_of)
  init_BSC();
 
- f_dirty_Lc = true;     // Lagrangian costs have to be updated
+ f_c_changed = false;   // Lagrangian costs are still == to original costs
+ f_dirty_Lc = ! LagPairs.empty();  // ... hence they have to be updated,
+                                   // unless the Lagrangian term is empty
  f_yb = INF;            // have to check if b == 0 or not
 
  // now the inner Block - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -613,11 +617,15 @@ void LagBFunction::remove_variable( Index i , ModParam issueMod )
   f_yb = INF;  // if so, signal to check if b == 0 or not
   }
 
- f_dirty_Lc = true;  // Lagrangian costs have to be updated
-
  // now actually eliminate the row from LagPairs - - - - - - - - - - - - - - -
  auto itv = LagPairs.begin() + i;
  auto var = itv->first;
+
+ if( itv->second->get_num_active_var() > 0 )
+  f_dirty_Lc = true;
+ // Lagrangian costs have to be updated unless in the stange case where the
+ // removed variable had an empty corresponding Lagrangian term
+
  LagPairs.erase( itv );       // erase it
 
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
@@ -640,8 +648,6 @@ void LagBFunction::remove_variables( Range range , ModParam issueMod )
  if( range.second <= range.first )  // actually nothing to remove
   return;                           // cowardly (and silently) return
 
- f_dirty_Lc = true;  // Lagrangian costs have to be updated anyway
-
  if( ( ! range.first ) && ( range.second >= LagPairs.size() ) ) {
   // removing *all* variable
   if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
@@ -663,6 +669,10 @@ void LagBFunction::remove_variables( Range range , ModParam issueMod )
    }
   else          // no-one is listening
    clear_lp();  // just do it
+
+  f_dirty_Lc = f_c_changed;  // since the Lagrangian term is now empty, the
+  // Lagrangian costs should be the original costs, so they will have to be
+  // modified unless by chance they already are so
 
   f_yb = -INF;  // b is empty, hence there are no nonzeros
   return;
@@ -722,8 +732,13 @@ void LagBFunction::remove_variables( Range range , ModParam issueMod )
 
   Vec_p_Var vars( range.second - range.first );
   auto vpit = vars.begin();
-  for( auto tmpit = strtit ; tmpit < stopit ; )
+  for( auto tmpit = strtit ; tmpit < stopit ; ) {
+   // if any of the removed Lagrangian terms is nonempty, Lagrangian costs
+   // will have to be updated
+   if( tmpit->second->get_num_active_var() > 0 )
+    f_dirty_Lc = true;
    *(vpit++) = (tmpit++)->first;
+   }
 
   LagPairs.erase( strtit , stopit );
 
@@ -733,9 +748,18 @@ void LagBFunction::remove_variables( Range range , ModParam issueMod )
 				       Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
   }
- else  // noone is there: just do it
-  LagPairs.erase( strtit , stopit );
+ else {  // noone is there: just do it
+  // if any of the removed Lagrangian terms is nonempty, Lagrangian costs
+  // will have to be updated
+  if( ! f_dirty_Lc )
+   for( auto tmpit = strtit ; tmpit != stopit ; ++tmpit )
+    if( tmpit->second->get_num_active_var() > 0 ) {
+     f_dirty_Lc = true;
+     break;
+     }
 
+  LagPairs.erase( strtit , stopit );
+  }
  }  // end( LinearFunction::remove_variables( range ) )
 
 /*--------------------------------------------------------------------------*/
@@ -743,8 +767,6 @@ void LagBFunction::remove_variables( Range range , ModParam issueMod )
 void LagBFunction::remove_variables( Subset && nms , bool ordered ,
 				     ModParam issueMod )
 {
- f_dirty_Lc = true;  // Lagrangian costs have to be updated anyway
-
  if( nms.empty() ) {  // removing all Variable
   if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
    // an Observer is there: copy the names of deleted Variable (all of them)
@@ -766,6 +788,9 @@ void LagBFunction::remove_variables( Subset && nms , bool ordered ,
   else          // no-one is listening
    clear_lp();  // just do it
 
+  f_dirty_Lc = f_c_changed;  // since the Lagrangian term is now empty, the
+  // Lagrangian costs should be the original costs, so they will have to be
+  // modified unless by chance they already are so
   f_yb = -INF;  // b is empty, hence there are no nonzeros
   return;
   }
@@ -832,6 +857,15 @@ void LagBFunction::remove_variables( Subset && nms , bool ordered ,
     f_yb = INF; break;  // if so, signal to check if b == 0 or not
     }
 
+ // if any of the removed Lagrangian terms is nonempty, Lagrangian costs
+ // will have to be updated
+ if( ! f_dirty_Lc )
+  for( auto i : nms )
+   if( LagPairs[ i ].second->get_num_active_var() > 0 ) {
+    f_dirty_Lc = true;
+    break;
+    }
+
  // now actually eliminate the rows from LagPairs- - - - - - - - - - - - - - -
  auto it = nms.begin();
  auto vi = *it;    // first element to be eliminated
@@ -875,6 +909,9 @@ void LagBFunction::remove_variables( Subset && nms , bool ordered ,
 
 void LagBFunction::cleanup_inner_objective( void )
 {
+ if( ! f_c_changed )  // Lagrangian costs are already == to original costs
+  return;             // nothing to do
+
  Vec_FunctionValue NC( CostMatrix.size() );
  for( Index i = 0 ; i < CostMatrix.size() ; ++i )
   NC[ i ] = CostMatrix[ i ].first;
@@ -887,7 +924,9 @@ void LagBFunction::cleanup_inner_objective( void )
   qobj->modify_linear_coefficients( std::move( NC ) );
 
  f_play_dumb = false;  // back to normal operations
- f_dirty_Lc = true;  // Lagrangian costs will have to be updated
+ f_c_changed = false;  // Lagrangian costs are now == to original costs
+ f_dirty_Lc = ! LagPairs.empty();  // ... hence they have to be updated,
+                                   // unless the Lagrangian term is empty
  }
 
 /*--------------------------------------------------------------------------*/
@@ -980,6 +1019,13 @@ void LagBFunction::serialize( netCDF::NcGroup & group ) const
  if( v_Block.size() != 1 )
   throw( std::invalid_argument( "exactly one sub-Block expected" ) );
 
+ netCDF::NcGroup sb = group.addGroup( "B" );
+
+ if( ! f_c_changed ) {  // if the costs are still the original ones
+  v_Block.front()->serialize( sb );  // just do it
+  return;                            // nothing else to do
+  }
+
  // temporarily put back the original costs into the Objective of the
  // inner Block before deserialising, and then restore the current one,
  // which requires locking it
@@ -1036,7 +1082,6 @@ void LagBFunction::serialize( netCDF::NcGroup & group ) const
   qobj->modify_linear_coefficients( std::move( NCoef1 ) );
 
  // serialize the sub-block
- netCDF::NcGroup sb = group.addGroup( "B" );
  v_Block.front()->serialize( sb );
 
  // put back the Lagrangian costs
@@ -1531,8 +1576,12 @@ int LagBFunction::compute( bool changedvars )
   }
 
  // check what needs be updated- - - - - - - - - - - - - - - - - - - - - - - -
- if( changedvars ) {  // if the Lagrangian variables have changed
-  f_dirty_Lc = true;  // Lagrangian costs c^y = c + yA need be recomputed
+ if( changedvars && ( ! ( LagPairs.empty() && ( ! f_c_changed ) ) ) ) {
+  // if the Lagrangian variables have changed, then Lagrangian costs
+  // c^y = c + yA need be recomputed; however, this is unless there are
+  // actually no Lagrangian variables and the costs are stll the original
+  // ones, because then c^y = c
+  f_dirty_Lc = true;
   if( ( ! std::isnan( f_yb ) ) && ( f_yb > -INF ) )
                       // unless b is known to be all-0
    f_yb = NaN;        // force to recompute the linear term yb
@@ -1581,6 +1630,7 @@ int LagBFunction::compute( bool changedvars )
   
   f_play_dumb = false;               // back to normal operations
   f_dirty_Lc = false;                // Lagrangian costs are current
+  f_c_changed = true;                // ... and hence no longer original
   }
 
  // if the inner Block had to be locked, for whatever reason
