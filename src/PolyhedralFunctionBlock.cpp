@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 13 - 10 - 2019
+ * \date 22 - 08 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -847,8 +847,6 @@ bool PolyhedralFunctionBlock::guts_of_add_Modification_PF(
  f_bcv.set_rhs( f_polyf.get_global_upper_bound() , eNoMod );
 
  // clear out the linear constraints
- for( auto & ci : f_const )
-  ci.clear();
  f_const.clear();
 
  // now add the linear constraints back again
