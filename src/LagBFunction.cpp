@@ -915,7 +915,7 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
     g_pool[ i ].first = nullptr;
    f_max_glob = 0;
    }
-  else
+  else {
    for( Index i = 0 ; i < f_max_glob ; ++i ) {
     if( g_pool[ i ].first ) {  // a Solution is there
      ++cnt;
@@ -931,10 +931,14 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
       delete g_pool[ i ].first;  // eliminate it
       g_pool[ i ].first = nullptr;
       which.push_back( i );      // recall its name
+      LastSolution = g_pool.size();
+      // say that no Solution is saved in the Block, since the name is now
+      // available again for a different Solution
       }
      }
-    update_f_max_glob();
     }
+   update_f_max_glob();
+   }
 
   // if nobody is listening (assuming issueMod == eModBlck)
   if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( eModBlck ) ) )
