@@ -1,5 +1,5 @@
 # --------------------------------------------------------------------------- #
-#    Custom CMake find module for netCDF                                      #
+#    Custom CMake find module for netCDF-C                                    #
 #                                                                             #
 #    This module finds netCDF include directories and libraries.              #
 #    Use it by invoking find_package() with the form:                         #
@@ -18,10 +18,9 @@
 #        netCDF_INCLUDE_DIR   - Directory containing headers                  #
 #        netCDF_LIBRARY       - The found library                             #
 #                                                                             #
-#    This module reads hints about search locations from variables:           #
+#    This module can read a search path from the variable:                    #
 #                                                                             #
-#        NETCDF_INC           - Preferred include directory                   #
-#        NETCDF_LIB           - Preferred library directory                   #
+#        netCDF_ROOT          - Preferred netCDF-C location                   #
 #                                                                             #
 #    The following IMPORTED target is also defined:                           #
 #                                                                             #
@@ -51,13 +50,11 @@ else ()
     # ----- Find the headers and library ------------------------------------ #
     # Note that find_path() creates a cache entry
     find_path(netCDF_INCLUDE_DIR netcdf.h
-              HINTS ${NETCDF_INC}
               DOC "netCDF include directory.")
 
     # Note that find_library() creates a cache entry
     find_library(netCDF_LIBRARY
                  NAMES netcdf
-                 HINTS ${NETCDF_LIB}
                  DOC "netCDF library.")
 
     # TODO: Find a way to get the version
@@ -92,3 +89,5 @@ endif ()
 mark_as_advanced(netCDF_INCLUDE_DIR
                  netCDF_LIBRARY
                  netCDF_VERSION)
+
+# --------------------------------------------------------------------------- #

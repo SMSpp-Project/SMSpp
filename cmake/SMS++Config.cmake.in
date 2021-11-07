@@ -17,29 +17,39 @@
 get_filename_component(@modName@_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
 include(CMakeFindDependencyMacro)
 
+# ----- Settings ------------------------------------------------------------ #
+set(BOOST_ROOT @BOOST_ROOT@)
+set(Eigen3_ROOT @Eigen3_ROOT@)
+set(netCDF_ROOT @netCDF_ROOT@)
+set(netCDFCxx_ROOT @netCDFCxx_ROOT@)
+
 # ----- Requirements -------------------------------------------------------- #
 find_dependency(Boost)
 
 # This is needed to find the find modules we provide
 list(APPEND CMAKE_MODULE_PATH ${@modName@_CMAKE_DIR})
 
-# This will try first with Eigen3 own configuration file,
-# then with the find module we provide.
+# Try first with library's own configuration file, then with our find module.
 # Don't use find_dependency() because it will call return().
-find_package(Eigen3 QUIET NO_MODULE)
+find_package(Eigen3 NO_MODULE)
 if (NOT Eigen3_FOUND)
     find_dependency(Eigen3)
 endif ()
 
-# This will straight use our find module, as netCDF-C++
-# configuration file doesn't work.
-find_dependency(netCDFCxx)
+# Try first with library's own configuration file, then with our find module.
+# Don't use find_dependency() because it will call return().
+find_package(netCDFCxx QUIET NO_MODULE)
+if (NOT netCDFCxx_FOUND)
+    find_dependency(netCDFCxx REQUIRED)
+endif ()
 
 list(REMOVE_AT CMAKE_MODULE_PATH -1)
 
 # ----- Import target ------------------------------------------------------- #
 if (NOT TARGET @modNamespace@::@modName@)
     include("${@modName@_CMAKE_DIR}/@modName@Targets.cmake")
-endif()
+endif ()
 
 set(@modName@_LIBRARIES @modNamespace@::@modName@)
+
+# --------------------------------------------------------------------------- #

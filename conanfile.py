@@ -57,4 +57,4 @@ class SmsppConan(ConanFile):
 
     def package_info(self):
         self.cpp_info.includedirs = ["include", "include/SMS++"]
-        self.cpp_info.libs = ["SMSpp"]
+        self.cpp_info.libs = ["SMS++"]
