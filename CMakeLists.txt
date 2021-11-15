@@ -19,8 +19,9 @@
 #                         Dipartimento di Informatica                         #
 #                             Universita' di Pisa                             #
 # --------------------------------------------------------------------------- #
-cmake_minimum_required(VERSION 3.11)
-project(SMSpp
+cmake_minimum_required(VERSION 3.12)
+cmake_policy(VERSION 3.12)
+project(SMS++
         VERSION 0.4.0
         DESCRIPTION "SMS++ core library"
         HOMEPAGE_URL https://gitlab.com/smspp/smspp
@@ -29,11 +30,13 @@ project(SMSpp
 # These variables make the code harder to read but easier to change.
 set(modName ${PROJECT_NAME})
 set(modNamespace "SMS++")
-set(modHeader "${modName}Config.h")
-set(modTargets "${modName}Targets")
 
 # Find out if it's being called by the umbrella.
 get_directory_property(hasParent PARENT_DIRECTORY)
+
+# This adds the cmake directory to the module search paths,
+# allowing us to use our modules.
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 # ----- Settings ------------------------------------------------------------ #
 # This creates an ENABLE_TESTING option (default: ON) and enables the testing
@@ -41,47 +44,37 @@ get_directory_property(hasParent PARENT_DIRECTORY)
 # See: https://cmake.org/cmake/help/latest/manual/ctest.1.html
 include(CTest)
 
+# Sets the default build type (if none was specified).
+# See: https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html
+include(BuildType)
+
 # ----- Requirements -------------------------------------------------------- #
 # The Boost find module is provided by CMake,
 # so this command will always work.
 find_package(Boost 1.72.0 REQUIRED)
 
-# This adds the cmake directory to the find module search paths,
-# allowing us to use our find modules.
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
-
-# This will try first with Eigen3 own configuration file,
-# then with our find module.
+# Try first with library's own configuration file, then with our find module.
 find_package(Eigen3 NO_MODULE)
 if (NOT Eigen3_FOUND)
     find_package(Eigen3 REQUIRED)
 endif ()
 
-# This will straight use our find module, as the configuration file
-# that ships with netCDF-C++ doesn't work.
-find_package(netCDFCxx REQUIRED)
-
-# This removes from the search paths the cmake directory we added above.
-list(REMOVE_AT CMAKE_MODULE_PATH -1)
+# Try first with library's own configuration file, then with our find module.
+find_package(netCDFCxx QUIET NO_MODULE)
+if (NOT netCDFCxx_FOUND)
+    find_package(netCDFCxx REQUIRED)
+endif ()
 
 # ----- Configuration header ------------------------------------------------ #
 # This will generate a *Config.h header in the build directory.
-configure_file(cmake/${modHeader}.in ${modHeader})
+configure_file(cmake/${modName}Config.h.in ${modName}Config.h)
 
 # ----- Library ------------------------------------------------------------- #
 # With the BUILD_SHARED_LIBS variable we can specify if the library will
 # be STATIC or SHARED, so no reason to do it now.
 add_library(${modName})
 target_compile_features(${modName} PUBLIC cxx_std_17)
-
-# This definition is needed because the version of Clang shipped with
-# macOS Big Sur has an issue with boost::any type recognition.
-# TODO: Remove this when it's not needed anymore
-if (${CMAKE_CXX_COMPILER_ID} MATCHES "AppleClang" AND
-    ${CMAKE_SYSTEM_NAME} MATCHES "Darwin" AND
-    ${CMAKE_SYSTEM_VERSION} VERSION_GREATER_EQUAL 20.1.0)
-    target_compile_definitions(${modName} PUBLIC CLANG_1200_0_32_27_PATCH)
-endif ()
+include(ClangPatch) # TODO: Remove this when it's not needed anymore
 
 # When adding source files with target_sources(), PRIVATE means that the files
 # should only be added to this library, whereas PUBLIC means they should be
@@ -162,7 +155,7 @@ include(GNUInstallDirs)
 
 # Install the library
 install(TARGETS ${modName}
-        EXPORT ${modTargets}
+        EXPORT ${modName}Targets
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
@@ -176,7 +169,7 @@ install(FILES ${PROJECT_BINARY_DIR}/${modName}Config.h
 
 # (Generate and) install the target import file, that allows other
 # CMake projects to import the target.
-install(EXPORT ${modTargets}
+install(EXPORT ${modName}Targets
         NAMESPACE ${modNamespace}::
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${modName})
 
@@ -213,32 +206,6 @@ install(FILES
         ${CMAKE_CURRENT_LIST_DIR}/LICENSE
         DESTINATION ${CMAKE_INSTALL_DATADIR}/${modName})
 
-# ----- Export from the build tree ------------------------------------------ #
-# The following commands are needed so other projects can find the library
-# in a local build directory. They use CMake's User Package Registry
-# (located in ~/.cmake/registry) to do so.
-# See: https://cmake.org/cmake/help/latest/manual/cmake-packages.7.html
-# They don't affect the installation.
-
-# CMAKE_EXPORT_PACKAGE_REGISTRY is OFF by default.
-# It may be ON if the project is included by the SMS++ umbrella project.
-if (CMAKE_EXPORT_PACKAGE_REGISTRY)
-
-    # Generate the target import file, that allows other
-    # CMake projects to import the target.
-    export(EXPORT ${modTargets}
-           FILE ${CMAKE_CURRENT_BINARY_DIR}/${modTargets}.cmake
-           NAMESPACE ${modNamespace}::)
-
-    # Export the find modules for the local configuration file to use them.
-    foreach (findMod ${findMods})
-        configure_file(${findMod} ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
-    endforeach ()
-
-    # Export the package in user's package registry
-    export(PACKAGE ${modName})
-endif()
-
 # ----- Add the build tree to RPATH------------------------------------------ #
 # Add the binary directory to RPATH, so executables that use
 # dynamic loading will look into it.
@@ -265,5 +232,9 @@ if (NOT hasParent)
         \\\\.gitattributes$)
     include(CPack)
 endif ()
+
+# --------------------------------------------------------------------------- #
+# Remove from the search paths the cmake directory we added at the beginning.
+list(REMOVE_AT CMAKE_MODULE_PATH -1)
 
 # --------------------------------------------------------------------------- #

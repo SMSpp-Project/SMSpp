@@ -18,10 +18,9 @@
 #        netCDFCxx_INCLUDE_DIR   - Directory containing headers               #
 #        netCDFCxx_LIBRARY       - The found library                          #
 #                                                                             #
-#    This module reads hints about search locations from variables:           #
+#    This module can read a search path from the variable:                    #
 #                                                                             #
-#        NETCDFCXX_INC           - Preferred include directory                #
-#        NETCDFCXX_LIB           - Preferred library directory                #
+#        netCDFCxx_ROOT          - Preferred netCDF-C++ location              #
 #                                                                             #
 #    The following IMPORTED target is also defined:                           #
 #                                                                             #
@@ -39,15 +38,12 @@
 include(FindPackageHandleStandardArgs)
 
 # ----- Requirements -------------------------------------------------------- #
-# NetCDF's configuration file has a bug that prevents it from working
-# under macOS 11.0, so in that case we use our own find module.
-# TODO: This should be a temporary fix
-if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin" AND
-    ${CMAKE_SYSTEM_VERSION} VERSION_GREATER_EQUAL 20.1.0)
+# Try first with library's own configuration file, then with our find module.
+find_package(netCDF NO_MODULE)
+if (NOT netCDF_FOUND)
     find_package(netCDF REQUIRED)
     set(ncTarget "netCDF::netcdf")
 else ()
-    find_package(netCDF REQUIRED CONFIG)
     # Before 4.7.3, netCDF exported a target without namespace
     if ("${netCDF_VERSION}" VERSION_LESS "4.7.3")
         set(ncTarget "netcdf")
@@ -56,7 +52,7 @@ else ()
     endif ()
 endif ()
 
-# Check if already in cache
+# ----- Check if already in cache ------------------------------------------- #
 if (netCDFCxx_INCLUDE_DIR AND netCDFCxx_LIBRARY)
     set(netCDFCxx_FOUND TRUE)
 else ()
@@ -64,13 +60,13 @@ else ()
     # ----- Find the headers and library ------------------------------------ #
     # Note that find_path() creates a cache entry
     find_path(netCDFCxx_INCLUDE_DIR netcdf
-              HINTS ${NETCDFCXX_INC}
+              HINTS ${netCDF_ROOT}/include
               DOC "netCDF-C++ include directory.")
 
     # Note that find_library() creates a cache entry
     find_library(netCDFCxx_LIBRARY
                  NAMES netcdf-cxx4 netcdf_c++4
-                 HINTS ${NETCDFCXX_LIB}
+                 HINTS ${netCDF_ROOT}/lib
                  DOC "netCDF-C++ library.")
 
     # Get version from netCDF (there is no way to parse it from the headers)
@@ -108,3 +104,5 @@ endif ()
 mark_as_advanced(netCDFCxx_INCLUDE_DIR
                  netCDFCxx_LIBRARY
                  netCDFCxx_VERSION)
+
+# --------------------------------------------------------------------------- #

@@ -67,8 +67,8 @@ sudo make install
 After the library is built, you can use it in your CMake project with:
 
 ```cmake
-find_package(SMSpp)
-target_link_libraries(<my_target> SMS++::SMSpp)
+find_package(SMS++)
+target_link_libraries(<my_target> SMS++::SMS++)
 ```
 
 ### Running the tests with CMake
