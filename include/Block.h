@@ -7189,13 +7189,14 @@ class Block : public Observer {
 
 /*--------------------------------------------------------------------------*/
 /** This method removes the given Variable from all Constraints and Objectives
- * in which it is active. Since the removal of a Variable from a Constraint or
- * Objective may result in a Modification being thrown, this Modification can
- * be avoided by setting the parameter throw_individual_modifications to
- * false [see remove_dynamic_variables()]. */
+ * in which it is active. The removal of a Variable from a Constraint or
+ * Objective typically results in a Modification being issued, which may be
+ * wasteful in some cases; to avoid this one could "just" use issueindMod ==
+ * eNoMod, although this has to be done with great care [see the comments to
+ * remove_dynamic_variables()]. */
 
- void remove_variable_from_stuff( Variable * const variable,
-                                  int issueindMod );
+ void remove_variable_from_stuff( Variable * const variable ,
+				  int issueindMod );
 
 /*--------------------------------------------------------------------------*/
 /// returns the bimap associated with the methods of type F
