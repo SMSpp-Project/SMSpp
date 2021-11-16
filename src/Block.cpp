@@ -594,16 +594,12 @@ void Block::remove_constraint_from_variables( Constraint * constraint )
 {
  for( Constraint::Index i = 0 ; i < constraint->get_num_active_var() ; )
   constraint->get_active_var( i++ )->remove_active( constraint );
- /*!!
- for( auto & var : *constraint )
-  var.remove_active( constraint );
-  !!*/
  }
 
 /*--------------------------------------------------------------------------*/
 
 void Block::remove_variable_from_stuff( Variable * const variable ,
-                                        const int issueindMod )
+                                        int issueindMod )
 {
  for( Variable::Index i = 0 ; i < variable->get_num_active() ; ) {
   auto si = variable->get_active( i++ );
@@ -611,7 +607,7 @@ void Block::remove_variable_from_stuff( Variable * const variable ,
   if( ivar >= si->get_num_active_var() )
    throw ( std::logic_error( "inconsistency between active lists" ) );
 
-  si->remove_variable( ivar, issueindMod );
+  si->remove_variable( ivar , issueindMod );
   }
  }
 
