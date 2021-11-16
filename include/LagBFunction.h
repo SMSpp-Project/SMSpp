@@ -3,13 +3,9 @@
 /*--------------------------------------------------------------------------*/
 /** @file
  * Header file for the LagBFunction class, which is derived from both a
- * C05Function and a Block and implements the concept of the Lagrangian of
- * some Block (the unique sub-Block of LagBFunction when "seen" as a Block)
- * w.r.t. a given set of linear terms.
- *
- * \version 0.20
- *
- * \date 03 - 01 - 2021
+ * C05Function and a Block and implements the concept of the Lagrangian
+ * function of some Block (the unique sub-Block of LagBFunction when "seen"
+ * as a Block) w.r.t. a given set of linear terms.
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -1670,7 +1666,9 @@ class LagBFunction : public C05Function , public Block {
   * such problem. */
 
  bool f_dirty_Lc;     ///< true if Lagrangian costs have to be modified
- 
+
+ bool f_c_changed;    ///< true if the costs in the Block are not original
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  int LPMaxSz;         ///< maximum size of the "local pool"

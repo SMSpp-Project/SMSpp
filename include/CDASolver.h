@@ -532,7 +532,7 @@ class CDASolver : public Solver {
   * CDASolver  is only supposed to return true if it is *certain* to be able
   * to produce a new dual solution, which typically means having in fact
   * produced it. However, the dual solution is not really written in the
-  * Block until get_var_solution() is called, so part of the cost of
+  * Block until get_dual_solution() is called, so part of the cost of
   * producing it may in fact be bore by that method.
   *
   * While producing its dual solutions, it is expected that a CDASolver
