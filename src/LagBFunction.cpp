@@ -1377,7 +1377,8 @@ bool LagBFunction::compute_new_linearization( const bool diagonal )
 void LagBFunction::store_linearization( Index name , ModParam issueMod )
 {
  if( name >= g_pool.size() )
-  throw( std::logic_error( "LagBFunction: invalid linearization name" ) );
+  throw( std::logic_error(
+	 "LagBFunction::store_linearization: invalid linearization name" ) );
 
  // throw exception if the solution does not exist or has been already stored
  if( LastSolution < Inf<Index>() )
@@ -1476,7 +1477,8 @@ void LagBFunction::store_combination_of_linearizations(
 void LagBFunction::delete_linearization( Index name , ModParam issueMod )
 {
  if( ( name >= g_pool.size() ) || ( ! g_pool[ name ].first ) )
-  throw( std::invalid_argument( "invalid linearization name" ) );
+  throw( std::invalid_argument(
+	 "LagBFunction::delete_linearization: invalid linearization name" ) );
 
  if( ! NoSol )                    // if the Solution is there
   delete g_pool[ name ].first;    // delete it
@@ -1532,11 +1534,13 @@ void LagBFunction::delete_linearizations( Subset && which , bool ordered ,
   std::sort( which.begin() , which.end() );
 
  if( which.back() >= g_pool.size() )
-  throw( std::invalid_argument( "invalid linearization name" ) );
+  throw( std::invalid_argument(
+       "LagBFunction::delete_linearizations: invalid linearization name" ) );
 
  for( auto i : which ) {
   if( ! g_pool[ i ].first )
-   throw( std::invalid_argument( "invalid linearization name" ) );
+   throw( std::invalid_argument(
+       "LagBFunction::delete_linearizations: invalid linearization name" ) );
 
   if( i == LastSolution )    // if this was the Solution in the inner Block
    LastSolution = g_pool.size();  // it is no longer valid
@@ -1709,7 +1713,9 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
   // associated with the given name will be retrieved from the global pool
 
   if( ! g_pool[ name ].first )
-   throw( std::logic_error( "invalid linearization name" ) );
+   throw( std::logic_error(
+   "LagBFunction::get_linearization_coefficients: invalid linearization name"
+			   ) );
 
   if( LastSolution != name ) {
    g_pool[ name ].first->write( v_Block.front() );
@@ -1756,7 +1762,9 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
   // associated with the given name will be retrieved from the global pool
 
   if( ! g_pool[ name ].first )
-   throw( std::logic_error( "invalid linearization name" ) );
+   throw( std::logic_error(
+   "LagBFunction::get_linearization_coefficients: invalid linearization name"
+			   ) );
 
   if( LastSolution != name ) {
    g_pool[ name ].first->write( v_Block.front() );

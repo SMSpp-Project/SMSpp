@@ -960,7 +960,8 @@ class LagBFunction : public C05Function , public Block {
 
  bool is_linearization_there( Index name ) const override {
   if( name >= g_pool.size() )
-   throw( std::invalid_argument( "invalid linearization name" ) );
+   throw( std::invalid_argument(
+       "LagBFunction::is_linearization_there: invalid linearization name" ) );
   return( g_pool[ name ].first );
   }
 
@@ -968,7 +969,8 @@ class LagBFunction : public C05Function , public Block {
 
  bool is_linearization_vertical( Index name ) const override {
   if( name >= g_pool.size() )
-   throw( std::invalid_argument( "invalid linearization name" ) );
+   throw( std::invalid_argument(
+     "LagBFunction::is_linearization_vertical:invalid linearization name" ) );
   return( ! g_pool[ name ].second );
   }
 

@@ -433,11 +433,13 @@ void PolyhedralFunction::delete_linearizations( Subset && which ,
   std::sort( which.begin() , which.end() );
 
  if( which.back() >= v_glob.size() )
-  throw( std::invalid_argument( "invalid linearization name" ) );
+  throw( std::invalid_argument(
+  "PolyhedralFunction::delete_linearizations: invalid linearization name" ) );
 
  for( auto i : which ) {
   if( v_glob[ i ] == Inf<int>() )
-   throw( std::invalid_argument( "invalid linearization name" ) );
+   throw( std::invalid_argument(
+   "PolyhedralFunction::delete_linearizations: invalid linearization name" ) );
 
   if( v_glob[ i ] < 0 )  // an aggregate linearization
    v_ab[ - v_glob[ i ] - 1 ] = Inf<FunctionValue>();  // mark it for deletion
@@ -2298,7 +2300,8 @@ Function::FunctionValue * PolyhedralFunction::get_ai( Index name )
  if( gn <= get_nrows() )  // original linearization
   return( v_A[ --gn ].data() );
 
- throw( std::invalid_argument( "invalid linearization name" ) );
+ throw( std::invalid_argument(
+	        "PolyhedralFunction::get_ai: invalid linearization name" ) );
 
  return( nullptr );
  }
