@@ -524,7 +524,7 @@ class PolyhedralFunction : public C05Function {
       break;             // all done
 
      // issue the C05FunctionMod
-     f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
+     f_Observer->add_Modification( std::make_shared< C05FunctionMod >( this ,
 		       C05FunctionMod::AlphaChanged , Subset( {} ) , 0 ) );
      }
     break;

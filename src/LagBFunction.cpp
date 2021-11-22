@@ -984,20 +984,28 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
    return;  // all done
   
   // issue a LagBFunctionMod: if some linearisations have been removed it has
-  // type() == GlobalPoolRemoved, otherwise it has/ type() == NothingChanged;
+  // type() == GlobalPoolRemoved, otherwise it has type() == NothingChanged
+  // note: the explicit definition of type here was originally avoided by
+  //       having the ? expression directly in the constructor, but this
+  //       meant that the same expressio had a check if which was nonempty
+  //       and a std-move of which that could make it empty, i.e., the
+  //       perfect example of an expression with side-effects whose result
+  //       depended on the order of the sub-expressions and therefore was
+  //       compiler-dependent, meaning extremely-hard-to-find errors 
+  auto type = which.empty() ? C05FunctionMod::NothingChanged
+                            : C05FunctionMod::GlobalPoolRemoved;
+
   // in both cases it has shift() == NaN, since even if by chance none of the
   // existing linearizations is affected (but this may simply be because
   // there is none) the value of the function in general has changed
   // unpredictably
   // if all linearizations have been removed, then pass an empty Subset
-  f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
-				        ( ! which.empty() )
-				        ? C05FunctionMod::GlobalPoolRemoved
-				        : C05FunctionMod::NothingChanged ,
-					( cnt > which.size() )
-					? std::move( which ) : Subset() ,
-					what ,
-					C05FunctionMod::NaNshift , true ) ,
+  if( cnt == which.size() )
+   which.clear();
+ 
+  f_Observer->add_Modification( std::make_shared< LagBFunctionMod >(
+				    this , type , std::move( which ) , what ,
+				    C05FunctionMod::NaNshift , true ) ,
 				chnl );
 
   }  // end( if( checking is required ) )
@@ -1183,14 +1191,14 @@ void LagBFunction::put_State( const State & state )
  // note that the GlobalPoolRemoved Modification is issued with
  // what == 0, i.e., nothing really has changed in the inner Block
  if( ! gpempty )
-  f_Observer->add_Modification( std::make_shared<LagBFunctionMod>( this ,
+  f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
 				   C05FunctionMod::GlobalPoolRemoved ,
 				   std::move( Subset() ) , 0 , 0 ) );
 
  // then tell about additions (if there is anything to add), so that the
  // aggregated linearizations are substituted with the new ones
  if( ! Addd.empty() )
-  f_Observer->add_Modification( std::make_shared<LagBFunctionMod>( this ,
+  f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
 				   C05FunctionMod::GlobalPoolAdded ,
 				   std::move( Addd ) , 0 , 0 ) );
 
@@ -1272,14 +1280,14 @@ void LagBFunction::put_State( State && state )
  // note that the GlobalPoolRemoved Modification is issued with
  // what == 0, i.e., nothing really has changed in the inner Block
  if( ! gpempty )
-  f_Observer->add_Modification( std::make_shared<LagBFunctionMod>( this ,
+  f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
 				   C05FunctionMod::GlobalPoolRemoved ,
 				   std::move( Subset() ) , 0 , 0 ) );
 
  // then tell about additions (if there is anything to add), so that the
  // aggregated linearizations are substituted with the new ones
  if( ! Addd.empty() )
-  f_Observer->add_Modification( std::make_shared<LagBFunctionMod>( this ,
+  f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
 				   C05FunctionMod::GlobalPoolAdded ,
 				   std::move( Addd ) , 0 , 0 ) );
 
@@ -1411,9 +1419,9 @@ void LagBFunction::store_linearization( Index name , ModParam issueMod )
   return;
   
  f_Observer->add_Modification( std::make_shared< C05FunctionMod >( this ,
-				         C05FunctionMod::GlobalPoolAdded ,
-					 Subset( { name } ) , 0 ,
-				         Observer::par2concern( issueMod ) ) ,
+				        C05FunctionMod::GlobalPoolAdded ,
+					Subset( { name } ) , 0 ,
+				        Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 
  }  // end( LagBFunction::store_linearization( Index ) )
@@ -2486,7 +2494,6 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 			       Vec_p_Var( { it->first } ) ,
 			       Range( i , i + 1 ) , Subset() , NaN , true ) ,
 				   chnl );
-
     return( 0 );  // all done
 
     }  // end( coming from( < y_i , g_i(x) > ) )
@@ -2893,7 +2900,6 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 			       Vec_p_Var( { it->first } ) ,
 			       Range( i , i + 1 ) , Subset() , NaN , true ) ,
 				   chnl );
-
     return( 0 );  // all done
 
     }  // end( coming from( < y_i , g_i(x) > ) )
@@ -3008,8 +3014,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 			       Vec_p_Var( { it->first } ) ,
 			       Range( i , i + 1 ) , Subset() , NaN , true ) ,
 				   chnl );
-
-    return( false );  // all done
+    return( 0 );  // all done
 
     }  // end( coming from( < y_i , g_i(x) > ) )
    }  // end( coming from a LinearFunction )
@@ -3064,8 +3069,8 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    // c has changed (while g remains unchanged)
    if( f_Observer )
     f_Observer->add_Modification( std::make_shared< LagBFunctionMod >( this ,
-				     C05FunctionMod::AlphaChanged , Subset() ,
-				     1 , NaN , true ) , chnl );
+				    C05FunctionMod::AlphaChanged , Subset() ,
+				    1 , NaN , true ) , chnl );
    return( 0 );  // all done
 
    }  // end( if( from the Objective of a further sub-Block ) )

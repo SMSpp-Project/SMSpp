@@ -4,10 +4,6 @@
 /** @file
  * Implementation of the PolyhedralFunction class.
  *
- * \version 0.20
- *
- * \date 26 - 08 - 2020
- *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
  *         Dipartimento di Informatica \n
@@ -814,7 +810,7 @@ void PolyhedralFunction::serialize_State( netCDF::NcGroup & group ,
 /*--------------------------------------------------------------------------*/
 
 void PolyhedralFunction::map_active( c_Vec_p_Var & vars , Subset & map ,
-				     const bool ordered ) const
+				     bool ordered ) const
 {
  if( ! v_x.size() )
   return;
@@ -898,9 +894,9 @@ void PolyhedralFunction::set_PolyhedralFunction( MultiVector && A ,
   return;
 
  // "nuclear modification" for Function: everything changed
- f_Observer->add_Modification( std::make_shared<FunctionMod>( this ,
-				         FunctionMod::NaNshift ,
-				         Observer::par2concern( issueMod ) ) ,
+ f_Observer->add_Modification( std::make_shared< FunctionMod >( this ,
+				        FunctionMod::NaNshift ,
+				        Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 
  }  // end( PolyhedralFunction::set_PolyhedralFunction )
@@ -930,12 +926,12 @@ void PolyhedralFunction::set_is_convex( bool is_convex , ModParam issueMod )
 
  // issue the PolyhedralFunctionMod: if f_is_convex is true the function has
  // changed from min to max, hence has increased, and vice-versa
- f_Observer->add_Modification( std::make_shared<PolyhedralFunctionMod>( this ,
-				      C05FunctionMod::NothingChanged ,
-				      Subset( {} ) ,
-				      f_is_convex ? FunctionMod::INFshift :
-				                  - FunctionMod::INFshift ,
-				      Observer::par2concern( issueMod ) ) ,
+ f_Observer->add_Modification( std::make_shared< PolyhedralFunctionMod
+			       >( this , C05FunctionMod::NothingChanged ,
+				  Subset( {} ) ,
+				  f_is_convex ?   FunctionMod::INFshift
+				              : - FunctionMod::INFshift ,
+				  Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
  }
 
@@ -987,10 +983,10 @@ void PolyhedralFunction::add_variables( VarVector && nx , MultiVector && nA ,
  std::copy( v_x.begin() + n , v_x.end() , vars.begin() );
 
  // now issue the C05FunctionModVarsAddd
- f_Observer->add_Modification( std::make_shared<C05FunctionModVarsAddd>(
-					 this , std::move( vars ) , n , 0 ,
-					 Observer::par2concern( issueMod ) ) ,
-				 Observer::par2chnl( issueMod ) );
+ f_Observer->add_Modification( std::make_shared< C05FunctionModVarsAddd >(
+					this , std::move( vars ) , n , 0 ,
+					Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
 
  }  // end( PolyhedralFunction::add_variables )
 
@@ -1023,10 +1019,10 @@ void PolyhedralFunction::add_variable( ColVariable * const var ,
 
  // now issue the Modification
  // a polyhedral function is strongly quasi-additive
- f_Observer->add_Modification( std::make_shared<C05FunctionModVarsAddd>(
-				         this , Vec_p_Var( { var } ) ,
-					 v_x.size() - 1 , 0 ,
-					 Observer::par2concern( issueMod ) ) ,
+ f_Observer->add_Modification( std::make_shared< C05FunctionModVarsAddd >(
+				        this , Vec_p_Var( { var } ) ,
+					v_x.size() - 1 , 0 ,
+					Observer::par2concern( issueMod ) ) ,
 				 Observer::par2chnl( issueMod ) );
 
  }  // end( PolyhedralFunction::add_variable )
@@ -1051,10 +1047,10 @@ void PolyhedralFunction::remove_variable( Index i , ModParam issueMod )
 
  // now issue the Modification
  // a polyhedral function is strongly quasi-additive
- f_Observer->add_Modification( std::make_shared<C05FunctionModVarsRngd>(
-                                    this , Vec_p_Var( { var } ) ,
-				    Range( i , i + 1 ) , 0 ,
-				    Observer::par2concern( issueMod ) ) ,
+ f_Observer->add_Modification( std::make_shared< C05FunctionModVarsRngd
+			       >( this , Vec_p_Var( { var } ) ,
+				  Range( i , i + 1 ) , 0 ,
+				  Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 
  }  // end( PolyhedralFunction::remove_variable( index ) )
@@ -1084,9 +1080,9 @@ void PolyhedralFunction::remove_variables( Range range , ModParam issueMod )
   // now issue the Modification
   // a polyhedral function is strongly quasi-additive, and nms is ordered
   if( f_Observer && f_Observer->issue_mod( issueMod ) )
-   f_Observer->add_Modification( std::make_shared<C05FunctionModVarsRngd>(
-				      this , std::move( vars ) , range , 0 ,
-				      Observer::par2concern( issueMod ) ) ,
+   f_Observer->add_Modification( std::make_shared< C05FunctionModVarsRngd
+				 >( this , std::move( vars ) , range , 0 ,
+				    Observer::par2concern( issueMod ) ) ,
 				 Observer::par2chnl( issueMod ) );
   return;
   }
@@ -1112,9 +1108,9 @@ void PolyhedralFunction::remove_variables( Range range , ModParam issueMod )
 
   // now issue the Modification
   // a polyhedral function is strongly quasi-additive
-  f_Observer->add_Modification( std::make_shared<C05FunctionModVarsRngd>(
-				    this , std::move( vars ) , range , 0 ,
-				    Observer::par2concern( issueMod ) ) ,
+  f_Observer->add_Modification( std::make_shared< C05FunctionModVarsRngd
+				>( this , std::move( vars ) , range , 0 ,
+				   Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
   }
  else  // noone is there: just do it
@@ -1168,9 +1164,10 @@ void PolyhedralFunction::remove_variables( Subset && nms , bool ordered ,
   // now issue the Modification: note that the subset is empty
   // a polyhedral function is strongly quasi-additive, and nms is ordered
   if( f_Observer && f_Observer->issue_mod( issueMod ) )
-   f_Observer->add_Modification( std::make_shared<C05FunctionModVarsSbst>(
-				 this , std::move( vars ) , Subset() , true ,
-				 0 , Observer::par2concern( issueMod ) ) ,
+   f_Observer->add_Modification( std::make_shared< C05FunctionModVarsSbst
+				 >( this , std::move( vars ) , Subset() ,
+				    true , 0 ,
+				    Observer::par2concern( issueMod ) ) ,
 				 Observer::par2chnl( issueMod ) );
   return;
   }
@@ -1194,9 +1191,10 @@ void PolyhedralFunction::remove_variables( Subset && nms , bool ordered ,
 
   // now issue the Modification
   // a polyhedral function is strongly quasi-additive, and nms is ordered
-  f_Observer->add_Modification( std::make_shared<C05FunctionModVarsSbst>(
-			     this , std::move( vars ) , std::move( nms ) ,
-			     true , 0 , Observer::par2concern( issueMod ) ) ,
+  f_Observer->add_Modification( std::make_shared< C05FunctionModVarsSbst
+				>( this , std::move( vars ) ,
+				   std::move( nms ) , true , 0 ,
+				   Observer::par2concern( issueMod ) ) ,
 				Observer::par2chnl( issueMod ) );
   }
  else  // noone is there: just do it
@@ -1262,10 +1260,10 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
 
   // a separate C0FunctionMod for removals (if any)
   if( ! whiche.empty() )
-   f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-			                 C05FunctionMod::GlobalPoolRemoved ,
-					 std::move( whiche ) , 0 ,
-				         Observer::par2concern( issueMod ) ) ,
+   f_Observer->add_Modification( std::make_shared< C05FunctionMod >( this ,
+			                C05FunctionMod::GlobalPoolRemoved ,
+					std::move( whiche ) , 0 ,
+				        Observer::par2concern( issueMod ) ) ,
 				 Observer::par2chnl( issueMod ) );
   }
  else  // there are no aggregate linearizations
@@ -1273,15 +1271,27 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
    if( ( v_glob[ i ] > range.first ) && ( v_glob[ i ] <= range.second ) )
     which.push_back( i );
 
- // issue the PolyhedralFunctionModRngd
- f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModRngd>(
-			     this ,
-			     which.empty() ? C05FunctionMod::NothingChanged
-			         : C05FunctionMod::AllLinearizationChanged ,
-			     PolyhedralFunctionMod::ModifyRows , range ,
-			     std::move( which ), C05FunctionMod::NaNshift ,
-			     Observer::par2concern( issueMod ) ) ,
-				Observer::par2chnl( issueMod ) );
+ // issue the PolyhedralFunctionModRngd: if which.empty() then no
+ // linearization in the global pool is impacted anf therefore the type is
+ // C05FunctionMod::NothingChanged, otherwise is
+ // C05FunctionMod::AllLinearizationChanged
+ // note: the explicit definition of type here was originally avoided by
+ //       having the ? expression directly in the constructor, but this
+ //       meant that the same expressio had a check if which was nonempty
+ //       and a std-move of which that would make it empty, i.e., the
+ //       perfect example of an expression with side-effects whose result
+ //       depended on the order of the sub-expressions and therefore was
+ //       compiler-dependent, meaning extremely-hard-to-find errors 
+ auto type = which.empty() ? C05FunctionMod::NothingChanged
+                           : C05FunctionMod::AllLinearizationChanged;
+
+ f_Observer->add_Modification( std::make_shared< PolyhedralFunctionModRngd
+			       >( this , type ,
+				  PolyhedralFunctionMod::ModifyRows ,
+				  range , std::move( which ),
+				  C05FunctionMod::NaNshift ,
+				  Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
 
  }  // end( PolyhedralFunction::modify_rows( range ) )
 
@@ -1354,10 +1364,10 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
 
   // a separate C0FunctionMod for removals (if any)
   if( ! whiche.empty() )
-   f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-			                 C05FunctionMod::GlobalPoolRemoved ,
-					 std::move( whiche ) , 0 ,
-				         Observer::par2concern( issueMod ) ) ,
+   f_Observer->add_Modification( std::make_shared< C05FunctionMod >( this ,
+			                C05FunctionMod::GlobalPoolRemoved ,
+					std::move( whiche ) , 0 ,
+				        Observer::par2concern( issueMod ) ) ,
 				 Observer::par2chnl( issueMod ) );
   }
  else {  // there are no aggregate linearizations
@@ -1366,22 +1376,34 @@ void PolyhedralFunction::modify_rows( MultiVector && nA , c_RealVector & nb ,
     if( v_glob[ i ] )  // unless it's the bound
    #endif
     {
-     auto it = std::lower_bound( rows.begin() , rows.end() , v_glob[ i ] - 1 );
+     auto it = std::lower_bound( rows.begin() , rows.end() ,
+				 v_glob[ i ] - 1 );
      if( ( it != rows.end() ) && ( *it == v_glob[ i ] - 1 ) )
       which.push_back( i );
      }
   }
 
- // issue the PolyhedralFunctionModSbst
- f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModSbst>(
-			     this ,
-			     which.empty() ? C05FunctionMod::NothingChanged
-			         : C05FunctionMod::AllLinearizationChanged ,
-			     PolyhedralFunctionMod::ModifyRows ,
-			     std::move( rows ) , std::move( which ) ,
-			     C05FunctionMod::NaNshift ,
-			     Observer::par2concern( issueMod ) ) ,
-				Observer::par2chnl( issueMod ) );
+ // issue the PolyhedralFunctionModSbst: if which.empty() then no
+ // linearization in the global pool is impacted anf therefore the type is
+ // C05FunctionMod::NothingChanged, otherwise is
+ // C05FunctionMod::AllLinearizationChanged
+ // note: the explicit definition of type here was originally avoided by
+ //       having the ? expression directly in the constructor, but this
+ //       meant that the same expressio had a check if which was nonempty
+ //       and a std-move of which that would make it empty, i.e., the
+ //       perfect example of an expression with side-effects whose result
+ //       depended on the order of the sub-expressions and therefore was
+ //       compiler-dependent, meaning extremely-hard-to-find errors 
+ auto type = which.empty() ? C05FunctionMod::NothingChanged
+                           : C05FunctionMod::AllLinearizationChanged;
+
+ f_Observer->add_Modification( std::make_shared< PolyhedralFunctionModSbst
+			       >( this , type ,
+				  PolyhedralFunctionMod::ModifyRows ,
+				  std::move( rows ) , std::move( which ) ,
+				  C05FunctionMod::NaNshift ,
+				  Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
 
  }  // end( PolyhedralFunction::modify_rows( subset ) )
 
@@ -1433,10 +1455,10 @@ void PolyhedralFunction::modify_row( Index i , RealVector && Ai ,
 
   // a separate C0FunctionMod for removals (if any)
   if( ! whiche.empty() )
-   f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-			                 C05FunctionMod::GlobalPoolRemoved ,
-					 std::move( whiche ) , 0 ,
-				         Observer::par2concern( issueMod ) ) ,
+   f_Observer->add_Modification( std::make_shared< C05FunctionMod >( this ,
+			                C05FunctionMod::GlobalPoolRemoved ,
+					std::move( whiche ) , 0 ,
+				        Observer::par2concern( issueMod ) ) ,
 				 Observer::par2chnl( issueMod ) );
   }
  else {  // there are no aggregate linearizations
@@ -1445,16 +1467,27 @@ void PolyhedralFunction::modify_row( Index i , RealVector && Ai ,
     which.push_back( j );
   }
 
- // issue the PolyhedralFunctionModRngd
- f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModRngd>(
-			     this ,
-			     which.empty() ? C05FunctionMod::NothingChanged
-			         : C05FunctionMod::AllLinearizationChanged ,
-			     PolyhedralFunctionMod::ModifyRows ,
-			     Range( i , i + 1 ) , std::move( which ) ,
-			     C05FunctionMod::NaNshift ,
-			     Observer::par2concern( issueMod ) ) ,
-				Observer::par2chnl( issueMod ) );
+ // issue the PolyhedralFunctionModRngd: if which.empty() then no
+ // linearization in the global pool is impacted anf therefore the type is
+ // C05FunctionMod::NothingChanged, otherwise is
+ // C05FunctionMod::AllLinearizationChanged
+ // note: the explicit definition of type here was originally avoided by
+ //       having the ? expression directly in the constructor, but this
+ //       meant that the same expressio had a check if which was nonempty
+ //       and a std-move of which that would make it empty, i.e., the
+ //       perfect example of an expression with side-effects whose result
+ //       depended on the order of the sub-expressions and therefore was
+ //       compiler-dependent, meaning extremely-hard-to-find errors 
+ auto type = which.empty() ? C05FunctionMod::NothingChanged
+                           : C05FunctionMod::AllLinearizationChanged;
+
+ f_Observer->add_Modification( std::make_shared< PolyhedralFunctionModRngd
+			       >( this , type ,
+				  PolyhedralFunctionMod::ModifyRows ,
+				  Range( i , i + 1 ) , std::move( which ) ,
+				  C05FunctionMod::NaNshift ,
+				  Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
 
  }  // end( PolyhedralFunction::modify_row )
 
@@ -1534,9 +1567,9 @@ void PolyhedralFunction::modify_constants( c_RealVector & nb , Range range ,
   // a separate C0FunctionMod for removals (if any)
   if( ! whiche.empty() )
    f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-			                 C05FunctionMod::GlobalPoolRemoved ,
-					 std::move( whiche ) , 0 ,
-				         Observer::par2concern( issueMod ) ) ,
+			                C05FunctionMod::GlobalPoolRemoved ,
+					std::move( whiche ) , 0 ,
+				        Observer::par2concern( issueMod ) ) ,
 				 Observer::par2chnl( issueMod ) );
   }
  else {  // there are no aggregate linearizations
@@ -1545,15 +1578,25 @@ void PolyhedralFunction::modify_constants( c_RealVector & nb , Range range ,
     which.push_back( i );
   }
 
- // issue the PolyhedralFunctionModRngd
- f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModRngd>(
-			     this ,
-			     which.empty() ? C05FunctionMod::NothingChanged
-				           : C05FunctionMod::AlphaChanged ,
-			     PolyhedralFunctionMod::ModifyCnst , range ,
-			     std::move( which ) , shift ,
-			     Observer::par2concern( issueMod ) ) ,
-				Observer::par2chnl( issueMod ) );
+ // issue the PolyhedralFunctionModRngd: if which.empty() then no
+ // linearization in the global pool is impacted anf therefore the type is
+ // C05FunctionMod::NothingChanged, otherwise is C05FunctionMod::AlphaChanged
+ // note: the explicit definition of type here was originally avoided by
+ //       having the ? expression directly in the constructor, but this
+ //       meant that the same expressio had a check if which was nonempty
+ //       and a std-move of which that would make it empty, i.e., the
+ //       perfect example of an expression with side-effects whose result
+ //       depended on the order of the sub-expressions and therefore was
+ //       compiler-dependent, meaning extremely-hard-to-find errors 
+ auto type = which.empty() ? C05FunctionMod::NothingChanged
+                           : C05FunctionMod::AlphaChanged;
+
+ f_Observer->add_Modification( std::make_shared< PolyhedralFunctionModRngd
+			       >( this , type ,
+				  PolyhedralFunctionMod::ModifyCnst , range ,
+				  std::move( which ) , shift ,
+				  Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
 
  }  // end( PolyhedralFunction::modify_constants( range ) )
 
@@ -1646,9 +1689,9 @@ void PolyhedralFunction::modify_constants( c_RealVector & nb ,
   // a separate C0FunctionMod for removals (if any)
   if( ! whiche.empty() )
    f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-			                 C05FunctionMod::GlobalPoolRemoved ,
-					 std::move( whiche ) , 0 ,
-				         Observer::par2concern( issueMod ) ) ,
+			                C05FunctionMod::GlobalPoolRemoved ,
+					std::move( whiche ) , 0 ,
+				        Observer::par2concern( issueMod ) ) ,
 				 Observer::par2chnl( issueMod ) );
   }
  else {  // there are no aggregate linearizations
@@ -1663,15 +1706,26 @@ void PolyhedralFunction::modify_constants( c_RealVector & nb ,
      }
   }
 
- // issue the PolyhedralFunctionModSbst
- f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModSbst>(
-			     this ,
-			     which.empty() ? C05FunctionMod::NothingChanged
-				           : C05FunctionMod::AlphaChanged ,
-			     PolyhedralFunctionMod::ModifyCnst ,
-			     std::move( rows ) , std::move( which ) , shift ,
-			     Observer::par2concern( issueMod ) ) ,
-				Observer::par2chnl( issueMod ) );
+ // issue the PolyhedralFunctionModSbst: if which.empty() then no
+ // linearization in the global pool is impacted anf therefore the type is
+ // C05FunctionMod::NothingChanged, otherwise is C05FunctionMod::AlphaChanged
+ // note: the explicit definition of type here was originally avoided by
+ //       having the ? expression directly in the constructor, but this
+ //       meant that the same expressio had a check if which was nonempty
+ //       and a std-move of which that would make it empty, i.e., the
+ //       perfect example of an expression with side-effects whose result
+ //       depended on the order of the sub-expressions and therefore was
+ //       compiler-dependent, meaning extremely-hard-to-find errors 
+ auto type = which.empty() ? C05FunctionMod::NothingChanged
+                           : C05FunctionMod::AlphaChanged;
+
+ f_Observer->add_Modification( std::make_shared< PolyhedralFunctionModSbst
+			       >( this , type ,
+				  PolyhedralFunctionMod::ModifyCnst ,
+				  std::move( rows ) , std::move( which ) ,
+				  shift , Observer::par2concern( issueMod )
+				  ) ,
+			       Observer::par2chnl( issueMod ) );
 
  }  // end( PolyhedralFunction::modify_constants )
 
@@ -1725,9 +1779,9 @@ void PolyhedralFunction::modify_constant( Index i , FunctionValue bi ,
   // a separate C0FunctionMod for removals (if any)
   if( ! whiche.empty() )
    f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-			                 C05FunctionMod::GlobalPoolRemoved ,
-					 std::move( whiche ) , 0 ,
-				         Observer::par2concern( issueMod ) ) ,
+			                C05FunctionMod::GlobalPoolRemoved ,
+					std::move( whiche ) , 0 ,
+				        Observer::par2concern( issueMod ) ) ,
 				 Observer::par2chnl( issueMod ) );
   }
  else {  // there are no aggregate linearizations
@@ -1736,15 +1790,26 @@ void PolyhedralFunction::modify_constant( Index i , FunctionValue bi ,
     which.push_back( j );
   }
 
- // issue the PolyhedralFunctionModRngd
- f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModRngd>(
-			     this ,
-			     which.empty() ? C05FunctionMod::NothingChanged
-				           : C05FunctionMod::AlphaChanged ,
-			     PolyhedralFunctionMod::ModifyCnst ,
-			     Range( i , i + 1 ) , std::move( which ) ,
-			     shift , Observer::par2concern( issueMod ) ) ,
-				Observer::par2chnl( issueMod ) );
+ // issue the PolyhedralFunctionModRngd: if which.empty() then no
+ // linearization in the global pool is impacted anf therefore the type is
+ // C05FunctionMod::NothingChanged, otherwise is C05FunctionMod::AlphaChanged
+ // note: the explicit definition of type here was originally avoided by
+ //       having the ? expression directly in the constructor, but this
+ //       meant that the same expressio had a check if which was nonempty
+ //       and a std-move of which that would make it empty, i.e., the
+ //       perfect example of an expression with side-effects whose result
+ //       depended on the order of the sub-expressions and therefore was
+ //       compiler-dependent, meaning extremely-hard-to-find errors 
+ auto type = which.empty() ? C05FunctionMod::NothingChanged
+                           : C05FunctionMod::AlphaChanged;
+
+ f_Observer->add_Modification( std::make_shared< PolyhedralFunctionModRngd
+			       >( this , type ,
+				  PolyhedralFunctionMod::ModifyCnst ,
+				  Range( i , i + 1 ) , std::move( which ) ,
+				  shift , Observer::par2concern( issueMod )
+				  ) ,
+			       Observer::par2chnl( issueMod ) );
 
  }  // end( PolyhedralFunction::modify_constant )
 
@@ -1834,22 +1899,32 @@ void PolyhedralFunction::modify_bound( FunctionValue newbound ,
 
    // a separate C05FunctionMod for removals, if any
    if( ! whiche.empty() )
-    f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-			                 C05FunctionMod::GlobalPoolRemoved ,
-					 std::move( whiche ) , 0 ,
-				         Observer::par2concern( issueMod ) ) ,
+    f_Observer->add_Modification( std::make_shared< C05FunctionMod >( this ,
+			                C05FunctionMod::GlobalPoolRemoved ,
+					std::move( whiche ) , 0 ,
+				        Observer::par2concern( issueMod ) ) ,
 				  Observer::par2chnl( issueMod ) );
-
    }  // end( if( wasset ) )
 
-  // issue the PolyhedralFunctionModRngd
-  f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModRngd>(
-			     this ,
-			     which.empty() ? C05FunctionMod::NothingChanged
-				           : C05FunctionMod::AlphaChanged ,
-			     PolyhedralFunctionMod::ModifyCnst ,
-			     Range( 0 , 0 ) , std::move( which ) , shift ,
-			     Observer::par2concern( issueMod ) ) ,
+  // issue the PolyhedralFunctionModRngd: if which.empty() then no
+  // linearization in the global pool is impacted anf therefore the type is
+  // C05FunctionMod::NothingChanged, otherwise is C05FunctionMod::AlphaChanged
+  // note: the explicit definition of type here was originally avoided by
+  //       having the ? expression directly in the constructor, but this
+  //       meant that the same expressio had a check if which was nonempty
+  //       and a std-move of which that would make it empty, i.e., the
+  //       perfect example of an expression with side-effects whose result
+  //       depended on the order of the sub-expressions and therefore was
+  //       compiler-dependent, meaning extremely-hard-to-find errors 
+  auto type = which.empty() ? C05FunctionMod::NothingChanged
+                            : C05FunctionMod::AlphaChanged;
+
+  f_Observer->add_Modification( std::make_shared< PolyhedralFunctionModRngd
+				>( this , type ,
+				   PolyhedralFunctionMod::ModifyCnst ,
+				   Range( 0 , 0 ) , std::move( which ) ,
+				   shift , Observer::par2concern( issueMod )
+				   ) ,
 				Observer::par2chnl( issueMod ) );
  #else
   // if the bound was set, reset exising aggregate linearizations (if any)
@@ -1868,10 +1943,10 @@ void PolyhedralFunction::modify_bound( FunctionValue newbound ,
    update_f_max_glob();
 
    // a separate C05FunctionMod for removals
-   f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-			                 C05FunctionMod::GlobalPoolRemoved ,
-					 std::move( whiche ) , 0 ,
-				         Observer::par2concern( issueMod ) ) ,
+   f_Observer->add_Modification( std::make_shared< C05FunctionMod >( this ,
+			                C05FunctionMod::GlobalPoolRemoved ,
+					std::move( whiche ) , 0 ,
+				        Observer::par2concern( issueMod ) ) ,
 				 Observer::par2chnl( issueMod ) );
    }
 
@@ -1917,8 +1992,9 @@ void PolyhedralFunction::add_rows( MultiVector && nA , c_RealVector & nb ,
   return;                  // noone is there: all done
 
  // issue the PolyhedralFunctionModAddd
- f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModAddd>(
-			       this , k , Observer::par2concern( issueMod ) ) ,
+ f_Observer->add_Modification( std::make_shared< PolyhedralFunctionModAddd
+			       >( this , k ,
+				  Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 
  }  // end( PolyhedralFunction::add_rows )
@@ -1952,8 +2028,9 @@ void PolyhedralFunction::add_row( RealVector && Ai , FunctionValue bi ,
   return;                  // noone is there: all done
 
  // issue the PolyhedralFunctionModAddd
- f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModAddd>(
-			       this , 1 , Observer::par2concern( issueMod ) ) ,
+ f_Observer->add_Modification( std::make_shared< PolyhedralFunctionModAddd
+			       >( this , 1 ,
+				  Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 
  }  // end( PolyhedralFunction::add_row )
@@ -2016,18 +2093,29 @@ void PolyhedralFunction::delete_rows( Range range , ModParam issueMod )
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;                  // noone is there: all done
 
- // issue the PolyhedralFunctionModRngd
- f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModRngd>(
-			 this ,
-                         which.empty() ? C05FunctionMod::NothingChanged
-                                       : C05FunctionMod::GlobalPoolRemoved ,
-			 PolyhedralFunctionMod::DeleteRows , range ,
-			 std::move( which ) ,
-			 f_is_convex ? - FunctionMod::INFshift
-				     : + FunctionMod::INFshift ,
-			 Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
+ // issue the PolyhedralFunctionModRng: if which.empty() then no
+ // linearization in the global pool is impacted anf therefore the type is
+ // C05FunctionMod::NothingChanged, otherwise is
+ // C05FunctionMod::GlobalPoolRemoved
+ // note: the explicit definition of type here was originally avoided by
+ //       having the ? expression directly in the constructor, but this
+ //       meant that the same expressio had a check if which was nonempty
+ //       and a std-move of which that would make it empty, i.e., the
+ //       perfect example of an expression with side-effects whose result
+ //       depended on the order of the sub-expressions and therefore was
+ //       compiler-dependent, meaning extremely-hard-to-find errors 
+ auto type = which.empty() ? C05FunctionMod::NothingChanged
+                           : C05FunctionMod::GlobalPoolRemoved;
 
+ f_Observer->add_Modification( std::make_shared< PolyhedralFunctionModRngd
+			       >( this , type ,
+				  PolyhedralFunctionMod::DeleteRows , range ,
+				  std::move( which ) ,
+				  f_is_convex ? - FunctionMod::INFshift
+				              : + FunctionMod::INFshift ,
+				  Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
+ 
  }  // end( PolyhedralFunction::delete_rows( range ) )
 
 /*--------------------------------------------------------------------------*/
@@ -2113,16 +2201,27 @@ void PolyhedralFunction::delete_rows( Subset && rows , bool ordered ,
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;                  // noone is there: all done
 
- // issue the PolyhedralFunctionModSbst
- f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModSbst>(
-			 this ,
-                         which.empty() ? C05FunctionMod::NothingChanged
-                                       : C05FunctionMod::GlobalPoolRemoved ,
-			 PolyhedralFunctionMod::DeleteRows ,
-			 std::move( rows ) , std::move( which ) ,
-			 f_is_convex ? - FunctionMod::INFshift
-			             : + FunctionMod::INFshift ,
-			 Observer::par2concern( issueMod ) ) ,
+ // issue the PolyhedralFunctionModSbst: if which.empty() then no
+ // linearization in the global pool is impacted anf therefore the type is
+ // C05FunctionMod::NothingChanged, otherwise is
+ // C05FunctionMod::GlobalPoolRemoved
+ // note: the explicit definition of type here was originally avoided by
+ //       having the ? expression directly in the constructor, but this
+ //       meant that the same expressio had a check if which was nonempty
+ //       and a std-move of which that would make it empty, i.e., the
+ //       perfect example of an expression with side-effects whose result
+ //       depended on the order of the sub-expressions and therefore was
+ //       compiler-dependent, meaning extremely-hard-to-find errors 
+ auto type = which.empty() ? C05FunctionMod::NothingChanged
+                           : C05FunctionMod::GlobalPoolRemoved;
+
+ f_Observer->add_Modification( std::make_shared< PolyhedralFunctionModSbst
+			       >( this , type ,
+				  PolyhedralFunctionMod::DeleteRows ,
+				  std::move( rows ) , std::move( which ) ,
+				  f_is_convex ? - FunctionMod::INFshift
+				              : + FunctionMod::INFshift ,
+				  Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 
  }  // end( PolyhedralFunction::delete_rows( subset ) )
@@ -2174,18 +2273,29 @@ void PolyhedralFunction::delete_row( Index i , ModParam issueMod )
  if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;                  // noone is there: all done
 
- // issue the PolyhedralFunctionModRngd
- f_Observer->add_Modification( std::make_shared<PolyhedralFunctionModRngd>(
-			 this ,
-                         which.empty() ? C05FunctionMod::NothingChanged
-                                       : C05FunctionMod::GlobalPoolRemoved ,
-			 PolyhedralFunctionMod::DeleteRows ,
-			 Range( i , i + 1 ) , std::move( which ) ,
-			 f_is_convex ? - FunctionMod::INFshift
-			             : + FunctionMod::INFshift ,
-			 Observer::par2concern( issueMod ) ) ,
-			       Observer::par2chnl( issueMod ) );
+ // issue the PolyhedralFunctionModRngd: if which.empty() then no
+ // linearization in the global pool is impacted anf therefore the type is
+ // C05FunctionMod::NothingChanged, otherwise is
+ // C05FunctionMod::GlobalPoolRemoved
+ // note: the explicit definition of type here was originally avoided by
+ //       having the ? expression directly in the constructor, but this
+ //       meant that the same expressio had a check if which was nonempty
+ //       and a std-move of which that would make it empty, i.e., the
+ //       perfect example of an expression with side-effects whose result
+ //       depended on the order of the sub-expressions and therefore was
+ //       compiler-dependent, meaning extremely-hard-to-find errors 
+ auto type = which.empty() ? C05FunctionMod::NothingChanged
+                           : C05FunctionMod::GlobalPoolRemoved;
 
+ f_Observer->add_Modification( std::make_shared< PolyhedralFunctionModRngd
+			       >( this , type ,
+				  PolyhedralFunctionMod::DeleteRows ,
+				  Range( i , i + 1 ) , std::move( which ) ,
+				  f_is_convex ? - FunctionMod::INFshift
+				              : + FunctionMod::INFshift ,
+				  Observer::par2concern( issueMod ) ) ,
+			       Observer::par2chnl( issueMod ) );
+ 
  }  // end( PolyhedralFunction::delete_row )
 
 /*--------------------------------------------------------------------------*/
@@ -2210,9 +2320,9 @@ void PolyhedralFunction::delete_rows( ModParam issueMod )
   return;                  // noone is there: all done
 
  // "nuclear modification" for Function: everything changed
- f_Observer->add_Modification( std::make_shared<FunctionMod>( this ,
-				         FunctionMod::NaNshift ,
-				         Observer::par2concern( issueMod ) ) ,
+ f_Observer->add_Modification( std::make_shared< FunctionMod >( this ,
+				        FunctionMod::NaNshift ,
+				        Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 
  }  // end( PolyhedralFunction::delete_rows( all ) )
@@ -2346,10 +2456,10 @@ void PolyhedralFunction::reset_aggregate_linearizations( ModParam issueMod )
 
  update_f_max_glob();
 
- f_Observer->add_Modification( std::make_shared<C05FunctionMod>( this ,
-			                 C05FunctionMod::GlobalPoolRemoved ,
-					 std::move( which ) , 0 ,
-				         Observer::par2concern( issueMod ) ) ,
+ f_Observer->add_Modification( std::make_shared< C05FunctionMod >( this ,
+			               C05FunctionMod::GlobalPoolRemoved ,
+				       std::move( which ) , 0 ,
+				       Observer::par2concern( issueMod ) ) ,
 			       Observer::par2chnl( issueMod ) );
 
  }  // end( PolyhedralFunction::reset_aggregate_linearizations( ModParam ) )
@@ -2423,7 +2533,7 @@ void PolyhedralFunctionState::deserialize( const netCDF::NcGroup & group )
  else
   f_imp_coeff.clear();
 
-}  // end( PolyhedralFunctionState::deserialize )
+ }  // end( PolyhedralFunctionState::deserialize )
 
 /*--------------------------------------------------------------------------*/
 
