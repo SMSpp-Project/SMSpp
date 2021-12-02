@@ -1174,7 +1174,7 @@ class FunctionModVars : public AModification {
  /** constructor: takes a pointer to the affected Function, the subset of
   * affected Variable under the form of a std::vector< Variable * >, the
   * value of the shift encoding the quasi-additivity status of the
-  * modification, and the "concerns" value. As the the && tells, the vector
+  * modification, and the "concerns" value. As the && tells, the vector
   * "becomes property" of the FunctionModVars object. Note that the order
   * of the vars[] vector is irrelevant for deletions (as the final set of
   * indices is the same in whatever order they are performed), while it is

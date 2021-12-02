@@ -356,10 +356,10 @@ class BlockSolverConfig : public Configuration {
   * of what is stored depend on the f_diff field of the BlockSolverConfig,
   * depending if it is in "setting" or "differential" mode:
   *
-  * - If #f_diff == true, then the the (class)names of the Solver are not
+  * - If #f_diff == true, then the (class)names of the Solver are not
   *   stored, each string being empty;
   *
-  * - If #f_diff == false, then the the (class)names of the Solver are
+  * - If #f_diff == false, then the (class)names of the Solver are
   *   actually stored.
   *
   * In both cases, the ComputeConfig() are obtained by a call to
@@ -417,7 +417,7 @@ class BlockSolverConfig : public Configuration {
   * Note that the main "driver" of the configuration is the list of Solver
   * names. The list of corresponding SolverConfig * may be shorter than that,
   * in which case all the missing elements are treated as nullptr, or longer,
-  * in which case the the extra elements are just ignored.
+  * in which case the extra elements are just ignored.
   *
   * The behaviour of this method is the following:
   *
