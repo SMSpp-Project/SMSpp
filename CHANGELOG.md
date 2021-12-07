@@ -10,6 +10,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - AbstractBlock can read MPS files.
+- State (representation of the state of a ThinComputeInterface).
+- BendersBFunctionState, LagBFunctionState, and PolyhedralFunctionState.
+- Two new SimpleConfiguration.
+- VariableGroupMod.
+
+### Changed
+
+- Computation of linearization constant in BendersBFunction.
+
+### Fixed
+
+- Bugs in LagBFunction.
+- Multiplier in sum() of RowConstraintSolution and ColVariableSolution.
+- get_*_index()/element() in BlockInspection.
+- Bugs in BoxSolver.
+- Flaw in AbstractBlock::is_feasible().
 
 ## [0.4.0] - 2021-02-05
 
