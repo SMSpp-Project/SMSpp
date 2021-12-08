@@ -7,9 +7,9 @@
  * only bound (box) Constraint on the ColVariable and a separable Objective
  * (a FRealObjective with either a LinearFunction or a DQuadFunction inside).
  *
- * \version 0.10
+ * \version 0.11
  *
- * \date 09 - 01 - 2021
+ * \date 05 - 07 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -108,10 +108,73 @@ int BoxSolver::compute( bool changedvars )
    else
     f_state = kOK;
   }
+ f_sol_comp = f_sol;
 
  return( f_state );
 
  }  // end( BoxSolver::compute )
+
+/*--------------------------------------------------------------------------*/
+/*---------------------- METHODS FOR READING RESULTS -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+void BoxSolver::get_var_solution( Configuration *solc )
+{
+ if( ! has_var_solution() )
+  throw( std::logic_error( "BoxSolver: Variable solution not available" ) );
+
+ if( f_sol_comp & 1 )  // the solution is there already
+  return;
+
+ auto f = std::bind( &BoxSolver::process_variable_sol , this ,
+		     std::placeholders::_1 );
+
+ // process static variables
+ for( const auto & el : f_Block->get_static_variables() ) {
+  if( un_any_const_static( el , f , un_any_type< ColVariable >() ) )
+   continue;
+  throw( std::invalid_argument(
+		       "BoxSolver: static variable not a ColVariable" ) );
+  }
+
+ // process dynamic variables
+ for( const auto & el : f_Block->get_dynamic_variables() ) {
+  if( un_any_const_dynamic( el , f , un_any_type< ColVariable >() ) )
+   continue;
+  throw( std::invalid_argument(
+		       "BoxSolver: dynamic variable not a ColVariable" ) );
+  }
+ }  // end( BoxSolver::get_var_solution )
+
+/*--------------------------------------------------------------------------*/
+
+void BoxSolver::get_dual_solution( Configuration *solc )
+{
+ if( ! has_dual_solution() )
+  throw( std::logic_error( "BoxSolver: dual solution not available" ) );
+
+ if( f_sol_comp & 2 )  // the dual solution is there already
+  return;
+
+ auto f = std::bind( &BoxSolver::process_variable_dual , this ,
+		     std::placeholders::_1 );
+
+ // process static variables
+ for( const auto & el : f_Block->get_static_variables() ) {
+  if( un_any_const_static( el , f , un_any_type< ColVariable >() ) )
+   continue;
+  throw( std::invalid_argument(
+		       "BoxSolver: static variable not a ColVariable" ) );
+  }
+
+ // process dynamic variables
+ for( const auto & el : f_Block->get_dynamic_variables() ) {
+  if( un_any_const_dynamic( el , f , un_any_type< ColVariable >() ) )
+   continue;
+  throw( std::invalid_argument(
+		       "BoxSolver: dynamic variable not a ColVariable" ) );
+  }
+ }  // end( BoxSolver::get_dual_solution )
 
 /*--------------------------------------------------------------------------*/
 /*------------- METHODS FOR ADDING / REMOVING / CHANGING DATA --------------*/
@@ -254,12 +317,12 @@ void BoxSolver::process_variable( ColVariable & var )
      cu = ovr;
      }
 
-    if( f_sol & 4 )       // if the dual solution is computed
+    if( f_sol & 2 )       // if the dual solution is computed
      ovr->set_dual( 0 );  // it is 0 unless otherwise proven
     continue;
     }
 
-   if( f_sol & 4 )        // if the dual solution is computed
+   if( f_sol & 2 )        // if the dual solution is computed
     if( auto rc = dynamic_cast< RowConstraint * >( ai ) )
      rc->set_dual( 0 );  // it is 0 on all RowConstraint
      
@@ -423,8 +486,8 @@ void BoxSolver::process_variable( ColVariable & var )
  // deal with the quadratic case: a != 0
  // the unique stationary point (max or min depending on the sign of a)
  // of a x^2 + b is at x = - b / ( 2 * a );
- OFValue x = - b / ( 2 * a );
  auto q = [ & ]( OFValue y ) -> OFValue { return( ( a * y + b ) * y ); };
+ OFValue x = - b / ( 2 * a );
  
  if( f_sense == 1 ) {               // maximization
   if( a < 0 ) {                     // with a < 0
@@ -432,9 +495,10 @@ void BoxSolver::process_variable( ColVariable & var )
 
    // the original problem
    if( var.is_integer() ) {         // on an integer variable
-    OFValue xm = std::max( l , std::floor( x ) );
+    x = std::max( l , std::min( u , x ) );
+    OFValue xm = std::floor( x );
     OFValue vxm = q( xm );
-    OFValue xp = std::min( u , std::ceil( x ) );
+    OFValue xp = std::ceil( x );
     OFValue vxp = q( xp );
     if( vxm > vxp ) { x = xm; vxmax = vxm; }
     else            { x = xp; vxmax = vxp; }
@@ -480,15 +544,12 @@ void BoxSolver::process_variable( ColVariable & var )
     }
 
    // the opposite problem
-   if( var.is_integer() ) {         // on an integer variable
-    OFValue xm = std::max( l , std::floor( x ) );
-    OFValue xp = std::min( u , std::ceil( x ) );
-    f_min_val += std::min( q( xm ) , q( xp ) );
-    }
-   else {                           // on a continuous variable
-    x = std::min( u , std::max( l , x ) );
+   x = std::min( u , std::max( l , x ) );
+
+   if( var.is_integer() )           // on an integer variable
+    f_min_val += std::min( q( std::floor( x ) ) , q( std::ceil( x ) ) );
+   else                             // on a continuous variable
     f_min_val += q( x );
-    }
    }
 
   return;  // the quadratic maximization case has been dealt with
@@ -500,9 +561,10 @@ void BoxSolver::process_variable( ColVariable & var )
 
   // the original problem
   if( var.is_integer() ) {         // on an integer variable
-   OFValue xm = std::max( l , std::floor( x ) );
+   x = std::max( l , std::min( u , x ) );
+   OFValue xm = std::floor( x );
    OFValue vxm = q( xm );
-   OFValue xp = std::min( u , std::ceil( x ) );
+   OFValue xp = std::ceil( x );
    OFValue vxp = q( xp );
    if( vxm < vxp ) { x = xm; vxmin = vxm; }
    else            { x = xp; vxmin = vxp; }
@@ -548,17 +610,371 @@ void BoxSolver::process_variable( ColVariable & var )
    }
 
   // the opposite problem
-  if( var.is_integer() ) {         // on an integer variable
-   OFValue xm = std::max( l , std::floor( x ) );
-   OFValue xp = std::min( u , std::ceil( x ) );
-   f_max_val += std::max( q( xm ) , q( xp ) );
-   }
-  else {                           // on a continuous variable
-   x = std::min( u , std::max( l , x ) );
+  x = std::min( u , std::max( l , x ) );
+
+  if( var.is_integer() )           // on an integer variable
+   f_max_val += std::max( q( std::floor( x ) ) , q( std::ceil( x ) ) );
+  else                             // on a continuous variable
    f_max_val += q( x );
-   }
   }
  }  // end( BoxSolver::process_variable )
+
+/*--------------------------------------------------------------------------*/
+
+void BoxSolver::process_variable_sol( ColVariable & var )
+{
+ using VarValue = ColVariable::VarValue;
+ 
+ OFValue a = 0;  // quadratic term
+ OFValue b = 0;  // linear term
+ VarValue l;     // lower bound
+ VarValue u;     // upper bound
+
+ // initialize upper and lower bound
+ if( var.is_fixed() )
+  l = u = var.get_value();
+ else {
+  l = var.get_lb();
+  u = var.get_ub();
+  }
+
+ // scan through all active stuff: compute in l and u the tightest lower
+ // and upper bounds, in a and b the total (sum of) quadratic and linear
+ // coefficients, and in cl, cu the pointer to the OneVarConstraint that
+ // correspond to the "tight" cl / cu (if any)
+ for( Block::Index i = 0 ; i < var.get_num_active() ; ++i ) {
+  auto ai = var.get_active( i );
+
+  // check that the ThinVarDepInterface belongs to the Block (or any of
+  // its sub-Block, recursively)
+  auto blck = ai->get_Block();
+  while( blck && ( blck != f_Block ) )
+   blck = blck->get_f_Block();
+
+  if( ! blck )  // if not
+   continue;    // ignore it: it must be defined in a Block enclosing the
+                // one to which BoxSolver is registered, which means it is
+                // not something that BoxSolver "sees"
+
+  // Constraint
+  if( auto ci = dynamic_cast< Constraint * >( ai ) ) {
+   // a OneVarConstraint
+   if( auto ovr = dynamic_cast< OneVarConstraint * >( ci ) ) {
+    if( auto lhs = ovr->get_lhs() ;lhs >= l )
+     l = lhs;
+    if( auto rhs = ovr->get_rhs() ; rhs <= u )
+     u = rhs;
+    continue;
+    }
+
+   continue;              // any other Constraint is ignored
+   }
+
+  // Objective
+  if( auto oi = dynamic_cast< Objective * >( ai ) ) {
+   auto fro = dynamic_cast< FRealObjective * >( oi );
+   if( ! fro )
+    throw( std::invalid_argument( "BoxSolver: not a FRealObjective" ) );
+
+   if( auto lf = dynamic_cast< LinearFunction * >( fro->get_function() ) ) {
+    // WARNING: INEFFICIENT!!
+    b += lf->get_coefficient( lf->is_active( & var ) );
+    continue;
+    }
+
+   if( auto qf = dynamic_cast< DQuadFunction * >( fro->get_function() ) ) {
+    auto p = qf->is_active( & var );    // WARNING: INEFFICIENT!!
+    b += qf->get_linear_coefficient( p );
+    a += qf->get_quadratic_coefficient( p );
+    continue;
+    }
+   
+   throw( std::invalid_argument(
+	       "BoxSolver: invalid Function inside the FRealObjective" ) );
+   }
+
+  throw( std::invalid_argument( "BoxSolver: invalid ThinVarDepInterface" ) );
+  
+  }  // end( for( i ) ) 
+
+ // now finally perform the minimization / maximization
+ if( var.is_integer() ) {
+  l = std::ceil( l );
+  u = std::floor( u );
+  }
+
+ if( ( a == 0 ) && ( b == 0 ) ) {  // the easy-easy-case: constant obj
+  // any finite value is fine, take it "close to 0"
+  var.set_value( std::min( u , std::max( l , VarValue( 0 ) ) ) );
+  return;
+  }
+
+ if( a == 0 ) {  // linear but nontrivial: b != 0
+  if( f_sense == 1 ) {               // maximization
+   if( b > 0 ) {                     // with b > 0
+    if( u == INF )                   // if the upper bound is +INF
+     throw( std::invalid_argument(
+		"BoxSolver::get_var_solution: unexpected unboundedness" ) );
+    var.set_value( u );              // primal solution
+    }
+   else {                            // [maximization] with b < 0
+    if( l == - INF )                 // if the lower bound is -INF
+     throw( std::invalid_argument(
+		"BoxSolver::get_var_solution: unexpected unboundedness" ) );
+    var.set_value( l );              // primal solution
+    }
+   }
+  else {                             // minimization
+   if( b > 0 ) {                     // with b > 0
+    if( l == - INF )                 // if the lower bound is -INF
+     throw( std::invalid_argument(
+		"BoxSolver::get_var_solution: unexpected unboundedness" ) );
+    var.set_value( l );              // primal solution
+    }
+   else {                            // [minimization] with b < 0
+    if( u == INF )                   // if the upper bound is INF
+     throw( std::invalid_argument(
+		"BoxSolver::get_var_solution: unexpected unboundedness" ) );
+    var.set_value( u );              // primal solution
+    }
+   }
+
+  return;  // the nontrivial linear case has been dealt with
+  }
+
+ // deal with the quadratic case: a != 0
+ // the unique stationary point (max or min depending on the sign of a)
+ // of a x^2 + b is at x = - b / ( 2 * a );
+ auto q = [ & ]( OFValue y ) -> OFValue { return( ( a * y + b ) * y ); };
+ 
+ if( f_sense == 1 ) {               // maximization
+  if( a < 0 ) {                     // with a < 0
+   OFValue x = std::max( l , std::min( u , - b / ( 2 * a ) ) );
+ 
+   if( var.is_integer() ) {         // on an integer variable
+    OFValue xm = std::floor( x );
+    OFValue xp = std::ceil( x );
+    if( q( xm ) > q( xp ) )
+     x = xm;
+    else
+     x = xp;
+    }
+
+   var.set_value( x );
+   }
+  else {                            // [maximization] with a > 0
+   if( ( l == - INF ) || ( u == INF ) )
+    throw( std::invalid_argument(
+		"BoxSolver::get_var_solution: unexpected unboundedness" ) );
+
+   var.set_value( q( l ) > q( u ) ? l : u );
+   }
+
+  return;  // the quadratic maximization case has been dealt with
+  }
+
+ // deal with the quadratic minimization case
+ if( a > 0 ) {                     // with a > 0
+  OFValue x = std::max( l , std::min( u , - b / ( 2 * a ) ) );
+ 
+  if( var.is_integer() ) {         // on an integer variable
+   OFValue xm = std::floor( x );
+   OFValue xp = std::ceil( x );
+   if( q( xm ) < q( xp ) )
+    x = xm;
+   else
+    x = xp;
+   }
+
+  var.set_value( x );
+  }
+ else {                            // [minimization] with a < 0
+  if( ( l == - INF ) || ( u == INF ) )
+   throw( std::invalid_argument(
+		"BoxSolver::get_var_solution: unexpected unboundedness" ) );
+  var.set_value( q( l ) < q( u ) ? l : u );
+  }
+ }  // end( BoxSolver::process_variable_sol )
+
+/*--------------------------------------------------------------------------*/
+
+void BoxSolver::process_variable_dual( ColVariable & var )
+{
+ using VarValue = ColVariable::VarValue;
+ 
+ OFValue a = 0;  // quadratic term
+ OFValue b = 0;  // linear term
+ VarValue l;     // lower bound
+ VarValue u;     // upper bound
+ OneVarConstraint * cl = nullptr;  // constraint of active lower bound
+ OneVarConstraint * cu = nullptr;  // constraint of active upper bound
+
+ // initialize upper and lower bound
+ if( var.is_fixed() )
+  l = u = var.get_value();
+ else {
+  l = var.get_lb();
+  u = var.get_ub();
+  }
+
+ // scan through all active stuff: compute in l and u the tightest lower
+ // and upper bounds, in a and b the total (sum of) quadratic and linear
+ // coefficients, and in cl, cu the pointer to the OneVarConstraint that
+ // correspond to the "tight" cl / cu (if any)
+ for( Block::Index i = 0 ; i < var.get_num_active() ; ++i ) {
+  auto ai = var.get_active( i );
+
+  // check that the ThinVarDepInterface belongs to the Block (or any of
+  // its sub-Block, recursively)
+  auto blck = ai->get_Block();
+  while( blck && ( blck != f_Block ) )
+   blck = blck->get_f_Block();
+
+  if( ! blck )  // if not
+   continue;    // ignore it: it must be defined in a Block enclosing the
+                // one to which BoxSolver is registered, which means it is
+                // not something that BoxSolver "sees"
+
+  // Constraint
+  if( auto ci = dynamic_cast< Constraint * >( ai ) ) {
+   // a OneVarConstraint
+   if( auto ovr = dynamic_cast< OneVarConstraint * >( ci ) ) {
+    auto lhs = ovr->get_lhs();
+    if( lhs >= l ) {
+     l = lhs;
+     cl = ovr;
+     }
+    auto rhs = ovr->get_rhs();
+    if( rhs <= u ) {
+     u = rhs;
+     cu = ovr;
+     }
+
+    ovr->set_dual( 0 );   // the dual solution is 0 unless otherwise proven
+    continue;
+    }
+
+   if( auto rc = dynamic_cast< RowConstraint * >( ai ) )
+    rc->set_dual( 0 );    // the dual solution is 0 on all RowConstraint
+     
+   continue;              // any other Constraint is ignored
+   }
+
+  // Objective
+  if( auto oi = dynamic_cast< Objective * >( ai ) ) {
+   auto fro = dynamic_cast< FRealObjective * >( oi );
+   if( ! fro )
+    throw( std::invalid_argument( "BoxSolver: not a FRealObjective" ) );
+
+   if( auto lf = dynamic_cast< LinearFunction * >( fro->get_function() ) ) {
+    // WARNING: INEFFICIENT!!
+    b += lf->get_coefficient( lf->is_active( & var ) );
+    continue;
+    }
+
+   if( auto qf = dynamic_cast< DQuadFunction * >( fro->get_function() ) ) {
+    auto p = qf->is_active( & var );    // WARNING: INEFFICIENT!!
+    b += qf->get_linear_coefficient( p );
+    a += qf->get_quadratic_coefficient( p );
+    continue;
+    }
+   
+   throw( std::invalid_argument(
+	       "BoxSolver: invalid Function inside the FRealObjective" ) );
+   }
+
+  throw( std::invalid_argument( "BoxSolver: invalid ThinVarDepInterface" ) );
+  
+  }  // end( for( i ) ) 
+
+ // now finally perform the minimization / maximization
+ if( var.is_integer() )  // integer variables have no dual
+  return;
+
+ if( ( a == 0 ) && ( b == 0 ) )    // the easy-easy-case: constant obj
+  return;        // this ColVariable changes nothing; note that the dual
+                 // solution, if required, is already set to 0, which is OK
+
+ if( a == 0 ) {  // linear but nontrivial: b != 0
+  if( f_sense == 1 ) {               // maximization
+   if( b > 0 ) {                     // with b > 0
+    if( u == INF )                   // if the upper bound is +INF
+     throw( std::invalid_argument(
+	       "BoxSolver::get_dual_solution: unexpected unboundedness" ) );
+    if( cu )
+     cu->set_dual( b );              // dual solution
+    }
+   else {                            // [maximization] with b < 0
+    if( l == - INF )                 // if the lower bound is -INF
+     throw( std::invalid_argument(
+	       "BoxSolver::get_dual_solution: unexpected unboundedness" ) );
+    if( cl )
+     cl->set_dual( b );              // dual solution
+    }
+   }
+  else {                             // minimization
+   if( b > 0 ) {                     // with b > 0
+    if( l == - INF )                 // if the lower bound is -INF
+     throw( std::invalid_argument(
+	       "BoxSolver::get_dual_solution: unexpected unboundedness" ) );
+    if( cu )
+     cu->set_dual( b );              // dual solution
+    }
+   else {                            // [minimization] with b < 0
+    if( u == INF )                   // if the upper bound is INF
+     throw( std::invalid_argument(
+	       "BoxSolver::get_dual_solution: unexpected unboundedness" ) );
+    if( cl )
+     cl->set_dual( b );              // dual solution
+    }
+   }
+
+  return;  // the nontrivial linear case has been dealt with
+  }
+
+ // deal with the quadratic case: a != 0
+ // the unique stationary point (max or min depending on the sign of a)
+ // of a x^2 + b is at x = - b / ( 2 * a );
+ OFValue x = - b / ( 2 * a );
+ auto q = [ & ]( OFValue y ) -> OFValue { return( ( a * y + b ) * y ); };
+ 
+ if( f_sense == 1 ) {               // maximization
+  if( a < 0 ) {                     // with a < 0
+    if( x > u ) {
+     x = u;
+     if( cu )
+      cu->set_dual( 2 * a * x + b );  // dual solution
+     }
+    else
+     if( x < l ) {
+      x = l;
+      if( cl )
+       cl->set_dual( 2 * a * x + b );  // dual solution
+      }
+   }
+
+  // oherwise no dual solution since it's convex maximization
+  return;  // the quadratic maximization case has been dealt with
+  }
+
+ // deal with the quadratic minimization case
+ if( a > 0 ) {                        // with a > 0
+  if( x > u ) {
+   x = u;
+   if( cu )
+    cu->set_dual( - 2 * a * x - b );  // dual solution
+   }
+  else
+   if( x < l ) {
+    x = l;
+    if( cl )
+     cl->set_dual( - 2 * a * x - b ); // dual solution
+    }
+  }
+
+ // else no dual solution since it's concave minimization
+
+ }  // end( BoxSolver::process_variable_dual )
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- End File BoxSolver.cpp ---------------------------*/

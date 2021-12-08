@@ -103,8 +103,8 @@ class Constraint;  // forward definition
  * POSSIBLE: copying a Constraint to a different memory location makes a
  * distinct Constraint. */
 
-class Constraint : public ThinComputeInterface , public ThinVarDepInterface {
-
+class Constraint : public ThinComputeInterface , public ThinVarDepInterface
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -125,9 +125,9 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface {
   * the void constructor. If nullptr is passed, then set_Block() [see below]
   * will have to be used later to initialize it. */
 
- explicit Constraint( Block * my_block = nullptr ) : ThinComputeInterface(),
-                                                     ThinVarDepInterface(),
-                                                     f_Block( my_block ),
+ explicit Constraint( Block * my_block = nullptr ) : ThinComputeInterface() ,
+                                                     ThinVarDepInterface() ,
+                                                     f_Block( my_block ) ,
                                                      f_is_relaxed( false ) {}
 
 /*--------------------------------------------------------------------------*/
@@ -136,14 +136,15 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface {
   * cannot be deleted because it is required to resize() empty vectors of
   * :Constraint. */
 
- Constraint( const Constraint & ) : ThinComputeInterface(),
+ Constraint( const Constraint & ) : ThinComputeInterface() ,
                                     ThinVarDepInterface() {
-  throw ( std::logic_error( "copy constructor of Constraint invoked" ) );
- }
+  throw( std::logic_error( "copy constructor of Constraint invoked" ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// destructor of Constraint: it is virtual, and empty
- ~Constraint() override = default;;
+
+ ~Constraint() override = default;
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -219,12 +220,12 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface {
   * users' responsibility to ensure that compute() has been called at the
   * proper time. */
 
- [[nodiscard]] virtual bool feasible() const = 0;
+ [[nodiscard]] virtual bool feasible( void ) const = 0;
 
 /*--------------------------------------------------------------------------*/
  /// returns true if the Constraint is relaxed, i.e., not really a Constraint
 
- [[nodiscard]] bool is_relaxed() const { return ( f_is_relaxed ); }
+ [[nodiscard]] bool is_relaxed( void ) const { return( f_is_relaxed ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*---------- METHODS FOR LOADING, PRINTING & SAVING THE Constraint ---------*/
@@ -244,10 +245,11 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface {
   * operator<<() is defined for each Constraint, but its behavior can be
   * customized by derived classes. */
 
- friend std::ostream & operator<<( std::ostream & out, const Constraint & c ) {
+ friend std::ostream & operator<<( std::ostream & out ,
+				   const Constraint & c ) {
   c.print( out );
   return ( out );
- }
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -279,9 +281,9 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface {
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
- Block * f_Block{};   ///< pointer to the Block to which the Constraint belongs
+ Block * f_Block;   ///< pointer to the Block which the Constraint belongs to
 
- bool f_is_relaxed{}; ///< true if the Constraint is relaxed
+ bool f_is_relaxed; ///< true if the Constraint is relaxed
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/

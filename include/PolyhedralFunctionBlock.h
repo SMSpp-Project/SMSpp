@@ -614,12 +614,15 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   mod->concerns_Block( false );  // recall it's been checked already
 
   const auto tmod = std::dynamic_pointer_cast< FunctionMod >( mod );
-  if( tmod && ( tmod->function() == & f_polyf ) )
+  if( tmod && ( tmod->function() == & f_polyf ) ) {
    // if the Modification comes from the PolyhedralFunction; it will
    // generate a (bunch of) Modification(s) in the "linearized"
    // representation, and this Modification itself will also remain to
-   // serves a the "physical" Modification)
-   guts_of_add_Modification_PF( tmod.get() , chnl );
+   // serves a the "physical" Modification) unless the Modification
+   // causes a NBModification to be issued, in which case it is useless
+   if( guts_of_add_Modification_PF( tmod.get() , chnl ) )
+    return;
+   }
   else
    // this Modification comes from some other part of the abstract
    // representation of the PolyhedralFunctionBlock, possibly (but not
@@ -710,9 +713,15 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   *   ADDED/REMOVED ...) CAN HAVE BEEN PERFORMED IN THE MEANTIME
   *
   * This assumption drastically simplifies some of the logic here. Hence,
-  * derived classes must ensure they do not mess up with this property. */
+  * derived classes must ensure they do not mess up with this property.
+  *
+  * The method returns true if and only if the FunctionMod produced by the
+  * PolyhedralFunction is the "nuclear Modification for Function" that
+  * causes a NBModification to be issued by PolyhedralFunctionBlock; in this
+  * case, and in this case only, forwarding the original Modification is
+  * pointless because the whole of the Block has been changed, */
 
- void guts_of_add_Modification_PF( FunctionMod * const mod , ChnlName chnl );
+ bool guts_of_add_Modification_PF( FunctionMod * const mod , ChnlName chnl );
 
 /*--------------------------------------------------------------------------*/
  /// process a Modification produced by the "linearized" representation

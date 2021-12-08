@@ -34,10 +34,6 @@
  * having a GroupModification may in principle considerably simplify the
  * handling.
  *
- * \version 0.40
- *
- * \date 31 - 10 - 2019
- *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
  *         Dipartimento di Informatica \n
@@ -55,8 +51,8 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __Modification
-#define __Modification
-/* self-identification: #endif at the end of the file */
+ #define __Modification
+                      /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -73,7 +69,10 @@
 
 ///< namespace for the Structured Modeling System++ (SMS++)
 namespace SMSpp_di_unipi_it {
-class Block;            // forward definition of Block
+
+ class Block;            // forward definition of Block
+
+ class Variable;         // forward definition of Variable
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
@@ -395,7 +394,7 @@ class Modification {
   * returns false: this is the right behavior for PMod, which are directly
   * issued by the :Block and that therefore can be of no interest for it. */
 
- [[nodiscard]] virtual bool concerns_Block() const { return ( false ); }
+ [[nodiscard]] virtual bool concerns_Block( void ) const { return( false ); }
 
 /*--------------------------------------------------------------------------*/
  /// method to set the value returned by concerns_Block( void )
@@ -403,10 +402,11 @@ class Modification {
   * base Modification class, thought to represent "physical" Modification,
   * this cannot be done (i.e., it cannot be set to true). */
 
- virtual void concerns_Block( const bool cB ) {
+ virtual void concerns_Block( bool cB ) {
   if( cB )
-   throw std::invalid_argument( "physical Modification cannot concerns_Block" );
- }
+   throw( std::invalid_argument(
+			    "physical Modification cannot concerns_Block" ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// friend operator<<(), dispatching to virtual protected print()
@@ -420,7 +420,7 @@ class Modification {
  operator<<( std::ostream & out, const Modification & b ) {
   b.print( out );
   return ( out );
- }
+  }
 
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 
@@ -438,7 +438,7 @@ class Modification {
 
 /*--------------------------------------------------------------------------*/
 
-};  // end( class( Modification ) )
+ };  // end( class( Modification ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ CLASS AModification -----------------------------*/
@@ -468,9 +468,9 @@ class AModification : public Modification {
 /*--------------------------------------------------------------------------*/
  /// returns the value stored in the f_concerns_Block field
 
- [[nodiscard]] bool concerns_Block() const override {
-  return ( f_concerns_Block );
- }
+ [[nodiscard]] bool concerns_Block( void ) const override {
+  return( f_concerns_Block );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// method to set the value returned by concerns_Block( void )
@@ -498,15 +498,13 @@ class AModification : public Modification {
 
  protected:
 
-/*-------------------------- PROTECTED METHODS -----------------------------*/
-
 /*--------------------------- PROTECTED FIELDS -----------------------------*/
 
  bool f_concerns_Block;       ///< the returned value
 
 /*--------------------------------------------------------------------------*/
 
-};  // end( class( AModification ) )
+ };  // end( class( AModification ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ CLASS NModification -----------------------------*/
@@ -538,7 +536,7 @@ class NModification : public Modification {
 
 /*--------------------------------------------------------------------------*/
 
-};  // end( class( NModification ) )
+ };  // end( class( NModification ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS NBModification ---------------------------*/
@@ -643,7 +641,7 @@ class GroupModification : public AModification {
  public:
 
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
- /// constructor: takes the value to be returned by concerns_Block()
+ /// constructor: takes the "father" GroupModification, if any
  /** Constructor of the class; takes (optionally) the "father" of the
   * GroupModification. The concerns_Block() value is initialized to false,
   * and (almost) automatically set to true if any of the Modification
@@ -734,7 +732,136 @@ class GroupModification : public AModification {
 
 /*--------------------------------------------------------------------------*/
 
-};  // end( class( GroupModification ) )
+ };  // end( class( GroupModification ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------------------ CLASS VariableGroupMod --------------------------*/
+/*--------------------------------------------------------------------------*/
+/*--------------------------- GENERAL NOTES --------------------------------*/
+/*--------------------------------------------------------------------------*/
+/// GroupModification for all the changes related to adding/deleting Variable
+/** The Constraint-based "abstract" representation of SMS++ has a significant
+ * issue in that it is not well-suited to deal with cases (that are bound to
+ * be rather common) where adding or deleting one or more Variable causes
+ * significant changes in the Constraint and Objective. The obvious example
+ * is that of a MILP, where this entails "just" the addition or removal of a
+ * column from the coefficient matrix, an operation that is typically handled
+ * very efficiently by MILP solvers. Conversely, in SMS++ this produces a
+ * possibly very long list of separate Modification for all the rows the
+ * Variable has a nonzero coefficient in. Besides the effort and memory for
+ * keeping all them, handling the coefficient modifications one by one can
+ * well be much less efficient than the unique column operation.
+ *
+ * Recognising this issue, the class VariableGroupMod derives from
+ * GroupModification and aims at grouping together all Modification
+ * corresponding to changes brought about by "significant changes in one or
+ * more Variable", typically adding/removing them. :Block may then
+ * approprately issue VariableGroupMod so that :Solver may react to them
+ * more efficiently.
+ *
+ * In general, one should not expect all Solver to be able to recognise a
+ * VariableGroupMod and deal with it explicitly. This means that the
+ * VariableGroupMod should still contain all the standard Modification for
+ * the individual Constraint/Objective, so that is the Solver goes the easy
+ * way of unpacking the VariableGroupMod and process the individual changes
+ * one by one, it can. However, just having to create the individual
+ * Modification can incur a significant cost that one may rather avoid if
+ * possible. It could therefore be possible for idividual :Block to have
+ * some way to allow the individual Modification to be dispensed with in the
+ * knowledge that the enclosing  VariableGroupMod is enough to convey all the
+ * necessary information to all the :Solver being currently employed. This
+ * should be a non-default behaviour for which currently no general mechanism
+ * is provided, so it necessarily needs be :Block-specific. It is not clear
+ * if this is general enough to make it effective or if a general mechanism
+ * will have to be provided for it to work as intended, but for now we keep
+ * it minimal. */
+
+class VariableGroupMod : public GroupModification {
+
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*---------------------------- PUBLIC TYPES --------------------------------*/
+
+ /// Definition of the possibles type of VariableGroupMod
+ /** This enum specifies what happened to the Variable that triggered the
+  * cascade of Modification contained inside the VariableGroupMod. Currently
+  * only two values are supported for the obvious added and deleted cases,
+  * but the "type" field is kept "int" and the enum is provided to allow for
+  * other cases to be considered in the future. */
+ enum variable_group_mod_type {
+  VariableAdded,          ///< the Variable has been added
+  VariableDeleted,        ///< the Variable has been deleted
+  VariableGroupModLastParam
+  ///< First allowed parameter value for derived classes
+  /**< Convenience value for easily allow derived classes to extend
+   * the set of types of VariableGroupMod. */
+ };
+
+/*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+
+ /// constructor: takes the affected vars, the type and the "father"
+ /** Constructor of the class. Takes the set of affected Variable under the
+  * form of a std::vector< Variable * >, and the type of changes occurred to
+  * them with the meaning set by variable_group_mod_type. Also, it optionally
+  * takes the "father" of the GroupModification. */
+
+ explicit VariableGroupMod( std::vector< Variable * > && vars , int type ,
+			    GroupModification * father = nullptr )
+  : GroupModification( father ) , v_vars( std::move( vars ) ) ,
+    f_type( type ) {}
+
+ /// destructor: does nothing
+ ~VariableGroupMod() override = default;
+
+/*--------------------------------------------------------------------------*/
+ /// accessor to the vector of pointers to affected Variable
+
+ [[nodiscard]] const std::vector< Variable * > & vars( void ) const {
+  return( v_vars );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// accessor to the type of Variable change
+
+ [[nodiscard]] int type( void ) const { return( f_type ); }
+
+/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ /// printing the VariableGroupMod
+ /** Method for printing the VariableGroupMod, which basically means printing
+  * all its sub-Modification. */
+
+ void print( std::ostream & output ) const override {
+  output << "VariableGroupMod[";
+  if( concerns_Block() )
+   output << "t]:";
+  else
+   output << "f]:";
+  if( f_type == VariableAdded )
+   output << " adding ";
+  else
+  output << " deleting ";
+  output << v_vars.size() << " Variables" << std::endl;
+  for( const auto & mod : v_sub_Modifications )
+   output << *mod << std::endl;
+ }
+
+/*--------------------------- PROTECTED FIELDS -----------------------------*/
+
+ int f_type;  ///< type of Variable change
+
+ std::vector< Variable * > v_vars;
+              ///< vector of pointers to affected Variable
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( VariableGroupMod ) )
 
 /** @} end( group( Modification_CLASSES ) ) */
 /*--------------------------------------------------------------------------*/
@@ -780,11 +907,11 @@ using c_ModParam = const ModParam;  ///< a const ModParam
  * interface. */
 
 enum amododification_type {
- eDryRun  = 0,  ///< dont't do the change, hence issue no Modification
- eNoMod   = 1,  ///< do the change but issue no Modification at all
- eNoBlck  = 2,  ///< issue the Modification, but concerns_Block() == false
- eModBlck = 3   ///< issue the Modification, and concerns_Block() == true
-};
+ eDryRun  = 0 ,  ///< dont't do the change, hence issue no Modification
+ eNoMod   = 1 ,  ///< do the change but issue no Modification at all
+ eNoBlck  = 2 ,  ///< issue the Modification, but concerns_Block() == false
+ eModBlck = 3    ///< issue the Modification, and concerns_Block() == true
+ };
 
 /*--------------------------------------------------------------------------*/
 

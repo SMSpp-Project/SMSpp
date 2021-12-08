@@ -83,7 +83,7 @@ SMS++H = $(SMS++SDR)include/AbstractBlock.h \
 	$(SMS++SDR)include/Configuration.h \
 	$(SMS++SDR)include/Constraint.h \
 	$(SMS++SDR)include/DataMapping.h \
-	$(SMS++SDR)include/DataQuadFunction.h \
+	$(SMS++SDR)include/DQuadFunction.h \
 	$(SMS++SDR)include/FakeSolver.h \
 	$(SMS++SDR)include/FRealObjective.h \
 	$(SMS++SDR)include/FRowConstraint.h \

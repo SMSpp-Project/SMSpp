@@ -36,37 +36,39 @@ using namespace SMSpp_di_unipi_it;
 /*--------------------------------- METHODS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void C05Function::delete_linearizations( Subset && which,
-                                         bool ordered,
-                                         c_ModParam issueMod ) {
+void C05Function::delete_linearizations( Subset && which , bool ordered ,
+                                         c_ModParam issueMod )
+{
  Index n = get_int_par( intGPMaxSz );
 
  if( which.empty() ) {  // delete them all
-  for( Index i = 0; i < n; ++i )
+  for( Index i = 0 ; i < n ; ++i )
    if( is_linearization_there( i ) )
     delete_linearization( i, eNoMod );
- } else {                 // delete the given subset
-  if( !ordered )
-   std::sort( which.begin(), which.end() );
+   }
+ else {                 // delete the given subset
+  if( ! ordered )
+   std::sort( which.begin() , which.end() );
 
   if( which.back() >= n )
-   throw ( std::invalid_argument( "invalid linearization name" ) );
+   throw( std::invalid_argument(
+       "C05Function::delete_linearizations: invalid linearization name" ) );
 
-  for( Index i: which )
+  for( Index i : which )
    if( is_linearization_there( i ) )
-    delete_linearization( i, eNoMod );
- }
+    delete_linearization( i , eNoMod );
+  }
 
- if( ( !f_Observer ) || ( !f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return;
 
  f_Observer->add_Modification(
-  std::make_shared< C05FunctionMod >( this,
-                                      C05FunctionMod::GlobalPoolRemoved,
-                                      std::move( which ), 0,
-                                      Observer::par2concern( issueMod ) ),
+  std::make_shared< C05FunctionMod >( this ,
+                                      C05FunctionMod::GlobalPoolRemoved ,
+                                      std::move( which ) , 0 ,
+                                      Observer::par2concern( issueMod ) ) ,
   Observer::par2chnl( issueMod ) );
-}
+ }
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- End File C05Function.cpp ---------------------------*/

@@ -18,9 +18,9 @@
  * to the sense of the original Objective) on the true optimal value. Yet,
  * this bound is obtained quickly.
  *
- * \version 0.10
+ * \version 0.11
  *
- * \date 09 - 01 - 2021
+ * \date 05 - 07 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -139,9 +139,10 @@ public:
  *  @{ */
 
  /// empty constructor
- BoxSolver( void ) : CDASolver() , f_sol( 0 ) , f_state( kUnEval ) ,
-  f_max_val( - Inf< OFValue >() ) , f_min_val( Inf< OFValue >() ) ,
-  f_sense( -1 ) {}
+
+ BoxSolver( void ) : CDASolver() , f_sol( 0 ) , f_sol_comp( 0 ) ,
+  f_state( kUnEval ) , f_max_val( - Inf< OFValue >() ) ,
+  f_min_val( Inf< OFValue >() ) , f_sense( -1 ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor: it really does nothing since v_mod is empty
@@ -165,7 +166,7 @@ public:
 
  void set_par( idx_type par , int value ) override {
   if( par == intPDSol ) {
-   f_sol = char( value );
+   set_sol( char( value ) );
    return;
    }
   CDASolver::set_par( par , value );
@@ -177,9 +178,9 @@ public:
   * dual solution.
   *
   * Since computing solutions has the same cost as producing the bound(s), it
-  * IS EITHER DONE INSIDE compute(), AND THE OPTIMAL PRIMAL AND / OR DUAL
-  * SOLUTION IS IMMEDIATELY WRITTEN IN THE ColVariable / DUAL VALUES OF THE
-  * :OneVarConstraint, OR NOT AT ALL.
+  * is better done inside compute(); in this case the optimal primal and / or
+  * dual solution is immediately written in the ColVariable / dual values of
+  * the :OneVarConstraint.
   *
   * @param sol is a char, coded bit-wise, that decides what is computed:
   *
@@ -191,9 +192,18 @@ public:
   * "inherent" bounds of a ColVariable has a nonzero dual value but there is
   * no :OneVarConstraint with the same bound, then there is no place where to
   * store the dual value and it is "lost". If this is a problem, the Block
-  * must always have the bounds specified via the :OneVarConstraint. */
+  * must always have the bounds specified via the :OneVarConstraint.
+  *
+  * However, doing this is a "minor" breach of the CDASolver interface, in
+  * that primal / dual solutions should ony be written when get_var_solution()
+  * and get_dual_solution() are called. This is why the default is 0. If the
+  * primal / dual solution has not been written during compute() it can still
+  * be required "normally" by calling get_var_solution() / get_dual_solution()
+  * as per the normal interface. This has roughly the same cost as solving the
+  * problem in the first place, but there you go (anyway the cost cannot
+  * reasonably be painted as "large"). */
 
- void set_sol( char sol = 0 ) { f_sol = sol; }
+ void set_sol( char sol = 0 ) { f_sol = sol & 3; }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SOLVING THE MODEL ----------------------*/
@@ -216,15 +226,11 @@ public:
 /*---------------------- METHODS FOR READING RESULTS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
- bool has_var_solution( void ) override {
-  return( ( f_sol & 1 ) && ( f_state == kOK ) );
-  }
+ bool has_var_solution( void ) override { return( f_state == kOK ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- bool has_dual_solution( void ) override {
-  return( ( f_sol & 2 ) && ( f_state == kOK ) );
-  }
+ bool has_dual_solution( void ) override { return( f_state == kOK ); }
 
 /*--------------------------------------------------------------------------*/
 
@@ -237,17 +243,11 @@ public:
 
 /*--------------------------------------------------------------------------*/
 
- void get_var_solution( Configuration *solc = nullptr ) override {
-  if( ! has_var_solution() )
-   throw( std::logic_error( "BoxSolver: Variable solution not available" ) );
-  }
+ void get_var_solution( Configuration *solc = nullptr ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- void get_dual_solution( Configuration *solc = nullptr ) override {
-  if( ! has_dual_solution() )
-   throw( std::logic_error( "BoxSolver: dual solution not available" ) );
-  }
+ void get_dual_solution( Configuration *solc = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
 
@@ -325,7 +325,6 @@ public:
   return( idx == intPDSol ? _parnm : CDASolver::int_par_idx2str( idx ) );
   }
 
-
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS FOR ADDING / REMOVING / CHANGING DATA --------------*/
 /*--------------------------------------------------------------------------*/
@@ -353,12 +352,18 @@ public:
 /*--------------------------------------------------------------------------*/
 
  void process_variable( ColVariable & var );
- 
+
+ void process_variable_sol( ColVariable & var );
+
+ void process_variable_dual( ColVariable & var );
+
 /*--------------------------------------------------------------------------*/
 /*--------------------------- PRIVATE FIELDS -------------------------------*/
 /*--------------------------------------------------------------------------*/
 
  char f_sol;        ///< whether the primal and/or dual solution is computed
+
+ char f_sol_comp;   ///< the value of f_sol in the last call to compute()
 
  int f_state;       ///< the return status
 

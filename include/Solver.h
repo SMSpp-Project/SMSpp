@@ -254,13 +254,7 @@ class Solver : public ThinComputeInterface {
   * universe) given enough resources, unless an error occurs, but not all
   * problems are decidable and therefore allow an extact Solver. */
 
-  kStillRunning = kError + 1 ,  ///< not stopped yet
-                                /**< compute() was called again while it has
-                                 * not already terminated, for instance from
-  * within an event handler. This is in general not allowed, and the only
-  * recourse is to return an error. */
-
-  kBlockLocked ,  ///< could not acquire the lock on the Block
+  kBlockLocked = kError + 1 ,  ///< could not acquire the lock on the Block
                   /**< compute() needed to lock the Block to work, but
                    * acquiring the lock was unsuccessful and the Solver does
   * not have in place any mechanism to overcome this issue. */
@@ -286,55 +280,25 @@ class Solver : public ThinComputeInterface {
   };  // end( sol_type )
 
 /*--------------------------------------------------------------------------*/
- /// public enum for the int algorithmic parameters
- /** Public enum describing the different algorithmic parameters of "int" type
-  * that any Solver should reasonably have. The value intLastAlgPar is
-  * provided so that the list can be easily extended by derived classes.
+ /// public enum for the int algorithmic parameters of Solver
+ /** Public enum "extending" int_par_type_TCI to describe the different
+  * algorithmic parameters of "int" type that any Solver should reasonably
+  * have on top of those defined by ThinComputeInterface. The value
+  * intLastAlgPar is provided so that the list can be easily extended by
+  * derived classes.
   *
   * Note: WHILE THE BASE Solver CLASS DEFINES THESE VALUES, IT DOES NOT
   *       HANDLE THEM SAVE FOR PROVIDING THE DEFAULT VALUES.
   *
   * That is, Solver does *not* re-define set_par( int ) and properly read
   * these parameters into fields of the class. This is entirely demanded to
-  * derived classes. What Solver does, however, is to properly define
-  * get_dflt_int_par() so that the parameters have their stated default
-  * value. */
+  * derived classes. What Solver does, however (unlike ThinComputeInterface),
+  * is to properly define get_dflt_int_par() so that the parameters have their
+  * stated default value. */
 
  enum int_par_type_S {
-  intMaxIter = 0 ,  ///< maximum iterations for the next call to compute()
-                    /**< The algorithmic parameter for setting the maximum
-                     * number of iterations that the next call to compute() is
-  * allowed to execute for trying to solve the Block. The concept of "what
-  * exactly an iteration is" is clearly Solver-dependent, and the user of the
-  * Solver need supposedly be aware of which concrete Solver it is actually
-  * using to be able to sensibly set this parameter; however, because most
-  * Solver will actually be iterative processes, it makes sense to offer
-  * support for this notion in the base class. More refined ones can easily
-  * be added by derived classes (see intLastAlgPar and dblLastAlgPar). The
-  * default is Inf<int>(). */
-
-  intMaxThread ,  ///< maximum number of threads that compute() can spawn
-                  /**< The algorithmic parameter for setting the maximum
-                   * number of threads that the next call to compute() is
-  * allowed to spawn while trying to solve the Block. Actually "thread" here
-  * is intended in a loose sense, since each :Solver will decide if and how
-  * to implememnt any asynchronous part, and hence which tools will be used
-  * to manage it. If std::asynch is used, for instance, then what is easily
-  * kept under control is the number of tasks, which may or may not coincide
-  * with the number of threads depending on the scheduler implementation.
-  * Specific :Solver requiring more fine control of these aspects can define
-  * their own specific algorithmic parameters, but the concept of "maximum
-  * allowed amount of computational resources" (as governed by a simple int)
-  * should be general enough as to warrant a parameter in the base Solver
-  * class. The default is 0, which means that compute() must only use the
-  * thread/task that is calling it. Note that this does not prevent the
-  * caller to call compute() in an asynchronous way, see e.g.
-  * ThinComputeInterface::compute_async() for an example, but in this case
-  * the responsibility of spawning (and then controlling) the new task is on
-  * the caller, while this parameter controls what happens inside compute().
-  */
-
-  intMaxSol ,   ///< maximum number of different solutions to report
+  intMaxSol = intLastAlgParTCI ,
+                ///< maximum number of different solutions to report
                 /**< The algorithmic parameter for setting the maximum 
                  * number of different solutions to the Block that the
   * Solver should attempt to obtain and store. Mathematical models can have
@@ -349,13 +313,7 @@ class Solver : public ThinComputeInterface {
   * the best one", and 0 says "I don't care of solutions at all, just tell
   * me if there is any, and what its value is". The default is 1. */
 
-  intEverykIt,  ///< how often call events of type eEverykIteration
-                /**< This parameter decides every how many iterations the
-                 * events of type eEverykIteration are called. The default
-  * value is 0, meaning that events of that type are never called. A value of
-  * 1 rather means that the events are called at every iteration. */
-
-  intLogVerb,   ///< "verbosity" of the log
+  intLogVerb ,  ///< "verbosity" of the log
                 /**< An integer parameter dictating how "verbose" the log of
                  * the Solver [see set_log()] has to be. The specific meaning
   * of each value is Solver-dependent, but it is intended that 0 means "no log
@@ -368,10 +326,12 @@ class Solver : public ThinComputeInterface {
   };  // end( int_par_type_S )
 
 /*--------------------------------------------------------------------------*/
- /// public enum for the double algorithmic parameters
- /** Public enum describing the different algorithmic parameters of "double"
-  * type that any Solver should reasonably have. The value dblLastAlgPar is
-  * provided so that the list can be easily extended by derived classes.
+ /// public enum for the double algorithmic parameters of Solver
+ /** Public enum "extending" dbl_par_type_TCI to describe the different
+  * algorithmic parameters of "double" type that any Solver should reasonably
+  * have on top of those defined by ThinComputeInterface. The value
+  * dblLastAlgPar is provided so that the list can be easily extended by
+  * derived classes.
   *
   * Note: WHILE THE BASE Solver CLASS DEFINES THESE VALUES, IT DOES NOT
   *       HANDLE THEM SAVE FOR PROVIDING THE DEFAULT VALUES.
@@ -383,18 +343,8 @@ class Solver : public ThinComputeInterface {
   * value. */
 
  enum dbl_par_type_S {
-  dblMaxTime = 0 ,  ///< maximum time for the next call to solve()
-                    /**< the algorithmic parameter for setting the maximum 
-		     * time limit that the next call to solve() can expend
-  * in trying to solve the Block. The value is assumed to be in seconds, and
-  * it's a double (so both very quick and very slow solvers are supported).
-  * The base Solver class does not explicitly distinguish between "wall-clock
-  * time" and "CPU time", which may be rather different especially in a
-  * parallel environment, but this concept can be easily added by derived
-  * classes (see intLastAlgPar and dblLastAlgPar). The default is
-  * Inf<double>(). */
-
-  dblRelAcc ,    ///< relative accuracy for declaring a solution optimal
+  dblRelAcc = dblLastAlgParTCI ,
+                 ///< relative accuracy for declaring a solution optimal
                  /**< The algorithmic parameter for setting the *relative*
   * accuracy required to the solution of the Block. This is
   * geared towards single-objective optimization problems, and it is defined
@@ -516,11 +466,6 @@ class Solver : public ThinComputeInterface {
   * may be taken as a way to tell the Solver not to bother to produce
   * unfeasible solutions at all, which is why this is the default value of
   * the parameter. */
-
-  dblEveryTTm ,  ///< how often call events of type eEveryTTime
-                 /**< This parameter sets the period (amount of time) T with
-                  * which events of type eEveryTTime are called. The default
-  * value is 0, meaning that events of that type are never called. */
 
   dblLastAlgPar   ///< first allowed new double parameter for derived classes
                   /**< Convenience value for easily allow derived classes to
@@ -820,49 +765,27 @@ class Solver : public ThinComputeInterface {
   f_log = log_stream;
   }
 
+/**@} ----------------------------------------------------------------------*/
+/*----------------- METHODS FOR MANAGING THE "IDENTITY" --------------------*/
 /*--------------------------------------------------------------------------*/
- /// set the "identity" of the Solver
- /** Each time that a Solver needs to operate on a Block, it has to "lock and
-  * own" it. The Block stores the "identity" of its owner, so that if the
-  * same owner comes back and try to "own" it, the operation suceeds even if
-  * the Block is locked already. When a Block is "owned", all its sub-Block
-  * (recursively) are "owned" by the same entity.
-  *
-  * In general, each entity willing to "lock and own" a Block will have to
-  * provide a unique "identity", under the form of a void *. For a Solver,
-  * this is "this", i.e., the pointer to the Solver itself. There can be the
-  * case where a Solver for a Block relies on sub-Solver that solve sub-Block
-  * of the given Block. However, when the "master" Solver "owns" the Block,
-  * its sub-Solver cannot "own" the sub-Block since they are already "owned"
-  * by the "master" Solver. The "master" solver could temporarily "unlock and
-  * disown" the Block before calling any method of the sub-Solver that tries
-  * to "own" it (typically, compute()), but this opens the chance that
-  * another entity which had tried to acquire the lock may step in and get it
-  * before the sub-Solver has a chance to, which may lead to issues and
-  * possibly even deadlocks.
-  *
-  * This method allows an entity "owning" a Block (say, the above "master"
-  * Solver) to "lend its identity" to the Solver. The identity is stored in
-  * a protected field of Solver, initialized with "this" and returned by
-  * id(). Each Solver should always use id() to try to "lock and own" the
-  * Block. This method allows to change the id() ("lend another identity")
-  * of the Solver to any value; when called with nullptr argument, the id()
-  * is reset to the default "this". Note that a Solver should always lend
-  * its id() to its sub-Solver, so that "lending can be propagated downwards"
-  * along a chain of sub-Solver. However, if this is done permanently (as
-  * opposed to an on-need basis), changing or resetting the id() of a Solver
-  * may require doing the same to its sub-Solver; this is why this method is
-  * virtual.
-  *
-  * Note that the "lock and own" mechanism also protects a Block from
-  * concurrent accesses from different threads. Thus, this mechanism removes
-  * such protection in case a (say) Solver running in a thread lends its
-  * identity to a (say) sub-Solver running in a different thread. It clearly
-  * is responsibility of the entity lending the identity (which presumably
-  * knows and controls the Solver it has leant it) to handle any such issues
-  * using the appropriate synchronization tools. */
+/** @name Managing the "identity" of a Solver
+ *
+ * Actually implement the methods of ThinComputeInterface relative to
+ * temporarily changing the "identity" of the Solver.
+ *
+ *  @{ */
 
- virtual void set_id( void * id = nullptr ) { f_id = id ? id : this; }
+ /// set the "identity" of the Solver
+ /** Actually implement the ThinComputeInterface::set_id() by setting the
+  * f_id member of the Solver class , which is initialized with "this" and
+  * returned by id(). Each :Solver should always use id() to try to "lock
+  * and own" the Block. This method allows to change the id() ("lend another
+  * identity") of the Solver to any value; when called with nullptr argument,
+  * the id() is reset to the default "this". Note that a Solver should always
+  * lend its id() to its sub-Solver, if any, so that "lending can be
+  * propagated downwards" along a chain of sub-Solver. */
+
+ void set_id( void * id = nullptr ) override { f_id = id ? id : this; }
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------------- METHODS FOR EVENTS HANDLING -----------------------*/
@@ -1044,7 +967,7 @@ class Solver : public ThinComputeInterface {
   *
   *     int compute( bool changedvars = true ) override {
   *      if( f_state == kStillRunning )
-  *       return( f_state );
+  *       return( kError );
   *      f_state = kStillRunning;
   *      < do the rest of compute >
   *      < set f_state to the right return code >
@@ -1603,7 +1526,7 @@ class Solver : public ThinComputeInterface {
   * programmer purposely defines private_name() without calling the macro,
   * which seems rather pointless). */
 
- const std::string & classname( void ) { return( private_name() ); }
+ const std::string & classname( void ) const { return( private_name() ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
@@ -1630,15 +1553,17 @@ class Solver : public ThinComputeInterface {
 /*--------------------------------------------------------------------------*/
 
  [[nodiscard]] int get_dflt_int_par( idx_type par ) const override {
-  return( par < intLastAlgPar ? dflt_int_par[ par ] :
-	  ThinComputeInterface::get_dflt_int_par( par ) );
+  if( par >= intLastAlgPar )
+   throw( std::invalid_argument( "invalid int parameter name" ) );
+  return( dflt_int_par[ par ] );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  [[nodiscard]] double get_dflt_dbl_par( idx_type par ) const override {
-  return( par < dblLastAlgPar ? dflt_dbl_par[ par ] :
-	  ThinComputeInterface::get_dflt_dbl_par( par ) );
+  if( par >= dblLastAlgPar )
+   throw( std::invalid_argument( "invalid double parameter name" ) );
+  return( dflt_dbl_par[ par ] );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1657,7 +1582,7 @@ class Solver : public ThinComputeInterface {
   const override {
   const auto it = dbl_pars_map.find( name );
   if( it == dbl_pars_map.end() )
-   return( Inf< idx_type >());
+   return( Inf< idx_type >() );
   return( it->second );
   }
 
@@ -1665,16 +1590,18 @@ class Solver : public ThinComputeInterface {
 
  [[nodiscard]] const std::string & int_par_idx2str( idx_type idx )
   const override {
-  return( idx < intLastAlgPar ? int_pars_str[ idx ] :
-	  ThinComputeInterface::int_par_idx2str( idx ) );
+  if( idx >= intLastAlgPar )
+   throw( std::invalid_argument( "invalid int parameter name" ) );
+  return( int_pars_str[ idx ] );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  [[nodiscard]] const std::string & dbl_par_idx2str( idx_type idx )
   const override {
-  return( idx < dblLastAlgPar ? dbl_pars_str[ idx ] :
-	  ThinComputeInterface::dbl_par_idx2str( idx ) );
+  if( idx >= dblLastAlgPar )
+   throw( std::invalid_argument( "invalid double parameter name" ) );
+  return( dbl_pars_str[ idx ] );
   }
 
 /**@} ----------------------------------------------------------------------*/
@@ -1973,7 +1900,7 @@ class Solver : public ThinComputeInterface {
  std::vector< std::vector< EventHandler > > v_events;
  ///< container of event handlers
  /**< v_events[ h ][ i ] contains the event handler of
-* ID i for the event type h. */
+  * ID i for the event type h. */
 
  const static std::vector< int > dflt_int_par;
  ///< the (static const) vector of int parameters default values
@@ -1987,10 +1914,10 @@ class Solver : public ThinComputeInterface {
  const static std::vector< std::string > dbl_pars_str;
  ///< the (static const) vector of double parameters names
 
- const static std::map< std::string, idx_type > int_pars_map;
+ const static std::map< std::string , idx_type > int_pars_map;
  ///< the (static const) map for int parameters names
 
- const static std::map< std::string, idx_type > dbl_pars_map;
+ const static std::map< std::string , idx_type > dbl_pars_map;
  ///< the (static const) map for double parameters names
 
 /*--------------------------------------------------------------------------*/

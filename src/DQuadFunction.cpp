@@ -4,10 +4,6 @@
 /** @file
  * Implementation of the DQuadFunction class.
  *
- * \version 0.30
- *
- * \date 15 - 09 - 2019
- *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
  *         Dipartimento di Informatica \n
@@ -89,7 +85,7 @@ bool DQuadFunction::is_linear( void ) const
 
 /*--------------------------------------------------------------------------*/
 
-void DQuadFunction::get_hessian_approximation( SparseHessian &hessian ) const
+void DQuadFunction::get_hessian_approximation( SparseHessian & hessian ) const
 {
  int num_active_var = this->get_num_active_var();
 
@@ -101,7 +97,6 @@ void DQuadFunction::get_hessian_approximation( SparseHessian &hessian ) const
   tripletList.push_back(
    Eigen::Triplet<FunctionValue>( index , index, 2 * std::get< 2 >( triple )
 				  ) );
-
  hessian.setZero();
  hessian.reserve( Eigen::VectorXi::Constant( num_active_var , 1 ) );
  hessian.setFromTriplets( tripletList.begin() , tripletList.end() );
@@ -109,12 +104,12 @@ void DQuadFunction::get_hessian_approximation( SparseHessian &hessian ) const
 
 /*--------------------------------------------------------------------------*/
 
-void DQuadFunction::get_hessian_approximation( DenseHessian &hessian ) const
+void DQuadFunction::get_hessian_approximation( DenseHessian & hessian ) const
 {
  int num_active_var = get_num_active_var();
  hessian.setZero( num_active_var , num_active_var );
  int index = 0;
- for(const auto &triple : v_triples) {
+ for( const auto & triple : v_triples ) {
   hessian( index , index ) = 2 * std::get< 2 >( triple );
   index++;
   }
@@ -162,8 +157,8 @@ void DQuadFunction::get_linearization_coefficients( SparseVector & g ,
                                  "coefficients: wrong size of nonempty "
                                  "SparseVector g: g has size " +
                                  std::to_string( g.size() ) + " but there is "
-                                 "(are) " + std::to_string( num_active_var ) +
-                                 " active Variable(s)." ) );
+                                 + std::to_string( num_active_var ) +
+                                 " active Variables" ) );
 
   for( Index i = range.first ; i < range.second ; ++i )
    g.coeffRef( i ) = get_linearization_coefficient( i );
@@ -192,7 +187,7 @@ void DQuadFunction::get_linearization_coefficients( FunctionValue * g ,
 
 void DQuadFunction::get_linearization_coefficients( SparseVector & g ,
 						    c_Subset & subset ,
-						    const bool ordered ,
+						    bool ordered ,
 						    Index name )
 {
  c_Index num_active_var = get_num_active_var();
@@ -218,9 +213,9 @@ void DQuadFunction::get_linearization_coefficients( SparseVector & g ,
    throw( std::invalid_argument( "DQuadFunction::get_linearization_"
                                  "coefficients: wrong size of nonempty "
                                  "SparseVector g: g has size " +
-                                 std::to_string( g.size() ) + " but there is "
-                                 "(are) " + std::to_string( num_active_var ) +
-                                 " active Variable(s)." ) );
+                                 std::to_string( g.size() ) + " but there are "
+                                 + std::to_string( num_active_var ) +
+                                 " active Variables" ) );
 
   for( const auto & i : subset ) {
    if( i >= num_active_var )
@@ -239,7 +234,7 @@ void DQuadFunction::get_linearization_coefficients( SparseVector & g ,
 /*--------------------------------------------------------------------------*/
 
 void DQuadFunction::map_active( c_Vec_p_Var & vars , Subset & map ,
-				const bool ordered ) const
+				bool ordered ) const
 {
  if( vars.empty() )
   return;
@@ -752,10 +747,6 @@ void DQuadFunction::set_constant_term( FunctionValue constant_term ,
  else
   f_constant_term = constant_term;
  }
-
-/*--------------------------------------------------------------------------*/
-/*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
-/*--------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------*/
 /*----------------------- End File DQuadFunction.cpp -----------------------*/

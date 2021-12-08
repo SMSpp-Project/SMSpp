@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 30 - 10 - 2019
+ * \date 19 - 03 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -53,6 +53,14 @@
 /*--------------------------------------------------------------------------*/
 
 using namespace SMSpp_di_unipi_it;
+
+/*--------------------------------------------------------------------------*/
+/*----------------------------- STATIC MEMBERS -----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+// register RowConstraintSolution to the Solution factory
+
+SMSpp_insert_in_factory_cpp_0( RowConstraintSolution );
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
@@ -580,21 +588,31 @@ void RowConstraintSolution::write( Block * const block ) {
 
 /*--------------------------------------------------------------------------*/
 
-void RowConstraintSolution::serialize( netCDF::NcGroup & group ) {
- throw( std::logic_error( " RowConstraintSolution::serialize not ready yet" ) );
-}
+void RowConstraintSolution::serialize( netCDF::NcGroup & group ) const
+{
+ // always call the method of the base class first
+ Solution::serialize( group );
+
+ throw( std::logic_error( " RowConstraintSolution::serialize not ready yet"
+			  ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 
 void RowConstraintSolution::sum( const Solution * solution,
                                  double multiplier ) {
 
- const RowConstraintSolution * other_solution =
+ auto other_solution =
   dynamic_cast< const RowConstraintSolution * >( solution );
 
  if( ! other_solution )
   throw std::invalid_argument( "RowConstraintSolution::sum: given Solution "
                                "must be a RowConstraintSolution" );
+
+ if( empty() ) {
+  scale( other_solution , multiplier );
+  return;
+  }
 
  if( this->static_constraint_dual_values.size() !=
      other_solution->static_constraint_dual_values.size() )
@@ -614,7 +632,7 @@ void RowConstraintSolution::sum( const Solution * solution,
   if( ! un_any_static_2
       ( this->static_constraint_dual_values[ i ] ,
         other_solution->static_constraint_dual_values[ i ] ,
-        [ &multiplier ]( double & this_value , double & other_value ) {
+        [ multiplier ]( double & this_value , double & other_value ) {
        this_value += multiplier * other_value;
       } ,
         un_any_type<double>() , un_any_type<double>() ) )
@@ -633,8 +651,8 @@ void RowConstraintSolution::sum( const Solution * solution,
   if( ! un_any_static_2
       ( this->dynamic_constraint_dual_values[ i ] ,
         other_solution->dynamic_constraint_dual_values[ i ] ,
-        [ &multiplier ]( std::vector<double> & this_values ,
-                         std::vector<double> & other_values ) {
+        [ multiplier ]( std::vector<double> & this_values ,
+                        std::vector<double> & other_values ) {
 
        // Reserve space in case the other solution has more dynamic
        // Constraint values
@@ -718,8 +736,8 @@ void RowConstraintSolution::scale( const RowConstraintSolution * const solution 
       ( solution->static_constraint_dual_values[ i ] ,
         this->static_constraint_dual_values[ i ] ,
         un_any_type<double>() , un_any_type<double>() ,
-        [ &factor ]( double & this_value , double & scaled_value ) {
-         scaled_value = factor * this_value;
+        [ factor ]( double & given_solution_value , double & scaled_value ) {
+         scaled_value = factor * given_solution_value;
         } ,
         true ) )
 
@@ -742,11 +760,11 @@ void RowConstraintSolution::scale( const RowConstraintSolution * const solution 
         this->dynamic_constraint_dual_values[ i ] ,
         un_any_type<std::vector<double>>() ,
         un_any_type<std::vector<double>>() ,
-        [ &factor ]( std::vector<double> & this_values ,
-                     std::vector<double> & scaled_values ) {
+        [ factor ]( std::vector<double> & given_solution_values ,
+                    std::vector<double> & scaled_values ) {
          scaled_values.resize( 0 );
-         scaled_values.reserve( this_values.size() );
-         for( auto & value : this_values )
+         scaled_values.reserve( given_solution_values.size() );
+         for( auto & value : given_solution_values )
           scaled_values.push_back( factor * value );
         } ) )
 

@@ -11,7 +11,7 @@
  *
  * \version 0.10
  *
- * \date 30 - 10 - 2019
+ * \date 19 - 03 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -176,7 +176,7 @@ public:
   *   then ...
   */
 
- virtual void serialize( netCDF::NcGroup & group ) override final;
+ virtual void serialize( netCDF::NcGroup & group ) const override final;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns a scaled version of this RowConstraintSolution
@@ -190,6 +190,7 @@ public:
 
  virtual RowConstraintSolution * scale( double factor ) const override;
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// stores a scaled version of the given RowConstraintSolution
  /** This method stores a scaled version of the RowConstraintSolution provided
   * as argument into this RowConstraintSolution. This RowConstraintSolution is
@@ -203,6 +204,7 @@ public:
  virtual void scale( const RowConstraintSolution * const solution ,
                      const double factor );
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// adds a multiple of the given Solution to this Solution
  /** This method adds a multiple of the dual values of the RowConstraint
   * stored in the Solution provided as argument to the values stored in this
@@ -213,8 +215,11 @@ public:
 
  virtual void sum( const Solution * solution , double multiplier ) override;
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
  virtual RowConstraintSolution * clone( bool empty = false ) const override;
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the dual values of the *static* Constraint
  /** Method for reading the dual values of the *static* Constraint of the
   * Block associated with this Solution. It returns a vector of boost::any, in
@@ -251,6 +256,7 @@ public:
   return( static_constraint_dual_values );
   }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the dual values of the *dynamic* Constraint
  /** Method for reading the dual values of the *dynamic* Constraint of the
   * Block associated with this Solution. It returns a vector of boost::any,
@@ -288,6 +294,7 @@ public:
   return( dynamic_constraint_dual_values );
   }
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the vector of inner sub-Solutions of this RowConstraintSolution
  /** Method for reading the vector of inner sub-Solutions of this
   * Solution. */
@@ -364,6 +371,21 @@ protected:
 
 /*--------------------------------------------------------------------------*/
 
+ /// returns true if and only if this RowConstraintSolution is empty
+ /** A RowConstraintSolution is empty if and only if its structure is empty.
+  * That is, it is empty if and only if the vectors returned by
+  * get_static_constraint_dual_values(), get_dynamic_constraint_dual_values()
+  * and get_nested_solutions() are all empty.
+  *
+  * @return true if and only if this RowConstraintSolution is empty. */
+
+ bool empty() const {
+  return nested_solutions.empty() && static_constraint_dual_values.empty() &&
+   dynamic_constraint_dual_values.empty();
+  }
+
+/*--------------------------------------------------------------------------*/
+
 /** @name Protected methods for printing and serializing
     @{ */
 
@@ -392,6 +414,12 @@ protected:
 
  Vec_RowConstraintSolution nested_solutions;
  ///< vector of RowConstraintSolutions of the nested Blocks
+
+/*--------------------------------------------------------------------------*/
+
+ SMSpp_insert_in_factory_h;
+
+/*--------------------------------------------------------------------------*/
 
 };  // end( class( RowConstraintSolution ) )
 

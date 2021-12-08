@@ -23,10 +23,13 @@
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+#include <boost/algorithm/string.hpp> // Used in read()
+
 #include "AbstractBlock.h"
 
 #include "ColVariable.h"
 
+#include "LinearFunction.h"
 #include "FRowConstraint.h"
 #include "OneVarConstraint.h"
 
@@ -210,14 +213,11 @@ AbstractBlock::~AbstractBlock()
 
 /*--------------------------------------------------------------------------*/
 
-bool AbstractBlock::is_feasible( bool useabstract, Configuration * fsbc )
+bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
 {
- if( ! useabstract )
-  return( false );
-
  // compute the accuracy parameter- - - - - - - - - - - - - - - - - - - - - -
  double eps = 0;
- auto tfsbc = dynamic_cast<SimpleConfiguration< double > *>( fsbc );
+ auto tfsbc = dynamic_cast< SimpleConfiguration< double > * >( fsbc );
 
  if( ( ! tfsbc ) && f_BlockConfig &&
      f_BlockConfig->f_is_feasible_Configuration )
@@ -229,19 +229,36 @@ bool AbstractBlock::is_feasible( bool useabstract, Configuration * fsbc )
  bool feas = true;
 
  // the static Constraints of the Block - - - - - - - - - - - - - - - - - - -
- auto & sc = get_static_constraints();
- for( Index i = get_first_static_Constraint() ; i < sc.size() ; ++i ) {
-  if( un_any_const_static( sc[ i ] ,
+ // note: AbstractBlock::is_feasible() is now checking *all* the abstract
+ //       representation, both the "reserved" part and all the rest. another
+ //       aproach would be to leave the "reserved" part to derived classes
+ //       and only test here the "non reserved" part. this might be
+ //       fractionally more efficient but it would require every derived
+ //       class to implement is_feasible(); so far we prefer the general
+ //       even if possibly slower solution
+ // auto & sc = get_static_constraints();
+ //!! for( Index i = get_first_static_Constraint() ; i < sc.size() ; ++i ) {
+ for( auto & sci : get_static_constraints() ) {
+  if( un_any_const_static( sci ,
 			   [ & feas , eps ]( FRowConstraint & cnst ) {
-                            feas = ( cnst.rel_viol() <= eps );
+			    if( ( ! feas ) || cnst.is_relaxed() )
+			     return;
+			    if( auto ret = cnst.compute() ;
+				( ret <= FRowConstraint::kUnEval ) ||
+				( ret > FRowConstraint::kOK ) )
+			     feas = false;
+			    else
+			     feas = ( cnst.rel_viol() <= eps );
                             } ,
                            un_any_type< FRowConstraint >() ) ) {
    if( ! feas )
     return( false );
    continue;
    }
-  if( un_any_const_static( sc[ i ] ,
+  if( un_any_const_static( sci ,
 			   [ & feas , eps ]( BoxConstraint & cnst ) {
+			    if( ( ! feas ) || cnst.is_relaxed() )
+			     return;
                             feas = ( cnst.rel_viol() <= eps );
                             } ,
                            un_any_type< BoxConstraint >() ) ) {
@@ -249,8 +266,10 @@ bool AbstractBlock::is_feasible( bool useabstract, Configuration * fsbc )
     return( false );
    continue;
    }
-  if( un_any_const_static( sc[ i ] ,
+  if( un_any_const_static( sci ,
 			   [ & feas , eps ]( LB0Constraint & cnst ) {
+			    if( ( ! feas ) || cnst.is_relaxed() )
+			     return;
                             feas = ( cnst.rel_viol() <= eps );
                             } ,
                            un_any_type< LB0Constraint >() ) ) {
@@ -258,8 +277,10 @@ bool AbstractBlock::is_feasible( bool useabstract, Configuration * fsbc )
     return( false );
    continue;
    }
-  if( un_any_const_static( sc[ i ] ,
+  if( un_any_const_static( sci ,
 			   [ & feas , eps ]( UB0Constraint & cnst ) {
+			    if( ( ! feas ) || cnst.is_relaxed() )
+			     return;
                             feas = ( cnst.rel_viol() <= eps );
                             } ,
                            un_any_type< UB0Constraint >() ) ) {
@@ -267,8 +288,10 @@ bool AbstractBlock::is_feasible( bool useabstract, Configuration * fsbc )
     return( false );
    continue;
    }
-  if( un_any_const_static( sc[ i ] ,
+  if( un_any_const_static( sci ,
 			   [ & feas , eps ]( LBConstraint & cnst ) {
+			    if( ( ! feas ) || cnst.is_relaxed() )
+			     return;
                             feas = ( cnst.rel_viol() <= eps );
                             } ,
                            un_any_type< LBConstraint >() ) ) {
@@ -276,17 +299,21 @@ bool AbstractBlock::is_feasible( bool useabstract, Configuration * fsbc )
     return( false );
    continue;
    }
-  if( un_any_const_static( sc[ i ] ,
+  if( un_any_const_static( sci ,
 			   [ & feas , eps ]( UBConstraint & cnst ) {
-                            feas = ( cnst.rel_viol() <= eps );
+			    if( ( ! feas ) || cnst.is_relaxed() )
+			     return;
+                           feas = ( cnst.rel_viol() <= eps );
                             } ,
                            un_any_type< UBConstraint >() ) ) {
    if( ! feas )
     return( false );
    continue;
    }
-  if( un_any_const_static( sc[ i ] ,
+  if( un_any_const_static( sci ,
 			   [ & feas , eps ]( NNConstraint & cnst ) {
+			    if( ( ! feas ) || cnst.is_relaxed() )
+			     return;
                             feas = ( cnst.rel_viol() <= eps );
                             } ,
                            un_any_type< NNConstraint >() ) ) {
@@ -294,16 +321,21 @@ bool AbstractBlock::is_feasible( bool useabstract, Configuration * fsbc )
     return( false );
    continue;
    }
-  if( un_any_const_static( sc[ i ], [ & feas, eps ]( NPConstraint & cnst ) {
+  if( un_any_const_static( sci ,
+			   [ & feas , eps ]( NPConstraint & cnst ) {
+			    if( ( ! feas ) || cnst.is_relaxed() )
+			     return;
                             feas = ( cnst.rel_viol() <= eps );
-                           },
+                            } ,
                            un_any_type< NPConstraint >() ) ) {
-   if( !feas )
-    return ( false );
+   if( ! feas )
+    return( false );
    continue;
-  }
-  if( un_any_const_static( sc[ i ] ,
+   }
+  if( un_any_const_static( sci ,
 			   [ & feas , eps ]( ZOConstraint & cnst ) {
+			    if( ( ! feas ) || cnst.is_relaxed() )
+			     return;
                             feas = ( cnst.rel_viol() <= eps );
                             } ,
                            un_any_type< ZOConstraint >() ) ) {
@@ -316,11 +348,13 @@ bool AbstractBlock::is_feasible( bool useabstract, Configuration * fsbc )
   }
 
  // the static Variables of the Block - - - - - - - - - - - - - - - - - - - -
- auto & sv = get_static_variables();
- for( Index i = get_first_static_Variable() ; i < sv.size() ; ++i ) {
-  if( un_any_const_static( sv[ i ] ,
+ // auto & sv = get_static_variables();
+ //!! for( Index i = get_first_static_Variable() ; i < sv.size() ; ++i ) {
+ // see above for comments
+ for( auto & svi : get_static_variables() ) {
+  if( un_any_const_static( svi ,
 			   [ & feas , eps ]( ColVariable & var ) {
-                            feas = var.is_feasible( eps );
+                            feas = feas && var.is_feasible( eps );
                             } ,
                            un_any_type< ColVariable >() ) ) {
    if( ! feas )
@@ -331,28 +365,41 @@ bool AbstractBlock::is_feasible( bool useabstract, Configuration * fsbc )
   }
 
  // the dynamic Constraints of the Block-  - - - - - - - - - - - - - - - - - -
- auto & dc = get_dynamic_constraints();
- for( Index i = get_first_dynamic_Constraint() ; i < dc.size() ; ++i ) {
-  if( un_any_const_dynamic( dc[ i ] ,
-                            [ & feas, eps ]( FRowConstraint & cnst ) {
-                             feas = ( cnst.rel_viol() <= eps );
+ // auto & dc = get_dynamic_constraints();
+ //!! for( Index i = get_first_dynamic_Constraint() ; i < dc.size() ; ++i ) {
+ // see above for comments
+ for( auto & dci : get_dynamic_constraints() ) {
+  if( un_any_const_dynamic( dci ,
+                            [ & feas , eps ]( FRowConstraint & cnst ) {
+			     if( ( ! feas ) || cnst.is_relaxed() )
+			      return;
+			     if( auto ret = cnst.compute() ;
+				 ( ret <= FRowConstraint::kUnEval ) ||
+				 ( ret > FRowConstraint::kOK ) )
+			      feas = false;
+			     else
+			      feas = ( cnst.rel_viol() <= eps );
                              } ,
                             un_any_type< FRowConstraint >() ) ) {
    if( ! feas )
     return( false );
    continue;
    }
-  if( un_any_const_dynamic( dc[ i ] ,
+  if( un_any_const_dynamic( dci ,
 			    [ & feas , eps ]( BoxConstraint & cnst ) {
-                             feas = ( cnst.rel_viol() <= eps );
+			     if( ( ! feas ) || cnst.is_relaxed() )
+			      return;
+			     feas = ( cnst.rel_viol() <= eps );
                              } ,
                             un_any_type< BoxConstraint >() ) ) {
    if( ! feas )
     return( false );
    continue;
    }
-  if( un_any_const_dynamic( dc[ i ] ,
+  if( un_any_const_dynamic( dci ,
 			    [ & feas , eps ]( LB0Constraint & cnst ) {
+			     if( ( ! feas ) || cnst.is_relaxed() )
+			      return;
                              feas = ( cnst.rel_viol() <= eps );
                              } ,
                             un_any_type< LB0Constraint >() ) ) {
@@ -360,17 +407,21 @@ bool AbstractBlock::is_feasible( bool useabstract, Configuration * fsbc )
     return( false );
    continue;
    }
-  if( un_any_const_dynamic( dc[ i ] ,
+  if( un_any_const_dynamic( dci ,
 			    [ & feas , eps ]( UB0Constraint & cnst ) {
-                             feas = ( cnst.rel_viol() <= eps );
+			     if( ( ! feas ) || cnst.is_relaxed() )
+			      return;
+			     feas = ( cnst.rel_viol() <= eps );
                              } ,
                             un_any_type< UB0Constraint >() ) ) {
    if( ! feas )
     return( false );
    continue;
    }
-  if( un_any_const_dynamic( dc[ i ] ,
+  if( un_any_const_dynamic( dci ,
 			    [ & feas , eps ]( LBConstraint & cnst ) {
+			     if( ( ! feas ) || cnst.is_relaxed() )
+			      return;
                              feas = ( cnst.rel_viol() <= eps );
                              } ,
                             un_any_type< LBConstraint >() ) ) {
@@ -378,8 +429,10 @@ bool AbstractBlock::is_feasible( bool useabstract, Configuration * fsbc )
     return( false );
    continue;
    }
-  if( un_any_const_dynamic( dc[ i ] ,
+  if( un_any_const_dynamic( dci ,
 			    [ & feas , eps ]( UBConstraint & cnst ) {
+			     if( ( ! feas ) || cnst.is_relaxed() )
+			      return;
                              feas = ( cnst.rel_viol() <= eps );
                              } ,
                             un_any_type< UBConstraint >() ) ) {
@@ -387,8 +440,10 @@ bool AbstractBlock::is_feasible( bool useabstract, Configuration * fsbc )
     return( false );
    continue;
    }
-  if( un_any_const_dynamic( dc[ i ] ,
+  if( un_any_const_dynamic( dci ,
 			    [ & feas , eps ]( NNConstraint & cnst ) {
+			     if( ( ! feas ) || cnst.is_relaxed() )
+			      return;
                              feas = ( cnst.rel_viol() <= eps );
                              },
                             un_any_type< NNConstraint >() ) ) {
@@ -396,18 +451,22 @@ bool AbstractBlock::is_feasible( bool useabstract, Configuration * fsbc )
     return( false );
    continue;
    }
-  if( un_any_const_dynamic( dc[ i ] ,
+  if( un_any_const_dynamic( dci ,
 			    [ & feas , eps ]( NPConstraint & cnst ) {
-                             feas = ( cnst.rel_viol() <= eps );
+			     if( ( ! feas ) || cnst.is_relaxed() )
+			      return;
+			     feas = ( cnst.rel_viol() <= eps );
                              } ,
                             un_any_type< NPConstraint >() ) ) {
    if( ! feas )
     return( false );
    continue;
    }
-  if( un_any_const_dynamic( dc[ i ] ,
+  if( un_any_const_dynamic( dci ,
 			    [ & feas, eps ]( ZOConstraint & cnst ) {
-                             feas = ( cnst.rel_viol() <= eps );
+			     if( ( ! feas ) || cnst.is_relaxed() )
+			      return;
+			     feas = ( cnst.rel_viol() <= eps );
                              } ,
                             un_any_type< ZOConstraint >() ) ) {
    if( ! feas )
@@ -419,11 +478,13 @@ bool AbstractBlock::is_feasible( bool useabstract, Configuration * fsbc )
  }
 
  // the dynamic Variables of the Block- - - - - - - - - - - - - - - - - - - -
- auto & dv = get_dynamic_variables();
- for( Index i = get_first_dynamic_Variable() ; i < dv.size() ; ++i ) {
-  if( un_any_const_dynamic( dv[ i ] ,
+ // auto & dv = get_dynamic_variables();
+ //!! for( Index i = get_first_dynamic_Variable() ; i < dv.size() ; ++i ) {
+ // see above for comments
+ for( auto & dvi : get_dynamic_variables() ) {
+  if( un_any_const_dynamic( dvi ,
 			    [ & feas , eps ]( ColVariable & var ) {
-                             feas = var.is_feasible( eps );
+                             feas = feas && var.is_feasible( eps );
                              } ,
                             un_any_type< ColVariable >() ) ) {
    if( ! feas )
@@ -435,8 +496,10 @@ bool AbstractBlock::is_feasible( bool useabstract, Configuration * fsbc )
 
  // the inner Blocks - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
- for( Index i = get_first_inner_Block() ; i < v_Block.size() ; ++i )
-  if( ! v_Block[ i ]->is_feasible( true ) )
+ //!! for( Index i = get_first_inner_Block() ; i < v_Block.size() ; ++i )
+ // see above for comments
+ for( auto bi : v_Block )
+  if( ! bi->is_feasible( useabstract ) )
    return( false );
 
  return( true );
@@ -895,6 +958,535 @@ void AbstractBlock::print( std::ostream & output ) const
    output << *v_Block[ i ];
   }
  }  // end( AbstractBlock::print )
+
+/*--------------------------------------------------------------------------*/
+
+void AbstractBlock::read( const std::string & filename,
+                          const std::string & ext ) {
+
+ // Check for explicit LP
+ if( boost::iequals( ext, "lp" ) ) {
+  read_lp( filename );
+  return;
+ }
+
+ // Check for explicit MPS
+ if( boost::iequals( ext, "mps" ) ) {
+  read_mps( filename );
+  return;
+ }
+
+ // Infer from file extension
+ if( ext.empty() ) {
+  std::size_t pos = filename.find_last_of( '.' );
+  if( pos != std::string::npos ) {
+   auto e = filename.substr( pos + 1 );
+   if( boost::iequals( e, "lp" ) ) {
+    read_lp( filename );
+    return;
+   }
+   if( boost::iequals( e, "mps" ) ) {
+    read_mps( filename );
+    return;
+   }
+  }
+  throw std::invalid_argument( "Cannot infer file type from extension" );
+ }
+
+ throw std::invalid_argument( "Specify a valid file type" );
+}
+
+/*--------------------------------------------------------------------------*/
+
+void AbstractBlock::read_mps( const std::string & filename ) {
+ std::ifstream file( filename );
+ if( !file.is_open() ) {
+  throw std::invalid_argument( "Cannot open file" );
+ }
+
+ auto dbl_val = []( std::string & s ) {
+  assert( !s.empty() );
+  if( s[ 0 ] == '.') {
+   s.insert( 0, "0" );
+  } else if( s[ 0 ] == '-' && s[ 1 ] == '.' ) {
+   s.insert( 1, "0" );
+  }
+  if( s.back() == '.' ) {
+   s.pop_back();
+  }
+  return std::stod( s );
+ };
+
+ std::string problem_name;
+ int num_rows = 0;
+ int num_cols = 0;
+
+ auto * of = new FRealObjective();
+ std::string of_name;
+
+ std::vector< FRowConstraint > * rows;
+ std::vector< std::string > row_names;
+ std::vector< char > row_type;
+
+ std::vector< ColVariable > * cols;
+ std::vector< std::string > col_names;
+ std::vector< BoxConstraint > * bounds;
+
+ std::string rhs_name; // Only one RHS vector is supported
+ std::string rng_name; // Only one RANGES vector is supported
+ std::string bnd_name; // Only one BOUNDS vector is supported
+ std::vector< double > rhs;
+ std::vector< double > rng;
+
+ std::string word;
+ auto max = std::numeric_limits< std::streamsize >::max();
+
+ // Eat initial comments
+ while( file.peek() == file.widen( '*' ) ) {
+  file.ignore( max, '\n' );
+ }
+
+ // Read NAME
+ file >> word;
+ if( word != "NAME" ) {
+  throw std::invalid_argument( "Invalid syntax in MPS file" );
+ }
+ file >> word;
+ if( word != "OBJSENSE" ) {
+  problem_name = word;
+  file.ignore( max, '\n' );
+  file >> word;
+ }
+
+ // Read OBJSENSE (optional)
+ if( word == "OBJSENSE" ) {
+  file >> word;
+  if( word == "MAX" || word == "MAXIMIZE" ) {
+   of->set_sense( Objective::eMax, eNoMod );
+  } else if( word == "MIN" || word == "MINIMIZE" ) {
+   of->set_sense( Objective::eMin, eNoMod );
+  } else {
+   throw std::invalid_argument( "Invalid syntax in MPS file" );
+  }
+  file >> word;
+ } else {
+  // Minimize by default
+  of->set_sense( Objective::eMin, eNoMod );
+ }
+
+ // Read OBJNAME (optional)
+ if( word == "OBJNAME" ) {
+  file >> of_name;
+  file >> word;
+ }
+
+ /*
+  * First pass: get rows and columns number
+  */
+
+ // Read ROWS
+ if( word != "ROWS" ) {
+  throw std::invalid_argument( "Invalid syntax in MPS file" );
+ }
+ file.ignore( max, '\n' );
+ auto pos = file.tellg(); // Save it for later
+ while( file.peek() == file.widen( ' ' ) ) {
+  file >> word;
+  if( word == "E" || word == "L" || word == "G" ) {
+   ++num_rows;
+   file.ignore( max, '\n' ); // Skip row name for now
+  } else if( word == "N" ) {
+   file.ignore( max, '\n' ); // Skip row name for now
+  } else {
+   throw std::invalid_argument( "Invalid syntax in MPS file" );
+  }
+ }
+
+ // Read COLUMNS
+ file >> word;
+ if( word != "COLUMNS" ) {
+  throw std::invalid_argument( "Invalid syntax in MPS file" );
+ }
+ file.ignore( max, '\n' );
+ std::string tmp;
+ while( file.peek() == file.widen( ' ' ) ) {
+  std::string row;
+
+  file >> word;
+  file >> row;
+
+  if( row == "\'MARKER\'" ) {
+   file.ignore( max, '\n' );
+   continue; // Skip integrality markers for now
+  }
+
+  if( word != tmp ) {
+   tmp = word;
+   ++num_cols;
+  }
+  file.ignore( max, '\n' );
+ }
+
+ /*
+  * Initialize stuff
+  */
+
+ row_names.resize( num_rows );
+ row_type.resize( num_rows );
+ rows = new std::vector< FRowConstraint >( num_rows );
+
+ for( auto & r: *rows ) {
+  r.set_function( new LinearFunction(), eNoMod );
+  r.set_Block( this );
+ }
+ of->set_function( new LinearFunction(), eNoMod );
+
+ cols = new std::vector< ColVariable >( num_cols );
+ col_names.resize( num_cols );
+ bounds = new std::vector< BoxConstraint >( num_cols );
+
+ for( int i = 0; i < num_cols; ++i ) {
+  ( *bounds )[ i ].set_variable( &( *cols )[ i ], eNoMod );
+  ( *bounds )[ i ].set_Block( this );
+  ( *cols )[ i ].set_Block( this );
+ }
+
+ rhs.resize( num_rows, 0 );
+ rng.resize( num_rows, Inf< double >() );
+
+ /*
+  * Second pass: fill data
+  */
+
+ // Read ROWS
+ file.seekg( pos, file.beg ); // Go back to line after "ROWS"
+ int i = 0;
+ while( file.peek() == file.widen( ' ' ) ) {
+
+  file >> word;
+  if( word == "E" || word == "L" || word == "G" ) {
+   row_type[ i ] = word[ 0 ];
+   file >> row_names[ i ];
+   ++i;
+   file.ignore( max, '\n' );
+  } else if( word == "N" ) {
+   if( of_name.empty() ) {
+    file >> of_name;
+   }
+   // FIXME: Other N rows are ignored
+   file.ignore( max, '\n' );
+  } else {
+   throw std::invalid_argument( "Invalid syntax in MPS file" );
+  }
+ }
+
+ // Read COLUMNS
+ file.ignore( max, '\n' ); // Ignore "COLUMNS" line
+ i = 0;
+ bool marker = false;
+ tmp.clear();
+ ColVariable * v;
+ LinearFunction * f;
+ while( file.peek() == file.widen( ' ' ) ) {
+  std::string row;
+  std::string value;
+
+  file >> word;
+  file >> row;
+  file >> value;
+
+  // Check integrality marker
+  if( row == "\'MARKER\'" ) {
+   if( value == "\'INTORG\'" ) {
+    marker = true;
+   } else if( value == "\'INTEND\'" ) {
+    marker = false;
+   } else {
+    throw std::invalid_argument( "Invalid syntax in MPS file" );
+   }
+   file.ignore( max, '\n' );
+   continue;
+  }
+
+  // Column name
+  if( word != tmp ) {
+   tmp = word;
+   col_names[ i ] = tmp;
+   v = &( *cols )[ i ];
+   if( marker ) {
+    v->set_type( ColVariable::kInteger, eNoMod );
+   }
+   ++i;
+  }
+
+  // First name/value pair
+  if( row == of_name ) {
+   f = static_cast<LinearFunction *>(of->get_function());
+  } else {
+   auto it = std::find( row_names.begin(), row_names.end(), row );
+   if( it != row_names.end() ) {
+    auto j = std::distance( row_names.begin(), it );
+    f = static_cast<LinearFunction *>(( *rows )[ j ].get_function());
+   } else {
+    throw std::invalid_argument( "Invalid syntax in MPS file" );
+   }
+  }
+  f->add_variable( v, dbl_val( value ) );
+
+  // Optional second name/value pair
+  if( file.peek() != file.widen( '\n' ) ) {
+   file >> row;
+   file >> value;
+   if( row == of_name ) {
+    // Will add to OF
+    f = static_cast<LinearFunction *>(of->get_function());
+   } else {
+    // Will add to a constraint
+    auto it = std::find( row_names.begin(), row_names.end(), row );
+    if( it != row_names.end() ) {
+     auto j = std::distance( row_names.begin(), it );
+     f = static_cast<LinearFunction *>(( *rows )[ j ].get_function());
+    } else {
+     throw std::invalid_argument( "Invalid syntax in MPS file" );
+    }
+   }
+   f->add_variable( v, dbl_val( value ) );
+  }
+  file.ignore( max, '\n' );
+ }
+
+ /*
+  * Continue with RHS and RANGES
+  */
+
+ // Read RHS
+ file >> word;
+ if( word != "RHS" ) {
+  throw std::invalid_argument( "Invalid syntax in MPS file" );
+ }
+ file.ignore( max, '\n' );
+ while( file.peek() == file.widen( ' ' ) ) {
+
+  // RHS name
+  file >> word;
+  if( rhs_name.empty() ) {
+   rhs_name = word;
+  } else if( word != rhs_name ) {
+   throw std::invalid_argument( "Only one RHS vector is supported" );
+  }
+
+  std::string row;
+  std::string value;
+
+  // First name/value pair
+  file >> row;
+  file >> value;
+  auto it = std::find( row_names.begin(), row_names.end(), row );
+  if( it != row_names.end() ) {
+   auto j = std::distance( row_names.begin(), it );
+   rhs[ j ] = dbl_val( value );
+  } else {
+   throw std::invalid_argument( "Invalid syntax in MPS file" );
+  }
+
+  // Optional second name/value pair
+  if( file.peek() != file.widen( '\n' ) ) {
+   file >> row;
+   file >> value;
+   it = std::find( row_names.begin(), row_names.end(), row );
+   if( it != row_names.end() ) {
+    auto j = std::distance( row_names.begin(), it );
+    rhs[ j ] = dbl_val( value );
+   } else {
+    throw std::invalid_argument( "Invalid syntax in MPS file" );
+   }
+  }
+  file.ignore( max, '\n' );
+ }
+
+ // Read RANGES (optional)
+ file >> word;
+ if( word == "RANGES" ) {
+  file.ignore( max, '\n' );
+  while( file.peek() == file.widen( ' ' ) ) {
+
+   // RANGES name
+   file >> word;
+   if( rng_name.empty() ) {
+    rng_name = word;
+   } else if( word != rng_name ) {
+    throw std::invalid_argument( "Only one RANGE vector is supported" );
+   }
+
+   std::string row;
+   std::string value;
+
+   // First name/value pair
+   file >> row;
+   file >> value;
+   auto it = std::find( row_names.begin(), row_names.end(), row );
+   if( it != row_names.end() ) {
+    auto j = std::distance( row_names.begin(), it );
+    rng[ j ] = dbl_val( value );
+   } else {
+    throw std::invalid_argument( "Invalid syntax in MPS file" );
+   }
+
+   // Optional second name/value pair
+   if( file.peek() != file.widen( '\n' ) ) {
+    file >> row;
+    file >> value;
+    it = std::find( row_names.begin(), row_names.end(), row );
+    if( it != row_names.end() ) {
+     auto j = std::distance( row_names.begin(), it );
+     rng[ j ] = dbl_val( value );
+    } else {
+     throw std::invalid_argument( "Invalid syntax in MPS file" );
+    }
+   }
+   file.ignore( max, '\n' );
+  }
+  file >> word;
+ }
+
+ // Process RHS and ranges
+ for( int r = 0; r < num_rows; ++r ) {
+  auto & row = ( *rows )[ r ];
+
+  switch( row_type[ r ] ) {
+   case 'G' :
+    // G: rhs =< f() =< rhs + |rng|
+    row.set_lhs( rhs[ r ], eNoMod );
+    if( rng[ r ] == Inf< double >() ) {
+     row.set_rhs( Inf< double >(), eNoMod );
+    } else {
+     row.set_rhs( rhs[ r ] + std::abs( rng[ r ] ), eNoMod );
+    }
+    break;
+
+   case 'L' :
+    // L: rhs - |rng| =< f() =< rhs
+    row.set_rhs( rhs[ r ], eNoMod );
+    if( rng[ r ] == Inf< double >() ) {
+     row.set_lhs( -Inf< double >(), eNoMod );
+    } else {
+     row.set_lhs( rhs[ r ] - std::abs( rng[ r ] ), eNoMod );
+    }
+    break;
+
+   case 'E' :
+    if( rng[ r ] == Inf< double >() || rng[ r ] == 0 ) {
+     // E (no range): rhs =< f() =< rhs
+     row.set_both( rhs[ r ], eNoMod );
+    } else if( rng[ r ] > 0 ) {
+     // E+: rhs + rng =< f() =< rhs
+     row.set_lhs( rhs[ r ] + rng[ r ], eNoMod );
+     row.set_rhs( rhs[ r ], eNoMod );
+    } else {
+     // E-: rhs =< f() =< rhs + rng
+     row.set_lhs( rhs[ r ], eNoMod );
+     row.set_rhs( rhs[ r ] + rng[ r ], eNoMod );
+    }
+    break;
+   default:;
+  }
+ }
+
+ /*
+  * Continue with BOUNDS
+  */
+ if( word == "BOUNDS" ) {
+  file.ignore( max, '\n' );
+  while( file.peek() == file.widen( ' ' ) ) {
+
+   std::string type;
+   file >> type;
+
+   // BOUNDS name
+   file >> word;
+   if( bnd_name.empty() ) {
+    bnd_name = word;
+   } else if( word != bnd_name ) {
+    throw std::invalid_argument( "Only one BOUNDS vector is supported" );
+   }
+
+   std::string col;
+   std::string value;
+   file >> col;
+
+   auto it = std::find( col_names.begin(), col_names.end(), col );
+   if( it != col_names.end() ) {
+    auto j = std::distance( col_names.begin(), it );
+    auto & b = ( *bounds )[ j ];
+    auto & c = ( *cols )[ j ];
+    if( type == "LO" ) {        // Lower bound
+     file >> value;
+     b.set_lhs( dbl_val( value ), eNoMod );
+    } else if( type == "UP" ) { // Upper bound
+     file >> value;
+     b.set_rhs( dbl_val( value ), eNoMod );
+    } else if( type == "FX" ) { // Fixed variable
+     file >> value;
+     b.set_both( dbl_val( value ), eNoMod );
+     c.set_value( dbl_val( value ) );
+     c.is_fixed( true, eNoMod );
+    } else if( type == "FR" ) { // Free variable
+     b.set_lhs( -Inf< double >(), eNoMod );
+     b.set_rhs( Inf< double >(), eNoMod );
+    } else if( type == "MI" ) { // Lower bound -inf
+     b.set_lhs( -Inf< double >(), eNoMod );
+     b.set_rhs( 0, eNoMod );
+    } else if( type == "PL" ) { // Upper bound +inf
+     b.set_lhs( 0, eNoMod );
+     b.set_rhs( Inf< double >(), eNoMod );
+    } else if( type == "BV" ) { // Binary variable
+     c.set_type( ColVariable::kBinary, eNoMod );
+    } else if( type == "LI" ) { // Integer variable
+     file >> value;
+     c.set_type( ColVariable::kInteger, eNoMod );
+     b.set_lhs( dbl_val( value ), eNoMod );
+    } else if( type == "UI" ) { // Integer variable
+     file >> value;
+     c.set_type( ColVariable::kInteger, eNoMod );
+     b.set_rhs( dbl_val( value ), eNoMod );
+    } else {
+     throw std::invalid_argument( "Invalid syntax in MPS file" );
+    }
+   } else {
+    throw std::invalid_argument( "Invalid syntax in MPS file" );
+   }
+   file.ignore( max, '\n' );
+  }
+  file >> word;
+ }
+
+ file.close();
+
+ if( word != "ENDATA" ) {
+  throw std::invalid_argument( "Invalid syntax in MPS file" );
+ }
+
+ // Reset and set abstract representation
+ reset_static_constraints();
+ reset_static_variables();
+ reset_objective();
+
+ set_objective( of, eNoMod );
+ add_static_variable( *cols );
+ add_static_constraint( *rows );
+ add_static_constraint( *bounds );
+
+ // Issue the NBModification
+ if( anyone_there() ) {
+  add_Modification( std::make_shared< NBModification >( this ) );
+ }
+}
+
+/*--------------------------------------------------------------------------*/
+
+void AbstractBlock::read_lp( const std::string & filename ) {
+ throw std::logic_error( "AbstractBlock::read_lp() not implemented yet" );
+}
 
 /*--------------------------------------------------------------------------*/
 

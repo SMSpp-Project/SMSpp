@@ -2365,7 +2365,7 @@ class Block : public Observer {
   * non-nullptr) the abstract representation of the Objective must have been
   * constructed, cf. generate_objective(). */
 
- Objective * get_objective() const { return ( f_Objective ); }
+ Objective * get_objective( void ) const { return( f_Objective ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// template method to get the the current Objective
@@ -4063,12 +4063,18 @@ class Block : public Observer {
   * Variable of the Block is approximately feasible within the given
   * tolerances.
   *
-  * The useabstract parameter being true dictates that the solution is
+  * The useabstract parameter being true dictates that the solution should be
   * checked for feasibility w.r.t. "abstract representation" of the Block,
-  * otherwise the "physical representation" of the Block is used. This may
-  * yield different outcomes, as discussed below. Of course, for
-  * is_feasible( true ) to work the "abstract representation" have to
-  * have been constructed in the first place.
+  * otherwise the "physical representation" of the Block should used. This
+  * may yield different outcomes, as discussed below. However, useabstract
+  * should only be considered a "hint", that the Block is allowed to ignore
+  * if it must, This is obviously the case of is_feasible( true ) being
+  * called without the "abstract representation" having been constructed.
+  * Also, a Block may in principle not have a "physical representation" at
+  * all (although weird, this is not ruled out) and therefore it may not be
+  * able to use it when is_feasible( false ) is called. In these cases, the
+  * Block should still do its best to return a meaningful return value with
+  * the information it does possess, even if not the intended one.
   *
   * Note that significant differences exist between the two versions that
   * may "reasonably" lead is_feasible( true ) and is_feasible( false ) to
@@ -4149,14 +4155,14 @@ class Block : public Observer {
   * does not have direct support for the fact that a Configuration contains a
   * sub-Configuration for each sub-Block of a Block. */
 
- virtual bool is_feasible( bool useabstract = false,
+ virtual bool is_feasible( bool useabstract = false ,
                            Configuration * fsbc = nullptr ) {
   for( auto blck : v_Block )
-   if( !blck->is_feasible( useabstract ) )
-    return ( false );
+   if( ! blck->is_feasible( useabstract ) )
+    return( false );
 
-  return ( true );
- }
+  return( true );
+  }
 
 /*--------------------------------------------------------------------------*/
  ///< returns true if the current solution is (approximately) optimal
@@ -4176,7 +4182,11 @@ class Block : public Observer {
   *
   * The useabstract parameter being true dictates that the check should be
   * performed using the "abstract representation" of the Block, otherwise
-  * the "physical representation" of the Block should be used.
+  * the "physical representation" of the Block should be used; as in
+  * is_feasible(), this value has to be taken as a clue rather than as an
+  * order, in the sense that if the required representation is not available
+  * then the Block should still do its best to return a meaningful return
+  * value with the information it does possess, even if not the intended one.
   *
   * However, a significant difference exists between the two versions in case
   * the Block has dynamic variables. Indeed, in that case the abstract
@@ -4230,14 +4240,14 @@ class Block : public Observer {
   * sub-Configuration, which cannot be done with the base Configuration
   * class. */
 
- virtual bool is_optimal( bool useabstract = false,
+ virtual bool is_optimal( bool useabstract = false ,
                           Configuration * optc = nullptr ) {
   for( auto blck : v_Block )
-   if( !blck->is_optimal( useabstract ) )
-    return ( false );
+   if( ! blck->is_optimal( useabstract ) )
+    return( false );
 
-  return ( true );
- }
+  return( true );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns true if the current solution is an unbounded ray
@@ -4257,7 +4267,11 @@ class Block : public Observer {
   * the "physical representation" of the Block should be used. See the
   * comments to is_feasible() for the cases where the check using the
   * "abstract representation" may give different results that that using
-  * the "physical" one.
+  * the "physical" one. Also, as in is_feasible(), this value has to be taken
+  * as a clue rather than as an order, in the sense that if the required
+  * representation is not available then the Block should still do its best
+  * to return a meaningful return value with the information it does possess,
+  * even if not the intended one
   *
   * Checking the property is likely to entail some numerical computation, say
   * to verify that some matrix-vector scalar product is "zero". This may
@@ -4319,8 +4333,12 @@ class Block : public Observer {
   * the "physical representation" of the Block should be used. See the
   * comments to is_feasible() for the cases where the check using the
   * "abstract representation" may give different results that that using
-  * the "physical" one.
- *
+  * the "physical" one. Also, as in is_feasible(), this value has to be taken
+  * as a clue rather than as an order, in the sense that if the required
+  * representation is not available then the Block should still do its best to
+  * return a meaningful return value with the information it does possess,
+  * even if not the intended one
+  *
   * Checking the property is likely to entail some numerical computation, say
   * to verify that some matrix-vector scalar product is "zero". This may
   * require numerical accuracy parameters, which is what the parameter optc
@@ -4349,8 +4367,8 @@ class Block : public Observer {
   * The method is given a default implementation always returning false, which
   * is appropriate for Block which cannot ever be empty. */
 
- virtual bool is_empty( bool useabstract = false,
-                        Configuration * optc = nullptr ) { return ( false ); }
+ virtual bool is_empty( bool useabstract = false ,
+                        Configuration * optc = nullptr ) { return( false ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------------- Methods for R3 Blocks --------------------------*/
@@ -5113,8 +5131,8 @@ class Block : public Observer {
   * which is const in a const method. */
 
  Block * get_Block() const override {
-  return ( const_cast< Block * >( this ) );
- }
+  return( const_cast< Block * >( this ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns true if there is any Solver "listening to this Block"
@@ -5123,8 +5141,8 @@ class Block : public Observer {
   * (father, father of father, ...) of this Block. */
 
  bool anyone_there() const override {
-  return ( f_at || ( !v_Solver.empty() ) );
- }
+  return( f_at || ( ! v_Solver.empty() ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// tell a Block if someone "listening to" its father
@@ -5240,7 +5258,7 @@ class Block : public Observer {
  /** Method for reading the list of (pointers to) the Solvers currently
   * registered with the Block. */
 
- c_Lst_Solver & get_registered_solvers() const { return ( v_Solver ); }
+ c_Lst_Solver & get_registered_solvers( void ) const { return( v_Solver ); }
 
 /*--------------------------------------------------------------------------*/
  /// adding a Solver to the set of those currently registered
@@ -7171,13 +7189,14 @@ class Block : public Observer {
 
 /*--------------------------------------------------------------------------*/
 /** This method removes the given Variable from all Constraints and Objectives
- * in which it is active. Since the removal of a Variable from a Constraint or
- * Objective may result in a Modification being thrown, this Modification can
- * be avoided by setting the parameter throw_individual_modifications to
- * false [see remove_dynamic_variables()]. */
+ * in which it is active. The removal of a Variable from a Constraint or
+ * Objective typically results in a Modification being issued, which may be
+ * wasteful in some cases; to avoid this one could "just" use issueindMod ==
+ * eNoMod, although this has to be done with great care [see the comments to
+ * remove_dynamic_variables()]. */
 
- void remove_variable_from_stuff( Variable * const variable,
-                                  int issueindMod );
+ void remove_variable_from_stuff( Variable * const variable ,
+				  int issueindMod );
 
 /*--------------------------------------------------------------------------*/
 /// returns the bimap associated with the methods of type F

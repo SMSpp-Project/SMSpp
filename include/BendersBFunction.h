@@ -7,7 +7,7 @@
  *
  * \version 0.01
  *
- * \date 17 - 09 - 2020
+ * \date 26 - 05 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -47,10 +47,12 @@
 /// namespace for the Structured Modeling System++ (SMS++)
 namespace SMSpp_di_unipi_it
 {
-
  class AbstractPath;       // forward declaration of AbstractPath
+
  class ConstraintMod;      // forward declaration of ConstraintMod
+
  class RowConstraint;      // forward declaration of RowConstraint
+
  class Solution;           // forward declaration of Solution
 
 /*--------------------------------------------------------------------------*/
@@ -82,8 +84,8 @@ namespace SMSpp_di_unipi_it
  *
  * 2) A matrix A with m rows and n columns, a vector b with m rows, and a
  *    vector of pairs [ ( C_i , S_i ) ]_{i \in I}, each pair being formed by a
- *    pointer to a RowConstraint of Block B and a #ConstraintSide, where I =
- *    {0, ..., m-1}.
+ *    pointer C_i to a RowConstraint of Block B and a #ConstraintSide S_i,
+ *    where I = {0, ..., m-1}.
  *
  *    Problem (B) would typically be associated with an original problem
  *
@@ -110,10 +112,10 @@ namespace SMSpp_di_unipi_it
  *
  *    These mappings are bunched together into a single mapping M defined by
  *    the matrix A and the vector b such that M(x) = Ax + b. The i-th
- *    component of this mapping, M_i(x) = [ Ax + b ]_i, is associated with the
- *    left- or right-hand side (or both) of the RowConstraint of Block B
- *    pointed by C_i. The #ConstraintSide S_i indicates which sides of the
- *    RowConstraint (pointed by) C_i are affected, as follows:
+ *    component of this mapping, namely M_i(x) = [ Ax + b ]_i, is associated
+ *    with the left- or right-hand side (or both) of the RowConstraint of
+ *    Block B pointed by C_i. The #ConstraintSide S_i indicates which sides of
+ *    the RowConstraint (pointed by) C_i are affected, as follows:
  *
  *    - If S_i = eLHS, then M_i(x) gives the value of the left-hand side of
  *      the RowConstraint (pointed by) C_i.
@@ -202,6 +204,12 @@ class BendersBFunction : public C05Function , public Block {
  public:
 
 /*--------------------------------------------------------------------------*/
+/*-------------------------------- FRIENDS ---------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ friend class BendersBFunctionState;
+
+/*--------------------------------------------------------------------------*/
 /*---------------------- PUBLIC TYPES OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Public Types
@@ -212,13 +220,15 @@ class BendersBFunction : public C05Function , public Block {
   * actually the same, but compilers still don't like it. Disambiguate by
   * declaring we use the ThinVarDepInterface versions (but it could have been
   * the Block versions, as they are the same). */
+
  using Index    = ThinVarDepInterface::Index;
  using c_Index  = ThinVarDepInterface::c_Index;
+
  using Range    = ThinVarDepInterface::Range;
  using c_Range  = ThinVarDepInterface::c_Range;
+
  using Subset   = ThinVarDepInterface::Subset;
  using c_Subset = ThinVarDepInterface::c_Subset;
-
 
  /// public enum representing the sides of a RowConstraint
  /** Public enum representing the sides of a RowConstraint. */
@@ -358,6 +368,23 @@ class BendersBFunction : public C05Function , public Block {
   VarVector::const_iterator itr_;
   };
 
+/*--------------------------------------------------------------------------*/
+ /// public enum for the int algorithmic parameters
+ /** Public enum describing the different algorithmic parameters of int type
+  * that BendersBFunction has in addition to those of C05Function. The value
+  * intLastBendersBFPar is provided so that the list can be easily further
+  * extended by derived classes. */
+
+ enum int_par_type_BendersBF {
+
+  intLinComp = intLastParC05F , ///< determines how linearizations are computed
+
+  intLastBendersBFPar ///< first allowed new int parameter for derived classes
+                      /**< Convenience value for easily allow derived classes
+                       * to extend the set of int algorithmic parameters. */
+
+ };  // end( int_par_type_LagBF )
+
 /**@} ----------------------------------------------------------------------*/
 /*------------- CONSTRUCTING AND DESTRUCTING BendersBFunction --------------*/
 /*--------------------------------------------------------------------------*/
@@ -458,11 +485,21 @@ class BendersBFunction : public C05Function , public Block {
   *
   * @param issueMod which decides if and how the FunctionMod (with shift()
   *        == FunctionMod::NaNshift, i.e., "everything changed") is issued,
-  *        as described in Observer::make_par(). The default is eNoMod,
-  *        since the method is mostly thought to be used during initialization
-  *        when "no one is listening". */
+  *        as described in Observer::make_par(). */
 
- void deserialize( const netCDF::NcGroup & group , ModParam issueMod = eNoMod );
+ void deserialize( const netCDF::NcGroup & group , ModParam issueMod );
+
+/*--------------------------------------------------------------------------*/
+
+ /// de-serialize a BendersBFunction out of netCDF::NcGroup
+ /** This method simply calls deserialize( group , eNoMod ). Please refer to
+  * the comments to that method for details. The value eNoMod is passed as
+  * argument, since this method is mostly thought to be used during
+  * initialization when "no one is listening". */
+
+ void deserialize( const netCDF::NcGroup & group ) override {
+  deserialize( group , eNoMod );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// destructor of BendersBFunction
@@ -543,8 +580,8 @@ class BendersBFunction : public C05Function , public Block {
   * @param destroy_previous_block indicates whether the previous inner Block
   *        must be destroyed. The default value of this parameter is \c true,
   *        which means that the previous inner Block (if any) is destroyed and
-  *        its allocated memory is released.
-  */
+  *        its allocated memory is released. */
+
  void set_inner_block( Block * block , bool destroy_previous_block = true ) {
   if( ( ! v_Block.empty() ) && block == v_Block.front() &&
       ( ! destroy_previous_block ) )
@@ -560,35 +597,91 @@ class BendersBFunction : public C05Function , public Block {
    block->set_f_Block( this );
 
   send_nuclear_modification();
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// set a given integer (int) numerical parameter
  /** Set a given integer (int) numerical parameter. BendersBFunction takes
   * care of the following parameters:
   *
-  * - intMaxIter
-  * - intLPMaxSz
-  * - intGPMaxSz
+  * - intMaxIter: This parameter is associated with the Solver::intMaxIter
+  *               parameter of the CDASolver attached to the inner Block.
+  *   Setting this parameter causes the corresponding parameter of the
+  *   CDASolver of the inner Block to be overwritten. The setting of this
+  *   parameter only takes effect if this BendersBFunction has an inner Block
+  *   and this inner Block has a CDASolver attached to it. If the inner Block
+  *   of this BendersBFunction has not yet been constructed or it has no
+  *   CDASolver attached to it, attempting setting this parameter will raise
+  *   an exception. The default value for this parameter is defined by the
+  *   C05Function.
   *
-  * Any other parameter is handled by the C05Function. The first two
-  * parameters are associated with parameters of the CDASolver of the
-  * sub-Block. The intMaxIter parameter is associated with the
-  * Solver::intMaxIter parameter and the intLPMaxSz parameter is associated
-  * with the CDASolver::intMaxDSol parameter. Setting any of these parameters
-  * causes the corresponding parameter of the CDASolver of the sub-Block to be
-  * overwritten. The setting of these two parameters only take effect if this
-  * BendersBFunction has a sub-Block and this sub-Block has a CDASolver
-  * attached to it. If the inner Block of this BendersBFunction has not yet
-  * been constructed or it has no CDASolver attached to it, attempting setting
-  * any of these three parameters will raise an exception.
+  * - intLPMaxSz: This parameter is associated with the CDASolver::intMaxDSol
+  *               parameter of the CDASolver attached to the inner Block.
+  *   Setting this parameter causes the corresponding parameter of the
+  *   CDASolver of the inner Block to be overwritten. The setting of this
+  *   parameter only takes effect if this BendersBFunction has an inner Block
+  *   and this inner Block has a CDASolver attached to it. If the inner Block
+  *   of this BendersBFunction has not yet been constructed or it has no
+  *   CDASolver attached to it, attempting setting this parameter will raise
+  *   an exception. The default value for this parameter is defined by the
+  *   C05Function.
+  *
+  * - intGPMaxSz: This parameter specifies the maximum number of Solution from
+  *               the Solver of the inner Block that can be stored in the
+  *   global pool, each one of which corresponds to a linearization. The
+  *   default value for this parameter is defined by the C05Function.
+  *
+  * - intLinComp [7]: This parameter, coded bit-wise, determines how
+  *                   linearizations are computed. This parameter specifies
+  *   how linearization constants are computed and whether the Solution of the
+  *   inner Block stored in the global pool are enough to re-compute the
+  *   linearization coefficients and/or the linearization constant.
+  *
+  *   The first bit indicates how a linearization constant associated with the
+  *   most recent call to has_linearization() must be computed. If it is set
+  *   to 1, then the linearization constant is computed by using the bound
+  *   provided by the Solver of the inner Block and the dual values of the
+  *   Constraint handled by this BendersBFunction. More specifically, in this
+  *   case, the linearization constant is computed as
+  *
+  *     bound - g'x
+  *
+  *   where x is the vector with the values of the active Variable of this
+  *   BendersBFunction, g are the linearization coefficients associated with
+  *   the last call to has_linearization(), and "bound" is a bound on the
+  *   function value obtained in the last call to compute(). The computation
+  *   of g involves only the RowConstraint handled by this BendersBFunction
+  *   and the mapping matrix A.
+  *
+  *   If the first bit is 0, the linearization constant is computed based on
+  *   the dual values of all RowConstraint of the inner Block (and its
+  *   sub-Block, recursively) instead, and does not use any bound provided by
+  *   the Solver of the inner Block.
+  *
+  *   If the second bit is set to 1, it indicates that the Solution of the
+  *   inner Block stored in the global pool contains enough information to
+  *   recompute the linearization coefficients. If it is set to 0, it
+  *   indicates that changes made to the inner Block that affect the
+  *   linearization coefficients will result in the deletion of the
+  *   linearization from the global pool.
+  *
+  *   If the third bit is set to 1, it indicates that the Solution of the
+  *   inner Block stored in the global pool contains enough information to
+  *   recompute the linearization constant. If it is set to 0, it indicates
+  *   that changes made to the inner Block that affect the linearization
+  *   constant will result in the deletion of the linearization from the
+  *   global pool.
+  *
+  *   The default value for this parameter is 7, which means that all bits
+  *   mentioned above are set to 1.
+  *
+  * Any other parameter is handled by the C05Function.
   *
   * @param par The parameter to be set.
   *
-  * @return The value of the parameter.
-  */
+  * @return The value of the parameter. */
 
- void set_par( const idx_type par , const int value ) override;
+ void set_par( idx_type par , int value ) override;
 
 /*--------------------------------------------------------------------------*/
  /// set a given float (double) numerical parameter
@@ -615,12 +708,11 @@ class BendersBFunction : public C05Function , public Block {
   *
   * @param par The parameter to be set.
   *
-  * @return The value of the parameter.
-  */
+  * @return The value of the parameter. */
 
- void set_par( const idx_type par , const double value ) override {
+ void set_par( idx_type par , double value ) override {
 
-  auto solver = get_solver<CDASolver>();
+  auto solver = get_solver< CDASolver >();
   if( ! solver )
    throw( std::invalid_argument( "BendersBFunction::set_par: the inner Block "
                                  "must have a CDASolver attached to it." ) );
@@ -668,6 +760,12 @@ class BendersBFunction : public C05Function , public Block {
 /** @name Handling the parameters of the BendersBFunction
  *  @{ */
 
+ [[nodiscard]] idx_type get_num_int_par( void ) const override {
+  return( intLastBendersBFPar );
+ }
+
+/*--------------------------------------------------------------------------*/
+
  /// get a specific integer (int) numerical parameter
  /** Get a specific integer (int) numerical parameter. BendersBFunction takes
   * care of the following parameters:
@@ -675,15 +773,15 @@ class BendersBFunction : public C05Function , public Block {
   * - intMaxIter
   * - intLPMaxSz
   * - intGPMaxSz
+  * - intLinComp
   *
   * Any other parameter is handled by the C05Function.
   *
   * @param par The parameter whose value is desired.
   *
-  * @return The value of the required parameter.
-  */
+  * @return The value of the required parameter. */
 
- int get_int_par( const idx_type par ) const override {
+ [[nodiscard]] int get_int_par( idx_type par ) const override {
   switch( par ) {
    case( intMaxIter ):
     return get_solver_int_par( Solver::intMaxIter );
@@ -691,6 +789,8 @@ class BendersBFunction : public C05Function , public Block {
     return get_solver_int_par( CDASolver::intMaxDSol );
    case( intGPMaxSz ):
     return global_pool.size();
+   case( intLinComp ):
+    return LinComp;
   }
   return C05Function::get_int_par( par );
  }
@@ -713,10 +813,9 @@ class BendersBFunction : public C05Function , public Block {
   *
   * @param par The parameter whose value is desired.
   *
-  * @return The value of the required parameter.
-  */
+  * @return The value of the required parameter. */
 
- double get_dbl_par( const idx_type par ) const override {
+ [[nodiscard]] double get_dbl_par( idx_type par ) const override {
   switch( par ) {
    case( dblAAccMlt ):
     return AAccMlt;
@@ -737,7 +836,91 @@ class BendersBFunction : public C05Function , public Block {
   }
 
   return C05Function::get_dbl_par( par );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ [[nodiscard]] int get_dflt_int_par( idx_type par ) const override {
+  if( par == intLinComp )
+   return( 7 );
+  return( C05Function::get_dflt_int_par( par ) );
  }
+
+/*--------------------------------------------------------------------------*/
+
+ [[nodiscard]] idx_type int_par_str2idx( const std::string & name )
+  const override {
+  if( name == "intLinComp" )
+   return( intLinComp );
+  return( C05Function::int_par_str2idx( name ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ [[nodiscard]] const std::string & int_par_idx2str( idx_type idx )
+  const override {
+  static const std::vector< std::string > pars = { "intLinComp" };
+
+  if( idx == intLinComp )
+   return( pars[ 0 ] );
+
+  return( C05Function::int_par_idx2str( idx ) );
+ }
+
+/**@} ----------------------------------------------------------------------*/
+/*--------- METHODS FOR HANDLING THE State OF THE BendersBFunction ---------*/
+/*--------------------------------------------------------------------------*/
+/** @name Handling the State of the BendersBFunction
+ */
+
+ State * get_State( void ) const override;
+
+/*--------------------------------------------------------------------------*/
+
+ void put_State( const State & state ) override;
+
+/*--------------------------------------------------------------------------*/
+
+ void put_State( State && state ) override;
+
+/*--------------------------------------------------------------------------*/
+
+ void serialize_State( netCDF::NcGroup & group ,
+		       const std::string & sub_group_name = "" )
+  const override;
+
+/**@} ----------------------------------------------------------------------*/
+/*----------------- METHODS FOR MANAGING THE "IDENTITY" --------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Managing the "identity" of the BendersBFunction
+ *
+ * Actually implement the methods of ThinComputeInterface relative to
+ * temporarily changing the "identity" of the BendersBFunction.
+ *
+ *  @{ */
+
+ /// set the "identity" of the BendersBFunction
+ /** Actually implement the ThinComputeInterface::set_id() by setting the
+  * f_id member of the BendersBFunction class, which is initialized with
+  * "this" in the constructor. BendersBFunction always uses f_id to try to
+  * "lock and own" the Block. This method allows to change f_id ("lend
+  * another identity"); when called with nullptr argument, the id() is reset
+  * to the default "this". Also, if the inner Block is set and has
+  * registered Solver, their identity is also set (or reset) in anticipation
+  * that they also may have to lock() the inner Block during their line of
+  * work. */
+
+ void set_id( void * id = nullptr ) override {
+  if( f_id == id )  // nothing to do
+   return;          // silently (and cowardly) return
+
+  f_id = id ? id : this;
+
+  // propagate downwards the id change
+  if( ! v_Block.empty() )
+   for( auto s : v_Block.front()->get_registered_solvers() )
+    s->set_id( id );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE BendersBFunction -----*/
@@ -1287,7 +1470,7 @@ class BendersBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
  /// deletes a range of rows from the linear mapping in the BendersBFunction
- /**< Deletes a range rows from the linear mapping in the BendersBFunction,
+ /** Deletes a range rows from the linear mapping in the BendersBFunction,
   * leaving the current set of n = get_num_active_var() input Variable and
   * all rows that are not explicitly deleted:
   *
@@ -1305,7 +1488,7 @@ class BendersBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
  /// deletes a subset of rows from the linear mapping
- /**< Deletes a subset of rows from the linear mapping in the
+ /** Deletes a subset of rows from the linear mapping in the
   * BendersBFunction, leaving the current set of n = get_num_active_var()
   * input Variable and all rows that are not explicitly deleted:
   *
@@ -1343,7 +1526,7 @@ class BendersBFunction : public C05Function , public Block {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// deletes all rows from the linear mapping in the BendersBFunction
- /**< Like delete_rows( range ), but immediately removes *all* the matrix A
+ /** Like delete_rows( range ), but immediately removes *all* the matrix A
   * and vector b, leaving the mapping "empty". Since no previous linearization
   * is valid after deleting all rows, a FunctionMod with shift() ==
   * FunctionMod::NaNshift, i.e., "everything changed", is issued. */
@@ -1355,10 +1538,66 @@ class BendersBFunction : public C05Function , public Block {
  /// set the whole set of parameters of this BendersBFunction
  /** The extra Configuration of the given ComputeConfig (see
   * ComputeConfig::f_extra_Configuration), if not nullptr, is assumed to be of
-  * type SimpleConfiguration < std::pair< Configuration * , Configuration * >
-  * >. If it is not of this type, an exception is thrown. The first element of
-  * that pair must be a pointer to a BlockConfig and the second one must be a
-  * pointer to a BlockSolverConfig.
+  * type SimpleConfiguration< std::map< std::string , Configuration * > >. If
+  * it is not of this type, an exception is thrown. The map in that
+  * SimpleConfiguration is meant to provide pointers to a number of
+  * Configuration, that should be used in different situations. The following
+  * keys, and their corresponding Configuration, are considered:
+  *
+  * - "BlockConfig": a pointer to a BlockConfig to be applied to the inner
+  *    Block of this BendersBFunction.
+  *
+  * - "BlockSolverConfig": a pointer to a BlockSolverConfig to be applied to
+  *    the inner Block of this BendersBFunction.
+  *
+  * - "get_dual_solution_partial": a pointer to a Configuration to be passed
+  *    to the method Solver::get_dual_solution() of the Solver attached to the
+  *    inner Block, whenever this method is invoked for obtaining the dual
+  *    values of the RowConstraint handled by this BendersBFunction (i.e., the
+  *    RowConstraint that are affected by the active Variable of this
+  *    BendersBFunction).
+  *
+  * - "get_dual_direction_partial": a pointer to a Configuration to be passed
+  *    to the method Solver::get_dual_direction() of the Solver attached to
+  *    the inner Block, whenever this method is invoked for obtaining the dual
+  *    values of the RowConstraint handled by this BendersBFunction (i.e., the
+  *    RowConstraint that are affected by the active Variable of this
+  *    BendersBFunction).
+  *
+  * - "get_dual_partial": a pointer to a Configuration to be passed to the
+  *    methods Solver::get_dual_solution() and Solver::get_dual_direction() of
+  *    the Solver attached to the inner Block, whenever these methods are
+  *    invoked for obtaining the dual values of the RowConstraint handled by
+  *    this BendersBFunction (i.e., the RowConstraint that are affected by the
+  *    active Variable of this BendersBFunction). Clearly, this key is defined
+  *    for convenience, so as to avoid the need of passing two identical
+  *    Configuration by means of the "get_dual_solution_partial" and
+  *    "get_dual_direction_partial" keys.
+  *
+  * - "get_dual_solution": a pointer to a Configuration to be passed to the
+  *    method Solver::get_dual_solution() of the Solver attached to the inner
+  *    Block, whenever this method is invoked for obtaining the dual values of
+  *    all RowConstraint of the inner Block (and their sub-Block,
+  *    recursively).
+  *
+  * - "get_dual_direction": a pointer to a Configuration to be passed to the
+  *    method Solver::get_dual_direction() of the Solver attached to the inner
+  *    Block, whenever this method is invoked for obtaining the dual values of
+  *    all RowConstraint of the inner Block (and their sub-Block,
+  *    recursively).
+  *
+  * - "get_dual": a pointer to a Configuration to be passed to the methods
+  *    Solver::get_dual_solution() and Solver::get_dual_direction() of the
+  *    Solver attached to the inner Block, whenever these methods are invoked
+  *    for obtaining the dual values of all RowConstraint of the inner Block
+  *    (and their sub-Block, recursively). Clearly, this key is defined for
+  *    convenience, so as to avoid the need of passing two identical
+  *    Configuration by means of the "get_dual_solution" and
+  *    "get_dual_direction" keys.
+  *
+  * If a key, that is not any of the above, is provided, an exception is
+  * thrown. No pointer is kept by the BendersBFunction, so the caller can (and
+  * is responsible to) delete any pointer provided.
   *
   * If the given pointer to the ComputeConfig is nullptr, then the
   * Configuration of the BendersBFunction is reset to its default. This means
@@ -1374,9 +1613,10 @@ class BendersBFunction : public C05Function , public Block {
   *
   * If the given pointer to the ComputeConfig is not nullptr but its extra
   * Configuration is nullptr, then (2) and (3) above are performed. If the
-  * pointer to the BlockConfig in the extra Configuration is nullptr, then (2)
-  * above is performed. If the pointer to the BlockSolverConfig in the extra
-  * Configuration is nullptr, then (3) above is performed.
+  * pointer to the BlockConfig (if provided) in the extra Configuration is
+  * nullptr, then (2) above is performed. If the pointer to the
+  * BlockSolverConfig (if provided) in the extra Configuration is nullptr,
+  * then (3) above is performed.
   *
   * @param scfg a pointer to a ComputeConfig.
   */
@@ -1796,8 +2036,6 @@ class BendersBFunction : public C05Function , public Block {
 
  void load( std::istream &input ) override final;
 
-/*--------------------------------------------------------------------------*/
-
 /**@} ----------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1829,9 +2067,43 @@ class BendersBFunction : public C05Function , public Block {
  bool f_diagonal_linearization_required = false;
  ///< indicates whether a diagonal linearization is required
 
- FunctionValue AAccMlt;  ///< maximum absolute error in the multipliers
+ FunctionValue AAccMlt; ///< maximum absolute error in the multipliers
 
  bool f_ignore_modifications = false; ///< ignore any Modification
+
+ void * f_id; ///< the "identity" of the BendersBFunction
+
+ int LinComp; ///< determines how linearizations are computed
+
+ Configuration * f_get_dual_solution_config = nullptr;
+ ///< Configuration to be passed to Solver::get_dual_solution()
+ /**< Configuration to be passed to the method Solver::get_dual_solution() of
+  * the Solver attached to the inner Block, whenever this method is invoked
+  * for obtaining the dual values of all RowConstraint of the inner Block (and
+  * their sub-Block, recursively). */
+
+ Configuration * f_get_dual_direction_config = nullptr;
+ ///< Configuration to be passed to Solver::get_dual_direction()
+ /**< Configuration to be passed to the method Solver::get_dual_direction() of
+  * the Solver attached to the inner Block, whenever this method is invoked
+  * for obtaining the dual values of all RowConstraint of the inner Block (and
+  * their sub-Block, recursively). */
+
+ Configuration * f_get_dual_solution_partial_config = nullptr;
+ ///< Configuration to be passed to Solver::get_dual_solution()
+ /**< Configuration to be passed to the method Solver::get_dual_solution() of
+  * the Solver attached to the inner Block, whenever this method is invoked
+  * for obtaining the dual values of the RowConstraint handled by this
+  * BendersBFunction (i.e., the RowConstraint that are affected by the active
+  * Variable of this BendersBFunction). */
+
+ Configuration * f_get_dual_direction_partial_config = nullptr;
+ ///< Configuration to be passed to Solver::get_dual_direction()
+ /**< Configuration to be passed to the method Solver::get_dual_direction() of
+  * the Solver attached to the inner Block, whenever this method is invoked
+  * for obtaining the dual values of the RowConstraint handled by this
+  * BendersBFunction (i.e., the RowConstraint that are affected by the active
+  * Variable of this BendersBFunction). */
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -1871,6 +2143,82 @@ class BendersBFunction : public C05Function , public Block {
   ~GlobalPool();
 
 /*--------------------------------------------------------------------------*/
+  /// de-serialize a GlobalPool out of the given netCDF::NcGroup
+  /** De-serialize a GlobalPool out of the given netCDF::NcGroup; see
+   * GlobalPool::serialize() for a description of the format.
+   *
+   * @param group a netCDF::NcGroup out of which the GlobalPool will be
+   *        de-serialized. */
+
+  void deserialize( const netCDF::NcGroup & group );
+
+/*--------------------------------------------------------------------------*/
+  /// serialize this GlobalPool into the given netCDF::NcGroup
+  /** This function serializes this GlobalPool into the given
+   * netCDF::NcGroup. The netCDF::NcGroup \p group will contain the following
+   * data:
+   *
+   * - The dimension "BendersBFunction_MaxGlob" containing 1 + the maximum
+   *   active name in the global pool; this means that there can be only
+   *   BendersBFunction_MaxGlob nonempty entries in the global pool, and the
+   *   largest possible name of an active entry is BendersBFunction_MaxGlob -
+   *   1. This variable is optional. If it is not present then 0 (empty
+   *   global pool) is assumed.
+   *
+   * - The variable "BendersBFunction_Type", of type netCDF::NcByte and
+   *   indexed over the dimension BendersBFunction_MaxGlob, which contains the
+   *   vector of booleans specifying the type (diagonal/vertical) of each
+   *   linearization in the global pool. The i-th element of this vector
+   *   indicates the type of the i-th linearization: if it is zero, then the
+   *   linearization is vertical; otherwise, the linearization is
+   *   diagonal. This variable is optional only if
+   *   BendersBFunction_MaxGlob == 0.
+   *
+   * - The variable "BendersBFunction_Constants", of type netCDF::NcDouble and
+   *   indexed over the dimension BendersBFunction_MaxGlob, which contains the
+   *   constants of the linearizations. This variable is optional only if
+   *   BendersBFunction_MaxGlob == 0.
+   *
+   * - At most BendersBFunction_MaxGlob netCDF::NcGroup with name
+   *   "BendersBFunction_Sol_X", with X being an integer between 0 and
+   *   BendersBFunction_MaxGlob - 1, each one containing the serialization of
+   *   the Solution in the corresponding position of the global pool. If the
+   *   group "BendersBFunction_Sol_X" is not present, then position X in the
+   *   global pool is empty.
+   *
+   * - The dimension "BendersBFunction_ImpCoeffNum" containing the number of
+   *   coefficients of the important combination of linearizations. This
+   *   dimension is optional. If it is not provided then 0 (no important
+   *   linearization) is assumed.
+   *
+   * - The variable "BendersBFunction_ImpCoeffInd", of type netCDF::NcInt and
+   *   indexed over the dimension BendersBFunction_ImpCoeffNum, which contains
+   *   indices of the linearizations that are part of the important
+   *   combination. This variable is optional only if
+   *   BendersBFunction_ImpCoeffNum == 0.
+   *
+   * - The variable "BendersBFunction_ImpCoeffVal", of type netCDF::NcDouble
+   *   and indexed over the dimension BendersBFunction_ImpCoeffNum, which
+   *   contains the coefficients of the important combination of
+   *   linearizations. The variable is optional only if
+   *   BendersBFunction_ImpCoeffNum == 0.
+   *
+   * @param group a netCDF::NcGroup into which this GlobalPool will be
+   *        serialized. */
+
+  void serialize( netCDF::NcGroup & group ) const;
+
+/*--------------------------------------------------------------------------*/
+  /// clone the given GlobalPool into this one
+
+  void clone( const GlobalPool & global_pool );
+
+/*--------------------------------------------------------------------------*/
+  /// clone the given GlobalPool into this one
+
+  void clone( GlobalPool && global_pool );
+
+/*--------------------------------------------------------------------------*/
   // resizes the global pool
   /** Resize the global pool to have the given \p size. It is important to
    * notice that
@@ -1888,6 +2236,14 @@ class BendersBFunction : public C05Function , public Block {
   /// returns the the size of the global pool
 
   Index size() const { return( solutions.size() ); }
+
+/*--------------------------------------------------------------------------*/
+  /// returns true if and only if this GlobalPool contains no Solution
+
+  bool empty() const {
+   return std::all_of( solutions.cbegin() , solutions.cend() ,
+                       []( const auto & solution ) { return ! solution; } );
+  }
 
 /*--------------------------------------------------------------------------*/
   /// stores the given linearization constant and solution in the global pool
@@ -1989,7 +2345,7 @@ class BendersBFunction : public C05Function , public Block {
    * feasible (and, therefore, the recalculation of the linearizations based
    * on these dual solutions may not provide valid linearizations. The dual
    * solutions, however, remain stored in this global pool. If they should be
-   * destroyed, explicity calls to delete_linearization() must be made.
+   * destroyed, explicit calls to delete_linearization() must be made.
    */
 
   void invalidate( void ) {
@@ -2084,8 +2440,8 @@ class BendersBFunction : public C05Function , public Block {
  }; // end( class( GlobalPool ) )
 
 /*--------------------------------------------------------------------------*/
-
  /// convenience class used to serialize the A matrix in sparse format
+
  template< class T >
  class SparseMatrix {
  public:
@@ -2138,15 +2494,13 @@ class BendersBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
-
  /// set a given integer (int) numerical parameter of the inner Block's Solver
  /** Set a given integer (int) numerical parameter of the Solver of the inner
   * Block.
   *
   * @param par The parameter whose value must be set.
   *
-  * @param value The value of the parameter.
-  */
+  * @param value The value of the parameter. */
 
  void set_solver_par( const idx_type par , const int value ) {
   auto solver = get_solver<CDASolver>();
@@ -2155,18 +2509,16 @@ class BendersBFunction : public C05Function , public Block {
                                  "Block must have a CDASolver attached "
                                  "to it." ) );
   solver->set_par( par , value );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// set a given float (double) numerical parameter of the inner Block's Solver
  /** Set a given float (double) numerical parameter of the Solver of the inner
   * Block.
   *
   * @param par The parameter whose value must be set.
   *
-  * @param value The value of the parameter.
-  */
+  * @param value The value of the parameter. */
 
  void set_solver_par( const idx_type par , const double value ) {
   auto solver = get_solver<CDASolver>();
@@ -2175,20 +2527,18 @@ class BendersBFunction : public C05Function , public Block {
                                  "Block must have a CDASolver attached "
                                  "to it." ) );
   solver->set_par( par , value );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// get a specific integer numerical parameter of the inner Block's Solver
  /** Get a specific integer (int) numerical parameter of the Solver of the
   * inner Block.
   *
   * @param par The parameter whose value is desired.
   *
-  * @return The value of the parameter.
-  */
+  * @return The value of the parameter. */
 
- inline int get_solver_int_par( const idx_type par ) const {
+ int get_solver_int_par( const idx_type par ) const {
   auto solver = get_solver<CDASolver>();
   if( ! solver )
    throw( std::invalid_argument( "BendersBFunction::get_solver_int_par: the "
@@ -2198,27 +2548,24 @@ class BendersBFunction : public C05Function , public Block {
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// get a specific double  numerical parameter of the inner Block's Solver
  /** Get a specific float (double) numerical parameter of the Solver of the
   * inner Block.
   *
   * @param par The parameter whose value is desired.
   *
-  * @return The value of the parameter.
-  */
+  * @return The value of the parameter. */
 
- inline double get_solver_dbl_par( const idx_type par ) const {
+ double get_solver_dbl_par( const idx_type par ) const {
   auto solver = get_solver<CDASolver>();
   if( ! solver )
    throw( std::invalid_argument( "BendersBFunction::get_solver_dbl_par: the "
                                  "inner Block must have a CDASolver attached "
                                  "to it." ) );
   return solver->get_dbl_par( par );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// update the RowConstraint of the sub-Block
  /** This function updates the RowConstraint of the sub-Block to reflect the
   * current mapping and values of the x variables.
@@ -2230,11 +2577,15 @@ class BendersBFunction : public C05Function , public Block {
 
  /// write the Solution with the given name in the sub-Block
  /** If <tt>name == Inf<Index>()</tt>, this function writes the dual solution
-  * associated with the last computed linearization in the sub-Block. If
-  * <tt>name != Inf<Index>()</tt>, then it writes the Solution that is stored
-  * in the global pool under the given \p name in the sub-Block. In the last
-  * case, if the given \p name is invalid or the Solution is not present in
-  * the global pool, an exception is thrown.
+  * associated with the last computed linearization in the sub-Block. In this
+  * case, only the dual solution associated with the Constraint handled by
+  * this BendersBFunction may be considered (see
+  * #f_get_dual_solution_partial_config and
+  * #f_get_dual_direction_partial_config). If <tt>name != Inf<Index>()</tt>,
+  * then it writes the Solution that is stored in the global pool under the
+  * given \p name in the sub-Block. In the last case, if the given \p name is
+  * invalid or the Solution is not present in the global pool, an exception is
+  * thrown.
   *
   * @param name the name of the solution to be written
   */
@@ -2264,6 +2615,74 @@ class BendersBFunction : public C05Function , public Block {
   */
 
  FunctionValue compute_linearization_constant();
+
+/*--------------------------------------------------------------------------*/
+
+ /// compute the linearization constant
+ /** Compute the linearization constant considering a bound to the function
+  * value and the dual solution of the RowConstraint handled by this
+  * BendersBFunction. The linearization constant is computed as
+  *
+  *     bound - g'x
+  *
+  * where x is the vector with the values of the active Variable of this
+  * BendersBFunction, g are the linearization coefficients associated with the
+  * last call to compute(), and "bound" is a bound on the function value
+  * obtained in the last call to compute(). If the inner Block of this
+  * BendersBFunction represents a minimization problem, then "bound" must be a
+  * lower bound on the value of this BendersBFunction at x. Otherwise, "bound"
+  * must be an upper bound on the value of this BendersBFunction at x. If the
+  * computation of the value of this BendersBFunction is exact, then this
+  * bound is typically the value of this BendersBFunction.
+  *
+  * @return the computed linearization constant.
+  */
+
+ FunctionValue compute_linearization_constant_from_bound();
+
+/*--------------------------------------------------------------------------*/
+
+ /// indicate whether the linearization constant must be computed from bound
+ /** This method indicates whether linearization constants must be computed by
+  * using the bound provided by the Solver attached to the inner Block
+  * and the duals of the RowConstraint handled by this BendersBFunction.
+  *
+  * @return true if and only if linearization constants should be computed
+  *         from the bound provided by the inner Solver and the duals of the
+  *         RowConstraint handled by this BendersBFunction.
+  */
+
+ bool is_linearization_constant_computed_from_bound() const {
+  return LinComp & 1;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// indicate whether linearization constants can be recomputed
+ /** This method indicates whether linearization constants can be recomputed
+  * from a Solution stored in the global pool.
+  *
+  * @return true only if linearization constants can be recomputed from the
+  *         Solution stored in the global pool.
+  */
+
+ bool can_recompute_linearization_constant() const {
+  return LinComp & 2;
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ /// indicate whether linearization coefficients can be recomputed
+ /** This method indicates whether linearization coefficients can be
+  * recomputed from a Solution stored in the global pool.
+  *
+  * @return true only if linearization coefficients can be recomputed from the
+  *         Solution stored in the global pool.
+  */
+
+ bool can_recompute_linearization_coefficients() const {
+  return LinComp & 4;
+ }
 
 /*--------------------------------------------------------------------------*/
 
@@ -2436,12 +2855,11 @@ class BendersBFunction : public C05Function , public Block {
  void set_default_inner_Block_configuration() {
   set_default_inner_Block_BlockSolverConfig();
   set_default_inner_Block_BlockConfig();
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
- static void static_initialization()
- {
+ static void static_initialization() {
   /*!!
    * Not all C++ compilers enjoy the template wizardry behind the three-args
    * version of register_method<> with the compact MS_*_*::args(), so we just
@@ -2463,7 +2881,7 @@ class BendersBFunction : public C05Function , public Block {
   register_method< BendersBFunction , MF_dbl_it , Range >(
 				       "BendersBFunction::modify_constants" ,
                                        & BendersBFunction::modify_constants );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -2839,7 +3257,93 @@ class BendersBFunctionModSbst : public BendersBFunctionMod {
 
 /*--------------------------------------------------------------------------*/
 
- };  // end( class( BendersBFunctionModSbst ) )
+};  // end( class( BendersBFunctionModSbst ) )
+
+/*--------------------------------------------------------------------------*/
+/*---------------------- CLASS BendersBFunctionState -----------------------*/
+/*--------------------------------------------------------------------------*/
+/// class to describe the "internal state" of a BendersBFunction
+/** Derived class from State to describe the "internal state" of a
+ * BendersBFunction, i.e., its global pool. This means saving the
+ * linearization constants, the types of the linearizations, the associated
+ * Solution, and the coefficients of the important combination of
+ * linearizations. */
+
+class BendersBFunctionState : public State {
+
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+public:
+
+/*-------------------------------- FRIENDS ---------------------------------*/
+
+ friend BendersBFunction;
+
+/*---------- CONSTRUCTING AND DESTRUCTING BendersBFunctionState ------------*/
+
+ /// constructor, doing everything or nothing.
+ /** Constructor of BendersBFunctionState. If provided with a pointer to a
+  * BendersBFunction, it immediately copies its "internal state", which is the
+  * only way in which the BendersBFunctionState can be initialised out of an
+  * existing BendersBFunction. If nullptr is passed (as by default), then an
+  * "empty" BendersBFunctionState is constructed that can only be filled by
+  * calling deserialize(). */
+
+ BendersBFunctionState( const BendersBFunction * function = nullptr );
+
+/*--------------------------------------------------------------------------*/
+ /// de-serialize a BendersBFunctionState out of netCDF::NcGroup
+ /** De-serialize a BendersBFunctionState out of netCDF::NcGroup; see
+  * BendersBFunctionState::serialize() for a description of the format. */
+
+ void deserialize( const netCDF::NcGroup & group ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// destructor
+
+ virtual ~BendersBFunctionState() {}
+
+/*------- METHODS DESCRIBING THE BEHAVIOR OF A BendersBFunctionState -------*/
+
+ /// serialize a BendersBFunctionState into a netCDF::NcGroup
+ /** This method serializes this BendersBFunctionState into the provided
+  * netCDF::NcGroup, so that it can later be read back by deserialize(). After
+  * the call, \p group will contain the attribute "type", common to all State,
+  * and everything necessary to describe a GlobalPool (see
+  * BendersBFunction::GlobalPool::serialize()).
+  *
+  * @group The netCDF::NcGroup into which into which this
+  *        BendersBFunctionState will be serialized. */
+
+ void serialize( netCDF::NcGroup & group ) const override;
+
+/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
+
+protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ void print( std::ostream &output ) const override {
+  output << "BendersBFunctionState [" << this
+         << "] with max global pool element " << global_pool.size();
+  }
+
+/*--------------------------- PROTECTED FIELDS -----------------------------*/
+
+ /// global pool of linearizations
+ BendersBFunction::GlobalPool global_pool;
+
+/*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
+
+private:
+
+/*---------------------------- PRIVATE FIELDS ------------------------------*/
+
+ SMSpp_insert_in_factory_h;
+
+/*--------------------------------------------------------------------------*/
+
+};  // end( class( BendersBFunctionState ) )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -2847,7 +3351,7 @@ class BendersBFunctionModSbst : public BendersBFunctionMod {
 /** @} end( group( BendersBFun_CLASSES ) ) ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 
- }  // end( namespace SMSpp_di_unipi_it )
+}  // end( namespace SMSpp_di_unipi_it )
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/

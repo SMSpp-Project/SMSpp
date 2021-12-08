@@ -225,6 +225,28 @@ ComputeConfig * ThinComputeInterface::get_ComputeConfig(
  }  // end( ThinComputeInterface::get_ComputeConfig )
 
 /*--------------------------------------------------------------------------*/
+
+void ThinComputeInterface::serialize_State( netCDF::NcGroup & group ,
+                                const std::string & sub_group_name ) const {
+ auto state = get_State();
+ if( ! state )
+  return;
+ if( sub_group_name.empty() )
+  state->serialize( group );
+ else {
+  auto sub_group = group.getGroup( sub_group_name );
+  if( sub_group.isNull() )
+   sub_group = group.addGroup( sub_group_name );
+  if( sub_group.isNull() )
+   throw( std::logic_error( "ThinComputeInterface::serialize_State: "
+                            "cannot create group " + sub_group_name ) );
+  state->serialize( sub_group );
+  }
+ delete state;
+
+ }  // end( ThinComputeInterface::serialize_State )
+
+/*--------------------------------------------------------------------------*/
 /*------------------------ METHODS of ComputeConfig ------------------------*/
 /*--------------------------------------------------------------------------*/
 

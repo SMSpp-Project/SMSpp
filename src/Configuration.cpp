@@ -4,9 +4,9 @@
 /** @file
  * Implementation of the Configuration class.
  *
- * \version 0.11
+ * \version 0.12
  *
- * \date 27 - 10 - 2019
+ * \date 27 - 06 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -66,6 +66,13 @@ SMSpp_insert_in_factory_cpp_0_t(
 
 SMSpp_insert_in_factory_cpp_0_t(
  SimpleConfiguration< std::vector< Configuration * > > );
+
+SMSpp_insert_in_factory_cpp_0_t(
+ ( SimpleConfiguration< std::vector< std::pair< int , Configuration * > > > )
+				);
+
+SMSpp_insert_in_factory_cpp_0_t(
+ ( SimpleConfiguration< std::map< std::string , Configuration * > > ) );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -265,6 +272,23 @@ Configuration::ConfigurationFactoryMap & Configuration::f_factory( void ) {
 // "basic" versions of SimpleConfiguration
 
 template<>
+SimpleConfiguration< std::pair< Configuration * , Configuration * > > *
+ SimpleConfiguration< std::pair< Configuration * , Configuration * >
+		      >::clone( void ) const
+{
+ auto sc = new SimpleConfiguration< std::pair< Configuration * ,
+					       Configuration * > >( *this );
+ if( sc->f_value.first )
+  sc->f_value.first = sc->f_value.first->clone();
+ if( sc->f_value.second )
+  sc->f_value.second = sc->f_value.second->clone();
+
+ return( sc );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
 void SimpleConfiguration< std::pair< Configuration * , Configuration * >
 			  >::serialize( netCDF::NcGroup & group ) const
 {
@@ -286,6 +310,8 @@ void SimpleConfiguration< std::pair< Configuration * , Configuration * >
 			  >::deserialize( const netCDF::NcGroup & group )
 {
  Configuration::deserialize( group );
+ delete f_value.second;
+ delete f_value.first;
  auto sc = group.getGroup( "value_f" );
  f_value.first = new_Configuration( sc );
  sc = group.getGroup( "value_s" );
@@ -304,13 +330,248 @@ void SimpleConfiguration< std::pair< Configuration * , Configuration * >
   f_value.second->clear();
  }
 
+/*--------------------------------------------------------------------------*/
+
+template<>
+SimpleConfiguration< std::vector< Configuration * > > *
+ SimpleConfiguration< std::vector< Configuration * > >::clone( void ) const
+{
+ auto sc = new SimpleConfiguration< std::vector< Configuration * > >( *this );
+
+ for( auto & c : sc->f_value )
+  if( c )
+   c = c->clone();
+
+ return( sc );
+ }
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 template<>
-void SimpleConfiguration< std::vector< Configuration * > >::clear( void ) {
- for( auto config : f_value )
-  if( config )
-   config->clear();
+void SimpleConfiguration< std::vector< Configuration * > >::clear( void )
+{
+ for( auto c : f_value )
+  if( c )
+   c->clear();
+ }
+
+/*--------------------------------------------------------------------------*/
+
+template<>
+SimpleConfiguration< std::vector< std::pair< int , Configuration * > > > *
+ SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
+		      >::clone( void ) const
+{
+ auto sc = new SimpleConfiguration<
+               std::vector< std::pair< int , Configuration * > > >( *this );
+
+ for( auto & [ i , c ] : sc->f_value )
+  if( c )
+   c = c->clone();
+
+ return( sc );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
+			  >::serialize( netCDF::NcGroup & group ) const
+{
+ Configuration::serialize( group );
+ if( f_value.empty() )
+  return;
+
+ auto sz = group.addDim( "size" , f_value.size() );
+
+ std::vector< int > tmp( f_value.size() );
+ for( size_t i = 0 ; i < f_value.size() ; ++i )
+  tmp[ i ] = f_value[ i ].first;
+
+ std::vector< size_t > startp = { 0 };
+ std::vector< size_t > countp = { f_value.size() };
+ ( group.addVar( "int_vals" , netCDF::NcInt() , sz )
+   ).putVar( startp , countp , tmp.data() );
+
+ for( size_t i = 0 ; i < f_value.size() ; ++i )
+  if( f_value[ i ].second ) {
+   auto gi = group.addGroup( "Config_" + std::to_string( i ) );
+   f_value[ i ].second->serialize( gi );
+   }
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
+			  >::deserialize( const netCDF::NcGroup & group )
+{
+ Configuration::deserialize( group );
+ for( auto el : f_value )
+  delete el.second;
+ auto dim = group.getDim( "size" );
+ if( dim.isNull() ) {
+  f_value.clear();
+  return;
+  }
+
+ size_t sz = dim.getSize();
+ if( ! sz )
+  return;
+
+ std::vector< int > tmp( sz );
+ std::vector< size_t > start = { 0 };
+ std::vector< size_t > count = { sz };
+ ( group.getVar( "int_vals" ) ).getVar( start , count , tmp.data() );
+
+ f_value.resize( sz );
+ for( size_t i = 0 ; i < f_value.size() ; ++i ) {
+  f_value[ i ].first = tmp[ i ];
+  auto sc = group.getGroup( "Config_" + std::to_string( i ) );
+  f_value[ i ].second = new_Configuration( sc );
+  }
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::vector< std::pair< int , Configuration * > >
+			  >::clear( void )
+{
+ for( auto el : f_value )
+  if( el.second )
+   el.second->clear();
+ }
+
+/*--------------------------------------------------------------------------*/
+
+template<>
+SimpleConfiguration< std::map< std::string , Configuration * > > *
+ SimpleConfiguration< std::map< std::string , Configuration * >
+		      >::clone( void ) const
+{
+ auto sc = new SimpleConfiguration< std::map< std::string , Configuration * >
+				    >( *this );
+
+ for( auto & [ key , val ] : sc->f_value )
+  if( val )
+   val = val->clone();
+
+ return( sc );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::map< std::string , Configuration * >
+			  >::serialize( netCDF::NcGroup & group ) const
+{
+ Configuration::serialize( group );
+ if( f_value.empty() )
+  return;
+
+ auto sz = group.addDim( "size" , f_value.size() );
+
+ std::vector< std::string > tmp( f_value.size() );
+
+ size_t i = 0;
+ for( auto it = f_value.begin() ; it != f_value.end() ; ++it , ++i ) {
+  tmp[ i ] = it->first;
+  if( it->second ) {
+   auto gi = group.addGroup( "Config_" + std::to_string( i ) );
+   it->second->serialize( gi );
+   }
+  }
+
+ std::vector< size_t > startp = { 0 };
+ std::vector< size_t > countp = { f_value.size() };
+ ( group.addVar( "keys" , netCDF::NcString() , sz )
+   ).putVar( startp , countp , tmp.data() );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::map< std::string , Configuration * >
+			  >::deserialize( const netCDF::NcGroup & group )
+{
+ Configuration::deserialize( group );
+ for( auto & [ key , val ] : f_value )
+  delete val;
+
+ auto dim = group.getDim( "size" );
+ if( dim.isNull() ) {
+  f_value.clear();
+  return;
+  }
+
+ size_t sz = dim.getSize();
+ if( ! sz )
+  return;
+
+ std::vector< std::string > tmp( sz );
+ std::vector< size_t > start = { 0 };
+ std::vector< size_t > count = { sz };
+ ( group.getVar( "keys" ) ).getVar( start , count , tmp.data() );
+
+ for( size_t i = 0 ; i < f_value.size() ; ++i ) {
+  auto sc = group.getGroup( "Config_" + std::to_string( i ) );
+  f_value[ tmp[ i ] ] = new_Configuration( sc );
+  }
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::map< std::string , Configuration * >
+			  >::clear( void )
+{
+ for( auto & [ key , val ] : f_value )
+  if( val )
+   val->clear();
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::map< std::string , Configuration * >
+                          >::load( std::istream & input )
+{
+ size_t k = 0;
+ input >> eatcomments;
+ if( ! input.eof() )
+  input >> k;
+
+ if( ! k ) {
+  f_value.clear();
+  return;
+  }
+
+ while( k-- ) {
+  if( input.eof() )
+   break;
+
+  std::string ti;
+  input >> eatcomments >> ti;
+  auto ci = Configuration::deserialize( input );
+  f_value[ ti ] = ci;
+  }
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+
+template<>
+void SimpleConfiguration< std::map< std::string , Configuration * >
+                          >::print( std::ostream & output ) const
+{
+ for( auto & [ key , val ] : f_value ) {
+  output << "( " << key << ", ";
+  if( val )
+   output << *val;
+  else
+   output << "*";
+  output << " )" << std::endl;
+  }
  }
 
 /*--------------------------------------------------------------------------*/

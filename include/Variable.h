@@ -48,11 +48,11 @@
 /*--------------------------------------------------------------------------*/
 
 /// namespace for the Structured Modeling System++ (SMS++)
-namespace SMSpp_di_unipi_it {
-
-class ThinVarDepInterface;  // forward definition of ThinVarDepInterface
-class Variable;             // forward definition of Variable
-class Block;                // forward definition of Block
+namespace SMSpp_di_unipi_it
+{
+ class ThinVarDepInterface;  // forward definition of ThinVarDepInterface
+ class Variable;             // forward definition of Variable
+ class Block;                // forward definition of Block
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
@@ -84,8 +84,8 @@ class Block;                // forward definition of Block
  * must necessarily depend on the type of value it can take, and therefore
  * must be demanded to derived classes. */
 
-class Variable {
-
+class Variable
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -164,7 +164,7 @@ class Variable {
  * can be fixed (see is_fixed()). */
 
  explicit Variable( Block * my_block = nullptr )
-  : f_Block( my_block ), f_state( var_type( 0 ) ) {}
+  : f_Block( my_block ) , f_state( var_type( 0 ) ) {}
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor
@@ -175,7 +175,7 @@ class Variable {
  Variable( const Variable & v ) {
   f_state = v.f_state;
   f_Block = v.f_Block;
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// destructor: it is virtual, and empty
@@ -227,7 +227,7 @@ class Variable {
   * dynamic variables not explicitly generated are implicitly present in the
   * Block set at their default value. */
 
- virtual void set_to_default_value() = 0;
+ virtual void set_to_default_value( void ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// fix or un-fix the Variable
@@ -240,7 +240,7 @@ class Variable {
   * The parameter issueMod decides if and how the VariableMod is issued, as
   * described in Observer::make_par(). */
 
- virtual void is_fixed( const bool fixed, c_ModParam issueMod = eModBlck );
+ virtual void is_fixed( bool fixed , c_ModParam issueMod = eModBlck );
 
 /**@} ----------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE DATA OF THE Variable ---------------*/
@@ -260,7 +260,7 @@ class Variable {
 
  /// method to get the state of the Variable
 
- [[nodiscard]] var_type get_state() const { return ( f_state ); }
+ [[nodiscard]] var_type get_state( void ) const { return( f_state ); }
 
 /*--------------------------------------------------------------------------*/
  /// method to tell whether a state is that of a fixed Variable
@@ -411,14 +411,16 @@ class Variable {
  * i.e., changing its state.
  *
  * While Modification are not required to store information about the state of
- * the modified thing prior to the change, VariableMod does; old_state()
- * returns the value of the f_state field before the change. This has a very
- * little memory cost, but it can be quite useful to whomever has to manage
- * the Modification because it allows to completely describe what kind of
- * change happened, and therefore efficiently react to it. The point is that
- * without that field, the Variable may have undergone several changes, of
- * which one is seeing only one at the time. If, say, at the moment in which
- * the Modification is processed old_state() == f_state, then one knows that
+ * the modified thing prior or after the change, VariableMod does; old_state()
+ * returns the value of the f_state field before the change and new_state()
+ * does the same for the value of f_state field after the change, so that the
+ * Modification completely specifies what the change exactly was. This has a
+ * very small memory cost, but it can be quite useful to whomever has to
+ * manage the Modification because it allows to know exactly what the change
+ * was without accessing the current state of the Variable (which may have
+ * been further changed by the time the Modification is processed), and
+ * therefore efficiently react to it. If, say, at the moment in which the
+ * Modification is processed old_state() == f_state, then one knows that
  * whatever change was done has been undone in the meantime, and therefore
  * can better react to it (say, doing nothing). */
 
@@ -435,8 +437,10 @@ class VariableMod : public AModification
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: takes the new state of the Variable and a pointer to it
 
- VariableMod( Variable * var, var_type old_state, bool cB = true )
-  : AModification( cB ), f_variable( var ), f_old_state( old_state ) {}
+ VariableMod( Variable * var , var_type old_state , var_type new_state ,
+	      bool cB = true )
+  : AModification( cB ) , f_variable( var ) , f_old_state( old_state ) ,
+    f_new_state( new_state ) {}
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
@@ -460,6 +464,11 @@ class VariableMod : public AModification
 
  [[nodiscard]] var_type old_state( void ) const { return( f_old_state ); }
 
+ /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// accessor to the current state of the Variable
+
+ [[nodiscard]] var_type new_state( void ) const { return( f_new_state ); }
+
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
  protected:
@@ -481,7 +490,9 @@ class VariableMod : public AModification
 
  Variable * f_variable;      ///< Variable where the modification occurs
 
- var_type f_old_state;      ///< the previous state of the Variable
+ var_type f_old_state;       ///< the previous state of the Variable
+
+ var_type f_new_state;       ///< the current state of the Variable
 
 /*--------------------------------------------------------------------------*/
 

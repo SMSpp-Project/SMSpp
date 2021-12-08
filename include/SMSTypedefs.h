@@ -19,9 +19,9 @@
  * - some templates to simplify handling serialization and deserialization
  *   to/from a netCDF file;
  *
- * \version 0.13
+ * \version 0.14
  *
- * \date 21 - 08 - 2020
+ * \date 07 - 07 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -319,13 +319,38 @@ using KD_c_Vec_List_p_Const = const boost::multi_array< List_p_Const, K >;
  * it has to be actually included in the final executable. If a component
  * using this feature is not *explicitly* referenced anywhere in all the
  * linked objects, the linker may decide to exclude it from the final
- * executable. If this happens, the code inserting it in the factory is not
- * included. In this case, one must either forcibly include an object of the
- * specific type in the final main, or use the option of the linker that
- * disables this optimization (e.g., at the time of writing "whole-archive"
- * for g++ and "force_load" for clang++).
- * @{
- */
+ * executable. This is particularly common when the unit containing the object
+ * is contained in a dynamic library. In this case you may end up seeing an
+ * error of the kind
+ *
+ *     terminate called after throwing an instance of 'std::invalid_argument'
+ *      what():  XXXX not present in YYYY factory
+ *
+ * If this happens, it is because the code inserting it in the factory has not
+ * been included due to having been aggressively optimised out by the linker.
+ * In this case, one must either forcibly include an object of the specific
+ * type in the final main (which requires also #include-ing the corresponding
+ * headers, and it is therefore best avoided), or use options of the linker
+ * that disable this optimization; at the time of writing this is
+ * "--no-as-needed" for g++ (to be passed as "-Wl,--no-as-needed" if the
+ * linker is invoked via the compiler), and "-all_load" for clang++. Note that
+ * the behaviour depends on the default settings of the linker and therefore
+ * it may change even for the same compiler toolchain on different OS
+ * distributions. Yet, activating said options may have unwanted side effects
+ * that one may want to do without. This is why the further macro
+ *
+ *   SMSpp_ensure_load( < class name > )
+ *
+ * is provided. By adding it at the beginning of a .cpp, it does some dirty
+ * but hopefully not terribly costly things that ensure that < class name >
+ * is added to the corresponding factory. However, note that for this to
+ * work the corresponding headed must be explicitly included; it is not
+ * possible to automatically include files using a macro due to the fact that
+ * the C preprocessor only does one pass, and while there are some very dirty
+ * hacks around that we prefer to steer well clear of those. Anyway this
+ * mechanism should only be used as last resort since it has a (hopefully,
+ * little but) nonzero cost at runtime. 
+ * @{ */
 
 /** The macro defines a very small, "fake" class _init. Its only meaning is to
  * define a static member _initializer that is initialized in whatever object
@@ -540,7 +565,7 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
  SMSpp_type_traits::t<void(ClassName)>::type::_private_name( void ) {        \
   static const std::string _name( SMSpp_classname_normalise(                 \
 				              std::string( #ClassName ) ) ); \
-  return( _name );                                                         \
+  return( _name );                                                           \
   }                                                                          \
                                                                              \
  const std::string &                                                         \
@@ -630,6 +655,30 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
  template<>                                                                  \
  SMSpp_type_traits::t<void(ClassName)>::type::_init                          \
  SMSpp_type_traits::t<void(ClassName)>::type::_initializer{}
+
+/*--------------------------------------------------------------------------*/
+// definition of auxiliary template variable (don't you just love C++?), which
+// serves to avoid having duplicated names in case SMSpp_ensure_load() is
+// called for multiple classes in the same .cpp
+
+template< class ClassName >
+bool SMSpp_ensure_load_var;
+
+// the SMSpp_ensure_load() creates an empty object of the given class and
+// immediately destroys it; in all our cases, the empty constructor exists
+// and should be relatively cheap. we tried to avoid it by taking the
+// address of some method of the class, but this is not enough in all
+// case to force the linker to include the relevant object, while creating
+// an object of the class damn sure is
+ 
+#define SMSpp_ensure_load( ClassName )                                      \
+ template<>                                                                 \
+ bool SMSpp_ensure_load_var< SMSpp_type_traits::t<void(ClassName)>::type > =\
+  []( void ) -> bool {		                                            \
+   if( auto p = new SMSpp_type_traits::t<void(ClassName)>::type() ) {       \
+    delete p; return( true ); }                                             \
+   else	return( false ); \
+   }()
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------- HANDLE boost::any SPECIALIZATIONS --------------------*/

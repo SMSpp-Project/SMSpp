@@ -8,11 +8,15 @@ single-real-objective optimization problems), and solving them via
 sophisticated, structure-exploiting algorithms (in particular, but not
 exclusively, decomposition approaches and structured Interior-Point methods).
 
-For a more detailed description of SMS++ see
-[the Wiki pages](https://gitlab.com/smspp/smspp/wikis/home).
+For further information on the SMS++ Project and the SMS++ core library,
+you can see:
+
+- The [SMS++ Project website](https://smspp.gitlab.io/)
+- The [SMS++ API Reference](https://smspp.gitlab.io/smspp-project/)
+- The [SMS++ Project Wiki](https://gitlab.com/smspp/smspp-project/-/wikis/home)
 
 > **Note:** This is the repository of the *SMS++ core library*.
-> If you are looking for the *SMS++ Project*, you will find it
+> If you are looking for the *SMS++ Project* repository, you will find it
 > [here](https://gitlab.com/smspp/smspp-project).
 
 
@@ -20,7 +24,7 @@ For a more detailed description of SMS++ see
 
 These instructions will let you build and install SMS++ on your system.
 If you encounter issues, see the troubleshooting
-section [here](https://gitlab.com/smspp/smspp/wikis/troubleshooting).
+section [here](https://gitlab.com/smspp/smspp-project/-/wikis/Troubleshooting).
 
 
 ### Requirements
@@ -32,9 +36,9 @@ section [here](https://gitlab.com/smspp/smspp/wikis/troubleshooting).
 - [netCDF-C++](https://www.unidata.ucar.edu/software/netcdf)
 
 For further details on software dependencies, see
-[this page](https://gitlab.com/smspp/smspp/wikis/requirements).
+[this page](https://gitlab.com/smspp/smspp-project/-/wikis/About-SMS++-requirements).
 If you can't or wont install the required libraries, you will need to specify
-their custom path, see [here](https://gitlab.com/smspp/smspp/wikis/custom).
+their custom path, see [here](https://gitlab.com/smspp/smspp-project/-/wikis/Customize-the-configuration).
 
 
 ### Build and install with CMake
@@ -49,7 +53,7 @@ make
 ```
 
 Some configuration options are available, see
-[here](https://gitlab.com/smspp/smspp/wikis/custom).
+[here](https://gitlab.com/smspp/smspp-project/-/wikis/Customize-the-configuration).
 
 Optionally, install the library in the system with:
 
@@ -63,8 +67,8 @@ sudo make install
 After the library is built, you can use it in your CMake project with:
 
 ```cmake
-find_package(SMSpp)
-target_link_libraries(<my_target> SMS++::SMSpp)
+find_package(SMS++)
+target_link_libraries(<my_target> SMS++::SMS++)
 ```
 
 ### Running the tests with CMake
@@ -153,8 +157,9 @@ conduct, and the process for submitting merge requests to us.
   Università di Pisa
 
 - **Rafael Durbano Lobato**  
-  Department of Applied Mathematics  
-  State University of Campinas, Brazil
+  *Operations Research Group*  
+  Dipartimento di Informatica  
+  Università di Pisa
 
 ### Previous Lead Authors and Contributors
 
@@ -187,3 +192,9 @@ the code cannot be considered liable, either directly or indirectly, for
 any damage or loss that anybody could suffer for having used it. More
 details about the non-warranty attached to this code are available in the
 license description file.
+
+## Acknowledgements
+
+For a list of contributions to the development of this module, see the
+corresponding section in the
+[SMS++ umbrella project](https://gitlab.com/smspp/smspp-project)

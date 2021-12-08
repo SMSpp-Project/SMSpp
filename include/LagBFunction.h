@@ -3,13 +3,9 @@
 /*--------------------------------------------------------------------------*/
 /** @file
  * Header file for the LagBFunction class, which is derived from both a
- * C05Function and a Block and implements the concept of the Lagrangian of
- * some Block (the unique sub-Block of LagBFunction when "seen" as a Block)
- * w.r.t. a given set of linear terms.
- *
- * \version 0.20
- *
- * \date 03 - 01 - 2021
+ * C05Function and a Block and implements the concept of the Lagrangian
+ * function of some Block (the unique sub-Block of LagBFunction when "seen"
+ * as a Block) w.r.t. a given set of linear terms.
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -55,6 +51,14 @@
 namespace SMSpp_di_unipi_it
 {
  class BlockSolverConfig;  // forward definition of BlockSolverConfig
+
+ class LagBFunctionState;  // forward declaration of LagBFunctionState
+
+/*--------------------------------------------------------------------------*/
+/*------------------------------- CLASSES ----------------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @defgroup LagBFunction_CLASSES Classes in LagBFunction.h
+ *  @{ */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS LagBFunction -----------------------------*/
@@ -156,6 +160,17 @@ namespace SMSpp_di_unipi_it
  *   "simple" function, i.e., belonging to following classes:
  *
  *   = LinearFunction
+ *
+ * - If (B) has sub-Block, each of them having a nonempty "physical Objective"
+ *   must also have an abstract Objective, which must be a :RealObjective,
+ *   so that the value() of all the Objective can be summed up to that of
+ *   the modified FRealObjective of (B) to compute the cost of each Solution
+ *   (this is not really needed for the Lagrangian cost, since this is
+ *   supposedly done by the solver, but rather for the original cost of a
+ *   solution which is necessary to compute the linearization_constant;
+ *   note that only the "root" (B) Objective is modified, so that for all the
+ *   Objective of the sub-Block of (B) the Lagrangian cost and the original
+ *   cost are the same).
  *
  * Under these assumptions, LagBFunction can implement the required machinery
  * to use the inner Block (B), with any attached Solver, to implement the
@@ -380,6 +395,7 @@ class LagBFunction : public C05Function , public Block {
   * same, but compilers still don't like it. Disambiguate by declaring we
   * use the ThinVarDepInterface versions (but it could have been the Block
   * versions, as they are the same. */
+
  using Index = ThinVarDepInterface::Index;
  using c_Index = ThinVarDepInterface::c_Index;
 
@@ -388,6 +404,8 @@ class LagBFunction : public C05Function , public Block {
 
  using Subset = ThinVarDepInterface::Subset;
  using c_Subset = ThinVarDepInterface::c_Subset;
+
+ using OFValue = RealObjective::OFValue;
 
  /* LagBFunction uses stuff from LinearFunction a lot, hence "import" here
   * corresponding names. */
@@ -552,6 +570,8 @@ class LagBFunction : public C05Function , public Block {
 
  intNoSol ,        ///< whether Solution are required from the inner Block
 
+ intChkState ,     ///< whether to check the Solution in the put_State
+
  intLastLagBFPar   ///< first allowed new int parameter for derived classes
                    /**< Convenience value for easily allow derived classes
 		    * to extend the set of int algorithmic parameters. */
@@ -635,11 +655,23 @@ class LagBFunction : public C05Function , public Block {
   *   the ability of LagBFunction to efficiently respond to Modification from
   *   the inner Block, as almost every change there will have to result in a
   *   "very bad" C05FunctionMod being issued invalidting all previous
-  *   information since it is impossible to update it, which is why the default
-  *   value is 0 (false), which requires a working get_Solution() from the
-  *   inner Block;
+  *   information since it is impossible to update it, which is why the
+  *   default value is 0 (false), which requires a working get_Solution()
+  *   from the inner Block;
   *
-  * - intLPMaxSz: the value of intLPMaxSz is passed to theinner Solver as
+  * - intChkState: if nonzero, it is taken to mean that the LagBFunction
+  *                should check the Solution contained in its State, when
+  *   the latter is put back (cf. put_State()), to verify that they are
+  *   still feasible/correct directions. The default is 0, meaning that the
+  *   LagBFunction will trust this being true; ensuring this is then the
+  *   user's responsibility, requiring to keep a close watch on the state of
+  *   the inner Block when the State is read (get_State) and put back but
+  *   saving the potentially costly feasibility check. By setting this
+  *   parameter to nonzero (true) the user gains considerable feasibility in
+  *   re-using a State even if the inner Block is not completely identical
+  *   (constraint-wise) to what it was when it was created, at a cost.
+  *
+  * - intLPMaxSz: the value of intLPMaxSz is passed to the inner Solver as
   *               the Solver::intMaxSol parameter, since each different
   *   Variable Solution produced by the Solver immediately translates into
   *   a linearization of the LagBFunction
@@ -698,6 +730,38 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  void deserialize( const netCDF::NcGroup& group ) override;
+
+/**@} ----------------------------------------------------------------------*/
+/*----------------- METHODS FOR MANAGING THE "IDENTITY" --------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Managing the "identity" of the LagBFunction
+ *
+ * Actually implement the methods of ThinComputeInterface relative to
+ * temporarily changing the "identity" of the LagBFunction.
+ *
+ *  @{ */
+
+ /// set the "identity" of the LagBFunction
+ /** Actually implement the ThinComputeInterface::set_id() by setting the
+  * f_id member of the LagBFunction class, which is initialized with "this"
+  * in the constructor. LagBFunction always uses f_id to try to "lock and
+  * own" the Block. This method allows to change f_id ("lend another
+  * identity"); when called with nullptr argument, the id() is reset to the
+  * default "this". Also, if the inner Block is set and has registered
+  * Solver, their identity is also set (or reset) in anticipation that they
+  * also may have to lock() the inner Block during their line of work. */
+
+ void set_id( void * id = nullptr ) override {
+  if( f_id == id )  // nothing to do
+   return;          // silently (and cowardly) return
+
+  f_id = id ? id : this;
+
+  // propagate downwards the id change
+  if( ! v_Block.empty() )
+   for( auto s : v_Block.front()->get_registered_solvers() )
+    s->set_id( id );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------- METHODS FOR MODIFYING THE LagBFunction ------------------*/
@@ -896,7 +960,8 @@ class LagBFunction : public C05Function , public Block {
 
  bool is_linearization_there( Index name ) const override {
   if( name >= g_pool.size() )
-   throw( std::invalid_argument( "invalid linearization name" ) );
+   throw( std::invalid_argument(
+       "LagBFunction::is_linearization_there: invalid linearization name" ) );
   return( g_pool[ name ].first );
   }
 
@@ -904,7 +969,8 @@ class LagBFunction : public C05Function , public Block {
 
  bool is_linearization_vertical( Index name ) const override {
   if( name >= g_pool.size() )
-   throw( std::invalid_argument( "invalid linearization name" ) );
+   throw( std::invalid_argument(
+     "LagBFunction::is_linearization_vertical:invalid linearization name" ) );
   return( ! g_pool[ name ].second );
   }
 
@@ -1183,6 +1249,7 @@ class LagBFunction : public C05Function , public Block {
    case( intGPMaxSz ):  return( g_pool.size() ); break;
    case( intInnrSlvr ): return( InnrSlvr ); break;
    case( intNoSol ):    return( NoSol ? 1 : 0 ); break;
+  case( intChkState ):  return( ChkState ? 1 : 0 ); break;
    default:             return( C05Function::get_dflt_int_par( par ) );
    }
   } 
@@ -1200,7 +1267,8 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  [[nodiscard]] int get_dflt_int_par( idx_type par ) const override {
-  if( ( par == intInnrSlvr ) || ( par == intNoSol ) )
+  if( ( par == intInnrSlvr ) || ( par == intNoSol ) ||
+      ( par == intChkState ) )
    return( 0 );
   return( C05Function::get_dflt_int_par( par ) ) ;
   }
@@ -1209,7 +1277,7 @@ class LagBFunction : public C05Function , public Block {
 
  // double get_dflt_dbl_par( idx_type par ) const override;
 
- /*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 
  [[nodiscard]] idx_type int_par_str2idx( const std::string & name )
   const override {
@@ -1217,6 +1285,8 @@ class LagBFunction : public C05Function , public Block {
    return( intInnrSlvr );
   if( name == "intNoSol" )
    return( intNoSol );
+  if( name == "intChkState" )
+   return( intChkState );
 
   return( C05Function::int_par_str2idx( name ) );
   }
@@ -1226,15 +1296,39 @@ class LagBFunction : public C05Function , public Block {
  [[nodiscard]] const std::string & int_par_idx2str( idx_type idx )
   const override {
   static const std::vector< std::string > pars =
-   { "intInnrSlvr", "intNoSol" };
+   { "intInnrSlvr", "intNoSol" , "intChkState" };
 
   if( idx == intInnrSlvr )
    return( pars[ 0 ] );
   if( idx == intNoSol )
    return( pars[ 1 ] );
+  if( idx == intChkState )
+   return( pars[ 2 ] );
 
   return( C05Function::int_par_idx2str( idx ) );
   }
+
+/**@} ----------------------------------------------------------------------*/
+/*----------- METHODS FOR HANDLING THE State OF THE LagBFunction -----------*/
+/*--------------------------------------------------------------------------*/
+/** @name Handling the State of the LagBFunction
+ *  @{ */
+
+ State * get_State( void ) const override;
+
+/*--------------------------------------------------------------------------*/
+
+ void put_State( const State & state ) override;
+
+/*--------------------------------------------------------------------------*/
+
+ void put_State( State && state ) override;
+
+/*--------------------------------------------------------------------------*/
+
+ void serialize_State( netCDF::NcGroup & group ,
+		       const std::string & sub_group_name = "" )
+  const override;
 
 /**@} ----------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE LagBFunction ---------*/
@@ -1287,6 +1381,12 @@ class LagBFunction : public C05Function , public Block {
   return( new LagBFunction::v_const_iterator( LagPairs.end() ) );
   }
 
+/*--------------------------------------------------------------------------*/
+/*-------------------------------- FRIENDS ---------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ friend class LagBFunctionState;  // make LagBFunctionState friend
+
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -1330,6 +1430,20 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  void guts_of_destructor( bool deleteinner = true );
+
+/*--------------------------------------------------------------------------*/
+
+ OFValue get_objective_value( Block * blck ) {
+  OFValue ret = 0;
+  for( auto sb : blck->get_nested_Blocks() ) {
+   if( auto ro = dynamic_cast< RealObjective * >( sb->get_objective() ) ) {
+    ro->compute();
+    ret += ro->value();
+    }
+   ret += get_objective_value( sb );
+   }
+  return( ret );
+  }
 
 /*--------------------------------------------------------------------------*/
  /** handle every Modification, comprised GroupModification. returns true if
@@ -1438,6 +1552,8 @@ class LagBFunction : public C05Function , public Block {
  Index InnrSlvr;        ///< [index of the] Solver of the inner Block
 
  bool NoSol;            ///< true if no Solution are stored
+
+ bool ChkState;         ///< true if the State is checked for correctness
 
  Solver * p_InnrSlvr;   ///< [pointer to the] Solver of the inner Block
 
@@ -1552,7 +1668,9 @@ class LagBFunction : public C05Function , public Block {
   * such problem. */
 
  bool f_dirty_Lc;     ///< true if Lagrangian costs have to be modified
- 
+
+ bool f_c_changed;    ///< true if the costs in the Block are not original
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  int LPMaxSz;         ///< maximum size of the "local pool"
@@ -1564,6 +1682,8 @@ class LagBFunction : public C05Function , public Block {
  BlockSolverConfig * f_BSC;  ///< a BlockSolverConfig for the inner Block
 
  bool f_BSC_changed;         ///< true if the BlockSolverConfig has changed
+
+ void * f_id;           ///< the "identity" of the LagBFunction 
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -1709,6 +1829,147 @@ class LagBFunctionMod : public C05FunctionMod {
 
  };  // end( class( LagBFunctionMod ) )
 
+/*--------------------------------------------------------------------------*/
+/*------------------------ CLASS LagBFunctionState -------------------------*/
+/*--------------------------------------------------------------------------*/
+/// class to describe the "internal state" of a LagBFunction
+/** Derived class from State to describe the "internal state" of a
+ * LagBFunction, i.e., its global pool. This means savng the stored Solution
+ * (and their type). */
+
+class LagBFunctionState : public State {
+
+/*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+
+ public:
+
+/*------------ CONSTRUCTING AND DESTRUCTING LagBFunctionState --------------*/
+
+ /// constructor, doing everything or nothing.
+ /** Constructor of LagBFunctionState. If provided with a pointer to a
+  * LagBFunction it immediately copies its "internal state", which is the
+  * only way in which the LagBFunctionState can be initialised out of an
+  * existing LagBFunction. If nullptr is passed (as by default), then an
+  * "empty" LagBFunctionState is constructed that can only be filled by
+  * calling deserialize(). */
+
+ LagBFunctionState( const LagBFunction * lbf = nullptr ) : State() {
+  if( ! lbf ) {
+   f_max_glob = 0;
+   return;
+   }  
+  if( lbf->NoSol )
+   f_max_glob = 0;
+  else {
+   f_max_glob = lbf->f_max_glob;
+   g_pool.resize( f_max_glob );
+   auto gpit = lbf->g_pool.begin();
+   for( auto & el : g_pool ) {
+    if( gpit->first )
+     el.first = gpit->first->clone();
+    else
+     el.first = nullptr;
+    el.second = gpit->second;
+    ++gpit;
+    }
+   }
+  zLC = lbf->zLC;
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// de-serialize a LagBFunctionState out of netCDF::NcGroup
+ /** De-serialize a LagBFunctionState out of netCDF::NcGroup; see
+  * LagBFunctionState::serialize() for a description of the format. */
+
+ void deserialize( const netCDF::NcGroup & group ) override;
+
+/*--------------------------------------------------------------------------*/
+ /// destructor
+
+ virtual ~LagBFunctionState() {
+  for( auto el : g_pool )
+   delete el.first;
+  }
+
+/*--------- METHODS DESCRIBING THE BEHAVIOR OF A LagBFunctionState ---------*/
+
+ /// serialize a LagBFunctionState into a netCDF::NcGroup
+ /** The method serializes the LagBFunctionState into the provided
+  * netCDF::NcGroup, so that it can later be read back by deserialize().
+  *
+  * After the call, \p will contain:
+  *
+  * - The dimension "LagBFunction_MaxGlob" containing 1 + the maximum active
+  *   name in the global pool; this means that there can be only
+  *   LagBFunction_MaxGlob nonempty entries in the global pool, and the
+  *   largest possible name of an active entry is LagBFunction_MaxGlob - 1.
+  *   The variable is optional, if not present then 0 (empty global pool) is
+  *   assumed.
+  *
+  * - The variable "LagBFunction_Type", of type netCDF::NcByte and indexed
+  *   over the dimension LagBFunction_MaxGlob, which contains the vector of
+  *   booleans specifying the type (solution/direction) of each element in
+  *   the global pool. The variable is optional if LagBFunction_MaxGlob == 0.
+  *
+  * - At most LagBFunction_MaxGlob netCDF::NcGroup with name
+  *   "LagBFunction_Sol_X", with X an integer between 0 and
+  *   LagBFunction_MaxGlob - 1, each one containing the deserialization of
+  *   the Solution in the corresponding position of the global pool. If the
+  *   group ".._X" is not there, then position X in the global pool is empty
+  *
+  * - The dimension "LagBFunction_ImpCoeffNum" containing the number of
+  *   elements of the important coefficients. The dimension is optional, if
+  *   it is not provided than 0 (no important coefficients) is assumed.
+  *
+  * - The variable "LagBFunction_ImpCoeffInd", of type netCDF::NcInt and
+  *   indexed over the dimension LagBFunction_ImpCoeffNum, which contains
+  *   the vector of indices of the important coefficients. The variable is
+  *   optional if LagBFunction_ImpCoeffNum == 0.
+  *
+  * - The variable "LagBFunction_ImpCoeffVal", of type netCDF::NcDouble and
+  *   indexed over the dimension LagBFunction_ImpCoeffNum, which contains
+  *   the vector of real values of the important coefficients. The variable
+  *   is optional if LagBFunction_ImpCoeffNum == 0.*/
+
+ void serialize( netCDF::NcGroup & group ) const override;
+
+/*-------------------------------- FRIENDS ---------------------------------*/
+
+ friend class LagBFunction;  // make LagBFunction friend
+
+/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
+
+ protected:
+
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+
+ void print( std::ostream &output ) const override {
+  output << "LagBFunctionState [" << this << "] with max global pool element "
+	 << f_max_glob;
+  }
+
+/*--------------------------- PROTECTED FIELDS -----------------------------*/
+
+ LagBFunction::Index f_max_glob;      ///< 1 + maximum active name
+
+ LagBFunction::v_gpool_el g_pool;     ///< the global pool
+
+ LagBFunction::LinearCombination zLC;
+ ///< the LinearCombination of the important linearization
+
+/*---------------------- PRIVATE PART OF THE CLASS -------------------------*/
+
+ private:
+
+/*---------------------------- PRIVATE FIELDS ------------------------------*/
+
+ SMSpp_insert_in_factory_h;
+
+/*--------------------------------------------------------------------------*/
+
+ };  // end( class( LagBFunctionState ) )
+
+/** @} end( group( LagBFunction_CLASSES ) ) --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
  }  // end( namespace SMSpp_di_unipi_it )

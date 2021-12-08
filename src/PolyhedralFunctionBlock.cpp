@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 13 - 10 - 2019
+ * \date 22 - 08 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -557,7 +557,7 @@ void PolyhedralFunctionBlock::guts_of_destructor( void )
 
 /*--------------------------------------------------------------------------*/
 
-void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
+bool PolyhedralFunctionBlock::guts_of_add_Modification_PF(
 				    FunctionMod * const mod , ChnlName chnl )
 {
  // process a FunctionMod produced by the PolyhedralFunction- - - - - - - - -
@@ -597,7 +597,7 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
    else
     close_channel( ichnl );
    }
-  return;
+  return( false );
   }
 
  // C05FunctionModVarsRngd- - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -622,7 +622,7 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
    else
     close_channel( ichnl );
    }
-  return;
+  return( false );
   }
 
  // C05FunctionModVarsSbst- - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -648,7 +648,7 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
    else
     close_channel( ichnl );
    }
-  return;
+  return( false );
   }
 
  // PolyhedralFunctionModRngd - - - - - - - - - - - - - - - - - - - - - - - -
@@ -663,7 +663,7 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
     f_bcv.set_lhs( f_polyf.get_global_bound() , make_par( eNoBlck , chnl ) );
    else                       // concave ==> upper bound
     f_bcv.set_rhs( f_polyf.get_global_bound() , make_par( eNoBlck , chnl ) );
-   return;
+   return( false );
    }
 
   // open a new GroupModification, not concerning PolyhedralFunctionBlock
@@ -714,7 +714,7 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
    else
     close_channel( ichnl );
    }
-  return;
+  return( false );
   }
 
  // PolyhedralFunctionModSbst - - - - - - - - - - - - - - - - - - - - - - - -
@@ -772,7 +772,7 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
    else
     close_channel( ichnl );
    }
-  return;
+  return( false );
   }
 
  // PolyhedralFunctionModAddd - - - - - - - - - - - - - - - - - - - - - - - -
@@ -786,7 +786,7 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
    ConstructLPConstraint( i++ , *(cit++) );
 
   add_dynamic_constraints( f_const , newc , make_par( eNoBlck , chnl ) );
-  return;
+  return( false );
   }
 
  // C05FunctionMod- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -805,7 +805,7 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
    get_objective()->set_sense( Objective::eMin , par );
 
    // set upper/lower bound on v
-   f_bcv.set_lhs( f_polyf.get_lower_estimate() , par );
+   f_bcv.set_lhs( f_polyf.get_global_lower_bound() , par );
    f_bcv.set_rhs( Inf< Function::FunctionValue >() , par );
 
    // properly set the lhs/rhs of the constraints
@@ -820,7 +820,7 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
 
    // properly set upper/lower bound on v
    f_bcv.set_lhs( - Inf< Function::FunctionValue >() , par );
-   f_bcv.set_rhs( f_polyf.get_upper_estimate() , par );
+   f_bcv.set_rhs( f_polyf.get_global_upper_bound() , par );
 
    // properly set the lhs/rhs of the constraints
    for( auto & ci : f_const ) {
@@ -833,7 +833,7 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
    un_nest_channel( ichnl );
   else
    close_channel( ichnl );
-  return;
+  return( false );
   }
 
  // FunctionMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -843,23 +843,24 @@ void PolyhedralFunctionBlock::guts_of_add_Modification_PF(
  assert( std::isnan( mod->shift() ) );
 
  // set upper/lower bound on v
- f_bcv.set_rhs( f_polyf.get_upper_estimate() , eNoMod );
- f_bcv.set_lhs( f_polyf.get_lower_estimate() , eNoMod );
+ f_bcv.set_lhs( f_polyf.get_global_lower_bound() , eNoMod );
+ f_bcv.set_rhs( f_polyf.get_global_upper_bound() , eNoMod );
 
  // clear out the linear constraints
- for( auto & ci : f_const )
-  ci.clear();
  f_const.clear();
 
  // now add the linear constraints back again
  f_const.resize( f_polyf.get_A().size() );
  auto cit = f_const.begin();
- for( Index i = 0 ; i < f_polyf.get_A().size() ; )
+ for( Index i = 0 ; i < f_polyf.get_A().size() ; ) {
+  cit->set_Block( this );
   ConstructLPConstraint( i++ , *(cit++) );
+  }
  
  // finally issue a NBModification
  AbstractBlock::add_Modification( std::make_shared< NBModification >( this )
 				  );
+ return( true );
 
  }  // end( PolyhedralFunctionBlock::guts_of_add_Modification_PF )
 

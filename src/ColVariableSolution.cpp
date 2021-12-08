@@ -6,7 +6,7 @@
  *
  * \version 0.10
  *
- * \date 11 - 05 - 2018
+ * \date 17 - 11 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -36,6 +36,14 @@
 /*--------------------------------------------------------------------------*/
 
 using namespace SMSpp_di_unipi_it;
+
+/*--------------------------------------------------------------------------*/
+/*----------------------------- STATIC MEMBERS -----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+// register ColVariableSolution to the Solution factory
+
+SMSpp_insert_in_factory_cpp_0( ColVariableSolution );
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------------- METHODS --------------------------------*/
@@ -404,14 +412,11 @@ void ColVariableSolution::write( Block * const block ) {
   auto & sub_blocks = block->get_nested_Blocks();
 
   if( sub_blocks.size() != nested_solutions.size() )
-      throw std::logic_error
-        ( std::string( "ColVariableSolution::read() "
-                       "number of nested Blocks (" ) +
-          std::to_string( sub_blocks.size() ) +
-          std::string( ") is different from the "
-                       "number of nested Solutions (" ) +
-          std::to_string( nested_solutions.size() ) +
-          std::string( ")" ) );
+   throw std::logic_error
+    ( std::string( "ColVariableSolution::write: number of nested Blocks (" ) +
+      std::to_string( sub_blocks.size() ) +
+      std::string( ") is different from the number of nested Solutions (" ) +
+      std::to_string( nested_solutions.size() ) + std::string( ")" ) );
 
   auto sub_solution_iterator = nested_solutions.begin();
   for( auto & sub_block : sub_blocks ) {
@@ -422,28 +427,35 @@ void ColVariableSolution::write( Block * const block ) {
 
 /*--------------------------------------------------------------------------*/
 
-void ColVariableSolution::serialize( netCDF::NcGroup & group )
+void ColVariableSolution::serialize( netCDF::NcGroup & group ) const
 {
- throw( std::logic_error( " ColVariableSolution::serialize not ready yet" ) );
+ // always call the method of the base class first
+ Solution::serialize( group );
+
+ throw( std::logic_error( "ColVariableSolution::serialize not ready yet" ) );
  }
 
 /*--------------------------------------------------------------------------*/
 
 void ColVariableSolution::sum( const Solution * solution, double multiplier ) {
 
-  const ColVariableSolution * other_solution =
-    dynamic_cast< const ColVariableSolution * >( solution );
+  auto other_solution = dynamic_cast< const ColVariableSolution * >( solution );
 
   if( ! other_solution )
     throw std::invalid_argument
       ( "ColVariableSolution::sum: "
         "given Solution must be a ColVariableSolution" );
 
+  if( empty() ) {
+   scale( other_solution , multiplier );
+   return;
+   }
+
   if( this->static_variable_values.size() !=
       other_solution->static_variable_values.size() )
 
     throw std::logic_error
-      ( std::string( "ColVariableSolution::sum() "
+      ( std::string( "ColVariableSolution::sum: "
                      "number of variable groups of this Solution (" ) +
         std::to_string( this->static_variable_values.size() ) +
         std::string( ") is different from the "
@@ -458,7 +470,7 @@ void ColVariableSolution::sum( const Solution * solution, double multiplier ) {
     if( ! un_any_static_2
         ( this->static_variable_values[i] ,
           other_solution->static_variable_values[i] ,
-          [&multiplier]( double & this_value , double & other_value ) {
+          [multiplier]( double & this_value , double & other_value ) {
           this_value += multiplier * other_value;
         } ,
           un_any_type<double>() , un_any_type<double>() ) )
@@ -476,8 +488,8 @@ void ColVariableSolution::sum( const Solution * solution, double multiplier ) {
     if( ! un_any_static_2
         ( this->dynamic_variable_values[i] ,
           other_solution->dynamic_variable_values[i] ,
-          [&multiplier]( std::vector<double> & this_values ,
-                         std::vector<double> & other_values ) {
+          [multiplier]( std::vector<double> & this_values ,
+                        std::vector<double> & other_values ) {
 
           // Reserve space in case the other solution has more dynamic
           // Variable values
@@ -509,7 +521,7 @@ void ColVariableSolution::sum( const Solution * solution, double multiplier ) {
   if( this->nested_solutions.size() != other_solution->nested_solutions.size() )
 
     throw std::logic_error
-      ( std::string( "ColVariableSolution::sum() "
+      ( std::string( "ColVariableSolution::sum: "
                      "number of nested Solutions (" ) +
         std::to_string( this->nested_solutions.size() ) +
         std::string( ") of this Solution is different from the "
@@ -561,13 +573,13 @@ void ColVariableSolution::scale( const ColVariableSolution * const solution ,
         ( solution->static_variable_values[i] ,
           this->static_variable_values[i] ,
           un_any_type<double>() , un_any_type<double>() ,
-          [&factor]( double & this_value , double & scaled_value ) {
-          scaled_value = factor * this_value;
+          [factor]( double & given_solution_value , double & scaled_value ) {
+          scaled_value = factor * given_solution_value;
         } ,
           true ) )
 
       throw std::logic_error
-        ( std::string( "ColVariableSolution::sum: invalid or non-conforming "
+        ( std::string( "ColVariableSolution::scale: invalid or non-conforming "
                        "static variable group types: " ) +
           solution->static_variable_values[i].type().name() +
           std::string( " and ") +
@@ -585,16 +597,16 @@ void ColVariableSolution::scale( const ColVariableSolution * const solution ,
           this->dynamic_variable_values[i] ,
           un_any_type<std::vector<double>>() ,
           un_any_type<std::vector<double>>() ,
-          [&factor]( std::vector<double> & this_values ,
-                     std::vector<double> & scaled_values ) {
+          [factor]( std::vector<double> & given_solution_values ,
+                    std::vector<double> & scaled_values ) {
           scaled_values.resize(0);
-          scaled_values.reserve(this_values.size());
-          for( auto & value : this_values )
+          scaled_values.reserve(given_solution_values.size());
+          for( auto & value : given_solution_values )
             scaled_values.push_back( factor * value );
         } ) )
 
       throw std::logic_error
-        ( std::string( "ColVariableSolution::sum: invalid or non-conforming "
+        ( std::string( "ColVariableSolution::scale: invalid or non-conforming "
                        "dynamic variable group types: " ) +
           solution->dynamic_variable_values[i].type().name() +
           std::string( " and ") +
