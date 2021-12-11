@@ -2368,9 +2368,9 @@ class Block : public Observer {
  Objective * get_objective( void ) const { return( f_Objective ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// template method to get the the current Objective
+ /// template method to get the current Objective
  /** This method, template over the class Obj (which must derive from
-  * Objective), get the the current Objective, which is supposed to be an
+  * Objective), get the current Objective, which is supposed to be an
   * Obj *, and returns it. If the Objective is not of the required type,
   * exception is thrown. */
 

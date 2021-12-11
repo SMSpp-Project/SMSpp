@@ -229,7 +229,7 @@ class LinearFunction : public C15Function
  /** Constructor of LinearFunction. It accepts:
   *
   * @param vars, a && to a vector of pairs < ColVariable * , Coefficient >
-  *        representing the linear expression of the function; as the the &&
+  *        representing the linear expression of the function; as the &&
   *        tells, vars is "consumed" by the constructor and its resources
   *        become property of the LinearFunction object.
   *
@@ -502,7 +502,7 @@ class LinearFunction : public C15Function
   * should not have repeated Variable, but if this is an issue then the
   * check will have to be performed elsewhere, it is not done here.
   *
-  * As the the && tells, vars is "consumed" by the method and its resources
+  * As the && tells, vars is "consumed" by the method and its resources
   * become property of the LinearFunction object.
   *
   * The parameter issueMod decides if and how the C05FunctionModVarsAddd is
