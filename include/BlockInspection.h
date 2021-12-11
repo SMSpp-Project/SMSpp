@@ -497,7 +497,7 @@ namespace SMSpp_di_unipi_it::inspection
   *         father. If the given Block has no father, Inf<Index>() is
   *         returned. */
 
- static Index get_block_index( const Block * block ) {
+ static inline Index get_block_index( const Block * block ) {
   auto father = block->get_f_Block();
   if( father ) {
    const auto & nb = father->get_nested_Blocks();
@@ -551,8 +551,8 @@ namespace SMSpp_di_unipi_it::inspection
   *         Block, then a pointer to this Constraint is returned. Otherwise,
   *         nullptr is returned.
   */
- static Constraint * get_Constraint( const Block * const block ,
-                                     const Block::ConstraintID id ) {
+ static inline Constraint * get_Constraint( const Block * const block ,
+                                            const Block::ConstraintID id ) {
   const auto & static_constraints = block->get_static_constraints();
   const auto num_static_groups = static_constraints.size();
   auto group_index = id.first;
@@ -779,9 +779,9 @@ namespace SMSpp_di_unipi_it::inspection
   * @param stream An stream to which the description of the unsatisfied
   *        Constraint will be output. */
 
- static void show_infeasibility( const Block * block ,
-                                 const bool static_constraints ,
-                                 std::ostream & stream = std::cout ) {
+ static inline void show_infeasibility( const Block * block ,
+                                        const bool static_constraints ,
+                                        std::ostream & stream = std::cout ) {
   std::string constraint_type = static_constraints ? "static" : "dynamic";
   std::string block_name = block->name();
   if( block_name.empty() )
@@ -824,8 +824,8 @@ namespace SMSpp_di_unipi_it::inspection
   * @param stream An stream to which the description of the unsatisfied
   *        Constraint will be output. */
 
- static void show_infeasibility( const Block * block ,
-                                 std::ostream & stream = std::cout ) {
+ static inline void show_infeasibility( const Block * block ,
+                                        std::ostream & stream = std::cout ) {
   show_infeasibility( block , true , stream );
   show_infeasibility( block , false , stream );
   for( auto sub_block : block->get_nested_Blocks() )
