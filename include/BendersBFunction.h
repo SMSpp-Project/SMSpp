@@ -535,7 +535,7 @@ class BendersBFunction : public C05Function , public Block {
   * set_mapping( A , b , constraints , sides ). These (if the variables have
   * not been defined prior to calling them, see below) leave the
   * BendersBFunction in a somewhat inconsistent state whereby one knows the
-  * data but not the the input Variable, cue this method.
+  * data but not the input Variable, cue this method.
   *
   * Note that there are two distinct patterns of usage:
   *
@@ -2233,7 +2233,7 @@ class BendersBFunction : public C05Function , public Block {
   void resize( Index size );
 
 /*--------------------------------------------------------------------------*/
-  /// returns the the size of the global pool
+  /// returns the size of the global pool
 
   Index size() const { return( solutions.size() ); }
 

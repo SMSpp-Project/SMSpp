@@ -1374,7 +1374,7 @@ class PolyhedralFunction : public C05Function {
   *
   * @param range contains the indices of the rows to be deleted, hence
   *        range.second < get_b().size(); note that if range.second ==
-  *        get_b().size() - 1 == get_A.size(), then also the the "virtual"
+  *        get_b().size() - 1 == get_A.size(), then also the "virtual"
   *        all-0 row corresponding to the global lower/upper bound is deleted,
   *        which means that the bound is reset to +/- INF as appropriate.
   *

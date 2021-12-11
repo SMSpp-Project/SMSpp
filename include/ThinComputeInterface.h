@@ -64,7 +64,7 @@ namespace SMSpp_di_unipi_it
  * - the computation has parameters (possibly, many and complex) determining
  *   how exactly it is performed;
  *
- * - the computation may not necessarily suceed, especially if only allowed
+ * - the computation may not necessarily succeed, especially if only allowed
  *   a limited the amount of computational resources (which may be done by
  *   setting some of the above parameters);
  *
@@ -82,16 +82,16 @@ namespace SMSpp_di_unipi_it
  *   checkpointing purposes;
  *
  * - the computation may be repeated many times as the underlying data
- *   carachterising it (typically, a Block or a fragment thereof) may change
+ *   characterising it (typically, a Block or a fragment thereof) may change
  *   significantly, but then the data may be brought back to a state similar
  *   to one occurred "a long time before", which makes it useful to extract
- *   and save the "internal state" of the computation for reoptimization
+ *   and save the "internal state" of the computation for re-optimization
  *   purposes;
  *
  * - the computation may take time (or other computational resources) that
  *   the caller may want to be able to measure;
  *
- * - the operations may be performed asyncronously on one or more different
+ * - the operations may be performed asynchronously on one or more different
  *   threads, which implies some kind of synchronization, e.g. via
  *   Block::lock().
  *
@@ -146,7 +146,7 @@ class ThinComputeInterface
  /// public enum for the possible return values of compute()
  /** The enum compute_type is used to define the meaning of the return value
   * of the compute() method. The values are subdivided in four different
-  * segments intended to represent four differen sets of conditions:
+  * segments intended to represent four different sets of conditions:
   *
   * - All return values <= kUnEval mean that the process of compute() has not
   *   finished yet. This may mean a few different things (which is why kUnEval
@@ -224,7 +224,7 @@ class ThinComputeInterface
   * different types of events (see event_type), and will call all the event
   * handlers registered under a certain event type when the corresponding
   * condition occurs. Note that the return type is int rather than action_type
-  * to allow derived classes to extend the typer of actions they sypport. */
+  * to allow derived classes to extend the type of actions they support. */
 
  using EventHandler = std::function< int( void ) >;
 
@@ -233,7 +233,7 @@ class ThinComputeInterface
  /** When an event handler is registered into a ThinComputeInterface, it gets
   * a unique ID that can be, and should, used later on to un-register it. One
   * does not expect more than 65536 event handlers being registered to any
-  * sentible ThinComputeInterface, but should it be so, the definition of
+  * sensible ThinComputeInterface, but should it be so, the definition of
   * EventID could be changed accordingly here. */
 
  using EventID = unsigned short int;
@@ -282,8 +282,8 @@ class ThinComputeInterface
    * some events not to be called at all, although of course a derived class
    * may place appropriate checks in multiple places to try to avoid this. */
 
-  e_last_event_type = 4     ///< conveniemce value to define new events
-                            /**< conveniemce value to allow derived classes
+  e_last_event_type = 4     ///< convenience value to define new events
+                            /**< convenience value to allow derived classes
 			     * to "extend" event_type and define new
    * class-specific events that their compute() can support. */
 
@@ -323,7 +323,7 @@ class ThinComputeInterface
    * eStopOK (included), compute() should immediately stop (some delay is
    * possible if required by the implementation) because the event has
    * detected that whatever needed to be compute()-d, has already been
-   * satsfactorily compute()-d. eStopOK is taken equal to kOK, so that
+   * satisfactorily compute()-d. eStopOK is taken equal to kOK, so that
    *
    *     compute() WILL RETURN AS ITS STATUS PRECISELY THE VALUE
    *     RETURNED BY THE EVENT HANDLER
@@ -404,8 +404,8 @@ class ThinComputeInterface
                    * number of threads that the next call to compute() is
   * allowed to spawn while trying to solve the Block. Actually "thread" here
   * is intended in a loose sense, since each ::ThinComputeInterface will
-  * decide if and how to implememnt any asynchronous part, and hence which
-  * tools will be used to manage it. If std::asynch is used, for instance,
+  * decide if and how to implement any asynchronous part, and hence which
+  * tools will be used to manage it. If std::async is used, for instance,
   * then what is easily kept under control is the number of tasks, which may
   * or may not coincide with the number of threads depending on the scheduler
   * implementation. Specific :ThinComputeInterface requiring more fine
@@ -559,7 +559,7 @@ class ThinComputeInterface
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// move a given vector-of-float (std::vector< double >) numerical parameter
- /** Set the vector-of-float (std::vector< doule >) numerical parameter with
+ /** Set the vector-of-float (std::vector< double >) numerical parameter with
   * index \p par, which must be in the range [ 0 , get_num_vdbl_par() ). The
   * method takes an lvalue reference, which means that \p value can be moved
   * into the ThinComputeInterface. The method is given a "void" implementation
@@ -665,7 +665,7 @@ class ThinComputeInterface
  * is the "lock and own" one: each time that an "entity" needs to operate on
  * a Block to change it, it has to lock() it. The Block stores the "identity"
  * of its owner, so that if the same owner comes back and try to "own" it,
- * the operation suceeds even if the Block is locked already. When a Block is
+ * the operation succeeds even if the Block is locked already. When a Block is
  * "owned", all its sub-Block (recursively) are "owned" by the same entity.
  * While compute()-ing something does not in general require to change the
  * underlying Block, it is possible that this may be needed. Hence, a
@@ -674,8 +674,8 @@ class ThinComputeInterface
  * In general, each entity willing to "lock and own" a Block will have to
  * provide a unique "identity", under the form of a void *. If the entity is
  * an object, the typical "identity" is "this", i.e., the pointer to the
- * object itself. There can be the the case where :ThinComputeInterface
- * having loacked a Block relies on some other :ThinComputeInterface that
+ * object itself. There can be the case where :ThinComputeInterface
+ * having locked a Block relies on some other :ThinComputeInterface that
  * needs to do the same, for instance because it operates on some of the
  * sub-Block of the given Block. However, when the "master"
  * :ThinComputeInterface" lock()s the Block, the other :ThinComputeInterface 
@@ -703,7 +703,7 @@ class ThinComputeInterface
   *
   *     bool owned = block->is_owned_by( me );
   *     if( ( ! owned ) && ( ! block->lock( me ) ) )
-  *      < something happens, typcally a disaster >
+  *      < something happens, typically a disaster >
   *
   *     < block is mine, do whatever I want with it >
   *
@@ -719,7 +719,7 @@ class ThinComputeInterface
   * is what the above scheme does, because the entity having lent its
   * identity is still assuming it is lock()-ed, and it will unlock() it
   * when it is done (unless the entity in turn had the identity lent to,
-  * in which case the process will repear above).
+  * in which case the process will repeat above).
   *
   * If the method is called with the (default) nullptr argument, the "lease
   * of the identity expires" (typically, because the Block is no longer
@@ -818,7 +818,7 @@ class ThinComputeInterface
  * itself multi-threaded. However, the design principle is that
  *
  *     EVERY METHOD IN THE PUBLIC INTERFACE OF THE ThinComputeInterface
- *     IS CALLABLE BY AN EVENT HANDLER UNLESS EXPLICTLY DECLARED OTHERWISE
+ *     IS CALLABLE BY AN EVENT HANDLER UNLESS EXPLICITLY DECLARED OTHERWISE
  *
  * That is, each :ThinComputeInterface will have to specify, possibly
  * separately for each type of event it supports, if some methods of its
@@ -846,7 +846,7 @@ class ThinComputeInterface
  *  @{ */
 
  /// register a new event handler, returning its id
- /** Adds a new event handler to these regostered for the given type. As the
+ /** Adds a new event handler to these registered for the given type. As the
   * && tells, the event handler becomes property of the ThinComputeInterface,
   * which is completely OK if, as one expects, it is defined via a lambda
   * function. The method returns a unique id for the handler, which can (and
@@ -907,7 +907,7 @@ class ThinComputeInterface
   *   Variable. For Constraint, Objective and Function these are the "active"
   *   Variable, while for Solver, these are the Variable in the Constraint of
   *   the Block it is attached to which do not belong to the Block itself,
-  *   and therefore have to be treated as constrants when the Block is solved.
+  *   and therefore have to be treated as constraints when the Block is solved.
   *   These may change their value, but there is no mechanism that signals any
   *   abject if such a change has occurred.
   *
@@ -917,7 +917,7 @@ class ThinComputeInterface
   * a change. However, the changes may affect the result of the computation,
   * which could therefore be no longer correct for the state of the object
   * at the beginning of the call, but only for that at the end (and note that
-  * there may be no bound on the number of changes which may occurr in the
+  * there may be no bound on the number of changes which may occur in the
   * meantime). The point is whether this is allowed to happen, and the general
   * answer is "no". That is, the rule is that
   *
@@ -955,7 +955,7 @@ class ThinComputeInterface
   * and continue as if nothing had happened" (this is provided the state of
   * the solution process is properly preserved, which is usually the case).
   * Otherwise, the computation may have to be significantly reshaped: in the
-  * best case reoptimization techniques can be used to warm-start the new one
+  * best case re-optimization techniques can be used to warm-start the new one
   * using results from the old one, but in some cases there could be no other
   * resort than restarting everything from scratch.
   *
@@ -1172,7 +1172,7 @@ class ThinComputeInterface
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get the default value of a string parameter
- /**  Returns a const reference to the the default value of the string
+ /**  Returns a const reference to the default value of the string
   * parameter with index \p par, which must be in the range
   * [ 0 , get_num_str_par() ). The method is given a "void" implementation
   * (returning the empty string), rather than being pure virtual, so that
@@ -1512,7 +1512,7 @@ class ThinComputeInterface
   * parameters are at their default value. In this case no ComputeConfig is
   * returned: nullptr is. This tells in a "compact form" (analogous to
   * set_ComputeConfig()) the same information, i.e., "all parameters to their
-  * defult value". This is done by the base class implementation, but note
+  * default value". This is done by the base class implementation, but note
   * that a ComputeConfig is only meant to actually store information about
   * (non-default) values of parameters *that its :ThinComputeInterface
   * actually cares about*. This means that if a specific :ThinComputeInterface
@@ -1541,7 +1541,7 @@ class ThinComputeInterface
  * many different computing processes, among which "very heavy" ones. Such
  * processes may require a (very large) "internal state" to work. Once the
  * computation is finished, the internal state (in part or in whole) is
- * usually retained for the purpose of "reoptimization": if the underlying
+ * usually retained for the purpose of "re-optimization": if the underlying
  * data characterising it (typically, a Block or a fragment thereof) changes
  * "just a little", re-starting the computation from the previous "internal
  * state" has the potential (but is not guaranteed) to significantly improve
@@ -1554,7 +1554,7 @@ class ThinComputeInterface
  * before". In this case, the capability of extracting and saving the
  * "internal state" of the computation at arbitrary times during the series of
  * computations and then passing back to the ThinComputeInterface a properly
- * chosen state among the saved ones may allow "reoptimization" to be
+ * chosen state among the saved ones may allow "re-optimization" to be
  * performed more efficiently.
  *
  * A different use case for the capability of extracting and saving the
@@ -1617,7 +1617,7 @@ class ThinComputeInterface
   * Note that there may exist different options while saving a State; say
   * "saving more state" or "saving less state" with some trade-off between
   * the required memory/cost and the chances of being effective at
-  * reoptimization/checkpointing. If this is the case, the options can be
+  * re-optimization/checkpointing. If this is the case, the options can be
   * set by means of standard int/double/string/... parameters of the
   * specific :ThinComputeInterface; the base class does not offer any
   * pre-defined parameter for this task. */
@@ -1752,7 +1752,7 @@ class ThinComputeInterface
  *
  * The idea is that each list contains the pairs < parameter name , value >
  * to be changed/set. The lists need *not* contain all the parameters (of the
- * given type), all those not directly specified are treated as speficied in
+ * given type), all those not directly specified are treated as specified in
  * the bool field f_diff. If f_diff == true, then the ComputeConfig has to be
  * "interpreted in a differential sense": all parameters not specified must
  * not be changed from their current value. If f_diff == false instead, then
@@ -1856,7 +1856,7 @@ class ComputeConfig : public Configuration {
   *   = the variable "TYP_par_vals", of the right type (int, double or string
   *     according on TYP) and indexed over the dimension "TYP_par_num"; the
   *     i-th entry of the variable is assumed to contain the value of the
-  *     parameter of that tyoe whose string name is to be found in the i-th
+  *     parameter of that type whose string name is to be found in the i-th
   *     entry of "TYP_par_names"; the variable is optional if TYP_par_num
   *     == 0 (e.g., it not provided), since in this case it is ignored;
   *
@@ -1869,7 +1869,7 @@ class ComputeConfig : public Configuration {
   *
   *   = the dimension "v_TYP_par_tot" containing the total number of basic
   *     values (int for "int", double for "dbl", and string for "str") that
-  *     are contaned in all the vector parameters of that type, i.e., the
+  *     are contained in all the vector parameters of that type, i.e., the
   *     sum of the number of elements in all the vectors; the dimension is
   *     optional if v_TYP_pa_numr == 0 (e.g., it not provided), since in this
   *     case it is ignored;
@@ -2194,39 +2194,39 @@ class ComputeConfig : public Configuration {
   * number k of the names of int parameters
   *
   * for i = 1 ... k
-  * - a string containing the name of the int perameter
+  * - a string containing the name of the int parameter
   * - an int (the i-th int parameter)
   *
   * number k of the names of double parameters
   *
   * for i = 1 ... k
-  * - a string containing the name of the double perameter
+  * - a string containing the name of the double parameter
   * - a double (the i-th double parameter)
   *
   * number k of the names of string parameters
   *
   * for i = 1 ... k
-  * - a string containing the name of the string perameter
+  * - a string containing the name of the string parameter
   * - a string (the i-th string parameter)
   *
   * number k of the names of vector-of-int parameters
   *
   * for i = 1 ... k
-  * - a string containing the name of the vector-of-int perameter
+  * - a string containing the name of the vector-of-int parameter
   * - the i-th vector-of-int parameter (loaded with operator>>,
   *   see SMSTypedefs.h for details),
   *
   * number k of the names of vector-of-double parameters
   *
   * for i = 1 ... k
-  * - a string containing the name of the vector-of-double perameter
+  * - a string containing the name of the vector-of-double parameter
   * - the i-th vector-of-double parameter (loaded with operator>>,
   *   see SMSTypedefs.h for details),
   *
   * number k of the names of vector-of-string parameters
   *
   * for i = 1 ... k
-  * - a string containing the name of the vector-of-string perameter
+  * - a string containing the name of the vector-of-string parameter
   * - the i-th vector-of-string parameter (loaded with operator>>,
   *   see SMSTypedefs.h for details),
   *
@@ -2563,7 +2563,7 @@ class State {
  * are typically related with factories.
  * @{ */
 
- /// method incapsulating the State factory
+ /// method encapsulating the State factory
  /** This method returns the State factory, which is a static object. The
   * rationale for using a method is that this is the "Construct On First Use
   * Idiom" that solves the "static initialization order problem". */

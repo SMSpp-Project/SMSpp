@@ -1829,7 +1829,7 @@ class C05FunctionModRngd : public C05FunctionMod {
   * stop ) representing the typical left-closed, right-open range
   * { i : start <= i < stop }, and the correspondence between that and vars
   * is positional: vars[ 0 ] had index range, vars[ 1 ] had index range + 1,
-  * ..., which implies that vars.size() == stop - start. As the the &&
+  * ..., which implies that vars.size() == stop - start. As the &&
   * tells, the vars[] vector "becomes property" of the C05FunctionModRngd
   * object. */
 
@@ -2580,7 +2580,7 @@ class C05FunctionModLin : public FunctionMod {
   * of changes in the linear part of the C05Function under the form of a
   * std::vector< FunctionValue >, and the subset of the Variable whose
   * "linear part" changes under the form of a std::vector< Variable * >. As
-  * the the && tells, both vectors "become property" of the C05FunctionModLin
+  * the && tells, both vectors "become property" of the C05FunctionModLin
   * object. */
 
  C05FunctionModLin( C05Function * f , Vec_FunctionValue && delta ,
