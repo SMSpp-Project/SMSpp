@@ -9,7 +9,7 @@
  *
  * \version 0.1
  *
- * \date 31 - 01 - 2021
+ * \date 14 - 12 - 2021
  *
  * \author Rafael Durbano Lobato \n
  *         Operations Research Group \n
@@ -820,10 +820,12 @@ public:
                             FunctionName_name + "' is not present." ) );
   }
 
+  // TODO The following implementation should change when netCDF provides a
+  // better C++ interface.
   char * fname = nullptr;
   FunctionName_var.getVar( & fname );
   std::string function_name( fname );
-  delete fname;
+  free( fname );
 
   function = Block::get_method< F >( function_name );
 
@@ -921,10 +923,12 @@ public:
 
   // FunctionName
 
+  // TODO The following implementation should change when netCDF provides a
+  // better C++ interface.
   char * fname = nullptr;
   sdmb_netCDF.FunctionName.getVar( { index } , { 1 } , & fname );
   std::string function_name( fname );
-  delete fname;
+  free( fname );
 
   function = Block::get_method< F >( function_name );
 
