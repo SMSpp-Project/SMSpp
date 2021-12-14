@@ -21,7 +21,7 @@
  *
  * \version 0.14
  *
- * \date 07 - 07 - 2021
+ * \date 13 - 12 - 2021
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -2607,9 +2607,10 @@ void serialize( netCDF::NcGroup & group , const std::string & var_name ,
 
 /*--------------------------------------------------------------------------*/
 /// serialize a one-dimensional variable into a netCDF NcGroup
-/** Add a new one-dimensional netCDF variable with the given name in
- * the given netCDF NcGroup. Moreover, it stores the given data into
- * that variable in row-major layout.
+/** Add a new one-dimensional netCDF variable with the given name in the given
+ * netCDF NcGroup. Moreover, it stores the given data into that variable in
+ * row-major layout. If \p data is empty, \p group is left unchanged (no
+ * netCDF variable is created).
  *
  * @param[in, out] group The netCDF NcGroup in which the variable will be
  * added.
@@ -2631,9 +2632,12 @@ void serialize( netCDF::NcGroup & group , const std::string & var_name ,
 template< class T >
 void serialize( netCDF::NcGroup & group , const std::string & var_name ,
                 const netCDF::NcType & ncType , const netCDF::NcDim & ncDim ,
-                const std::vector< T > & data,
+                const std::vector< T > & data ,
 		bool allow_scalar_var = false )
 {
+ if( data.empty() )
+  return; // Nothing to be serialized.
+
  if( allow_scalar_var && ( data.size() == 1 ) ) {
   serialize( group , var_name , ncType , data[ 0 ] );
   return;
