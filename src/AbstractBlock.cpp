@@ -773,8 +773,6 @@ void AbstractBlock::serialize( netCDF::NcGroup & group ) const
   throw( std::logic_error(
    "AbstractBlock::serialize not fully implemented yet" ) );
 
- group.putAtt( "type", name() );
-
  if( v_Block.size() > get_first_inner_Block() ) {
   group.addDim( "NumberInnerBlock", v_Block.size() );
 
