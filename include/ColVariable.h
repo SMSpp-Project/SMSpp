@@ -293,7 +293,7 @@ class ColVariable : public Variable
   * that is, a non-negative ColVariable is feasible if its value is >= - eps,
   * and so on. */
 
- [[nodiscard]] bool is_feasible( var_type eps = 0 ) const {
+ [[nodiscard]] bool is_feasible( VarValue eps = 0 ) const {
   if( is_integer() && ( std::abs( std::round( f_value ) - f_value ) > eps ) )
    return( false );
 

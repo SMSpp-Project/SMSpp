@@ -171,7 +171,7 @@ class ThinVarDepInterface {
   typedef std::forward_iterator_tag iterator_category;
 
   v_const_iterator() = default;                                ///< constructor
-  virtual ~v_const_iterator() = default;;                      ///< destructor
+  virtual ~v_const_iterator() = default;                       ///< destructor
   virtual v_const_iterator * clone() = 0;                      ///< cloner
   virtual void operator++() = 0;                               ///< increment
   virtual reference operator*() const = 0;                     ///< operator*
