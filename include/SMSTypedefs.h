@@ -124,8 +124,8 @@ typedef const c_Vec_string::const_iterator c_Vec_string_it;
 template< typename T >
 static constexpr T Inf( void ) noexcept {
  return( std::numeric_limits< T >::has_infinity ?
-	 std::numeric_limits< T >::infinity() :
-	 std::numeric_limits< T >::max() );
+         std::numeric_limits< T >::infinity() :
+         std::numeric_limits< T >::max() );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -421,7 +421,7 @@ struct t< T( U ) > { using type = U; };
 
 inline std::string && SMSpp_classname_normalise( std::string && str ) {      
  str.erase( std::remove_if( str.begin() , str.end() , ::isspace ) ,
-	    str.end() );
+            str.end() );
  while( str.front() == '(' ) { str.pop_back(); str.erase( 0 , 1 ); }
  return( std::move( str ) );
  }
@@ -564,7 +564,7 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
  const std::string &                                                         \
  SMSpp_type_traits::t<void(ClassName)>::type::_private_name( void ) {        \
   static const std::string _name( SMSpp_classname_normalise(                 \
-				              std::string( #ClassName ) ) ); \
+                                              std::string( #ClassName ) ) ); \
   return( _name );                                                           \
   }                                                                          \
                                                                              \
@@ -586,7 +586,7 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
  const std::string &                                                         \
  SMSpp_type_traits::t<void(ClassName)>::type::_private_name( void ) {        \
   static const std::string _name( SMSpp_classname_normalise(                 \
-				              std::string( #ClassName ) ) ); \
+                                              std::string( #ClassName ) ) ); \
   return( _name );                                                           \
   }                                                                          \
                                                                              \
@@ -609,7 +609,7 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
  const std::string &                                                         \
  SMSpp_type_traits::t<void(ClassName)>::type::_private_name( void ) {        \
   static const std::string _name( SMSpp_classname_normalise(                 \
-				              std::string( #ClassName ) ) ); \
+                                              std::string( #ClassName ) ) ); \
   return( _name );                                                           \
   }                                                                          \
                                                                              \
@@ -635,7 +635,7 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
  const std::string &                                                         \
  SMSpp_type_traits::t<void(ClassName)>::type::_private_name( void ) {        \
   static const std::string _name( SMSpp_classname_normalise(                 \
-				              std::string( #ClassName ) ) ); \
+                                              std::string( #ClassName ) ) ); \
   return( _name );                                                           \
   }                                                                          \
                                                                              \
@@ -674,10 +674,10 @@ bool SMSpp_ensure_load_var;
 #define SMSpp_ensure_load( ClassName )                                      \
  template<>                                                                 \
  bool SMSpp_ensure_load_var< SMSpp_type_traits::t<void(ClassName)>::type > =\
-  []( void ) -> bool {		                                            \
+  []( void ) -> bool {                                                            \
    if( auto p = new SMSpp_type_traits::t<void(ClassName)>::type() ) {       \
     delete p; return( true ); }                                             \
-   else	return( false ); \
+   else        return( false ); \
    }()
 
 /**@} ----------------------------------------------------------------------*/
@@ -808,7 +808,7 @@ bool un_any_static( boost::any & any , F f , un_any_type< T > ) {
    }
   else
    return( un_any_static( any , f , un_any_type< T >() ,
-			  un_any_int< 2 >() ) );
+                          un_any_int< 2 >() ) );
  }
 
 template< typename T , class F >
@@ -818,7 +818,7 @@ bool un_any_static( boost::any & , F, un_any_type< T > , un_any_int< 9 > ) {
 
 template< typename T , class F , unsigned short K >
 bool un_any_static( boost::any & any , F f , un_any_type< T > ,
-		    un_any_int< K > ) {
+                    un_any_int< K > ) {
  if( any.type() == typeid( boost::multi_array< T, K > * ) ) {
   auto & var = *boost::any_cast< boost::multi_array< T, K > * >( any );
   T * p = var.data();
@@ -828,7 +828,7 @@ bool un_any_static( boost::any & any , F f , un_any_type< T > ,
   }
  else
   return( un_any_static( any , f , un_any_type< T >() ,
-			 un_any_int< K + 1 >() ) );
+                         un_any_int< K + 1 >() ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -881,7 +881,7 @@ bool un_any_static_2( const boost::any & any1 , const boost::any & any2 ,
   #ifndef NDEBUG
    if( any2.type() != typeid( U * ) )
     throw( std::invalid_argument(
-	       "un_any_static_2: second argument not U *" ) );
+               "un_any_static_2: second argument not U *" ) );
   #endif
   auto & el2 = *boost::any_cast< U * >( any2 );
   f( el1 , el2 );
@@ -893,31 +893,31 @@ bool un_any_static_2( const boost::any & any1 , const boost::any & any2 ,
    #ifndef NDEBUG
     if( any2.type() != typeid( std::vector< U > * ) )
      throw( std::invalid_argument(
-	     "un_any_static_2: second argumentnot not std::vector<U> *" ) );
+             "un_any_static_2: second argumentnot not std::vector<U> *" ) );
    #endif
    auto & var2 = *boost::any_cast< std::vector< U > * >( any2 );
    #ifndef NDEBUG
     if( var1.size() != var2.size() )
      throw( std::logic_error(
-	             "un_any_static_2: vectors must have the same size" ) );
+                     "un_any_static_2: vectors must have the same size" ) );
    #endif
    auto i2 = var2.begin();
    for( auto i1 = var1.begin() ;
-	( i1 != var1.end() ) && ( i2 != var2.end() ) ; ++i1 , ++i2 )
+        ( i1 != var1.end() ) && ( i2 != var2.end() ) ; ++i1 , ++i2 )
     f( *i1, *i2 );
 
    return( true );
    }
   else
    return( un_any_static_2( any1 , any2 , f , un_any_type< T >() ,
-			    un_any_type< U >() , un_any_int< 2 >() ) );
+                            un_any_type< U >() , un_any_int< 2 >() ) );
   }
  }
 
 template< typename T , typename U , class F >
 bool un_any_static_2( const boost::any & , const boost::any & , F ,
                       un_any_type< T > , un_any_type< U > ,
-		      un_any_int< 9 > ) {
+                      un_any_int< 9 > ) {
  return( false );
  }
 
@@ -936,9 +936,9 @@ bool un_any_static_2( const boost::any & any1 , const boost::any & any2 ,
   #ifndef NDEBUG
    if( ( var1.num_dimensions() != var2.num_dimensions() ) ||
        ( ! std::equal( var1.shape() , var1.shape() + var1.num_dimensions() ,
-		       var2.shape() ) ) )
+                       var2.shape() ) ) )
     throw( std::logic_error(
-	      "un_any_static_2:  multi_arrays must have the same shape" ) );
+              "un_any_static_2:  multi_arrays must have the same shape" ) );
   #endif
   T * p1 = var1.data();
   U * p2 = var2.data();
@@ -949,7 +949,7 @@ bool un_any_static_2( const boost::any & any1 , const boost::any & any2 ,
   }
  else
   return( un_any_static_2( any1 , any2 , f , un_any_type< T >() ,
-			   un_any_type< U >() , un_any_int< K + 1 >() ) );
+                           un_any_type< U >() , un_any_int< K + 1 >() ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1018,8 +1018,8 @@ bool un_any_static_2_create( const boost::any & any1 , boost::any & any2 ,
    }
   else
    return( un_any_static_2_create( any1 , any2 , un_any_type< T >() ,
-				   un_any_type< U >() , un_any_int< 2 >() ,
-				   f , apply_f ) );
+                                   un_any_type< U >() , un_any_int< 2 >() ,
+                                   f , apply_f ) );
   }
  }
 
@@ -1044,7 +1044,7 @@ bool un_any_static_2_create( const boost::any & any1 , boost::any & any2 ,
    T * p1 = var1.data();
    U * p2 = var2.data();
    for( auto i = std::min( var1.num_elements() , var2.num_elements() ) ;
-	i--; )
+        i--; )
     f( *( p1++ ), *( p2++ ) );
    }
 
@@ -1052,16 +1052,16 @@ bool un_any_static_2_create( const boost::any & any1 , boost::any & any2 ,
   }
  else
   return( un_any_static_2_create( any1 , any2 , un_any_type< T >() ,
-				  un_any_type< U >() ,
-				  un_any_int< K + 1 >() , f , apply_f ) );
+                                  un_any_type< U >() ,
+                                  un_any_int< K + 1 >() , f , apply_f ) );
  }
 
 template< typename T , typename U >
 bool un_any_static_2_create( const boost::any & any1 , boost::any & any2 ,
                              un_any_type< T > , un_any_type< U > ) {
  return( ( un_any_static_2_create( any1 , any2 ,
-				   un_any_type< T >() , un_any_type< U >() ,
-				   []( T & t , U & u ) {} , false ) ) );
+                                   un_any_type< T >() , un_any_type< U >() ,
+                                   []( T & t , U & u ) {} , false ) ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1129,7 +1129,7 @@ bool un_any_const_static( const boost::any & any , F f ,
   }
  else
   return( un_any_const_static( any , f , un_any_type< T >() ,
-			       un_any_int< K + 1 >() ) );
+                               un_any_int< K + 1 >() ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1180,7 +1180,7 @@ bool un_any_dynamic( boost::any & any , F f , un_any_type< T > ) {
    }
   else
    return( un_any_dynamic( any , f , un_any_type< T >() ,
-			   un_any_int< 2 >() ) );
+                           un_any_int< 2 >() ) );
  }
 
 template< typename T , class F >
@@ -1202,7 +1202,7 @@ bool un_any_dynamic( boost::any & any , F f ,
   }
  else
   return( un_any_dynamic( any , f , un_any_type< T >() ,
-			  un_any_int< K + 1 >() ) );
+                          un_any_int< K + 1 >() ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1249,7 +1249,7 @@ bool un_any_dynamic_2( const boost::any & any1 , const boost::any & any2 ,
   #ifndef NDEBUG
    if( any2.type() != typeid( U * ) )
     throw( std::invalid_argument(
-			 "un_any_dynamic_2: second argument not U *" ) );
+                         "un_any_dynamic_2: second argument not U *" ) );
   #endif
   auto & el2 = *boost::any_cast< U * >( any2 );
   f( el1, el2 );
@@ -1261,17 +1261,17 @@ bool un_any_dynamic_2( const boost::any & any1 , const boost::any & any2 ,
    #ifndef NDEBUG
     if( any2.type() != typeid( std::vector< U > * ) )
      throw( std::invalid_argument(
-			  "un_any_dynamic_2: second argument not U *" ) );
+                          "un_any_dynamic_2: second argument not U *" ) );
    #endif
    auto & var2 = *boost::any_cast< std::vector< U > * >( any2 );
    #ifndef NDEBUG
     if( var1.size() != var2.size() )
      throw( std::invalid_argument(
-		     "un_any_dynamic_2: vectors have different sizes" ) );
+                     "un_any_dynamic_2: vectors have different sizes" ) );
    #endif
    auto i2 = var2.begin();
    for( auto i1 = var1.begin() ;
-	i1 != var1.end() && i2 != var2.end() ; ++i1 , ++i2 )
+        i1 != var1.end() && i2 != var2.end() ; ++i1 , ++i2 )
     f( *i1 , *i2 );
    return( true );
    }
@@ -1298,15 +1298,15 @@ bool un_any_dynamic_2( const boost::any & any1 , const boost::any & any2 ,
   #ifndef NDEBUG
    if( any2.type() != typeid( boost::multi_array< U , K > * ) )
     throw( std::invalid_argument(
-			  "un_any_dynamic_2: second argument not U *" ) );
+                          "un_any_dynamic_2: second argument not U *" ) );
   #endif
   auto & var2 = *boost::any_cast< boost::multi_array< U , K > * >( any2 );
   #ifndef NDEBUG
    if( ( var1.num_dimensions() != var2.num_dimensions() ) ||
        ( ! std::equal( var1.shape() , var1.shape() + var1.num_dimensions() ,
-		       var2.shape() ) ) )
+                       var2.shape() ) ) )
     throw( std::logic_error(
-	    "un_any_dynamic_2: multi_arrays must have the same shape" ) );
+            "un_any_dynamic_2: multi_arrays must have the same shape" ) );
   #endif
   std::list< T > * p1 = var1.data();
   U * p2 = var2.data();
@@ -1317,7 +1317,7 @@ bool un_any_dynamic_2( const boost::any & any1 , const boost::any & any2 ,
   }
  else
   return( un_any_dynamic_2( any1 , any2 , f , un_any_type< T >() ,
-			    un_any_type< U >() , un_any_int< K + 1 >() ) );
+                            un_any_type< U >() , un_any_int< K + 1 >() ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1378,7 +1378,7 @@ bool un_any_dynamic_2_create( const boost::any & any1 , boost::any & any2 ,
     auto & var2 = *boost::any_cast< std::vector< U > * >( any2 );
     auto i2 = var2.begin();
     for( auto i1 = var1.begin() ;
-	 i1 != var1.end() && i2 != var2.end() ; ++i1 , ++i2 )
+         i1 != var1.end() && i2 != var2.end() ; ++i1 , ++i2 )
      f( *i1 , *i2 );
     }
    return( true );
@@ -1413,15 +1413,15 @@ bool un_any_dynamic_2_create( const boost::any & any1 , boost::any & any2 ,
    std::list< T > * p1 = var1.data();
    U * p2 = var2.data();
    for( auto i = std::min( var1.num_elements(), var2.num_elements() ) ;
-	--i ; )
+        --i ; )
     f( *( p1++ ), *( p2++ ) );
    }
   return( true );
   }
  else
   return( un_any_dynamic_2_create( any1 , any2 , un_any_type< T >() ,
-				   un_any_type< U >(),
-				   un_any_int< K + 1 >() , f , apply_f ) );
+                                   un_any_type< U >(),
+                                   un_any_int< K + 1 >() , f , apply_f ) );
  }
 
 template< typename T , typename U >
@@ -1429,8 +1429,8 @@ bool un_any_dynamic_2_create( const boost::any & any1 , boost::any & any2 ,
                               un_any_type< T > , un_any_type< U > )
 {
  return( un_any_dynamic_2_create( any1 , any2 , un_any_type< T >() ,
-				  un_any_type< U >() ,
-				  []( T & t , U & u ) {} , false ) );
+                                  un_any_type< U >() ,
+                                  []( T & t , U & u ) {} , false ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1505,7 +1505,7 @@ bool un_any_const_dynamic( const boost::any & any , F f ,
   }
  else
   return( un_any_const_dynamic( any , f , un_any_type< T >() ,
-				un_any_int< K + 1 >() ) );
+                                un_any_int< K + 1 >() ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1604,7 +1604,7 @@ bool un_any_const_dynamic( const boost::any & any , F f ,
   if( un_any_thing_0( thing_type , _any , f ) )                              \
    return( true );                                                           \
   else                                                                       \
-   if( un_any_thing_1( thing_type , _any , f ) )			     \
+   if( un_any_thing_1( thing_type , _any , f ) )                             \
     return( true );                                                          \
   return( un_any_thing_K( thing_type , _any , f ) );                         \
   }( my_thing )
@@ -1945,7 +1945,7 @@ inline netCDF::NcType typ2nCDF< std::string >( void ) {
 
 template< typename T >
 void deserialize( const netCDF::NcGroup & group , T & data ,
-		  const std::string & name = "value" )
+                  const std::string & name = "value" )
 {
  ( group.getVar( name ) ).getVar( & data );
  }
@@ -1958,7 +1958,7 @@ void deserialize( const netCDF::NcGroup & group , T & data ,
 
 template< typename T >
 void serialize( netCDF::NcGroup & group , const T & data ,
-		const std::string & name = "value" )
+                const std::string & name = "value" )
 {
  ( group.addVar( name , typ2nCDF< T >() ) ).putVar( & data );
  }
@@ -1972,8 +1972,8 @@ void serialize( netCDF::NcGroup & group , const T & data ,
 
 template< typename T1 , typename T2 >
 void deserialize( const netCDF::NcGroup & group ,
-		  std::pair< T1 , T2 > & data ,
-		  const std::string & name = "value" )
+                  std::pair< T1 , T2 > & data ,
+                  const std::string & name = "value" )
 {
  deserialize( group , data.first , name + "_f" );
  deserialize( group , data.second , name + "_s" );
@@ -1987,7 +1987,7 @@ void deserialize( const netCDF::NcGroup & group ,
 
 template< typename T1 , typename T2 >
 void serialize( netCDF::NcGroup & group , const std::pair< T1 , T2 > & data ,
-		const std::string & name = "value" )
+                const std::string & name = "value" )
 {
  serialize( group , data.first , name + "_f" );
  serialize( group , data.second , name + "_s" );
@@ -2003,8 +2003,8 @@ void serialize( netCDF::NcGroup & group , const std::pair< T1 , T2 > & data ,
 
 template< typename T >
 void deserialize( const netCDF::NcGroup & group , std::vector< T > & data ,
-		  const std::string & size = "size" ,
-		  const std::string & name = "value" )
+                  const std::string & size = "size" ,
+                  const std::string & name = "value" )
 {
  auto dim = group.getDim( size );
  if( dim.isNull() ) {
@@ -2027,8 +2027,8 @@ void deserialize( const netCDF::NcGroup & group , std::vector< T > & data ,
 
 template< typename T >
 void serialize( netCDF::NcGroup & group , const std::vector< T > & data ,
-		const std::string & size = "size" ,
-		const std::string & name = "value" )
+                const std::string & size = "size" ,
+                const std::string & name = "value" )
 {
  auto sz = group.addDim( size , data.size() );
  std::vector< size_t > startp = { 0 };
@@ -2068,16 +2068,16 @@ void serialize( netCDF::NcGroup & group , const std::vector< T > & data ,
 
 template< class T >
 bool deserialize_dim( const netCDF::NcGroup & group ,
-		      const std::string & dim_name , T & data ,
-		      bool optional = true )
+                      const std::string & dim_name , T & data ,
+                      bool optional = true )
 {
  netCDF::NcDim ncDim = group.getDim( dim_name );
  if( ncDim.isNull() ) {
   if( optional )
    return( false );
   throw( std::invalid_argument( "deserialize_dim(): " + dim_name +
-				" not present in group '" + group.getName()
-				) );
+                                " not present in group '" + group.getName()
+                                ) );
   }
 
  data = ncDim.getSize();
@@ -2097,7 +2097,7 @@ bool deserialize_dim( const netCDF::NcGroup & group ,
  * @return A vector with the sizes of the dimensions of the variable var. */
 
 inline std::vector< std::size_t > get_sizes_dimensions(
-						 const netCDF::NcVar & var )
+                                                 const netCDF::NcVar & var )
 {
  std::vector< std::size_t > sizes_dimensions( var.getDimCount() );
  std::vector< std::size_t >::size_type i = 0;
@@ -2156,10 +2156,10 @@ inline std::vector< std::size_t > get_sizes_dimensions(
 
 template< class T >
 bool deserialize( const netCDF::NcGroup & group ,
-		  const std::string & var_name ,
-		  const std::vector< std::size_t > & sizes ,
-		  std::vector< T > & data , bool optional = true ,
-		  bool allow_scalar_var = false )
+                  const std::string & var_name ,
+                  const std::vector< std::size_t > & sizes ,
+                  std::vector< T > & data , bool optional = true ,
+                  bool allow_scalar_var = false )
 {
  if( sizes.empty() ) {
   data.resize( 0 );
@@ -2186,15 +2186,15 @@ bool deserialize( const netCDF::NcGroup & group ,
 
  if( ( ( ncVar.getDimCount() < 0 ) ||
        ( sizes.size() != static_cast< decltype( sizes.size() ) >(
-					    ncVar.getDimCount() ) ) ) &&
+                                            ncVar.getDimCount() ) ) ) &&
      ( ( ncVar.getDimCount() != 0 ) || ( ! allow_scalar_var ) ) )
   throw( std::invalid_argument( "deserialize(): netCDF variable '" +
-				var_name + "' of group '" +
-				group.getName() + "' has " +
-				std::to_string( ncVar.getDimCount() ) +
-				" dimension(s), but provided argument has " +
-				std::to_string( sizes.size() ) +
-				" dimension(s)." ) );
+                                var_name + "' of group '" +
+                                group.getName() + "' has " +
+                                std::to_string( ncVar.getDimCount() ) +
+                                " dimension(s), but provided argument has " +
+                                std::to_string( sizes.size() ) +
+                                " dimension(s)." ) );
 
  if( ncVar.getDimCount() == 0 ) {
   data.resize( 1 );
@@ -2264,11 +2264,11 @@ bool deserialize( const netCDF::NcGroup & group ,
 
 template< class T >
 bool deserialize( const netCDF::NcGroup & group ,
-		  const std::string & var_name ,
-		  const std::size_t & size , std::vector< T > & data ,
-		  bool optional = true , bool allow_scalar_var = false ) {
+                  const std::string & var_name ,
+                  const std::size_t & size , std::vector< T > & data ,
+                  bool optional = true , bool allow_scalar_var = false ) {
  return( deserialize( group , var_name , std::vector< size_t >{ size } ,
-		      data , optional , allow_scalar_var ) );
+                      data , optional , allow_scalar_var ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2304,8 +2304,8 @@ bool deserialize( const netCDF::NcGroup & group ,
 
 template< class T >
 bool deserialize( const netCDF::NcGroup & group ,
-		  const std::string & var_name ,
-		  std::vector< T > & data , bool optional = true )
+                  const std::string & var_name ,
+                  std::vector< T > & data , bool optional = true )
 {
  auto ncVar = group.getVar( var_name );
  if( ncVar.isNull() ) {
@@ -2315,8 +2315,8 @@ bool deserialize( const netCDF::NcGroup & group ,
    }
 
   throw( std::invalid_argument( "deserialize(): " + var_name +
-				" not present in group '" + group.getName()
-				) );
+                                " not present in group '" + group.getName()
+                                ) );
   }
 
  auto sizes_dimensions = get_sizes_dimensions( ncVar );
@@ -2383,10 +2383,10 @@ bool deserialize( const netCDF::NcGroup & group ,
 
 template< class T >
 bool deserialize( const netCDF::NcGroup & group ,
-		  const std::string & var_name ,
-		  const std::string & start_name ,
-		  std::vector< std::vector< T > > & array ,
-		  bool optional = true )
+                  const std::string & var_name ,
+                  const std::string & start_name ,
+                  std::vector< std::vector< T > > & array ,
+                  bool optional = true )
 {
  auto ncVar = group.getVar( var_name );
  if( ncVar.isNull() ) {
@@ -2396,8 +2396,8 @@ bool deserialize( const netCDF::NcGroup & group ,
    }
 
   throw( std::invalid_argument( "deserialize(): " + var_name +
-				" is not present in group " +
-				group.getName() ) );
+                                " is not present in group " +
+                                group.getName() ) );
   }
 
  if( ncVar.getDimCount() == 0 ) {
@@ -2407,17 +2407,17 @@ bool deserialize( const netCDF::NcGroup & group ,
 
  if( ncVar.getDimCount() != 1 )
   throw( std::invalid_argument( "deserialize(): " + var_name +
-				" has wrong number of dimensions" ) );
+                                " has wrong number of dimensions" ) );
 
  auto ncVar_S = group.getVar( start_name );
  if( ncVar_S.isNull() )
   throw( std::invalid_argument( "deserialize(): " + start_name +
-				" is not present in group " +
-				group.getName() ) );
+                                " is not present in group " +
+                                group.getName() ) );
 
  if( ncVar_S.getDimCount() != 1 )
   throw( std::invalid_argument( "deserialize(): " + start_name +
-				" has wrong number of dimensions" ) );
+                                " has wrong number of dimensions" ) );
 
  auto nrows = ncVar_S.getDim( 0 ).getSize();
  std::vector< int > strt( nrows + 1 );
@@ -2429,7 +2429,7 @@ bool deserialize( const netCDF::NcGroup & group ,
   strt[ i ] = strt[ i + 1 ] - strt[ i ];
   if( strt[ i ] < 0 )
    throw( std::invalid_argument( "deserialize(): wrong indices in " +
-				 start_name ) );
+                                 start_name ) );
   }
 
  std::vector< T > tmp( ncVar.getDim( 0 ).getSize() );
@@ -2477,7 +2477,7 @@ bool deserialize( const netCDF::NcGroup & group ,
 
 template< class T >
 bool deserialize( const netCDF::NcGroup & group ,
-		  const std::string & var_name , T * data ,
+                  const std::string & var_name , T * data ,
                   bool optional = true )
 {
  auto ncVar = group.getVar( var_name );
@@ -2485,7 +2485,7 @@ bool deserialize( const netCDF::NcGroup & group ,
   if( ! optional )
    throw( std::invalid_argument( "deserialize(): " + var_name +
                                 " not present in group " + group.getName()
-				 ) );
+                                 ) );
   return( false );
   }
 
@@ -2537,9 +2537,9 @@ bool deserialize( const netCDF::NcGroup & group ,
 
 template< class T , std::size_t N >
 bool deserialize( const netCDF::NcGroup & group ,
-		  const std::string & var_name ,
-		  boost::multi_array< T , N > & array,
-		  bool optional = true , bool allow_scalar_var = false )
+                  const std::string & var_name ,
+                  boost::multi_array< T , N > & array,
+                  bool optional = true , bool allow_scalar_var = false )
 {
  using index = typename boost::multi_array< T, N >::index;
 
@@ -2552,8 +2552,8 @@ bool deserialize( const netCDF::NcGroup & group ,
    }
 
   throw( std::invalid_argument( "deserialize(): " + var_name +
-				" not present in group " + group.getName()
-				) );
+                                " not present in group " + group.getName()
+                                ) );
   }
 
  if( ncVar.getDimCount() == 0 ) {
@@ -2600,7 +2600,7 @@ bool deserialize( const netCDF::NcGroup & group ,
 
 template< class T >
 void serialize( netCDF::NcGroup & group , const std::string & var_name ,
-		const netCDF::NcType& ncType , const T data )
+                const netCDF::NcType& ncType , const T data )
 {
  ( group.addVar( var_name, ncType ) ).putVar( &data );
  }
@@ -2633,7 +2633,7 @@ template< class T >
 void serialize( netCDF::NcGroup & group , const std::string & var_name ,
                 const netCDF::NcType & ncType , const netCDF::NcDim & ncDim ,
                 const std::vector< T > & data ,
-		bool allow_scalar_var = false )
+                bool allow_scalar_var = false )
 {
  if( data.empty() )
   return; // Nothing to be serialized.
@@ -2684,14 +2684,14 @@ void serialize( netCDF::NcGroup & group , const std::string & var_name ,
                 const std::vector< netCDF::NcDim > & ncDim ,
                 const std::vector< T > & data ,
                 const std::vector< std::size_t > & sizes = {} ,
-		bool allow_scalar_var = false )
+                bool allow_scalar_var = false )
 {
  if( data.empty() )
   return; // Nothing to be serialized.
 
  if( ( ncDim.size() == 1 ) && ( sizes.size() <= 1 ) )
   serialize( group , var_name , ncType , ncDim[ 0 ] , data ,
-	     allow_scalar_var );
+             allow_scalar_var );
 
  if( allow_scalar_var && ( data.size() == 1 ) ) {
   // Serializes the only element of the given vector as a scalar variable.
@@ -2736,7 +2736,7 @@ void serialize( netCDF::NcGroup & group , const std::string & var_name ,
   else {
    std::vector< std::size_t > start( ncDim.size() , 0 );
    group.addVar( var_name , ncType , ncDim ).putVar( start , sizes ,
-						     data.data() );
+                                                     data.data() );
    }
  }
 
@@ -2835,8 +2835,8 @@ void serialize( netCDF::NcGroup & group, const std::string & var_name,
                 const netCDF::NcType & ncType ,
                 const std::vector< netCDF::NcDim > & expected_ncDim ,
                 const boost::multi_array< T, N > & multi_array ,
-		bool allow_scalar_var = false ,
-		bool allow_singleton_dim = false ,
+                bool allow_scalar_var = false ,
+                bool allow_singleton_dim = false ,
                 const std::string & singleton_dim_name = "__Singleton__" )
 {
  if( multi_array.num_elements() == 0 )
@@ -2919,7 +2919,7 @@ void serialize( netCDF::NcGroup & group, const std::string & var_name,
   dim_sizes[ i ] = multi_array.shape()[ i ];
 
  group.addVar( var_name, ncType, ncDim ).putVar( start , dim_sizes ,
-						 multi_array.data() );
+                                                 multi_array.data() );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2932,8 +2932,8 @@ void serialize( netCDF::NcGroup & group, const std::string & var_name,
  */
 
 inline void check_variables( const netCDF::NcGroup & group ,
-			     const std::vector< std::string > & expected ,
-			     std::ostream & stream )
+                             const std::vector< std::string > & expected ,
+                             std::ostream & stream )
 {
  auto vars = group.getVars();
  for( const auto & e : expected ) {
@@ -2960,8 +2960,8 @@ inline void check_variables( const netCDF::NcGroup & group ,
  */
 
 inline void check_dimensions( const netCDF::NcGroup & group ,
-			      const std::vector< std::string > & expected ,
-			      std::ostream & stream )
+                              const std::vector< std::string > & expected ,
+                              std::ostream & stream )
 {
  auto dims = group.getDims();
  for( const auto & e : expected ) {
