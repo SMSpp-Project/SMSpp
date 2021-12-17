@@ -22,6 +22,25 @@
 /*--------------------------------------------------------------------------*/
 /*---------------------------- IMPLEMENTATION ------------------------------*/
 /*--------------------------------------------------------------------------*/
+/*------------------------------- MACROS -----------------------------------*/
+/*--------------------------------------------------------------------------*/
+
+#ifndef NDEBUG
+ #define CHECK_SOLUTIONS 0
+ /* CHECK_SOLUTIONS, coded bit-wise, activates some checks about the solutions
+  * that are generated and used to compute linearizations. This should not be
+  * necessary and it's costly, but it may be useful to catch some bugs in the
+  * inner Block and/or its Solver.
+  *
+  * - bit 0: the feasibility of the solutions is checked
+  *
+  * - bit 1: the objective value returned by the Solver is compared with the
+  *          value as computed by the FRealObjective
+  */
+#else
+ #define CHECK_SOLUTIONS 0
+ // never change this
+#endif
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -644,7 +663,7 @@ void LagBFunction::remove_variable( Index i , ModParam issueMod )
 
 void LagBFunction::remove_variables( Range range , ModParam issueMod )
 {
- range.second = std::min( range.second , c_Index( LagPairs.size() ) );
+ range.second = std::min( range.second , Index( LagPairs.size() ) );
  if( range.second <= range.first )  // actually nothing to remove
   return;                           // cowardly (and silently) return
 
@@ -1705,8 +1724,26 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
   // get solution/direction from the solver
   if( LastSolution != Inf<Index>() ) {  // ... if necessary
    auto is = inner_Solver();
-   if( VarSol )
+   if( VarSol ) {
     is->get_var_solution();
+    #if CHECK_SOLUTIONS
+     auto blck = v_Block.front();
+     #if CHECK_SOLUTIONS & 1
+      SimpleConfiguration< double > sc( 1e-6 );
+      if( ! blck->is_feasible( true , & sc ) )
+       std::cout << "Error: solution infeasible " << std::endl;
+     #endif
+     #if CHECK_SOLUTIONS & 2
+      auto obj = static_cast< FRealObjective * >( blck->get_objective() );
+      obj->compute();
+      auto ov = obj->value();
+      auto iv = is->get_var_value();
+      if( std::abs( ov - iv ) > 1e-6 * std::max( double( 1 ) , iv ) )
+       std::cout << "Error: objval = " << ov << " != isval = " << iv
+		 << std::endl;
+     #endif
+    #endif
+    }
    else
     is->get_var_direction();
 
@@ -1754,8 +1791,26 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
   // get solution/direction from the solver
   if( LastSolution != Inf<Index>() ) {  // ... if necessary
    auto is = inner_Solver();
-   if( VarSol )
+   if( VarSol ) {
     is->get_var_solution();
+    #if CHECK_SOLUTIONS
+     auto blck = v_Block.front();
+     #if CHECK_SOLUTIONS & 1
+      SimpleConfiguration< double > sc( 1e-6 );
+      if( ! blck->is_feasible( true , & sc ) )
+       std::cout << "Error: solution infeasible " << std::endl;
+     #endif
+     #if CHECK_SOLUTIONS & 2
+      auto obj = static_cast< FRealObjective * >( blck->get_objective() );
+      obj->compute();
+      auto ov = obj->value();
+      auto iv = is->get_var_value();
+      if( std::abs( ov - iv ) > 1e-6 * std::max( double( 1 ) , iv ) )
+       std::cout << "Error: objval = " << ov << " != isval = " << iv
+		 << std::endl;
+     #endif
+    #endif
+    }
    else
     is->get_var_direction();
 
@@ -1801,8 +1856,26 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
   // get solution/direction from the solver
   if( LastSolution != Inf<Index>() ) {  // ... if necessary
    auto is = inner_Solver();
-   if( VarSol )
+   if( VarSol ) {
     is->get_var_solution();
+    #if CHECK_SOLUTIONS
+     auto blck = v_Block.front();
+     #if CHECK_SOLUTIONS & 1
+      SimpleConfiguration< double > sc( 1e-6 );
+      if( ! blck->is_feasible( true , & sc ) )
+       std::cout << "Error: solution infeasible " << std::endl;
+     #endif
+     #if CHECK_SOLUTIONS & 2
+      auto obj = static_cast< FRealObjective * >( blck->get_objective() );
+      obj->compute();
+      auto ov = obj->value();
+      auto iv = is->get_var_value();
+      if( std::abs( ov - iv ) > 1e-6 * std::max( double( 1 ) , iv ) )
+       std::cout << "Error: objval = " << ov << " != isval = " << iv
+		 << std::endl;
+     #endif
+    #endif
+    }
    else
     is->get_var_direction();
 
@@ -1857,7 +1930,11 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
   #endif
   for( Index i = 0 ; i < rp.size() ; ++i ) {
    auto val = std::get< 0 >( rp[ i ] )->get_value();
-   alpha += ( std::get< 2 >( rp[ i ] ) * val + CostMatrix[ i ].first ) * val;
+   if( val ) {
+    alpha += CostMatrix[ i ].first * val;
+    val *= val;
+    alpha += std::get< 2 >( rp[ i ] ) * val;
+    }
    }
   }
 
