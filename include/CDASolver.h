@@ -8,17 +8,11 @@
  * the optimal value of the problem are obtained by means of Convex Duality
  * arguments.
  *
- * \version 0.11
- *
- * \date 23 - 02 - 2019
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Kostas Tavlaridis-Gyparakis \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -29,7 +23,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __CDASolver
-#define __CDASolver  /* self-identification: #endif at the end of the file */
+ #define __CDASolver  /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/

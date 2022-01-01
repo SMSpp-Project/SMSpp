@@ -10,17 +10,11 @@
  * optimal ones, or proving that there is none. Since doing this has to be
  * expected to costly, the class implements the ThinComputeInterface paradigm.
  *
- * \version 0.41
- *
- * \date 15 - 07 - 2020
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Kostas Tavlaridis-Gyparakis \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -31,13 +25,14 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __Solver
-#define __Solver  /* self-identification: #endif at the end of the file */
+ #define __Solver  /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 #include "Modification.h"
+
 #include "ThinComputeInterface.h"
 
 /*--------------------------------------------------------------------------*/
@@ -46,13 +41,8 @@
 
 /// namespace for the Structured Modeling System++ (SMS++)
 namespace SMSpp_di_unipi_it {
-class Block;                // forward definition of Block
 
-/*--------------------------------------------------------------------------*/
-/*------------------------------- CLASSES ----------------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @defgroup Solver_CLASSES Classes in Solver.h
- *  @{ */
+class Block;                // forward definition of Block
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- CLASS Solver ---------------------------------*/
@@ -480,13 +470,9 @@ class Solver : public ThinComputeInterface {
   * derived classes. */
 
  enum str_par_type_S {
-  strLastAlgPar = 0   ///< first allowed new string parameter
-                      /**< Convenience value for easily allow derived classes
-		       * to extend the set of string algorithmic parameters.
-  * Actually, so far thare are no string algorithmic parameters in the base
-  * Solver class, but this may change in the future, so using this makes code
-  * resistant to that. */
-
+  strLastAlgPar = strLastAlgParTCI  ///< first allowed new string parameter
+  /**< Convenience value for easily allow derived classes to extend the set
+   * of string algorithmic parameters. */
   };  // end( str_par_type_S )
 
 /*--------------------------------------------------------------------------*/
@@ -497,13 +483,10 @@ class Solver : public ThinComputeInterface {
   * by derived classes. */
 
  enum vint_par_type_S {
-  vintLastAlgPar = 0  ///< first allowed new  vector-of-int parameter
-                      /**< Convenience value for easily allow derived classes
-                       * to extend the set of vector-of-int parameters.
-  * Actually, so far thare are no such parameters in the base Solver class,
-  * but this may change in the future, so using this makes code resistant to
-  * that. */
-
+  vintLastAlgPar = vintLastAlgParTCI
+  ///< first allowed new vector-of-int parameter
+  /**< Convenience value for easily allow derived classes to extend the set
+   * of vector-of-int parameters. */
   };  // end( vint_par_type_S )
 
 /*--------------------------------------------------------------------------*/
@@ -514,13 +497,10 @@ class Solver : public ThinComputeInterface {
   * extended by derived classes. */
 
  enum vdbl_par_type_S {
-  vdblLastAlgPar = 0  ///< first allowed new  vector-of-double parameter
-                      /**< Convenience value for easily allow derived classes
-                       * to extend the set of vector-of-double parameters.
-  * Actually, so far thare are no such parameters in the base Solver class,
-  * but this may change in the future, so using this makes code resistant to
-  * that. */
-
+  vdblLastAlgPar = vdblLastAlgParTCI
+  ///< first allowed new vector-of-double parameter
+  /**< Convenience value for easily allow derived classes to extend the set
+   * of vector-of-double parameters. */
   };  // end( vdbl_par_type_S )
 
 /*--------------------------------------------------------------------------*/
@@ -531,13 +511,10 @@ class Solver : public ThinComputeInterface {
   * extended by derived classes. */
 
  enum vstr_par_type_S {
-  vstrLastAlgPar = 0  ///< first allowed new  vector-of-string parameter
-                      /**< Convenience value for easily allow derived classes
-                       * to extend the set of vector-of-string parameters.
-  * Actually, so far thare are no such parameters in the base Solver class,
-  * but this may change in the future, so using this makes code resistant to
-  * that. */
-
+  vstrLastAlgPar = vstrLastAlgParTCI
+  ///< first allowed new vector-of-string parameter
+  /**< Convenience value for easily allow derived classes to extend the set
+   * of vector-of-string parameters. */
   };  // end( vstr_par_type_S )
 
 /*--------------------------------------------------------------------------*/
@@ -1937,7 +1914,6 @@ class Solver : public ThinComputeInterface {
 
  };   // end( class Solver )
 
-/** @} end( group( Solver_CLASSES ) ) */
 /*--------------------------------------------------------------------------*/
 /*------------------------- Solver-RELATED TYPES ---------------------------*/
 /*--------------------------------------------------------------------------*/

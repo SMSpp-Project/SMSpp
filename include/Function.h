@@ -163,7 +163,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
  using c_Vec_FunctionValue = const Vec_FunctionValue;
 
 /*--------------------------------------------------------------------------*/
- /// public enum for the int algorithmic parameters of Solver
+ /// public enum for the int algorithmic parameters of Function
  /** Public enum "extending" int_par_type_TCI to describe the different
   * algorithmic parameters of "int" type that any Function should reasonably
   * have on top of those defined by ThinComputeInterface (although specific
@@ -245,17 +245,15 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
  /// public enum for the string algorithmic parameters
  /** Public enum describing the different algorithmic parameters of "string"
   * type that any Function should reasonably have (none so far). The value
-  * strLastAlgPar is provided so that the list can be easily extended by
+  * strLastParFun is provided so that the list can be easily extended by
   * derived classes. */
 
  enum str_par_type_F {
-  strLastAlgPar = 0   ///< first allowed new string parameter
-                      /**< Convenience value for easily allow derived classes
-		       * to extend the set of string algorithmic parameters.
-   * Actually, so far thare are no string algorithmic parameters in the base
-   * Function class, but this may change in the future, so using this makes
-   * code resistant to that. */
- };  // end( str_par_type_F )
+  strLastParFun = strLastAlgParTCI
+  ///< first allowed new string parameter
+  /**< Convenience value for easily allow derived classes to extend the set
+   * of string algorithmic parameters. */
+  };  // end( str_par_type_F )
 
 /*--------------------------------------------------------------------------*/
  /// public enum for vector-of-int algorithmic parameters
@@ -265,45 +263,39 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
   * extended by derived classes. */
 
  enum vint_par_type_F {
-  vintLastAlgPar = 0  ///< first allowed new  vector-of-int parameter
-                      /**< Convenience value for easily allow derived classes
-                       * to extend the set of vector-of-int parameters.
-   * Actually, so far thare are no such parameters in the base Function class,
-   * but this may change in the future, so using this makes code resistant to
-   * that. */
- };  // end( vint_par_type_F )
+  vintLastParFun = vintLastAlgParTCI
+  ///< first allowed new  vector-of-int parameter
+  /**< Convenience value for easily allow derived classes to extend the set
+   * of vector-of-int parameters. */
+  };  // end( vint_par_type_F )
 
 /*--------------------------------------------------------------------------*/
  /// public enum for vector-of-double algorithmic parameters
  /** Public enum describing the different algorithmic parameters that are
   * vectors of double that any Function should reasonably have (none so far).
-  * The value vdblLastAlgPar is provided so that the list can be easily
+  * The value vdblLastParFun is provided so that the list can be easily
   * extended by derived classes. */
 
  enum vdbl_par_type_F {
-  vdblLastAlgPar = 0  ///< first allowed new  vector-of-double parameter
-                      /**< Convenience value for easily allow derived classes
-                       * to extend the set of vector-of-double parameters.
-   * Actually, so far thare are no such parameters in the base Function class,
-   * but this may change in the future, so using this makes code resistant to
-   * that. */
- };  // end( vdbl_par_type_S )
+  vdblLastParFun = vdblLastAlgParTCI
+  ///< first allowed new  vector-of-double parameter
+  /**< Convenience value for easily allow derived classes to extend the set
+   * of vector-of-double parameters. */
+  };  // end( vdbl_par_type_S )
 
 /*--------------------------------------------------------------------------*/
  /// public enum for vector-of-string algorithmic parameters
  /** Public enum describing the different algorithmic parameters that are
   * vectors of string that any Function should reasonably have (none so far).
-  * The value vdblLastAlgPar is provided so that the list can be easily
+  * The value vstrLastParFun is provided so that the list can be easily
   * extended by derived classes. */
 
  enum vstr_par_type_F {
-  vstrLastAlgPar = 0  ///< first allowed new  vector-of-string parameter
-                      /**< Convenience value for easily allow derived classes
-                       * to extend the set of vector-of-string parameters.
-   * Actually, so far thare are no such parameters in the base Function class,
-   * but this may change in the future, so using this makes code resistant to
-   * that. */
- };  // end( vstr_par_type_S )
+  vstrLastParFun = vstrLastAlgParTCI
+  ///< first allowed new vector-of-string parameter
+  /**< Convenience value for easily allow derived classes to extend the set
+   * of vector-of-string parameters. */
+  };  // end( vstr_par_type_S )
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------------------- CONSTRUCTOR ---------------------------------*/

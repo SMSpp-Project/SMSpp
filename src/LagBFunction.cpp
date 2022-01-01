@@ -411,14 +411,25 @@ void LagBFunction::set_ComputeConfig( ComputeConfig * scfg )
 
 void LagBFunction::set_par( idx_type par , int value )
 {
+ if( par < intLastAlgParTCI ) {
+  add_par( int_par_idx2str( par ) , value );
+  return;
+  }
+
+ if( par >= intLastLagBFPar ) {
+  if( auto is = inner_Solver() )
+   add_par( is->int_par_idx2str( int_par_lbf( par ) ) , value );
+  return;
+  }
+
  switch( par ) {
-  case( intLPMaxSz ):
+  case( intLPMaxSz ):  // intLPMaxSz- - - - - - - - - - - - - - - - - - - - -
    if( LPMaxSz != value ) {
     LPMaxSz = value;
-    add_par( std::string( int_par_idx2str( Solver::intMaxSol ) ) , value );
+    add_par( "intMaxSol" , value );
     }
    break;
-  case( intGPMaxSz ):
+  case( intGPMaxSz ):  // intGPMaxSz- - - - - - - - - - - - - - - - - - - - -
    if( ( LastSolution < Inf<Index>() ) && ( LastSolution >= g_pool.size() ) )
     // LastSolution is undefined: ensure it remains so even if
     LastSolution = value;         // the global pool grows
@@ -436,7 +447,7 @@ void LagBFunction::set_par( idx_type par , int value )
     }
    g_pool.resize( value , gpool_el( nullptr , true ) );
    break;
-  case( intInnrSlvr ):
+  case( intInnrSlvr ):  // intInnrSlvr - - - - - - - - - - - - - - - - - - -
    if( InnrSlvr != Index( value ) ) {
     InnrSlvr = Index( value );
     p_InnrSlvr = nullptr;
@@ -448,7 +459,7 @@ void LagBFunction::set_par( idx_type par , int value )
      }
     }
    break;
-  case( intNoSol ):
+  case( intNoSol ):  // intNoSol - - - - - - - - - - - - - - - - - - - - - -
    if( ( value > 0 ) && ( NoSol == false ) ) {
     NoSol = true;
     // setting NoSol == true when it was false: throw away all Solution
@@ -481,10 +492,8 @@ void LagBFunction::set_par( idx_type par , int value )
 				   eModBlck );
     }
    break;
-  case( intChkState ):
+  case( intChkState ):  // intChkState - - - - - - - - - - - - - - - - - - -
    ChkState = ( value > 0 );
-   break;
-  default: Function::set_par( par , value );
   }
  }  // end( LagBFunction::set_par( int ) )
 
@@ -492,23 +501,32 @@ void LagBFunction::set_par( idx_type par , int value )
 
 void LagBFunction::set_par( idx_type par , double value )
 {
+ if( par < dblLastAlgParTCI ) {
+  add_par( dbl_par_idx2str( par ) , value );
+  return;
+  }
+
+ if( par >= dblLastLagBFPar ) {
+  if( auto is = inner_Solver() )
+   add_par( is->dbl_par_idx2str( dbl_par_lbf( par ) ) , value );
+  return;
+  }
+
  switch( par ) {
   case( dblRAccLin ):
    if( RAccLin != value ) {
     RAccLin = value;
-    add_par( std::string( dbl_par_idx2str( Solver::dblRelAcc ) ) , value );
+    add_par( "dblRelAcc" , value );
     }
    break;
   case( dblAAccLin ):
    if( AAccLin != value ) {
     AAccLin = value;
-    add_par( std::string( dbl_par_idx2str( Solver::dblAbsAcc ) ) , value );
+    add_par( "dblAbsAcc" , value );
     }
-   break;
-  default: Function::set_par( par , value );
   }
  }  // end( LagBFunction::set_par( double ) )
-\
+
 /*--------------------------------------------------------------------------*/
 
 void LagBFunction::deserialize( const netCDF::NcGroup & group )
@@ -3520,10 +3538,11 @@ void LagBFunction::update_CostMatrix_ModVarsSbst( c_Vec_p_Var & vars ,
 /*--------------------------------------------------------------------------*/
 
 template< typename par_type >
-void LagBFunction::add_par( std::string && name , par_type value )
+void LagBFunction::add_par( std::string && name , par_type && value )
 {
- f_BSC->get_SolverConfigs()[ InnrSlvr ]->set_par( std::move( name ) , value );
- f_BSC_changed = true;
+ if( f_BSC->get_SolverConfigs()[ InnrSlvr ]->set_par( std::move( name ) ,
+						      std::move( value ) ) )
+  f_BSC_changed = true;
  }
 
 /*--------------------------------------------------------------------------*/

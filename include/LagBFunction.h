@@ -560,8 +560,8 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
  /// public enum for the int algorithmic parameters
  /** Public enum describing the different algorithmic parameters of int type
-  * that LagBFunction has in addition to these of CDASolver. The 
-  * value intLastLDSSlvPar is provided so that the list can be easily further
+  * that LagBFunction has in addition to these of C05Function. The value
+  * intLastLagBFPar is provided so that the list can be easily further
   * extended by derived classes. */
 
  enum int_par_type_LagBF {
@@ -577,6 +577,81 @@ class LagBFunction : public C05Function , public Block {
 		    * to extend the set of int algorithmic parameters. */
 
  };  // end( int_par_type_LagBF )
+
+/*--------------------------------------------------------------------------*/
+ /// public enum for the double algorithmic parameters
+ /** Public enum describing the different algorithmic parameters of double
+  * type that LagBFunction has in addition to these of C05Function (currently,
+  * none). The value dblLastLagBFPar is provided so that the list can be
+  * easily further extended by derived classes. */
+
+ enum dbl_par_type_LagBF {
+  dblLastLagBFPar = dblLastParC05F
+  ///< first allowed new double parameter for derived classes
+  /**< Convenience value for easily allow derived classes to extend the set
+   * of double algorithmic parameters. */
+
+  };  // end( dbl_par_type_LagBF )
+
+/*--------------------------------------------------------------------------*/
+ /// public enum for the string algorithmic parameters
+ /** Public enum describing the different algorithmic parameters of string
+  * type that LagBFunction has in addition to these of C05Function (currently,
+  * none). The value strLastLagBFPar is provided so that the list can be
+  * easily further extended by derived classes. */
+
+ enum str_par_type_LagBF {
+  strLastLagBFPar = strLastParC05F
+  ///< first allowed new string parameter for derived classes
+  /**< Convenience value for easily allow derived classes to extend the set
+   * of string algorithmic parameters. */
+
+  };  // end( str_par_type_LagBF )
+
+/*--------------------------------------------------------------------------*/
+ /// public enum for the vector-of-int algorithmic parameters
+ /** Public enum describing the different algorithmic parameters of type 
+  * vector-of-int that LagBFunction has in addition to these of C05Function
+  * (currently, none). The value vintLastLagBFPar is provided so that the
+  * list can be easily further extended by derived classes. */
+
+ enum vint_par_type_LagBF {
+  vintLastLagBFPar = vintLastParC05F
+  ///< first allowed new vector-of-int parameter for derived classes
+  /**< Convenience value for easily allow derived classes to extend the set
+   * of vector-of-int algorithmic parameters. */
+
+  };  // end( vint_par_type_LagBF )
+
+/*--------------------------------------------------------------------------*/
+ /// public enum for the vector-of-double algorithmic parameters
+ /** Public enum describing the different algorithmic parameters of type
+  * vector-of-double that LagBFunction has in addition to these of
+  * C05Function (currently, none). The value vdblLastLagBFPar is provided so
+  * that the list can be easily further extended by derived classes. */
+
+ enum vdbl_par_type_LagBF {
+  vdblLastLagBFPar = vdblLastParC05F
+  ///< first allowed new vector-of-double parameter for derived classes
+  /**< Convenience value for easily allow derived classes to extend the set
+   * of vector-of-double algorithmic parameters. */
+
+  };  // end( vdbl_par_type_LagBF )
+
+/*--------------------------------------------------------------------------*/
+ /// public enum for the vector-of-string algorithmic parameters
+ /** Public enum describing the different algorithmic parameters of type
+  * vector-of-string that LagBFunction has in addition to these of
+  * C05Function (currently, none). The value vstrLastLagBFPar is provided so
+  * that the list can be easily further extended by derived classes. */
+
+ enum vstr_par_type_LagBF {
+  vstrLastLagBFPar = vstrLastParC05F
+  ///< first allowed new vector-of-string parameter for derived classes
+  /**< Convenience value for easily allow derived classes to extend the set
+   * of vector-of-string algorithmic parameters. */
+
+  };  // end( vstr_par_type_LagBF )
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
@@ -642,8 +717,23 @@ class LagBFunction : public C05Function , public Block {
  void set_dual_pairs( v_dual_pair && dp );
 
 /*--------------------------------------------------------------------------*/
- /// set the whole set of parameters in one blow
- /** LagBFunction "listens" to the following parameters:
+ /// set a given int numerical parameter (see set_ComputeConfig())
+ /** Set the int numerical parameters of the LagBFunction, which mostly (but
+  * not exclusively) means setting those of the inner Solver used to
+  * compute() it. In fact, the int parameters here can be divided in three
+  * cases:
+  *
+  * - those of the LagBFunction itself
+  *
+  * - those of the LagBFunction that are "directly translated" into parameters
+  *   of the inner Solver;
+  *
+  * - those that are directly meant for the inner Solver and therefore are not
+  *   "understood" by the LagBFunction, and therefore are passed over to the
+  *   inner Solver (after an appropriate name shift, see set_ComputeConfig()
+  *   for details).
+  *
+  * The first group comprises:
   *
   * - intInnrSlvr: the index of the inner Solver, i.e., its position in the
   *                list of registered Solver in the inner Block; the default
@@ -671,14 +761,42 @@ class LagBFunction : public C05Function , public Block {
   *   re-using a State even if the inner Block is not completely identical
   *   (constraint-wise) to what it was when it was created, at a cost.
   *
+  * - intGPMaxSz: controls the maximum number of stored Solution from
+  *               the Solver, each one of which (again) corresponds to a
+  *               linearization
+  *
+  * The second group comprises:
+  *
   * - intLPMaxSz: the value of intLPMaxSz is passed to the inner Solver as
   *               the Solver::intMaxSol parameter, since each different
   *   Variable Solution produced by the Solver immediately translates into
   *   a linearization of the LagBFunction
   *
-  * - intGPMaxSz: controls the maximum number of stored Solution from
-  *               the Solver, each one of which (again) corresponds to a
-  *               linearization
+  * Finally, each parameter with index >= intLastLagBFPar belongs to the last
+  * group. */
+
+ void set_par( idx_type par , int value ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// set a given double numerical parameter (see set_ComputeConfig())
+ /** Set the doubke numerical parameters of the LagBFunction, which mostly
+  * (but not exclusively) means setting those of the inner Solver used to
+  * compute() it. In fact, the int parameters here can be divided in three
+  * cases:
+  *
+  * - those of the LagBFunction itself
+  *
+  * - those of the LagBFunction that are "directly translated" into parameters
+  *   of the inner Solver;
+  *
+  * - those that are directly meant for the inner Solver and therefore are not
+  *   "understood" by the LagBFunction, and therefore are passed over to the
+  *   inner Solver (after an appropriate name shift, see set_ComputeConfig()
+  *   for details).
+  *
+  * The first group comprises: currently nothing.
+  *
+  * The second group comprises:
   *
   * - dblRAccLin: the value of dblRAccLin is passed to the inner Solver as
   *               the Solver::dblRelAcc parameter, since the relative error
@@ -689,6 +807,333 @@ class LagBFunction : public C05Function , public Block {
   *               the Solver::dblAbsAcc parameter, since the absolute error
   *   made by the Solver in computing the Variable Solution immediately
   *   translates into the accuracy of the corresponding linearization.
+  *
+  * Finally, each parameter with index >= dblLastLagBFPar belongs to the last
+  * group. */
+
+ void set_par( idx_type par , double value ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// set a given string parameter (see set_ComputeConfig())
+ /** Since LagBFunction does not have any string parameter itself, nor there
+  * currently is any string parameter of C05Function that needs to be
+  * translated to a parameter of the inner Solver, this method can only be
+  * used to set the string parameters of the inner Solver. */
+
+ void set_par( idx_type par , std::string && value ) override {
+  // note: assumes no string params in C05Function & LagBFunction
+  if( auto is = inner_Solver() )
+   add_par( is->str_par_idx2str( str_par_lbf( par ) ) , std::move( value ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// set a given vector-of-int parameter (see set_ComputeConfig())
+ /** Since LagBFunction does not have any vector-of-int parameter itself, nor
+  * there currently is any vector-of-int parameter of C05Function that needs
+  * to be translated to a parameter of the inner Solver, this method can only
+  * be used to set the vector-of-int parameters of the inner Solver. */
+
+ void set_par( idx_type par , std::vector< int > && value ) override {
+  // note: assumes no vector-of-int params in C05Function & LagBFunction
+  if( auto is = inner_Solver() )
+   add_par( is->vint_par_idx2str( vint_par_lbf( par ) ) ,
+	    std::move( value ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// set a given vector-of-double parameter (see set_ComputeConfig())
+ /** Since LagBFunction does not have any vector-of-double parameter itself,
+  * nor there currently is any vector-of-double parameter of C05Function that
+  * needs to be translated to a parameter of the inner Solver, this method
+  * can only be used to set the vector-of-double parameters of the inner
+  * Solver. */
+
+ void set_par( idx_type par , std::vector< double > && value ) override {
+  // note: assumes no vector-of-double params in C05Function & LagBFunction
+  if( auto is = inner_Solver() )
+   add_par( is->vdbl_par_idx2str( vdbl_par_lbf( par ) ) ,
+	    std::move( value ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// set a given vector-of-string parameter (see set_ComputeConfig())
+ /** Since LagBFunction does not have any vector-of-string parameter itself,
+  * nor there currently is any vector-of-string parameter of C05Function that
+  * needs to be translated to a parameter of the inner Solver, this method
+  * can only be used to set the vector-of-string parameters of the inner
+  * Solver. */
+
+ void set_par( idx_type par , std::vector< std::string > && value ) override {
+  // note: assumes no vector-of-string params in C05Function & LagBFunction
+  if( auto is = inner_Solver() )
+   add_par( is->vstr_par_idx2str( vstr_par_lbf( par ) ) ,
+	    std::move( value ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// "translate" an int parameter index of the inner Solver
+ /** Takes the index \p par of an int parameter of the inner Solver and
+  * returns the index that has to be passed to the LagBFunction to have
+  * that very same parameter set in the inner Solver; see the comments to
+  * set_ComputeConfig() for details. */
+
+ idx_type int_par_is( idx_type par ) const {
+  if constexpr( Solver::intLastAlgPar < intLastLagBFPar ) {
+   if( par == Inf< idx_type >() )
+    return( par );
+   if( par >= intLastLagBFPar )
+    par += intLastLagBFPar - Solver::intLastAlgPar;
+   }
+  return( par );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// "translate" a double parameter index of the inner Solver
+ /** Takes the index \p par of a double parameter of the inner Solver and
+  * returns the index that has to be passed to the LagBFunction to have
+  * that very same parameter set in the inner Solver; see the comments to
+  * set_ComputeConfig() for details. */
+
+ idx_type dbl_par_is( idx_type par ) const {
+  if constexpr( Solver::dblLastAlgPar < dblLastLagBFPar ) {
+   if( par == Inf< idx_type >() )
+    return( par );
+   if( par >= dblLastLagBFPar )
+    par += dblLastLagBFPar - Solver::dblLastAlgPar;
+   }
+  return( par );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// "translate" a string parameter index of the inner Solver
+ /** Takes the index \p par of a string parameter of the inner Solver and
+  * returns the index that has to be passed to the LagBFunction to have
+  * that very same parameter set in the inner Solver; see the comments to
+  * set_ComputeConfig() for details. */
+
+ idx_type str_par_is( idx_type par ) const {
+  if constexpr( Solver::strLastAlgPar < strLastLagBFPar ) {
+   if( par == Inf< idx_type >() )
+    return( par );
+   if( par >= strLastLagBFPar )
+    par += strLastLagBFPar - Solver::strLastAlgPar;
+   }
+  return( par );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// "translate" a vector-of-int parameter index of the inner Solver
+ /** Takes the index \p par of a vector-of-int parameter of the inner Solver
+  * and returns the index that has to be passed to the LagBFunction to
+  * have that very same parameter set in the inner Solver; see the comments
+  * to set_ComputeConfig() for details. */
+
+ idx_type vint_par_is( idx_type par ) const {
+  if constexpr( Solver::vintLastAlgPar < vintLastLagBFPar ) {
+   if( par == Inf< idx_type >() )
+    return( par );
+   if( par >= vintLastLagBFPar )
+    par += vintLastLagBFPar - Solver::vintLastAlgPar;
+   }
+  return( par );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// "translate" a vector-of-double parameter index of the inner Solver
+ /** Takes the index \p par of a vector-of-double parameter of the inner
+  * Solver and returns the index that has to be passed to the LagBFunction
+  * to have that very same parameter set in the inner Solver; see the
+  * comments to set_ComputeConfig() for details. */
+
+ idx_type vdbl_par_is( idx_type par ) const {
+  if constexpr( Solver::vdblLastAlgPar < vdblLastLagBFPar ) {
+   if( par == Inf< idx_type >() )
+    return( par );
+   if( par >= vdblLastLagBFPar )
+    par += vdblLastLagBFPar - Solver::vdblLastAlgPar;
+   }
+  return( par );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// "translate" a vector-of-string parameter index of the inner Solver
+ /** Takes the index \p par of a vector-of-string parameter of the inner
+  * Solver and returns the index that has to be passed to the LagBFunction
+  * to have that very same parameter set in the inner Solver; see the
+  * comments to set_ComputeConfig() for details. */
+
+ idx_type vstr_par_is( idx_type par ) const {
+  if constexpr( Solver::vstrLastAlgPar < vstrLastLagBFPar ) {
+   if( par == Inf< idx_type >() )
+    return( par );
+   if( par >= vstrLastLagBFPar )
+    par += vstrLastLagBFPar - Solver::vstrLastAlgPar;
+   }
+  return( par );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// "translate" a int parameter index of the LagBFunction
+ /** Takes the index \p par of an int parameter of the LagBFunction that is
+  * actually meant for the inner Solver and returns the value that it would
+  * have to be used to set directly in there; see the comments to
+  * set_ComputeConfig() for details. */
+
+ idx_type int_par_lbf( idx_type par ) const {
+  if constexpr( Solver::intLastAlgPar < intLastLagBFPar ) {
+   if( par == Inf< idx_type >() )
+    return( par );
+   if( par >= intLastLagBFPar )
+    par -= intLastLagBFPar - Solver::intLastAlgPar;
+   }
+  return( par );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// "translate" a double parameter index of the LagBFunction
+ /** Takes the index \p par of a double parameter of the LagBFunction that is
+  * actually meant for the inner Solver and returns the value that it would
+  * have to be used to set directly in there; see the comments to
+  * set_ComputeConfig() for details. */
+
+ idx_type dbl_par_lbf( idx_type par ) const {
+  if constexpr( Solver::dblLastAlgPar < dblLastLagBFPar ) {
+   if( par == Inf< idx_type >() )
+    return( par );
+   if( par >= dblLastLagBFPar )
+    par -= dblLastLagBFPar - Solver::dblLastAlgPar;
+   }
+  return( par );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// "translate" a string parameter index of the LagBFunction
+ /** Takes the index \p par of a string parameter of the LagBFunction that is
+  * actually meant for the inner Solver and returns the value that it would
+  * have to be used to set directly in there; see the comments to
+  * set_ComputeConfig() for details. */
+
+ idx_type str_par_lbf( idx_type par ) const {
+  if constexpr( Solver::strLastAlgPar < strLastLagBFPar ) {
+   if( par == Inf< idx_type >() )
+    return( par );
+   if( par >= strLastLagBFPar )
+    par -= strLastLagBFPar - Solver::strLastAlgPar;
+   }
+  return( par );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// "translate" a vector-of-int parameter index of the LagBFunction
+ /** Takes the index \p par of a vector-of-int parameter of the LagBFunction
+  * that is actually meant for the inner Solver and returns the value that it
+  * would have to be used to set directly in there; see the comments to
+  * set_ComputeConfig() for details. */
+
+ idx_type vint_par_lbf( idx_type par ) const {
+  if constexpr( Solver::vintLastAlgPar < vintLastLagBFPar ) {
+   if( par == Inf< idx_type >() )
+    return( par );
+   if( par >= vintLastLagBFPar )
+    par -= vintLastLagBFPar - Solver::vintLastAlgPar;
+   }
+  return( par );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// translate a vector-of-double parameter index of the LagBFunction
+ /** Takes the index \p par of a vector-of-double parameter of the
+  * LagBFunction that is actually meant for the inner Solver and returns the
+  * value that it would have to be used to set directly in there; see the
+  * comments to set_ComputeConfig() for details. */
+
+ idx_type vdbl_par_lbf( idx_type par ) const {
+  if constexpr( Solver::vdblLastAlgPar < vdblLastLagBFPar ) {
+   if( par == Inf< idx_type >() )
+    return( par );
+   if( par >= vdblLastLagBFPar )
+    par -= vdblLastLagBFPar - Solver::vdblLastAlgPar;
+   }
+  return( par );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+ /// translate a vector-of-string parameter index of the LagBFunction
+ /** Takes the index \p par of a vector-of-string parameter of the
+  * LagBFunction that is actually meant for the inner Solver and returns the
+  * value that it would have to be used to set directly in there; see the
+  * comments to set_ComputeConfig() for details. */
+
+ idx_type vstr_par_lbf( idx_type par ) const {
+  if constexpr( Solver::vstrLastAlgPar < vstrLastLagBFPar ) {
+   if( par == Inf< idx_type >() )
+    return( par );
+   if( par >= vstrLastLagBFPar )
+    par -= vstrLastLagBFPar - Solver::vstrLastAlgPar;
+   }
+  return( par );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// set the whole set of parameters in one blow
+ /** This method sets the whole set of parameters in one blow using a
+  * ComputeConfig object.
+  *
+  * LagBFunction is, in some sense, no litle more than a wrapper of the
+  * inner Solver used to compute() the Lagrangian function (except that this
+  * wrapping is nontrivial). As such, it has comparatively few parameters,
+  * while the inner Solver may have many. It is therefore advantageous to
+  * allow to set the algorithmic parameters of the inner Solver to b
+  * directly set by the set_par() of LagBFunction.
+  * 
+  * This is done by "translating" all the indices of the parameters of the
+  * inner Solver, apart from the standard ones that any ThinComputeInterface
+  * (and, therefore, Solver) has, so that they are > than the indices of
+  * LagBFunction parameters (of the same type). If necessary *_par_is() and
+  * *_par_lbf() are provided to translate an index of the inner Solver into
+  * one of LagBFunction and vice-versa, respectively, but it is not necessary
+  * to use them directly if the Configuration is made via set_ComputeConfig(),
+  * as the translation is automatically done by the parameters setting /
+  * getting methods. Basically
+  *
+  *     ALL PARAMETERS OF THE INNER Solver BEHAVE AS IF THEY WERE NATIVE
+  *     PARAMETERS OF LagBFunction WHEN ACCESSED VIA THEIR STRING NAME
+  *
+  * Hence, to set the int parameter "intMyParam" of the iner Solver, it is
+  * possible to just use
+  *
+  *     LBF->set_par( LBF->int_par_str2idx( "intMyParam" ) , value );
+  *
+  * as if one would be accessing the inner Solver directly; this allows all
+  * the standard Configuration stuff to work unchanged. When using indices
+  * to access parameters, instead, one has to do either
+  *
+  *     LBF->set_par( LBF->int_par_is( intMyParam ) , value );
+  *
+  * (assuming the enum value intMyParam to correspond to the string name
+  * "intMyParam" as customary) or
+  *
+  *     LBF->inner_Solver()->set_par( intMyParam , value );
+  *
+  * (except inner_Solver() is protected, so this is only possible from a
+  * derived class). In both cases one has to know that it is using a
+  * LagBFunction, but this is not a big deal since using of an explicit
+  * index (intMyParam) implies compile-time knowledge of the specific solver
+  * one is using (in this case, a specific inner Solver inside a
+  * LagBFunction).
+  *
+  * However, this mechanism has a consequence:
+  *
+  *     THE PARAMETER INDICES CHANGE MEANING IF THE TYPE OF THE INNER Solver
+  *     CHANGES
+  *
+  * which happens changing intInnrSlvr. Hence, if one* wants to change the
+  * inner Solver and configure it, it should first do the change and then set
+  * the parameters (which is logically required anyway). This is why in
+  * set_ComputeConfig() first it is checked if "intInnrSlvr" changes, and
+  * only after this is acted upon the standard
+  * ThinComputeInterface::set_ComputeConfig() is called to do the bulk of the
+  * work.
   *
   * LagBFunction also uses the f_extra_Configuration field of the provided
   * ComputeConfig. That field, if non-nullptr, is assumed to be:
@@ -718,18 +1163,37 @@ class LagBFunction : public C05Function , public Block {
  void set_ComputeConfig( ComputeConfig * scfg = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
- /// set a given int numerical parameter (see set_ComputeConfig())
-
- void set_par( idx_type par , int value ) override;
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
- /// set a given double numerical parameter (see set_ComputeConfig())
-
- void set_par( idx_type par , double value ) override;
-
-/*--------------------------------------------------------------------------*/
 
  void deserialize( const netCDF::NcGroup& group ) override;
+
+/**@} ----------------------------------------------------------------------*/
+/*---------------------- METHODS FOR EVENTS HANDLING -----------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Set event handlers
+ *
+ * Since LagBFunction basically only acts as a "front end" for the "inner
+ * Solver" that actually compute()s the Lagrangian function, it does not
+ * handle the events itself; rather, it passes them through to the "true"
+ * Solver.
+ *
+ *  @{ */
+
+ EventID set_event_handler( int type , EventHandler && event ) override {
+  if( auto is = inner_Solver() )
+   return( is->set_event_handler( type , std::move( event ) ) );
+  throw( std::logic_error(
+      "LagBFunction::set_event_handler: inner Solver not available yet" ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ void reset_event_handler( int type , EventID id ) override {
+  if( auto is = inner_Solver() )
+   is->reset_event_handler( type , id );
+  else
+   throw( std::logic_error(
+    "LagBFunction::reset_event_handler: inner Solver not available yet" ) );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------------- METHODS FOR MANAGING THE "IDENTITY" --------------------*/
@@ -1203,8 +1667,378 @@ class LagBFunction : public C05Function , public Block {
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the parameters of the LagBFunction
- *  @{ */
+ *
+ * While LagBFunction itself has comparatively few parameters, it allows to
+ * change via its standard parameter interface all the parameters of the
+ * "inner Solver" used to actually compute() the Lagrangian function. The
+ * indices of these parameters are automatically translated (see *_par_is()
+ * and the comments to set_ComputeConfig() for details) so that they can be
+ * automatically set and queried as if they were "natural" parameters of
+ * LagBFunction itself.
+ * @{ */
 
+/*--------------------------------------------------------------------------*/
+
+ [[nodiscard]] idx_type get_num_int_par( void ) const override {
+  idx_type rv = intLastLagBFPar;
+  if( auto is = inner_Solver() )
+   return( std::max( rv , int_par_is( is->get_num_int_par() ) ) );
+  return( rv );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] idx_type get_num_dbl_par( void ) const override {
+  idx_type rv = dblLastLagBFPar;
+  if( auto is = inner_Solver() )
+   return( std::max( rv , dbl_par_is( is->get_num_dbl_par() ) ) );
+  return( rv );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] idx_type get_num_str_par( void ) const override {
+  idx_type rv = strLastLagBFPar;
+  if( auto is = inner_Solver() )
+   return( std::max( rv , str_par_is( is->get_num_str_par() ) ) );
+  return( rv );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] idx_type get_num_vint_par( void ) const override {
+  idx_type rv = vintLastLagBFPar;
+  if( auto is = inner_Solver() )
+   return( std::max( rv , vint_par_is( is->get_num_vint_par() ) ) );
+  return( rv );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] idx_type get_num_vdbl_par( void ) const override {
+  idx_type rv = vdblLastLagBFPar;
+  if( auto is = inner_Solver() )
+   return( std::max( rv , vdbl_par_is( is->get_num_vdbl_par() ) ) );
+  return( rv );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] idx_type get_num_vstr_par( void ) const override {
+  idx_type rv = vstrLastLagBFPar;
+  if( auto is = inner_Solver() )
+   return( std::max( rv , vstr_par_is( is->get_num_vstr_par() ) ) );
+  return( rv );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ [[nodiscard]] int get_dflt_int_par( idx_type par ) const override {
+  if( ( par == intInnrSlvr ) || ( par == intNoSol ) ||
+      ( par == intChkState ) )
+   return( 0 );
+
+  if( par < intLastLagBFPar )
+   return( C05Function::get_dflt_int_par( par ) );
+
+  if( auto is = inner_Solver() )
+   return( is->get_dflt_int_par( int_par_is( par ) ) );
+  else
+   return( Inf< int >() );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] double get_dflt_dbl_par( idx_type par ) const override {
+  if( par < dblLastLagBFPar )
+   return( C05Function::get_dflt_dbl_par( par ) );
+
+  if( auto is = inner_Solver() )
+   return( is->get_dflt_dbl_par( dbl_par_is( par ) ) );
+  else
+   return( Inf< double >() );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] const std::string & get_dflt_str_par( idx_type par )
+  const override {
+  static const std::string _empty;
+
+  if( par < strLastLagBFPar )
+   return( C05Function::get_dflt_str_par( par ) );
+
+  if( auto is = inner_Solver() )
+   return( is->get_dflt_str_par( str_par_is( par ) ) );
+  else
+   return( _empty );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]]  const std::vector< int > & get_dflt_vint_par( idx_type par )
+  const override {
+  static const std::vector< int > _empty;
+
+  if( par < vintLastLagBFPar )
+   return( C05Function::get_dflt_vint_par( par ) );
+
+  if( auto is = inner_Solver() )
+   return( is->get_dflt_vint_par( vint_par_is( par ) ) );
+  else
+   return( _empty );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] const std::vector< double > & get_dflt_vdbl_par( idx_type par )
+  const override {
+  static const std::vector< double > _empty;
+
+  if( par < vdblLastLagBFPar )
+   return( C05Function::get_dflt_vdbl_par( par ) );
+
+  if( auto is = inner_Solver() )
+   return( is->get_dflt_vdbl_par( vdbl_par_is( par ) ) );
+  else
+   return( _empty );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] const std::vector< std::string > & get_dflt_vstr_par(
+					                       idx_type par )
+  const override {
+  static const std::vector< std::string > _empty;
+
+  if( par < vstrLastLagBFPar )
+   return( C05Function::get_dflt_vstr_par( par ) );
+
+  if( auto is = inner_Solver() )
+   return( is->get_dflt_vstr_par( vstr_par_is( par ) ) );
+  else
+   return( _empty );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ [[nodiscard]] int get_int_par( idx_type par )
+  const override {
+  if( ( par < intLastAlgParTCI ) || ( par >= intLastLagBFPar ) ) {
+   if( auto is = inner_Solver() )
+    return( is->get_int_par( int_par_is( par ) ) );
+   else
+    return( C05Function::get_dflt_int_par( par ) );
+   }
+
+  switch( par ) {
+   case( intLPMaxSz ):  return( LPMaxSz );
+   case( intGPMaxSz ):  return( g_pool.size() );
+   case( intInnrSlvr ): return( InnrSlvr );
+   case( intNoSol ):    return( NoSol ? 1 : 0 );
+   case( intChkState ): return( ChkState ? 1 : 0 );
+   }
+
+  return( C05Function::get_dflt_int_par( par ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] double get_dbl_par( idx_type par )
+  const override {
+  if( ( par < dblLastAlgParTCI ) || ( par >= dblLastLagBFPar ) ) {
+   if( auto is = inner_Solver() )
+    return( is->get_dbl_par( dbl_par_is( par ) ) );
+   else
+    return( C05Function::get_dflt_dbl_par( par ) );
+   }
+
+  switch( par ) {
+   case( dblRAccLin ): return( RAccLin );
+   case( dblAAccLin ): return( AAccLin );
+   }
+
+  return( C05Function::get_dflt_dbl_par( par ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] const std::string & get_str_par( idx_type par )
+  const override {
+  if( auto is = inner_Solver() )
+   return( is->get_str_par( str_par_is( par ) ) );
+  else
+   return( C05Function::get_dflt_str_par( par ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] const std::vector< int > & get_vint_par( idx_type par )
+  const override {
+  if( auto is = inner_Solver() )
+   return( is->get_vint_par( vint_par_is( par ) ) );
+  else
+   return( C05Function::get_dflt_vint_par( par ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] const std::vector< double > & get_vdbl_par( idx_type par )
+  const override {
+  if( auto is = inner_Solver() )
+   return( is->get_vdbl_par( vdbl_par_is( par ) ) );
+  else
+   return( C05Function::get_dflt_vdbl_par( par ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] const std::vector< std::string > & get_vstr_par( idx_type par )
+  const override {
+  if( auto is = inner_Solver() )
+   return( is->get_vstr_par( vstr_par_is( par ) ) );
+  else
+   return( C05Function::get_dflt_vstr_par( par ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ [[nodiscard]] idx_type int_par_str2idx( const std::string & name )
+  const override {
+  if( name == "intInnrSlvr" )
+   return( intInnrSlvr );
+  if( name == "intNoSol" )
+   return( intNoSol );
+  if( name == "intChkState" )
+   return( intChkState );
+
+  if( auto is = inner_Solver() )
+   return( int_par_lbf( is->int_par_str2idx( name ) ) );
+  else
+   return( C05Function::int_par_str2idx( name ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] idx_type dbl_par_str2idx( const std::string & name )
+  const override {
+  if( auto is = inner_Solver() )
+   return( dbl_par_lbf( is->dbl_par_str2idx( name ) ) );
+  else
+   return( C05Function::dbl_par_str2idx( name ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] idx_type str_par_str2idx( const std::string & name )
+  const override {
+  if( auto is = inner_Solver() )
+   return( str_par_lbf( is->str_par_str2idx( name ) ) );
+  else
+   return( C05Function::str_par_str2idx( name ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] idx_type vint_par_str2idx( const std::string & name )
+  const override {
+  if( auto is = inner_Solver() )
+   return( vint_par_lbf( is->vint_par_str2idx( name ) ) );
+  else
+   return( C05Function::vint_par_str2idx( name ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] idx_type vdbl_par_str2idx( const std::string & name )
+  const override {
+  if( auto is = inner_Solver() )
+   return( vdbl_par_lbf( is->vdbl_par_str2idx( name ) ) );
+  else
+   return( C05Function::vdbl_par_str2idx( name ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] idx_type vstr_par_str2idx( const std::string & name )
+  const override {
+  if( auto is = inner_Solver() )
+   return( vstr_par_lbf( is->vstr_par_str2idx( name ) ) );
+  else
+   return( C05Function::vstr_par_str2idx( name ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ [[nodiscard]] const std::string & int_par_idx2str( idx_type idx )
+  const override {
+  static const std::vector< std::string > pars =
+   { "intInnrSlvr", "intNoSol" , "intChkState" };
+
+  if( idx == intInnrSlvr )
+   return( pars[ 0 ] );
+  if( idx == intNoSol )
+   return( pars[ 1 ] );
+  if( idx == intChkState )
+   return( pars[ 2 ] );
+
+  if( auto is = inner_Solver() )
+   return( is->int_par_idx2str( int_par_is( idx ) ) );
+  else
+   return( C05Function::int_par_idx2str( idx ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] const std::string & dbl_par_idx2str( idx_type idx )
+  const override {
+  if( auto is = inner_Solver() )
+   return( is->dbl_par_idx2str( dbl_par_is( idx ) ) );
+  else
+   return( C05Function::dbl_par_idx2str( idx ) );
+  }
+
+ /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] const std::string & str_par_idx2str( idx_type idx )
+  const override {
+  if( auto is = inner_Solver() )
+   return( is->str_par_idx2str( str_par_is( idx ) ) );
+  else
+   return( C05Function::str_par_idx2str( idx ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] const std::string & vint_par_idx2str( idx_type idx )
+  const override {
+  if( auto is = inner_Solver() )
+   return( is->vint_par_idx2str( dbl_par_is( idx ) ) );
+  else
+   return( C05Function::vint_par_idx2str( idx ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] const std::string & vdbl_par_idx2str( idx_type idx )
+  const override {
+  if( auto is = inner_Solver() )
+   return( is->vdbl_par_idx2str( vdbl_par_is( idx ) ) );
+  else
+   return( C05Function::vdbl_par_idx2str( idx ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] const std::string & vstr_par_idx2str( idx_type idx )
+  const override {
+  if( auto is = inner_Solver() )
+   return( is->vstr_par_idx2str( vstr_par_is( idx ) ) );
+  else
+   return( C05Function::vstr_par_idx2str( idx ) );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// get the whole set of parameters in one blow
  /** Mostly, this method has to fetch the :BlockConfig and :BlockSolverConfig
   * from the inner Block to fill the f_extra_Configuration field of the
@@ -1234,79 +2068,6 @@ class LagBFunction : public C05Function , public Block {
  ComputeConfig * get_ComputeConfig( bool all = false ,
 				    ComputeConfig * ocfg = nullptr )
   const override;
-
-/*--------------------------------------------------------------------------*/
-
- [[nodiscard]] idx_type get_num_int_par( void ) const override {
-  return( intLastLagBFPar );
-  }
-
-/*--------------------------------------------------------------------------*/
-
- [[nodiscard]] int get_int_par( idx_type par ) const override {
-  switch( par ) {
-   case( intLPMaxSz ):  return( LPMaxSz ); break;
-   case( intGPMaxSz ):  return( g_pool.size() ); break;
-   case( intInnrSlvr ): return( InnrSlvr ); break;
-   case( intNoSol ):    return( NoSol ? 1 : 0 ); break;
-  case( intChkState ):  return( ChkState ? 1 : 0 ); break;
-   default:             return( C05Function::get_dflt_int_par( par ) );
-   }
-  } 
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
- [[nodiscard]] double get_dbl_par( idx_type par ) const override {
-  switch( par ) {
-   case( dblRAccLin ): return( RAccLin ); break;
-   case( dblAAccLin ): return( AAccLin ); break;
-   default:            return( C05Function::get_dflt_dbl_par( par ) );
-   }
-  }
-
-/*--------------------------------------------------------------------------*/
-
- [[nodiscard]] int get_dflt_int_par( idx_type par ) const override {
-  if( ( par == intInnrSlvr ) || ( par == intNoSol ) ||
-      ( par == intChkState ) )
-   return( 0 );
-  return( C05Function::get_dflt_int_par( par ) ) ;
-  }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
- // double get_dflt_dbl_par( idx_type par ) const override;
-
-/*--------------------------------------------------------------------------*/
-
- [[nodiscard]] idx_type int_par_str2idx( const std::string & name )
-  const override {
-  if( name == "intInnrSlvr" )
-   return( intInnrSlvr );
-  if( name == "intNoSol" )
-   return( intNoSol );
-  if( name == "intChkState" )
-   return( intChkState );
-
-  return( C05Function::int_par_str2idx( name ) );
-  }
-
-/*--------------------------------------------------------------------------*/
-
- [[nodiscard]] const std::string & int_par_idx2str( idx_type idx )
-  const override {
-  static const std::vector< std::string > pars =
-   { "intInnrSlvr", "intNoSol" , "intChkState" };
-
-  if( idx == intInnrSlvr )
-   return( pars[ 0 ] );
-  if( idx == intNoSol )
-   return( pars[ 1 ] );
-  if( idx == intChkState )
-   return( pars[ 2 ] );
-
-  return( C05Function::int_par_idx2str( idx ) );
-  }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------- METHODS FOR HANDLING THE State OF THE LagBFunction -----------*/
@@ -1519,8 +2280,13 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  template< typename par_type >
- void add_par( std::string && name , par_type value );
- 
+ void add_par( std::string && name , par_type && value );
+
+ template< typename par_type >
+ void add_par( const std::string & name , par_type && value ) {
+  add_par( std::string( name ) , std::move( value ) );
+  }
+
 /*--------------------------------------------------------------------------*/
 
  Solver * inner_Solver( void ) const {
