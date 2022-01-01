@@ -9,17 +9,11 @@
  * values of the static and dynamic RowConstraint of a Block as well as the
  * RowConstraintSolutions of the nested Blocks.
  *
- * \version 0.10
- *
- * \date 19 - 03 - 2021
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *

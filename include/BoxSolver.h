@@ -18,12 +18,7 @@
  * to the sense of the original Objective) on the true optimal value. Yet,
  * this bound is obtained quickly.
  *
- * \version 0.11
- *
- * \date 05 - 07 - 2021
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *

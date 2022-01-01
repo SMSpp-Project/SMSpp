@@ -52,20 +52,14 @@
  * CRBlockConfig, OCBlockConfig, and OCRBlockConfig; shortly referred as
  * *C*BlockConfig).
  *
- * \version 0.40
- *
- * \date 24 - 09 - 2020
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
-
+ *
  * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/

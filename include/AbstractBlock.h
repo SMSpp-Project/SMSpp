@@ -27,12 +27,7 @@
  *    (but, on the other hand, completely making the derived class' job to
  *    handle all its aspects).
  *
- * \version 0.20
- *
- * \date 01 - 09 - 2019
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *

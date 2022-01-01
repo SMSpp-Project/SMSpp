@@ -7,12 +7,7 @@
  * that of syphoning off and storing away all the Modification that the Block
  * produces.
  *
- * \version 0.11
- *
- * \date 23 - 02 - 2019
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -23,8 +18,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __FakeSolver
-#define __FakeSolver
-/* self-identification: #endif at the end of the file */
+ #define __FakeSolver /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/

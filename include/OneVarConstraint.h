@@ -35,12 +35,7 @@
  * Besides saving a bit of space, the classes with fixed LHS and/or RHS
  * guarantee that it can never be changed, which might be useful.
  *
- * \version 0.20
- *
- * \date 02 - 12 - 2020
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *

@@ -5,17 +5,11 @@
  * Header file for the *concrete* class DQuadFunction, which implements
  * C15Function with a diagonal (separable) quadratic function.
  *
- * \version 0.40
- *
- * \date 07 - 10 - 2019
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *

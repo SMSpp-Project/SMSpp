@@ -84,26 +84,20 @@
  * specific for each Block and R3 Block of its, and the base class provides
  * no general mechanism for it (besides the interface).
  *
- * \version 0.33
- *
- * \date 29 - 07 - 2020
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Department of Applied Mathematics \n
- *         State University of Campinas, Brazil \n
- *
- * \author Kostas Tavlaridis-Gyparakis \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato, Kostas
- * Tavlaridis-Gyparakis
+ * \author Kostas Tavlaridis-Gyparakis \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato,
+ *                     Kostas Tavlaridis-Gyparakis
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/

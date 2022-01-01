@@ -11,18 +11,13 @@
  * paradigm. Also, since a Function depends on a set of "active" Variable, it
  * implements the ThinVarDepInterface paradigm.
  *
- * \version 0.42
- *
- * \date 02 - 12 - 2020
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Department of Applied Mathematics \n
- *         State University of Campinas, Brazil \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
  *
  * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */

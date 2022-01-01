@@ -4,12 +4,7 @@
 /** @file
  * Implementation of the ColRowSolution class.
  *
- * \version 0.10
- *
- * \date 20 - 11 - 2020
- *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *

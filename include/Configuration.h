@@ -8,12 +8,7 @@
  * A template version SimpleConfiguration is immediately provided for simple
  * configurations boiling down to one single value of some type.
  *
- * \version 0.12
- *
- * \date 27 - 06 - 2021
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *

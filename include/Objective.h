@@ -12,21 +12,15 @@
  * depends on a set of "active" Variable, it implements the
  * ThinVarDepInterface paradigm.
  *
- * \version 0.31
- *
- * \date 03 - 11 - 2019
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Department of Applied Mathematics \n
- *         State University of Campinas, Brazil \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
  *
  * \author Kostas Tavlaridis-Gyparakis \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -37,7 +31,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __Objective
-#define __Objective  /* self-identification: #endif at the end of the file */
+ #define __Objective  /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/

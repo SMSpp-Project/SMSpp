@@ -7,12 +7,7 @@
  * Block of the attached Block, or map_back it to the original Block if it is
  * attached to the R3 Block.
  *
- * \version 0.10
- *
- * \date 07 - 08 - 2020
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *

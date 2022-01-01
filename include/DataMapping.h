@@ -7,12 +7,7 @@
  * data of some object. A concrete class called SimpleDataMapping is also
  * defined for some common kinds of data mapping.
  *
- * \version 0.1
- *
- * \date 14 - 12 - 2021
- *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *

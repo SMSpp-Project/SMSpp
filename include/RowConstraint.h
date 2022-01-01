@@ -11,21 +11,15 @@
  * where LHS and RHS are two extended reals (hopefully at least one of which
  * is finite and LHS <= RHS, but this is not enforced in the class).
  *
- * \version 0.20
- *
- * \date 18 - 10 - 2019
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Department of Applied Mathematics \n
- *         State University of Campinas, Brazil \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
  *
  * \author Kostas Tavlaridis-Gyparakis \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *

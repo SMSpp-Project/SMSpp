@@ -25,12 +25,7 @@
  *
  * defined in this header file (and immediately un-defined at the end).
  *
- * \version 0.10
- *
- * \date 16 - 08 - 2021
- *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *

@@ -5,17 +5,11 @@
  * Header file for the class BendersBFunction, which implements C05Function
  * and Block with a Benders function.
  *
- * \version 0.01
- *
- * \date 26 - 05 - 2021
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *

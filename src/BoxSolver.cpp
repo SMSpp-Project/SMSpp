@@ -7,13 +7,9 @@
  * only bound (box) Constraint on the ColVariable and a separable Objective
  * (a FRealObjective with either a LinearFunction or a DQuadFunction inside).
  *
- * \version 0.11
- *
- * \date 05 - 07 - 2021
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
  *
  * Copyright &copy; by Antonio Frangioni
  */

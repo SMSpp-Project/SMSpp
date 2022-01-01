@@ -5,18 +5,13 @@
  * Header file for the Observer class, an abstract base class implementing
  * the concept of an observer which can be notified about Modifications.
  *
- * \version 0.40
- *
- * \date 01 - 01 - 2021
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Department of Applied Mathematics \n
- *         State University of Campinas, Brazil \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
  *
  * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
