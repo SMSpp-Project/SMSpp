@@ -138,9 +138,8 @@ LagBFunction::LagBFunction( Block * innerblock , Observer * observer )
    InnrSlvr( 0 ) , NoSol( false ) , ChkState( false ) ,
    p_InnrSlvr( nullptr ) , f_max_glob( 0 ) , LastSolution( 0 ) ,
    VarSol( true ) , f_yb( -INF ) , f_play_dumb( false ) ,
-   f_dirty_Lc( false ) , f_c_changed( false ) ,  LPMaxSz( 0 ) , RAccLin( 0 ) ,
-   AAccLin( 0 ) , f_BSC( new BlockSolverConfig ) , f_BSC_changed( false ) ,
-   f_id( this )
+   f_dirty_Lc( false ) , f_c_changed( false ) ,  LPMaxSz( 0 ) ,
+   f_BSC( nullptr ) , f_CC( nullptr ) , f_CC_changed( false ) , f_id( this )
 {
  // set the pointer to the sub-Block (B) - - - - - - - - - - - - - - - - - - -
  if( innerblock )
@@ -150,10 +149,7 @@ LagBFunction::LagBFunction( Block * innerblock , Observer * observer )
  if( observer )
   register_Observer( observer );
 
- f_BSC->set_diff( true );        // set the BlockSolverConfig in "diff mode"
- auto cc = new ComputeConfig;    // ensure there is a ComputeConfig
- cc->f_diff = true;              // also in "diff mode"
- f_BSC->add_ComputeConfig( "" , cc );
+ init_CC();
 
  }  // end( LagBFunction::LagBFunction() )
 
@@ -235,10 +231,6 @@ void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
   for( Index i = 0 ; i < rp.size() ; ++i )
    CostMatrix[ i ].first = std::get< 1 >( rp[ i ] );
   }
-
- // ensure a "default" f_BSC is there
- if( ! f_BSC )
-  init_BSC();
 
  v_tmpCP.clear();      // no terms to be stealthily added to obj yet
 
@@ -354,31 +346,17 @@ void LagBFunction::set_ComputeConfig( ComputeConfig * scfg )
     BC->apply( inner_block );
 
    if( BSC ) {  // set the BlockSolverConfig of the inner Block, if any
-    if( f_BSC_changed && ( ! BSC->is_diff() ) )
-     // if some changes still had to be applied do that now, unless the new
+    if( f_BSC ) {
+     // if a previous clear()-ed BSC is present, apply() it so as to "clean"
+     // the Block for the arrival of the new one
      // BlockSolverConfig is in "set mode", since this would reset everything
      f_BSC->apply( inner_block );
+     delete f_BSC;                     // delete the old one
+     }
 
-    f_BSC_changed = false;             // done
-    delete f_BSC;                      // delete the old one
     BSC->apply( inner_block );         // apply the new BlockSolverConfig
     f_BSC = BSC->clone();              // keep a copy of the new one
     f_BSC->clear();                    // but clear it
-    f_BSC->set_diff( true );           // and set it in "diff mode"
-
-    // ensure there is a ComputeConfig in diff mode ready that serves to
-    // store the parameters that get passed to LagBFunction but that need to
-    // be "forwarded" to the first Solver registered to the inner Block;
-    // note that one would expect the ComputeConfig to be there since the
-    // LagBFunction needs at least a Solver registered to the inner Block to
-    // be compute()-d, but it's the user's responsibility to ensure that this
-    /// does happen (this call to set_ComputeConfig() may be happening right
-    // before destruction, or no call to compute() may be done
-    while( f_BSC->num_ComputeConfig() <= InnrSlvr ) {
-     auto cc = new ComputeConfig;
-     cc->f_diff = true;
-     f_BSC->add_ComputeConfig( "" , cc );
-     }
     }
    }
   else {  // scfg->f_extra_Configuration is nullptr
@@ -511,17 +489,12 @@ void LagBFunction::set_par( idx_type par , double value )
   }
 
  switch( par ) {
-  case( dblRAccLin ):
-   if( RAccLin != value ) {
-    RAccLin = value;
-    add_par( "dblRelAcc" , value );
-    }
-   break;
-  case( dblAAccLin ):
-   if( AAccLin != value ) {
-    AAccLin = value;
-    add_par( "dblAbsAcc" , value );
-    }
+  case( dblRelAcc ):   add_par( "dblRelAcc"   , value ); break;
+  case( dblAbsAcc ):   add_par( "dblAbsAcc"   , value ); break;
+  case( dblUpCutOff ): add_par( "dblUpCutOff" , value ); break;
+  case( dblLwCutOff ): add_par( "dblLwCutOff" , value ); break;
+  case( dblRAccLin ):  add_par( "dblRAccSol"  , value ); break;
+  case( dblAAccLin ):  add_par( "dblAAccSol"  , value );
   }
  }  // end( LagBFunction::set_par( double ) )
 
@@ -533,8 +506,8 @@ void LagBFunction::deserialize( const netCDF::NcGroup & group )
 
  guts_of_destructor();  // cleanup whatever is there now
 
- // ensure a "default" f_BSC is there (it is deleted in guts_of)
- init_BSC();
+ // ensure f_CC is there (it is deleted in guts_of)
+ init_CC();
 
  f_c_changed = false;   // Lagrangian costs are still == to original costs
  f_dirty_Lc = ! LagPairs.empty();  // ... hence they have to be updated,
@@ -1385,6 +1358,9 @@ void LagBFunction::serialize_State( netCDF::NcGroup & group ,
 bool LagBFunction::has_linearization( bool diagonal )
 {
  auto is = inner_Solver();
+ if( ! is )
+  throw( std::logic_error(
+		 "LagBFunction::has_linearization called with no Solver" ) );
  // true if the first linearization of the related type exists
  bool newlin = diagonal ? is->has_var_solution() : is->has_var_direction();
 
@@ -1402,6 +1378,9 @@ bool LagBFunction::has_linearization( bool diagonal )
 bool LagBFunction::compute_new_linearization( const bool diagonal )
 {
  auto is = inner_Solver();
+ if( ! is )
+  throw( std::logic_error(
+	 "LagBFunction::compute_new_linearization called with no Solver" ) );
 
  // true if another linearization of the related type exists
  bool newlin = diagonal ? is->new_var_solution() : is->new_var_direction();
@@ -1610,12 +1589,9 @@ void LagBFunction::delete_linearizations( Subset && which , bool ordered ,
 
 int LagBFunction::compute( bool changedvars )
 {
- if( v_Block.empty() )  // there is no inner Block
-  return( kError );     // that's clearly an error
-
- // no Solver is attached to the inner Block
- if( v_Block.front()->get_registered_solvers().empty() )
-  return( kError );     // that's clearly an error
+ auto is = inner_Solver();
+ if( ! is )          // there is no inner Solver
+  return( kError );  // that's clearly an error
 
  // if required, check if b == 0 or not- - - - - - - - - - - - - - - - - - - -
  if( f_yb == INF ) {
@@ -1697,10 +1673,10 @@ int LagBFunction::compute( bool changedvars )
   }
  
  // if some parameters have been changed, set BlockSolverConfig- - - - - - - -
- if( f_BSC_changed ) {
-  f_BSC->apply( v_Block.front() );
-  f_BSC->clear();
-  f_BSC_changed = false;
+ if( f_CC_changed ) {
+  is->set_ComputeConfig( f_CC );
+  f_CC->clear();
+  f_CC_changed = false;
   }
 
  // if the solution in the Block was the one out of the last call to
@@ -1719,7 +1695,7 @@ int LagBFunction::compute( bool changedvars )
  // Solver to properly check to avoid doing useless work
 
  // return the status of the Solver as the status of the LagBFunction
- return( inner_Solver()->compute( false ) );
+ return( is->compute( false ) );
 
  }  // end( LagBFunction::compute() )
 
@@ -1740,6 +1716,9 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
   // get solution/direction from the solver
   if( LastSolution != Inf<Index>() ) {  // ... if necessary
    auto is = inner_Solver();
+   if( ! is )
+    throw( std::logic_error(
+    "LagBFunction:::get_linearization_coefficients called with no Solver" ) );
    if( VarSol ) {
     is->get_var_solution();
     #if CHECK_SOLUTIONS
@@ -1807,6 +1786,9 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
   // get solution/direction from the solver
   if( LastSolution != Inf<Index>() ) {  // ... if necessary
    auto is = inner_Solver();
+   if( ! is )
+    throw( std::logic_error(
+    "LagBFunction:::get_linearization_coefficients called with no Solver" ) );
    if( VarSol ) {
     is->get_var_solution();
     #if CHECK_SOLUTIONS
@@ -1872,6 +1854,9 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
   // get solution/direction from the solver
   if( LastSolution != Inf<Index>() ) {  // ... if necessary
    auto is = inner_Solver();
+   if( ! is )
+    throw( std::logic_error(
+      "LagBFunction:::get_linearization_constant called with no Solver" ) );
    if( VarSol ) {
     is->get_var_solution();
     #if CHECK_SOLUTIONS
@@ -2114,10 +2099,11 @@ void LagBFunction::print( std::ostream & output ) const
 
 void LagBFunction::load( std::istream &input )
 {
- input >> LPMaxSz;
+ // input >> LPMaxSz;
  // input >> GPMaxSz;
- input >> AAccLin;
- input >> RAccLin;
+ // input >> AAccLin;
+ // input >> RAccLin;
+ throw( std::logic_error( "LagBFunction::load not implemented yet" ) );
 
  }  // end( LagBFunction::load() )
 
@@ -2305,14 +2291,10 @@ void LagBFunction::mod_CostMatrix( Index i , Index first )
 
 /*--------------------------------------------------------------------------*/
 
-void LagBFunction::init_BSC( void )
+void LagBFunction::init_CC( void )
 {
- f_BSC = new BlockSolverConfig;  // create a new ampty one
- f_BSC->set_diff( true );        // set it in "diff mode"
- auto cc = new ComputeConfig;    // ensure there is a ComputeConfig
- cc->f_diff = true;              // also in "diff mode"
- f_BSC->add_ComputeConfig( "" , cc );
- f_BSC_changed = false;
+ f_CC = new ComputeConfig;  // create a new empty one
+ f_CC->f_diff = true;       // set it in "diff mode"
  }
 
 /*--------------------------------------------------------------------------*/
@@ -2331,11 +2313,8 @@ void LagBFunction::guts_of_destructor( bool deleteinner )
 
   // use the clear()-ed BlockSolverConfig to delete all the Solver that were
   // registered by it (hence, be sure it is in f_diff == true mode)
-  if( f_BSC ) {
-   f_BSC->clear();
-   f_BSC->set_diff( true );
+  if( f_BSC )
    f_BSC->apply( v_Block.front() );
-   }
 
   // now finally the inner Block can be deleted
   if( deleteinner )
@@ -2345,6 +2324,8 @@ void LagBFunction::guts_of_destructor( bool deleteinner )
  v_Block.clear();
  delete f_BSC;
  f_BSC = nullptr;
+ delete f_CC;
+ f_CC = nullptr;
 
  }  // end( LagBFunction::guts_of_destructor )
 
@@ -3538,9 +3519,8 @@ void LagBFunction::update_CostMatrix_ModVarsSbst( c_Vec_p_Var & vars ,
 template< typename par_type >
 void LagBFunction::add_par( std::string && name , par_type && value )
 {
- if( f_BSC->get_SolverConfigs()[ InnrSlvr ]->set_par( std::move( name ) ,
-						      std::move( value ) ) )
-  f_BSC_changed = true;
+ if( f_CC->set_par( std::move( name ) , std::move( value ) ) )
+  f_CC_changed = true;
  }
 
 /*--------------------------------------------------------------------------*/

@@ -196,7 +196,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
    *
    * The default is 1e-6. */
 
-  dblAbsAcc ,  ///< absolute accuracy for the value of the function
+  dblAbsAcc ,  ///< absolute accuracy for the value of the Function
                /**< The parameter for setting the *absolute* accuracy
 		* required to the function value. That is, if both an upper
    * bound "ub" [see get_upper_estimate()] and a lower bound "lb" [see

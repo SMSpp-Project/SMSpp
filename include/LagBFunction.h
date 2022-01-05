@@ -72,7 +72,7 @@ namespace SMSpp_di_unipi_it
  *
  * 1) A "base" Block B, representing "any" optimization problem
  *
- *      (B)    max { c(x) : x \in X }
+ *      (B)    max { c( x ) : x \in X }
  *
  *    This will be the one, and only, inner Block of LagBFunction (when
  *    "seen" as a Block).
@@ -112,7 +112,7 @@ namespace SMSpp_di_unipi_it
  *    LagBFunction.
  *
  * 3) A list of pairs of relaxed functions and their Lagrangian multipliers:
- *    { ( y_i , g_i (x) ) }_{ i \in \bar{I} } which handle the  dynamic
+ *    { ( y_i , g_i( x ) ) }_{ i \in \bar{I} } which handle the  dynamic
  *    generation/removal which handle the dynamic relaxation of constraints.
  *
  * Note that the LagBFunction is not supposed to have any Constraint or
@@ -121,7 +121,7 @@ namespace SMSpp_di_unipi_it
  *
  * With these elements, LagBFunction represents the Lagrangian function
  *
- *   (L_y)   l( y ) = max { c(x) + \sum_{ i \in I } y_i g_i(x) : x \in X }
+ *   (L_y)   l( y ) = max { c( x ) + \sum_{ i \in I } y_i g_i( x ) : x \in X }
  *
  * The function l(y) is convex in y (concave if (B) is a minimization
  * problem), since it is the pointwise maximum of (possibly, infinitely
@@ -129,15 +129,15 @@ namespace SMSpp_di_unipi_it
  * its domain; however, it typically is non differentiable. Indeed, if x(y) 
  * is the (eps-)optimal solution of (L_y), then
  *
- *       h = g( x(y) ) = [ g_i( x(y) ) ]_{ i \in I }
+ *       h = g( x(  y) ) = [ g_i( x( y ) ) ]_{ i \in I }
  *
  * is a(n eps-)subgradient of l( y ) at y (supergradient if (B) is a
  * minimization problem and therefore l is concave). Hence, the gradient of l
- * at y is well-defined only if x(y) is unique, which may easily not happen.
+ * at y is well-defined only if x( y ) is unique, which may easily not happen.
  * This is why in general LagBFunction is a C05Function depending on the
  * variables y; note that the LagBFunction can still easily declare to be
  * smooth [see C05Function::is_continuously_differentiable()] if it knows it
- * to be the case (say, c(x) is strictly concave).
+ * to be the case (say, c( x ) is strictly concave).
  *
  * The aim of LagBFunction is to automate the process of turning the block B
  * (given g and y) into the Lagrangian function l( y ), implementing all the
@@ -147,7 +147,7 @@ namespace SMSpp_di_unipi_it
  * on. To do this in the most general way, no assumption is made on (B) and g
  * save that:
  *
- * - the Objective c(x) of (B) is a "simple" function, i.e., it belongs to
+ * - the Objective c( x ) of (B) is a "simple" function, i.e., it belongs to
  *   following classes:
  *
  *   = FRealObjective whose inside Function is a LinearFunction
@@ -202,8 +202,8 @@ namespace SMSpp_di_unipi_it
  * (implementation decisions) that somewhat further limit the kind of
  * Block that can be used as (B):
  *
- * - THE LAGRANGIAN TERM c(x) + \sum_{ i \in I } y_i g_i(x) FOR FIXED VALUE
- *   OF y_i AND LINEAR c(x), g_i(x) BECOMES EITHER A LinearFunction OR A
+ * - THE LAGRANGIAN TERM c( x ) + \sum_{ i \in I } y_i g_i(x) FOR FIXED VALUE
+ *   OF y_i AND LINEAR c( x ), g_i( x ) BECOMES EITHER A LinearFunction OR A
  *   DQuadFunction (DEPENDING ON WHAT IT WAS ORIGINALLY) THAT IS WRITTEN IN
  *   THE OBJECTIVE OF (B).
  *
@@ -236,9 +236,9 @@ namespace SMSpp_di_unipi_it
  *   (provided that the Solver attached to (B) can deal with it).
  *
  * - THE LAGRANGIAN TERM MAY HAVE A DIFFERENT "SHAPE" THAN THE ORIGINAL
- *   LinearFunction c(x) (i.e., more ColVariable may have a nonzero
+ *   LinearFunction c( x ) (i.e., more ColVariable may have a nonzero
  *   coefficient than in happened in c(x)), which means that ColVariable
- *   CAN BE ADDED TO c(x) THAT WERE NOT ORIGINERILY THERE.
+ *   CAN BE ADDED TO c( x ) THAT WERE NOT ORIGINERILY THERE.
  *
  *   This, as already mentioned, my be a problem for some Block/Solver that
  *   require a specific arrangement. Furthermore, it means that ANY PROCESS
@@ -250,30 +250,30 @@ namespace SMSpp_di_unipi_it
  *   the "outside" process.
  *
  * - THE LagBFunction WILL ONLY *ADD* TERMS TO c(x), BUT NEVER REMOVE THEM.
- *   In particular, it may happen that a coefficient is added to c(x) for
+ *   In particular, it may happen that a coefficient is added to c( x ) for
  *   some variable x_j due to some term g_i(x) having a nonzero coefficient
- *   in x_j, while, say, the original coefficient(s) of x_j in c(x) was 0,
- *   i.e., x_j was *not* in c(x). Later, the Lagrangian term(s) g_i(x) may be
- *   changed and x_j may no longer have a nonzero coefficient in the
+ *   in x_j, while, say, the original coefficient(s) of x_j in c( x ) was 0,
+ *   i.e., x_j was *not* in c(x). Later, the Lagrangian term(s) g_i(x )  may
+ *   be changed and x_j may no longer have a nonzero coefficient in the
  *   Lagrangian term for any value of y. YET, x_j IS KEPT IN THE
  *   LinearFunction / DQuadFunction IN THE Objective OF (B) WITH 0
  *   COEFFICIENT(S): no attempt is made to "optimize away" such Variable. The
  *   rationale is that it is hard to distinguish whether or not the 0
- *   coefficient(s) was there in the original c(x) or x_j was not in c(x).
+ *   coefficient(s) was there in the original c( x ) or x_j was not in c( x ).
  *   While the two things are mathematically equivalent, they may not be so
  *   for a Block/Solver assuming that some Variable *are* in the Objective
  *   even if their coefficient(s) is 0. Optimizing away these Variable would
  *   not allow such a Block/Solver to be used, so it is just not done. In the
  *   odd case where this is not appropriate, the external process changing the
- *   g_i(x) (which is what may cause this to happen) also has to do the
- *   cleanup of c(x). Indeed, removing ColVariable from c(x) is allowed, with
- *   the only provision that if the ColVariable is present in any Lagrangian
- *   term g_i(x) it will be automatically re-added.
+ *   g_i( x ) (which is what may cause this to happen) also has to do the
+ *   cleanup of c( x ). Indeed, removing ColVariable from c( x ) is allowed,
+ *   with the only provision that if the ColVariable is present in any
+ *   Lagrangian term g_i( x ) it will be automatically re-added.
  *
- * - Similarly, A TERM < x_j , a_{ij} > IN g_i(x) WILL GIVE RISE TO AN
+ * - Similarly, A TERM < x_j , a_{ij} > IN g_i( x ) WILL GIVE RISE TO AN
  *   EXPLICIT TERM < y_i , a_{ij} > IN THE (LINEAR) EXPRESSION FOR THE
  *   LAGRANGIAN COST OF x_j EVEN IF a_{ij} == 0; no attemp is done to optimize
- *   away zero coefficients from g_i(x), in case the entity producing them
+ *   away zero coefficients from g_i( x ), in case the entity producing them
  *   relies on their position in the LinearFunction to handle them.
  *
  * We finish with a LARGELY THEORETICAL, BUT STILL POSSIBLY INTERESTING NOTE.
@@ -291,9 +291,9 @@ namespace SMSpp_di_unipi_it
  *
  * - the Objective of the LagBFunction should be the function
  *
- *       \sum_{ i \in I } y_i g_i(x)
+ *       \sum_{ i \in I } y_i g_i( x )
  *
- * - the Objective of (B) should be its original function c(x).
+ * - the Objective of (B) should be its original function c( x ).
  *
  * However, this is not how the object is implemented. The point is that
  * LagBFunction has to compute l( y ) using (B) and its Solver; this means
@@ -301,14 +301,14 @@ namespace SMSpp_di_unipi_it
  * its solver) accepts. For instance, if c() is a linear function, then
  * (B) will typically allow its coefficients to be changed, but *not* it
  * to be transformed into another kind of function. If, say, g() are also
- * linear functions ( g(x) = Ax ), the LagBFunction will, each time when
+ * linear functions ( g( x ) = Ax ), the LagBFunction will, each time when
  * compute() is called [roughly], compute the Lagrangian costs
  *
  *      c^y = c + yA
  *
  * and change the Objective of (B) accordingly. Note, however, the g(x) may
  * have constant terms: for instanxe, it could be an affine function
- * ( g(x) = Ax + b ) rather than a linear function. In this case, which is
+ * ( g( x ) = Ax + b ) rather than a linear function. In this case, which is
  * actually supported by LagBFunction, the value of the LagBFunction has the
  * form
  *
@@ -796,13 +796,25 @@ class LagBFunction : public C05Function , public Block {
   *
   * The second group comprises:
   *
+  * - dblRelAcc: the value of dblRelAcc is passed to the inner Solver as
+  *              the Solver::dblRelAcc parameter
+  *
+  * - dblAbsAcc: the value of dblAbsAcc is passed to the inner Solver as
+  *              the Solver::dblAbsAcc parameter
+  *
+  * - dblUpCutOff: the value of dblUpCutOff is passed to the inner Solver as
+  *                the Solver::dblUpCutOff parameter
+  *
+  * - dblLwCutOff: the value of dblLwCutOff is passed to the inner Solver as
+  *                the Solver::dblLwCutOff parameter
+  *
   * - dblRAccLin: the value of dblRAccLin is passed to the inner Solver as
-  *               the Solver::dblRelAcc parameter, since the relative error
+  *               the Solver::dblRAccSol parameter, since the relative error
   *   made by the Solver in computing the Variable Solution immediately
   *   translates into the accuracy of the corresponding linearization.
   *
   * - dblAAccLin: the value of dblAAccLin is passed to the inner Solver as
-  *               the Solver::dblAbsAcc parameter, since the absolute error
+  *               the Solver::dblAAccSol parameter, since the absolute error
   *   made by the Solver in computing the Variable Solution immediately
   *   translates into the accuracy of the corresponding linearization.
   *
@@ -1528,27 +1540,35 @@ class LagBFunction : public C05Function , public Block {
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  FunctionValue get_lower_estimate( void ) const override {
-  auto lb = inner_Solver()->get_lb();
-  if( lb == -Inf<FunctionValue>() )
-   return( lb );
-  else {
-   if( std::isnan( f_yb ) )
-    throw( std::logic_error( "get_lower_estimate called before compute" ) );
-   return( f_yb > -Inf<FunctionValue>() ? lb + f_yb : lb );
+  if( auto is = inner_Solver() ) {
+   auto lb = is->get_lb();
+   if( lb == -Inf<FunctionValue>() )
+    return( lb );
+   else {
+    if( std::isnan( f_yb ) )
+     throw( std::logic_error( "get_lower_estimate called before compute" ) );
+    return( f_yb > -Inf<FunctionValue>() ? lb + f_yb : lb );
+    }
    }
+  else
+   return( -Inf<FunctionValue>() );
   }
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  FunctionValue get_upper_estimate( void ) const override {
-  auto ub = inner_Solver()->get_ub();
-  if( ub == Inf<FunctionValue>() )
-   return( ub );
-  else {
-   if( std::isnan( f_yb ) )
-    throw( std::logic_error( "get_upper_estimate called before compute" ) );
-   return( f_yb > -Inf<FunctionValue>() ? ub + f_yb : ub );
+  if( auto is = inner_Solver() ) {
+   auto ub = is->get_ub();
+   if( ub == Inf<FunctionValue>() )
+    return( ub );
+   else {
+    if( std::isnan( f_yb ) )
+     throw( std::logic_error( "get_upper_estimate called before compute" ) );
+    return( f_yb > -Inf<FunctionValue>() ? ub + f_yb : ub );
+    }
    }
+  else
+   return( -Inf<FunctionValue>() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1820,8 +1840,7 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- [[nodiscard]] int get_int_par( idx_type par )
-  const override {
+ [[nodiscard]] int get_int_par( idx_type par ) const override {
   if( ( par < intLastAlgParTCI ) || ( par >= intLastLagBFPar ) ) {
    if( auto is = inner_Solver() )
     return( is->get_int_par( int_par_is( par ) ) );
@@ -1842,8 +1861,7 @@ class LagBFunction : public C05Function , public Block {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- [[nodiscard]] double get_dbl_par( idx_type par )
-  const override {
+ [[nodiscard]] double get_dbl_par( idx_type par ) const override {
   if( ( par < dblLastAlgParTCI ) || ( par >= dblLastLagBFPar ) ) {
    if( auto is = inner_Solver() )
     return( is->get_dbl_par( dbl_par_is( par ) ) );
@@ -1851,10 +1869,15 @@ class LagBFunction : public C05Function , public Block {
     return( C05Function::get_dflt_dbl_par( par ) );
    }
 
-  switch( par ) {
-   case( dblRAccLin ): return( RAccLin );
-   case( dblAAccLin ): return( AAccLin );
-   }
+  if( auto is = inner_Solver() )
+   switch( par ) {
+    case( dblRelAcc ):   return( is->get_dbl_par( Solver::dblRelAcc ) );
+    case( dblAbsAcc ):   return( is->get_dbl_par( Solver::dblAbsAcc ) );
+    case( dblUpCutOff ): return( is->get_dbl_par( Solver::dblUpCutOff ) );
+    case( dblLwCutOff ): return( is->get_dbl_par( Solver::dblLwCutOff ) );
+    case( dblRAccLin ):  return( is->get_dbl_par( Solver::dblRAccSol ) );
+    case( dblAAccLin ):  return( is->get_dbl_par( Solver::dblAAccSol ) );
+    }
 
   return( C05Function::get_dflt_dbl_par( par ) );
   }
@@ -2184,7 +2207,7 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- void init_BSC( void );
+ void init_CC( void );
 
 /*--------------------------------------------------------------------------*/
 
@@ -2288,17 +2311,15 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  Solver * inner_Solver( void ) const {
-  if( ! p_InnrSlvr ) {
-   if( v_Block.empty() )
-    throw( std::logic_error( "inner Solver invoked with no inner Block" ) );
+  if( ( ! p_InnrSlvr ) && ( ! v_Block.empty() ) ) {
    auto & rs = v_Block.front()->get_registered_solvers();
-   if( rs.size() <= InnrSlvr )
-    throw( std::logic_error( "wrong inner Solver index" ) );
-   auto rsit = rs.begin();
-   std::next( rsit , InnrSlvr );
-   // note the horribly dirty trick of casting away const-ness from this
-   // to allow inner_Solver() to be const and therefore used in const methods
-   const_cast< LagBFunction * >( this )->p_InnrSlvr = *rsit;
+   if( rs.size() > InnrSlvr ) {
+    auto rsit = rs.begin();
+    std::next( rsit , InnrSlvr );
+    // note the horribly dirty trick of casting away const-ness from this
+    // to allow inner_Solver() to be const and therefore used in const methods
+    const_cast< LagBFunction * >( this )->p_InnrSlvr = *rsit;
+    }
    }
   return( p_InnrSlvr );
   }
@@ -2439,13 +2460,11 @@ class LagBFunction : public C05Function , public Block {
 
  int LPMaxSz;         ///< maximum size of the "local pool"
 
- double RAccLin;      ///< maximum relative error in any linearization
-
- double AAccLin;      ///< maximum absolute error in any reported solution
-
  BlockSolverConfig * f_BSC;  ///< a BlockSolverConfig for the inner Block
 
- bool f_BSC_changed;         ///< true if the BlockSolverConfig has changed
+ ComputeConfig * f_CC;       ///< a ComputeConfig for the inner Solver
+
+ bool f_CC_changed;          ///< true if the ComputeConfig has changed
 
  void * f_id;           ///< the "identity" of the LagBFunction 
 

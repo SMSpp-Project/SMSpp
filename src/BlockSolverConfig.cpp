@@ -626,7 +626,7 @@ void RBlockSolverConfig::apply( Block * block ) const
     ( *it )->apply( sub_Block );
    else
     if( ! f_diff )
-    sub_Block->unregister_Solvers( true );
+     sub_Block->unregister_Solvers( true );
    }
   ++it;
   }
