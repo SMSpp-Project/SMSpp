@@ -5963,7 +5963,7 @@ class Block : public Observer {
  /// friend operator>>(), dispatching to *pure* virtual protected load()
  /** Not really a method, but a friend operator>>() that just calls the
    * protected *pure* virtual method load(). This way the operator>>() is
-   * defined for each Block, but it won't work for the case class, which is
+   * defined for each Block, but it won't work for the base class, which is
    * abstract: it can only work for concrete derived classes which have
    * actually implemented load() (because they have some actual data to
    * load). */

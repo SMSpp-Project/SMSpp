@@ -217,8 +217,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
    *   lb >= dblUpCutOff
    *
    * This is a *certificate* that the value is at *least* dblUpCutOff. The
-   * default is Inf<OFValue>(), i.e., no upper cut off.
-   */
+   * default is Inf<OFValue>(), i.e., no upper cut off. */
 
   dblLwCutOff ,  ///< lower cutoff on the value of the function
                  /**< The parameter for setting the "lower cut off" of the
