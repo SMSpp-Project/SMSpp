@@ -21,7 +21,7 @@
  *
  * \version 0.14
  *
- * \date 13 - 12 - 2021
+ * \date 04 - 01 - 2022
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -349,7 +349,7 @@ using KD_c_Vec_List_p_Const = const boost::multi_array< List_p_Const, K >;
  * the C preprocessor only does one pass, and while there are some very dirty
  * hacks around that we prefer to steer well clear of those. Anyway this
  * mechanism should only be used as last resort since it has a (hopefully,
- * little but) nonzero cost at runtime. 
+ * little but) nonzero cost at runtime.
  * @{ */
 
 /** The macro defines a very small, "fake" class _init. Its only meaning is to
@@ -419,7 +419,7 @@ struct t< T( U ) > { using type = U; };
  * in the case name_string is not guaranteed to be free of whitespaces and
  * parentheses. */
 
-inline std::string && SMSpp_classname_normalise( std::string && str ) {      
+inline std::string && SMSpp_classname_normalise( std::string && str ) {
  str.erase( std::remove_if( str.begin() , str.end() , ::isspace ) ,
             str.end() );
  while( str.front() == '(' ) { str.pop_back(); str.erase( 0 , 1 ); }
@@ -670,7 +670,7 @@ bool SMSpp_ensure_load_var;
 // address of some method of the class, but this is not enough in all
 // case to force the linker to include the relevant object, while creating
 // an object of the class damn sure is
- 
+
 #define SMSpp_ensure_load( ClassName )                                      \
  template<>                                                                 \
  bool SMSpp_ensure_load_var< SMSpp_type_traits::t<void(ClassName)>::type > =\
@@ -1905,7 +1905,7 @@ template< template <class ... > class C , typename T ,
   while( lit != l.end() )
    *(lit++) = T();
   }
- 
+
  return( is );
  }
 
@@ -1996,7 +1996,7 @@ void serialize( netCDF::NcGroup & group , const std::pair< T1 , T2 > & data ,
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// deserialize a std::vector into a given group
 /** Deserialize a std::vector of "simple" values, for which
- * NcGroup::getVar() is defined, out of the given \p group and into \p data. 
+ * NcGroup::getVar() is defined, out of the given \p group and into \p data.
  * This is supposed to be represented by the dimension with name \p size
  * giving the size of the std::vector, and by the variable with name \p name
  * containing the actual values. */
@@ -2273,15 +2273,21 @@ bool deserialize( const netCDF::NcGroup & group ,
 
 /*--------------------------------------------------------------------------*/
 /// deserialize a multi-dimensional variable out of a netCDF NcGroup
-/** This function reads a multi-dimensional array of values of type \p T
- * from a netCDF variable with name \p var_name within the given netCDF
- * NcGroup \p group. The values read are stored in the given vector data in
+/** This function reads a multi-dimensional array of values of type \p T from
+ * a netCDF variable with name \p var_name within the given netCDF NcGroup \p
+ * group. The values that are read are stored in the given vector \p data in
  * row-major layout.
  *
- * If the size of any dimension is zero, then \p data is resized to zero. If
- * the variable is not present in the given \p group, then the vector \p data
- * is resized to zero if the value of the parameter \p optional is true or an
- * std::invalid_argument exception is thrown if \p optional is false.
+ * If the netCDF variable has no dimension (i.e., it is a scalar variable),
+ * then \p data is resized to 1 and its only element receives the value of the
+ * netCDF variable.
+ *
+ * If the netCDF variable has at least one dimension and the size of any of
+ * its dimension is zero, then \p data is resized to zero.
+ *
+ * If the variable is not present in the given \p group, then the vector \p
+ * data is resized to zero if the value of the parameter \p optional is true
+ * or an std::invalid_argument exception is thrown if \p optional is false.
  *
  * If the given \p group has more than one variable with the same name, then
  * the variable that is considered follows the rule defined by the netCDF
@@ -2321,8 +2327,10 @@ bool deserialize( const netCDF::NcGroup & group ,
 
  auto sizes_dimensions = get_sizes_dimensions( ncVar );
  if( sizes_dimensions.empty() ) {
-  data.resize( 0 );
-  return( false );
+  // The variable is a scalar one.
+  data.resize( 1 );
+  ncVar.getVar( data.data() );
+  return( true );
   }
 
  auto total_size = std::accumulate( begin( sizes_dimensions ) ,
