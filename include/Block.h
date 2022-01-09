@@ -96,15 +96,14 @@
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato,
- *                     Kostas Tavlaridis-Gyparakis
+ * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*----------------------------- DEFINITIONS --------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 #ifndef __Block
-#define __Block       /* self-identification: #endif at the end of the file */
+ #define __Block      /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -2309,7 +2308,7 @@ class Block : public Observer {
  virtual void generate_objective( Configuration * objc = nullptr ) {
   for( auto blck : v_Block )
    blck->generate_objective();
- }
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*----------------- Methods for reading the data of the Block --------------*/
@@ -2369,15 +2368,15 @@ class Block : public Observer {
   * exception is thrown. */
 
  template< class Obj >
- Obj * get_objective() const {
+ Obj * get_objective( void ) const {
   static_assert( std::is_base_of< Objective, Obj >::value,
                  "get_objective: Obj must inherit from Objective" );
   auto obj = dynamic_cast< Obj * >( f_Objective );
-  if( !obj )
-   throw ( std::invalid_argument( "get_objective: objective is not of "
-                                  "required type" ) );
-  return ( obj );
- }
+  if( ! obj )
+   throw( std::invalid_argument(
+		     "get_objective: objective is not of  required type" ) );
+  return( obj );
+  }
 
 
 /*--------------------------------------------------------------------------*/
@@ -2399,7 +2398,7 @@ class Block : public Observer {
   * -Infinity). Besides, minimization problems are somewhat more common that
   * maximization ones in practice. */
 
- virtual int get_objective_sense() const;
+ virtual int get_objective_sense( void ) const;
 
 /*--------------------------------------------------------------------------*/
  /// getting upper bounds on the value of the Objective
@@ -2571,8 +2570,8 @@ class Block : public Observer {
   * it has been decided against it. */
 
  virtual double get_valid_upper_bound( bool conditional = false ) {
-  return ( +Inf< double >() );
- }
+  return( +Inf< double >() );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// getting a global valid lower bound on the value of the Objective
@@ -2644,8 +2643,8 @@ class Block : public Observer {
   * for algorithms solving the problem, possibly via duality. */
 
  virtual double get_valid_lower_bound( bool conditional = false ) {
-  return ( -Inf< double >() );
- }
+  return( -Inf< double >() );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// reading the vector of sub-Blocks of the Block
@@ -2680,10 +2679,10 @@ class Block : public Observer {
  Block * get_nested_Block( const std::string & name ) const {
   for( auto bi : v_Block )
    if( bi && ( bi->name() == name ) )
-    return ( bi );
+    return( bi );
 
-  return ( nullptr );
- }
+  return( nullptr );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the index of the sub-Block with given \p name
@@ -2696,8 +2695,8 @@ class Block : public Observer {
    if( *bit && ( ( *bit )->name() == name ) )
     break;
 
-  return ( std::distance( v_Block.begin(), bit ) );
- }
+  return( std::distance( v_Block.begin(), bit ) );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the index of the given sub-Block
@@ -2706,13 +2705,13 @@ class Block : public Observer {
 
  Index get_nested_Block_index( Block * const block ) const {
   auto bit = std::find( v_Block.begin(), v_Block.end(), block );
-  return ( std::distance( v_Block.begin(), bit ) );
- }
+  return( std::distance( v_Block.begin(), bit ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// getting the verbosity level
 
- verbosity_type get_verbosity() const { return ( verbosity_lvl ); }
+ verbosity_type get_verbosity( void ) const { return ( verbosity_lvl ); }
 
 /**@} ----------------------------------------------------------------------*/
 /** @name Methods for reading the Block's Variables and Constraints
