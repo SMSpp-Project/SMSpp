@@ -24,7 +24,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef NDEBUG
- #define CHECK_SOLUTIONS 0
+ #define CHECK_SOLUTIONS 3
  /* CHECK_SOLUTIONS, coded bit-wise, activates some checks about the solutions
   * that are generated and used to compute linearizations. This should not be
   * necessary and it's costly, but it may be useful to catch some bugs in the
@@ -1701,6 +1701,24 @@ int LagBFunction::compute( bool changedvars )
 
 /*--------------------------------------------------------------------------*/
 
+#if CHECK_SOLUTIONS & 2
+
+static double cptobj( Block * blck )
+{
+ double ov = 0;
+ if( auto obj = dynamic_cast< FRealObjective * >( blck->get_objective() ) ) {
+  obj->compute();
+  ov = obj->value();
+  }
+ for( auto bk : blck->get_nested_Blocks() )
+  ov += cptobj( bk );
+ return( ov );
+ }
+
+#endif
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
 void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
 						   Range range , Index name )
 {
@@ -1729,9 +1747,7 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
        std::cout << "Error: solution infeasible " << std::endl;
      #endif
      #if CHECK_SOLUTIONS & 2
-      auto obj = static_cast< FRealObjective * >( blck->get_objective() );
-      obj->compute();
-      auto ov = obj->value();
+      auto ov = cptobj( blck );
       auto iv = is->get_var_value();
       if( std::abs( ov - iv ) > 1e-6 * std::max( double( 1 ) , iv ) )
        std::cout << "Error: objval = " << ov << " != isval = " << iv
