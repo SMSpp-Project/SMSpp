@@ -63,7 +63,7 @@ SMSpp_insert_in_factory_cpp_0( BoxSolver );
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
-void  BoxSolver::set_Block( Block * block )
+void BoxSolver::set_Block( Block * block )
 {
  CDASolver::set_Block( block );
  f_sense = -1;
@@ -75,12 +75,9 @@ void  BoxSolver::set_Block( Block * block )
 
  // compute the set of all involved (sub-)Block
  f_desc.push_back( f_Block );
- for( auto it = f_desc.begin() ; it != f_desc.end() ; ++it ) {
-  auto cs = f_desc.size();
-  f_desc.resize( cs + (*it)->get_number_nested_Blocks() );
-  std::copy( (*it)->get_nested_Blocks().begin() ,
-	     (*it)->get_nested_Blocks().end() , f_desc.begin() + cs );
-  }
+ for( Block::Index i = 0 ; i < f_desc.size() ; ++i )
+  for( auto el : f_desc[ i ]->get_nested_Blocks() )
+   f_desc.push_back( el );
 
  f_desc.shrink_to_fit();
  }
