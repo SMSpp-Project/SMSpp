@@ -1749,7 +1749,8 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
      #if CHECK_SOLUTIONS & 2
       auto ov = cptobj( blck );
       auto iv = is->get_var_value();
-      if( std::abs( ov - iv ) > 1e-6 * std::max( double( 1 ) , iv ) )
+      if( std::abs( ov - iv ) >
+	  1e-6 * std::max( double( 1 ) , std::abs( iv ) ) )
        std::cout << "Error: objval = " << ov << " != isval = " << iv
 		 << std::endl;
      #endif
