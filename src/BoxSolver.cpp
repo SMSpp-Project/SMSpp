@@ -134,6 +134,8 @@ int BoxSolver::compute( bool changedvars )
 
   VarValue l , u;
   if( auto lf = dynamic_cast< LinearFunction * >( f_altobj ) ) {
+   f_max_val = f_min_val = lf->get_constant_term();
+   
    if( f_sol & 2 ) {
     for( auto el : lf->get_v_var() ) {
      if( el.second == 0 )
@@ -157,10 +159,12 @@ int BoxSolver::compute( bool changedvars )
    }
   else
    if( auto qf = dynamic_cast< DQuadFunction * >( f_altobj ) ) {
-     if( f_sol & 2 ) {
-      for( auto el : qf->get_v_var() ) {
-       if( ( std::get< 1 >( el ) == 0 ) && ( std::get< 2 >( el ) == 0 ) )
-	continue;
+    f_max_val = f_min_val = qf->get_constant_term();
+
+    if( f_sol & 2 ) {
+     for( auto el : qf->get_v_var() ) {
+      if( ( std::get< 1 >( el ) == 0 ) && ( std::get< 2 >( el ) == 0 ) )
+       continue;
 
       OneVarConstraint * cl = nullptr;
       OneVarConstraint * cu = nullptr;
@@ -198,6 +202,19 @@ int BoxSolver::compute( bool changedvars )
 		      std::placeholders::_1 );
 
   for( auto bk : f_desc ) {
+   // deal with the constant in the Objective
+   if( auto obj = bk->get_objective() ) {
+    double ct = 0;
+    if( auto lf = dynamic_cast< LinearFunction * >( obj ) )
+     ct = lf->get_constant_term();
+    else
+     if( auto qf = dynamic_cast< DQuadFunction * >( obj ) )
+      ct = qf->get_constant_term();
+
+    f_max_val += ct;
+    f_min_val += ct;
+    }
+
    // process static variables
    for( const auto & el : bk->get_static_variables() ) {
     if( un_any_const_static( el , f , un_any_type< ColVariable >() ) ) {

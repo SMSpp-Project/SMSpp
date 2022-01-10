@@ -52,6 +52,8 @@ namespace SMSpp_di_unipi_it
 
  class LagBFunctionState;  // forward declaration of LagBFunctionState
 
+ class BoxSolver;          // forward declaration of BoxSolver
+
 /*--------------------------------------------------------------------------*/
 /*------------------------------- CLASSES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -679,7 +681,7 @@ class LagBFunction : public C05Function , public Block {
  /** destructor of LagBFunction. It deletes delete the global pool and the
      LagMatrix which is used to change the Lagrangian costs. */
 
- virtual ~LagBFunction( void ) { guts_of_destructor(); };
+ virtual ~LagBFunction( void ) { guts_of_destructor(); delete f_BS; };
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -1137,7 +1139,7 @@ class LagBFunction : public C05Function , public Block {
   *     THE PARAMETER INDICES CHANGE MEANING IF THE TYPE OF THE INNER Solver
   *     CHANGES
   *
-  * which happens changing intInnrSlvr. Hence, if one* wants to change the
+  * which happens changing intInnrSlvr. Hence, if one wants to change the
   * inner Solver and configure it, it should first do the change and then set
   * the parameters (which is logically required anyway). This is why in
   * set_ComputeConfig() first it is checked if "intInnrSlvr" changes, and
@@ -1174,7 +1176,7 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- void deserialize( const netCDF::NcGroup& group ) override;
+ void deserialize( const netCDF::NcGroup & group ) override;
 
 /**@} ----------------------------------------------------------------------*/
 /*---------------------- METHODS FOR EVENTS HANDLING -----------------------*/
@@ -1242,16 +1244,16 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 /** @name Methods for modifying the LagBFunction
  *
- * Methods to add ar delete Lagrangian pairs < y , g(x) >, i.e., active
+ * Methods to add ar delete Lagrangian pairs < y , g( x ) >, i.e., active
  * Variable of the LagBFunction. Note that there are no explicit methods
- * to *modify* the g_i(x) in the current Lagrangian terms because this can
+ * to *modify* the g_i( x ) in the current Lagrangian terms because this can
  * be done by acquiring the pointer to the corresponding Function (currently
  * necessarily a LinearFunction) and directly modifying it.
  *
  *  @{ */
 
- /// add new Lagrangian pairs < y , g(x) > (hence, active Variable)
- /** This method adds a bunch of new Lagrangian pairs < y , g(x) > to the
+ /// add new Lagrangian pairs < y , g( x ) > (hence, active Variable)
+ /** This method adds a bunch of new Lagrangian pairs < y , g( x ) > to the
   * existing ones, thereby increasing the number of the active [Col]Variable
   * of the LagBFunction.
   *
@@ -1262,8 +1264,8 @@ class LagBFunction : public C05Function , public Block {
  void add_dual_pairs( v_dual_pair && lp , ModParam issueMod = eNoBlck );
 
 /*--------------------------------------------------------------------------*/
- /// remove the i-th Lagrangian term < y_i , g_i(x) > from the LagBFunction
- /** Remove the i-th Lagrangian term < y_i , g_i(x) > from the LagBFunction,
+ /// remove the i-th Lagrangian term < y_i , g_i( x ) > from the LagBFunction
+ /** Remove the i-th Lagrangian term < y_i , g_i( x ) > from the LagBFunction,
   * i.e., its i-th "active" Variable. If there is no Variable with the given
   * index, an exception is thrown.
   *
@@ -1275,7 +1277,7 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
  /// remove a range of Lagrangian terms from the LagBFunction
- /** Remove Lagrangian terms < y_i , g_i(x) > with range.first <= i <
+ /** Remove Lagrangian terms < y_i , g_i( x ) > with range.first <= i <
   * range.second from the LagBFunction, i.e., the corresponding range of
   * the "active" Variable.
   *
@@ -1287,8 +1289,8 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
  /// remove a subset of Lagrangian terms from the LagBFunction
- /** Remove the Lagrangian terms < y_i , g_i(x) > with i \in subset from the
-  * LagBFunction, i.e., the corresponding subset of the "active" Variable.
+ /** Remove the Lagrangian terms < y_i , g_i( x ) > with i \in subset from
+  * the LagBFunction, i.e., the corresponding subset of the "active" Variable.
   * If \p nms.empty(), then *all* the Lagrangian terms ("active" Variable) are
   * removed. \p ordered tells if \p nms is already ordered in increasing
   * sense.
@@ -1411,7 +1413,7 @@ class LagBFunction : public C05Function , public Block {
   *     TO BE DONE
   */
 
- void serialize( netCDF::NcGroup& group ) const override;
+ void serialize( netCDF::NcGroup & group ) const override;
 
 /**@} ----------------------------------------------------------------------*/
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF THE LagBFunction ------------*/
@@ -1574,11 +1576,10 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  FunctionValue get_Lipschitz_constant( void ) override {
-  // TODO: try to compute a Lipschitz constant. this should be possible if
-  //       all variable in the inner Block are bounded
-  // !! important!!
+  if( f_Lc < 0 )
+   compute_Lipschitz_constant();
 
-  return( std::numeric_limits<FunctionValue>::infinity() );
+  return( f_Lc );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1597,13 +1598,13 @@ class LagBFunction : public C05Function , public Block {
 
 /*--------------------------------------------------------------------------*/
 
- void get_linearization_coefficients( FunctionValue * g , c_Subset & subset  ,
+ void get_linearization_coefficients( FunctionValue * g , c_Subset & subset ,
 				      bool ordered = false ,
 				      Index name = Inf<Index>() ) override;
 
 /*--------------------------------------------------------------------------*/
 
- FunctionValue get_linearization_constant( c_Index name = Inf<Index>() )
+ FunctionValue get_linearization_constant( Index name = Inf<Index>() )
   override;
 
 /*--------------------------------------------------------------------------*/
@@ -2191,6 +2192,7 @@ class LagBFunction : public C05Function , public Block {
   for( const auto & dp : LagPairs )
    delete dp.second;
   LagPairs.clear();
+  f_Lc = -1;
   }
 
 /*--------------------------------------------------------------------------*/
@@ -2303,6 +2305,8 @@ class LagBFunction : public C05Function , public Block {
  template< typename par_type >
  void add_par( std::string && name , par_type && value );
 
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
  template< typename par_type >
  void add_par( const std::string & name , par_type && value ) {
   add_par( std::string( name ) , std::move( value ) );
@@ -2324,6 +2328,10 @@ class LagBFunction : public C05Function , public Block {
   return( p_InnrSlvr );
   }
 
+/*--------------------------------------------------------------------------*/
+
+ void compute_Lipschitz_constant( void );
+ 
 /**@} ----------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -2456,6 +2464,8 @@ class LagBFunction : public C05Function , public Block {
 
  bool f_c_changed;    ///< true if the costs in the Block are not original
 
+ FunctionValue f_Lc;  ///< the Lipschitz constant
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  int LPMaxSz;         ///< maximum size of the "local pool"
@@ -2466,7 +2476,9 @@ class LagBFunction : public C05Function , public Block {
 
  bool f_CC_changed;          ///< true if the ComputeConfig has changed
 
- void * f_id;           ///< the "identity" of the LagBFunction 
+ BoxSolver * f_BS;    ///< the BoxSolver to compute the Lipschitz constant
+ 
+ void * f_id;         ///< the "identity" of the LagBFunction 
 
 /*--------------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/

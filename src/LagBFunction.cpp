@@ -46,6 +46,8 @@
 
 #include "BlockSolverConfig.h"
 
+#include "BoxSolver.h"
+
 #include "FRowConstraint.h"
 
 #include "LagBFunction.h"
@@ -138,8 +140,9 @@ LagBFunction::LagBFunction( Block * innerblock , Observer * observer )
    InnrSlvr( 0 ) , NoSol( false ) , ChkState( false ) ,
    p_InnrSlvr( nullptr ) , f_max_glob( 0 ) , LastSolution( 0 ) ,
    VarSol( true ) , f_yb( -INF ) , f_play_dumb( false ) ,
-   f_dirty_Lc( false ) , f_c_changed( false ) ,  LPMaxSz( 0 ) ,
-   f_BSC( nullptr ) , f_CC( nullptr ) , f_CC_changed( false ) , f_id( this )
+   f_dirty_Lc( false ) , f_c_changed( false ) ,  f_Lc( -1 ) , LPMaxSz( 0 ) ,
+   f_BSC( nullptr ) , f_CC( nullptr ) , f_CC_changed( false ) ,
+   f_BS( nullptr ) , f_id( this )
 {
  // set the pointer to the sub-Block (B) - - - - - - - - - - - - - - - - - - -
  if( innerblock )
@@ -237,6 +240,7 @@ void LagBFunction::set_inner_block( Block * innerblock , bool deleteold )
  f_c_changed = false;  // Lagrangian costs are still == to original costs
  f_dirty_Lc = ! LagPairs.empty();  // ... hence they have to be updated,
                                    // unless the Lagrangian term is empty
+ f_Lc = -1;            // the Lipschitz constant must be computed
 
  }  // end( LagBFunction::set_inner_block )
 
@@ -278,28 +282,6 @@ void LagBFunction::set_dual_pairs( v_dual_pair && dp )
  f_dirty_Lc = f_c_changed || ( ! LagPairs.empty() );
 
  }  // end( LagBFunction::set_dual_pairs )
-
-/*--------------------------------------------------------------------------*/
-
-void LagBFunction::set_default_inner_BlockConfig( void )
-{
- if( auto inner_block = get_inner_block() ) {
-  auto config = new OCRBlockConfig( inner_block );
-  config->clear();
-  config->apply( inner_block );
-  }
- }
-
-/*--------------------------------------------------------------------------*/
-
-void LagBFunction::set_default_inner_BlockSolverConfig( void )
-{
- if( auto inner_block = get_inner_block() ) {
-  auto solver_config = new RBlockSolverConfig( inner_block );
-  solver_config->clear();
-  solver_config->apply( inner_block );
-  }
- }
 
 /*--------------------------------------------------------------------------*/
 
@@ -513,6 +495,7 @@ void LagBFunction::deserialize( const netCDF::NcGroup & group )
  f_dirty_Lc = ! LagPairs.empty();  // ... hence they have to be updated,
                                    // unless the Lagrangian term is empty
  f_yb = INF;            // have to check if b == 0 or not
+ f_Lc = -1;             // the Lipschitz constant must be computed
 
  // now the inner Block - - - - - - - - - - - - - - - - - - - - - - - - - - -
  netCDF::NcGroup sb = group.getGroup( "B" );
@@ -521,7 +504,7 @@ void LagBFunction::deserialize( const netCDF::NcGroup & group )
 
  v_Block.push_back( new_Block( sb , this ) );
 
- // now the Lagrangian term < y , g(x) >- - - - - - - - - - - - - - - - - - -
+ // now the Lagrangian term < y , g( x ) >- - - - - - - - - - - - - - - - - -
  //!! not implemented yet
 
  // call the method of Block- - - - - - - - - - - - - - - - - - - - - - - - -
@@ -552,6 +535,7 @@ void LagBFunction::add_dual_pairs( v_dual_pair && dp , ModParam issueMod )
     }
 
  f_dirty_Lc = true;  // Lagrangian costs have to be updated
+ f_Lc = -1;          // the Lipschitz constant must be computed
 
  // ensure that LagBFunction is the Observer of the new LinearFunction
  for( auto & p : dp )
@@ -624,6 +608,8 @@ void LagBFunction::remove_variable( Index i , ModParam issueMod )
 			     LagPairs[ i ].second )->get_constant_term() ) ) {
   f_yb = INF;  // if so, signal to check if b == 0 or not
   }
+
+ f_Lc = -1;    // the Lipschitz constant must be computed
 
  // now actually eliminate the row from LagPairs - - - - - - - - - - - - - - -
  auto itv = LagPairs.begin() + i;
@@ -734,6 +720,8 @@ void LagBFunction::remove_variables( Range range , ModParam issueMod )
     f_yb = INF; break;  // if so, signal to check if b == 0 or not
     }
 
+ f_Lc = -1;             // the Lipschitz constant must be computed
+
  // now actually eliminate the rows from LagPairs- - - - - - - - - - - - - - -
  if( f_Observer && f_Observer->issue_mod( issueMod ) ) {
   // somebody is there: meanwhile, prepare data for the Modification
@@ -802,6 +790,8 @@ void LagBFunction::remove_variables( Subset && nms , bool ordered ,
   f_yb = -INF;  // b is empty, hence there are no nonzeros
   return;
   }
+
+ f_Lc = -1;     // the Lipschitz constant must be computed
 
  // this is not a complete reset
  if( ! ordered )
@@ -952,6 +942,7 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
  // this happen an appropriate C05FunctionMod is issued- - - - - - - - - - - -
 
  if( auto what = guts_of_add_Modification( mod.get() , chnl ) ) {
+  f_Lc = -1;      // the Lipschitz constant must be computed
   Index cnt = 0;  // how many linearizations are there
   Subset which;   // which ones get eliminated
 
@@ -1816,11 +1807,10 @@ void LagBFunction::get_linearization_coefficients( FunctionValue * g ,
        std::cout << "Error: solution infeasible " << std::endl;
      #endif
      #if CHECK_SOLUTIONS & 2
-      auto obj = static_cast< FRealObjective * >( blck->get_objective() );
-      obj->compute();
-      auto ov = obj->value();
+      auto ov = cptobj( blck );
       auto iv = is->get_var_value();
-      if( std::abs( ov - iv ) > 1e-6 * std::max( double( 1 ) , iv ) )
+      if( std::abs( ov - iv ) >
+	  1e-6 * std::max( double( 1 ) , std::abs( iv ) ) )
        std::cout << "Error: objval = " << ov << " != isval = " << iv
 		 << std::endl;
      #endif
@@ -1884,11 +1874,10 @@ Function::FunctionValue LagBFunction::get_linearization_constant( Index name )
        std::cout << "Error: solution infeasible " << std::endl;
      #endif
      #if CHECK_SOLUTIONS & 2
-      auto obj = static_cast< FRealObjective * >( blck->get_objective() );
-      obj->compute();
-      auto ov = obj->value();
+      auto ov = cptobj( blck );
       auto iv = is->get_var_value();
-      if( std::abs( ov - iv ) > 1e-6 * std::max( double( 1 ) , iv ) )
+      if( std::abs( ov - iv ) >
+	  1e-6 * std::max( double( 1 ) , std::abs( iv ) ) )
        std::cout << "Error: objval = " << ov << " != isval = " << iv
 		 << std::endl;
      #endif
@@ -2166,11 +2155,11 @@ bool LagBFunction::flush_v_tmpCP( void )
 
 void LagBFunction::add_to_CostMatrix( v_c_dual_pair & newdp )
 {
- // given a new vector of pairs < y_i , g_i(x) >, that were not a part of
+ // given a new vector of pairs < y_i , g_i( x ) >, that were not a part of
  // LagPairs already, update CostMatrix, which provides the information used
- // to compute the Lagrangian costs. the new g_i(x) may contain some Variable
- // x_j that is not in the Objective of the inner Block already, in which
- // case this is added (and CostMatrix grows by one row)
+ // to compute the Lagrangian costs. the new g_i( x ) may contain some
+ // Variable x_j that is not in the Objective of the inner Block already, in
+ // which case this is added (and CostMatrix grows by one row)
 
  for( Index i = 0 ; i < newdp.size() ; ++i ) {  // for each < y_i , g_i(x) >
   const auto gi = dynamic_cast< p_LF >( newdp[ i ].second );
@@ -2228,8 +2217,8 @@ void LagBFunction::add_to_CostMatrix( v_c_dual_pair & newdp )
     // add < y_i , a_{ij} > to A_j
     CostMatrix[ j ].second.insert( it , y_pair );
     }
-   }  // end( for( each monomial rpj in g_i(x) ) )
-  }  // end( for( each Lagrangian pair < y_i , g_i(x) > ) )- - - - - - - - - -
+   }  // end( for( each monomial rpj in g_i( x ) ) )
+  }  // end( for( each Lagrangian pair < y_i , g_i( x ) > ) )- - - - - - - - -
 
  // if needed, immediately flush the set of variables to be re-added to obj;
  // if the inner Block had to be locked for this, unlock it
@@ -2242,12 +2231,12 @@ void LagBFunction::add_to_CostMatrix( v_c_dual_pair & newdp )
 
 void LagBFunction::mod_CostMatrix( Index i , Index first )
 {
- // in the existing Lagrangian term < y_i , g_i(x) >, new monomials have been
- // added to g_i(x) at position first and following: update CostMatrix, which
- // provides the information used to compute the Lagrangian costs. the new
- // monomials in g_i(x) may contain some Variable x_j that is not in the
- // Objective of the inner Block already, in which case this is added (and
- // CostMatrix grows by one row)
+ // in the existing Lagrangian term < y_i , g_i( x ) >, new monomials have
+ // been added to g_i( x ) at position first and following: update
+ // CostMatrix, which provides the information used to compute the Lagrangian
+ // costs. the new monomials in g_i( x ) may contain some Variable x_j that
+ // is not in the Objective of the inner Block already, in which case this
+ // is added (and CostMatrix grows by one row)
 
  const auto gi = static_cast< p_LF >( LagPairs[ i ].second );
  const auto & rp = gi->get_v_var();
@@ -2303,7 +2292,7 @@ void LagBFunction::mod_CostMatrix( Index i , Index first )
    // add < y_i , a_{ij} > to A_j
    CostMatrix[ j ].second.insert( it , y_pair );
    }
-  }  // end( for( each monomial in g_i(x) ) )
+  }  // end( for( each monomial in g_i( x ) ) )
  }  // end( LagBFunction::mod_CostMatrix )
 
 /*--------------------------------------------------------------------------*/
@@ -2432,7 +2421,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
     }  // end( coming from obj )
 
    if( lf->get_Observer() == this ) {
-    // ... defining a Lagrangian term < y_i , g_i(x) > - - - - - - - - - - - -
+    // ... defining a Lagrangian term < y_i , g_i( x ) > - - - - - - - - - - -
     // the corresponding entry of all the linearizations changes
 
     // search for the Lagrangian term which has changed
@@ -2469,6 +2458,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
      }  // end( for( all the changed a_{ij} ) )
 
     f_dirty_Lc = true;  // Lagrangian costs will have to be recomputed
+    f_Lc = -1;          // the Lipschitz constant must be computed
 
     // issue a C05FunctionModRngd saying that the entry i of all
     // the linearizations in the global pool has changed (the value of
@@ -2537,7 +2527,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
     }  // end( coming from obj )
 
    if( lf->get_Observer() == this ) {
-    // ... defining a Lagrangian term < y_i , g_i(x) > - - - - - - - - - - - -
+    // ... defining a Lagrangian term < y_i , g_i( x ) > - - - - - - - - - - -
     // the corresponding entry of all the linearizations changes
 
     // search for the Lagrangian term which has changed
@@ -2574,6 +2564,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
      }  // end( for( all the changed a_{ij} ) )
 
     f_dirty_Lc = true;  // Lagrangian costs will have to be recomputed
+    f_Lc = -1;          // the Lipschitz constant must be computed
 
     // issue a C05FunctionModRngd (yes, it is Rngd, even if the originating
     // C05FunctionModLin was a Sbst one) saying that the entry i of all
@@ -2666,8 +2657,8 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
  //
  // - the (LinearFunction od DQuadFunction inside the) Objective of the inner
  //   Block, or any of its sub-Block (recursively); if it is obj, the only
- //   remaining FunctionMod is the C05FunctionMod with type() == NothingChanged
- //   corresponding to the change of the constant term
+ //   remaining FunctionMod is the C05FunctionMod with type() ==
+ //   NothingChanged corresponding to the change of the constant term
  //
  // - the LinearFunction that defines a Lagrangian term < y_i , g_i( x ) >;
  //   also in this case, the only remaining FunctionMod is the C05FunctionMod
@@ -2746,13 +2737,13 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
    }  // end( if( from the Objective of a further sub-Block ) )
 
-  if( f->get_Observer() == this ) {  // a g_i(x) - - - - - - - - - - - - - - -
+  if( f->get_Observer() == this ) {  // a g_i( x ) - - - - - - - - - - - - - -
    // the next case is the one where f is one of the LinearFunction defining
-   // the Lagrangian term < y_i , g_i(x) >; these are easy to spot in that
+   // the Lagrangian term < y_i , g_i( x ) >; these are easy to spot in that
    // are the only Function whose Observer is directly the LagBFunction.
    // again, the only remaining FunctionMod is the C05FunctionMod with
    // type() == NothingChanged corresponding to the change of the constant
-   // term. that is, the constant term b_i of the LinearFunction g_i(x) =
+   // term. that is, the constant term b_i of the LinearFunction g_i( x ) =
    // A_i x + b_i has changed to b'_i. hence, the i-th entry of all
    // linearizations changes by shift() == b'_i - b_i, which is the perfect
    // case for a C05FunctionModLinRngd with range() == ( i , i + 1 ) and
@@ -2761,6 +2752,10 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
    // since b_i has changed, b may no longer be all-0 if it previously was,
    // and the linear term has to be recomputed (or b == 0 checked first)
    f_yb = f_yb == -INF ? INF : NaN;
+   f_Lc = -1;  // the Lipschitz constant must be computed
+   // in fact there could be better ways to react to this if one were to
+   // keep more disaggregated information about the Lipschitz constant, but
+   // this does not look to be a common occurrence so we don't bother yet
 
    if( f_Observer ) {
     // search for the Lagrangian term which has changed
@@ -2796,8 +2791,10 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
   // otherwise in principle it can be violated and we need to check
   if( auto cnsobs = dynamic_cast< FRowConstraint * >( f->get_Observer() ) )
    if( ( ( tmod->shift() > 0 ) && ( cnsobs->get_rhs() < INF ) ) ||
-       ( ( tmod->shift() < 0 ) && ( cnsobs->get_lhs() > -INF ) ) )
+       ( ( tmod->shift() < 0 ) && ( cnsobs->get_lhs() > -INF ) ) ) {
+    f_Lc = -1;    // yet, the Lipschitz constant must be recomputed
     return( 0 );
+    }
 
   // this is a Function that has changed in some way we don't understand:
   // take the safe route and re-check feasibility
@@ -2839,7 +2836,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
     // issue a LagBFunctionMod modification of the type AlphaChanged and
     // with what() == 1: the Lagrangian function unpredictably changes
-    // (f_shift == NaN), and the constant terms \alpha =  c x^* of the
+    // (f_shift == NaN), and the constant terms \alpha = c x^* of the
     // linearizations ( g , \alpha ) have to be computed again since
     // c has changed (while g remains unchanged)
     if( f_Observer )
@@ -2850,7 +2847,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
     }  // end( coming from obj )
 
-   if( lf->get_Observer() == this ) {  // coming from a g_i(x) - - - - - - - -
+   if( lf->get_Observer() == this ) {  // coming from a g_i( x ) - - - - - - -
     // add the corresponding terms to CostMatrix
 
     // search for the Lagrangian term which has changed
@@ -2875,9 +2872,10 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 			       Range( i , i + 1 ) , Subset() , NaN , true ) ,
 				   chnl );
 
+    f_Lc = -1;    // the Lipschitz constant must be computed
     return( 0 );  // all done
 
-    }  // end( coming from( < y_i , g_i(x) > ) )
+    }  // end( coming from( < y_i , g_i( x ) > ) )
    }  // end( coming from a LinearFunction )
 
   if( const auto qf = dynamic_cast< const p_QF >( tmod->function() ) )
@@ -2929,7 +2927,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
     }  // end( coming from obj )
 
-   if( lf->get_Observer() == this ) {  // coming with a g_i(x) - - - - - - - -
+   if( lf->get_Observer() == this ) {  // coming with a g_i( x ) - - - - - - -
     // remove the corresponding terms from CostMatrix
 
     // search for the Lagrangian term which has changed
@@ -2991,6 +2989,8 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 			       Vec_p_Var( { it->first } ) ,
 			       Range( i , i + 1 ) , Subset() , NaN , true ) ,
 				   chnl );
+
+    f_Lc = -1;    // the Lipschitz constant must be computed
     return( 0 );  // all done
 
     }  // end( coming from( < y_i , g_i(x) > ) )
@@ -3043,7 +3043,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 
     }  // end( coming from obj )
 
-   if( lf->get_Observer() == this ) {  // coming with a g_i(x) - - - - - - - -
+   if( lf->get_Observer() == this ) {  // coming with a g_i( x ) - - - - - - -
     // remove the corresponding terms from CostMatrix
 
     // search for the Lagrangian term which has changed
@@ -3105,9 +3105,11 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
 			       Vec_p_Var( { it->first } ) ,
 			       Range( i , i + 1 ) , Subset() , NaN , true ) ,
 				   chnl );
+
+    f_Lc = -1;    // the Lipschitz constant must be computed
     return( 0 );  // all done
 
-    }  // end( coming from( < y_i , g_i(x) > ) )
+    }  // end( coming from( < y_i , g_i( x ) > ) )
    }  // end( coming from a LinearFunction )
 
   if( const auto qf = dynamic_cast< p_QF >( tmod->function() ) )
@@ -3197,8 +3199,11 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
       && ( ( xj->is_negative() == xj->is_negative( tmod->old_state() ) ) ||
 	 ( ( ! xj->is_negative() ) && xj->is_negative( tmod->old_state() ) ) )
       && ( ( xj->is_unitary() == xj->is_unitary( tmod->old_state() ) ) ||
-	 ( ( ! xj->is_unitary() ) && xj->is_unitary( tmod->old_state() ) ) ) )
+	 ( ( ! xj->is_unitary() ) && xj->is_unitary( tmod->old_state() ) ) )
+      ) {
+   f_Lc = -1;    // the Lipschitz constant must be computed
    return( 0 );
+   }
   else
    return( 8 );
 
@@ -3225,6 +3230,7 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
   // return true if a Constraint has been enforced, since this reduces the
   // feasible region, and false if a Constraint has been relaxed, since this
   // enlarges the feasible region
+  f_Lc = -1;  // the Lipschitz constant must be computed
   return( tmod->type() == ConstraintMod::eEnforceConst ? 16 : 0 );
   }
 
@@ -3241,9 +3247,11 @@ char LagBFunction::guts_of_guts_of_add_Modification( p_Mod mod ,
  // constructed part of the) solution is feasible.
  // THUS, GENERATING DYNAMIC Variable CANNOT MAKE A Solution UNFEASIBLE. A
  // FORTIORI NOR CAN DELETING A DYNAMIC Constraint
- if( const auto tmod = dynamic_cast< const BlockModAD * >( mod ) )
+ if( const auto tmod = dynamic_cast< const BlockModAD * >( mod ) ) {
+  f_Lc = -1;  // the Lipschitz constant must be computed
   return( ( tmod->is_variable() && ( ! tmod->is_added() ) ) ||
 	  ( ( ! tmod->is_variable() ) && tmod->is_added() ) ? 32 : 0 );
+  }
 
  // BlockMod - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
  //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -3530,6 +3538,74 @@ void LagBFunction::update_CostMatrix_ModVarsSbst( c_Vec_p_Var & vars ,
 		     std::make_move_iterator( tempCM.end() ) );
 
  }  // end( LagBFunction::update_CostMatrix_ModVarsSbst )
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::set_default_inner_BlockConfig( void )
+{
+ if( auto ib = get_inner_block() ) {
+  auto config = new OCRBlockConfig( ib );
+  config->clear();
+  config->apply( ib );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::set_default_inner_BlockSolverConfig( void )
+{
+ if( auto ib = get_inner_block() ) {
+  auto solver_config = new RBlockSolverConfig( ib );
+  solver_config->clear();
+  solver_config->apply( ib );
+  }
+ }
+
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::compute_Lipschitz_constant( void )
+{
+ auto ib = get_inner_block();
+ if( ! ib ) {                     // if there is no inner Block
+  f_Lc = Inf< FunctionValue >();  // there is no finite constant
+  return;
+  }
+
+ if( ! f_BS )                     // if the BoxSolver is not there yet
+  f_BS = new BoxSolver;           // do it now
+
+ ib->register_Solver( f_BS );     // register the BoxSolver to the inner Block
+
+ // now start a loop: for each LinearFunction in the vector of Lagrangian
+ // pairs compute (an upper/lower estimate of) the maximum and minimum of
+ // its value on the feasible region of the inner Block, take the max of
+ // the absolute values of the two, and take the sum of the squares of
+ // these: this is an upper estimate of the (square of) the Lipschitz constant
+ f_Lc = 0;
+ for( auto el : LagPairs ) {
+  f_BS->set_Objective_Function( el.second );
+  f_BS->compute();
+  auto vv = std::abs( f_BS->get_var_value() );
+  if( vv == Inf< FunctionValue >() ) {
+   f_Lc = Inf< FunctionValue >();
+   break;
+   }
+  auto ivv = std::abs( f_BS->get_opposite_value() );
+  if( vv == Inf< FunctionValue >() ) {
+   f_Lc = Inf< FunctionValue >();
+   break;
+   }
+  auto mx = std::max( vv , ivv );
+  f_Lc += mx * mx;
+  }
+
+ if( f_Lc < Inf< FunctionValue >() )
+  f_Lc = std::sqrt( f_Lc );          // the true Lipschitz constant
+
+ // unregister the BoxSolver from the inner Block
+ ib->unregister_Solver( f_BS );
+
+ }  // end( LagBFunction::compute_Lipschitz_constant )
 
 /*--------------------------------------------------------------------------*/
 
