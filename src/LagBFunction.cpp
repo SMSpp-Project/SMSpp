@@ -158,6 +158,14 @@ LagBFunction::LagBFunction( Block * innerblock , Observer * observer )
 
 /*--------------------------------------------------------------------------*/
 
+LagBFunction::~LagBFunction( void )
+{
+ guts_of_destructor();
+ delete f_BS;
+ };
+
+/*--------------------------------------------------------------------------*/
+
 void LagBFunction::clear( void )
 {
  // delete all the Lagrangian terms (and the ColVariable with them)

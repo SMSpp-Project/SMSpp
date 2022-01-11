@@ -679,9 +679,9 @@ class LagBFunction : public C05Function , public Block {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// destructor of LagBFunction: delete the allocated memory.
  /** destructor of LagBFunction. It deletes delete the global pool and the
-     LagMatrix which is used to change the Lagrangian costs. */
+  * LagMatrix which is used to change the Lagrangian costs. */
 
- virtual ~LagBFunction( void ) { guts_of_destructor(); delete f_BS; };
+ virtual ~LagBFunction( void );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -1561,12 +1561,12 @@ class LagBFunction : public C05Function , public Block {
  FunctionValue get_upper_estimate( void ) const override {
   if( auto is = inner_Solver() ) {
    auto ub = is->get_ub();
-   if( ub == Inf<FunctionValue>() )
+   if( ub == Inf< FunctionValue >() )
     return( ub );
    else {
     if( std::isnan( f_yb ) )
      throw( std::logic_error( "get_upper_estimate called before compute" ) );
-    return( f_yb > -Inf<FunctionValue>() ? ub + f_yb : ub );
+    return( f_yb > -Inf< FunctionValue >() ? ub + f_yb : ub );
     }
    }
   else
@@ -1576,6 +1576,7 @@ class LagBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 
  FunctionValue get_Lipschitz_constant( void ) override {
+  //f_Lc = Inf< FunctionValue >();
   if( f_Lc < 0 )
    compute_Lipschitz_constant();
 
