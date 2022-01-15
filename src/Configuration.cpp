@@ -6,7 +6,7 @@
  *
  * \version 0.12
  *
- * \date 27 - 06 - 2021
+ * \date 15 - 01 - 2022
  *
  * \author Antonio Frangioni \n
  *         Operations Research Group \n
@@ -66,6 +66,9 @@ SMSpp_insert_in_factory_cpp_0_t(
 
 SMSpp_insert_in_factory_cpp_0_t(
  SimpleConfiguration< std::vector< Configuration * > > );
+
+SMSpp_insert_in_factory_cpp_0_t(
+ ( SimpleConfiguration< std::vector< std::pair< int , int > > > ) );
 
 SMSpp_insert_in_factory_cpp_0_t(
  ( SimpleConfiguration< std::vector< std::pair< int , Configuration * > > > )
