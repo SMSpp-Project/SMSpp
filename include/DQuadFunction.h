@@ -496,7 +496,9 @@ class DQuadFunction : public C15Function {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  ///< Returns the value of the constant term of this DQuadFunction.
 
- FunctionValue get_constant_term( void ) const { return( f_constant_term ); }
+ [[nodiscard]] FunctionValue get_constant_term( void ) const override {
+  return( f_constant_term );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/

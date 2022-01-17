@@ -141,14 +141,15 @@ public:
 
  BoxSolver( void ) : CDASolver() , f_sol( 0 ) , f_sol_comp( 0 ) ,
   f_state( kUnEval ) , f_max_val( - Inf< OFValue >() ) ,
-  f_min_val( Inf< OFValue >() ) , f_sense( -1 ) , f_altobj( nullptr ) {}
+  f_min_val( Inf< OFValue >() ) , f_feas( false ) , f_sense( -1 ) ,
+  f_altobj( nullptr ) {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor: it really does nothing since v_mod is empty
 
- virtual ~BoxSolver() { }
+ virtual ~BoxSolver() {}
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -220,17 +221,18 @@ public:
   * must always have the bounds specified via the :OneVarConstraint.
   *
   * However, doing this is a "minor" breach of the CDASolver interface, in
-  * that primal / dual solutions should ony be written when get_var_solution()
-  * and get_dual_solution() are called. This is why the default is 0. If the
-  * primal / dual solution has not been written during compute() it can still
-  * be required "normally" by calling get_var_solution() / get_dual_solution()
-  * as per the normal interface. This has roughly the same cost as solving the
-  * problem in the first place, but there you go (anyway the cost cannot
-  * reasonably be painted as "large"). */
+  * that primal / dual solutions should ony be written when
+  * get_var_solution() and get_dual_solution() are called. This is why the
+  * default is 0. If the primal / dual solution has not been written during
+  * compute() it can still be required "normally" by calling
+  * get_var_solution() / get_dual_solution() as per the normal interface.
+  * This has roughly the same cost as solving the problem in the first place,
+  * but there you go (anyway the cost cannot reasonably be painted as
+  * "large"). */
 
  void set_sol( char sol = 0 ) { f_sol = sol & 7; }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SOLVING THE MODEL ----------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Solving the model encoded by the current Block
@@ -243,23 +245,45 @@ public:
   * Objective over the feasible region. Of course the two can be infinite.
   * Also, compute() immediately writes the primal/dual optimal solution in
   * the ColVariable / dual values of the :OneVarConstraint, if so
-  * instructed. */
+  * instructed [see set_sol()]. */
 
  int compute( bool changedvars = true ) override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------------------- METHODS FOR READING RESULTS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
- bool has_var_solution( void ) override { return( f_state == kOK ); }
+ [[nodiscard]] OFValue get_lb( void ) override {
+  if( f_state == kUnEval )
+   throw( std::logic_error( "BoxSolver: compute() not called" ) );
+
+  return( f_sense == 1 ? f_max_val : f_min_val );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- bool has_dual_solution( void ) override { return( f_state == kOK ); }
+ [[nodiscard]] OFValue get_ub( void ) override {
+  if( f_state == kUnEval )
+   throw( std::logic_error( "BoxSolver: compute() not called" ) );
+
+  return( f_sense == 1 ? f_max_val : f_min_val );
+  }
 
 /*--------------------------------------------------------------------------*/
 
- OFValue get_var_value( void ) override {
+ [[nodiscard]] bool has_var_solution( void ) override {
+  return( ( f_state == kOK ) || ( f_state == kUnbounded ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+ [[nodiscard]] bool has_dual_solution( void ) override {
+  return( ( f_state == kOK ) || ( f_state == kInfeasible ) );
+  }
+
+/*--------------------------------------------------------------------------*/
+
+ [[nodiscard]] OFValue get_var_value( void ) override {
   if( f_state == kUnEval )
    throw( std::logic_error( "BoxSolver: compute() not called" ) );
 
@@ -274,25 +298,29 @@ public:
 
  void get_dual_solution( Configuration *solc = nullptr ) override;
 
-/*--------------------------------------------------------------------------*/
+ /*--------------------------------------------------------------------------*/
 
- OFValue get_lb( void ) override {
-  if( f_state == kUnEval )
-   throw( std::logic_error( "BoxSolver: compute() not called" ) );
-
-  return( f_sense == 1 ? f_max_val : f_min_val );
+ [[nodiscard]] bool has_var_direction( void ) override {
+  return( f_state == kUnbounded );
   }
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ /// one day perhaps we will implement it
 
- OFValue get_ub( void ) override {
-  if( f_state == kUnEval )
-   throw( std::logic_error( "BoxSolver: compute() not called" ) );
-
-  return( f_sense == 1 ? f_max_val : f_min_val );
+ [[nodiscard]] bool has_dual_direction( void ) override {
+  return( f_state == kInfeasible );
   }
 
-/*--------------------------------------------------------------------------*/
+----------------------------------------------------------------------------*/
+
+ void get_var_direction( Configuration * dirc = nullptr ) override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ---
+ /// one day perhaps we will implement it
+
+ void get_dual_direction( Configuration * dirc = nullptr ) override;
+
+----------------------------------------------------------------------------*/
  /// return the "opposite" bound w.r.t. get_var_value()
  /** While get_var_value() returns the value corresponding to the optimization
   * with the sense specified by the Objective, get_opposite_value() returns
@@ -305,7 +333,7 @@ public:
   return( f_sense == 0 ? f_max_val : f_min_val );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the parameters of the Solver
@@ -350,7 +378,7 @@ public:
   return( idx == intPDSol ? _parnm : CDASolver::int_par_idx2str( idx ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------- METHODS FOR ADDING / REMOVING / CHANGING DATA --------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Changing the data of the model
@@ -373,6 +401,8 @@ public:
 /*--------------------------------------------------------------------------*/
 
  void reset( void ) { f_state = kUnEval; }
+
+ void resetf( void ) { reset(); f_feas = false; }
 
 /*--------------------------------------------------------------------------*/
  // returns true if var belongs to f_Block
@@ -440,6 +470,17 @@ public:
  void process_var_sol( ColVariable & var , VarValue l , VarValue u ,
 		       OFValue a , OFValue b );
 
+ /// produce a primal direction for var getting all of its data
+ void process_variable_dir( ColVariable & var );
+
+ /// produce a primal direction to a  "linear" variable
+ void process_var_dir_l( ColVariable & var , VarValue l , VarValue u ,
+			 OFValue b );
+
+ /// produce a primal direction to a  "quadratic" variable
+ void process_var_dir_q( ColVariable & var , VarValue l , VarValue u ,
+			 OFValue a );
+
  /// produce a dual scolution for var getting all of its data
  void process_variable_dual( ColVariable & var );
 
@@ -467,7 +508,9 @@ public:
 
  OFValue f_min_val;    ///< minimum of the Objective over the box
 
- int f_sense;
+ bool f_feas;       ///< if a feasible solution exists (and is loaded)
+
+ char f_sense;
  ///< 1 if the Objective is max, 0 if it is min, -1 if it has to be computed
 
  Function * f_altobj;  ///< a possible alternative Function for the Objective
@@ -483,10 +526,10 @@ public:
  };   // end( class BoxSolver )
 
 /*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 
 }  // end( namespace SMSpp_di_unipi_it )
 
-/*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 #endif  /* BoxSolver.h included */
@@ -494,8 +537,3 @@ public:
 /*--------------------------------------------------------------------------*/
 /*------------------------- End File BoxSolver.h ---------------------------*/
 /*--------------------------------------------------------------------------*/
-
-
-
-
-

@@ -1574,6 +1574,11 @@ class LagBFunction : public C05Function , public Block {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the "constant term" of the LagBFunction
+
+ FunctionValue get_constant_term( void ) const override;
+
+/*--------------------------------------------------------------------------*/
 
  FunctionValue get_Lipschitz_constant( void ) override {
   //f_Lc = Inf< FunctionValue >();

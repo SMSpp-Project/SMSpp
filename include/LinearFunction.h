@@ -397,7 +397,7 @@ class LinearFunction : public C15Function
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the value of the constant term of this LinearFunction.
 
- [[nodiscard]] FunctionValue get_constant_term( void ) const {
+ [[nodiscard]] FunctionValue get_constant_term( void ) const override {
   return( f_constant_term );
   }
 

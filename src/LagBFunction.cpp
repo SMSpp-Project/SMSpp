@@ -1700,6 +1700,29 @@ int LagBFunction::compute( bool changedvars )
 
 /*--------------------------------------------------------------------------*/
 
+static RealObjective::OFValue get_recours_obj( const Block * blck )
+{
+ RealObjective::OFValue rv = 0;
+ if( auto obj = dynamic_cast< RealObjective * >( blck->get_objective() ) )
+  rv = obj->get_constant_term();
+ for( const auto bk : blck->get_nested_Blocks() )
+  rv += get_recours_obj( bk );
+
+ return( rv );
+ };
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+
+Function::FunctionValue LagBFunction::get_constant_term( void ) const
+{
+ if( auto bk = get_inner_block() )
+  return( get_recours_obj( bk ) );
+ else
+  return( 0 );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 #if CHECK_SOLUTIONS & 2
 
 static double cptobj( Block * blck )

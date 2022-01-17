@@ -480,6 +480,27 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the "constant term" of the Function
+ /** Virtual method that returns "the constant term" of the Function. Each
+  * Function can be seen to have a "constant term", i.e., to have the form
+  *
+  *    f( x ) = f_0 + h( x )
+  *
+  * with f_0 constant and h( x ) depending on x. Of course for a general
+  * Function one can choose f_0 arbitrarily by changing h(), but for many
+  * Function the "constant term" is clearly defined. In fact, the only
+  * change that the basic FunctionMod [see] supports can be seen, for the
+  * special case where f_shift is finite, as saying that f_0 has changed,
+  * while the other cases represent all the other possible changes in h().
+  * This method provides access to "the constant term" f_0. Since this may
+  * not really make sense for all Function, a default implementation is
+  * provided that just returns 0, a non-invasive constant term. */
+
+ [[nodiscard]] virtual FunctionValue get_constant_term( void ) const {
+  return( 0 );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// returns a valid global lower bound on the Function value
  /** The Function may know that it is bounded below on its domain, and be
   * able to (cheapily) compute a finite number guaranteed to be <= than any
@@ -791,10 +812,12 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
  * - Any finite non-NaN number: conversely, the value of the Function has
  *   changed in a very predictable way: computing the value of the Function at
  *   any point now returns f_v + shift(), where f_v is the value that would
- *   have been returned prior to the Modification. It should be noted that
- *   shift() = 0 does not really have a sense in this case as it would not
- *   be a change in the Function; however, the value is still allowed for
- *   uniformity with FunctionModVars [see].
+ *   have been returned prior to the Modification. One clean way to see this
+ *   change is that "the constant term of the Function has changed", see
+ *   get_constant_term(). It should be noted that shift() = 0 does not really
+ *   have a sense in this case as it would not be a change in the Function;
+ *   however, the value is still allowed for uniformity with FunctionModVars
+ *   [see].
  *
  * - +Infty (= std::numeric_limits<FunctionValue>::infinity(), for which the
  *   convenience constexpr "INFshift" is defined): this means that the value

@@ -340,12 +340,11 @@ class RealObjective : public Objective
  /** @name Constructor and destructor
      @{ */
 
- explicit RealObjective( Block * my_block = nullptr ) :
- Objective( my_block ) {}
-
- ///< constructor of RealObjective: takes a pointer to its Block
- /**< Constructor of RealObjective: it does nothing but throw that of
+ /// constructor of RealObjective: takes a pointer to its Block
+ /** Constructor of RealObjective: it does nothing but throw that of
   * the base Objective. */
+
+ explicit RealObjective( Block * blck = nullptr ) : Objective( blck ) {}
 
 /*--------------------------------------------------------------------------*/
 
@@ -367,7 +366,31 @@ class RealObjective : public Objective
   * responsibility to ensure that compute() has been called at the proper
   * time. */
 
- virtual OFValue value( void ) const = 0;
+ [[nodiscard]] virtual OFValue value( void ) const = 0;
+
+/*--------------------------------------------------------------------------*/
+ /// returns the "constant term" of the Objective
+ /** Virtual method that returns "the constant term" of the Objective. Each
+  * Objective can be seen to have a "constant term", i.e., to have the form
+  *
+  *    f( x ) = f_0 + h( x )
+  *
+  * with f_0 constant and h( x ) depending on x. Of course for a general
+  * Objective one can choose f_0 arbitrarily by changing h(), but for many
+  * Objective the "constant term" is clearly defined. The interest of the
+  * constant term is that changing it does not really change the underlying
+  * optimization problem, save for correspondingly changing its optimal
+  * value; this is therefore a very mild way of changing the problem that
+  * is good to know about.
+  * This method provides access to "the constant term" f_0. Since this may
+  * not really make sense for all Objective, a default implementation is
+  * provided that just returns 0, a non-invasive constant term. Note that,
+  * unlike get_value(), it is not required to call compute() prior to calling
+  * this method as the returned value is not supposed to change. */
+
+ [[nodiscard]] virtual OFValue get_constant_term( void ) const {
+  return( 0 );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -412,12 +435,12 @@ class ObjectiveMod : public AModification
 
  /// Definition of the possible type of Modification
  enum of_mod_type {
-  eSetMin,        ///< minimize the objective function
-  eSetMax,        ///< maximize the objective function
+  eSetMin ,        ///< minimize the objective function
+  eSetMax ,        ///< maximize the objective function
   eOFModLastParam  ///< first allowed parameter value for derived classes
   /**< convenience value for easily allow derived classes
    * to extend the set of types of modifications */
- };
+  };
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// Constructor: takes a Objective * and the type of Modification
@@ -427,10 +450,9 @@ class ObjectiveMod : public AModification
   * "int", and therefore so is the parameter of the constructor, in order to
   * allow derived classes to "extend" the set of possible types of changes. */
 
- explicit ObjectiveMod( Objective * of,
-                        int mod = eSetMin,
-                        const bool cB = true )
-  : AModification( cB ), f_of( of ), f_type( mod ) {}
+ explicit ObjectiveMod( Objective * of , int mod = eSetMin ,
+                        bool cB = true )
+  : AModification( cB ) , f_of( of ) , f_type( mod ) {}
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
 
@@ -441,18 +463,18 @@ class ObjectiveMod : public AModification
  /// returns the Block to which the Objective belongs
 
  [[nodiscard]] Block * get_Block() const override {
-  return ( f_of->get_Block() );
- }
+  return( f_of->get_Block() );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to (the pointer to) the affected Objective
 
- [[nodiscard]] Objective * of() const { return ( f_of ); }
+ [[nodiscard]] Objective * of( void ) const { return( f_of ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to type of Modificatiom
 
- [[nodiscard]] int type() const { return ( f_type ); }
+ [[nodiscard]] int type( void ) const { return( f_type ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -472,17 +494,17 @@ class ObjectiveMod : public AModification
    output << "minimization" << std::endl;
   else
    output << "maximization" << std::endl;
- }
+  }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
  Objective * f_of;   ///< pointer to the Objective where the change occurs
 
- int f_type;        ///< type of Modification
+ int f_type;         ///< type of Modification
 
 /*--------------------------------------------------------------------------*/
 
-};  // end( class( ObjectiveMod ) )
+ };  // end( class( ObjectiveMod ) )
 
 /** @} end( group( Objective_CLASSES ) ) */
 /*--------------------------------------------------------------------------*/

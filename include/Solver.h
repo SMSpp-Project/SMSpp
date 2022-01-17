@@ -1050,7 +1050,7 @@ class Solver : public ThinComputeInterface {
   * should be safe for any derived classes which simply don't have the
   * concept of real objective function. */
 
- virtual OFValue get_lb( void ) {
+ [[nodiscard]] virtual OFValue get_lb( void ) {
   return( -std::numeric_limits< OFValue >::infinity() );
   }
 
@@ -1129,7 +1129,7 @@ class Solver : public ThinComputeInterface {
   * should be safe for any derived classes which simply don't have the
   * concept of real objective function. */
 
- virtual OFValue get_ub( void ) {
+ [[nodiscard]] virtual OFValue get_ub( void ) {
   return( std::numeric_limits< OFValue >::infinity() );
   }
 
@@ -1148,7 +1148,7 @@ class Solver : public ThinComputeInterface {
   * is OK, for instance, for "easy" problems that are never empty and can
   * surely be solved "efficiently enough". */
 
- virtual bool has_var_solution( void ) { return( true ); }
+ [[nodiscard]] virtual bool has_var_solution( void ) { return( true ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns true if the "current" solution is feasible
@@ -1170,7 +1170,7 @@ class Solver : public ThinComputeInterface {
   * true, which is OK for a solver that always only returns feasible solutions
   * (if any). */
 
- virtual bool is_var_feasible( void ) { return( true ); }
+ [[nodiscard]] virtual bool is_var_feasible( void ) { return( true ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns the value of the (current) solution, if any
@@ -1188,7 +1188,7 @@ class Solver : public ThinComputeInterface {
   * feasible lower bound). However the method is virtual and can be redefined
   * by derived classes. */
 
- virtual OFValue get_var_value( void );
+ [[nodiscard]] virtual OFValue get_var_value( void );
 
 /*--------------------------------------------------------------------------*/
  /// write the "current" solution in the Variable of the Block
@@ -1313,7 +1313,7 @@ class Solver : public ThinComputeInterface {
   * kUnbounded and set_unbounded_threshold() has been called; see the
   * comments to that method. */
 
- virtual bool new_var_solution( void ) { return( false ); }
+ [[nodiscard]] virtual bool new_var_solution( void ) { return( false ); }
 
 /*--------------------------------------------------------------------------*/
  /// set the min/max objective value of the solution for the unbounded case
@@ -1383,7 +1383,7 @@ class Solver : public ThinComputeInterface {
   * The default implementation in the base class always returns false, which
   * is OK for Solver that cannot produce any unbounded direction. */
 
- virtual bool has_var_direction( void ) { return( false ); }
+ [[nodiscard]] virtual bool has_var_direction( void ) { return( false ); }
 
 /*--------------------------------------------------------------------------*/
  /// write the "current" unbounded direction in the Block
@@ -1469,7 +1469,7 @@ class Solver : public ThinComputeInterface {
   * reasonable definition of an appropriate notion of "better direction"
   * that might be employed. */
 
- virtual bool new_var_direction( void ) { return ( false ); }
+ [[nodiscard]] virtual bool new_var_direction( void ) { return ( false ); }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------- METHODS FOR READING THE DATA OF THE Solver ----------------*/
@@ -1484,7 +1484,7 @@ class Solver : public ThinComputeInterface {
 /*--------------------------------------------------------------------------*/
  /// getting the "identity" of this Solver
 
- virtual void * id( void ) { return( f_id ); }
+ [[nodiscard]] virtual void * id( void ) { return( f_id ); }
 
 /*--------------------------------------------------------------------------*/
  /// getting the classname of this Solver
@@ -1503,7 +1503,9 @@ class Solver : public ThinComputeInterface {
   * programmer purposely defines private_name() without calling the macro,
   * which seems rather pointless). */
 
- const std::string & classname( void ) const { return( private_name() ); }
+ [[nodiscard]] const std::string & classname( void ) const {
+  return( private_name() );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
