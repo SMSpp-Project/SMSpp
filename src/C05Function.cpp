@@ -4,12 +4,7 @@
 /** @file
  * Implementation of the C05Function class.
  *
- * \version 0.10
- *
- * \date 01 - 07 - 2020
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *

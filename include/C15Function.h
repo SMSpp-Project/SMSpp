@@ -5,19 +5,14 @@
  * Header file for the C15Function class, which implements
  * C05Function and is able to provide approximations to its Hessian.
  *
- * \version 0.20
- *
- * \date 02 - 12 - 2020
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Department of Applied Mathematics \n
- *         State University of Campinas, Brazil \n
- *
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+*
  * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/

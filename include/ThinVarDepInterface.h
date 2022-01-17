@@ -6,12 +6,7 @@
  * base class for all objects in SMS++ (Constraint, Objective, Function, ...)
  * that depend on a set of "active" Variable.
  *
- * \version 0.20
- *
- * \date 20 - 07 - 2019
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *

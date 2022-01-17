@@ -5,17 +5,11 @@
  * Header file for the class BendersBFunction, which implements C05Function
  * and Block with a Benders function.
  *
- * \version 0.01
- *
- * \date 26 - 05 - 2021
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -762,7 +756,7 @@ class BendersBFunction : public C05Function , public Block {
 
  [[nodiscard]] idx_type get_num_int_par( void ) const override {
   return( intLastBendersBFPar );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -783,17 +777,13 @@ class BendersBFunction : public C05Function , public Block {
 
  [[nodiscard]] int get_int_par( idx_type par ) const override {
   switch( par ) {
-   case( intMaxIter ):
-    return get_solver_int_par( Solver::intMaxIter );
-   case( intLPMaxSz ):
-    return get_solver_int_par( CDASolver::intMaxDSol );
-   case( intGPMaxSz ):
-    return global_pool.size();
-   case( intLinComp ):
-    return LinComp;
+   case( intMaxIter ): return( get_solver_int_par( Solver::intMaxIter ) );
+   case( intLPMaxSz ): return( get_solver_int_par( CDASolver::intMaxDSol ) );
+   case( intGPMaxSz ): return( global_pool.size() );
+   case( intLinComp ): return( LinComp );
+   }
+  return( C05Function::get_int_par( par ) );
   }
-  return C05Function::get_int_par( par );
- }
 
 /*--------------------------------------------------------------------------*/
  /// get a specific float (double) numerical parameter
@@ -817,25 +807,17 @@ class BendersBFunction : public C05Function , public Block {
 
  [[nodiscard]] double get_dbl_par( idx_type par ) const override {
   switch( par ) {
-   case( dblAAccMlt ):
-    return AAccMlt;
-   case( dblMaxTime ):
-    return get_solver_dbl_par( Solver::dblMaxTime );
-   case( dblRelAcc ):
-    return get_solver_dbl_par( Solver::dblRelAcc );
-   case( dblAbsAcc ):
-    return get_solver_dbl_par( Solver::dblAbsAcc );
-   case( dblUpCutOff ):
-    return get_solver_dbl_par( Solver::dblUpCutOff );
-   case( dblLwCutOff ):
-    return get_solver_dbl_par( Solver::dblLwCutOff );
-   case( dblRAccLin ):
-    return get_solver_dbl_par( CDASolver::dblRAccDSol );
-   case( dblAAccLin ):
-    return get_solver_dbl_par( CDASolver::dblAAccDSol );
-  }
+   case( dblAAccMlt ):  return( AAccMlt );
+   case( dblMaxTime ):  return( get_solver_dbl_par( Solver::dblMaxTime ) );
+   case( dblRelAcc ):   return( get_solver_dbl_par( Solver::dblRelAcc ) );
+   case( dblAbsAcc ):   return( get_solver_dbl_par( Solver::dblAbsAcc ) );
+   case( dblUpCutOff ): return( get_solver_dbl_par( Solver::dblUpCutOff ) );
+   case( dblLwCutOff ): return( get_solver_dbl_par( Solver::dblLwCutOff ) );
+   case( dblRAccLin ): return( get_solver_dbl_par( CDASolver::dblRAccDSol ) );
+   case( dblAAccLin ): return( get_solver_dbl_par( CDASolver::dblAAccDSol ) );
+   }
 
-  return C05Function::get_dbl_par( par );
+  return( C05Function::get_dbl_par( par ) );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -844,7 +826,7 @@ class BendersBFunction : public C05Function , public Block {
   if( par == intLinComp )
    return( 7 );
   return( C05Function::get_dflt_int_par( par ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -853,7 +835,7 @@ class BendersBFunction : public C05Function , public Block {
   if( name == "intLinComp" )
    return( intLinComp );
   return( C05Function::int_par_str2idx( name ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
 
@@ -865,7 +847,7 @@ class BendersBFunction : public C05Function , public Block {
    return( pars[ 0 ] );
 
   return( C05Function::int_par_idx2str( idx ) );
- }
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*--------- METHODS FOR HANDLING THE State OF THE BendersBFunction ---------*/
@@ -952,7 +934,7 @@ class BendersBFunction : public C05Function , public Block {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- Variable * get_active_var( const Index i ) const override final {
+ Variable * get_active_var( Index i ) const override final {
   return( v_x[ i ] );
   }
 
@@ -1111,7 +1093,7 @@ class BendersBFunction : public C05Function , public Block {
   *        shift() == 0 as expected) is issued, as described in
   *        Observer::make_par(). */
 
- void add_variable( ColVariable * const var , c_RealVector & Aj = {} ,
+ void add_variable( ColVariable * var , c_RealVector & Aj = {} ,
                     ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -1125,7 +1107,7 @@ class BendersBFunction : public C05Function , public Block {
   *        BendersBFunction is strongly quasi-additive, and with shift() == 0
   *        as expected) is issued, as described in Observer::make_par(). */
 
- void remove_variable( c_Index i , ModParam issueMod = eModBlck )
+ void remove_variable( Index i , ModParam issueMod = eModBlck )
   override final;
 
 /*--------------------------------------------------------------------------*/
@@ -1159,7 +1141,7 @@ class BendersBFunction : public C05Function , public Block {
   *        0, since a BendersBFunction is strongly quasi-additive) is issued,
   *        as described in Observer::make_par(). */
 
- void remove_variables( Subset && nms , const bool ordered = false ,
+ void remove_variables( Subset && nms , bool ordered = false ,
                         ModParam issueMod = eModBlck ) override final;
 
 /*--------------------------------------------------------------------------*/
@@ -1245,7 +1227,7 @@ class BendersBFunction : public C05Function , public Block {
   *        although actually only a subset of them has) and BFtype() ==
   *        ModifyRows. */
 
- void modify_row( c_Index i , RealVector && Ai , c_FunctionValue bi ,
+ void modify_row( Index i , RealVector && Ai , FunctionValue bi ,
                   ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
@@ -1275,7 +1257,7 @@ class BendersBFunction : public C05Function , public Block {
   *        nothing). */
 
  void modify_constants( c_RealVector & nb , Range range ,
-                        c_ModParam issueMod = eModBlck );
+                        ModParam issueMod = eModBlck );
 
 /*--------------------------------------------------------------------------*/
  /// modify only the constant term of a subset of rows of the linear mapping
@@ -1310,7 +1292,7 @@ class BendersBFunction : public C05Function , public Block {
   *        nothing). */
 
  void modify_constants( c_RealVector & nb , Subset && rows ,
-                        const bool ordered , ModParam issueMod );
+                        bool ordered , ModParam issueMod );
 
 /*--------------------------------------------------------------------------*/
  /// modify only the constant term of a range of rows of the linear mapping
@@ -1385,7 +1367,7 @@ class BendersBFunction : public C05Function , public Block {
   *        nothing). */
 
  void modify_constants( MF_dbl_it nb , Subset && rows ,
-			const bool ordered = false ,
+			bool ordered = false ,
                         ModParam issuePMod = eNoBlck ,
                         ModParam issueAMod = eNoBlck );
 
@@ -1522,7 +1504,7 @@ class BendersBFunction : public C05Function , public Block {
   *        as described in Observer::make_par().
   */
 
- void delete_row( c_Index i , ModParam issueMod = eModBlck );
+ void delete_row( Index i , ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// deletes all rows from the linear mapping in the BendersBFunction
@@ -1623,23 +1605,20 @@ class BendersBFunction : public C05Function , public Block {
 
  void set_ComputeConfig( ComputeConfig *scfg = nullptr ) override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- Methods for handling Modification -------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling Modification
  *  @{ */
 
-/*--------------------------------------------------------------------------*/
-
  void add_Modification( sp_Mod mod , Observer::ChnlName chnl = 0 ) override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR Saving THE DATA OF THE BendersBFunction ---------*/
 /*--------------------------------------------------------------------------*/
 /** @name Saving the data of the BendersBFunction
  *  @{ */
 
-/*--------------------------------------------------------------------------*/
  /// serialize a BendersBFunction into a netCDF::NcGroup
  /** Serialize a BendersBFunction into a netCDF::NcGroup. Note that,
   * BendersBFunction being both a Function and a Block, the netCDF::NcGroup
@@ -1724,8 +1703,7 @@ class BendersBFunction : public C05Function , public Block {
   *   BendersBFunction (i.e., the inner Block of this BendersBFunction must be
   *   the reference Block of the path).
   *
-  * - The group "Block", containing the description of the inner Block.
-  */
+  * - The group "Block", containing the description of the inner Block. */
 
  void serialize( netCDF::NcGroup & group ) const override;
 
@@ -1775,12 +1753,16 @@ class BendersBFunction : public C05Function , public Block {
   }
 
 /*--------------------------------------------------------------------------*/
+ /// returns the "constant term" of the BendersBFunction
+
+ FunctionValue get_constant_term( void ) const override;
+
+/*--------------------------------------------------------------------------*/
  /// returns true only if this BendersBFunction is convex
  /** This method returns true only if this BendersBFunction is convex. If this
   * BendersBFunction has no sub-Block or the sense of the Objective of its
   * sub-Block is maximization, then this method returns false. Otherwise, it
-  * returns true.
-  */
+  * returns true. */
 
  bool is_convex( void ) const override;
 
@@ -1929,11 +1911,11 @@ class BendersBFunction : public C05Function , public Block {
   * sub-Block, a \c nullptr is returned.
   */
 
- Block * get_inner_block() const {
+ Block * get_inner_block( void ) const {
   if( v_Block.empty() )
-   return nullptr;
-  return v_Block.front();
- }
+   return( nullptr );
+  return( v_Block.front() );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// returns a (const reference) to the current A matrix in the mapping

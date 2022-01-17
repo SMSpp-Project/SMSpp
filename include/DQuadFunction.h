@@ -5,17 +5,11 @@
  * Header file for the *concrete* class DQuadFunction, which implements
  * C15Function with a diagonal (separable) quadratic function.
  *
- * \version 0.40
- *
- * \date 07 - 10 - 2019
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -502,7 +496,9 @@ class DQuadFunction : public C15Function {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  ///< Returns the value of the constant term of this DQuadFunction.
 
- FunctionValue get_constant_term( void ) const { return( f_constant_term ); }
+ [[nodiscard]] FunctionValue get_constant_term( void ) const override {
+  return( f_constant_term );
+  }
 
 /**@} ----------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/

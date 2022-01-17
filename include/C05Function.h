@@ -7,18 +7,13 @@
  * the linearizations need not be a continuous function, which means that
  * the Function may be non-smooth.
  *
- * \version 0.41
- *
- * \date 02 - 12 - 2020
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Department of Applied Mathematics \n
- *         State University of Campinas, Brazil \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
  *
  * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
@@ -430,10 +425,10 @@ class C05Function : public Function {
    * "completely accurate" can still be useful: for instance, in the
    * Lagrangian case an \eps-optimal solution to the Lagrangian problem gives
    * rise to a valid linearization ( g , \alpha ) with \eps >=
-   * f(x) - ( g x + \alpha ). Indeed, by convexity f(x) >= g x + \alpha,
+   * f( x ) - ( g x + \alpha ). Indeed, by convexity f( x ) >= g x + \alpha,
    * and the term
    *
-   *    f(x) - ( g x + \alpha ) >= 0
+   *    f( x ) - ( g x + \alpha ) >= 0
    *
    * is called the "linearization error" of ( g , \alpha ) at x. Whenever the
    * linearization error is <= \eps the linearization is an \eps-subgradient
@@ -445,29 +440,29 @@ class C05Function : public Function {
    * relative error with f(x) larger than dblRAccLin. This would generally
    * mean
    *
-   *  | f(x) - ( g x + \alpha )  | <= dblRAccLin * max( | f(x) | , 1 )
+   *  | f( x ) - ( g x + \alpha )  | <= dblRAccLin * max( | f( x ) | , 1 )
    *
-   * except that the value f(x) may not be known exactly, with only lower
+   * except that the value f( x ) may not be known exactly, with only lower
    * and/or upper bounds on it available. The actual formula therefore depends
    * on what information is actually available: for instance, in the
-   * Lagrangian case one knows that f(x) >= g x + \alpha, and therefore
-   * typically an upper estimate ub >= f(x) is used in the formula instead of
-   * f(x). The default is 0, i.e., "only perfect linearizations are allowed".
-   */
+   * Lagrangian case one knows that f( x ) >= g x + \alpha, and therefore
+   * typically an upper estimate ub >= f( x ) is used in the formula instead
+   * of f( x ). The default is 0, i.e., "only perfect linearizations are
+   * allowed". */
 
   dblAAccLin ,   ///< maximum absolute error in any reported solution
   /**< Similar to dblRAccLin but for an *absolute* accuracy; that is, a
    * linearization is deemed acceptable if
    *
-   *      | f(x) - ( g x + \alpha ) | <= dblAAccLin
+   *      | f( x ) - ( g x + \alpha ) | <= dblAAccLin
    *
-   * except that the value f(x) may not be known exactly, with only lower
+   * except that the value f( x ) may not be known exactly, with only lower
    * and/or upper bounds on it available. The actual formula therefore depends
    * on what information is actually available: for instance, in the
-   * Lagrangian case one knows that f(x) >= ( g x + \alpha ), and therefore
-   * typically an upper estimate ub >= f(x) is used in the formula instead of
-   * f(x). The default is 0, i.e., "only perfect linearizations are allowed".
-   */
+   * Lagrangian case one knows that f( x ) >= ( g x + \alpha ), and therefore
+   * typically an upper estimate ub >= f( x ) is used in the formula instead
+   * of f( x ). The default is 0, i.e., "only perfect linearizations are
+   * allowed". */
 
   dblAAccMlt ,   ///< maximum absolute error in the multipliers
   /**< The multipliers used in store_combination_of_linearizations() and in
@@ -497,41 +492,41 @@ class C05Function : public Function {
  /// public enum "extending" str_par_type_F to the case of C05Function
 
  enum str_par_type_C05F {
-  strLastParC05F = strLastAlgPar
+  strLastParC05F = strLastParFun
   ///< first allowed parameter value for derived classes
   /**< Convenience value for easily allow derived classes to extend the set
    * of string parameters. */
-  };
+  };  // end( str_par_type_C05F )
 
 /*--------------------------------------------------------------------------*/
  /// public enum "extending" vint_par_type_F to the case of C05Function
 
  enum vint_par_type_C05F {
-  vintLastParC05F = vintLastAlgPar
+  vintLastParC05F = vintLastParFun
   ///< first allowed parameter value for derived classes
   /**< Convenience value for easily allow derived classes to extend the set
    * of vector-of-int parameters. */
-  };
+  };  // end( vint_par_type_C05F )
 
 /*--------------------------------------------------------------------------*/
  /// public enum "extending" vdbl_par_type_F to the case of C05Function
 
  enum vdbl_par_type_C05F {
-  vdblLastParC05F = vdblLastAlgPar
+  vdblLastParC05F = vdblLastParFun
   ///< first allowed parameter value for derived classes
   /**< Convenience value for easily allow derived classes to extend the set
    * of vector-of-double parameters. */
-  };
+  };  // end( vdbl_par_type_C05F )
 
 /*--------------------------------------------------------------------------*/
  /// public enum "extending" vstr_par_type_F to the case of C05Function
 
  enum vstr_par_type_C05F {
-  vstrLastParC05F = vstrLastAlgPar
+  vstrLastParC05F = vstrLastParFun
   ///< first allowed parameter value for derived classes
   /**< Convenience value for easily allow derived classes to extend the set
    * of vector-of-string parameters. */
-  };
+  };  // end( vstr_par_type_C05F )
 
 /**@} ----------------------------------------------------------------------*/
 /*--------------- CONSTRUCTING AND DESTRUCTING C05Function -----------------*/

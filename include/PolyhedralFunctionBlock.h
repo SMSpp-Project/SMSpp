@@ -8,12 +8,7 @@
  * kind of Variable and Constraint (provided these are handled by the base
  * AbstractBlock class).
  *
- * \version 0.20
- *
- * \date 16 - 12 - 2019
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *

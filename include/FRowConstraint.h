@@ -6,18 +6,13 @@
  * which is a class that defines a row constraint in terms of an
  * externally-provided Function object.
  *
- * \version 0.32
- *
- * \date 02 - 12 - 2020
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Department of Applied Mathematics \n
- *         State University of Campinas, Brazil \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
  *
  * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */

@@ -6,12 +6,7 @@
  * concave) C05Function defined by the maximum (or minimum) of a "small"
  * number of explicitly provided affine forms.
  *
- * \version 0.25
- *
- * \date 18 - 04 - 2020
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *

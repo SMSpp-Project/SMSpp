@@ -7,12 +7,7 @@
  * FRealObjective whose Function is a BendersBFunction whose active Variable
  * are the ones defined in this BendersBlock.
  *
- * \version 0.1
- *
- * \date 09 - 03 - 2021
- *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *

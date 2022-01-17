@@ -5,17 +5,11 @@
  * Implementation of the Solver class. It also registers FakeSolver in the
  * Solver factory.
  *
- * \version 0.21
- *
- * \date 15 - 07 - 2020
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Kostas Tavlaridis-Gyparakis \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *

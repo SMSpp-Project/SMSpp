@@ -8,12 +8,7 @@
  * a ComputeConfig object that allows to set and get all the parameters of a
  * :ThinComputeInterface object in one blow.
  *
- * \version 0.20
- *
- * \date 22 - 03 - 2021
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -467,6 +462,70 @@ class ThinComputeInterface
 		  * extend the set of double algorithmic parameters. */
   };  // end( dbl_par_type_TCI )
 
+/*--------------------------------------------------------------------------*/
+ /// public enum for the string algorithmic parameters
+ /** Public enum describing the different algorithmic parameters of "string"
+  * type that any ThinComputeInterface should reasonably have (none so far).
+  * The value strLastAlgParTCI is provided so that the list can be easily
+  * extended by derived classes. */
+
+ enum str_par_type_TCI {
+  strLastAlgParTCI = 0   ///< first allowed new string parameter
+                         /**< Convenience value for easily allow derived
+			  * classes to extend the set of string algorithmic
+   * parameters. Actually, so far thare are no string algorithmic parameters
+   * in the base ThinComputeInterface class, but this may change in the
+   * future, so using this makes code resistant to that. */
+  };  // end( str_par_type_TCI )
+
+/*--------------------------------------------------------------------------*/
+ /// public enum for vector-of-int algorithmic parameters
+ /** Public enum describing the different algorithmic parameters that are
+  * vectors of int that any ThinComputeInterface should reasonably have (none
+  * so far). The value vintLastAlgParTCI is provided so that the list can be
+  * easily extended by derived classes. */
+
+ enum vint_par_type_TCI {
+  vintLastAlgParTCI = 0  ///< first allowed new  vector-of-int parameter
+                         /**< Convenience value for easily allow derived
+			  * classes to extend the set of vector-of-int
+   * parameters. Actually, so far thare are no such parameters in the base
+   * ThinComputeInterface class, but this may change in the future, so using
+   * this makes code resistant to that. */
+  };  // end( vint_par_type_TCI )
+
+/*--------------------------------------------------------------------------*/
+ /// public enum for vector-of-double algorithmic parameters
+ /** Public enum describing the different algorithmic parameters that are
+  * vectors of double that any ThinComputeInterface should reasonably have
+  * (none so far). The value vdblLastAlgParTCI is provided so that the list
+  * can be easily extended by derived classes. */
+
+ enum vdbl_par_type_TCI {
+  vdblLastAlgParTCI = 0  ///< first allowed new  vector-of-double parameter
+                         /**< Convenience value for easily allow derived
+			  * classes to extend the set of vector-of-double
+   * parameters. Actually, so far thare are no such parameters in the base
+   * ThinComputeInterface class, but this may change in the future, so using
+   * this makes code resistant to that. */
+  };  // end( vdbl_par_type_TCI )
+
+/*--------------------------------------------------------------------------*/
+ /// public enum for vector-of-string algorithmic parameters
+ /** Public enum describing the different algorithmic parameters that are
+  * vectors of string that any ThinComputeInterface should reasonably have
+  * (none so far). The value vdblLastAlgParTCI is provided so that the list
+  * can be easily extended by derived classes. */
+
+ enum vstr_par_type_TCI {
+  vstrLastAlgParTCI = 0  ///< first allowed new  vector-of-string parameter
+                         /**< Convenience value for easily allow derived
+			  * classes to extend the set of vector-of-string
+   * parameters. Actually, so far thare are no such parameters in the base
+   * ThinComputeInterface class, but this may change in the future, so using
+   * this makes code resistant to that. */
+  };  // end( vstr_par_type_TCI )
+
 /**@} ----------------------------------------------------------------------*/
 /*----------- CONSTRUCTING AND DESTRUCTING ThinComputeInterface ------------*/
 /*--------------------------------------------------------------------------*/
@@ -486,7 +545,13 @@ class ThinComputeInterface
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
- *  @{ */
+ *
+ * These methods allow to set the algorithmic paramters of the 
+ * ThinComputeInterface, that currently are of 6 different types: int,
+ * double, std::string and vectors of these. Each parameter can be changed
+ * individully using the corresponding set_par(), or any arbitrary subset of
+ * them can be canged in one blow using a ComputeConfig.
+ * @{ */
 
  /// set a given integer (int) numerical parameter
  /** Set the integer (int) numerical parameter with index \p par, which must
@@ -1958,16 +2023,22 @@ class ComputeConfig : public Configuration {
   * \p name is moved into the ComputeConfig), otherwise its current value
   * is changed to \p value. */
 
- void set_par( std::string && name , int value ) {
+ bool set_par( std::string && name , int value ) {
   auto it = std::find_if( int_pars.begin() , int_pars.end() ,
                           [ & name ]( auto & el ) {
                            return( name == el.first );
                            } );
 
-  if( it == int_pars.end() )
+  if( it == int_pars.end() ) {
    int_pars.emplace_back( std::move( name ) , value );
-  else
-   it->second = value;
+   return( true );
+   }
+
+  if( it->second == value )
+   return( false );
+
+  it->second = value;
+  return( true );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -1975,37 +2046,51 @@ class ComputeConfig : public Configuration {
  /** Set the float (double) numerical parameter specified by \p name. If the
   * parameter is not in the corresponding list it is added (in which case
   * \p name is moved into the ComputeConfig), otherwise its current value
-  * is changed to \p value. */
+  * is changed to \p value. Returns true if the parameter is either not
+  * there or has a different value, false otherwise. */
 
- void set_par( std::string && name , double value ) {
+ bool set_par( std::string && name , double value ) {
   auto it = std::find_if( dbl_pars.begin(), dbl_pars.end(),
                           [ & name ]( auto & el ) {
                            return( name == el.first );
                            } );
 
-  if( it == dbl_pars.end() )
+  if( it == dbl_pars.end() ) {
    dbl_pars.emplace_back( std::move( name ) , value );
-  else
-   it->second = value;
- }
+   return( true );
+   }
+
+  if( it->second == value )
+   return( false );
+
+  it->second = value;
+  return( true );
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set the given string parameter
  /** Set the string parameter specified by \p name. If the parameter is not
   * in the corresponding list it is added (in which case \p name is moved
   * into the ComputeConfig), otherwise its current value is changed to
-  * \p value. */
+  * \p value. Returns true if the parameter is either not there or has a
+  * different value, false otherwise. */
 
- void set_par( std::string && name , std::string && value ) {
+ bool set_par( std::string && name , std::string && value ) {
   auto it = std::find_if( str_pars.begin() , str_pars.end() ,
                           [ & name ]( auto & el ) {
                            return( name == el.first );
                            } );
 
-  if( it == str_pars.end() )
+  if( it == str_pars.end() ) {
    str_pars.emplace_back( std::move( name ) , std::move( value ) );
-  else
-   it->second = std::move( value );
+   return( true );
+   }
+
+  if( it->second == value )
+   return( false );
+
+  it->second = std::move( value );
+  return( true );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -2014,40 +2099,48 @@ class ComputeConfig : public Configuration {
   * the parameter is not in the corresponding list it is added  (in which
   * case \p name is moved into the ComputeConfig), otherwise its current
   * value is changed to \p value; in either case, \p value is moved
-  * into the ComputeConfig. */
+  * into the ComputeConfig. Returns true if the parameter is either not
+  * there or has a different value, false otherwise. */
 
- void set_par( std::string && name , std::vector< int > && value ) {
+ bool set_par( std::string && name , std::vector< int > && value ) {
   auto it = std::find_if( vint_pars.begin() , vint_pars.end() ,
                           [ & name ]( auto & el ) {
                            return( name == el.first );
                            } );
 
-  if( it == vint_pars.end() )
+  if( it == vint_pars.end() ) {
    vint_pars.emplace_back( std::move( name ) , std::move( value ) );
-  else
-   it->second = std::move( value );
+   return( true );
+   }
+
+  if( it->second == value )
+   return( false );
+
+  it->second = std::move( value );
+  return( true );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set one entry of the given vector-of-integer numerical parameter
  /** Set the entry specified by \pos of the vector-of-integer numerical
   * parameter specified by \p name. If the parameter is not in the
-  * corresponding list or \p pos is not a valid position, exception is
-  * thrown. */
+  * corresponding list it is added, and if \p pos is not a valid position
+  * then it is extended (all the un-specified positions being empty). */
 
- void set_par( const std::string & name , unsigned int pos , int value ) {
+ void set_par( std::string && name , unsigned int pos , int value ) {
   auto it = std::find_if( vint_pars.begin() , vint_pars.end() ,
                           [ & name ]( auto & el ) {
                            return( name == el.first );
                            } );
 
-  if( it == vint_pars.end() )
-   throw( std::invalid_argument( "parameter " + name +
-				 " not in ComputeConfig" ) );
+  if( it == vint_pars.end() ) {
+   vint_pars.emplace_back( std::move( name ) , std::vector< int >() );
+   it = (vint_pars.end())--;
+   }
 
   if( pos >= decltype( pos )( it->second.size() ) )
-   throw( std::invalid_argument( "invalid position " + std::to_string( pos ) +
-				 " in vint parameter" ) );
+   it->second.resize( pos + 1 );
+
   it->second[ pos ] = value;
   }
 
@@ -2057,85 +2150,99 @@ class ComputeConfig : public Configuration {
   * the parameter is not in the corresponding list it is added  (in which
   * case \p name is moved into the ComputeConfig), otherwise its current
   * value is changed to \p value; in either case, \p value is moved
-  * into the ComputeConfig. */
+  * into the ComputeConfig. Returns true if the parameter is either not
+  * there or has a different value, false otherwise. */
 
- void set_par( std::string && name , std::vector< double > && value ) {
+ bool set_par( std::string && name , std::vector< double > && value ) {
   auto it = std::find_if( vdbl_pars.begin() , vdbl_pars.end() ,
                           [ & name ]( auto & el ) {
                            return( name == el.first );
                            } );
 
-  if( it == vdbl_pars.end() )
+  if( it == vdbl_pars.end() ) {
    vdbl_pars.emplace_back( std::move( name ) , std::move( value ) );
-  else
-   it->second = std::move( value );
+   return( true );
+   }
+
+  if( it->second == value )
+   return( false );
+
+  it->second = std::move( value );
+  return( true );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set one entry of the given vector-of-float numerical parameter
  /** Set the entry specified by \pos of the vector-of-float numerical
   * parameter specified by \p name. If the parameter is not in the
-  * corresponding list or \p pos is not a valid position, exception is
-  * thrown. */
+  * corresponding list it is added, and if \p pos is not a valid position
+  * then it is extended (all the un-specified positions being empty). */
 
- void set_par( const std::string & name , unsigned int pos , double value ) {
+ void set_par( std::string && name , unsigned int pos , double value ) {
   auto it = std::find_if( vdbl_pars.begin() , vdbl_pars.end() ,
                           [ & name ]( auto & el ) {
                            return( name == el.first );
                            } );
 
-  if( it == vdbl_pars.end() )
-   throw( std::invalid_argument( "parameter " + name +
-				 " not in ComputeConfig" ) );
+  if( it == vdbl_pars.end() ) {
+   vdbl_pars.emplace_back( std::move( name ) , std::vector< double >() );
+   it = (vdbl_pars.end())--;
+   }
 
   if( pos >= decltype( pos )( it->second.size() ) )
-   throw( std::invalid_argument( "invalid position " + std::to_string( pos ) +
-				  " in vdbl parameter" ) );
+   it->second.resize( pos + 1 );
+
   it->second[ pos ] = value;
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set the given vector-of-string parameter
  /** Set the vector-of-string parameter specified by \p name. If the
-  * parameter is not in the corresponding list it is added  (in which case
+  * parameter is not in the corresponding list it is added (in which case
   * \p name is moved into the ComputeConfig), otherwise its current value is
   * changed to \p value; in either case, \p value is moved into the
-  * ComputeConfig. */
+  * ComputeConfig. Returns true if the parameter is either not there or has
+  * a different value, false otherwise. */
 
- void set_par( std::string && name , std::vector< std::string > && value ) {
+ bool set_par( std::string && name , std::vector< std::string > && value ) {
   auto it = std::find_if( vstr_pars.begin() , vstr_pars.end() ,
                           [ & name ]( auto & el ) {
                            return( name == el.first );
                            } );
 
-  if( it == vstr_pars.end() )
+  if( it == vstr_pars.end() ) {
    vstr_pars.emplace_back( std::move( name ) , std::move( value ) );
-  else
-   it->second = std::move( value );
+   return( true );
+   }
+
+  if( it->second == value )
+   return( false );
+
+  it->second = std::move( value );
+  return( true );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// set one entry of the given vector-of-string parameter
  /** Set the entry specified by \pos of the vector-of-string parameter
   * specified by \p name. If the parameter is not in the corresponding list
-  * or \p pos is not a valid position, exception is thrown; otherwise
-  * \p value is moved into the ComputeConfig. */
+  * it is added, and if \p pos is not a valid position then it is extended
+  * (all the un-specified positions being empty). */
 
- void set_par( const std::string & name , unsigned int pos ,
-	       std::string && value )
+ void set_par( std::string && name , unsigned int pos , std::string && value )
  {
   auto it = std::find_if( vstr_pars.begin() , vstr_pars.end() ,
                           [ & name ]( auto & el ) {
                            return( name == el.first );
                            } );
 
-  if( it == vstr_pars.end() )
-   throw( std::invalid_argument( "parameter " + name +
-				 " not in ComputeConfig" ) );
+  if( it == vstr_pars.end() ) {
+   vstr_pars.emplace_back( std::move( name ) , std::vector< std::string >() );
+   it = (vstr_pars.end())--;
+   }
 
   if( pos >= decltype( pos )( it->second.size() ) )
-   throw( std::invalid_argument( "invalid position " + std::to_string( pos ) +
-				 " in vstr parameter" ) );
+   it->second.resize( pos + 1 );
 
   it->second[ pos ] = std::move( value );
   }

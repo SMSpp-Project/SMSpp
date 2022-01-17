@@ -34,12 +34,7 @@
  * Again, should more type of this kind of stuff be defined that needs
  * handling, this class would have to properly manually extended.
  *
- * \version 0.10
- *
- * \date 17 - 09 - 2020
- *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *

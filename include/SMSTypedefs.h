@@ -19,32 +19,26 @@
  * - some templates to simplify handling serialization and deserialization
  *   to/from a netCDF file;
  *
- * \version 0.14
- *
- * \date 04 - 01 - 2022
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Department of Applied Mathematics \n
- *         State University of Campinas, Brazil \n
- *
- * \author Kostas Tavlaridis-Gyparakis \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
- * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato, Kostas
- * Tavlaridis-Gyparakis
+ * \author Kostas Tavlaridis-Gyparakis \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
+ *
+ * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 #ifndef __SMSTypedefs
- #define __SMSTypedefs/* self-identification: #endif at the end of the file */
+ #define __SMSTypedefs
+                      /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/

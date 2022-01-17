@@ -4,12 +4,7 @@
 /** @file
  * Implementation of the BendersBlock class.
  *
- * \version 0.1
- *
- * \date 26 - 03 - 2020
- *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *

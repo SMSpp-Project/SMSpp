@@ -7,18 +7,13 @@
  * by the values of the static and dynamic Variable and dual variables of
  * the Constraint of a Block.
  *
- * \version 0.30
- *
- * \date 28 - 03 - 2021
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Department of Applied Mathematics \n
- *         State University of Campinas, Brazil \n
+ *         Dipartimento di Informatica \n
+ *         Universita' di Pisa \n
  *
  * Copyright &copy by Antonio Frangioni, Rafael Durbano Lobato
  */

@@ -5,17 +5,11 @@
  * Header file for the *concrete* class LinearFunction, which implements
  * C15Function with a simple linear function.
  *
- * \version 0.40
- *
- * \date 07 - 10 - 2019
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
@@ -266,7 +260,7 @@ class LinearFunction : public C15Function
   * them. Not that the LinearFunction would have, but the Observer may.
   * By not having any Variable, the Observer can no longer do that. */
 
- void clear() override { v_pairs.clear(); }
+ void clear( void ) override { v_pairs.clear(); }
 
 /**@} ----------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
@@ -403,7 +397,7 @@ class LinearFunction : public C15Function
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the value of the constant term of this LinearFunction.
 
- [[nodiscard]] FunctionValue get_constant_term( void ) const {
+ [[nodiscard]] FunctionValue get_constant_term( void ) const override {
   return( f_constant_term );
   }
 

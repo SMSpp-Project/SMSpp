@@ -13,17 +13,11 @@
  *   which also configure (potentially) all sub-Block (recursively) of the
  *   given Block.
  *
- * \version 0.33
- *
- * \date 15 - 09 - 2020
- *
  * \author Antonio Frangioni \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
  * \author Rafael Durbano Lobato \n
- *         Operations Research Group \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
  *
