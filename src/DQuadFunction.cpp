@@ -159,7 +159,7 @@ void DQuadFunction::get_linearization_coefficients( SparseVector & g ,
   for( Index i = range.first ; i < range.second ; ++i )
    g.coeffRef( i ) = get_linearization_coefficient( i );
 
-  g.prune( 0 );
+  g.prune( 0 , 0 );
   }
  }
 
@@ -221,7 +221,7 @@ void DQuadFunction::get_linearization_coefficients( SparseVector & g ,
    g.coeffRef( i ) = get_linearization_coefficient( i );
    }
 
-  g.prune( 0 );
+  g.prune( 0 , 0 );
   }
  }
 

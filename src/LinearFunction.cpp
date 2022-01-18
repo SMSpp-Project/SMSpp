@@ -115,7 +115,7 @@ void LinearFunction::get_linearization_coefficients( SparseVector & g,
   for( Index i = range.first; i < range.second; ++i )
    g.coeffRef( i ) = v_pairs[ i ].second;
 
-  g.prune( 0 );
+  g.prune( 0 , 0 );
   }
  }
 
@@ -177,7 +177,7 @@ void LinearFunction::get_linearization_coefficients( SparseVector & g ,
    g.coeffRef( i ) = v_pairs[ i ].second;
    }
 
-  g.prune( 0 );
+  g.prune( 0 , 0 );
   }
  }
 

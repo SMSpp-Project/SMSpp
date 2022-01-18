@@ -521,7 +521,7 @@ void PolyhedralFunction::get_linearization_coefficients( SparseVector & g ,
     for( Index i = range.first ; i < range.second ; )
      g.coeffRef( i++ ) = *(ai++);
 
-  g.prune( 0 );
+  g.prune( 0 , 0 );
   }
  }  // end( PolyhedralFunction::get_linearization_coefficients( sv , range ) )
 
@@ -602,7 +602,7 @@ void PolyhedralFunction::get_linearization_coefficients( SparseVector & g ,
      g.coeffRef( i ) = (*ai++);
      }
 
-  g.prune( 0 );
+  g.prune( 0 , 0 );
   }
  }  // end( PolyhedralFunction::get_linearization_coefficients( sv, subset ) )
 

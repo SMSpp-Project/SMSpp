@@ -1125,7 +1125,7 @@ class C05Function : public Function {
    for( Index i = range.first; i < range.second; ++i )
     g.coeffRef( i ) = *( ggp++ );
 
-   g.prune( 0 );
+   g.prune( 0 , 0 );
    }
   }
 
@@ -1256,7 +1256,7 @@ class C05Function : public Function {
     g.coeffRef( i ) = *( ggp++ );
     }
 
-   g.prune( 0 );
+   g.prune( 0 , 0 );
    }
   }
 
