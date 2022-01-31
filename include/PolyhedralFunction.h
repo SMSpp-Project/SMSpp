@@ -291,7 +291,7 @@ class PolyhedralFunction : public C05Function {
   VarVector::const_iterator itr_;
   };
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------ CONSTRUCTING AND DESTRUCTING PolyhedralFunction -------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructing and destructing PolyhedralFunction
@@ -412,7 +412,7 @@ class PolyhedralFunction : public C05Function {
 
  void clear( void ) override { v_x.clear(); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -546,7 +546,7 @@ class PolyhedralFunction : public C05Function {
    }
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------- METHODS DESCRIBING THE BEHAVIOR OF A PolyhedralFunction ---------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a PolyhedralFunction
@@ -793,7 +793,7 @@ class PolyhedralFunction : public C05Function {
 
  Index get_nrows( void ) const { return( v_A.size() ); }
  
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the parameters of the PolyhedralFunction
@@ -824,7 +824,7 @@ class PolyhedralFunction : public C05Function {
    return( C05Function::get_dbl_par( par ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------- METHODS FOR HANDLING THE State OF THE PolyhedralFunction --------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the State of the PolyhedralFunction
@@ -846,7 +846,7 @@ class PolyhedralFunction : public C05Function {
 		       const std::string & sub_group_name = "" )
   const override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---- METHODS FOR HANDLING "ACTIVE" Variable IN THE PolyhedralFunction ----*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling the set of "active" Variable in the
@@ -909,7 +909,7 @@ class PolyhedralFunction : public C05Function {
   return( new PolyhedralFunction::v_const_iterator( v_x.end() ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR MODIFYING THE PolyhedralFunction ----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for modifying the PolyhedralFunction
@@ -1471,7 +1471,7 @@ class PolyhedralFunction : public C05Function {
 
  friend class PolyhedralFunctionState;  // make PolihedralFunctionState friend
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 

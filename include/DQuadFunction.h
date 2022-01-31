@@ -290,7 +290,7 @@ class DQuadFunction : public C15Function {
 
  void clear( void ) override { v_triples.clear(); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -332,7 +332,7 @@ class DQuadFunction : public C15Function {
 			"global pool not supported yet by DQuadFunction" ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE DQuadFunction ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the DQuadFunction
@@ -364,7 +364,7 @@ class DQuadFunction : public C15Function {
   return( std::get< 2 >( *( v_triples.begin() + i ) ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF THE DQuadFunction -----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of the DQuadFunction
@@ -500,7 +500,7 @@ class DQuadFunction : public C15Function {
   return( f_constant_term );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the parameters of the DQuadFunction
@@ -514,7 +514,7 @@ class DQuadFunction : public C15Function {
  ComputeConfig * get_ComputeConfig( bool all , ComputeConfig * ocfg )
   const override final { return( nullptr ); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE DQuadFunction --------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling the set of "active" Variable in the
@@ -571,7 +571,7 @@ class DQuadFunction : public C15Function {
   return( new DQuadFunction::v_const_iterator( v_triples.end() ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------- METHODS FOR MODIFYING THE DQuadFunction -------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for modifying the DQuadFunction
@@ -786,7 +786,7 @@ class DQuadFunction : public C15Function {
  void set_constant_term( FunctionValue constant_term ,
                          ModParam issueMod = eModBlck );
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 

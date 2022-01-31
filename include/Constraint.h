@@ -31,7 +31,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __Constraint
-#define __Constraint /* self-identification: #endif at the end of the file */
+ #define __Constraint /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -140,7 +140,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
 
  ~Constraint() override = default;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -166,7 +166,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
 
  virtual void relax( bool relax_it, c_ModParam issueMod = eModBlck );
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE Constraint --------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the Constraint
@@ -177,7 +177,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
   return( f_Block );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------ METHODS DESCRIBING THE BEHAVIOR OF THE Constraint -----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of the Constraint
@@ -221,7 +221,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
 
  [[nodiscard]] bool is_relaxed( void ) const { return( f_is_relaxed ); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------- METHODS FOR LOADING, PRINTING & SAVING THE Constraint ---------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for printing the Constraint
@@ -245,7 +245,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
   return ( out );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -271,7 +271,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
          << std::endl;
  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 

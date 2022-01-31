@@ -379,7 +379,7 @@ class BendersBFunction : public C05Function , public Block {
 
  };  // end( int_par_type_LagBF )
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------- CONSTRUCTING AND DESTRUCTING BendersBFunction --------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructing and destructing BendersBFunction
@@ -516,7 +516,7 @@ class BendersBFunction : public C05Function , public Block {
 
  void clear( void ) override { v_x.clear(); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -748,7 +748,7 @@ class BendersBFunction : public C05Function , public Block {
    }
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the parameters of the BendersBFunction
@@ -849,7 +849,7 @@ class BendersBFunction : public C05Function , public Block {
   return( C05Function::int_par_idx2str( idx ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------- METHODS FOR HANDLING THE State OF THE BendersBFunction ---------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the State of the BendersBFunction
@@ -871,7 +871,7 @@ class BendersBFunction : public C05Function , public Block {
 		       const std::string & sub_group_name = "" )
   const override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------------- METHODS FOR MANAGING THE "IDENTITY" --------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Managing the "identity" of the BendersBFunction
@@ -904,7 +904,7 @@ class BendersBFunction : public C05Function , public Block {
     s->set_id( id );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE BendersBFunction -----*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling the set of "active" Variable in the
@@ -962,7 +962,7 @@ class BendersBFunction : public C05Function , public Block {
   return( new BendersBFunction::v_const_iterator( v_x.end() ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------- METHODS FOR MODIFYING THE BendersBFunction -----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for modifying the BendersBFunction
@@ -1707,7 +1707,7 @@ class BendersBFunction : public C05Function , public Block {
 
  void serialize( netCDF::NcGroup & group ) const override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------- METHODS DESCRIBING THE BEHAVIOR OF THE BendersBFunction ----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of the BendersBFunction
@@ -1990,7 +1990,7 @@ class BendersBFunction : public C05Function , public Block {
  ComputeConfig * get_ComputeConfig
  ( bool all = false , ComputeConfig * ocfg = nullptr ) const override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -2018,7 +2018,7 @@ class BendersBFunction : public C05Function , public Block {
 
  void load( std::istream &input ) override final;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 

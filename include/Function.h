@@ -26,7 +26,7 @@
 /*--------------------------------------------------------------------------*/
 
 #ifndef __Function
- #define __Function  /* self-identification: #endif at the end of the file */
+ #define __Function   /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -291,7 +291,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
    * of vector-of-string parameters. */
   };  // end( vstr_par_type_S )
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and destructor
@@ -335,7 +335,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
 
  ~Function() override = default;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -372,7 +372,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
   f_Observer = observer;
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF A Function --------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a Function
@@ -617,7 +617,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
 	  this->is_upper_semicontinuous() );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the parameters of the Function
@@ -720,7 +720,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
   throw( std::invalid_argument( "invalid double parameter name" ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE DATA OF THE Function ---------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the Function
@@ -734,7 +734,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
 
  [[nodiscard]] Observer * get_Observer( void ) const { return( f_Observer ); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------- METHODS FOR LOADING, PRINTING & SAVING THE Function ----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for printing the Function
@@ -751,7 +751,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface {
   return ( out );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 

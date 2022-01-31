@@ -103,7 +103,7 @@ class LinearConstraint : public FRowConstraint {
 
  virtual ~LinearConstraint() {}
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -118,7 +118,7 @@ class LinearConstraint : public FRowConstraint {
   throw( std::logic_error( "call to LinearConstraint::set_function" ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE DATA OF THE LinearConstraint ----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the LinearConstraint
@@ -138,7 +138,7 @@ class LinearConstraint : public FRowConstraint {
   return( static_cast< LinearFunction * >( f_function ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------- METHODS FOR MODIFYING THE LinearConstraint -----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for modifying the LinearConstraint
@@ -191,7 +191,7 @@ class LinearConstraint : public FRowConstraint {
 		                      std::move( NCoef ) , range , issueMod );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 

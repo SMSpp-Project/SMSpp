@@ -524,7 +524,7 @@ class Solver : public ThinComputeInterface {
 			   * function, generically "a real". One may expect
  * this to be defined exactly like the same-named type in RealObjective. */
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------ CONSTRUCTING AND DESTRUCTING Solver -------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructing and destructing Solver
@@ -597,7 +597,7 @@ class Solver : public ThinComputeInterface {
 
  ~Solver() override = default;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------------------- LOCKING AND UNLOCKING Solver ----------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Locking and Unlocking Solver
@@ -669,7 +669,7 @@ class Solver : public ThinComputeInterface {
 
  void unlock( void ) { f_mutex.unlock(); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -742,7 +742,7 @@ class Solver : public ThinComputeInterface {
   f_log = log_stream;
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------------- METHODS FOR MANAGING THE "IDENTITY" --------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Managing the "identity" of a Solver
@@ -764,7 +764,7 @@ class Solver : public ThinComputeInterface {
 
  void set_id( void * id = nullptr ) override { f_id = id ? id : this; }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------------------- METHODS FOR EVENTS HANDLING -----------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Set event handlers
@@ -859,7 +859,7 @@ class Solver : public ThinComputeInterface {
 
  void reset_event_handler( int type , EventID id ) override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SOLVING THE Block ----------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Solving the model encoded by the current Block
@@ -955,7 +955,7 @@ class Solver : public ThinComputeInterface {
 
  int compute( bool changedvars = true ) override = 0;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------------------- METHODS FOR READING RESULTS -----------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Accessing the found solutions (if any)
@@ -1471,7 +1471,7 @@ class Solver : public ThinComputeInterface {
 
  [[nodiscard]] virtual bool new_var_direction( void ) { return ( false ); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------- METHODS FOR READING THE DATA OF THE Solver ----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the state of the Solver
@@ -1507,7 +1507,7 @@ class Solver : public ThinComputeInterface {
   return( private_name() );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the parameters of the Solver
@@ -1583,7 +1583,7 @@ class Solver : public ThinComputeInterface {
   return( dbl_pars_str[ idx ] );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------- METHODS FOR ADDING / REMOVING / CHANGING DATA --------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Changing the data of the model
@@ -1754,7 +1754,7 @@ class Solver : public ThinComputeInterface {
 
  virtual void inhibit_Modification( bool do_it = true ) { f_no_Mod = do_it; }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1810,7 +1810,7 @@ class Solver : public ThinComputeInterface {
   f_mod_lock.clear( std::memory_order_release );  // release lock
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /** @name Protected methods for handling static fields
  *
  * These methods allow derived classes to partake into static initialization
@@ -1858,7 +1858,7 @@ class Solver : public ThinComputeInterface {
 
  static void static_initialization( void ) {}
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------------------------- PROTECTED FIELDS  ---------------------------*/
 /*--------------------------------------------------------------------------*/
 

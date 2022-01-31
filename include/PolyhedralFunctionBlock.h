@@ -260,7 +260,7 @@ class PolyhedralFunctionBlock : public AbstractBlock {
 
  virtual ~PolyhedralFunctionBlock() { guts_of_destructor(); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -387,7 +387,7 @@ class PolyhedralFunctionBlock : public AbstractBlock {
 
  void generate_objective( Configuration *objc = nullptr ) override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------- Methods for reading the data of the PolyhedralFunctionBlock ------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for reading the data of the PolyhedralFunctionBlock
@@ -417,7 +417,7 @@ class PolyhedralFunctionBlock : public AbstractBlock {
 		     f_polyf.get_global_lower_bound() ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------------- Methods for R3 Blocks --------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for R3 Blocks
@@ -530,7 +530,7 @@ class PolyhedralFunctionBlock : public AbstractBlock {
 			     ModParam issuePMod = eNoBlck ,
 			     ModParam issueAMod = eModBlck ) override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- Methods for handling Modification -------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling Modification
@@ -635,7 +635,7 @@ class PolyhedralFunctionBlock : public AbstractBlock {
    AbstractBlock::add_Modification( mod , chnl );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--- METHODS FOR LOADING, PRINTING & SAVING THE PolyhedralFunctionBlock ---*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the PolyhedralFunctionBlock
@@ -656,7 +656,7 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   f_polyf.serialize( group );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 

@@ -276,7 +276,7 @@ class AbstractBlock : public Block {
 
  ~AbstractBlock() override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -319,7 +319,7 @@ class AbstractBlock : public Block {
   f_lb_cond = conditional;
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------- Methods for reading the data of the AbstractBlock ----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for reading the data of the AbstractBlock
@@ -403,7 +403,7 @@ class AbstractBlock : public Block {
   return( f_lb_cond == conditional ? f_lb : -Inf< double >() );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----- Methods for adding/removing (dynamic) Variables and Constraints ----*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for changing Variables, Constraints and Objective
@@ -482,7 +482,7 @@ class AbstractBlock : public Block {
 
  using Block::remove_dynamic_constraint;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------------- Methods for checking the AbstractBlock -----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for checking solution information in the AbstractBlock
@@ -543,7 +543,7 @@ class AbstractBlock : public Block {
 
  void is_correct( void );
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling Solution
@@ -579,7 +579,7 @@ class AbstractBlock : public Block {
  Solution * get_Solution( Configuration * solc = nullptr ,
                           bool emptys = true ) override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------- METHODS FOR LOADING, PRINTING & SAVING THE AbstractBlock --------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the AbstractBlock
@@ -616,7 +616,7 @@ class AbstractBlock : public Block {
   */
  void read( const std::string & filename, const std::string & ext = "" );
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 

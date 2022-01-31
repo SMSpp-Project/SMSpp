@@ -195,7 +195,7 @@ class OneVarConstraint : public RowConstraint {
   ColVariable * ptr_;
   };
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and destructor
@@ -224,7 +224,7 @@ class OneVarConstraint : public RowConstraint {
 
  void clear( void ) override { f_variable = nullptr; }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -249,7 +249,7 @@ class OneVarConstraint : public RowConstraint {
  void set_variable( ColVariable * const variable = nullptr ,
 		    ModParam issueMod = eModBlck );
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------- METHODS DESCRIBING THE BEHAVIOR OF A OneVarConstraint ---------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a OneVarConstraint
@@ -284,7 +284,7 @@ class OneVarConstraint : public RowConstraint {
   return( f_variable ? f_variable->get_value() : 0 );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE OneVarConstraint -----*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling the set of "active" Variable in the
@@ -366,7 +366,7 @@ class OneVarConstraint : public RowConstraint {
   set_variable( nullptr , issueMod );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -434,7 +434,7 @@ class BoxConstraint : public OneVarConstraint {
  /// destructor: does nothing special
  ~BoxConstraint() override = default;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -473,7 +473,7 @@ class BoxConstraint : public OneVarConstraint {
  void set_both( c_RHSValue both_value ,
                 ModParam issueMod = eModBlck ) override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE BoxConstraint -----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the BoxConstraint
@@ -485,7 +485,7 @@ class BoxConstraint : public OneVarConstraint {
  /// method to get the LHS of the BoxConstraint
  [[nodiscard]] RHSValue get_lhs( void ) const override { return( f_lhs ); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -555,7 +555,7 @@ class LB0Constraint : public OneVarConstraint {
 
  ~LB0Constraint() override = default;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -589,7 +589,7 @@ class LB0Constraint : public OneVarConstraint {
    throw( std::invalid_argument( "cannot change LHS in a LB0Constraint" ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE LB0Constraint -----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the LB0Constraint
@@ -601,7 +601,7 @@ class LB0Constraint : public OneVarConstraint {
  /// method to get the LHS of the LB0Constraint
  [[nodiscard]] RHSValue get_lhs( void ) const final { return( 0 ); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -647,7 +647,7 @@ class UB0Constraint : public OneVarConstraint {
 
  public:
 
-/**@} ----------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and destructor
@@ -670,7 +670,7 @@ class UB0Constraint : public OneVarConstraint {
 
  ~UB0Constraint() override = default;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -704,7 +704,7 @@ class UB0Constraint : public OneVarConstraint {
    throw( std::invalid_argument( "cannot change RHS in a UB0Constraint" ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE UB0Constraint -----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the UB0Constraint
@@ -716,7 +716,7 @@ class UB0Constraint : public OneVarConstraint {
  /// method to get the LHS of the UB0Constraint
  [[nodiscard]] RHSValue get_lhs( void ) const override { return( f_lhs ); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -785,7 +785,7 @@ class LBConstraint : public OneVarConstraint {
 
  ~LBConstraint() override = default;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -819,7 +819,7 @@ class LBConstraint : public OneVarConstraint {
    throw( std::invalid_argument( "cannot change RHS in a LBConstraint" ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE LBConstraint ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the LBConstraint
@@ -831,7 +831,7 @@ class LBConstraint : public OneVarConstraint {
  /// method to get the LHS of the LBConstraint
  [[nodiscard]] RHSValue get_lhs( void ) const final { return( f_lhs ); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A LBConstraint ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a LBConstraint
@@ -867,7 +867,7 @@ class LBConstraint : public OneVarConstraint {
   return( f_lhs == 0 ? f_lhs - val : ( f_lhs - val ) / std::abs( f_lhs ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -936,7 +936,7 @@ class UBConstraint : public OneVarConstraint {
 
  ~UBConstraint() override = default;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -970,7 +970,7 @@ class UBConstraint : public OneVarConstraint {
    throw( std::invalid_argument( "cannot change LHS in a UBConstraint" ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE UBConstraint ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the UBConstraint
@@ -984,7 +984,7 @@ class UBConstraint : public OneVarConstraint {
 
  [[nodiscard]] RHSValue get_lhs( void ) const final { return( -RHSINF ); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A UBConstraint ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a UBConstraint
@@ -1020,7 +1020,7 @@ class UBConstraint : public OneVarConstraint {
   return( f_rhs == 0 ? val - f_rhs : ( val - f_rhs ) / std::abs( f_rhs ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1088,7 +1088,7 @@ class NNConstraint : public OneVarConstraint {
 
  ~NNConstraint() override = default;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -1117,7 +1117,7 @@ class NNConstraint : public OneVarConstraint {
   throw( std::invalid_argument( "LHS == RHS impossible in a NNConstraint" ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE NNConstraint ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the NNConstraint
@@ -1131,7 +1131,7 @@ class NNConstraint : public OneVarConstraint {
  
  [[nodiscard]] RHSValue get_lhs( void ) const final { return( 0 ); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A NNConstraint ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a NNConstraint
@@ -1154,7 +1154,7 @@ class NNConstraint : public OneVarConstraint {
   return( NNConstraint::abs_viol() );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1213,7 +1213,7 @@ class NPConstraint : public OneVarConstraint {
 
  ~NPConstraint() override = default;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -1242,7 +1242,7 @@ class NPConstraint : public OneVarConstraint {
   throw( std::invalid_argument( "LHS == RHS impossible in a NPConstraint" ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE NPConstraint ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the NPConstraint
@@ -1254,7 +1254,7 @@ class NPConstraint : public OneVarConstraint {
  /// method to get the LHS of the NNConstraint
  [[nodiscard]] RHSValue get_lhs( void ) const final { return( -RHSINF ); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A NPConstraint ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a NPConstraint
@@ -1277,7 +1277,7 @@ class NPConstraint : public OneVarConstraint {
   return( NPConstraint::abs_viol() );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -1335,7 +1335,7 @@ class ZOConstraint : public OneVarConstraint {
 
  ~ZOConstraint() override = default;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -1364,7 +1364,7 @@ class ZOConstraint : public OneVarConstraint {
   throw( std::invalid_argument( "LHS == RHS impossible in a ZOConstraint" ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE NNConstraint ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the ZOConstraint
@@ -1376,7 +1376,7 @@ class ZOConstraint : public OneVarConstraint {
  /// method to get the LHS of the ZOConstraint
  [[nodiscard]] RHSValue get_lhs( void ) const final { return( 0 ); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A ZOConstraint ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a ZOConstraint
@@ -1400,7 +1400,7 @@ class ZOConstraint : public OneVarConstraint {
   return( ZOConstraint::abs_viol() );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 

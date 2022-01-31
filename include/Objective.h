@@ -127,7 +127,7 @@ class Objective : public ThinComputeInterface , public ThinVarDepInterface
   eMax = 1     ///< maximize the objective function
   };
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and destructor
@@ -160,7 +160,7 @@ class Objective : public ThinComputeInterface , public ThinVarDepInterface
  /// destructor of Objective: it is virtual, and empty
  ~Objective() override = default;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -187,7 +187,7 @@ class Objective : public ThinComputeInterface , public ThinVarDepInterface
 
  virtual void set_sense( int new_sense , c_ModParam issueMod = eModBlck );
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------- METHODS FOR READING THE DATA OF THE Objective --------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the Objective
@@ -207,7 +207,7 @@ class Objective : public ThinComputeInterface , public ThinVarDepInterface
 
  [[nodiscard]] virtual int get_sense( void ) const { return( f_sense ); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF AN Objective ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a Objective
@@ -234,7 +234,7 @@ class Objective : public ThinComputeInterface , public ThinVarDepInterface
 
  virtual int compute( bool changedvars = true ) override = 0;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------- METHODS FOR LOADING, PRINTING & SAVING THE Objective ----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for printing the Objective
@@ -256,7 +256,7 @@ class Objective : public ThinComputeInterface , public ThinVarDepInterface
   return ( out );
  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -285,7 +285,7 @@ class Objective : public ThinComputeInterface , public ThinVarDepInterface
    output << "maximize" << std::endl;
  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -334,7 +334,7 @@ class RealObjective : public Objective
 
  typedef double OFValue;  ///< type of the returned value
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
 /*--------------------------------------------------------------------------*/
  /** @name Constructor and destructor
@@ -392,7 +392,7 @@ class RealObjective : public Objective
   return( 0 );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 

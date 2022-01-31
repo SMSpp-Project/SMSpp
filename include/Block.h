@@ -695,7 +695,7 @@ class Block : public Observer {
  /// type for ( int , subset ) functions
  using MS_int_sbst = arg_packer< MF_int_it, Subset &&, const bool >;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 
  /// ConstraintID identifies a Constraint within a Block
  /** A single Constraint of a Block can be identified by three pieces of
@@ -1201,7 +1201,7 @@ class Block : public Observer {
    delete el.second;
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------------- Methods for acquiring/releasing the Block --------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for acquiring/releasing the Block
@@ -1782,7 +1782,7 @@ class Block : public Observer {
   guts_of_read_unlock();
  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -2310,7 +2310,7 @@ class Block : public Observer {
    blck->generate_objective();
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------------- Methods for reading the data of the Block --------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for reading the data of the Block
@@ -2713,7 +2713,7 @@ class Block : public Observer {
 
  verbosity_type get_verbosity( void ) const { return ( verbosity_lvl ); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /** @name Methods for reading the Block's Variables and Constraints
  *  @{ */
 
@@ -3614,7 +3614,7 @@ class Block : public Observer {
   return ( std::distance( v_d_Variable_names.begin(), it ) );
  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----- Methods for adding/removing (dynamic) Variables and Constraints ----*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for changing Variable, Constraint and Objective
@@ -3948,7 +3948,7 @@ class Block : public Observer {
 
  void set_objective( Objective * newOF , ModParam issueMod = eModBlck );
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------- Methods for checking the Block ---------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for checking solution information in the Block
@@ -4363,7 +4363,7 @@ class Block : public Observer {
  virtual bool is_empty( bool useabstract = false ,
                         Configuration * optc = nullptr ) { return( false ); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------------- Methods for R3 Blocks --------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for R3 Blocks
@@ -5048,7 +5048,7 @@ class Block : public Observer {
   }
  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------------------- Methods for handling Solution --------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling Solution
@@ -5112,7 +5112,7 @@ class Block : public Observer {
   return( nullptr );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF AN Observer -------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of an Observer
@@ -5231,7 +5231,7 @@ class Block : public Observer {
 
  void set_default_channel( ChnlName chnl = 0 ) override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------------------- Methods for handling Solver -----------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling Solvers
@@ -5397,7 +5397,7 @@ class Block : public Observer {
   replace_Solver( newSolver, v_Solver.erase( it, it ), deleteold );
  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------- Methods for handling the methods factory -----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling the methods factory
@@ -5929,7 +5929,7 @@ class Block : public Observer {
   return( get_method_name< FunctionType< Args... > >( fnct ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR LOADING, PRINTING & SAVING THE Block ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the Block
@@ -6108,7 +6108,7 @@ class Block : public Observer {
    group.putAtt( "name", f_name );
    }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -6234,7 +6234,7 @@ class Block : public Observer {
   }  // end( for( ever ) )
  }  // end( guts_of_read_unlock )
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /** @name Protected methods for handling the "abstract representation"
  *
  * The following methods are the only ones that derived classes can use to
@@ -6936,7 +6936,7 @@ class Block : public Observer {
   v_d_Variable_names[ i ] = std::move( name );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /** @name Protected methods for handling Solver list
  *
  * These are the protected versions of the same-named public methods, which
@@ -7038,7 +7038,7 @@ class Block : public Observer {
 
  virtual void load( std::istream & input ) = 0;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /** @name Protected methods for handling static fields
  *
  * These methods allow derived classes to partake into static initialization
@@ -7089,7 +7089,7 @@ class Block : public Observer {
 
  static void static_initialization( void ) {}
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -8091,7 +8091,7 @@ class BlockConfig : public Configuration {
 
  virtual ~BlockConfig() { delete_sub_Configuration(); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -8109,7 +8109,7 @@ class BlockConfig : public Configuration {
 
  virtual void get( Block * block );
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------- METHODS DESCRIBING THE BEHAVIOR OF THE BlockConfig ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of the BlockConfig
@@ -8198,7 +8198,7 @@ class BlockConfig : public Configuration {
   return( new BlockConfig( *this ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------- METHODS FOR LOADING, PRINTING & SAVING THE BlockConfig ---------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the BlockConfig
@@ -8218,7 +8218,7 @@ class BlockConfig : public Configuration {
 
  void serialize( netCDF::NcGroup & group ) const override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------------- METHODS FOR MODIFYING THE BlockConfig -------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for modifying the BlockConfig
@@ -8231,7 +8231,7 @@ class BlockConfig : public Configuration {
 
  void set_diff( bool diff = true ) { f_diff = diff; }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------- Methods for reading the data of the BlockConfig ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for reading the data of the BlockConfig
@@ -8258,7 +8258,7 @@ class BlockConfig : public Configuration {
 	  ( ! f_extra_Configuration ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------- PUBLIC FIELDS OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Public fields of the class
@@ -8291,7 +8291,7 @@ class BlockConfig : public Configuration {
  /// any extra Block-specific Configuration
  Configuration * f_extra_Configuration;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 

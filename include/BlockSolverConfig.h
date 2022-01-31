@@ -336,7 +336,7 @@ class BlockSolverConfig : public Configuration {
    delete config;
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -396,7 +396,7 @@ class BlockSolverConfig : public Configuration {
 
  virtual void get( const Block * block , bool clear = false );
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------- METHODS DESCRIBING THE BEHAVIOR OF THE BlockSolverConfig --------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of the BlockSolverConfig
@@ -517,7 +517,7 @@ class BlockSolverConfig : public Configuration {
   return( new BlockSolverConfig( *this ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------ METHODS FOR LOADING, PRINTING & SAVING THE BlockSolverConfig ------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the BlockSolverConfig
@@ -541,7 +541,7 @@ class BlockSolverConfig : public Configuration {
 
  void serialize( netCDF::NcGroup & group ) const override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------- METHODS FOR MODIFYING THE BlockSolverConfig ----------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for modifying the BlockSolverConfig
@@ -631,7 +631,7 @@ class BlockSolverConfig : public Configuration {
   v_SolverConfigs[ index ] = config;
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------- Methods for reading the data of the BlockSolverConfig ---------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for reading the data of the BlockSolverConfig
@@ -711,7 +711,7 @@ class BlockSolverConfig : public Configuration {
   return( v_SolverNames.empty() );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -985,7 +985,7 @@ class RBlockSolverConfig : public BlockSolverConfig {
    delete config;
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -1037,7 +1037,7 @@ class RBlockSolverConfig : public BlockSolverConfig {
 
  void get( const Block * block , bool clear = false ) override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------- METHODS DESCRIBING THE BEHAVIOR OF THE RBlockSolverConfig -------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of the RBlockSolverConfig
@@ -1083,7 +1083,7 @@ class RBlockSolverConfig : public BlockSolverConfig {
   return( new RBlockSolverConfig( *this ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------ METHODS FOR LOADING, PRINTING & SAVING THE RBlockSolverConfig -----*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the RBlockSolverConfig
@@ -1097,7 +1097,7 @@ class RBlockSolverConfig : public BlockSolverConfig {
 
  void serialize( netCDF::NcGroup & group ) const override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------- METHODS FOR MODIFYING THE RBlockSolverConfig ---------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for modifying the RBlockSolverConfig
@@ -1158,7 +1158,7 @@ class RBlockSolverConfig : public BlockSolverConfig {
   v_sub_Block_id.erase( std::begin( v_sub_Block_id ) + index );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------- Methods for reading the data of the RBlockSolverConfig --------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for reading the data of the RBlockSolverConfig
@@ -1223,7 +1223,7 @@ class RBlockSolverConfig : public BlockSolverConfig {
   return( BlockSolverConfig::empty() && v_BlockSolverConfig.empty() );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 

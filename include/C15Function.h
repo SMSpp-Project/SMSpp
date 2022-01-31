@@ -12,7 +12,7 @@
  * \author Rafael Durbano Lobato \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
-*
+ *
  * Copyright &copy; by Antonio Frangioni, Rafael Durbano Lobato
  */
 /*--------------------------------------------------------------------------*/
@@ -135,7 +135,7 @@ class C15Function : public C05Function {
    * of vector-of-string parameters. */
   };
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Constructor and destructor
@@ -152,7 +152,7 @@ class C15Function : public C05Function {
 
  ~C15Function() override = default;  ///< destructor: it is virtual, and empty
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A C15Function -------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a C15Function
@@ -162,7 +162,7 @@ class C15Function : public C05Function {
  /** Pure virtual method: it has to compute an approximation to the Hessian
   * matrix of this function at the current point. */
 
- virtual void compute_hessian_approximation() = 0;
+ virtual void compute_hessian_approximation( void ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// obtain an approximation to the Hessian for this Function
@@ -185,11 +185,10 @@ class C15Function : public C05Function {
  /** Method that returns only if this Function has continuous second order
   * derivative. By default, false is returned. */
 
- [[nodiscard]] virtual bool is_twice_continuously_differentiable() const {
-  return ( false );
- }
+ [[nodiscard]] virtual bool is_twice_continuously_differentiable( void )
+  const { return( false ); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 

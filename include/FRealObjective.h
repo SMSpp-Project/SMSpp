@@ -275,7 +275,7 @@ class FRealObjective : public RealObjective , public Observer {
    f_function->set_ComputeConfig( scfg );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------ METHODS DESCRIBING THE BEHAVIOR OF A FRealObjective ---------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a FRealObjective

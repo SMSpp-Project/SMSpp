@@ -131,7 +131,7 @@ class FRowConstraint : public RowConstraint, public Observer {
    f_function->clear();
  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -276,7 +276,7 @@ class FRowConstraint : public RowConstraint, public Observer {
    f_function->set_ComputeConfig( scfg );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------- METHODS FOR READING THE DATA OF THE FRowConstraint -----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the FRowConstraint
@@ -289,8 +289,8 @@ class FRowConstraint : public RowConstraint, public Observer {
   * be explicitly implemented in terms of the latter. */
 
  [[nodiscard]] Block * get_Block() const override {
-  return ( Constraint::get_Block() );
- }
+  return( Constraint::get_Block() );
+  }
 
 /*--------------------------------------------------------------------------*/
  ///< method to get a pointer to the Function of the FRowConstraint
@@ -307,7 +307,7 @@ class FRowConstraint : public RowConstraint, public Observer {
 
  [[nodiscard]] RHSValue get_lhs( void ) const override { return ( f_lhs ); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A FRowConstraint ----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of a FRowConstraint
@@ -341,7 +341,7 @@ class FRowConstraint : public RowConstraint, public Observer {
   return( f_function ? f_function->get_upper_estimate() : RHSINF );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the parameters of the FRowConstraint; they all dispatch
@@ -555,7 +555,7 @@ class FRowConstraint : public RowConstraint, public Observer {
   return( f_function->get_ComputeConfig( all, ocfg ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE FRowConstraint -------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling the set of "active" Variable in the
@@ -617,7 +617,7 @@ class FRowConstraint : public RowConstraint, public Observer {
  void remove_variables( Subset && nms , bool ordered = false,
                         ModParam issueMod = eModBlck ) final;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF AN Observer -------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of an Observer
@@ -688,7 +688,7 @@ class FRowConstraint : public RowConstraint, public Observer {
    f_Block->set_default_channel( chnl );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -708,7 +708,7 @@ class FRowConstraint : public RowConstraint, public Observer {
          << " active variables" << std::endl;
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 

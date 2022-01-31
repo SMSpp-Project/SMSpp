@@ -21,7 +21,7 @@
 
 #ifndef __LinearFunction
  #define __LinearFunction
-                     /* self-identification: #endif at the end of the file */
+                      /* self-identification: #endif at the end of the file */
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
@@ -211,7 +211,7 @@ class LinearFunction : public C15Function
   v_coeff_pair::const_iterator itr_;
  };
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -262,7 +262,7 @@ class LinearFunction : public C15Function
 
  void clear( void ) override { v_pairs.clear(); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -275,7 +275,7 @@ class LinearFunction : public C15Function
 
  void set_ComputeConfig( ComputeConfig * scfg ) final {}
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------- METHODS FOR READING THE DATA OF THE LinearFunction ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Reading the data of the LinearFunction
@@ -297,7 +297,7 @@ class LinearFunction : public C15Function
   return( ( v_pairs.begin() + i )->second );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF THE LinearFunction ----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of the LinearFunction
@@ -401,7 +401,7 @@ class LinearFunction : public C15Function
   return( f_constant_term );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the parameters of the LinearFunction
@@ -415,7 +415,7 @@ class LinearFunction : public C15Function
  ComputeConfig * get_ComputeConfig( bool all , ComputeConfig * ocfg )
   const override { return( nullptr ); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE LinearFunction -------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling the set of "active" Variable in the
@@ -473,7 +473,7 @@ class LinearFunction : public C15Function
   return( new LinearFunction::v_const_iterator( v_pairs.end() ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------- METHODS FOR MODIFYING THE LinearFunction ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for modifying the LinearFunction
@@ -628,7 +628,7 @@ class LinearFunction : public C15Function
  void set_constant_term( FunctionValue constant_term,
                          ModParam issueMod = eModBlck );
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 

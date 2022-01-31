@@ -653,7 +653,7 @@ class LagBFunction : public C05Function , public Block {
 
   };  // end( vstr_par_type_LagBF )
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 /*--------------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/
@@ -687,7 +687,7 @@ class LagBFunction : public C05Function , public Block {
 
  void clear( void ) override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Other initializations
@@ -1178,7 +1178,7 @@ class LagBFunction : public C05Function , public Block {
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------------------- METHODS FOR EVENTS HANDLING -----------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Set event handlers
@@ -1207,7 +1207,7 @@ class LagBFunction : public C05Function , public Block {
     "LagBFunction::reset_event_handler: inner Solver not available yet" ) );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------------- METHODS FOR MANAGING THE "IDENTITY" --------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Managing the "identity" of the LagBFunction
@@ -1239,7 +1239,7 @@ class LagBFunction : public C05Function , public Block {
     s->set_id( id );
   }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------------- METHODS FOR MODIFYING THE LagBFunction ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for modifying the LagBFunction
@@ -1335,7 +1335,7 @@ class LagBFunction : public C05Function , public Block {
  
  void cleanup_inner_objective( void );
  
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- Methods for handling Modification -------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling Modification
@@ -1397,7 +1397,7 @@ class LagBFunction : public C05Function , public Block {
 
  void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------- METHODS FOR Loading/Saving THE DATA OF THE LagBFunction -------*/
 /*--------------------------------------------------------------------------*/
 /** @name Saving the data of the LagBFunction
@@ -1415,7 +1415,7 @@ class LagBFunction : public C05Function , public Block {
 
  void serialize( netCDF::NcGroup & group ) const override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------- METHODS DESCRIBING THE BEHAVIOR OF THE LagBFunction ------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods describing the behavior of the LagBFunction
@@ -1688,7 +1688,7 @@ class LagBFunction : public C05Function , public Block {
  void get_MatDesc( int *Abeg , int *Aind , double *Aval , int strt ,
 		   int stp );
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING THE PARAMETERS ------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the parameters of the LagBFunction
@@ -2097,7 +2097,7 @@ class LagBFunction : public C05Function , public Block {
 				    ComputeConfig * ocfg = nullptr )
   const override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------- METHODS FOR HANDLING THE State OF THE LagBFunction -----------*/
 /*--------------------------------------------------------------------------*/
 /** @name Handling the State of the LagBFunction
@@ -2119,7 +2119,7 @@ class LagBFunction : public C05Function , public Block {
 		       const std::string & sub_group_name = "" )
   const override;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----- METHODS FOR HANDLING "ACTIVE" Variable IN THE LagBFunction ---------*/
 /*--------------------------------------------------------------------------*/
 /** @name Methods for handling the set of "active" Variable in the
@@ -2176,7 +2176,7 @@ class LagBFunction : public C05Function , public Block {
 
  friend class LagBFunctionState;  // make LagBFunctionState friend
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -2338,7 +2338,7 @@ class LagBFunction : public C05Function , public Block {
 
  void compute_Lipschitz_constant( void );
  
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 

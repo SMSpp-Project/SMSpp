@@ -674,7 +674,7 @@ bool SMSpp_ensure_load_var;
    else        return( false ); \
    }()
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------- HANDLE boost::any SPECIALIZATIONS --------------------*/
 /*--------------------------------------------------------------------------*/
 /** @defgroup boost_any_stuff Handling boost::any specializations for SMS++
@@ -1680,15 +1680,14 @@ bool un_any_const_dynamic( const boost::any & any , F f ,
   return( false );                                                           \
   }( my_thing )
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------------- PRINTING list, array and multi_array -------------------*/
 /*--------------------------------------------------------------------------*/
 /** @defgroup print_multi_arrays Printing list, pair, array and multi_array
  *
  * A few versions of operator<< for printing std::list, std::pair,
  * std::array and boost::multi_array.
- *  @{
- */
+ *  @{ */
 
 template< class T1, class T2 >
 std::ostream & operator<<( std::ostream & os, const std::pair< T1, T2 > & p ) {
@@ -1784,7 +1783,7 @@ std::ostream & operator<<( std::ostream & os, const std::list< T * > & l )
  return( os );
  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*----------------- LOADING things while skipping comments -----------------*/
 /*--------------------------------------------------------------------------*/
 /** @defgroup eatcomments simple operator which eats up comments in a istream
@@ -1810,7 +1809,7 @@ inline std::istream & eatcomments( std::istream & is )
  return( is );
  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------ LOADING list, array and multi_array -------------------*/
 /*--------------------------------------------------------------------------*/
 /** @defgroup load_composite_data structures Loading lists and vectors
@@ -1903,7 +1902,7 @@ template< template <class ... > class C , typename T ,
  return( is );
  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*------------------ DE/SERIALIZING FROM/TO netCDF FILES -------------------*/
 /*--------------------------------------------------------------------------*/
 /** @defgroup helper functions for serializing/deserializing to/from netCDF
@@ -2980,7 +2979,7 @@ inline void check_dimensions( const netCDF::NcGroup & group ,
   }
  }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 
 } // end( namespace SMS_di_unipi_it )
 

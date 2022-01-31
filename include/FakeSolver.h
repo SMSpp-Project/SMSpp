@@ -68,14 +68,14 @@ class FakeSolver : public Solver {
  *  @{ */
 
  /// constructor: does nothing special
- FakeSolver() : Solver() {}
+ FakeSolver( void ) : Solver() {}
 
 /*--------------------------------------------------------------------------*/
  /// destructor: it has to release all the Modifications
 
  ~FakeSolver() override = default;
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*--------------------- METHODS FOR SOLVING THE MODEL ----------------------*/
 /*--------------------------------------------------------------------------*/
 /** @name Solving the model encoded by the current Block
@@ -85,9 +85,9 @@ class FakeSolver : public Solver {
  /** FakeSolver does not even really try to solve the Block, so all this
   * method does is to return kError. */
 
- int compute( bool changedvars = true ) override { return ( kError ); }
+ int compute( bool changedvars = true ) override { return( kError ); }
 
-/**@} ----------------------------------------------------------------------*/
+/** @} ---------------------------------------------------------------------*/
 /*---------------------- METHODS FOR READING RESULTS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
