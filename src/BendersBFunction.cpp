@@ -71,7 +71,7 @@ BendersBFunction::BendersBFunction( Block * inner_block , VarVector && x ,
 				    ConstraintSideVector && sides ,
 				    Observer * const observer )
  : C05Function( observer ) , f_constraints_are_updated( false ) ,
-   f_solver_status( 0 ) , f_diagonal_linearization_required( false ) ,
+   f_solver_status( kUnEval ) , f_diagonal_linearization_required( false ) ,
    f_id( this )
 {
  set_inner_block( inner_block );
@@ -2661,6 +2661,8 @@ ComputeConfig * BendersBFunction::get_ComputeConfig
 
 void BendersBFunction::update_constraints() {
 
+ const auto initial_f_ignore_modifications = f_ignore_modifications;
+
  f_ignore_modifications = true;
 
  for( Index i = 0 ; i < v_A.size() ; ++i ) {
@@ -2677,7 +2679,7 @@ void BendersBFunction::update_constraints() {
    get_constraint( i )->set_both( value );
  }
 
- f_ignore_modifications = false;
+ f_ignore_modifications = initial_f_ignore_modifications;
  f_constraints_are_updated = true;
 }  // end( BendersBFunction::update_constraints )
 
