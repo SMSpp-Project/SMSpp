@@ -517,7 +517,7 @@ class ThinVarDepInterface {
  *
  * Any ThinVarDepInterface must allows access to the set of "active" Variable
  * via their Index [see get_active_var()]. However, another basically
- * independent means of acess is provided via a (virtualized) forward
+ * independent means of access is provided via a (virtualized) forward
  * iterator, with standard begin() and end() accessors, so that any standard
  * STL algorithm only relying on forward iterators can be applied.
  *

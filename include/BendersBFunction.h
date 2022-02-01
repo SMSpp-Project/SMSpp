@@ -377,7 +377,7 @@ class BendersBFunction : public C05Function , public Block {
                       /**< Convenience value for easily allow derived classes
                        * to extend the set of int algorithmic parameters. */
 
- };  // end( int_par_type_LagBF )
+ };  // end( int_par_type_BendersBF )
 
 /** @} ---------------------------------------------------------------------*/
 /*------------- CONSTRUCTING AND DESTRUCTING BendersBFunction --------------*/

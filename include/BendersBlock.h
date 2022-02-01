@@ -73,8 +73,10 @@ public:
  /** Constructs a BendersBlock whose father Block is \p father and that has \p
   * num_variables ColVariable.
   *
-  * @param
-  */
+  * @param father A pointer to the father of this BendersBlock.
+  *
+  * @param num_variables The number of Variable of this BendersBlock. */
+
  BendersBlock( Block * father = nullptr , Index num_variables = 0 ) :
   Block( father ) {
   v_variables.resize( num_variables );
@@ -100,8 +102,7 @@ public:
   * - A description of the BendersBFunction into a sub-group named
   *   "BendersBFunction".
   *
-  * @param group A netCDF::NcGroup holding the data in the format described
-  *        in the comments of deserialize().
+  * @param group A netCDF::NcGroup holding the required data.
   */
 
  void deserialize( const netCDF::NcGroup & group ) override;
@@ -148,9 +149,12 @@ public:
   * - The group "BendersBFunction" containing the description of the
   *   BendersBFunction that is the Function of the FRealObjective is this
   *   BendersBlock.
+  *
+  * @param group The netCDF group into which this BendersBlock will be
+  *        serialized.
   */
 
- virtual void serialize( netCDF::NcGroup & group ) const override;
+ void serialize( netCDF::NcGroup & group ) const override;
 
 /** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR READING THE DATA OF THE BendersBlock ------------*/
@@ -268,7 +272,7 @@ protected:
 /*---------------------------- PROTECTED METHODS ---------------------------*/
 /*--------------------------------------------------------------------------*/
 
- virtual void load( std::istream &input ) override {}
+ void load( std::istream &input ) override {}
 
 /*--------------------------------------------------------------------------*/
 /*---------------------------- PROTECTED FIELDS ----------------------------*/
