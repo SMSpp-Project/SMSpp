@@ -2136,8 +2136,7 @@ void BendersBFunction::get_linearization_coefficients
  const auto obj_sign =
   ( v_Block.front()->get_objective_sense() == Objective::eMin ) ? - 1 : 1;
 
- for( Index i = range.first ; i < range.second ; ++i )
-  g[ i ] = 0;
+ std::fill_n( g , range.second - range.first , 0 );
 
  for( Index j = 0 ; j < v_constraints.size() ; ++j ) {
 
@@ -2223,12 +2222,13 @@ void BendersBFunction::get_linearization_coefficients
  const auto obj_sign =
   ( v_Block.front()->get_objective_sense() == Objective::eMin ) ? - 1 : 1;
 
+ std::fill_n( g , subset.size() , 0 );
+
  for( auto i : subset ) {
   if( i >= v_x.size() )
    throw( std::invalid_argument( "BendersBFunction::get_linearization_"
                                  "coefficients: invalid index: " +
                                  std::to_string( i ) + "." ) );
-  g[ i ] = 0;
  }
 
  for( Index j = 0; j < v_constraints.size(); ++j ) {
@@ -2248,8 +2248,9 @@ void BendersBFunction::get_linearization_coefficients
   if( obj_sign * dual_value <= 0 && v_sides[ j ] == eLHS )
    continue;
 
+  Index k = 0;
   for( auto i : subset )
-   g[ i ] += - dual_value * v_A[ j ][ i ];
+   g[ k++ ] += - dual_value * v_A[ j ][ i ];
  }
 }  // end( BendersBFunction::get_linearization_coefficients( * , subset ) )
 
