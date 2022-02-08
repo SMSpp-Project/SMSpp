@@ -649,25 +649,25 @@ class Block : public Observer {
  /// typedef for functions to be added to the methods factory
  /** Items added to the methods factory should typically be (pointers to)
   * std::functions (usually adapter functions for some :Block member function)
-  * that take a Block * first, two c_ModParam (for "physical" and "abstract"
-  * Modification, respectively) at the end, and in the middle as many parameters
-  * as they want. */
+  * that take a Block * first, two ModParam (for "physical" and "abstract"
+  * Modification, respectively) at the end, and in the middle as many
+  * parameters as they want. */
 
  template< typename ... Args >
  using FunctionType =
- std::function< void( Block *, Args ..., c_ModParam, c_ModParam ) >;
+ std::function< void( Block *, Args ... , ModParam , ModParam ) >;
 
  /// typedef for class member functions to be added to the methods factory
- /** The class member functions (whose adapters are to be) added to the methods
-  * factory should take two c_ModParam (for "physical" and "abstract"
+ /** The class member functions (whose adapters are to be) added to the
+  * methods factory should take two ModParam (for "physical" and "abstract"
   * Modification, respectively) at the end, before them as many parameters as
   * they want, and be functions of some \p dBlock derived from Block; it is
   * clearly "the same parameter type list" as FunctionType< Args > (with the
   * same Args) for a function of the given \p dBlock. */
 
- template< class dBlock, typename ... Args >
+ template< class dBlock , typename ... Args >
  using MemberFunctionType =
- void ( dBlock::* )( Args ..., c_ModParam, c_ModParam );
+ void ( dBlock::* )( Args ..., ModParam , ModParam );
 
  /// helper type for template shenanigans for methods factory
  template< typename ... >
@@ -681,19 +681,19 @@ class Block : public Observer {
  using MS_rngd = arg_packer< Range >;
 
  /// type for ( double , range ) functions
- using MS_dbl_rngd = arg_packer< MF_dbl_it, Range >;
+ using MS_dbl_rngd = arg_packer< MF_dbl_it , Range >;
 
  /// type for ( int , range ) functions
- using MS_int_rngd = arg_packer< MF_int_it, Range >;
+ using MS_int_rngd = arg_packer< MF_int_it , Range >;
 
  /// type for ( void , subset ) functions
- using MS_sbst = arg_packer< Subset &&, const bool >;
+ using MS_sbst = arg_packer< Subset && , bool >;
 
  /// type for ( double , subset ) functions
- using MS_dbl_sbst = arg_packer< MF_dbl_it, Subset &&, const bool >;
+ using MS_dbl_sbst = arg_packer< MF_dbl_it, Subset && , bool >;
 
  /// type for ( int , subset ) functions
- using MS_int_sbst = arg_packer< MF_int_it, Subset &&, const bool >;
+ using MS_int_sbst = arg_packer< MF_int_it , Subset && , bool >;
 
 /** @} ---------------------------------------------------------------------*/
 
@@ -771,7 +771,7 @@ class Block : public Observer {
   * last case is analogous.
   */
 
- using ConstraintID = std::pair< Index, Index >;
+ using ConstraintID = std::pair< Index , Index >;
 
 /*--------------------------------------------------------------------------*/
 /*------------------------------- FRIENDS ----------------------------------*/
@@ -5449,19 +5449,18 @@ class Block : public Observer {
  *
  *     template< class dBlock , typename ... Args >
  *     using MemberFunctionType =
- *           void ( dBlock::* ) ( Args ... , c_ModParam , c_ModParam );
+ *           void ( dBlock::* ) ( Args ... , ModParam , ModParam );
  *
  *     template< typename ... Args >
  *     using FunctionType =
- *      std::function< void ( Block * , Args ... ,
- *                            c_ModParam , c_ModParam ) >;
+ *      std::function< void ( Block * , Args ... , ModParam , ModParam ) >;
  *
  * are defined. MemberFunctionType defines the interface of a generic class
  * member function that, besides any set of arguments, has two final ones
  * concerning if and how "physical" and "abstract" Modification are issued by
- * the (possible) change in the :Block brought about by the
- * function. FunctionType< Args > is the interface of an adapter function that
- * may correspond to MemberFunctionType< dBlock , Args >. This is what is
+ * the (possible) change in the :Block brought about by the function.
+ * FunctionType< Args > is the interface of an adapter function that may
+ * correspond to MemberFunctionType< dBlock , Args >. This is what is
  * automatically constructed and put in the corresponding factory if
  *
  *     register_method< dBlock , Args >()
@@ -5497,7 +5496,7 @@ class Block : public Observer {
  * are defined based on these, which have the form (clearly compatible with
  * the above types)
  *
- *     my_method_name( [ < data > , ] < slice > , c_ModParam , c_ModParam )
+ *     my_method_name( [ < data > , ] < slice > , ModParam , ModParam )
  *
  * where:
  *
@@ -5507,12 +5506,12 @@ class Block : public Observer {
  *
  *   = (range) a Range object (passed by value), yielding the function type
  *
- *         my_method_name( [ < data > , ] Range , c_ModParam , c_ModParam )
+ *         my_method_name( [ < data > , ] Range , ModParam , ModParam )
  *
  *   = (subset) an arbitrary subset of the data, yielding the function type
  *
- *         my_method_name( [ < data > , ] Subset && , const bool ,
- *                         c_ModParam , c_ModParam )
+ *         my_method_name( [ < data > , ] Subset && , bool ,
+ *                         ModParam , ModParam )
  *
  *     where the bool being true indicates that Subset is already ordered
  *     by increasing index on call (if not it can be ordered inside: anyway
@@ -5553,10 +5552,10 @@ class Block : public Observer {
  * class NetworkBlock : Block representing (an optimization problem defined
  * over some) weighted graph. NetworkBlock may have two functions
  *
- *     void set_arc_weight( MF_dbl_it , Range , c_ModParam , c_ModParam );
+ *     void set_arc_weight( MF_dbl_it , Range , ModParam , ModParam );
  *
- *     void set_arc_weight( MF_dbl_it , Subset && , const bool ,
- *                          c_ModParam , c_ModParam );
+ *     void set_arc_weight( MF_dbl_it , Subset && , bool ,
+ *                          ModParam , ModParam );
  *
  * for changing the weights in the arcs of the graph. These functions can be
  * registered straight away in the methods factory by just calling anywhere
@@ -5589,16 +5588,15 @@ class Block : public Observer {
  * the weight of a single arc at a time via the function
  *
  *     void set_arc_weight( Index arc , double weight ,
- *                          c_ModParam issuePMod = eNoBlck ,
- *                          c_ModParam issueAMod = eModBlck );
+ *                          ModParam issuePMod = eNoBlck ,
+ *                          ModParam issueAMod = eModBlck );
  *
  * A user who would like to have a function in the methods factory for setting
  * the weight of subsets of arcs could implement the following functions:
  *
  *     void set_weight_range( Block * block , MF_dbl_it begin ,
- *                            Range range ,
- *                            c_ModParam issuePMod = eNoBlc ,
- *                            c_ModParam issueAMod = eModBlck ) {
+ *                            Range range , ModParam issuePMod = eNoBlc ,
+ *                                          ModParam issueAMod = eModBlck ) {
  *      for( Index i = range.first ; i < range.second ; ++i , ++begin )
  *       static_cast<NetworkBlock *>( block )->set_arc_weight( i , *begin ,
  *                                                             issuePMod ,
@@ -5606,9 +5604,9 @@ class Block : public Observer {
  *      }
  *
  *     void set_weight_subset( Block * block , MF_dbl_it begin ,
- *                             Subset && sbst , const bool ordered = false ,
- *                             c_ModParam issuePMod = eNoBlc ,
- *                             c_ModParam issueAMod = eModBlck ) {
+ *                             Subset && sbst , bool ordered = false ,
+ *                             ModParam issuePMod = eNoBlc ,
+ *                             ModParam issueAMod = eModBlck ) {
  *      for( auto i : sbst )
  *       static_cast<NetworkBlock *>( block )->set_arc_weight( i ,
  *                                                             *(begin++) ,
@@ -5705,7 +5703,7 @@ class Block : public Observer {
   * has a template parameter and a variadic parameter pack. The template
   * parameter \p dBlock is the class (derived from Block) of which the
   * function is a member. The parameter pack \p Args specifies the parameter
-  * type list (actually, part of it, without considering the two c_ModParam
+  * type list (actually, part of it, without considering the two ModParam
   * parameters) of the function by means of
   * MemberFunctionType< dBlock , Args... >.
   *
@@ -5726,20 +5724,19 @@ class Block : public Observer {
 
  template< class dBlock, typename ... Args >
  static void register_method( std::string && name,
-                              MemberFunctionType< dBlock, Args... > fnct ) {
+                              MemberFunctionType< dBlock , Args... > fnct ) {
   // ensure dBlock derives from Block
   static_assert( std::is_base_of< Block, dBlock >::value,
                  "register_method: dBlock must inherit from Block" );
 
   register_method( std::move( name ),
                    new FunctionType< Args... >(
-                    [ fnct ]( Block * blck, Args && ... args,
-                              c_ModParam issuePMod,
-                              c_ModParam issueAMod ) {
+                    [ fnct ]( Block * blck , Args && ... args ,
+                              ModParam issuePMod , ModParam issueAMod ) {
                      std::invoke( fnct,
                                   static_cast< dBlock * >( blck ),
                                   std::forward< Args >( args )...,
-                                  issuePMod, issueAMod );
+                                  issuePMod , issueAMod );
                     } ) );
  }
 
@@ -5788,7 +5785,7 @@ class Block : public Observer {
   * Suppose, for example, that the methods factory has a function associated
   * with the name "NetworkBlock::set_arc_weight" that has the typical "double,
   * Range" interface, i.e., a #MF_dbl_it parameter, a #Range parameter, and
-  * two c_ModParam parameters. This has been inserted in the interface under
+  * two ModParam parameters. This has been inserted in the interface under
   * the guise of a FunctionType< MF_dbl_it , Range > pointer. Thus,
   * to invoke such a function one should do
   *
@@ -5821,7 +5818,7 @@ class Block : public Observer {
   * Suppose, for example, that the methods factory has a function associated
   * with the name "NetworkBlock::set_arc_weight" that has the typical "double,
   * Range" interface, i.e., a #MF_dbl_it parameter, a #Range parameter, and
-  * two c_ModParam parameters. This has been inserted in the interface under
+  * two ModParam parameters. This has been inserted in the interface under
   * the guise of a FunctionType< MF_dbl_it , Range > pointer. Thus,
   * to invoke such a function one should do
   *
@@ -5844,7 +5841,7 @@ class Block : public Observer {
   }
 
 /*--------------------------------------------------------------------------*/
- /// returns the function associated with the given name in the methods factory
+ /// returns the function with the given name in the methods factory
  /** This function returns a pointer to the adapter function associated with
   * the given \p name in the methods factory implied by the second dummy
   * parameter.
@@ -5852,7 +5849,7 @@ class Block : public Observer {
   * Suppose, for example, that the methods factory has a function associated
   * with the name "NetworkBlock::set_arc_weight" that has the typical "double,
   * Range" interface, i.e., a #MF_dbl_it parameter, a #Range parameter, and
-  * two c_ModParam parameters. This has been inserted in the interface under
+  * two ModParam parameters. This has been inserted in the interface under
   * the guise of a FunctionType< MF_dbl_it , Range > pointer. Thus,
   * to invoke such a function one should do
   *
@@ -8556,7 +8553,7 @@ void Block::add_dynamic_constraints( std::list< Const > & list ,
 template< class Var >
 void Block::add_dynamic_variables( std::list< Var > & list ,
                                    std::list< Var > & newlist ,
-                                   c_ModParam issueMod ) {
+                                   ModParam issueMod ) {
  // ensure Var is derives from Variables
  static_assert( std::is_base_of< Variable , Var >::value ,
                 "add_dynamic_variables: must inherit from Variable" );
