@@ -2410,11 +2410,6 @@ deserialize( const netCDF::NcGroup & group , const std::string & var_name ,
                                 group.getName() ) );
   }
 
- if( ncVar.getDimCount() == 0 ) {
-  array.clear();
-  return( true );
-  }
-
  if( ncVar.getDimCount() != 1 )
   throw( std::invalid_argument( "deserialize(): " + var_name +
                                 " has wrong number of dimensions" ) );
@@ -2451,8 +2446,8 @@ deserialize( const netCDF::NcGroup & group , const std::string & var_name ,
  for( decltype( nrows ) i = 0 ; i < nrows ; ++i ) {
   array[ i ].resize( strt[ i ] );
   auto aiit = array[ i ].begin();
-  for( const auto tend = tit + strt[ i ] ; tit != tend ; )
-   *(tit++) = std::move( *(aiit++) );
+  for( const auto aiend = array[ i ].end() ; aiit != aiend ; )
+   *(aiit++) = *(tit++);
   }
 
  return( true );
