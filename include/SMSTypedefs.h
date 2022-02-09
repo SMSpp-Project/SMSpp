@@ -2370,18 +2370,17 @@ deserialize( const netCDF::NcGroup & group , const std::string & var_name ,
  * the user; clearly, the elements of val[] before start[ 0 ] are ignored.
  *
  * @param[in] group The netCDF::NcGroup from which the matrix with
- *            variable-length rows will be obtained
- *            from.
+ *            variable-length rows will be obtained.
  *
  * @param[in] var_name The name of the one-dimensional netCDF::NcVar of type
  *            T within the given \p group in which the values to be stored
  *            in a 1D array will be found;
  *
- * @param[in] start_name The name of the  one-dimensional netCDF::NcVar of
- *            type netCDF::NcInt() within the given \p group which tells
- *            how the elements of var_name are subdivided between the rows
- *            of \p array; start_name is optional if var_name is not found
- *            in \p group;
+ * @param[in] start_name The name of the one-dimensional netCDF::NcVar (whose
+ *            type is compatible with T) within the given \p group which tells
+ *            how the elements of var_name are subdivided between the rows of
+ *            \p array; start_name is optional if var_name is not found in \p
+ *            group;
  *
  * @param[out] array A reference to the std::vector< std::vector< T > > to
  *             be deserialised;
@@ -2448,6 +2447,63 @@ deserialize( const netCDF::NcGroup & group , const std::string & var_name ,
   auto aiit = array[ i ].begin();
   for( const auto aiend = array[ i ].end() ; aiit != aiend ; )
    *(aiit++) = *(tit++);
+  }
+
+ return( true );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// deserialize a matrix (with fixed-length rows)
+/** This function reads a matrix with fixed-length rows, i.e., a std::vector<
+ * std::vector< T > > where each "inner" vector has the same size. This is
+ * obtained from the two-dimensional netCDF variable whose name is \p var_name
+ * in the given netCDF \p group.
+ *
+ * @param[in] group The netCDF::NcGroup from which the matrix with will be
+ *            obtained.
+ *
+ * @param[in] var_name The name of the two-dimensional netCDF::NcVar within
+ *            the given \p group which contains the data to be stored in \p
+ *            matrix;
+ *
+ * @param[out] matrix A reference to the std::vector< std::vector< T > > to be
+ *             deserialised;
+ *
+ * @param[in] optional A bool stating if it is allowed for \p var_name not to
+ *            be a netCDF::NcVar in \p group, in which case an empty \p matrix
+ *            is returned as opposed to throwing exception.
+ *
+ * @return true if the desired variable was deserialized; false, otherwise. */
+
+template< class T >
+std::enable_if_t< is_netCDF_type_v< T > , bool >
+deserialize( const netCDF::NcGroup & group , const std::string & var_name ,
+             std::vector< std::vector< T > > & matrix , bool optional = true )
+{
+
+ auto ncVar = group.getVar( var_name );
+ if( ncVar.isNull() ) {
+  if( optional ) {
+   matrix.clear();
+   return( false );
+   }
+
+  throw( std::invalid_argument( "deserialize(): " + var_name +
+                                " is not present in group " +
+                                group.getName() ) );
+  }
+
+ if( ncVar.getDimCount() != 2 )
+  throw( std::invalid_argument( "deserialize(): " + var_name +
+                                " has wrong number of dimensions" ) );
+
+ auto num_rows = ncVar.getDim( 0 ).getSize();
+ auto num_cols = ncVar.getDim( 1 ).getSize();
+
+ matrix.resize( num_rows );
+ for( decltype( num_rows ) i = 0 ; i < num_rows ; ++i ) {
+  matrix[ i ].resize( num_cols );
+  ncVar.getVar( { i , 0 } , { 1 , num_cols } , matrix[ i ].data() );
   }
 
  return( true );
