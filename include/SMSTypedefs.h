@@ -2209,7 +2209,7 @@ template< class T >
 std::enable_if_t< is_netCDF_type_v< T > , bool >
 deserialize( const netCDF::NcGroup & group , const std::string & name ,
              const std::size_t & size , std::vector< T > & data ,
-             bool optional = true , bool allow_scalar_var = false )
+             bool optional = false , bool allow_scalar_var = false )
 {
  if( ! size ) {
   data.clear();
@@ -2409,7 +2409,7 @@ serialize( netCDF::NcGroup & group , const std::vector< T > & data ,
 /*- - - -SERIALIZING AND DESERIALIZING std::vector OF std::pair - - - - - -*/
 /*- - - - OF BASIC TYPES- - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// deserialize a std::vector< stt::pair > > out of a netCDF NcGroup
+/// deserialize a std::vector< std::pair > > out of a netCDF NcGroup
 /** This function reads a std::vector< std::pair< T1 , T2 > > where both T1
  * and T2 are "simple" types (for which NcGroup::getVar() is defined) from
  * a netCDF variable with name \p name within the given netCDF NcGroup
@@ -2487,7 +2487,7 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// deserialize a std::vector< stt::pair > > out of a netCDF NcGroup
+/// deserialize a std::vector< std::pair > > out of a netCDF NcGroup
 /** This function reads a std::vector< std::pair< T1 , T2 > > where both T1
  * and T2 are "simple" types (for which NcGroup::getVar() is defined) from
  * a netCDF variable with name \p name within the given netCDF NcGroup
@@ -2554,7 +2554,7 @@ deserialize( const netCDF::NcGroup & group ,
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// serialize a std::vector< stt::pair > > into a given group
+/// serialize a std::vector< std::pair > > into a given group
 /** serialize a std::vector< std::pair< T1 , T2 > > where both T1 and T2 are
  * "simple" types (for which NcGroup::getVar() is defined) out of \p data and
  * into two variable with name \p name + "_f" and \p name + "_s", both of the
@@ -2597,7 +2597,7 @@ serialize( netCDF::NcGroup & group , const std::string & name ,
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// serialize a std::vector< stt::pair > > into a given group
+/// serialize a std::vector< std::pair > > into a given group
 /** serialize a std::vector< std::pair< T1 , T2 > > where both T1 and T2 are
  * "simple" types (for which NcGroup::getVar() is defined) out of \p data and
  * into two variable with name \p name + "_f" and \p name + "_s", both of the
@@ -2685,7 +2685,7 @@ template< class T >
 std::enable_if_t< is_netCDF_type_v< T > , bool >
 deserialize( const netCDF::NcGroup & group , const std::string & name ,
              const std::vector< std::size_t > & sizes ,
-             std::vector< T > & data , bool optional = true ,
+             std::vector< T > & data , bool optional = false ,
              bool allow_scalar_var = false )
 {
  if( sizes.empty() ) {
@@ -2786,7 +2786,7 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
 template< class T >
 std::enable_if_t< is_netCDF_type_v< T > , bool >
 deserialize( const netCDF::NcGroup & group , const std::string & name ,
-             std::vector< T > & data , bool optional = true )
+             std::vector< T > & data , bool optional = false )
 {
  auto ncVar = group.getVar( name );
  if( ncVar.isNull() ) {
@@ -2872,7 +2872,7 @@ template< class T >
 std::enable_if_t< is_netCDF_type_v< T > , bool >
 deserialize( const netCDF::NcGroup & group , const std::string & name ,
              const std::string & start_name ,
-             std::vector< std::vector< T > > & array , bool optional = true )
+             std::vector< std::vector< T > > & array , bool optional = false )
 {
  auto ncVar = group.getVar( name );
  if( ncVar.isNull() ) {
@@ -2960,7 +2960,7 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
 template< class T >
 std::enable_if_t< is_netCDF_type_v< T > , bool >
 deserialize( const netCDF::NcGroup & group , const std::string & name ,
-             std::vector< std::vector< T > > & matrix , bool optional = true )
+             std::vector< std::vector< T > > & matrix , bool optional = false )
 {
  auto ncVar = group.getVar( name );
  if( ncVar.isNull() ) {
@@ -3237,7 +3237,7 @@ serialize( netCDF::NcGroup & group , const std::string & name ,
 template< class T , std::size_t N >
 std::enable_if_t< is_netCDF_type_v< T > , bool >
 deserialize( const netCDF::NcGroup & group , const std::string & name ,
-             boost::multi_array< T , N > & array , bool optional = true ,
+             boost::multi_array< T , N > & array , bool optional = false ,
              bool allow_scalar_var = false )
 {
  using index = typename boost::multi_array< T, N >::index;
