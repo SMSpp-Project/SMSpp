@@ -1,3 +1,45 @@
+2022-02-10 [medium] add multi-dimensional vectors of stuff with non-uniform size
+
+        For some applications (UC) it would be quite handy to have groups of
+	Variable/Constraint with multiple indices, but not all slices necessarily
+	of the same dimension. This could be obtained by std::vector< std::vector<
+	... > > nested a number of times. This might be achievable in the context
+	of explicit "Variable / Constraint Group" replacing the boost::any (see)
+
+2022-02-10 [very high] get rid of the boost::any
+
+	The idea of boost::any seemed cool at the time, but in fact it only brings
+	pain, since you do need to know the *exact* type of stuff in order to
+	take it out of a boost::any. This means that, for instance, you have no
+	way of saying "if this Constraint derives from RowConstraint, give it to
+	me". We should get rid of boost::any and define a
+
+	    template< VarOrConst >
+	    class Group
+
+        that implements the concept of "group of Variable / Constraint". The
+	Group should have a size, a name, a number of indices and ways to
+	access to any item, as well as to iterate on all them. It should be
+	possible (not clear if it is) to know if the Group contains, say
+	Constraint derived from RowConstraint and get a RowConstraint * for
+	each of them irrespective to the actual type. Most likely
+
+	    A Variable / Constraint SHOULD HAVE A POINTER TO THE Group IT
+	    BELONGS TO RATHER THAN TO THE Block, WITH OF COURSE THE Group
+	    HAVING THE POINTER TO THE Block
+
+        Also
+
+	    A Group SHOULD KNOW ITS INDEX INSIDE THE SET OF Group OF THE
+	    Block, SO THAT, GIVEN A POINTER TO A Variable / Constraint, ONE
+	    CAN EASILY RECONSTRUCT AN "ABSTRACT" (MULTI) INDEX THAT UNIQUELY
+	    IDENTIFIES THE Variable / Constraint
+
+         All this would set the stage for
+
+             BEING CAPABLE OF EFFICIENLTY MAKING A COPY OF THE WHOLE ABSTRACT
+	     REPRESENTATION OF A Block INTO A, SAY, AbstractBlock
+
 2020-08-12 [low] add configuration and vector-of-configuration parameters
 
 	Rather than one single "extra" Configuration, ComputeConfig could have
