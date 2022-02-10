@@ -699,7 +699,7 @@ class Configuration
  * and be automatically destructible (hence, no pointer).
  *
  * Important note: the class is template, hence infinitely many classes.
- * Each time a SimpleConfiguration<something> is used, is has to be
+ * Each time a SimpleConfiguration< something > is used, is has to be
  * inserted in the Configuration factory; see
  *
  *      SMSpp_insert_in_factory_cpp_0_t()
@@ -714,8 +714,6 @@ class Configuration
  *  - SimpleConfiguration< std::pair< double , int > >
  *  - SimpleConfiguration< std::vector< int > >
  *  - SimpleConfiguration< std::vector< double > >
- *  - SimpleConfiguration< std::list< int > >
- *  - SimpleConfiguration< std::list< double > >
  *  - SimpleConfiguration< std::pair< Configuration * , Configuration * > >
  *  - SimpleConfiguration< std::vector< Configuration * > >
  *  - SimpleConfiguration< std::vector< std::pair< int , Configuration * > > >
@@ -724,11 +722,20 @@ class Configuration
  * but whomever is using a different SimpleConfiguration< something > for the
  * first time has the responsibility of doing it for their variant.
  *
- * Besides this, the main issue with this class are the serialize() and
- * deserialize() methods, as the netCDF C++ interface is not particularly
- * nice with templates. So, besides adding the specific template realization
- * to the factory, one also has to implement these two methods for it. Again,
- * in Configuration.cpp this is done for all the previous cases.
+ * Besides this, the main issue with this class are the serialize(), load()
+ * and deserialize() methods, as the netCDF C++ interface is not particularly
+ * nice with templates. Provided that the template type has working
+ * serialize( type ), operator>>( type ) and deserialize( type ) functions
+ * (some of which are provided in SMSTypedefs.h for double, int and some STL
+ * containers thereof), the generic versions of SimpleConfiguration<> may work
+ * out of the bat. However, this is not always true, which means that, besides
+ * adding the specific template realization to the factory, one may also have
+ * to implement these three methods for it. This is in particular needed for
+ * SimpleConfiguration containing pointers (in this file this is always
+ * Configuration *), mostly because template arguments deduction removes
+ * references, thereby making it hard to work with pointer types in the exact
+ * same ways in which you work with non-pointer types. Again, in
+ * Configuration.cpp this is done for all the previous cases.
  *
  * IMPORTANT NOTE: adding a specific SimpleConfiguration< something > to the
  *                 factory requires a call to
@@ -736,8 +743,8 @@ class Configuration
  *     SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< something > );
  *
  * This is actually a macro, and therefore it has a problem if "something"
- * contains commas (",") as they are taken to separate macro arguments. Hence,
- * while
+ * contains commas (",") as they are considered as separate macro arguments.
+ * Hence, while
  *
  *     SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration<
  *                                                     std::vector< int > > );
@@ -747,13 +754,13 @@ class Configuration
  *     SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration<
  *                                                 std::pair< int , int > > );
  *
- * is not because of the comma. This is solved by adding parentheses around
- * the type name, as in
+ * is not because of the comma. This can be swiftly solved by just adding
+ * parentheses around the type name, as in
  *
  *     SMSpp_insert_in_factory_cpp_0_t( ( SimpleConfiguration<
- *                                                std::pair< int , int > >) );
+ *                                              std::pair< int , int > > ) );
  *
- * due to a specific feature of SMSpp_insert_in_factory_cpp. */
+ * thanks to a specific feature of SMSpp_insert_in_factory_cpp. */
 
 template< class SimpleConfiguration_value_type >
 class SimpleConfiguration : public Configuration
@@ -921,8 +928,8 @@ typedef std::vector< p_Conf > Vec_p_Conf;
  * \p group with the given \p name. */
 
 inline void deserialize( const netCDF::NcGroup & group ,
-			 Configuration * & data ,
-			 const std::string & name = "" )
+			 const std::string & name ,
+			 Configuration * & data )
 {
  if( name.empty() )
   data = Configuration::new_Configuration( group );
@@ -937,8 +944,8 @@ inline void deserialize( const netCDF::NcGroup & group ,
  * creating the sub-group of \p group with the given \p name and serializing
  * the Configuration there. */
 
-inline void serialize( netCDF::NcGroup & group , const Configuration * data ,
-		       const std::string & name = "" )
+inline void serialize( netCDF::NcGroup & group , const std::string & name ,
+		       const Configuration * data )
 {
  if( name.empty() )
   data->serialize( group );
@@ -991,8 +998,10 @@ void serialize( netCDF::NcGroup & group , const C< Configuration * > & data ,
 {
  group.addDim( size , data.size() );
  size_t i = 0;
- for( auto el : data )
-  el->serialize( group.addGroup( name + std::to_string( i++ ) ) );
+ for( auto el : data ) {
+  auto gr = group.addGroup( name + std::to_string( i++ ) );
+  el->serialize( gr );
+  }
  }
 
 /** @} end( group( Configuration_FUNCTIONS ) ) */
@@ -1047,6 +1056,18 @@ inline SimpleConfiguration< std::vector< Configuration * >
  >::~SimpleConfiguration< std::vector< Configuration * > >() {
  for( auto rit = f_value.rbegin() ; rit != f_value.rend() ; ++rit )
   delete *rit;
+ }
+
+template<>
+inline void SimpleConfiguration< std::vector< Configuration * >
+ >::serialize( netCDF::NcGroup & group ) const {
+ SMSpp_di_unipi_it::serialize< std::vector >( group , f_value );
+ }
+
+template<>
+inline void SimpleConfiguration< std::vector< Configuration * >
+ >::deserialize( const netCDF::NcGroup & group ) {
+ SMSpp_di_unipi_it::deserialize< std::vector >( group , f_value );
  }
 
 template<>

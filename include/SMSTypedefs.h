@@ -1787,7 +1787,6 @@ std::ostream & operator<<( std::ostream & os, const std::list< T * > & l )
 /*----------------- LOADING things while skipping comments -----------------*/
 /*--------------------------------------------------------------------------*/
 /** @defgroup eatcomments simple operator which eats up comments in a istream
- *
  *  @{ */
 
 inline std::istream & eatcomments( std::istream & is )
@@ -1912,10 +1911,13 @@ template< template <class ... > class C , typename T ,
  * tasks that must be performed when serializing and deserializing objects.
  *  @{ */
 
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-
 template< typename T >
 netCDF::NcType typ2nCDF( void ) { return( netCDF::NcOpaqueType() ); }
+
+template<>
+inline netCDF::NcType typ2nCDF< char >( void ) {
+ return( netCDF::NcChar() );
+ }
 
 template<>
 inline netCDF::NcType typ2nCDF< int >( void ) { return( netCDF::NcInt() ); }
@@ -1936,31 +1938,102 @@ inline constexpr bool is_netCDF_type_v =
  std::is_same_v< T , std::string >;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - SERIALIZING AND DESERIALIZING BASIC TYPES - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// deserialize a simple value out of a given group
-/** Deserialize a "simple" value, one for which NcGroup::getVar() is
- * defined, out of the given \p group and into \p data. This is supposed to
- * live in the netCDF variable with name \p name. */
+/** Deserialize a "simple" value, one for which NcGroup::getVar() is defined,
+ * out of the given \p group and into \p data. This is supposed to live in
+ * the netCDF variable with name \p name. If a variable with the given name
+ * is not present within the given \p group, an exception is thrown unless
+ * the variable is declared as optional.
+ *
+ * If \p group has more than one variable with the same name, then the
+ * variable that is deserialized follows the rule defined by the netCDF method
+ * NcGroup::getVar(). As of version 4.3.1 of netCDF, if this happens, then the
+ * variable closest to the given group is considered.
+ *
+ * @param[in] group The netCDF NcGroup from which the value will be obtained
+ *                  from.
+ *
+ * @param[out] data A reference to the object that will store the desired
+ *                  value.
+ *
+ * @param[in] name The name of the variable within the given \p group that
+ *                 contains the desired value, default "value".
+ *
+ * @param[in] optional This parameter informs whether the variable is
+ *                     optional. This means that if the variable is not
+ *                     present in the given NcGroup and \p optional is
+ *            false, then an exception is thrown. Default is false.
+ *
+ * @return true if the desired variable was deserialized; false, otherwise.
+ */
 
 template< typename T >
-std::enable_if_t< is_netCDF_type_v< T > , void >
+std::enable_if_t< is_netCDF_type_v< T > , bool >
 deserialize( const netCDF::NcGroup & group , T & data ,
-             const std::string & name = "value" )
+             const std::string & name = "value" , bool optional = false )
 {
- ( group.getVar( name ) ).getVar( & data );
+ auto ncVar = group.getVar( name );
+ if( ncVar.isNull() ) {
+  if( ! optional )
+   throw( std::invalid_argument( "deserialize(): " + name +
+				 " not present in group " + group.getName()
+                                 ) );
+  return( false );
+  }
+
+ ncVar.getVar( & data );
+ return( true );
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// serialize a simple value into a given group
+/// serialize a single (scalar) variable into a netCDF NcGroup
 /** Serialize a "simple" value, one for which NcGroup::putVar() is defined,
  * out of \p data and into of the variable with name \p name of the given
- * \p group. */
+ * \p group. Note that this can be a std::string, so it's not necessarily
+ * a "small" value (which is why it is passed by reference).
+ *
+ * @param[in, out] group The netCDF NcGroup in which the variable will be
+ *                       added.
+ *
+ * @param[in] name       The name of the variable that will be added.
+ *
+ * @param[in] ncType     The netCDF type of the variable to be added.
+ *
+ * @param[in] data       A reference to the value to be written into the
+ *                       variable. */
+
+template< class T >
+std::enable_if_t< is_netCDF_type_v< T > , void >
+serialize( netCDF::NcGroup & group , const std::string & name ,
+           const netCDF::NcType & ncType , const T & data )
+{
+ ( group.addVar( name, ncType ) ).putVar( & data );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// serialize a single (scalar) variable into a netCDF NcGroup
+/** Serialize a "simple" value, one for which NcGroup::putVar() is defined,
+ * out of \p data and into of the variable with name \p name of the given
+ * \p group. Note that this can be a std::string, so it's not necessarily
+ * a "small" value (which is why it is passed by reference).
+ *
+ * @param[in, out] group The netCDF NcGroup in which the variable will be
+ *                       added.
+ *
+ * @param[in] data       A reference to the value to be written into the
+ *                       variable
+ *
+ * @param[in] name       The name of the variable that will be added,
+ *                       default "value". */
 
 template< typename T >
 std::enable_if_t< is_netCDF_type_v< T > , void >
 serialize( netCDF::NcGroup & group , const T & data ,
-                const std::string & name = "value" )
+	   const std::string & name = "value" )
 {
- ( group.addVar( name , typ2nCDF< T >() ) ).putVar( & data );
+ serialize( group , name , typ2nCDF< T >() , data );
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -1968,15 +2041,35 @@ serialize( netCDF::NcGroup & group , const T & data ,
 /** Deserialize a std::pair of values for which deserialize() is well-defined
  * (e.g., "simple" values) out of the given \p group and into \p data. This
  * is done by calling deserialize() for data.first on "<name>_f" and for
- * data.second on"<name>_s". */
+ * data.second on"<name>_s".
+ *
+ * @param[in] group The netCDF NcGroup from which the value will be obtained
+ *                  from.
+ *
+ * @param[out] data A reference to the std::pair that will store the desired
+ *                  value.
+ *
+ * @param[in] name The initial part of the name of the two variables within
+ *                 the given \p group that contains the desired values,
+ *                 default "value".
+ *
+ * @param[in] optional This parameter informs whether the variable is
+ *                     optional. This means that if the any of the two
+ *                     variables is not present in the given NcGroup and
+ *            \p optional is false, then an exception is thrown. Default
+ *            is false.
+ *
+ * @return true if the desired variable was deserialized; false, otherwise.
+ */
 
 template< typename T1 , typename T2 >
-std::enable_if_t< is_netCDF_type_v< T1 > && is_netCDF_type_v< T2 > , void >
+std::enable_if_t< is_netCDF_type_v< T1 > && is_netCDF_type_v< T2 > , bool >
 deserialize( const netCDF::NcGroup & group , std::pair< T1 , T2 > & data ,
-             const std::string & name = "value" )
+             const std::string & name = "value" , bool optional = false )
 {
- deserialize( group , data.first , name + "_f" );
- deserialize( group , data.second , name + "_s" );
+ bool did_it = deserialize( group , data.first , name + "_f" , optional );
+ return( deserialize( group , data.second , name + "_s" , optional ) &&
+	 did_it );
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -1995,53 +2088,7 @@ serialize( netCDF::NcGroup & group , const std::pair< T1 , T2 > & data ,
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// deserialize a std::vector into a given group
-/** Deserialize a std::vector of "simple" values, for which
- * NcGroup::getVar() is defined, out of the given \p group and into \p data.
- * This is supposed to be represented by the dimension with name \p size
- * giving the size of the std::vector, and by the variable with name \p name
- * containing the actual values. */
-
-template< typename T >
-std::enable_if_t< is_netCDF_type_v< T > , void >
-deserialize( const netCDF::NcGroup & group , std::vector< T > & data ,
-             const std::string & size = "size" ,
-             const std::string & name = "value" )
-{
- auto dim = group.getDim( size );
- if( dim.isNull() ) {
-  data.clear();
-  return;
-  }
- size_t sz = dim.getSize();
- data.resize( sz );
- std::vector< size_t > start = { 0 };
- std::vector< size_t > count = { sz };
- ( group.getVar( name ) ).getVar( start , count , data.data() );
- }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// serialize a std::vector into a given group
-/** serialize a std::vector of "simple" values, for which NcGroup::putVar()
- * is defined  (e.g., "simple" values) out of \p data and into the dimension
- * with name \p size, giving the size of the std::vector, and the variable
- * with name \p name, containing the actual values, of the given \p group. */
-
-template< typename T >
-std::enable_if_t< is_netCDF_type_v< T > , void >
-serialize( netCDF::NcGroup & group , const std::vector< T > & data ,
-           const std::string & size = "size" ,
-           const std::string & name = "value" )
-{
- auto sz = group.addDim( size , data.size() );
- std::vector< size_t > startp = { 0 };
- std::vector< size_t > countp = { data.size() };
- ( group.addVar( name , typ2nCDF< T >() , sz )
-   ).putVar( startp , countp , data.data() );
- }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/*- - - - - - - - - - - - - - - DESERIALIZING - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - -DESERIALIZING DIMENSIONS - - - - - - - - - - - -*/
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// deserialize a dimension out of a netCDF NcGroup
 /** If the given netCDF NcGroup contains a dimension whose name is \p
@@ -2055,32 +2102,32 @@ serialize( netCDF::NcGroup & group , const std::vector< T > & data ,
  * then the dimension closest to the given group is considered.
  *
  * @param[in] group The netCDF NcGroup from which the dimension will be
- * obtained from.
+ *                  obtained from.
  *
- * @param[in] dim_name A string with the name of the dimension.
+ * @param[in]  name A string with the name of the dimension.
  *
  * @param[out] data A reference to the object that will store the size of the
- * desired dimension.
+ *                  desired dimension.
  *
  * @param[in] optional This parameter informs whether the dimension is
- * optional. This means that if the dimension is not present in the given
- * NcGroup and \p optional is false, then an exception is thrown.
+ *                     optional. This means that if the dimension is not
+ *                     present in the given NcGroup and \p optional is
+ *                     false, then an exception is thrown.
  *
  * @return true if the desired dimension was deserialized; false, otherwise.
  */
 
-template< class T >
-bool deserialize_dim( const netCDF::NcGroup & group ,
-                      const std::string & dim_name , T & data ,
-                      bool optional = true )
+inline bool deserialize_dim( const netCDF::NcGroup & group ,
+			     const std::string & name , std::size_t & data ,
+			     bool optional = true )
 {
- netCDF::NcDim ncDim = group.getDim( dim_name );
+ netCDF::NcDim ncDim = group.getDim( name );
  if( ncDim.isNull() ) {
   if( optional )
    return( false );
-  throw( std::invalid_argument( "deserialize_dim(): " + dim_name +
-                                " not present in group '" + group.getName()
-                                ) );
+  throw( std::invalid_argument( "deserialize_dim(): " + name +
+				" not present in group '" + group.getName()
+				) );
   }
 
  data = ncDim.getSize();
@@ -2109,10 +2156,487 @@ inline std::vector< std::size_t > get_sizes_dimensions(
  return( sizes_dimensions );
  }
 
-/*--------------------------------------------------------------------------*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - -SERIALIZING AND DESERIALIZING std::vector OF BASIC TYPES - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// deserialize a std::vector out of a netCDF NcGroup
+/** This function reads a std::vector of "simple" values of type \p T, for
+ * which NcGroup::getVar() is defined, from a netCDF variable with name
+ * \p name within the given netCDF NcGroup \p group. The values read are
+ * stored in the given std::vector \p data.
+ *
+ * If the variable is not present in the given \p group, then the vector \p
+ * data is resized to zero if \p optional == true, while an
+ * std::invalid_argument exception is thrown if \p optional == false.
+ *
+ * If the given \p group has more than one variable with the same name, then
+ * the variable that is considered follows the rule defined by the netCDF
+ * method NcGroup::getVar(). As of version 4.3.1 of netCDF, if this happens,
+ * then the variable closest to the given group is considered.
+ *
+ * @param[in] group The netCDF NcGroup from which the array will be obtained
+ *                  from.
+ *
+ * @param[in] name  The name of the variable within the given group.
+ *
+ * @param[in] size  The size of the array to be read; note that this is
+ *                  *not* checked against the actual size of the variable,
+ *                  so it's the caller's responsibility to ensure they match.
+ *                  If size == 0, data is clear()-ed and false is returned
+ *                  with no other check (not even that the variable exists).
+ *
+ * @param[out] data A reference to the vector that will store the values of
+ *                  the array.
+ *
+ * @param[in] optional This parameter informs whether the variable is
+ *                     optional. This means that if the variable is not
+ *                     present in the given NcGroup and \p optional is false,
+ *                     an exception is thrown. Default is false.
+ *
+ * @param[in] allow_scalar_var This parameter indicates whether the desired
+ *                             variable (whose name is \p name) can have
+ *                             a zero number of dimensions, i.e., it can be
+ *            a scalar instead of an array. Its default value is false, and
+ *            this means it is a scalar then an exception is thrown. If,
+ *            instead, \p allow_scalar_var == true, then if the netCDF
+ *            variable is a scalar, then \p data is resized to 1 and the
+ *            value of the netCDF variable is stored in the first (and only)
+ *            position of \p data (in this case, \p size is ignored).
+ *
+ * @return true if the desired variable was deserialized; false, otherwise. */
+
+template< class T >
+std::enable_if_t< is_netCDF_type_v< T > , bool >
+deserialize( const netCDF::NcGroup & group , const std::string & name ,
+             const std::size_t & size , std::vector< T > & data ,
+             bool optional = true , bool allow_scalar_var = false )
+{
+ if( ! size ) {
+  data.clear();
+  return( false );
+  }
+
+ auto ncVar = group.getVar( name );
+ if( ncVar.isNull() ) {
+  if( optional ) {
+   data.clear();
+   return( false );
+   }
+
+  throw( std::invalid_argument( "deserialize(): " + name + " is not present"
+				) );
+  }
+
+ auto dc = ncVar.getDimCount();
+ if( ( ( dc == 0 ) && ( ! allow_scalar_var ) ) || ( dc > 1 ) )
+  throw( std::invalid_argument( "deserialize(): netCDF variable " +
+              name + " of group " + group.getName() + " has " +
+              std::to_string( dc ) + " != 1 dimensions" ) );
+
+ if( dc == 0 ) {
+  data.resize( 1 );
+  ncVar.getVar( & data[ 0 ] );
+  return( true );
+  }
+
+ data.resize( size );
+ // std::vector< size_t > start = { 0 };
+ // std::vector< size_t > count = { sz };
+ // ncVar.getVar( start , count , data.data() );
+ ncVar.getVar( { 0 } , { size } , data.data() );
+
+ return( true );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// deserialize a std::vector out of a netCDF NcGroup
+/** This function reads a std::vector of "simple" values of type \p T, for
+ * which NcGroup::getVar() is defined, from a netCDF variable with name
+ * \p name within the given netCDF NcGroup \p group. The values read are
+ * stored in the given std::vector \p data.
+ *
+ * If the variable is not present in the given \p group, then the vector \p
+ * data is resized to zero if \p optional == true, while an
+ * std::invalid_argument exception is thrown if \p optional == false.
+ *
+ * If the given \p group has more than one variable with the same name, then
+ * the variable that is considered follows the rule defined by the netCDF
+ * method NcGroup::getVar(). As of version 4.3.1 of netCDF, if this happens,
+ * then the variable closest to the given group is considered.
+ *
+ * @param[in] group The netCDF NcGroup from which the array will be obtained
+ *                  from.
+ *
+ * @param[out] data A reference to the vector that will store the values of
+ *                  the array.
+ *
+ * @param[in] name  The name of the variable within the given group. The
+ *                  default is "value".
+ *
+ * @param[in] size  The name of the dimension of the variable within the
+ *                  given group. If there is no dimension with that name
+ *                  and \p optional == false then an exception is thrown,
+ *            while if \p optional == true then data is clear()-ed and false
+ *            is returned with no other check (not even that the variable
+ *            exists). The default is "size".
+ *
+ * @param[in] optional This parameter informs whether the variable is
+ *                     optional. This means that if the variable is not
+ *                     present in the given NcGroup and \p optional == false
+ *                     then an exception is thrown. The default is false.
+ *
+ * @param[in] allow_scalar_var This parameter indicates whether the desired
+ *                             variable (whose name is \p name) can have
+ *                             a zero number of dimensions, i.e., it can be
+ *            a scalar instead of an array. Its default value is false, and
+ *            this means it is a scalar then an exception is thrown. If,
+ *            instead, \p allow_scalar_var == true, then if the netCDF
+ *            variable is a scalar, then \p data is resized to 1 and the
+ *            value of the netCDF variable is stored in the first (and only)
+ *            position of \p data (in this case, \p size is ignored).
+ *
+ * @return true if the desired variable was deserialized; false, otherwise. */
+
+template< typename T >
+std::enable_if_t< is_netCDF_type_v< T > , bool >
+deserialize( const netCDF::NcGroup & group , std::vector< T > & data ,
+	     const std::string & name = "value" ,
+	     const std::string & size = "size" ,
+             bool optional = false , bool allow_scalar_var = false )
+{
+ auto dim = group.getDim( size );
+ if( dim.isNull() ) {
+  if( optional ) {
+   data.clear();
+   return( false );
+   }
+
+  throw( std::invalid_argument( "deserialize(): dimension " + size +
+				" is not present" ) );
+  }
+
+ return( deserialize( group , name , dim.getSize() , data , optional ,
+		      allow_scalar_var ) );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// serialize a std::vector into a given group
+/** serialize a std::vector of "simple" values, for which NcGroup::putVar()
+ * is defined out of \p data and into the variable with name \p name of
+ * netCDF type \p ncType with dimension \p ncDim. If \p data is empty,
+ * \p group is left unchanged (no netCDF variable is created).
+ *
+ * @param[in, out] group The netCDF NcGroup in which the variable will be
+ *                       added.
+ *
+ * @param[in] name       The name of the variable that will be added.
+ *
+ * @param[in] ncType     The type of the elements of the array.
+ *
+ * @param[in] ncDim      The netCDF dimension of the array.
+ *
+ * @param[in] data       A vector containing the data to be stored in the
+ *                       variable.
+ *
+ * @param[in] allow_scalar_var Although this function is supposed to serialize
+ *                             an array, it can also be used to serialize a
+ *                             scalar. If the \p data has size 1 and
+ *            \p allow_scalar_var == true, then a netCDF scalar variable is
+ *            created instead of a multi-dimensional one (notice that, in
+ *            this case, the argument \p ncDim is completely ignored). The
+ *            default is false. */
+
+template< class T >
+std::enable_if_t< is_netCDF_type_v< T > , void >
+serialize( netCDF::NcGroup & group , const std::string & name ,
+           const netCDF::NcType & ncType , const netCDF::NcDim & ncDim ,
+           const std::vector< T > & data , bool allow_scalar_var = false )
+{
+ if( data.empty() )
+  return; // Nothing to be serialized.
+
+ if( allow_scalar_var && ( data.size() == 1 ) ) {
+  serialize( group , name , ncType , data[ 0 ] );
+  return;
+  }
+
+ group.addVar( name , ncType , ncDim ).putVar( { 0 }, { data.size() } ,
+					       data.data() );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/** serialize a std::vector of "simple" values, for which NcGroup::putVar()
+ * is defined out of \p data and into the variable with name \p name of
+ * netCDF type \p ncType with dimension with name \p size. If a dimension
+ * with name \p size is already present in \p group then it is used,
+ * otherwise it is added. If \p data is empty, \p group is left unchanged
+ * (no netCDF variable is created) except possibly for adding \p size.
+ *
+ * @param[in, out] group The netCDF NcGroup in which the variable will be
+ *                       added.
+ *
+ * @param[in] data       A vector containing the data to be stored in the
+ *
+ * @param[in] name       The name of the variable that will be added,
+ *                       default "value".
+ *
+ * @param[in] size       The name of the dimension of the array, default
+ *                       "size".
+ *
+ * @param[in] allow_scalar_var Although this function is supposed to serialize
+ *                             an array, it can also be used to serialize a
+ *                             scalar. If the \p data has size 1 and
+ *            \p allow_scalar_var == true, then a netCDF scalar variable is
+ *            created instead of a multi-dimensional one (notice that, in
+ *            this case, the argument \p ncDim is completely ignored). The
+ *            default is false. */
+
+template< typename T >
+std::enable_if_t< is_netCDF_type_v< T > , void >
+serialize( netCDF::NcGroup & group , const std::vector< T > & data ,
+	   const std::string & name = "value" ,
+	   const std::string & size = "size" ,
+	   bool allow_scalar_var = false )
+{
+ auto sz = group.getDim( size );
+ if( sz.isNull() )
+  sz = group.addDim( size , data.size() );
+
+ serialize( group , name , typ2nCDF< T >() , sz , data , allow_scalar_var );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - -SERIALIZING AND DESERIALIZING std::vector OF std::pair - - - - - -*/
+/*- - - - OF BASIC TYPES- - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// deserialize a std::vector< stt::pair > > out of a netCDF NcGroup
+/** This function reads a std::vector< std::pair< T1 , T2 > > where both T1
+ * and T2 are "simple" types (for which NcGroup::getVar() is defined) from
+ * a netCDF variable with name \p name within the given netCDF NcGroup
+ * \p group. The values read are stored in the given
+ * std::vector< std::pair >\p data.
+ *
+ * If the variable is not present in the given \p group, then the vector \p
+ * data is resized to zero if \p optional == true, while an
+ * std::invalid_argument exception is thrown if \p optional == false.
+ *
+ * If the given \p group has more than one variable with the same name, then
+ * the variable that is considered follows the rule defined by the netCDF
+ * method NcGroup::getVar(). As of version 4.3.1 of netCDF, if this happens,
+ * then the variable closest to the given group is considered.
+ *
+ * @param[in] group The netCDF NcGroup from which the array will be obtained
+ *                  from.
+ *
+ * @param[in] name  For efficiency, the data is assumed to be stored in
+ *                  \p group under the form of *two* one-dimensional
+ *                  variables of name \p name + "_f" and \p name + "_s",
+ *            of type T1 and T2 and indexed on the same dimension, with
+ *            the obvious format. If any of the two variables is not
+ *            present and \p optional == true then data is clear()-ed and
+ *            false returned, otherwise exception is throw.
+ *
+ * @param[in] size  The size of the array to be read; note that this is
+ *                  *not* checked against the actual size of the variables,
+ *                  so it's the caller's responsibility to ensure they match.
+ *                  If size == 0, data is clear()-ed and false is returned
+ *                  with no other check (not even that the variable exists).
+ *
+ * @param[out] data A reference to the vector that will store the values of
+ *                  the array.
+ *
+ * @param[in] optional This parameter informs whether the variable is
+ *                     optional. This means that if any of the two required
+ *                     variables is not present in the given NcGroup and
+ *            \p optional is false, an exception is thrown. Default is false.
+ *
+ * @return true if the desired variable was deserialized; false, otherwise. */
+
+template< typename T1 , typename T2 >
+std::enable_if_t< is_netCDF_type_v< T1 > && is_netCDF_type_v< T2 > , bool >
+deserialize( const netCDF::NcGroup & group , const std::string & name ,
+             const std::size_t & size ,
+	     std::vector< std::pair< T1 , T2 > > & data ,
+             bool optional = false )
+{
+ if( ! size ) {
+  data.clear();
+  return( false );
+  }
+
+ std::vector< T1 > f;
+ if( ! deserialize( group , name + "_f" , size , f , optional ) ) {
+  data.clear();
+  return( false );
+  }
+
+ std::vector< T2 > s;
+ if( ! deserialize( group , name + "_s" , size , s , optional ) ) {
+  data.clear();
+  return( false );
+  }
+
+ data.resize( size );
+
+ auto fit = f.begin();
+ auto sit = s.begin();
+ for( auto & el : data )
+  el = std::pair( *(fit++) , *(sit++) );
+
+ return( true );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// deserialize a std::vector< stt::pair > > out of a netCDF NcGroup
+/** This function reads a std::vector< std::pair< T1 , T2 > > where both T1
+ * and T2 are "simple" types (for which NcGroup::getVar() is defined) from
+ * a netCDF variable with name \p name within the given netCDF NcGroup
+ * \p group. The values read are stored in the given
+ * std::vector< std::pair >\p data.
+ *
+ * If the variable is not present in the given \p group, then the vector \p
+ * data is resized to zero if \p optional == true, while an
+ * std::invalid_argument exception is thrown if \p optional == false.
+ *
+ * If the given \p group has more than one variable with the same name, then
+ * the variable that is considered follows the rule defined by the netCDF
+ * method NcGroup::getVar(). As of version 4.3.1 of netCDF, if this happens,
+ * then the variable closest to the given group is considered.
+ *
+ * @param[in] group The netCDF NcGroup from which the array will be obtained
+ *                  from.
+ *
+ * @param[out] data A reference to the std::vector< std::pair< T1 , T2 > >
+ *                  that will store the values
+ *
+ * @param[in] name  For efficiency, the data is assumed to be stored in
+ *                  \p group under the form of *two* one-dimensional
+ *                  variables of name \p name + "_f" and \p name + "_s",
+ *            of type T1 and T2 and indexed on the same dimension, with
+ *            the obvious format. If any of the two variables is not
+ *            present and \p optional == true then data is clear()-ed and
+ *            false returned, otherwise exception is throw. The default is
+ *            "value".
+ *
+ * @param[in] size  The name of the dimension of the variable within the
+ *                  given group. If there is no dimension with that name
+ *                  and \p optional == false then an exception is thrown,
+ *            while if \p optional == true then data is clear()-ed and false
+ *            is returned with no other check (not even that the variable
+ *            exists). The default is "size".
+ *
+ * @param[in] optional This parameter informs whether the variable is
+ *                     optional. This means that if the variable is not
+ *                     present in the given NcGroup and \p optional == false
+ *                     then an exception is thrown. The default is false.
+ *
+ * @return true if the desired variable was deserialized; false, otherwise. */
+
+template< typename T1 , typename T2 >
+std::enable_if_t< is_netCDF_type_v< T1 > && is_netCDF_type_v< T2 > , bool >
+deserialize( const netCDF::NcGroup & group ,
+	     std::vector< std::pair< T1 , T2 > > & data ,
+	     const std::string & name = "value" ,
+	     const std::string & size = "size" , bool optional = false )
+{
+ auto dim = group.getDim( size );
+ if( dim.isNull() ) {
+  if( optional ) {
+   data.clear();
+   return( false );
+   }
+
+  throw( std::invalid_argument( "deserialize(): dimension " + size +
+				" is not present" ) );
+  }
+
+ return( deserialize( group , name , dim.getSize() , data , optional ) );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// serialize a std::vector< stt::pair > > into a given group
+/** serialize a std::vector< std::pair< T1 , T2 > > where both T1 and T2 are
+ * "simple" types (for which NcGroup::getVar() is defined) out of \p data and
+ * into two variable with name \p name + "_f" and \p name + "_s", both of the
+ * same dimension \p ncDim. If \p data is empty, \p group is left unchanged
+ * (no netCDF variable is created).
+ *
+ * @param[in, out] group The netCDF NcGroup in which the variable will be
+ *                       added.
+ *
+ * @param[in] name       The common part of the names of the two variables
+ *                       that will be added.
+ *
+ * @param[in] ncDim      The netCDF dimension of the array.
+ *
+ * @param[in] data       A vector containing the data to be stored in the
+ *                       variables. */
+
+template< typename T1 , typename T2 >
+std::enable_if_t< is_netCDF_type_v< T1 > && is_netCDF_type_v< T2 > , void >
+serialize( netCDF::NcGroup & group , const std::string & name ,
+           const netCDF::NcDim & ncDim ,
+           const std::vector< std::pair< T1 , T2 > > & data )
+{
+ if( data.empty() )
+  return;  // nothing to be serialized
+
+ auto size = ncDim.getSize();
+ std::vector< T1 > f( size );
+ std::vector< T2 > s( size );
+
+ auto fit = f.begin();
+ auto sit = s.begin();
+ for( auto & el : data ) {
+  *(fit++) = el.first;
+  *(sit++) = el.second;
+  }
+
+ serialize( group , name + "_f" , typ2nCDF< T1 >() , ncDim , f );
+ serialize( group , name + "_s" , typ2nCDF< T2 >() , ncDim , s );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// serialize a std::vector< stt::pair > > into a given group
+/** serialize a std::vector< std::pair< T1 , T2 > > where both T1 and T2 are
+ * "simple" types (for which NcGroup::getVar() is defined) out of \p data and
+ * into two variable with name \p name + "_f" and \p name + "_s", both of the
+ * same dimension whose name is \p size. If \p data is empty, \p group is
+ * left unchanged (no netCDF variable is created).
+ *
+ * @param[in, out] group The netCDF NcGroup in which the variables will be
+ *                       added.
+ *
+ * @param[in] data       A std::vector< std::pair< T1 , T2 > > containing the
+ *                       data to be stored
+ *
+ * @param[in] name       The common part of the names of the two variables
+ *                       that will be added, default "value".
+ *
+ * @param[in] size       The name of the dimension of the array, default
+ *                       "size". */
+
+template< typename T1 , typename T2 >
+std::enable_if_t< is_netCDF_type_v< T1 > && is_netCDF_type_v< T2 > , void >
+serialize( netCDF::NcGroup & group ,
+	   const std::vector< std::pair< T1 , T2 > > & data ,
+	   const std::string & name = "value" ,
+	   const std::string & size = "size" )
+{
+ auto sz = group.getDim( size );
+ if( sz.isNull() )
+  sz = group.addDim( size , data.size() );
+
+ serialize( group , name , sz , data );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - DESERIALIZING MULTI-DIMENSIONAL VARIABLES OF BASIC TYPES- - - - -*/
+/*- - - - STORED ROW-MAJOR INTO A SINGLE std::vector- - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// deserialize a multi-dimensional variable out of a netCDF NcGroup
 /** This function reads a multi-dimensional array of values of type \p T from
- * a netCDF variable with name \p var_name within the given netCDF NcGroup \p
+ * a netCDF variable with name \p name within the given netCDF NcGroup \p
  * group. The number of dimensions of the multi-dimensional array is given by
  * the size of the vector \p sizes and the i-th entry of \p sizes provides the
  * size of the i-th dimension. The values read are stored in the given vector
@@ -2131,7 +2655,7 @@ inline std::vector< std::size_t > get_sizes_dimensions(
  * @param[in] group The netCDF NcGroup from which the array will be obtained
  * from.
  *
- * @param[in] var_name The name of the variable within the given \p group.
+ * @param[in] name  The name of the variable within the given \p group.
  *
  * @param[in] sizes A vector containing the sizes of each dimension of the
  * multi-dimensional array.
@@ -2144,7 +2668,7 @@ inline std::vector< std::size_t > get_sizes_dimensions(
  * NcGroup and \p optional is false, an exception is thrown.
  *
  * @param[in] allow_scalar_var This parameter indicates whether the desired
- * variable (whose name is \p var_name) can have dimension zero (i.e., it
+ * variable (whose name is \p name) can have dimension zero (i.e., it
  * could be a scalar instead of an array). Its default value is false and this
  * means that, if the size of the given \p sizes vector is not the same as the
  * number of dimensions of the netCDF variable or the sizes of the dimensions
@@ -2159,7 +2683,7 @@ inline std::vector< std::size_t > get_sizes_dimensions(
 
 template< class T >
 std::enable_if_t< is_netCDF_type_v< T > , bool >
-deserialize( const netCDF::NcGroup & group , const std::string & var_name ,
+deserialize( const netCDF::NcGroup & group , const std::string & name ,
              const std::vector< std::size_t > & sizes ,
              std::vector< T > & data , bool optional = true ,
              bool allow_scalar_var = false )
@@ -2176,25 +2700,25 @@ deserialize( const netCDF::NcGroup & group , const std::string & var_name ,
   return( false );
   }
 
- auto ncVar = group.getVar( var_name );
+ auto ncVar = group.getVar( name );
  if( ncVar.isNull() ) {
   if( optional ) {
    data.resize( 0 );
    return( false );
    }
 
-  throw std::invalid_argument( "deserialize(): " + var_name +
-                               " is not present" );
+  throw( std::invalid_argument( "deserialize(): " + name +
+				" is not present" ) );
   }
 
  if( ( ( ncVar.getDimCount() < 0 ) ||
        ( sizes.size() != static_cast< decltype( sizes.size() ) >(
                                             ncVar.getDimCount() ) ) ) &&
      ( ( ncVar.getDimCount() != 0 ) || ( ! allow_scalar_var ) ) )
-  throw( std::invalid_argument( "deserialize(): netCDF variable '" +
-                                var_name + "' of group '" +
-                                group.getName() + "' has " +
-                                std::to_string( ncVar.getDimCount() ) +
+  throw( std::invalid_argument( "deserialize(): netCDF variable " +
+                                name + " of group " + group.getName() +
+				" has " +
+				std::to_string( ncVar.getDimCount() ) +
                                 " dimension(s), but provided argument has " +
                                 std::to_string( sizes.size() ) +
                                 " dimension(s)." ) );
@@ -2210,8 +2734,8 @@ deserialize( const netCDF::NcGroup & group , const std::string & var_name ,
  if( sizes != var_sizes )
   throw( std::invalid_argument(
      "deserialize(): given sizes of dimensions and the sizes of "
-     "dimensions of netCDF variable " + var_name + " of group '" +
-     group.getName() + "' do not match." ) );
+     "dimensions of netCDF variable " + name + " of group " +
+     group.getName() + " do not match" ) );
 
  data.resize( total_size );
 
@@ -2223,61 +2747,9 @@ deserialize( const netCDF::NcGroup & group , const std::string & var_name ,
  }
 
 /*--------------------------------------------------------------------------*/
-/// deserialize a single-dimensional variable out of a netCDF NcGroup
-/** This function reads a one-dimensional array of values of type \p T from a
- * netCDF variable with name \p var_name within the given netCDF NcGroup \p
- * group. The values read are stored in the given vector \p data.
- *
- * If the variable is not present in the given \p group, then the vector \p
- * data is resized to zero if the value of the parameter \p optional is true
- * or an std::invalid_argument exception is thrown if \p optional is false.
- *
- * If the given \p group has more than one variable with the same name, then
- * the variable that is considered follows the rule defined by the netCDF
- * method NcGroup::getVar(). As of version 4.3.1 of netCDF, if this happens,
- * then the variable closest to the given group is considered.
- *
- * @param[in] group The netCDF NcGroup from which the array will be obtained
- * from.
- *
- * @param[in] var_name The name of the variable within the given group.
- *
- * @param[in] size The size of the array to be read.
- *
- * @param[out] data A reference to the vector that will store the values of
- * the array.
- *
- * @param[in] optional This parameter informs whether the variable is
- * optional. This means that if the variable is not present in the given
- * NcGroup and \p optional is false, an exception is thrown.
- *
- * @param[in] allow_scalar_var This parameter indicates whether the desired
- * variable (whose name is \p var_name) can have dimension zero (i.e., it
- * could be a scalar instead of an array). Its default value is false and this
- * means that, if the size of the given \p sizes vector is not the same as the
- * number of dimensions of the netCDF variable or the sizes of the dimensions
- * specified by \p sizes do not match that of the netCDF variable, an
- * exception is thrown. If \p allow_scalar_var is true, this means that if the
- * netCDF variable has dimension zero (i.e., it is a scalar), then the given
- * vector \p data is resized to 1 and the value of the netCDF variable is
- * stored in the first position of \p data (notice that, in this case, the
- * given vector \p sizes is completely ignored).
- *
- * @return true if the desired variable was deserialized; false, otherwise. */
-
-template< class T >
-std::enable_if_t< is_netCDF_type_v< T > , bool >
-deserialize( const netCDF::NcGroup & group , const std::string & var_name ,
-             const std::size_t & size , std::vector< T > & data ,
-             bool optional = true , bool allow_scalar_var = false ) {
- return( deserialize( group , var_name , std::vector< size_t >{ size } ,
-                      data , optional , allow_scalar_var ) );
- }
-
-/*--------------------------------------------------------------------------*/
 /// deserialize a multi-dimensional variable out of a netCDF NcGroup
 /** This function reads a multi-dimensional array of values of type \p T from
- * a netCDF variable with name \p var_name within the given netCDF NcGroup \p
+ * a netCDF variable with name \p name within the given netCDF NcGroup \p
  * group. The values that are read are stored in the given vector \p data in
  * row-major layout.
  *
@@ -2300,7 +2772,7 @@ deserialize( const netCDF::NcGroup & group , const std::string & var_name ,
  * @param[in] group The netCDF NcGroup from which the array will be obtained
  * from.
  *
- * @param[in] var_name The name of the variable within the given \p group.
+ * @param[in] name  The name of the variable within the given \p group.
  *
  * @param[out] data A reference to the vector that will store the
  * multi-dimensional array in row-major layout.
@@ -2313,17 +2785,17 @@ deserialize( const netCDF::NcGroup & group , const std::string & var_name ,
 
 template< class T >
 std::enable_if_t< is_netCDF_type_v< T > , bool >
-deserialize( const netCDF::NcGroup & group , const std::string & var_name ,
+deserialize( const netCDF::NcGroup & group , const std::string & name ,
              std::vector< T > & data , bool optional = true )
 {
- auto ncVar = group.getVar( var_name );
+ auto ncVar = group.getVar( name );
  if( ncVar.isNull() ) {
   if( optional ) {
    data.resize( 0 );
    return( false );
    }
 
-  throw( std::invalid_argument( "deserialize(): " + var_name +
+  throw( std::invalid_argument( "deserialize(): " + name +
                                 " not present in group '" + group.getName()
                                 ) );
   }
@@ -2353,12 +2825,16 @@ deserialize( const netCDF::NcGroup & group , const std::string & var_name ,
  return( true );
  }
 
-/*--------------------------------------------------------------------------*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - SERIALIZING AND DESERIALIZING BI-DIMENSIONAL VARIABLES OF - - - -*/
+/*- - - - BASIC TYPES WITH VARIABLE-LENGTH ROWS, I.E.,- - - - - - - - - - -*/
+/*- - - - std::vector< std::vector< T > > - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// deserialize a matrix with variable-length rows
 /** This function reads a matrix with variable-length rows, i.e., a
  * std::vector< std::vector< T > >. This is obtained in the netCDF by having
  * two distinct netCDF::NcVars: a one-dimensional T array val[] (whose name is
- * \p var_name), and a one-dimensional int array start[] (whose name is \p
+ * \p name), and a one-dimensional int array start[] (whose name is \p
  * start_name). The length of start[] gives the number of rows in \p array;
  * the elements of start[] are supposed to be non-negative, ordered in
  * non-decreasing sense, and smaller than the number of elements of val[].
@@ -2373,20 +2849,20 @@ deserialize( const netCDF::NcGroup & group , const std::string & var_name ,
  * @param[in] group The netCDF::NcGroup from which the matrix with
  *            variable-length rows will be obtained.
  *
- * @param[in] var_name The name of the one-dimensional netCDF::NcVar of type
+ * @param[in] name  The name of the one-dimensional netCDF::NcVar of type
  *            T within the given \p group in which the values to be stored
  *            in a 1D array will be found;
  *
  * @param[in] start_name The name of the one-dimensional netCDF::NcVar (whose
  *            type is compatible with T) within the given \p group which tells
- *            how the elements of var_name are subdivided between the rows of
- *            \p array; start_name is optional if var_name is not found in \p
+ *            how the elements of name are subdivided between the rows of
+ *            \p array; start_name is optional if name is not found in \p
  *            group;
  *
  * @param[out] array A reference to the std::vector< std::vector< T > > to
  *             be deserialised;
  *
- * @param[in] optional A bool stating if it is allowed for \p var_name not
+ * @param[in] optional A bool stating if it is allowed for \p name not
  *            to be a netCDF::NcVar in \p group, in which case an empty
  *            \p array is returned as opposed to throwing exception.
  *
@@ -2394,24 +2870,24 @@ deserialize( const netCDF::NcGroup & group , const std::string & var_name ,
 
 template< class T >
 std::enable_if_t< is_netCDF_type_v< T > , bool >
-deserialize( const netCDF::NcGroup & group , const std::string & var_name ,
+deserialize( const netCDF::NcGroup & group , const std::string & name ,
              const std::string & start_name ,
              std::vector< std::vector< T > > & array , bool optional = true )
 {
- auto ncVar = group.getVar( var_name );
+ auto ncVar = group.getVar( name );
  if( ncVar.isNull() ) {
   if( optional ) {
    array.clear();
    return( false );
    }
 
-  throw( std::invalid_argument( "deserialize(): " + var_name +
+  throw( std::invalid_argument( "deserialize(): " + name +
                                 " is not present in group " +
                                 group.getName() ) );
   }
 
  if( ncVar.getDimCount() != 1 )
-  throw( std::invalid_argument( "deserialize(): " + var_name +
+  throw( std::invalid_argument( "deserialize(): " + name +
                                 " has wrong number of dimensions" ) );
 
  auto ncVar_S = group.getVar( start_name );
@@ -2453,49 +2929,52 @@ deserialize( const netCDF::NcGroup & group , const std::string & var_name ,
  return( true );
  }
 
-/*--------------------------------------------------------------------------*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - SERIALIZING AND DESERIALIZING BI-DIMENSIONAL VARIABLES OF - - - -*/
+/*- - - - BASIC TYPES WITH FIXED-LENGTH ROWS STORED INTO A- - - - - - - - -*/
+/*- - - - std::vector< std::vector< T > > - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// deserialize a matrix (with fixed-length rows)
-/** This function reads a matrix with fixed-length rows, i.e., a std::vector<
- * std::vector< T > > where each "inner" vector has the same size. This is
- * obtained from the two-dimensional netCDF variable whose name is \p var_name
- * in the given netCDF \p group.
+/** This function reads a matrix with fixed-length rows stored into a
+ * std::vector< std::vector< T > > where each "inner" vector has the same
+ * size. This is obtained from the two-dimensional netCDF variable whose
+ * name is \p name in the given netCDF \p group.
  *
  * @param[in] group The netCDF::NcGroup from which the matrix will be
- *            obtained.
+ *                  obtained.
  *
- * @param[in] var_name The name of the two-dimensional netCDF::NcVar within
- *            the given \p group which contains the data to be stored in \p
- *            matrix;
+ * @param[in] name The name of the two-dimensional netCDF::NcVar within the
+ *                 given \p group which contains the data to be stored in \p
+ *                  matrix;
  *
  * @param[out] matrix A reference to the std::vector< std::vector< T > > to be
- *             deserialised;
+ *                    deserialised;
  *
- * @param[in] optional A bool stating if it is allowed for \p var_name not to
- *            be a netCDF::NcVar in \p group, in which case an empty \p matrix
- *            is returned as opposed to throwing exception.
+ * @param[in] optional A bool stating if it is allowed for \p name not to be
+ *                     be present in the netCDF::NcVar in \p group, in which
+ *                     case an empty \p matrix is returned as opposed to
+ *                     throwing an exception.
  *
  * @return true if the desired variable was deserialized; false, otherwise. */
 
 template< class T >
 std::enable_if_t< is_netCDF_type_v< T > , bool >
-deserialize( const netCDF::NcGroup & group , const std::string & var_name ,
+deserialize( const netCDF::NcGroup & group , const std::string & name ,
              std::vector< std::vector< T > > & matrix , bool optional = true )
 {
-
- auto ncVar = group.getVar( var_name );
+ auto ncVar = group.getVar( name );
  if( ncVar.isNull() ) {
   if( optional ) {
    matrix.clear();
    return( false );
    }
 
-  throw( std::invalid_argument( "deserialize(): " + var_name +
-                                " is not present in group " +
-                                group.getName() ) );
+  throw( std::invalid_argument( "deserialize(): " + name +
+                            " is not present in group " + group.getName() ) );
   }
 
  if( ncVar.getDimCount() != 2 )
-  throw( std::invalid_argument( "deserialize(): " + var_name +
+  throw( std::invalid_argument( "deserialize(): " + name +
                                 " has wrong number of dimensions" ) );
 
  auto num_rows = ncVar.getDim( 0 ).getSize();
@@ -2510,55 +2989,211 @@ deserialize( const netCDF::NcGroup & group , const std::string & var_name ,
  return( true );
  }
 
-/*--------------------------------------------------------------------------*/
-/// deserialize a single variable out of a netCDF NcGroup
-/** This function reads a value of type \p T from a netCDF variable with name
- * \p var_name within the given netCDF NcGroup \p group. If a variable with
- * the given name is not present within the given \p group, an
- * std::invalid_argument exception is thrown.
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// serialize a matrix with variable-length rows
+/** This function serializes a matrix with variable-length rows, i.e., a
+ * std::vector< std::vector< T > >. This matrix is serialized by adding two
+ * distinct netCDF::NcVars: a one-dimensional array val[] (with name \p name,
+ * type \p ncType, and size equal to the total number of \p T elements in
+ * \p array) and a one-dimensional array start[] (with name \p start_name,
+ * type netCDF::NcUint, and size equal to the number of rows of \p array).
+ * The array val[] will contain the elements of \p matrix in row-major layout.
+ * The i-th element of start[] will contain the index in val[] of the first
+ * element of the i-th row of \p array. That is,
  *
- * If \p group has more than one variable with the same name, then the
- * variable that is considered follows the rule defined by the netCDF method
- * NcGroup::getVar(). As of version 4.3.1 of netCDF, if this happens, then the
- * variable closest to the given group is considered.
+ *   start[ i ] = sum_{j = 0}^{i - 1} array[ i ].size().
  *
- * @param[in] group The netCDF NcGroup from which the value will be obtained
- * from.
+ * Thus, the i-th row of \p array will be saved into the elements of val[]
+ * with indices in the closed-open interval [ start[ i ] , start[ i + 1 ] ),
+ * except for the last row for which start[ i + 1 ] is undefined and whose
+ * elements are saved into the elements of val[] with indices in the
+ * closed-open interval [ start[ i ] , | val | ), where | val | is the size
+ * of val[].
  *
- * @param[in] var_name The name of the variable within the given \p group that
- * contains the desired value.
+ * @param[in] group The netCDF::NcGroup into which the matrix with
+ *                   variable-length rows will be serialized.
  *
- * @param[out] data A pointer to the object that will store the desired value.
+ * @param[in] name  The name of the one-dimensional netCDF::NcVar of type
+ *                  \p ncType to be added to the given \p group and into
+ *                  which the values of \p array will be saved;
  *
- * @param[in] optional This parameter informs whether the variable is
- * optional. This means that if the variable is not present in the given
- * NcGroup and \p optional is false, an exception is thrown.
+ * @param[in] ncType The type of the netCDF variable whose name is \p name.
  *
- * @return true if the desired variable was deserialized; false, otherwise.
- */
+ * @param[in] start_name The name of the one-dimensional netCDF::NcVar to be
+ *                       added to the given \p group that represents the
+ *                       start[] array;
+ *
+ * @param[in] array A reference to the std::vector< std::vector< T > > to
+ *                  be serialised;
+ *
+ * @param[in] array_dim The netCDF dimension of the netCDF variable whose name
+ *                      is \p name. This dimension must already be part of \p
+ *                      group. If it is not provided, then a dimension with
+ *            name given by the concatenation of \p name and "_dim" will
+ *            be added to \p group. For instance, if it is not provided and
+ *            \p name is the string "matrix", then a dimension with name
+ *            "matrix_dim" will be added to \p group.
+ *
+ * @param[in] start_dim The netCDF dimension of the netCDF variable whose name
+ *                      is \p start_name. This dimension must already be part
+ *                      of \p group. If it is not provided, then a dimension
+ *             with name given by the concatenation of \p start_name and
+ *             "_dim" will be added to \p group. */
 
 template< class T >
-std::enable_if_t< is_netCDF_type_v< T > , bool >
-deserialize( const netCDF::NcGroup & group , const std::string & var_name ,
-             T * data , bool optional = true )
+std::enable_if_t< is_netCDF_type_v< T > , void >
+serialize( netCDF::NcGroup & group , const std::string & name ,
+           const netCDF::NcType & ncType , const std::string & start_name ,
+           const std::vector< std::vector< T > > & array ,
+           const netCDF::NcDim & array_dim = netCDF::NcDim() ,
+           const netCDF::NcDim & start_dim = netCDF::NcDim() )
 {
- auto ncVar = group.getVar( var_name );
- if( ncVar.isNull() ) {
-  if( ! optional )
-   throw( std::invalid_argument( "deserialize(): " + var_name +
-                                " not present in group " + group.getName()
-                                 ) );
-  return( false );
+ if( array.empty() )
+  return; // Nothing to be serialized.
+
+ // Compute the total number of elements in the given array
+ decltype( array.size() ) num_elements = 0;
+ for( decltype( array.size() ) i = 0 ; i < array.size() ; ++i ) {
+  num_elements += array[ i ].size();
   }
 
- ncVar.getVar( data );
- return( true );
+ // Add the netCDF variable that will store the elements of the given array
+ netCDF::NcVar array_var;
+
+ if( ! array_dim.isNull() ) {
+  if( num_elements != array_dim.getSize() )
+   throw( std::invalid_argument(
+      "serialize(): variable " + name + " of group " + group.getName() +
+      ", the given dimension is not compatible with the given array." ) );
+  array_var = group.addVar( name , ncType , { array_dim } );
+  }
+ else {
+  // Add a default dimension for variable "name"
+  auto dim = group.addDim( name + "_dim" , num_elements );
+  array_var = group.addVar( name , ncType , { dim } );
+  }
+
+ // Save the elements of the given array into the netCDF variable "name"
+ decltype( array.size() ) offset = 0;
+ for( decltype( array.size() ) i = 0 ; i < array.size() ; ++i ) {
+  array_var.putVar( { offset } , { array[ i ].size() } , array[ i ].data() );
+  offset += array[ i ].size();
+  }
+
+ // Create the "start" vector
+ std::vector< unsigned int > start( array.size() );
+ start.front() = 0;
+ for( decltype( array.size() ) i = 1 ; i < array.size() ; ++i )
+  start[ i ] = start[ i - 1 ] + array[ i - 1 ].size();
+
+ // Add the netCDF variable "start"
+ netCDF::NcVar start_var;
+
+ if( ! start_dim.isNull() ) {
+  if( start_dim.getSize() != array.size() )
+   throw( std::invalid_argument(
+      "serialize(): variable " + name + " of group " + group.getName() +
+      ", the size of the given dimension to the 'start' netCDF variable is "
+      "different from the number of rows of the given array" ) );
+  start_var = group.addVar( start_name , netCDF::NcUint() , { start_dim } );
+  }
+ else {
+  // Add a default dimension for variable "start_name".
+  auto dim = group.addDim( start_name + "_dim" , array.size() );
+  start_var = group.addVar( start_name , netCDF::NcUint() , { dim } );
+  }
+
+ // Save the start vector into the netCDF variable "start_name"
+ start_var.putVar( start.data() );
  }
 
-/*--------------------------------------------------------------------------*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// serialize a matrix (with fixed-length rows)
+/** This function serializes a matrix with fixed-length rows stored into a
+ * std::vector< std::vector< T > > where each "inner" vector has the same
+ * size. A netCDF variable with name \p name and type \p ncType is created
+ * in the given netCDF \p group and the given \p matrix is serialized into
+ * this variable. The pair \p dimensions must contain the dimensions of this
+ * matrix: the first dimension is the number of rows and the second one is the
+ * number of columns of the matrix. Note that these dimensions must either
+ * already be present in the given \p group or be null, in which case two
+ * new dimensions with "default" names are added to \p group.
+ *
+ * @param[in] group The netCDF::NcGroup into which the matrix will be
+ *                  serialized.
+ *
+ * @param[in] name  The name of the two-dimensional netCDF::NcVar which
+ *                  will be added to the given \p group and store the data of
+ *                  the given \p matrix.
+ *
+ * @param[in] ncType The type of the netCDF variable whose name is \p name.
+ *
+ * @param[out] matrix A reference to the std::vector< std::vector< T > > to be
+ *                    serialised;
+ *
+ * @param[in] dimensions The netCDF dimensions of the netCDF variable whose
+ *                       name is \p name. If the first dimension is null, then
+ *                       a dimension with name given by the concatenation of
+ *             \p name and "_rows" will be added to the given \p group. If the
+ *             second dimension is null, then a dimension with name given by
+ *             the concatenation of \p name and "_cols" will be added to
+ *             the given \p group. */
+
+template< class T >
+std::enable_if_t< is_netCDF_type_v< T > , void >
+serialize( netCDF::NcGroup & group , const std::string & name ,
+           const netCDF::NcType & ncType ,
+           const std::vector< std::vector< T > > & matrix ,
+           std::pair< netCDF::NcDim , netCDF::NcDim > dimensions = {} )
+{
+ if( matrix.empty() )
+  return;  // nothing to be serialized
+
+ auto num_rows = matrix.size();
+ auto num_cols = matrix.front().size();
+
+ if( ! num_cols )
+  return;  // nothing to be serialized
+
+ if( std::any_of( matrix.begin() , matrix.end() ,
+		  [ num_cols ]( auto & ci ) {
+		   return( ci.size() != num_cols );
+		   } ) )
+   throw( std::invalid_argument(
+		"serialize(): matrix rows are not all of the same length" ) );
+
+ if( dimensions.first.isNull() )
+  dimensions.first = group.addDim( name + "_rows" , num_rows );
+ else
+  if( num_rows != dimensions.first.getSize() )
+   throw( std::invalid_argument(
+     "serialize(): variable " + name + " of group " + group.getName() +
+     ", matrix rows do not match with first dimension" ) );
+
+ if( dimensions.second.isNull() )
+  dimensions.second = group.addDim( name + "_cols" , matrix.front().size() );
+ else
+  if( num_cols != dimensions.second.getSize() )
+   throw( std::invalid_argument(
+     "serialize(): variable " + name + " of group " + group.getName() +
+     ", matrix columns do not match with second dimension" ) );
+
+ // add the netCDF variable
+ auto ncVar = group.addVar( name , ncType ,
+			    { dimensions.first , dimensions.second } );
+
+ // set the data of the netCDF variable
+ for( decltype( num_rows ) i = 0 ; i < num_rows ; ++i )
+  ncVar.putVar( { i , 0 } , { 1 , num_cols } , matrix[ i ].data() );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - SERIALIZING AND DESERIALIZING MULTI-DIMENSIONAL VARIABLES - - - -*/
+/*- - - - OF BASIC TYPES STORED INTO A boost::multi_array< T > >- - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// deserialize a multi-dimensional variable out of a netCDF NcGroup
 /** This function reads a multi-dimensional array of values of type \p T, from
- * a netCDF variable with name \p var_name within the given netCDF NcGroup \p
+ * a netCDF variable with name \p name within the given netCDF NcGroup \p
  * group. The number of dimensions of the multi-dimensional array is given by
  * the template parameter \p N. The values read are stored in the given \p
  * array in row-major layout.
@@ -2574,38 +3209,40 @@ deserialize( const netCDF::NcGroup & group , const std::string & var_name ,
  * then the variable closest to the given group is considered.
  *
  * @param[in] group The netCDF NcGroup from which the array will be obtained
- * from.
+ *                  from.
  *
- * @param[in] var_name The name of the variable within the given \p group.
+ * @param[in] name  The name of the variable within the given \p group.
  *
- * @param[out] array A reference to the boost::multi_array that will store the
- * multi-dimensional array in row-major layout.
+ * @param[out] array A reference to the boost::multi_array that will store
+ *                   the multi-dimensional array in row-major layout.
  *
  * @param[in] optional This parameter informs whether the variable is
- * optional. This means that if the variable is not present in the given
- * NcGroup then: (i) an exception is thrown if \p optional is false; (ii)
- * every dimension of \p array will have size 0 if \p optional is true.
+ *                     optional. This means that if the variable is not
+ *                     present in the given NcGroup then: (i) an exception is
+ *                     thrown if \p optional == false; (ii) every dimension
+ *                     of \p array will have size 0 if \p optional == true.
  *
  * @param[in] allow_scalar_var This parameter indicates whether the desired
- * variable (whose name is \p var_name) can have dimension zero (i.e., it
- * could be a scalar instead of an array). Its default value is false and this
- * means that, if the variable has dimension zero (i.e., it is a scalar), an
- * exception is thrown. On the other hand, if \p allow_scalar_var is true,
- * this means that if the netCDF variable is a scalar, then the given
- * boost::multi_array \p array will have a single element (the origin) whose
- * value will be that of the netCDF variable.
+ *                             variable (whose name is \p var_name) can have
+ *                             dimension zero (i.e., it could be a scalar
+ *            instead of an array). Its default value is false and this means
+ *            that, if the variable has dimension zero (i.e., it is a scalar),
+ *            an exception is thrown. If, instead, \p allow_scalar_var == true,
+ *            then if the netCDF variable is a scalar, then the given
+ *            boost::multi_array \p array will have a single element (the
+ *            origin) whose value will be that of the netCDF variable.
  *
  * @return true if the desired variable was deserialized; false, otherwise. */
 
 template< class T , std::size_t N >
 std::enable_if_t< is_netCDF_type_v< T > , bool >
-deserialize( const netCDF::NcGroup & group , const std::string & var_name ,
-             boost::multi_array< T , N > & array, bool optional = true ,
+deserialize( const netCDF::NcGroup & group , const std::string & name ,
+             boost::multi_array< T , N > & array , bool optional = true ,
              bool allow_scalar_var = false )
 {
  using index = typename boost::multi_array< T, N >::index;
 
- auto ncVar = group.getVar( var_name );
+ auto ncVar = group.getVar( name );
  if( ncVar.isNull() ) {
   if( optional ) {
    std::vector< index > new_sizes( N , 0 );
@@ -2613,9 +3250,8 @@ deserialize( const netCDF::NcGroup & group , const std::string & var_name ,
    return( false );
    }
 
-  throw( std::invalid_argument( "deserialize(): " + var_name +
-                                " not present in group " + group.getName()
-                                ) );
+  throw( std::invalid_argument( "deserialize(): " + name +
+                                " not present in group " + group.getName() ) );
   }
 
  if( ncVar.getDimCount() == 0 ) {
@@ -2627,9 +3263,9 @@ deserialize( const netCDF::NcGroup & group , const std::string & var_name ,
    }
 
   throw( std::invalid_argument(
-     "deserialize(): netCDF variable '" + var_name + "' is a scalar," +
-     " but a multi-dimensional array with " + std::to_string( N ) +
-     " dimensions was expected in group " + group.getName() ) );
+         "deserialize(): netCDF variable " + name + " is a scalar," +
+         " but a multi-dimensional array with " + std::to_string( N ) +
+         " dimensions was expected in group " + group.getName() ) );
   }
 
  auto sizes_dimensions = get_sizes_dimensions( ncVar );
@@ -2645,315 +3281,42 @@ deserialize( const netCDF::NcGroup & group , const std::string & var_name ,
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/*- - - - - - - - - - - - - - - -SERIALIZING- - - - - - - - - - - - - - - -*/
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// serialize a single (scalar) variable into a netCDF NcGroup
-/** Add a new netCDF (scalar) variable with the given name in the given
- * netCDF NcGroup. Moreover, it stores the given data into that variable.
- *
- * @param[in, out] group The netCDF NcGroup in which the variable will be
- * added.
- *
- * @param[in] var_name The name of the variable that will be added.
- *
- * @param[in] ncType The type of the variable to be added.
- *
- * @param[in] data The value to be write into the variable. */
-
-template< class T >
-std::enable_if_t< is_netCDF_type_v< T > , void >
-serialize( netCDF::NcGroup & group , const std::string & var_name ,
-           const netCDF::NcType& ncType , const T data )
-{
- ( group.addVar( var_name, ncType ) ).putVar( &data );
- }
-
-/*--------------------------------------------------------------------------*/
-/// serialize a one-dimensional variable into a netCDF NcGroup
-/** Add a new one-dimensional netCDF variable with the given name in the given
- * netCDF NcGroup. Moreover, it stores the given data into that variable in
- * row-major layout. If \p data is empty, \p group is left unchanged (no
- * netCDF variable is created).
- *
- * @param[in, out] group The netCDF NcGroup in which the variable will be
- * added.
- *
- * @param[in] var_name The name of the variable that will be added.
- *
- * @param[in] ncType The type of the elements of the array.
- *
- * @param[in] ncDim The netCDF dimension of the array.
- *
- * @param[in] data A vector containing the data to be stored in the variable.
- *
- * @param[in] allow_scalar_var Although this function is supposed to serialize
- * an array, it can also be used to serialize a scalar. If the given vector \p
- * data has size 1 and \p allow_scalar_var is true, then a netCDF scalar
- * variable is created instead of a multi-dimensional one (notice that, in
- * this case, the argument \p ncDim is completely ignored). */
-
-template< class T >
-std::enable_if_t< is_netCDF_type_v< T > , void >
-serialize( netCDF::NcGroup & group , const std::string & var_name ,
-           const netCDF::NcType & ncType , const netCDF::NcDim & ncDim ,
-           const std::vector< T > & data , bool allow_scalar_var = false )
-{
- if( data.empty() )
-  return; // Nothing to be serialized.
-
- if( allow_scalar_var && ( data.size() == 1 ) ) {
-  serialize( group , var_name , ncType , data[ 0 ] );
-  return;
-  }
-
- group.addVar( var_name, ncType, ncDim ).putVar( { 0 }, { data.size() } ,
-                                                 data.data() );
- }
-
-/*--------------------------------------------------------------------------*/
-/// serialize a matrix with variable-length rows
-/** This function serializes a matrix with variable-length rows, i.e., a
- * std::vector< std::vector< T > >. This matrix is serialized by adding two
- * distinct netCDF::NcVars: a one-dimensional array val[] (with name \p
- * var_name, type \p ncType, and size equal to the total number of \p T
- * elements in \p array) and a one-dimensional array start[] (with name \p
- * start_name, type netCDF::NcUint, and size equal to the number of rows of \p
- * array). The array val[] will contain the elements of \p matrix in row-major
- * layout. The i-th element of start[] will contain the index in val[] of the
- * first element of the i-th row of \p array. That is,
- *
- *   start[ i ] = sum_{j = 0}^{i - 1} array[ i ].size().
- *
- * Thus, the i-th row of \p array will be saved into the elements of val[]
- * with indices in the closed-open interval [ start[ i ] , start[ i + 1 ] ),
- * except for the last row for which start[ i + 1 ] is undefined and whose
- * elements are saved into the elements of val[] with indicesin the
- * closed-open interval [ start[ i ] , |val| ), where |val| is the size of
- * val[].
- *
- * @param[in] group The netCDF::NcGroup into which the matrix with
- *            variable-length rows will be serialized.
- *
- * @param[in] var_name The name of the one-dimensional netCDF::NcVar of type
- *            \p ncType to be added to the given \p group and into which the
- *            values of \p array will be saved;
- *
- * @param[in] ncType The type of the netCDF variable whose name is \p
- *            var_name.
- *
- * @param[in] start_name The name of the one-dimensional netCDF::NcVar to be
- *            added to the given \p group that represents the start[] array;
- *
- * @param[in] array A reference to the std::vector< std::vector< T > > to
- *            be serialised;
- *
- * @param[in] array_dim The netCDF dimension of the netCDF variable whose name
- *            is \p var_name. This dimension must already be part of \p
- *            group. If it is not provided, then a dimension with name given
- *            by the concatenation of \p var_name and "_dim" will be added to
- *            \p group. For instance, if it is not provided and \p var_name is
- *            the string "matrix", then a dimension with name "matrix_dim"
- *            will be added to \p group.
- *
- * @param[in] start_dim The netCDF dimension of the netCDF variable whose name
- *            is \p start_name. This dimension must already be part of \p
- *            group. If it is not provided, then a dimension with name given
- *            by the concatenation of \p start_name and "_dim" will be added
- *            to \p group. */
-
-template< class T >
-std::enable_if_t< is_netCDF_type_v< T > , void >
-serialize( netCDF::NcGroup & group , const std::string & var_name ,
-           const netCDF::NcType & ncType ,
-           const std::string & start_name ,
-           const std::vector< std::vector< T > > & array ,
-           const netCDF::NcDim & array_dim = netCDF::NcDim() ,
-           const netCDF::NcDim & start_dim = netCDF::NcDim() ) {
-
- if( array.empty() )
-  return; // Nothing to be serialized.
-
- // Compute the total number of elements in the given array
- decltype( array.size() ) num_elements = 0;
- for( decltype( array.size() ) i = 0 ; i < array.size() ; ++i ) {
-  num_elements += array[ i ].size();
-  }
-
- // Add the netCDF variable that will store the elements of the given array
-
- netCDF::NcVar array_var;
-
- if( ! array_dim.isNull() ) {
-  if( num_elements != array_dim.getSize() )
-   throw( std::invalid_argument(
-      "serialize(): error when serializing variable '" + var_name +
-      "' of group '" + group.getName() + "'. The given dimension is "
-      "not compatible with the given array." ) );
-  array_var = group.addVar( var_name , ncType , { array_dim } );
-  }
- else {
-  // Add a default dimension for variable "var_name".
-  auto dim = group.addDim( var_name + "_dim" , num_elements );
-  array_var = group.addVar( var_name , ncType , { dim } );
-  }
-
- // Save the elements of the given array into the netCDF variable "var_name"
-
- decltype( array.size() ) offset = 0;
- for( decltype( array.size() ) i = 0 ; i < array.size() ; ++i ) {
-  array_var.putVar( { offset } , { array[ i ].size() } , array[ i ].data() );
-  offset += array[ i ].size();
-  }
-
- // Create the "start" vector
-
- std::vector< unsigned int > start( array.size() );
- start.front() = 0;
- for( decltype( array.size() ) i = 1 ; i < array.size() ; ++i )
-  start[ i ] = start[ i - 1 ] + array[ i - 1 ].size();
-
- // Add the netCDF variable "start"
-
- netCDF::NcVar start_var;
-
- if( ! start_dim.isNull() ) {
-  if( start_dim.getSize() != array.size() )
-   throw( std::invalid_argument(
-      "serialize(): error when serializing variable '" + var_name +
-      "' of group '" + group.getName() + "'. The size of the given dimension "
-      "to the 'start' netCDF variable is different from the number of rows of "
-      "the given array." ) );
-  start_var = group.addVar( start_name , netCDF::NcUint() , { start_dim } );
-  }
- else {
-  // Add a default dimension for variable "start_name".
-  auto dim = group.addDim( start_name + "_dim" , array.size() );
-  start_var = group.addVar( start_name , netCDF::NcUint() , { dim } );
-  }
-
- // Save the start vector into the netCDF variable "start_name"
-
- start_var.putVar( start.data() );
- }
-
-/*--------------------------------------------------------------------------*/
-/// serialize a matrix (with fixed-length rows)
-/** This function serializes a matrix with fixed-length rows, i.e., a
- * std::vector< std::vector< T > > where each "inner" vector has the same
- * size. A netCDF variable with name \p var_name and type \p ncType is created
- * in the given netCDF \p group and the given \p matrix is serialized into
- * this variable. The pair \p dimensions must contain the dimensions of this
- * matrix: the first dimension is the number of rows and the second one is the
- * number of columns of the matrix. Notice that these dimensions must already
- * be present in the given \p group (since they are not added by this
- * function).
- *
- * @param[in] group The netCDF::NcGroup into which the matrix will be
- *            serialized.
- *
- * @param[in] var_name The name of the two-dimensional netCDF::NcVar which
- *            will be added to the given \p group and store the data of the
- *            given \p matrix.
- *
- * @param[in] ncType The type of the netCDF variable whose name is \p
- *            var_name.
- *
- * @param[out] matrix A reference to the std::vector< std::vector< T > > to be
- *             serialised;
- *
- * @param[in] dimensions The netCDF dimensions of the netCDF variable whose
- *            name is \p var_name. If the first dimension is null, then a
- *            dimension with name given by the concatenation of \p var_name
- *            and "_rows" will be added to the given \p group. If the second
- *            dimension is null, then a dimension with name given by the
- *            concatenation of \p var_name and "_cols" will be added to the
- *            given \p group. */
-
-template< class T >
-std::enable_if_t< is_netCDF_type_v< T > , void >
-serialize( netCDF::NcGroup & group , const std::string & var_name ,
-           const netCDF::NcType & ncType ,
-           const std::vector< std::vector< T > > & matrix ,
-           const std::pair< netCDF::NcDim , netCDF::NcDim > & dimensions = {} )
-{
-
- if( matrix.empty() )
-  return; // Nothing to be serialized.
-
- auto dims = dimensions;
-
- if( dimensions.first.isNull() )
-  dims.first = group.addDim( var_name + "_rows" , matrix.size() );
-
- if( dimensions.second.isNull() )
-  dims.second = group.addDim( var_name + "_cols" , matrix.front().size() );
-
- auto num_rows = dims.first.getSize();
- auto num_cols = dims.second.getSize();
-
- // Check whether the given matrix has the correct dimensions
-
- if( num_rows != matrix.size() )
-  throw( std::invalid_argument(
-     "serialize(): error when serializing variable '" + var_name +
-     "' of group '" + group.getName() + "'. The first dimension has size " +
-     std::to_string( num_rows ) + ", but the given vector has size " +
-     std::to_string( matrix.size() ) + "." ) );
-
- for( decltype( num_rows ) i = 0 ; i < num_rows ; ++i )
-  if( matrix[ i ].size() != num_cols )
-   throw( std::invalid_argument(
-      "serialize(): error when serializing variable '" + var_name +
-      "' of group '" + group.getName() + "'. The second dimension has size " +
-      std::to_string( num_cols ) + ", but vector at position " +
-      std::to_string( i ) + " has size " +
-      std::to_string( matrix[ i ].size() ) + "." ) );
-
- // Add the netCDF variable
-
- auto ncVar = group.addVar( var_name , ncType , { dims.first , dims.second } );
-
- // Set the data of the netCDF variable
-
- for( decltype( num_rows ) i = 0 ; i < num_rows ; ++i )
-  ncVar.putVar( { i , 0 } , { 1 , num_cols } , matrix[ i ].data() );
-
- }
-
-/*--------------------------------------------------------------------------*/
 /// serialize a multi-dimensional variable into a netCDF NcGroup
-/** Add a new multi-dimensional netCDF variable with the given name in
- * the given netCDF NcGroup. Moreover, it stores the given data into
+/** Add a new multi-dimensional netCDF variable with the given \p name in
+ * the given netCDF NcGroup \p group. Moreover, it stores the given data into
  * that variable in row-major layout.
  *
  * @param[in, out] group The netCDF NcGroup in which the variable will be
- * added.
+ *                       added.
  *
- * @param[in] var_name The name of the variable that will be added.
+ * @param[in] name       The name of the variable that will be added.
  *
- * @param[in] ncType The type of the elements of the array.
+ * @param[in] ncType     The type of the elements of the array.
  *
- * @param[in] ncDim A vector with the netCDF dimensions of the array.
+ * @param[in] ncDim      A vector with the netCDF dimensions of the array.
  *
- * @param[in] data A vector containing the data to be stored in the variable
- * in row-major layout.
+ * @param[in] data       A vector containing the data to be stored in the
+ *                       variable in row-major layout.
  *
  * @param[in] sizes This is an optional parameter that indicates the sizes of
- * each dimension of the multi-dimensional array to be serialized. If the
- * number of dimensions is greater than 1, then (a) if \p sizes is not
- * provided then unlimited dimensions are not supported (an exception is
- * thrown in this case); (b) if \p sizes is provided, it must have the same
- * number of elements as \p ncDim (otherwise, an exception is thrown).
+ *                  each dimension of the multi-dimensional array to be
+ *                  serialized. If the number of dimensions is greater than 1,
+ *             then (a) if \p sizes is not provided then unlimited dimensions
+ *             are not supported (an exception is thrown in this case); (b)
+ *             if \p sizes is provided, it must have the same number of
+ *             elements as \p ncDim (otherwise, an exception is thrown).
  *
  * @param[in] allow_scalar_var Although this function is supposed to serialize
- * an array, it can also be used to serialize a scalar. If the given vector \p
- * data has size 1 and \p allow_scalar_var is true, then a netCDF scalar
- * variable is created instead of a multi-dimensional one (notice that, in
- * this case, the argument \p ncDim is completely ignored). */
+ *                             a multi-dimensional array, it can also be used
+ *                             to serialize a scalar. If the given vector \p
+ *            data has size 1 and \p allow_scalar_var is true, then a netCDF
+ *            scalar variable is created instead of a multi-dimensional one
+ *            (notice that, in this case, the argument \p ncDim is completely
+ *            ignored). */
 
 template< class T >
 std::enable_if_t< is_netCDF_type_v< T > , void >
-serialize( netCDF::NcGroup & group , const std::string & var_name ,
+serialize( netCDF::NcGroup & group , const std::string & name ,
            const netCDF::NcType & ncType ,
            const std::vector< netCDF::NcDim > & ncDim ,
            const std::vector< T > & data ,
@@ -2964,12 +3327,11 @@ serialize( netCDF::NcGroup & group , const std::string & var_name ,
   return; // Nothing to be serialized.
 
  if( ( ncDim.size() == 1 ) && ( sizes.size() <= 1 ) )
-  serialize( group , var_name , ncType , ncDim[ 0 ] , data ,
-             allow_scalar_var );
+  serialize( group , name , ncType , ncDim[ 0 ] , data , allow_scalar_var );
 
  if( allow_scalar_var && ( data.size() == 1 ) ) {
   // Serializes the only element of the given vector as a scalar variable.
-  serialize( group , var_name , ncType , data[ 0 ] );
+  serialize( group , name , ncType , data[ 0 ] );
   return;
   }
 
@@ -2984,9 +3346,8 @@ serialize( netCDF::NcGroup & group , const std::string & var_name ,
 
    if( ncDim[ i ].isUnlimited() )
     throw( std::invalid_argument(
-       "serialize(): error when serializing variable '" + var_name +
-       "' of group '" + group.getName() +
-       "'. The given netCDF dimension " +
+       "serialize(): error when serializing variable " + name +
+       " of group " + group.getName() + ". The given netCDF dimension " +
        std::to_string( i ) +
        " is unlimited, but unlimited dimension is not supported when"
        " the sizes of each dimension of the multi-dimensional array"
@@ -2994,23 +3355,21 @@ serialize( netCDF::NcGroup & group , const std::string & var_name ,
    }
 
   std::vector< std::size_t > start( ncDim.size() , 0 );
-  group.addVar( var_name, ncType, ncDim ).putVar( start , sz , data.data() );
+  group.addVar( name, ncType, ncDim ).putVar( start , sz , data.data() );
   }
  else
   if( ncDim.size() != sizes.size() )
    throw( std::invalid_argument(
-     "serialize(): error when serializing variable '" + var_name +
-     "' of group '" + group.getName() +
-     "'. The vector 'sizes' has size " +
-     std::to_string( sizes.size() ) +
-     ", while the vector 'ncDim' has size " +
-     std::to_string( ncDim.size() ) +
+     "serialize(): error when serializing variable " + name +
+     " of group " + group.getName() + ". The vector 'sizes' has size " +
+     std::to_string( sizes.size() ) + ", while the vector 'ncDim' has size "
+     + std::to_string( ncDim.size() ) +
      ". When the optional vector parameter 'sizes' is present,"
      " it must have the same size as the vector 'ncDim'" ) );
   else {
    std::vector< std::size_t > start( ncDim.size() , 0 );
-   group.addVar( var_name , ncType , ncDim ).putVar( start , sizes ,
-                                                     data.data() );
+   group.addVar( name , ncType , ncDim ).putVar( start , sizes ,
+						 data.data() );
    }
  }
 
@@ -3063,50 +3422,57 @@ serialize( netCDF::NcGroup & group , const std::string & var_name ,
  *   either \p allow_singleton_dim is false or s_i != 1.
  *
  * @param[in, out] group The netCDF NcGroup in which the variable will be
- * added.
+ *                       added.
  *
- * @param[in] var_name The name of the variable that will be added.
+ * @param[in] name The name of the variable that will be added.
  *
  * @param[in] ncType The type of the elements of the \p multi_array.
  *
  * @param[in] expected_ncDim A vector with the (expected) netCDF dimensions of
- * the array. If the given \p multi_array is not serialized into a netCDF
- * *scalar* variable, then the size of this vector must necessarily be equal
- * to the value of the template parameter \p N (otherwise, an exception is
- * thrown).
+ *                           the array. If the given \p multi_array is not
+ *                           serialized into a netCDF *scalar* variable, then
+ *            the size of this vector must necessarily be equal to the value
+ *            of the template parameter \p N (otherwise, an exception is
+ *            thrown).
  *
  * @param[in] multi_array A boost::multi_array containing the data to be
- * stored in the netCDF variable in row-major layout.
+ *                        stored in the netCDF variable in row-major layout.
  *
  * @param[in] allow_scalar_var Although this function is supposed to serialize
- * an array, it can also be used to serialize a scalar. If the given \p
- * multi_array has size 1 and \p allow_scalar_var is true, then a netCDF
- * *scalar* variable is created instead of a multi-dimensional one (notice
- * that, in this case, the argument \p expected_ncDim is completely ignored).
+ *                             an array, it can also be used to serialize a
+ *                             scalar. If the given \p multi_array has size 1
+ *            and \p allow_scalar_var == true, then a netCDF *scalar* variable
+ *            is created instead of a multi-dimensional one (notice that, in
+ *            this case, the argument \p expected_ncDim is completely ignored).
  *
  * @param[in] allow_singleton_dim This parameter indicates whether singleton
- * dimensions are allowed. If \p allow_singleton_dim is true, then a dimension
- * given in \p expected_ncDim may be replaced by a singleton dimension as
- * explained above. If \p allow_singleton_dim is false, then, for each i in
- * {0, ..., N-1}, the size of the i-th dimension in \p expected_ncDim must be
- * equal to the size of the i-th dimension of \p multi_array, except when (i)
- * the \p multi_array is serialized into a netCDF *scalar* variable or (ii)
- * the i-th dimension in \p expected_ncDim is unlimited. If \p
- * allow_singleton_dim is false and neither condition (i) nor condition (ii)
- * is met, then an exception is thrown when the i-th dimension has different
- * sizes in \p expected_ncDim and \p multi_array.
+ *                                dimensions are allowed. If
+ *                                \p allow_singleton_dim == true, then a
+ *            dimension given in \p expected_ncDim may be replaced by a
+ *            singleton dimension as explained above. If
+ *            \p allow_singleton_dim == false, then, for each i in
+ *            {0, ..., N-1}, the size of the i-th dimension in
+ *            \p expected_ncDim must be equal to the size of the i-th
+ *            dimension of \p multi_array, except when (i) the \p multi_array
+ *            is serialized into a netCDF *scalar* variable or (ii) the i-th
+ *            dimension in \p expected_ncDim is unlimited. If \p
+ *            allow_singleton_dim == false and neither condition (i) nor
+ *            condition (ii) is met, then an exception is thrown when the i-th
+ *            dimension has different sizes in \p expected_ncDim and
+ *            \p multi_array.
  *
  * @param[in] singleton_dim_name The name of the singleton dimension. If the
- * singleton dimension is used (see \p allow_singleton_dim parameter), then
- * the dimension whose name is given by \p singleton_dim_name is
- * considered. If this dimension is present in the given \p group, it must
- * have size 1 (otherwise, an exception is thrown). If a dimension with this
- * name is not found in \p group, a dimension with this name is added to the
- * \p group. */
+ *                                singleton dimension is used (see
+ *                                \p allow_singleton_dim parameter), then
+ *             the dimension whose name is given by \p singleton_dim_name is
+ *             considered. If this dimension is present in the given \p group,
+ *             it must have size 1 (otherwise, an exception is thrown). If a
+ *             dimension with this name is not found in \p group, a dimension
+ *             with this name is added to the \p group. */
 
 template< class T, std::size_t N >
 std::enable_if_t< is_netCDF_type_v< T > , void >
-serialize( netCDF::NcGroup & group, const std::string & var_name,
+serialize( netCDF::NcGroup & group, const std::string & name,
            const netCDF::NcType & ncType ,
            const std::vector< netCDF::NcDim > & expected_ncDim ,
            const boost::multi_array< T, N > & multi_array ,
@@ -3119,18 +3485,16 @@ serialize( netCDF::NcGroup & group, const std::string & var_name,
  if( allow_scalar_var && multi_array.num_elements() == 1 ) {
   // Serializes the only value of the given multi_array into a netCDF scalar
   // variable.
-  serialize( group, var_name, ncType, *multi_array.origin() );
+  serialize( group , name , ncType , * multi_array.origin() );
   return;
   }
 
  if( expected_ncDim.size() != N )
   throw( std::invalid_argument(
-     "serialize(): error when serializing variable '" + var_name +
-     "' of group '" + group.getName() +
-     "'. The given boost::multi_array has " +
-     std::to_string( N ) +
+     "serialize(): variable " + name + " of group " + group.getName() +
+     ", the given boost::multi_array has " + std::to_string( N ) +
      " dimensions, but " + std::to_string( expected_ncDim.size() ) +
-     " netCDF::NcDim were provided. Those numbers must be the same." ) );
+     " netCDF::NcDim were provided" ) );
 
  auto ncDim = expected_ncDim;
 
@@ -3152,17 +3516,15 @@ serialize( netCDF::NcGroup & group, const std::string & var_name,
      // The singleton dimension is currently not present in the given
      // group. So, we add the singleton dimension to the given group.
      singleton_dim = group.addDim( singleton_dim_name, 1 );
-
     else
      if( singleton_dim.getSize() != 1 ) {
       std::string error;
-      error += "serialize(): error when serializing variable '";
-      error += var_name + "' of group '" + group.getName();
+      error += "serialize(): error when serializing variable ";
+      error += name + " of group " + group.getName();
       error += "'. The singleton dimension must have size 1,"
-               "but the dimension '";
-      error += singleton_dim_name + "' found in the group '";
-      error += group.getName() + "' has size ";
-      error += std::to_string( singleton_dim.getSize() ) + ".";
+               "but the dimension ";
+      error += singleton_dim_name + " has size ";
+      error += std::to_string( singleton_dim.getSize() );
       throw( std::invalid_argument( error ) );
       }
 
@@ -3170,9 +3532,9 @@ serialize( netCDF::NcGroup & group, const std::string & var_name,
     }
    else {
     throw( std::invalid_argument(
-       "serialize(): error when serializing variable '" + var_name +
-       "' of group '" + group.getName() + "'. The size of dimension " +
-       std::to_string( i ) + " of the given boost::multi_array is " +
+       "serialize(): variable " + name + " of group " + group.getName() +
+       ", the size of dimension " + std::to_string( i ) +
+       " of the given boost::multi_array is " +
        std::to_string( multi_array_dim_size ) +
        " but the size of the provided netCDF dimension is " +
        std::to_string( ncdim_size ) +
@@ -3192,11 +3554,13 @@ serialize( netCDF::NcGroup & group, const std::string & var_name,
  for( std::vector< std::size_t >::size_type i = 0 ; i < N ; ++i )
   dim_sizes[ i ] = multi_array.shape()[ i ];
 
- group.addVar( var_name, ncType, ncDim ).putVar( start , dim_sizes ,
-                                                 multi_array.data() );
+ group.addVar( name, ncType, ncDim ).putVar( start , dim_sizes ,
+					     multi_array.data() );
  }
 
-/*--------------------------------------------------------------------------*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - CHECKING netCDF FILES FOR (UN)EXPECTED STUFF  - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// check if all the expected netCDF variables are present in a group
 /** Check if all the expected netCDF variables are present in a group
  *
