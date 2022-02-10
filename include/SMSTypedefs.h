@@ -2357,17 +2357,18 @@ deserialize( const netCDF::NcGroup & group , const std::string & var_name ,
 /// deserialize a matrix with variable-length rows
 /** This function reads a matrix with variable-length rows, i.e., a
  * std::vector< std::vector< T > >. This is obtained in the netCDF by having
- * two distinct netCDF::NcVars: a one-dimensional T array val[] (whose name
- * is \p var_name), and a one-dimensional int array start[] (whose name is
- * \p start_name). The length of start[] gives the number of rows in
- * \p array; the elements of start[] are supposed to be non-negative, ordered
- * in non-decreasing sense, and smaller than the number of elements of val[].
+ * two distinct netCDF::NcVars: a one-dimensional T array val[] (whose name is
+ * \p var_name), and a one-dimensional int array start[] (whose name is \p
+ * start_name). The length of start[] gives the number of rows in \p array;
+ * the elements of start[] are supposed to be non-negative, ordered in
+ * non-decreasing sense, and smaller than the number of elements of val[].
  * Then, the i-th row of \p array will contain the elements found in val[]
- * with indices between start[ i ] and start[ i + 1 ], except for the last
- * row for which start[ i + 1 ] is undefined and the total number of elements
- * in val[] is used instead. Note that one typically expect start[ 0 ] == 0,
- * but this is not enforced for the slight chance that this may be useful to
- * the user; clearly, the elements of val[] before start[ 0 ] are ignored.
+ * with indices in the closed-open interval [ start[ i ] , start[ i + 1 ] ),
+ * except for the last row for which start[ i + 1 ] is undefined and the total
+ * number of elements in val[] is used instead. Note that one typically expect
+ * start[ 0 ] == 0, but this is not enforced for the slight chance that this
+ * may be useful to the user; clearly, the elements of val[] before start[ 0 ]
+ * are ignored.
  *
  * @param[in] group The netCDF::NcGroup from which the matrix with
  *            variable-length rows will be obtained.
@@ -2459,7 +2460,7 @@ deserialize( const netCDF::NcGroup & group , const std::string & var_name ,
  * obtained from the two-dimensional netCDF variable whose name is \p var_name
  * in the given netCDF \p group.
  *
- * @param[in] group The netCDF::NcGroup from which the matrix with will be
+ * @param[in] group The netCDF::NcGroup from which the matrix will be
  *            obtained.
  *
  * @param[in] var_name The name of the two-dimensional netCDF::NcVar within
@@ -2707,6 +2708,216 @@ serialize( netCDF::NcGroup & group , const std::string & var_name ,
 
  group.addVar( var_name, ncType, ncDim ).putVar( { 0 }, { data.size() } ,
                                                  data.data() );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// serialize a matrix with variable-length rows
+/** This function serializes a matrix with variable-length rows, i.e., a
+ * std::vector< std::vector< T > >. This matrix is serialized by adding two
+ * distinct netCDF::NcVars: a one-dimensional array val[] (with name \p
+ * var_name, type \p ncType, and size equal to the total number of \p T
+ * elements in \p array) and a one-dimensional array start[] (with name \p
+ * start_name, type netCDF::NcUint, and size equal to the number of rows of \p
+ * array). The array val[] will contain the elements of \p matrix in row-major
+ * layout. The i-th element of start[] will contain the index in val[] of the
+ * first element of the i-th row of \p array. That is,
+ *
+ *   start[ i ] = sum_{j = 0}^{i - 1} array[ i ].size().
+ *
+ * Thus, the i-th row of \p array will be saved into the elements of val[]
+ * with indices in the closed-open interval [ start[ i ] , start[ i + 1 ] ),
+ * except for the last row for which start[ i + 1 ] is undefined and whose
+ * elements are saved into the elements of val[] with indicesin the
+ * closed-open interval [ start[ i ] , |val| ), where |val| is the size of
+ * val[].
+ *
+ * @param[in] group The netCDF::NcGroup into which the matrix with
+ *            variable-length rows will be serialized.
+ *
+ * @param[in] var_name The name of the one-dimensional netCDF::NcVar of type
+ *            \p ncType to be added to the given \p group and into which the
+ *            values of \p array will be saved;
+ *
+ * @param[in] ncType The type of the netCDF variable whose name is \p
+ *            var_name.
+ *
+ * @param[in] start_name The name of the one-dimensional netCDF::NcVar to be
+ *            added to the given \p group that represents the start[] array;
+ *
+ * @param[in] array A reference to the std::vector< std::vector< T > > to
+ *            be serialised;
+ *
+ * @param[in] array_dim The netCDF dimension of the netCDF variable whose name
+ *            is \p var_name. This dimension must already be part of \p
+ *            group. If it is not provided, then a dimension with name given
+ *            by the concatenation of \p var_name and "_dim" will be added to
+ *            \p group. For instance, if it is not provided and \p var_name is
+ *            the string "matrix", then a dimension with name "matrix_dim"
+ *            will be added to \p group.
+ *
+ * @param[in] start_dim The netCDF dimension of the netCDF variable whose name
+ *            is \p start_name. This dimension must already be part of \p
+ *            group. If it is not provided, then a dimension with name given
+ *            by the concatenation of \p start_name and "_dim" will be added
+ *            to \p group. */
+
+template< class T >
+std::enable_if_t< is_netCDF_type_v< T > , void >
+serialize( netCDF::NcGroup & group , const std::string & var_name ,
+           const netCDF::NcType & ncType ,
+           const std::string & start_name ,
+           const std::vector< std::vector< T > > & array ,
+           const netCDF::NcDim & array_dim = netCDF::NcDim() ,
+           const netCDF::NcDim & start_dim = netCDF::NcDim() ) {
+
+ if( array.empty() )
+  return; // Nothing to be serialized.
+
+ // Compute the total number of elements in the given array
+ decltype( array.size() ) num_elements = 0;
+ for( decltype( array.size() ) i = 0 ; i < array.size() ; ++i ) {
+  num_elements += array[ i ].size();
+  }
+
+ // Add the netCDF variable that will store the elements of the given array
+
+ netCDF::NcVar array_var;
+
+ if( ! array_dim.isNull() ) {
+  if( num_elements != array_dim.getSize() )
+   throw( std::invalid_argument(
+      "serialize(): error when serializing variable '" + var_name +
+      "' of group '" + group.getName() + "'. The given dimension is "
+      "not compatible with the given array." ) );
+  array_var = group.addVar( var_name , ncType , { array_dim } );
+  }
+ else {
+  // Add a default dimension for variable "var_name".
+  auto dim = group.addDim( var_name + "_dim" , num_elements );
+  array_var = group.addVar( var_name , ncType , { dim } );
+  }
+
+ // Save the elements of the given array into the netCDF variable "var_name"
+
+ decltype( array.size() ) offset = 0;
+ for( decltype( array.size() ) i = 0 ; i < array.size() ; ++i ) {
+  array_var.putVar( { offset } , { array[ i ].size() } , array[ i ].data() );
+  offset += array[ i ].size();
+  }
+
+ // Create the "start" vector
+
+ std::vector< unsigned int > start( array.size() );
+ start.front() = 0;
+ for( decltype( array.size() ) i = 1 ; i < array.size() ; ++i )
+  start[ i ] = start[ i - 1 ] + array[ i - 1 ].size();
+
+ // Add the netCDF variable "start"
+
+ netCDF::NcVar start_var;
+
+ if( ! start_dim.isNull() ) {
+  if( start_dim.getSize() != array.size() )
+   throw( std::invalid_argument(
+      "serialize(): error when serializing variable '" + var_name +
+      "' of group '" + group.getName() + "'. The size of the given dimension "
+      "to the 'start' netCDF variable is different from the number of rows of "
+      "the given array." ) );
+  start_var = group.addVar( start_name , netCDF::NcUint() , { start_dim } );
+  }
+ else {
+  // Add a default dimension for variable "start_name".
+  auto dim = group.addDim( start_name + "_dim" , array.size() );
+  start_var = group.addVar( start_name , netCDF::NcUint() , { dim } );
+  }
+
+ // Save the start vector into the netCDF variable "start_name"
+
+ start_var.putVar( start.data() );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// serialize a matrix (with fixed-length rows)
+/** This function serializes a matrix with fixed-length rows, i.e., a
+ * std::vector< std::vector< T > > where each "inner" vector has the same
+ * size. A netCDF variable with name \p var_name and type \p ncType is created
+ * in the given netCDF \p group and the given \p matrix is serialized into
+ * this variable. The pair \p dimensions must contain the dimensions of this
+ * matrix: the first dimension is the number of rows and the second one is the
+ * number of columns of the matrix. Notice that these dimensions must already
+ * be present in the given \p group (since they are not added by this
+ * function).
+ *
+ * @param[in] group The netCDF::NcGroup into which the matrix will be
+ *            serialized.
+ *
+ * @param[in] var_name The name of the two-dimensional netCDF::NcVar which
+ *            will be added to the given \p group and store the data of the
+ *            given \p matrix.
+ *
+ * @param[in] ncType The type of the netCDF variable whose name is \p
+ *            var_name.
+ *
+ * @param[out] matrix A reference to the std::vector< std::vector< T > > to be
+ *             serialised;
+ *
+ * @param[in] dimensions The netCDF dimensions of the netCDF variable whose
+ *            name is \p var_name. If the first dimension is null, then a
+ *            dimension with name given by the concatenation of \p var_name
+ *            and "_rows" will be added to the given \p group. If the second
+ *            dimension is null, then a dimension with name given by the
+ *            concatenation of \p var_name and "_cols" will be added to the
+ *            given \p group. */
+
+template< class T >
+std::enable_if_t< is_netCDF_type_v< T > , void >
+serialize( netCDF::NcGroup & group , const std::string & var_name ,
+           const netCDF::NcType & ncType ,
+           const std::vector< std::vector< T > > & matrix ,
+           const std::pair< netCDF::NcDim , netCDF::NcDim > & dimensions = {} )
+{
+
+ if( matrix.empty() )
+  return; // Nothing to be serialized.
+
+ auto dims = dimensions;
+
+ if( dimensions.first.isNull() )
+  dims.first = group.addDim( var_name + "_rows" , matrix.size() );
+
+ if( dimensions.second.isNull() )
+  dims.second = group.addDim( var_name + "_cols" , matrix.front().size() );
+
+ auto num_rows = dims.first.getSize();
+ auto num_cols = dims.second.getSize();
+
+ // Check whether the given matrix has the correct dimensions
+
+ if( num_rows != matrix.size() )
+  throw( std::invalid_argument(
+     "serialize(): error when serializing variable '" + var_name +
+     "' of group '" + group.getName() + "'. The first dimension has size " +
+     std::to_string( num_rows ) + ", but the given vector has size " +
+     std::to_string( matrix.size() ) + "." ) );
+
+ for( decltype( num_rows ) i = 0 ; i < num_rows ; ++i )
+  if( matrix[ i ].size() != num_cols )
+   throw( std::invalid_argument(
+      "serialize(): error when serializing variable '" + var_name +
+      "' of group '" + group.getName() + "'. The second dimension has size " +
+      std::to_string( num_cols ) + ", but vector at position " +
+      std::to_string( i ) + " has size " +
+      std::to_string( matrix[ i ].size() ) + "." ) );
+
+ // Add the netCDF variable
+
+ auto ncVar = group.addVar( var_name , ncType , { dims.first , dims.second } );
+
+ // Set the data of the netCDF variable
+
+ for( decltype( num_rows ) i = 0 ; i < num_rows ; ++i )
+  ncVar.putVar( { i , 0 } , { 1 , num_cols } , matrix[ i ].data() );
+
  }
 
 /*--------------------------------------------------------------------------*/
