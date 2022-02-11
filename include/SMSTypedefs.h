@@ -1964,7 +1964,7 @@ inline constexpr bool is_netCDF_type_v =
  * @param[in] optional This parameter informs whether the variable is
  *                     optional. This means that if the variable is not
  *                     present in the given NcGroup and \p optional is
- *            false, then an exception is thrown. Default is false.
+ *            false, then an exception is thrown. Default is true.
  *
  * @return true if the desired variable was deserialized; false, otherwise.
  */
@@ -1972,7 +1972,7 @@ inline constexpr bool is_netCDF_type_v =
 template< typename T >
 std::enable_if_t< is_netCDF_type_v< T > , bool >
 deserialize( const netCDF::NcGroup & group , T & data ,
-             const std::string & name = "value" , bool optional = false )
+             const std::string & name = "value" , bool optional = true )
 {
  auto ncVar = group.getVar( name );
  if( ncVar.isNull() ) {
@@ -2056,8 +2056,8 @@ serialize( netCDF::NcGroup & group , const T & data ,
  * @param[in] optional This parameter informs whether the variable is
  *                     optional. This means that if the any of the two
  *                     variables is not present in the given NcGroup and
- *            \p optional is false, then an exception is thrown. Default
- *            is false.
+ *            \p optional == false, then an exception is thrown. Default
+ *            is true.
  *
  * @return true if the desired variable was deserialized; false, otherwise.
  */
@@ -2065,7 +2065,7 @@ serialize( netCDF::NcGroup & group , const T & data ,
 template< typename T1 , typename T2 >
 std::enable_if_t< is_netCDF_type_v< T1 > && is_netCDF_type_v< T2 > , bool >
 deserialize( const netCDF::NcGroup & group , std::pair< T1 , T2 > & data ,
-             const std::string & name = "value" , bool optional = false )
+             const std::string & name = "value" , bool optional = true )
 {
  bool did_it = deserialize( group , data.first , name + "_f" , optional );
  return( deserialize( group , data.second , name + "_s" , optional ) &&
@@ -2107,18 +2107,20 @@ serialize( netCDF::NcGroup & group , const std::pair< T1 , T2 > & data ,
  * @param[in]  name A string with the name of the dimension.
  *
  * @param[out] data A reference to the object that will store the size of the
- *                  desired dimension.
+ *                  desired dimension; it's template so as to allow the user to
+ *                  read it with different types of integers than std::size_t
  *
  * @param[in] optional This parameter informs whether the dimension is
  *                     optional. This means that if the dimension is not
- *                     present in the given NcGroup and \p optional is
- *                     false, then an exception is thrown.
+ *                     present in the given NcGroup and \p optional ==
+ *            false, then an exception is thrown. Default is true.
  *
  * @return true if the desired dimension was deserialized; false, otherwise.
  */
 
+template< typename T >
 inline bool deserialize_dim( const netCDF::NcGroup & group ,
-			     const std::string & name , std::size_t & data ,
+			     const std::string & name , T & data ,
 			     bool optional = true )
 {
  netCDF::NcDim ncDim = group.getDim( name );
@@ -2191,7 +2193,7 @@ inline std::vector< std::size_t > get_sizes_dimensions(
  * @param[in] optional This parameter informs whether the variable is
  *                     optional. This means that if the variable is not
  *                     present in the given NcGroup and \p optional is false,
- *                     an exception is thrown. Default is false.
+ *                     an exception is thrown. Default is true.
  *
  * @param[in] allow_scalar_var This parameter indicates whether the desired
  *                             variable (whose name is \p name) can have
@@ -2209,7 +2211,7 @@ template< class T >
 std::enable_if_t< is_netCDF_type_v< T > , bool >
 deserialize( const netCDF::NcGroup & group , const std::string & name ,
              const std::size_t & size , std::vector< T > & data ,
-             bool optional = false , bool allow_scalar_var = false )
+             bool optional = true , bool allow_scalar_var = false )
 {
  if( ! size ) {
   data.clear();
@@ -2283,7 +2285,7 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
  * @param[in] optional This parameter informs whether the variable is
  *                     optional. This means that if the variable is not
  *                     present in the given NcGroup and \p optional == false
- *                     then an exception is thrown. The default is false.
+ *                     then an exception is thrown. The default is true.
  *
  * @param[in] allow_scalar_var This parameter indicates whether the desired
  *                             variable (whose name is \p name) can have
@@ -2302,7 +2304,7 @@ std::enable_if_t< is_netCDF_type_v< T > , bool >
 deserialize( const netCDF::NcGroup & group , std::vector< T > & data ,
 	     const std::string & name = "value" ,
 	     const std::string & size = "size" ,
-             bool optional = false , bool allow_scalar_var = false )
+             bool optional = true , bool allow_scalar_var = false )
 {
  auto dim = group.getDim( size );
  if( dim.isNull() ) {
@@ -2448,7 +2450,7 @@ serialize( netCDF::NcGroup & group , const std::vector< T > & data ,
  * @param[in] optional This parameter informs whether the variable is
  *                     optional. This means that if any of the two required
  *                     variables is not present in the given NcGroup and
- *            \p optional is false, an exception is thrown. Default is false.
+ *            \p optional is false, an exception is thrown. Default is true.
  *
  * @return true if the desired variable was deserialized; false, otherwise. */
 
@@ -2457,7 +2459,7 @@ std::enable_if_t< is_netCDF_type_v< T1 > && is_netCDF_type_v< T2 > , bool >
 deserialize( const netCDF::NcGroup & group , const std::string & name ,
              const std::size_t & size ,
 	     std::vector< std::pair< T1 , T2 > > & data ,
-             bool optional = false )
+             bool optional = true )
 {
  if( ! size ) {
   data.clear();
@@ -2528,7 +2530,7 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
  * @param[in] optional This parameter informs whether the variable is
  *                     optional. This means that if the variable is not
  *                     present in the given NcGroup and \p optional == false
- *                     then an exception is thrown. The default is false.
+ *                     then an exception is thrown. The default is true.
  *
  * @return true if the desired variable was deserialized; false, otherwise. */
 
@@ -2537,7 +2539,7 @@ std::enable_if_t< is_netCDF_type_v< T1 > && is_netCDF_type_v< T2 > , bool >
 deserialize( const netCDF::NcGroup & group ,
 	     std::vector< std::pair< T1 , T2 > > & data ,
 	     const std::string & name = "value" ,
-	     const std::string & size = "size" , bool optional = false )
+	     const std::string & size = "size" , bool optional = true )
 {
  auto dim = group.getDim( size );
  if( dim.isNull() ) {
@@ -2685,7 +2687,7 @@ template< class T >
 std::enable_if_t< is_netCDF_type_v< T > , bool >
 deserialize( const netCDF::NcGroup & group , const std::string & name ,
              const std::vector< std::size_t > & sizes ,
-             std::vector< T > & data , bool optional = false ,
+             std::vector< T > & data , bool optional = true ,
              bool allow_scalar_var = false )
 {
  if( sizes.empty() ) {
@@ -2786,7 +2788,7 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
 template< class T >
 std::enable_if_t< is_netCDF_type_v< T > , bool >
 deserialize( const netCDF::NcGroup & group , const std::string & name ,
-             std::vector< T > & data , bool optional = false )
+             std::vector< T > & data , bool optional = true )
 {
  auto ncVar = group.getVar( name );
  if( ncVar.isNull() ) {
@@ -2865,6 +2867,7 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
  * @param[in] optional A bool stating if it is allowed for \p name not
  *            to be a netCDF::NcVar in \p group, in which case an empty
  *            \p array is returned as opposed to throwing exception.
+ *            Default is true.
  *
  * @return true if the desired variable was deserialized; false, otherwise. */
 
@@ -2872,7 +2875,7 @@ template< class T >
 std::enable_if_t< is_netCDF_type_v< T > , bool >
 deserialize( const netCDF::NcGroup & group , const std::string & name ,
              const std::string & start_name ,
-             std::vector< std::vector< T > > & array , bool optional = false )
+             std::vector< std::vector< T > > & array , bool optional = true )
 {
  auto ncVar = group.getVar( name );
  if( ncVar.isNull() ) {
@@ -2953,14 +2956,14 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
  * @param[in] optional A bool stating if it is allowed for \p name not to be
  *                     be present in the netCDF::NcVar in \p group, in which
  *                     case an empty \p matrix is returned as opposed to
- *                     throwing an exception.
+ *                     throwing an exception. Default is true.
  *
  * @return true if the desired variable was deserialized; false, otherwise. */
 
 template< class T >
 std::enable_if_t< is_netCDF_type_v< T > , bool >
 deserialize( const netCDF::NcGroup & group , const std::string & name ,
-             std::vector< std::vector< T > > & matrix , bool optional = false )
+             std::vector< std::vector< T > > & matrix , bool optional = true )
 {
  auto ncVar = group.getVar( name );
  if( ncVar.isNull() ) {
@@ -3219,8 +3222,9 @@ serialize( netCDF::NcGroup & group , const std::string & name ,
  * @param[in] optional This parameter informs whether the variable is
  *                     optional. This means that if the variable is not
  *                     present in the given NcGroup then: (i) an exception is
- *                     thrown if \p optional == false; (ii) every dimension
- *                     of \p array will have size 0 if \p optional == true.
+ *            thrown if \p optional == false; (ii) every dimension of
+ *            \p array will have size 0 if \p optional == true. Default is
+ *            true.
  *
  * @param[in] allow_scalar_var This parameter indicates whether the desired
  *                             variable (whose name is \p var_name) can have
@@ -3237,7 +3241,7 @@ serialize( netCDF::NcGroup & group , const std::string & name ,
 template< class T , std::size_t N >
 std::enable_if_t< is_netCDF_type_v< T > , bool >
 deserialize( const netCDF::NcGroup & group , const std::string & name ,
-             boost::multi_array< T , N > & array , bool optional = false ,
+             boost::multi_array< T , N > & array , bool optional = true ,
              bool allow_scalar_var = false )
 {
  using index = typename boost::multi_array< T, N >::index;
