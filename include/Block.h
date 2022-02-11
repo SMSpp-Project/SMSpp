@@ -655,7 +655,7 @@ class Block : public Observer {
 
  template< typename ... Args >
  using FunctionType =
- std::function< void( Block *, Args ... , ModParam , ModParam ) >;
+ std::function< void( Block * , Args ... , ModParam , ModParam ) >;
 
  /// typedef for class member functions to be added to the methods factory
  /** The class member functions (whose adapters are to be) added to the
@@ -667,15 +667,15 @@ class Block : public Observer {
 
  template< class dBlock , typename ... Args >
  using MemberFunctionType =
- void ( dBlock::* )( Args ..., ModParam , ModParam );
+  void ( dBlock::* )( Args ... , ModParam , ModParam );
 
  /// helper type for template shenanigans for methods factory
  template< typename ... >
  struct arg_packer_helper {};
 
- /// type for packing variadic lists (template shenanigans for methods factory)
+ /// template shenanigans for methods factory: type for packing variadic lists
  template< typename ... Args >
- struct arg_packer { using args = arg_packer_helper< Args... >; };
+ struct arg_packer { using args = arg_packer_helper< Args ... >; };
 
  /// type for ( void , range ) functions
  using MS_rngd = arg_packer< Range >;
@@ -690,7 +690,7 @@ class Block : public Observer {
  using MS_sbst = arg_packer< Subset && , bool >;
 
  /// type for ( double , subset ) functions
- using MS_dbl_sbst = arg_packer< MF_dbl_it, Subset && , bool >;
+ using MS_dbl_sbst = arg_packer< MF_dbl_it , Subset && , bool >;
 
  /// type for ( int , subset ) functions
  using MS_int_sbst = arg_packer< MF_int_it , Subset && , bool >;
