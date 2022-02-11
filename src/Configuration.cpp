@@ -50,10 +50,6 @@ SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::vector< int > > );
 
 SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::vector< double > > );
 
-SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::list< int > > );
-
-SMSpp_insert_in_factory_cpp_0_t( SimpleConfiguration< std::list< double > > );
-
 SMSpp_insert_in_factory_cpp_0_t(
  ( SimpleConfiguration< std::pair< Configuration *, Configuration * > > ) );
 
