@@ -133,8 +133,8 @@ class Variable;  // forward definition of Variable
  * copying a Function to a different memory location makes a distinct
  * Function. */
 
-class Function : public ThinComputeInterface , public ThinVarDepInterface {
-
+class Function : public ThinComputeInterface , public ThinVarDepInterface
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/

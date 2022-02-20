@@ -2933,66 +2933,6 @@ deserialize( const netCDF::NcGroup & group , const std::string & name ,
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/*- - - - SERIALIZING AND DESERIALIZING BI-DIMENSIONAL VARIABLES OF - - - -*/
-/*- - - - BASIC TYPES WITH FIXED-LENGTH ROWS STORED INTO A- - - - - - - - -*/
-/*- - - - std::vector< std::vector< T > > - - - - - - - - - - - - - - - - -*/
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// deserialize a matrix (with fixed-length rows)
-/** This function reads a matrix with fixed-length rows stored into a
- * std::vector< std::vector< T > > where each "inner" vector has the same
- * size. This is obtained from the two-dimensional netCDF variable whose
- * name is \p name in the given netCDF \p group.
- *
- * @param[in] group The netCDF::NcGroup from which the matrix will be
- *                  obtained.
- *
- * @param[in] name The name of the two-dimensional netCDF::NcVar within the
- *                 given \p group which contains the data to be stored in \p
- *                  matrix;
- *
- * @param[out] matrix A reference to the std::vector< std::vector< T > > to be
- *                    deserialised;
- *
- * @param[in] optional A bool stating if it is allowed for \p name not to be
- *                     be present in the netCDF::NcVar in \p group, in which
- *                     case an empty \p matrix is returned as opposed to
- *                     throwing an exception. Default is true.
- *
- * @return true if the desired variable was deserialized; false, otherwise. */
-
-template< class T >
-std::enable_if_t< is_netCDF_type_v< T > , bool >
-deserialize( const netCDF::NcGroup & group , const std::string & name ,
-             std::vector< std::vector< T > > & matrix , bool optional = true )
-{
- auto ncVar = group.getVar( name );
- if( ncVar.isNull() ) {
-  if( optional ) {
-   matrix.clear();
-   return( false );
-   }
-
-  throw( std::invalid_argument( "deserialize(): " + name +
-                            " is not present in group " + group.getName() ) );
-  }
-
- if( ncVar.getDimCount() != 2 )
-  throw( std::invalid_argument( "deserialize(): " + name +
-                                " has wrong number of dimensions" ) );
-
- auto num_rows = ncVar.getDim( 0 ).getSize();
- auto num_cols = ncVar.getDim( 1 ).getSize();
-
- matrix.resize( num_rows );
- for( decltype( num_rows ) i = 0 ; i < num_rows ; ++i ) {
-  matrix[ i ].resize( num_cols );
-  ncVar.getVar( { i , 0 } , { 1 , num_cols } , matrix[ i ].data() );
-  }
-
- return( true );
- }
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /// serialize a matrix with variable-length rows
 /** This function serializes a matrix with variable-length rows, i.e., a
  * std::vector< std::vector< T > >. This matrix is serialized by adding two
@@ -3108,6 +3048,66 @@ serialize( netCDF::NcGroup & group , const std::string & name ,
 
  // Save the start vector into the netCDF variable "start_name"
  start_var.putVar( start.data() );
+ }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/*- - - - SERIALIZING AND DESERIALIZING BI-DIMENSIONAL VARIABLES OF - - - -*/
+/*- - - - BASIC TYPES WITH FIXED-LENGTH ROWS STORED INTO A- - - - - - - - -*/
+/*- - - - std::vector< std::vector< T > > - - - - - - - - - - - - - - - - -*/
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
+/// deserialize a matrix (with fixed-length rows)
+/** This function reads a matrix with fixed-length rows stored into a
+ * std::vector< std::vector< T > > where each "inner" vector has the same
+ * size. This is obtained from the two-dimensional netCDF variable whose
+ * name is \p name in the given netCDF \p group.
+ *
+ * @param[in] group The netCDF::NcGroup from which the matrix will be
+ *                  obtained.
+ *
+ * @param[in] name The name of the two-dimensional netCDF::NcVar within the
+ *                 given \p group which contains the data to be stored in \p
+ *                  matrix;
+ *
+ * @param[out] matrix A reference to the std::vector< std::vector< T > > to be
+ *                    deserialised;
+ *
+ * @param[in] optional A bool stating if it is allowed for \p name not to be
+ *                     be present in the netCDF::NcVar in \p group, in which
+ *                     case an empty \p matrix is returned as opposed to
+ *                     throwing an exception. Default is true.
+ *
+ * @return true if the desired variable was deserialized; false, otherwise. */
+
+template< class T >
+std::enable_if_t< is_netCDF_type_v< T > , bool >
+deserialize( const netCDF::NcGroup & group , const std::string & name ,
+             std::vector< std::vector< T > > & matrix , bool optional = true )
+{
+ auto ncVar = group.getVar( name );
+ if( ncVar.isNull() ) {
+  if( optional ) {
+   matrix.clear();
+   return( false );
+   }
+
+  throw( std::invalid_argument( "deserialize(): " + name +
+                            " is not present in group " + group.getName() ) );
+  }
+
+ if( ncVar.getDimCount() != 2 )
+  throw( std::invalid_argument( "deserialize(): " + name +
+                                " has wrong number of dimensions" ) );
+
+ auto num_rows = ncVar.getDim( 0 ).getSize();
+ auto num_cols = ncVar.getDim( 1 ).getSize();
+
+ matrix.resize( num_rows );
+ for( decltype( num_rows ) i = 0 ; i < num_rows ; ++i ) {
+  matrix[ i ].resize( num_cols );
+  ncVar.getVar( { i , 0 } , { 1 , num_cols } , matrix[ i ].data() );
+  }
+
+ return( true );
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/

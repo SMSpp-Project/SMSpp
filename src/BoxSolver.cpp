@@ -93,14 +93,18 @@ void BoxSolver::set_Block( Block * block )
 
 int BoxSolver::compute( bool changedvars )
 {
- if( ! f_Block )
-  return( kError );
+ lock();  // lock the mutex: this is done again inside MILPSolver::compute,
+
+ if( ! f_Block ) {    // no Block
+  f_state = kError;   // that's an error
+  goto Return_state;  // all done
+  }
 
  if( f_sense < 0 )  // have to compute/update the sense
   check_sense( f_Block );
 
- if( f_state != kUnEval )  // done already
-  return( f_state );
+ if( f_state != kUnEval )  // all compute()-d already
+  goto Return_state;       // all done
 
  f_max_val = f_min_val = 0;
 
@@ -266,6 +270,8 @@ int BoxSolver::compute( bool changedvars )
   f_sol_comp = 0;  // no solution available
   }
 
+ Return_state:
+ unlock();  // unlock the mutex
  return( f_state );
 
  }  // end( BoxSolver::compute )

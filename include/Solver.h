@@ -118,7 +118,7 @@ class Block;                // forward definition of Block
  *   below], be them feasible or unfeasible ones, in an appropriate order
  *   (from the "more interesting" to the "less interesting");
  *
- * - a Solver compute solutions, and this can only be expected to be costly
+ * - a Solver computes solutions, and this can only be expected to be costly
  *   (up to extremely costly), which is why the class implements the
  *   ThinComputeInterface paradigm (i.e., derives from
  *   ThinComputeInterface).
@@ -128,7 +128,7 @@ class Block;                // forward definition of Block
  * extensive support towards the concept of "objective function value" and
  * (upper and lower) bounds upon that. Hence, although not strictly necessary,
  * it is somewhat intended that the Objective of the Block actually is a
- * RealObjective. Hence, one would expect that the OFValue type [see below]
+ * RealObjective. Thus, one would expect that the OFValue type [see below]
  * is the same as that defined in RealObjective. Steps are taken so that
  * problems without an objective function should not find this choice "too
  * intrusive"; basically, every method having to do with the (real) objective
@@ -139,8 +139,8 @@ class Block;                // forward definition of Block
  * to be defined that extend the "simple" treatment of real-valued objectives
  * to the necessarily more complex concepts. */
 
-class Solver : public ThinComputeInterface {
-
+class Solver : public ThinComputeInterface
+{
 /*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -519,7 +519,7 @@ class Solver : public ThinComputeInterface {
 
 /*--------------------------------------------------------------------------*/
 
- typedef double OFValue;  ///< type of the objective function value
+ using OFValue = double;  ///< type of the objective function value
                           /**< This is the type of the value of the objective
 			   * function, generically "a real". One may expect
  * this to be defined exactly like the same-named type in RealObjective. */
@@ -1206,7 +1206,33 @@ class Solver : public ThinComputeInterface {
   *
   * It is an error to call this method if has_var_solution() or
   * new_var_solution() have not been called and returned true (which means,
-  * in particular, if no Block is attached to this Solver). 
+  * in particular, if no Block is attached to this Solver).
+  *
+  * Important note: writing solution information inside a Block is not
+  * counted as a change of the Block and therefore no Modification is issued.
+  * However, this is indeed a change of the state of the Block, and therefore
+  * has the issue that concurrent calls to get_var_solution() to different
+  * Solver registered to the same Block must be avoided since they would
+  * result in garbled data. As a consequence
+  *
+  *     THE Block MUST ALWAYS BE lock()-ED WHEN get_var_solution() IS CALLED
+  *
+  * unless of course the user is 100% sure that no concurrent access to the
+  * Block is ever possible. However, it is also important to remark that
+  *
+  *      lock()-ING OF THE Block MUST NOT BE DONE BY get_var_solution()
+  *
+  * The rationale is that if it was get_var_solution() to lock() the Block,
+  * then it should also unlock() it at the end. But the reason for wanting a
+  * solution written into the Block is to make some computations out of it
+  * (say, write it to a file or separate a Variable / Constraint out of it).
+  * For this to happen one must be sure that the solution information has not
+  * been accidentally rewritten by some other Solver, and therefore the lock
+  * on the Block must be kept for all the time in which the soution
+  * information is useful to the user. Hence the lock must be acquired prior
+  * to calling get_var_solution(). It might in principle make sense to have
+  * a separate lock for solution information, but this is not currently
+  * considered crucial enough to warrant the extra effort.
   *
   * Note that, while the largest burden of producing a solution is typically
   * bore by compute() and/or new_var_solution(), it is still possible that
@@ -1412,7 +1438,10 @@ class Solver : public ThinComputeInterface {
   *
   * It is an error to call this method if has_var_direction() and
   * new_var_direction() have not been called and returned true (which
-  * means, in particular, if no Block is attached to this Solver). 
+  * means, in particular, if no Block is attached to this Solver).
+  *
+  * See the comments to get_var_solution() about the need of lock()-ing the
+  * Block prior to calling this method, which of course apply verbatim here.
   *
   * Note that, while the largest burden of producing a directon is typically
   * bore by compute() and/or new_var_directon(), it is still possible that
@@ -1806,6 +1835,38 @@ class Solver : public ThinComputeInterface {
    ;
 
   v_mod.pop_front();  // remove the first Modification
+
+  f_mod_lock.clear( std::memory_order_release );  // release lock
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// removes and returns the front sp_Mod from the Modification queue
+
+ sp_Mod pop( void ) {
+  // try to acquire lock, spin on failure
+  while( f_mod_lock.test_and_set( std::memory_order_acquire ) )
+   ;
+
+  sp_Mod mod;
+  if( ! v_mod.empty() ) {  // there is anything in the queue
+   mod = v_mod.front();    // get the first Modification
+   v_mod.pop_front();      // remove it from the queue
+   }
+
+  f_mod_lock.clear( std::memory_order_release );  // release lock
+
+  return( mod );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// clear the Modification queue
+
+ void mod_clear( void ) {
+  // try to acquire lock, spin on failure
+  while( f_mod_lock.test_and_set( std::memory_order_acquire ) )
+   ;
+
+  v_mod.clear();  // clear all Modification
 
   f_mod_lock.clear( std::memory_order_release );  // release lock
   }
