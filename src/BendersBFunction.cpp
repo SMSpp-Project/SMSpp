@@ -729,7 +729,7 @@ void BendersBFunction::remove_variables( Range range , ModParam issueMod )
 /*--------------------------------------------------------------------------*/
 
 template< class T >
-static void compact( std::vector< T > x ,
+static void compact( std::vector< T > & x ,
                      const BendersBFunction::Subset & nms )
 {
  BendersBFunction::Index i = nms.front();
