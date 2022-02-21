@@ -428,7 +428,11 @@ class CDASolver : public Solver {
   *
   * It is an error to call this method if has_dual_solution() and
   * new_dual_solution() have not been called and returned true (which means,
-  * in particular, if no Block is attached to this CDASolver). 
+  * in particular, if no Block is attached to this CDASolver).
+  *
+  * See the comments to Solver::get_var_solution() about the need of
+  * lock()-ing the Block prior to calling this method, which of course apply
+  * verbatim here.
   *
   * Note that, while the largest burden of producing a dual solution is
   * typically bore by compute() and/or new_dual_solution(), it is still
@@ -607,7 +611,11 @@ class CDASolver : public Solver {
   *
   * It is an error to call this method if has_dual_direction() and
   * new_dual_direction() have not been called and returned true (which
-  * means, in particular, if no Block is attached to this CDASolver). 
+  * means, in particular, if no Block is attached to this CDASolver).
+  *
+  * See the comments to Solver::get_var_solution() about the need of
+  * lock()-ing the Block prior to calling this method, which of course apply
+  * verbatim here.
   *
   * Note that, while the largest burden of producing a dual directon is
   * typically bore by compute() and/or new_dual_directon(), it is still

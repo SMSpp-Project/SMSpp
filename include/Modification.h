@@ -665,14 +665,15 @@ class GroupModification : public AModification {
 /*--------------------------------------------------------------------------*/
  /// returns a const reference to the list of sub-Modification
 
- std::list< std::shared_ptr< Modification > > & sub_Modifications( void ) {
-  return( v_sub_Modifications );
-  }
+ [[nodiscard]] const std::list< std::shared_ptr< Modification > > &
+           sub_Modifications( void ) const { return( v_sub_Modifications ); }
 
 /*--------------------------------------------------------------------------*/
  /// returns (a pointer to) the "father" GroupModification (may be nullptr)
 
- GroupModification * father( void ) { return( f_father ); }
+ [[nodiscard]] GroupModification * father( void ) const {
+  return( f_father );
+  }
 
 /*------------------------ FRIENDS OF THE CLASS ----------------------------*/
  /** Opening, closing, nesting and un-nesting channels, and sending a
@@ -681,7 +682,7 @@ class GroupModification : public AModification {
   * sub-Modification). This is something that "most entities" interacting
   * with GroupModification should not be able to do. The methods allowing
   * doing this are therefore made protected, but they have to be called by
-  * Block, rather than a deribed class. Hence, Block is made friend. */
+  * Block, rather than a derived class. Hence, Block is made friend. */
 
  friend Block;
 
