@@ -46,8 +46,8 @@ void BendersBlock::deserialize( const netCDF::NcGroup & group ) {
   throw( std::logic_error( "BendersBlock::deserialize: "
                            "NumVar dimension is required." ) );
 
- const auto Sense = group.getDim( "Sense" );
- if( Sense.isNull() || ( Sense.getSize() != 0 ) )
+ const auto ObjectiveSense = group.getDim( "ObjectiveSense" );
+ if( ObjectiveSense.isNull() || ( ObjectiveSense.getSize() != 0 ) )
   objective.set_sense( Objective::eMin );
  else
   objective.set_sense( Objective::eMax );
@@ -91,7 +91,7 @@ void BendersBlock::serialize( netCDF::NcGroup & group ) const {
  group.addDim( "NumVar" , v_variables.size() );
 
  if( objective.get_sense() == Objective::eMax )
-  group.addDim( "Sense" , 0 );
+  group.addDim( "ObjectiveSense" , 0 );
 
  auto benders_function = objective.get_function();
 
