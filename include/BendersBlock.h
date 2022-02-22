@@ -99,6 +99,12 @@ public:
   * - The number of ColVariable of this BendersBlock into a dimension named
   *   "NumVar".
   *
+  * - The sense of the Objective of this BendersBlock enconded into a
+  *   dimension called "Sense". If the size of this dimension is zero, then
+  *   the sense of the Objective is maximization. Otherwise, if it is nonzero
+  *   or this dimension is not provided, the sense of the Objective is
+  *   minimization.
+  *
   * - A description of the BendersBFunction into a sub-group named
   *   "BendersBFunction".
   *

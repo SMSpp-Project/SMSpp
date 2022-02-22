@@ -2388,14 +2388,14 @@ class Block : public Observer {
   * true can override it and answer using the "physical representation" (or
   * maybe just answer a constant since the sense of the problem is fixed).
   * If there is no "abstract representation" of the Objective, the default
-  * implementation arbitrarily returns 0 (== Objective::eMin), i.e.,
+  * implementation arbitrarily returns Objective::eMin, i.e.,
   * minimization. The rationale is that a Block that only encodes for a
-  * feasibility problem actually can have no Objective even even the
+  * feasibility problem actually can have no Objective even if the
   * "abstract representation" is fully constructed, but then this means that
   * the Objective is constantly 0 across all feasible solutions and therefore
   * in principle the sense does not matter (although this changes if an
   * unfeasible solution should be associated with a value +Infinity or
-  * -Infinity). Besides, minimization problems are somewhat more common that
+  * -Infinity). Besides, minimization problems are somewhat more common than
   * maximization ones in practice. */
 
  virtual int get_objective_sense( void ) const;
