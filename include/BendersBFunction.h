@@ -2396,8 +2396,8 @@ class BendersBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
   /// deletes the linearizations with the given names
   /** This function deletes the linearizations with the given names given in
-   * \p which, destroying the all the Solution associated with them. If any
-   * given name is invalid, an exception is thrown.
+   * \p which, destroying all the Solution associated with them. If any given
+   * name is invalid, an exception is thrown.
    *
    * @param which the names of the linearizations that must be deleted.
    */
