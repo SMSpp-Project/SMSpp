@@ -73,6 +73,8 @@ BendersBFunction::BendersBFunction( Block * inner_block , VarVector && x ,
 
  // default parameter values
  LinComp = get_dflt_int_par( intLinComp );
+ AAccMlt = get_dflt_dbl_par( dblAAccMlt );
+ set_par( intGPMaxSz , C05Function::get_dflt_int_par( intGPMaxSz ) );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -1440,15 +1442,10 @@ void BendersBFunction::set_ComputeConfig( ComputeConfig * scfg ) {
   < SimpleConfiguration< std::map< std::string , Configuration * > > * >
   ( scfg->f_extra_Configuration );
 
- if( ! config_map ) {
-  // The extra Configuration has not been provided. If not in differential
-  // mode, reset the BlockConfig and the BlockSolverConfig of the inner Block.
-  if( ! scfg->f_diff ) {
-   set_default_inner_Block_BlockConfig();
-   set_default_inner_Block_BlockSolverConfig();
-  }
-  return;
- }
+ if( ! config_map )
+  // An invalid extra Configuration has not been provided.
+  throw( std::invalid_argument( "BendersBFunction::set_ComputeConfig: "
+                                "invalid extra_Configuration." ) );
 
  for( const auto & [ key , config ] : config_map->f_value ) {
 
