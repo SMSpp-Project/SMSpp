@@ -1019,7 +1019,16 @@ void LagBFunction::add_Modification( sp_Mod mod , ChnlName chnl )
  }  // end( LagBFunction::add_Modification() )
 
 /*--------------------------------------------------------------------------*/
-/*---------- METHODS FOR Loading/Saving THE DATA OF THE LagBFunction -------*/
+/*---------- METHODS FOR PRINING/SAVING THE DATA OF THE LagBFunction -------*/
+/*--------------------------------------------------------------------------*/
+
+void LagBFunction::print( std::ostream & output , char vlvl ) const
+{
+ output << "LagBFunction [" << this << "]" << " with "
+	<< get_num_active_var() << " active variables" << std::endl;
+
+ }  // end( LagBFunction::print )
+
 /*--------------------------------------------------------------------------*/
 
 void LagBFunction::serialize( netCDF::NcGroup & group ) const
@@ -2123,26 +2132,6 @@ void LagBFunction::map_active( c_Vec_p_Var & vars , Subset & map ,
 /*--------------------------------------------------------------------------*/
 /*--------------------------- PROTECTED METHODS ----------------------------*/
 /*--------------------------------------------------------------------------*/
-
-void LagBFunction::print( std::ostream & output ) const
-{
- output << "LagBFunction [" << this << "]"
-	<< " with " << get_num_active_var() << " active variables"
-	<< std::endl;
-
- }  // end( LagBFunction::print )
-
-/*--------------------------------------------------------------------------*/
-
-void LagBFunction::load( std::istream &input )
-{
- // input >> LPMaxSz;
- // input >> GPMaxSz;
- // input >> AAccLin;
- // input >> RAccLin;
- throw( std::logic_error( "LagBFunction::load not implemented yet" ) );
-
- }  // end( LagBFunction::load() )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/

@@ -71,7 +71,7 @@ Block * Block::deserialize( const std::string & filename , Block * father )
 {
  try {
   if( ( filename.size() > 4 ) &&
-      ( ! filename.compare( filename.size() - 4 , 4 , ".txt" ) ) ) {
+      ( filename.substr( filename.size() - 4 , 4 ) == ".txt" ) ) {
    std::ifstream f( f_prefix.empty() ? filename : f_prefix + filename ,
 		    std::fstream::in );
    if( ! f.is_open() ) {
@@ -232,7 +232,42 @@ Block * Block::deserialize( std::istream & input , Block * father )
     throw( std::invalid_argument( sre ) );
 
   auto block = Block::new_Block( tmp , father );
-  input >> *block;
+  // note: block surely is not nullptr, as new_Block() throws exception
+  // on failure
+
+  char frmt = 0;
+  input >> eatcomments;
+  if( input.fail() )
+    throw( std::invalid_argument( sre ) );
+
+  if( input.peek() == input.widen( '[' ) ) {
+   input >> tmp;
+   if( tmp.size() > 1 )
+    frmt = tmp[ 1 ];
+   input >> eatcomments;
+   if( input.fail() )
+    throw( std::invalid_argument( sre ) );
+   }
+
+  if( input.peek() == input.widen( '*' ) ) {
+   input.get();
+
+   if( input.eof() || input.fail() )
+    throw( std::invalid_argument( sre ) );
+
+   input >> eatcomments;
+   if( input.eof() || input.fail() )
+    throw( std::invalid_argument( sre ) );
+
+   input >> tmp;
+   if( input.eof() || input.fail() )
+    throw( std::invalid_argument( sre ) );
+
+   block->load( tmp , frmt );
+   }
+  else
+   block->load( input , frmt );
+
   return( block );
   }
  }  // end( Block::deserialize( std::istream ) )
@@ -497,18 +532,25 @@ void Block::set_BlockConfig( BlockConfig * newBC, bool deleteold )
 
 /*--------------------------------------------------------------------------*/
 
-void Block::print( std::ostream & output ) const
+void Block::print( std::ostream & output , char vlvl ) const
 {
- output << std::endl << "Block with: ";
- output << std::endl << v_s_Variable.size() << " types of static Variables, "
-        << v_d_Variable.size() << " types of dynamic Variables, "
-        << std::endl << v_s_Constraint.size() << " types of static Constraints, "
-        << v_d_Constraint.size() << " types of dynamic Constraints, "
+ // the base Block class cannot save itself completely, so 'C' is ignored
+ // (rather than raising an exception) for the case that a derived class
+ // decides to call the base class method
+ if( vlvl == 'C' )
+  return;
+
+ output << std::endl << classname() << " with: ";
+ output << std::endl << v_s_Variable.size() << " groups of static Variable, "
+        << v_d_Variable.size() << " groups of dynamic Variable, "
+        << std::endl << v_s_Constraint.size()
+	<< " groups of static Constraint, "
+        << v_d_Constraint.size() << " groups of dynamic Constraint, "
         << std::endl << v_Block.size() << " nested Blocks, and "
         << v_Solver.size() << " registered Solvers"
         << std::endl;
 
- if( verbosity_lvl == Block::medium || verbosity_lvl == Block::high ) {
+ if( ! vlvl ) {
   /*
   // the static Constraints of the Block- - - - - - - - - - - - - - - - - - -
   output << "Static Constraints:" << std::endl;
@@ -565,8 +607,8 @@ void Block::print( std::ostream & output ) const
 
   // the inner Blocks - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   output << std::endl << "Nested Blocks:" << std::endl;
-  for( p_Block blk : v_Block )
-   output << *blk;
+  for( auto blk : v_Block )
+   blk->print( output , vlvl );
   }
  }  // end( Block::print )
 

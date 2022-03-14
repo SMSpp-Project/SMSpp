@@ -210,6 +210,20 @@ class PolyhedralFunctionBlock : public AbstractBlock {
     f_v() , f_const() { }
 
 /*--------------------------------------------------------------------------*/
+ /// load the PolyhedralFunctionBlock out of an istream
+ /** Method to deserialize the PolyhedralFunctionBlock out of an istream.
+  *
+  *     IT IS CURRENTLY NOT IMPLEMENTED
+  *
+  * but it still have to be defined (throwing exception) to make the class
+  * concrete. */
+
+ void load( std::istream &input , char frmt = 0 ) override {
+  throw( std::logic_error(
+		     "PolyhedralFunctionBlock::load not implemented yet" ) );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// de-serialize the current PolyhedralFunctionBlock out of netCDF::NcGroup
  /** The PolyhedralFunctionBlock de-serializes itself out of a
   * netCDF::NcGroup. Besides what is managed by the serialize() method of
@@ -636,11 +650,22 @@ class PolyhedralFunctionBlock : public AbstractBlock {
   }
 
 /** @} ---------------------------------------------------------------------*/
-/*--- METHODS FOR LOADING, PRINTING & SAVING THE PolyhedralFunctionBlock ---*/
+/*------- METHODS FOR PRINTING & SAVING THE PolyhedralFunctionBlock --------*/
 /*--------------------------------------------------------------------------*/
-/** @name Methods for loading, printing & saving the PolyhedralFunctionBlock
+/** @name Methods for printing & saving the PolyhedralFunctionBlock
  * @{ */
 
+ /// print information about the PolyhedralFunctionBlock on an ostream 
+ /** Print information about the PolyhedralFunctionBlock. With default
+  * verbosity (vlvl == 0) it just prints summary information, otherwise it
+  * basically prints the whole PolyhedralFunction.
+  *
+  * Note that none of these is a "complete" format allowing to read the
+  * PolyhedralFunctionBlock back (anyway load() is not implemented). */
+
+ void print( std::ostream & output , char vlvl = 0 ) const override;
+
+/*--------------------------------------------------------------------------*/
  /// serialize the PolyhedralFunctionBlock (recursively) to a netCDF NcGroup
  /** The PolyhedralFunctionBlock serializes itself out of a netCDF::NcGroup.
   * This is easy, since it is done by simply asking the PolyhedralFunction
@@ -665,26 +690,6 @@ class PolyhedralFunctionBlock : public AbstractBlock {
 /*--------------------------------------------------------------------------*/
 /** @name Protected methods for inserting and extracting
  */
-
- /// print information about the PolyhedralFunctionBlock on an ostream 
- /** Protected method intended to print information about the
-  * PolyhedralFunctionBlock; it basically prints the PolyhedralFunction. */
-
- void print( std::ostream &output ) const override;
-
-/*--------------------------------------------------------------------------*/
- /// load the PolyhedralFunctionBlock out of an istream
- /** Method to deserialize the PolyhedralFunctionBlock out of an istream.
-  *
-  *     IT IS CURRENTLY NOT IMPLEMENTED
-  *
-  * but it still have to be defined (throwing exception) to make the class
-  * concrete. */
-
- virtual void load( std::istream &input ) override {
-  throw( std::logic_error(
-		     "PolyhedralFunctionBlock::load not implemented yet" ) );
-  }
 
 /*--------------------------------------------------------------------------*/
  /// process a FunctionMod produced by the PolyhedralFunction

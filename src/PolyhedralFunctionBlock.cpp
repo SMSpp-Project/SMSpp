@@ -468,14 +468,10 @@ bool PolyhedralFunctionBlock::map_back_Modification(
 /*--------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------*/
-/*--- METHODS FOR LOADING, PRINTING & SAVING THE PolyhedralFunctionBlock ---*/
+/*------- METHODS FOR PRINTING & SAVING THE PolyhedralFunctionBlock --------*/
 /*--------------------------------------------------------------------------*/
 
-/*--------------------------------------------------------------------------*/
-/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
-/*--------------------------------------------------------------------------*/
-
-void PolyhedralFunctionBlock::print( std::ostream & output ) const
+void PolyhedralFunctionBlock::print( std::ostream & output , char vlvl ) const
 {
  output << std::endl << "PolyhedralFunctionBlock[";
  if( f_rep & 1 )
@@ -489,7 +485,7 @@ void PolyhedralFunctionBlock::print( std::ostream & output ) const
  output << "] with PolyhedralFunction( " << f_polyf.get_num_active_var()
 	<< ", " << f_polyf.get_A().size() << " )" << std::endl;
 
- if( verbosity_lvl == Block::medium || verbosity_lvl == Block::high ) {
+ if( vlvl ) {
   for( Index i = 0 ; i < f_polyf.get_A().size()  ; ++i ) {
    output << "A[ " << i << " ] = [ ";
    for( Index j = 0 ; j < f_polyf.get_num_active_var() ; ++j )
@@ -512,6 +508,10 @@ void PolyhedralFunctionBlock::print( std::ostream & output ) const
  AbstractBlock::print( output );
 
  }  // end( PolyhedralFunctionBlock::print )
+
+/*--------------------------------------------------------------------------*/
+/*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------*/
 /*--------------------------- PRIVATE METHODS ------------------------------*/

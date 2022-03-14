@@ -437,6 +437,15 @@ class BendersBFunction : public C05Function , public Block {
                    Observer * const observer = nullptr );
 
 /*--------------------------------------------------------------------------*/
+ /// load the BendersBFunction out of an istream
+ /** This method loads the BendersBFunction out of an istream, or better it
+  * should do that if it were properly implemented, which it is not. */
+
+ void load( std::istream & input , char frmt = 0 ) override final {
+  throw( std::logic_error( "BendersBFunction::load: not implemented yet" ) );
+  }
+
+/*--------------------------------------------------------------------------*/
  /// de-serialize a BendersBFunction out of netCDF::NcGroup
  /** The method takes a netCDF::NcGroup supposedly containing all the
   * *numerical* information required to de-serialize the BendersBFunction,
@@ -484,7 +493,6 @@ class BendersBFunction : public C05Function , public Block {
  void deserialize( const netCDF::NcGroup & group , ModParam issueMod );
 
 /*--------------------------------------------------------------------------*/
-
  /// de-serialize a BendersBFunction out of netCDF::NcGroup
  /** This method simply calls deserialize( group , eNoMod ). Please refer to
   * the comments to that method for details. The value eNoMod is passed as
@@ -1619,6 +1627,17 @@ class BendersBFunction : public C05Function , public Block {
 /** @name Saving the data of the BendersBFunction
  *  @{ */
 
+ /// print information about the BendersBFunction on an ostream
+ /** Prints some very basuc information about the BendersBFunction; vlvl is
+  * ignored, and no "complete" format is implemented. */
+
+ void print( std::ostream & output , char vlvl = 0 ) const override {
+  output << "BendersBFunction [" << this << "]" << " with "
+	 << get_num_active_var() << " active variables and a"
+         << " mapping with " << get_b().size() << " rows.";
+  }
+
+/*--------------------------------------------------------------------------*/
  /// serialize a BendersBFunction into a netCDF::NcGroup
  /** Serialize a BendersBFunction into a netCDF::NcGroup. Note that,
   * BendersBFunction being both a Function and a Block, the netCDF::NcGroup
@@ -1999,26 +2018,8 @@ class BendersBFunction : public C05Function , public Block {
 /*--------------------------------------------------------------------------*/
 /*--------------------------- PROTECTED METHODS ----------------------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Protected methods for printing
-    @{ */
 
- /// print information about the BendersBFunction on an ostream
- /** Protected method intended to print information about the
-  * BendersBFunction; it is virtual so that derived classes can print their
-  * specific information in the format they choose. */
-
- void print( std::ostream &output ) const override {
-  output << "BendersBFunction [" << this << "]"
-         << " with " << get_num_active_var() << " active variables and a"
-         << " mapping with " << get_b().size() << " rows.";
-  }
-
- /// load the BendersBFunction out of an istream
- /** This method loads the BendersBFunction out of an istream. */
-
- void load( std::istream &input ) override final;
-
-/** @} ---------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
 

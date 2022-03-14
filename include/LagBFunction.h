@@ -1175,6 +1175,17 @@ class LagBFunction : public C05Function , public Block {
  void set_ComputeConfig( ComputeConfig * scfg = nullptr ) override;
 
 /*--------------------------------------------------------------------------*/
+ /// load a LagBFunction out of an istream - not implemented yet
+
+ void load( std::istream & input , char frmt = 0 ) override {
+  // input >> LPMaxSz;
+  // input >> GPMaxSz;
+  // input >> AAccLin;
+  // input >> RAccLin;
+  throw( std::logic_error( "LagBFunction::load not implemented yet" ) );
+  }
+
+/*--------------------------------------------------------------------------*/
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -1398,11 +1409,16 @@ class LagBFunction : public C05Function , public Block {
  void add_Modification( sp_Mod mod , ChnlName chnl = 0 ) override;
 
 /** @} ---------------------------------------------------------------------*/
-/*---------- METHODS FOR Loading/Saving THE DATA OF THE LagBFunction -------*/
+/*---------- METHODS FOR PRINING/SAVING THE DATA OF THE LagBFunction -------*/
 /*--------------------------------------------------------------------------*/
 /** @name Saving the data of the LagBFunction
  *  @{ */
 
+ /// printing very basic information about the LagBFunction
+
+ void print( std::ostream & output , char vlvl = 0 ) const override;
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// serialize a LagBFunction into a netCDF::NcGroup
  /** Serialize a LagBFunction into a netCDF::NcGroup. Note that, LagBFunction
   * being both a Function and a Block, the netCDF::NcGroup will have to have
@@ -2188,11 +2204,7 @@ class LagBFunction : public C05Function , public Block {
 /** @name Protected methods for inserting and extracting
  *  @{ */
 
- void print( std::ostream &output ) const override;
-
- void load( std::istream &input ) override;
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/  /// delete all the Lagrangian terms (and the ColVariable with them)
+// delete all the Lagrangian terms (and the ColVariable with them)
 
  void clear_lp( void ) {
   for( const auto & dp : LagPairs )

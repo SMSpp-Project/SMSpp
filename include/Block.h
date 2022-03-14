@@ -564,25 +564,6 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
 /*---------------------------- PUBLIC TYPES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-
- /// public enum for defining the level of verbosity of the print methods
- enum verbosity_type {
-  silent = 0,   ///< no output at all
-  low,          ///< very low verbosity
-  medium,       ///< a little bit more verbose
-  high,         ///< rather verbose, but still human-readable
-  complete      ///< a full Block-description file (for derived classes)
-  /**< no longer (necessarily) human-readable, it is supposed to
-   * allow a (class derived from) Block to save its entire
-   * contents to a file, in a format amenable to be read back
-   * with the operator>>() / load() method. This is alternative
-   * to the serialization(), which should be preferred unless
-   * there are strong reasons for wanting a standard file
-   * instead of a netCDF one (say, compatibility with legacy
-   * instance formats). */
- };
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /** @name Types for the "methods factory"
  *
  * The "methods factory" (more properly, methods factor*ies*) is a map between
@@ -794,8 +775,8 @@ class Block : public Observer {
   * early on to a Block to initialize itself. */
 
  Block( Block * father = nullptr ) : Observer() , f_owner( nullptr ) ,
-  f_at( false ) , verbosity_lvl( low ) , f_BlockConfig( nullptr ) ,
-  f_channel( 0 ) , f_Block( father ) , f_Objective( nullptr ) {}
+  f_at( false ) , f_BlockConfig( nullptr ) , f_channel( 0 ) ,
+  f_Block( father ) , f_Objective( nullptr ) {}
 
 /*--------------------------------------------------------------------------*/
  /// copy constructor: it is deleted
@@ -905,16 +886,38 @@ class Block : public Observer {
   * It distinguishes between the two by the suffix. In particular, the format
   * of \p filename can be:
   *
-  * - either \p filename terminates by ".txt" (case sensitive) then a
-  *   std::fstream is opened and deserialize( istream ) is called, with
-  *   the Block being extracted is the first one found in it;
+  * - If \p filename terminates by ".txt" (case sensitive), then a
+  *   std::ifstream is opened and deserialize( istream ) is called upon it,
+  *   with the Block being extracted is the first one found in it; see the
+  *   comments to deserialize( istream ) for details of the accepted format
+  *   inside the istream.
   *
-  * - otherwise a netCDF::NcFile is opened and deserialize( netCDF::NcFile )
-  *   is called; since netCDF::NcFile support the notion of having
+  * - If \p filename terminates by ".txt" (case sensitive), the :Block is
+  *   loaded out of one (or more) text file(s) via a call to
+  *   load( std::string & ). Since load() supports the notion of different
+  *   file formats via its \p frmt parameter, this method also supports
+  *   "filename mangling" to specify that parameter as follows:
+  *
+  *     * if \p filename ends with "[X].txt", 'X' any single character, then
+  *       only the part of \p filename preceeding the '[' is passed as the
+  *       filename argument of load(), while 'X' is passed as the \p frmt
+  *       argument (note that this excises ".txt" as well);
+  *
+  *     * otherwise, the whole of \p filename is passed as the filename
+  *       argument of load() and the \p frmt argument is left at its default
+  *
+  *   Note that load( std::string & ) can in principle be used to support
+  *   multi-file formats where \p filename (with ot without mangling) is
+  *   used as a prefix of multiple files with different suffixes. Also,
+  *   note that load() uses the global prefix set by set_filename_prefix(),
+  *   if any.
+  *
+  * - Otherwise a netCDF::NcFile is opened and deserialize( netCDF::NcFile )
+  *   is called. Since SMS++ netCDF::NcFile support the notion of having
   *   multiple Block inside, \p filename can be used to encode the position
   *   (Block) in the file:
   *
-  *     * if the \p filename ends with ']', then is is supposed to have the
+  *     * if \p filename ends with ']', then is is supposed to have the
   *       form "real filename[idx]": the "[idx] part is excised and used to
   *       compute the int parameter of deserialize() (the position), with the
   *       remaining part being used for the string parameter (the filename);
@@ -922,11 +925,12 @@ class Block : public Observer {
   *     * otherwise, the whole string is used as the string parameter (the
   *       filename).
   *
-  * If anything goes wrong with the entire operation, nullptr is returned.
+  *   Again, if a filename prefix has been defined (for all Block) by means
+  *   of set_filename_prefix(), then \p filename has to be intended as
+  *   relative to that prefix (in the sense that the prefix is prefix to
+  *   \p filename).
   *
-  * Note that if a filename prefix has been defined (for all Block) by means
-  * of set_filename_prefix(), then \p filename has to be intended as relative
-  * to that prefix (in the sense that the prefix is prefix to \p filename).
+  * If anything goes wrong with the entire operation, nullptr is returned.
   *
   * Note that the method is static, hence it is to be called as
   *
@@ -1165,26 +1169,54 @@ class Block : public Observer {
   * - Either the character '*' is the first one that is found after any
   *   whitespace and comment, after which two cases arise:
   *
-  *   = The characters immediately following '*' a nonempty string, which
-  *     means that '*' is not immediately followed by a whitespace (note that
-  *     comments are *not* skipped here): then, the string is used as the
-  *     filenam of deserialize( string ), which opens it and reads the :Block
-  *     from there without advancing the pointer in \p input (save for
-  *     discarding '*' and the string). Check the comments of deserialize(
-  *     string ) for the details of the possible formats of the string.
+  *   = The characters immediately following '*' form a nonempty string,
+  *     which means that '*' is not immediately followed by a whitespace
+  *     (note that comments are *not* skipped here): then, the string is
+  *     used as the filename of deserialize( std::string & ), which opens
+  *     it and reads the :Block from there without advancing the pointer
+  *     in \p input (save for discarding '*' and the string). Check the
+  *     comments of deserialize( std::string & ) for the details of the
+  *     possible formats of the string.
   *
   *   = The characters immediately following '*' form an empty string (which
   *     means that '*' is immediately followed by whitespaces or comments):
   *     then, nullptr is returned;
   *
   * - Or the first character that is found after any whitespace and comment
-  *   is not '*', in which case it has to be the first character of a
-  *   nonempty string that specifies the classname of the :Block, as
-  *   required by the Block factory; this has to be followed by all the rest
-  *   of the information describing the :Block, which of course depends on
-  *   its type (and should be described in the comments to the load() method
-  *   of that :Block, which is used by the >> operator to perform the task).
-  */
+  *   is not '*', in which case the method expects:
+  *
+  *   = first of all a nonempty string that specifies the classname of the
+  *     :Block, as required by the Block factory, which is immediately
+  *     used to construct the :Block object;
+  *
+  *   = optionally, if the first subsequent character (after whitespaces and
+  *     comments) is '[', then it is taken to be the beginning of a string
+  *     of the form "[X]", with 'X' any character: the string is read and
+  *     the 'X' is used as the \p frmt parameter in the subsequent call to
+  *     load(), of either of the two types, as detailed below.
+  *
+  *   = possibly after the previous string, it is checked again if the
+  *     first character (after whitespaces and comments) is '*':
+  *
+  *     * if so, then the subsequent string is extracted from the istream
+  *       and it is used as the filename argument in a call to
+  *       load( std::string & ) to the newly constructed :Block (with the
+  *       previously extracted \p frmt parameter, if any, or the default
+  *       one otherwise);
+  *
+  *     * otherwise, load( istream ) is called in the newly constructed
+  *       :Block passing the same \p input istream (with the previously
+  *       extracted \p frmt parameter, if any, or the default one
+  *       otherwise);
+  *
+  *   Finally, the thusly load()-ed newly constructed :Block is returned.
+  *
+  *   Note that in the first case (filename preceeded by '*') only the
+  *   filename is extracted from \p input, while in the second case the
+  *   whole description of the :Block is. Furthermore, by calling
+  *   load( std::string & ) the first case directly supports the case where
+  *   :Block input format is a multi-file one, see the comment to that
+  *   version of load() for details. */
 
  static Block * deserialize( std::istream & input ,
 			     Block * father = nullptr );
@@ -1804,13 +1836,6 @@ class Block : public Observer {
   * property of the Block. */
 
  virtual void set_name( std::string && name ) { f_name = std::move( name ); }
-
-/*--------------------------------------------------------------------------*/
- /// setting the verbosity level
-
- void set_verbosity( verbosity_type new_verb_lvl ) {
-  verbosity_lvl = new_verb_lvl;
-  }
 
 /*--------------------------------------------------------------------------*/
  /// setting the BlockConfig
@@ -2714,11 +2739,6 @@ class Block : public Observer {
   auto bit = std::find( v_Block.begin(), v_Block.end(), block );
   return( std::distance( v_Block.begin(), bit ) );
   }
-
-/*--------------------------------------------------------------------------*/
- /// getting the verbosity level
-
- verbosity_type get_verbosity( void ) const { return ( verbosity_lvl ); }
 
 /** @} ---------------------------------------------------------------------*/
 /** @name Methods for reading the Block's Variables and Constraints
@@ -5140,15 +5160,15 @@ class Block : public Observer {
   * means either registered to this Bock or registered to any ancestor
   * (father, father of father, ...) of this Block. */
 
- bool anyone_there() const override {
+ bool anyone_there( void ) const override {
   return( f_at || ( ! v_Solver.empty() ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// tell a Block if someone "listening to" its father
- /** This method has to be called from the father Block to inform each of
-  * his sons whether or not there is someone "listening to him", and
-  * therefore to them. */
+ /** This method has to be called by the father Block to inform each of his
+  * sons whether or not there is someone "listening to him", and therefore
+  * to them. */
 
  void anyone_there( bool isthere );
 
@@ -5938,24 +5958,199 @@ class Block : public Observer {
 /*--------------------------------------------------------------------------*/
 /** @name Methods for loading, printing & saving the Block
  *
- * The base Block class provides two friend operator<<() and operator>>()
- * dispatching to protected virtual methods print( std::ostream& ) and
- * load( std::istream & ); the idea is that derived classes will implement the
- * latter two in order to provide input and output on std::stream.
+ * The base Block class provides two pairs of symmetric print() / load() and
+ * serialize() / deserialize() methods to save information about it on a
+ * std::stream / netCDF::NcGroup and retrieve it. For print() the saved
+ * information may or may not be enough to fully reconstruct the original
+ * Block via load(), depending on the verbosity level, while for serialize()
+ * the saved information is always enough to fully reconstruct the original
+ * Block via deserialize().
  *
- * The base Block class also defines the interface for serializing and
- * de-serializing a :Block onto netCDF files. This is done via the three
- * versions of serialize() taking, respectively, a file name (char *), a
- * netCDF file and a netCDF group. The first dispatches on the second, and
- * the latter ultimately to the third, which is where the true
+ * print() and load() have two forms, one taking a filename and the other
+ * taking a [o/i]stream &. In principle the first form just opens the
+ * appropriate [i/o]fstream and dispatches to the second, but different
+ * implementations may be provided for the case where the input/output
+ * format is a multi-file one and therefore requires the reading/writing of
+ * multiple fies (typically with the same initial part of the filename and
+ * different suffixes). Both print() and load() support the generic notion
+ * that input/output may happen in different formats, governed by a simple
+ * char parameter.
+ *
+ * Block also provides a friend operator<<() and two friend operator>>() (one
+ * for references and one for pointers) dispatching to print() and load(),
+ * respectively (with "default verbosity"=; the idea is that derived classes
+ * will implement the latter two in order to provide input and output on
+ * std::stream.
+ *
+ * The interface for serializing and de-serializing a :Block onto netCDF
+ * files is a bit more complex in that the base Block class provides some
+ * means to automate part of the process: besides like opening the netCDF
+ * filem, possibly with different formats, also finding the right
+ * netCDF::NcGroup inside it. This is done via the three versions of
+ * serialize() taking, respectively, a file name (std::string), a
+ * netCDF::NcFile and a netCDF::NcGroup. The first dispatches to the second,
+ * and the latter ultimately to the third, which is where the true
  * :Block-dependent serialization is supposed to happen.
  * @{ */
 
- /// friend operator<<(), dispatching to virtual protected print()
+ /// print information about the Block on a file, given its name
+ /** Method intended to print information about the Block on the one (or
+  * more) text file(s) with the filename given in \p fname (prefixed as set
+  * by set_filename_prefix(), if any), replacing any current content if the
+  * file already exists.
+  *
+  * The parameter \p vlvl is assumed to control the "level of the verbosity"
+  * of the printed information, i.e. the format of the output file; see
+  * print( ostream & ) for comments. In fact, the implementation of this
+  * method in the base Block class just opens an ofstream using the given
+  * filename and then calls the print( ostream & ) version, which is where
+  * the true :Block-specific printing is supposed to mostly happen.
+  *
+  * However, this method is virtual and there is a clear scenarion in which
+  * derived classes may want to override it: that of multi-file formats.
+  * That is, a :Block may want to save itself on a number of different
+  * files, typically with names of the form [global prefix] fname [suffix]
+  * for different choices of [suffix], possibly depending on the value of
+  * \p vlvl. Clearly, the print( ostream & ) version cannot be used in this
+  * case, and a proper override of this method is required instead. */
+
+ virtual void print( const std::string & fname , char vlvl = 0 ) const {
+  std::ofstream f( f_prefix + fname , std::ofstream::trunc );
+  if( f.is_open() )
+   print( f , vlvl );
+  else
+   std::cerr << "Error: cannot open text file " << f_prefix + fname
+	     << std::endl;
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// print information about the Block on an ostream with the given verbosity
+ /** Method intended to print information about the Block on the given
+  * std::ostream; it is virtual so that derived classes can print their
+  * specific information in the format they choose, although the base class
+  * also provides a rudimentary implementation printing a modicum of data
+  * about the "abstract representation".
+  *
+  * The parameter \p vlvl is assumed to control the "level of the verbosity"
+  * of the printed information. The format of the parameter should depend
+  * on the derived :Block, but the base Block class sets the standard that
+  * 0 means "minimal informaton" and 'C' means "complete information", i.e.,
+  * enough information to allow a Block to completely re-read itself back
+  * from the stream with load(). Of course the base Block class cannot
+  * support the 'C' case, but it will interpret anything except 0 and 'C' as
+  * "recursively print the nested Block with the same verbosity".
+  *
+  * In general, a :Block may have more than one "complete" output formats,
+  * hence other values apart from 'C' may still provide enough information
+  * for load() to be able to recostruct the Block; yet, one format can be
+  * designed as "standard" and get the 'C' value. It is expected that
+  * values of \p vlvl here denoting "complete" formats will correspond to
+  * values of the \p frmt parameter in load() denoting the same format.
+  *
+  * In case a "complete" format requires more than one file, the
+  * corresponding implementation has to be provided by the
+  * print( std::string & ) version of the method, ideally with specific 
+  * values of \p vlvl (not handled by this version). It might be possible
+  * to read back such multi-file outputs using load( std::string & ),
+  * possibly with the corresponding value of the \p frmt parameter, but the
+  * set of supported input/output formats is strictly dependent on the
+  * specific :Block. */
+
+ virtual void print( std::ostream & output , char vlvl = 0 ) const;
+
+/*--------------------------------------------------------------------------*/
+ /// load the Block out of a text file with given filename
+ /** Method intended to provide support for Blocks to load themselves out of
+  * one (or more) file(s) with the the filename given in \p fname (prefixed
+  * as set by set_filename_prefix(), if any).
+  *
+  * The parameter \p frmt is provided to support the notion that the input
+  * file(s) may have different formats; see load( istream & ) for comments.
+  * In fact, the implementation of this method in the base Block class just
+  * opens an ifstream using the given filename and then calls the
+  * load( istream & ) version, which is where the true :Block-specific
+  * loading is supposed to mostly happen.
+  *
+  * However, this method is virtual and there is a clear scenarion in which
+  * derived classes may want to override it: that of multi-file formats.
+  * That is, a :Block may want to load itself out of a number of different
+  * files, typically with names of the form [global prefix] fname [suffix]
+  * for different choices of [suffix], possibly depending on the value of
+  * \p frmt. Clearly, the load( istream & ) version cannot be used in this
+  * case, and a proper override of this method is required instead.
+  *
+  * As the load( istream & ) version, this method will issue a
+  * NBModification to alert all "interested" Solver (if any) that the
+  * :Block has "completely changed", see the comments to load( istream & )
+  * for details. */
+
+ virtual void load( const std::string & input , char frmt = 0 ) {
+  std::ifstream f( f_prefix + input , std::fstream::in );
+  if( f.is_open() )
+   load( f , frmt );
+  else
+   std::cerr << "Error: cannot open text file " << f_prefix + input
+	     << std::endl;
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// load the Block out of an istream
+ /** *pure virtual* method intended to provide support for Blocks to load
+  * themselves out of an istream. This is precisely what makes Block an
+  * *abstract* base class: the actual content of the Block depends on the
+  * specific derived class, which is why this method cannot be implemented
+  * (although the same in principle holds for deserialize(), Block provides a
+  * basic implementation for that method that may be useful to derived
+  * classes).
+  *
+  * The parameter \p frmt is provided to support the notion that the input
+  * istream may have different formats. These should ideally be the same
+  * formats that print() produces with the same values of its \p vlvl
+  * parameter, but the set of supported input/output formats is strictly
+  * dependent on the specific :Block. Also, note that print() should
+  * reasonably have "more formats" than load() because it should reasonably
+  * support "non complete" output formats, useful, e.g., for debugging but
+  * not for save/load operations, besides "complete" ones.
+  *
+  * In case a "complete" format requires more than one file, the
+  * corresponding implementation cannot be handled here and has rather to be
+  * provided by the load( std::string & ) version of the method, ideally
+  * with specific values of \p frmt (not handled by this version)
+  * corresponding to values of \p vlvl in print( std::string & ).
+  *
+  * If there is any Solver "interested" to this Block, then a NBModification
+  * *must* be issued to "inform" them that anything it knew about the Block is
+  * now completely outdated. This is *not* optional (and therefore no issueMod
+  * param is provided), because the reaction of a Solver to an NBModification
+  * should be akin to clearing the list of all previous Modification. Indeed,
+  * since these are no longer relevant and, worse, they may refer to elements
+  * of the Block that simply no longer exist; thus, they cannot possibly be
+  * processed in any meaningful way, which is why the NBModification cannot be
+  * avoided. This is unless the Block is only a sub-Block of the Block that
+  * the Solver is solving, in which case Modification pertaining to other
+  * parts of the Block still are relevant; see the comments to
+  * Solver::add_Modification. Note that the NBModification is sent to the
+  * "default channel", since it "must be seen immediately" rather then being
+  * "hidden" into any GroupModification.
+  *
+  * It is also important to remark that
+  *
+  *      AFTER load() THE :Block IS UN-CONFIGURED
+  *
+  * Although clearly not "empty", as opposed as :Block fresh out of the
+  * factory (see new_Block( string )), a freshly loaded Block is otherwise
+  * "in pristine state": the "abstract representation" is not constructed
+  * (unless the :Block does this by its own volition), the BlockConfig is not
+  * set, and there are no Solver attached, unless there were before. */
+
+ virtual void load( std::istream & input , char frmt = 0 ) = 0;
+
+/*--------------------------------------------------------------------------*/
+ /// friend operator<<(), dispatching to virtual print()
  /** Not really a method, but a friend operator<<() that just dispatches the
-  * ostream to the protected virtual method print(). This way the
-  * operator<<() is defined for each Block, but its behavior can be
-  * customized by derived classes. */
+  * ostream to the virtual method print() (with default "verbosity level",
+  * i.e., low). This way the operator<<() is defined for each Block, but its
+  * behavior can be customized by derived classes. */
 
  friend std::ostream & operator<<( std::ostream & out , const Block & b ) {
   b.print( out );
@@ -5963,13 +6158,12 @@ class Block : public Observer {
   }
 
 /*--------------------------------------------------------------------------*/
- /// friend operator>>(), dispatching to *pure* virtual protected load()
+ /// friend operator>>(), dispatching to *pure* virtual load()
  /** Not really a method, but a friend operator>>() that just calls the
-   * protected *pure* virtual method load(). This way the operator>>() is
-   * defined for each Block, but it won't work for the base class, which is
-   * abstract: it can only work for concrete derived classes which have
-   * actually implemented load() (because they have some actual data to
-   * load). */
+   **pure* virtual method load(). This way the operator>>() is defined for
+   * each Block, but it won't work for the base class, which is abstract: it
+   * can only work for concrete derived classes which have actually
+   * implemented load() (because they have some actual data to load). */
 
  friend std::istream & operator>>( std::istream & in , Block & b ) {
   b.load( in );
@@ -6011,11 +6205,11 @@ class Block : public Observer {
   if( ( type != eProbFile ) && ( type != eBlockFile ) )
    throw( std::invalid_argument( "invalid SMS++ netCDF file type" ) );
 
-  netCDF::NcFile f( filename, netCDF::NcFile::replace );
+  netCDF::NcFile f( filename , netCDF::NcFile::replace );
 
-  f.putAtt( "SMS++_file_type", netCDF::NcInt(), type );
+  f.putAtt( "SMS++_file_type" , netCDF::NcInt() , type );
 
-  serialize( f, type );
+  serialize( f , type );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -6981,68 +7175,6 @@ class Block : public Observer {
   }
 
 /*--------------------------------------------------------------------------*/
-/** @name Protected methods for inserting and extracting
- *
- * The Block class provides two pairs of symmetric print() / load() and
- * serialize() / deserialize() methods to save information about it on a
- * std::stream / netCDF::NcGroup and retrieve it. For print() the saved
- * information may or may not be enough to fully reconstruct the original
- * Block via load(), depending on the verbosity level, while for serialize()
- * the saved information is always enough to fully reconstruct the original
- * Block via deserialize().
- *
- * For conditions that need be respected by load() see the comments to
- * deserialize( netCDF::NcGroup & ), while for those that need be respected
- * by print() see comments to serialize( netCDF::NcGroup & ).
- * @{ */
-
- /// print information about the Block on an ostream with the given verbosity
- /** Protected method intended to print information about the Block; it is
-  * virtual so that derived classes can print their specific information in
-  * the format they choose.
-  * The level of the verbosity of the printed information is defined by the
-  * verbosity_lvl field of the class; in particular, the "complete" level is
-  * is assumed to save enough information to allow a Block to completely
-  * re-read its structure from the file. This makes little sense for the base
-  * Block class, in that it has no real structure of its own to save. */
-
- virtual void print( std::ostream & output ) const;
-
-/*--------------------------------------------------------------------------*/
- /// load the Block out of an istream
- /** *pure virtual* method intended to provide support for Blocks to load
-  * themselves out of an istream. This is precisely what makes Block an
-  * *abstract* base class: the actual content of the Block depends on the
-  * specific derived class, which is why this method cannot be implemented.
-  *
-  * If there is any Solver "interested" to this Block, then a NBModification
-  * *must* be issued to "inform" them that anything it knew about the Block is
-  * now completely outdated. This is *not* optional (and therefore no issueMod
-  * param is provided), because the reaction of a Solver to an NBModification
-  * should be akin to clearing the list of all previous Modification. Indeed,
-  * since these are no longer relevant and, worse, they may refer to elements
-  * of the Block that simply no longer exist; thus, they cannot possibly be
-  * processed in any meaningful way, which is why the NBModification cannot be
-  * avoided. This is unless the Block is only a sub-Block of the Block that
-  * the Solver is solving, in which case Modification pertaining to other
-  * parts of the Block still are relevant; see the comments to
-  * Solver::add_Modification. Note that the NBModification is sent to the
-  * "default channel", since it "must be seen immediately" rather then being
-  * "hidden" into any GroupModification.
-  *
-  * It is also important to remark that
-  *
-  *      AFTER load() THE :Block IS UN-CONFIGURED
-  *
-  * Although clearly not "empty", as opposed as :Block fresh out of the
-  * factory (see new_Block( string )), a freshly loaded Block is otherwise
-  * "in pristine state": the "abstract representation" is not constructed
-  * (unless the :Block does this by its own volition), the BlockConfig is not
-  * set, and there are no Solver attached, unless there were before. */
-
- virtual void load( std::istream & input ) = 0;
-
-/** @} ---------------------------------------------------------------------*/
 /** @name Protected methods for handling static fields
  *
  * These methods allow derived classes to partake into static initialization
@@ -7134,8 +7266,6 @@ class Block : public Observer {
  ///< list of pointers to the registered Solvers with this Block
 
  bool f_at;  ///< true if there is any Solver "listening" to this Block
-
- verbosity_type verbosity_lvl;  ///< the verbosity level of the Block
 
  std::string f_name;            ///< the string name of the Block
 

@@ -37,13 +37,6 @@
 /// namespace for the Structured Modeling System++ (SMS++)
 namespace SMSpp_di_unipi_it
 {
-
-/*--------------------------------------------------------------------------*/
-/*------------------------------- CLASSES ----------------------------------*/
-/*--------------------------------------------------------------------------*/
-/** @defgroup BendersBlock_CLASSES Classes in BendersBlock.h
- *  @{ */
-
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS BendersBlock -----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -81,16 +74,19 @@ public:
   Block( father ) {
   v_variables.resize( num_variables );
   set_objective( & objective , eNoMod );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// destructor
- virtual ~BendersBlock() {
-  objective.clear();
- }
+
+ virtual ~BendersBlock() { objective.clear(); }
 
 /*--------------------------------------------------------------------------*/
+ /// loads the BendersBlock out of an istream: it is not implemented yet
 
+ void load( std::istream & input , char frmt = 0  ) override {}
+
+/*--------------------------------------------------------------------------*/
  /// deserialize a BendersBBlock out of netCDF::NcGroup
  /** The method takes a netCDF::NcGroup supposedly containing all the
   * information required to deserialize the BendersBlock. Besides the 'type'
@@ -108,8 +104,7 @@ public:
   * - A description of the BendersBFunction into a sub-group named
   *   "BendersBFunction".
   *
-  * @param group A netCDF::NcGroup holding the required data.
-  */
+  * @param group A netCDF::NcGroup holding the required data. */
 
  void deserialize( const netCDF::NcGroup & group ) override;
 
@@ -232,7 +227,6 @@ public:
  }
 
 /*--------------------------------------------------------------------------*/
-
  /// sets the values of the Variable of this BendersBlock
  /** This function sets the values of the Variable defined in this
   * BendersBlock according to the given \p values. The size of the \p values
@@ -240,18 +234,17 @@ public:
   * BendersBlock, so that the value of the i-th Variable will be values( i ),
   * for each i in {0, ..., get_number_variables() - 1}.
   *
-  * @param values The Eigen::ArrayXd containing the values of the Variable.
-  */
+  * @param values The Eigen::ArrayXd containing the values of the Variable. */
+
  void set_variable_values( const Eigen::ArrayXd & values ) {
   assert( ( values.size() >= 0 ) &&
           ( static_cast<decltype( v_variables.size() )>( values.size() ) ==
             v_variables.size() ) );
   for( Index i = 0 ; i < v_variables.size() ; ++i )
    v_variables[ i ].set_value( values( i ) );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
-
  /// sets the values of the Variable of this BendersBlock
  /** This function sets the values of the Variable defined in this
   * BendersBlock according to the values given by the iterator \p it. The
@@ -260,13 +253,13 @@ public:
   * the i-th Variable will be given by std::next( it , i ), for each i in {0,
   * ..., get_number_variables() - 1}.
   *
-  * @param values The vector containing the values of the Variable.
-  */
+  * @param values The vector containing the values of the Variable. */
+
  template< class Iterator >
  void set_variable_values( Iterator it ) {
   for( Index i = 0 ; i < v_variables.size() ; ++i , std::advance( it , 1 ) )
    v_variables[ i ].set_value( * it );
- }
+  }
 
 /** @} ---------------------------------------------------------------------*/
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
@@ -277,8 +270,6 @@ protected:
 /*--------------------------------------------------------------------------*/
 /*---------------------------- PROTECTED METHODS ---------------------------*/
 /*--------------------------------------------------------------------------*/
-
- void load( std::istream &input ) override {}
 
 /*--------------------------------------------------------------------------*/
 /*---------------------------- PROTECTED FIELDS ----------------------------*/
@@ -306,11 +297,11 @@ private:
 
 };   // end( class BendersBlock )
 
-/** @} end( group( BendersBlock_CLASSES ) ) */
+/*--------------------------------------------------------------------------*/
+/*--------------------------------------------------------------------------*/
 
 }  // end( namespace SMSpp_di_unipi_it )
 
-/*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
 #endif  /* BendersBlock.h included */

@@ -206,6 +206,24 @@ AbstractBlock::~AbstractBlock()
 
 /*--------------------------------------------------------------------------*/
 
+void AbstractBlock::load( std::istream & input , char frmt )
+{
+ if( ( ! frmt ) || ( frmt == 'M' ) ) {
+  read_mps( input );
+  return;
+  }
+
+ if( frmt == 'L' ) {
+  read_lp( input );
+  return;
+  }
+
+ throw( std::invalid_argument( "AbstractBlock::read: unsupported file format"
+			       ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
 bool AbstractBlock::is_feasible( bool useabstract , Configuration * fsbc )
 {
  // compute the accuracy parameter- - - - - - - - - - - - - - - - - - - - - -
@@ -745,41 +763,16 @@ Solution * AbstractBlock::get_Solution( Configuration * csolc, bool emptys )
 
 /*--------------------------------------------------------------------------*/
 
-void AbstractBlock::serialize( netCDF::NcGroup & group ) const
+void AbstractBlock::print( std::ostream & output , char vlvl ) const
 {
- // call the method of Block- - - - - - - - - - - - - - - - - - - - - - - - -
+ if( vlvl == 'M' )
+  throw( std::invalid_argument(
+        "AbstractBlock::print: output in MPS format not implemented yet" ) );
 
- Block::serialize( group );
-
- // now the AbstractBlock data- - - - - - - - - - - - - - - - - - - - - - - -
-
- auto & sc = get_static_constraints();
- auto & sv = get_static_variables();
- auto & dc = get_dynamic_constraints();
- auto & dv = get_dynamic_variables();
-
- if( ( sc.size() > get_first_static_Constraint() ) ||
-     ( dc.size() > get_first_dynamic_Constraint() ) ||
-     ( sv.size() > get_first_static_Variable() ) ||
-     ( dv.size() > get_first_dynamic_Variable() ) ||
-     ( ! is_Objective_reserved() ) )
-  throw( std::logic_error(
-   "AbstractBlock::serialize not fully implemented yet" ) );
-
- if( v_Block.size() > get_first_inner_Block() ) {
-  group.addDim( "NumberInnerBlock", v_Block.size() );
-
-  for( auto i = get_first_inner_Block() ; i < v_Block.size() ; ++i ) {
-   auto gi = group.addGroup( "Block_" + std::to_string( i ) );
-   v_Block[ i ]->serialize( gi );
-  }
- }
-}  // end( AbstractBlock::serialize )
-
-/*--------------------------------------------------------------------------*/
-
-void AbstractBlock::print( std::ostream & output ) const
-{
+ if( vlvl == 'L' )
+  throw( std::invalid_argument(
+         "AbstractBlock::print: output in LP format not implemented yet" ) );
+ 
  output << std::endl << "AbstractBlock with: ";
  output << std::endl << get_static_variables().size()
         << " types of static Variables, "
@@ -791,7 +784,7 @@ void AbstractBlock::print( std::ostream & output ) const
         << " types of dynamic Constraints, "
         << std::endl << v_Block.size() << " inner Blocks" << std::endl;
 
- if( verbosity_lvl == Block::medium || verbosity_lvl == Block::high ) {
+ if( vlvl ) {
   // the static Constraints of the Block- - - - - - - - - - - - - - - - - - -
   output << "Static Constraints:" << std::endl;
   auto & sc = get_static_constraints();
@@ -952,61 +945,54 @@ void AbstractBlock::print( std::ostream & output ) const
 
 /*--------------------------------------------------------------------------*/
 
-void AbstractBlock::read( const std::string & filename,
-                          const std::string & ext ) {
+void AbstractBlock::serialize( netCDF::NcGroup & group ) const
+{
+ // call the method of Block- - - - - - - - - - - - - - - - - - - - - - - - -
 
- // Check for explicit LP
- if( boost::iequals( ext, "lp" ) ) {
-  read_lp( filename );
-  return;
- }
+ Block::serialize( group );
 
- // Check for explicit MPS
- if( boost::iequals( ext, "mps" ) ) {
-  read_mps( filename );
-  return;
- }
+ // now the AbstractBlock data- - - - - - - - - - - - - - - - - - - - - - - -
 
- // Infer from file extension
- if( ext.empty() ) {
-  std::size_t pos = filename.find_last_of( '.' );
-  if( pos != std::string::npos ) {
-   auto e = filename.substr( pos + 1 );
-   if( boost::iequals( e, "lp" ) ) {
-    read_lp( filename );
-    return;
-   }
-   if( boost::iequals( e, "mps" ) ) {
-    read_mps( filename );
-    return;
+ auto & sc = get_static_constraints();
+ auto & sv = get_static_variables();
+ auto & dc = get_dynamic_constraints();
+ auto & dv = get_dynamic_variables();
+
+ if( ( sc.size() > get_first_static_Constraint() ) ||
+     ( dc.size() > get_first_dynamic_Constraint() ) ||
+     ( sv.size() > get_first_static_Variable() ) ||
+     ( dv.size() > get_first_dynamic_Variable() ) ||
+     ( ! is_Objective_reserved() ) )
+  throw( std::logic_error(
+                    "AbstractBlock::serialize not fully implemented yet" ) );
+
+ if( v_Block.size() > get_first_inner_Block() ) {
+  group.addDim( "NumberInnerBlock", v_Block.size() );
+
+  for( auto i = get_first_inner_Block() ; i < v_Block.size() ; ++i ) {
+   auto gi = group.addGroup( "Block_" + std::to_string( i ) );
+   v_Block[ i ]->serialize( gi );
    }
   }
-  throw std::invalid_argument( "Cannot infer file type from extension" );
- }
-
- throw std::invalid_argument( "Specify a valid file type" );
-}
+ }  // end( AbstractBlock::serialize )
 
 /*--------------------------------------------------------------------------*/
 
-void AbstractBlock::read_mps( const std::string & filename ) {
- std::ifstream file( filename );
- if( !file.is_open() ) {
-  throw std::invalid_argument( "Cannot open file" );
- }
-
+void AbstractBlock::read_mps( std::istream & file )
+{
  auto dbl_val = []( std::string & s ) {
-  assert( !s.empty() );
-  if( s[ 0 ] == '.') {
-   s.insert( 0, "0" );
-  } else if( s[ 0 ] == '-' && s[ 1 ] == '.' ) {
-   s.insert( 1, "0" );
-  }
-  if( s.back() == '.' ) {
+  assert( ! s.empty() );
+  if( s[ 0 ] == '.' )
+   s.insert( 0 , "0" );
+  else
+   if( ( s[ 0 ] == '-' ) && ( s[ 1 ] == '.' ) )
+    s.insert( 1 , "0" );
+
+  if( s.back() == '.' )
    s.pop_back();
-  }
-  return std::stod( s );
- };
+
+  return( std::stod( s ) );
+  };
 
  std::string problem_name;
  int num_rows = 0;
@@ -1451,11 +1437,8 @@ void AbstractBlock::read_mps( const std::string & filename ) {
   file >> word;
  }
 
- file.close();
-
- if( word != "ENDATA" ) {
-  throw std::invalid_argument( "Invalid syntax in MPS file" );
- }
+ if( word != "ENDATA" )
+  throw( std::invalid_argument( "Invalid syntax in MPS file" ) );
 
  // Reset and set abstract representation
  reset_static_constraints();
@@ -1468,16 +1451,17 @@ void AbstractBlock::read_mps( const std::string & filename ) {
  add_static_constraint( *bounds );
 
  // Issue the NBModification
- if( anyone_there() ) {
+ if( anyone_there() )
   add_Modification( std::make_shared< NBModification >( this ) );
- }
-}
+
+ }  // end( AbstractBlock::read_mps )
 
 /*--------------------------------------------------------------------------*/
 
-void AbstractBlock::read_lp( const std::string & filename ) {
- throw std::logic_error( "AbstractBlock::read_lp() not implemented yet" );
-}
+void AbstractBlock::read_lp( std::istream & file )
+{
+ throw( std::logic_error( "AbstractBlock::read_lp() not implemented yet" ) );
+ }
 
 /*--------------------------------------------------------------------------*/
 

@@ -54,14 +54,6 @@ SMSpp_insert_in_factory_cpp_1( BendersBFunction );
 SMSpp_insert_in_factory_cpp_1( BendersBFunctionState );
 
 /*--------------------------------------------------------------------------*/
-/*---------------------------------TODO-------------------------------------*/
-/*--------------------------------------------------------------------------*/
-
-void BendersBFunction::load( std::istream &input ) {
- throw( std::logic_error( "BendersBFunction::load(): not implemented yet." ) );
- }
-
-/*--------------------------------------------------------------------------*/
 /*------------- CONSTRUCTING AND DESTRUCTING BendersBFunction --------------*/
 /*--------------------------------------------------------------------------*/
 
@@ -85,20 +77,20 @@ BendersBFunction::BendersBFunction( Block * inner_block , VarVector && x ,
 
 /*--------------------------------------------------------------------------*/
 
-BendersBFunction::~BendersBFunction() {
+BendersBFunction::~BendersBFunction()
+{
  if( ! v_Block.empty() ) {
   assert( v_Block.size() == 1 );
   delete v_Block.front();
- }
+  }
 
  delete f_get_dual_solution_partial_config;
  delete f_get_dual_direction_partial_config;
  delete f_get_dual_solution_config;
  delete f_get_dual_direction_config;
-}
+ }
 
 /*--------------------------------------------------------------------------*/
-
 /*      IMPORTANT NOTE ON THE DESERIALIZATION OF THE BendersBFunction
  *
  * The BendersBFunction maintains a vector of pointers to the Constraint that
