@@ -611,9 +611,12 @@ class Block : public Observer {
  using c_Index = const Index;                 ///< a const Index
 
  /// a pair of indices for the "range" functions in the methods factory
- using Range = std::pair< Index, Index >;
+ using Range = std::pair< Index , Index >;
  using c_Range = const Range;                 ///< a const Range
 
+ /// an "infinite Range", i.e., [ 0 , INF ), i.e., "everything"
+ static constexpr auto INFRange = Range( 0 , Inf< Index >() );
+ 
  /// a vector of indices for the "subset" functions in the methods factory
  using Subset = std::vector< Index >;
  using c_Subset = const Subset;               ///< a const Subset
@@ -1978,7 +1981,7 @@ class Block : public Observer {
  virtual void generate_abstract_variables( Configuration * stvv = nullptr ) {
   for( auto blck : v_Block )
    blck->generate_abstract_variables();
- }
+  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// generate the dynamic Variables of the Block

@@ -106,7 +106,7 @@ class LinearFunction : public C15Function
  using c_v_coeff_it = v_coeff::const_iterator;  ///< const iterator in v_coeff
 
  /// one term of the sum: ( ColVariable * , Coefficient )
- using coeff_pair = std::pair< ColVariable *, Coefficient >;
+ using coeff_pair = std::pair< ColVariable * , Coefficient >;
 
  using v_coeff_pair = std::vector< coeff_pair >;  ///< a vector of coeff_pair
 
