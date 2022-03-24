@@ -73,7 +73,7 @@ namespace SMSpp_di_unipi_it::inspection
 
  using Index = Block::Index;
 
- template< class S , class T , unsigned long K >
+ template< class S , class T , std::size_t K >
  static Index get_static_index_( const S * s ,
                                  const boost::multi_array< T , K > & var ) {
   const auto p = var.data();
