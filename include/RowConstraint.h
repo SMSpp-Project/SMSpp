@@ -237,7 +237,7 @@ namespace SMSpp_di_unipi_it {
  * Lagrangian dual. Under the sign rule postulated above this is
  * represented as d_value = -1 (< 0 and unitary) to imply that is the
  * multiplier of the lower bound constraint that has to go to infinity
- * (athough this implies that also the one of the upper bound constraint
+ * (although this implies that also the one of the upper bound constraint
  * has to keep feasibility: this contradicts the rule that only one of the
  * two is nonzero, but the rule holds for solutions, not for directions).
  *
@@ -257,7 +257,7 @@ namespace SMSpp_di_unipi_it {
  * \f]
  * This is of course if one insists that \f$ z \ge 0 \f$ and \f$ w \ge 0 \f$;
  * it would be perfectly possible to rather have  \f$ z \le 0 \f$ and
- * \f$ w \ge 0 \f$ (either in the maximizaton case, or always), but the
+ * \f$ w \ge 0 \f$ (either in the maximization case, or always), but the
  * non-negative version is usually preferred, so this is what we use. The
  * transformation from \f$ ( \bar{w} , \bar{z} ) \f$ to \f$ ( w' , z' ) \f$
  * remains the same, but now the coefficient of \f$ g( x ) \f$ in
@@ -428,7 +428,7 @@ class RowConstraint : public Constraint
   * virtual: to allow derived classes to store the value as they best see fit.
   * However, in general it must be understood that lb() does not necessarily
   * need to be a valid lower bound corresponding to the current value of the
-  * Variable in the RowConstraint, but rather to what their vakue was at the
+  * Variable in the RowConstraint, but rather to what their value was at the
   * last time in which compute() has been called; in other words, compute()
   * must be called prior to lb() to ensure that the value is the up-to-date
   * one. Yet, because derived classes are free to implement this as they
