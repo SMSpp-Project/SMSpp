@@ -123,7 +123,7 @@ void PolyhedralFunctionBlock::generate_objective( Configuration * objc )
  else             // use natural representation
   obj->set_function( & f_polyf );
 
- set_objective( obj );
+ set_objective( obj , eNoMod );
 
  f_rep |= 8;
 
