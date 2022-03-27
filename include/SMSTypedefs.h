@@ -274,13 +274,31 @@ typedef std::vector< List_p_Const > Vec_List_p_Const;
 typedef const Vec_List_p_Const c_Vec_List_p_Const;
 ///< a const 1-D array of lists of Constraint *
 
-template< int K >
+template< std::size_t K >
 using KD_Vec_List_p_Const = boost::multi_array< List_p_Const, K >;
 ///< Vec_List_p_Const<K> is a K-D vector of lists of Constraint *
 
-template< int K >
+template< std::size_t K >
 using KD_c_Vec_List_p_Const = const boost::multi_array< List_p_Const, K >;
 ///< c_Vec_List_p_Const<K> is a const K-D vector of lists of Constraint *
+
+/// Clear a std::vector of Constraint
+template< typename T >
+std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
+clear_constraints( std::vector< T > & constraints ) {
+ for( auto & constraint : constraints )
+  constraint.clear();
+}
+
+/// Clear a K-D boost::multi_array of Constraint
+template< typename T , std::size_t K >
+std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
+clear_constraints( boost::multi_array< T , K > & constraints ) {
+ auto constraint = constraints.data();
+ auto n = constraints.num_elements();
+ for( decltype( n ) i = 0 ; i < n ; ++i , ++constraint )
+  constraint->clear();
+}
 
 /** @} end( group( Constraint_TYPES ) ) */
 /*--------------------------------------------------------------------------*/

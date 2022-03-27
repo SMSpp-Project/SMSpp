@@ -121,7 +121,7 @@ class ThinVarDepInterface {
   *
   * Also, because the virtual iterator is accessed via pointers, its copy
   * cannot be done via standard copy constructors/assignments, and a clone()
-  * method is requird. */
+  * method is required. */
 
  class v_iterator {
   public:
@@ -423,7 +423,7 @@ class ThinVarDepInterface {
   * Hence, this method is given an empty implementation for derived classes
   * that just do not have to care (for instance because they do not directly
   * register themselves as "active stuff" into Variable, see Function). Also,
-  * this mathod should only be called when the underlying assumption is
+  * this method should only be called when the underlying assumption is
   * guaranteed to be satisfied; in doubt, do not call it. */
 
  virtual void clear( void ) {}
@@ -437,7 +437,7 @@ class ThinVarDepInterface {
  /// returns a pointer to the Block to which the ThinVarDepInterface belongs
  /** Every ThinVarDepInterface belongs to a Block; return a pointer to it.
   * The base class implementation is pure virtual so as to allow derived
-  * casses full flexibility. */
+  * classes full flexibility. */
 
  [[nodiscard]] virtual Block * get_Block( void ) const = 0;
 
@@ -452,11 +452,11 @@ class ThinVarDepInterface {
  * Index in 0, 1, ... n - 1; hence, these methods (at least in part) rely on
  * the concept of "i-th active Variable". Since the implementation of the set 
  * of "active" Variable is entirely left to derived classes, to allow them
- * complete flexibililty, in principle little can be said about how the
+ * complete flexibility, in principle little can be said about how the
  * order is established. That is, in general how the Index is chosen for
  * each "active" Variable is left to the specific derived class. However,
  * a minimum set of general principles must be established that set the rules
- * that all implementation must satifsy. These are the following:
+ * that all implementation must satisfy. These are the following:
  *
  * 1) The ordering does not change unless the set of "active" Variable itself
  *    changes. That is, given an existing "active" Variable, the value
@@ -507,7 +507,7 @@ class ThinVarDepInterface {
  * - the Modification only has to be processed if the Variable has not been
  *   removed, even if it has been re-added afterwards (which makes sense,
  *   as removing ad adding typically entail their own Modification which
- *   will be procedded in due time).
+ *   will be proceeded in due time).
  *
  * Then, the current Index of the Variable need only be searched for among
  * these smaller than (or equal to) the original one, and if the Variable is
@@ -790,7 +790,7 @@ class ThinVarDepInterface {
   *        move it into the Modification that is possibly issued (see third
   *        parameter), which means that it is in general not safe to assume
   *        that the parameter is still available after the call. hence, the
-  *        paramater may as well be && (as it is). a special setting is if
+  *        parameter may as well be && (as it is). a special setting is if
   *
   *     nms.empty() == true, IN WHICH CASE ALL Variable ARE ELIMINATED
   *
