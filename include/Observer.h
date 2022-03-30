@@ -472,7 +472,38 @@ class Observer {
   }
 
 /*--------------------------------------------------------------------------*/
- /// method for checking if a the change has to be made
+ /// static method for ensuring a parameter is not eModBlck
+ /** Given a "composite" parameter as produced by make_par(), this static
+  * method "downgrades" the "mod" part of the parameter to eNoBlck if it is
+  * eModBlck keeping the same channel, and does nothing otherwise.
+  * This method should be called when the eModBlck value should never be
+  * allowed, such as when one is certain that the "abstract" representation
+  * has been modified already. This happens for instance in a method of a
+  * :Block that modifies the "physical" and the "abstract" representation at
+  * the same time, and therefore where there is no possible reason why the
+  * "abstract" Modification should be checked by the Block. */
+
+ static void not_ModBlock( ModParam & issueMod ) {
+  if( par2mod( issueMod ) == eModBlck )
+   issueMod = make_par( eNoBlck , par2chnl( issueMod ) );
+  }
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+ /// static method for ensuring a parameter is not eModBlck
+ /** Given a "composite" parameter as produced by make_par(), this static
+  * method "downgrades" the "mod" part of the parameter to eNoBlck if it is
+  * eModBlck keeping the same channel, and does nothing otherwise.
+  * This is the same as not_ModBlock() and it has the same use, but it
+  * returns the modified (or nor) value rather than changing the input
+  * variable. */
+
+ static ModParam un_ModBlock( ModParam issueMod ) {
+  return( par2mod( issueMod ) == eModBlck ?
+	  make_par( eNoBlck , par2chnl( issueMod ) ) : issueMod );
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// method for checking if the actual change has to be made
  /** Given a "composite" parameter as produced by make_par(), this method
   * returns true if the parameter implies that the actual change has to be
   * made (if not, clearly no Modification must be issued). Allowing to call

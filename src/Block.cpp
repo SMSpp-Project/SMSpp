@@ -303,13 +303,13 @@ void Block::anyone_there( bool isthere )
   if( f_at )                  // it was already so
    return;                    // nothing changes
   f_at = true;                // now I know it
-  if( !v_Solver.empty() )     // but my sons don't care because there
+  if( ! v_Solver.empty() )    // but my sons don't care because there
    return;                    // was already someone listening to me
   for( auto el : v_Block )    // now someone is listening to all my sons
    el->anyone_there( true );
   }
  else {                       // nobody is listening to father now
-  if( !f_at )                 // it was already so
+  if( ! f_at )                // it was already so
    return;                    // nothing changes
   f_at = false;               // now I know it
   if( !v_Solver.empty() )     // but my sons don't care because there
@@ -323,6 +323,16 @@ void Block::anyone_there( bool isthere )
 
 void Block::add_Modification( sp_Mod mod , ChnlName chnl )
 {
+ // Modification should generally not even be issued if ! anyone_there(), but
+ // there is an exception: "abstract" Modification under the default eModBlck
+ // mode are still issued in order to keep the "abstract" representation in
+ // synch with the "phisical" one. this is supposed to happen in the
+ // :Block::add_Modification(), that then should call this method. without
+ // the following check this would result in the Modification being uslessly
+ // passed up to all the chain of ancestors of the Block, the check avoids it
+ if( ! anyone_there() )
+  return;
+
  if( ! chnl )                           // the default channel
   chnl = f_channel;                     // possibly silently hijack it
 

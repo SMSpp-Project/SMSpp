@@ -287,7 +287,7 @@ void LinearFunction::modify_coefficient( Index i , Coefficient coeff ,
  auto diff = coeff - v_pairs[ i ].second;
  v_pairs[ i ].second = coeff;
 
- if( ( !f_Observer ) || ( !f_Observer->issue_mod( issueMod ) ) )
+ if( ( ! f_Observer ) || ( ! f_Observer->issue_mod( issueMod ) ) )
   return; // no one is there: all done
 
  f_Observer->add_Modification( std::make_shared< C05FunctionModLinRngd >(
