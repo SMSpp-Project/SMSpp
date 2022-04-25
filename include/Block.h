@@ -2417,15 +2417,14 @@ class Block : public Observer {
   * true can override it and answer using the "physical representation" (or
   * maybe just answer a constant since the sense of the problem is fixed).
   * If there is no "abstract representation" of the Objective, the default
-  * implementation arbitrarily returns Objective::eMin, i.e.,
-  * minimization. The rationale is that a Block that only encodes for a
+  * implementation arbitrarily returns Objective::eUndef, i.e., "the Block
+  * does not care". The rationale is that a Block that only encodes for a
   * feasibility problem actually can have no Objective even if the
   * "abstract representation" is fully constructed, but then this means that
   * the Objective is constantly 0 across all feasible solutions and therefore
   * in principle the sense does not matter (although this changes if an
   * unfeasible solution should be associated with a value +Infinity or
-  * -Infinity). Besides, minimization problems are somewhat more common than
-  * maximization ones in practice. */
+  * -Infinity). */
 
  virtual int get_objective_sense( void ) const;
 
@@ -5233,24 +5232,16 @@ class Block : public Observer {
 
 /*--------------------------------------------------------------------------*/
 
- ChnlName open_channel( GroupModification * gmpmod = nullptr ) override;
+ ChnlName open_channel( ChnlName chnl = 0 ,
+			GroupModification * gmpmod = nullptr ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
- void nest_channel( ChnlName chnl , GroupModification * gmpmod = nullptr )
- override;
+ void close_channel( ChnlName chnl , bool force = false ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
- void un_nest_channel( ChnlName chnl ) override;
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-
- void close_channel( ChnlName chnl ) override;
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-
- void set_default_channel( ChnlName chnl = 0 ) override;
+ void set_default_channel( ChnlName chnl = 0 ) override { f_channel = chnl; }
 
 /** @} ---------------------------------------------------------------------*/
 /*---------------------- Methods for handling Solver -----------------------*/
@@ -7435,7 +7426,7 @@ class BlockMod : public AModification
 
 /*--------------------------------------------------------------------------*/
 
-};  // end( class( BlockMod ) )
+ };  // end( class( BlockMod ) )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS BlockModAD ------------------------------*/
@@ -7482,7 +7473,7 @@ class BlockModAD : public AModification
  /// returns true if < something > is added, false if it is removed
  /** Returns true if < something > is added, false if it is removed. The
   * method is pure virtual and it is actually implemented by derived classes.
- */
+  */
 
  virtual bool is_added( void ) const = 0;
 
@@ -7520,7 +7511,7 @@ class BlockModAD : public AModification
   *        Constraint will be stored. */
 
  virtual void get_elements( std::vector< Constraint * > & constraints )
- const = 0;
+  const = 0;
 
 /*--------------------------------------------------------------------------*/
 
@@ -7606,7 +7597,7 @@ class BlockModAdd : public BlockModAD
 
 /*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
- Block * get_Block( void ) const override final {
+ Block * get_Block( void ) const override {
   return( add_vec[ 0 ]->get_Block() );
   }
 
@@ -7625,27 +7616,27 @@ class BlockModAdd : public BlockModAD
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to the "name" that the first added stuff got
 
- Block::Index first( void ) { return( f_first ); }
+ Block::Index first( void ) const { return( f_first ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- bool is_variable( void ) const override final {
+ bool is_variable( void ) const override {
   return( std::is_base_of< Variable, ConstOrVar >::value );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- bool is_added( void ) const override final { return( true ); }
+ bool is_added( void ) const override { return( true ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  void get_elements( std::vector< Variable * > & variables )
- const override { get_elements_( variables ); }
+  const override { get_elements_( variables ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  void get_elements( std::vector< Constraint * > & constraints )
- const override { get_elements_( constraints ); }
+  const override { get_elements_( constraints ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -7698,7 +7689,7 @@ class BlockModAdd : public BlockModAD
 
 /*--------------------------------------------------------------------------*/
 
-};  // end( class( BlockModAdd ) )
+ };  // end( class( BlockModAdd ) )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS BlockModRmv -----------------------------*/
@@ -7785,7 +7776,7 @@ class BlockModRmv : public BlockModAD {
 
 /*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
 
- Block * get_Block() const override final {
+ Block * get_Block() const override {
   return( f_rmvd.front().get_Block() );
   }
 
@@ -7801,23 +7792,23 @@ class BlockModRmv : public BlockModAD {
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- bool is_variable( void ) const override final {
+ bool is_variable( void ) const override {
   return( std::is_base_of< Variable , ConstOrVar >::value );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- bool is_added( void ) const override final { return( false ); }
+ bool is_added( void ) const override { return( false ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  void get_elements( std::vector< Variable * > & variables )
- const override { get_elements_( variables ); }
+  const override { get_elements_( variables ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
  void get_elements( std::vector< Constraint * > & constraints )
- const override { get_elements_( constraints ); }
+  const override { get_elements_( constraints ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -7866,7 +7857,8 @@ class BlockModRmv : public BlockModAD {
  * basically only extends BlockModRmv with a Range field. */
 
 template< class ConstOrVar >
-class BlockModRmvRngd : public BlockModRmv< ConstOrVar > {
+class BlockModRmvRngd : public BlockModRmv< ConstOrVar >
+{
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
  public:
@@ -7904,17 +7896,17 @@ class BlockModRmvRngd : public BlockModRmv< ConstOrVar > {
   * other information that the Modification contains, and therefore is not
   * needed. */
 
- BlockModRmvRngd( std::list< ConstOrVar > & whc,
-                  std::list< ConstOrVar > && rmvd, Block::Range range,
+ BlockModRmvRngd( std::list< ConstOrVar > & whc ,
+                  std::list< ConstOrVar > && rmvd , Block::Range range ,
                   bool cB = false )
-  : BlockModRmv< ConstOrVar >( whc, std::move( rmvd ), cB ),
+  : BlockModRmv< ConstOrVar >( whc , std::move( rmvd ) , cB ) ,
     f_range( range ) {
   // why on earth one needs "this->" to reference the fields of the base
   // class is totally obscure to me
   if( f_range.second - f_range.first != this->f_rmvd.size() )
-   throw ( std::invalid_argument(
-    "BlockModRmvRngd: incompatible range and rmvd" ) );
- }
+   throw( std::invalid_argument(
+                          "BlockModRmvRngd: incompatible range and rmvd" ) );
+   }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
  /// destructor, *apparently* doing nothing
@@ -7924,7 +7916,7 @@ class BlockModRmvRngd : public BlockModRmv< ConstOrVar > {
 /*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
  /// accessor to the range
 
- Block::c_Range & range() { return ( f_range ); }
+ Block::c_Range & range( void ) const { return( f_range ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -7949,7 +7941,7 @@ class BlockModRmvRngd : public BlockModRmv< ConstOrVar > {
   else
    output << f_range.first;
   output << " from list " << this->f_whc << std::endl;
- }
+  }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
@@ -7957,7 +7949,7 @@ class BlockModRmvRngd : public BlockModRmv< ConstOrVar > {
 
 /*--------------------------------------------------------------------------*/
 
-};  // end( class( BlockModRmvRngd ) )
+ };  // end( class( BlockModRmvRngd ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------ CLASS BlockModRmvSbst ---------------------------*/
@@ -7968,7 +7960,8 @@ class BlockModRmvRngd : public BlockModRmv< ConstOrVar > {
  * basically only extends BlockModRmv with a Subset field. */
 
 template< class ConstOrVar >
-class BlockModRmvSbst : public BlockModRmv< ConstOrVar > {
+class BlockModRmvSbst : public BlockModRmv< ConstOrVar >
+{
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
 
  public:
@@ -8010,17 +8003,17 @@ class BlockModRmvSbst : public BlockModRmv< ConstOrVar > {
   * other information that the Modification contains, and therefore is not
   * needed. */
 
- BlockModRmvSbst( std::list< ConstOrVar > & whc,
-                  std::list< ConstOrVar > && rmvd,
-                  Block::Subset && subset, bool cB = false )
-  : BlockModRmv< ConstOrVar >( whc, std::move( rmvd ), cB ),
+ BlockModRmvSbst( std::list< ConstOrVar > & whc ,
+                  std::list< ConstOrVar > && rmvd ,
+                  Block::Subset && subset , bool cB = false )
+  : BlockModRmv< ConstOrVar >( whc , std::move( rmvd ) , cB ) ,
     f_subset( subset ) {
   // why on earth one needs "this->" to reference the fields of the base
   // class is totally obscure to me
-  if( ( !f_subset.empty() ) && ( f_subset.size() != this->f_rmvd.size() ) )
-   throw ( std::invalid_argument(
-    "BlockModRmvSbst: incompatible subset and rmvd" ) );
- }
+  if( ( ! f_subset.empty() ) && ( f_subset.size() != this->f_rmvd.size() ) )
+   throw( std::invalid_argument(
+                         "BlockModRmvSbst: incompatible subset and rmvd" ) );
+   }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
  /// destructor, *apparently* doing nothing
@@ -8030,7 +8023,7 @@ class BlockModRmvSbst : public BlockModRmv< ConstOrVar > {
 /*-------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
  /// accessor to the range
 
- Block::c_Subset & subset() { return ( f_subset ); }
+ Block::c_Subset & subset( void ) const { return( f_subset ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -8053,7 +8046,7 @@ class BlockModRmvSbst : public BlockModRmv< ConstOrVar > {
   if( this->f_rmvd.size() > 1 )
    output << "s";
   output << " from list " << this->f_whc << std::endl;
- }
+  }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
@@ -8061,7 +8054,7 @@ class BlockModRmvSbst : public BlockModRmv< ConstOrVar > {
 
 /*--------------------------------------------------------------------------*/
 
-};  // end( class( BlockModRmvSbst ) )
+ };  // end( class( BlockModRmvSbst ) )
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- CLASS BlockConfig -----------------------------*/

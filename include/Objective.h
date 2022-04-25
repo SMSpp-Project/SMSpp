@@ -113,18 +113,21 @@ class Objective : public ThinComputeInterface , public ThinVarDepInterface
     @{ */
 
  /// define the possible type of optimization (min, max)
- /** Public enum for describing the two different "senses" that a
-  * (real-valued) Objective can have: minimization (lower values are better)
-  * and maximization (higher values are better). The catch is that this only
-  * works for Objective whose return value has a complete ordering, which is
-  * the case e.g. for the all-important real-valued ones but not for, say,
-  * multi-objective ones. Yet, single-objective real-valued optimization is
-  * so important as to make it worth to define this in the base Objective
-  * class. Also, Objective supports ways (see set_sense() and get_sense())
-  * to easily "extend" the set of supported senses. */
+ /** Public enum for describing the different "senses" that a (real-valued)
+  * Objective can have: eMin = minimization (lower values are better), and
+  * eMax = maximization (higher values are better). The catch is that this
+  * only works for Objective whose return value has a complete ordering,
+  * which is the case e.g. for the all-important real-valued ones but not
+  * for, say, multi-objective ones. Yet, single-objective real-valued
+  * optimization is so important as to make it worth to define this in the
+  * base Objective class. Also, Objective supports ways (see set_sense()
+  * and get_sense()) to easily "extend" the set of supported senses. Finally,
+  * the eUndef value is provided to indicate that the sense is not (yet)
+  * defined. */
  enum of_type {
-  eMin = 0 ,   ///< minimize the objective function
-  eMax = 1     ///< maximize the objective function
+  eMin   = -1 ,  ///< minimize the objective (real-valued function)
+  eUndef =  0 ,  ///< undefined 
+  eMax   =  1    ///< maximize the objective (real-valued function)
   };
 
 /** @} ---------------------------------------------------------------------*/
@@ -300,7 +303,7 @@ class Objective : public ThinComputeInterface , public ThinVarDepInterface
 /*--------------------------------------------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-};  // end( class( Objective ) )
+ };  // end( class( Objective ) )
 
 /*--------------------------------------------------------------------------*/
 /*------------------------- CLASS RealObjective ----------------------------*/
@@ -332,7 +335,7 @@ class RealObjective : public Objective
 /** @name Public Types
     @{ */
 
- typedef double OFValue;  ///< type of the returned value
+ using OFValue = double;  ///< type of the returned value
 
 /** @} ---------------------------------------------------------------------*/
 /*--------------------- CONSTRUCTOR AND DESTRUCTOR -------------------------*/

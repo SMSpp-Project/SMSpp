@@ -100,8 +100,12 @@ int BoxSolver::compute( bool changedvars )
   goto Return_state;  // all done
   }
 
- if( f_sense < 0 )  // have to compute/update the sense
+ if( f_sense < 0 )     // have to compute/update the sense
   check_sense( f_Block );
+
+ if( f_sense < 0 )     // the sense is (still) undefined
+  throw( std::invalid_argument(
+	                  "BoxSolver::compute: undefined Objective sense" ) );
 
  if( f_state != kUnEval )  // all compute()-d already
   goto Return_state;       // all done
@@ -671,8 +675,9 @@ void BoxSolver::add_Modification( sp_Mod & mod )
 
 void BoxSolver::check_sense( Block * blck )
 {
- if( auto obj = blck->get_objective() ) {
-  auto sense = obj->get_sense();
+ auto sense = blck->get_objective_sense();
+ if( sense != Objective::eUndef ) {
+  sense = ( sense == Objective::eMax ? 1 : 0 );
   if( f_sense < 0 )
    f_sense = sense;
   else
@@ -681,7 +686,7 @@ void BoxSolver::check_sense( Block * blck )
 		     "BoxSolver: Block with non-uniform Objective sense" ) );
   }
 
- for( auto b :  blck->get_nested_Blocks() )
+ for( auto b : blck->get_nested_Blocks() )
   check_sense( b );
  }
 

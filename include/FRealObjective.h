@@ -619,23 +619,13 @@ class FRealObjective : public RealObjective , public Observer {
 /*--------------------------------------------------------------------------*/
  /// just dispatch to open_channel() of the Block (if any)
 
- ChnlName open_channel( GroupModification * gmpmod = nullptr ) override;
-
-/*--------------------------------------------------------------------------*/
- /// just dispatch to nest_channel() of the Block (if any)
-
- void nest_channel( ChnlName chnl , GroupModification * gmpmod = nullptr )
-  override;
-
-/*--------------------------------------------------------------------------*/
- /// just dispatch to un_nest_channel() of the Block (if any)
-
- void un_nest_channel( ChnlName chnl ) override;
+ ChnlName open_channel( ChnlName chnl = 0 ,
+			GroupModification * gmpmod = nullptr ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
  /// just dispatch to close_channel() of the Block (if any)
 
- void close_channel( ChnlName chnl ) override;
+ void close_channel( ChnlName chnl , bool force = false  ) override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
  /// just dispatch to set_default_channel() of the Block (if any)

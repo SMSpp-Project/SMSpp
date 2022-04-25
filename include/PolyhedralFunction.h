@@ -1757,16 +1757,15 @@ class PolyhedralFunctionModAddd : public PolyhedralFunctionMod {
 
  /// print the PolyhedralFunctionModAddd
 
-  virtual inline void print( std::ostream &output ) const override
-  {
-   output << "PolyhedralFunctionModAddd[";
-   if( concerns_Block() )
-    output << "t";
-   else
-    output << "f";
-   output << "] on PolyhedralFunction [" << &f_function << " ]: added "
-	  << f_addedrows << " rows" << std::endl;
-   }
+ void print( std::ostream &output ) const override {
+  output << "PolyhedralFunctionModAddd[";
+  if( concerns_Block() )
+   output << "t";
+  else
+   output << "f";
+  output << "] on PolyhedralFunction [" << &f_function << " ]: added "
+	 << f_addedrows << " rows" << std::endl;
+  }
 
 /*--------------------- PROTECTED FIELDS OF THE CLASS ----------------------*/
 
@@ -1824,12 +1823,12 @@ class PolyhedralFunctionModRngd : public PolyhedralFunctionMod {
 
  /// accessor to the specific sub-type of PolyhedralFunctionMod
 
- int PFtype( void ) { return( f_PFtype ); }
+ int PFtype( void ) const { return( f_PFtype ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to the range of the affected rows
 
- c_Range & range( void ) { return( f_range ); }
+ c_Range & range( void ) const { return( f_range ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1839,8 +1838,7 @@ class PolyhedralFunctionModRngd : public PolyhedralFunctionMod {
 
  /// print the PolyhedralFunctionModRngd
 
- void print( std::ostream &output ) const override
- {
+ void print( std::ostream &output ) const override {
   output << "PolyhedralFunctionModRngd[";
   if( concerns_Block() )
    output << "t";
@@ -1914,12 +1912,12 @@ class PolyhedralFunctionModSbst : public PolyhedralFunctionMod {
 
  /// accessor to the specific sub-type of PolyhedralFunctionMod
 
- int PFtype( void ) { return( f_PFtype ); }
+ int PFtype( void ) const { return( f_PFtype ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to the subset of the modified rows
 
- c_Subset & rows( void ) { return( v_rows ); }
+ c_Subset & rows( void ) const { return( v_rows ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1929,8 +1927,7 @@ class PolyhedralFunctionModSbst : public PolyhedralFunctionMod {
 
  /// print the PolyhedralFunctionModSbst
 
- void print( std::ostream &output ) const override
- {
+ void print( std::ostream &output ) const override {
   output << "PolyhedralFunctionModRng[";
   if( concerns_Block() )
    output << "t";

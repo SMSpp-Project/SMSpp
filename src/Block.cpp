@@ -278,7 +278,7 @@ Block * Block::deserialize( std::istream & input , Block * father )
 
 int Block::get_objective_sense( void ) const
 {
- return( f_Objective ? f_Objective->get_sense() : Objective::eMin );
+ return( f_Objective ? f_Objective->get_sense() : Objective::eUndef );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -336,7 +336,6 @@ void Block::add_Modification( sp_Mod mod , ChnlName chnl )
  if( ! chnl )                           // the default channel
   chnl = f_channel;                     // possibly silently hijack it
 
- 
  if( chnl ) {                           // a channel is specified
   if( ! v_GroupMod.empty() ) {
    // check if it is one of the "local channels"
@@ -357,45 +356,36 @@ void Block::add_Modification( sp_Mod mod , ChnlName chnl )
    throw( std::invalid_argument( "wrong channel name" ) );
   }
 
- if( f_Block )                          // if there is a father
+ if( f_Block )                                // if there is a father
   f_Block->add_Modification( mod , chnl );    // pass it above (on chnl)
 
- for( Solver * slv : v_Solver )         // if there is any Solver
-  slv->add_Modification( mod );         // also pass it to them
+ for( Solver * slv : v_Solver )               // if there is any Solver
+  slv->add_Modification( mod );               // also pass it to them
 
  }  // end( Block::add_Modification )
 
 /*--------------------------------------------------------------------------*/
 
-Observer::ChnlName Block::open_channel( GroupModification * gmpmod )
+Observer::ChnlName Block::open_channel( ChnlName chnl ,
+					GroupModification * gmpmod )
 {
- // if a GroupModification is not provided, create one
- if( ! gmpmod )
-  gmpmod = new GroupModification;
+ if( ! gmpmod )                    // if a GroupModification is not provided
+  gmpmod = new GroupModification;  // create one
 
- ChnlName chnl = Observer::new_channel_name();
- v_GroupMod.push_back( std::pair( chnl , gmpmod ) );
+ if( ! chnl ) {  // opening a new channel
+  chnl = Observer::new_channel_name();
+  v_GroupMod.push_back( std::pair( chnl , gmpmod ) );
+  return( chnl );
+  }
 
- return( chnl );
-
- }  // end( Block::open_channel )
-
-/*--------------------------------------------------------------------------*/
-
-void Block::nest_channel( ChnlName chnl , GroupModification * gmpmod )
-{
- // if a GroupModification is not provided, create one
- if( ! gmpmod )
-  gmpmod = new GroupModification;
-
- if( ! v_GroupMod.empty() ) {
-  // check if it is one of the "local channels"
+ // nesting into an existing channel
+ if( ! v_GroupMod.empty() ) {      // if there are "local channels"
   auto GMit = std::find_if( v_GroupMod.begin() , v_GroupMod.end() ,
-			    [ chnl ] ( auto & a ) -> bool {
+			    [ chnl ]( auto & a ) -> bool {
 			     return( a.first == chnl );
 			     } );
 
-  if( GMit != v_GroupMod.end() ) {  // if so
+  if( GMit != v_GroupMod.end() ) {  // if it's one of them
    // set the father of the GroupModification to the current channel
    gmpmod->set_father( GMit->second );
 
@@ -405,109 +395,83 @@ void Block::nest_channel( ChnlName chnl , GroupModification * gmpmod )
    // the current channel becomes the new GroupModification
    GMit->second = gmpmod;
 
-   return;
+   return( chnl );
    }
   }
 
  // it is an error if it is not a "local" channel and there is no father,
  // since it cannot be a channel of the father (any ancestor) too
  if( ! f_Block )
-  throw( std::invalid_argument( "wrong channel name" ) );
+  throw( std::invalid_argument( "open_channel: " + std::to_string( chnl ) +
+				" not found" ) );
 
- // pass the message up to the father
- f_Block->nest_channel( chnl , gmpmod );
+ f_Block->open_channel( chnl , gmpmod );  // try to find it in the father
 
- }  // end( Block::nest_channel )
+ return( chnl );  // unless exception is thrown, it has been found
 
-/*--------------------------------------------------------------------------*/
-
-void Block::un_nest_channel( ChnlName chnl )
-{
- if( ! chnl )
-  throw( std::invalid_argument( "cannot un-nest default channel" ) );
-
- if( ! v_GroupMod.empty() ) {
-  // check if it is one of the "local channels"
-  auto GMit = std::find_if( v_GroupMod.begin() , v_GroupMod.end() ,
-			    [ chnl ] ( auto & a ) -> bool {
-			     return( a.first == chnl );
-			     } );
-
-  if( GMit != v_GroupMod.end() ) {  // if so
-   // the father of the current GroupModification
-   auto father = GMit->second->father();
-   if( ! father )
-    throw( std::invalid_argument( "channel is at root level" ) );
-
-   // if concerns_Block() of the current GroupModification is true, ensure
-   // that the concerns_Block() of father is also true
-   if( GMit->second->concerns_Block() )
-    father->concerns_Block( true );
-
-   // move back the channel to being the father
-   GMit->second = father;
-
-   return;
-   }
-  }
-
- // it is an error if it is not a "local" channel and there is no father,
- // since it cannot be a channel of the father (any ancestor) too
- if( ! f_Block )
-  throw( std::invalid_argument( "wrong channel name" ) );
-
- // pass the message up to the father
- f_Block->un_nest_channel( chnl );
-
- }  // end( Block::un_nest_channel )
+ }  // end( Block::open_channel )
 
 /*--------------------------------------------------------------------------*/
 
-void Block::close_channel( ChnlName chnl )
+void Block::close_channel( ChnlName chnl , bool force )
 {
  if( ! chnl )
   throw( std::invalid_argument( "cannot close default channel" ) );
 
- if( ! v_GroupMod.empty() ) {
-  // check if it is one of the "local channels"
+ if( ! v_GroupMod.empty() ) {  // if there are "local channels"
   auto GMit = std::find_if( v_GroupMod.begin() , v_GroupMod.end() ,
 			    [ chnl ] ( auto & a ) -> bool {
 			     return( a.first == chnl );
 			     } );
 
-  if( GMit != v_GroupMod.end() ) {  // if so
-   // finally pass the GroupModification to the Block
-   Block::add_Modification( std::shared_ptr< GroupModification >(
-							     GMit->second ) );
-   if( chnl == f_channel )  // if it was the default channel
-    f_channel = 0;          // reset it
+  if( GMit != v_GroupMod.end() ) {  // if chnl is one of them
 
-   // give back the channel name
-   Observer::release_channel_name( chnl );
+   auto father = GMit->second->father();
+   if( ( ! father ) || force ) {
+    // if either the channel is in "root mode", or closure is forced
+    if( chnl == f_channel )  // if it was the default channel
+     f_channel = 0;          // reset it
 
-   // delete the local channel
-   v_GroupMod.erase( GMit );
+    // if concerns_Block() of the current GroupModification is true, ensure
+    // that the concerns_Block() of is also true up until the top
+    if( GMit->second->concerns_Block() )
+     while( father ) {
+      father->concerns_Block( true );
+      father = father->father();
+      }
+
+    // finally pass the GroupModification to the Block, on the (possibly
+    // freshly reset) default channel
+    Block::add_Modification( std::shared_ptr< GroupModification
+			                      >( GMit->second ) );
+    Observer::release_channel_name( chnl );  // give back the channel name
+    v_GroupMod.erase( GMit );                // delete the local channel
+    }
+   else {
+    // the channel is not in "root mode" and closure is not forced, just
+    // un-nest the GroupModification by one level
+    // if concerns_Block() of the current GroupModification is true, ensure
+    // that the concerns_Block() of father is also true
+    if( GMit->second->concerns_Block() )
+     father->concerns_Block( true );
+
+    GMit->second = father; // move back the channel to being the father
+    }
 
    return;
    }
   }
 
  // it is an error if it is not a "local" channel and there is no father,
- // since it cannot be a channel of the father (any ancestor) too
+ // since it cannot be a channel of the father (any ancestor), too
  if( ! f_Block )
-  throw( std::invalid_argument( "wrong channel name" ) );
+  throw( std::invalid_argument( "close_channel: " + std::to_string( chnl ) +
+				" not found" ) );
 
  // pass the message up to the father
- f_Block->close_channel( chnl );
+ f_Block->close_channel( chnl , force );
 
  }  // end( Block::close_channel )
-
-/*--------------------------------------------------------------------------*/
-
-void Block::set_default_channel( ChnlName chnl )
-{
- f_channel = chnl;
- }
 
 /*--------------------------------------------------------------------------*/
 /*------------ METHODS FOR LOADING, PRINTING & SAVING THE Block ------------*/

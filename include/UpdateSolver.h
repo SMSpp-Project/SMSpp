@@ -124,9 +124,9 @@ public:
 	       ModParam issuePMod = eNoBlck , ModParam issueAMod = eModBlck )
   : Solver() , f_R3B( R3B ) , f_R3C( r3bc ) , f_options( options ) ,
     f_iPM( issuePMod ) , f_iAM( issueAMod ) {
-   if( ! f_R3B )
-    throw( std::invalid_argument( "UpdateSolver::UpdateSolver: null R3B" ) );
-    }
+  if( ! f_R3B )
+   throw( std::invalid_argument( "UpdateSolver::UpdateSolver: null R3B" ) );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// destructor: it really does nothing since v_mod is empty
@@ -139,9 +139,9 @@ public:
 /** @name Other initializations
  *  @{ */
 
- void set_R3B( Block *R3B ) { f_R3B = R3B; }
+ void set_R3B( Block * R3B ) { f_R3B = R3B; }
 
- void set_R3C( Configuration *r3bc = nullptr ) { f_R3C = r3bc; }
+ void set_R3C( Configuration * r3bc = nullptr ) { f_R3C = r3bc; }
 
  void set_options( int options = 0 ) { f_options = options; }
 

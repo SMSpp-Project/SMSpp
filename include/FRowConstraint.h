@@ -651,33 +651,17 @@ class FRowConstraint : public RowConstraint, public Observer {
 /*--------------------------------------------------------------------------*/
  /// just dispatch to open_channel() of the Block (if any)
 
- ChnlName open_channel( GroupModification * gmpmod = nullptr ) override {
-  return( f_Block ? f_Block->open_channel( gmpmod ) : 0 );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// just dispatch to nest_channel() of the Block (if any)
-
- void nest_channel( ChnlName chnl , GroupModification * gmpmod = nullptr )
- override {
-  if( f_Block )
-   f_Block->nest_channel( chnl , gmpmod );
-  }
-
-/*--------------------------------------------------------------------------*/
- /// just dispatch to un_nest_channel() of the Block (if any)
-
- void un_nest_channel( ChnlName chnl ) override {
-  if( f_Block )
-   f_Block->un_nest_channel( chnl );
+ ChnlName open_channel( ChnlName chnl = 0 ,
+			GroupModification * gmpmod = nullptr ) override {
+  return( f_Block ? f_Block->open_channel( chnl , gmpmod ) : 0 );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
  /// just dispatch to close_channel() of the Block (if any)
 
- void close_channel( ChnlName chnl ) override {
+ void close_channel( ChnlName chnl , bool force = false ) override {
   if( f_Block )
-   f_Block->close_channel( chnl );
+   f_Block->close_channel( chnl , force );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
@@ -720,7 +704,7 @@ class FRowConstraint : public RowConstraint, public Observer {
 
 /*--------------------------------------------------------------------------*/
 
-};  // end( class( FRowConstraint ) )
+ };  // end( class( FRowConstraint ) )
 
 /*--------------------------------------------------------------------------*/
 /*---------------------- CLASS FRowConstraintMod ---------------------------*/
@@ -755,14 +739,14 @@ class FRowConstraintMod : public RowConstraintMod {
   ///< first allowed parameter value for derived classes
   /**< Convenience value for easily allow derived classes to extend the set
    * of types of Modification. */
- };
+  };
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
  /// constructor: just calls that of RowConstraintMod
 
  explicit FRowConstraintMod( FRowConstraint * cnst ,
 			     int mod = eFunctionChanged ,
-                             const bool cB = true )
+			     bool cB = true )
   : RowConstraintMod( cnst , mod , cB ) {}
 
  /*------------------------------ DESTRUCTOR --------------------------------*/
@@ -776,7 +760,7 @@ class FRowConstraintMod : public RowConstraintMod {
 /*-------------------------- PROTECTED METHODS -----------------------------*/
  /// print the FRowConstraintMod
 
- inline void print( std::ostream & output ) const override {
+ void print( std::ostream & output ) const override {
   output << "FRowConstraintMod[";
   if( concerns_Block() )
    output << "t";
@@ -788,7 +772,7 @@ class FRowConstraintMod : public RowConstraintMod {
 
 /*--------------------------------------------------------------------------*/
 
-};  // end( class( FRowConstraintMod ) )
+ };  // end( class( FRowConstraintMod ) )
 
 /*--------------------------------------------------------------------------*/
 

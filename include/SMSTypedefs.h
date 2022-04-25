@@ -456,13 +456,35 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
  * 4) the actual implementation of virtual ClassType::private_name(), itself
  *    using ClassType::_private_name().
  *
- * The approach can be applied to any class that:
+ * The approach can be applied to any class deriving from a base class that
+ * has the following (possibly, pure virtual) methods (that should be visible
+ * to each of its derived classes, and therefore typically protected):
  *
- * - has one and only one "f_factory" field, typically defined in the base
- *   class and visible to each of its derived classes;
+ * - private_name(), defined e.g. as
+ *   
+ *      virtual const std::string & private_name( void ) const = 0;
  *
- * - has one static_initialization() method (that can be defined in the base
- *   class and does nothing if it is not needed).
+ * - f_factory(), defined e.g. as
+ *
+ *      static XXXFactoryMap & f_factory( void );
+ *
+ *   where
+ *
+ *       using XXXFactory = boost::function< XXX *( XXX * ) >;
+ *       using XXXFactoryMap = std::map< std::string , XXXFactory >;
+ *
+ *    and XXX is the base class
+ *
+ * - static_initialization(), defined e.g. as
+ *
+ *       static void static_initialization( void ) {}
+ *
+ *   (note that this need not be virtual because it will be called with the
+ *   explicit classname::static_initialization() format and classname being
+ *   that of the derived class, which requires care if XXX or some derived
+ *   class from which classname firther derives does something, as then the
+ *   parent class static_initialization() will have to be explicitly called
+ *   in the derived one)
  *
  * The \p ClassName parameter of the macros must be the type of a class
  * satisfying the above constraints, possibly enclosed in any number of

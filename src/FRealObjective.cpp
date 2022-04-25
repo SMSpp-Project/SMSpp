@@ -195,36 +195,19 @@ void FRealObjective::add_Modification( sp_Mod mod , c_ChnlName chnl ) {
 /*--------------------------------------------------------------------------*/
 /// just dispatch to open_channel() of the Block (if any)
 
-Observer::ChnlName FRealObjective::open_channel( GroupModification * gmpmod ) {
- return( f_Block ? f_Block->open_channel( gmpmod ) : 0 );
- }
-
-/*--------------------------------------------------------------------------*/
-/// just dispatch to nest_channel() of the Block (if any)
-
-void FRealObjective::nest_channel( ChnlName chnl ,
-				   GroupModification * gmpmod )
+Observer::ChnlName FRealObjective::open_channel( ChnlName chnl ,
+						 GroupModification * gmpmod )
 {
- if( f_Block )
-  f_Block->nest_channel( chnl , gmpmod );
- }
-
-/*--------------------------------------------------------------------------*/
-/// just dispatch to un_nest_channel() of the Block (if any)
-
-void FRealObjective::un_nest_channel( ChnlName chnl )
-{
- if( f_Block )
-  f_Block->un_nest_channel( chnl );
+ return( f_Block ? f_Block->open_channel( chnl , gmpmod ) : 0 );
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 /// just dispatch to close_channel() of the Block (if any)
 
-void FRealObjective::close_channel( ChnlName chnl )
+void FRealObjective::close_channel( ChnlName chnl , bool force )
 {
  if( f_Block )
-  f_Block->close_channel( chnl );
+  f_Block->close_channel( chnl , force );
  }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
