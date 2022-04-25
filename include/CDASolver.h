@@ -35,7 +35,7 @@
 /*--------------------------- NAMESPACE ------------------------------------*/
 /*--------------------------------------------------------------------------*/
 
-///< namespace for the Structured Modeling System++ (SMS++)
+/// namespace for the Structured Modeling System++ (SMS++)
 namespace SMSpp_di_unipi_it {
 
 /*--------------------------------------------------------------------------*/
@@ -391,8 +391,8 @@ class CDASolver : public Solver {
  [[nodiscard]] virtual bool has_dual_solution( void ) { return( true ); }
 
 /*--------------------------------------------------------------------------*/
- ///< returns true if the "current" dual solution is feasible
- /**< After a call to has_dual_solution() and/or new_dual_solution() that
+ /// returns true if the "current" dual solution is feasible
+ /** After a call to has_dual_solution() and/or new_dual_solution() that
   * returned true, this method can be used to check whether or not the dual
   * solution is feasible. Note that this can be called before that the
   * solution is actually written into the Block (in whatever format the
@@ -491,7 +491,7 @@ class CDASolver : public Solver {
  virtual void get_dual_solution( Configuration * solc = nullptr ) = 0;
 
 /*--------------------------------------------------------------------------*/
- ///< returns true if it is possible to generate a new dual solution
+ /// returns true if it is possible to generate a new dual solution
  /** This method must be called each time the user of the Solver wants that
   * it produces a *new dual* solution.
   *
@@ -685,7 +685,7 @@ class CDASolver : public Solver {
 
 /*--------------------------------------------------------------------------*/
  /// returns true if is possible to generate a new dual unbounded direction
- /**< This method must be called each time the user of the CDASolver wants
+ /** This method must be called each time the user of the CDASolver wants
   * that it produces a *new* dual unbounded direction.
   *
   * This method can only be called after the compute() method of this Solver
