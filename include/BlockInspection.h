@@ -100,7 +100,7 @@ namespace SMSpp_di_unipi_it::inspection
 
 /*--------------------------------------------------------------------------*/
 
- template< class S , class T , unsigned long K >
+ template< class S , class T , std::size_t K >
  static Index get_dynamic_index_
  ( const S * s , const boost::multi_array< std::list<T> , K > & var ) {
   auto p = var.data();
@@ -140,7 +140,7 @@ namespace SMSpp_di_unipi_it::inspection
 
 /*--------------------------------------------------------------------------*/
 
- template< typename T , unsigned long K >
+ template< typename T , std::size_t K >
  static T * get_static_element_( const boost::multi_array<T , K> & array ,
                                  Index index ) {
   if( index >= array.num_elements() )
@@ -163,7 +163,7 @@ namespace SMSpp_di_unipi_it::inspection
 
 /*--------------------------------------------------------------------------*/
 
- template< typename T , unsigned long K >
+ template< typename T , std::size_t K >
  static T * get_dynamic_element_
  ( const boost::multi_array< std::list<T> , K > & multi_array , Index index ) {
   Index past_size = 0;

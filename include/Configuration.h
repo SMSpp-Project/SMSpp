@@ -107,7 +107,7 @@ class Configuration
   * hence it is to be called as
   *
   *     Configuration * myConfiguration =
-  *                             Configuration::new_Configuration( someclass );
+  *                            Configuration::new_Configuration( some_class );
   *
   * i.e., without any reference to any specific Configuration (and, therefore,
   * it can be used to construct the very first Configuration if needed).

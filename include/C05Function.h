@@ -942,7 +942,7 @@ class C05Function : public Function {
 				       LinearCombination && coefficients ) {}
 
 /*--------------------------------------------------------------------------*/
- /// return (the combination used to form) "the important linearization"
+ /// return(the combination used to form) "the important linearization"
  /** This method has to return the combination that can be used to form "the
   * important linearization", as set by set_important_linearization(). It has
   * a default "empty" implementation returning the pair < 0 , 1 > because for
@@ -1643,13 +1643,13 @@ class C05FunctionMod : public FunctionMod {
 
  /// accessor to the type of modification
 
- [[nodiscard]] int type() const { return ( f_type ); }
+ [[nodiscard]] int type() const { return( f_type ); }
 
  /// accessor to the names of the linearizations that have been affected
  /** Returns the names of the linearizations that have been affected (added,
   * removed, changed). */
 
- [[nodiscard]] c_Subset which() const { return ( v_which ); }
+ [[nodiscard]] c_Subset which() const { return( v_which ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1845,12 +1845,12 @@ class C05FunctionModRngd : public C05FunctionMod {
 
  /// accessor to the vector of pointers to affected Variable
 
- [[nodiscard]] c_Vec_p_Var & vars() const { return ( v_vars ); }
+ [[nodiscard]] c_Vec_p_Var & vars() const { return( v_vars ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to the range of the deleted Variable
 
- [[nodiscard]] c_Range & range() const { return ( f_range ); }
+ [[nodiscard]] c_Range & range() const { return( f_range ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1977,12 +1977,12 @@ class C05FunctionModSbst : public C05FunctionMod {
 
  /// accessor to the vector of pointers to affected Variable
 
- [[nodiscard]] c_Vec_p_Var & vars() const { return ( v_vars ); }
+ [[nodiscard]] c_Vec_p_Var & vars() const { return( v_vars ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to vector of indices of affected Variable
 
- [[nodiscard]] c_Subset & subset() const { return ( v_subset ); }
+ [[nodiscard]] c_Subset & subset() const { return( v_subset ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -2699,7 +2699,7 @@ class C05FunctionModLinRngd : public C05FunctionModLin {
 
  /// accessor to the range of the deleted Variable
 
- [[nodiscard]] c_Range & range() const { return ( f_range ); }
+ [[nodiscard]] c_Range & range() const { return( f_range ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -2778,7 +2778,7 @@ class C05FunctionModLinSbst : public C05FunctionModLin {
     tmp[ i ] = IdxVar( v_subset[ i ], v_vars[ i ], v_delta[ i ] );
    std::sort( tmp.begin(), tmp.end(),
               []( auto & a, auto & b ) {
-               return ( std::get< 0 >( a ) < std::get< 0 >( b ) );
+               return( std::get< 0 >( a ) < std::get< 0 >( b ) );
               }
    );
    for( Index i = 0; i < v_vars.size(); ++i ) {
@@ -2802,7 +2802,7 @@ class C05FunctionModLinSbst : public C05FunctionModLin {
 
  /// accessor to the subset of the affected Variable
 
- [[nodiscard]] c_Subset & subset() const { return ( v_subset ); }
+ [[nodiscard]] c_Subset & subset() const { return( v_subset ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 

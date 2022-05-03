@@ -140,7 +140,7 @@ class LinearFunction : public C15Function
     return( itr_ == tmp->itr_ );
    #else
     auto tmp = dynamic_cast< const LinearFunction::v_iterator * >( &rhs );
-    return ( tmp ? itr_ == tmp->itr_ : false );
+    return( tmp ? itr_ == tmp->itr_ : false );
    #endif
    }
 
@@ -151,7 +151,7 @@ class LinearFunction : public C15Function
     return( itr_ != tmp->itr_ );
    #else
     auto tmp = dynamic_cast<const LinearFunction::v_iterator *>( &rhs );
-    return ( tmp ? itr_ != tmp->itr_ : true );
+    return( tmp ? itr_ != tmp->itr_ : true );
    #endif
    }
 
@@ -191,7 +191,7 @@ class LinearFunction : public C15Function
     return( itr_ == tmp->itr_ );
    #else
     auto tmp = dynamic_cast<const LinearFunction::v_const_iterator *>( &rhs );
-    return ( tmp ? itr_ == tmp->itr_ : false );
+    return( tmp ? itr_ == tmp->itr_ : false );
    #endif
    }
 
@@ -202,7 +202,7 @@ class LinearFunction : public C15Function
     return( itr_ != tmp->itr_ );
    #else
     auto tmp = dynamic_cast<const LinearFunction::v_const_iterator *>( &rhs );
-    return ( tmp ? itr_ != tmp->itr_ : true );
+    return( tmp ? itr_ != tmp->itr_ : true );
    #endif
    }
 

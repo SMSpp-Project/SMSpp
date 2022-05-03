@@ -947,7 +947,7 @@ class FunctionMod : public AModification {
  *   equal to the value that would have been returned prior to the
  *   Modification. */
 
- [[nodiscard]] FunctionValue shift( void ) const { return ( f_shift ); }
+ [[nodiscard]] FunctionValue shift( void ) const { return( f_shift ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 

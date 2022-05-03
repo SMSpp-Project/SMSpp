@@ -799,7 +799,7 @@ class Block : public Observer {
   * Note that the method is static because the factory is static, hence it is
   * to be called as
   *
-  *       Block * myBlock = Block::new_Block( someclass );
+  *       Block * myBlock = Block::new_Block( some_class );
   *
   * i.e., without any reference to any specific Block (and, therefore, it can
   * be used to construct the very first Block if needed).
@@ -1411,7 +1411,7 @@ class Block : public Observer {
   * lock()d the Block not to release the lock while any of the involved
   * [sub-]Solver need to keep it. */
 
- bool is_owned_by( const void * owner ) { return ( f_owner == owner ); }
+ bool is_owned_by( const void * owner ) { return( f_owner == owner ); }
 
 /*--------------------------------------------------------------------------*/
  /// tries to lock the Block, return true on success
@@ -4319,7 +4319,7 @@ class Block : public Observer {
 
  virtual bool is_unbounded( bool useabstract = false,
                             Configuration * fsbc = nullptr ) {
-  return ( true );
+  return( true );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -6629,7 +6629,7 @@ class Block : public Observer {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// boost::multi_array<K> of (...) Constraint
 
- template< class Const , unsigned long K >
+ template< class Const , std::size_t K >
  void add_static_constraint( boost::multi_array< Const, K > & newc ,
                              std::string && name = "" , bool front = false ) {
   static_assert( std::is_base_of< Constraint, Const >::value ,
@@ -6653,7 +6653,7 @@ class Block : public Observer {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// boost::multi_array<K> of (...) Constraint
 
- template< class Const , unsigned long K >
+ template< class Const , std::size_t K >
  void set_static_constraint( Index i , boost::multi_array< Const, K > & newc ,
                              std::string && name = "" ) {
   static_assert( std::is_base_of< Constraint, Const >::value ,
@@ -6770,7 +6770,7 @@ class Block : public Observer {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// boost::multi_array<K> of (...) Variable
 
- template< class Var , unsigned long K >
+ template< class Var , std::size_t K >
  void add_static_variable( boost::multi_array< Var , K > & newv ,
                            std::string && name = "" , bool front = false ) {
   static_assert( std::is_base_of< Variable, Var >::value ,
@@ -6794,7 +6794,7 @@ class Block : public Observer {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// boost::multi_array<K> of (...) Variable
 
- template< class Var , unsigned long K >
+ template< class Var , std::size_t K >
  void set_static_variable( Index i , boost::multi_array< Var , K > & newv ,
                            std::string && name = "" ) {
   static_assert( std::is_base_of< Variable, Var >::value ,
@@ -6921,7 +6921,7 @@ class Block : public Observer {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// boost::multi_array<K> of std::list of (...) Constraint
 
- template< class Const , unsigned long K >
+ template< class Const , std::size_t K >
  void add_dynamic_constraint(
   boost::multi_array< std::list< Const > , K > & newc,
   std::string && name = "" , bool front = false ) {
@@ -6948,7 +6948,7 @@ class Block : public Observer {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// boost::multi_array<K> of std::list of (...) Constraint
 
- template< class Const , unsigned long K >
+ template< class Const , std::size_t K >
  void set_dynamic_constraint( Index i ,
                        boost::multi_array< std::list< Const > , K > & newc ,
                               std::string && name = "" ) {
@@ -7076,7 +7076,7 @@ class Block : public Observer {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// boost::multi_array<K> of std::list of (...) Variable
 
- template< class Var, unsigned long K > void add_dynamic_variable(
+ template< class Var, std::size_t K > void add_dynamic_variable(
                           boost::multi_array< std::list< Var >, K > & newv ,
 			  std::string && name = "" , bool front = false ) {
   static_assert( std::is_base_of< Variable, Var >::value,
@@ -7102,7 +7102,7 @@ class Block : public Observer {
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// boost::multi_array<K> of std::list of (...) Variable
 
- template< class Var, unsigned long K > void set_dynamic_variable( Index i ,
+ template< class Var, std::size_t K > void set_dynamic_variable( Index i ,
                           boost::multi_array< std::list< Var > , K > & newv ,
                           std::string && name = "" ) {
   static_assert( std::is_base_of< Variable, Var >::value,

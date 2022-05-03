@@ -42,7 +42,7 @@ int LinearFunction::compute( bool changedvars ) {
    f_value += el.first->get_value() * el.second;
  }
 
- return ( kOK );
+ return( kOK );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -52,7 +52,7 @@ Function::FunctionValue LinearFunction::get_Lipschitz_constant() {
  for( const auto el : v_pairs )
   L += el.second * el.second;
 
- return ( sqrt( double( L ) ) );
+ return( sqrt( double( L ) ) );
 }
 
 /*--------------------------------------------------------------------------*/

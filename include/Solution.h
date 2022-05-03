@@ -140,7 +140,7 @@ class Solution {
   * inside). Note that the method is static because the factory is static,
   * hence it is to be called as
   *
-  *   Solution *mySolution = Solution::new_Solution( someclass );
+  *   Solution *mySolution = Solution::new_Solution( some_class );
   *
   * i.e., without any reference to any specific Solution (and, therefore, it
   * can be used to construct the very first Solution if needed).

@@ -784,7 +784,7 @@ class CDASolver : public Solver {
    return( std::numeric_limits< double >::infinity() );
 
   if( par == dblFAccDSol )
-   return ( 0 );
+   return( 0 );
 
   return( Solver::get_dflt_dbl_par( par ) );
   }

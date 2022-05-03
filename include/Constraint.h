@@ -242,7 +242,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
  friend std::ostream & operator<<( std::ostream & out ,
 				   const Constraint & c ) {
   c.print( out );
-  return ( out );
+  return( out );
   }
 
 /** @} ---------------------------------------------------------------------*/

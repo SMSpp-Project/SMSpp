@@ -2452,7 +2452,7 @@ class State {
   * the method is static because the factory is static, hence it is to be 
   * called as
   *
-  *   State * myState = State::new_State( someclass );
+  *   State * myState = State::new_State( some_class );
   *
   * i.e., without any reference to any specific State (and, therefore, it can
   * be used to construct the very first State if needed).
