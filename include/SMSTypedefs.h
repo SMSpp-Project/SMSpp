@@ -2003,10 +2003,12 @@ deserialize( const netCDF::NcGroup & group , T & data ,
 }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// deserialize a std::string out of a given group
-/** Deserialize a std::string value out of the given \p group and into \p
- * data. This is supposed to live in the netCDF variable with name \p name.
- * If a variable with the given name is not present within the given \p
+/// deserialize a std::string out of a netCDF NcGroup
+/** Deserialize a std::string value for which deserialize() is defined as a
+ * double pointer to char out of the given \p group and into \p data. This is
+ * supposed to live in the netCDF variable with name \p name.
+ *
+ * If the variable with the given name is not present within the given \p
  * group, an exception is thrown unless the variable is declared as optional.
  *
  * If \p group has more than one variable with the same name, then the
@@ -2095,7 +2097,7 @@ serialize( netCDF::NcGroup & group , const T & data ,
 }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-/// deserialize a std::pair value into a given group
+/// deserialize a std::pair value out of a netCDF NcGroup
 /** Deserialize a std::pair of values for which deserialize() is well-defined
  * (e.g., "simple" values) out of the given \p group and into \p data. This
  * is done by calling deserialize() for data.first on "<name>_f" and for
