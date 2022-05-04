@@ -1240,7 +1240,7 @@ class C05Function : public Function {
 
    for( auto i : subset ) {
     if( i >= get_num_active_var() )
-     throw ( std::invalid_argument( "wrong index in subset" ) );
+     throw( std::invalid_argument( "wrong index in subset" ) );
     auto gi = *( ggp++ );
     if( gi )
      g.insert( i ) = gi;
@@ -1252,7 +1252,7 @@ class C05Function : public Function {
 
    for( auto i : subset ) {
     if( i >= get_num_active_var() )
-     throw ( std::invalid_argument( "wrong index in subset" ) );
+     throw( std::invalid_argument( "wrong index in subset" ) );
     g.coeffRef( i ) = *( ggp++ );
     }
 
@@ -1631,7 +1631,7 @@ class C05FunctionMod : public FunctionMod {
 #ifndef NDEBUG
   for( Index i = 1; i < v_which.size(); ++i )
    if( v_which[ i - 1 ] >= v_which[ i ] )
-    throw ( std::invalid_argument( "unordered or repeated which" ) );
+    throw( std::invalid_argument( "unordered or repeated which" ) );
 #endif
  }
 
@@ -1834,7 +1834,7 @@ class C05FunctionModRngd : public C05FunctionMod {
   : C05FunctionMod( f, type, std::move( which ), shift, cB ),
     v_vars( std::move( vars ) ), f_range( range ) {
   if( v_vars.size() != f_range.second - f_range.first )
-   throw ( std::invalid_argument( "vars and range sizes do not match" ) );
+   throw( std::invalid_argument( "vars and range sizes do not match" ) );
  }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
@@ -2686,9 +2686,9 @@ class C05FunctionModLinRngd : public C05FunctionModLin {
   : C05FunctionModLin( f, std::move( delta ), std::move( vars ), shift,
                        cB ), f_range( range ) {
   if( v_vars.size() != f_range.second - f_range.first )
-   throw ( std::invalid_argument( "vars and range sizes do not match" ) );
+   throw( std::invalid_argument( "vars and range sizes do not match" ) );
   if( v_vars.size() != v_delta.size() )
-   throw ( std::invalid_argument( "vars and delta sizes do not match" ) );
+   throw( std::invalid_argument( "vars and delta sizes do not match" ) );
  }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
@@ -2768,9 +2768,9 @@ class C05FunctionModLinSbst : public C05FunctionModLin {
   : C05FunctionModLin( f, std::move( delta ), std::move( vars ), shift,
                        cB ), v_subset( std::move( subset ) ) {
   if( v_vars.size() != v_subset.size() )
-   throw ( std::invalid_argument( "vars and subset sizes do not match" ) );
+   throw( std::invalid_argument( "vars and subset sizes do not match" ) );
   if( v_vars.size() != v_delta.size() )
-   throw ( std::invalid_argument( "vars and delta sizes do not match" ) );
+   throw( std::invalid_argument( "vars and delta sizes do not match" ) );
   if( ( !ordered ) && ( v_vars.size() > 1 ) ) {
    using IdxVar = std::tuple< Index, Variable *, FunctionValue >;
    std::vector< IdxVar > tmp( v_vars.size() );
@@ -2790,7 +2790,7 @@ class C05FunctionModLinSbst : public C05FunctionModLin {
 #ifndef NDEBUG
   for( Index i = 1; i < v_subset.size(); ++i )
    if( v_subset[ i - 1 ] >= v_subset[ i ] )
-    throw ( std::invalid_argument( "unordered or repeated subset" ) );
+    throw( std::invalid_argument( "unordered or repeated subset" ) );
 #endif
  }
 

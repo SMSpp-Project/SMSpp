@@ -1498,7 +1498,7 @@ class Solver : public ThinComputeInterface
   * reasonable definition of an appropriate notion of "better direction"
   * that might be employed. */
 
- [[nodiscard]] virtual bool new_var_direction( void ) { return ( false ); }
+ [[nodiscard]] virtual bool new_var_direction( void ) { return( false ); }
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------- METHODS FOR READING THE DATA OF THE Solver ----------------*/

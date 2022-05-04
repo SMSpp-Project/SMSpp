@@ -4590,7 +4590,7 @@ class Block : public Observer {
 
    // base must be given because the base Block class is virtual
    if( ! base )
-    throw ( std::invalid_argument( "Block::get_R3_Block with no base" ) );
+    throw( std::invalid_argument( "Block::get_R3_Block with no base" ) );
 
    // ensure that eny existing sub-Block is deleted (there should not be any)
    base->reset_nested_Block();
@@ -5697,7 +5697,7 @@ class Block : public Observer {
  template< class F >
  static void register_method( std::string && name, F * function ) {
   if( name.empty() )
-   throw ( std::invalid_argument( "register_method: name is empty" ) );
+   throw( std::invalid_argument( "register_method: name is empty" ) );
   auto iter = methods< F >().left.find( name );
   if( iter != methods< F >().left.end() ) {
    delete iter->second;
@@ -7340,7 +7340,7 @@ class Block : public Observer {
  template< class F >
  static inline bimap< F > & methods( void ) {
   static bimap <F> methods;
-  return ( methods );
+  return( methods );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -8747,7 +8747,7 @@ void Block::remove_dynamic_constraints( std::list< Const > & list ,
   return;            // cowardly (and silently) return
 
  if( list.empty() )
-  throw ( std::invalid_argument( "removing from empty list" ) );
+  throw( std::invalid_argument( "removing from empty list" ) );
 
  for( const auto & const_it : rmvd ) {
   remove_constraint_from_variables( &( *const_it ) );
@@ -8776,7 +8776,7 @@ void Block::remove_dynamic_constraints( std::list< Const > & list ,
     ++lit;
 
   if( rit != rmvd.end() )
-   throw ( std::invalid_argument( "invalid or unordered removed list" ) );
+   throw( std::invalid_argument( "invalid or unordered removed list" ) );
 
   // now check if this actually was a range
   bool isr = true;
