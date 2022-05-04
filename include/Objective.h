@@ -256,7 +256,7 @@ class Objective : public ThinComputeInterface , public ThinVarDepInterface
 
  friend std::ostream & operator<<( std::ostream & out, const Objective & o ) {
   o.print( out );
-  return ( out );
+  return( out );
  }
 
 /** @} ---------------------------------------------------------------------*/

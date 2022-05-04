@@ -91,7 +91,7 @@ class FakeSolver : public Solver {
 /*---------------------- METHODS FOR READING RESULTS -----------------------*/
 /*--------------------------------------------------------------------------*/
 
- bool has_var_solution() override { return ( false ); }
+ bool has_var_solution() override { return( false ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
@@ -107,7 +107,7 @@ class FakeSolver : public Solver {
   * Because this is done externally, methods are provided to expose the
   * internal atomic flag that is supposed to protect the list. */
 
- Lst_sp_Mod & get_Modification_list() { return ( v_mod ); }
+ Lst_sp_Mod & get_Modification_list() { return( v_mod ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// ensure that the list of Modification is locked, only return when it is

@@ -31,6 +31,7 @@
 #include "RowConstraint.h"
 #include "SMSTypedefs.h"
 #include "Solution.h"
+
 #include <cmath>
 #include <functional>
 #include <queue>
@@ -263,22 +264,22 @@ void BendersBFunction::deserialize( const netCDF::NcGroup & group ,
  }
 
  if( tA.size() != sides.size() )
-  throw ( std::invalid_argument( "BendersBFunction::deserialize: The size of "
-                                 "the 'ConstraintSide' vector  must be equal "
-                                 "to the number of rows of the A matrix." ) );
+  throw( std::invalid_argument( "BendersBFunction::deserialize: The size of "
+                                "the 'ConstraintSide' vector  must be equal "
+                                "to the number of rows of the A matrix." ) );
 
  auto path_group = group.getGroup( "AbstractPath" );
 
  if( ! path_group.isNull() )
   AbstractPath::vector_deserialize( path_group , v_paths_to_constraints );
  else if( sides.size() > 0 )
-  throw ( std::invalid_argument( "BendersBFunction::deserialize: The group "
-                                 "'AbstractPath' was not found." ) );
+  throw( std::invalid_argument( "BendersBFunction::deserialize: The group "
+                                "'AbstractPath' was not found." ) );
 
  if( v_paths_to_constraints.size() != sides.size() )
-  throw ( std::invalid_argument( "BendersBFunction::deserialize: The number of "
-                                 "AbstractPath to Constraint must be equal to "
-                                 "the size of the 'ConstraintSide' vector." ) );
+  throw( std::invalid_argument( "BendersBFunction::deserialize: The number of "
+                                "AbstractPath to Constraint must be equal to "
+                                "the size of the 'ConstraintSide' vector." ) );
 
  // The pointers to the affected RowConstraint are retrieved at the first time
  // they are needed, so as to give someone a chance to generate the abstract
@@ -2834,9 +2835,9 @@ void BendersBFunction::retrieve_constraints() {
     get_element< RowConstraint >( inner_block );
 
   if( ! constraint )
-   throw ( std::logic_error( "BendersBFunction::retrieve_constraints: "
-                             "Constraint " + std::to_string( i ) +
-                             " was not found." ) );
+   throw( std::logic_error( "BendersBFunction::retrieve_constraints: "
+                            "Constraint " + std::to_string( i ) +
+                            " was not found." ) );
 
   v_constraints[ i ] = constraint;
  }

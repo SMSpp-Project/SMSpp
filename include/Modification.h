@@ -417,7 +417,7 @@ class Modification {
  friend std::ostream &
  operator<<( std::ostream & out, const Modification & b ) {
   b.print( out );
-  return ( out );
+  return( out );
   }
 
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/

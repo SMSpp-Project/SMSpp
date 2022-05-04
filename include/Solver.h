@@ -543,7 +543,7 @@ class Solver : public ThinComputeInterface
   * the method is static because the factory is static, hence it is to be
   * called as
   *
-  *   Solver *mySolver = Solver::new_Solver( someclass );
+  *   Solver *mySolver = Solver::new_Solver( some_class );
   *
   * i.e., without any reference to any specific Solver (and, therefore, it can
   * be used to construct the very first Solver if needed).
@@ -1498,7 +1498,7 @@ class Solver : public ThinComputeInterface
   * reasonable definition of an appropriate notion of "better direction"
   * that might be employed. */
 
- [[nodiscard]] virtual bool new_var_direction( void ) { return ( false ); }
+ [[nodiscard]] virtual bool new_var_direction( void ) { return( false ); }
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------- METHODS FOR READING THE DATA OF THE Solver ----------------*/
@@ -1879,7 +1879,7 @@ class Solver : public ThinComputeInterface
  * are typically related with factories.
  * @{ */
 
- /// method incapsulating the Solver factory
+ /// method encapsulating the Solver factory
  /** This method returns the Solver factory, which is a static object.
   * The rationale for using a method is that this is the "Construct On First
   * Use Idiom" that solves the "static initialization order problem". */

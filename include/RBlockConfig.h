@@ -221,7 +221,7 @@ class RHandler
 
  /// returns true if the RHandler is empty
 
- bool empty( void ) { return ( v_sub_BlockConfig.empty() ); }
+ bool empty( void ) { return( v_sub_BlockConfig.empty() ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// returns the current number of sub-BlockConfig

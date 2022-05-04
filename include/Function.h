@@ -748,7 +748,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface
 
  friend std::ostream & operator<<( std::ostream & out , const Function & o ) {
   o.print( out );
-  return ( out );
+  return( out );
   }
 
 /** @} ---------------------------------------------------------------------*/
@@ -947,7 +947,7 @@ class FunctionMod : public AModification {
  *   equal to the value that would have been returned prior to the
  *   Modification. */
 
- [[nodiscard]] FunctionValue shift( void ) const { return ( f_shift ); }
+ [[nodiscard]] FunctionValue shift( void ) const { return( f_shift ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1577,7 +1577,7 @@ class FunctionModVarsSbst : public FunctionModVars {
     tmp[ i ] = IdxVar( v_subset[ i ] , v_vars[ i ] );
    std::sort( tmp.begin() , tmp.end() ,
               []( auto & a , auto & b ) {
-               return ( ( a.first < b.first ) );
+               return( ( a.first < b.first ) );
               } );
    for( Index i = 0 ; i < v_vars.size() ; ++i ) {
     v_subset[ i ] = tmp[ i ].first;

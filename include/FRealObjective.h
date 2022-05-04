@@ -603,7 +603,7 @@ class FRealObjective : public RealObjective , public Observer {
 
  [[nodiscard]] bool anyone_there( void ) const override {
   // return( f_Block ? f_Block->anyone_there() : false );
-  return ( true );
+  return( true );
   }
 
 /*--------------------------------------------------------------------------*/

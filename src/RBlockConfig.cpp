@@ -204,7 +204,7 @@ void RHandler::get( Block * block )
   Block::Index index = ::get_nested_Block_index( id , block );
 
   if( index >= block->get_number_nested_Blocks() )
-   throw ( std::logic_error( "RHandler::get: invalid sub-Block id: " + id ) );
+   throw( std::logic_error( "RHandler::get: invalid sub-Block id: " + id ) );
 
   auto sB = block->get_nested_Block( index );
 

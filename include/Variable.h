@@ -244,7 +244,7 @@ class Variable
 
  /// returns the pointer to the Block to which the Variable belongs
 
- [[nodiscard]] Block * get_Block() const { return ( f_Block ); }
+ [[nodiscard]] Block * get_Block() const { return( f_Block ); }
 
 /** @} ---------------------------------------------------------------------*/
 /*------------- METHODS DESCRIBING THE BEHAVIOR OF A Variable --------------*/

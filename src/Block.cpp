@@ -613,7 +613,7 @@ void Block::remove_variable_from_stuff( Variable * const variable ,
   auto si = variable->get_active( i++ );
   auto ivar = si->is_active( variable );
   if( ivar >= si->get_num_active_var() )
-   throw ( std::logic_error( "inconsistency between active lists" ) );
+   throw( std::logic_error( "inconsistency between active lists" ) );
 
   si->remove_variable( ivar , issueindMod );
   }

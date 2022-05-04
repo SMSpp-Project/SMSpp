@@ -215,41 +215,41 @@ class ThinVarDepInterface {
   // standard assignment, note the clone()
   iterator & operator=( iterator & itr ) {
    itr_ = itr.itr_->clone();
-   return ( *this );
-  }
+   return( *this );
+   }
 
   // standard move assignment
   iterator & operator=( iterator && itr ) {
    itr_ = itr.itr_;
    itr.itr_ = nullptr;
-   return ( *this );
-  }
+   return( *this );
+   }
 
   // pre-increment operator ++it, use this preferably
   iterator & operator++() {
    itr_->operator++();
-   return ( *this );
-  }
+   return( *this );
+   }
 
   // post-increment operator it++, avoid this if possible
   iterator operator++( int ) {
    // note that the copy need be disjoint, hence the clone()
    iterator i( itr_->clone() );
    itr_->operator++();
-   return ( i );
-  }
+   return( i );
+   }
 
-  reference operator*() const { return ( *( *itr_ ) ); }
+  reference operator*() const { return( *( *itr_ ) ); }
 
-  pointer operator->() const { return ( itr_->operator->() ); }
+  pointer operator->() const { return( itr_->operator->() ); }
 
   bool operator==( const iterator & rhs ) const {
-   return ( *( rhs.itr_ ) == *itr_ );
-  }
+   return( *( rhs.itr_ ) == *itr_ );
+   }
 
   bool operator!=( const iterator & rhs ) const {
-   return ( *itr_ != *( rhs.itr_ ) );
-  }
+   return( *itr_ != *( rhs.itr_ ) );
+   }
 
   private:
 
@@ -286,7 +286,7 @@ class ThinVarDepInterface {
   const_iterator( const_iterator && itr ) noexcept {
    itr_ = itr.itr_;
    itr.itr_ = nullptr;
-  }
+   }
 
   // destructor, deletes the virtual iterator
   ~const_iterator() { delete itr_; }
@@ -294,41 +294,41 @@ class ThinVarDepInterface {
   // standard assignment, note the clone()
   const_iterator & operator=( const_iterator & itr ) {
    itr_ = itr.itr_->clone();
-   return ( *this );
-  }
+   return( *this );
+   }
 
   // standard move assignment
   const_iterator & operator=( const_iterator && itr ) {
    itr_ = itr.itr_;
    itr.itr_ = nullptr;
-   return ( *this );
-  }
+   return( *this );
+   }
 
   // pre-increment operator ++it, use this preferably
   const_iterator & operator++() {
    itr_->operator++();
-   return ( *this );
-  }
+   return( *this );
+   }
 
   // post-increment operator it++, avoid this if possible
   const_iterator operator++( int ) {
    // note that the copy need be disjoint, hence the clone()
    const_iterator i( itr_->clone() );
    itr_->operator++();
-   return ( i );
-  }
+   return( i );
+   }
 
-  reference operator*() const { return ( *( *itr_ ) ); }
+  reference operator*() const { return( *( *itr_ ) ); }
 
-  pointer operator->() const { return ( itr_->operator->() ); }
+  pointer operator->() const { return( itr_->operator->() ); }
 
   bool operator==( const const_iterator & rhs ) const {
-   return ( *itr_ == *( rhs.itr_ ) );
-  }
+   return( *itr_ == *( rhs.itr_ ) );
+   }
 
   bool operator!=( const const_iterator & rhs ) const {
-   return ( *itr_ != *( rhs.itr_ ) );
-  }
+   return( *itr_ != *( rhs.itr_ ) );
+   }
 
   private:
 
@@ -683,7 +683,7 @@ class ThinVarDepInterface {
   * returns the latter. However it is virtual, so that derived classes may
   * redefine it if needed. */
 
- virtual iterator begin( void ) { return ( iterator( v_begin() ) ); }
+ virtual iterator begin( void ) { return( iterator( v_begin() ) ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get a const iterator for scanning the "active" Variable

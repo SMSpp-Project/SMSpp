@@ -300,12 +300,12 @@ class FRowConstraint : public RowConstraint, public Observer {
 /*--------------------------------------------------------------------------*/
  /// method to get the RHS of the RowConstraint
 
- [[nodiscard]] RHSValue get_rhs( void ) const override { return ( f_rhs ); }
+ [[nodiscard]] RHSValue get_rhs( void ) const override { return( f_rhs ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to get the LHS of the RowConstraint
 
- [[nodiscard]] RHSValue get_lhs( void ) const override { return ( f_lhs ); }
+ [[nodiscard]] RHSValue get_lhs( void ) const override { return( f_lhs ); }
 
 /** @} ---------------------------------------------------------------------*/
 /*----------- METHODS DESCRIBING THE BEHAVIOR OF A FRowConstraint ----------*/
@@ -636,7 +636,7 @@ class FRowConstraint : public RowConstraint, public Observer {
   * some mechanism allowing a finer control on which Modification are
   * "listened to". */
 
- [[nodiscard]] bool anyone_there( void ) const override { return ( true ); }
+ [[nodiscard]] bool anyone_there( void ) const override { return( true ); }
 
 /*--------------------------------------------------------------------------*/
  /// mostly just dispatch to add_Modification() of the Block (if any)

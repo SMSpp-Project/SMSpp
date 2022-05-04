@@ -132,7 +132,7 @@ class OneVarConstraint : public RowConstraint {
     return( ptr_ == tmp->ptr_ );
    #else
     dynamic_cast<const OneVarConstraint::v_iterator *>( &rhs );
-    return ( tmp ? ptr_ == tmp->ptr_ : false );
+    return( tmp ? ptr_ == tmp->ptr_ : false );
    #endif
    }
   bool operator!=( const ThinVarDepInterface::v_iterator & rhs ) const final {
@@ -142,7 +142,7 @@ class OneVarConstraint : public RowConstraint {
     return( ptr_ != tmp->ptr_ );
    #else
     dynamic_cast<const OneVarConstraint::v_iterator *>( &rhs );
-    return ( tmp ? ptr_ != tmp->ptr_ : false );
+    return( tmp ? ptr_ != tmp->ptr_ : false );
    #endif
    }
 
@@ -166,7 +166,7 @@ class OneVarConstraint : public RowConstraint {
    }
   void operator++( void ) final { ( ptr_ )++; }
   reference operator*( void ) const final { return( *ptr_ ); }
-  pointer operator->( void ) const final { return ( ptr_ ); }
+  pointer operator->( void ) const final { return( ptr_ ); }
   bool operator==( const ThinVarDepInterface::v_const_iterator & rhs )
    const final {
    const auto * tmp =
@@ -1223,7 +1223,7 @@ class NPConstraint : public OneVarConstraint {
 
  void set_rhs( c_RHSValue rhs_value , ModParam issueMod = eModBlck ) final {
   if( rhs_value != 0 )
-   throw ( std::invalid_argument( "cannot change RHS in a NPConstraint" ) );
+   throw( std::invalid_argument( "cannot change RHS in a NPConstraint" ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/

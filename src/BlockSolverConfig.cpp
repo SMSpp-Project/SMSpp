@@ -54,7 +54,7 @@ Block::Index get_nested_Block_index( const std::string & id ,
 {
  if( ( ! id.empty() ) && std::isdigit( id.front() ) ) {
   // The id is the index of the sub-Block
-  try { return ( std::stoi( id ) ); }
+  try { return( std::stoi( id ) ); }
   catch( ... ) { return( Inf< Block::Index >() ); }
   }
  else  // The id is the name of the sub-Block

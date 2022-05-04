@@ -324,8 +324,8 @@ void DQuadFunction::modify_term( Index i , Coefficient lin_coeff ,
 				 ModParam issueMod )
 {
  if( i >= v_triples.size() )
-  throw ( std::invalid_argument( "DQuadFunction::modify_term: invalid "
-                                 "index: " + std::to_string( i ) ) );
+  throw( std::invalid_argument( "DQuadFunction::modify_term: invalid "
+                                "index: " + std::to_string( i ) ) );
 
  if( ( std::get< 1 >( v_triples[ i ] ) == lin_coeff ) &&
      ( std::get< 2 >( v_triples[ i ] ) == quad_coeff ) )

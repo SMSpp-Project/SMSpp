@@ -942,7 +942,7 @@ class C05Function : public Function {
 				       LinearCombination && coefficients ) {}
 
 /*--------------------------------------------------------------------------*/
- /// return (the combination used to form) "the important linearization"
+ /// return(the combination used to form) "the important linearization"
  /** This method has to return the combination that can be used to form "the
   * important linearization", as set by set_important_linearization(). It has
   * a default "empty" implementation returning the pair < 0 , 1 > because for
@@ -1240,7 +1240,7 @@ class C05Function : public Function {
 
    for( auto i : subset ) {
     if( i >= get_num_active_var() )
-     throw ( std::invalid_argument( "wrong index in subset" ) );
+     throw( std::invalid_argument( "wrong index in subset" ) );
     auto gi = *( ggp++ );
     if( gi )
      g.insert( i ) = gi;
@@ -1252,7 +1252,7 @@ class C05Function : public Function {
 
    for( auto i : subset ) {
     if( i >= get_num_active_var() )
-     throw ( std::invalid_argument( "wrong index in subset" ) );
+     throw( std::invalid_argument( "wrong index in subset" ) );
     g.coeffRef( i ) = *( ggp++ );
     }
 
@@ -1631,7 +1631,7 @@ class C05FunctionMod : public FunctionMod {
 #ifndef NDEBUG
   for( Index i = 1; i < v_which.size(); ++i )
    if( v_which[ i - 1 ] >= v_which[ i ] )
-    throw ( std::invalid_argument( "unordered or repeated which" ) );
+    throw( std::invalid_argument( "unordered or repeated which" ) );
 #endif
  }
 
@@ -1643,13 +1643,13 @@ class C05FunctionMod : public FunctionMod {
 
  /// accessor to the type of modification
 
- [[nodiscard]] int type() const { return ( f_type ); }
+ [[nodiscard]] int type() const { return( f_type ); }
 
  /// accessor to the names of the linearizations that have been affected
  /** Returns the names of the linearizations that have been affected (added,
   * removed, changed). */
 
- [[nodiscard]] c_Subset which() const { return ( v_which ); }
+ [[nodiscard]] c_Subset which() const { return( v_which ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1834,7 +1834,7 @@ class C05FunctionModRngd : public C05FunctionMod {
   : C05FunctionMod( f, type, std::move( which ), shift, cB ),
     v_vars( std::move( vars ) ), f_range( range ) {
   if( v_vars.size() != f_range.second - f_range.first )
-   throw ( std::invalid_argument( "vars and range sizes do not match" ) );
+   throw( std::invalid_argument( "vars and range sizes do not match" ) );
  }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
@@ -1845,12 +1845,12 @@ class C05FunctionModRngd : public C05FunctionMod {
 
  /// accessor to the vector of pointers to affected Variable
 
- [[nodiscard]] c_Vec_p_Var & vars() const { return ( v_vars ); }
+ [[nodiscard]] c_Vec_p_Var & vars() const { return( v_vars ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to the range of the deleted Variable
 
- [[nodiscard]] c_Range & range() const { return ( f_range ); }
+ [[nodiscard]] c_Range & range() const { return( f_range ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -1977,12 +1977,12 @@ class C05FunctionModSbst : public C05FunctionMod {
 
  /// accessor to the vector of pointers to affected Variable
 
- [[nodiscard]] c_Vec_p_Var & vars() const { return ( v_vars ); }
+ [[nodiscard]] c_Vec_p_Var & vars() const { return( v_vars ); }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// accessor to vector of indices of affected Variable
 
- [[nodiscard]] c_Subset & subset() const { return ( v_subset ); }
+ [[nodiscard]] c_Subset & subset() const { return( v_subset ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -2686,9 +2686,9 @@ class C05FunctionModLinRngd : public C05FunctionModLin {
   : C05FunctionModLin( f, std::move( delta ), std::move( vars ), shift,
                        cB ), f_range( range ) {
   if( v_vars.size() != f_range.second - f_range.first )
-   throw ( std::invalid_argument( "vars and range sizes do not match" ) );
+   throw( std::invalid_argument( "vars and range sizes do not match" ) );
   if( v_vars.size() != v_delta.size() )
-   throw ( std::invalid_argument( "vars and delta sizes do not match" ) );
+   throw( std::invalid_argument( "vars and delta sizes do not match" ) );
  }
 
 /*------------------------------ DESTRUCTOR --------------------------------*/
@@ -2699,7 +2699,7 @@ class C05FunctionModLinRngd : public C05FunctionModLin {
 
  /// accessor to the range of the deleted Variable
 
- [[nodiscard]] c_Range & range() const { return ( f_range ); }
+ [[nodiscard]] c_Range & range() const { return( f_range ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
@@ -2768,9 +2768,9 @@ class C05FunctionModLinSbst : public C05FunctionModLin {
   : C05FunctionModLin( f, std::move( delta ), std::move( vars ), shift,
                        cB ), v_subset( std::move( subset ) ) {
   if( v_vars.size() != v_subset.size() )
-   throw ( std::invalid_argument( "vars and subset sizes do not match" ) );
+   throw( std::invalid_argument( "vars and subset sizes do not match" ) );
   if( v_vars.size() != v_delta.size() )
-   throw ( std::invalid_argument( "vars and delta sizes do not match" ) );
+   throw( std::invalid_argument( "vars and delta sizes do not match" ) );
   if( ( !ordered ) && ( v_vars.size() > 1 ) ) {
    using IdxVar = std::tuple< Index, Variable *, FunctionValue >;
    std::vector< IdxVar > tmp( v_vars.size() );
@@ -2778,7 +2778,7 @@ class C05FunctionModLinSbst : public C05FunctionModLin {
     tmp[ i ] = IdxVar( v_subset[ i ], v_vars[ i ], v_delta[ i ] );
    std::sort( tmp.begin(), tmp.end(),
               []( auto & a, auto & b ) {
-               return ( std::get< 0 >( a ) < std::get< 0 >( b ) );
+               return( std::get< 0 >( a ) < std::get< 0 >( b ) );
               }
    );
    for( Index i = 0; i < v_vars.size(); ++i ) {
@@ -2790,7 +2790,7 @@ class C05FunctionModLinSbst : public C05FunctionModLin {
 #ifndef NDEBUG
   for( Index i = 1; i < v_subset.size(); ++i )
    if( v_subset[ i - 1 ] >= v_subset[ i ] )
-    throw ( std::invalid_argument( "unordered or repeated subset" ) );
+    throw( std::invalid_argument( "unordered or repeated subset" ) );
 #endif
  }
 
@@ -2802,7 +2802,7 @@ class C05FunctionModLinSbst : public C05FunctionModLin {
 
  /// accessor to the subset of the affected Variable
 
- [[nodiscard]] c_Subset & subset() const { return ( v_subset ); }
+ [[nodiscard]] c_Subset & subset() const { return( v_subset ); }
 
 /*--------------------- PROTECTED PART OF THE CLASS ------------------------*/
 
