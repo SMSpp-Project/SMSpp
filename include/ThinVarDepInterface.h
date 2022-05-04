@@ -216,20 +216,20 @@ class ThinVarDepInterface {
   iterator & operator=( iterator & itr ) {
    itr_ = itr.itr_->clone();
    return( *this );
-  }
+   }
 
   // standard move assignment
   iterator & operator=( iterator && itr ) {
    itr_ = itr.itr_;
    itr.itr_ = nullptr;
    return( *this );
-  }
+   }
 
   // pre-increment operator ++it, use this preferably
   iterator & operator++() {
    itr_->operator++();
    return( *this );
-  }
+   }
 
   // post-increment operator it++, avoid this if possible
   iterator operator++( int ) {
@@ -237,7 +237,7 @@ class ThinVarDepInterface {
    iterator i( itr_->clone() );
    itr_->operator++();
    return( i );
-  }
+   }
 
   reference operator*() const { return( *( *itr_ ) ); }
 
@@ -245,11 +245,11 @@ class ThinVarDepInterface {
 
   bool operator==( const iterator & rhs ) const {
    return( *( rhs.itr_ ) == *itr_ );
-  }
+   }
 
   bool operator!=( const iterator & rhs ) const {
    return( *itr_ != *( rhs.itr_ ) );
-  }
+   }
 
   private:
 
@@ -286,7 +286,7 @@ class ThinVarDepInterface {
   const_iterator( const_iterator && itr ) noexcept {
    itr_ = itr.itr_;
    itr.itr_ = nullptr;
-  }
+   }
 
   // destructor, deletes the virtual iterator
   ~const_iterator() { delete itr_; }
@@ -295,20 +295,20 @@ class ThinVarDepInterface {
   const_iterator & operator=( const_iterator & itr ) {
    itr_ = itr.itr_->clone();
    return( *this );
-  }
+   }
 
   // standard move assignment
   const_iterator & operator=( const_iterator && itr ) {
    itr_ = itr.itr_;
    itr.itr_ = nullptr;
    return( *this );
-  }
+   }
 
   // pre-increment operator ++it, use this preferably
   const_iterator & operator++() {
    itr_->operator++();
    return( *this );
-  }
+   }
 
   // post-increment operator it++, avoid this if possible
   const_iterator operator++( int ) {
@@ -316,7 +316,7 @@ class ThinVarDepInterface {
    const_iterator i( itr_->clone() );
    itr_->operator++();
    return( i );
-  }
+   }
 
   reference operator*() const { return( *( *itr_ ) ); }
 
@@ -324,11 +324,11 @@ class ThinVarDepInterface {
 
   bool operator==( const const_iterator & rhs ) const {
    return( *itr_ == *( rhs.itr_ ) );
-  }
+   }
 
   bool operator!=( const const_iterator & rhs ) const {
    return( *itr_ != *( rhs.itr_ ) );
-  }
+   }
 
   private:
 
