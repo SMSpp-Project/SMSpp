@@ -42,6 +42,7 @@ SMS++OBJ = $(SMS++SDR)obj/AbstractBlock.o \
 	$(SMS++SDR)obj/BlockSolverConfig.o \
 	$(SMS++SDR)obj/BoxSolver.o \
 	$(SMS++SDR)obj/C05Function.o \
+	$(SMS++SDR)obj/Change.o \
 	$(SMS++SDR)obj/ColRowSolution.o \
 	$(SMS++SDR)obj/ColVariable.o \
 	$(SMS++SDR)obj/ColVariableSolution.o \
@@ -77,6 +78,7 @@ SMS++H = $(SMS++SDR)include/AbstractBlock.h \
 	$(SMS++SDR)include/C05Function.h \
 	$(SMS++SDR)include/C15Function.h \
 	$(SMS++SDR)include/CDASolver.h \
+	$(SMS++SDR)include/Change.h \
 	$(SMS++SDR)include/ColRowSolution.h \
 	$(SMS++SDR)include/ColVariable.h \
 	$(SMS++SDR)include/ColVariableSolution.h \
@@ -186,6 +188,10 @@ $(SMS++SDR)obj/C05Function.o: $(SMS++SDR)src/C05Function.cpp \
 	$(SMS++SDR)include/ThinComputeInterface.h \
 	$(SMS++SDR)include/ThinVarDepInterface.h
 	$(CC) -c $(SMS++SDR)src/C05Function.cpp -o $@ $(SMS++INC) $(SW)
+
+$(SMS++SDR)obj/Change.o: $(SMS++SDR)src/Change.cpp \
+	$(SMS++SDR)include/Change.h $(SMS++SDR)include/SMSTypedefs.h
+	$(CC) -c $(SMS++SDR)src/Change.cpp -o $@ $(SMS++INC) $(SW)
 
 $(SMS++SDR)obj/Configuration.o: $(SMS++SDR)src/Configuration.cpp \
 	$(SMS++SDR)include/Configuration.h $(SMS++SDR)include/SMSTypedefs.h

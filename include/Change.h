@@ -2,7 +2,8 @@
 /*--------------------------- File Change.h --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Header file for the *abstract* class Change. 
+ * Header file for the *abstract* class Change, only the top of a hierarchy
+ * of objects describing how to change a :Block before actually changing it. 
  *
  * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
@@ -47,22 +48,167 @@ namespace SMSpp_di_unipi_it {
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /// 
-/** The class Change ...
+/** The class Change is the top of the hierarchy of objects describing how to
+ * change a :Block before actually changing it.
  */
 
 class Change {
 
+/*--------------------------------------------------------------------------*/
 /*----------------------- PUBLIC PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
 
  public:
 
-/*---------------------- PUBLIC METHODS OF THE CLASS -----------------------*/
+/*--------------------------------------------------------------------------*/
+/*--------------------- PUBLIC METHODS OF THE CLASS ------------------------*/
+/*--------------------------------------------------------------------------*/
 
  Change( void ) = default;     ///< constructor: does nothing
 
  virtual ~Change() = default;  ///< destructor: does nothing
 
 /*--------------------------------------------------------------------------*/
+ /// construct a :Change of given type using the Change factory
+ /** Use the Change factory to construct a :Change object of type specified
+  * by classname (a std::string with the name of the class inside).
+  * Note that the method is static because the factory is static, hence it 
+  * has to be called as
+  *
+  *     Change * myChange = Change::new_Change( some_class );
+  *
+  * i.e., without any reference to any specific Change (and, therefore, it 
+  * can be used to construct the very first Change if needed).
+  * 
+  * For this to work, each :Change has to:
+  *
+  * - add the line
+  *
+  *     SMSpp_insert_in_factory_h;
+  *
+  *   to its definition (typically, in the private part in its .h file);
+  *
+  * - add the line
+  *
+  *     SMSpp_insert_in_factory_cpp_0( name_of_the_class );
+  *
+  *   to exactly *one* .cpp file, typically that :Change .cpp file. If the
+  *   name of the class contains any parentheses, then one must enclose the
+  *   name of the class in parentheses and instead add the line
+  *
+  *     SMSpp_insert_in_factory_cpp_0( ( name_of_the_class ) );
+  *
+  * Any whitespaces that the given \p classname may contain is ignored. So,
+  * for example, to create an instance of the class MyChange<int> one could
+  * pass "MyChange<int>" or "MyChange< int >" (even " M y C h a n g e < int >
+  * would work).
+  *
+  * @param classname The name of the :Change class that must be constructed */
+/*
+ static Change * new_Change( const std::string & classname ) {
+  const std::string classname_( SMSpp_classname_normalise(
+            std::string( classname ) ) );
+  const auto it = Change::f_factory().find( classname_ );
+  if( it == Change::f_factory().end() )
+   throw( std::invalid_argument( classname + 
+                                 " not present in Change factory" ) );
+  return( ( it->second )() );
+  }
+*/
+/*--------------------------------------------------------------------------*/
+ /// set the executable-wide prefix for all Change filenames
+ /** 
+  * Note that
+  *
+  *     BEING THE MEMBER STATIC, THE PREFIX IS APPLIED TO ALL LOADING 
+  *     OPERATIONS OF ANY Change IN THE EXECUTABLE
+  *
+  * Use of this feature therefore requires care. */
+/*
+ static void set_filename_prefix( std::string && prefix ) {
+  f_prefix = prefix;
+  }
+*/
+/*--------------------------------------------------------------------------*/
+ /// de-serialize a :Change out of a file
+ /** Top-level de-serialization method: takes the \p filename of a file and
+  * returns the complete :Change object whose description is the one found 
+  * in the file.
+  *
+  * The method supports two different kind of files:
+  *
+  * - text files,
+  *
+  * - SMS++ netCDF files.
+  *
+  * It distinguishes between the two by the suffix. In particular, the format
+  * of \p filename can be:
+  *
+  * - either \p filename terminates by ".txt" (case sensitive) then a
+  *   std::fstream is opened and deserialize( istream ) is called, with
+  *   the Change being extracted is the first one found in it;
+  *
+  * - otherwise a netCDF::NcFile is opened and deserialize( netCDF::NcFile )
+  *   is called.
+  *
+  * If anything goes wrong with the entire operation, nullptr is returned.
+  *
+  * Note that the method is static, hence it is to be called as
+  *
+  *     auto myChange = Change::deserialize( somefile );
+  *
+  * i.e. without any reference to any specific Change (and, therefore, it 
+  * can be used to construct the very first Change, if needed). */
+
+ //static Change * deserialize( const std::string & filename );
+
+/*--------------------------------------------------------------------------*/
+ /// de-serialize a :Change out of an open netCDF SMS++ file
+ /** Second-level de-serialization method */
+
+ //static Change * deserialize( const netCDF::NcFile & f , int idx = 0 );
+
+/*--------------------------------------------------------------------------*/
+ /// de-serialize a :Change out of an open netCDF SMS++ file
+ /** Third-level de-serialization method */
+
+ //virtual void deserialize( const netCDF::NcGroup & group );
+
+/*--------------------------------------------------------------------------*/
+ /// de-serialize a :Change out of std::istream, returns it
+
+ //static Change * deserialize( std::istream & input );
+
+/** @} ---------------------------------------------------------------------*/
+/*---------------- Methods for reading the data of the Change --------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Methods for reading the data of the Change
+ *  @{ */
+
+ /// getting the classname of this Change
+ /** Given a Change, this method returns a string with its class name;
+  * unlike std::type_info.name(), there *are* guarantees, i.e., the name will
+  * always be the same.
+  *
+  * The method works by dispatching the private virtual method private_name().
+  * The latter is automatically implemented by the 
+  * SMSpp_insert_in_factory_cpp_* macros [see SMSTypedefs.h], hence this
+  * comes at no cost since these have to be called somewhere to ensure that
+  * any :Change will be added to the factory. Actually, since 
+  * Change::private_name() is pure virtual, this ensures that it is not
+  * possible to forget to call the appropriate SMSpp_insert_in_factory_cpp_*
+  * for any :Change because otherwise it is a pure virtual class
+  * (unless the programmer purposely defines private_name() without calling
+  * the macro, which seems rather pointless). */
+/*
+ [[nodiscard]] const std::string & classname( void ) const {
+  return( private_name() );
+  }
+*/
+/** @} ---------------------------------------------------------------------*/
+/*------------ METHODS FOR LOADING, PRINTING & SAVING THE Change -----------*/
+/*--------------------------------------------------------------------------*/
+
  /// friend operator<<(), dispatching to virtual protected print()
  /** Not really a method, but a friend operator<<() that just dispatches the
   * ostream to the protected *pure* virtual method print(). This way the
@@ -74,30 +220,6 @@ class Change {
   b.print( out );
   return ( out );
   }
-
-/*--------------------------------------------------------------------------*/
- /// de-serialize a :Change out of a file
- /** Top-level de-serialization method */
-
- static Change * deserialize( const std::string & filename );
-
-/*--------------------------------------------------------------------------*/
- /// de-serialize a :Change out of an open netCDF SMS++ file
- /** Second-level de-serialization method*/
-
- static Change * deserialize( const netCDF::NcFile & f , int idx = 0 );
-
-/*--------------------------------------------------------------------------*/
- /// de-serialize a :Change out of an open netCDF SMS++ file
- /** Third-level de-serialization method*/
-
-/*--------------------------------------------------------------------------*/
- /// de-serialize a :Change out of an open netCDF SMS++ file
- /** Fourth-level de-serialization method*/
-
-/** @} ---------------------------------------------------------------------*/
-/*------------ METHODS FOR LOADING, PRINTING & SAVING THE Change -----------*/
-/*--------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------*/
  /// serialize a Change to a netCDF file given the filename
@@ -123,22 +245,119 @@ class Change {
 
  virtual void serialize( netCDF::NcGroup & group ) const;
 
+/** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
+/*--------------------------------------------------------------------------*/
 
  protected:
 
-/*-------------------------- PROTECTED METHODS -----------------------------*/
-
- /// *pure virtual* method for allowing any Change to print itself
- /** *pure virtual* method intended to provide support for Changes to
-  * print themselves out in human-readable form. The base Change class
-  * does not have anything to print, and this method is precisely what makes
-  * it an abstract base class. */
-
- virtual void print( std::ostream & output ) const = 0;
-
+/*--------------------------------------------------------------------------*/
+/*--------------------------- PROTECTED TYPES ------------------------------*/
 /*--------------------------------------------------------------------------*/
 
+ typedef boost::function< Change *( void ) > ChangeFactory;
+ // type of the factory of Change
+
+ typedef std::map< std::string , ChangeFactory > ChangeFactoryMap;
+ // Type of the map between strings and the factory of Change
+
+/*--------------------------------------------------------------------------*/
+/*-------------------------- PROTECTED METHODS -----------------------------*/
+/*--------------------------------------------------------------------------*/
+/** @name Protected methods for inserting and extracting
+ *
+ * The Change class provides two pairs of vaguely symmetric print() /
+ * load() and serialize() / deserialize() methods to save information about
+ * it on a std::stream / netCDF::NcGroup and retrieve it. For print() the
+ * save information is *not* supposed to be enough to fully reconstruct the
+ * original Change via load(), while this must be true for serialize().
+ *   @{ */
+/*--------------------------------------------------------------------------*/
+ /// method for allowing any Change to print itself
+ /** Method intended to provide support for Change to print themselves
+  * out in human-readable form. The base Change class has preciously little
+  * to print, but it still does a bit. */
+
+ virtual void print( std::ostream & output ) const {
+  output << "Change [" << this << "]" << std::endl;
+  }
+
+/*--------------------------------------------------------------------------*/
+ /// load the Change out of an istream
+ /** *pure virtual* method intended to provide support for Change to load
+  * themselves out of an istream. This is precisely what makes Change an 
+  * *abstract* base class: the actual content of the Change depends on the
+  * specific derived class, which is why this method cannot be implemented. */
+
+ virtual void load( std::istream & input ) = 0;
+
+/** @} ---------------------------------------------------------------------*/
+/** @name Protected methods for handling static fields
+ *
+ * These methods allow derived classes to partake into static initialization
+ * procedures performed once and for all at the start of the program. These
+ * are typically related with factories.
+ * @{ */
+
+ /// method incapsulating the Change factory
+ /** This method returns the Change factory, which is a static object.
+  * The rationale for using a method is that this is the "Construct On First
+  * Use Idiom" that solves the "static initialization order problem". */
+
+ static ChangeFactoryMap & f_factory( void );
+
+/*--------------------------------------------------------------------------*/
+ /// empty placeholder for class-specific static initialization
+ /** The method static_initialization() is an empty placeholder which is made
+  * available to derived classes that need to perform some class-specific
+  * static initialization besides these of any :Change class, i.e., the
+  * management of the factory. This method is invoked by the
+  * SMSpp_insert_in_factory_cpp_* macros [see SMSTypedefs.h] during the
+  * standard initialization procedures. If a derived class needs to perform
+  * any static initialization it just have to do this into its version of
+  * this method; if not it just has nothing to do, as the (empty) method of
+  * the base class will be called.
+  *
+  * This mechanism has a potential drawback in that a redefined
+  * static_initialization() may be called multiple times. Assume that a
+  * derived class X redefines the method to perform something, and that a
+  * further class Y is derived from X that has to do nothing, and that
+  * therefore will not define Y::static_initialization(): them, within the
+  * SMSpp_insert_in_factory_cpp_* of Y, X::static_initialization() will be
+  * called again.
+  *
+  * If this is undesirable, X will have to explicitly instruct derived classes
+  * to redefine their (empty) static_initialization(). Alternatively,
+  * X::static_initialization() may contain mechanisms to ensure that it will
+  * actually do things only the very first time it is called. One standard
+  * trick is to do everything within the initialisation of a static local
+  * variable of X::static_initialization(): this is guaranteed by the
+  * compiler to happen only once, regardless of how many times the function
+  * is called. Alternatively, an explicit static boolean could be used (this
+  * may just be the same as what the compiler does during the initialization
+  * of static variables without telling you). */
+/*
+ static void static_initialization( void ) {}
+*/
+/** @} ---------------------------------------------------------------------*/
+/*--------------------------- PROTECTED FIELDS  ----------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ static std::string f_prefix;  ///< the executable-wide filename prefix
+
+/** @} ---------------------------------------------------------------------*/
+/*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
+/*--------------------------------------------------------------------------*/
+
+ private:
+
+/*--------------------------------------------------------------------------*/
+/*-------------------------- PRIVATE METHODS -------------------------------*/
+/*--------------------------------------------------------------------------*/
+ // Definition of Change::private_name() (pure virtual)
+/*
+ [[nodiscard]] virtual const std::string & private_name( void ) const = 0;
+*/
  };  // end( class( Change ) )
 
 }  // end( namespace SMSpp_di_unipi_it )

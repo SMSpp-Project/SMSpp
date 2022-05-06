@@ -19,6 +19,12 @@ C15Function.h
 CDASolver.h
 - Solver.h
 
+Change.h
+- SMSTypedefs.h
+
+Change.cpp
+- Change.h
+
 ColVariable.h
 - Variable.h
 
