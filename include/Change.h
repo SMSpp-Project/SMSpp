@@ -77,7 +77,7 @@ class Change {
   *
   *     Change * myChange = Change::new_Change( some_class );
   *
-  * i.e., without any reference to any specific Change (and, therefore, it 
+  * i.e. without any reference to any specific Change (and, therefore, it 
   * can be used to construct the very first Change if needed).
   * 
   * For this to work, each :Change has to:
@@ -104,7 +104,7 @@ class Change {
   * would work).
   *
   * @param classname The name of the :Change class that must be constructed */
-/*
+
  static Change * new_Change( const std::string & classname ) {
   const std::string classname_( SMSpp_classname_normalise(
             std::string( classname ) ) );
@@ -114,21 +114,8 @@ class Change {
                                  " not present in Change factory" ) );
   return( ( it->second )() );
   }
-*/
-/*--------------------------------------------------------------------------*/
- /// set the executable-wide prefix for all Change filenames
- /** 
-  * Note that
-  *
-  *     BEING THE MEMBER STATIC, THE PREFIX IS APPLIED TO ALL LOADING 
-  *     OPERATIONS OF ANY Change IN THE EXECUTABLE
-  *
-  * Use of this feature therefore requires care. */
-/*
- static void set_filename_prefix( std::string && prefix ) {
-  f_prefix = prefix;
-  }
-*/
+
+
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Change out of a file
  /** Top-level de-serialization method: takes the \p filename of a file and
@@ -153,38 +140,38 @@ class Change {
   *
   * If anything goes wrong with the entire operation, nullptr is returned.
   *
-  * Note that the method is static, hence it is to be called as
+  * Note that the method is static, hence it has to be called as
   *
   *     auto myChange = Change::deserialize( somefile );
   *
   * i.e. without any reference to any specific Change (and, therefore, it 
   * can be used to construct the very first Change, if needed). */
 
- //static Change * deserialize( const std::string & filename );
+ static Change * deserialize( const std::string & filename );
 
 /*--------------------------------------------------------------------------*/
- /// de-serialize a :Change out of an open netCDF SMS++ file
- /** Second-level de-serialization method */
+ /// de-serialize a :Change out of netCDF::NcGroup
+ /** The method takes a netCDF::NcGroup supposedly containing all the
+  * information required to de-serialize the :Change, and produces a "full"
+  * Change object as a result. Most likely, the netCDF::NcGroup has been
+  * produced by calling serialize() with a previously existing :Change (of
+  * the very same type as this one), but individual :Change should openly
+  * declare the format of their :Change so that possibly a netCDF::NcGroup
+  * containing some pre-computed Change can be constructed from scratch
+  * whenever this is useful.
+  *
+  * This method is pure virtual, as it clearly has to be implemented by
+  * derived classes. */
 
- //static Change * deserialize( const netCDF::NcFile & f , int idx = 0 );
-
-/*--------------------------------------------------------------------------*/
- /// de-serialize a :Change out of an open netCDF SMS++ file
- /** Third-level de-serialization method */
-
- //virtual void deserialize( const netCDF::NcGroup & group );
+ virtual Change * deserialize( const netCDF::NcGroup & group ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Change out of std::istream, returns it
+ /* It has to be implemented by derived classes. */
 
- //static Change * deserialize( std::istream & input );
+ virtual Change * deserialize( std::istream & input ) = 0;
 
-/** @} ---------------------------------------------------------------------*/
-/*---------------- Methods for reading the data of the Change --------------*/
 /*--------------------------------------------------------------------------*/
-/** @name Methods for reading the data of the Change
- *  @{ */
-
  /// getting the classname of this Change
  /** Given a Change, this method returns a string with its class name;
   * unlike std::type_info.name(), there *are* guarantees, i.e., the name will
@@ -200,11 +187,11 @@ class Change {
   * for any :Change because otherwise it is a pure virtual class
   * (unless the programmer purposely defines private_name() without calling
   * the macro, which seems rather pointless). */
-/*
+
  [[nodiscard]] const std::string & classname( void ) const {
   return( private_name() );
   }
-*/
+
 /** @} ---------------------------------------------------------------------*/
 /*------------ METHODS FOR LOADING, PRINTING & SAVING THE Change -----------*/
 /*--------------------------------------------------------------------------*/
@@ -222,28 +209,29 @@ class Change {
   }
 
 /*--------------------------------------------------------------------------*/
- /// serialize a Change to a netCDF file given the filename
- /** Method to serialize a Change to a file in netCDF-based SMS++-format */
-
- virtual void serialize( const std::string & filename ,
-       int type = eProbFile ) const;
-
-/*--------------------------------------------------------------------------*/
- /// serialize a Change to an open netCDF file
- /** Method to serialize a Change to an open netCDF file in netCDF-based 
-  * SMS++-format. */
-
- virtual void serialize( netCDF::NcFile & f, int type ) const;
-
-/*--------------------------------------------------------------------------*/
- /// serialize a Change to a netCDF NcGroup
- /** Method to serialize a Change to a netCDF NcGroup.
+ /// serialize a :Change into a netCDF::NcGroup
+ /** The method takes a (supposedly, "full") Change object and serializes
+  * it into the provided netCDF::NcGroup, so that it can possibly be read by
+  * deserialize() (of a :Change of the very same type as this one).
   *
-  *      THIS IS THE METHOD TO BE IMPLEMENTED BY DERIVED CLASSES
+  * The method of the base class just creates and fills the "type" attribute
+  * (with the right name, thanks to the classname() method) and the optional
+  * "name" attribute. Yet
   *
-  */
+  *     serialize() OF ANY :Change SHOULD CALL Change::serialize()
+  *
+  * While this currently does so little that one might well be tempted to
+  * skip the call and just copy the three lines of code, enforcing this
+  * standard is forward-looking since in this way any future revision of the
+  * base Change class may add other mandatory/optional fields: as soon as
+  * they are managed by the (revised) method of the base class, they would
+  * then be automatically dealt with by the derived classes without them even
+  * knowing it happened. */
 
- virtual void serialize( netCDF::NcGroup & group ) const;
+ virtual void serialize( netCDF::NcGroup & group ) const {
+  group.putAtt( "type" , classname() );
+  }
+
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
@@ -281,15 +269,6 @@ class Change {
  virtual void print( std::ostream & output ) const {
   output << "Change [" << this << "]" << std::endl;
   }
-
-/*--------------------------------------------------------------------------*/
- /// load the Change out of an istream
- /** *pure virtual* method intended to provide support for Change to load
-  * themselves out of an istream. This is precisely what makes Change an 
-  * *abstract* base class: the actual content of the Change depends on the
-  * specific derived class, which is why this method cannot be implemented. */
-
- virtual void load( std::istream & input ) = 0;
 
 /** @} ---------------------------------------------------------------------*/
 /** @name Protected methods for handling static fields
@@ -336,14 +315,12 @@ class Change {
   * is called. Alternatively, an explicit static boolean could be used (this
   * may just be the same as what the compiler does during the initialization
   * of static variables without telling you). */
-/*
+
  static void static_initialization( void ) {}
-*/
+
 /** @} ---------------------------------------------------------------------*/
 /*--------------------------- PROTECTED FIELDS  ----------------------------*/
 /*--------------------------------------------------------------------------*/
-
- static std::string f_prefix;  ///< the executable-wide filename prefix
 
 /** @} ---------------------------------------------------------------------*/
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
@@ -355,9 +332,9 @@ class Change {
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
  // Definition of Change::private_name() (pure virtual)
-/*
+
  [[nodiscard]] virtual const std::string & private_name( void ) const = 0;
-*/
+
  };  // end( class( Change ) )
 
 }  // end( namespace SMSpp_di_unipi_it )
