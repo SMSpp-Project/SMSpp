@@ -2049,7 +2049,8 @@ deserialize( const netCDF::NcGroup & group , T & data ,
  *
  * @return true if the desired variable was deserialized; false, otherwise.
  */
-bool deserialize( const netCDF::NcGroup & group , std::string & data ,
+
+inline bool deserialize( const netCDF::NcGroup & group , std::string & data ,
                   const std::string & name = "value" , bool optional = true ) {
  auto ncVar = group.getVar( name );
  if( ncVar.isNull() ) {
