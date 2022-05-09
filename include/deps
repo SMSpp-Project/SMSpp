@@ -22,9 +22,6 @@ CDASolver.h
 Change.h
 - SMSTypedefs.h
 
-Change.cpp
-- Change.h
-
 ColVariable.h
 - Variable.h
 

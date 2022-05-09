@@ -192,10 +192,7 @@ class Change {
   return( private_name() );
   }
 
-/** @} ---------------------------------------------------------------------*/
-/*------------ METHODS FOR LOADING, PRINTING & SAVING THE Change -----------*/
 /*--------------------------------------------------------------------------*/
-
  /// friend operator<<(), dispatching to virtual protected print()
  /** Not really a method, but a friend operator<<() that just dispatches the
   * ostream to the protected *pure* virtual method print(). This way the
@@ -283,7 +280,10 @@ class Change {
   * The rationale for using a method is that this is the "Construct On First
   * Use Idiom" that solves the "static initialization order problem". */
 
- static ChangeFactoryMap & f_factory( void );
+ static ChangeFactoryMap & f_factory( void ) {
+  static ChangeFactoryMap c_factory;
+  return( c_factory );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// empty placeholder for class-specific static initialization
