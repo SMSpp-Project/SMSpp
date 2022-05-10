@@ -323,8 +323,7 @@ class RowConstraint : public Constraint
 
 /*----------------------------- CONSTANTS ----------------------------------*/
 
- static constexpr RHSValue RHSINF
-                                = std::numeric_limits< RHSValue >::infinity();
+ static constexpr RHSValue RHSINF = Inf< RHSValue >();
  ///< convenience constexpr for "Infty"
 
 /** @} ---------------------------------------------------------------------*/

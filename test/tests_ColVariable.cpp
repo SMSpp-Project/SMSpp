@@ -44,10 +44,8 @@ TEST( ColVariableTest, IsContinuous ) {
  ASSERT_FALSE( var.is_positive() );
  ASSERT_FALSE( var.is_negative() );
  ASSERT_FALSE( var.is_unitary() );
- ASSERT_EQ( var.get_lb(),
-            -std::numeric_limits< ColVariable::VarValue >::infinity() );
- ASSERT_EQ( var.get_ub(),
-            std::numeric_limits< ColVariable::VarValue >::infinity() );
+ ASSERT_EQ( var.get_lb(), -Inf< ColVariable::VarValue >() );
+ ASSERT_EQ( var.get_ub(), Inf< ColVariable::VarValue >() );
 
 }
 
@@ -60,10 +58,8 @@ TEST( ColVariableTest, IsInteger ) {
  ASSERT_FALSE( var.is_positive() );
  ASSERT_FALSE( var.is_negative() );
  ASSERT_FALSE( var.is_unitary() );
- ASSERT_EQ( var.get_lb(),
-            -std::numeric_limits< ColVariable::VarValue >::infinity() );
- ASSERT_EQ( var.get_ub(),
-            std::numeric_limits< ColVariable::VarValue >::infinity() );
+ ASSERT_EQ( var.get_lb(), -Inf< ColVariable::VarValue >() );
+ ASSERT_EQ( var.get_ub(), Inf< ColVariable::VarValue >() );
 }
 
 TEST( ColVariableTest, IsPositive ) {
@@ -76,8 +72,7 @@ TEST( ColVariableTest, IsPositive ) {
  ASSERT_FALSE( var.is_negative() );
  ASSERT_FALSE( var.is_unitary() );
  ASSERT_EQ( var.get_lb(), 0 );
- ASSERT_EQ( var.get_ub(),
-            std::numeric_limits< ColVariable::VarValue >::infinity() );
+ ASSERT_EQ( var.get_ub(), Inf< ColVariable::VarValue >() );
 }
 
 TEST( ColVariableTest, IsNegative ) {
@@ -89,8 +84,7 @@ TEST( ColVariableTest, IsNegative ) {
  ASSERT_FALSE( var.is_positive() );
  ASSERT_TRUE( var.is_negative() );
  ASSERT_FALSE( var.is_unitary() );
- ASSERT_EQ( var.get_lb(),
-            -std::numeric_limits< ColVariable::VarValue >::infinity() );
+ ASSERT_EQ( var.get_lb(), -Inf< ColVariable::VarValue >() );
  ASSERT_EQ( var.get_ub(), 0 );
 }
 

@@ -555,7 +555,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface
   * to be able to write into the fields of the class. */
 
  virtual FunctionValue get_Lipschitz_constant( void ) {
-  return( std::numeric_limits< FunctionValue >::infinity() );
+  return( Inf< FunctionValue >() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -637,7 +637,7 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface
 
  [[nodiscard]] int get_dflt_int_par( idx_type par ) const override {
   switch( par ) {
-   case( intMaxIter ):   return( std::numeric_limits< int >::infinity() );
+   case( intMaxIter ):   return( Inf< int >() );
    case( intMaxThread ): return( 0 );
    case( intEverykIt ):  return( 0 );
    }
@@ -649,12 +649,12 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface
 
  [[nodiscard]] double get_dflt_dbl_par( idx_type par ) const override {
   switch( par ) {
-   case( dblMaxTime ):  return( std::numeric_limits< double >::infinity() );
+   case( dblMaxTime ):  return( Inf< double >() );
    case( dblEveryTTm ): return( 0 );
    case( dblRelAcc ):   return( 1e-6 );
    case( dblAbsAcc ):
-   case( dblUpCutOff ): return( std::numeric_limits< double >::infinity() );
-   case( dblLwCutOff ): return( -std::numeric_limits< double >::infinity() );
+   case( dblUpCutOff ): return( Inf< double >() );
+   case( dblLwCutOff ): return( -Inf< double >() );
    }
 
   throw( std::invalid_argument( "invalid double parameter name" ) );
@@ -819,19 +819,19 @@ class Function : public ThinComputeInterface , public ThinVarDepInterface
  *   however, the value is still allowed for uniformity with FunctionModVars
  *   [see].
  *
- * - +Infty (= std::numeric_limits<FunctionValue>::infinity(), for which the
- *   convenience constexpr "INFshift" is defined): this means that the value
- *   of the Function has changed "unpredictably but monotonically upwards":
- *   computing the value of the Function at any point now returns a value
- *   that is surely greater than or equal to the value that would have been
- *   returned prior to the Modification.
+ * - +Infty (= Inf<FunctionValue>(), for which the convenience constexpr
+ *   "INFshift" is defined): this means that the value of the Function has
+ *   changed "unpredictably but monotonically upwards": computing the value of
+ *   the Function at any point now returns a value that is surely greater than
+ *   or equal to the value that would have been returned prior to the
+ *   Modification.
  *
- * - -Infty (= - std::numeric_limits<FunctionValue>::infinity(), i.e.,
- *   "-INFshift" exploiting the defined convenience constexpr): this means
- *   that the value of the Function has changed "unpredictably but
- *   monotonically downwards": computing the value of the Function at any
- *   point now returns a value that is surely smaller than or equal to the
- *   value that would have been returned prior to the Modification.
+ * - -Infty (= - Inf<FunctionValue>(), i.e., "-INFshift" exploiting the
+ *   defined convenience constexpr): this means that the value of the Function
+ *   has changed "unpredictably but monotonically downwards": computing the
+ *   value of the Function at any point now returns a value that is surely
+ *   smaller than or equal to the value that would have been returned prior to
+ *   the Modification.
  *
  * Note that a FunctionMod with std::isnan( shift() ) == true is the "nuclear
  * Modification for Function": it basically says that everything that was
@@ -883,8 +883,7 @@ class FunctionMod : public AModification {
                           = std::numeric_limits< FunctionValue >::quiet_NaN();
  ///< convenience constexpr for "NaN", *not* to be used with ==
 
- static constexpr FunctionValue INFshift
-                           = std::numeric_limits< FunctionValue >::infinity();
+ static constexpr FunctionValue INFshift = Inf< FunctionValue >();
  ///< convenience constexpr for "Infty"
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/
@@ -1100,21 +1099,19 @@ class FunctionMod : public AModification {
  *   Modification was a quasi-additive one, with shift() being the value of
  *   the shift.
  *
- * - +Infty (= std::numeric_limits<FunctionValue>::infinity(), for which
- *   the convenience constexpr "INFshift" is defined): the Modification was
- *   not a quasi-additive one, but while the value of the Function has
- *   changed "unpredictably" all over the space, the change is "upward
- *   monotone" in the sense that:
+ * - +Infty (= Inf<FunctionValue>(), for which the convenience constexpr
+ *   "INFshift" is defined): the Modification was not a quasi-additive one,
+ *   but while the value of the Function has changed "unpredictably" all over
+ *   the space, the change is "upward monotone" in the sense that:
  *   = for addition, the value of the Function at any point ( x , 0 ) is
  *     surely greater than or equal to the value that the Function had at x;
  *   = for deletion, the value of the Function at any point x is surely
  *     greater than or equal to the value that the Function had at ( x , 0 ).
  *
- * - -Infty (= -std::numeric_limits<FunctionValue>::infinity(), i.e.,
- *   "-INFshift" exploiting the defined convenience constexpr): the
- *   Modification was not a quasi-additive one, but while the value of the
- *   Function has changed "unpredictably" all over the space, the change is
- *   "downward monotone" in the sense that:
+ * - -Infty (= -Inf<FunctionValue>(), i.e., "-INFshift" exploiting the defined
+ *   convenience constexpr): the Modification was not a quasi-additive one,
+ *   but while the value of the Function has changed "unpredictably" all over
+ *   the space, the change is "downward monotone" in the sense that:
  *   = for addition, the value of the Function at any point ( x , 0 ) is
  *     surely less than or equal to the value that the Function had at x;
  *   = for deletion, the value of the Function at any point x is surely
@@ -1174,8 +1171,7 @@ class FunctionModVars : public AModification {
                             std::numeric_limits< FunctionValue >::quiet_NaN();
  ///< convenience constexpr for "NaN", *not* to be used with ==
 
- static constexpr FunctionValue INFshift =
-                             std::numeric_limits< FunctionValue >::infinity();
+ static constexpr FunctionValue INFshift = Inf< FunctionValue >();
  ///< convenience constexpr for "Infty"
 
 /*---------------------------- CONSTRUCTOR ---------------------------------*/

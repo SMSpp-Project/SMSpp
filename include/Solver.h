@@ -1051,7 +1051,7 @@ class Solver : public ThinComputeInterface
   * concept of real objective function. */
 
  [[nodiscard]] virtual OFValue get_lb( void ) {
-  return( -std::numeric_limits< OFValue >::infinity() );
+  return( -Inf< OFValue >() );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -1130,7 +1130,7 @@ class Solver : public ThinComputeInterface
   * concept of real objective function. */
 
  [[nodiscard]] virtual OFValue get_ub( void ) {
-  return( std::numeric_limits< OFValue >::infinity() );
+  return( Inf< OFValue >() );
   }
 
 /*--------------------------------------------------------------------------*/

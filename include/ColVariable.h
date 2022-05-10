@@ -34,6 +34,7 @@
 #include <algorithm>
 #include <cmath>
 
+#include "SMSTypedefs.h"
 #include "Variable.h"
 
 /*--------------------------------------------------------------------------*/
@@ -369,8 +370,7 @@ class ColVariable : public Variable
 
  [[nodiscard]] VarValue get_lb( void ) const {
   return( is_positive() ? VarValue( 0 ) :
-           ( is_unitary() ? VarValue( -1 ) :
-             -std::numeric_limits< VarValue >::infinity() ) );
+          ( is_unitary() ? VarValue( -1 ) : -Inf< VarValue >() ) );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -378,8 +378,7 @@ class ColVariable : public Variable
 
  [[nodiscard]] VarValue get_ub( void ) const {
   return( is_negative() ? VarValue( 0 ) :
-	  ( is_unitary() ? VarValue( 1 ) :
-	    std::numeric_limits< VarValue >::infinity() ) );
+	  ( is_unitary() ? VarValue( 1 ) : Inf< VarValue >() ) );
   }
 
 /** @} ---------------------------------------------------------------------*/
@@ -400,7 +399,7 @@ class ColVariable : public Variable
   if( idx != v_active.end() )
    return( std::distance( v_active.begin() , idx ) );
   else
-   return( std::numeric_limits< Index >::infinity() );
+   return( Inf< Index >() );
   }
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/

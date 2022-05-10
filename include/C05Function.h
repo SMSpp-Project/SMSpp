@@ -2283,9 +2283,9 @@ class C05FunctionModVarsAddd : public FunctionModVarsAddd {
 
   if( std::isnan( f_shift ) )
    output << "+-(?)";
-  else if( f_shift >= std::numeric_limits< FunctionValue >::infinity() )
+  else if( f_shift >= Inf< FunctionValue >() )
    output << "+(?)";
-  else if( f_shift <= -std::numeric_limits< FunctionValue >::infinity() )
+  else if( f_shift <= -Inf< FunctionValue >() )
    output << "-(?)";
   else
    output << f_shift;
@@ -2370,9 +2370,9 @@ class C05FunctionModVarsRngd : public FunctionModVarsRngd {
 
   if( std::isnan( f_shift ) )
    output << "+-(?)";
-  else if( f_shift >= std::numeric_limits< FunctionValue >::infinity() )
+  else if( f_shift >= Inf< FunctionValue >() )
    output << "+(?)";
-  else if( f_shift <= -std::numeric_limits< FunctionValue >::infinity() )
+  else if( f_shift <= -Inf< FunctionValue >() )
    output << "-(?)";
   else
    output << f_shift;
@@ -2458,9 +2458,9 @@ class C05FunctionModVarsSbst : public FunctionModVarsSbst {
 
   if( std::isnan( f_shift ) )
    output << "+-(?)";
-  else if( f_shift >= std::numeric_limits< FunctionValue >::infinity() )
+  else if( f_shift >= Inf< FunctionValue >() )
    output << "+(?)";
-  else if( f_shift <= -std::numeric_limits< FunctionValue >::infinity() )
+  else if( f_shift <= -Inf< FunctionValue >() )
    output << "-(?)";
   else
    output << f_shift;
@@ -2551,8 +2551,7 @@ class C05FunctionModVarsSbst : public FunctionModVarsSbst {
  * d \bar{x}', which cannot be always equal. Thus, the expected value of
  * shift() should be NaN, except if the C05Function can infer something on
  * the sign; say, all Variable are non-negative and d >= 0, hence the shift
- * can only be positive and shift() = 
- * std::numeric_limits<FunctionValue>::infinity() is appropriate.
+ * can only be positive and shift() = Inf<FunctionValue>() is appropriate.
  *
  * Finally, note that this is intended as the base class of this kind of
  * Modification, since it provides the pointers but *not* indices of the

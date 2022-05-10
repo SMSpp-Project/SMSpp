@@ -26,8 +26,8 @@ using namespace SMSpp_di_unipi_it;
 
 TEST( FunctionTest, GetsNumberOfParameters ) {
  LinearFunction fun;
- auto iinf = std::numeric_limits< int >::infinity();
- auto dinf = std::numeric_limits< double >::infinity();
+ auto iinf = Inf< int >();
+ auto dinf = Inf< double >();
 
  ASSERT_EQ( fun.ThinComputeInterface::get_num_int_par(), 0 );
  ASSERT_EQ( fun.ThinComputeInterface::get_num_dbl_par(), 0 );
@@ -40,8 +40,8 @@ TEST( FunctionTest, GetsNumberOfParameters ) {
 
 TEST( FunctionTest, GetsParameterDefaultValues ) {
  LinearFunction fun;
- auto iinf = std::numeric_limits< int >::infinity();
- auto dinf = std::numeric_limits< double >::infinity();
+ auto iinf = Inf< int >();
+ auto dinf = Inf< double >();
 
  ASSERT_EQ( fun.Function::get_dflt_int_par( Function::intMaxIter ), iinf );
  ASSERT_EQ( fun.Function::get_dflt_int_par( Function::intMaxThread ), 0 );
