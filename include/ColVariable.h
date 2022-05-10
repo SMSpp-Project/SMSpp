@@ -34,7 +34,6 @@
 #include <algorithm>
 #include <cmath>
 
-#include "SMSTypedefs.h"
 #include "Variable.h"
 
 /*--------------------------------------------------------------------------*/
@@ -368,18 +367,12 @@ class ColVariable : public Variable
 /*--------------------------------------------------------------------------*/
  /// method to return the lower bound on the ColVariable implied by its type
 
- [[nodiscard]] VarValue get_lb( void ) const {
-  return( is_positive() ? VarValue( 0 ) :
-          ( is_unitary() ? VarValue( -1 ) : -Inf< VarValue >() ) );
-  }
+ [[nodiscard]] VarValue get_lb( void ) const;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// method to return the upper bound on the ColVariable implied by its type
 
- [[nodiscard]] VarValue get_ub( void ) const {
-  return( is_negative() ? VarValue( 0 ) :
-	  ( is_unitary() ? VarValue( 1 ) : Inf< VarValue >() ) );
-  }
+ [[nodiscard]] VarValue get_ub( void ) const;
 
 /** @} ---------------------------------------------------------------------*/
 /*------------------- METHODS FOR HANDLING ACTIVE "STUFF" ------------------*/
@@ -393,14 +386,7 @@ class ColVariable : public Variable
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- Index is_active( ThinVarDepInterface * stuff ) const override {
-  auto idx = std::lower_bound( v_active.begin(), v_active.end(), stuff );
-
-  if( idx != v_active.end() )
-   return( std::distance( v_active.begin() , idx ) );
-  else
-   return( Inf< Index >() );
-  }
+ Index is_active( ThinVarDepInterface * stuff ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 

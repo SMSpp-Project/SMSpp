@@ -136,5 +136,30 @@ void ColVariable::is_unitary( bool yn , c_ModParam issueMod )
  }
 
 /*--------------------------------------------------------------------------*/
+
+ColVariable::VarValue ColVariable::get_lb( void ) const {
+ return( is_positive() ? VarValue( 0 ) :
+         ( is_unitary() ? VarValue( -1 ) : -Inf< VarValue >() ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ColVariable::VarValue ColVariable::get_ub( void ) const {
+ return( is_negative() ? VarValue( 0 ) :
+         ( is_unitary() ? VarValue( 1 ) : Inf< VarValue >() ) );
+ }
+
+/*--------------------------------------------------------------------------*/
+
+ColVariable::Index ColVariable::is_active( ThinVarDepInterface * stuff ) const {
+ auto idx = std::lower_bound( v_active.begin(), v_active.end(), stuff );
+
+ if( idx != v_active.end() )
+  return( std::distance( v_active.begin() , idx ) );
+ else
+  return( Inf< Index >() );
+ }
+
+/*--------------------------------------------------------------------------*/
 /*---------------------- End File Variable.cpp -----------------------------*/
 /*--------------------------------------------------------------------------*/

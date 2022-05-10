@@ -12,6 +12,7 @@
 #include <gtest/gtest.h>
 
 #include "ColVariable.h"
+#include "SMSTypedefs.h"
 
 using namespace SMSpp_di_unipi_it;
 
