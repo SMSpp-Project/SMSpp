@@ -113,7 +113,7 @@ class Change {
    throw( std::invalid_argument( classname + 
                                  " not present in Change factory" ) );
   return( ( it->second )() );
-  }
+ }
 
 
 /*--------------------------------------------------------------------------*/
@@ -121,22 +121,6 @@ class Change {
  /** Top-level de-serialization method: takes the \p filename of a file and
   * returns the complete :Change object whose description is the one found 
   * in the file.
-  *
-  * The method supports two different kind of files:
-  *
-  * - text files,
-  *
-  * - SMS++ netCDF files.
-  *
-  * It distinguishes between the two by the suffix. In particular, the format
-  * of \p filename can be:
-  *
-  * - either \p filename terminates by ".txt" (case sensitive) then a
-  *   std::fstream is opened and deserialize( istream ) is called, with
-  *   the Change being extracted is the first one found in it;
-  *
-  * - otherwise a netCDF::NcFile is opened and deserialize( netCDF::NcFile )
-  *   is called.
   *
   * If anything goes wrong with the entire operation, nullptr is returned.
   *
@@ -148,6 +132,21 @@ class Change {
   * can be used to construct the very first Change, if needed). */
 
  static Change * deserialize( const std::string & filename );
+
+/*--------------------------------------------------------------------------*/
+ /// de-serialize a :Change out of an open netCDF SMS++ file
+ /** Second-level de-serialization method: takes an open netCDF file and the
+  * index of a Change into the file, and returns the correspinding complete 
+  * :Change object.
+  *
+  * Note that the method is static, hence it is to be called as
+  *
+  *     Change *myChange = Change::deserialize( somefile );
+  *
+  * i.e., without any reference to any specific Change (and,
+  * therefore, it can be used to construct the very first Change if needed).*/
+
+ static Change * deserialize( const netCDF::NcFile & f , int idx = 0 );
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Change out of netCDF::NcGroup
@@ -163,13 +162,7 @@ class Change {
   * This method is pure virtual, as it clearly has to be implemented by
   * derived classes. */
 
- virtual Change * deserialize( const netCDF::NcGroup & group ) = 0;
-
-/*--------------------------------------------------------------------------*/
- /// de-serialize a :Change out of std::istream, returns it
- /* It has to be implemented by derived classes. */
-
- virtual Change * deserialize( std::istream & input ) = 0;
+ virtual void deserialize( const netCDF::NcGroup & group ) = 0;
 
 /*--------------------------------------------------------------------------*/
  /// getting the classname of this Change
@@ -190,7 +183,7 @@ class Change {
 
  [[nodiscard]] const std::string & classname( void ) const {
   return( private_name() );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// friend operator<<(), dispatching to virtual protected print()
@@ -203,7 +196,7 @@ class Change {
  friend std::ostream & operator<<( std::ostream & out , const Change & b ) {
   b.print( out );
   return ( out );
-  }
+ }
 
 /*--------------------------------------------------------------------------*/
  /// serialize a :Change into a netCDF::NcGroup
@@ -227,7 +220,7 @@ class Change {
 
  virtual void serialize( netCDF::NcGroup & group ) const {
   group.putAtt( "type" , classname() );
-  }
+ }
 
 
 /** @} ---------------------------------------------------------------------*/
@@ -326,7 +319,7 @@ class Change {
 /*--------------------- PRIVATE PART OF THE CLASS --------------------------*/
 /*--------------------------------------------------------------------------*/
 
- private:
+private:
 
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
