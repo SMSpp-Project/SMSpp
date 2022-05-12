@@ -59,6 +59,7 @@ SMS++OBJ = $(SMS++SDR)obj/AbstractBlock.o \
 	$(SMS++SDR)obj/PolyhedralFunction.o \
 	$(SMS++SDR)obj/PolyhedralFunctionBlock.o \
 	$(SMS++SDR)obj/RBlockConfig.o \
+	$(SMS++SDR)obj/RelaxationSolver.o \
 	$(SMS++SDR)obj/RowConstraintSolution.o \
 	$(SMS++SDR)obj/Solver.o \
 	$(SMS++SDR)obj/ThinComputeInterface.o \
@@ -98,6 +99,7 @@ SMS++H = $(SMS++SDR)include/AbstractBlock.h \
 	$(SMS++SDR)include/PolyhedralFunction.h \
 	$(SMS++SDR)include/PolyhedralFunctionBlock.h \
 	$(SMS++SDR)include/RBlockConfig.h \
+	$(SMS++SDR)include/RelaxationSolver.h \
 	$(SMS++SDR)include/RowConstraint.h \
 	$(SMS++SDR)include/RowConstraintSolution.h \
 	$(SMS++SDR)include/SMSTypedefs.h \
@@ -331,6 +333,10 @@ $(SMS++SDR)obj/PolyhedralFunctionBlock.o: $(intBlockINC) \
 $(SMS++SDR)obj/RBlockConfig.o: $(SMS++SDR)src/RBlockConfig.cpp \
 	$(SMS++SDR)include/RBlockConfig.h $(intBlockINC)
 	$(CC) -c $(SMS++SDR)src/RBlockConfig.cpp -o $@ $(SMS++INC) $(SW)
+
+$(SMS++SDR)obj/RelaxationSolver.o: $(SMS++SDR)src/RelaxationSolver.cpp \
+	$(SMS++SDR)include/RelaxationSolver.h $(intBlockINC)
+	$(CC) -c $(SMS++SDR)src/RelaxationSolver.cpp -o $@ $(SMS++INC) $(SW)
 
 #$(SMS++SDR)obj/RowConstraint.o: $(SMS++SDR)src/RowConstraint.cpp \
 #	$(intBlockINC)
