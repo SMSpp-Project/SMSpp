@@ -301,6 +301,102 @@ clear_constraints( boost::multi_array< T , K > & constraints ) {
   constraint->clear();
 }
 
+/// verifies whether the current solution is feasible for the given constraints
+/** This function checks whether the relative violation of each Constraint
+ * in the given group of Constraint is not greater than the provided
+ * tolerance.
+ *
+ * @return This function returns true if and only if the relative violation of
+ *         each Constraint in the given group is not greater than the given
+ *         tolerance. */
+
+template< class C >
+static std::enable_if_t< std::is_base_of_v< Constraint , C > , bool >
+is_feasible( std::vector< C > & constraints , double tolerance ) {
+ for( auto & constraint : constraints ) {
+  if( constraint.is_relaxed() )
+   continue;
+  constraint.compute();
+  if( constraint.rel_viol() > tolerance )
+   return false;
+ }
+ return true;
+}
+
+/// verifies whether the given Variable are feasible
+/** This function returns true if and only if each given Variable is
+ * feasible with respect to the given tolerance (see
+ * Variable::is_feasible()).
+ *
+ * @return This function returns true if and only if each of the given
+ *         Variable is feasible considering the given tolerance. */
+
+template< class V >
+static std::enable_if_t< std::is_base_of_v< Variable , V > , bool >
+is_feasible( const std::vector< V > & variables , double tolerance ) {
+ return std::all_of( variables.begin() , variables.end() ,
+                     [ tolerance ]( const auto & variable ) {
+                      return variable.is_feasible( tolerance );
+                     } );
+}
+
+/// verifies whether the current solution is feasible for the given constraints
+/** This function checks whether the relative violation of each Constraint
+ * in the given group of Constraint is not greater than the provided
+ * tolerance.
+ *
+ * @return This function returns true if and only if the relative violation of
+ *         each Constraint in the given group is not greater than the given
+ *         tolerance. */
+
+template< class C , auto D >
+static std::enable_if_t< std::is_base_of_v< Constraint , C > , bool >
+is_feasible( boost::multi_array< C , D > & constraints , double tolerance ) {
+
+ auto num_elements = constraints.num_elements();
+
+ if( num_elements == 0 )
+  // If there is no Constraint, then the solution is considered to be feasible
+  return true;
+
+ auto constraint = constraints.data();
+ for( decltype( num_elements ) i = 0 ; i < num_elements ; ++i , ++constraint ) {
+  if( constraint->is_relaxed() )
+   continue;
+  constraint->compute();
+  if( constraint->rel_viol() > tolerance )
+   return false;
+ }
+ return true;
+}
+
+/// verifies whether the given Variable are feasible
+/** This function returns true if and only if each given Variable is
+ * feasible with respect to the given tolerance (see
+ * Variable::is_feasible()).
+ *
+ * @return This function returns true if and only if each of the given
+ *         Variable is feasible considering the given tolerance. */
+
+template< class V , auto D >
+static std::enable_if_t< std::is_base_of_v< Variable , V > , bool >
+is_feasible( const boost::multi_array< V , D > & variables ,
+             double tolerance ) {
+
+ auto num_elements = variables.num_elements();
+
+ if( num_elements == 0 )
+  // If there is no Variable, then the solution is considered to be feasible
+  return true;
+
+ auto variable = variables.data();
+ for( decltype( num_elements ) i = 0 ; i < num_elements ; ++i , ++variable ) {
+  if( ! variable->is_feasible( tolerance ) )
+   return false;
+ }
+ return true;
+}
+
 /** @} end( group( Constraint_TYPES ) ) */
 /*--------------------------------------------------------------------------*/
 /*------------------------- UTILITIES FOR FACTORIES ------------------------*/
