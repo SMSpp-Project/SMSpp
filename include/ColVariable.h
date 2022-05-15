@@ -71,7 +71,7 @@ namespace SMSpp_di_unipi_it {
  *    real-valued :Variable with different precisions than double are
  *    required, one should rather re-define a specific similar class to this.
  *
- *  - Other than being filed, a ColVariable can be restricted to live into
+ *  - Other than being fixed, a ColVariable can be restricted to live into
  *    some "interesting subsets of the reals". This is mainly used to impose
  *    integrality restrictions: each subset has both an "integral" and a
  *    "continuous" variant. However, also sign constraints and "unitary"
