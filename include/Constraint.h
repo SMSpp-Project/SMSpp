@@ -39,7 +39,9 @@
 
 #include <list>
 #include <vector>
+
 #include <boost/multi_array.hpp>
+
 #include "Modification.h"
 #include "ThinComputeInterface.h"
 #include "ThinVarDepInterface.h"
@@ -191,7 +193,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
  /** Pure virtual method: it has to compute whatever expression/function the
   * Constraint depends onto and store the results into some protected field,
   * so that feasible() [see below] can then check whether or not the
-  * Constraint is feasible (without chaging it, which allows feasible() to
+  * Constraint is feasible (without changing it, which allows feasible() to
   * be const). Evaluating a Constraint can be a lengthy task, involving e.g.
   * expensive function computations or numerical integrals, which is why
   * Constraints are not evaluated by default, and need to be evaluated
@@ -207,7 +209,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
  /// returns true if Constraint is feasible
  /** Pure virtual method: it has to return true if Constraint is feasible
   * given the values of the Variables it depends onto. More specifically, the
-  * methodhas to return true if the Constraint *was* feasible at the last time
+  * method has to return true if the Constraint *was* feasible at the last time
   * in which compute() [see above] has been called. It is an error to call
   * this method if compute() has never been called, although implementations
   * are allowed not to check this and return any random response: is the
@@ -383,6 +385,92 @@ class ConstraintMod : public AModification {
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( ConstraintMod ) )
+
+/*--------------------------------------------------------------------------*/
+/*------------------------- UTILITIES FOR Constraint -----------------------*/
+/*--------------------------------------------------------------------------*/
+
+/// Clear a std::vector of Constraint
+template< typename T >
+std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
+clear_constraints( std::vector< T > & constraints ) {
+ for( auto & constraint : constraints )
+  constraint.clear();
+}
+
+/*--------------------------------------------------------------------------*/
+/// Clear a std::vector of std:vector of Constraint
+template< typename T >
+std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
+clear_constraints( std::vector< std::vector< T > > & constraints ) {
+ for( auto & constraint : constraints )
+  clear_constraints( constraint );
+}
+
+/*--------------------------------------------------------------------------*/
+/// Clear a K-D boost::multi_array of Constraint
+template< typename T , std::size_t K >
+std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
+clear_constraints( boost::multi_array< T , K > & constraints ) {
+ auto constraint = constraints.data();
+ auto n = constraints.num_elements();
+ for( decltype( n ) i = 0 ; i < n ; ++i , ++constraint )
+  constraint->clear();
+}
+
+/*--------------------------------------------------------------------------*/
+/// verifies whether the current solution is feasible for the given constraints
+/** This function checks whether the relative violation of each Constraint
+ * in the given group of Constraint is not greater than the provided
+ * tolerance.
+ *
+ * @return This function returns true if and only if the relative violation of
+ *         each Constraint in the given group is not greater than the given
+ *         tolerance. */
+
+template< class C >
+static std::enable_if_t< std::is_base_of_v< Constraint , C > , bool >
+is_feasible( std::vector< C > & constraints , double tolerance ) {
+ for( auto & constraint : constraints ) {
+  if( constraint.is_relaxed() )
+   continue;
+  constraint.compute();
+  if( constraint.rel_viol() > tolerance )
+   return false;
+ }
+ return true;
+}
+
+/*--------------------------------------------------------------------------*/
+/// verifies whether the current solution is feasible for the given constraints
+/** This function checks whether the relative violation of each Constraint
+ * in the given group of Constraint is not greater than the provided
+ * tolerance.
+ *
+ * @return This function returns true if and only if the relative violation of
+ *         each Constraint in the given group is not greater than the given
+ *         tolerance. */
+
+template< class C , auto D >
+static std::enable_if_t< std::is_base_of_v< Constraint , C > , bool >
+is_feasible( boost::multi_array< C , D > & constraints , double tolerance ) {
+
+ auto num_elements = constraints.num_elements();
+
+ if( num_elements == 0 )
+  // If there is no Constraint, then the solution is considered to be feasible
+  return true;
+
+ auto constraint = constraints.data();
+ for( decltype( num_elements ) i = 0 ; i < num_elements ; ++i , ++constraint ) {
+  if( constraint->is_relaxed() )
+   continue;
+  constraint->compute();
+  if( constraint->rel_viol() > tolerance )
+   return false;
+ }
+ return true;
+}
 
 /** @} end( group( Constraint_CLASSES ) ) ----------------------------------*/
 /*--------------------------------------------------------------------------*/
