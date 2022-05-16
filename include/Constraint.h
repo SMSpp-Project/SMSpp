@@ -142,6 +142,64 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
 
  ~Constraint() override = default;
 
+/*--------------------------------------------------------------------------*/
+ /// clear a std::vector of Constraint
+ template< class T >
+ static std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
+ clear( std::vector< T > & constraints ) {
+  for( auto & constraint : constraints )
+   constraint.clear();
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// clear a std::vector of std:vector of Constraint
+ template< class T >
+ std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
+ static clear( std::vector< std::vector< T > > & constraints ) {
+  for( auto & v_constraints : constraints )
+   clear( v_constraints );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// clear a K-D boost::multi_array of Constraint
+ template< class T , std::size_t K >
+ static std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
+ clear( boost::multi_array< T , K > & constraints ) {
+  auto constraint = constraints.data();
+  auto n = constraints.num_elements();
+  for( decltype( n ) i = 0 ; i < n ; ++i , ++constraint )
+   constraint->clear();
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// clear a std::list of Constraint
+ template< class T >
+ static std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
+ clear( std::list< T > & constraints ) {
+  for( auto & constraint : constraints )
+   constraint.clear();
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// clear a std::vector of std::list of Constraint
+ template< class T >
+ static std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
+ clear( std::vector< std::list< T>> & constraints ) {
+  for( auto & l_constraints : constraints )
+   clear( l_constraints );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// clear a K-D boost::multi_array of std::list of Constraint
+ template< class T , std::size_t K >
+ static std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
+ clear( boost::multi_array< std::list< T > , K > & constraints ) {
+  auto l_constraints = constraints.data();
+  auto n = constraints.num_elements();
+  for( decltype( n ) i = 0 ; i < n ; ++i , ++l_constraints )
+   clear( l_constraints );
+ }
+
 /** @} ---------------------------------------------------------------------*/
 /*-------------------------- OTHER INITIALIZATIONS -------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -222,6 +280,146 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
  /// returns true if the Constraint is relaxed, i.e., not really a Constraint
 
  [[nodiscard]] bool is_relaxed( void ) const { return( f_is_relaxed ); }
+
+/*--------------------------------------------------------------------------*/
+ /// verifies whether the current solution is feasible for the given
+ /// std::vector of Constraint
+ /** This function checks whether the relative violation of each Constraint
+  * in the given std::vector of Constraint is not greater than the provided
+  * tolerance.
+  *
+  * @return This function returns true if and only if the relative violation of
+  *         each Constraint is not greater than the given tolerance. */
+
+ template< class T >
+ static std::enable_if_t< std::is_base_of_v< Constraint , T > , bool >
+ is_feasible( std::vector< T > & constraints ,
+              double tolerance ) {
+  for( auto & constraint : constraints ) {
+   if( constraint.is_relaxed() )
+    continue;
+   constraint.compute();
+   if( constraint.rel_viol() > tolerance )
+    return( false );
+  }
+  return( true );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// verifies whether the current solution is feasible for the given
+ /// std::vector of std::vector of Constraint
+ /** This function checks whether the relative violation of each Constraint
+  * in the given std::vector of std::vector of Constraint is not greater than
+  * the provided tolerance.
+  *
+  * @return This function returns true if and only if the relative violation of
+  *         each Constraint is not greater than the given tolerance. */
+
+ template< class T >
+ static std::enable_if_t< std::is_base_of_v< Constraint , T > , bool >
+ is_feasible( const std::vector< std::vector< T > > & constraints ,
+              double tolerance ) {
+  return std::all_of( constraints.begin() , constraints.end() ,
+                      [ tolerance ]( const auto & v_constraints ) {
+                       return is_feasible( v_constraints , tolerance );
+                      } );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// verifies whether the current solution is feasible for the given
+ /// K-D boost::multi_array of Constraint
+ /** This function checks whether the relative violation of each Constraint
+  * in the given K-D boost::multi_array of Constraint is not greater than the
+  * provided tolerance.
+  *
+  * @return This function returns true if and only if the relative violation of
+  *         each Constraint is not greater than the given tolerance. */
+
+ template< class T , std::size_t K >
+ static std::enable_if_t< std::is_base_of_v< Constraint , T > , bool >
+ is_feasible( boost::multi_array< T , K > & constraints ,
+              double tolerance ) {
+
+  auto num_elements = constraints.num_elements();
+
+  if( num_elements == 0 )
+   // If there is no Constraint, then the solution is considered to be feasible
+   return( true );
+
+  auto constraint = constraints.data();
+  for( decltype( num_elements ) i = 0 ; i < num_elements ; ++i , ++constraint ) {
+   if( constraint->is_relaxed() )
+    continue;
+   constraint->compute();
+   if( constraint->rel_viol() > tolerance )
+    return( false );
+  }
+  return( true );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// verifies whether the current solution is feasible for the given
+ /// std::list of Constraint
+ /** This function checks whether the relative violation of each Constraint
+  * in the given std::list of Constraint is not greater than the provided
+  * tolerance.
+  *
+  * @return This function returns true if and only if the relative violation of
+  *         each Constraint is not greater than the given tolerance. */
+
+ template< class T >
+ static std::enable_if_t< std::is_base_of_v< Constraint , T > , bool >
+ is_feasible( std::list< T > & constraints ,
+              double tolerance ) {
+  for( auto & constraint : constraints ) {
+   if( constraint.is_relaxed() )
+    continue;
+   constraint.compute();
+   if( constraint.rel_viol() > tolerance )
+    return( false );
+  }
+  return( true );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// verifies whether the current solution is feasible for the given
+ /// std::vector of std::list of Constraint
+ /** This function checks whether the relative violation of each Constraint
+  * in the given std::vector of std::list of Constraint is not greater than the
+  * provided tolerance.
+  *
+  * @return This function returns true if and only if the relative violation of
+  *         each Constraint is not greater than the given tolerance. */
+
+ template< class T >
+ static std::enable_if_t< std::is_base_of_v< Constraint , T > , bool >
+ is_feasible( const std::vector< std::list< T>> & constraints ,
+              double tolerance ) {
+  return std::all_of( constraints.begin() , constraints.end() ,
+                      [ tolerance ]( const auto & l_constraints ) {
+                       return is_feasible( l_constraints , tolerance );
+                      } );
+ }
+
+/*--------------------------------------------------------------------------*/
+ /// verifies whether the current solution is feasible for the given
+ /// K-D boost::multi_array of std::list of Constraint
+ /** This function checks whether the relative violation of each Constraint
+  * in the given K-D boost::multi_array of std::list of Constraint is not
+  * greater than the provided tolerance.
+  *
+  * @return This function returns true if and only if the relative violation of
+  *         each Constraint is not greater than the given tolerance. */
+
+ template< class T , std::size_t K >
+ static std::enable_if_t< std::is_base_of_v< Constraint , T > , bool >
+ is_feasible( const boost::multi_array< std::list< T > , K > & constraints ,
+              double tolerance ) {
+  return std::all_of( constraints.begin() , constraints.end() ,
+                      [ tolerance ]( const auto & l_constraints ) {
+                       return is_feasible( l_constraints , tolerance );
+                      } );
+ }
 
 /** @} ---------------------------------------------------------------------*/
 /*---------- METHODS FOR LOADING, PRINTING & SAVING THE Constraint ---------*/
@@ -385,92 +583,6 @@ class ConstraintMod : public AModification {
 /*--------------------------------------------------------------------------*/
 
  };  // end( class( ConstraintMod ) )
-
-/*--------------------------------------------------------------------------*/
-/*------------------------- UTILITIES FOR Constraint -----------------------*/
-/*--------------------------------------------------------------------------*/
-
-/// Clear a std::vector of Constraint
-template< typename T >
-std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
-clear_constraints( std::vector< T > & constraints ) {
- for( auto & constraint : constraints )
-  constraint.clear();
-}
-
-/*--------------------------------------------------------------------------*/
-/// Clear a std::vector of std:vector of Constraint
-template< typename T >
-std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
-clear_constraints( std::vector< std::vector< T > > & constraints ) {
- for( auto & constraint : constraints )
-  clear_constraints( constraint );
-}
-
-/*--------------------------------------------------------------------------*/
-/// Clear a K-D boost::multi_array of Constraint
-template< typename T , std::size_t K >
-std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
-clear_constraints( boost::multi_array< T , K > & constraints ) {
- auto constraint = constraints.data();
- auto n = constraints.num_elements();
- for( decltype( n ) i = 0 ; i < n ; ++i , ++constraint )
-  constraint->clear();
-}
-
-/*--------------------------------------------------------------------------*/
-/// verifies whether the current solution is feasible for the given constraints
-/** This function checks whether the relative violation of each Constraint
- * in the given group of Constraint is not greater than the provided
- * tolerance.
- *
- * @return This function returns true if and only if the relative violation of
- *         each Constraint in the given group is not greater than the given
- *         tolerance. */
-
-template< class C >
-static std::enable_if_t< std::is_base_of_v< Constraint , C > , bool >
-is_feasible( std::vector< C > & constraints , double tolerance ) {
- for( auto & constraint : constraints ) {
-  if( constraint.is_relaxed() )
-   continue;
-  constraint.compute();
-  if( constraint.rel_viol() > tolerance )
-   return false;
- }
- return true;
-}
-
-/*--------------------------------------------------------------------------*/
-/// verifies whether the current solution is feasible for the given constraints
-/** This function checks whether the relative violation of each Constraint
- * in the given group of Constraint is not greater than the provided
- * tolerance.
- *
- * @return This function returns true if and only if the relative violation of
- *         each Constraint in the given group is not greater than the given
- *         tolerance. */
-
-template< class C , auto D >
-static std::enable_if_t< std::is_base_of_v< Constraint , C > , bool >
-is_feasible( boost::multi_array< C , D > & constraints , double tolerance ) {
-
- auto num_elements = constraints.num_elements();
-
- if( num_elements == 0 )
-  // If there is no Constraint, then the solution is considered to be feasible
-  return true;
-
- auto constraint = constraints.data();
- for( decltype( num_elements ) i = 0 ; i < num_elements ; ++i , ++constraint ) {
-  if( constraint->is_relaxed() )
-   continue;
-  constraint->compute();
-  if( constraint->rel_viol() > tolerance )
-   return false;
- }
- return true;
-}
 
 /** @} end( group( Constraint_CLASSES ) ) ----------------------------------*/
 /*--------------------------------------------------------------------------*/
