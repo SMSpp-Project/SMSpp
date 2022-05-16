@@ -144,7 +144,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
 
 /*--------------------------------------------------------------------------*/
  /// clear a std::vector of Constraint
- template< class T >
+ template< typename T >
  static std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
  clear( std::vector< T > & constraints ) {
   for( auto & constraint : constraints )
@@ -153,7 +153,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
 
 /*--------------------------------------------------------------------------*/
  /// clear a std::vector of std:vector of Constraint
- template< class T >
+ template< typename T >
  std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
  static clear( std::vector< std::vector< T > > & constraints ) {
   for( auto & v_constraints : constraints )
@@ -162,7 +162,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
 
 /*--------------------------------------------------------------------------*/
  /// clear a K-D boost::multi_array of Constraint
- template< class T , std::size_t K >
+ template< typename T , std::size_t K >
  static std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
  clear( boost::multi_array< T , K > & constraints ) {
   auto constraint = constraints.data();
@@ -173,7 +173,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
 
 /*--------------------------------------------------------------------------*/
  /// clear a std::list of Constraint
- template< class T >
+ template< typename T >
  static std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
  clear( std::list< T > & constraints ) {
   for( auto & constraint : constraints )
@@ -182,7 +182,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
 
 /*--------------------------------------------------------------------------*/
  /// clear a std::vector of std::list of Constraint
- template< class T >
+ template< typename T >
  static std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
  clear( std::vector< std::list< T > > & constraints ) {
   for( auto & l_constraints : constraints )
@@ -191,7 +191,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
 
 /*--------------------------------------------------------------------------*/
  /// clear a K-D boost::multi_array of std::list of Constraint
- template< class T , std::size_t K >
+ template< typename T , std::size_t K >
  static std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
  clear( boost::multi_array< std::list< T > , K > & constraints ) {
   auto l_constraints = constraints.data();
@@ -291,7 +291,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
   * @return This function returns true if and only if the relative violation of
   *         each Constraint is not greater than the given tolerance. */
 
- template< class T >
+ template< typename T >
  static std::enable_if_t< std::is_base_of_v< Constraint , T > , bool >
  is_feasible( std::vector< T > & constraints ,
               double tolerance ) {
@@ -315,13 +315,15 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
   * @return This function returns true if and only if the relative violation of
   *         each Constraint is not greater than the given tolerance. */
 
- template< class T >
+ template< typename T >
  static std::enable_if_t< std::is_base_of_v< Constraint , T > , bool >
  is_feasible( const std::vector< std::vector< T > > & constraints ,
               double tolerance ) {
+  // if empty, std::all_of returns true, i.e., the solution is feasible
   return std::all_of( constraints.begin() , constraints.end() ,
                       [ tolerance ]( const auto & v_constraints ) {
-                       return is_feasible( v_constraints , tolerance );
+                       return Constraint::is_feasible( v_constraints ,
+                                                       tolerance );
                       } );
  }
 
@@ -335,19 +337,13 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
   * @return This function returns true if and only if the relative violation of
   *         each Constraint is not greater than the given tolerance. */
 
- template< class T , std::size_t K >
+ template< typename T , std::size_t K >
  static std::enable_if_t< std::is_base_of_v< Constraint , T > , bool >
  is_feasible( boost::multi_array< T , K > & constraints ,
               double tolerance ) {
-
-  auto num_elements = constraints.num_elements();
-
-  if( num_elements == 0 )
-   // If there is no Constraint, then the solution is considered to be feasible
-   return( true );
-
+  auto n = constraints.num_elements();
   auto constraint = constraints.data();
-  for( decltype( num_elements ) i = 0 ; i < num_elements ; ++i , ++constraint ) {
+  for( decltype( n ) i = 0 ; i < n ; ++i , ++constraint ) {
    if( constraint->is_relaxed() )
     continue;
    constraint->compute();
@@ -367,7 +363,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
   * @return This function returns true if and only if the relative violation of
   *         each Constraint is not greater than the given tolerance. */
 
- template< class T >
+ template< typename T >
  static std::enable_if_t< std::is_base_of_v< Constraint , T > , bool >
  is_feasible( std::list< T > & constraints ,
               double tolerance ) {
@@ -391,13 +387,15 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
   * @return This function returns true if and only if the relative violation of
   *         each Constraint is not greater than the given tolerance. */
 
- template< class T >
+ template< typename T >
  static std::enable_if_t< std::is_base_of_v< Constraint , T > , bool >
  is_feasible( const std::vector< std::list< T > > & constraints ,
               double tolerance ) {
+  // if empty, std::all_of returns true, i.e., the solution is feasible
   return std::all_of( constraints.begin() , constraints.end() ,
                       [ tolerance ]( const auto & l_constraints ) {
-                       return is_feasible( l_constraints , tolerance );
+                       return Constraint::is_feasible( l_constraints ,
+                                                       tolerance );
                       } );
  }
 
@@ -411,13 +409,15 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
   * @return This function returns true if and only if the relative violation of
   *         each Constraint is not greater than the given tolerance. */
 
- template< class T , std::size_t K >
+ template< typename T , std::size_t K >
  static std::enable_if_t< std::is_base_of_v< Constraint , T > , bool >
  is_feasible( const boost::multi_array< std::list< T > , K > & constraints ,
               double tolerance ) {
+  // if empty, std::all_of returns true, i.e., the solution is feasible
   return std::all_of( constraints.begin() , constraints.end() ,
                       [ tolerance ]( const auto & l_constraints ) {
-                       return is_feasible( l_constraints , tolerance );
+                       return Constraint::is_feasible( l_constraints ,
+                                                       tolerance );
                       } );
  }
 

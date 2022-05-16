@@ -249,11 +249,11 @@ typedef std::vector< p_Const > Vec_p_Const;
 typedef const Vec_p_Const c_Vec_p_Const;
 ///< a (1-D) const vector of pointer to Constraint
 
-template< int K >
+template< std::size_t K >
 using KD_Vec_p_Const = boost::multi_array< p_Const , K >;
 ///< Vec_p_Const<K> is a K-D vector of pointer to Constraint
 
-template< int K >
+template< std::size_t K >
 using KD_c_Vec_p_Const = const boost::multi_array< p_Const , K >;
 ///< c_Vec_p_Const<K> is a const K-D vector of pointer to Constraint
 
