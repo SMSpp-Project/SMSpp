@@ -402,7 +402,7 @@ class ColVariable : public Variable
 
  template< class T >
  static std::enable_if_t< std::is_base_of_v< ColVariable , T > , bool >
- is_feasible( const std::vector< std::list< T >> & variables ,
+ is_feasible( const std::vector< std::list< T > > & variables ,
               double tolerance ) {
   return std::all_of( variables.begin() , variables.end() ,
                       [ tolerance ]( const auto & l_variables ) {

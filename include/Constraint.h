@@ -184,7 +184,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
  /// clear a std::vector of std::list of Constraint
  template< class T >
  static std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
- clear( std::vector< std::list< T>> & constraints ) {
+ clear( std::vector< std::list< T > > & constraints ) {
   for( auto & l_constraints : constraints )
    clear( l_constraints );
  }
@@ -393,7 +393,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
 
  template< class T >
  static std::enable_if_t< std::is_base_of_v< Constraint , T > , bool >
- is_feasible( const std::vector< std::list< T>> & constraints ,
+ is_feasible( const std::vector< std::list< T > > & constraints ,
               double tolerance ) {
   return std::all_of( constraints.begin() , constraints.end() ,
                       [ tolerance ]( const auto & l_constraints ) {
