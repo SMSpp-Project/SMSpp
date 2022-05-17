@@ -424,12 +424,13 @@ class ColVariable : public Variable
  static std::enable_if_t< std::is_base_of_v< ColVariable , T > , bool >
  is_feasible( const boost::multi_array< std::list< T > , K > & variables ,
               double tolerance ) {
-  // if empty, std::all_of returns true, i.e., the solution is feasible
-  return std::all_of( variables.begin() , variables.end() ,
-                      [ tolerance ]( const auto & l_variables ) {
-                       return ColVariable::is_feasible( l_variables ,
-                                                        tolerance );
-                      } );
+  auto n = variables.num_elements();
+  auto l_variables = variables.data();
+  for( decltype( n ) i = 0 ; i < n ; ++i , ++l_variables ) {
+   if( ! ColVariable::is_feasible( *l_variables , tolerance ) )
+    return( false );
+  }
+  return( true );
  }
 
 /*--------------------------------------------------------------------------*/

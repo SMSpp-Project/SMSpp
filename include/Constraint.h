@@ -154,10 +154,10 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
 /*--------------------------------------------------------------------------*/
  /// clear a std::vector of std:vector of Constraint
  template< typename T >
- std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
- static clear( std::vector< std::vector< T > > & constraints ) {
+ static std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
+ clear( std::vector< std::vector< T > > & constraints ) {
   for( auto & v_constraints : constraints )
-   clear( v_constraints );
+   Constraint::clear( v_constraints );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -186,7 +186,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
  static std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
  clear( std::vector< std::list< T > > & constraints ) {
   for( auto & l_constraints : constraints )
-   clear( l_constraints );
+   Constraint::clear( l_constraints );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -197,7 +197,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
   auto l_constraints = constraints.data();
   auto n = constraints.num_elements();
   for( decltype( n ) i = 0 ; i < n ; ++i , ++l_constraints )
-   clear( l_constraints );
+   Constraint::clear( * l_constraints );
  }
 
 /** @} ---------------------------------------------------------------------*/
@@ -413,12 +413,13 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
  static std::enable_if_t< std::is_base_of_v< Constraint , T > , bool >
  is_feasible( const boost::multi_array< std::list< T > , K > & constraints ,
               double tolerance ) {
-  // if empty, std::all_of returns true, i.e., the solution is feasible
-  return std::all_of( constraints.begin() , constraints.end() ,
-                      [ tolerance ]( const auto & l_constraints ) {
-                       return Constraint::is_feasible( l_constraints ,
-                                                       tolerance );
-                      } );
+  auto n = constraints.num_elements();
+  auto l_constraints = constraints.data();
+  for( decltype( n ) i = 0 ; i < n ; ++i , ++l_constraints ) {
+   if( ! Constraint::is_feasible( *l_constraints , tolerance ) )
+    return( false );
+  }
+  return( true );
  }
 
 /** @} ---------------------------------------------------------------------*/
@@ -440,7 +441,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
   * customized by derived classes. */
 
  friend std::ostream & operator<<( std::ostream & out ,
-				   const Constraint & c ) {
+                                   const Constraint & c ) {
   c.print( out );
   return( out );
   }
