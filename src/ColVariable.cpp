@@ -151,7 +151,8 @@ ColVariable::VarValue ColVariable::get_ub( void ) const {
 
 /*--------------------------------------------------------------------------*/
 
-ColVariable::Index ColVariable::is_active( ThinVarDepInterface * stuff ) const {
+ColVariable::Index ColVariable::is_active(
+                                 const ThinVarDepInterface * stuff ) const {
  auto idx = std::lower_bound( v_active.begin(), v_active.end(), stuff );
 
  if( idx != v_active.end() )

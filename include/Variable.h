@@ -329,7 +329,7 @@ class Variable
   * order to leave more freedom to derived classes to implement it in
   * specialized ways. */
 
- virtual Index is_active( ThinVarDepInterface * stuff ) const = 0;
+ virtual Index is_active( const ThinVarDepInterface * stuff ) const = 0;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
  /// get the i-th ThinVarDepInterface in which this Variable is "active"

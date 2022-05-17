@@ -386,7 +386,7 @@ class ColVariable : public Variable
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
- Index is_active( ThinVarDepInterface * stuff ) const override;
+ Index is_active( const ThinVarDepInterface * stuff ) const override;
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
