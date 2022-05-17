@@ -197,7 +197,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
   auto l_constraints = constraints.data();
   auto n = constraints.num_elements();
   for( decltype( n ) i = 0 ; i < n ; ++i , ++l_constraints )
-   Constraint::clear( * l_constraints );
+   Constraint::clear( *l_constraints );
  }
 
 /** @} ---------------------------------------------------------------------*/
