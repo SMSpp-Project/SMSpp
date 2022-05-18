@@ -1466,7 +1466,7 @@ class Block : public Observer {
   * fails if the owner's thread of the first encountered sub-Block that is
   * already owned is the same as the thread making the call, unless the owner
   * is "owner" already. In this case, all the sub-Block that had been
-  * tentatively locked during the unsuccessfully attempt are immediately
+  * tentatively locked during the unsuccessful attempt are immediately
   * unlocked. If, instead, the owner's thread of the first already owned
   * sub-Block is different from the thread making the call (and the owner is
   * not "owner"), then lock() goes to sleep until that sub-Block is unlocked
@@ -1752,7 +1752,7 @@ class Block : public Observer {
        f_owner = ReadOnlyLock();
 
        // note that there is no need to lock the mutex, since it's been
-       // locked already by the first successfully read-lock
+       // locked already by the first successful read-lock
 
        // try to read-lock all sub-Block and return the success of the
        // operation; upon failure, also read-unlock the Block
