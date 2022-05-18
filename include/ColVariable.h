@@ -316,33 +316,11 @@ class ColVariable : public Variable
  template< typename T >
  static std::enable_if_t< std::is_base_of_v< ColVariable , T > , bool >
  is_feasible( const std::vector< T > & variables ,
-              double tolerance ) {
+              double tolerance = 1e-10 ) {
   // if empty, std::all_of returns true, i.e., the solution is feasible
   return std::all_of( variables.begin() , variables.end() ,
                       [ tolerance ]( const auto & variable ) {
                        return variable.is_feasible( tolerance );
-                      } );
- }
-
-/*--------------------------------------------------------------------------*/
-/// verifies whether the given std::vector of std::vector of ColVariable is
-/// feasible
-/** This function returns true if and only if each ColVariable in the given
- * std::vector of std:.vector is feasible with respect to the given tolerance
- * (see ColVariable::is_feasible()).
- *
- * @return This function returns true if and only if each of the given
- *         ColVariable is feasible considering the given tolerance. */
-
- template< typename T >
- static std::enable_if_t< std::is_base_of_v< ColVariable , T > , bool >
- is_feasible( const std::vector< std::vector< T > > & variables ,
-              double tolerance ) {
-  // if empty, std::all_of returns true, i.e., the solution is feasible
-  return std::all_of( variables.begin() , variables.end() ,
-                      [ tolerance ]( const auto & v_variables ) {
-                       return ColVariable::is_feasible( v_variables ,
-                                                        tolerance );
                       } );
  }
 
@@ -358,7 +336,7 @@ class ColVariable : public Variable
  template< typename T , std::size_t K >
  static std::enable_if_t< std::is_base_of_v< ColVariable , T > , bool >
  is_feasible( const boost::multi_array< T , K > & variables ,
-              double tolerance ) {
+              double tolerance = 1e-10 ) {
   auto n = variables.num_elements();
   auto variable = variables.data();
   for( decltype( n ) i = 0 ; i < n ; ++i , ++variable ) {
@@ -380,7 +358,7 @@ class ColVariable : public Variable
  template< typename T >
  static std::enable_if_t< std::is_base_of_v< ColVariable , T > , bool >
  is_feasible( const std::list< T > & variables ,
-              double tolerance ) {
+              double tolerance = 1e-10 ) {
   // if empty, std::all_of returns true, i.e., the solution is feasible
   return std::all_of( variables.begin() , variables.end() ,
                       [ tolerance ]( const auto & variable ) {
@@ -401,7 +379,7 @@ class ColVariable : public Variable
  template< typename T >
  static std::enable_if_t< std::is_base_of_v< ColVariable , T > , bool >
  is_feasible( const std::vector< std::list< T > > & variables ,
-              double tolerance ) {
+              double tolerance = 1e-10 ) {
   // if empty, std::all_of returns true, i.e., the solution is feasible
   return std::all_of( variables.begin() , variables.end() ,
                       [ tolerance ]( const auto & l_variables ) {
@@ -423,7 +401,7 @@ class ColVariable : public Variable
  template< typename T , std::size_t K >
  static std::enable_if_t< std::is_base_of_v< ColVariable , T > , bool >
  is_feasible( const boost::multi_array< std::list< T > , K > & variables ,
-              double tolerance ) {
+              double tolerance = 1e-10 ) {
   auto n = variables.num_elements();
   auto l_variables = variables.data();
   for( decltype( n ) i = 0 ; i < n ; ++i , ++l_variables ) {
