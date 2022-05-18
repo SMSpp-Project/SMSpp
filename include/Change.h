@@ -225,7 +225,7 @@ class Change {
  }
 
 /*--------------------------------------------------------------------------*/
- /// Apply a :Change to a :Block which is given as a parameter
+ /// Apply a :Change to a :Block
  /** Apply a :Change to a :Block which is given as a parameter. The method is
   * pure virtual hence it must be implemented by derived classes. */
 

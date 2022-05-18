@@ -100,9 +100,6 @@ private:
 /*--------------------------------------------------------------------------*/
 /*-------------------------- PRIVATE METHODS -------------------------------*/
 /*--------------------------------------------------------------------------*/
- // Definition of RelaxationSolver::private_name() (pure virtual)
-
- [[nodiscard]] virtual const std::string & private_name( void ) const = 0;
 
  };  // end( class( RelaxationSolver ) )
 
