@@ -229,10 +229,10 @@ class Change {
  /** Apply a :Change to a :Block which is given as a parameter. The method is
   * pure virtual hence it must be implemented by derived classes. */
 
- virtual void apply( Block * block , 
-                     bool doundo = false , 
-                     ModParam issueMod = eNoBlck , 
-                     ModParam issueAMod = eNoBlck ) = 0;
+ virtual Change * apply( Block * block , 
+                         bool doundo = false , 
+                         ModParam issueMod = eNoBlck , 
+                         ModParam issueAMod = eNoBlck ) = 0;
 
 /** @} ---------------------------------------------------------------------*/
 /*-------------------- PROTECTED PART OF THE CLASS -------------------------*/
