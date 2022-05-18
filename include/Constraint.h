@@ -149,6 +149,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
  clear( std::vector< T > & constraints ) {
   for( auto & constraint : constraints )
    constraint.clear();
+  constraints.clear();
  }
 
 /*--------------------------------------------------------------------------*/
@@ -160,6 +161,8 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
   auto n = constraints.num_elements();
   for( decltype( n ) i = 0 ; i < n ; ++i , ++constraint )
    constraint->clear();
+  std::array< int , K > shape = {}; // for int, {} will zero-initialize
+  constraints.resize( shape );
  }
 
 /*--------------------------------------------------------------------------*/
@@ -169,6 +172,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
  clear( std::list< T > & constraints ) {
   for( auto & constraint : constraints )
    constraint.clear();
+  constraints.clear();
  }
 
 /*--------------------------------------------------------------------------*/
@@ -178,6 +182,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
  clear( std::vector< std::list< T > > & constraints ) {
   for( auto & l_constraints : constraints )
    Constraint::clear( l_constraints );
+  constraints.clear();
  }
 
 /*--------------------------------------------------------------------------*/
@@ -189,6 +194,8 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
   auto n = constraints.num_elements();
   for( decltype( n ) i = 0 ; i < n ; ++i , ++l_constraints )
    Constraint::clear( *l_constraints );
+  std::array< int , K > shape = {}; // for int, {} will zero-initialize
+  constraints.resize( shape );
  }
 
 /** @} ---------------------------------------------------------------------*/
