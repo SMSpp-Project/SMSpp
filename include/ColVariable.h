@@ -34,6 +34,8 @@
 #include <algorithm>
 #include <cmath>
 
+#include <boost/multi_array.hpp>
+
 #include "Variable.h"
 
 /*--------------------------------------------------------------------------*/
@@ -69,7 +71,7 @@ namespace SMSpp_di_unipi_it {
  *    real-valued :Variable with different precisions than double are
  *    required, one should rather re-define a specific similar class to this.
  *
- *  - Other than being fiked, a ColVariable can be restricted to live into
+ *  - Other than being fixed, a ColVariable can be restricted to live into
  *    some "interesting subsets of the reals". This is mainly used to impose
  *    integrality restrictions: each subset has both an "integral" and a
  *    "continuous" variant. However, also sign constraints and "unitary"
@@ -227,7 +229,7 @@ class ColVariable : public Variable
   * Note that this is *not* a Modification-spewing method, and therefore it
   * does *not* have all the standard Modification-governing parameters.
   * Changing the value of [Col]Variable is arguably not a change in the data
-  * of the problem, althouhg it could be a change of the data for a sub-Block
+  * of the problem, although it could be a change of the data for a sub-Block
   * that does not directly own the Variable but for which the Variable is
   * active in some Constraint / Objective. Yet, this occurrence is not
   * reported by a Modification, and other mechanisms must be put in place to
@@ -238,8 +240,8 @@ class ColVariable : public Variable
 /*--------------------------------------------------------------------------*/
  /// sets the "type" of the ColVariable
  /** Sets the "type" of the ColVariable. This is encoded in the protected
-  * field f_state that the base Variable classe uses to store the "state",
-  * i.e., whether or not the [Col]Variable is fixed, so this mathod takes
+  * field f_state that the base Variable class uses to store the "state",
+  * i.e., whether or not the [Col]Variable is fixed, so this method takes
   * great care to not mess up with the LSB of the field where that information
   * is stored.
   *
@@ -301,6 +303,113 @@ class ColVariable : public Variable
 
   return( true );
   }
+
+/*--------------------------------------------------------------------------*/
+/// verifies whether the given std::vector of ColVariable is feasible
+/** This function returns true if and only if each ColVariable in the given
+ * std::vector is feasible with respect to the given tolerance (see
+ * ColVariable::is_feasible()).
+ *
+ * @return This function returns true if and only if each of the given
+ *         ColVariable is feasible considering the given tolerance. */
+
+ template< typename T >
+ static std::enable_if_t< std::is_base_of_v< ColVariable , T > , bool >
+ is_feasible( const std::vector< T > & variables ,
+              double tolerance = 1e-10 ) {
+  // if empty, std::all_of returns true, i.e., the solution is feasible
+  return std::all_of( variables.begin() , variables.end() ,
+                      [ tolerance ]( const auto & variable ) {
+                       return variable.is_feasible( tolerance );
+                      } );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// verifies whether the given K-D boost::multi_array of ColVariable is feasible
+/** This function returns true if and only if each ColVariable in the given
+ * K-D boost::multi_array is feasible with respect to the given tolerance (see
+ * ColVariable::is_feasible()).
+ *
+ * @return This function returns true if and only if each of the given
+ *         ColVariable is feasible considering the given tolerance. */
+
+ template< typename T , std::size_t K >
+ static std::enable_if_t< std::is_base_of_v< ColVariable , T > , bool >
+ is_feasible( const boost::multi_array< T , K > & variables ,
+              double tolerance = 1e-10 ) {
+  auto n = variables.num_elements();
+  auto variable = variables.data();
+  for( decltype( n ) i = 0 ; i < n ; ++i , ++variable ) {
+   if( ! variable->is_feasible( tolerance ) )
+    return( false );
+  }
+  return( true );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// verifies whether the given std::list of ColVariable is feasible
+/** This function returns true if and only if each ColVariable in the given
+ * std::list is feasible with respect to the given tolerance (see
+ * ColVariable::is_feasible()).
+ *
+ * @return This function returns true if and only if each of the given
+ *         ColVariable is feasible considering the given tolerance. */
+
+ template< typename T >
+ static std::enable_if_t< std::is_base_of_v< ColVariable , T > , bool >
+ is_feasible( const std::list< T > & variables ,
+              double tolerance = 1e-10 ) {
+  // if empty, std::all_of returns true, i.e., the solution is feasible
+  return std::all_of( variables.begin() , variables.end() ,
+                      [ tolerance ]( const auto & variable ) {
+                       return variable.is_feasible( tolerance );
+                      } );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// verifies whether the given std::vector of std::list of ColVariable is
+/// feasible
+/** This function returns true if and only if each ColVariable in the given
+ * std::vector of std::list is feasible with respect to the given tolerance
+ * (see ColVariable::is_feasible()).
+ *
+ * @return This function returns true if and only if each of the given
+ *         ColVariable is feasible considering the given tolerance. */
+
+ template< typename T >
+ static std::enable_if_t< std::is_base_of_v< ColVariable , T > , bool >
+ is_feasible( const std::vector< std::list< T > > & variables ,
+              double tolerance = 1e-10 ) {
+  // if empty, std::all_of returns true, i.e., the solution is feasible
+  return std::all_of( variables.begin() , variables.end() ,
+                      [ tolerance ]( const auto & l_variables ) {
+                       return ColVariable::is_feasible( l_variables ,
+                                                        tolerance );
+                      } );
+ }
+
+/*--------------------------------------------------------------------------*/
+/// verifies whether the given K-D boost::multi_array of std::list of
+/// ColVariable is feasible
+/** This function returns true if and only if each ColVariable in the given
+ * K-D boost::multi_array of std:list is feasible with respect to the given
+ * tolerance (see ColVariable::is_feasible()).
+ *
+ * @return This function returns true if and only if each of the given
+ *         ColVariable is feasible considering the given tolerance. */
+
+ template< typename T , std::size_t K >
+ static std::enable_if_t< std::is_base_of_v< ColVariable , T > , bool >
+ is_feasible( const boost::multi_array< std::list< T > , K > & variables ,
+              double tolerance = 1e-10 ) {
+  auto n = variables.num_elements();
+  auto l_variables = variables.data();
+  for( decltype( n ) i = 0 ; i < n ; ++i , ++l_variables ) {
+   if( ! ColVariable::is_feasible( *l_variables , tolerance ) )
+    return( false );
+  }
+  return( true );
+ }
 
 /*--------------------------------------------------------------------------*/
  /// method to get the type of the ColVariable

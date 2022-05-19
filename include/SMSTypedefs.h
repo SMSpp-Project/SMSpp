@@ -43,8 +43,8 @@
 /*--------------------------------------------------------------------------*/
 /*------------------------------ INCLUDES ----------------------------------*/
 /*--------------------------------------------------------------------------*/
-// standard C++ libraries (alphabetical order)
 
+// standard C++ libraries (alphabetical order)
 #include <algorithm>
 #include <fstream>
 #include <functional>
@@ -249,11 +249,11 @@ typedef std::vector< p_Const > Vec_p_Const;
 typedef const Vec_p_Const c_Vec_p_Const;
 ///< a (1-D) const vector of pointer to Constraint
 
-template< int K >
+template< std::size_t K >
 using KD_Vec_p_Const = boost::multi_array< p_Const , K >;
 ///< Vec_p_Const<K> is a K-D vector of pointer to Constraint
 
-template< int K >
+template< std::size_t K >
 using KD_c_Vec_p_Const = const boost::multi_array< p_Const , K >;
 ///< c_Vec_p_Const<K> is a const K-D vector of pointer to Constraint
 
@@ -282,24 +282,6 @@ using KD_Vec_List_p_Const = boost::multi_array< List_p_Const , K >;
 template< std::size_t K >
 using KD_c_Vec_List_p_Const = const boost::multi_array< List_p_Const , K >;
 ///< c_Vec_List_p_Const<K> is a const K-D vector of lists of Constraint *
-
-/// Clear a std::vector of Constraint
-template< typename T >
-std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
-clear_constraints( std::vector< T > & constraints ) {
- for( auto & constraint : constraints )
-  constraint.clear();
-}
-
-/// Clear a K-D boost::multi_array of Constraint
-template< typename T , std::size_t K >
-std::enable_if_t< std::is_base_of_v< Constraint , T > , void >
-clear_constraints( boost::multi_array< T , K > & constraints ) {
- auto constraint = constraints.data();
- auto n = constraints.num_elements();
- for( decltype( n ) i = 0 ; i < n ; ++i , ++constraint )
-  constraint->clear();
-}
 
 /** @} end( group( Constraint_TYPES ) ) */
 /*--------------------------------------------------------------------------*/
@@ -491,7 +473,7 @@ inline std::string && SMSpp_classname_normalise( std::string && str ) {
  *   (note that this need not be virtual because it will be called with the
  *   explicit classname::static_initialization() format and classname being
  *   that of the derived class, which requires care if XXX or some derived
- *   class from which classname firther derives does something, as then the
+ *   class from which classname further derives does something, as then the
  *   parent class static_initialization() will have to be explicitly called
  *   in the derived one)
  *
@@ -2051,8 +2033,8 @@ deserialize( const netCDF::NcGroup & group , T & data ,
  */
 
 inline bool deserialize( const netCDF::NcGroup & group , std::string & data ,
-			 const std::string & name = "value" ,
-			 bool optional = true ) {
+                         const std::string & name = "value" ,
+                         bool optional = true ) {
  auto ncVar = group.getVar( name );
  if( ncVar.isNull() ) {
   if( ! optional )

@@ -491,9 +491,7 @@ void PolyhedralFunctionBlock::guts_of_destructor( void )
 
  if( f_rep & 1 ) {  // use linearized representation
   // first clear() all the constraints
-  for( auto & ci : f_const )
-   ci.clear();
-
+  Constraint::clear( f_const );
   f_bcv.clear();
 
   // then nothing, they will be deleted when f_const/f_bcv are
@@ -503,7 +501,7 @@ void PolyhedralFunctionBlock::guts_of_destructor( void )
    obj->set_function( nullptr , eNoMod , true );
   }
  else {             // use natural representation
-  // ensure that the PolyhedrakFunction inside the Objective is NOT deleted
+  // ensure that the PolyhedralFunction inside the Objective is NOT deleted
   if( obj )
    obj->set_function( nullptr , eNoMod , false );
   }
