@@ -100,6 +100,8 @@ TEST_F( AbstractBlockTest, Adds_StaticConstraints_Vector ) {
  for( const auto & i : *c ) {
   ASSERT_EQ( i.get_Block(), block );
  }
+
+ Constraint::clear( *c );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -114,6 +116,8 @@ TEST_F( AbstractBlockTest, Adds_StaticConstraints_Multiarray ) {
  for( auto i = c->data(); i < ( c->data() + c->num_elements() ); ++i ) {
   ASSERT_EQ( i->get_Block(), block );
  }
+
+ Constraint::clear( *c );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -138,6 +142,8 @@ TEST_F( AbstractBlockTest, Adds_StaticVariables_Vector ) {
  for( const auto & i : *v ) {
   ASSERT_EQ( i.get_Block(), block );
  }
+
+ ASSERT_TRUE( ColVariable::is_feasible( *v ) );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -152,6 +158,8 @@ TEST_F( AbstractBlockTest, Adds_StaticVariables_Multiarray ) {
  for( auto i = v->data(); i < ( v->data() + v->num_elements() ); ++i ) {
   ASSERT_EQ( i->get_Block(), block );
  }
+
+ ASSERT_TRUE( ColVariable::is_feasible( *v ) );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -166,6 +174,8 @@ TEST_F( AbstractBlockTest, Adds_DynamicConstraints_List ) {
  for( const auto & i : *c ) {
   ASSERT_EQ( i.get_Block(), block );
  }
+
+ Constraint::clear( *c );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -184,6 +194,8 @@ TEST_F( AbstractBlockTest, Adds_DynamicConstraints_Vector ) {
    ASSERT_EQ( j.get_Block(), block );
   }
  }
+
+ Constraint::clear( *c );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -203,6 +215,8 @@ TEST_F( AbstractBlockTest, Adds_DynamicConstraints_Multiarray ) {
    ASSERT_EQ( j.get_Block(), block );
   }
  }
+
+ Constraint::clear( *c );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -216,6 +230,8 @@ TEST_F( AbstractBlockTest, Adds_DynamicVariables_List ) {
  for( const auto & i : *v ) {
   ASSERT_EQ( i.get_Block(), block );
  }
+
+ ASSERT_TRUE( ColVariable::is_feasible( *v ) );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -234,6 +250,8 @@ TEST_F( AbstractBlockTest, Adds_DynamicVariables_Vector ) {
    ASSERT_EQ( j.get_Block(), block );
   }
  }
+
+ ASSERT_TRUE( ColVariable::is_feasible( *v ) );
 }
 
 /*--------------------------------------------------------------------------*/
@@ -253,6 +271,8 @@ TEST_F( AbstractBlockTest, Adds_DynamicVariables_Multiarray ) {
    ASSERT_EQ( j.get_Block(), block );
   }
  }
+
+ ASSERT_TRUE( ColVariable::is_feasible( *v ) );
 }
 
 /*--------------------------------------------------------------------------*/
