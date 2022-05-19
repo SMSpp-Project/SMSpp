@@ -3478,7 +3478,7 @@ class Block : public Observer {
   * anything goes wrong, nullptr is returned. */
 
  template< class Var , unsigned short K >
- std::enable_if_t< std::is_base_of_v< Variable, Var > ,
+ std::enable_if_t< std::is_base_of_v< Variable , Var > ,
   boost::multi_array< std::list< Var > , K > * >
  get_dynamic_variable( const std::string & name ) const {
   auto it = std::find( v_d_Variable_names.begin() ,
@@ -3675,7 +3675,7 @@ class Block : public Observer {
   * described in Observer::make_par(). */
 
  template< class Var >
- std::enable_if_t< std::is_base_of_v< Variable, Var > , void >
+ std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
  add_dynamic_variables( std::list< Var > & list ,
                         std::list< Var > & newlist ,
                         ModParam issueMod = eModBlck );
@@ -3753,7 +3753,9 @@ class Block : public Observer {
  template< class Const >
  std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
  remove_dynamic_constraints( std::list< Const > & list ,
-                             std::vector< typename std::list< Const >::iterator > & rmvd ,
+                             std::vector< typename
+                                          std::list< Const >::iterator
+                                          > & rmvd ,
                              ModParam issueMod = eModBlck );
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -3890,7 +3892,8 @@ class Block : public Observer {
  template< class Var >
  std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
  remove_dynamic_variables( std::list< Var > & list ,
-                           std::vector< typename std::list< Var >::iterator > & rmvd ,
+                           std::vector< typename
+                                        std::list< Var >::iterator > & rmvd ,
                            ModParam issueMod = eModBlck ,
                            ModParam issueindMod = eModBlck );
 
@@ -3935,8 +3938,7 @@ class Block : public Observer {
  template< class Var >
  std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
  remove_dynamic_variables( std::list< Var > & list ,
-                           Subset && subset ,
-                           bool ordered = false ,
+                           Subset && subset , bool ordered = false ,
                            ModParam issueMod = eModBlck ,
                            ModParam issueindMod = eModBlck );
 
@@ -6682,7 +6684,7 @@ class Block : public Observer {
  /// single object of class (derived from) Variable
 
  template< class Var >
- std::enable_if_t< std::is_base_of_v< Variable, Var > , void >
+ std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
  set_static_variable( Index i , Var & newv , std::string && name = "" ) {
   if( i >= v_s_Variable.size() )
    throw( std::invalid_argument( "wrong index into v_s_Variable" ) );
@@ -6719,7 +6721,7 @@ class Block : public Observer {
  /// std::vector of (derived class from) Variable
 
  template< class Var >
- std::enable_if_t< std::is_base_of_v< Variable, Var > , void >
+ std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
  set_static_variable( Index i , std::vector< Var > & newv ,
                       std::string && name = "" ) {
   if( i >= v_s_Variable.size() )
@@ -6759,7 +6761,7 @@ class Block : public Observer {
  /// boost::multi_array<K> of (...) Variable
 
  template< class Var , std::size_t K >
- std::enable_if_t< std::is_base_of_v< Variable, Var > , void >
+ std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
  set_static_variable( Index i , boost::multi_array< Var , K > & newv ,
                       std::string && name = "" ) {
   if( i >= v_s_Variable.size() )
@@ -6940,8 +6942,7 @@ class Block : public Observer {
  template< class Var >
  std::enable_if_t< std::is_base_of_v< Variable, Var > , void >
  add_dynamic_variable( std::list< Var > & newv ,
-                       std::string && name = "" ,
-                       bool front = false ) {
+                       std::string && name = "" , bool front = false ) {
   for( auto & v : newv )
    v.set_Block( this );
 
@@ -6981,8 +6982,7 @@ class Block : public Observer {
  template< class Var >
  std::enable_if_t< std::is_base_of_v< Variable, Var > , void >
  add_dynamic_variable( std::vector< std::list< Var > > & newv ,
-                       std::string && name = "" ,
-                       bool front = false ) {
+                       std::string && name = "" , bool front = false ) {
   for( auto & v : newv )
    for( auto & j : v )
     j.set_Block( this );
@@ -7025,8 +7025,7 @@ class Block : public Observer {
  template< class Var , std::size_t K >
  std::enable_if_t< std::is_base_of_v< Variable, Var > , void >
  add_dynamic_variable( boost::multi_array< std::list< Var > , K > & newv ,
-                       std::string && name = "" ,
-                       bool front = false ) {
+                       std::string && name = "" , bool front = false ) {
   for( auto i = newv.data(); i < ( newv.data() + newv.num_elements() ) ; ++i )
    for( auto & j : *i )
     j.set_Block( this );
@@ -7524,12 +7523,11 @@ class BlockModAdd : public BlockModAD
   * other information that the Modification contains, and therefore is not
   * needed. */
 
- BlockModAdd( std::list< ConstOrVar > & whc ,
-              std::vector< ConstOrVar * > && add ,
-              Block::Index first ,
+ BlockModAdd( std::list< ConstOrVar > & whc , 
+              std::vector< ConstOrVar * > && add , Block::Index first ,
               bool cB = false )
-  : BlockModAD( cB ) ,
-    whc_list( whc ) , add_vec( std::move( add ) ) , f_first( first ) {
+  : BlockModAD( cB ) , whc_list( whc ) , add_vec( std::move( add ) ) , 
+    f_first( first ) {
   static_assert( std::is_base_of< Variable , ConstOrVar >::value ||
                  std::is_base_of< Constraint , ConstOrVar >::value ,
                  "BlockModAD: must inherit from Variable or Constraint" );
@@ -8677,7 +8675,9 @@ Block::add_dynamic_variables( std::list< Var > & list ,
 template< class Const >
 std::enable_if_t< std::is_base_of_v< Constraint , Const > , void >
 Block::remove_dynamic_constraints( std::list< Const > & list ,
-                                   std::vector< typename std::list< Const >::iterator > & rmvd ,
+                                   std::vector< typename
+                                                std::list< Const >::iterator
+                                                > & rmvd ,
                                    ModParam issueMod ) {
  if( rmvd.empty() )  // actually no Constraints to remove
   return;            // cowardly (and silently) return
@@ -8982,9 +8982,10 @@ Block::remove_dynamic_constraints( std::list< Const > & list ,
 template< class Var >
 std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
 Block::remove_dynamic_variables( std::list< Var > & list ,
-                                 std::vector< typename std::list< Var >::iterator > & rmvd ,
-                                 ModParam issueMod ,
-                                 ModParam issueindMod ) {
+                                 std::vector< typename
+                                              std::list< Var >::iterator
+                                              > & rmvd ,
+                                 ModParam issueMod , ModParam issueindMod ) {
  if( rmvd.empty() )  // actually no Variables to remove
   return;            // cowardly (and silently) return
 
@@ -9056,8 +9057,7 @@ template< class Var >
 std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
 Block::remove_dynamic_variable( std::list< Var > & list ,
                                 typename std::list< Var >::iterator rmvd ,
-                                ModParam issueMod ,
-                                ModParam issueindMod ) {
+                                ModParam issueMod , ModParam issueindMod ) {
  if( list.empty() )
   throw( std::invalid_argument( "removing from empty list" ) );
 
@@ -9104,8 +9104,7 @@ Block::remove_dynamic_variable( std::list< Var > & list ,
 template< class Var >
 std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
 Block::remove_dynamic_variables( std::list< Var > & list , Range range ,
-                                 ModParam issueMod ,
-                                 ModParam issueindMod ) {
+                                 ModParam issueMod , ModParam issueindMod ) {
  if( range.second <= range.first )  // actually no Constraints to remove
   return;                           // cowardly (and silently) return
 
@@ -9165,8 +9164,7 @@ template< class Var >
 std::enable_if_t< std::is_base_of_v< Variable , Var > , void >
 Block::remove_dynamic_variables( std::list< Var > & list ,
                                  Subset && subset , bool ordered ,
-                                 ModParam issueMod ,
-                                 ModParam issueindMod ) {
+                                 ModParam issueMod , ModParam issueindMod ) {
  if( subset.empty() ) {  // completely cleanup the list
   if( list.empty() )     // which is empty already
    return;               // cowardly (and silently) return
