@@ -36,9 +36,6 @@
 #include <functional>
 #include <queue>
 
-const double dual_sign = -1.0; // TODO The Solver must provide the duals with
-                               // the right sign
-
 /*--------------------------------------------------------------------------*/
 /*------------------------- NAMESPACE AND USING ----------------------------*/
 /*--------------------------------------------------------------------------*/
@@ -2134,7 +2131,7 @@ void BendersBFunction::get_linearization_coefficients
   if( ignore_constraint( constraint ) )
    continue;
 
-  const auto dual_value = constraint->get_dual() * dual_sign;
+  const auto dual_value = constraint->get_dual();
 
   if( dual_value == 0 )
    continue;
@@ -2186,7 +2183,7 @@ void BendersBFunction::get_linearization_coefficients
   if( ignore_constraint( constraint ) )
    continue;
 
-  const auto dual_value = constraint->get_dual() * dual_sign;
+  const auto dual_value = constraint->get_dual();
 
   if( dual_value == 0 )
    continue;
@@ -2227,7 +2224,7 @@ void BendersBFunction::get_linearization_coefficients
   if( ignore_constraint( constraint ) )
    continue;
 
-  const auto dual_value = constraint->get_dual() * dual_sign;
+  const auto dual_value = constraint->get_dual();
 
   if( dual_value == 0 )
    continue;
@@ -2285,7 +2282,7 @@ void BendersBFunction::get_linearization_coefficients
   if( ignore_constraint( constraint ) )
    continue;
 
-  const auto dual_value = constraint->get_dual() * dual_sign;
+  const auto dual_value = constraint->get_dual();
 
   if( dual_value == 0 )
    continue;
@@ -2351,7 +2348,7 @@ Function::FunctionValue BendersBFunction::compute_linearization_constant() {
    if( ignore_constraint( & c ) )
     return;
 
-   const auto dual_value = c.get_dual() * dual_sign;
+   const auto dual_value = c.get_dual();
 
    if( dual_value == 0 )
     return;
