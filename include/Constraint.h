@@ -348,7 +348,7 @@ class Constraint : public ThinComputeInterface , public ThinVarDepInterface
   for( auto & constraint : constraints ) {
    if( constraint.is_relaxed() )
     continue;
-   if( auto ret = constraint.compute() ;
+   if( auto ret = constraint.compute();
     ( ret <= Constraint::kUnEval ) || ( ret > Constraint::kOK ) )
     return( false );
    if( constraint.rel_viol() > tolerance )
