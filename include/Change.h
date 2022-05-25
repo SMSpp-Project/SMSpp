@@ -109,20 +109,72 @@ class Change {
 
  static Change * new_Change( const std::string & classname ) {
   const std::string classname_( SMSpp_classname_normalise(
-            std::string( classname ) ) );
+        std::string( classname ) ) );
   const auto it = Change::f_factory().find( classname_ );
   if( it == Change::f_factory().end() )
    throw( std::invalid_argument( classname + 
                                  " not present in Change factory" ) );
   return( ( it->second )() );
- }
+  }
 
+ /*--------------------------------------------------------------------------*/
+ /// de-serialize a :Change out of netCDF::NcGroup, returns it
+ /** First-level, static de-serialization method: takes a netCDF::NcGroup
+  * supposedly containing  (all the information describing) a :Change and
+  * returns a pointer to a newly minted :Change object corresponding to
+  * what is found in the file. The netCDF::NcGroup \p group must contain at
+  * least the string attribute "type"; this is used it in the factory
+  * to construct an "empty" :Change of that type, see new_Change(
+  * std::string & ), and then the method deserialize( netCDF::NcGroup ) of
+  * the newly minted :Change is invoked (with argument \p group) to finish
+  * the work.
+  *
+  * Note that this method is static (see the previous versions for comments
+  * about it) and returns a pointer to Change, hence it has to have a
+  * different name from deserialize( netCDF::NcGroup ) (since the signature
+  * is the same but for the return type).
+  *
+  * If anything goes wrong with the process, nullptr is returned. */
+
+ static Change * new_Change( const netCDF::NcGroup & group ) {
+  if( group.isNull() )
+   return( nullptr );
+
+  auto gtype = group.getAtt( "type" );
+  if( gtype.isNull() )
+   return( nullptr );
+
+  std::string tmp;
+  gtype.getValues( tmp );
+  auto result = new_Change( tmp );
+  try {
+   result->deserialize( group );
+   return( result );
+   }
+  catch( netCDF::exceptions::NcException & e ) {
+   std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
+   }
+  catch( std::exception & e ) {
+   std::cerr << "error " << e.what() << " in deserialize" << std::endl;
+   }
+  catch( ... ) {
+   std::cerr << "unknown error in deserialize" << std::endl;
+   }
+
+  return( nullptr );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Change out of a file
  /** Top-level de-serialization method: takes the \p filename of a file and
-  * returns the complete :Change object whose description is the one found 
-  * in the file.
+  * returns the complete :Change object contained in the file.
+  * 
+  * The method supports netCDF::NcFile and, since each file can contain
+  * multiple Change inside, filename is used to encode the position in the 
+  * file. If the \p filename ends with ']', then it is supposed to have the 
+  * form "real filename[idx]": the "[idx] part is excised and used to compute
+  * the int parameter of deserialize() (the position), with the remaining 
+  * part being used for the string parameter (the filename);
   *
   * If anything goes wrong with the entire operation, nullptr is returned.
   *
@@ -133,7 +185,39 @@ class Change {
   * i.e. without any reference to any specific Change (and, therefore, it 
   * can be used to construct the very first Change, if needed). */
 
- static Change * deserialize( const std::string & filename );
+ static Change * deserialize( const std::string & filename ) {
+  
+  try {
+   // if filename does not contain "[idx]" at the end
+   if( filename.back() != ']' ) {
+    netCDF::NcFile f( filename , netCDF::NcFile::read );
+    return( deserialize( f ) );
+    }
+
+   // otherwise find idx and return deserialize( , idx )
+   auto pos = filename.find_last_of( '[' );
+   std::string sidx( filename.begin() + pos + 1 , filename.end() - 1 );
+   int idx = std::stoi( sidx );
+
+   std::string fn( filename ); 
+   fn.erase( pos );
+   netCDF::NcFile f( fn , netCDF::NcFile::read );
+
+   return( deserialize( f , idx ) );
+   }
+  catch( netCDF::exceptions::NcException & e ) {
+   std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl; 
+   }
+  catch( std::exception & e ) {
+   std::cerr << "error " << e.what() << " in deserialize" << std::endl; 
+   }
+  catch( ... ) {
+   std::cerr << "unknown error in deserialize" << std::endl; 
+   }
+
+  return( nullptr ); 
+  
+  } // end( Change::deserialize( const std::string ) )
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Change out of an open netCDF SMS++ file
@@ -148,7 +232,25 @@ class Change {
   * i.e., without any reference to any specific Change (and,
   * therefore, it can be used to construct the very first Change if needed).*/
 
- static Change * deserialize( const netCDF::NcFile & f , int idx = 0 );
+ static Change * deserialize( const netCDF::NcFile & f , int idx = 0 ) {
+  
+  try {
+   netCDF::NcGroup cg = f.getGroup( "Change_" + std::to_string( idx ) );
+   return( new_Change( cg ) );
+   }
+  catch( netCDF::exceptions::NcException & e ) {
+   std::cerr << "netCDF error " << e.what() << " in deserialize" << std::endl;
+   }
+  catch( std::exception & e ) {
+   std::cerr << "error " << e.what() << " in deserialize" << std::endl;
+   }
+  catch( ... ) {
+   std::cerr << "unknown error in deserialize" << std::endl;
+   }
+
+  return( nullptr );
+  
+  } // end( Change::deserialize( netCDF::NcFile ) )
 
 /*--------------------------------------------------------------------------*/
  /// de-serialize a :Change out of netCDF::NcGroup
@@ -185,7 +287,7 @@ class Change {
 
  [[nodiscard]] const std::string & classname( void ) const {
   return( private_name() );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// friend operator<<(), dispatching to virtual protected print()
@@ -198,14 +300,34 @@ class Change {
  friend std::ostream & operator<<( std::ostream & out , const Change & b ) {
   b.print( out );
   return ( out );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
- /// serialize a :Change into a netCDF::NcGroup
+ /// serialize a Change to a netCDF file given the filename
+ /** Method to serialize a Change to a file in netCDF-based given the 
+  * filename. Note that any existing contect of the file is overwritten, and 
+  * that the Change is saved as *the first one* in the newly created file.
+  *
+  * The base class implementation opens the netCDF file, and dispatches to
+  * the netCDF file version of the method. Although the method is virtual, it
+  * is not expected that derived classes will have a need to re-define it.  */
+
+ virtual void serialize( const std::string & filename ) const {
+
+  netCDF::NcFile f( filename, netCDF::NcFile::replace );
+
+  serialize( f );
+  }
+
+
+/*--------------------------------------------------------------------------*/
+ /// serialize a :Change to an open netCDF file
  /** The method takes a (supposedly, "full") Change object and serializes
-  * it into the provided netCDF::NcGroup, so that it can possibly be read by
+  * it into the provided netCDF::NcFile, so that it can possibly be read by
   * deserialize() (of a :Change of the very same type as this one).
   *
+  * The current Change is *appended* after any existing Change in the file
+  * 
   * The method of the base class just creates and fills the "type" attribute
   * (with the right name, thanks to the classname() method) and the optional
   * "name" attribute. Yet
@@ -220,9 +342,10 @@ class Change {
   * then be automatically dealt with by the derived classes without them even
   * knowing it happened. */
 
- virtual void serialize( netCDF::NcGroup & group ) const {
-  group.putAtt( "type" , classname() );
- }
+ virtual void serialize( netCDF::NcFile & f ) const {
+  auto cg = f.addGroup( "Change_" + std::to_string( f.getGroupCount() ) );
+  cg.putAtt( "type" , classname() );
+  }
 
 /*--------------------------------------------------------------------------*/
  /// Apply a :Change to a :Block
@@ -230,7 +353,7 @@ class Change {
   * pure virtual hence it must be implemented by derived classes. */
 
  virtual Change * apply( Block * block , 
-                         bool doundo = false , 
+                         bool doUndo = false , 
                          ModParam issueMod = eNoBlck , 
                          ModParam issueAMod = eNoBlck ) = 0;
 
@@ -287,7 +410,7 @@ class Change {
  static ChangeFactoryMap & f_factory( void ) {
   static ChangeFactoryMap c_factory;
   return( c_factory );
- }
+  }
 
 /*--------------------------------------------------------------------------*/
  /// empty placeholder for class-specific static initialization
