@@ -299,7 +299,7 @@ class Change {
 
  friend std::ostream & operator<<( std::ostream & out , const Change & b ) {
   b.print( out );
-  return ( out );
+  return( out );
   }
 
 /*--------------------------------------------------------------------------*/
@@ -313,10 +313,8 @@ class Change {
   * is not expected that derived classes will have a need to re-define it.  */
 
  virtual void serialize( const std::string & filename ) const {
-
   netCDF::NcFile f( filename, netCDF::NcFile::replace );
-
-  serialize( f );
+  serialize_f( f );
   }
 
 
@@ -342,11 +340,32 @@ class Change {
   * then be automatically dealt with by the derived classes without them even
   * knowing it happened. */
 
- virtual void serialize( netCDF::NcFile & f ) const {
+ virtual void serialize_f( netCDF::NcFile & f ) const {
   auto cg = f.addGroup( "Change_" + std::to_string( f.getGroupCount() ) );
-  cg.putAtt( "type" , classname() );
+  serialize( cg );
   }
 
+/*--------------------------------------------------------------------------*/
+ /// serialize a Change to a netCDF NcGroup
+ /** Method to serialize a Change to a netCDF NcGroup.
+  *
+  *      THIS IS THE METHOD TO BE IMPLEMENTED BY DERIVED CLASSES
+  *
+  * All the information required to de-serialize the Change need be saved in
+  * the provided netCDF NcGroup, which is assumed to be "empty", starting 
+  * with the "type" attribute that has to contain the classname() of the 
+  * Change.
+  *
+  * The method of the base class just creates and fills the "type" attribute
+  * (with the right name, thanks to the classname() method). Yet
+  *
+  *     serialize() OF ANY :Change SHOULD CALL Change::serialize()
+  **/
+
+ virtual void serialize( netCDF::NcGroup & group ) const {
+  group.putAtt( "type" , classname() );
+  }
+ 
 /*--------------------------------------------------------------------------*/
  /// Apply a :Change to a :Block
  /** Apply a :Change to a :Block which is given as a parameter. The method is
