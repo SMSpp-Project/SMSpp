@@ -2,9 +2,25 @@
 /*--------------------------- File Change.h --------------------------------*/
 /*--------------------------------------------------------------------------*/
 /** @file
- * Header file for the *abstract* class Change, only the top of a hierarchy
- * of objects describing how to change a :Block before actually changing it. 
- *
+ * Header file for the Change class, an *abstract* base class intended to 
+ * provide objects to represent and apply a (set of) method(s) to change a 
+ * Block. 
+ * 
+ * The main difference between Change objects and Modification objects is that
+ * the latter are used to notify changes that have already occured in a Block,
+ * while the former are used to represent changes that may occur in a Block
+ * also before they are actually applied. A method apply() is then provided to
+ * apply all the changes represented by the Change object to a Block. 
+ * Therefore, Change objects need to contain all the necessary informations to 
+ * apply the changes, i.e. all the new data of the Block.
+ * 
+ * Changes in a Block can be applied either to its Abstract Representation (AR) 
+ * or to its Physical Representation (PR). Hence, derived classes of Change 
+ * can be either "abstract" (and hence they can be applied to any Block) or 
+ * "specific", i.e. for a specific derived class from Block. The base Change 
+ * class only provides the common interface, supporting the general virtual 
+ * method apply( Block * ) that must be implemented by derived classes. 
+ *   
  * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
@@ -49,10 +65,9 @@ class Block;            // forward definition of Block
 /*--------------------------------------------------------------------------*/
 /*--------------------------- GENERAL NOTES --------------------------------*/
 /*--------------------------------------------------------------------------*/
-/// 
-/** The class Change is the top of the hierarchy of objects describing how to
- * change a :Block before actually changing it.
- */
+/// Base class for any possible change that can be applied to a Block
+/** The class Change is an *abstract* base class intended to provide objects
+ * to represent and apply a (set of) method(s) to change a Block. */
 
 class Change {
 
@@ -368,8 +383,18 @@ class Change {
  
 /*--------------------------------------------------------------------------*/
  /// Apply a :Change to a :Block
- /** Apply a :Change to a :Block which is given as a parameter. The method is
-  * pure virtual hence it must be implemented by derived classes. */
+ /** Apply a :Change to a :Block which is given as a parameter. As for any 
+  * method that changes a Block, apply() has two parameters issueMod and 
+  * issueAMod which control if and how the, respectively, "physical 
+  * Modification" and "abstract Modification" corresponding to the Change 
+  * have to be issue. 
+  * 
+  * If the second parameter doUndo == true, then the method returns an
+  * "UndoChange", that is a :Change to restore the state of the Block prior 
+  * to the application of the current :Change. 
+  * 
+  * The method is pure virtual hence it must be implemented by derived 
+  * classes. */
 
  virtual Change * apply( Block * block , 
                          bool doUndo = false , 
