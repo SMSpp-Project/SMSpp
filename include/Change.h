@@ -6,21 +6,6 @@
  * provide objects to represent and apply a (set of) method(s) to change a 
  * Block. 
  * 
- * The main difference between Change objects and Modification objects is that
- * the latter are used to notify changes that have already occured in a Block,
- * while the former are used to represent changes that may occur in a Block
- * also before they are actually applied. A method apply() is then provided to
- * apply all the changes represented by the Change object to a Block. 
- * Therefore, Change objects need to contain all the necessary informations to 
- * apply the changes, i.e. all the new data of the Block.
- * 
- * Changes in a Block can be applied either to its Abstract Representation (AR) 
- * or to its Physical Representation (PR). Hence, derived classes of Change 
- * can be either "abstract" (and hence they can be applied to any Block) or 
- * "specific", i.e. for a specific derived class from Block. The base Change 
- * class only provides the common interface, supporting the general virtual 
- * method apply( Block * ) that must be implemented by derived classes. 
- *   
  * \author Antonio Frangioni \n
  *         Dipartimento di Informatica \n
  *         Universita' di Pisa \n
@@ -67,7 +52,34 @@ class Block;            // forward definition of Block
 /*--------------------------------------------------------------------------*/
 /// Base class for any possible change that can be applied to a Block
 /** The class Change is an *abstract* base class intended to provide objects
- * to represent and apply a (set of) method(s) to change a Block. */
+ * to represent and apply a (set of) method(s) to change a Block.
+ *
+ * The main difference between Change objects and Modification objects is that
+ * the latter are used to notify changes that have already occured in a Block,
+ * while the former are used to represent changes that may occur in a Block
+ * also before they are actually applied. A method apply() is then provided to
+ * apply all the changes represented by the Change object to a given Block. 
+ * Therefore, Change objects need to contain all the necessary informations to 
+ * apply the changes, i.e. all the new data of the Block.
+ * 
+ * Changes in a Block can be applied either to its Abstract Representation (AR) 
+ * or to its Physical Representation (PR). Hence, derived classes of Change 
+ * can be either "abstract" (and hence they can be applied to any Block) or 
+ * "specific", i.e. for a specific derived class from Block. The base Change 
+ * class only provides the common interface, supporting the general virtual 
+ * method apply( Block * ) that must be implemented by derived classes.
+ * 
+ * It is supposed that Change for specific derived classes from Block will use
+ * the interface of the Block to directly change its PR. Therefore, the 
+ * supported changes are at most the ones supported by the Block they refer 
+ * to. However, it is possible that specific Change only support a smaller set 
+ * of changes in order to be able to provide an "UndoChange". An "UndoChange" 
+ * is a Change returned by the apply() method that can be used to restore the 
+ * state of the Block prior to the application of the current Change. In fact, 
+ * although this mechanism can be useful in some cases, it requires to possibly  
+ * restrict the total number of supported changes, since creating an 
+ * "UndoChange" of an arbitrary Change can be complicated and sometimes not 
+ * supported. */
 
 class Change {
 
